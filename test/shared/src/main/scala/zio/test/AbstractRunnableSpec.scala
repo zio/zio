@@ -32,6 +32,7 @@ abstract class AbstractRunnableSpec {
   def aspects: List[TestAspect[Nothing, Environment, Nothing, Any, Nothing, Any]]
   def runner: TestRunner[Environment, Failure, Label, Test, Success]
   def spec: ZSpec[Environment, Failure, Label, Test]
+  def label: TestLabel[Label]
 
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
@@ -43,4 +44,14 @@ abstract class AbstractRunnableSpec {
    * the platform used by the runner
    */
   final def platform = runner.platform
+}
+
+trait TestLabel[Label] {
+  def name(label: Label): String
+}
+
+object TestLabel {
+  implicit object StringLabel extends TestLabel[String] {
+    override def name(label: String): String = label
+  }
 }

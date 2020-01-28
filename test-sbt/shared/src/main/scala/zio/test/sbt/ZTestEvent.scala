@@ -1,9 +1,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-
 import zio.UIO
-import zio.test.{ ExecutedSpec, Spec, TestFailure, TestSuccess }
+import zio.test.{ ExecutedSpec, Spec, TestFailure, TestLabel, TestSuccess }
 
 final case class ZTestEvent(
   fullyQualifiedName: String,
@@ -20,9 +19,10 @@ object ZTestEvent {
   def from[E, L, S](
     executedSpec: ExecutedSpec[E, L, S],
     fullyQualifiedName: String,
-    fingerprint: Fingerprint
+    fingerprint: Fingerprint,
+    label: TestLabel[L]
   ): UIO[Seq[ZTestEvent]] =
-    executedSpec.mapLabel(_.toString).fold[UIO[Seq[ZTestEvent]]] {
+    executedSpec.mapLabel(label.name).fold[UIO[Seq[ZTestEvent]]] {
       case Spec.SuiteCase(_, results, _) =>
         results.flatMap(UIO.collectAll(_).map(_.flatten))
       case zio.test.Spec.TestCase(label, result) =>

@@ -30,4 +30,6 @@ trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any, String, Any
 
   override def runner: TestRunner[TestEnvironment, Any, String, Any, Any] =
     defaultTestRunner
+
+  override def label: TestLabel[String] = implicitly
 }

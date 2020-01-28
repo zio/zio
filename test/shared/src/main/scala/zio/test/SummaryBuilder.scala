@@ -4,7 +4,7 @@ import zio.test.Spec._
 import zio.{ UIO, ZIO }
 
 object SummaryBuilder {
-  def buildSummary[E, L, S](executedSpec: ExecutedSpec[E, L, S]): UIO[Summary] =
+  def buildSummary[E, L, S](executedSpec: ExecutedSpec[E, L, S], label: TestLabel[L]): UIO[Summary] =
     for {
       success <- countTestResults(executedSpec) {
                   case Right(TestSuccess.Succeeded(_)) => true
@@ -15,7 +15,7 @@ object SummaryBuilder {
                  case Right(TestSuccess.Ignored) => true
                  case _                          => false
                }
-      failures <- extractFailures(executedSpec).map(_.map(_.mapLabel(_.toString)))
+      failures <- extractFailures(executedSpec).map(_.map(_.mapLabel(label.name)))
       rendered <- ZIO.foreach(failures)(DefaultTestReporter.render(_, TestAnnotationRenderer.silent))
     } yield Summary(success, fail, ignore, rendered.flatten.flatMap(_.rendered).mkString("\n"))
 

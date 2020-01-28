@@ -33,7 +33,7 @@ trait RunnableSpec[R, E, L, T, S] extends AbstractRunnableSpec {
   private val runSpec: URIO[TestLogger with Clock, Int] = for {
     results     <- run
     hasFailures <- results.exists { case TestCase(_, test) => test.map(_._1.isLeft); case _ => UIO.succeedNow(false) }
-    summary     <- SummaryBuilder.buildSummary(results)
+    summary     <- SummaryBuilder.buildSummary(results, label)
     _           <- TestLogger.logLine(summary.summary)
   } yield if (hasFailures) 1 else 0
 

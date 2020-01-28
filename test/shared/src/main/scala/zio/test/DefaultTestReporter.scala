@@ -106,13 +106,17 @@ object DefaultTestReporter {
   def apply[E, S](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E, String, S] = {
     (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
       for {
-        rendered <- render(executedSpec.mapLabel(_.toString), testAnnotationRenderer).map(_.flatMap(_.rendered))
-        stats    <- logStats(duration, executedSpec)
+        rendered <- render(executedSpec, testAnnotationRenderer).map(_.flatMap(_.rendered))
+        stats    <- logStats(duration, executedSpec, implicitly[TestLabel[String]])
         _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
       } yield ()
   }
 
-  private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, String] = {
+  private def logStats[E, L, S](
+    duration: Duration,
+    executedSpec: ExecutedSpec[E, L, S],
+    label: TestLabel[L]
+  ): URIO[TestLogger, String] = {
     def loop(executedSpec: ExecutedSpec[E, String, S]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
@@ -130,7 +134,7 @@ object DefaultTestReporter {
           }
       }
     for {
-      stats                      <- loop(executedSpec.mapLabel(_.toString))
+      stats                      <- loop(executedSpec.mapLabel(label.name))
       (success, ignore, failure) = stats
       total                      = success + ignore + failure
     } yield cyan(

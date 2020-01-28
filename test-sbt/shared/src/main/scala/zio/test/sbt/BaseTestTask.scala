@@ -36,9 +36,9 @@ abstract class BaseTestTask(
                    }.getOrElse(spec.spec)
                  }
              }
-      summary <- SummaryBuilder.buildSummary(spec)
+      summary <- SummaryBuilder.buildSummary(spec, this.spec.label)
       _       <- sendSummary.provide(summary)
-      events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
+      events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint, this.spec.label)
       _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 

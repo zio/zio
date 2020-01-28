@@ -28,7 +28,7 @@ import zio.scheduler.Scheduler
  * fail with an error `E` or succeed with an `S`, using labels of type `L`.
  * Test runners require a test executor, a platform, and a reporter.
  */
-final case class TestRunner[R, E, L, -T, S](
+final case class TestRunner[R, E, L: TestLabel, -T, S](
   executor: TestExecutor[R, E, L, T, S],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[E, L, S] = DefaultTestReporter(TestAnnotationRenderer.default),
