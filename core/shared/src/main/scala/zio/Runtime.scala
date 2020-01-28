@@ -165,7 +165,6 @@ trait Runtime[+R] {
 }
 
 object Runtime {
-  lazy val default = Runtime((), Platform.default)
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
@@ -173,5 +172,46 @@ object Runtime {
   def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
     val environment = r
     val platform    = platform0
+  }
+
+  lazy val default = Runtime((), Platform.default)
+
+  lazy val global = Runtime((), Platform.global)
+
+  /**
+   * Builds a new runtime given an effectual and resourceful environment `R`
+   * and the default platform. This method is effectful because it executes
+   * acquiring the environment. Returns a finalizer that can be used to release
+   * the environment.
+   */
+  def unsafeDefault[R <: Has[_]](layer: ZLayer.NoDeps[Nothing, R]): (Runtime[R], Exit[Any, Any] => UIO[Any]) =
+    unsafeMake(layer, default.platform)
+
+  /**
+   * Builds a new runtime given an effectual and resourceful environment `R`
+   * and Scala's global execution context. This method is effectful because
+   * it executes acquiring the environment. Returns a finalizer that can be
+   * used to release the environment.
+   */
+  def unsafeGlobal[R <: Has[_]](layer: ZLayer.NoDeps[Nothing, R]): (Runtime[R], Exit[Any, Any] => UIO[Any]) =
+    unsafeMake(layer, global.platform)
+
+  /**
+   * Builds a new runtime given an effectual and resourceful environment `R`
+   * and a [[zio.internal.Platform]]. This method is effectful because it
+   * executes acquiring the environment. Returns a finalizer that can be used
+   * to release the environment.
+   */
+  def unsafeMake[R <: Has[_]](
+    layer: ZLayer.NoDeps[Nothing, R],
+    platform: Platform
+  ): (Runtime[R], Exit[Any, Any] => UIO[Any]) = {
+    val runtime = Runtime((), platform)
+    val (environment, release) = runtime.unsafeRun {
+      layer.build.reserve.flatMap {
+        case Reservation(acquire, release) => acquire.map((_, release))
+      }
+    }
+    (runtime.map(_ => environment), release)
   }
 }
