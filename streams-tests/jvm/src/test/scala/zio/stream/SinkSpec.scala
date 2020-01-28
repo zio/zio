@@ -226,6 +226,11 @@ object SinkSpec extends ZIOBaseSpec {
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
         }
       ),
+      suite("count")(
+        testM("happy path") {
+          assertM(Stream.fromIterable(Seq(1, 2, 3, 4)).runCount)(equalTo(4L))
+        }
+      ),
       suite("dimap")(
         testM("happy path") {
           val sink = ZSink.identity[Int].dimap[String, String](_.toInt)(_.toString.reverse)
@@ -1231,6 +1236,27 @@ object SinkSpec extends ZIOBaseSpec {
               .mapConcatChunk(identity)
               .runCollect
           )(equalTo(List("abc", "abc")))
+        }
+      ),
+      suite("sum")(
+        testM("Long") {
+          checkM(Gen.anyLong.zip(Gen.long(1, 10))) {
+            case (start, end) =>
+              def range = start to (start + end)
+              assertM(Stream.fromIterable(range).run(ZSink.sum[Long]))(equalTo(range.sum))
+          }
+        },
+        testM("Int") {
+          checkM(Gen.anyInt.zip(Gen.int(1, 10))) {
+            case (start, end) =>
+              def range = start to (start + end)
+              assertM(Stream.fromIterable(range).run(ZSink.sum[Int]))(equalTo(range.sum))
+          }
+        },
+        testM("Double") {
+          checkM(Gen.listOfN(5)(Gen.anyDouble)) { doubles =>
+              assertM(Stream.fromIterable(doubles).run(ZSink.sum[Double]))(equalTo(doubles.sum))
+          }
         }
       ),
       suite("throttleEnforce")(

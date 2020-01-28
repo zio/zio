@@ -1303,6 +1303,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     }.map(_._1.reverse)
 
   /**
+   * Emits the number of elements processed
+   */
+  def count[A]: ZSink[Any, Nothing, Nothing, A, Long] = {
+    new SinkPure[Nothing, Nothing, A, Long] {
+      type State = Long
+      val initialPure: State           = 0L
+      def stepPure(state: State, a: A) = state + 1L
+      def extractPure(state: State)    = Right((state, Chunk.empty))
+      def cont(state: State)           = true
+    }
+  }
+
+  /**
    * Creates a sink halting with the specified `Throwable`.
    */
   def die(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
@@ -1834,6 +1847,27 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       def extractPure(state: State)    = Right((b, state))
       def cont(state: State)           = false
     }
+
+  val sumLong: ZSink[Any, Nothing, Nothing, Long, Long] = {
+    new SinkPure[Nothing, Nothing, Long, Long] {
+      type State = Long
+      val initialPure: State              = 0L
+      def stepPure(state: State, a: Long) = state + a
+      def extractPure(state: State)       = Right((state, Chunk.empty))
+      def cont(state: State)              = true
+    }
+  }
+
+  def sum[A](implicit ev: Numeric[A]): ZSink[Any, Nothing, Nothing, A, A] = {
+    val numeric = ev
+    new SinkPure[Nothing, Nothing, A, A] {
+      type State = A
+      val initialPure: State           = numeric.zero
+      def stepPure(state: State, a: A) = numeric.plus(state, a)
+      def extractPure(state: State)    = Right((state, Chunk.empty))
+      def cont(state: State)           = true
+    }
+  }
 
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters

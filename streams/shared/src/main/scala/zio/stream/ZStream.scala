@@ -2211,6 +2211,13 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def runCollect: ZIO[R, E, List[A]] = run(Sink.collectAll[A])
 
   /**
+   * Runs the stream and emits the number of elements processed
+   *
+   * Equivalent to `run(ZSink.count)`
+   */
+  final def runCount: ZIO[R, E, Long] = self.run(ZSink.count)
+
+  /**
    * Runs the stream purely for its effects. Any elements emitted by
    * the stream are discarded.
    *
