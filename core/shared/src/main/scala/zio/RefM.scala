@@ -42,6 +42,31 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
   def get: UIO[A] = value.get
 
   /**
+   * Atomically modifies the `RefM` with the specified function, returning the
+   * value immediately before modification.
+   *
+   * @param f function to atomically modify the `RefM`
+   * @tparam R environment of the effect
+   * @tparam E error type
+   * @return `ZIO[R, E, A]` value of the `RefM` immediately before modification
+   */
+  def getAndUpdate[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
+    modify(a => f(a).map((a, _)))
+
+  /**
+   * Atomically modifies the `RefM` with the specified partial function,
+   * returning the value immediately before modification.
+   * If the function is undefined on the current value it doesn't change it.
+   *
+   * @param pf partial function to atomically modify the `RefM`
+   * @tparam R environment of the effect
+   * @tparam E error type
+   * @return `ZIO[R, E, A]` value of the `RefM` immediately before modification
+   */
+  def getAndUpdateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
+    modify(a => pf.applyOrElse(a, (_: A) => IO.succeedNow(a)).map((a, _)))
+
+  /**
    * Atomically modifies the `RefM` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `update`.
@@ -136,7 +161,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
 
   /**
    * Atomically modifies the `RefM` with the specified partial function.
-   * if the function is undefined in the current value it returns the old value
+   * If the function is undefined on the current value it returns the old value
    * without changing it.
    *
    * @param pf partial function to atomically modify the `RefM`
@@ -149,7 +174,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
 
   /**
    * Atomically modifies the `RefM` with the specified partial function.
-   * if the function is undefined in the current value it doesn't change it.
+   * If the function is undefined on the current value it doesn't change it.
    *
    * @param pf partial function to atomically modify the `RefM`
    * @tparam R environment of the effect

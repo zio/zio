@@ -55,6 +55,25 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
   val get: UIO[A] = modify(v => (v, v))
 
   /**
+   * Atomically modifies the `FiberRef` with the specified function and returns
+   * the old value.
+   */
+  def getAndUpdate(f: A => A): UIO[A] = modify { v =>
+    val result = f(v)
+    (v, result)
+  }
+
+  /**
+   * Atomically modifies the `FiberRef` with the specified partial function and
+   * returns the old value.
+   * If the function is undefined on the current value it doesn't change it.
+   */
+  def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] = modify { v =>
+    val result = pf.applyOrElse[A, A](v, identity)
+    (v, result)
+  }
+
+  /**
    * Returns an `IO` that runs with `value` bound to the current fiber.
    *
    * Guarantees that fiber data is properly restored via `bracket`.
@@ -106,7 +125,7 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
 
   /**
    * Atomically modifies the `FiberRef` with the specified partial function.
-   * if the function is undefined in the current value it returns the old value
+   * If the function is undefined on the current value it returns the old value
    * without changing it.
    */
   def updateAndGetSome(pf: PartialFunction[A, A]): UIO[A] = modify { v =>
@@ -116,7 +135,7 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
 
   /**
    * Atomically modifies the `FiberRef` with the specified partial function.
-   * if the function is undefined in the current value it doesn't change it.
+   * If the function is undefined on the current value it doesn't change it.
    */
   def updateSome(pf: PartialFunction[A, A]): UIO[Unit] = modify { v =>
     val result = pf.applyOrElse[A, A](v, identity)

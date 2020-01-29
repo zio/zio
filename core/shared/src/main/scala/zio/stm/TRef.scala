@@ -41,6 +41,49 @@ final class TRef[A] private (
     })
 
   /**
+   * Updates the value of the variable and returns the old value.
+   */
+  def getAndUpdate(f: A => A): STM[Nothing, A] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      val oldValue = entry.unsafeGet[A]
+
+      entry.unsafeSet(f(oldValue))
+
+      TExit.Succeed(oldValue)
+    })
+
+  /**
+   * Updates some values of the variable but leaves others alone, returning the
+   * old value.
+   */
+  def getAndUpdateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
+    getAndUpdate(f orElse { case a => a })
+
+  /**
+   * Updates the value of the variable, returning a function of the specified
+   * value.
+   */
+  def modify[B](f: A => (B, A)): STM[Nothing, B] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      val (retValue, newValue) = f(entry.unsafeGet[A])
+
+      entry.unsafeSet(newValue)
+
+      TExit.Succeed(retValue)
+    })
+
+  /**
+   * Updates some values of the variable, returning a function of the specified
+   * value or the default.
+   */
+  def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
+    modify(a => f.lift(a).getOrElse((default, a)))
+
+  /**
    * Sets the value of the `TRef`.
    */
   def set(newValue: A): STM[Nothing, Unit] =
@@ -95,28 +138,6 @@ final class TRef[A] private (
    */
   def updateSome(f: PartialFunction[A, A]): STM[Nothing, Unit] =
     update(f orElse { case a => a })
-
-  /**
-   * Updates the value of the variable, returning a function of the specified
-   * value.
-   */
-  def modify[B](f: A => (B, A)): STM[Nothing, B] =
-    new ZSTM((journal, _, _, _) => {
-      val entry = getOrMakeEntry(journal)
-
-      val (retValue, newValue) = f(entry.unsafeGet[A])
-
-      entry.unsafeSet(newValue)
-
-      TExit.Succeed(retValue)
-    })
-
-  /**
-   * Updates some values of the variable, returning a function of the specified
-   * value or the default.
-   */
-  def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
-    modify(a => f.lift(a).getOrElse((default, a)))
 
   private def getOrMakeEntry(journal: Journal): Entry =
     if (journal.containsKey(self)) journal.get(self)

@@ -12,34 +12,30 @@ object RefSpec extends ZIOBaseSpec {
         value <- ref.get
       } yield assert(value)(equalTo(current))
     },
-    testM("set") {
+    testM("getAndUpdate") {
       for {
-        ref   <- Ref.make(current)
-        _     <- ref.set(update)
-        value <- ref.get
-      } yield assert(value)(equalTo(update))
+        ref    <- Ref.make(current)
+        value1 <- ref.getAndUpdate(_ => update)
+        value2 <- ref.get
+      } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
     },
-    testM("update") {
-      for {
-        ref   <- Ref.make(current)
-        value <- ref.updateAndGet(_ => update)
-      } yield assert(value)(equalTo(update))
-    },
-    testM("updateSome") {
-      for {
-        ref   <- Ref.make[State](Active)
-        value <- ref.updateAndGetSome { case Closed => Changed }
-      } yield assert(value)(equalTo(Active))
-    },
-    testM("updateSome twice") {
+    testM("getAndUpdateSome") {
       for {
         ref    <- Ref.make[State](Active)
-        value1 <- ref.updateAndGetSome { case Active => Changed }
-        value2 <- ref.updateAndGetSome {
+        value1 <- ref.getAndUpdateSome { case Closed => Changed }
+        value2 <- ref.get
+      } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Active))
+    },
+    testM("getAndUpdateSome twice") {
+      for {
+        ref    <- Ref.make[State](Active)
+        value1 <- ref.getAndUpdateSome { case Active => Changed }
+        value2 <- ref.getAndUpdateSome {
                    case Active  => Changed
                    case Changed => Closed
                  }
-      } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
+        value3 <- ref.get
+      } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Changed)) && assert(value3)(equalTo(Closed))
     },
     testM("modify") {
       for {
@@ -63,6 +59,35 @@ object RefSpec extends ZIOBaseSpec {
                    case Changed => ("closed", Closed)
                  }
       } yield assert(value1)(equalTo("changed")) && assert(value2)(equalTo("closed"))
+    },
+    testM("set") {
+      for {
+        ref   <- Ref.make(current)
+        _     <- ref.set(update)
+        value <- ref.get
+      } yield assert(value)(equalTo(update))
+    },
+    testM("updateAndGet") {
+      for {
+        ref   <- Ref.make(current)
+        value <- ref.updateAndGet(_ => update)
+      } yield assert(value)(equalTo(update))
+    },
+    testM("updateAndGetSome") {
+      for {
+        ref   <- Ref.make[State](Active)
+        value <- ref.updateAndGetSome { case Closed => Changed }
+      } yield assert(value)(equalTo(Active))
+    },
+    testM("updateAndGetSome twice") {
+      for {
+        ref    <- Ref.make[State](Active)
+        value1 <- ref.updateAndGetSome { case Active => Changed }
+        value2 <- ref.updateAndGetSome {
+                   case Active  => Changed
+                   case Changed => Closed
+                 }
+      } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
     }
   )
 

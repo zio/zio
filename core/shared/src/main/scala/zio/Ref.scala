@@ -41,6 +41,52 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
   def get: UIO[A] = IO.effectTotal(value.get)
 
   /**
+   * Atomically modifies the `Ref` with the specified function, returning the
+   * value immediately before modification. This is not implemented in terms of
+   * `modify` purely for performance reasons.
+   *
+   * @param f function to atomically modify the `Ref`
+   * @return `UIO[A]` value of the `Ref` immediately before modification
+   */
+  def getAndUpdate(f: A => A): UIO[A] = IO.effectTotal {
+    var loop       = true
+    var current: A = null.asInstanceOf[A]
+
+    while (loop) {
+      current = value.get
+
+      val next = f(current)
+
+      loop = !value.compareAndSet(current, next)
+    }
+
+    current
+  }
+
+  /**
+   * Atomically modifies the `Ref` with the specified partial function,
+   * returning the value immediately before modification.
+   * If the function is undefined on the current value it doesn't change it.
+   *
+   * @param pf partial function to atomically modify the `Ref`
+   * @return `UIO[A]` value of the `Ref` immediately before modification
+   */
+  def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] = IO.effectTotal {
+    var loop       = true
+    var current: A = null.asInstanceOf[A]
+
+    while (loop) {
+      current = value.get
+
+      val next = pf.applyOrElse(current, (_: A) => current)
+
+      loop = !value.compareAndSet(current, next)
+    }
+
+    current
+  }
+
+  /**
    * Atomically modifies the `Ref` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `update`.
@@ -159,7 +205,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
 
   /**
    * Atomically modifies the `Ref` with the specified partial function.
-   * if the function is undefined in the current value it returns the old value
+   * If the function is undefined on the current value it returns the old value
    * without changing it.
    *
    * @param pf partial function to atomically modify the `Ref`
@@ -182,7 +228,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
 
   /**
    * Atomically modifies the `Ref` with the specified partial function.
-   * if the function is undefined in the current value it doesn't change it.
+   * If the function is undefined on the current value it doesn't change it.
    *
    * @param pf partial function to atomically modify the `Ref`
    * @return `UIO[Unit]`
