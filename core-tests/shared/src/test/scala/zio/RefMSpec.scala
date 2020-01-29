@@ -22,7 +22,7 @@ object RefMSpec extends ZIOBaseSpec {
     testM("update") {
       for {
         refM  <- RefM.make(current)
-        value <- refM.update(_ => IO.effectTotal(update))
+        value <- refM.updateAndGet(_ => IO.effectTotal(update))
       } yield assert(value)(equalTo(update))
     },
     testM("update with failure") {
@@ -34,14 +34,14 @@ object RefMSpec extends ZIOBaseSpec {
     testM("updateSome") {
       for {
         refM  <- RefM.make[State](Active)
-        value <- refM.updateSome { case Closed => IO.succeedNow(Active) }
+        value <- refM.updateAndGetSome { case Closed => IO.succeedNow(Active) }
       } yield assert(value)(equalTo(Active))
     },
     testM("updateSome twice") {
       for {
         refM   <- RefM.make[State](Active)
-        value1 <- refM.updateSome { case Active => IO.succeedNow(Changed) }
-        value2 <- refM.updateSome {
+        value1 <- refM.updateAndGetSome { case Active => IO.succeedNow(Changed) }
+        value2 <- refM.updateAndGetSome {
                    case Active  => IO.succeedNow(Changed)
                    case Changed => IO.succeedNow(Closed)
                  }
@@ -115,7 +115,7 @@ object RefMSpec extends ZIOBaseSpec {
         fiber       <- makeAndWait.fork
         refM        <- promise.await
         _           <- fiber.interrupt
-        value       <- refM.update(_ => ZIO.succeedNow(Closed))
+        value       <- refM.updateAndGet(_ => ZIO.succeedNow(Closed))
       } yield assert(value)(equalTo(Closed))
     }
   )

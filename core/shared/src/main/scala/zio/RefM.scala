@@ -112,6 +112,17 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
   def setAsync(a: A): UIO[Unit] = value.setAsync(a)
 
   /**
+   * Atomically modifies the `RefM` with the specified function.
+   *
+   * @param f function to atomically modify the `RefM`
+   * @tparam R environment of the effect
+   * @tparam E error type
+   * @return `ZIO[R, E, Unit]`
+   */
+  def update[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, Unit] =
+    modify(a => f(a).map(a => ((), a)))
+
+  /**
    * Atomically modifies the `RefM` with the specified function, returning the
    * value immediately after modification.
    *
@@ -120,20 +131,33 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * @tparam E error type
    * @return `ZIO[R, E, A]` modified value of the `RefM`
    */
-  def update[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
+  def updateAndGet[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
     modify(a => f(a).map(a => (a, a)))
 
   /**
    * Atomically modifies the `RefM` with the specified partial function.
-   * if the function is undefined in the current value it returns the old value without changing it.
+   * if the function is undefined in the current value it returns the old value
+   * without changing it.
    *
    * @param pf partial function to atomically modify the `RefM`
    * @tparam R environment of the effect
    * @tparam E error type
    * @return `ZIO[R, E, A]` modified value of the `RefM`
    */
-  def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
+  def updateAndGetSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
     modify(a => pf.applyOrElse(a, (_: A) => IO.succeedNow(a)).map(a => (a, a)))
+
+  /**
+   * Atomically modifies the `RefM` with the specified partial function.
+   * if the function is undefined in the current value it doesn't change it.
+   *
+   * @param pf partial function to atomically modify the `RefM`
+   * @tparam R environment of the effect
+   * @tparam E error type
+   * @return `ZIO[R, E, Unit]`
+   */
+  def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, Unit] =
+    modify(a => pf.applyOrElse(a, (_: A) => IO.succeedNow(a)).map(a => ((), a)))
 }
 
 object RefM extends Serializable {

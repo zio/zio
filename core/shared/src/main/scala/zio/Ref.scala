@@ -117,9 +117,32 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * implemented in terms of `modify` purely for performance reasons.
    *
    * @param f function to atomically modify the `Ref`
+   * @return `UIO[Unit]`
+   */
+  def update(f: A => A): UIO[Unit] = IO.effectTotal {
+    var loop    = true
+    var next: A = null.asInstanceOf[A]
+
+    while (loop) {
+      val current = value.get
+
+      next = f(current)
+
+      loop = !value.compareAndSet(current, next)
+    }
+
+    ()
+  }
+
+  /**
+   * Atomically modifies the `Ref` with the specified function and returns the
+   * updated value. This is not implemented in terms of `modify` purely for
+   * performance reasons.
+   *
+   * @param f function to atomically modify the `Ref`
    * @return `UIO[A]` modified value of the `Ref`
    */
-  def update(f: A => A): UIO[A] = IO.effectTotal {
+  def updateAndGet(f: A => A): UIO[A] = IO.effectTotal {
     var loop    = true
     var next: A = null.asInstanceOf[A]
 
@@ -136,12 +159,13 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
 
   /**
    * Atomically modifies the `Ref` with the specified partial function.
-   * if the function is undefined in the current value it returns the old value without changing it.
+   * if the function is undefined in the current value it returns the old value
+   * without changing it.
    *
    * @param pf partial function to atomically modify the `Ref`
    * @return `UIO[A]` modified value of the `Ref`
    */
-  def updateSome(pf: PartialFunction[A, A]): UIO[A] = IO.effectTotal {
+  def updateAndGetSome(pf: PartialFunction[A, A]): UIO[A] = IO.effectTotal {
     var loop    = true
     var next: A = null.asInstanceOf[A]
 
@@ -154,6 +178,28 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
     }
 
     next
+  }
+
+  /**
+   * Atomically modifies the `Ref` with the specified partial function.
+   * if the function is undefined in the current value it doesn't change it.
+   *
+   * @param pf partial function to atomically modify the `Ref`
+   * @return `UIO[Unit]`
+   */
+  def updateSome(pf: PartialFunction[A, A]): UIO[Unit] = IO.effectTotal {
+    var loop    = true
+    var next: A = null.asInstanceOf[A]
+
+    while (loop) {
+      val current = value.get
+
+      next = pf.applyOrElse(current, (_: A) => current)
+
+      loop = !value.compareAndSet(current, next)
+    }
+
+    ()
   }
 }
 

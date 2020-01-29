@@ -277,20 +277,20 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Updates element in the array with given function.
    */
-  def update(index: Int, fn: A => A): STM[Nothing, A] =
+  def update(index: Int, fn: A => A): STM[Nothing, Unit] =
     if (0 <= index && index < array.length) array(index).update(fn)
     else STM.dieNow(new ArrayIndexOutOfBoundsException(index))
 
   /**
    * Atomically updates element in the array with given transactional effect.
    */
-  def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, A] =
+  def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, Unit] =
     if (0 <= index && index < array.length)
       for {
         currentVal <- array(index).get
         newVal     <- fn(currentVal)
         _          <- array(index).set(newVal)
-      } yield newVal
+      } yield ()
     else STM.dieNow(new ArrayIndexOutOfBoundsException(index))
 }
 

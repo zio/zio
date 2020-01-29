@@ -82,14 +82,14 @@ object FiberRefSpec extends ZIOBaseSpec {
       testM("`update` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
-          value1   <- fiberRef.update(_ => update)
+          value1   <- fiberRef.updateAndGet(_ => update)
           value2   <- fiberRef.get
         } yield assert(value1)(equalTo(update)) && assert(value2)(equalTo(update))
       },
       testM("`updateSome` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
-          value1 <- fiberRef.updateSome {
+          value1 <- fiberRef.updateAndGetSome {
                      case _ => update
                    }
           value2 <- fiberRef.get
@@ -98,7 +98,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       testM("`updateSome` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
-          value1 <- fiberRef.updateSome {
+          value1 <- fiberRef.updateAndGetSome {
                      case _ => update
                    }
           value2 <- fiberRef.get
@@ -107,7 +107,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       testM("`updateSome` not changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
-          value1 <- fiberRef.updateSome {
+          value1 <- fiberRef.updateAndGetSome {
                      case _ if false => update
                    }
           value2 <- fiberRef.get

@@ -58,7 +58,21 @@ final class TRef[A] private (
   /**
    * Updates the value of the variable.
    */
-  def update(f: A => A): STM[Nothing, A] =
+  def update(f: A => A): STM[Nothing, Unit] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      val newValue = f(entry.unsafeGet[A])
+
+      entry.unsafeSet(newValue)
+
+      TExit.Succeed(())
+    })
+
+  /**
+   * Updates the value of the variable and returns the new value.
+   */
+  def updateAndGet(f: A => A): STM[Nothing, A] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
@@ -70,9 +84,16 @@ final class TRef[A] private (
     })
 
   /**
+   * Updates some values of the variable but leaves others alone, returning the
+   * new value.
+   */
+  def updateAndGetSome(f: PartialFunction[A, A]): STM[Nothing, A] =
+    updateAndGet(f orElse { case a => a })
+
+  /**
    * Updates some values of the variable but leaves others alone.
    */
-  def updateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
+  def updateSome(f: PartialFunction[A, A]): STM[Nothing, Unit] =
     update(f orElse { case a => a })
 
   /**

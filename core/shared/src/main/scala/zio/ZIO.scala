@@ -247,7 +247,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     def get(cache: RefM[Option[(Long, Promise[E, A])]]): ZIO[R with Clock, E, A] =
       ZIO.uninterruptibleMask { restore =>
         clock.nanoTime.flatMap { time =>
-          cache.updateSome {
+          cache.updateAndGetSome {
             case None                          => compute(time)
             case Some((end, _)) if time >= end => compute(time)
           }.flatMap(a => restore(a.get._2.await))
