@@ -181,6 +181,10 @@ object Runtime {
 
   object Managed {
 
+    /**
+     * Builds a new managed runtime given an environment `R`, a
+     * [[zio.internal.Platform]], and a shut down action.
+     */
     def apply[R](r: R, platform0: Platform, shutdown0: () => Unit): Runtime.Managed[R] =
       new Runtime.Managed[R] {
         val environment = r
@@ -204,7 +208,7 @@ object Runtime {
   /**
    * Unsafely creates a `Runtime` from the default platform and a `ZLayer`
    * whose resources will be allocated immediately, and not released until the
-   * `Runtime` is shut down.
+   * `Runtime` is shut down or the end of the application.
    *
    * This method is useful for small applications and integrating ZIO with
    * legacy code, but other applications should investigate using
@@ -216,7 +220,7 @@ object Runtime {
   /**
    * Unsafely creates a `Runtime` from Scala's global execution context and a
    * `ZLayer` whose resources will be allocated immediately, and not released
-   * until the `Runtime` is shut down.
+   * until the `Runtime` is shut down or the end of the application.
    *
    * This method is useful for small applications and integrating ZIO with
    * legacy code, but other applications should investigate using
@@ -227,7 +231,8 @@ object Runtime {
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
-   * allocated immediately, and not released until the `Runtime` is shut down.
+   * allocated immediately, and not released until the `Runtime` is shut down
+   * or the end of the application.
    *
    * This method is useful for small applications and integrating ZIO with
    * legacy code, but other applications should investigate using
@@ -238,10 +243,14 @@ object Runtime {
     val (environment, shutdown) = runtime.unsafeRun {
       layer.build.reserve.flatMap {
         case Reservation(acquire, release) =>
-          val shutdown = () => {
-            val _ = runtime.unsafeRun(release(Exit.unit))
+          Ref.make(true).flatMap { finalize =>
+            val finalizer = () =>
+              runtime.unsafeRun {
+                release(Exit.unit).whenM(finalize.modify((_, false))).uninterruptible
+              }
+            Platform.addShutdownHook(finalizer)
+            acquire.map((_, finalizer))
           }
-          acquire.map((_, shutdown))
       }
     }
     Runtime.Managed(environment, platform, shutdown)
