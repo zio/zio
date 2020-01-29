@@ -79,7 +79,7 @@ class ParSequenceBenchmark {
   @Benchmark
   def zioSequence(): Long = {
     val tasks  = (0 until count).map(_ => ZIO.effectTotal(1)).toList
-    val result = ZIO.sequence(tasks).map(_.sum.toLong)
+    val result = ZIO.collectAll(tasks).map(_.sum.toLong)
     unsafeRun(result)
   }
 

@@ -42,7 +42,7 @@ private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] 
 
   def extractPure(state: State): Either[E, (B, Chunk[A0])]
 
-  def initial = IO.succeed(initialPure)
+  def initial = IO.succeedNow(initialPure)
 
   def initialPure: State
 
@@ -64,7 +64,7 @@ private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] 
       def cont(state: State)           = self.cont(state)
     }
 
-  override final def step(s: State, a: A) = IO.succeed(stepPure(s, a))
+  override final def step(s: State, a: A) = IO.succeedNow(stepPure(s, a))
 
   final def stepChunkPure[A00 >: A0, A1 <: A](state: State, as: Chunk[A1])(
     implicit ev: A1 =:= A00

@@ -31,6 +31,9 @@ package object system {
       val lineSeparator: UIO[String]
     }
 
+    val any: ZLayer[System, Nothing, System] =
+      ZLayer.requires[System]
+
     val live: ZLayer.NoDeps[Nothing, System] = ZLayer.succeed(
       new Service {
 
@@ -46,11 +49,11 @@ package object system {
   }
 
   /** Retrieve the value of an environment variable **/
-  def env(variable: String): ZIO[System, SecurityException, Option[String]] =
+  def env(variable: => String): ZIO[System, SecurityException, Option[String]] =
     ZIO.accessM(_.get env variable)
 
   /** Retrieve the value of a system property **/
-  def property(prop: String): ZIO[System, Throwable, Option[String]] =
+  def property(prop: => String): ZIO[System, Throwable, Option[String]] =
     ZIO.accessM(_.get property prop)
 
   /** System-specific line separator **/

@@ -106,10 +106,10 @@ class IONarrowFlatMapBenchmark {
   }
 
   @Benchmark
-  def scalazNarrowFlatMap(): Int = zioNarrowFlatMap(IOBenchmarks)
+  def zioNarrowFlatMap(): Int = zioNarrowFlatMap(IOBenchmarks)
 
   @Benchmark
-  def scalazTracedNarrowFlatMap(): Int = zioNarrowFlatMap(TracedRuntime)
+  def zioTracedNarrowFlatMap(): Int = zioNarrowFlatMap(TracedRuntime)
 
   private[this] def zioNarrowFlatMap(runtime: Runtime[Any]): Int = {
     def loop(i: Int): UIO[Int] =

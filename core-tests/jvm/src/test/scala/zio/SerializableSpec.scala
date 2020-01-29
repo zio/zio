@@ -49,23 +49,22 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("IO is serializable") {
       val list = List("1", "2", "3")
-      val io   = IO.succeed(list)
+      val io   = IO.succeedNow(list)
       for {
         returnIO <- serializeAndBack(io)
         result   <- returnIO
       } yield assert(result)(equalTo(list))
     },
-    testM("FunctionIO is serializable") {
-      import FunctionIO._
-      val v = fromFunction[Int, Int](_ + 1)
+    testM("ZIO is serializable") {
+      val v = ZIO.fromFunction[Int, Int](_ + 1)
       for {
-        returnKleisli <- serializeAndBack(v)
-        computeV      <- returnKleisli.run(9)
+        returnZIO <- serializeAndBack(v)
+        computeV  <- returnZIO.provide(9)
       } yield assert(computeV)(equalTo(10))
     },
     testM("FiberStatus is serializable") {
       val list = List("1", "2", "3")
-      val io   = IO.succeed(list)
+      val io   = IO.succeedNow(list)
       for {
         fiber          <- io.fork
         status         <- fiber.await

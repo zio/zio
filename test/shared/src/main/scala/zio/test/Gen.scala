@@ -94,7 +94,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Maps an effectual function over a generator.
    */
   def mapM[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
-    Gen(sample.mapM(_.traverse(f)))
+    Gen(sample.mapM(_.foreach(f)))
 
   /**
    * Discards the shrinker for this generator.
@@ -291,7 +291,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A constant generator of the specified sample.
    */
   def constSample[R, A](sample: => Sample[R, A]): Gen[R, A] =
-    fromEffectSample(ZIO.succeed(sample))
+    fromEffectSample(ZIO.succeedNow(sample))
 
   /**
    * Composes the specified generators to create a cartesian product of

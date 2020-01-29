@@ -51,19 +51,19 @@ object Managed {
   /**
    * See [[zio.ZManaged.die]]
    */
-  def die(t: Throwable): Managed[Nothing, Nothing] =
+  def die(t: => Throwable): Managed[Nothing, Nothing] =
     ZManaged.die(t)
 
   /**
    * See [[zio.ZManaged.dieMessage]]
    */
-  def dieMessage(message: String): Managed[Throwable, Nothing] =
+  def dieMessage(message: => String): Managed[Throwable, Nothing] =
     ZManaged.dieMessage(message)
 
   /**
    * See [[zio.ZManaged.done]]
    */
-  def done[E, A](r: Exit[E, A]): Managed[E, A] =
+  def done[E, A](r: => Exit[E, A]): Managed[E, A] =
     ZManaged.done(r)
 
   /**
@@ -75,7 +75,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.fail]]
    */
-  def fail[E](error: E): Managed[E, Nothing] =
+  def fail[E](error: => E): Managed[E, Nothing] =
     ZManaged.fail(error)
 
   /**
@@ -147,7 +147,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.halt]]
    */
-  def halt[E](cause: Cause[E]): Managed[E, Nothing] =
+  def halt[E](cause: => Cause[E]): Managed[E, Nothing] =
     ZManaged.halt(cause)
 
   /**
@@ -279,7 +279,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.require]]
    */
-  def require[E, A](error: E): Managed[E, Option[A]] => Managed[E, A] =
+  def require[E, A](error: => E): Managed[E, Option[A]] => Managed[E, A] =
     ZManaged.require[Any, E, A](error)
 
   /**
@@ -297,25 +297,28 @@ object Managed {
   /**
    * See [[zio.ZManaged.sequence]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
     ZManaged.sequence(ms)
 
   /**
    * See [[zio.ZManaged.sequencePar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[E, A](as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.sequencePar(as)
 
   /**
    * See [[zio.ZManaged.sequenceParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.sequenceParN(n)(as)
 
   /**
    * See [[zio.ZManaged.succeed]]
    */
-  def succeed[A](r: A): Managed[Nothing, A] =
+  def succeed[A](r: => A): Managed[Nothing, A] =
     ZManaged.succeed(r)
 
   /**
@@ -327,36 +330,42 @@ object Managed {
   /**
    * See [[zio.ZManaged.traverse]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.traverse(as)(f)
 
   /**
    * See [[zio.ZManaged.traverse_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traverse_(as)(f)
 
   /**
    * See [[zio.ZManaged.traversePar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.traversePar(as)(f)
 
   /**
    * See [[zio.ZManaged.traversePar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traversePar_(as)(f)
 
   /**
    * See [[zio.ZManaged.traverseParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[E, A1, A2](n: Int)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.traverseParN(n)(as)(f)
 
   /**
    * See [[zio.ZManaged.traverseParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traverseParN_(n)(as)(f)
 
@@ -380,13 +389,13 @@ object Managed {
   /**
    * See [[zio.ZManaged.when]]
    */
-  def when[E](b: Boolean)(managed: Managed[E, Any]): Managed[E, Unit] =
+  def when[E](b: => Boolean)(managed: Managed[E, Any]): Managed[E, Unit] =
     ZManaged.when(b)(managed)
 
   /**
    * See [[zio.ZManaged.whenCase]]
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
     ZManaged.whenCase(a)(pf)
 
   /**
@@ -403,4 +412,18 @@ object Managed {
   def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, Any]): Managed[E, Unit] =
     ZManaged.whenM(b)(managed)
 
+  private[zio] def dieNow(t: Throwable): Managed[Nothing, Nothing] =
+    ZManaged.dieNow(t)
+
+  private[zio] def failNow[E](error: E): Managed[E, Nothing] =
+    ZManaged.failNow(error)
+
+  private[zio] def haltNow[E](cause: Cause[E]): Managed[E, Nothing] =
+    ZManaged.haltNow(cause)
+
+  private[zio] def doneNow[E, A](r: Exit[E, A]): Managed[E, A] =
+    ZManaged.doneNow(r)
+
+  private[zio] def succeedNow[A](r: A): Managed[Nothing, A] =
+    ZManaged.succeedNow(r)
 }

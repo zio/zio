@@ -2,58 +2,26 @@ package zio
 
 import scala.{ Array, Boolean, Int, Unit }
 
-object ScalazIOArray {
+object ZIOArray {
 
   def bubbleSort[A](lessThanEqual0: (A, A) => Boolean)(array: Array[A]): UIO[Unit] = {
+    def outerLoop(i: Int): UIO[Unit] =
+      if (i >= array.length - 1) UIO.unit else innerLoop(i, i + 1).flatMap(_ => outerLoop(i + 1))
 
-    type IndexValue   = (Int, A)
-    type IJIndex      = (Int, Int)
-    type IJIndexValue = (IndexValue, IndexValue)
+    def innerLoop(i: Int, j: Int): UIO[Unit] =
+      if (j >= array.length) UIO.unit
+      else
+        UIO((array(i), array(j))).flatMap {
+          case (ia, ja) =>
+            val maybeSwap = if (lessThanEqual0(ia, ja)) UIO.unit else swapIJ(i, ia, j, ja)
 
-    val lessThanEqual =
-      FunctionIO.fromFunction[IJIndexValue, Boolean] {
-        case ((_, ia), (_, ja)) => lessThanEqual0(ia, ja)
-      }
+            maybeSwap.flatMap(_ => innerLoop(i, j + 1))
+        }
 
-    val extractIJAndIncrementJ = FunctionIO.fromFunction[IJIndexValue, IJIndex] {
-      case ((i, _), (j, _)) => (i, j + 1)
-    }
+    def swapIJ(i: Int, ia: A, j: Int, ja: A): UIO[Unit] =
+      UIO { array.update(i, ja); array.update(j, ia) }
 
-    val extractIAndIncrementI = FunctionIO.fromFunction[IJIndex, Int](_._1 + 1)
-
-    val innerLoopStart = FunctionIO.fromFunction[Int, IJIndex]((i: Int) => (i, i + 1))
-
-    val outerLoopCheck: FunctionIO[Nothing, Int, Boolean] =
-      FunctionIO.fromFunction((i: Int) => i < array.length - 1)
-
-    val innerLoopCheck: FunctionIO[Nothing, IJIndex, Boolean] =
-      FunctionIO.fromFunction { case (_, j) => j < array.length }
-
-    val extractIJIndexValue: FunctionIO[Nothing, IJIndex, IJIndexValue] =
-      FunctionIO.effectTotal {
-        case (i, j) => ((i, array(i)), (j, array(j)))
-      }
-
-    val swapIJ: FunctionIO[Nothing, IJIndexValue, IJIndexValue] =
-      FunctionIO.effectTotal {
-        case v @ ((i, ia), (j, ja)) =>
-          array.update(i, ja)
-          array.update(j, ia)
-
-          v
-      }
-
-    val sort = FunctionIO
-      .whileDo[Nothing, Int](outerLoopCheck)(
-        innerLoopStart >>>
-          FunctionIO.whileDo[Nothing, IJIndex](innerLoopCheck)(
-            extractIJIndexValue >>>
-              FunctionIO.ifNotThen[Nothing, IJIndexValue](lessThanEqual)(swapIJ) >>>
-              extractIJAndIncrementJ
-          ) >>>
-          extractIAndIncrementI
-      )
-    sort.run(0).unit
+    outerLoop(0)
   }
 }
 

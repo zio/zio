@@ -22,7 +22,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
         assertM(
-          (Stream.range(0, 10) ++ Stream.fail(e))
+          (Stream.range(0, 10) ++ Stream.failNow(e))
             .buffer(2)
             .run(Sink.collectAll[Int])
             .run
@@ -47,7 +47,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
         assertM(
-          (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
+          (Stream.range(1, 1000) ++ Stream.failNow(e) ++ Stream.range(1001, 2000))
             .bufferDropping(2)
             .runCollect
             .run
@@ -82,13 +82,13 @@ object StreamBufferSpec extends ZIOBaseSpec {
                       }
         } yield assert(snapshots._1)(equalTo(0)) && assert(snapshots._2)(equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
           assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1)))
-      } @@ flaky
+      }
     ),
     suite("Stream.bufferSliding")(
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
         assertM(
-          (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
+          (Stream.range(1, 1000) ++ Stream.failNow(e) ++ Stream.range(1001, 2000))
             .bufferSliding(2)
             .runCollect
             .run
@@ -136,14 +136,14 @@ object StreamBufferSpec extends ZIOBaseSpec {
       }),
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
-        assertM((Stream.range(0, 10) ++ Stream.fail(e)).bufferUnbounded.runCollect.run)(fails(equalTo(e)))
+        assertM((Stream.range(0, 10) ++ Stream.failNow(e)).bufferUnbounded.runCollect.run)(fails(equalTo(e)))
       },
       testM("fast producer progress independently") {
         for {
           ref   <- Ref.make(List[Int]())
           latch <- Promise.make[Nothing, Unit]
           s = Stream
-            .fromEffect(UIO.succeed(()))
+            .fromEffect(UIO.succeedNow(()))
             .flatMap(_ => Stream.range(1, 1000).tap(i => ref.update(i :: _)).ensuring(latch.succeed(())))
             .bufferUnbounded
           l <- s.process.use { as =>
