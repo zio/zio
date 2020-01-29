@@ -167,6 +167,29 @@ trait Runtime[+R] {
 object Runtime {
 
   /**
+   * A runtime that can be shutdown to release resources allocated to it.
+   */
+  trait Managed[+R] extends Runtime[R] {
+
+    /**
+     * Shuts down this runtime and releases resources allocated to it. Once
+     * this runtime has been shut down the behavior of methods on it is
+     * undefined and it should be discarded.
+     */
+    def shutdown(): Unit
+  }
+
+  object Managed {
+
+    def apply[R](r: R, platform0: Platform, shutdown0: () => Unit): Runtime.Managed[R] =
+      new Runtime.Managed[R] {
+        val environment = r
+        val platform    = platform0
+        def shutdown()  = shutdown0()
+      }
+  }
+
+  /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
    */
   def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
@@ -179,39 +202,48 @@ object Runtime {
   lazy val global = Runtime((), Platform.global)
 
   /**
-   * Builds a new runtime given an effectual and resourceful environment `R`
-   * and the default platform. This method is effectful because it executes
-   * acquiring the environment. Returns a finalizer that can be used to release
-   * the environment.
+   * Unsafely creates a `Runtime` from the default platform and a `ZLayer`
+   * whose resources will be allocated immediately, and not released until the
+   * `Runtime` is shut down.
+   *
+   * This method is useful for small applications and integrating ZIO with
+   * legacy code, but other applications should investigate using
+   * [[ZIO.provideLayer]] directly in their application entry points.
    */
-  def unsafeDefault[R <: Has[_]](layer: ZLayer.NoDeps[Nothing, R]): (Runtime[R], Exit[Any, Any] => UIO[Any]) =
+  def unsafeDefault[R <: Has[_]](layer: ZLayer.NoDeps[Any, R]): Runtime.Managed[R] =
     unsafeMake(layer, default.platform)
 
   /**
-   * Builds a new runtime given an effectual and resourceful environment `R`
-   * and Scala's global execution context. This method is effectful because
-   * it executes acquiring the environment. Returns a finalizer that can be
-   * used to release the environment.
+   * Unsafely creates a `Runtime` from Scala's global execution context and a
+   * `ZLayer` whose resources will be allocated immediately, and not released
+   * until the `Runtime` is shut down.
+   *
+   * This method is useful for small applications and integrating ZIO with
+   * legacy code, but other applications should investigate using
+   * [[ZIO.provideLayer]] directly in their application entry points.
    */
-  def unsafeGlobal[R <: Has[_]](layer: ZLayer.NoDeps[Nothing, R]): (Runtime[R], Exit[Any, Any] => UIO[Any]) =
+  def unsafeGlobal[R <: Has[_]](layer: ZLayer.NoDeps[Any, R]): Runtime.Managed[R] =
     unsafeMake(layer, global.platform)
 
   /**
-   * Builds a new runtime given an effectual and resourceful environment `R`
-   * and a [[zio.internal.Platform]]. This method is effectful because it
-   * executes acquiring the environment. Returns a finalizer that can be used
-   * to release the environment.
+   * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
+   * allocated immediately, and not released until the `Runtime` is shut down.
+   *
+   * This method is useful for small applications and integrating ZIO with
+   * legacy code, but other applications should investigate using
+   * [[ZIO.provideLayer]] directly in their application entry points.
    */
-  def unsafeMake[R <: Has[_]](
-    layer: ZLayer.NoDeps[Nothing, R],
-    platform: Platform
-  ): (Runtime[R], Exit[Any, Any] => UIO[Any]) = {
+  def unsafeMake[R <: Has[_]](layer: ZLayer.NoDeps[Any, R], platform: Platform): Runtime.Managed[R] = {
     val runtime = Runtime((), platform)
-    val (environment, release) = runtime.unsafeRun {
+    val (environment, shutdown) = runtime.unsafeRun {
       layer.build.reserve.flatMap {
-        case Reservation(acquire, release) => acquire.map((_, release))
+        case Reservation(acquire, release) =>
+          val shutdown = () => {
+            val _ = runtime.unsafeRun(release(Exit.unit))
+          }
+          acquire.map((_, shutdown))
       }
     }
-    (runtime.map(_ => environment), release)
+    Runtime.Managed(environment, platform, shutdown)
   }
 }
