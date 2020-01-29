@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.{ Has, UIO, ZIO }
+import zio.{ Has, Ref, Tagged, UIO, ZIO, ZLayer }
 
 /**
  * `Spyable[A]` models the capability to spy on a service of type `A`.
@@ -53,4 +53,26 @@ trait Spyable[A] extends Mockable[A] { self =>
     }
     self.environment(spied)
   }
+}
+
+object Spyable {
+
+  /**
+   * Updates a live environment by spying on it. The spy has the ability to see
+   * all method calls, inputs, and outputs and updates the returned `Ref` based
+   * on them.
+   */
+  def spyWithRef[R, E, A: Tagged](
+    layer: ZLayer[R, E, Has[A]]
+  )(implicit spyable: Spyable[A]): UIO[(Ref[Vector[Invocation[A, _, _]]], ZLayer[R, E, Has[A]])] =
+    Ref.make(Vector.empty[Invocation[A, _, _]]).map { ref =>
+      val spied = ZLayer {
+        layer.value.map { environment =>
+          spyable.spy(environment) {
+            case invocation => ref.update(_ :+ invocation).unit
+          }
+        }
+      }
+      (ref, spied)
+    }
 }

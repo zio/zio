@@ -21,4 +21,4 @@ package zio.test.mock
  * including both the input to the method invocation `I` and the output from
  * the method invocation `A`.
  */
-final case class Invocation[-M, I, +A](method: Method[M, I, A], input: I, output: A)
+final case class Invocation[-M, I, A](method: Method[M, I, A], input: I, output: A)

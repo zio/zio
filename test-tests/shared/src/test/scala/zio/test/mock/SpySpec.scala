@@ -28,7 +28,7 @@ object SpySpec extends DefaultRunnableSpec {
       ZLayer.fromEffect(Ref.make(0).map(ref => Has(Live(ref))))
   }
 
-  sealed trait Command[+A] extends Method[Counter.Service, Any, A]
+  sealed trait Command[A] extends Method[Counter.Service, Unit, A]
 
   object Command {
     case object Increment extends Command[Unit]
@@ -62,33 +62,36 @@ object SpySpec extends DefaultRunnableSpec {
         }
     }
 
-  val spy: ZLayer[Counter, Nothing, Counter with Spy] =
-    Spy.live[Int, Counter.Service](0) {
-      case (state, result, Invocation(method, _, output)) =>
-        method match {
-          case Command.Increment => state.update(_ + 1).unit
-          case Command.Decrement => state.update(_ - 1).unit
-          case Command.Get =>
-            state.get.flatMap { expected =>
-              result.update(_ && assert(output)(equalTo(expected))).unit
-            }
-          case Command.Reset => state.set(0)
-        }
-    }
+  def testCounter(invocations: Iterable[Invocation[Counter.Service, _, _]]): TestResult =
+    invocations
+      .foldLeft((0, assertCompletes)) {
+        case ((state, assertion), Invocation(method, _, output)) =>
+          method match {
+            case Command.Increment => (state + 1, assertion)
+            case Command.Decrement => (state - 1, assertion)
+            case Command.Get       => (state, assertion && assert(output)(equalTo(state)))
+            case Command.Reset     => (0, assertion)
+          }
+      }
+      ._2
 
   def spec = suite("SpySpec") {
     testM("counter example") {
       checkM((Gen.listOf(Command.commands))) { commands =>
-        for {
-          counter <- (Counter.live >>> spy).build.use(ZIO.succeed)
-          _ <- ZIO.foreach(commands) {
-                case Command.Increment => counter.get.increment
-                case Command.Decrement => counter.get.decrement
-                case Command.Get       => counter.get.get
-                case Command.Reset     => counter.get.reset
-              }
-          result <- counter.get[Spy.Service].spy
-        } yield result
+        Spyable.spyWithRef(Counter.live).flatMap {
+          case (ref, layer) =>
+            layer.build.use { counter =>
+              for {
+                _ <- ZIO.foreach(commands) {
+                      case Command.Increment => counter.get.increment
+                      case Command.Decrement => counter.get.decrement
+                      case Command.Get       => counter.get.get
+                      case Command.Reset     => counter.get.reset
+                    }
+                invocations <- ref.get
+              } yield testCounter(invocations)
+            }
+        }
       }
     }
   }

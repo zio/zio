@@ -25,7 +25,27 @@ import zio.test.Assertion
  * A `Model[M, I, A]` represents a capability of module `M` that takes an
  * input `I` and returns an effect that may produce a single `A`.
  */
-trait Method[-M, -I, +A] { self =>
+trait Method[-M, I, A] { self =>
+
+  /**
+   * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.
+   *
+   * Available only for methods that do take arguments.
+   */
+  @silent("parameter value ev in method apply is never used")
+  def apply(assertion: Assertion[I])(implicit ev: I =!= Unit): ArgumentExpectation[M, I, A] =
+    ArgumentExpectation(self, assertion)
+
+  /**
+   * Provides the `ReturnExpectation` to produce the final `Expectation`.
+   *
+   * Available only for methods that don't take arguments.
+   */
+  @silent("parameter value ev in method returns is never used")
+  def returns[E](
+    returns: ReturnExpectation[I, E, A]
+  )(implicit ev: I <:< Unit): Expectation[M, E, A] =
+    Expectation.Call[M, I, E, A](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
 
   /**
    * Render method fully qualified name.
@@ -38,31 +58,5 @@ trait Method[-M, -I, +A] { self =>
         s"""${namespace.mkString(".")}.$module.$service.${capability}"""
       case _ => fragments.mkString(".")
     }
-  }
-}
-
-object Method {
-
-  final implicit class MethodSyntax[M, I, A](private val self: Method[M, I, A]) extends AnyVal {
-
-    /**
-     * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.
-     *
-     * Available only for methods that do take arguments.
-     */
-    @silent("parameter value ev in method apply is never used")
-    def apply(assertion: Assertion[I])(implicit ev: I =!= Unit): ArgumentExpectation[M, I, A] =
-      ArgumentExpectation(self, assertion)
-
-    /**
-     * Provides the `ReturnExpectation` to produce the final `Expectation`.
-     *
-     * Available only for methods that don't take arguments.
-     */
-    @silent("parameter value ev in method returns is never used")
-    def returns[A1 >: A, E](
-      returns: ReturnExpectation[I, E, A1]
-    )(implicit ev: I <:< Unit): Expectation[M, E, A1] =
-      Expectation.Call[M, I, E, A1](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
   }
 }
