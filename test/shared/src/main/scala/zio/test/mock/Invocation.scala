@@ -16,17 +16,9 @@
 
 package zio.test.mock
 
-import zio.test.Assertion
-
 /**
- * An `ArgumentExpectation[M, I, A]` represents an expectation on input `I` arguments
- * for capability of module `M` that returns an effect that may produce a single `A`.
+ * An `Invocation[M, I, A]` models a single invocation of a `Method[M, I, A]`,
+ * including both the input to the method invocation `I` and the output from
+ * the method invocation `A`.
  */
-final case class ArgumentExpectation[-M, I, A](method: Method[M, I, A], assertion: Assertion[I]) {
-
-  /**
-   * Provides the `ReturnExpectation` to produce the final `Expectation`.
-   */
-  def returns[E](returns: ReturnExpectation[I, E, A]): Expectation[M, E, A] =
-    Expectation.Call[M, I, E, A](method, assertion, returns.io)
-}
+final case class Invocation[-M, I, A](method: Method[M, I, A], input: I, output: A)
