@@ -1,6 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
+
 import zio.UIO
 import zio.test.{ ExecutedSpec, Spec, TestFailure, TestLabel, TestSuccess }
 
