@@ -1303,7 +1303,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     }.map(_._1.reverse)
 
   /**
-   * Emits the number of elements processed
+   * Creates a sink which emits the number of elements processed
    */
   def count[A]: ZSink[Any, Nothing, Nothing, A, Long] = {
     new SinkPure[Nothing, Nothing, A, Long] {
