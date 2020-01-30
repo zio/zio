@@ -54,6 +54,16 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
     modify(a => f(a).map((a, _)))
 
   /**
+   * Writes a new value to the `RefM`, returning the value immediately before
+   * modification.
+   *
+   * @param a value to be written to the `RefM`
+   * @return `UIO[A]` value of the `RefM` immediately before modification
+   */
+  def getAndSet(a: A): UIO[A] =
+    value.getAndSet(a)
+
+  /**
    * Atomically modifies the `RefM` with the specified partial function,
    * returning the value immediately before modification.
    * If the function is undefined on the current value it doesn't change it.
@@ -119,7 +129,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
     } yield b
 
   /**
-   * Writes a new value to the `Ref`, with a guarantee of immediate
+   * Writes a new value to the `RefM`, with a guarantee of immediate
    * consistency (at some cost to performance).
    *
    * @param a value to be written to the `RefM`

@@ -41,6 +41,27 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
   def get: UIO[A] = IO.effectTotal(value.get)
 
   /**
+   * Atomically writes the specified value to the `Ref`, returning the value
+   * immediately before modification. This is not implemented in terms of
+   * `modify` purely for performance reasons.
+   *
+   * @param a value to be written to the `Ref`
+   * @return `UIO[A]` value of the `Ref` immediately before modification
+   */
+  def getAndSet(a: A): UIO[A] = IO.effectTotal {
+    var loop       = true
+    var current: A = null.asInstanceOf[A]
+
+    while (loop) {
+      current = value.get
+
+      loop = !value.compareAndSet(current, a)
+    }
+
+    current
+  }
+
+  /**
    * Atomically modifies the `Ref` with the specified function, returning the
    * value immediately before modification. This is not implemented in terms of
    * `modify` purely for performance reasons.

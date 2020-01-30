@@ -55,6 +55,13 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
   val get: UIO[A] = modify(v => (v, v))
 
   /**
+   * Atomically sets the value associated with the current fiber and returns
+   * the old value.
+   */
+  def getAndSet(a: A): UIO[A] =
+    modify(v => (v, a))
+
+  /**
    * Atomically modifies the `FiberRef` with the specified function and returns
    * the old value.
    */

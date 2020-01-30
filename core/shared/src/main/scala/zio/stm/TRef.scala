@@ -41,6 +41,20 @@ final class TRef[A] private (
     })
 
   /**
+   * Sets the value of the `TRef` and returns the old value.
+   */
+  def getAndSet(a: A): STM[Nothing, A] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      val oldValue = entry.unsafeGet[A]
+
+      entry.unsafeSet(a)
+
+      TExit.Succeed(oldValue)
+    })
+
+  /**
    * Updates the value of the variable and returns the old value.
    */
   def getAndUpdate(f: A => A): STM[Nothing, A] =
