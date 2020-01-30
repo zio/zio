@@ -16,7 +16,7 @@ A value of type `IO[E, A]` describes an effect that may fail with an `E`, run fo
 You can lift pure values into `IO` with `IO.succeed`:
 
 ```scala mdoc:silent
-import zio._
+import zio.{ UIO, IO }
 
 val value: UIO[String] = IO.succeed("Hello World")
 ```
@@ -37,6 +37,9 @@ because the `Nothing` type is _uninhabitable_, i.e. there can be no actual value
 
 You can use the `effectTotal` method of `IO` to import effectful synchronous code into your purely functional program:
 
+```scala mdoc:invisible
+import zio.Task
+```
 ```scala mdoc:silent
 val effectTotalTask: Task[Long] = IO.effectTotal(System.nanoTime())
 ```
@@ -81,7 +84,7 @@ In this example, it's assumed the `Http.req` method will invoke the specified ca
 You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets you transform values produced by actions into other values.
 
 ```scala mdoc:silent
-import zio._
+import zio.{ UIO, IO }
 
 val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```
@@ -122,7 +125,7 @@ Brackets consist of an *acquire* action, a *utilize* action (which uses the acqu
 The release action is guaranteed to be executed by the runtime system, even if the utilize action throws an exception or the executing fiber is interrupted.
 
 ```scala mdoc:silent
-import zio._
+import zio.{ UIO, IO }
 ```
 
 ```scala mdoc:invisible
@@ -156,7 +159,7 @@ val composite = action.ensuring(cleanupAction)
 ### A full working example on using brackets
 ```scala mdoc:silent
 
-import zio.{ App, Task, UIO }
+import zio.{ Task, UIO }
 import java.io.{ File, FileInputStream }
 import java.nio.charset.StandardCharsets
 
