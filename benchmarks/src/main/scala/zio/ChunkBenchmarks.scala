@@ -3,9 +3,6 @@ package zio
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
-
-import zio._
-
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
