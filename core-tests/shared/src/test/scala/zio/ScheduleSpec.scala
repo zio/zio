@@ -318,7 +318,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   def repeat[B](schedule: Schedule[Any, Int, B]): ZIO[Any with Clock, Nothing, B] =
     for {
       ref <- Ref.make(0)
-      res <- ref.update(_ + 1).repeat(schedule)
+      res <- ref.updateAndGet(_ + 1).repeat(schedule)
     } yield res
 
   /**
@@ -349,7 +349,7 @@ object ScheduleSpec extends ZIOBaseSpec {
    */
   def alwaysFail(ref: Ref[Int]): IO[String, Int] =
     for {
-      i <- ref.update(_ + 1)
+      i <- ref.updateAndGet(_ + 1)
       x <- IO.failNow(s"Error: $i")
     } yield x
 
@@ -360,7 +360,7 @@ object ScheduleSpec extends ZIOBaseSpec {
    */
   def failOn0(ref: Ref[Int]): IO[String, Int] =
     for {
-      i <- ref.update(_ + 1)
+      i <- ref.updateAndGet(_ + 1)
       x <- if (i <= 1) IO.failNow(s"Error: $i") else IO.succeedNow(i)
     } yield x
 

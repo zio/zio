@@ -152,6 +152,27 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )
       )
     },
+    testM("Stream.bufferSliding is safe to pull again") {
+      assertM(
+        Stream(1, 2, 3, 4, 5)
+          .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+          .bufferSliding(2)
+          .process
+          .use(nPulls(_, 7))
+      )(
+        equalTo(
+          List(
+            Right(1),
+            Left(Some("Ouch 2")),
+            Right(3),
+            Left(Some("Ouch 4")),
+            Right(5),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    },
     testM("Stream.bufferUnbounded is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)
@@ -817,7 +838,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
     testM("Stream.repeatEffectWith is safe to pull again") {
       def effect(ref: Ref[Int]): IO[String, Int] =
         for {
-          cnt <- ref.update(_ + 1)
+          cnt <- ref.updateAndGet(_ + 1)
           res <- if (cnt == 2) IO.failNow("Ouch") else UIO.succeedNow(cnt)
         } yield res
 

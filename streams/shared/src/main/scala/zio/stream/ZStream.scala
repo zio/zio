@@ -765,54 +765,6 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   /**
-   * Creates a stream that passes its elements through a queue that drops elements
-   * (dropping or sliding). It implements a promise that signals abrupt completion
-   * of the stream due to an error or the end of the stream. After the promise has
-   * been completed, it continues to offer the current (at the time) contents of the
-   * queue, until it has been exhausted, at which point it finishes with the signal
-   * from the promise.
-   */
-  private final def bufferSignal[A1 >: A](queue: Queue[A1]): ZStream[R, E, A1] =
-    ZStream.managed {
-      for {
-        // Signal stream error or end through the result type of the promise
-        // for better composability with other effects.
-        signal <- Promise.make[Option[E], Nothing].toManaged_
-        _ <- self
-              .foreachManaged(a => queue.offer(a).unit)
-              .foldM(
-                e => signal.fail(Some(e)).unit.toManaged_,
-                _ => signal.fail(None).unit.toManaged_
-              )
-              .fork
-      } yield (queue, signal)
-    }.flatMap {
-      case (queue, signal) =>
-        def takeFirst(exit: Exit[Nothing, A1], fiber: Fiber[Option[E], Nothing]): Pull[Any, Nothing, A1] =
-          fiber.interrupt *> exit.fold(Pull.haltNow, Pull.emitNow)
-
-        def finishStream(exit: Exit[Option[E], Nothing], fiber: Fiber[Nothing, A1]): Pull[Any, E, Nothing] =
-          fiber.interrupt *> exit.fold(
-            c => Cause.sequenceCauseOption(c).fold[Pull[Any, E, Nothing]](Pull.end)(Pull.haltNow),
-            identity
-          )
-
-        def signalFirst(exit: Exit[Option[E], Nothing], fiber: Fiber[Nothing, A1]): Pull[Any, E, A1] =
-          queue.size.flatMap { size =>
-            if (size > 0) fiber.join
-            else
-              fiber.poll.flatMap(
-                _.fold[Pull[Any, E, A1]](finishStream(exit, fiber))(_.fold(Pull.haltNow, Pull.emitNow))
-              )
-          }
-
-        val pull: Pull[Any, E, A1] =
-          queue.take.raceWith(signal.await)(takeFirst, signalFirst)
-
-        ZStream.repeatEffectOption(pull)
-    }
-
-  /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a dropping queue.
    *
@@ -874,7 +826,53 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferSliding(capacity: Int): ZStream[R, E, A] =
-    ZStream.managed(ZManaged.make(Queue.sliding[A](capacity))(_.shutdown)).flatMap(bufferSignal)
+    ZStream {
+      for {
+        as    <- self.process
+        queue <- Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        start <- Promise.make[Nothing, Unit].toManaged_
+        _     <- start.succeed(()).toManaged_
+        ref   <- Ref.make(start).toManaged_
+        done  <- Ref.make(false).toManaged_
+        upstream = {
+          def offer(take: Take[E, A]): UIO[Unit] = take match {
+            case Take.Value(_) =>
+              for {
+                p <- Promise.make[Nothing, Unit]
+                _ <- queue.offer((take, p))
+                _ <- ref.set(p)
+              } yield ()
+
+            case _ =>
+              for {
+                latch <- ref.get
+                _     <- latch.await
+                p     <- Promise.make[Nothing, Unit]
+                _     <- queue.offer((take, p))
+                _     <- ref.set(p)
+                _     <- p.await
+              } yield ()
+          }
+
+          def go: ZIO[R, Nothing, Unit] =
+            Take.fromPull(as).flatMap { take =>
+              offer(take) *> go.when(take != Take.End)
+            }
+
+          go
+        }
+        _ <- upstream.toManaged_.fork
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else {
+            queue.take.flatMap {
+              case (take, p) =>
+                p.succeed(()) *> done.set(true).when(take == Take.End) *> Pull.fromTake(take)
+            }
+          }
+        }
+      } yield pull
+    }
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering

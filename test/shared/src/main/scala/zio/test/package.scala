@@ -424,7 +424,7 @@ package object test extends CompileVariants {
       ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
         Has(new Annotations.Service {
           def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
-            fiberRef.update(_.annotate(key, value)).unit
+            fiberRef.update(_.annotate(key, value))
           def get[V](key: TestAnnotation[V]): UIO[V] =
             fiberRef.get.map(_.get(key))
           def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =

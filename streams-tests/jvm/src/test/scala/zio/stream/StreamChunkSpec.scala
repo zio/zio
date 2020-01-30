@@ -47,7 +47,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       s1.orElse(s2).flattenChunks.runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
     },
     testM("StreamChunk.map") {
-      checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, f) =>
+      checkM(chunksOfInts, toBoolFn[Random with Sized, Int]) { (s, f) =>
         for {
           res1 <- slurp(s.map(f))
           res2 <- slurp(s).map(_.map(f))
@@ -55,7 +55,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.filter") {
-      checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+      checkM(chunksOfInts, toBoolFn[Random with Sized, Int]) { (s, p) =>
         for {
           res1 <- slurp(s.filter(p))
           res2 <- slurp(s).map(_.filter(p))
@@ -63,7 +63,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     suite("StreamChunk.filterM")(
-      testM("filterM happy path")(checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+      testM("filterM happy path")(checkM(chunksOfInts, toBoolFn[Random with Sized, Int]) { (s, p) =>
         for {
           res1 <- slurp(s.filterM(s => UIO.succeedNow(p(s))))
           res2 <- slurp(s).map(_.filter(p))
@@ -74,7 +74,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     ),
     testM("StreamChunk.filterNot") {
-      checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+      checkM(chunksOfInts, toBoolFn[Random with Sized, Int]) { (s, p) =>
         for {
           res1 <- slurp(s.filterNot(p))
           res2 <- slurp(s).map(_.filterNot(p))
@@ -82,8 +82,8 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.mapConcat") {
-      val fn = Gen.function[Random with Sized, String, Iterable[Int]](Gen.small(Gen.listOfN(_)(intGen)))
-      checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
+      val fn = Gen.function[Random with Sized, Int, Iterable[Int]](Gen.small(Gen.listOfN(_)(intGen)))
+      checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
         for {
           res1 <- slurp(s.mapConcat(f))
           res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
@@ -91,8 +91,8 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.mapConcatChunk") {
-      val fn = Gen.function[Random with Sized, String, Chunk[Int]](smallChunks(intGen))
-      checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
+      val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
+      checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
         for {
           res1 <- slurp(s.mapConcatChunk(f))
           res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
@@ -101,8 +101,8 @@ object StreamChunkSpec extends ZIOBaseSpec {
     },
     suite("StreamChunk.mapConcatChunkM")(
       testM("mapConcatChunkM happy path") {
-        val fn = Gen.function[Random with Sized, String, Chunk[Int]](smallChunks(intGen))
-        checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
+        val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
+        checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
           for {
             res1 <- slurp(s.mapConcatChunkM(s => UIO.succeedNow(f(s))))
             res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
@@ -120,8 +120,8 @@ object StreamChunkSpec extends ZIOBaseSpec {
     ),
     suite("StreamChunk.mapConcatM")(
       testM("mapConcatM happy path") {
-        val fn = Gen.function[Random with Sized, String, Iterable[Int]](Gen.listOf(intGen))
-        checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
+        val fn = Gen.function[Random with Sized, Int, Iterable[Int]](Gen.listOf(intGen))
+        checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
           for {
             res1 <- slurp(s.mapConcatM(s => UIO.succeedNow(f(s))))
             res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
@@ -152,7 +152,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         .map(assert(_)(isLeft(equalTo(123))))
     },
     testM("StreamChunk.drop") {
-      checkM(chunksOfStrings, intGen) { (s, n) =>
+      checkM(chunksOfInts, intGen) { (s, n) =>
         for {
           res1 <- slurp(s.drop(n))
           res2 <- slurp(s).map(_.drop(n))
@@ -160,7 +160,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.take") {
-      checkM(chunksOfStrings, intGen) { (s, n) =>
+      checkM(chunksOfInts, intGen) { (s, n) =>
         for {
           res1 <- slurp(s.take(n))
           res2 <- slurp(s).map(_.take(n))
@@ -168,7 +168,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.dropUntil") {
-      checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+      checkM(chunksOfInts, toBoolFn[Random with Sized, Int]) { (s, p) =>
         for {
           res1 <- slurp(s.dropUntil(p))
           res2 <- slurp(s).map(seq => StreamUtils.dropUntil(seq.toList)(p))
@@ -176,7 +176,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.dropWhile") {
-      checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+      checkM(chunksOfInts, toBoolFn[Random with Sized, Int]) { (s, p) =>
         for {
           res1 <- slurp(s.dropWhile(p))
           res2 <- slurp(s).map(_.dropWhile(p))
@@ -184,7 +184,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.takeUntil") {
-      checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+      checkM(chunksOfInts, toBoolFn[Random with Sized, Int]) { (s, p) =>
         for {
           res1 <- slurp(s.takeUntil(p))
           res2 <- slurp(s).map(seq => StreamUtils.takeUntil(seq.toList)(p))
@@ -192,7 +192,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.takeWhile") {
-      checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+      checkM(chunksOfInts, toBoolFn[Random with Sized, Int]) { (s, p) =>
         for {
           res1 <- slurp(s.takeWhile(p))
           res2 <- slurp(s).map(_.takeWhile(p))
@@ -234,7 +234,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.++") {
-      checkM(chunksOfStrings, chunksOfStrings) { (s1, s2) =>
+      checkM(chunksOfInts, chunksOfInts) { (s1, s2) =>
         for {
           res1 <- slurp(s1).zipWith(slurp(s2))(_ ++ _)
           res2 <- slurp(s1 ++ s2)
@@ -242,7 +242,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.zipWithIndex") {
-      checkM(chunksOfStrings) { s =>
+      checkM(chunksOfInts) { s =>
         for {
           res1 <- slurp(s.zipWithIndex)
           res2 <- slurp(s).map(_.zipWithIndex.map(t => (t._1, t._2.toLong)))
@@ -258,7 +258,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
                      acc.update(a :: _) *> IO.succeedNow(true)
                    else
                      IO.succeedNow(false)
-                 }.flatMap(_ => acc.update(_.reverse))
+                 }.flatMap(_ => acc.updateAndGet(_.reverse))
           res2 <- slurp(s.takeWhile(cont)).map(_.toList)
         } yield assert(res1)(equalTo(res2))
       }
@@ -267,7 +267,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       checkM(chunksOfInts) { s =>
         for {
           acc  <- Ref.make[List[Int]](Nil)
-          res1 <- s.foreach(a => acc.update(a :: _).unit).flatMap(_ => acc.update(_.reverse))
+          res1 <- s.foreach(a => acc.update(a :: _).unit).flatMap(_ => acc.updateAndGet(_.reverse))
           res2 <- slurp(s).map(_.toList)
         } yield assert(res1)(equalTo(res2))
       }
@@ -305,9 +305,9 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("StreamChunk.tap") {
-      checkM(chunksOfStrings) { s =>
+      checkM(chunksOfInts) { s =>
         for {
-          acc           <- Ref.make(List.empty[String])
+          acc           <- Ref.make(List.empty[Int])
           withoutEffect <- slurp(s).run
           tap           <- slurp(s.tap(a => acc.update(a :: _).unit)).run
           list          <- acc.get.run
@@ -329,7 +329,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       }
     ),
     testM("StreamChunk.fold") {
-      checkM(chunksOfStrings, intGen, Gen.function2(intGen)) { (s, zero, f) =>
+      checkM(chunksOfInts, intGen, Gen.function2(intGen)) { (s, zero, f) =>
         for {
           res1 <- s.fold(zero)(f)
           res2 <- slurp(s).map(_.foldLeft(zero)(f))
@@ -338,29 +338,29 @@ object StreamChunkSpec extends ZIOBaseSpec {
     },
     testM("StreamChunk.foldWhileM") {
       checkM(
-        chunksOfStrings,
+        chunksOfInts,
         intGen,
         toBoolFn[Random, Int],
         Gen.function2(intGen)
       ) { (s, zero, cont, f) =>
         for {
-          res1 <- s.foldWhileM[Any, Nothing, String, Int](zero)(cont)((acc, a) => IO.succeedNow(f(acc, a)))
+          res1 <- s.foldWhileM[Any, Nothing, Int, Int](zero)(cont)((acc, a) => IO.succeedNow(f(acc, a)))
           res2 <- slurp(s).map(l => foldLazyList(l.toList, zero)(cont)(f))
         } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.flattenChunks") {
-      checkM(chunksOfStrings) { s =>
+      checkM(chunksOfInts) { s =>
         for {
-          res1 <- s.flattenChunks.fold[String, List[String]](Nil)((acc, a) => a :: acc).map(_.reverse)
+          res1 <- s.flattenChunks.fold[Int, List[Int]](Nil)((acc, a) => a :: acc).map(_.reverse)
           res2 <- slurp(s)
         } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.collect") {
       checkM(
-        pureStreamChunkGen(smallChunks(stringGen)),
-        Gen.partialFunction[Random with Sized, String, String](Gen.anyString)
+        pureStreamChunkGen(smallChunks(intGen)),
+        Gen.partialFunction[Random with Sized, Int, String](Gen.anyString)
       ) { (s, p) =>
         for {
           res1 <- slurp(s.collect(p))
@@ -371,7 +371,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
     testM("StreamChunk.collectWhile") {
       checkM(
         pureStreamChunkGen(smallChunks(intGen)),
-        Gen.partialFunction[Random with Sized, Int, String](stringGen)
+        Gen.partialFunction[Random with Sized, Int, Int](intGen)
       ) { (s, pf) =>
         for {
           res1 <- slurp(s.collectWhile(pf))
