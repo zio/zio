@@ -1351,7 +1351,7 @@ object StreamSpec extends ZIOBaseSpec {
         for {
           ref <- Ref.make(0)
           fa = for {
-            newCount <- ref.update(_ + 1)
+            newCount <- ref.updateAndGet(_ + 1)
             res      <- if (newCount >= 5) ZIO.failNow(None) else ZIO.succeedNow(newCount)
           } yield res
           res <- Stream

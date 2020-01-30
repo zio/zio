@@ -65,13 +65,11 @@ trait StreamUtils extends ChunkUtils with GenZIO {
 }
 
 object StreamUtils extends StreamUtils with GenUtils {
-  val streamOfBytes   = Gen.small(streamGen(Gen.anyByte, _))
-  val streamOfInts    = Gen.small(streamGen(intGen, _))
-  val streamOfStrings = Gen.small(streamGen(stringGen, _))
+  val streamOfBytes = Gen.small(streamGen(Gen.anyByte, _))
+  val streamOfInts  = Gen.small(streamGen(intGen, _))
 
   val listOfInts = Gen.listOf(intGen)
 
-  val pureStreamOfBytes   = Gen.small(pureStreamGen(Gen.anyByte, _))
-  val pureStreamOfInts    = Gen.small(pureStreamGen(intGen, _))
-  val pureStreamOfStrings = Gen.small(pureStreamGen(stringGen, _))
+  val pureStreamOfBytes = Gen.small(pureStreamGen(Gen.anyByte, _))
+  val pureStreamOfInts  = Gen.small(pureStreamGen(intGen, _))
 }
