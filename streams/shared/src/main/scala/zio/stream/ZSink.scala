@@ -1305,15 +1305,10 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink which emits the number of elements processed
    */
-  def count[A]: ZSink[Any, Nothing, Nothing, A, Long] = {
-    new SinkPure[Nothing, Nothing, A, Long] {
-      type State = Long
-      val initialPure: State           = 0L
-      def stepPure(state: State, a: A) = state + 1L
-      def extractPure(state: State)    = Right((state, Chunk.empty))
-      def cont(state: State)           = true
+  def count[A]: ZSink[Any, Nothing, Nothing, A, Long] =
+    foldLeft[A, Long](0L) {
+      case (accum, _) => accum + 1L
     }
-  }
 
   /**
    * Creates a sink halting with the specified `Throwable`.
@@ -1853,12 +1848,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    */
   def sum[A](implicit ev: Numeric[A]): ZSink[Any, Nothing, Nothing, A, A] = {
     val numeric = ev
-    new SinkPure[Nothing, Nothing, A, A] {
-      type State = A
-      val initialPure: State           = numeric.zero
-      def stepPure(state: State, a: A) = numeric.plus(state, a)
-      def extractPure(state: State)    = Right((state, Chunk.empty))
-      def cont(state: State)           = true
+    foldLeft(numeric.zero) { case (acc, a) =>
+      numeric.plus(acc, a)
     }
   }
 
