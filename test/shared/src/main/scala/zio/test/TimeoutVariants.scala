@@ -32,10 +32,10 @@ trait TimeoutVariants {
   ): TestAspect[Nothing, Live, Nothing, Any, Nothing, Any] =
     new TestAspect[Nothing, Live, Nothing, Any, Nothing, Any] {
       def some[R <: Live, E, S, L](
-        predicate: L => Boolean,
+        predicate: Label[L] => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] = {
-        def loop(labels: List[L], spec: ZSpec[R, E, L, S]): ZSpec[R with Live, E, L, S] =
+        def loop(labels: List[Label[L]], spec: ZSpec[R, E, L, S]): ZSpec[R with Live, E, L, S] =
           spec.caseValue match {
             case Spec.SuiteCase(label, specs, exec) =>
               Spec.suite(label, specs.map(_.map(loop(label :: labels, _))), exec)
@@ -48,8 +48,8 @@ trait TimeoutVariants {
     }
 
   private def warn[R, E, L, S](
-    suiteLabels: List[L],
-    testLabel: L,
+    suiteLabels: List[Label[L]],
+    testLabel: Label[L],
     test: ZTest[R, E, S],
     duration: Duration
   ): ZTest[R with Live, E, S] =
@@ -59,20 +59,20 @@ trait TimeoutVariants {
     )
 
   private def showWarning[L](
-    suiteLabels: List[L],
-    testLabel: L,
+    suiteLabels: List[Label[L]],
+    testLabel: Label[L],
     duration: Duration
   ): ZIO[Live, Nothing, Unit] =
     Live.live(console.putStrLn(renderWarning(suiteLabels, testLabel, duration)))
 
-  private def renderWarning[L](suiteLabels: List[L], testLabel: L, duration: Duration): String =
+  private def renderWarning[L](suiteLabels: List[Label[L]], testLabel: Label[L], duration: Duration): String =
     (renderSuiteLabels(suiteLabels) + renderTest(testLabel, duration)).capitalize
 
-  private def renderSuiteLabels[L](suiteLabels: List[L]): String =
-    suiteLabels.map(label => "in Suite \"" + label + "\", ").reverse.mkString
+  private def renderSuiteLabels[L](suiteLabels: List[Label[L]]): String =
+    suiteLabels.map(label => "in Suite \"" + label.render + "\", ").reverse.mkString
 
-  private def renderTest[L](testLabel: L, duration: Duration): String =
-    "test " + "\"" + testLabel + "\"" + " has taken more than " + duration.render +
+  private def renderTest[L](testLabel: Label[L], duration: Duration): String =
+    "test " + "\"" + testLabel.render + "\"" + " has taken more than " + duration.render +
       " to execute. If this is not expected, consider using TestAspect.timeout to timeout runaway tests for faster diagnostics."
 
 }

@@ -16,18 +16,31 @@
 
 package zio.test
 
-import zio.duration._
-import zio.test.environment.TestEnvironment
-
 /**
- * A default runnable spec that provides testable versions of all of the
- * modules in ZIO (Clock, Random, etc).
+ * A `Label[L]` represents a label with a value of type `L` and a string
+ * rendering.
  */
-trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any, Unit, Any, Any] {
+final case class Label[+L](value: L, render: String) { self =>
 
-  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any, Nothing, Any]] =
-    List(TestAspect.timeoutWarning(60.seconds))
+  /**
+   * Transforms the value of this label with the specified function.
+   */
+  def map[L1](f: L => L1): Label[L1] =
+    self.copy(value = f(value))
 
-  override def runner: TestRunner[TestEnvironment, Any, Unit, Any, Any] =
-    defaultTestRunner
+  /**
+   * Transforms the string rendering of this label with the specified
+   * function.
+   */
+  def mapRender(f: String => String): Label[L] =
+    self.copy(render = f(render))
+}
+
+object Label {
+
+  /**
+   * Constructs a new label from the specified string.
+   */
+  def fromString(string: String): Label[Unit] =
+    Label((), string)
 }

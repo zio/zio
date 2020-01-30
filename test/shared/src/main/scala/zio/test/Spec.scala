@@ -75,8 +75,8 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    */
   final def distinguish: Spec[R, E, Either[L, L], T] =
     transform[R, E, Either[L, L], T] {
-      case SuiteCase(label, specs, exec) => SuiteCase(Left(label), specs, exec)
-      case TestCase(label, test)         => TestCase(Right(label), test)
+      case SuiteCase(label, specs, exec) => SuiteCase(label.map(Left(_)), specs, exec)
+      case TestCase(label, test)         => TestCase(label.map(Right(_)), test)
     }
 
   /**
@@ -91,7 +91,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   /**
    * Returns a new Spec containing only tests with labels satisfying the specified predicate.
    */
-  final def filterTestLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
+  final def filterTestLabels(f: Label[L] => Boolean): Option[Spec[R, E, L, T]] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterTestLabels(f))), exec)
@@ -104,7 +104,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   /**
    * Returns a new Spec containing only tests/suites with labels satisfying the specified predicate.
    */
-  final def filterLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
+  final def filterLabels(f: Label[L] => Boolean): Option[Spec[R, E, L, T]] =
     caseValue match {
       case s @ SuiteCase(label, specs, exec) =>
         // If the suite matched the label, no need to filter anything underneath it.
@@ -232,7 +232,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   /**
    * Returns a new spec with remapped labels.
    */
-  final def mapLabel[L1](f: L => L1): Spec[R, E, L1, T] =
+  final def mapLabel[L1](f: Label[L] => Label[L1]): Spec[R, E, L1, T] =
     transform[R, E, L1, T] {
       case SuiteCase(label, specs, exec) => SuiteCase(f(label), specs, exec)
       case TestCase(label, test)         => TestCase(f(label), test)
@@ -418,11 +418,11 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    */
   final def only[S, E1](
     s: String
-  )(implicit ev1: L <:< String, ev2: E <:< TestFailure[E1], ev3: T <:< TestSuccess[S]): ZSpec[R, E1, String, S] =
+  )(implicit ev1: L <:< Unit, ev2: E <:< TestFailure[E1], ev3: T <:< TestSuccess[S]): ZSpec[R, E1, Unit, S] =
     self
-      .asInstanceOf[ZSpec[R, E1, String, S]]
-      .filterLabels(_.contains(s))
-      .getOrElse(Spec.test("only", ignored))
+      .asInstanceOf[ZSpec[R, E1, Unit, S]]
+      .filterLabels(_.render.contains(s))
+      .getOrElse(Spec.test(Label.fromString("only"), ignored))
 
   /**
    * Runs the spec only if the specified predicate is satisfied.
@@ -464,17 +464,20 @@ object Spec {
       case TestCase(label, test)         => TestCase(label, test)
     }
   }
-  final case class SuiteCase[-R, +E, +L, +A](label: L, specs: ZIO[R, E, Vector[A]], exec: Option[ExecutionStrategy])
-      extends SpecCase[R, E, L, Nothing, A]
-  final case class TestCase[-R, +E, +L, +T](label: L, test: ZIO[R, E, T]) extends SpecCase[R, E, L, T, Nothing]
+  final case class SuiteCase[-R, +E, +L, +A](
+    label: Label[L],
+    specs: ZIO[R, E, Vector[A]],
+    exec: Option[ExecutionStrategy]
+  ) extends SpecCase[R, E, L, Nothing, A]
+  final case class TestCase[-R, +E, +L, +T](label: Label[L], test: ZIO[R, E, T]) extends SpecCase[R, E, L, T, Nothing]
 
   final def suite[R, E, L, T](
-    label: L,
+    label: Label[L],
     specs: ZIO[R, E, Vector[Spec[R, E, L, T]]],
     exec: Option[ExecutionStrategy]
   ): Spec[R, E, L, T] =
     Spec(SuiteCase(label, specs, exec))
 
-  final def test[R, E, L, T](label: L, test: ZIO[R, E, T]): Spec[R, E, L, T] =
+  final def test[R, E, L, T](label: Label[L], test: ZIO[R, E, T]): Spec[R, E, L, T] =
     Spec(TestCase(label, test))
 }

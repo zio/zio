@@ -47,7 +47,7 @@ object ReportingTestUtils {
     ) + "\n"
   }
 
-  def runLog[E](spec: ZSpec[TestEnvironment, String, String, Unit]) =
+  def runLog[E](spec: ZSpec[TestEnvironment, String, Unit, Unit]) =
     for {
       _ <- TestTestRunner(testEnvironmentManaged)
             .run(spec)
@@ -55,7 +55,7 @@ object ReportingTestUtils {
       output <- TestConsole.output
     } yield output.mkString
 
-  def runSummary[E](spec: ZSpec[TestEnvironment, String, String, Unit]) =
+  def runSummary[E](spec: ZSpec[TestEnvironment, String, Unit, Unit]) =
     for {
       results <- TestTestRunner(testEnvironmentManaged)
                   .run(spec)
@@ -66,8 +66,8 @@ object ReportingTestUtils {
     } yield actualSummary.summary
 
   private[this] def TestTestRunner(testEnvironment: Managed[Nothing, TestEnvironment]) =
-    TestRunner[TestEnvironment, String, String, Unit, Unit](
-      executor = TestExecutor.managed[TestEnvironment, String, String, Unit](testEnvironment),
+    TestRunner[TestEnvironment, String, Unit, Unit, Unit](
+      executor = TestExecutor.managed[TestEnvironment, String, Unit, Unit](testEnvironment),
       reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 
@@ -90,7 +90,7 @@ object ReportingTestUtils {
     )
   )
 
-  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")))
+  val test4 = Spec.test(Label.fromString("Failing test"), failed(Cause.fail("Fail")))
   val test4Expected = Vector(
     expectedFailure("Failing test"),
     withOffset(2)("Fiber failed.\n") +

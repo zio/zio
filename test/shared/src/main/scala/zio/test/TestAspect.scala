@@ -34,7 +34,7 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS] { self =>
    * predicate.
    */
   def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS, L](
-    predicate: L => Boolean,
+    predicate: Label[L] => Boolean,
     spec: ZSpec[R, E, L, S]
   ): ZSpec[R, E, L, S]
 
@@ -70,7 +70,7 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS] { self =>
   ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerS1, UpperS1] =
     new TestAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerS1, UpperS1] {
       def some[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1, S >: LowerS1 <: UpperS1, L](
-        predicate: L => Boolean,
+        predicate: Label[L] => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] =
         that.some(predicate, self.some(predicate, spec))
@@ -96,7 +96,7 @@ object TestAspect extends TimeoutVariants {
   val identity: TestAspectPoly =
     new TestAspectPoly {
       def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
-        predicate: L => Boolean,
+        predicate: Label[L] => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] = spec
     }
@@ -106,7 +106,10 @@ object TestAspect extends TimeoutVariants {
    */
   val ignore: TestAspectAtLeastR[Annotations] =
     new TestAspectAtLeastR[Annotations] {
-      def some[R <: Annotations, E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+      def some[R <: Annotations, E, S, L](
+        predicate: Label[L] => Boolean,
+        spec: ZSpec[R, E, L, S]
+      ): ZSpec[R, E, L, S] =
         spec.when(false)
     }
 
@@ -259,7 +262,7 @@ object TestAspect extends TimeoutVariants {
   def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
     new TestAspectPoly {
       def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
-        predicate: L => Boolean,
+        predicate: Label[L] => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] = spec.transform[R, TestFailure[E], L, TestSuccess[S]] {
         case Spec.SuiteCase(label, specs, None) if (predicate(label)) => Spec.SuiteCase(label, specs, Some(exec))
@@ -320,7 +323,7 @@ object TestAspect extends TimeoutVariants {
   def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live with Annotations] =
     new TestAspectAtLeastR[Live with Annotations] {
       def some[R <: Live with Annotations, E, S, L](
-        predicate: L => Boolean,
+        predicate: Label[L] => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] =
         spec.whenM(Live.live(system.env(env)).orDie.flatMap(_.fold(ZIO.succeedNow(false))(assertion.test)))
@@ -343,7 +346,7 @@ object TestAspect extends TimeoutVariants {
   ): TestAspectAtLeastR[Live with Annotations] =
     new TestAspectAtLeastR[Live with Annotations] {
       def some[R <: Live with Annotations, E, S, L](
-        predicate: L => Boolean,
+        predicate: Label[L] => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] =
         spec.whenM(Live.live(system.property(prop)).orDie.flatMap(_.fold(ZIO.succeedNow(false))(assertion.test)))
@@ -629,7 +632,7 @@ object TestAspect extends TimeoutVariants {
     ): ZIO[R, TestFailure[E], TestSuccess[S]]
 
     final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS, L](
-      predicate: L => Boolean,
+      predicate: Label[L] => Boolean,
       spec: ZSpec[R, E, L, S]
     ): ZSpec[R, E, L, S] =
       spec.transform[R, TestFailure[E], L, TestSuccess[S]] {

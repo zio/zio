@@ -22,12 +22,12 @@ object ZTestEvent {
     fullyQualifiedName: String,
     fingerprint: Fingerprint
   ): UIO[Seq[ZTestEvent]] =
-    executedSpec.mapLabel(_.toString).fold[UIO[Seq[ZTestEvent]]] {
+    executedSpec.fold[UIO[Seq[ZTestEvent]]] {
       case Spec.SuiteCase(_, results, _) =>
         results.flatMap(UIO.collectAll(_).map(_.flatten))
       case zio.test.Spec.TestCase(label, result) =>
         result.map { result =>
-          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result._1), None, 0, fingerprint))
+          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label.render), toStatus(result._1), None, 0, fingerprint))
         }
     }
 

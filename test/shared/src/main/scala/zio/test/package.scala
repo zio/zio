@@ -322,7 +322,7 @@ package object test extends CompileVariants {
   /**
    * A `Runner` that provides a default testable environment.
    */
-  val defaultTestRunner: TestRunner[TestEnvironment, Any, String, Any, Any] =
+  val defaultTestRunner: TestRunner[TestEnvironment, Any, Unit, Any, Any] =
     TestRunner(TestExecutor.managed(testEnvironmentManaged))
 
   /**
@@ -350,19 +350,37 @@ package object test extends CompileVariants {
   /**
    * Builds a suite containing a number of other specs.
    */
-  def suite[R, E, L, T](label: L)(specs: Spec[R, E, L, T]*): Spec[R, E, L, T] =
+  def suite[R, E, T](label: String)(specs: Spec[R, E, Unit, T]*): Spec[R, E, Unit, T] =
+    suite(Label.fromString(label))(specs: _*)
+
+  /**
+   * Builds a suite containing a number of other specs.
+   */
+  def suite[R, E, L, T](label: Label[L])(specs: Spec[R, E, L, T]*): Spec[R, E, L, T] =
     Spec.suite(label, ZIO.succeedNow(specs.toVector), None)
 
   /**
    * Builds a spec with a single pure test.
    */
-  def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
+  def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing, Unit, Unit] =
+    test(Label.fromString(label))(assertion)
+
+  /**
+   * Builds a spec with a single pure test.
+   */
+  def test[L](label: Label[L])(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
     testM(label)(ZIO.effectTotal(assertion))
 
   /**
    * Builds a spec with a single effectful test.
    */
-  def testM[R, E, L](label: L)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
+  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E, Unit, Unit] =
+    testM(Label.fromString(label))(assertion)
+
+  /**
+   * Builds a spec with a single effectful test.
+   */
+  def testM[R, E, L](label: Label[L])(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
     Spec.test(
       label,
       ZIO

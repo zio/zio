@@ -37,12 +37,12 @@ import zio.{ Cause, UIO, URIO }
 
 object DefaultTestReporter {
 
-  def render[E, S](
-    executedSpec: ExecutedSpec[E, String, S],
+  def render[E, L, S](
+    executedSpec: ExecutedSpec[E, L, S],
     testAnnotationRenderer: TestAnnotationRenderer
   ): UIO[Seq[RenderedResult[String]]] = {
     def loop(
-      executedSpec: ExecutedSpec[E, String, S],
+      executedSpec: ExecutedSpec[E, L, S],
       depth: Int,
       ancestors: List[TestAnnotationMap]
     ): UIO[Seq[RenderedResult[String]]] =
@@ -66,7 +66,7 @@ object DefaultTestReporter {
             else Seq(renderSuccessLabel(label, depth))
             renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
             rest                <- UIO.foreach(specs)(loop(_, depth + tabSize, annotations :: ancestors)).map(_.flatten)
-          } yield rendered(Suite, label, status, depth, (renderedLabel): _*)
+          } yield rendered(Suite, label.render, status, depth, (renderedLabel): _*)
             .withAnnotations(renderedAnnotations) +: rest
         case Spec.TestCase(label, result) =>
           result.flatMap {
@@ -74,22 +74,24 @@ object DefaultTestReporter {
               val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
               val renderedResult = result match {
                 case Right(TestSuccess.Succeeded(_)) =>
-                  UIO.succeedNow(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
+                  UIO.succeedNow(
+                    rendered(Test, label.render, Passed, depth, withOffset(depth)(green("+") + " " + label.render))
+                  )
                 case Right(TestSuccess.Ignored) =>
-                  UIO.succeedNow(rendered(Test, label, Ignored, depth))
+                  UIO.succeedNow(rendered(Test, label.render, Ignored, depth))
                 case Left(TestFailure.Assertion(result)) =>
                   result.run.flatMap(result =>
                     result
                       .fold(details =>
                         renderFailure(label, depth, details)
-                          .map(failures => rendered(Test, label, Failed, depth, failures: _*))
+                          .map(failures => rendered(Test, label.render, Failed, depth, failures: _*))
                       )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
                   )
                 case Left(TestFailure.Runtime(cause)) =>
                   renderCause(cause, depth).map { string =>
                     rendered(
                       Test,
-                      label,
+                      label.render,
                       Failed,
                       depth,
                       (Seq(renderFailureLabel(label, depth)) ++ Seq(string)): _*
@@ -103,17 +105,17 @@ object DefaultTestReporter {
     loop(executedSpec, 0, List.empty)
   }
 
-  def apply[E, S](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E, String, S] = {
-    (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
+  def apply[E, L, S](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E, L, S] = {
+    (duration: Duration, executedSpec: ExecutedSpec[E, L, S]) =>
       for {
-        rendered <- render(executedSpec.mapLabel(_.toString), testAnnotationRenderer).map(_.flatMap(_.rendered))
+        rendered <- render(executedSpec, testAnnotationRenderer).map(_.flatMap(_.rendered))
         stats    <- logStats(duration, executedSpec)
         _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
       } yield ()
   }
 
   private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, String] = {
-    def loop(executedSpec: ExecutedSpec[E, String, S]): UIO[(Int, Int, Int)] =
+    def loop(executedSpec: ExecutedSpec[E, L, S]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           for {
@@ -130,7 +132,7 @@ object DefaultTestReporter {
           }
       }
     for {
-      stats                      <- loop(executedSpec.mapLabel(_.toString))
+      stats                      <- loop(executedSpec)
       (success, ignore, failure) = stats
       total                      = success + ignore + failure
     } yield cyan(
@@ -138,14 +140,14 @@ object DefaultTestReporter {
     )
   }
 
-  private def renderSuccessLabel(label: String, offset: Int) =
-    withOffset(offset)(green("+") + " " + label)
+  private def renderSuccessLabel[L](label: Label[L], offset: Int) =
+    withOffset(offset)(green("+") + " " + label.render)
 
-  private def renderFailure(label: String, offset: Int, details: FailureDetails): UIO[Seq[String]] =
+  private def renderFailure[L](label: Label[L], offset: Int, details: FailureDetails): UIO[Seq[String]] =
     renderFailureDetails(details, offset).map(renderFailureLabel(label, offset) +: _)
 
-  private def renderFailureLabel(label: String, offset: Int): String =
-    withOffset(offset)(red("- " + label))
+  private def renderFailureLabel[L](label: Label[L], offset: Int): String =
+    withOffset(offset)(red("- " + label.render))
 
   private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): UIO[Seq[String]] =
     FailureRenderer

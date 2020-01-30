@@ -32,7 +32,7 @@ abstract class BaseTestTask(
                case searchTerms =>
                  spec.runner.run {
                    spec.spec.filterLabels { label =>
-                     searchTerms.exists(term => label.toString.contains(term))
+                     searchTerms.exists(term => label.render.contains(term))
                    }.getOrElse(spec.spec)
                  }
              }

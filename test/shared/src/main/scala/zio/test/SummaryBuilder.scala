@@ -15,7 +15,7 @@ object SummaryBuilder {
                  case Right(TestSuccess.Ignored) => true
                  case _                          => false
                }
-      failures <- extractFailures(executedSpec).map(_.map(_.mapLabel(_.toString)))
+      failures <- extractFailures(executedSpec)
       rendered <- ZIO.foreach(failures)(DefaultTestReporter.render(_, TestAnnotationRenderer.silent))
     } yield Summary(success, fail, ignore, rendered.flatten.flatMap(_.rendered).mkString("\n"))
 
