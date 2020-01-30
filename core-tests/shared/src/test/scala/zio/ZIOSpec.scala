@@ -123,7 +123,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("cached")(
       testM("returns new instances after duration") {
-        def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
+        def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
         for {
           ref   <- Ref.make(0)
           cache <- incrementAndGet(ref).cached(60.minutes)
@@ -259,7 +259,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           in     <- Ref.make(10)
           out    <- Ref.make(0)
-          _      <- (in.update(_ - 1) <* out.update(_ + 1)).doUntil(_ == 0)
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).doUntil(_ == 0)
           result <- out.get
         } yield assert(result)(equalTo(10))
       },
@@ -276,7 +276,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           in     <- Ref.make(10)
           out    <- Ref.make(0)
-          _      <- (in.update(_ - 1) <* out.update(_ + 1)).doWhile(_ >= 0)
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).doWhile(_ >= 0)
           result <- out.get
         } yield assert(result)(equalTo(11))
       },
@@ -555,7 +555,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("foreachPar_")(
       testM("accumulates errors") {
         def task(started: Ref[Int], trigger: Promise[Nothing, Unit])(i: Int): IO[Int, Unit] =
-          started.update(_ + 1) >>= { count =>
+          started.updateAndGet(_ + 1) >>= { count =>
             IO.when(count == 3)(trigger.succeed(())) *> trigger.await *> IO.failNow(i)
           }
 
@@ -1133,7 +1133,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           in     <- Ref.make(10)
           out    <- Ref.make(0)
-          _      <- (in.update(_ - 1) <* out.update(_ + 1)).flipWith(_.retryUntil(_ == 0))
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).flipWith(_.retryUntil(_ == 0))
           result <- out.get
         } yield assert(result)(equalTo(10))
       },
@@ -1150,7 +1150,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           in     <- Ref.make(10)
           out    <- Ref.make(0)
-          _      <- (in.update(_ - 1) <* out.update(_ + 1)).flipWith(_.retryWhile(_ >= 0))
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).flipWith(_.retryWhile(_ >= 0))
           result <- out.get
         } yield assert(result)(equalTo(11))
       },
@@ -1590,7 +1590,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("bracket regression 1") {
         def makeLogger: Ref[List[String]] => String => UIO[Unit] =
-          (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).unit
+          (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line))
 
         val io =
           for {
@@ -1719,7 +1719,7 @@ object ZIOSpec extends ZIOBaseSpec {
           fork <- ZIO
                    .effectAsync[Any, Nothing, Unit] { k =>
                      runtime.unsafeRunAsync_ {
-                       step.await *> ZIO.effectTotal(k(unexpectedPlace.update(1 :: _).unit))
+                       step.await *> ZIO.effectTotal(k(unexpectedPlace.update(1 :: _)))
                      }
                    }
                    .ensuring(ZIO.effectAsync[Any, Nothing, Unit] { _ =>
@@ -1745,7 +1745,7 @@ object ZIOSpec extends ZIOBaseSpec {
           fork <- ZIO
                    .effectAsyncMaybe[Any, Nothing, Unit] { k =>
                      runtime.unsafeRunAsync_ {
-                       step.await *> ZIO.effectTotal(k(unexpectedPlace.update(1 :: _).unit))
+                       step.await *> ZIO.effectTotal(k(unexpectedPlace.update(1 :: _)))
                      }
                      Some(IO.unit)
                    }
@@ -1983,7 +1983,7 @@ object ZIOSpec extends ZIOBaseSpec {
           for {
             counter <- Ref.make(0)
             _ <- (makeChild(1) *> makeChild(2)).handleChildrenWith { fs =>
-                  fs.foldLeft(IO.unit)((acc, f) => acc *> f.interrupt.ignore *> counter.update(_ + 1).unit)
+                  fs.foldLeft(IO.unit)((acc, f) => acc *> f.interrupt.ignore *> counter.update(_ + 1))
                 }
             value <- counter.get
           } yield value
@@ -2553,7 +2553,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("returns summary and value") {
         for {
           counter   <- Ref.make(0)
-          increment = counter.update(_ + 1)
+          increment = counter.updateAndGet(_ + 1)
           result    <- increment.summarized((a: Int, b: Int) => (a, b))(increment)
         } yield {
           val ((start, end), value) = result

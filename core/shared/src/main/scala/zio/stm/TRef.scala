@@ -41,39 +41,39 @@ final class TRef[A] private (
     })
 
   /**
-   * Sets the value of the `TRef`.
+   * Sets the value of the `TRef` and returns the old value.
    */
-  def set(newValue: A): STM[Nothing, Unit] =
+  def getAndSet(a: A): STM[Nothing, A] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
-      entry.unsafeSet(newValue)
+      val oldValue = entry.unsafeGet[A]
 
-      TExit.Succeed(())
+      entry.unsafeSet(a)
+
+      TExit.Succeed(oldValue)
     })
 
-  override def toString =
-    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
-
   /**
-   * Updates the value of the variable.
+   * Updates the value of the variable and returns the old value.
    */
-  def update(f: A => A): STM[Nothing, A] =
+  def getAndUpdate(f: A => A): STM[Nothing, A] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
-      val newValue = f(entry.unsafeGet[A])
+      val oldValue = entry.unsafeGet[A]
 
-      entry.unsafeSet(newValue)
+      entry.unsafeSet(f(oldValue))
 
-      TExit.Succeed(newValue)
+      TExit.Succeed(oldValue)
     })
 
   /**
-   * Updates some values of the variable but leaves others alone.
+   * Updates some values of the variable but leaves others alone, returning the
+   * old value.
    */
-  def updateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
-    update(f orElse { case a => a })
+  def getAndUpdateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
+    getAndUpdate(f orElse { case a => a })
 
   /**
    * Updates the value of the variable, returning a function of the specified
@@ -96,6 +96,62 @@ final class TRef[A] private (
    */
   def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
     modify(a => f.lift(a).getOrElse((default, a)))
+
+  /**
+   * Sets the value of the `TRef`.
+   */
+  def set(newValue: A): STM[Nothing, Unit] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      entry.unsafeSet(newValue)
+
+      TExit.Succeed(())
+    })
+
+  override def toString =
+    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
+
+  /**
+   * Updates the value of the variable.
+   */
+  def update(f: A => A): STM[Nothing, Unit] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      val newValue = f(entry.unsafeGet[A])
+
+      entry.unsafeSet(newValue)
+
+      TExit.Succeed(())
+    })
+
+  /**
+   * Updates the value of the variable and returns the new value.
+   */
+  def updateAndGet(f: A => A): STM[Nothing, A] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      val newValue = f(entry.unsafeGet[A])
+
+      entry.unsafeSet(newValue)
+
+      TExit.Succeed(newValue)
+    })
+
+  /**
+   * Updates some values of the variable but leaves others alone.
+   */
+  def updateSome(f: PartialFunction[A, A]): STM[Nothing, Unit] =
+    update(f orElse { case a => a })
+
+  /**
+   * Updates some values of the variable but leaves others alone, returning the
+   * new value.
+   */
+  def updateSomeAndGet(f: PartialFunction[A, A]): STM[Nothing, A] =
+    updateAndGet(f orElse { case a => a })
 
   private def getOrMakeEntry(journal: Journal): Entry =
     if (journal.containsKey(self)) journal.get(self)

@@ -189,7 +189,7 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         latch     <- Promise.make[Nothing, Unit]
         ref       <- Ref.make(3)
-        countdown = ref.update(_ - 1).flatMap(n => latch.succeed(()).when(n == 0))
+        countdown = ref.updateAndGet(_ - 1).flatMap(n => latch.succeed(()).when(n == 0))
         _         <- countdown.repeat(Schedule.fixed(2.seconds)).delay(1.second).fork
         _         <- TestClock.adjust(5.seconds)
         _         <- latch.await
