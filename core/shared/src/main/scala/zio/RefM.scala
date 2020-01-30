@@ -171,19 +171,6 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
 
   /**
    * Atomically modifies the `RefM` with the specified partial function.
-   * If the function is undefined on the current value it returns the old value
-   * without changing it.
-   *
-   * @param pf partial function to atomically modify the `RefM`
-   * @tparam R environment of the effect
-   * @tparam E error type
-   * @return `ZIO[R, E, A]` modified value of the `RefM`
-   */
-  def updateAndGetSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
-    modify(a => pf.applyOrElse(a, (_: A) => IO.succeedNow(a)).map(a => (a, a)))
-
-  /**
-   * Atomically modifies the `RefM` with the specified partial function.
    * If the function is undefined on the current value it doesn't change it.
    *
    * @param pf partial function to atomically modify the `RefM`
@@ -193,6 +180,19 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    */
   def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, Unit] =
     modify(a => pf.applyOrElse(a, (_: A) => IO.succeedNow(a)).map(a => ((), a)))
+
+  /**
+   * Atomically modifies the `RefM` with the specified partial function.
+   * If the function is undefined on the current value it returns the old value
+   * without changing it.
+   *
+   * @param pf partial function to atomically modify the `RefM`
+   * @tparam R environment of the effect
+   * @tparam E error type
+   * @return `ZIO[R, E, A]` modified value of the `RefM`
+   */
+  def updateSomeAndGet[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
+    modify(a => pf.applyOrElse(a, (_: A) => IO.succeedNow(a)).map(a => (a, a)))
 }
 
 object RefM extends Serializable {

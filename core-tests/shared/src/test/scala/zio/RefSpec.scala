@@ -73,17 +73,17 @@ object RefSpec extends ZIOBaseSpec {
         value <- ref.updateAndGet(_ => update)
       } yield assert(value)(equalTo(update))
     },
-    testM("updateAndGetSome") {
+    testM("updateSomeAndGet") {
       for {
         ref   <- Ref.make[State](Active)
-        value <- ref.updateAndGetSome { case Closed => Changed }
+        value <- ref.updateSomeAndGet { case Closed => Changed }
       } yield assert(value)(equalTo(Active))
     },
-    testM("updateAndGetSome twice") {
+    testM("updateSomeAndGet twice") {
       for {
         ref    <- Ref.make[State](Active)
-        value1 <- ref.updateAndGetSome { case Active => Changed }
-        value2 <- ref.updateAndGetSome {
+        value1 <- ref.updateSomeAndGet { case Active => Changed }
+        value2 <- ref.updateSomeAndGet {
                    case Active  => Changed
                    case Changed => Closed
                  }

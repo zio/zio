@@ -133,26 +133,26 @@ object RefMSpec extends ZIOBaseSpec {
         value <- refM.updateAndGet(_ => IO.failNow(failure)).run
       } yield assert(value)(fails(equalTo(failure)))
     },
-    testM("updateAndGetSome") {
+    testM("updateSomeAndGet") {
       for {
         refM  <- RefM.make[State](Active)
-        value <- refM.updateAndGetSome { case Closed => IO.succeedNow(Active) }
+        value <- refM.updateSomeAndGet { case Closed => IO.succeedNow(Active) }
       } yield assert(value)(equalTo(Active))
     },
-    testM("updateAndGetSome twice") {
+    testM("updateSomeAndGet twice") {
       for {
         refM   <- RefM.make[State](Active)
-        value1 <- refM.updateAndGetSome { case Active => IO.succeedNow(Changed) }
-        value2 <- refM.updateAndGetSome {
+        value1 <- refM.updateSomeAndGet { case Active => IO.succeedNow(Changed) }
+        value2 <- refM.updateSomeAndGet {
                    case Active  => IO.succeedNow(Changed)
                    case Changed => IO.succeedNow(Closed)
                  }
       } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
     },
-    testM("updateAndGetSome with failure") {
+    testM("updateSomeAndGet with failure") {
       for {
         refM  <- RefM.make[State](Active)
-        value <- refM.updateAndGetSome { case Active => IO.failNow(failure) }.run
+        value <- refM.updateSomeAndGet { case Active => IO.failNow(failure) }.run
       } yield assert(value)(fails(equalTo(failure)))
     }
   )

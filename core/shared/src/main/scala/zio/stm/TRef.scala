@@ -141,17 +141,17 @@ final class TRef[A] private (
     })
 
   /**
-   * Updates some values of the variable but leaves others alone, returning the
-   * new value.
-   */
-  def updateAndGetSome(f: PartialFunction[A, A]): STM[Nothing, A] =
-    updateAndGet(f orElse { case a => a })
-
-  /**
    * Updates some values of the variable but leaves others alone.
    */
   def updateSome(f: PartialFunction[A, A]): STM[Nothing, Unit] =
     update(f orElse { case a => a })
+
+  /**
+   * Updates some values of the variable but leaves others alone, returning the
+   * new value.
+   */
+  def updateSomeAndGet(f: PartialFunction[A, A]): STM[Nothing, A] =
+    updateAndGet(f orElse { case a => a })
 
   private def getOrMakeEntry(journal: Journal): Entry =
     if (journal.containsKey(self)) journal.get(self)
