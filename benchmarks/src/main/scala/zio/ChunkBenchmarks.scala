@@ -10,44 +10,48 @@ import zio._
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 class ChunkBenchmarks {
 
-  @Param(Array("1000"))
+  @Param(Array("100", "1000", "10000"))
   var chunkSize: Int = _
-
-  @Param(Array("1000"))
-  var count: Int = _
 
   var chunk: Chunk[Int] = _
 
   var array: Array[Int] = _
 
-  @Setup
-  def createChunk() =
-    chunk = Chunk.fromArray(Array.fill(0)(chunkSize))
-
-  @Setup
-  def createArray() =
+  @Setup(Level.Trial)
+  def setup() = {
     array = Array.fill(0)(chunkSize)
-
-  @Benchmark
-  def zioRandomAccess(): Int = {
-    var i   = 0
-    var sum = 0
-    while (i < chunkSize) {
-      sum += chunk(i)
-      i += 1
-    }
-    sum
+    chunk = Chunk.fromArray(array)
   }
 
   @Benchmark
-  def arrayRandomAccess(): Int = {
-    var i   = 0
-    var sum = 0
-    while (i < chunkSize) {
-      sum += array(i)
-      i += 1
-    }
-    sum
-  }
+  def chunkFold(): Int =
+    chunk.fold(0)(_ + _)
+
+  @Benchmark
+  def arrayFold(): Int =
+    array.sum
+  @Benchmark
+  def chunkMap(): Chunk[Int] = chunk.map(_ * 2)
+
+  @Benchmark
+  def arrayMap(): Array[Int] = array.map(_ * 2)
+
+  @Benchmark
+  def chunkFlatMap(): Chunk[Int] = chunk.flatMap(n => Chunk(n + 2))
+
+  @Benchmark
+  def arrayFlatMap(): Array[Int] = array.flatMap(n => Array(n + 2))
+
+  @Benchmark
+  def chunkFind(): Option[Int] = chunk.find(_ > 2)
+
+  @Benchmark
+  def arrayFind(): Option[Int] = array.find(_ > 2)
+
+  @Benchmark
+  def chunkMapM(): UIO[Unit] = chunk.mapM_(_ => ZIO.unit)
+
+  @Benchmark
+  def chunkFoldM(): UIO[Int] = chunk.foldM(0)((s, a) => ZIO.succeed(s + a))
 
 }
