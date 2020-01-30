@@ -1848,8 +1848,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    */
   def sum[A](implicit ev: Numeric[A]): ZSink[Any, Nothing, Nothing, A, A] = {
     val numeric = ev
-    foldLeft(numeric.zero) { case (acc, a) =>
-      numeric.plus(acc, a)
+    foldLeft(numeric.zero) {
+      case (acc, a) =>
+        numeric.plus(acc, a)
     }
   }
 
