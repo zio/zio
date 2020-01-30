@@ -94,7 +94,7 @@ import zio.stm._
 
 val updateSingle: UIO[Int] = (for {
   tRef <- TRef.make(10)
-  nValue <- tRef.update(_ + 20)
+  nValue <- tRef.updateAndGet(_ + 20)
 } yield nValue).commit
 ```
 
@@ -106,7 +106,7 @@ import zio.stm._
 
 val updateMultiple: UIO[Int] = for {
   tRef <- TRef.makeCommit(10)
-  nValue <- tRef.update(_ + 20).commit
+  nValue <- tRef.updateAndGet(_ + 20).commit
 } yield nValue
 ```
 
@@ -154,7 +154,7 @@ def transfer(tSender: TRef[Int],
     for {
       _ <- tSender.get.filter(_ >= amount)
       _ <- tSender.update(_ - amount)
-      nAmount <- tReceiver.update(_ + amount)
+      nAmount <- tReceiver.updateAndGet(_ + amount)
     } yield nAmount
   }
 }

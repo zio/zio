@@ -238,7 +238,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Runs onFailure on failure") {
         for {
           effects <- Ref.make[List[Int]](Nil)
-          res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
+          res     = (x: Int) => Managed.make(effects.update(x :: _))(_ => effects.update(x :: _))
           program = Managed.fromEffect(IO.failNow(())).foldM(_ => res(1), _ => Managed.unit)
           values  <- program.use_(ZIO.unit).ignore *> effects.get
         } yield assert(values)(equalTo(List(1, 1)))
@@ -247,7 +247,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         import zio.CanFail.canFail
         for {
           effects <- Ref.make[List[Int]](Nil)
-          res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
+          res     = (x: Int) => Managed.make(effects.update(x :: _))(_ => effects.update(x :: _))
           program = ZManaged.succeedNow(()).foldM(_ => Managed.unit, _ => res(1))
           values  <- program.use_(ZIO.unit).ignore *> effects.get
         } yield assert(values)(equalTo(List(1, 1)))
@@ -255,7 +255,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Invokes cleanups") {
         for {
           effects <- Ref.make[List[Int]](Nil)
-          res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
+          res     = (x: Int) => Managed.make(effects.update(x :: _))(_ => effects.update(x :: _))
           program = res(1).flatMap(_ => ZManaged.failNow(())).foldM(_ => res(2), _ => res(3))
           values  <- program.use_(ZIO.unit).ignore *> effects.get
         } yield assert(values)(equalTo(List(1, 2, 2, 1)))
@@ -264,7 +264,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         import zio.CanFail.canFail
         for {
           effects <- Ref.make[List[Int]](Nil)
-          res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
+          res     = (x: Int) => Managed.make(effects.update(x :: _))(_ => effects.update(x :: _))
           program = res(1).flatMap(_ => ZManaged.interrupt).foldM(_ => res(2), _ => res(3))
           values  <- program.use_(ZIO.unit).sandbox.ignore *> effects.get
         } yield assert(values)(equalTo(List(1, 1)))
@@ -272,7 +272,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Invokes cleanups on interrupt - 2") {
         for {
           effects <- Ref.make[List[Int]](Nil)
-          res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
+          res     = (x: Int) => Managed.make(effects.update(x :: _))(_ => effects.update(x :: _))
           program = res(1).flatMap(_ => ZManaged.failNow(())).foldM(_ => res(2), _ => res(3))
           values  <- program.use_(ZIO.interrupt).sandbox.ignore *> effects.get
         } yield assert(values)(equalTo(List(1, 2, 2, 1)))
@@ -280,7 +280,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Invokes cleanups on interrupt - 3") {
         for {
           effects <- Ref.make[List[Int]](Nil)
-          res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
+          res     = (x: Int) => Managed.make(effects.update(x :: _))(_ => effects.update(x :: _))
           program = res(1).flatMap(_ => ZManaged.failNow(())).foldM(_ => res(2) *> ZManaged.interrupt, _ => res(3))
           values  <- program.use_(ZIO.unit).sandbox.ignore *> effects.get
         } yield assert(values)(equalTo(List(1, 2, 2, 1)))
@@ -300,7 +300,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Invokes cleanups in reverse order of acquisition") {
         for {
           effects <- Ref.make[List[Int]](Nil)
-          res     = (x: Int) => ZManaged.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
+          res     = (x: Int) => ZManaged.make(effects.update(x :: _))(_ => effects.update(x :: _))
           program = ZManaged.foreach(List(1, 2, 3))(res)
           values  <- program.use_(ZIO.unit) *> effects.get
         } yield assert(values)(equalTo(List(1, 2, 3, 3, 2, 1)))
@@ -409,7 +409,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           runtime <- ZIO.runtime[Any]
           effects <- Ref.make(List[String]())
           closeable = UIO(new AutoCloseable {
-            def close(): Unit = runtime.unsafeRun(effects.update("Closed" :: _).unit)
+            def close(): Unit = runtime.unsafeRun(effects.update("Closed" :: _))
           })
           _      <- ZManaged.fromAutoCloseable(closeable).use_(ZIO.unit)
           result <- effects.get
@@ -672,7 +672,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         for {
           retries <- Ref.make(0)
           program = ZManaged
-            .make(retries.update(_ + 1).flatMap(r => if (r == 3) ZIO.unit else ZIO.failNow(())))(_ => ZIO.unit)
+            .make(retries.updateAndGet(_ + 1).flatMap(r => if (r == 3) ZIO.unit else ZIO.failNow(())))(_ => ZIO.unit)
           _ <- program.retry(Schedule.recurs(3)).use(_ => ZIO.unit).ignore
           r <- retries.get
         } yield assert(r)(equalTo(3))
@@ -681,7 +681,10 @@ object ZManagedSpec extends ZIOBaseSpec {
         for {
           retries <- Ref.make(0)
           program = Managed.reserve(
-            Reservation(retries.update(_ + 1).flatMap(r => if (r == 3) ZIO.unit else ZIO.failNow(())), _ => ZIO.unit)
+            Reservation(
+              retries.updateAndGet(_ + 1).flatMap(r => if (r == 3) ZIO.unit else ZIO.failNow(())),
+              _ => ZIO.unit
+            )
           )
           _ <- program.retry(Schedule.recurs(3)).use(_ => ZIO.unit).ignore
           r <- retries.get
@@ -692,12 +695,12 @@ object ZManagedSpec extends ZIOBaseSpec {
           retries1 <- Ref.make(0)
           retries2 <- Ref.make(0)
           program = ZManaged {
-            retries1.update(_ + 1).flatMap { r1 =>
+            retries1.updateAndGet(_ + 1).flatMap { r1 =>
               if (r1 < 3) ZIO.failNow(())
               else
                 ZIO.succeedNow {
                   Reservation(
-                    retries2.update(_ + 1).flatMap(r2 => if (r2 == 3) ZIO.unit else ZIO.failNow(())),
+                    retries2.updateAndGet(_ + 1).flatMap(r2 => if (r2 == 3) ZIO.unit else ZIO.failNow(())),
                     _ => ZIO.unit
                   )
                 }

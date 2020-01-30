@@ -258,7 +258,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
                      acc.update(a :: _) *> IO.succeedNow(true)
                    else
                      IO.succeedNow(false)
-                 }.flatMap(_ => acc.update(_.reverse))
+                 }.flatMap(_ => acc.updateAndGet(_.reverse))
           res2 <- slurp(s.takeWhile(cont)).map(_.toList)
         } yield assert(res1)(equalTo(res2))
       }
@@ -267,7 +267,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       checkM(chunksOfInts) { s =>
         for {
           acc  <- Ref.make[List[Int]](Nil)
-          res1 <- s.foreach(a => acc.update(a :: _).unit).flatMap(_ => acc.update(_.reverse))
+          res1 <- s.foreach(a => acc.update(a :: _).unit).flatMap(_ => acc.updateAndGet(_.reverse))
           res2 <- slurp(s).map(_.toList)
         } yield assert(res1)(equalTo(res2))
       }

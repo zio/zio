@@ -838,7 +838,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
     testM("Stream.repeatEffectWith is safe to pull again") {
       def effect(ref: Ref[Int]): IO[String, Int] =
         for {
-          cnt <- ref.update(_ + 1)
+          cnt <- ref.updateAndGet(_ + 1)
           res <- if (cnt == 2) IO.failNow("Ouch") else UIO.succeedNow(cnt)
         } yield res
 

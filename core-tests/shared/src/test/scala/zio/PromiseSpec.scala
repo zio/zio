@@ -17,7 +17,7 @@ object PromiseSpec extends ZIOBaseSpec {
       for {
         p  <- Promise.make[Nothing, Int]
         r  <- Ref.make(13)
-        s  <- p.complete(r.update(_ + 1))
+        s  <- p.complete(r.updateAndGet(_ + 1))
         v1 <- p.await
         v2 <- p.await
       } yield assert(s)(isTrue) &&
@@ -28,7 +28,7 @@ object PromiseSpec extends ZIOBaseSpec {
       for {
         p  <- Promise.make[Nothing, Int]
         r  <- Ref.make(13)
-        s  <- p.completeWith(r.update(_ + 1))
+        s  <- p.completeWith(r.updateAndGet(_ + 1))
         v1 <- p.await
         v2 <- p.await
       } yield assert(s)(isTrue) &&
