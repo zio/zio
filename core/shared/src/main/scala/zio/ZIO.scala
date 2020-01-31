@@ -776,6 +776,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
+   * Returns an effect that will only be executed once, even if it is evalauted
+   * multiple times.
+   */
+  final def once: ZIO[Any, Nothing, ZIO[R, E, Unit]] =
+    Ref.make(true).map(ref => self.whenM(ref.getAndSet(false)))
+
+  /**
    * Runs the specified effect if this effect fails, providing the error to the
    * effect if it exists. The provided effect will not be interrupted.
    */

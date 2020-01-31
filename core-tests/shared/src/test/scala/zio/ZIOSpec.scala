@@ -876,6 +876,16 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(task.run)(fails(isSome(equalTo(ex))))
       }
     ),
+    suite("once")(
+      testM("returns an effect that will only be executed once") {
+        for {
+          ref    <- Ref.make(0)
+          zio    <- ref.update(_ + 1).once
+          _      <- ZIO.collectAllPar(ZIO.replicate(100)(zio))
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
+      }
+    ),
     suite("onExit")(
       testM("executes that a cleanup function runs when effect succeeds") {
         for {
