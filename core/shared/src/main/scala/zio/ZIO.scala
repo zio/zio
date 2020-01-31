@@ -3324,23 +3324,14 @@ object ZIO {
 
   final class TapCauseRefailFn[R, E, E1 >: E, A](override val underlying: Cause[E] => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
-    def apply(c1: Cause[E]): ZIO[R, E1, Nothing] =
-      underlying(c1).foldCauseM(
-        c2 => ZIO.haltNow(Cause.Then(c1, c2)),
-        _ => ZIO.haltNow(c1)
-      )
+    def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
+      underlying(c) *> ZIO.haltNow(c)
   }
 
   final class TapErrorRefailFn[R, E, E1 >: E, A](override val underlying: E => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
-    def apply(c1: Cause[E]): ZIO[R, E1, Nothing] =
-      c1.failureOrCause.fold(
-        underlying(_).foldCauseM(
-          c2 => ZIO.haltNow(Cause.Then(c1, c2)),
-          _ => ZIO.haltNow(c1)
-        ),
-        _ => ZIO.haltNow(c1)
-      )
+    def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
+      c.failureOrCause.fold(underlying(_) *> ZIO.haltNow(c), _ => ZIO.haltNow(c))
   }
 
   private[zio] object Tags {
