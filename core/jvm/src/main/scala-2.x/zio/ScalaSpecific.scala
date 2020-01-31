@@ -16,20 +16,27 @@
 
 package zio
 
+import izumi.fundamentals.reflection.Tags.Tag
+import izumi.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
+
 private[zio] object ScalaSpecific {
-  import scala.reflect.runtime.universe._
 
-  type TaggedType[A] = TypeTag[A]
-  type TagType       = Type
+  type TaggedType[A] = Tag[A]
+  type TagType       = LightTypeTag
 
-  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tag.tpe.dealias
+  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tag.tag
 
   private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
     left <:< right
 
   private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] =
-    t.dealias match {
-      case RefinedType(parents, _) => parents.toSet.flatMap((p: TagType) => taggedGetHasServices(p))
-      case t                       => Set(t.typeArgs(0).dealias)
+    t.decompose.map { parent =>
+      parent.ref match {
+        case reference: LightTypeTagRef.AppliedNamedReference if reference.typeArgs.size == 1 =>
+          parent.typeArgs.head
+
+        case _ =>
+          parent
+      }
     }
 }

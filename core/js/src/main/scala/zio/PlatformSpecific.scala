@@ -16,6 +16,9 @@
 
 package zio
 
+import izumi.fundamentals.reflection.Tags.Tag
+import izumi.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
+
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
@@ -31,16 +34,22 @@ private[zio] trait PlatformSpecific {
       Clock.live ++ Console.live ++ System.live ++ Random.live
   }
 
-  type TaggedType[A] = scala.reflect.ClassTag[A]
-  type TagType       = scala.reflect.ClassTag[_]
+  type TaggedType[A] = Tag[A]
+  type TagType       = LightTypeTag
 
-  private[zio] def taggedIsSubtype[A, B](left: TagType, right: TagType): Boolean =
-    right.runtimeClass.isAssignableFrom(left.runtimeClass)
+  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tag.tag
 
-  private[zio] def taggedTagType[A](tagged: Tagged[A]): TagType = tagged.tag
+  private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
+    left <:< right
 
-  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] = {
-    val _ = t
-    Set()
-  }
+  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] =
+    t.decompose.map { parent =>
+      parent.ref match {
+        case reference: LightTypeTagRef.AppliedNamedReference if reference.typeArgs.size == 1 =>
+          parent.typeArgs.head
+
+        case _ =>
+          parent
+      }
+    }
 }
