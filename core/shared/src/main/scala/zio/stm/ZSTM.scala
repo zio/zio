@@ -315,7 +315,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * "Peeks" at the success of transactional effect.
    */
   def tap[R1 <: R, E1 >: E](f: A => ZSTM[R1, E1, Any]): ZSTM[R1, E1, A] =
-    flatMap(f) *> self
+    flatMap(a => f(a).as(a))
 
   /**
    * Maps the success value of this effect to unit.
