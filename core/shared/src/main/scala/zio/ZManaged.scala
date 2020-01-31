@@ -792,11 +792,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     implicit ev: CanFail[E]
   ): ZManaged[R1, E1, A] =
     foldM(
-      e =>
-        f(e).foldCauseM(
-          c => ZManaged.haltNow(Cause.Then(Cause.fail(e), c)),
-          _ => ZManaged.failNow(e)
-        ),
+      e => f(e) *> ZManaged.fail(e),
       a => g(a).as(a)
     )
 
@@ -805,12 +801,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * the acquired resource.
    */
   final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
-    catchAllCause { c1 =>
-      f(c1).foldCauseM(
-        c2 => ZManaged.haltNow(Cause.Then(c1, c2)),
-        _ => ZManaged.haltNow(c1)
-      )
-    }
+    catchAllCause(c => f(c) *> ZManaged.halt(c))
 
   /**
    * Returns an effect that effectfully peeks at the failure of the acquired resource.

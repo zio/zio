@@ -2564,13 +2564,13 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("tapCause")(
-      testM("does not lose infomrmation") {
-        val causes = Gen.causes(Gen.anyString, Gen.throwable)
-        checkM(causes, causes) { (c1, c2) =>
-          for {
-            exit <- ZIO.haltNow(c1).tapCause(_ => ZIO.halt(c2)).run
-          } yield assert(exit)(failsCause(equalTo(Cause.Then(c1, c2))))
-        }
+      testM("effectually peeks at the cause of the failure of this effect") {
+        for {
+          ref    <- Ref.make(false)
+          result <- ZIO.dieMessage("die").tapCause(_ => ref.set(true)).run
+          effect <- ref.get
+        } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
+          assert(effect)(isTrue)
       }
     ),
     suite("timeoutFork")(
