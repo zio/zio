@@ -528,7 +528,21 @@ object ZSTMSpec extends ZIOBaseSpec {
         ans <- ZSTM.collectAll(List(tq.take, tq.take, tq.take))
       } yield ans
       assertM(tx.commit)(equalTo(List(1, 2, 3)))
-    }
+    },
+    suite("taps")(
+      testM("tap should apply the transactional function to the effect result while keeping the effect itself") {
+        val tx =
+          for {
+            refA <- TRef.make(10)
+            refB <- TRef.make(0)
+            _    <- refA.update(_ * 2)
+            a    <- refA.get.tap(v => refB.set(v + 1))
+            b    <- refB.get
+          } yield (a, b)
+
+        assertM(tx.commit)(equalTo((20, 21)))
+      }
+    )
   )
 
   trait STMEnv {
