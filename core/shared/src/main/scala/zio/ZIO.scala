@@ -776,11 +776,53 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
-   * Returns an effect that will only be executed once, even if it is evalauted
-   * multiple times.
+   * Returns an effect that, if evaluated, will return the result of this
+   * effect a single time. If the result of this effect has already been
+   * returned the specified fallback value will be returned. Uses the specified
+   * function to determine whether to retry this effect on subsequent
+   * evaluations if the effect fails with an error or is interrupted.
    */
-  final def once: ZIO[Any, Nothing, ZIO[R, E, Unit]] =
-    Ref.make(true).map(ref => self.whenM(ref.getAndSet(false)))
+  final def once[A1 >: A](fallback: => A1): UIO[ZIO[R, E, A1]] =
+    onceWith(fallback)(_ => true)
+
+  /**
+   * Returns an effect that, if evaluated, will return the result of this
+   * effect a single time. If the result of this effect has already been
+   * returned the result of the specified fallback effect will be returned.
+   * If this effect fails with an error or is interrupted subsequent
+   * evaluations will retry the effect.
+   */
+  final def onceM[R1 <: R, E1 >: E, A1 >: A](fallback: ZIO[R1, E1, A1]): UIO[ZIO[R1, E1, A1]] =
+    onceWithM(fallback)(_ => true)
+
+  /**
+   * Returns an effect that, if evaluated, will return the result of this
+   * effect a single time. If the result of this effect has already been
+   * returned the specified fallback value will be returned. If this effect
+   * fails with an error or is interrupted subsequent evaluations will retry
+   * the effect.
+   */
+  final def onceWith[A1 >: A](fallback: => A1)(f: Cause[E] => Boolean): UIO[ZIO[R, E, A1]] =
+    onceWithM(ZIO.succeed(fallback))(f)
+
+  /**
+   * Returns an effect that, if evaluated, will return the result of this
+   * effect a single time. If the result of this effect has already been
+   * returned the result of the specified fallback effect will be returned.
+   * Uses the specified function to determine whether to retry this effect on
+   * subsequent evaluations if the effect fails with an error or is
+   * interrupted.
+   */
+  final def onceWithM[R1 <: R, E1 >: E, A1 >: A](
+    fallback: ZIO[R1, E1, A1]
+  )(f: Cause[E] => Boolean): UIO[ZIO[R1, E1, A1]] =
+    Ref.make(true).map { ref =>
+      ZIO
+        .bracketExit(ref.getAndSet(false))((_, exit: Exit[E, Option[A]]) =>
+          exit.fold(cause => ref.set(f(cause)), _ => ZIO.unit)
+        )(b => if (b) self.map(Some(_)) else ZIO.succeedNow(None))
+        .flatMap(_.fold(fallback)(ZIO.succeedNow))
+    }
 
   /**
    * Runs the specified effect if this effect fails, providing the error to the
