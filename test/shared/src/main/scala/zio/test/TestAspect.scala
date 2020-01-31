@@ -578,8 +578,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * Annotates tests with string tags.
    */
-  def tag(tags: String*): TestAspectAtLeastR[Annotations] =
-    before(Annotations.annotate(TestAnnotation.tagged, tags.toSet))
+  def tag(tag: String, tags: String*): TestAspectAtLeastR[Annotations] =
+    before(Annotations.annotate(TestAnnotation.tagged, Set(tag) union tags.toSet))
 
   /**
    * Annotates tests with their execution times.
