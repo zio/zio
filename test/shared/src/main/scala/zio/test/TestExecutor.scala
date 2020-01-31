@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Managed, UIO, ZIO }
+import zio.{ Has, Managed, UIO, ZIO, ZLayer, ZManaged }
 
 /**
  * A `TestExecutor[R, E, L, T, S]` is capable of executing specs containing
@@ -29,21 +29,24 @@ trait TestExecutor[+R, E, L, -T, +S] {
 }
 
 object TestExecutor {
-  def managed[R <: Annotations, E, L, S](
-    env: Managed[Nothing, R]
+  def managed[R0 <: Has[_], R <: Annotations, E, L, S](
+    live: ZLayer.NoDeps[Nothing, R0],
+    test: ZManaged[R0, Nothing, R]
   ): TestExecutor[R, E, L, S, S] = new TestExecutor[R, E, L, S, S] {
     def run(spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy): UIO[ExecutedSpec[E, L, S]] =
-      spec.annotated
-        .provideManaged(environment)
-        .foreachExec(defExec)(
-          e =>
-            e.failureOrCause.fold(
-              { case (failure, annotations) => ZIO.succeedNow((Left(failure), annotations)) },
-              cause => ZIO.succeedNow((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
-            ), {
-            case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
-          }
-        )
-    val environment = env
+      live.build.memoize.map(test.provideManaged).use { environment =>
+        spec.annotated
+          .provideManaged(environment)
+          .foreachExec(defExec)(
+            e =>
+              e.failureOrCause.fold(
+                { case (failure, annotations) => ZIO.succeedNow((Left(failure), annotations)) },
+                cause => ZIO.succeedNow((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
+              ), {
+              case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
+            }
+          )
+      }
+    val environment = test.provideLayer(live)
   }
 }

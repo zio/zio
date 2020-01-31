@@ -4,7 +4,7 @@ import scala.{ Console => SConsole }
 
 import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
-import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
+import zio.test.environment.{ liveEnvironment, testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
 import zio.test.mock.ExpectationSpecUtils.Module
 import zio.test.mock.MockException.{
   InvalidArgumentsException,
@@ -12,7 +12,7 @@ import zio.test.mock.MockException.{
   UnexpectedCallExpection,
   UnmetExpectationsException
 }
-import zio.{ Cause, Managed, ZIO }
+import zio.{ Cause, ZEnv, ZIO, ZLayer, ZManaged }
 
 object ReportingTestUtils {
 
@@ -49,7 +49,7 @@ object ReportingTestUtils {
 
   def runLog[E](spec: ZSpec[TestEnvironment, String, String, Unit]) =
     for {
-      _ <- TestTestRunner(testEnvironmentManaged)
+      _ <- TestTestRunner(liveEnvironment, testEnvironmentManaged)
             .run(spec)
             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
@@ -57,7 +57,7 @@ object ReportingTestUtils {
 
   def runSummary[E](spec: ZSpec[TestEnvironment, String, String, Unit]) =
     for {
-      results <- TestTestRunner(testEnvironmentManaged)
+      results <- TestTestRunner(liveEnvironment, testEnvironmentManaged)
                   .run(spec)
                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
                     TestLogger.fromConsole ++ TestClock.default
@@ -65,9 +65,12 @@ object ReportingTestUtils {
       actualSummary <- SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
-  private[this] def TestTestRunner(testEnvironment: Managed[Nothing, TestEnvironment]) =
+  private[this] def TestTestRunner(
+    liveEnvironment: ZLayer.NoDeps[Nothing, ZEnv],
+    testEnvironment: ZManaged[ZEnv, Nothing, TestEnvironment]
+  ) =
     TestRunner[TestEnvironment, String, String, Unit, Unit](
-      executor = TestExecutor.managed[TestEnvironment, String, String, Unit](testEnvironment),
+      executor = TestExecutor.managed[ZEnv, TestEnvironment, String, String, Unit](liveEnvironment, testEnvironment),
       reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 

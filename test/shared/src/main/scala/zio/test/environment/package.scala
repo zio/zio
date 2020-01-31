@@ -90,8 +90,8 @@ package object environment extends PlatformSpecific {
 
   val liveEnvironment: ZLayer.NoDeps[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
-    (ZEnv.live >>> TestEnvironment.live).build
+  val testEnvironmentManaged: ZManaged[ZEnv, Nothing, TestEnvironment] =
+    TestEnvironment.live.value
 
   /**
    * Provides an effect with the "real" environment as opposed to the test
