@@ -55,7 +55,7 @@ package object scheduler {
             Left(ZIO.effectTotal(canceler()))
           }
         def shutdown: UIO[Unit] =
-          UIO.effectTotal(scheduler.shutdown)
+          UIO.effectTotal(scheduler.shutdown())
       }
 
       ZLayer.fromManaged(Managed.make(UIO.effectTotal(Has(service))) { scheduler =>
