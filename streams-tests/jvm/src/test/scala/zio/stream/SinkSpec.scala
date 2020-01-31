@@ -228,14 +228,14 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("count")(
         testM("ints") {
-          checkM(Gen.listOfN(30)(Gen.anyInt)) { ints: List[Int] =>
+          checkM(Gen.listOfN(30)(Gen.anyInt)) { (ints: List[Int]) =>
             val stream = Stream.fromIterable(ints)
             assertM(stream.runCount <&> stream.run(Sink.count))(equalTo((30L, 30L)))
           }
         },
         testM("foos") {
           case class Foo()
-          checkM(Gen.listOfN(10)(Gen.const(Foo()))) { foos: List[Foo] =>
+          checkM(Gen.listOfN(10)(Gen.const(Foo()))) { (foos: List[Foo]) =>
             val stream = Stream.fromIterable(foos)
             assertM(stream.runCount <&> stream.run(Sink.count))(equalTo((10L, 10L)))
           }
