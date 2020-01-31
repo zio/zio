@@ -77,6 +77,11 @@ object Sink extends Serializable {
     ZSink.collectAllWhileM(p)
 
   /**
+   * see [[ZSink.count]]
+   */
+  def count[A]: Sink[Nothing, Nothing, A, Long] = ZSink.count[A]
+
+  /**
    * see [[ZSink.die]]
    */
   def die(e: => Throwable): Sink[Nothing, Nothing, Any, Nothing] =
@@ -262,6 +267,11 @@ object Sink extends Serializable {
    */
   def succeed[A, B](b: => B): Sink[Nothing, A, A, B] =
     ZSink.succeed(b)
+
+  /**
+   * see [[ZSink.sum]]
+   */
+  def sum[A: Numeric]: Sink[Nothing, Nothing, A, A] = ZSink.sum[A]
 
   /**
    * see [[ZSink.throttleEnforce]]

@@ -2259,12 +2259,26 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def runCollect: ZIO[R, E, List[A]] = run(Sink.collectAll[A])
 
   /**
+   * Runs the stream and emits the number of elements processed
+   *
+   * Equivalent to `run(ZSink.count)`
+   */
+  final def runCount: ZIO[R, E, Long] = self.run(Sink.count[A])
+
+  /**
    * Runs the stream purely for its effects. Any elements emitted by
    * the stream are discarded.
    *
    * Equivalent to `run(Sink.drain)`.
    */
   final def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
+
+  /**
+   * Runs the stream to a sink which sums elements, provided they are Numeric.
+   *
+   * Equivalent to `run(Sink.sum[A])`
+   */
+  final def runSum[A1 >: A](implicit ev: Numeric[A1]): ZIO[R, E, A1] = run(Sink.sum[A1])
 
   /**
    * Schedules the output of the stream using the provided `schedule` and emits its output at
