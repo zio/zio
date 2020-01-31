@@ -48,5 +48,8 @@ private[scheduler] trait PlatformSpecific {
           canceled
         }
     }
+
+    override def shutdown(): Unit =
+      service.shutdown()
   }
 }
