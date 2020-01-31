@@ -576,6 +576,12 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * Annotates tests with string tags.
+   */
+  def tag(tags: String*): TestAspectAtLeastR[Annotations] =
+    before(Annotations.annotate(TestAnnotation.tagged, tags.toSet))
+
+  /**
    * Annotates tests with their execution times.
    */
   val timed: TestAspect[Nothing, Live with Annotations, Nothing, Any, Nothing, Any] =
