@@ -895,13 +895,13 @@ object ZManagedSpec extends ZIOBaseSpec {
       }
     ),
     suite("tapCause")(
-      testM("does not lose infomrmation") {
-        val causes = Gen.causes(Gen.anyString, Gen.throwable)
-        checkM(causes, causes) { (c1, c2) =>
-          for {
-            exit <- ZManaged.haltNow(c1).tapCause(_ => ZManaged.haltNow(c2)).use(ZIO.succeedNow).run
-          } yield assert(exit)(failsCause(equalTo(Cause.Then(c1, c2))))
-        }
+      testM("effectually peeks at the cause of the failure of the acquired resource") {
+        (for {
+          ref    <- Ref.make(false).toManaged_
+          result <- ZManaged.dieMessage("die").tapCause(_ => ref.set(true).toManaged_).run
+          effect <- ref.get.toManaged_
+        } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
+          assert(effect)(isTrue)).use(ZIO.succeedNow)
       }
     ),
     suite("tapError")(
