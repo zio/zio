@@ -724,6 +724,28 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.failNow("Fail").head.either)(isLeft(isSome(equalTo("Fail"))))
       }
     ),
+    suite("ifM")(
+      testM("runs `onTrue` if result of `b` is `true`") {
+        val zio = ZIO.ifM(ZIO.succeedNow(true))(ZIO.succeedNow(true), ZIO.succeedNow(false))
+        assertM(zio)(isTrue)
+      },
+      testM("runs `onFalse` if result of `b` is `false`") {
+        val zio = ZIO.ifM(ZIO.succeedNow(false))(ZIO.succeedNow(true), ZIO.succeedNow(false))
+        assertM(zio)(isFalse)
+      },
+      testM("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean]   = ZIO.succeedNow(true)
+        val onTrue: ZIO[R1, E1, A]  = ZIO.succeedNow(new A {})
+        val onFalse: ZIO[R1, E1, A] = ZIO.succeedNow(new A {})
+        val _                       = ZIO.ifM(b)(onTrue, onFalse)
+        ZIO.succeed(assertCompletes)
+      }
+    ),
     suite("ignore")(
       testM("return success as Unit") {
         assertM(ZIO.succeedNow(11).ignore)(equalTo(()))
