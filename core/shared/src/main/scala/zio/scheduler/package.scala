@@ -58,7 +58,9 @@ package object scheduler {
           UIO.effectTotal(scheduler.shutdown)
       }
 
-      ZLayer.fromManaged(Managed.make(UIO.effectTotal(Has(service)))(_.get.shutdown))
+      ZLayer.fromManaged(Managed.make(UIO.effectTotal(Has(service))) { scheduler =>
+        UIO.effectTotal(scheduler.get.shutdown)
+      })
     }
   }
 
