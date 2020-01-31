@@ -535,12 +535,11 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             refA <- TRef.make(10)
             refB <- TRef.make(0)
-            _    <- refA.update(_ * 2)
             a    <- refA.get.tap(v => refB.set(v + 1))
             b    <- refB.get
           } yield (a, b)
 
-        assertM(tx.commit)(equalTo((20, 21)))
+        assertM(tx.commit)(equalTo((10, 11)))
       }
     )
   )
