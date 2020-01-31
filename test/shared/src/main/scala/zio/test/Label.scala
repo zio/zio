@@ -20,7 +20,7 @@ package zio.test
  * A `Label[L]` represents a label with a value of type `L` and a string
  * rendering.
  */
-final case class Label[+L](value: L, render: String) { self =>
+final case class Label[+L](render: String, value: L = ()) { self =>
 
   /**
    * Transforms the value of this label with the specified function.
@@ -34,13 +34,4 @@ final case class Label[+L](value: L, render: String) { self =>
    */
   def mapRender(f: String => String): Label[L] =
     self.copy(render = f(render))
-}
-
-object Label {
-
-  /**
-   * Constructs a new label from the specified string.
-   */
-  def fromString(string: String): Label[Unit] =
-    Label((), string)
 }

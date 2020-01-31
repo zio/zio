@@ -422,7 +422,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     self
       .asInstanceOf[ZSpec[R, E1, Unit, S]]
       .filterLabels(_.render.contains(s))
-      .getOrElse(Spec.test(Label.fromString("only"), ignored))
+      .getOrElse(Spec.test(Label("only"), ignored))
 
   /**
    * Runs the spec only if the specified predicate is satisfied.

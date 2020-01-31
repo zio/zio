@@ -351,7 +351,7 @@ package object test extends CompileVariants {
    * Builds a suite containing a number of other specs.
    */
   def suite[R, E, T](label: String)(specs: Spec[R, E, Unit, T]*): Spec[R, E, Unit, T] =
-    suite(Label.fromString(label))(specs: _*)
+    suite(Label(label))(specs: _*)
 
   /**
    * Builds a suite containing a number of other specs.
@@ -363,7 +363,7 @@ package object test extends CompileVariants {
    * Builds a spec with a single pure test.
    */
   def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing, Unit, Unit] =
-    test(Label.fromString(label))(assertion)
+    test(Label(label))(assertion)
 
   /**
    * Builds a spec with a single pure test.
@@ -375,7 +375,7 @@ package object test extends CompileVariants {
    * Builds a spec with a single effectful test.
    */
   def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E, Unit, Unit] =
-    testM(Label.fromString(label))(assertion)
+    testM(Label(label))(assertion)
 
   /**
    * Builds a spec with a single effectful test.
