@@ -325,6 +325,12 @@ object UIO {
   def identity: UIO[Any] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifM]]
+   */
+  def ifM(b: UIO[Boolean]): ZIO.IfM[Any, Nothing] =
+    new ZIO.IfM(b)
+
+  /**
    * @see See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt

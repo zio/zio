@@ -1038,6 +1038,11 @@ object ZManaged {
       ZManaged.environment.flatMap(f)
   }
 
+  final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, A](onTrue: ZManaged[R1, E1, A], onFalse: ZManaged[R1, E1, A]): ZManaged[R1, E1, A] =
+      b.flatMap(b => if (b) onTrue else onFalse)
+  }
+
   trait PreallocationScope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
@@ -1334,6 +1339,12 @@ object ZManaged {
    * Returns the identity effectful function, which performs no effects
    */
   def identity[R]: ZManaged[R, Nothing, R] = fromFunction(scala.Predef.identity)
+
+  /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
+  def ifM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.IfM[R, E] =
+    new ZManaged.IfM(b)
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this

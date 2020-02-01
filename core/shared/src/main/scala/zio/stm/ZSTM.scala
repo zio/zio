@@ -425,6 +425,11 @@ object ZSTM {
       ZSTM.environment.flatMap(f)
   }
 
+  final class IfM[R, E](private val b: ZSTM[R, E, Boolean]) {
+    def apply[R1 <: R, E1 >: E, A](onTrue: ZSTM[R1, E1, A], onFalse: ZSTM[R1, E1, A]): ZSTM[R1, E1, A] =
+      b.flatMap(b => if (b) onTrue else onFalse)
+  }
+
   private final class Resumable[E, E1, A, B](
     val stm: STM[E, A],
     val ks: Stack[internal.TExit[E, A] => STM[E1, B]]
@@ -931,6 +936,12 @@ object ZSTM {
         case Success(a) => STM.succeedNow(a)
       }
     }
+
+  /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
+  def ifM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfM[R, E] =
+    new ZSTM.IfM(b)
 
   /**
    * Creates an `STM` value from a partial (but pure) function.
