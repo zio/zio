@@ -260,15 +260,33 @@ object URIO {
     ZIO.foldRight(in)(zero)(f)
 
   /**
-   * @see [[zio.ZIO.foreach]]
+   * @see [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
   def foreach[R, A, B](in: Iterable[A])(f: A => URIO[R, B]): URIO[R, List[B]] =
     ZIO.foreach(in)(f)
 
   /**
-   * @see [[zio.ZIO.foreachPar]]
+   * @see [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
+   */
+  final def foreach[R, A, B](in: Option[A])(f: A => URIO[R, B]): URIO[R, Option[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see [[[zio.ZIO.foreach[R,E,A,B](in:zio\.Chunk*]]]
+   */
+  final def foreach[R, A, B](in: Chunk[A])(f: A => URIO[R, B]): URIO[R, Chunk[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[R, A, B](as: Iterable[A])(fn: A => URIO[R, B]): URIO[R, List[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.Chunk*]]]
+   */
+  final def foreachPar[R, A, B](as: Chunk[A])(fn: A => URIO[R, B]): URIO[R, Chunk[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -278,15 +296,27 @@ object URIO {
     ZIO.foreachParN(n)(as)(fn)
 
   /**
-   * @see [[zio.ZIO.foreach_]]
+   * @see [[[zio.ZIO.foreach_[R,E,A](as:Iterable*]]]
    */
   def foreach_[R, A](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
-   * @see [[zio.ZIO.foreachPar_]]
+   * @see [[[zio.ZIO.foreach_[R,E,A](as:zio\.Chunk*]]]
+   */
+  final def foreach_[R, A](as: Chunk[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+    ZIO.foreach_(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar_[R,E,A](as:Iterable*]]]
    */
   def foreachPar_[R, A, B](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+    ZIO.foreachPar_(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar_[R,E,A](as:zio\.Chunk*]]]
+   */
+  final def foreachPar_[R, A, B](as: Chunk[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**

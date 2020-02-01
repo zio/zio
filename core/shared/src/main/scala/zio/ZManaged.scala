@@ -1211,6 +1211,13 @@ object ZManaged {
     }
 
   /**
+   * Applies the function `f` if the argument is non-empty and
+   * returns the results in a new `Option[A2]`.
+   */
+  final def foreach[R, E, A1, A2](in: Option[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, Option[A2]] =
+    in.fold[ZManaged[R, E, Option[A2]]](succeed(None))(f(_).map(Some(_)))
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
    * and returns the results in a new `List[B]`.
    *
@@ -1764,7 +1771,7 @@ object ZManaged {
     } yield switch
 
   /**
-   * Alias for [[ZManaged.foreach]]
+   * Alias for [[[ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
    */
   @deprecated("use foreach", "1.0.0")
   def traverse[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
