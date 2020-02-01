@@ -1771,17 +1771,11 @@ object ZManaged {
     } yield switch
 
   /**
-   * Alias for [[ZManaged.foreach]]
+   * Alias for [[[ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
    */
   @deprecated("use foreach", "1.0.0")
   def traverse[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
     foreach[R, E, A1, A2](as)(f)
-
-  /**
-   * Alias for [[ZManaged.foreach]]
-   */
-  final def traverse[R, E, A1, A2](v: Option[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, Option[A2]] =
-    foreach[R, E, A1, A2](v)(f)
 
   /**
    * Alias for [[ZManaged.foreach_]]

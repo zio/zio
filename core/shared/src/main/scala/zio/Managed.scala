@@ -91,13 +91,13 @@ object Managed {
     ZManaged.flatten(m)
 
   /**
-   * See [[zio.ZManaged.foreach]]
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
    */
   def foreach[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.foreach(as)(f)
 
   /**
-   * See [[zio.ZManaged.foreach]]
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](in:Option*]]]
    */
   final def foreach[E, A1, A2](in: Option[A1])(f: A1 => Managed[E, A2]): Managed[E, Option[A2]] =
     ZManaged.foreach(in)(f)
@@ -339,12 +339,6 @@ object Managed {
   @deprecated("use foreach", "1.0.0")
   def traverse[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.traverse(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverse]]
-   */
-  final def traverse[E, A1, A2](in: Option[A1])(f: A1 => Managed[E, A2]): Managed[E, Option[A2]] =
-    ZManaged.traverse(in)(f)
 
   /**
    * See [[zio.ZManaged.traverse_]]

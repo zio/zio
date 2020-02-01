@@ -2961,61 +2961,31 @@ object ZIO {
     zio.traced
 
   /**
-   * Alias for [[ZIO.foreach]]
+   * Alias for [[[ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
   @deprecated("use foreach", "1.0.0")
   def traverse[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     foreach[R, E, A, B](in)(f)
 
   /**
-   * Alias for [[ZIO.foreach]]
-   */
-  final def traverse[R, E, A, B](in: Option[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Option[B]] =
-    foreach[R, E, A, B](in)(f)
-
-  /**
-   * Alias for [[ZIO.foreach]]
-   */
-  final def traverse[R, E, A, B](in: Chunk[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
-    foreach[R, E, A, B](in)(f)
-
-  /**
-   * Alias for [[ZIO.foreach_]]
+   * Alias for [[[ZIO.foreach_[R,E,A](as:Iterable*]]]
    */
   @deprecated("use foreach_", "1.0.0")
   def traverse_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreach_[R, E, A](as)(f)
 
   /**
-   * Alias for [[ZIO.foreach_]]
-   */
-  final def traverse_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    foreach_[R, E, A](as)(f)
-
-  /**
-   * Alias for [[ZIO.foreachPar]]
+   * Alias for [[[ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   @deprecated("use foreachPar", "1.0.0")
   def traversePar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     foreachPar[R, E, A, B](as)(fn)
 
   /**
-   * Alias for [[ZIO.foreachPar]]
-   */
-  final def traversePar[R, E, A, B](as: Chunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
-    foreachPar[R, E, A, B](as)(fn)
-
-  /**
-   * Alias for [[ZIO.foreachPar_]]
+   * Alias for [[[ZIO.foreachPar_[R,E,A](as:Iterable*]]]
    */
   @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    foreachPar_[R, E, A](as)(f)
-
-  /**
-   * Alias for [[ZIO.foreachPar_]]
-   */
-  final def traversePar_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreachPar_[R, E, A](as)(f)
 
   /**
