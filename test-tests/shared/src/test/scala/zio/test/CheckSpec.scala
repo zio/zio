@@ -12,27 +12,27 @@ object CheckSpec extends ZIOBaseSpec {
         for {
           _ <- ZIO.effect(())
           r <- random.nextInt(n)
-        } yield assert(r, isLessThan(n))
+        } yield assert(r)(isLessThan(n))
       }
     },
     testM("effectual properties can be tested") {
       checkM(Gen.int(1, 100)) { n =>
         for {
           r <- random.nextInt(n)
-        } yield assert(r, isLessThan(n))
+        } yield assert(r)(isLessThan(n))
       }
     },
     testM("error in checkM is test failure") {
       checkM(Gen.int(1, 100)) { n =>
         for {
-          _ <- ZIO.fail("fail")
+          _ <- ZIO.failNow("fail")
           r <- random.nextInt(n)
-        } yield assert(r, isLessThan(n))
+        } yield assert(r)(isLessThan(n))
       }
     } @@ failure,
     testM("overloaded check methods work") {
       check(Gen.anyInt, Gen.anyInt, Gen.anyInt) { (x, y, z) =>
-        assert((x + y) + z, equalTo(x + (y + z)))
+        assert((x + y) + z)(equalTo(x + (y + z)))
       }
     },
     testM("max shrinks is respected") {
@@ -43,10 +43,10 @@ object CheckSpec extends ZIOBaseSpec {
               for {
                 _ <- ref.update(_ + 1)
                 p <- random.nextInt(10).map(_ != 0)
-              } yield assert(p, isTrue)
+              } yield assert(p)(isTrue)
             }
         result <- ref.get
-      } yield assert(result, isLessThan(1200))
+      } yield assert(result)(isLessThan(1200))
     },
     testM("tests can be written in property based style") {
       val chunkWithLength = for {
@@ -57,29 +57,29 @@ object CheckSpec extends ZIOBaseSpec {
       } yield (chunk, i)
       check(chunkWithLength) {
         case (chunk, i) =>
-          assert(chunk.apply(i), equalTo(chunk.toSeq.apply(i)))
+          assert(chunk.apply(i))(equalTo(chunk.toSeq.apply(i)))
       }
     },
     testM("tests with filtered generators terminate") {
       check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0)) { (a, b) =>
-        assert(a, equalTo(b))
+        assert(a)(equalTo(b))
       }
     } @@ failure,
     testM("failing tests contain gen failure details") {
       check(Gen.anyInt) { a =>
-        assert(a, isGreaterThan(0))
+        assert(a)(isGreaterThan(0))
       }.flatMap {
         _.run.map(_.failures match {
           case Some(BoolAlgebra.Value(details)) => details.gen.fold(false)(_.shrinkedInput == 0)
           case _                                => false
         })
-      }.map(assert(_, isTrue))
+      }.map(assert(_)(isTrue))
     },
     testM("implication works correctly") {
       check(Gen.listOf1(Gen.int(-10, 10))) { ns =>
         val nss      = ns.sorted
-        val nonEmpty = assert(nss, hasSize(isGreaterThan(0)))
-        val sorted   = assert(nss.zip(nss.tail).exists { case (a, b) => a > b }, isFalse)
+        val nonEmpty = assert(nss)(hasSize(isGreaterThan(0)))
+        val sorted   = assert(nss.zip(nss.tail).exists { case (a, b) => a > b })(isFalse)
         nonEmpty ==> sorted
       }
     },

@@ -1,18 +1,20 @@
 package zio
 
-import cats._
-import cats.effect.{ Fiber => CFiber }
-
 import scala.concurrent.ExecutionContext
+
+import cats._
 import cats.effect.{ ContextShift, IO => CIO }
+import cats.effect.{ Fiber => CFiber }
 import monix.eval.{ Task => MTask }
+
 import zio.internal._
 
 object IOBenchmarks extends DefaultRuntime {
-  override val platform: Platform = PlatformLive.Benchmark
+
+  override val platform: Platform = Platform.benchmark
 
   val TracedRuntime = new DefaultRuntime {
-    override val platform = PlatformLive.Benchmark.withTracing(Tracing.enabled)
+    override val platform = Platform.benchmark.withTracing(Tracing.enabled)
   }
 
   import monix.execution.Scheduler
@@ -28,7 +30,7 @@ object IOBenchmarks extends DefaultRuntime {
     else zio *> repeat(n - 1)(zio)
 
   def verify(cond: Boolean)(message: => String): IO[AssertionError, Unit] =
-    ZIO.when(!cond)(IO.fail(new AssertionError(message)))
+    ZIO.when(!cond)(IO.failNow(new AssertionError(message)))
 
   def catsForkAll[A](as: Iterable[CIO[A]]): CIO[CFiber[CIO, List[A]]] = {
     type Fiber[A] = CFiber[CIO, A]

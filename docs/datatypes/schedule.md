@@ -69,7 +69,7 @@ val fibonacci = Schedule.fibonacci(10.milliseconds)
 Applying random jitter to a schedule:
 
 ```scala mdoc:silent
-val jitteredExp = Schedule.exponential(10.milliseconds).jittered()
+val jitteredExp = Schedule.exponential(10.milliseconds).jittered
 ```
 
 Modifies the delay of a schedule:

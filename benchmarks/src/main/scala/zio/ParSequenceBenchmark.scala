@@ -2,15 +2,16 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, ExecutionContext, Future }
+
 import IOBenchmarks.monixScheduler
-import monix.eval.{ Task => MTask }
-import cats.effect.{ ContextShift, IO => CIO }
-import org.openjdk.jmh.annotations._
-import cats.effect.implicits._
-import cats.implicits._
 import IOBenchmarks.unsafeRun
+import cats.effect.implicits._
+import cats.effect.{ ContextShift, IO => CIO }
+import cats.implicits._
+import monix.eval.{ Task => MTask }
+import org.openjdk.jmh.annotations._
 
 @Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
 @Warmup(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
@@ -78,7 +79,7 @@ class ParSequenceBenchmark {
   @Benchmark
   def zioSequence(): Long = {
     val tasks  = (0 until count).map(_ => ZIO.effectTotal(1)).toList
-    val result = ZIO.sequence(tasks).map(_.sum.toLong)
+    val result = ZIO.collectAll(tasks).map(_.sum.toLong)
     unsafeRun(result)
   }
 

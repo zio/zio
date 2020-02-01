@@ -2,17 +2,17 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import zio.stream._
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
+import IOBenchmarks._
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Source => AkkaSource, Sink => AkkaSink, Keep }
 import cats.effect.{ IO => CatsIO }
 import fs2.{ Stream => FS2Stream, Chunk => FS2Chunk }
 import org.openjdk.jmh.annotations._
 
-import IOBenchmarks._
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import zio.stream._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -25,7 +25,6 @@ class StreamBenchmarks {
   var chunkSize: Int = _
 
   implicit val system = ActorSystem("benchmarks")
-  implicit val mat    = ActorMaterializer()
   implicit val ec     = system.dispatcher
 
   @TearDown
@@ -60,7 +59,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def scalazChunkFilterMapSum = {
+  def zioChunkFilterMapSum = {
     val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val stream = ZStreamChunk
       .fromChunks(chunks: _*)
@@ -74,7 +73,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def scalazChunkChunkFilterMapSum = {
+  def zioChunkChunkFilterMapSum = {
     val chunks = Chunk.fromArray((1 to chunkCount).toArray).flatMap(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     chunks
       .filter(_ % 2 == 0)
@@ -99,7 +98,6 @@ class CSVStreamBenchmarks {
   var genCsvChunks: Array[Array[Char]] = _
 
   implicit val system = ActorSystem("benchmarks")
-  implicit val mat    = ActorMaterializer()
   implicit val ec     = system.dispatcher
 
   @Setup
@@ -122,13 +120,13 @@ class CSVStreamBenchmarks {
         case ((acc, _), char) =>
           if (char == CSV.ColumnSep) {
             Vector.empty[Char] ->
-              ((if (acc.length > 0)
+              ((if (acc.nonEmpty)
                   Vector(CSV.Column(acc.mkString))
                 else Vector.empty[CSV.Token]) ++
                 Vector(CSV.NewCol))
           } else if (char == CSV.RowSep) {
             Vector.empty[Char] ->
-              ((if (acc.length > 0)
+              ((if (acc.nonEmpty)
                   Vector(CSV.Column(acc.mkString))
                 else Vector.empty[CSV.Token]) ++
                 Vector(CSV.NewCol))
@@ -142,20 +140,20 @@ class CSVStreamBenchmarks {
 
   @Benchmark
   def fs2CsvTokenize() = {
-    val chunks = genCsvChunks.map(FS2Chunk.array(_))
-    val stream = FS2Stream(chunks: _*)
-      .flatMap(FS2Stream.chunk(_))
+    val chunks = genCsvChunks.map(FS2Chunk.array)
+    val stream = FS2Stream(chunks.toIndexedSeq: _*)
+      .flatMap(FS2Stream.chunk)
       .mapAccumulate(Vector.empty[Char]) {
         case (acc, char) =>
           if (char == CSV.ColumnSep) {
             Vector.empty[Char] ->
-              ((if (acc.length > 0)
+              ((if (acc.nonEmpty)
                   Vector(CSV.Column(acc.mkString))
                 else Vector.empty[CSV.Token]) ++
                 Vector(CSV.NewCol))
           } else if (char == CSV.RowSep) {
             Vector.empty[Char] ->
-              ((if (acc.length > 0)
+              ((if (acc.nonEmpty)
                   Vector(CSV.Column(acc.mkString))
                 else Vector.empty[CSV.Token]) ++
                 Vector(CSV.NewCol))
@@ -170,27 +168,27 @@ class CSVStreamBenchmarks {
   }
 
   @Benchmark
-  def scalazCsvTokenize() = {
-    val chunks = genCsvChunks.map(Chunk.fromArray(_))
+  def zioCsvTokenize() = {
+    val chunks = genCsvChunks.map(Chunk.fromArray)
     val stream = ZStreamChunk
-      .fromChunks(chunks: _*)
+      .fromChunks(chunks.toIndexedSeq: _*)
       .mapAccum[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) {
         case (acc, char) =>
           if (char == CSV.ColumnSep) {
             Vector.empty[Char] ->
-              ((if (acc.length > 0)
+              ((if (acc.nonEmpty)
                   Chunk(CSV.Column(acc.mkString))
                 else Chunk.empty) ++
                 Chunk(CSV.NewCol))
           } else if (char == CSV.RowSep) {
             Vector.empty[Char] ->
-              ((if (acc.length > 0)
+              ((if (acc.nonEmpty)
                   Chunk(CSV.Column(acc.mkString))
                 else Chunk.empty) ++
                 Chunk(CSV.NewCol))
           } else (acc :+ char) -> Chunk.empty
       }
-      .mapConcatChunk(identity(_))
+      .mapConcatChunk(identity)
 
     unsafeRun(stream.run(ZSink.drain))
   }

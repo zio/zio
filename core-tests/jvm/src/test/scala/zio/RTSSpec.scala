@@ -5,9 +5,10 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import zio.clock.Clock
 import zio.duration._
-import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
+import zio.test._
+import zio.test.environment.Live
 
 object RTSSpec extends ZIOBaseSpec {
 
@@ -27,22 +28,19 @@ object RTSSpec extends ZIOBaseSpec {
           accum <- Ref.make(Set.empty[Thread])
           b     <- runAndTrack(accum).repeat(Schedule.doUntil[Boolean](_ == true))
         } yield b
-
-      val env = new Clock.Live with Blocking.Live
-
-      assertM(io.provide(env), isTrue)
+      assertM(Live.live(io))(isTrue)
     },
     testM("blocking IO is effect blocking") {
       for {
         done  <- Ref.make(false)
-        start <- IO.succeed(internal.OneShot.make[Unit])
-        fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(60L * 60L * 1000L) }
+        start <- IO.succeedNow(internal.OneShot.make[Unit])
+        fiber <- blocking.effectBlockingInterrupt { start.set(()); Thread.sleep(60L * 60L * 1000L) }
                   .ensuring(done.set(true))
                   .fork
-        _     <- IO.succeed(start.get())
+        _     <- IO.succeedNow(start.get())
         res   <- fiber.interrupt
         value <- done.get
-      } yield assert(res, isInterrupted) && assert(value, isTrue)
+      } yield assert(res)(isInterrupted) && assert(value)(isTrue)
     },
     testM("cancelation is guaranteed") {
       val io =
@@ -58,16 +56,16 @@ object RTSSpec extends ZIOBaseSpec {
           result <- release.await
         } yield result == 42
 
-      assertM(io, isTrue)
+      assertM(io)(isTrue)
     } @@ flaky,
     testM("Fiber dump looks correct") {
       for {
         promise <- Promise.make[Nothing, Int]
         fiber   <- promise.await.fork
         dump    <- fiber.dump
-        dumpStr <- dump.fold[URIO[Clock, String]](IO.succeed(""))(_.prettyPrintM)
+        dumpStr <- dump.prettyPrintM
         _       <- UIO(println(dumpStr))
-      } yield assert(dump, anything)
+      } yield assert(dumpStr)(anything)
     },
     testM("interruption causes") {
       for {
@@ -75,7 +73,7 @@ object RTSSpec extends ZIOBaseSpec {
         producer <- queue.offer(42).forever.fork
         rez      <- producer.interrupt
         _        <- UIO(println(rez.fold(_.prettyPrint, _ => "")))
-      } yield assert(rez, anything)
+      } yield assert(rez)(anything)
     },
     testM("interruption of unending bracket") {
       val io =
@@ -84,18 +82,17 @@ object RTSSpec extends ZIOBaseSpec {
           exitLatch  <- Promise.make[Nothing, Int]
           bracketed = IO
             .succeed(21)
-            .bracketExit(
-              (r: Int, exit: Exit[Any, Any]) =>
-                if (exit.interrupted) exitLatch.succeed(r)
-                else IO.die(new Error("Unexpected case"))
-            )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+            .bracketExit((r: Int, exit: Exit[Any, Any]) =>
+              if (exit.interrupted) exitLatch.succeed(r)
+              else IO.dieNow(new Error("Unexpected case"))
+            )(a => startLatch.succeed(a) *> IO.never *> IO.succeedNow(1))
           fiber      <- bracketed.fork
           startValue <- startLatch.await
           _          <- fiber.interrupt.fork
           exitValue  <- exitLatch.await
         } yield (startValue + exitValue) == 42
 
-      assertM(io, isTrue)
+      assertM(io)(isTrue)
     } @@ jvm(nonFlaky),
     testM("deadlock regression 1") {
       import java.util.concurrent.Executors
@@ -106,26 +103,26 @@ object RTSSpec extends ZIOBaseSpec {
       (0 until 10000).foreach { _ =>
         rts.unsafeRun {
           IO.effectAsync[Nothing, Int] { k =>
-            val c: Callable[Unit] = () => k(IO.succeed(1))
+            val c: Callable[Unit] = () => k(IO.succeedNow(1))
             val _                 = e.submit(c)
           }
         }
       }
 
-      assertM(ZIO.effect(e.shutdown()), isUnit)
+      assertM(ZIO.effect(e.shutdown()))(isUnit)
     },
     testM("second callback call is ignored") {
       for {
         _ <- IO.effectAsync[Throwable, Int] { k =>
-              k(IO.succeed(42))
+              k(IO.succeedNow(42))
               Thread.sleep(500)
-              k(IO.succeed(42))
+              k(IO.succeedNow(42))
             }
         res <- IO.effectAsync[Throwable, String] { k =>
                 Thread.sleep(1000)
-                k(IO.succeed("ok"))
+                k(IO.succeedNow("ok"))
               }
-      } yield assert(res, equalTo("ok"))
+      } yield assert(res)(equalTo("ok"))
     },
     testM("check interruption regression 1") {
       val c = new AtomicInteger(0)
@@ -144,7 +141,7 @@ object RTSSpec extends ZIOBaseSpec {
                 .repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
         } yield c
 
-      assertM(zio.provide(Clock.Live), isGreaterThanEqualTo(1))
+      assertM(Live.live(zio))(isGreaterThanEqualTo(1))
     }
   )
 }

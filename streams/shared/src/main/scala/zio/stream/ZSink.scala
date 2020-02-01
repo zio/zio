@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package zio.stream
 
+import scala.collection.mutable
+
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-
-import scala.collection.mutable
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -179,7 +179,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
       type State = Either[self.State, (ZSink[R1, E1, A00, A1, C], Any, Chunk[A00])]
 
       val initial = self.initial.flatMap { init =>
-        if (self.cont(init)) UIO.succeed((Left(init)))
+        if (self.cont(init)) UIO.succeedNow((Left(init)))
         else
           self.extract(init).flatMap {
             case (b, leftover) =>
@@ -197,7 +197,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
         state match {
           case Left(s1) =>
             self.step(s1, a).flatMap { s2 =>
-              if (self.cont(s2)) UIO.succeed(Left(s2))
+              if (self.cont(s2)) UIO.succeedNow(Left(s2))
               else
                 self.extract(s2).flatMap {
                   case (b, leftover) =>
@@ -318,23 +318,23 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def decide(state: State): ZIO[R1, E1, State] =
         state match {
-          case (Side.Error(_), Side.Error(e)) => IO.fail(e)
-          case sides                          => UIO.succeed(sides)
+          case (Side.Error(_), Side.Error(e)) => IO.failNow(e)
+          case sides                          => UIO.succeedNow(sides)
         }
 
       val leftInit: ZIO[R, Nothing, Side[E, self.State, (B, Chunk[A00])]] =
         self.initial.foldM(
-          e => UIO.succeed(Side.Error(e)),
+          e => UIO.succeedNow(Side.Error(e)),
           s =>
-            if (self.cont(s)) UIO.succeed(Side.State(s))
+            if (self.cont(s)) UIO.succeedNow(Side.State(s))
             else self.extract(s).fold(Side.Error(_), Side.Value(_))
         )
 
       val rightInit: ZIO[R1, Nothing, Side[E1, that.State, (C, Chunk[A00])]] =
         that.initial.foldM(
-          e => UIO.succeed(Side.Error(e)),
+          e => UIO.succeedNow(Side.Error(e)),
           s =>
-            if (that.cont(s)) UIO.succeed(Side.State(s))
+            if (that.cont(s)) UIO.succeedNow(Side.State(s))
             else that.extract(s).fold(Side.Error(_), Side.Value(_))
         )
 
@@ -347,13 +347,13 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
               self
                 .step(s, a)
                 .foldM(
-                  e => UIO.succeed(Side.Error(e)),
+                  e => UIO.succeedNow(Side.Error(e)),
                   s =>
-                    if (self.cont(s)) UIO.succeed(Side.State(s))
+                    if (self.cont(s)) UIO.succeedNow(Side.State(s))
                     else self.extract(s).fold(Side.Error(_), Side.Value(_))
                 )
 
-            case side => UIO.succeed(side)
+            case side => UIO.succeedNow(side)
           }
 
         val rightStep: ZIO[R1, Nothing, Side[E1, that.State, (C, Chunk[A00])]] =
@@ -362,17 +362,17 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
               that
                 .step(s, a)
                 .foldM(
-                  e => UIO.succeed(Side.Error(e)),
+                  e => UIO.succeedNow(Side.Error(e)),
                   s =>
-                    if (that.cont(s)) UIO.succeed(Side.State(s))
+                    if (that.cont(s)) UIO.succeedNow(Side.State(s))
                     else that.extract(s).fold(Side.Error(_), Side.Value(_))
                 )
 
             case Side.Value((c, as)) =>
               val as1 = as ++ Chunk.single(ev(a))
-              UIO.succeed(Side.Value((c, as1)))
+              UIO.succeedNow(Side.Value((c, as1)))
 
-            case side => UIO.succeed(side)
+            case side => UIO.succeedNow(side)
           }
 
         leftStep.zipPar(rightStep).flatMap(decide(_))
@@ -380,14 +380,14 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def extract(state: State) =
         state match {
-          case (Side.Error(_), Side.Error(e))             => IO.fail(e)
+          case (Side.Error(_), Side.Error(e))             => IO.failNow(e)
           case (Side.Error(_), Side.State(s))             => that.extract(s).map { case (c, leftover) => (Right(c), leftover) }
-          case (Side.Error(_), Side.Value((c, leftover))) => UIO.succeed((Right(c), leftover))
-          case (Side.Value((b, leftover)), _)             => UIO.succeed((Left(b), leftover))
+          case (Side.Error(_), Side.Value((c, leftover))) => UIO.succeedNow((Right(c), leftover))
+          case (Side.Value((b, leftover)), _)             => UIO.succeedNow((Left(b), leftover))
           case (Side.State(s), Side.Error(e)) =>
             self.extract(s).map { case (b, leftover) => (Left(b), leftover) }.asError(e)
           case (Side.State(s), Side.Value((c, leftover))) =>
-            self.extract(s).map { case (b, ll) => (Left(b), ll) }.catchAll(_ => UIO.succeed((Right(c), leftover)))
+            self.extract(s).map { case (b, ll) => (Left(b), ll) }.catchAll(_ => UIO.succeedNow((Right(c), leftover)))
           case (Side.State(s1), Side.State(s2)) =>
             self
               .extract(s1)
@@ -395,12 +395,11 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 case (b, leftover) =>
                   ((Left(b), leftover))
               }
-              .catchAll(
-                _ =>
-                  that.extract(s2).map {
-                    case (c, leftover) =>
-                      ((Right(c), leftover))
-                  }
+              .catchAll(_ =>
+                that.extract(s2).map {
+                  case (c, leftover) =>
+                    ((Right(c), leftover))
+                }
               )
         }
 
@@ -445,9 +444,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     val len = as.length
 
     def loop(state: State, i: Int): ZIO[R, E, (State, Chunk[A00])] =
-      if (i >= len) UIO.succeed(state -> Chunk.empty)
+      if (i >= len) UIO.succeedNow(state -> Chunk.empty)
       else if (self.cont(state)) self.step(state, as(i)).flatMap(loop(_, i + 1))
-      else UIO.succeed(state -> as.asInstanceOf[Chunk[A00]].splitAt(i)._2)
+      else UIO.succeedNow(state -> as.asInstanceOf[Chunk[A00]].splitAt(i)._2)
 
     loop(state, 0)
   }
@@ -466,23 +465,23 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def decide(state: State): ZIO[R1, E1, State] =
         state match {
-          case (Side.Error(e1), Side.Error(e2)) => IO.halt(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
-          case sides                            => UIO.succeed(sides)
+          case (Side.Error(e1), Side.Error(e2)) => IO.haltNow(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
+          case sides                            => UIO.succeedNow(sides)
         }
 
       val leftInit: ZIO[R, Nothing, Side[E, self.State, (B, Chunk[A00])]] =
         self.initial.foldM(
-          e => UIO.succeed(Side.Error(e)),
+          e => UIO.succeedNow(Side.Error(e)),
           s =>
-            if (self.cont(s)) UIO.succeed(Side.State(s))
+            if (self.cont(s)) UIO.succeedNow(Side.State(s))
             else self.extract(s).fold(Side.Error(_), Side.Value(_))
         )
 
       val rightInit: ZIO[R1, Nothing, Side[E1, that.State, (C, Chunk[A00])]] =
         that.initial.foldM(
-          e => UIO.succeed(Side.Error(e)),
+          e => UIO.succeedNow(Side.Error(e)),
           s =>
-            if (that.cont(s)) UIO.succeed(Side.State(s))
+            if (that.cont(s)) UIO.succeedNow(Side.State(s))
             else that.extract(s).fold(Side.Error(_), Side.Value(_))
         )
 
@@ -495,13 +494,13 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
               self
                 .step(s, a)
                 .foldM(
-                  e => UIO.succeed(Side.Error(e)),
+                  e => UIO.succeedNow(Side.Error(e)),
                   s =>
-                    if (self.cont(s)) UIO.succeed(Side.State(s))
+                    if (self.cont(s)) UIO.succeedNow(Side.State(s))
                     else self.extract(s).fold(Side.Error(_), Side.Value(_))
                 )
 
-            case side => UIO.succeed(side)
+            case side => UIO.succeedNow(side)
           }
 
         val rightStep: ZIO[R1, Nothing, Side[E1, that.State, (C, Chunk[A00])]] =
@@ -510,13 +509,13 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
               that
                 .step(s, a)
                 .foldM(
-                  e => UIO.succeed(Side.Error(e)),
+                  e => UIO.succeedNow(Side.Error(e)),
                   s =>
-                    if (that.cont(s)) UIO.succeed(Side.State(s))
+                    if (that.cont(s)) UIO.succeedNow(Side.State(s))
                     else that.extract(s).fold(Side.Error(_), Side.Value(_))
                 )
 
-            case side => UIO.succeed(side)
+            case side => UIO.succeedNow(side)
           }
 
         leftStep.zipPar(rightStep).flatMap(decide(_))
@@ -524,9 +523,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def extract(state: State) =
         state match {
-          case (Side.Error(e1), Side.Error(e2))           => IO.halt(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
+          case (Side.Error(e1), Side.Error(e2))           => IO.haltNow(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
           case (Side.Error(_), Side.State(s))             => that.extract(s).map { case (c, leftover) => (Right(c), leftover) }
-          case (Side.Error(_), Side.Value((c, leftover))) => UIO.succeed((Right(c), leftover))
+          case (Side.Error(_), Side.Value((c, leftover))) => UIO.succeedNow((Right(c), leftover))
           case (Side.State(s), Side.Error(e)) =>
             self.extract(s).map { case (b, leftover) => (Left(b), leftover) }.asError(e)
           case (Side.State(s1), Side.State(s2)) =>
@@ -536,15 +535,14 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 case (b, leftover) =>
                   (Left(b), leftover)
               }
-              .catchAll(
-                _ =>
-                  that.extract(s2).map {
-                    case (c, leftover) =>
-                      (Right(c), leftover)
-                  }
+              .catchAll(_ =>
+                that.extract(s2).map {
+                  case (c, leftover) =>
+                    (Right(c), leftover)
+                }
               )
-          case (Side.State(_), Side.Value((c, leftover))) => UIO.succeed((Right(c), leftover))
-          case (Side.Value((b, leftover)), _)             => UIO.succeed((Left(b), leftover))
+          case (Side.State(_), Side.Value((c, leftover))) => UIO.succeedNow((Right(c), leftover))
+          case (Side.Value((b, leftover)), _)             => UIO.succeedNow((Left(b), leftover))
         }
 
       def cont(state: State) =
@@ -607,14 +605,19 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
   final def update(state: State): ZSink[R, E, A0, A, B] =
     new ZSink[R, E, A0, A, B] {
       type State = self.State
-      val initial                  = IO.succeed(state)
+      val initial                  = IO.succeedNow(state)
       def step(state: State, a: A) = self.step(state, a)
       def extract(state: State)    = self.extract(state)
       def cont(state: State)       = self.cont(state)
     }
 
   /**
-   * Runs two sinks in unison and matches produced values pair-wise.
+   * Runs two sinks in sequence and combines their results into a tuple.
+   * The `this` sink will consume inputs until it produces a value. Afterwards,
+   * the `that` sink will start consuming inputs until it produces a value.
+   *
+   * Note that this means that the two sinks will not consume the same inputs,
+   * but rather run one after the other.
    */
   final def zip[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
@@ -622,7 +625,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     flatMap(b => that.map(c => (b, c)))
 
   /**
-   * Runs two sinks in unison and keeps only values on the left.
+   * Runs two sinks in sequence and keeps only values on the left.
+   *
+   * See [[zip]] for notes about the behavior of this combinator.
    */
   final def zipLeft[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
@@ -641,8 +646,8 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       val initial = self.initial.zipPar(that.initial).flatMap {
         case (s1, s2) =>
-          val left  = if (self.cont(s1)) UIO.succeed(Left(s1)) else self.extract(s1).map(Right(_))
-          val right = if (that.cont(s2)) UIO.succeed(Left(s2)) else that.extract(s2).map(Right(_))
+          val left  = if (self.cont(s1)) UIO.succeedNow(Left(s1)) else self.extract(s1).map(Right(_))
+          val right = if (that.cont(s2)) UIO.succeedNow(Left(s2)) else that.extract(s2).map(Right(_))
           left.zipPar(right)
       }
 
@@ -651,28 +656,28 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
           state._1.fold(
             s1 =>
               self.step(s1, a).flatMap { s2 =>
-                if (self.cont(s2)) UIO.succeed(Left(s2))
+                if (self.cont(s2)) UIO.succeedNow(Left(s2))
                 else self.extract(s2).map(Right(_))
               },
-            { case (b, leftover) => UIO.succeed(Right((b, leftover ++ Chunk.single(a)))) }
+            { case (b, leftover) => UIO.succeedNow(Right((b, leftover ++ Chunk.single(a)))) }
           )
 
         val rightStep: ZIO[R1, E1, Either[that.State, (C, Chunk[A00])]] =
           state._2.fold(
             s1 =>
               that.step(s1, a).flatMap { s2 =>
-                if (that.cont(s2)) UIO.succeed(Left(s2))
+                if (that.cont(s2)) UIO.succeedNow(Left(s2))
                 else that.extract(s2).map(Right(_))
               },
-            { case (c, leftover) => UIO.succeed(Right((c, leftover ++ Chunk.single(a)))) }
+            { case (c, leftover) => UIO.succeedNow(Right((c, leftover ++ Chunk.single(a)))) }
           )
 
         leftStep.zipPar(rightStep)
       }
 
       def extract(state: State) = {
-        val leftExtract  = state._1.fold(self.extract, UIO.succeed)
-        val rightExtract = state._2.fold(that.extract, UIO.succeed)
+        val leftExtract  = state._1.fold(self.extract, UIO.succeedNow)
+        val rightExtract = state._2.fold(that.extract, UIO.succeedNow)
         leftExtract.zipPar(rightExtract).map {
           case ((b, ll), (c, rl)) => (f(b, c), List(ll, rl).minBy(_.length))
         }
@@ -680,10 +685,8 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def cont(state: State) =
         state match {
-          case (Left(s1), Left(s2)) => self.cont(s1) || that.cont(s2)
-          case (Left(s), Right(_))  => self.cont(s)
-          case (Right(_), Left(s))  => that.cont(s)
-          case (Right(_), Right(_)) => false
+          case (Left(s1), Left(s2)) => self.cont(s1) && that.cont(s2)
+          case _                    => false
         }
     }
 
@@ -712,7 +715,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     zipWithPar(that)((b, _) => b)
 
   /**
-   * Runs two sinks in unison and keeps only values on the right.
+   * Runs two sinks in sequence and keeps only values on the right.
+   *
+   * See [[zip]] for notes about the behavior of this combinator.
    */
   final def zipRight[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
@@ -720,7 +725,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     zipWith(that)((_, c) => c)
 
   /**
-   * Runs two sinks in unison and merges values pair-wise.
+   * Runs two sinks in sequence and merges their values with the provided function.
+   *
+   * See [[zip]] for notes about the behavior of this combinator.
    */
   final def zipWith[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C, D](
     that: ZSink[R1, E1, A00, A1, C]
@@ -728,15 +735,15 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     zip(that).map(f.tupled)
 }
 
-object ZSink extends ZSinkPlatformSpecific with Serializable {
+object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
 
-  implicit class InputRemainderOps[R, E, A, B](private val sink: ZSink[R, E, A, A, B]) {
+  implicit final class InputRemainderOps[R, E, A, B](private val sink: ZSink[R, E, A, A, B]) {
 
     /**
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, Nothing, A, A, Option[B]] =
+    def ? : ZSink[R, Nothing, A, A, Option[B]] =
       new ZSink[R, Nothing, A, A, Option[B]] {
         type State = OptionalState
         sealed trait OptionalState
@@ -765,7 +772,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
                     else OptionalState.Done(s2)
                 )
 
-            case s => UIO.succeed(s)
+            case s => UIO.succeedNow(s)
           }
 
         def extract(state: State) =
@@ -784,7 +791,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
                   _ => (None, Chunk.empty), { case (b, as) => (Some(b), as) }
                 )
 
-            case OptionalState.Fail(as) => UIO.succeed((None, as))
+            case OptionalState.Fail(as) => UIO.succeedNow((None, as))
           }
 
         def cont(state: State) =
@@ -799,7 +806,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
      * will not improve performance, but can be used to adapt non-chunked sinks
      * wherever chunked sinks are required.
      */
-    final def chunked: ZSink[R, E, A, Chunk[A], B] =
+    def chunked: ZSink[R, E, A, Chunk[A], B] =
       new ZSink[R, E, A, Chunk[A], B] {
         type State = (sink.State, Chunk[A])
         val initial = sink.initial.map((_, Chunk.empty))
@@ -812,13 +819,13 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
     /**
      * Repeatedly runs this sink and accumulates its outputs to a list.
      */
-    final def collectAll: ZSink[R, E, A, A, List[B]] =
+    def collectAll: ZSink[R, E, A, A, List[B]] =
       collectAllWith[List[B]](List[B]())((bs, b) => b :: bs).map(_.reverse)
 
     /**
      * Repeatedly runs this sink until `i` outputs have been accumulated.
      */
-    final def collectAllN(
+    def collectAllN(
       i: Int
     ): ZSink[R, E, A, A, List[B]] =
       new ZSink[R, E, A, A, List[B]] {
@@ -828,7 +835,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
         val initial = sink.initial.map(CollectAllNState(_, List(), 0, Chunk(), false))
 
         def step(state: State, a: A) =
-          if (state.n >= i) UIO.succeed(state.copy(leftover = state.leftover ++ Chunk.single(a)))
+          if (state.n >= i) UIO.succeedNow(state.copy(leftover = state.leftover ++ Chunk.single(a)))
           else if (!sink.cont(state.s))
             for {
               extractResult <- sink.extract(state.s)
@@ -856,7 +863,8 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
           if (state.dirty && state.n < i)
             sink.extract(state.s).map {
               case (b, leftover) => ((b :: state.bs).reverse, leftover ++ state.leftover)
-            } else UIO.succeed((state.bs.reverse, state.leftover))
+            }
+          else UIO.succeedNow((state.bs.reverse, state.leftover))
 
         def cont(state: State) = state.n >= i
       }
@@ -865,13 +873,13 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
      * Repeatedly runs this sink and accumulates the outputs into a value
      * of type `S`.
      */
-    final def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = collectAllWhileWith[S](_ => true)(z)(f)
+    def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = collectAllWhileWith[S](_ => true)(z)(f)
 
     /**
      * Repeatedly runs this sink and accumulates its outputs for as long
      * as incoming values verify the predicate.
      */
-    final def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] =
+    def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] =
       collectAllWhileWith[List[B]](p)(List.empty[B])((bs, b) => b :: bs)
         .map(_.reverse)
 
@@ -879,7 +887,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
      * Repeatedly runs this sink and accumulates its outputs into a value
      * of type `S` for as long as the incoming values satisfy the predicate.
      */
-    final def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
+    def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
       new ZSink[R, E, A, A, S] {
         type State = CollectAllWhileWithState
         case class CollectAllWhileWithState(
@@ -894,7 +902,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
 
         def step(state: State, a: A) =
           if (!p(a))
-            UIO.succeed(state.copy(predicateViolated = true, leftovers = state.leftovers ++ Chunk.single(a)))
+            UIO.succeedNow(state.copy(predicateViolated = true, leftovers = state.leftovers ++ Chunk.single(a)))
           else if (!sink.cont(state.selfS))
             for {
               extractResult <- sink.extract(state.selfS)
@@ -907,7 +915,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
             sink.step(state.selfS, a).map(s2 => state.copy(selfS = s2, dirty = true))
 
         def extract(state: State) =
-          if (!state.dirty) UIO.succeed((state.s, state.leftovers))
+          if (!state.dirty) UIO.succeedNow((state.s, state.leftovers))
           else
             sink.extract(state.selfS).map {
               case (b, leftovers) =>
@@ -920,13 +928,13 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, Nothing, A, A, Option[B]] = ?
+    def optional: ZSink[R, Nothing, A, A, Option[B]] = ?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
      * they verify the predicate `pred`.
      */
-    final def takeWhile(pred: A => Boolean): ZSink[R, E, A, A, B] =
+    def takeWhile(pred: A => Boolean): ZSink[R, E, A, A, B] =
       new ZSink[R, E, A, A, B] {
         type State = (sink.State, Chunk[A])
 
@@ -934,7 +942,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
 
         def step(state: State, a: A) =
           if (pred(a)) sink.step(state._1, a).map((_, Chunk.empty))
-          else UIO.succeed((state._1, Chunk.single(a)))
+          else UIO.succeedNow((state._1, Chunk.single(a)))
 
         def extract(state: State) = sink.extract(state._1).map { case (b, leftover) => (b, leftover ++ state._2) }
 
@@ -950,7 +958,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
      * Sinks that never signal completion (e.g. [[ZSink.collectAll]])
      * will not have the predicate applied to intermediate values.
      */
-    final def untilOutput(f: B => Boolean): ZSink[R, E, A, A, Option[B]] =
+    def untilOutput(f: B => Boolean): ZSink[R, E, A, A, Option[B]] =
       new ZSink[R, E, A, A, Option[B]] {
         type State = (sink.State, Option[B], Chunk[A], Boolean)
 
@@ -964,7 +972,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
           else
             sink.extract(state._1).flatMap {
               case (b, leftover) =>
-                if (f(b)) UIO.succeed((state._1, Some(b), leftover ++ Chunk.single(a), false))
+                if (f(b)) UIO.succeedNow((state._1, Some(b), leftover ++ Chunk.single(a), false))
                 else
                   for {
                     init          <- sink.initial
@@ -974,7 +982,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
             }
 
         def extract(state: State) =
-          if (!state._4 || state._2.nonEmpty) UIO.succeed((state._2, state._3))
+          if (!state._4 || state._2.nonEmpty) UIO.succeedNow((state._2, state._3))
           else
             sink.extract(state._1).map {
               case (b, leftover) =>
@@ -985,58 +993,58 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
       }
   }
 
-  implicit class NoRemainderOps[R, E, A, B](private val sink: ZSink[R, E, Nothing, A, B]) extends AnyVal {
+  implicit final class NoRemainderOps[R, E, A, B](private val sink: ZSink[R, E, Nothing, A, B]) extends AnyVal {
     private def widen: ZSink[R, E, A, A, B] = sink
 
     /**
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, Nothing, A, A, Option[B]] = widen.?
+    def ? : ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Takes a `Sink`, and lifts it to be chunked in its input. This
      * will not improve performance, but can be used to adapt non-chunked sinks
      * wherever chunked sinks are required.
      */
-    final def chunked: ZSink[R, E, A, Chunk[A], B] = widen.chunked
+    def chunked: ZSink[R, E, A, Chunk[A], B] = widen.chunked
 
     /**
      * Accumulates the output into a list.
      */
-    final def collectAll: ZSink[R, E, A, A, List[B]] = widen.collectAll
+    def collectAll: ZSink[R, E, A, A, List[B]] = widen.collectAll
 
     /**
      * Accumulates the output into a list of maximum size `i`.
      */
-    final def collectAllN(i: Int): ZSink[R, E, A, A, List[B]] = widen.collectAllN(i)
+    def collectAllN(i: Int): ZSink[R, E, A, A, List[B]] = widen.collectAllN(i)
 
     /**
      * Accumulates the output into a value of type `S`.
      */
-    final def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = widen.collectAllWith(z)(f)
+    def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = widen.collectAllWith(z)(f)
 
     /**
      * Accumulates into a list for as long as incoming values verify predicate `p`.
      */
-    final def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] = widen.collectAllWhile(p)
+    def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] = widen.collectAllWhile(p)
 
     /**
      * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
      */
-    final def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
+    def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
       widen.collectAllWhileWith(p)(z)(f)
 
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, Nothing, A, A, Option[B]] = widen.?
+    def optional: ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
      * they verify the predicate `pred`.
      */
-    final def takeWhile(pred: A => Boolean): ZSink[R, E, A, A, B] = widen.takeWhile(pred)
+    def takeWhile(pred: A => Boolean): ZSink[R, E, A, A, B] = widen.takeWhile(pred)
 
     /**
      * Creates a sink that produces values until one verifies
@@ -1047,17 +1055,36 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
      * Sinks that never signal completion (e.g. [[ZSink.collectAll]])
      * will not have the predicate applied to intermediate values.
      */
-    final def untilOutput(f: B => Boolean): ZSink[R, E, A, A, Option[B]] =
+    def untilOutput(f: B => Boolean): ZSink[R, E, A, A, Option[B]] =
       widen untilOutput f
   }
 
-  implicit class InvariantOps[R, E, A0, A, B](val sink: ZSink[R, E, A0, A, B]) extends AnyVal { self =>
+  implicit final class InvariantOps[R, E, A0, A, B](private val sink: ZSink[R, E, A0, A, B]) extends AnyVal { self =>
+
+    /**
+     * Drops the first `n`` elements from the sink.
+     */
+    def drop(n: Long): ZSink[R, E, A0, A, B] =
+      new ZSink[R, E, A0, A, B] {
+        type State = (sink.State, Long)
+
+        // Cast is redundant but required for Scala 2.11
+        val initial = sink.initial.map((_, 0L)).asInstanceOf[ZIO[R, E, this.State]]
+
+        def step(state: State, a: A) =
+          if (state._2 < n) UIO.succeedNow((state._1, state._2 + 1))
+          else sink.step(state._1, a).map((_, state._2))
+
+        def extract(state: State) = sink.extract(state._1)
+
+        def cont(state: State) = state._2 < n || sink.cont(state._1)
+      }
 
     /**
      * Drops all elements entering the sink for as long as the specified predicate
      * evaluates to `true`.
      */
-    final def dropWhile(pred: A => Boolean): ZSink[R, E, A0, A, B] =
+    def dropWhile(pred: A => Boolean): ZSink[R, E, A0, A, B] =
       new ZSink[R, E, A0, A, B] {
         type State = (sink.State, Boolean)
 
@@ -1067,7 +1094,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
         def step(state: State, a: A) =
           if (!state._2) sink.step(state._1, a).map((_, false))
           else {
-            if (pred(a)) UIO.succeed(state)
+            if (pred(a)) UIO.succeedNow(state)
             else sink.step(state._1, a).map((_, false))
           }
 
@@ -1095,7 +1122,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
           new ZSink[R, E, A0, A, B] {
             type State = sink.State
             val initial                  = sink.initial
-            def step(state: State, a: A) = if (f(a)) sink.step(state, a) else UIO.succeed(state)
+            def step(state: State, a: A) = if (f(a)) sink.step(state, a) else UIO.succeedNow(state)
             def extract(state: State)    = sink.extract(state)
             def cont(state: State)       = sink.cont(state)
           }
@@ -1104,14 +1131,14 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
     /**
      * Effectfully filters the inputs fed to this sink.
      */
-    final def filterM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A, B] =
+    def filterM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A, B] =
       new ZSink[R1, E1, A0, A, B] {
         type State = sink.State
         val initial = sink.initial
 
         def step(state: State, a: A) = f(a).flatMap { b =>
           if (b) sink.step(state, a)
-          else UIO.succeed(state)
+          else UIO.succeedNow(state)
         }
 
         def extract(state: State) = sink.extract(state)
@@ -1122,21 +1149,21 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
      * Filters this sink by the specified predicate, dropping all elements for
      * which the predicate evaluates to true.
      */
-    final def filterNot(f: A => Boolean): ZSink[R, E, A0, A, B] =
+    def filterNot(f: A => Boolean): ZSink[R, E, A0, A, B] =
       filter(a => !f(a))
 
     /**
      * Effectfully filters this sink by the specified predicate, dropping all elements for
      * which the predicate evaluates to true.
      */
-    final def filterNotM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A, B] =
+    def filterNotM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A, B] =
       filterM(a => f(a).map(!_))
 
     /**
      * Runs `n` sinks in parallel, where `n` is the number of possible keys
      * generated by `f`.
      */
-    final def keyed[K](f: A => K): ZSink[R, E, (K, Chunk[A0]), A, Map[K, B]] =
+    def keyed[K](f: A => K): ZSink[R, E, (K, Chunk[A0]), A, Map[K, B]] =
       new ZSink[R, E, (K, Chunk[A0]), A, Map[K, B]] {
         type State = Map[K, sink.State]
 
@@ -1169,17 +1196,17 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   private[ZSink] object internal {
     sealed trait Side[+E, +S, +A]
     object Side {
-      final case class Error[E](e: E) extends Side[E, Nothing, Nothing]
-      final case class State[S](s: S) extends Side[Nothing, S, Nothing]
-      final case class Value[A](a: A) extends Side[Nothing, Nothing, A]
+      final case class Error[+E](e: E) extends Side[E, Nothing, Nothing]
+      final case class State[+S](s: S) extends Side[Nothing, S, Nothing]
+      final case class Value[+A](a: A) extends Side[Nothing, Nothing, A]
     }
 
     def assertNonNegative(n: Long): UIO[Unit] =
-      if (n < 0) UIO.die(new NegativeArgument(s"Unexpected negative unit value `$n`"))
+      if (n < 0) UIO.dieNow(new NegativeArgument(s"Unexpected negative unit value `$n`"))
       else UIO.unit
 
     def assertPositive(n: Long): UIO[Unit] =
-      if (n <= 0) UIO.die(new NonpositiveArgument(s"Unexpected nonpositive unit value `$n`"))
+      if (n <= 0) UIO.dieNow(new NonpositiveArgument(s"Unexpected nonpositive unit value `$n`"))
       else UIO.unit
 
     class NegativeArgument(message: String) extends IllegalArgumentException(message)
@@ -1190,30 +1217,30 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Creates a sink that waits for a single value to be produced.
    */
-  final def await[A]: ZSink[Any, Unit, Nothing, A, A] = identity
+  def await[A]: ZSink[Any, Unit, Nothing, A, A] = identity
 
   /**
    * Creates a sink accumulating incoming values into a list.
    */
-  final def collectAll[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
+  def collectAll[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
     foldLeft[A, List[A]](List.empty[A])((as, a) => a :: as).map(_.reverse)
 
   /**
    * Creates a sink accumulating incoming values into a list of maximum size `n`.
    */
-  final def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
+  def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
     foldUntil[List[A], A](List.empty[A], n)((list, element) => element :: list).map(_.reverse)
 
   /**
    * Creates a sink accumulating incoming values into a set.
    */
-  final def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
+  def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
     foldLeft[A, Set[A]](Set.empty[A])((set, element) => set + element)
 
   /**
    * Creates a sink accumulating incoming values into a set of maximum size `n`.
    */
-  final def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] = {
+  def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] = {
     type State = (Set[A], Boolean)
     def f(state: State, a: A): (State, Chunk[A]) = {
       val newSet = state._1 + a
@@ -1227,29 +1254,40 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Creates a sink accumulating incoming values into a map.
    * Key of each element is determined by supplied function.
+   * Combines elements with same key with supplied function f.
+   *
    */
-  final def collectAllToMap[K, A](key: A => K): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
-    foldLeft[A, Map[K, A]](Map.empty[K, A])((map, element) => map + (key(element) -> element))
+  def collectAllToMap[K, A](key: A => K)(f: (A, A) => A): Sink[Nothing, Nothing, A, Map[K, A]] =
+    foldLeft[A, Map[K, A]](Map.empty) { (curMap, a) =>
+      val k = key(a)
+      curMap.get(k).fold(curMap.updated(k, a))(v => curMap.updated(k, f(v, a)))
+    }
 
   /**
    * Creates a sink accumulating incoming values into a map of maximum size `n`.
    * Key of each element is determined by supplied function.
+   *
+   * Combines elements with same key with supplied function f.
    */
-  final def collectAllToMapN[K, A](n: Long)(key: A => K): Sink[Nothing, A, A, Map[K, A]] = {
+  def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): Sink[Nothing, A, A, Map[K, A]] = {
     type State = (Map[K, A], Boolean)
-    def f(state: State, a: A): (State, Chunk[A]) = {
-      val newMap = state._1 + (key(a) -> a)
-      if (newMap.size > n) ((state._1, false), Chunk.single(a))
-      else if (newMap.size == n) ((newMap, false), Chunk.empty)
-      else ((newMap, true), Chunk.empty)
+    def inner(state: State, a: A): (State, Chunk[A]) = {
+      val k      = key(a)
+      val curMap = state._1
+      curMap
+        .get(k)
+        .fold(
+          if (curMap.size >= n) ((curMap, false), Chunk.single(a))
+          else ((curMap.updated(k, a), true), Chunk.empty)
+        )(v => ((curMap.updated(k, f(v, a)), true), Chunk.empty))
     }
-    fold[A, A, State]((Map.empty, true))(_._2)(f).map(_._1)
+    fold[A, A, State]((Map.empty, true))(_._2)(inner).map(_._1)
   }
 
   /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
    */
-  final def collectAllWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
+  def collectAllWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
     fold[A, A, (List[A], Boolean)]((Nil, true))(_._2) {
       case ((as, _), a) =>
         if (p(a)) ((a :: as, true), Chunk.empty) else ((as, false), Chunk.single(a))
@@ -1258,47 +1296,55 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
    */
-  final def collectAllWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
+  def collectAllWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
     foldM[R, E, A, A, (List[A], Boolean)]((Nil, true))(_._2) {
       case ((as, _), a) =>
         p(a).map(if (_) ((a :: as, true), Chunk.empty) else ((as, false), Chunk.single(a)))
     }.map(_._1.reverse)
 
   /**
+   * Creates a sink which emits the number of elements processed
+   */
+  def count[A]: ZSink[Any, Nothing, Nothing, A, Long] =
+    foldLeft[A, Long](0L) {
+      case (accum, _) => accum + 1L
+    }
+
+  /**
    * Creates a sink halting with the specified `Throwable`.
    */
-  final def die(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+  def die(e: => Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(e))
 
   /**
    * Creates a sink halting with the specified message, wrapped in a
    * `RuntimeException`.
    */
-  final def dieMessage(m: String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+  def dieMessage(m: => String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(new RuntimeException(m)))
 
   /**
    * Creates a sink consuming all incoming values until completion.
    */
-  final def drain: ZSink[Any, Nothing, Nothing, Any, Unit] =
+  def drain: ZSink[Any, Nothing, Nothing, Any, Unit] =
     foldLeft(())((s, _) => s)
 
   /**
    * Creates a sink containing the first value.
    */
-  final def head[A]: ZSink[Any, Nothing, A, A, Option[A]] =
+  def head[A]: ZSink[Any, Nothing, A, A, Option[A]] =
     identity[A].optional
 
   /**
    * Creates a sink containing the last value.
    */
-  final def last[A]: ZSink[Any, Nothing, Nothing, A, Option[A]] =
+  def last[A]: ZSink[Any, Nothing, Nothing, A, Option[A]] =
     foldLeft[A, Option[A]](None) { case (_, a) => Some(a) }
 
   /**
    * Creates a sink failing with a value of type `E`.
    */
-  final def fail[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
+  def fail[E](e: => E): ZSink[Any, E, Nothing, Any, Nothing] =
     new SinkPure[E, Nothing, Any, Nothing] {
       type State = Unit
       val initialPure                    = ()
@@ -1310,7 +1356,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Creates a sink by folding over a structure of type `S`.
    */
-  final def fold[A0, A, S](
+  def fold[A0, A, S](
     z: S
   )(contFn: S => Boolean)(f: (S, A) => (S, Chunk[A0])): ZSink[Any, Nothing, A0, A, S] =
     new SinkPure[Nothing, A0, A, S] {
@@ -1324,26 +1370,26 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Creates a sink by folding over a structure of type `S`.
    */
-  final def foldLeft[A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, Nothing, A, S] =
+  def foldLeft[A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, Nothing, A, S] =
     fold(z)(_ => true)((s, a) => (f(s, a), Chunk.empty))
 
   /**
    * Creates a sink by effectfully folding over a structure of type `S`.
    */
-  final def foldLeftM[R, E, A, S](z: S)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, Nothing, A, S] =
+  def foldLeftM[R, E, A, S](z: S)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, Nothing, A, S] =
     foldM(z)(_ => true)((s, a) => f(s, a).map((_, Chunk.empty)))
 
   /**
    * Creates a sink by effectfully folding over a structure of type `S`.
    */
-  final def foldM[R, E, A0, A, S](
+  def foldM[R, E, A0, A, S](
     z: S
   )(contFn: S => Boolean)(f: (S, A) => ZIO[R, E, (S, Chunk[A0])]): ZSink[R, E, A0, A, S] =
     new ZSink[R, E, A0, A, S] {
       type State = (S, Chunk[A0])
-      val initial                  = UIO.succeed((z, Chunk.empty))
+      val initial                  = UIO.succeedNow((z, Chunk.empty))
       def step(state: State, a: A) = f(state._1, a)
-      def extract(state: State)    = UIO.succeed(state)
+      def extract(state: State)    = UIO.succeedNow(state)
       def cont(state: State)       = contFn(state._1)
     }
 
@@ -1356,13 +1402,13 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * cause the stream to hang. See [[ZSink.foldWeightedDecomposeM]] for
    * a variant that can handle these.
    */
-  final def foldWeightedM[R, R1 <: R, E, E1 >: E, A, S](
+  def foldWeightedM[R, R1 <: R, E, E1 >: E, A, S](
     z: S
   )(
     costFn: A => ZIO[R, E, Long],
     max: Long
   )(f: (S, A) => ZIO[R1, E1, S]): ZSink[R1, E1, A, A, S] =
-    foldWeightedDecomposeM[R, R1, E1, E1, A, S](z)(costFn, max, (a: A) => UIO.succeed(Chunk.single(a)))(f)
+    foldWeightedDecomposeM[R, R1, E1, E1, A, S](z)(costFn, max, (a: A) => UIO.succeedNow(Chunk.single(a)))(f)
 
   /**
    * Creates a sink that effectfully folds elements of type `A` into a structure
@@ -1373,7 +1419,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * cause an `S` aggregate to cross `max` into smaller elements. See
    * [[ZSink.foldWeightedDecompose]] for an example.
    */
-  final def foldWeightedDecomposeM[R, R1 <: R, E, E1 >: E, A, S](
+  def foldWeightedDecomposeM[R, R1 <: R, E, E1 >: E, A, S](
     z: S
   )(
     costFn: A => ZIO[R, E, Long],
@@ -1384,7 +1430,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
       type State = FoldWeightedState
       case class FoldWeightedState(s: S, cost: Long, cont: Boolean, leftovers: Chunk[A])
 
-      val initial = UIO.succeed(FoldWeightedState(z, 0L, true, Chunk.empty))
+      val initial = UIO.succeedNow(FoldWeightedState(z, 0L, true, Chunk.empty))
 
       def step(state: State, a: A) =
         costFn(a).flatMap { cost =>
@@ -1398,7 +1444,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
             f(state.s, a).map(FoldWeightedState(_, newCost, true, Chunk.empty))
         }
 
-      def extract(state: State) = UIO.succeed((state.s, state.leftovers))
+      def extract(state: State) = UIO.succeedNow((state.s, state.leftovers))
 
       def cont(state: State) = state.cont
     }
@@ -1412,7 +1458,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * cause the stream to hang. See [[ZSink.foldWeightedDecompose]] for
    * a variant that can handle these.
    */
-  final def foldWeighted[A, S](
+  def foldWeighted[A, S](
     z: S
   )(costFn: A => Long, max: Long)(
     f: (S, A) => S
@@ -1444,7 +1490,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * The [[ZSink.foldWeightedDecomposeM]] allows the decompose function
    * to return a `ZIO` value, and consequently it allows the sink to fail.
    */
-  final def foldWeightedDecompose[A, S](
+  def foldWeightedDecompose[A, S](
     z: S
   )(costFn: A => Long, max: Long, decompose: A => Chunk[A])(
     f: (S, A) => S
@@ -1477,8 +1523,8 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    *
    * Like [[ZSink.foldWeightedM]], but with a constant cost function of 1.
    */
-  final def foldUntilM[R, E, S, A](z: S, max: Long)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, A, A, S] =
-    foldWeightedM[R, R, E, E, A, S](z)(_ => UIO.succeed(1), max)(f)
+  def foldUntilM[R, E, S, A](z: S, max: Long)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, A, A, S] =
+    foldWeightedM[R, R, E, E, A, S](z)(_ => UIO.succeedNow(1), max)(f)
 
   /**
    * Creates a sink that folds elements of type `A` into a structure
@@ -1486,17 +1532,17 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    *
    * Like [[ZSink.foldWeighted]], but with a constant cost function of 1.
    */
-  final def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
+  def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
     foldWeighted[A, S](z)(_ => 1, max)(f)
 
   /**
    * Creates a single-value sink produced from an effect
    */
-  final def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
+  def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
     new ZSink[R, E, Nothing, Any, B] {
       type State = Unit
-      val initial                    = IO.succeed(())
-      def step(state: State, a: Any) = IO.succeed(())
+      val initial                    = IO.unit
+      def step(state: State, a: Any) = IO.unit
       def extract(state: State)      = b.map((_, Chunk.empty))
       def cont(state: State)         = false
     }
@@ -1504,31 +1550,31 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Creates a sink that purely transforms incoming values.
    */
-  final def fromFunction[A, B](f: A => B): ZSink[Any, Unit, Nothing, A, B] =
+  def fromFunction[A, B](f: A => B): ZSink[Any, Unit, Nothing, A, B] =
     identity.map(f)
 
   /**
    * Creates a sink that effectfully transforms incoming values.
    */
-  final def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, Option[E], Nothing, A, B] =
+  def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, Option[E], Nothing, A, B] =
     identity.mapError(_ => None).mapM(f(_).mapError(Some(_)))
 
   /**
    * Creates a sink halting with a specified cause.
    */
-  final def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+  def halt[E](e: => Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
     new Sink[E, Nothing, Any, Nothing] {
       type State = Unit
-      val initial                    = UIO.succeed(())
-      def step(state: State, a: Any) = UIO.succeed(())
-      def extract(state: State)      = IO.halt(e)
+      val initial                    = UIO.unit
+      def step(state: State, a: Any) = UIO.unit
+      def extract(state: State)      = IO.haltNow(e)
       def cont(state: State)         = false
     }
 
   /**
    * Creates a sink by that merely passes on incoming values.
    */
-  final def identity[A]: ZSink[Any, Unit, Nothing, A, A] =
+  def identity[A]: ZSink[Any, Unit, Nothing, A, A] =
     new SinkPure[Unit, Nothing, A, A] {
       type State = Option[A]
       val initialPure                  = None
@@ -1541,7 +1587,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * Creates a sink by starts consuming value as soon as one fails
    * the predicate `p`.
    */
-  final def ignoreWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, Unit] =
+  def ignoreWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, Unit] =
     new SinkPure[Nothing, A, A, Unit] {
       type State = Chunk[A]
       val initialPure                  = Chunk.empty
@@ -1554,12 +1600,12 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * Creates a sink by starts consuming value as soon as one fails
    * the effectful predicate `p`.
    */
-  final def ignoreWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, Unit] =
+  def ignoreWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, Unit] =
     new ZSink[R, E, A, A, Unit] {
       type State = Chunk[A]
-      val initial                  = IO.succeed(Chunk.empty)
+      val initial                  = IO.succeedNow(Chunk.empty)
       def step(state: State, a: A) = p(a).map(if (_) state else Chunk.single(a))
-      def extract(state: State)    = IO.succeed(((), state))
+      def extract(state: State)    = IO.succeedNow(((), state))
       def cont(state: State)       = state.isEmpty
     }
 
@@ -1567,13 +1613,13 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * Returns a sink that must at least perform one extraction or else
    * will "fail" with `end`.
    */
-  final def pull1[R, R1 <: R, E, A0, A, B](
+  def pull1[R, R1 <: R, E, A0, A, B](
     end: ZIO[R1, E, B]
   )(input: A => ZSink[R, E, A0, A, B]): ZSink[R1, E, A0, A, B] =
     new ZSink[R1, E, A0, A, B] {
       type State = Option[(ZSink[R1, E, A0, A, B], Any)]
 
-      val initial = IO.succeed(None)
+      val initial = IO.succeedNow(None)
 
       def step(state: State, a: A) =
         state match {
@@ -1599,7 +1645,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * Creates a sink that consumes the first value verifying the predicate `p`
    * or fails as soon as the sink won't make any more progress.
    */
-  final def read1[E, A](e: Option[A] => E)(p: A => Boolean): ZSink[Any, E, A, A, A] =
+  def read1[E, A](e: Option[A] => E)(p: A => Boolean): ZSink[Any, E, A, A, A] =
     new SinkPure[E, A, A, A] {
       type State = (Either[E, Option[A]], Chunk[A])
 
@@ -1631,7 +1677,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Splits strings on newlines. Handles both `\r\n` and `\n`.
    */
-  final val splitLines: ZSink[Any, Nothing, String, String, Chunk[String]] =
+  val splitLines: ZSink[Any, Nothing, String, String, Chunk[String]] =
     new SinkPure[Nothing, String, String, Chunk[String]] {
       type State = SplitLinesState
       case class SplitLinesState(
@@ -1705,13 +1751,13 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * Merges chunks of strings and splits them on newlines. Handles both
    * `\r\n` and `\n`.
    */
-  final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
+  val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
     splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
 
   /**
    * Splits strings on a delimiter.
    */
-  final def splitOn(delimiter: String): ZSink[Any, Nothing, String, String, Chunk[String]] =
+  def splitOn(delimiter: String): ZSink[Any, Nothing, String, String, Chunk[String]] =
     new SinkPure[Nothing, String, String, Chunk[String]] {
       type State = SplitOnState
       case class SplitOnState(
@@ -1788,7 +1834,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Creates a single-value sink from a value.
    */
-  final def succeed[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+  def succeed[A, B](b: => B): ZSink[Any, Nothing, A, A, B] =
     new SinkPure[Nothing, A, A, B] {
       type State = Chunk[A]
       val initialPure                  = Chunk.empty
@@ -1798,16 +1844,27 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
     }
 
   /**
+   * Creates a sink which sums elements, provided they are Numeric
+   */
+  def sum[A](implicit ev: Numeric[A]): ZSink[Any, Nothing, Nothing, A, A] = {
+    val numeric = ev
+    foldLeft(numeric.zero) {
+      case (acc, a) =>
+        numeric.plus(acc, a)
+    }
+  }
+
+  /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
    * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
    * the token bucket to accumulate tokens up to a `units + burst` threshold. Elements that do not meet the
    * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` function.
    * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
    */
-  final def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
-    throttleEnforceM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
+    throttleEnforceM[Any, Nothing, A](units, duration, burst)(a => UIO.succeedNow(costFn(a)))
 
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
@@ -1816,7 +1873,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` effectful function.
    * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
    */
-  final def throttleEnforceM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleEnforceM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R, E, Long]
   ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
     import ZSink.internal._
@@ -1827,7 +1884,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
       new ZSink[R with Clock, E, Nothing, A, Option[A]] {
         type State = (Ref[(Long, Long)], Option[A], Boolean)
 
-        val initial = UIO.succeed((bucket, None, true))
+        val initial = UIO.succeedNow((bucket, None, true))
 
         def step(state: State, a: A) =
           for {
@@ -1845,7 +1902,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
                      }
           } yield result
 
-        def extract(state: State) = UIO.succeed((state._2, Chunk.empty))
+        def extract(state: State) = UIO.succeedNow((state._2, Chunk.empty))
 
         def cont(state: State) = state._3
       }
@@ -1868,10 +1925,10 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
    * determined by the `costFn` function.
    */
-  final def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
-    throttleShapeM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
+    throttleShapeM[Any, Nothing, A](units, duration, burst)(a => UIO.succeedNow(costFn(a)))
 
   /**
    * Creates a sink which delays input elements of type A according to the given bandwidth parameters
@@ -1879,7 +1936,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
    * determined by the `costFn` effectful function.
    */
-  final def throttleShapeM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleShapeM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R, E, Long]
   ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, A]] = {
     import ZSink.internal._
@@ -1989,4 +2046,16 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
 
       def cont(state: State) = state._3
     }
+
+  private[zio] def dieNow(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+    ZSink.haltNow(Cause.die(e))
+
+  private[zio] def failNow[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
+    fail(e)
+
+  private[zio] def haltNow[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+    halt(e)
+
+  private[zio] def succeedNow[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+    succeed(b)
 }

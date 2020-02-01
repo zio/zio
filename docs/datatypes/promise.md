@@ -29,7 +29,6 @@ You can complete a `Promise[E, A]` in few different ways:
 Following example shows usage of all of them:
 ```scala mdoc:silent
 import zio._
-import zio.syntax._
 
 val race: IO[String, Int] = for {
     p     <- Promise.make[String, Int]
@@ -102,7 +101,7 @@ val program: ZIO[Console with Clock, IOException, Unit] =
   for {
     promise         <-  Promise.make[Nothing, String]
     sendHelloWorld  =   (IO.succeed("hello world") <* sleep(1.second)).flatMap(promise.succeed)
-    getAndPrint     =   promise.await.flatMap(putStrLn)
+    getAndPrint     =   promise.await.flatMap(putStrLn(_))
     fiberA          <-  sendHelloWorld.fork
     fiberB          <-  getAndPrint.fork
     _               <-  (fiberA zip fiberB).join

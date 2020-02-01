@@ -1,1 +1,2 @@
--Xss2M
+-Xms1g
+-Xmx4g

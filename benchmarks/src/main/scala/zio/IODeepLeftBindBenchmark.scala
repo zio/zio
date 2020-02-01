@@ -3,6 +3,7 @@ package zio
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
+
 import zio.IOBenchmarks._
 
 @State(Scope.Thread)
@@ -27,10 +28,10 @@ class IODeepLeftBindBenchmark {
   }
 
   @Benchmark
-  def scalazDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(IOBenchmarks)
+  def zioDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(IOBenchmarks)
 
   @Benchmark
-  def scalazTracedDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(TracedRuntime)
+  def zioTracedDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(TracedRuntime)
 
   def zioDeepLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     var i  = 0

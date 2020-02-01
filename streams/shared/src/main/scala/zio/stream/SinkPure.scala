@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] 
 
   def extractPure(state: State): Either[E, (B, Chunk[A0])]
 
-  def initial = IO.succeed(initialPure)
+  def initial = IO.succeedNow(initialPure)
 
   def initialPure: State
 
@@ -55,7 +55,7 @@ private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] 
       def cont(state: State)           = self.cont(state)
     }
 
-  override def mapRemainder[A1](f: A0 => A1): SinkPure[E, A1, A, B] =
+  override final def mapRemainder[A1](f: A0 => A1): SinkPure[E, A1, A, B] =
     new SinkPure[E, A1, A, B] {
       type State = self.State
       val initialPure                  = self.initialPure
@@ -64,7 +64,7 @@ private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] 
       def cont(state: State)           = self.cont(state)
     }
 
-  override def step(s: State, a: A) = IO.succeed(stepPure(s, a))
+  override final def step(s: State, a: A) = IO.succeedNow(stepPure(s, a))
 
   final def stepChunkPure[A00 >: A0, A1 <: A](state: State, as: Chunk[A1])(
     implicit ev: A1 =:= A00

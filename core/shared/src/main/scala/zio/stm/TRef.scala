@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ package zio.stm
 import java.util.concurrent.atomic.AtomicReference
 
 import zio.UIO
-import zio.stm.STM.internal._
+import zio.stm.ZSTM.internal._
 
 /**
  * A variable that can be modified as part of a transactional effect.
  */
-class TRef[A] private (
+final class TRef[A] private (
   @volatile private[stm] var versioned: Versioned[A],
   private[stm] val todo: AtomicReference[Map[TxnId, Todo]]
 ) {
@@ -33,71 +33,127 @@ class TRef[A] private (
   /**
    * Retrieves the value of the `TRef`.
    */
-  final val get: STM[Nothing, A] =
-    new STM(journal => {
+  val get: STM[Nothing, A] =
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
-      TRez.Succeed(entry.unsafeGet[A])
+      TExit.Succeed(entry.unsafeGet[A])
     })
 
   /**
-   * Sets the value of the `TRef`.
+   * Sets the value of the `TRef` and returns the old value.
    */
-  final def set(newValue: A): STM[Nothing, Unit] =
-    new STM(journal => {
+  def getAndSet(a: A): STM[Nothing, A] =
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
-      entry.unsafeSet(newValue)
+      val oldValue = entry.unsafeGet[A]
 
-      succeedUnit
-    })
+      entry.unsafeSet(a)
 
-  override final def toString =
-    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
-
-  /**
-   * Updates the value of the variable.
-   */
-  final def update(f: A => A): STM[Nothing, A] =
-    new STM(journal => {
-      val entry = getOrMakeEntry(journal)
-
-      val newValue = f(entry.unsafeGet[A])
-
-      entry.unsafeSet(newValue)
-
-      TRez.Succeed(newValue)
+      TExit.Succeed(oldValue)
     })
 
   /**
-   * Updates some values of the variable but leaves others alone.
+   * Updates the value of the variable and returns the old value.
    */
-  final def updateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
-    update(f orElse { case a => a })
+  def getAndUpdate(f: A => A): STM[Nothing, A] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      val oldValue = entry.unsafeGet[A]
+
+      entry.unsafeSet(f(oldValue))
+
+      TExit.Succeed(oldValue)
+    })
+
+  /**
+   * Updates some values of the variable but leaves others alone, returning the
+   * old value.
+   */
+  def getAndUpdateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
+    getAndUpdate(f orElse { case a => a })
 
   /**
    * Updates the value of the variable, returning a function of the specified
    * value.
    */
-  final def modify[B](f: A => (B, A)): STM[Nothing, B] =
-    new STM(journal => {
+  def modify[B](f: A => (B, A)): STM[Nothing, B] =
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       val (retValue, newValue) = f(entry.unsafeGet[A])
 
       entry.unsafeSet(newValue)
 
-      TRez.Succeed(retValue)
+      TExit.Succeed(retValue)
     })
 
   /**
    * Updates some values of the variable, returning a function of the specified
    * value or the default.
    */
-  final def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
+  def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
     modify(a => f.lift(a).getOrElse((default, a)))
 
-  private final def getOrMakeEntry(journal: Journal): Entry =
+  /**
+   * Sets the value of the `TRef`.
+   */
+  def set(newValue: A): STM[Nothing, Unit] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      entry.unsafeSet(newValue)
+
+      TExit.Succeed(())
+    })
+
+  override def toString =
+    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
+
+  /**
+   * Updates the value of the variable.
+   */
+  def update(f: A => A): STM[Nothing, Unit] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      val newValue = f(entry.unsafeGet[A])
+
+      entry.unsafeSet(newValue)
+
+      TExit.Succeed(())
+    })
+
+  /**
+   * Updates the value of the variable and returns the new value.
+   */
+  def updateAndGet(f: A => A): STM[Nothing, A] =
+    new ZSTM((journal, _, _, _) => {
+      val entry = getOrMakeEntry(journal)
+
+      val newValue = f(entry.unsafeGet[A])
+
+      entry.unsafeSet(newValue)
+
+      TExit.Succeed(newValue)
+    })
+
+  /**
+   * Updates some values of the variable but leaves others alone.
+   */
+  def updateSome(f: PartialFunction[A, A]): STM[Nothing, Unit] =
+    update(f orElse { case a => a })
+
+  /**
+   * Updates some values of the variable but leaves others alone, returning the
+   * new value.
+   */
+  def updateSomeAndGet(f: PartialFunction[A, A]): STM[Nothing, A] =
+    updateAndGet(f orElse { case a => a })
+
+  private def getOrMakeEntry(journal: Journal): Entry =
     if (journal.containsKey(self)) journal.get(self)
     else {
       val entry = Entry(self, false)
@@ -111,8 +167,8 @@ object TRef {
   /**
    * Makes a new `TRef` that is initialized to the specified value.
    */
-  final def make[A](a: => A): STM[Nothing, TRef[A]] =
-    new STM(journal => {
+  def make[A](a: => A): STM[Nothing, TRef[A]] =
+    new ZSTM((journal, _, _, _) => {
       val value     = a
       val versioned = new Versioned(value)
 
@@ -122,13 +178,22 @@ object TRef {
 
       journal.put(tref, Entry(tref, true))
 
-      TRez.Succeed(tref)
+      TExit.Succeed(tref)
     })
 
   /**
    * A convenience method that makes a `TRef` and immediately commits the
    * transaction to extract the value out.
    */
-  final def makeCommit[A](a: => A): UIO[TRef[A]] =
+  def makeCommit[A](a: => A): UIO[TRef[A]] =
     STM.atomically(TRef.make(a))
+
+  private[stm] def unsafeMake[A](a: A): TRef[A] = {
+    val value     = a
+    val versioned = new Versioned(value)
+
+    val todo = new AtomicReference[Map[TxnId, Todo]](Map())
+
+    new TRef(versioned, todo)
+  }
 }

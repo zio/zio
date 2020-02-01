@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package zio.stream
 
-import zio.{ Cause, IO, ZIO }
 import zio.stream.ZStream.Pull
+import zio.{ Cause, IO, ZIO }
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of
@@ -56,17 +56,20 @@ sealed trait Take[+E, +A] extends Product with Serializable { self =>
 }
 
 object Take {
-  final case class Fail[E](value: Cause[E]) extends Take[E, Nothing]
-  final case class Value[A](value: A)       extends Take[Nothing, A]
-  case object End                           extends Take[Nothing, Nothing]
+  final case class Fail[+E](value: Cause[E]) extends Take[E, Nothing]
+  final case class Value[+A](value: A)       extends Take[Nothing, A]
+  case object End                            extends Take[Nothing, Nothing]
 
-  final def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
-    pull.fold(_.fold[Take[E, A]](Take.End)(e => Take.Fail(Cause.fail(e))), Take.Value(_))
+  def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
+    pull.foldCause(
+      Cause.sequenceCauseOption(_).fold[Take[E, A]](Take.End)(Take.Fail(_)),
+      Take.Value(_)
+    )
 
-  final def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
+  def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
     io.flatMap {
-      case Take.End      => IO.succeed(None)
-      case Take.Value(a) => IO.succeed(Some(a))
-      case Take.Fail(e)  => IO.halt(e)
+      case Take.End      => IO.succeedNow(None)
+      case Take.Value(a) => IO.succeedNow(Some(a))
+      case Take.Fail(e)  => IO.haltNow(e)
     }
 }

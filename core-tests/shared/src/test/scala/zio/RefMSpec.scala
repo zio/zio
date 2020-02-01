@@ -1,9 +1,7 @@
 package zio
 
-import zio.test._
 import zio.test.Assertion._
-import zio.clock.Clock
-import zio.duration.durationInt
+import zio.test._
 
 object RefMSpec extends ZIOBaseSpec {
 
@@ -12,102 +10,44 @@ object RefMSpec extends ZIOBaseSpec {
       for {
         refM  <- RefM.make(current)
         value <- refM.get
-      } yield assert(value, equalTo(current))
+      } yield assert(value)(equalTo(current))
     },
-    testM("set") {
+    testM("getAndUpdate") {
       for {
-        refM  <- RefM.make(current)
-        _     <- refM.set(update)
-        value <- refM.get
-      } yield assert(value, equalTo(update))
+        refM   <- RefM.make(current)
+        value1 <- refM.getAndUpdate(_ => IO.effectTotal(update))
+        value2 <- refM.get
+      } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
     },
-    testM("update") {
-      for {
-        refM  <- RefM.make(current)
-        value <- refM.update(_ => IO.effectTotal(update))
-      } yield assert(value, equalTo(update))
-    },
-    testM("update with failure") {
+    testM("getAndUpdate with failure") {
       for {
         refM  <- RefM.make[String](current)
-        value <- refM.update(_ => IO.fail(failure)).run
-      } yield assert(value, fails(equalTo(failure)))
+        value <- refM.getAndUpdate(_ => IO.failNow(failure)).run
+      } yield assert(value)(fails(equalTo(failure)))
     },
-    testM("updateSome") {
-      for {
-        refM  <- RefM.make[State](Active)
-        value <- refM.updateSome { case Closed => IO.succeed(Active) }
-      } yield assert(value, equalTo(Active))
-    },
-    testM("updateSome twice") {
+    testM("getAndUpdateSome") {
       for {
         refM   <- RefM.make[State](Active)
-        value1 <- refM.updateSome { case Active => IO.succeed(Changed) }
-        value2 <- refM.updateSome {
-                   case Active  => IO.succeed(Changed)
-                   case Changed => IO.succeed(Closed)
-                 }
-      } yield assert(value1, equalTo(Changed)) && assert(value2, equalTo(Closed))
-    },
-    testM("updateSome with failure") {
-      for {
-        refM  <- RefM.make[State](Active)
-        value <- refM.updateSome { case Active => IO.fail(failure) }.run
-      } yield assert(value, fails(equalTo(failure)))
-    },
-    testM("modify") {
-      for {
-        refM  <- RefM.make(current)
-        r     <- refM.modify(_ => IO.effectTotal(("hello", update)))
-        value <- refM.get
-      } yield assert(r, equalTo("hello")) && assert(value, equalTo(update))
-    },
-    testM("modify with failure") {
-      for {
-        refM <- RefM.make[String](current)
-        r    <- refM.modify(_ => IO.fail(failure)).run
-      } yield assert(r, fails(equalTo(failure)))
-    },
-    testM("modify twice") {
-      for {
-        refM   <- RefM.make[State](Active)
-        r1     <- refM.modifySome("doesn't change the state") { case Active => IO.succeed("changed" -> Changed) }
-        value1 <- refM.get
-        r2 <- refM.modifySome("doesn't change the state") {
-               case Active  => IO.succeed("changed" -> Changed)
-               case Changed => IO.succeed("closed"  -> Closed)
-             }
+        value1 <- refM.getAndUpdateSome { case Closed => IO.succeedNow(Active) }
         value2 <- refM.get
-      } yield assert(r1, equalTo("changed")) &&
-        assert(value1, equalTo(Changed)) &&
-        assert(r2, equalTo("closed")) &&
-        assert(value2, equalTo(Closed))
+      } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Active))
     },
-    testM("modifySome") {
+    testM("getAndUpdateSome twice") {
+      for {
+        refM   <- RefM.make[State](Active)
+        value1 <- refM.getAndUpdateSome { case Active => IO.succeedNow(Changed) }
+        value2 <- refM.getAndUpdateSome {
+                   case Active  => IO.succeedNow(Changed)
+                   case Changed => IO.succeedNow(Closed)
+                 }
+        value3 <- refM.get
+      } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Changed)) && assert(value3)(equalTo(Closed))
+    },
+    testM("getAndUpdateSome with failure") {
       for {
         refM  <- RefM.make[State](Active)
-        r     <- refM.modifySome("State doesn't change") { case Closed => IO.succeed("active" -> Active) }
-        value <- refM.get
-      } yield assert(r, equalTo("State doesn't change")) && assert(value, equalTo(Active))
-    },
-    testM("modifySome with failure not triggered") {
-      for {
-        refM  <- RefM.make[State](Active)
-        r     <- refM.modifySome("State doesn't change") { case Closed => IO.fail(failure) }.orDieWith(new Exception(_))
-        value <- refM.get
-      } yield assert(r, equalTo("State doesn't change")) && assert(value, equalTo(Active))
-    },
-    testM("modifySome with failure") {
-      for {
-        refM  <- RefM.make[State](Active)
-        value <- refM.modifySome("State doesn't change") { case Active => IO.fail(failure) }.run
-      } yield assert(value, fails(equalTo(failure)))
-    },
-    testM("modifySome with fatal error") {
-      for {
-        refM  <- RefM.make[State](Active)
-        value <- refM.modifySome("State doesn't change") { case Active => IO.dieMessage(fatalError) }.run
-      } yield assert(value, dies(hasMessage(fatalError)))
+        value <- refM.getAndUpdateSome { case Active => IO.failNow(failure) }.run
+      } yield assert(value)(fails(equalTo(failure)))
     },
     testM("interrupt parent fiber and update") {
       for {
@@ -117,8 +57,103 @@ object RefMSpec extends ZIOBaseSpec {
         fiber       <- makeAndWait.fork
         refM        <- promise.await
         _           <- fiber.interrupt
-        value       <- refM.update(_ => ZIO.succeed(Closed)).timeout(1.second).provide(Clock.Live)
-      } yield assert(value, equalTo(Some(Closed)))
+        value       <- refM.updateAndGet(_ => ZIO.succeedNow(Closed))
+      } yield assert(value)(equalTo(Closed))
+    },
+    testM("modify") {
+      for {
+        refM  <- RefM.make(current)
+        r     <- refM.modify(_ => IO.effectTotal(("hello", update)))
+        value <- refM.get
+      } yield assert(r)(equalTo("hello")) && assert(value)(equalTo(update))
+    },
+    testM("modify with failure") {
+      for {
+        refM <- RefM.make[String](current)
+        r    <- refM.modify(_ => IO.failNow(failure)).run
+      } yield assert(r)(fails(equalTo(failure)))
+    },
+    testM("modify twice") {
+      for {
+        refM   <- RefM.make[State](Active)
+        r1     <- refM.modifySome("doesn't change the state") { case Active => IO.succeedNow("changed" -> Changed) }
+        value1 <- refM.get
+        r2 <- refM.modifySome("doesn't change the state") {
+               case Active  => IO.succeedNow("changed" -> Changed)
+               case Changed => IO.succeedNow("closed"  -> Closed)
+             }
+        value2 <- refM.get
+      } yield assert(r1)(equalTo("changed")) &&
+        assert(value1)(equalTo(Changed)) &&
+        assert(r2)(equalTo("closed")) &&
+        assert(value2)(equalTo(Closed))
+    },
+    testM("modifySome") {
+      for {
+        refM  <- RefM.make[State](Active)
+        r     <- refM.modifySome("State doesn't change") { case Closed => IO.succeedNow("active" -> Active) }
+        value <- refM.get
+      } yield assert(r)(equalTo("State doesn't change")) && assert(value)(equalTo(Active))
+    },
+    testM("modifySome with failure not triggered") {
+      for {
+        refM  <- RefM.make[State](Active)
+        r     <- refM.modifySome("State doesn't change") { case Closed => IO.failNow(failure) }.orDieWith(new Exception(_))
+        value <- refM.get
+      } yield assert(r)(equalTo("State doesn't change")) && assert(value)(equalTo(Active))
+    },
+    testM("modifySome with failure") {
+      for {
+        refM  <- RefM.make[State](Active)
+        value <- refM.modifySome("State doesn't change") { case Active => IO.failNow(failure) }.run
+      } yield assert(value)(fails(equalTo(failure)))
+    },
+    testM("modifySome with fatal error") {
+      for {
+        refM  <- RefM.make[State](Active)
+        value <- refM.modifySome("State doesn't change") { case Active => IO.dieMessage(fatalError) }.run
+      } yield assert(value)(dies(hasMessage(equalTo(fatalError))))
+    },
+    testM("set") {
+      for {
+        refM  <- RefM.make(current)
+        _     <- refM.set(update)
+        value <- refM.get
+      } yield assert(value)(equalTo(update))
+    },
+    testM("updateAndGet") {
+      for {
+        refM  <- RefM.make(current)
+        value <- refM.updateAndGet(_ => IO.effectTotal(update))
+      } yield assert(value)(equalTo(update))
+    },
+    testM("updateAndGet with failure") {
+      for {
+        refM  <- RefM.make[String](current)
+        value <- refM.updateAndGet(_ => IO.failNow(failure)).run
+      } yield assert(value)(fails(equalTo(failure)))
+    },
+    testM("updateSomeAndGet") {
+      for {
+        refM  <- RefM.make[State](Active)
+        value <- refM.updateSomeAndGet { case Closed => IO.succeedNow(Active) }
+      } yield assert(value)(equalTo(Active))
+    },
+    testM("updateSomeAndGet twice") {
+      for {
+        refM   <- RefM.make[State](Active)
+        value1 <- refM.updateSomeAndGet { case Active => IO.succeedNow(Changed) }
+        value2 <- refM.updateSomeAndGet {
+                   case Active  => IO.succeedNow(Changed)
+                   case Changed => IO.succeedNow(Closed)
+                 }
+      } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
+    },
+    testM("updateSomeAndGet with failure") {
+      for {
+        refM  <- RefM.make[State](Active)
+        value <- refM.updateSomeAndGet { case Active => IO.failNow(failure) }.run
+      } yield assert(value)(fails(equalTo(failure)))
     }
   )
 

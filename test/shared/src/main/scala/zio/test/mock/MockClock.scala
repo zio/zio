@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,31 +19,22 @@ package zio.test.mock
 import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
 
-import zio.UIO
 import zio.clock.Clock
 import zio.duration.Duration
-
-trait MockClock extends Clock {
-
-  val clock: MockClock.Service[Any]
-}
+import zio.{ Has, UIO }
 
 object MockClock {
 
-  trait Service[R] extends Clock.Service[R]
+  object currentTime     extends Method[Clock.Service, TimeUnit, Long]
+  object currentDateTime extends Method[Clock.Service, Unit, OffsetDateTime]
+  object nanoTime        extends Method[Clock.Service, Unit, Long]
+  object sleep           extends Method[Clock.Service, Duration, Unit]
 
-  object currentTime     extends Method[MockClock, TimeUnit, Long]
-  object currentDateTime extends Method[MockClock, Unit, OffsetDateTime]
-  object nanoTime        extends Method[MockClock, Unit, Long]
-  object sleep           extends Method[MockClock, Duration, Unit]
-
-  implicit val mockable: Mockable[MockClock] = (mock: Mock) =>
-    new MockClock {
-      val clock = new Service[Any] {
-        def currentTime(unit: TimeUnit): UIO[Long] = mock(MockClock.currentTime, unit)
-        def currentDateTime: UIO[OffsetDateTime]   = mock(MockClock.currentDateTime)
-        val nanoTime: UIO[Long]                    = mock(MockClock.nanoTime)
-        def sleep(duration: Duration): UIO[Unit]   = mock(MockClock.sleep, duration)
-      }
-    }
+  implicit val mockableClock: Mockable[Clock.Service] = (mock: Mock) =>
+    Has(new Clock.Service {
+      def currentTime(unit: TimeUnit): UIO[Long] = mock(MockClock.currentTime, unit)
+      def currentDateTime: UIO[OffsetDateTime]   = mock(MockClock.currentDateTime)
+      val nanoTime: UIO[Long]                    = mock(MockClock.nanoTime)
+      def sleep(duration: Duration): UIO[Unit]   = mock(MockClock.sleep, duration)
+    })
 }

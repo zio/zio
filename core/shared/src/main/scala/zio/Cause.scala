@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,12 @@
 package zio
 
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
+
+import zio.internal.Platform
 
 sealed trait Cause[+E] extends Product with Serializable { self =>
-  import Cause._
+  import Cause.Internal._
 
   /**
    * Returns a cause that fails for this cause and the specified cause, in parallel.
@@ -174,7 +177,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     }
 
   final def map[E1](f: E => E1): Cause[E1] =
-    flatMap(f andThen fail)
+    flatMap(e => Fail(f(e)))
 
   /**
    * Returns a `Cause` that has been stripped of all tracing information.
@@ -213,14 +216,14 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
 
     def parallelSegments(cause: Cause[Any], maybeData: Option[Data]): List[Sequential] =
       cause match {
-        case Cause.Both(left, right) => parallelSegments(left, maybeData) ++ parallelSegments(right, maybeData)
-        case _                       => List(causeToSequential(cause, maybeData))
+        case Both(left, right) => parallelSegments(left, maybeData) ++ parallelSegments(right, maybeData)
+        case _                 => List(causeToSequential(cause, maybeData))
       }
 
     def linearSegments(cause: Cause[Any], maybeData: Option[Data]): List[Step] =
       cause match {
-        case Cause.Then(first, second) => linearSegments(first, maybeData) ++ linearSegments(second, maybeData)
-        case _                         => causeToSequential(cause, maybeData).all
+        case Then(first, second) => linearSegments(first, maybeData) ++ linearSegments(second, maybeData)
+        case _                   => causeToSequential(cause, maybeData).all
       }
 
     // Inline definition of `StringOps.lines` to avoid calling either of `.linesIterator` or `.lines`
@@ -266,26 +269,26 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       cause match {
         case Empty => Sequential(Nil)
 
-        case Cause.Fail(t: Throwable) =>
+        case Fail(t: Throwable) =>
           renderFailThrowable(t, None, maybeData)
-        case Cause.Fail(error) =>
+        case Fail(error) =>
           renderFail(lines(error.toString), None)
-        case Cause.Die(t) =>
+        case Die(t) =>
           renderDie(t, None, maybeData)
-        case Cause.Interrupt(fid) =>
+        case Interrupt(fid) =>
           renderInterrupt(fid, None)
 
-        case t: Cause.Then[Any] => Sequential(linearSegments(t, maybeData))
-        case b: Cause.Both[Any] => Sequential(List(Parallel(parallelSegments(b, maybeData))))
+        case t: Then[Any] => Sequential(linearSegments(t, maybeData))
+        case b: Both[Any] => Sequential(List(Parallel(parallelSegments(b, maybeData))))
         case Traced(c, trace) =>
           c match {
-            case Cause.Fail(t: Throwable) =>
+            case Fail(t: Throwable) =>
               renderFailThrowable(t, Some(trace), maybeData)
-            case Cause.Fail(error) =>
+            case Fail(error) =>
               renderFail(lines(error.toString), Some(trace))
-            case Cause.Die(t) =>
+            case Die(t) =>
               renderDie(t, Some(trace), maybeData)
-            case Cause.Interrupt(fid) =>
+            case Interrupt(fid) =>
               renderInterrupt(fid, Some(trace))
             case _ =>
               Sequential(
@@ -343,6 +346,24 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     failureOption.map(f) orElse
       (if (interrupted) Some(new InterruptedException) else None) orElse
       defects.headOption getOrElse (new InterruptedException)
+
+  /**
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+   * "most important" `Throwable`.
+   * In addition, appends a new element the to `Throwable`s "caused by" chain,
+   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   */
+  final def squashTrace(implicit ev: E <:< Throwable): Throwable =
+    squashWithTrace(ev)
+
+  /**
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+   * "most important" `Throwable`.
+   * In addition, appends a new element the to `Throwable`s "caused by" chain,
+   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   */
+  final def squashWithTrace(f: E => Throwable): Throwable =
+    attachTrace(squashWith(f))
 
   /**
    * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
@@ -422,275 +443,382 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       }
     loop(z, self, Nil)
   }
+
+  private def attachTrace(e: Throwable): Throwable = {
+    val rootCause = rootCauseOf(e)
+    val trace     = Cause.FiberTrace(Cause.stackless(this).prettyPrint)
+    try {
+      // this may fail on JVM (if cause was null and not this), but shouldn't fail on JS/Native
+      rootCause.initCause(trace)
+    } catch {
+      case NonFatal(_) => Platform.forceThrowableCause(rootCause, trace)
+    }
+    e
+  }
+
+  @tailrec
+  private def rootCauseOf(e: Throwable): Throwable = {
+    val cause = e.getCause
+    if (cause == null || cause.eq(e)) e
+    else rootCauseOf(cause)
+  }
 }
 
 object Cause extends Serializable {
-  final val empty: Cause[Nothing]                               = Empty
-  final def die(defect: Throwable): Cause[Nothing]              = Die(defect)
-  final def fail[E](error: E): Cause[E]                         = Fail(error)
-  final def interrupt(fiberId: Fiber.Id): Cause[Nothing]        = Interrupt(fiberId)
-  final def stack[E](cause: Cause[E]): Cause[E]                 = Meta(cause, Data(false))
-  final def stackless[E](cause: Cause[E]): Cause[E]             = Meta(cause, Data(true))
-  final def traced[E](cause: Cause[E], trace: ZTrace): Cause[E] = Traced(cause, trace)
-
-  final case object Empty extends Cause[Nothing] {
-    override final def equals(that: Any): Boolean = that match {
-      case _: Empty.type     => true
-      case Then(left, right) => this == left && this == right
-      case Both(left, right) => this == left && this == right
-      case traced: Traced[_] => this == traced.cause
-      case meta: Meta[_]     => this == meta.cause
-      case _                 => false
-    }
-  }
+  val empty: Cause[Nothing]                               = Internal.Empty
+  def die(defect: Throwable): Cause[Nothing]              = Internal.Die(defect)
+  def fail[E](error: E): Cause[E]                         = Internal.Fail(error)
+  def interrupt(fiberId: Fiber.Id): Cause[Nothing]        = Internal.Interrupt(fiberId)
+  def stack[E](cause: Cause[E]): Cause[E]                 = Internal.Meta(cause, Internal.Data(false))
+  def stackless[E](cause: Cause[E]): Cause[E]             = Internal.Meta(cause, Internal.Data(true))
+  def traced[E](cause: Cause[E], trace: ZTrace): Cause[E] = Internal.Traced(cause, trace)
 
   /**
    * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by
    * recursively stripping out any failures with the error `None`.
    */
-  final def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
+  def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
     c match {
-      case Empty                      => Some(Empty)
-      case Cause.Traced(cause, trace) => sequenceCauseOption(cause).map(Cause.Traced(_, trace))
-      case Cause.Meta(cause, data)    => sequenceCauseOption(cause).map(Cause.Meta(_, data))
-      case Cause.Interrupt(id)        => Some(Cause.Interrupt(id))
-      case d @ Cause.Die(_)           => Some(d)
-      case Cause.Fail(Some(e))        => Some(Cause.Fail(e))
-      case Cause.Fail(None)           => None
-      case Cause.Then(left, right) =>
+      case Internal.Empty                => Some(Internal.Empty)
+      case Internal.Traced(cause, trace) => sequenceCauseOption(cause).map(Internal.Traced(_, trace))
+      case Internal.Meta(cause, data)    => sequenceCauseOption(cause).map(Internal.Meta(_, data))
+      case Internal.Interrupt(id)        => Some(Internal.Interrupt(id))
+      case d @ Internal.Die(_)           => Some(d)
+      case Internal.Fail(Some(e))        => Some(Internal.Fail(e))
+      case Internal.Fail(None)           => None
+      case Internal.Then(left, right) =>
         (sequenceCauseOption(left), sequenceCauseOption(right)) match {
-          case (Some(cl), Some(cr)) => Some(Cause.Then(cl, cr))
+          case (Some(cl), Some(cr)) => Some(Internal.Then(cl, cr))
           case (None, Some(cr))     => Some(cr)
           case (Some(cl), None)     => Some(cl)
           case (None, None)         => None
         }
 
-      case Cause.Both(left, right) =>
+      case Internal.Both(left, right) =>
         (sequenceCauseOption(left), sequenceCauseOption(right)) match {
-          case (Some(cl), Some(cr)) => Some(Cause.Both(cl, cr))
+          case (Some(cl), Some(cr)) => Some(Internal.Both(cl, cr))
           case (None, Some(cr))     => Some(cr)
           case (Some(cl), None)     => Some(cl)
           case (None, None)         => None
         }
     }
 
-  private final case class Fail[E](value: E) extends Cause[E] {
-    override final def equals(that: Any): Boolean = that match {
-      case fail: Fail[_]     => value == fail.value
-      case c @ Then(_, _)    => sym(empty)(this, c)
-      case c @ Both(_, _)    => sym(empty)(this, c)
-      case traced: Traced[_] => this == traced.cause
-      case meta: Meta[_]     => this == meta.cause
-      case _                 => false
-    }
+  object Empty {
+    def unapply[E](cause: Cause[E]): Boolean =
+      cause.find {
+        case cause if cause eq Internal.Empty => true
+        case Internal.Fail(_)                 => false
+        case Internal.Die(_)                  => false
+        case Internal.Interrupt(_)            => false
+        case Internal.Traced(_, _)            => false
+        case Internal.Then(_, _)              => false
+        case Internal.Both(_, _)              => false
+      }.getOrElse(false)
   }
 
   object Fail {
     def apply[E](value: E): Cause[E] =
-      new Fail(value)
-  }
-
-  private final case class Die(value: Throwable) extends Cause[Nothing] {
-    override final def equals(that: Any): Boolean = that match {
-      case die: Die          => value == die.value
-      case c @ Then(_, _)    => sym(empty)(this, c)
-      case c @ Both(_, _)    => sym(empty)(this, c)
-      case traced: Traced[_] => this == traced.cause
-      case meta: Meta[_]     => this == meta.cause
-      case _                 => false
-    }
+      new Internal.Fail(value)
+    def unapply[E](cause: Cause[E]): Option[E] =
+      cause.find {
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(e)                 => Some(e)
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(_, _)              => None
+        case Internal.Both(_, _)              => None
+      }.flatten
   }
 
   object Die {
-    final def apply(value: Throwable): Cause[Nothing] =
-      new Die(value)
+    def apply(value: Throwable): Cause[Nothing] =
+      new Internal.Die(value)
+    def unapply[E](cause: Cause[E]): Option[Throwable] =
+      cause.find {
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(t)                  => Some(t)
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(_, _)              => None
+        case Internal.Both(_, _)              => None
+      }.flatten
   }
 
-  final case class Interrupt(fiberId: Fiber.Id) extends Cause[Nothing] {
-    override final def equals(that: Any): Boolean =
-      (this eq that.asInstanceOf[AnyRef]) || (that match {
-        case interrupt: Interrupt => fiberId == interrupt.fiberId
-        case c @ Then(_, _)       => sym(empty)(this, c)
-        case c @ Both(_, _)       => sym(empty)(this, c)
-        case traced: Traced[_]    => this == traced.cause
-        case meta: Meta[_]        => this == meta.cause
-        case _                    => false
-      })
-  }
-
-  // Traced is excluded completely from equals & hashCode
-  private final case class Traced[E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
-    override final def hashCode: Int = cause.hashCode()
-    override final def equals(obj: Any): Boolean = obj match {
-      case traced: Traced[_] => cause == traced.cause
-      case meta: Meta[_]     => cause == meta.cause
-      case _                 => cause == obj
-    }
+  object Interrupt {
+    def apply(fiberId: Fiber.Id): Cause[Nothing] =
+      Internal.Interrupt(fiberId)
+    def unapply[E](cause: Cause[E]): Option[Fiber.Id] =
+      cause.find {
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(fiberId)      => Some(fiberId)
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(_, _)              => None
+        case Internal.Both(_, _)              => None
+      }.flatten
   }
 
   object Traced {
     def apply[E](cause: Cause[E], trace: ZTrace): Cause[E] =
-      new Traced(cause, trace)
-  }
-
-  // Meta is excluded completely from equals & hashCode
-  private final case class Meta[E](cause: Cause[E], data: Data) extends Cause[E] {
-    override final def hashCode: Int = cause.hashCode
-    override final def equals(obj: Any): Boolean = obj match {
-      case traced: Traced[_] => cause == traced.cause
-      case meta: Meta[_]     => cause == meta.cause
-      case _                 => cause == obj
-    }
-  }
-
-  private final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-    override final def equals(that: Any): Boolean = that match {
-      case traced: Traced[_] => self.equals(traced.cause)
-      case meta: Meta[_]     => self.equals(meta.cause)
-      case other: Cause[_]   => eq(other) || sym(assoc)(other, self) || sym(dist)(self, other) || sym(empty)(self, other)
-      case _                 => false
-    }
-    override final def hashCode: Int = Cause.hashCode(self)
-
-    private def eq(that: Cause[Any]): Boolean = (self, that) match {
-      case (tl: Then[_], tr: Then[_]) => tl.left == tr.left && tl.right == tr.right
-      case _                          => false
-    }
-
-    private def assoc(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
-      case (Then(Then(al, bl), cl), Then(ar, Then(br, cr))) => al == ar && bl == br && cl == cr
-      case _                                                => false
-    }
-
-    private def dist(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
-      case (Then(al, Both(bl, cl)), Both(Then(ar1, br), Then(ar2, cr)))
-          if ar1 == ar2 && al == ar1 && bl == br && cl == cr =>
-        true
-      case (Then(Both(al, bl), cl), Both(Then(ar, cr1), Then(br, cr2)))
-          if cr1 == cr2 && al == ar && bl == br && cl == cr1 =>
-        true
-      case _ => false
-    }
+      Internal.Traced(cause, trace)
+    def unapply[E](cause: Cause[E]): Option[(Cause[E], ZTrace)] =
+      cause.find {
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(cause, trace)    => Some((cause, trace))
+        case Internal.Then(_, _)              => None
+        case Internal.Both(_, _)              => None
+      }.flatten
   }
 
   object Then {
     def apply[E](left: Cause[E], right: Cause[E]): Cause[E] =
-      new Then(left, right)
-  }
-
-  private final case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-    override final def equals(that: Any): Boolean = that match {
-      case traced: Traced[_] => self.equals(traced.cause)
-      case meta: Meta[_]     => self.equals(meta.cause)
-      case other: Cause[_] =>
-        eq(other) || sym(assoc)(self, other) || sym(dist)(self, other) || comm(other) || sym(empty)(self, other)
-      case _ => false
-    }
-    override final def hashCode: Int = Cause.hashCode(self)
-
-    private def eq(that: Cause[Any]) = (self, that) match {
-      case (bl: Both[_], br: Both[_]) => bl.left == br.left && bl.right == br.right
-      case _                          => false
-    }
-
-    private def assoc(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
-      case (Both(Both(al, bl), cl), Both(ar, Both(br, cr))) => al == ar && bl == br && cl == cr
-      case _                                                => false
-    }
-
-    private def dist(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
-      case (Both(Then(al1, bl), Then(al2, cl)), Then(ar, Both(br, cr)))
-          if al1 == al2 && al1 == ar && bl == br && cl == cr =>
-        true
-      case (Both(Then(al, cl1), Then(bl, cl2)), Then(Both(ar, br), cr))
-          if cl1 == cl2 && al == ar && bl == br && cl1 == cr =>
-        true
-      case _ => false
-    }
-
-    private def comm(that: Cause[Any]): Boolean = (self, that) match {
-      case (Both(al, bl), Both(ar, br)) => al == br && bl == ar
-      case _                            => false
-    }
+      new Internal.Then(left, right)
+    def unapply[E](cause: Cause[E]): Option[(Cause[E], Cause[E])] =
+      cause.find {
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(left, right)       => Some((left, right))
+        case Internal.Both(_, _)              => None
+      }.flatten
   }
 
   object Both {
     def apply[E](left: Cause[E], right: Cause[E]): Cause[E] =
-      new Both(left, right)
+      new Internal.Both(left, right)
+    def unapply[E](cause: Cause[E]): Option[(Cause[E], Cause[E])] =
+      cause.find {
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(_, _)              => None
+        case Internal.Both(left, right)       => Some((left, right))
+      }.flatten
   }
 
-  private final case class Data(stackless: Boolean)
+  private object Internal {
 
-  private[Cause] def empty(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
-    case (Then(a, Cause.Empty), b) => a == b
-    case (Then(Cause.Empty, a), b) => a == b
-    case (Both(a, Cause.Empty), b) => a == b
-    case (Both(Cause.Empty, a), b) => a == b
-    case _                         => false
-  }
-
-  private[Cause] def sym(f: (Cause[Any], Cause[Any]) => Boolean): (Cause[Any], Cause[Any]) => Boolean =
-    (l, r) => f(l, r) || f(r, l)
-
-  private[Cause] def hashCode(c: Cause[_]): Int = flatten(c) match {
-    case Nil                         => Empty.hashCode
-    case set :: Nil if set.size == 1 => set.head.hashCode
-    case seq                         => seq.hashCode
-  }
-
-  /**
-   * Flattens a cause to a sequence of sets of causes, where each set
-   * represents causes that fail in parallel and sequential sets represent
-   * causes that fail after each other.
-   */
-  private[Cause] def flatten(c: Cause[_]): List[Set[Cause[_]]] = {
-
-    @tailrec
-    def loop(causes: List[Cause[_]], flattened: List[Set[Cause[_]]]): List[Set[Cause[_]]] = {
-      val (parallel, sequential) = causes.foldLeft((Set.empty[Cause[_]], List.empty[Cause[_]])) {
-        case ((parallel, sequential), cause) =>
-          val (set, seq) = step(cause)
-          (parallel ++ set, sequential ++ seq)
+    case object Empty extends Cause[Nothing] {
+      override def equals(that: Any): Boolean = that match {
+        case _: Empty.type     => true
+        case Then(left, right) => this == left && this == right
+        case Both(left, right) => this == left && this == right
+        case traced: Traced[_] => this == traced.cause
+        case meta: Meta[_]     => this == meta.cause
+        case _                 => false
       }
-      val updated = if (parallel.nonEmpty) parallel :: flattened else flattened
-      if (sequential.isEmpty) updated.reverse
-      else loop(sequential, updated)
     }
 
-    loop(List(c), List.empty)
+    final case class Fail[+E](value: E) extends Cause[E] {
+      override def equals(that: Any): Boolean = that match {
+        case fail: Fail[_]     => value == fail.value
+        case c @ Then(_, _)    => sym(empty)(this, c)
+        case c @ Both(_, _)    => sym(empty)(this, c)
+        case traced: Traced[_] => this == traced.cause
+        case meta: Meta[_]     => this == meta.cause
+        case _                 => false
+      }
+    }
+
+    final case class Die(value: Throwable) extends Cause[Nothing] {
+      override def equals(that: Any): Boolean = that match {
+        case die: Die          => value == die.value
+        case c @ Then(_, _)    => sym(empty)(this, c)
+        case c @ Both(_, _)    => sym(empty)(this, c)
+        case traced: Traced[_] => this == traced.cause
+        case meta: Meta[_]     => this == meta.cause
+        case _                 => false
+      }
+    }
+
+    final case class Interrupt(fiberId: Fiber.Id) extends Cause[Nothing] {
+      override def equals(that: Any): Boolean =
+        (this eq that.asInstanceOf[AnyRef]) || (that match {
+          case interrupt: Interrupt => fiberId == interrupt.fiberId
+          case c @ Then(_, _)       => sym(empty)(this, c)
+          case c @ Both(_, _)       => sym(empty)(this, c)
+          case traced: Traced[_]    => this == traced.cause
+          case meta: Meta[_]        => this == meta.cause
+          case _                    => false
+        })
+    }
+
+    // Traced is excluded completely from equals & hashCode
+    final case class Traced[+E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
+      override def hashCode: Int = cause.hashCode()
+      override def equals(obj: Any): Boolean = obj match {
+        case traced: Traced[_] => cause == traced.cause
+        case meta: Meta[_]     => cause == meta.cause
+        case _                 => cause == obj
+      }
+    }
+
+    // Meta is excluded completely from equals & hashCode
+    final case class Meta[+E](cause: Cause[E], data: Data) extends Cause[E] {
+      override def hashCode: Int = cause.hashCode
+      override def equals(obj: Any): Boolean = obj match {
+        case traced: Traced[_] => cause == traced.cause
+        case meta: Meta[_]     => cause == meta.cause
+        case _                 => cause == obj
+      }
+    }
+
+    final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+      override def equals(that: Any): Boolean = that match {
+        case traced: Traced[_] => self.equals(traced.cause)
+        case meta: Meta[_]     => self.equals(meta.cause)
+        case other: Cause[_] =>
+          eq(other) || sym(assoc)(other, self) || sym(dist)(self, other) || sym(empty)(self, other)
+        case _ => false
+      }
+      override def hashCode: Int = Internal.hashCode(self)
+
+      private def eq(that: Cause[Any]): Boolean = (self, that) match {
+        case (tl: Then[_], tr: Then[_]) => tl.left == tr.left && tl.right == tr.right
+        case _                          => false
+      }
+
+      private def assoc(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
+        case (Then(Then(al, bl), cl), Then(ar, Then(br, cr))) => al == ar && bl == br && cl == cr
+        case _                                                => false
+      }
+
+      private def dist(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
+        case (Then(al, Both(bl, cl)), Both(Then(ar1, br), Then(ar2, cr)))
+            if ar1 == ar2 && al == ar1 && bl == br && cl == cr =>
+          true
+        case (Then(Both(al, bl), cl), Both(Then(ar, cr1), Then(br, cr2)))
+            if cr1 == cr2 && al == ar && bl == br && cl == cr1 =>
+          true
+        case _ => false
+      }
+    }
+
+    final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+      override def equals(that: Any): Boolean = that match {
+        case traced: Traced[_] => self.equals(traced.cause)
+        case meta: Meta[_]     => self.equals(meta.cause)
+        case other: Cause[_] =>
+          eq(other) || sym(assoc)(self, other) || sym(dist)(self, other) || comm(other) || sym(empty)(self, other)
+        case _ => false
+      }
+      override def hashCode: Int = Internal.hashCode(self)
+
+      private def eq(that: Cause[Any]) = (self, that) match {
+        case (bl: Both[_], br: Both[_]) => bl.left == br.left && bl.right == br.right
+        case _                          => false
+      }
+
+      private def assoc(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
+        case (Both(Both(al, bl), cl), Both(ar, Both(br, cr))) => al == ar && bl == br && cl == cr
+        case _                                                => false
+      }
+
+      private def dist(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
+        case (Both(Then(al1, bl), Then(al2, cl)), Then(ar, Both(br, cr)))
+            if al1 == al2 && al1 == ar && bl == br && cl == cr =>
+          true
+        case (Both(Then(al, cl1), Then(bl, cl2)), Then(Both(ar, br), cr))
+            if cl1 == cl2 && al == ar && bl == br && cl1 == cr =>
+          true
+        case _ => false
+      }
+
+      private def comm(that: Cause[Any]): Boolean = (self, that) match {
+        case (Both(al, bl), Both(ar, br)) => al == br && bl == ar
+        case _                            => false
+      }
+    }
+
+    final case class Data(stackless: Boolean)
+
+    private def empty(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
+      case (Then(a, Empty), b) => a == b
+      case (Then(Empty, a), b) => a == b
+      case (Both(a, Empty), b) => a == b
+      case (Both(Empty, a), b) => a == b
+      case _                   => false
+    }
+
+    private def sym(f: (Cause[Any], Cause[Any]) => Boolean): (Cause[Any], Cause[Any]) => Boolean =
+      (l, r) => f(l, r) || f(r, l)
+
+    private def hashCode(c: Cause[_]): Int = flatten(c) match {
+      case Nil                         => Empty.hashCode
+      case set :: Nil if set.size == 1 => set.head.hashCode
+      case seq                         => seq.hashCode
+    }
+
+    /**
+     * Flattens a cause to a sequence of sets of causes, where each set
+     * represents causes that fail in parallel and sequential sets represent
+     * causes that fail after each other.
+     */
+    private def flatten(c: Cause[_]): List[Set[Cause[_]]] = {
+
+      @tailrec
+      def loop(causes: List[Cause[_]], flattened: List[Set[Cause[_]]]): List[Set[Cause[_]]] = {
+        val (parallel, sequential) = causes.foldLeft((Set.empty[Cause[_]], List.empty[Cause[_]])) {
+          case ((parallel, sequential), cause) =>
+            val (set, seq) = step(cause)
+            (parallel ++ set, sequential ++ seq)
+        }
+        val updated = if (parallel.nonEmpty) parallel :: flattened else flattened
+        if (sequential.isEmpty) updated.reverse
+        else loop(sequential, updated)
+      }
+
+      loop(List(c), List.empty)
+    }
+
+    /**
+     * Takes one step in evaluating a cause, returning a set of causes that fail
+     * in parallel and a list of causes that fail sequentially after those causes.
+     */
+    private def step(c: Cause[_]): (Set[Cause[_]], List[Cause[_]]) = {
+
+      @tailrec
+      def loop(
+        cause: Cause[_],
+        stack: List[Cause[_]],
+        parallel: Set[Cause[_]],
+        sequential: List[Cause[_]]
+      ): (Set[Cause[_]], List[Cause[_]]) = cause match {
+        case Empty =>
+          if (stack.isEmpty) (parallel, sequential) else loop(stack.head, stack.tail, parallel, sequential)
+        case Then(left, right) =>
+          left match {
+            case Empty      => loop(right, stack, parallel, sequential)
+            case Then(l, r) => loop(Then(l, Then(r, right)), stack, parallel, sequential)
+            case Both(l, r) =>
+              loop(Both(Then(l, right), Then(r, right)), stack, parallel, sequential)
+            case Traced(c, _) => loop(Then(c, right), stack, parallel, sequential)
+            case Meta(c, _)   => loop(Then(c, right), stack, parallel, sequential)
+            case o            => loop(o, stack, parallel, right :: sequential)
+          }
+        case Both(left, right) => loop(left, right :: stack, parallel, sequential)
+        case Traced(cause, _)  => loop(cause, stack, parallel, sequential)
+        case Meta(cause, _)    => loop(cause, stack, parallel, sequential)
+        case o =>
+          if (stack.isEmpty) (parallel ++ Set(o), sequential)
+          else loop(stack.head, stack.tail, parallel ++ Set(o), sequential)
+      }
+
+      loop(c, List.empty, Set.empty, List.empty)
+    }
   }
 
-  /**
-   * Takes one step in evaluating a cause, returning a set of causes that fail
-   * in parallel and a list of causes that fail sequentially after those causes.
-   */
-  private[Cause] def step(c: Cause[_]): (Set[Cause[_]], List[Cause[_]]) = {
-
-    @tailrec
-    def loop(
-      cause: Cause[_],
-      stack: List[Cause[_]],
-      parallel: Set[Cause[_]],
-      sequential: List[Cause[_]]
-    ): (Set[Cause[_]], List[Cause[_]]) = cause match {
-      case Empty => if (stack.isEmpty) (parallel, sequential) else loop(stack.head, stack.tail, parallel, sequential)
-      case Then(left, right) =>
-        left match {
-          case Empty        => loop(right, stack, parallel, sequential)
-          case Then(l, r)   => loop(Cause.Then(l, Cause.Then(r, right)), stack, parallel, sequential)
-          case Both(l, r)   => loop(Cause.Both(Cause.Then(l, right), Cause.Then(r, right)), stack, parallel, sequential)
-          case Traced(c, _) => loop(Cause.Then(c, right), stack, parallel, sequential)
-          case Meta(c, _)   => loop(Cause.Then(c, right), stack, parallel, sequential)
-          case o            => loop(o, stack, parallel, right :: sequential)
-        }
-      case Both(left, right) => loop(left, right :: stack, parallel, sequential)
-      case Traced(cause, _)  => loop(cause, stack, parallel, sequential)
-      case Meta(cause, _)    => loop(cause, stack, parallel, sequential)
-      case o =>
-        if (stack.isEmpty) (parallel ++ Set(o), sequential)
-        else loop(stack.head, stack.tail, parallel ++ Set(o), sequential)
-    }
-
-    loop(c, List.empty, Set.empty, List.empty)
+  private case class FiberTrace(trace: String) extends Throwable(null, null, true, false) {
+    override final def getMessage: String = trace
   }
 }
