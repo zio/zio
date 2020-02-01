@@ -666,10 +666,9 @@ sealed trait Chunk[+A] { self =>
       i += 1
     }
 
-    array.map(
-      array =>
-        if (array == null) Chunk.empty
-        else Chunk.fromArray(array)
+    array.map(array =>
+      if (array == null) Chunk.empty
+      else Chunk.fromArray(array)
     )
   }
 
