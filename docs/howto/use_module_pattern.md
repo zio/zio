@@ -289,7 +289,7 @@ Another benefit is that this approach **allows for circular dependencies** betwe
 mixed in. It cannot be used until it's initialized and once it is, all of the services are ready to be used, in any order you wish.
 
 Finally, the machinery behind _module pattern_ is plain Scala code. There is **no magic behind the scenes**. The programmer is in full control and can
-rely on the compiler to hint him what environment he needs to provide in order to run the program.
+rely on the compiler to indicate which environment is required to provide in order to run the program.
 
 ## Next Steps
 
