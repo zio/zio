@@ -2560,6 +2560,12 @@ object ZIO {
   def identity[R]: URIO[R, R] = fromFunction[R, R](ZIO.identityFn[R])
 
   /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
+  def ifM[R, E](b: ZIO[R, E, Boolean]): ZIO.IfM[R, E] =
+    new ZIO.IfM(b)
+
+  /**
    * Returns an effect that is interrupted as if by the fiber calling this
    * method.
    */
@@ -3162,6 +3168,11 @@ object ZIO {
   final class DaemonStatusRestore(private val status: zio.DaemonStatus) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       zio.daemonStatus(status)
+  }
+
+  final class IfM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, A](onTrue: ZIO[R1, E1, A], onFalse: ZIO[R1, E1, A]): ZIO[R1, E1, A] =
+      b.flatMap(b => if (b) onTrue else onFalse)
   }
 
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
