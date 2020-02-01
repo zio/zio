@@ -117,7 +117,8 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       }
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        Some(Spec.suite(label, specs.flatMap(ZIO.foreach(_)(loop).map(_.toVector.flatten)), exec))
+        if (f(label)) Some(Spec.suite(label, specs, exec))
+        else Some(Spec.suite(label, specs.flatMap(ZIO.foreach(_)(loop).map(_.toVector.flatten)), exec))
       case TestCase(label, test) =>
         if (f(label)) Some(Spec.test(label, test)) else None
     }
