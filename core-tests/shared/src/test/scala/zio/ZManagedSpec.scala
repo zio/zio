@@ -312,14 +312,14 @@ object ZManagedSpec extends ZIOBaseSpec {
           ZManaged.succeed(int)
 
         val managed = ZManaged.foreach(Some(3))(res)
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res, equalTo(Some(3)))))
+        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(Some(3)))))
       },
       testM("Returns nothing if None") {
         def res(int: Int) =
           ZManaged.succeed(int)
 
         val managed = ZManaged.foreach(None)(res)
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res, equalTo(None))))
+        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(None))))
       },
       testM("Runs finalizers") {
         testFinalizersPar(1, res => ZManaged.foreach(Some(4))(_ => res))
