@@ -107,6 +107,12 @@ object STM {
     ZSTM.fromTry(a)
 
   /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
+  def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
+    new ZSTM.IfM(b)
+
+  /**
    * Creates an `STM` value from a partial (but pure) function.
    */
   def partial[A](a: => A): STM[Throwable, A] =

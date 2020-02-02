@@ -435,7 +435,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.identity]]
    */
-  def identity[R]: RIO[Nothing, R] = ZIO.identity
+  def identity[R]: RIO[R, R] = ZIO.identity
+
+  /**
+   * @see [[zio.ZIO.ifM]]
+   */
+  def ifM[R](b: RIO[R, Boolean]): ZIO.IfM[R, Throwable] =
+    new ZIO.IfM(b)
 
   /**
    * @see See [[zio.ZIO.interrupt]]

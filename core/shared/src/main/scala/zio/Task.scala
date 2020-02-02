@@ -438,6 +438,12 @@ object Task {
   def identity: Task[Any] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifM]]
+   */
+  def ifM(b: Task[Boolean]): ZIO.IfM[Any, Throwable] =
+    new ZIO.IfM(b)
+
+  /**
    * @see See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
