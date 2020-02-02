@@ -23,7 +23,7 @@ import zio.test.Assertion.{
   isUnit,
   startsWith
 }
-import zio.test.TestAspect.flaky
+import zio.test.TestAspect.{ flaky, jvmOnly }
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
@@ -1049,7 +1049,7 @@ object StreamSpec extends ZIOBaseSpec {
         _     <- queue.shutdown
         items <- fiber.join
       } yield assert(items)(equalTo(c.toSeq.toList))
-    }),
+    }) @@ jvmOnly,
     testM("Stream.fromTQueue") {
       TQueue.bounded[Int](5).commit.flatMap {
         tqueue =>

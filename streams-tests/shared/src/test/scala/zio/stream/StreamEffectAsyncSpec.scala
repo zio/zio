@@ -8,6 +8,7 @@ import zio.ZQueueSpecUtil.waitForValue
 import zio._
 import zio.test.Assertion._
 import zio.test._
+import zio.test.TestAspect.jvmOnly
 import zio.{ IO, Promise, Ref, Task, UIO, ZIO }
 
 object StreamEffectAsyncSpec extends ZIOBaseSpec {
@@ -190,5 +191,5 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
       }
     )
-  )
+  ) @@ jvmOnly
 }

@@ -1110,17 +1110,6 @@ object SinkSpec extends ZIOBaseSpec {
           )(equalTo(List(1, 2, 3, 4, 5)))
         )
       ),
-      testM("fromOutputStream") {
-        import java.io.ByteArrayOutputStream
-
-        val output = new ByteArrayOutputStream()
-        val data   = "0123456789"
-        val stream = Stream(Chunk.fromArray(data.take(5).getBytes), Chunk.fromArray(data.drop(5).getBytes))
-
-        for {
-          bytesWritten <- stream.run(ZSink.fromOutputStream(output))
-        } yield assert(bytesWritten)(equalTo(10)) && assert(new String(output.toByteArray, "UTF-8"))(equalTo(data))
-      },
       testM("pull1") {
         val stream = Stream.fromIterable(List(1))
         val sink   = Sink.pull1(IO.succeedNow(Option.empty[Int]))((i: Int) => Sink.succeedNow[Int, Option[Int]](Some(i)))

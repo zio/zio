@@ -8,6 +8,7 @@ import zio._
 import zio.random.Random
 import zio.stream.StreamChunkUtils._
 import zio.test.Assertion.{ equalTo, isFalse, isLeft, succeeds }
+import zio.test.TestAspect.jvmOnly
 import zio.test._
 
 object StreamChunkSpec extends ZIOBaseSpec {
@@ -206,7 +207,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           res2 <- slurp(s).map(_.scanLeft(0)((acc, el) => acc + el).drop(1))
         } yield assert(res1)(equalTo(res2))
       }
-    },
+    } @@ jvmOnly,
     suite("StreamChunk.mapAccumM")(
       testM("mapAccumM happy path") {
         checkM(chunksOfInts) { s =>
@@ -215,7 +216,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
             res2 <- slurp(s).map(_.scanLeft(0)((acc, el) => acc + el).drop(1))
           } yield assert(res1)(equalTo(res2))
         }
-      },
+      } @@ jvmOnly,
       testM("mapAccumM error") {
         StreamChunk
           .fromChunks(Chunk(1), Chunk(2, 3), Chunk.empty)
