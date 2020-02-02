@@ -579,7 +579,13 @@ object TestAspect extends TimeoutVariants {
    * Annotates tests with string tags.
    */
   def tag(tag: String, tags: String*): TestAspectAtLeastR[Annotations] =
-    before(Annotations.annotate(TestAnnotation.tagged, Set(tag) union tags.toSet))
+    new TestAspect[Nothing, Annotations, Nothing, Any, Nothing, Any] {
+      def some[R >: Nothing <: Annotations, E >: Nothing <: Any, S >: Nothing <: Any, L](
+        predicate: L => Boolean,
+        spec: ZSpec[R, E, L, S]
+      ): ZSpec[R, E, L, S] =
+        spec.annotate(TestAnnotation.tagged, Set(tag) union tags.toSet)
+    }
 
   /**
    * Annotates tests with their execution times.
@@ -640,8 +646,8 @@ object TestAspect extends TimeoutVariants {
     ): ZSpec[R, E, L, S] =
       spec.transform[R, TestFailure[E], L, TestSuccess[S]] {
         case c @ Spec.SuiteCase(_, _, _) => c
-        case Spec.TestCase(label, test) =>
-          Spec.TestCase(label, if (predicate(label)) perTest(test) else test)
+        case Spec.TestCase(label, test, annotations) =>
+          Spec.TestCase(label, if (predicate(label)) perTest(test) else test, annotations)
       }
   }
   object PerTest {

@@ -44,6 +44,15 @@ object TestExecutor {
             case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
           }
         )
+        .flatMap(_.fold[UIO[ExecutedSpec[E, L, S]]] {
+          case Spec.SuiteCase(label, specs, exec) =>
+            UIO.succeedNow(Spec.suite(label, specs.flatMap(UIO.collectAll).map(_.toVector), exec))
+          case Spec.TestCase(label, test, annotations) =>
+            test.map {
+              case (result, annotations1) =>
+                Spec.test(label, UIO.succeedNow(result), annotations ++ annotations1)
+            }
+        })
     val environment = env
   }
 }

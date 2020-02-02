@@ -53,8 +53,8 @@ object SpecSpec extends ZIOBaseSpec {
         ).provideManagedShared(UIO(43).toManaged_)
         for {
           executedSpec <- execute(spec)
-          successes    <- executedSpec.countTests(_._1.isRight)
-          failures     <- executedSpec.countTests(_._1.isLeft)
+          successes    <- executedSpec.countTests(_.isRight)
+          failures     <- executedSpec.countTests(_.isLeft)
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),

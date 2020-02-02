@@ -90,7 +90,7 @@ object ReportingTestUtils {
     )
   )
 
-  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")))
+  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")), TestAnnotationMap.empty)
   val test4Expected = Vector(
     expectedFailure("Failing test"),
     withOffset(2)("Fiber failed.\n") +
