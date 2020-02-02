@@ -312,6 +312,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
+   * "Peeks" at the success of transactional effect.
+   */
+  def tap[R1 <: R, E1 >: E](f: A => ZSTM[R1, E1, Any]): ZSTM[R1, E1, A] =
+    flatMap(a => f(a).as(a))
+
+  /**
    * Maps the success value of this effect to unit.
    */
   def unit: ZSTM[R, E, Unit] = as(())
@@ -417,6 +423,11 @@ object ZSTM {
   final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZSTM[R, E, A]): ZSTM[R, E, A] =
       ZSTM.environment.flatMap(f)
+  }
+
+  final class IfM[R, E](private val b: ZSTM[R, E, Boolean]) {
+    def apply[R1 <: R, E1 >: E, A](onTrue: ZSTM[R1, E1, A], onFalse: ZSTM[R1, E1, A]): ZSTM[R1, E1, A] =
+      b.flatMap(b => if (b) onTrue else onFalse)
   }
 
   private final class Resumable[E, E1, A, B](
@@ -925,6 +936,12 @@ object ZSTM {
         case Success(a) => STM.succeedNow(a)
       }
     }
+
+  /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
+  def ifM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfM[R, E] =
+    new ZSTM.IfM(b)
 
   /**
    * Creates an `STM` value from a partial (but pure) function.

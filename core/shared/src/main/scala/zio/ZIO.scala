@@ -2259,6 +2259,22 @@ object ZIO {
     }
 
   /**
+   * Applies the function `f` if the argument is non-empty and
+   * returns the results in a new `Option[B]`.
+   */
+  final def foreach[R, E, A, B](in: Option[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Option[B]] =
+    in.fold[ZIO[R, E, Option[B]]](none)(f(_).map(Some(_)))
+
+  /**
+   * Applies the function `f` to each element of the `Chunk[A]` and
+   * returns the results in a new `Chunk[B]`.
+   *
+   * For a parallel version of this method, see `foreachPar`.
+   */
+  final def foreach[R, E, A, B](in: Chunk[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
+    in.mapM(f)
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
    * produced effects sequentially.
    *
@@ -2272,6 +2288,15 @@ object ZIO {
         else ZIO.unit
       loop
     }
+
+  /**
+   * Applies the function `f` to each element of the `Chunk[A]` and
+   * returns the results in a new `Chunk[B]`.
+   *
+   * For a parallel version of this method, see `foreachPar`.
+   */
+  final def foreach_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    as.mapM_(f)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
@@ -2293,6 +2318,15 @@ object ZIO {
       }
     )
   }
+
+  /**
+   * Applies the function `f` to each element of the `Chunk[A]` in parallel,
+   * and returns the results in a new `Chunk[B]`.
+   *
+   * For a sequential version of this method, see `foreach`.
+   */
+  final def foreachPar[R, E, A, B](as: Chunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
+    as.mapMPar(fn)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -2366,6 +2400,15 @@ object ZIO {
             }
       } yield ()
     }
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and runs
+   * produced effects in parallel, discarding the results.
+   *
+   * For a sequential version of this method, see `foreach_`.
+   */
+  final def foreachPar_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    as.mapMPar_(f)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
@@ -2558,6 +2601,12 @@ object ZIO {
    * Returns the identity effectful function, which performs no effects
    */
   def identity[R]: URIO[R, R] = fromFunction[R, R](ZIO.identityFn[R])
+
+  /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
+  def ifM[R, E](b: ZIO[R, E, Boolean]): ZIO.IfM[R, E] =
+    new ZIO.IfM(b)
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this
@@ -2912,28 +2961,28 @@ object ZIO {
     zio.traced
 
   /**
-   * Alias for [[ZIO.foreach]]
+   * Alias for [[[ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
   @deprecated("use foreach", "1.0.0")
   def traverse[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     foreach[R, E, A, B](in)(f)
 
   /**
-   * Alias for [[ZIO.foreach_]]
+   * Alias for [[[ZIO.foreach_[R,E,A](as:Iterable*]]]
    */
   @deprecated("use foreach_", "1.0.0")
   def traverse_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreach_[R, E, A](as)(f)
 
   /**
-   * Alias for [[ZIO.foreachPar]]
+   * Alias for [[[ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   @deprecated("use foreachPar", "1.0.0")
   def traversePar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     foreachPar[R, E, A, B](as)(fn)
 
   /**
-   * Alias for [[ZIO.foreachPar_]]
+   * Alias for [[[ZIO.foreachPar_[R,E,A](as:Iterable*]]]
    */
   @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
@@ -3164,6 +3213,11 @@ object ZIO {
       zio.daemonStatus(status)
   }
 
+  final class IfM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, A](onTrue: ZIO[R1, E1, A], onFalse: ZIO[R1, E1, A]): ZIO[R1, E1, A] =
+      b.flatMap(b => if (b) onTrue else onFalse)
+  }
+
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
       self
@@ -3324,23 +3378,14 @@ object ZIO {
 
   final class TapCauseRefailFn[R, E, E1 >: E, A](override val underlying: Cause[E] => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
-    def apply(c1: Cause[E]): ZIO[R, E1, Nothing] =
-      underlying(c1).foldCauseM(
-        c2 => ZIO.haltNow(Cause.Then(c1, c2)),
-        _ => ZIO.haltNow(c1)
-      )
+    def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
+      underlying(c) *> ZIO.haltNow(c)
   }
 
   final class TapErrorRefailFn[R, E, E1 >: E, A](override val underlying: E => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
-    def apply(c1: Cause[E]): ZIO[R, E1, Nothing] =
-      c1.failureOrCause.fold(
-        underlying(_).foldCauseM(
-          c2 => ZIO.haltNow(Cause.Then(c1, c2)),
-          _ => ZIO.haltNow(c1)
-        ),
-        _ => ZIO.haltNow(c1)
-      )
+    def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
+      c.failureOrCause.fold(underlying(_) *> ZIO.haltNow(c), _ => ZIO.haltNow(c))
   }
 
   private[zio] object Tags {

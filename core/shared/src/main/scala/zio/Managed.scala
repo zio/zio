@@ -91,10 +91,16 @@ object Managed {
     ZManaged.flatten(m)
 
   /**
-   * See [[zio.ZManaged.foreach]]
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
    */
   def foreach[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.foreach(as)(f)
+
+  /**
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](in:Option*]]]
+   */
+  final def foreach[E, A1, A2](in: Option[A1])(f: A1 => Managed[E, A2]): Managed[E, Option[A2]] =
+    ZManaged.foreach(in)(f)
 
   /**
    * See [[zio.ZManaged.foreach_]]
@@ -149,6 +155,12 @@ object Managed {
    */
   def halt[E](cause: => Cause[E]): Managed[E, Nothing] =
     ZManaged.halt(cause)
+
+  /**
+   * See [[zio.ZManaged.ifM]]
+   */
+  def ifM[E](b: Managed[E, Boolean]): ZManaged.IfM[Any, E] =
+    new ZManaged.IfM(b)
 
   /**
    * See [[zio.ZManaged.interrupt]]

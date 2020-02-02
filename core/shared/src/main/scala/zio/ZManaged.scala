@@ -792,11 +792,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     implicit ev: CanFail[E]
   ): ZManaged[R1, E1, A] =
     foldM(
-      e =>
-        f(e).foldCauseM(
-          c => ZManaged.haltNow(Cause.Then(Cause.fail(e), c)),
-          _ => ZManaged.failNow(e)
-        ),
+      e => f(e) *> ZManaged.fail(e),
       a => g(a).as(a)
     )
 
@@ -805,12 +801,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * the acquired resource.
    */
   final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
-    catchAllCause { c1 =>
-      f(c1).foldCauseM(
-        c2 => ZManaged.haltNow(Cause.Then(c1, c2)),
-        _ => ZManaged.haltNow(c1)
-      )
-    }
+    catchAllCause(c => f(c) *> ZManaged.halt(c))
 
   /**
    * Returns an effect that effectfully peeks at the failure of the acquired resource.
@@ -1047,6 +1038,11 @@ object ZManaged {
       ZManaged.environment.flatMap(f)
   }
 
+  final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, A](onTrue: ZManaged[R1, E1, A], onFalse: ZManaged[R1, E1, A]): ZManaged[R1, E1, A] =
+      b.flatMap(b => if (b) onTrue else onFalse)
+  }
+
   trait PreallocationScope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
@@ -1220,6 +1216,13 @@ object ZManaged {
     }
 
   /**
+   * Applies the function `f` if the argument is non-empty and
+   * returns the results in a new `Option[A2]`.
+   */
+  final def foreach[R, E, A1, A2](in: Option[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, Option[A2]] =
+    in.fold[ZManaged[R, E, Option[A2]]](succeed(None))(f(_).map(Some(_)))
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
    * and returns the results in a new `List[B]`.
    *
@@ -1343,6 +1346,12 @@ object ZManaged {
    * Returns the identity effectful function, which performs no effects
    */
   def identity[R]: ZManaged[R, Nothing, R] = fromFunction(scala.Predef.identity)
+
+  /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
+  def ifM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.IfM[R, E] =
+    new ZManaged.IfM(b)
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this
@@ -1773,7 +1782,7 @@ object ZManaged {
     } yield switch
 
   /**
-   * Alias for [[ZManaged.foreach]]
+   * Alias for [[[ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
    */
   @deprecated("use foreach", "1.0.0")
   def traverse[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =

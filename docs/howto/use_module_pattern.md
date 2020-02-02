@@ -57,7 +57,7 @@ trait Database {
 }
 ```
 
-We've removed the hidden input by pulling the required context into the environment type. Now the type signature tells exacly what this effect can (or
+We've removed the hidden input by pulling the required context into the environment type. Now the type signature tells exactly what this effect can (or
 cannot) do.
 
 ## Environmental effects
@@ -113,7 +113,7 @@ object Postman {
 
 The `Postman` trait is the _module_, which is just a container for the `Postman.Service`.
 
-> **Note:** By convention we name the value holding the reference to the service the same as module, only with first letter lowercased.
+> **Note:** By convention we name the value holding the reference to the service the same as module, only with first letter lower-cased.
 > This is to avoid name collisions when mixing multiple modules to create the environment.
 
 The _service_ is just an ordinary interface, defining the _capabilities_ it provides.
@@ -127,7 +127,7 @@ these should all be ZIO effects.
 
 ## Dependency injection
 
-There are many approaches to dependency injection and they divide into two categories. The dependecy graph is either resolved at compile time (and the
+There are many approaches to dependency injection and they divide into two categories. The dependency graph is either resolved at compile time (and the
 requirements expressed using the type system, like in [cake pattern][link-cake-pattern]) or at runtime (and the requirements passed via constructor
 like in [distage][link-distage]).
 
@@ -190,7 +190,7 @@ trait NewsletterLive extends Newsletter {
 }
 ```
 
-In this example the dependency on `EmailRenderer.Service` and `Postman.Service` is expressed as abstract value, forcing the programmer to provide
+In this example, the dependency on `EmailRenderer.Service` and `Postman.Service` is expressed as abstract value, forcing the programmer to provide
 instances of these services when constructing the environment. Note that `Newsletter` _module_ does not depend on anything. Only `NewsletterLive`
 implementation depends on those. This allows you to create other implementations with different (or zero) dependencies, like a helper object to access
 service effects:
@@ -289,7 +289,7 @@ Another benefit is that this approach **allows for circular dependencies** betwe
 mixed in. It cannot be used until it's initialized and once it is, all of the services are ready to be used, in any order you wish.
 
 Finally, the machinery behind _module pattern_ is plain Scala code. There is **no magic behind the scenes**. The programmer is in full control and can
-rely on the compiler to hint him what environment he needs to provide in order to run the program.
+rely on the compiler to indicate which environment is required to provide in order to run the program.
 
 ## Next Steps
 

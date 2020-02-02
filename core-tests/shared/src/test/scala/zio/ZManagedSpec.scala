@@ -306,6 +306,25 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(values)(equalTo(List(1, 2, 3, 3, 2, 1)))
       }
     ),
+    suite("foreach for Option")(
+      testM("Returns elements if Some") {
+        def res(int: Int) =
+          ZManaged.succeed(int)
+
+        val managed = ZManaged.foreach(Some(3))(res)
+        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(Some(3)))))
+      },
+      testM("Returns nothing if None") {
+        def res(int: Int) =
+          ZManaged.succeed(int)
+
+        val managed = ZManaged.foreach(None)(res)
+        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(None))))
+      },
+      testM("Runs finalizers") {
+        testFinalizersPar(1, res => ZManaged.foreach(Some(4))(_ => res))
+      }
+    ),
     suite("foreachPar")(
       testM("Returns elements in the correct order") {
         def res(int: Int) =
@@ -414,6 +433,28 @@ object ZManagedSpec extends ZIOBaseSpec {
           _      <- ZManaged.fromAutoCloseable(closeable).use_(ZIO.unit)
           result <- effects.get
         } yield assert(result)(equalTo(List("Closed")))
+      }
+    ),
+    suite("ifM")(
+      testM("runs `onTrue` if result of `b` is `true`") {
+        val managed = ZManaged.ifM(ZManaged.succeedNow(true))(ZManaged.succeedNow(true), ZManaged.succeedNow(false))
+        assertM(managed.use(ZIO.succeedNow))(isTrue)
+      },
+      testM("runs `onFalse` if result of `b` is `false`") {
+        val managed = ZManaged.ifM(ZManaged.succeedNow(false))(ZManaged.succeedNow(true), ZManaged.succeedNow(false))
+        assertM(managed.use(ZIO.succeedNow))(isFalse)
+      },
+      testM("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZManaged[R, E, Boolean]   = ZManaged.succeedNow(true)
+        val onTrue: ZManaged[R1, E1, A]  = ZManaged.succeedNow(new A {})
+        val onFalse: ZManaged[R1, E1, A] = ZManaged.succeedNow(new A {})
+        val _                            = ZManaged.ifM(b)(onTrue, onFalse)
+        ZIO.succeed(assertCompletes)
       }
     ),
     suite("mergeAll")(
@@ -895,13 +936,13 @@ object ZManagedSpec extends ZIOBaseSpec {
       }
     ),
     suite("tapCause")(
-      testM("does not lose infomrmation") {
-        val causes = Gen.causes(Gen.anyString, Gen.throwable)
-        checkM(causes, causes) { (c1, c2) =>
-          for {
-            exit <- ZManaged.haltNow(c1).tapCause(_ => ZManaged.haltNow(c2)).use(ZIO.succeedNow).run
-          } yield assert(exit)(failsCause(equalTo(Cause.Then(c1, c2))))
-        }
+      testM("effectually peeks at the cause of the failure of the acquired resource") {
+        (for {
+          ref    <- Ref.make(false).toManaged_
+          result <- ZManaged.dieMessage("die").tapCause(_ => ref.set(true).toManaged_).run
+          effect <- ref.get.toManaged_
+        } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
+          assert(effect)(isTrue)).use(ZIO.succeedNow)
       }
     ),
     suite("tapError")(

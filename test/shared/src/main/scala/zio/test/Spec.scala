@@ -89,35 +89,40 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
-   * Returns a new Spec containing only tests with labels satisfying the specified predicate.
+   * Returns a new spec with only those suites and tests satisfying the
+   * specified predicate. If a suite label satisfies the predicate the entire
+   * suite will be included in the new spec. Otherwise only those specs in a
+   * suite that satisfy the specified predicate will be included in the new
+   * spec. If no labels satisfy the specified predicate then returns `Some`
+   * with an empty suite with the root label if this is a suite or `None`
+   * otherwise.
    */
-  final def filterTestLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
+  final def filterLabels(f: L => Boolean): Option[Spec[R, E, L, T]] = {
+    def loop(spec: Spec[R, E, L, T]): URIO[R, Option[Spec[R, E, L, T]]] =
+      spec.caseValue match {
+        case SuiteCase(label, specs, exec) =>
+          if (f(label))
+            ZIO.succeedNow(Some(Spec.suite(label, specs, exec)))
+          else
+            specs.foldCauseM(
+              c => ZIO.succeedNow(Some(Spec.suite(label, ZIO.haltNow(c), exec))),
+              ZIO.foreach(_)(loop).map(_.toVector.flatten).map { specs =>
+                if (specs.isEmpty) None
+                else Some(Spec.suite(label, ZIO.succeedNow(specs), exec))
+              }
+            )
+        case TestCase(label, test) =>
+          if (f(label)) ZIO.succeedNow(Some(Spec.test(label, test)))
+          else ZIO.succeedNow(None)
+      }
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterTestLabels(f))), exec)
-        Some(Spec(filtered))
-
-      case t @ TestCase(label, _) =>
-        if (f(label)) Some(Spec(t)) else None
+        if (f(label)) Some(Spec.suite(label, specs, exec))
+        else Some(Spec.suite(label, specs.flatMap(ZIO.foreach(_)(loop).map(_.toVector.flatten)), exec))
+      case TestCase(label, test) =>
+        if (f(label)) Some(Spec.test(label, test)) else None
     }
-
-  /**
-   * Returns a new Spec containing only tests/suites with labels satisfying the specified predicate.
-   */
-  final def filterLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
-    caseValue match {
-      case s @ SuiteCase(label, specs, exec) =>
-        // If the suite matched the label, no need to filter anything underneath it.
-        if (f(label)) {
-          Some(Spec(s))
-        } else {
-          val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterLabels(f))), exec)
-          Some(Spec(filtered))
-        }
-
-      case t @ TestCase(label, _) =>
-        if (f(label)) Some(Spec(t)) else None
-    }
+  }
 
   /**
    * Folds over all nodes to produce a final result.

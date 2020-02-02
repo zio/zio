@@ -455,6 +455,22 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(sum)(equalTo(30))
       }
     ),
+    suite("foreach for Option")(
+      testM("succeeds with None given None") {
+        val task: UIO[Option[Int]] = IO.foreach(None)((str: String) => IO.succeed(str.length))
+        assertM(task)(isNone)
+      },
+      testM("succeeds with Some given Some") {
+        for {
+          optRes <- IO.foreach(Some("success"))(str => IO.succeed(str.length))
+        } yield assert(optRes)(equalTo(Some(7)))
+      },
+      testM("fails if the optional effect fails") {
+        val opt = Some("h")
+        val res = IO.foreach(opt)(x => IO.effectTotal[Int](x.toInt))
+        assertM(res.run)(dies(isSubtype[NumberFormatException](anything)))
+      }
+    ),
     suite("foreachPar")(
       testM("runs single task") {
         val as = List(2)
@@ -523,10 +539,22 @@ object ZIOSpec extends ZIOBaseSpec {
         val res  = IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt))
         assertM(res)(equalTo(List(1, 2, 3)))
       },
+      testM("returns results in the same order for Chunk") {
+        val chunk = Chunk("1", "2", "3")
+        val res   = IO.foreachPar(chunk)(x => IO.effectTotal[Int](x.toInt))
+        assertM(res)(equalTo(Chunk(1, 2, 3)))
+      },
       testM("runs effects in parallel") {
         assertM(for {
           p <- Promise.make[Nothing, Unit]
           _ <- UIO.foreachPar(List(UIO.never, p.succeed(())))(a => a).fork
+          _ <- p.await
+        } yield true)(isTrue)
+      },
+      testM("runs effects in parallel for Chunk") {
+        assertM(for {
+          p <- Promise.make[Nothing, Unit]
+          _ <- UIO.foreachPar(Chunk(UIO.never, p.succeed(()), UIO.never))(a => a).fork
           _ <- p.await
         } yield true)(isTrue)
       },
@@ -576,6 +604,15 @@ object ZIOSpec extends ZIOBaseSpec {
           rs  <- ref.get
         } yield assert(rs)(hasSize(equalTo(as.length))) &&
           assert(rs.toSet)(equalTo(as.toSet))
+      },
+      testM("runs all effects for Chunk") {
+        val as = Chunk(1, 2, 3, 4, 5)
+        for {
+          ref <- Ref.make(Seq.empty[Int])
+          _   <- ZIO.foreachPar_(as)(a => ref.update(_ :+ a))
+          rs  <- ref.get
+        } yield assert(rs)(hasSize(equalTo(as.length))) &&
+          assert(rs.toSet)(equalTo(as.toList.toSet))
       },
       testM("completes on empty input") {
         ZIO.foreachPar_(Nil)(_ => ZIO.unit).as(assertCompletes)
@@ -722,6 +759,28 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("on failure") {
         assertM(ZIO.failNow("Fail").head.either)(isLeft(isSome(equalTo("Fail"))))
+      }
+    ),
+    suite("ifM")(
+      testM("runs `onTrue` if result of `b` is `true`") {
+        val zio = ZIO.ifM(ZIO.succeedNow(true))(ZIO.succeedNow(true), ZIO.succeedNow(false))
+        assertM(zio)(isTrue)
+      },
+      testM("runs `onFalse` if result of `b` is `false`") {
+        val zio = ZIO.ifM(ZIO.succeedNow(false))(ZIO.succeedNow(true), ZIO.succeedNow(false))
+        assertM(zio)(isFalse)
+      },
+      testM("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean]   = ZIO.succeedNow(true)
+        val onTrue: ZIO[R1, E1, A]  = ZIO.succeedNow(new A {})
+        val onFalse: ZIO[R1, E1, A] = ZIO.succeedNow(new A {})
+        val _                       = ZIO.ifM(b)(onTrue, onFalse)
+        ZIO.succeed(assertCompletes)
       }
     ),
     suite("ignore")(
@@ -2564,13 +2623,13 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("tapCause")(
-      testM("does not lose infomrmation") {
-        val causes = Gen.causes(Gen.anyString, Gen.throwable)
-        checkM(causes, causes) { (c1, c2) =>
-          for {
-            exit <- ZIO.haltNow(c1).tapCause(_ => ZIO.halt(c2)).run
-          } yield assert(exit)(failsCause(equalTo(Cause.Then(c1, c2))))
-        }
+      testM("effectually peeks at the cause of the failure of this effect") {
+        for {
+          ref    <- Ref.make(false)
+          result <- ZIO.dieMessage("die").tapCause(_ => ref.set(true)).run
+          effect <- ref.get
+        } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
+          assert(effect)(isTrue)
       }
     ),
     suite("timeoutFork")(
