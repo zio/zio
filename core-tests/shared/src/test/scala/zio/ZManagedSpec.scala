@@ -435,6 +435,28 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List("Closed")))
       }
     ),
+    suite("ifM")(
+      testM("runs `onTrue` if result of `b` is `true`") {
+        val managed = ZManaged.ifM(ZManaged.succeedNow(true))(ZManaged.succeedNow(true), ZManaged.succeedNow(false))
+        assertM(managed.use(ZIO.succeedNow))(isTrue)
+      },
+      testM("runs `onFalse` if result of `b` is `false`") {
+        val managed = ZManaged.ifM(ZManaged.succeedNow(false))(ZManaged.succeedNow(true), ZManaged.succeedNow(false))
+        assertM(managed.use(ZIO.succeedNow))(isFalse)
+      },
+      testM("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZManaged[R, E, Boolean]   = ZManaged.succeedNow(true)
+        val onTrue: ZManaged[R1, E1, A]  = ZManaged.succeedNow(new A {})
+        val onFalse: ZManaged[R1, E1, A] = ZManaged.succeedNow(new A {})
+        val _                            = ZManaged.ifM(b)(onTrue, onFalse)
+        ZIO.succeed(assertCompletes)
+      }
+    ),
     suite("mergeAll")(
       testM("Merges elements in the correct order") {
         def res(int: Int) =

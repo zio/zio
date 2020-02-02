@@ -157,6 +157,12 @@ object Managed {
     ZManaged.halt(cause)
 
   /**
+   * See [[zio.ZManaged.ifM]]
+   */
+  def ifM[E](b: Managed[E, Boolean]): ZManaged.IfM[Any, E] =
+    new ZManaged.IfM(b)
+
+  /**
    * See [[zio.ZManaged.interrupt]]
    */
   val interrupt: Managed[Nothing, Nothing] = ZManaged.interrupt

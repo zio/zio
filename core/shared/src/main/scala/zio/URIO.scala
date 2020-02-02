@@ -384,6 +384,12 @@ object URIO {
   def identity[R]: URIO[R, R] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifM]]
+   */
+  def ifM[R](b: URIO[R, Boolean]): ZIO.IfM[R, Nothing] =
+    new ZIO.IfM(b)
+
+  /**
    * @see [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt

@@ -52,6 +52,28 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield (s, f)
         assertM(stm.commit)(equalTo(("Yes!", "No!")))
       },
+      suite("ifM")(
+        testM("runs `onTrue` if result of `b` is `true`") {
+          val transaction = ZSTM.ifM(ZSTM.succeedNow(true))(ZSTM.succeedNow(true), ZSTM.succeedNow(false))
+          assertM(transaction.commit)(isTrue)
+        },
+        testM("runs `onFalse` if result of `b` is `false`") {
+          val transaction = ZSTM.ifM(ZSTM.succeedNow(false))(ZSTM.succeedNow(true), ZSTM.succeedNow(false))
+          assertM(transaction.commit)(isFalse)
+        },
+        testM("infers correctly") {
+          trait R
+          trait R1 extends R
+          trait E1
+          trait E extends E1
+          trait A
+          val b: ZSTM[R, E, Boolean]   = ZSTM.succeedNow(true)
+          val onTrue: ZSTM[R1, E1, A]  = ZSTM.succeedNow(new A {})
+          val onFalse: ZSTM[R1, E1, A] = ZSTM.succeedNow(new A {})
+          val _                        = ZSTM.ifM(b)(onTrue, onFalse)
+          ZIO.succeed(assertCompletes)
+        }
+      ),
       testM("`mapError` to map from one error to another") {
         assertM(STM.failNow(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
       },

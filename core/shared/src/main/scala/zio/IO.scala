@@ -443,6 +443,12 @@ object IO {
   def identity: IO[Nothing, Any] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifM]]
+   */
+  def ifM[E](b: IO[E, Boolean]): ZIO.IfM[Any, E] =
+    new ZIO.IfM(b)
+
+  /**
    * @see See See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
