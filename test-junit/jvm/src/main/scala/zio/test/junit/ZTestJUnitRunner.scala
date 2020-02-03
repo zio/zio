@@ -36,8 +36,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
 
   lazy val getDescription: Description = {
     val description = Description.createSuiteDescription(className)
-    def traverse[R, E, S](
-      spec: ZSpec[R, E, S],
+    def traverse[R, E](
+      spec: ZSpec[R, E],
       description: Description,
       path: Vector[String] = Vector.empty
     ): URIO[R, Unit] =
@@ -88,12 +88,12 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
     Description.createTestDescription(className, label, uniqueId)
   }
 
-  private def instrumentSpec[R, E, S](
-    zspec: ZSpec[R, E, S],
+  private def instrumentSpec[R, E](
+    zspec: ZSpec[R, E],
     notifier: JUnitNotifier
-  ): ZSpec[R, E, S] = {
-    type ZSpecCase = SpecCase[R, TestFailure[E], TestSuccess[S], Spec[R, TestFailure[E], TestSuccess[S]]]
-    def instrumentTest(label: String, path: Vector[String], test: ZIO[R, TestFailure[E], TestSuccess[S]]) =
+  ): ZSpec[R, E] = {
+    type ZSpecCase = SpecCase[R, TestFailure[E], TestSuccess, Spec[R, TestFailure[E], TestSuccess]]
+    def instrumentTest(label: String, path: Vector[String], test: ZIO[R, TestFailure[E], TestSuccess]) =
       notifier.fireTestStarted(label, path) *> test.tapBoth(
         {
           case Assertion(result) => reportAssertionFailure(notifier, path, label, result)
@@ -115,7 +115,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
     Spec(loop(zspec.caseValue))
   }
 
-  private def filteredSpec: ZSpec[spec.Environment, spec.Failure, spec.Test] =
+  private def filteredSpec: ZSpec[spec.Environment, spec.Failure] =
     spec.spec
       .filterLabels(l => filter.shouldRun(testDescription(l, Vector.empty)))
       .getOrElse(spec.spec)

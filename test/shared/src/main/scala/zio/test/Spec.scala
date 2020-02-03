@@ -34,10 +34,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * test("foo") { assert(42, equalTo(42)) } @@ ignore
    * }}}
    */
-  final def @@[R0 <: R1, R1 <: R, E0, E1, E2 >: E0 <: E1, S0, S1, S >: S0 <: S1](
-    aspect: TestAspect[R0, R1, E0, E1, S0, S1]
-  )(implicit ev1: E <:< TestFailure[E2], ev2: T <:< TestSuccess[S]): ZSpec[R1, E2, S] =
-    aspect(self.asInstanceOf[ZSpec[R1, E2, S]])
+  final def @@[R0 <: R1, R1 <: R, E0, E1, E2 >: E0 <: E1](
+    aspect: TestAspect[R0, R1, E0, E1]
+  )(implicit ev1: E <:< TestFailure[E2], ev2: T <:< TestSuccess): ZSpec[R1, E2] =
+    aspect(self.asInstanceOf[ZSpec[R1, E2]])
 
   /**
    * Annotates each test in this spec with the specified test annotation.
@@ -454,32 +454,30 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Runs only tests whose labels (which must be strings) contain the given substring.
    * If a suite label contains the specified string all specs in that suite will be included in the resulting spec.
    */
-  final def only[S, E1](
-    s: String
-  )(implicit ev1: E <:< TestFailure[E1], ev2: T <:< TestSuccess[S]): ZSpec[R, E1, S] =
+  final def only(s: String)(implicit ev: T <:< TestSuccess): Spec[R, E, TestSuccess] =
     self
-      .asInstanceOf[ZSpec[R, E1, S]]
+      .asInstanceOf[Spec[R, E, TestSuccess]]
       .filterLabels(_.contains(s))
       .getOrElse(Spec.test("only", ignored, TestAnnotationMap.empty))
 
   /**
    * Runs the spec only if the specified predicate is satisfied.
    */
-  final def when[S](b: Boolean)(implicit ev: T <:< TestSuccess[S]): Spec[R with Annotations, E, TestSuccess[S]] =
+  final def when(b: Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Annotations, E, TestSuccess] =
     whenM(ZIO.succeedNow(b))
 
   /**
    * Runs the spec only if the specified effectual predicate is satisfied.
    */
-  final def whenM[R1 <: R, E1 >: E, S](
+  final def whenM[R1 <: R, E1 >: E](
     b: ZIO[R1, E1, Boolean]
-  )(implicit ev: T <:< TestSuccess[S]): Spec[R1 with Annotations, E1, TestSuccess[S]] =
+  )(implicit ev: T <:< TestSuccess): Spec[R1 with Annotations, E1, TestSuccess] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         Spec.suite(
           label,
           b.flatMap(b =>
-            if (b) specs.asInstanceOf[ZIO[R1, E1, Vector[Spec[R1, E1, TestSuccess[S]]]]]
+            if (b) specs.asInstanceOf[ZIO[R1, E1, Vector[Spec[R1, E1, TestSuccess]]]]
             else ZIO.succeedNow(Vector.empty)
           ),
           exec
@@ -488,7 +486,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
         Spec.test(
           label,
           b.flatMap(b =>
-            if (b) test.asInstanceOf[ZIO[R1, E1, TestSuccess[S]]]
+            if (b) test.asInstanceOf[ZIO[R1, E1, TestSuccess]]
             else Annotations.annotate(TestAnnotation.ignored, 1).as(TestSuccess.Ignored)
           ),
           annotations
