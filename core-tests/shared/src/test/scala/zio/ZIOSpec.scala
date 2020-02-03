@@ -1042,6 +1042,24 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(orElse)(equalTo(true))
       }
     ),
+    suite("orElseFail")(
+      testM("executes this effect and returns its value if it succeeds") {
+        import zio.CanFail.canFail
+        assertM(ZIO.succeedNow(true).orElseFail(false))(isTrue)
+      },
+      testM("otherwise fails with the specified error") {
+        assertM(ZIO.failNow(false).orElseFail(true).flip)(isTrue)
+      }
+    ),
+    suite("orElseSucceed")(
+      testM("executes this effect and returns its value if it succeeds") {
+        import zio.CanFail.canFail
+        assertM(ZIO.succeedNow(true).orElseSucceed(false))(isTrue)
+      },
+      testM("otherwise succeeds with the specified value") {
+        assertM(ZIO.failNow(false).orElseSucceed(true))(isTrue)
+      }
+    ),
     suite("parallelErrors")(
       testM("oneFailure") {
         for {

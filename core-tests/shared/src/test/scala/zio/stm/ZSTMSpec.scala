@@ -437,6 +437,28 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(2 -> 2))
       }
     ),
+    suite("orElseFail")(
+      testM("tries this effect first") {
+        import zio.CanFail.canFail
+        val transaction = ZSTM.succeedNow(true).orElseFail(false)
+        assertM(transaction.commit)(isTrue)
+      },
+      testM("if it fails, fails with the specified error") {
+        val transaction = ZSTM.failNow(false).orElseFail(true).fold(identity, _ => false)
+        assertM(transaction.commit)(isTrue)
+      }
+    ),
+    suite("orElseSucceed")(
+      testM("tries this effect first") {
+        import zio.CanFail.canFail
+        val transaction = ZSTM.succeedNow(true).orElseSucceed(false)
+        assertM(transaction.commit)(isTrue)
+      },
+      testM("if it succeeds, succeeds with the specified value") {
+        val transaction = ZSTM.failNow(false).orElseSucceed(true)
+        assertM(transaction.commit)(isTrue)
+      }
+    ),
     suite("when combinators")(
       testM("when true") {
         for {

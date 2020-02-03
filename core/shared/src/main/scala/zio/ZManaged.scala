@@ -578,6 +578,20 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     foldM(_ => that.map(Right[A, B]), a => ZManaged.succeedNow(Left[A, B](a)))
 
   /**
+   * Executes this effect and returns its value, if it succeeds, but
+   * otherwise fails with the specified error.
+   */
+  final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
+    orElse(ZManaged.failNow(e1))
+
+  /**
+   * Executes this effect and returns its value, if it succeeds, but
+   * otherwise suceeds with the specified value.
+   */
+  final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A1] =
+    orElse(ZManaged.succeedNow(a1))
+
+  /**
    * Preallocates the managed resource, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
    * You should take care that you are not interrupted between running preallocate and actually acquiring the resource
    * as you might leak otherwise.

@@ -551,6 +551,28 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(finalizers)(equalTo(List("First", "Second"))) && assert(result)(isSome(succeeds(equalTo("42"))))
       }
     ),
+    suite("orElseFail")(
+      testM("executes this effect and returns its value if it succeeds") {
+        import zio.CanFail.canFail
+        val managed = ZManaged.succeedNow(true).orElseFail(false)
+        assertM(managed.use(ZIO.succeedNow))(isTrue)
+      },
+      testM("otherwise fails with the specified error") {
+        val managed = ZManaged.failNow(false).orElseFail(true).flip
+        assertM(managed.use(ZIO.succeedNow))(isTrue)
+      }
+    ),
+    suite("orElseSucceed")(
+      testM("executes this effect and returns its value if it succeeds") {
+        import zio.CanFail.canFail
+        val managed = ZManaged.succeedNow(true).orElseSucceed(false)
+        assertM(managed.use(ZIO.succeedNow))(isTrue)
+      },
+      testM("otherwise succeeds with the specified value") {
+        val managed = ZManaged.failNow(false).orElseSucceed(true)
+        assertM(managed.use(ZIO.succeedNow))(isTrue)
+      }
+    ),
     suite("preallocate")(
       testM("runs finalizer on interruption") {
         for {
