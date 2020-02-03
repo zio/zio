@@ -29,13 +29,13 @@ trait TimeoutVariants {
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect[Nothing, Live, Nothing, Any, Nothing, Any] =
-    new TestAspect[Nothing, Live, Nothing, Any, Nothing, Any] {
-      def some[R <: Live, E, S](
+  ): TestAspect[Nothing, Live, Nothing, Any] =
+    new TestAspect[Nothing, Live, Nothing, Any] {
+      def some[R <: Live, E](
         predicate: String => Boolean,
-        spec: ZSpec[R, E, S]
-      ): ZSpec[R, E, S] = {
-        def loop(labels: List[String], spec: ZSpec[R, E, S]): ZSpec[R with Live, E, S] =
+        spec: ZSpec[R, E]
+      ): ZSpec[R, E] = {
+        def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Live, E] =
           spec.caseValue match {
             case Spec.SuiteCase(label, specs, exec) =>
               Spec.suite(label, specs.map(_.map(loop(label :: labels, _))), exec)
@@ -47,12 +47,12 @@ trait TimeoutVariants {
       }
     }
 
-  private def warn[R, E, S](
+  private def warn[R, E](
     suiteLabels: List[String],
     testLabel: String,
-    test: ZTest[R, E, S],
+    test: ZTest[R, E],
     duration: Duration
-  ): ZTest[R with Live, E, S] =
+  ): ZTest[R with Live, E] =
     test.raceWith(Live.withLive(showWarning(suiteLabels, testLabel, duration))(_.delay(duration)))(
       (result, fiber) => fiber.interrupt *> ZIO.doneNow(result),
       (_, fiber) => fiber.join

@@ -56,29 +56,28 @@ package object test extends CompileVariants {
   /**
    * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
    */
-  type TestAspectAtLeastR[R] =
-    TestAspect[Nothing, R, Nothing, Any, Nothing, Any]
+  type TestAspectAtLeastR[R] = TestAspect[Nothing, R, Nothing, Any]
 
   /**
    * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
    * having no requirements on error or environment.
    */
-  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any, Nothing, Any]
+  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
   type TestResult = BoolAlgebraM[Any, Nothing, FailureDetails]
 
   /**
-   * A `TestReporter[E, S]` is capable of reporting test results with error
-   * type `E` and success type `S`.
+   * A `TestReporter[E]` is capable of reporting test results with error type
+   * `E`.
    */
-  type TestReporter[-E, -S] = (Duration, ExecutedSpec[E, S]) => URIO[TestLogger, Unit]
+  type TestReporter[-E] = (Duration, ExecutedSpec[E]) => URIO[TestLogger, Unit]
 
   object TestReporter {
 
     /**
      * TestReporter that does nothing
      */
-    val silent: TestReporter[Any, Any] = (_, _) => ZIO.unit
+    val silent: TestReporter[Any] = (_, _) => ZIO.unit
   }
 
   /**
@@ -88,28 +87,26 @@ package object test extends CompileVariants {
   type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
 
   /**
-   * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`
-   * and may fail with an `E` or succeed with a `S`.
+   * A `ZTest[R, E]` is an effectfully produced test that requires an `R` and
+   * may fail with an `E`.
    */
-  type ZTest[-R, +E, +S] = ZIO[R, TestFailure[E], TestSuccess[S]]
+  type ZTest[-R, +E] = ZIO[R, TestFailure[E], TestSuccess]
 
   /**
-   * A `ZSpec[R, E, S]` is the canonical spec for testing ZIO programs. The
-   * spec's test type is a ZIO effect that requires an `R`, might fail with an
-   * `E`, and might succeed with an `S`.
+   * A `ZSpec[R, E]` is the canonical spec for testing ZIO programs. The spec's
+   * test type is a ZIO effect that requires an `R` and might fail with an `E`.
    */
-  type ZSpec[-R, +E, +S] = Spec[R, TestFailure[E], TestSuccess[S]]
+  type ZSpec[-R, +E] = Spec[R, TestFailure[E], TestSuccess]
 
   /**
-   * An `ExecutedResult[E, S] is either a `TestSuccess[S]` or a
-   * `TestFailure[E]`.
+   * An `ExecutedResult[E] is either a `TestSuccess` or a `TestFailure[E]`.
    */
-  type ExecutedResult[+E, +S] = Either[TestFailure[E], TestSuccess[S]]
+  type ExecutedResult[+E] = Either[TestFailure[E], TestSuccess]
 
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+E, +S] = Spec[Any, Nothing, ExecutedResult[E, S]]
+  type ExecutedSpec[+E] = Spec[Any, Nothing, ExecutedResult[E]]
 
   /**
    * An `Annotated[A]` contains a value of type `A` along with zero or more
@@ -321,19 +318,19 @@ package object test extends CompileVariants {
   /**
    * A `Runner` that provides a default testable environment.
    */
-  val defaultTestRunner: TestRunner[TestEnvironment, Any, Any, Any] =
+  val defaultTestRunner: TestRunner[TestEnvironment, Any] =
     TestRunner(TestExecutor.managed(testEnvironmentManaged))
 
   /**
    * Creates a failed test result with the specified runtime cause.
    */
-  def failed[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
+  def failed[E](cause: Cause[E]): ZIO[Any, TestFailure[E], Nothing] =
     ZIO.failNow(TestFailure.Runtime(cause))
 
   /**
    * Creates an ignored test result.
    */
-  val ignored: ZTest[Any, Nothing, Nothing] =
+  val ignored: ZIO[Any, Nothing, TestSuccess] =
     ZIO.succeedNow(TestSuccess.Ignored)
 
   /**
@@ -341,7 +338,7 @@ package object test extends CompileVariants {
    * use that information to create a test. If the platform is neither ScalaJS
    * nor the JVM, an ignored test result will be returned.
    */
-  def platformSpecific[R, E, A, S](js: => A, jvm: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
+  def platformSpecific[R, E, A](js: => A, jvm: => A)(f: A => ZTest[R, E]): ZTest[R, E] =
     if (TestPlatform.isJS) f(js)
     else if (TestPlatform.isJVM) f(jvm)
     else ignored
@@ -355,13 +352,13 @@ package object test extends CompileVariants {
   /**
    * Builds a spec with a single pure test.
    */
-  def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing, Unit] =
+  def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing] =
     testM(label)(ZIO.effectTotal(assertion))
 
   /**
    * Builds a spec with a single effectful test.
    */
-  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E, Unit] =
+  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E] =
     Spec.test(
       label,
       ZIO
@@ -382,7 +379,7 @@ package object test extends CompileVariants {
    * use that information to create a test. If the version is neither Dotty nor
    * Scala 2, an ignored test result will be returned.
    */
-  def versionSpecific[R, E, A, S](dotty: => A, scala2: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
+  def versionSpecific[R, E, A](dotty: => A, scala2: => A)(f: A => ZTest[R, E]): ZTest[R, E] =
     if (TestVersion.isDotty) f(dotty)
     else if (TestVersion.isScala2) f(scala2)
     else ignored
