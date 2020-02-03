@@ -17,12 +17,12 @@ final case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def from[E, L, S](
-    executedSpec: ExecutedSpec[E, L, S],
+  def from[E, S](
+    executedSpec: ExecutedSpec[E, S],
     fullyQualifiedName: String,
     fingerprint: Fingerprint
   ): UIO[Seq[ZTestEvent]] =
-    executedSpec.mapLabel(_.toString).fold[UIO[Seq[ZTestEvent]]] {
+    executedSpec.fold[UIO[Seq[ZTestEvent]]] {
       case Spec.SuiteCase(_, results, _) =>
         results.flatMap(UIO.collectAll(_).map(_.flatten))
       case Spec.TestCase(label, result, _) =>
@@ -31,7 +31,7 @@ object ZTestEvent {
         }
     }
 
-  private def toStatus[E, L, S](result: Either[TestFailure[E], TestSuccess[S]]) = result match {
+  private def toStatus[E, S](result: Either[TestFailure[E], TestSuccess[S]]) = result match {
     case Left(_)                         => Status.Failure
     case Right(TestSuccess.Succeeded(_)) => Status.Success
     case Right(TestSuccess.Ignored)      => Status.Ignored

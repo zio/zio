@@ -32,7 +32,7 @@ abstract class BaseTestTask(
                case (testSearchTerms, Nil) =>
                  spec.runner.run {
                    spec.spec.filterLabels { label =>
-                     testSearchTerms.exists(term => label.toString.contains(term))
+                     testSearchTerms.exists(term => label.contains(term))
                    }.getOrElse(spec.spec)
                  }
                case (Nil, tagSearchTerms) =>
@@ -46,7 +46,7 @@ abstract class BaseTestTask(
                    spec.spec.filterTags { tag =>
                      testSearchTerms.exists(term => tag == term)
                    }.flatMap(_.filterLabels { label =>
-                       tagSearchTerms.exists(term => label.toString.contains(term))
+                       tagSearchTerms.exists(term => label.contains(term))
                      })
                      .getOrElse(spec.spec)
                  }

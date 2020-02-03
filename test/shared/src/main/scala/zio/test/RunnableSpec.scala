@@ -23,10 +23,9 @@ import zio.{ UIO, URIO }
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-trait RunnableSpec[R, E, L, T, S] extends AbstractRunnableSpec {
+trait RunnableSpec[R, E, T, S] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
-  override type Label       = L
   override type Test        = T
   override type Success     = S
 

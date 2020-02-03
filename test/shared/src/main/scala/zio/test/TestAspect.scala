@@ -33,26 +33,26 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS] { self =>
    * Applies the aspect to some tests in the spec, chosen by the provided
    * predicate.
    */
-  def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS, L](
-    predicate: L => Boolean,
-    spec: ZSpec[R, E, L, S]
-  ): ZSpec[R, E, L, S]
+  def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS](
+    predicate: String => Boolean,
+    spec: ZSpec[R, E, S]
+  ): ZSpec[R, E, S]
 
   /**
    * An alias for [[all]].
    */
-  final def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS, L](
-    spec: ZSpec[R, E, L, S]
-  ): ZSpec[R, E, L, S] =
+  final def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS](
+    spec: ZSpec[R, E, S]
+  ): ZSpec[R, E, S] =
     all(spec)
 
   /**
    * Applies the aspect to every test in the spec.
    */
-  final def all[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS, L](
-    spec: ZSpec[R, E, L, S]
-  ): ZSpec[R, E, L, S] =
-    some[R, E, S, L](_ => true, spec)
+  final def all[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS](
+    spec: ZSpec[R, E, S]
+  ): ZSpec[R, E, S] =
+    some[R, E, S](_ => true, spec)
 
   /**
    * Returns a new aspect that represents the sequential composition of this
@@ -69,10 +69,10 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS] { self =>
     that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerS1, UpperS1]
   ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerS1, UpperS1] =
     new TestAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerS1, UpperS1] {
-      def some[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1, S >: LowerS1 <: UpperS1, L](
-        predicate: L => Boolean,
-        spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] =
+      def some[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1, S >: LowerS1 <: UpperS1](
+        predicate: String => Boolean,
+        spec: ZSpec[R, E, S]
+      ): ZSpec[R, E, S] =
         that.some(predicate, self.some(predicate, spec))
     }
 
@@ -95,10 +95,10 @@ object TestAspect extends TimeoutVariants {
    */
   val identity: TestAspectPoly =
     new TestAspectPoly {
-      def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
-        predicate: L => Boolean,
-        spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] = spec
+      def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+        predicate: String => Boolean,
+        spec: ZSpec[R, E, S]
+      ): ZSpec[R, E, S] = spec
     }
 
   /**
@@ -106,7 +106,7 @@ object TestAspect extends TimeoutVariants {
    */
   val ignore: TestAspectAtLeastR[Annotations] =
     new TestAspectAtLeastR[Annotations] {
-      def some[R <: Annotations, E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+      def some[R <: Annotations, E, S](predicate: String => Boolean, spec: ZSpec[R, E, S]): ZSpec[R, E, S] =
         spec.when(false)
     }
 
@@ -258,10 +258,10 @@ object TestAspect extends TimeoutVariants {
    */
   def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
     new TestAspectPoly {
-      def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
-        predicate: L => Boolean,
-        spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] = spec.transform[R, TestFailure[E], L, TestSuccess[S]] {
+      def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+        predicate: String => Boolean,
+        spec: ZSpec[R, E, S]
+      ): ZSpec[R, E, S] = spec.transform[R, TestFailure[E], TestSuccess[S]] {
         case Spec.SuiteCase(label, specs, None) if (predicate(label)) => Spec.SuiteCase(label, specs, Some(exec))
         case c                                                        => c
       }
@@ -319,10 +319,10 @@ object TestAspect extends TimeoutVariants {
    */
   def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live with Annotations] =
     new TestAspectAtLeastR[Live with Annotations] {
-      def some[R <: Live with Annotations, E, S, L](
-        predicate: L => Boolean,
-        spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] =
+      def some[R <: Live with Annotations, E, S](
+        predicate: String => Boolean,
+        spec: ZSpec[R, E, S]
+      ): ZSpec[R, E, S] =
         spec.whenM(Live.live(system.env(env)).orDie.flatMap(_.fold(ZIO.succeedNow(false))(assertion.test)))
     }
 
@@ -342,10 +342,10 @@ object TestAspect extends TimeoutVariants {
     assertion: Assertion[String]
   ): TestAspectAtLeastR[Live with Annotations] =
     new TestAspectAtLeastR[Live with Annotations] {
-      def some[R <: Live with Annotations, E, S, L](
-        predicate: L => Boolean,
-        spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] =
+      def some[R <: Live with Annotations, E, S](
+        predicate: String => Boolean,
+        spec: ZSpec[R, E, S]
+      ): ZSpec[R, E, S] =
         spec.whenM(Live.live(system.property(prop)).orDie.flatMap(_.fold(ZIO.succeedNow(false))(assertion.test)))
     }
 
@@ -580,10 +580,10 @@ object TestAspect extends TimeoutVariants {
    */
   def tag(tag: String, tags: String*): TestAspectAtLeastR[Annotations] =
     new TestAspect[Nothing, Annotations, Nothing, Any, Nothing, Any] {
-      def some[R >: Nothing <: Annotations, E >: Nothing <: Any, S >: Nothing <: Any, L](
-        predicate: L => Boolean,
-        spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] =
+      def some[R >: Nothing <: Annotations, E >: Nothing <: Any, S >: Nothing <: Any](
+        predicate: String => Boolean,
+        spec: ZSpec[R, E, S]
+      ): ZSpec[R, E, S] =
         spec.annotate(TestAnnotation.tagged, Set(tag) union tags.toSet)
     }
 
@@ -640,11 +640,11 @@ object TestAspect extends TimeoutVariants {
       test: ZIO[R, TestFailure[E], TestSuccess[S]]
     ): ZIO[R, TestFailure[E], TestSuccess[S]]
 
-    final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS, L](
-      predicate: L => Boolean,
-      spec: ZSpec[R, E, L, S]
-    ): ZSpec[R, E, L, S] =
-      spec.transform[R, TestFailure[E], L, TestSuccess[S]] {
+    final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS](
+      predicate: String => Boolean,
+      spec: ZSpec[R, E, S]
+    ): ZSpec[R, E, S] =
+      spec.transform[R, TestFailure[E], TestSuccess[S]] {
         case c @ Spec.SuiteCase(_, _, _) => c
         case Spec.TestCase(label, test, annotations) =>
           Spec.TestCase(label, if (predicate(label)) perTest(test) else test, annotations)

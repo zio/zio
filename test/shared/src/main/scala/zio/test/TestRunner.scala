@@ -23,15 +23,15 @@ import zio.internal.Platform
 import zio.scheduler.Scheduler
 
 /**
- * A `TestRunner[R, E, L, T, S]` encapsulates all the logic necessary to run
+ * A `TestRunner[R, E, T, S]` encapsulates all the logic necessary to run
  * specs that contain tests of type `T`, require an environment `R` and may
- * fail with an error `E` or succeed with an `S`, using labels of type `L`.
- * Test runners require a test executor, a platform, and a reporter.
+ * fail with an error `E` or succeed with an `S`. Test runners require a test
+ * executor, a platform, and a reporter.
  */
-final case class TestRunner[R, E, L, -T, S](
-  executor: TestExecutor[R, E, L, T, S],
+final case class TestRunner[R, E, -T, S](
+  executor: TestExecutor[R, E, T, S],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[E, L, S] = DefaultTestReporter(TestAnnotationRenderer.default),
+  reporter: TestReporter[E, S] = DefaultTestReporter(TestAnnotationRenderer.default),
   bootstrap: Managed[Nothing, TestLogger with Clock] =
     ((Console.live >>> TestLogger.fromConsole) ++ (Scheduler.live >>> Clock.live)).build
 ) { self =>
@@ -41,7 +41,7 @@ final case class TestRunner[R, E, L, -T, S](
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(spec: ZSpec[R, E, L, T]): URIO[TestLogger with Clock, ExecutedSpec[E, L, S]] =
+  def run(spec: ZSpec[R, E, T]): URIO[TestLogger with Clock, ExecutedSpec[E, S]] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
       case (duration, results) => reporter(duration, results).as(results)
     }
@@ -50,17 +50,17 @@ final case class TestRunner[R, E, L, -T, S](
    * An unsafe, synchronous run of the specified spec.
    */
   def unsafeRun(
-    spec: ZSpec[R, E, L, T]
-  ): ExecutedSpec[E, L, S] =
+    spec: ZSpec[R, E, T]
+  ): ExecutedSpec[E, S] =
     runtime.unsafeRun(run(spec).provideManaged(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
   def unsafeRunAsync(
-    spec: ZSpec[R, E, L, T]
+    spec: ZSpec[R, E, T]
   )(
-    k: ExecutedSpec[E, L, S] => Unit
+    k: ExecutedSpec[E, S] => Unit
   ): Unit =
     runtime.unsafeRunAsync(run(spec).provideManaged(bootstrap)) {
       case Exit.Success(v) => k(v)
@@ -71,20 +71,20 @@ final case class TestRunner[R, E, L, -T, S](
    * An unsafe, synchronous run of the specified spec.
    */
   def unsafeRunSync(
-    spec: ZSpec[R, E, L, T]
-  ): Exit[Nothing, ExecutedSpec[E, L, S]] =
+    spec: ZSpec[R, E, T]
+  ): Exit[Nothing, ExecutedSpec[E, S]] =
     runtime.unsafeRunSync(run(spec).provideManaged(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the reporter.
    */
-  def withReporter[E1 >: E, L1 >: L, S1 >: S](reporter: TestReporter[E1, L1, S1]) =
+  def withReporter[E1 >: E, S1 >: S](reporter: TestReporter[E1, S1]) =
     copy(reporter = reporter)
 
   /**
    * Creates a copy of this runner replacing the platform
    */
-  def withPlatform(f: Platform => Platform): TestRunner[R, E, L, T, S] =
+  def withPlatform(f: Platform => Platform): TestRunner[R, E, T, S] =
     copy(platform = f(platform))
 
   private[test] def buildRuntime: Managed[Nothing, Runtime[TestLogger with Clock]] =
