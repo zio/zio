@@ -38,11 +38,11 @@ import zio.{ Cause, UIO, URIO }
 object DefaultTestReporter {
 
   def render[E, S](
-    executedSpec: ExecutedSpec[E, String, S],
+    executedSpec: ExecutedSpec[E, S],
     testAnnotationRenderer: TestAnnotationRenderer
   ): UIO[Seq[RenderedResult[String]]] = {
     def loop(
-      executedSpec: ExecutedSpec[E, String, S],
+      executedSpec: ExecutedSpec[E, S],
       depth: Int,
       ancestors: List[TestAnnotationMap]
     ): UIO[Seq[RenderedResult[String]]] =
@@ -102,17 +102,17 @@ object DefaultTestReporter {
     loop(executedSpec, 0, List.empty)
   }
 
-  def apply[E, S](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E, String, S] = {
-    (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
+  def apply[E, S](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E, S] = {
+    (duration: Duration, executedSpec: ExecutedSpec[E, S]) =>
       for {
-        rendered <- render(executedSpec.mapLabel(_.toString), testAnnotationRenderer).map(_.flatMap(_.rendered))
+        rendered <- render(executedSpec, testAnnotationRenderer).map(_.flatMap(_.rendered))
         stats    <- logStats(duration, executedSpec)
         _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
       } yield ()
   }
 
-  private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, String] = {
-    def loop(executedSpec: ExecutedSpec[E, String, S]): UIO[(Int, Int, Int)] =
+  private def logStats[E, S](duration: Duration, executedSpec: ExecutedSpec[E, S]): URIO[TestLogger, String] = {
+    def loop(executedSpec: ExecutedSpec[E, S]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           for {
@@ -129,7 +129,7 @@ object DefaultTestReporter {
           }
       }
     for {
-      stats                      <- loop(executedSpec.mapLabel(_.toString))
+      stats                      <- loop(executedSpec)
       (success, ignore, failure) = stats
       total                      = success + ignore + failure
     } yield cyan(

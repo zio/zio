@@ -4,7 +4,7 @@ import zio.test.Spec._
 import zio.{ UIO, ZIO }
 
 object SummaryBuilder {
-  def buildSummary[E, L, S](executedSpec: ExecutedSpec[E, L, S]): UIO[Summary] =
+  def buildSummary[E, S](executedSpec: ExecutedSpec[E, S]): UIO[Summary] =
     for {
       success <- countTestResults(executedSpec) {
                   case Right(TestSuccess.Succeeded(_)) => true
@@ -15,12 +15,12 @@ object SummaryBuilder {
                  case Right(TestSuccess.Ignored) => true
                  case _                          => false
                }
-      failures <- extractFailures(executedSpec).map(_.map(_.mapLabel(_.toString)))
+      failures <- extractFailures(executedSpec)
       rendered <- ZIO.foreach(failures)(DefaultTestReporter.render(_, TestAnnotationRenderer.silent))
     } yield Summary(success, fail, ignore, rendered.flatten.flatMap(_.rendered).mkString("\n"))
 
-  private def countTestResults[E, L, S](
-    executedSpec: ExecutedSpec[E, L, S]
+  private def countTestResults[E, S](
+    executedSpec: ExecutedSpec[E, S]
   )(pred: Either[TestFailure[E], TestSuccess[S]] => Boolean): UIO[Int] =
     executedSpec.fold[UIO[Int]] {
       case SuiteCase(_, counts, _) => counts.flatMap(ZIO.collectAll(_).map(_.sum))
@@ -30,18 +30,18 @@ object SummaryBuilder {
         }
     }
 
-  private def extractFailures[E, L, S](executedSpec: ExecutedSpec[E, L, S]): UIO[Seq[ExecutedSpec[E, L, S]]] = {
+  private def extractFailures[E, S](executedSpec: ExecutedSpec[E, S]): UIO[Seq[ExecutedSpec[E, S]]] = {
     def ifM[A](condition: UIO[Boolean])(success: UIO[A])(failure: UIO[A]): UIO[A] =
       condition.flatMap(result => if (result) success else failure)
 
     def append[A](collection: UIO[Seq[A]], item: A): UIO[Seq[A]] = collection.map(_ :+ item)
 
-    def hasFailures(spec: ExecutedSpec[E, L, S]): UIO[Boolean] = spec.exists {
+    def hasFailures(spec: ExecutedSpec[E, S]): UIO[Boolean] = spec.exists {
       case Spec.TestCase(_, test, _) => test.map(_.isLeft)
       case _                         => UIO.succeedNow(false)
     }
 
-    def loop(current: ExecutedSpec[E, L, S], accM: UIO[Seq[ExecutedSpec[E, L, S]]]): UIO[Seq[ExecutedSpec[E, L, S]]] =
+    def loop(current: ExecutedSpec[E, S], accM: UIO[Seq[ExecutedSpec[E, S]]]): UIO[Seq[ExecutedSpec[E, S]]] =
       ifM(hasFailures(current)) {
         current.caseValue match {
           case suite @ Spec.SuiteCase(_, specs, _) =>
@@ -55,6 +55,6 @@ object SummaryBuilder {
         accM
       }
 
-    loop(executedSpec, UIO.succeedNow(Vector.empty[ExecutedSpec[E, L, S]]))
+    loop(executedSpec, UIO.succeedNow(Vector.empty[ExecutedSpec[E, S]]))
   }
 }
