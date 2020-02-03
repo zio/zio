@@ -27,13 +27,28 @@ abstract class BaseTestTask(
 
   protected def run(eventHandler: EventHandler) =
     for {
-      spec <- args.testSearchTerms match {
-               case Nil => spec.run
-               case searchTerms =>
+      spec <- (args.testSearchTerms, args.tagSearchTerms) match {
+               case (Nil, Nil) => spec.run
+               case (testSearchTerms, Nil) =>
                  spec.runner.run {
                    spec.spec.filterLabels { label =>
-                     searchTerms.exists(term => label.toString.contains(term))
+                     testSearchTerms.exists(term => label.toString.contains(term))
                    }.getOrElse(spec.spec)
+                 }
+               case (Nil, tagSearchTerms) =>
+                 spec.runner.run {
+                   spec.spec.filterTags { tag =>
+                     tagSearchTerms.exists(term => tag == term)
+                   }.getOrElse(spec.spec)
+                 }
+               case (testSearchTerms, tagSearchTerms) =>
+                 spec.runner.run {
+                   spec.spec.filterTags { tag =>
+                     testSearchTerms.exists(term => tag == term)
+                   }.flatMap(_.filterLabels { label =>
+                       tagSearchTerms.exists(term => label.toString.contains(term))
+                     })
+                     .getOrElse(spec.spec)
                  }
              }
       summary <- SummaryBuilder.buildSummary(spec)

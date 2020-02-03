@@ -24,9 +24,9 @@ object SummaryBuilder {
   )(pred: Either[TestFailure[E], TestSuccess[S]] => Boolean): UIO[Int] =
     executedSpec.fold[UIO[Int]] {
       case SuiteCase(_, counts, _) => counts.flatMap(ZIO.collectAll(_).map(_.sum))
-      case TestCase(_, test) =>
+      case TestCase(_, test, _) =>
         test.map { r =>
-          if (pred(r._1)) 1 else 0
+          if (pred(r)) 1 else 0
         }
     }
 
@@ -37,8 +37,8 @@ object SummaryBuilder {
     def append[A](collection: UIO[Seq[A]], item: A): UIO[Seq[A]] = collection.map(_ :+ item)
 
     def hasFailures(spec: ExecutedSpec[E, L, S]): UIO[Boolean] = spec.exists {
-      case Spec.TestCase(_, test) => test.map(_._1.isLeft)
-      case _                      => UIO.succeedNow(false)
+      case Spec.TestCase(_, test, _) => test.map(_.isLeft)
+      case _                         => UIO.succeedNow(false)
     }
 
     def loop(current: ExecutedSpec[E, L, S], accM: UIO[Seq[ExecutedSpec[E, L, S]]]): UIO[Seq[ExecutedSpec[E, L, S]]] =
@@ -48,7 +48,7 @@ object SummaryBuilder {
             val newSpecs = specs.flatMap(ZIO.foreach(_)(extractFailures).map(_.flatten.toVector))
             append(accM, Spec(suite.copy(specs = newSpecs)))
 
-          case Spec.TestCase(_, _) =>
+          case Spec.TestCase(_, _, _) =>
             append(accM, current)
         }
       } {

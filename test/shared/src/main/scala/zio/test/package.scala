@@ -110,7 +110,7 @@ package object test extends CompileVariants {
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+E, +L, +S] = Spec[Any, Nothing, L, Annotated[ExecutedResult[E, S]]]
+  type ExecutedSpec[+E, +L, +S] = Spec[Any, Nothing, L, ExecutedResult[E, S]]
 
   /**
    * An `Annotated[A]` contains a value of type `A` along with zero or more
@@ -374,7 +374,8 @@ package object test extends CompileVariants {
               case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
               case Some(failures) => ZIO.failNow(TestFailure.Assertion(BoolAlgebraM(ZIO.succeedNow(failures))))
             })
-        )
+        ),
+      TestAnnotationMap.empty
     )
 
   /**

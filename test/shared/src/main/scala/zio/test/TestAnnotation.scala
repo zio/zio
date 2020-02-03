@@ -62,6 +62,12 @@ object TestAnnotation {
     TestAnnotation("retried", 0, _ + _)
 
   /**
+   * An annotation which tags tests with strings.
+   */
+  val tagged: TestAnnotation[Set[String]] =
+    TestAnnotation("tagged", Set.empty, _ union _)
+
+  /**
    * An annotation for timing.
    */
   val timing: TestAnnotation[Duration] =
