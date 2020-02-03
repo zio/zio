@@ -60,27 +60,21 @@ object SpecSpec extends ZIOBaseSpec {
     ),
     suite("only")(
       testM("ignores all tests except one matching the given label") {
-        checkM(genSuite) { spec =>
-          for {
-            passed1 <- isSuccess(spec.only(passingTest))
-            passed2 <- isSuccess(spec.only(failingTest))
-          } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
-        }
+        for {
+          passed1 <- isSuccess(mixedSpec.only(passingTest))
+          passed2 <- isSuccess(mixedSpec.only(failingTest))
+        } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
       },
       testM("ignores all tests except ones in the suite matching the given label") {
-        checkM(genSuite) { spec =>
-          for {
-            passed1 <- isSuccess(spec.only(passingSuite))
-            passed2 <- isSuccess(spec.only(failingSuite))
-          } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
-        }
+        for {
+          passed1 <- isSuccess(mixedSpec.only(passingSuite))
+          passed2 <- isSuccess(mixedSpec.only(failingSuite))
+        } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
       },
       testM("runs everything if root suite label given") {
-        checkM(genSuite) { spec =>
-          for {
-            passed <- isSuccess(spec.only(rootSuite))
-          } yield assert(passed)(isFalse)
-        }
+        for {
+          passed <- isSuccess(mixedSpec.only(rootSuite))
+        } yield assert(passed)(isFalse)
       }
     )
   )
@@ -90,10 +84,10 @@ object SpecSpec extends ZIOBaseSpec {
   val passingTest  = "passing-test"
   val passingSuite = "passing-suite"
   val rootSuite    = "root-suite"
-  val genSuite = Gen.anyString zip Gen.anyString map {
-    case (prefix, suffix) => mixedSpec(prefix, suffix)
-  }
-  def mixedSpec(prefix: String, suffix: String) = suite(prefix + rootSuite + suffix)(
+  val prefix       = "prefix"
+  val suffix       = "suffix"
+
+  val mixedSpec = suite(prefix + rootSuite + suffix)(
     suite(prefix + failingSuite + suffix)(test(prefix + failingTest + suffix) {
       assert(1)(equalTo(2))
     }),
