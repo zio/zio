@@ -412,10 +412,28 @@ object URIO {
     ZIO.interruptibleMask(k)
 
   /**
+   * @see See [[zio.ZIO.iterate]]
+   */
+  def iterate[R, S](initial: S)(cont: S => Boolean)(body: S => URIO[R, S]): URIO[R, S] =
+    ZIO.iterate(initial)(cont)(body)
+
+  /**
    * @see [[zio.ZIO.lock]]
    */
   def lock[R, A](executor: => Executor)(taskr: URIO[R, A]): URIO[R, A] =
     ZIO.lock(executor)(taskr)
+
+  /**
+   *  @see See [[zio.ZIO.loop]]
+   */
+  def loop[R, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, A]): URIO[R, List[A]] =
+    ZIO.loop(initial)(cont, inc)(body)
+
+  /**
+   *  @see See [[zio.ZIO.loop_]]
+   */
+  def loop_[R, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, Any]): URIO[R, Unit] =
+    ZIO.loop_(initial)(cont, inc)(body)
 
   /**
    *  @see [[zio.ZIO.left]]

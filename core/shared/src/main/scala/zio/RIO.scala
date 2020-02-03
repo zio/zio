@@ -466,10 +466,28 @@ object RIO {
     ZIO.interruptibleMask(k)
 
   /**
+   * @see See [[zio.ZIO.iterate]]
+   */
+  def iterate[R, S](initial: S)(cont: S => Boolean)(body: S => RIO[R, S]): RIO[R, S] =
+    ZIO.iterate(initial)(cont)(body)
+
+  /**
    * @see See [[zio.ZIO.lock]]
    */
   def lock[R, A](executor: => Executor)(taskr: RIO[R, A]): RIO[R, A] =
     ZIO.lock(executor)(taskr)
+
+  /**
+   *  @see See [[zio.ZIO.loop]]
+   */
+  def loop[R, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => RIO[R, A]): RIO[R, List[A]] =
+    ZIO.loop(initial)(cont, inc)(body)
+
+  /**
+   *  @see See [[zio.ZIO.loop_]]
+   */
+  def loop_[R, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => RIO[R, Any]): RIO[R, Unit] =
+    ZIO.loop_(initial)(cont, inc)(body)
 
   /**
    *  @see See [[zio.ZIO.left]]

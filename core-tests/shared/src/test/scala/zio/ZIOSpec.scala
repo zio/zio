@@ -794,6 +794,13 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.dieNow(ExampleError).ignore.run)(dies(equalTo(ExampleError)))
       }
     ),
+    suite("iterate")(
+      testM("iterates with the specified effectual function") {
+        for {
+          result <- ZIO.iterate(100)(_ > 0)(a => ZIO.succeedNow(a - 1))
+        } yield assert(result)(equalTo(0))
+      }
+    ),
     suite("left")(
       testM("on Left value") {
         assertM(ZIO.succeedNow(Left("Left")).left)(equalTo("Left"))
@@ -819,6 +826,29 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("on Right value") {
         assertM(ZIO.succeedNow(Right(2)).leftOrFailException.run)(fails(Assertion.anything))
+      }
+    ),
+    suite("loop")(
+      testM("loops with the specified effectual function") {
+        for {
+          ref    <- Ref.make(List.empty[Int])
+          _      <- ZIO.loop(0)(_ < 5, _ + 1)(a => ref.update(a :: _))
+          result <- ref.get.map(_.reverse)
+        } yield assert(result)(equalTo(List(0, 1, 2, 3, 4)))
+      },
+      testM("collects the results into a list") {
+        for {
+          result <- ZIO.loop(0)(_ < 5, _ + 2)(a => ZIO.succeedNow(a * 3))
+        } yield assert(result)(equalTo(List(0, 6, 12)))
+      }
+    ),
+    suite("loop_")(
+      testM("loops with the specified effectual function") {
+        for {
+          ref    <- Ref.make(List.empty[Int])
+          _      <- ZIO.loop_(0)(_ < 5, _ + 1)(a => ref.update(a :: _))
+          result <- ref.get.map(_.reverse)
+        } yield assert(result)(equalTo(List(0, 1, 2, 3, 4)))
       }
     ),
     suite("mapN")(
