@@ -173,7 +173,7 @@ sealed trait Chunk[+A] { self =>
     val len    = self.length
     var exists = false
     var i      = 0
-    while (i < len) {
+    while (!exists && i < len) {
       if (f(self(i))) exists = true
       i += 1
     }
