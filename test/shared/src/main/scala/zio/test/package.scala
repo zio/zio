@@ -68,17 +68,17 @@ package object test extends CompileVariants {
   type TestResult = BoolAlgebraM[Any, Nothing, FailureDetails]
 
   /**
-   * A `TestReporter[E, L, S]` is capable of reporting test results annotated
-   * with labels `L`, error type `E`, and success type `S`.
+   * A `TestReporter[E, S]` is capable of reporting test results with error
+   * type `E` and success type `S`.
    */
-  type TestReporter[-E, -L, -S] = (Duration, ExecutedSpec[E, L, S]) => URIO[TestLogger, Unit]
+  type TestReporter[-E, -S] = (Duration, ExecutedSpec[E, S]) => URIO[TestLogger, Unit]
 
   object TestReporter {
 
     /**
      * TestReporter that does nothing
      */
-    val silent: TestReporter[Any, Any, Any] = (_, _) => ZIO.unit
+    val silent: TestReporter[Any, Any] = (_, _) => ZIO.unit
   }
 
   /**
@@ -94,12 +94,11 @@ package object test extends CompileVariants {
   type ZTest[-R, +E, +S] = ZIO[R, TestFailure[E], TestSuccess[S]]
 
   /**
-   * A `ZSpec[R, E, L, S]` is the canonical spec for testing ZIO programs. The
+   * A `ZSpec[R, E, S]` is the canonical spec for testing ZIO programs. The
    * spec's test type is a ZIO effect that requires an `R`, might fail with an
-   * `E`, might succeed with an `S`, and whose nodes are annotated with labels
-   * `L`.
+   * `E`, and might succeed with an `S`.
    */
-  type ZSpec[-R, +E, +L, +S] = Spec[R, TestFailure[E], L, TestSuccess[S]]
+  type ZSpec[-R, +E, +S] = Spec[R, TestFailure[E], TestSuccess[S]]
 
   /**
    * An `ExecutedResult[E, S] is either a `TestSuccess[S]` or a
@@ -110,7 +109,7 @@ package object test extends CompileVariants {
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+E, +L, +S] = Spec[Any, Nothing, L, ExecutedResult[E, S]]
+  type ExecutedSpec[+E, +S] = Spec[Any, Nothing, ExecutedResult[E, S]]
 
   /**
    * An `Annotated[A]` contains a value of type `A` along with zero or more
@@ -322,7 +321,7 @@ package object test extends CompileVariants {
   /**
    * A `Runner` that provides a default testable environment.
    */
-  val defaultTestRunner: TestRunner[TestEnvironment, Any, String, Any, Any] =
+  val defaultTestRunner: TestRunner[TestEnvironment, Any, Any, Any] =
     TestRunner(TestExecutor.managed(testEnvironmentManaged))
 
   /**
@@ -350,19 +349,19 @@ package object test extends CompileVariants {
   /**
    * Builds a suite containing a number of other specs.
    */
-  def suite[R, E, L, T](label: L)(specs: Spec[R, E, L, T]*): Spec[R, E, L, T] =
+  def suite[R, E, T](label: String)(specs: Spec[R, E, T]*): Spec[R, E, T] =
     Spec.suite(label, ZIO.succeedNow(specs.toVector), None)
 
   /**
    * Builds a spec with a single pure test.
    */
-  def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
+  def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing, Unit] =
     testM(label)(ZIO.effectTotal(assertion))
 
   /**
    * Builds a spec with a single effectful test.
    */
-  def testM[R, E, L](label: L)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
+  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E, Unit] =
     Spec.test(
       label,
       ZIO
