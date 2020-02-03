@@ -184,6 +184,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self flatMap ev
 
   /**
+   * Flips the success and failure channels of this transactional effect. This
+   * allows you to use all methods on the error channel, possibly before
+   * flipping back.
+   */
+  def flip(implicit ev: CanFail[E]): ZSTM[R, A, E] =
+    foldM(ZSTM.succeedNow, ZSTM.failNow)
+
+  /**
    * Folds over the `STM` effect, handling both failure and success, but not
    * retry.
    */
@@ -279,6 +287,19 @@ final class ZSTM[-R, +E, +A] private[stm] (
     that: => ZSTM[R1, E1, B]
   )(implicit ev: CanFail[E]): ZSTM[R1, E1, Either[A, B]] =
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
+
+  /**
+   * Tries this effect first, and if it fails, fails with the specified error.
+   */
+  final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
+    orElse(ZSTM.failNow(e1))
+
+  /**
+   * Tries this effect first, and if it fails, succeeds with the specified
+   * value.
+   */
+  final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A1] =
+    orElse(ZSTM.succeedNow(a1))
 
   /**
    * Provides the transaction its required environment, which eliminates
