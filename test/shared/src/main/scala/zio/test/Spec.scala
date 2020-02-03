@@ -89,6 +89,36 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
+   * Returns a new spec with only those suites and tests with annotations
+   * satisfying the specified predicate. If no annotations satisfy the
+   * specified predicate then returns `Some` with an empty suite with the root
+   * label if this is a suite or `None` otherwise.
+   */
+  final def filterAnnotations[V](key: TestAnnotation[V])(f: V => Boolean): Option[Spec[R, E, T]] = {
+    def loop(spec: Spec[R, E, T]): URIO[R, Option[Spec[R, E, T]]] =
+      spec.caseValue match {
+        case SuiteCase(label, specs, exec) =>
+          specs.foldCauseM(
+            c => ZIO.succeedNow(Some(Spec.suite(label, ZIO.haltNow(c), exec))),
+            ZIO.foreach(_)(loop).map(_.toVector.flatten).map { specs =>
+              if (specs.isEmpty) None
+              else Some(Spec.suite(label, ZIO.succeedNow(specs), exec))
+            }
+          )
+        case t @ TestCase(_, _, annotations) =>
+          if (f(annotations.get(key))) ZIO.succeedNow(Some(Spec(t)))
+          else ZIO.succeedNow(None)
+      }
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        Some(Spec.suite(label, specs.flatMap(ZIO.foreach(_)(loop).map(_.toVector.flatten)), exec))
+      case t @ TestCase(_, _, annotations) =>
+        if (f(annotations.get(key))) Some(Spec(t))
+        else None
+    }
+  }
+
+  /**
    * Returns a new spec with only those suites and tests satisfying the
    * specified predicate. If a suite label satisfies the predicate the entire
    * suite will be included in the new spec. Otherwise only those specs in a
@@ -130,29 +160,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * returns `Some` with an empty suite with the root label if this is a suite
    * or `None` otherwise.
    */
-  final def filterTags(f: String => Boolean): Option[Spec[R, E, T]] = {
-    def loop(spec: Spec[R, E, T]): URIO[R, Option[Spec[R, E, T]]] =
-      spec.caseValue match {
-        case SuiteCase(label, specs, exec) =>
-          specs.foldCauseM(
-            c => ZIO.succeedNow(Some(Spec.suite(label, ZIO.haltNow(c), exec))),
-            ZIO.foreach(_)(loop).map(_.toVector.flatten).map { specs =>
-              if (specs.isEmpty) None
-              else Some(Spec.suite(label, ZIO.succeedNow(specs), exec))
-            }
-          )
-        case t @ TestCase(_, _, annotations) =>
-          if (annotations.get(TestAnnotation.tagged).exists(f)) ZIO.succeedNow(Some(Spec(t)))
-          else ZIO.succeedNow(None)
-      }
-    caseValue match {
-      case SuiteCase(label, specs, exec) =>
-        Some(Spec.suite(label, specs.flatMap(ZIO.foreach(_)(loop).map(_.toVector.flatten)), exec))
-      case t @ TestCase(_, _, annotations) =>
-        if (annotations.get(TestAnnotation.tagged).exists(f)) Some(Spec(t))
-        else None
-    }
-  }
+  final def filterTags(f: String => Boolean): Option[Spec[R, E, T]] =
+    filterAnnotations(TestAnnotation.tagged)(_.exists(f))
 
   /**
    * Folds over all nodes to produce a final result.

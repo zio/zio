@@ -99,6 +99,15 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * Annotates tests with the specified test annotation.
+   */
+  def annotate[V](key: TestAnnotation[V], value: V): TestAspectPoly =
+    new TestAspectPoly {
+      def some[R, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
+        spec.annotate(key, value)
+    }
+
+  /**
    * Constructs an aspect that evaluates every test between two effects,
    * `before` and `after`,  where the result of `before` can be used in
    * `after`.
@@ -540,11 +549,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * Annotates tests with string tags.
    */
-  def tag(tag: String, tags: String*): TestAspectAtLeastR[Annotations] =
-    new TestAspect[Nothing, Annotations, Nothing, Any] {
-      def some[R <: Annotations, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.annotate(TestAnnotation.tagged, Set(tag) union tags.toSet)
-    }
+  def tag(tag: String, tags: String*): TestAspectPoly =
+    annotate(TestAnnotation.tagged, Set(tag) union tags.toSet)
 
   /**
    * Annotates tests with their execution times.
