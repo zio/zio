@@ -48,7 +48,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
             specs
               .flatMap(ZIO.foreach(_)(traverse(_, suiteDesc, path :+ label.toString)))
               .ignore
-        case TestCase(label, _) =>
+        case TestCase(label, _, _) =>
           effectTotal(description.addChild(testDescription(label.toString, path)))
       }
 
@@ -105,7 +105,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
       )
     def loop(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =
       specCase match {
-        case TestCase(label, test) => TestCase(label, instrumentTest(label, path, test))
+        case TestCase(label, test, annotations) => TestCase(label, instrumentTest(label, path, test), annotations)
         case SuiteCase(label, specs, es) =>
           @silent("inferred to be `Any`")
           val instrumented =
