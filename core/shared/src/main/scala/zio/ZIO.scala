@@ -3202,6 +3202,13 @@ object ZIO {
       zio.provideSome[R2](r2 => r2.add(r1))
   }
 
+  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1 <: Has[_]](
+      layer: ZLayer[R0, E1, R1]
+    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R0]): ZIO[R0, E1, A] =
+      self.provideSome[R0 with R1](ev).provideLayer[E1, R0, R0 with R1](layer ++ ZLayer.identity[R0])
+  }
+
   implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
 
     /**
@@ -3233,13 +3240,6 @@ object ZIO {
   final class IfM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, A](onTrue: ZIO[R1, E1, A], onFalse: ZIO[R1, E1, A]): ZIO[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
-  }
-
-  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
-      layer: ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R0]): ZIO[R0, E1, A] =
-      self.provideSome[R0 with R1](ev).provideLayer(layer ++ ZLayer.identity[R0])
   }
 
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
