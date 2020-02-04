@@ -92,6 +92,24 @@ package object test extends CompileVariants {
    */
   type ZTest[-R, +E] = ZIO[R, TestFailure[E], TestSuccess]
 
+  object ZTest {
+
+    /**
+     * Builds a test with an effectual assertion.
+     */
+    def apply[R, E](assertion: => ZIO[R, E, TestResult]): ZIO[R, TestFailure[E], TestSuccess] =
+      ZIO
+        .effectSuspendTotal(assertion)
+        .foldCauseM(
+          cause => ZIO.failNow(TestFailure.Runtime(cause)),
+          result =>
+            result.run.flatMap(_.failures match {
+              case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
+              case Some(failures) => ZIO.failNow(TestFailure.Assertion(BoolAlgebraM(ZIO.succeedNow(failures))))
+            })
+        )
+  }
+
   /**
    * A `ZSpec[R, E]` is the canonical spec for testing ZIO programs. The spec's
    * test type is a ZIO effect that requires an `R` and might fail with an `E`.
@@ -359,20 +377,7 @@ package object test extends CompileVariants {
    * Builds a spec with a single effectful test.
    */
   def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E] =
-    Spec.test(
-      label,
-      ZIO
-        .effectSuspendTotal(assertion)
-        .foldCauseM(
-          cause => ZIO.failNow(TestFailure.Runtime(cause)),
-          result =>
-            result.run.flatMap(_.failures match {
-              case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-              case Some(failures) => ZIO.failNow(TestFailure.Assertion(BoolAlgebraM(ZIO.succeedNow(failures))))
-            })
-        ),
-      TestAnnotationMap.empty
-    )
+    Spec.test(label, ZTest(assertion), TestAnnotationMap.empty)
 
   /**
    * Passes version specific information to the specified function, which will
