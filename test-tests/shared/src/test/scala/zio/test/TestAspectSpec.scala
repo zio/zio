@@ -232,7 +232,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         } @@ timeout(10.milliseconds, 1.nanosecond) @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
         result <- isSuccess(spec.provideLayer(liveClock))
       } yield assert(result)(isTrue)
-    },
+    } @@ flaky,
     testM("verify verifies the specified post-condition after each test is run") {
       for {
         ref <- Ref.make(false)
