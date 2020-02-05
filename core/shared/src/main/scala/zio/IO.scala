@@ -483,6 +483,12 @@ object IO {
     ZIO.interruptibleMask(k)
 
   /**
+   * @see See [[zio.ZIO.iterate]]
+   */
+  def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => IO[E, S]): IO[E, S] =
+    ZIO.iterate(initial)(cont)(body)
+
+  /**
    *  @see See [[zio.ZIO.left]]
    */
   def left[E, A](a: => A): IO[E, Either[A, Nothing]] = ZIO.left(a)
@@ -492,6 +498,18 @@ object IO {
    */
   def lock[E, A](executor: => Executor)(io: IO[E, A]): IO[E, A] =
     ZIO.lock(executor)(io)
+
+  /**
+   *  @see See [[zio.ZIO.loop]]
+   */
+  def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, A]): IO[E, List[A]] =
+    ZIO.loop(initial)(cont, inc)(body)
+
+  /**
+   *  @see See [[zio.ZIO.loop_]]
+   */
+  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, Any]): IO[E, Unit] =
+    ZIO.loop_(initial)(cont, inc)(body)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]

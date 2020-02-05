@@ -887,18 +887,6 @@ object ZSTM {
     suspend(if (p) STM.unit else retry)
 
   /**
-   * The moral equivalent of `if (p) exp`
-   */
-  def when[R, E](b: => Boolean)(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    suspend(if (b) stm.unit else unit)
-
-  /**
-   * The moral equivalent of `if (p) exp` when `p` has side-effects
-   */
-  def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    b.flatMap(b => if (b) stm.unit else unit)
-
-  /**
    * Collects all the transactional effects in a list, returning a single
    * transactional effect that produces a list of values.
    */
@@ -990,6 +978,63 @@ object ZSTM {
     new ZSTM.IfM(b)
 
   /**
+   * Iterates with the specified transactional function. The moral equivalent
+   * of:
+   *
+   * {{{
+   * var s = initial
+   *
+   * while (cont(s)) {
+   *   s = body(s)
+   * }
+   *
+   * s
+   * }}}
+   */
+  def iterate[R, E, S](initial: S)(cont: S => Boolean)(body: S => ZSTM[R, E, S]): ZSTM[R, E, S] =
+    if (cont(initial)) body(initial).flatMap(iterate(_)(cont)(body))
+    else ZSTM.succeedNow(initial)
+
+  /**
+   * Loops with the specified transactional function, collecting the results
+   * into a list. The moral equivalent of:
+   *
+   * {{{
+   * var s  = initial
+   * var as = List.empty[A]
+   *
+   * while (cont(s)) {
+   *   as = body(s) :: as
+   *   s  = inc(s)
+   * }
+   *
+   * as.reverse
+   * }}}
+   */
+  def loop[R, E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => ZSTM[R, E, A]): ZSTM[R, E, List[A]] =
+    if (cont(initial))
+      body(initial).flatMap(a => loop(inc(initial))(cont, inc)(body).map(as => a :: as))
+    else
+      ZSTM.succeedNow(List.empty[A])
+
+  /**
+   * Loops with the specified transactional function purely for its
+   * transactional effects. The moral equivalent of:
+   *
+   * {{{
+   * val s = initial
+   *
+   * while (cont(s)) {
+   *   body(s)
+   *   inc(s)
+   * }
+   * }}}
+   */
+  def loop_[R, E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    if (cont(initial)) body(initial) *> loop_(inc(initial))(cont, inc)(body)
+    else ZSTM.unit
+
+  /**
    * Creates an `STM` value from a partial (but pure) function.
    */
   def partial[A](a: => A): STM[Throwable, A] = fromTry(Try(a))
@@ -1016,6 +1061,18 @@ object ZSTM {
    * Returns an `STM` effect that succeeds with `Unit`.
    */
   val unit: STM[Nothing, Unit] = succeedNow(())
+
+  /**
+   * The moral equivalent of `if (p) exp`
+   */
+  def when[R, E](b: => Boolean)(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    suspend(if (b) stm.unit else unit)
+
+  /**
+   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   */
+  def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    b.flatMap(b => if (b) stm.unit else unit)
 
   private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
     succeedNow(throw t)
