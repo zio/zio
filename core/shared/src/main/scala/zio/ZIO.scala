@@ -112,6 +112,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     mapError(new ZIO.ConstFn(() => e1))
 
   /**
+   * Maps the success value of this effect to an optional value.
+   */
+  final def asSome: ZIO[R, E, Option[A]] =
+    map(Some(_))
+
+  /**
+   * Maps the error value of this effect to an optional value.
+   */
+  final def asSomeError: ZIO[R, Option[E], A] =
+    mapError(Some(_))
+
+  /**
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
