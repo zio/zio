@@ -121,6 +121,18 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self mapError (_ => e)
 
   /**
+   * Maps the success value of this effect to an optional value.
+   */
+  final def asSome: ZSTM[R, E, Option[A]] =
+    map(Some(_))
+
+  /**
+   * Maps the error value of this effect to an optional value.
+   */
+  final def asSomeError: ZSTM[R, Option[E], A] =
+    mapError(Some(_))
+
+  /**
    * Simultaneously filters and maps the value produced by this effect.
    */
   def collect[B](pf: PartialFunction[A, B]): ZSTM[R, E, B] =

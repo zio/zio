@@ -163,6 +163,18 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def asError[E1](e1: => E1): ZManaged[R, E1, A] = mapError(_ => e1)
 
   /**
+   * Maps the success value of this effect to an optional value.
+   */
+  final def asSome: ZManaged[R, E, Option[A]] =
+    map(Some(_))
+
+  /**
+   * Maps the error value of this effect to an optional value.
+   */
+  final def asSomeError: ZManaged[R, Option[E], A] =
+    mapError(Some(_))
+
+  /**
    * Executes the this effect and then provides its output as an environment to the second effect
    */
   def andThen[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] = self >>> that
