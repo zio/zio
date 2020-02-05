@@ -218,7 +218,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
-  def ignore: ZSTM[R, Nothing, Unit] = self.either.unit
+  def ignore: ZSTM[R, Nothing, Unit] = self.fold(_ => (), _ => ())
 
   /**
    * Maps the value produced by the effect.
