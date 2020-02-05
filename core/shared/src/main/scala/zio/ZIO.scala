@@ -1396,7 +1396,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * then combining the values to produce a summary, together with the result of
    * execution.
    */
-  final def summarized[R1 <: R, E1 >: E, B, C](f: (B, B) => C)(summary: ZIO[R1, E1, B]): ZIO[R1, E1, (C, A)] =
+  final def summarized[R1 <: R, E1 >: E, B, C](summary: ZIO[R1, E1, B])(f: (B, B) => C): ZIO[R1, E1, (C, A)] =
     for {
       start <- summary
       value <- self
@@ -1458,7 +1458,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * A more powerful variation of `timed` that allows specifying the clock.
    */
   final def timedWith[R1 <: R, E1 >: E](nanoTime: ZIO[R1, E1, Long]): ZIO[R1, E1, (Duration, A)] =
-    summarized[R1, E1, Long, Duration]((start, end) => Duration.fromNanos(end - start))(nanoTime)
+    summarized(nanoTime)((start, end) => Duration.fromNanos(end - start))
 
   /**
    * Returns an effect that will timeout this effect, returning `None` if the
