@@ -158,7 +158,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         ) {
           for {
             tvar <- TRef.makeCommit(42)
-            join <- tvar.get.filter(_ == 42).commit
+            join <- tvar.get.retryUntil(_ == 42).commit
             _    <- tvar.set(9).commit
             v    <- tvar.get.commit
           } yield assert(v)(equalTo(9)) && assert(join)(equalTo(42))
@@ -194,7 +194,7 @@ object ZSTMSpec extends ZIOBaseSpec {
               receiver  <- TRef.makeCommit(0)
               _         <- transfer(receiver, sender, 150).fork
               _         <- sender.update(_ + 100).commit
-              _         <- sender.get.filter(_ == 50).commit
+              _         <- sender.get.retryUntil(_ == 50).commit
               senderV   <- sender.get.commit
               receiverV <- receiver.get.commit
             } yield assert(senderV)(equalTo(50)) && assert(receiverV)(equalTo(150))
