@@ -152,7 +152,7 @@ def transfer(tSender: TRef[Int],
              amount: Int): UIO[Int] = {
   STM.atomically {
     for {
-      _ <- tSender.get.filter(_ >= amount)
+      _ <- tSender.get.retryUntil(_ >= amount)
       _ <- tSender.update(_ - amount)
       nAmount <- tReceiver.updateAndGet(_ + amount)
     } yield nAmount
@@ -163,7 +163,7 @@ val transferredMoney: UIO[String] = for {
   tSender <- TRef.makeCommit(50)
   tReceiver <- TRef.makeCommit(100)
   _ <- transfer(tSender, tReceiver, 50).fork
-  _ <- tSender.get.filter(_ == 0).commit
+  _ <- tSender.get.retryUntil(_ == 0).commit
   tuple2 <- tSender.get.zip(tReceiver.get).commit
   (senderBalance, receiverBalance) = tuple2
 } yield s"sender: $senderBalance & receiver: $receiverBalance"

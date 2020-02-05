@@ -183,15 +183,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
     fold(_ => a, identity)
 
   /**
-   * Filters the value produced by this effect, retrying the transaction until
-   * the predicate returns true for the value.
-   */
-  def filter(f: A => Boolean): ZSTM[R, E, A] =
-    collect {
-      case a if f(a) => a
-    }
-
-  /**
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
@@ -358,6 +349,24 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
+   * Filters the value produced by this effect, retrying the transaction until
+   * the predicate returns true for the value.
+   */
+  def retryUntil(f: A => Boolean): ZSTM[R, E, A] =
+    collect {
+      case a if f(a) => a
+    }
+
+  /**
+   * Filters the value produced by this effect, retrying the transaction while
+   * the predicate returns true for the value.
+   */
+  def retryWhile(f: A => Boolean): ZSTM[R, E, A] =
+    collect {
+      case a if !f(a) => a
+    }
+
+  /**
    * "Peeks" at the success of transactional effect.
    */
   def tap[R1 <: R, E1 >: E](f: A => ZSTM[R1, E1, Any]): ZSTM[R1, E1, A] =
@@ -369,11 +378,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def unit: ZSTM[R, E, Unit] = as(())
 
   /**
-   * Same as [[filter]]
-   */
-  def withFilter(f: A => Boolean): ZSTM[R, E, A] = filter(f)
-
-  /**
    * The moral equivalent of `if (p) exp`
    */
   def when(b: Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
@@ -382,6 +386,11 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   def whenM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] = ZSTM.whenM(b)(self)
+
+  /**
+   * Same as [[retryUntil]].
+   */
+  def withFilter(f: A => Boolean): ZSTM[R, E, A] = retryUntil(f)
 
   /**
    * Named alias for `<*>`.
