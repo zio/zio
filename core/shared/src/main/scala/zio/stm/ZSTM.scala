@@ -104,6 +104,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self flatMap f
 
   /**
+   * Tries this effect first, and if it fails, tries the other effect.
+   */
+  def <>[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1])(implicit ev: CanFail[E]): ZSTM[R1, E1, A1] =
+    orElse(that)
+
+  /**
    * Maps the success value of this effect to the specified constant value.
    */
   def as[B](b: => B): ZSTM[R, E, B] = self map (_ => b)
@@ -247,7 +253,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
     fold(_ => None, Some(_))
 
   /**
-   * Tries this effect first, and if it fails, tries the other effect.
+   * Named alias for `<>`.
    */
   def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1])(implicit ev: CanFail[E]): ZSTM[R1, E1, A1] =
     new ZSTM(
