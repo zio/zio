@@ -174,15 +174,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Filters the value produced by this effect, retrying the transaction until
    * the predicate returns true for the value.
    */
-  def filter(f: A => Boolean): ZSTM[R, E, A] =
-    collect {
-      case a if f(a) => a
-    }
-
-  /**
-   * Filters the value produced by this effect, retrying the transaction until
-   * the predicate returns true for the value.
-   */
   def retryUntil(f: A => Boolean): ZSTM[R, E, A] =
     collect {
       case a if f(a) => a
@@ -373,11 +364,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Maps the success value of this effect to unit.
    */
   def unit: ZSTM[R, E, Unit] = as(())
-
-  /**
-   * Same as [[filter]]
-   */
-  def withFilter(f: A => Boolean): ZSTM[R, E, A] = filter(f)
 
   /**
    * The moral equivalent of `if (p) exp`
