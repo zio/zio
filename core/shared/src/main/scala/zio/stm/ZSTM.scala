@@ -171,24 +171,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
     fold(_ => a, identity)
 
   /**
-   * Filters the value produced by this effect, retrying the transaction until
-   * the predicate returns true for the value.
-   */
-  def retryUntil(f: A => Boolean): ZSTM[R, E, A] =
-    collect {
-      case a if f(a) => a
-    }
-
-  /**
-   * Filters the value produced by this effect, retrying the transaction while
-   * the predicate returns true for the value.
-   */
-  def retryWhile(f: A => Boolean): ZSTM[R, E, A] =
-    collect {
-      case a if !f(a) => a
-    }
-
-  /**
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
@@ -353,6 +335,24 @@ final class ZSTM[-R, +E, +A] private[stm] (
         }
       }
     )
+
+  /**
+   * Filters the value produced by this effect, retrying the transaction until
+   * the predicate returns true for the value.
+   */
+  def retryUntil(f: A => Boolean): ZSTM[R, E, A] =
+    collect {
+      case a if f(a) => a
+    }
+
+  /**
+   * Filters the value produced by this effect, retrying the transaction while
+   * the predicate returns true for the value.
+   */
+  def retryWhile(f: A => Boolean): ZSTM[R, E, A] =
+    collect {
+      case a if !f(a) => a
+    }
 
   /**
    * "Peeks" at the success of transactional effect.
