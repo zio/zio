@@ -1338,6 +1338,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.failNow, ZIO.succeedNow)
 
+  /**
+   * Converts an option on values into an option on errors.
+   */
   final def some[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], B] =
     self.foldM(
       e => ZIO.failNow(Some(e)),
