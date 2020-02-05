@@ -4,8 +4,6 @@ import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
 import zio.Cause._
-import zio.Cause._
-import zio.LatchOps._
 import zio.LatchOps._
 import zio.clock.Clock
 import zio.duration._
@@ -2631,7 +2629,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           counter   <- Ref.make(0)
           increment = counter.updateAndGet(_ + 1)
-          result    <- increment.summarized((a: Int, b: Int) => (a, b))(increment)
+          result    <- increment.summarized(increment)((_, _))
         } yield {
           val ((start, end), value) = result
           assert(start)(equalTo(1)) &&
