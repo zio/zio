@@ -405,6 +405,15 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield assert(e)(equalTo(())) && assert(v)(equalTo(0))
       }
     ),
+    suite("commitEither")(
+      testM("commits this transaction whether it is a success or a failure") {
+        for {
+          tvar <- TRef.makeCommit(false)
+          e    <- (tvar.set(true) *> STM.failNow("Error!")).commitEither.flip
+          v    <- tvar.get.commit
+        } yield assert(e)(equalTo("Error!")) && assert(v)(isTrue)
+      }
+    ),
     suite("orElse must")(
       testM("rollback left retry") {
         import zio.CanFail.canFail
