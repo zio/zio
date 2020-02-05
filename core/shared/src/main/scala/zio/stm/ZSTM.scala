@@ -143,6 +143,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def commit: ZIO[R, E, A] = ZSTM.atomically(self)
 
   /**
+   * Commits this transaction atomically, regardless of whether the transaction
+   * is a success or a failure.
+   */
+  def commitEither: ZIO[R, E, A] =
+    either.commit.absolve
+
+  /**
    * Converts the failure channel into an `Either`.
    */
   def either(implicit ev: CanFail[E]): ZSTM[R, Nothing, Either[E, A]] =
