@@ -168,6 +168,24 @@ object Managed {
   val interrupt: Managed[Nothing, Nothing] = ZManaged.interrupt
 
   /**
+   * See [[zio.ZManaged.iterate]]
+   */
+  def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => Managed[E, S]): Managed[E, S] =
+    ZManaged.iterate(initial)(cont)(body)
+
+  /**
+   * See [[zio.ZManaged.loop]]
+   */
+  def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Managed[E, A]): Managed[E, List[A]] =
+    ZManaged.loop(initial)(cont, inc)(body)
+
+  /**
+   * See [[zio.ZManaged.loop_]]
+   */
+  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.loop_(initial)(cont, inc)(body)
+
+  /**
    * See [[zio.ZManaged.make]]
    */
   def make[E, A](acquire: IO[E, A])(release: A => UIO[Any]): Managed[E, A] =

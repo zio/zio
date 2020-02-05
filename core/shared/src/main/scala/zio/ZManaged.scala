@@ -1393,6 +1393,66 @@ object ZManaged {
     halt(Cause.interrupt(fiberId))
 
   /**
+   * Iterates with the specified effectual function. The moral equivalent of:
+   *
+   * {{{
+   * var s = initial
+   *
+   * while (cont(s)) {
+   *   s = body(s)
+   * }
+   *
+   * s
+   * }}}
+   */
+  def iterate[R, E, S](initial: S)(cont: S => Boolean)(body: S => ZManaged[R, E, S]): ZManaged[R, E, S] =
+    if (cont(initial)) body(initial).flatMap(iterate(_)(cont)(body))
+    else ZManaged.succeedNow(initial)
+
+  /**
+   * Loops with the specified effectual function, collecting the results into a
+   * list. The moral equivalent of:
+   *
+   * {{{
+   * var s  = initial
+   * var as = List.empty[A]
+   *
+   * while (cont(s)) {
+   *   as = body(s) :: as
+   *   s  = inc(s)
+   * }
+   *
+   * as.reverse
+   * }}}
+   */
+  def loop[R, E, A, S](
+    initial: S
+  )(cont: S => Boolean, inc: S => S)(body: S => ZManaged[R, E, A]): ZManaged[R, E, List[A]] =
+    if (cont(initial))
+      body(initial).flatMap(a => loop(inc(initial))(cont, inc)(body).map(as => a :: as))
+    else
+      ZManaged.succeedNow(List.empty[A])
+
+  /**
+   * Loops with the specified effectual function purely for its effects. The
+   * moral equivalent of:
+   *
+   * {{{
+   * val s = initial
+   *
+   * while (cont(s)) {
+   *   body(s)
+   *   inc(s)
+   * }
+   * }}}
+   */
+  def loop_[R, E, S](
+    initial: S
+  )(cont: S => Boolean, inc: S => S)(body: S => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+    if (cont(initial)) body(initial) *> loop_(inc(initial))(cont, inc)(body)
+    else ZManaged.unit
+
+  /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action.
    * The acquire and release actions will be performed uninterruptibly.
    */

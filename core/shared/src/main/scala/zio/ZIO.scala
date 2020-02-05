@@ -2682,6 +2682,23 @@ object ZIO {
     checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).interruptible)
 
   /**
+   * Iterates with the specified effectual function. The moral equivalent of:
+   *
+   * {{{
+   * var s = initial
+   *
+   * while (cont(s)) {
+   *   s = body(s)
+   * }
+   *
+   * s
+   * }}}
+   */
+  def iterate[R, E, S](initial: S)(cont: S => Boolean)(body: S => ZIO[R, E, S]): ZIO[R, E, S] =
+    if (cont(initial)) body(initial).flatMap(iterate(_)(cont)(body))
+    else ZIO.succeedNow(initial)
+
+  /**
    *  Returns an effect with the value on the left part.
    */
   def left[A](a: => A): UIO[Either[A, Nothing]] =
@@ -2694,6 +2711,45 @@ object ZIO {
    */
   def lock[R, E, A](executor: => Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
     ZIO.effectSuspendTotal(new ZIO.Lock(executor, zio))
+
+  /**
+   * Loops with the specified effectual function, collecting the results into a
+   * list. The moral equivalent of:
+   *
+   * {{{
+   * var s  = initial
+   * var as = List.empty[A]
+   *
+   * while (cont(s)) {
+   *   as = body(s) :: as
+   *   s  = inc(s)
+   * }
+   *
+   * as.reverse
+   * }}}
+   */
+  def loop[R, E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, A]): ZIO[R, E, List[A]] =
+    if (cont(initial))
+      body(initial).flatMap(a => loop(inc(initial))(cont, inc)(body).map(as => a :: as))
+    else
+      ZIO.succeedNow(List.empty[A])
+
+  /**
+   * Loops with the specified effectual function purely for its effects. The
+   * moral equivalent of:
+   *
+   * {{{
+   * val s = initial
+   *
+   * while (cont(s)) {
+   *   body(s)
+   *   inc(s)
+   * }
+   * }}}
+   */
+  def loop_[R, E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    if (cont(initial)) body(initial) *> loop_(inc(initial))(cont, inc)(body)
+    else ZIO.unit
 
   /**
    * Sequentially zips the specified effects using the specified combiner
