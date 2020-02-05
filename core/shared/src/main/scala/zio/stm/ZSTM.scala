@@ -376,6 +376,11 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def whenM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] = ZSTM.whenM(b)(self)
 
   /**
+   * Same as [[retryUntil]].
+   */
+  def withFilter(f: A => Boolean): ZSTM[R, E, A] = retryUntil(f)
+
+  /**
    * Named alias for `<*>`.
    */
   def zip[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
