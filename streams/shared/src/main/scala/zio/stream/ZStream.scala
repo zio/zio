@@ -1036,6 +1036,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   def collectWhile[B](pf: PartialFunction[A, B]): ZStream[R, E, B] =
     collectWhileM(pf.andThen(ZIO.succeedNow(_)))
 
+  /**
+   * Effectfully transforms all elements of the stream for as long as the specified partial function is defined.
+   */
   final def collectWhileM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZIO[R1, E1, B]]): ZStream[R1, E1, B] =
     ZStream[R1, E1, B] {
       for {
