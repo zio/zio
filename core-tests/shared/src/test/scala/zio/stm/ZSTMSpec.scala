@@ -22,7 +22,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.succeedNow(Right(42)).absolve.commit)(equalTo(42))
         },
         testM("A successful Left computation into the error channel") {
-          assertM(STM.succeedNow(Left("oh no!")).absolve.commit)(fails(equalTo("oh no!")))
+          assertM(STM.succeedNow(Left("oh no!")).absolve.commit.run)(fails(equalTo("oh no!")))
         }
       ),
       suite("`bimap` when")(
@@ -31,9 +31,25 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.succeedNow(1).bimap(_ => -1, s => s"$s as string").commit)(equalTo("1 as string"))
         },
         testM("having a fail value") {
-          assertM(STM.failNow(-1).bimap(s => s"$s as string", _ => 0).commit)(fails(equalTo("-1 as string")))
+          assertM(STM.failNow(-1).bimap(s => s"$s as string", _ => 0).commit.run)(fails(equalTo("-1 as string")))
         }
       ),
+      testM("`doWhile` to run effect while it satisfies predicate") {
+        val r = for {
+          a <- TQueue.bounded[Int](5).commit
+          _ <- a.offerAll(List(0, 0, 0, 1, 2)).commit
+          b <- a.take.doWhile(_ == 0).commit
+        } yield b
+        assertM(r)(equalTo(1))
+      },
+      testM("`doUntil` to run effect until it satisfies predicate") {
+        val r = for {
+          a <- TQueue.bounded[Int](5).commit
+          _ <- a.offerAll(List(0, 0, 0, 1, 2)).commit
+          b <- a.take.doUntil(_ == 1).commit
+        } yield b
+        assertM(r)(equalTo(1))
+      },
       suite("`either` to convert")(
         testM("A successful computation into Right(a)") {
           import zio.CanFail.canFail
