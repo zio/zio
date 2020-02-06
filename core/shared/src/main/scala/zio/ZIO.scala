@@ -127,7 +127,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZIO[R, E2, B] = mapError(f).map(g)
+  final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZIO[R, E2, B] =
+    foldM(e => ZIO.failNow(f(e)), a => ZIO.succeedNow(g(a)))
 
   /**
    * Shorthand for the uncurried version of `ZIO.bracket`.
