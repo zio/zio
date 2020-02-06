@@ -97,7 +97,7 @@ object Take {
 
   /**
    * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with the `Take[E, A]`.
-   * Error from stream when pulling is converted to `Take.Fail`, termination to `Take.End`.
+   * Error from stream when pulling is converted to `Take.Fail`, end of stream to `Take.End`.
    */
   def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
     pull.foldCause(
