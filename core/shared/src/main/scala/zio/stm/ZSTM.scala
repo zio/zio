@@ -110,6 +110,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
     orElse(that)
 
   /**
+   * Returns an effect that submerges the error case of an `Either` into the
+   * `STM`. The inverse operation of `STM.either`.
+   */
+  final def absolve[R1 <: R, E1, B](implicit ev1: ZSTM[R, E, A] <:< ZSTM[R1, E1, Either[E1, B]]): ZSTM[R1, E1, B] =
+    ZSTM.absolve[R1, E1, B](ev1(self))
+
+  /**
    * Maps the success value of this effect to the specified constant value.
    */
   def as[B](b: => B): ZSTM[R, E, B] = self map (_ => b)
@@ -131,6 +138,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   final def asSomeError: ZSTM[R, Option[E], A] =
     mapError(Some(_))
+
+  /**
+   * Returns an `STM` effect whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, E2, B] =
+    mapError(f).map(g)
 
   /**
    * Simultaneously filters and maps the value produced by this effect.
@@ -160,6 +174,18 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def commitEither: ZIO[R, E, A] =
     either.commit.absolve
+
+  /**
+   * Repeats this `STM` effect until its result satisfies the specified predicate.
+   */
+  final def doUntil(f: A => Boolean): ZSTM[R, E, A] =
+    flatMap(a => if (!f(a)) doUntil(f) else ZSTM.succeedNow(a))
+
+  /**
+   * Repeats this `STM` effect while its result satisfies the specified predicate.
+   */
+  final def doWhile(f: A => Boolean): ZSTM[R, E, A] =
+    flatMap(a => if (f(a)) doWhile(f) else ZSTM.succeedNow(a))
 
   /**
    * Converts the failure channel into an `Either`.
@@ -857,6 +883,13 @@ object ZSTM {
   }
 
   import internal._
+
+  /**
+   * Submerges the error case of an `Either` into the `STM`. The inverse
+   * operation of `IO.either`.
+   */
+  def absolve[R, E, A](z: ZSTM[R, E, Either[E, A]]): ZSTM[R, E, A] =
+    z.flatMap(fromEither)
 
   /**
    * Accesses the environment of the transaction.
