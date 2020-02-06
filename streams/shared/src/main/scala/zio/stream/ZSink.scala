@@ -1303,6 +1303,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     }.map(_._1.reverse)
 
   /**
+   * Creates a sink which emits the number of elements processed
+   */
+  def count[A]: ZSink[Any, Nothing, Nothing, A, Long] =
+    foldLeft[A, Long](0L) {
+      case (accum, _) => accum + 1L
+    }
+
+  /**
    * Creates a sink halting with the specified `Throwable`.
    */
   def die(e: => Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
@@ -1834,6 +1842,17 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       def extractPure(state: State)    = Right((b, state))
       def cont(state: State)           = false
     }
+
+  /**
+   * Creates a sink which sums elements, provided they are Numeric
+   */
+  def sum[A](implicit ev: Numeric[A]): ZSink[Any, Nothing, Nothing, A, A] = {
+    val numeric = ev
+    foldLeft(numeric.zero) {
+      case (acc, a) =>
+        numeric.plus(acc, a)
+    }
+  }
 
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters

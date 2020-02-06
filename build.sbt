@@ -326,7 +326,7 @@ lazy val benchmarks = project.module
         "org.ow2.asm"               % "asm"            % "7.3.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"            % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"   % "2.0.0",
+        "org.typelevel"             %% "cats-effect"   % "2.1.0",
         "org.scalacheck"            %% "scalacheck"    % "1.14.3",
         "hedgehog"                  %% "hedgehog-core" % "0.1.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % "0.9.0"
@@ -370,7 +370,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC7",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC2",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC3",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
       "dev.zio"             %% "zio-macros-core"             % "0.6.2",
       "dev.zio"             %% "zio-macros-test"             % "0.6.0"

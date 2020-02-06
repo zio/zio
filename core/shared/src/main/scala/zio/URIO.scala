@@ -260,15 +260,33 @@ object URIO {
     ZIO.foldRight(in)(zero)(f)
 
   /**
-   * @see [[zio.ZIO.foreach]]
+   * @see [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
   def foreach[R, A, B](in: Iterable[A])(f: A => URIO[R, B]): URIO[R, List[B]] =
     ZIO.foreach(in)(f)
 
   /**
-   * @see [[zio.ZIO.foreachPar]]
+   * @see [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
+   */
+  final def foreach[R, A, B](in: Option[A])(f: A => URIO[R, B]): URIO[R, Option[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see [[[zio.ZIO.foreach[R,E,A,B](in:zio\.Chunk*]]]
+   */
+  final def foreach[R, A, B](in: Chunk[A])(f: A => URIO[R, B]): URIO[R, Chunk[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[R, A, B](as: Iterable[A])(fn: A => URIO[R, B]): URIO[R, List[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.Chunk*]]]
+   */
+  final def foreachPar[R, A, B](as: Chunk[A])(fn: A => URIO[R, B]): URIO[R, Chunk[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -278,15 +296,27 @@ object URIO {
     ZIO.foreachParN(n)(as)(fn)
 
   /**
-   * @see [[zio.ZIO.foreach_]]
+   * @see [[[zio.ZIO.foreach_[R,E,A](as:Iterable*]]]
    */
   def foreach_[R, A](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
-   * @see [[zio.ZIO.foreachPar_]]
+   * @see [[[zio.ZIO.foreach_[R,E,A](as:zio\.Chunk*]]]
+   */
+  final def foreach_[R, A](as: Chunk[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+    ZIO.foreach_(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar_[R,E,A](as:Iterable*]]]
    */
   def foreachPar_[R, A, B](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+    ZIO.foreachPar_(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar_[R,E,A](as:zio\.Chunk*]]]
+   */
+  final def foreachPar_[R, A, B](as: Chunk[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
@@ -354,6 +384,12 @@ object URIO {
   def identity[R]: URIO[R, R] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifM]]
+   */
+  def ifM[R](b: URIO[R, Boolean]): ZIO.IfM[R, Nothing] =
+    new ZIO.IfM(b)
+
+  /**
    * @see [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
@@ -376,10 +412,28 @@ object URIO {
     ZIO.interruptibleMask(k)
 
   /**
+   * @see See [[zio.ZIO.iterate]]
+   */
+  def iterate[R, S](initial: S)(cont: S => Boolean)(body: S => URIO[R, S]): URIO[R, S] =
+    ZIO.iterate(initial)(cont)(body)
+
+  /**
    * @see [[zio.ZIO.lock]]
    */
   def lock[R, A](executor: => Executor)(taskr: URIO[R, A]): URIO[R, A] =
     ZIO.lock(executor)(taskr)
+
+  /**
+   *  @see See [[zio.ZIO.loop]]
+   */
+  def loop[R, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, A]): URIO[R, List[A]] =
+    ZIO.loop(initial)(cont, inc)(body)
+
+  /**
+   *  @see See [[zio.ZIO.loop_]]
+   */
+  def loop_[R, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, Any]): URIO[R, Unit] =
+    ZIO.loop_(initial)(cont, inc)(body)
 
   /**
    *  @see [[zio.ZIO.left]]

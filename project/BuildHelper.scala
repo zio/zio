@@ -53,7 +53,7 @@ object BuildHelper {
       buildInfoObject := "BuildInfo"
     )
 
-  val dottyVersion = "0.22.0-bin-20200116-9ab1842-NIGHTLY"
+  val dottyVersion = "0.22.0-RC1"
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
