@@ -31,7 +31,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.succeedNow(1).bimap(_ => -1, s => s"$s as string").commit)(equalTo("1 as string"))
         },
         testM("having a fail value") {
-          assertM(STM.failNow(-1).bimap(s => s"$s as string", _ => -1).commit)(equalTo("-1 as string"))
+          assertM(STM.failNow(-1).bimap(s => s"$s as string", _ => 0).commit)(fails(equalTo("-1 as string")))
         }
       ),
       suite("`either` to convert")(
