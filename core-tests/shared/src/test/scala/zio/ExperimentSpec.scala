@@ -124,6 +124,25 @@ object ExperimentSpec extends DefaultRunnableSpec {
         _      <- env.use_(ZIO.unit)
         actual <- ref.get
       } yield assert(actual)(equalTo(expected))
+    },
+    testM("three layers") {
+      val expected = Vector(
+        "Acquiring Module 1",
+        "Acquiring Module 2",
+        "Acquiring Module 3",
+        "Releasing Module 3",
+        "Releasing Module 2",
+        "Releasing Module 1"
+      )
+      for {
+        ref    <- makeRef
+        layer1 = makeLayer1(ref)
+        layer2 = makeLayer2(ref)
+        layer3 = makeLayer3(ref)
+        env    = (layer1 >>> layer2 >>> layer3).build
+        _      <- env.use_(ZIO.unit)
+        actual <- ref.get
+      } yield assert(actual)(equalTo(expected))
     }
   )
 

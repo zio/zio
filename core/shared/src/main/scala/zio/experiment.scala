@@ -10,36 +10,42 @@ object Experiment {
         Managed {
           for {
             ref <- Ref.make[Exit[Any, Any] => ZIO[Any, Nothing, Any]](_ => ZIO.unit)
-            managed = ZIO.succeed { (map: MemoMap) =>
+            zio = ZIO.succeed { (map: MemoMap) =>
               for {
-                l <- map.get(self).toManaged_.flatMap {
-                      case None =>
-                        self.value.mapM(_(map).reserve).flatMap {
-                          case Reservation(acquire, release) =>
-                            acquire.flatMap(a => map.memoize(self, a).as(a)).toManaged_ <* ZIO
-                              .environment[RIn]
-                              .flatMap(env => ref.update(finalizer => e => release(e).provide(env) *> finalizer(e)))
-                              .toManaged_
-                        }
-                      case Some(service) => ZManaged.succeed(service)
-                    }
-                r <- map.get(that).toManaged_.flatMap {
-                      case None =>
-                        that.value
-                          .mapM(_(map).reserve)
-                          .flatMap {
+                l <- map
+                      .get(self)
+                      .flatMap {
+                        case None =>
+                          self.value.flatMap(_(map)).reserve.flatMap {
                             case Reservation(acquire, release) =>
-                              acquire.flatMap(a => map.memoize(that, a).as(a)).toManaged_ <* ZIO
-                                .environment[ROut]
+                              acquire.flatMap(a => map.memoize(self, a).as(a)) <* ZIO
+                                .environment[RIn]
                                 .flatMap(env => ref.update(finalizer => e => release(e).provide(env) *> finalizer(e)))
-                                .toManaged_
                           }
-                          .provide(l)
-                      case Some(service) => ZManaged.succeed(service)
-                    }
+                        case Some(service) => ZIO.succeed(service)
+                      }
+                      .toManaged_
+                r <- map
+                      .get(that)
+                      .flatMap {
+                        case None =>
+                          that.value
+                            .flatMap(_(map))
+                            .reserve
+                            .flatMap {
+                              case Reservation(acquire, release) =>
+                                acquire.flatMap(a => map.memoize(that, a).as(a)) <* ZIO
+                                  .environment[ROut]
+                                  .flatMap(env => ref.update(finalizer => e => release(e).provide(env) *> finalizer(e)))
+                            }
+                            .provide(l)
+
+                        case Some(service) => ZIO.succeed(service)
+                      }
+                      .toManaged_
               } yield r
             }
-          } yield Reservation(managed, e => ref.get.flatMap(_(e)))
+          } yield Reservation(zio, e => ref.get.flatMap(_(e)))
         }
       }
 
@@ -52,28 +58,32 @@ object Experiment {
             ref <- Ref.make[Exit[Any, Any] => ZIO[Any, Nothing, Any]](_ => ZIO.unit)
             managed: UIO[MemoMap => ZManaged[RIn with RIn2, E1, ROut1 with ROut2]] = ZIO.succeed { (map: MemoMap) =>
               for {
-                l <- map.get(self).toManaged_.flatMap {
-                      case None =>
-                        self.value.mapM(_(map).reserve).flatMap {
-                          case Reservation(acquire, release) =>
-                            acquire.flatMap(a => map.memoize(self, a).as(a)).toManaged_ <* ZIO
-                              .environment[RIn]
-                              .flatMap(env => ref.update(finalizer => e => release(e).provide(env) *> finalizer(e)))
-                              .toManaged_
-                        }
-                      case Some(service) => ZManaged.succeed(service)
-                    }
-                r <- map.get(that).toManaged_.flatMap {
-                      case None =>
-                        that.value.mapM(_(map).reserve).flatMap {
-                          case Reservation(acquire, release) =>
-                            acquire.flatMap(a => map.memoize(that, a).as(a)).toManaged_ <* ZIO
-                              .environment[RIn2]
-                              .flatMap(env => ref.update(finalizer => e => release(e).provide(env) *> finalizer(e)))
-                              .toManaged_
-                        }
-                      case Some(service) => ZManaged.succeed(service)
-                    }
+                l <- map
+                      .get(self)
+                      .flatMap {
+                        case None =>
+                          self.value.flatMap(_(map)).reserve.flatMap {
+                            case Reservation(acquire, release) =>
+                              acquire.flatMap(a => map.memoize(self, a).as(a)) <* ZIO
+                                .environment[RIn]
+                                .flatMap(env => ref.update(finalizer => e => release(e).provide(env) *> finalizer(e)))
+                          }
+                        case Some(service) => ZIO.succeed(service)
+                      }
+                      .toManaged_
+                r <- map
+                      .get(that)
+                      .flatMap {
+                        case None =>
+                          that.value.flatMap(_(map)).reserve.flatMap {
+                            case Reservation(acquire, release) =>
+                              acquire.flatMap(a => map.memoize(that, a).as(a)) <* ZIO
+                                .environment[RIn2]
+                                .flatMap(env => ref.update(finalizer => e => release(e).provide(env) *> finalizer(e)))
+                          }
+                        case Some(service) => ZIO.succeed(service)
+                      }
+                      .toManaged_
               } yield l.union[ROut2](r)
             }
           } yield Reservation(managed, e => ref.get.flatMap(_(e)))
