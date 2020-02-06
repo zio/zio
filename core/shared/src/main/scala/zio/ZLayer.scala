@@ -177,13 +177,13 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified service.
    */
-  def fromServiceM[A: Tagged, R <: Has[_], E, B <: Has[_]](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
+  def fromServiceM[A: Tagged, R, E, B <: Has[_]](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
     ZLayer(ZManaged.fromEffect(ZIO.accessM[R with Has[A]](m => f(m.get[A]))))
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tagged, A1: Tagged, R <: Has[_], E, B <: Has[_]](
+  def fromServicesM[A0: Tagged, A1: Tagged, R, E, B <: Has[_]](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] =
     ZLayer(ZManaged.fromEffect {
@@ -197,7 +197,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, R <: Has[_], E, B <: Has[_]](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
     ZLayer(ZManaged.fromEffect {
@@ -212,7 +212,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R <: Has[_], E, B <: Has[_]](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
     ZLayer(ZManaged.fromEffect {
@@ -228,7 +228,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R <: Has[_], E, B <: Has[_]](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
     ZLayer(ZManaged.fromEffect {
