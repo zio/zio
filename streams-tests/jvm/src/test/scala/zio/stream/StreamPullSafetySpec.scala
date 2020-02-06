@@ -194,6 +194,32 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )
       )
     },
+    testM("Stream.collectM is safe to pull again") {
+      Stream(1, 2, 3, 4, 5, 7)
+        .mapM(n => if (n % 2 == 0) IO.failNow(s"Ouch $n") else UIO.succeedNow(n))
+        .collectM {
+          case 1 => UIO.succeedNow(1)
+          case 3 => IO.fail(s"Collect ouch 3")
+          case 5 => UIO.succeedNow(5)
+        }
+        .process
+        .use(nPulls(_, 7))
+        .map(
+          assert(_)(
+            equalTo(
+              List(
+                Right(1),
+                Left(Some("Ouch 2")),
+                Left(Some("Collect ouch 3")),
+                Left(Some("Ouch 4")),
+                Right(5),
+                Left(None),
+                Left(None)
+              )
+            )
+          )
+        )
+    },
     suite("Stream.collectWhile")(
       testM("ZStream#collectWhile is safe to pull again") {
         Stream(1, 2, 3, 4, 5, 7, 9)
