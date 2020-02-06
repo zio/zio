@@ -50,7 +50,7 @@ object Experiment {
         ZManaged {
           for {
             ref <- Ref.make[Exit[Any, Any] => ZIO[Any, Nothing, Any]](_ => ZIO.unit)
-            managed = ZIO.succeed { (map: MemoMap) =>
+            managed: UIO[MemoMap => ZManaged[RIn with RIn2, E1, ROut1 with ROut2]] = ZIO.succeed { (map: MemoMap) =>
               for {
                 l <- map.get(self).toManaged_.flatMap {
                       case None =>
@@ -74,7 +74,7 @@ object Experiment {
                         }
                       case Some(service) => ZManaged.succeed(service)
                     }
-              } yield l.union(r)
+              } yield l.union[ROut2](r)
             }
           } yield Reservation(managed, e => ref.get.flatMap(_(e)))
         }
