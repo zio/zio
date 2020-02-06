@@ -194,6 +194,65 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )
       )
     },
+    suite("Stream.collectWhile")(
+      testM("ZStream#collectWhile is safe to pull again") {
+        Stream(1, 2, 3, 4, 5, 7, 9)
+          .mapM(n => if (n % 2 == 0) IO.failNow(s"Ouch $n") else UIO.succeedNow(n))
+          .collectWhile {
+            case n if n < 6 => n
+          }
+          .process
+          .use(nPulls(_, 7))
+          .map(
+            assert(_)(
+              equalTo(
+                List(
+                  Right(1),
+                  Left(Some("Ouch 2")),
+                  Right(3),
+                  Left(Some("Ouch 4")),
+                  Right(5),
+                  Left(None),
+                  Left(None)
+                )
+              )
+            )
+          )
+      },
+      testM("StreamEffect#collectWhile is safe to pull again") {
+        val stream = StreamEffect[Any, String, Int] {
+          Managed.effectTotal {
+            var counter = 0
+
+            () => {
+              counter += 1
+              if (counter >= 6) StreamEffect.end[Int]
+              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              else counter
+            }
+          }
+        }
+
+        stream.collectWhile {
+          case n if n < 5 => n
+        }.process
+          .use(nPulls(_, 6))
+          .map(
+            assert(_)(
+              equalTo(
+                List(
+                  Right(1),
+                  Left(Some("Ouch 2")),
+                  Right(3),
+                  Left(Some("Ouch 4")),
+                  Left(None),
+                  Left(None)
+                )
+              )
+            )
+          )
+      }
+    ),
     testM("Stream.collectWhileM is safe to pull again") {
       Stream(1, 2, 3, 4, 5, 7, 9)
         .mapM(n => if (n % 2 == 0) IO.failNow(s"Ouch $n") else UIO.succeedNow(n))
