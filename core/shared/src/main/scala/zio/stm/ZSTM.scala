@@ -495,8 +495,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
 }
 
 object ZSTM {
-
-
   import internal._
 
   /**
@@ -540,14 +538,14 @@ object ZSTM {
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
-  def check(p: => Boolean): STM[Nothing, Unit] =
+  def check[R](p: => Boolean): ZSTM[R, Nothing, Unit] =
     suspend(if (p) STM.unit else retry)
 
   /**
    * Collects all the transactional effects in a list, returning a single
    * transactional effect that produces a list of values.
    */
-  def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
+  def collectAll[R, E, A](i: Iterable[STM[E, A]]): ZSTM[R, E, List[A]] =
     i.foldRight[STM[E, List[A]]](STM.succeedNow(Nil))(_.zipWith(_)(_ :: _))
 
   /**
@@ -560,18 +558,20 @@ object ZSTM {
    * Kills the fiber running the effect with a `RuntimeException` that contains
    * the specified message.
    */
-  def dieMessage(m: => String): STM[Nothing, Nothing] = die(new RuntimeException(m))
+  def dieMessage(m: => String): STM[Nothing, Nothing] =
+    die(new RuntimeException(m))
 
   /**
    * Returns a value modelled on provided exit status.
    */
-  def done[E, A](exit: => TExit[E, A]): STM[E, A] =
+  def done[R, E, A](exit: => TExit[E, A]): ZSTM[R, E, A] =
     suspend(doneNow(exit))
 
   /**
    * Retrieves the environment inside an stm.
    */
-  def environment[R]: ZSTM[R, Nothing, R] = new ZSTM((_, _, _, r) => TExit.Succeed(r))
+  def environment[R]: ZSTM[R, Nothing, R] =
+    new ZSTM((_, _, _, r) => TExit.Succeed(r))
 
   /**
    * Returns a value that models failure in the transaction.
@@ -588,7 +588,7 @@ object ZSTM {
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces a new `List[B]`.
    */
-  def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+  def foreach[R, E, A, B](as: Iterable[A])(f: A => STM[E, B]): ZSTM[R, E, List[B]] =
     collectAll(as.map(f))
 
   /**
@@ -598,11 +598,11 @@ object ZSTM {
    * Equivalent to `foreach(as)(f).unit`, but without the cost of building
    * the list of results.
    */
-  def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
-    STM.succeedNow(as.iterator).flatMap { it =>
-      def loop: STM[E, Unit] =
+  def foreach_[R, E, A, B](as: Iterable[A])(f: A => STM[E, B]): ZSTM[R, E, Unit] =
+    ZSTM.succeedNow(as.iterator).flatMap[R, E, Unit] { it =>
+      def loop: ZSTM[R, E, Unit] =
         if (it.hasNext) f(it.next) *> loop
-        else STM.unit
+        else ZSTM.unit
       loop
     }
 
