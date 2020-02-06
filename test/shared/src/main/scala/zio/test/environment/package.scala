@@ -90,8 +90,8 @@ package object environment extends PlatformSpecific {
 
   val liveEnvironment: ZLayer.NoDeps[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironmentManaged: ZManaged[ZEnv, Nothing, TestEnvironment] =
-    TestEnvironment.live.value
+  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
+    (ZEnv.live >>> TestEnvironment.live).build
 
   /**
    * Provides an effect with the "real" environment as opposed to the test
@@ -341,8 +341,6 @@ package object environment extends PlatformSpecific {
           new Scheduler.Service {
             override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
               sleep(duration) *> task
-            override def shutdown: UIO[Unit] =
-              UIO.unit
           }
         }
 

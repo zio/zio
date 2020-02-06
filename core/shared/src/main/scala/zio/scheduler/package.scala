@@ -28,40 +28,31 @@ package object scheduler {
 
     trait Service extends Serializable {
       def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A]
-      def shutdown: UIO[Unit]
     }
 
     val any: ZLayer[Scheduler, Nothing, Scheduler] =
       ZLayer.requires[Scheduler]
 
-    val live: ZLayer.NoDeps[Nothing, Scheduler] =
+    val defaultScheduler: Scheduler.Service =
       fromIScheduler(globalScheduler)
 
-    val defaultScheduler: Managed[Nothing, Scheduler.Service] =
-      live.build.map(_.get)
+    val live: ZLayer.NoDeps[Nothing, Scheduler] =
+      ZLayer.succeed(defaultScheduler)
 
     /**
      * Creates a new `Scheduler` from a Java `ScheduledExecutorService`.
      */
-    final def fromScheduledExecutorService(service: ScheduledExecutorService): ZLayer.NoDeps[Nothing, Scheduler] =
+    final def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler.Service =
       fromIScheduler(IScheduler.fromScheduledExecutorService(service))
 
-    private[zio] def fromIScheduler(scheduler: IScheduler): ZLayer.NoDeps[Nothing, Scheduler] = {
-
-      val service = new Scheduler.Service {
+    private[zio] def fromIScheduler(scheduler: IScheduler): Scheduler.Service =
+      new Scheduler.Service {
         def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
           ZIO.effectAsyncInterrupt { cb =>
             val canceler = scheduler.schedule(() => cb(task), duration)
             Left(ZIO.effectTotal(canceler()))
           }
-        def shutdown: UIO[Unit] =
-          UIO.effectTotal(scheduler.shutdown())
       }
-
-      ZLayer.fromManaged(Managed.make(UIO.effectTotal(Has(service))) { scheduler =>
-        UIO.effectTotal(scheduler.get.shutdown)
-      })
-    }
   }
 
   def scheduler: ZIO[Scheduler, Nothing, Scheduler.Service] =

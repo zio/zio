@@ -21,7 +21,7 @@ import scala.deprecated
 import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
-import zio.test.environment._
+import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem }
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -323,7 +323,7 @@ package object test extends CompileVariants {
    * A `Runner` that provides a default testable environment.
    */
   val defaultTestRunner: TestRunner[TestEnvironment, Any, String, Any, Any] =
-    TestRunner(TestExecutor.managed(liveEnvironment, testEnvironmentManaged))
+    TestRunner(TestExecutor.managed(testEnvironmentManaged))
 
   /**
    * Creates a failed test result with the specified runtime cause.

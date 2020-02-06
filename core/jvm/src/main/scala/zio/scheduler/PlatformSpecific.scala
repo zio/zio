@@ -24,7 +24,7 @@ import zio.internal.{ IScheduler, NamedThreadFactory }
 private[scheduler] trait PlatformSpecific {
   import IScheduler.CancelToken
 
-  private[scheduler] def globalScheduler = new IScheduler {
+  private[scheduler] val globalScheduler = new IScheduler {
 
     private[this] val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
 
@@ -48,8 +48,5 @@ private[scheduler] trait PlatformSpecific {
           canceled
         }
     }
-
-    override def shutdown(): Unit =
-      service.shutdown()
   }
 }

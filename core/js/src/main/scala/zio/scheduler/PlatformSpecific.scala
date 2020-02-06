@@ -46,8 +46,5 @@ private[scheduler] trait PlatformSpecific {
           !completed
         }
     }
-
-    override def shutdown(): Unit =
-      ()
   }
 }

@@ -8,7 +8,6 @@ import zio.internal.IScheduler.CancelToken
 
 private[zio] trait IScheduler {
   def schedule(task: Runnable, duration: Duration): CancelToken
-  def shutdown(): Unit
 }
 
 private[zio] object IScheduler {
@@ -32,8 +31,5 @@ private[zio] object IScheduler {
 
           () => future.cancel(true)
       }
-
-      override def shutdown(): Unit =
-        service.shutdown()
     }
 }
