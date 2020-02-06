@@ -34,6 +34,14 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.failNow(-1).bimap(s => s"$s as string", _ => 0).commit.run)(fails(equalTo("-1 as string")))
         }
       ),
+      testM("catchAll errors") {
+        val tx =
+          for {
+            _ <- ZSTM.failNow("Uh oh!")
+            f <- ZSTM.succeedNow("everything is fine")
+          } yield f
+        assertM(tx.catchAll(s => ZSTM.succeed(s"$s phew")).commit)(equalTo("Uh oh! phew"))
+      },
       testM("`doWhile` to run effect while it satisfies predicate") {
         (for {
           a <- TQueue.bounded[Int](5)
@@ -57,6 +65,21 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.failNow("oh no!").either.commit)(isLeft(equalTo("oh no!")))
         }
       ),
+      testM("`eventually` succeeds") {
+        def effect(ref: TRef[Int]) =
+          for {
+            n <- ref.get
+            r <- if (n < 10) ref.update(_ + 1) *> ZSTM.failNow("Ouch")
+                else ZSTM.succeedNow(n)
+          } yield r
+
+        val tx = for {
+          ref <- TRef.make(0)
+          n   <- effect(ref).eventually
+        } yield n
+
+        assertM(tx.commit)(equalTo(10))
+      },
       suite("fallback")(
         testM("Tries this effect first") {
           import zio.CanFail.canFail
@@ -102,6 +125,17 @@ object ZSTMSpec extends ZIOBaseSpec {
           val onFalse: ZSTM[R1, E1, A] = ZSTM.succeedNow(new A {})
           val _                        = ZSTM.ifM(b)(onTrue, onFalse)
           ZIO.succeed(assertCompletes)
+        }
+      ),
+      testM("`flatMapError` to flatMap from one error to another") {
+        assertM(STM.failNow(-1).flatMapError(s => STM.succeedNow(s"log: $s")).commit.run)(fails(equalTo("log: -1")))
+      },
+      suite("`flattenErrorOption`")(
+        testM("with an existing error and return it") {
+          assertM(STM.failNow(Some("oh no!")).flattenErrorOption("default error").commit.run)(fails(equalTo("oh no!")))
+        },
+        testM("`with no error and default to value") {
+          assertM(STM.failNow(None).flattenErrorOption("default error").commit.run)(fails(equalTo("default error")))
         }
       ),
       testM("`mapError` to map from one error to another") {

@@ -168,7 +168,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Recovers from all errors.
    */
   final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZSTM[R1, E2, A1])(implicit ev: CanFail[E]): ZSTM[R1, E2, A1] =
-    foldM(h, ZSTM.succeedNow)
+    foldM[R1, E2, A1](h, ZSTM.succeedNow)
 
   /**
    * Simultaneously filters and maps the value produced by this effect.
@@ -257,7 +257,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * one that may depend on the error produced by this one.
    */
   final def flatMapError[R1 <: R, E2](f: E => ZSTM[R1, Nothing, E2])(implicit ev: CanFail[E]): ZSTM[R1, E2, A] =
-    flipWith(_ flatMap f)
+    foldM(e => f(e).flip, ZSTM.succeedNow)
 
   /**
    * Flattens out a nested `STM` effect.
