@@ -3555,7 +3555,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): ZStream[R0, E1, A] =
-      self.provideSome[R0 with R1](ev).provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   private[zio] def dieNow(ex: Throwable): Stream[Nothing, Nothing] =

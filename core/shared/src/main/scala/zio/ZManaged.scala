@@ -1092,7 +1092,7 @@ object ZManaged {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): ZManaged[R0, E1, A] =
-      self.provideSome[R0 with R1](ev).provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   trait Scope {
