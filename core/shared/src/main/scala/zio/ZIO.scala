@@ -952,6 +952,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZIO[R0, E, A] =
     ZIO.accessM(r0 => self.provide(f(r0)))
 
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
+   *
+   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
   final def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
     new ZIO.ProvideSomeLayer[R0, R, E, A](self)
 
@@ -3205,8 +3217,8 @@ object ZIO {
   final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R0]): ZIO[R0, E1, A] =
-      self.provideSome[R0 with R1](ev).provideLayer[E1, R0, R0 with R1](layer ++ ZLayer.identity[R0])
+    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): ZIO[R0, E1, A] =
+      self.provideSome[R0 with R1](ev).provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {

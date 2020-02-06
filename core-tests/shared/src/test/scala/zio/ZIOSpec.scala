@@ -1154,11 +1154,10 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("provideSomeLayer")(
       testM("can split environment into two parts") {
-        lazy val clockLayer: ZLayer[Any, Nothing, Clock]    = ???
-        lazy val zio: ZIO[Clock with Random, Nothing, Unit] = ???
-        lazy val zio2: ZIO[Random, Nothing, Unit]           = zio.provideSomeLayer[Random](clockLayer)
-        lazy val _                                          = zio2
-        ZIO.succeed(assertCompletes)
+        val clockLayer: ZLayer[Any, Nothing, Clock]    = Scheduler.live >>> Clock.live
+        val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
+        val zio2: ZIO[Random, Nothing, Unit]           = zio.provideSomeLayer[Random](clockLayer)
+        assertM(zio2)(anything)
       }
     ),
     suite("raceAll")(

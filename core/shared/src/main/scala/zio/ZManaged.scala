@@ -669,6 +669,21 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), e => r.release(e).provideSome(f))))
 
   /**
+   * Splits the environment into two parts, providing one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
+    new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
+
+  /**
    * An effectful version of `provideSome`, useful when the act of partial
    * provision requires an effect.
    *
@@ -1059,6 +1074,13 @@ object ZManaged {
 
   trait PreallocationScope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
+  }
+
+  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1 <: Has[_]](
+      layer: ZLayer[R0, E1, R1]
+    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): ZManaged[R0, E1, A] =
+      self.provideSome[R0 with R1](ev).provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   trait Scope {
