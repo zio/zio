@@ -292,15 +292,33 @@ object IO {
     ZIO.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[zio.ZIO.foreach]]
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
   def foreach[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[E, List[B]] =
     ZIO.foreach(in)(f)
 
   /**
-   * @see See [[zio.ZIO.foreachPar]]
+   * @see See [[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
+   */
+  final def foreach[E, A, B](in: Option[A])(f: A => IO[E, B]): IO[E, Option[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.Chunk*]]]
+   */
+  final def foreach[E, A, B](in: Chunk[A])(f: A => IO[E, B]): IO[E, Chunk[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.Chunk*]]]
+   */
+  final def foreachPar[E, A, B](as: Chunk[A])(fn: A => IO[E, B]): IO[E, Chunk[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -310,15 +328,27 @@ object IO {
     ZIO.foreachParN(n)(as)(fn)
 
   /**
-   * @see See [[zio.ZIO.foreach_]]
+   * @see See [[[zio.ZIO.foreach_[R,E,A](as:Iterable*]]]
    */
   def foreach_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
-   * @see See [[zio.ZIO.foreachPar_]]
+   * @see See [[[zio.ZIO.foreach_[R,E,A](as:zio\.Chunk*]]]
+   */
+  final def foreach_[E, A](as: Chunk[A])(f: A => IO[E, Any]): IO[E, Unit] =
+    ZIO.foreach_(as)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:Iterable*]]]
    */
   def foreachPar_[E, A, B](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+    ZIO.foreachPar_(as)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:zio\.Chunk*]]]
+   */
+  final def foreachPar_[E, A, B](as: Chunk[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
@@ -413,6 +443,12 @@ object IO {
   def identity: IO[Nothing, Any] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifM]]
+   */
+  def ifM[E](b: IO[E, Boolean]): ZIO.IfM[Any, E] =
+    new ZIO.IfM(b)
+
+  /**
    * @see See See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
@@ -447,6 +483,12 @@ object IO {
     ZIO.interruptibleMask(k)
 
   /**
+   * @see See [[zio.ZIO.iterate]]
+   */
+  def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => IO[E, S]): IO[E, S] =
+    ZIO.iterate(initial)(cont)(body)
+
+  /**
    *  @see See [[zio.ZIO.left]]
    */
   def left[E, A](a: => A): IO[E, Either[A, Nothing]] = ZIO.left(a)
@@ -456,6 +498,18 @@ object IO {
    */
   def lock[E, A](executor: => Executor)(io: IO[E, A]): IO[E, A] =
     ZIO.lock(executor)(io)
+
+  /**
+   *  @see See [[zio.ZIO.loop]]
+   */
+  def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, A]): IO[E, List[A]] =
+    ZIO.loop(initial)(cont, inc)(body)
+
+  /**
+   *  @see See [[zio.ZIO.loop_]]
+   */
+  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, Any]): IO[E, Unit] =
+    ZIO.loop_(initial)(cont, inc)(body)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]

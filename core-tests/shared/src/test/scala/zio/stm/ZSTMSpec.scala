@@ -52,6 +52,28 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield (s, f)
         assertM(stm.commit)(equalTo(("Yes!", "No!")))
       },
+      suite("ifM")(
+        testM("runs `onTrue` if result of `b` is `true`") {
+          val transaction = ZSTM.ifM(ZSTM.succeedNow(true))(ZSTM.succeedNow(true), ZSTM.succeedNow(false))
+          assertM(transaction.commit)(isTrue)
+        },
+        testM("runs `onFalse` if result of `b` is `false`") {
+          val transaction = ZSTM.ifM(ZSTM.succeedNow(false))(ZSTM.succeedNow(true), ZSTM.succeedNow(false))
+          assertM(transaction.commit)(isFalse)
+        },
+        testM("infers correctly") {
+          trait R
+          trait R1 extends R
+          trait E1
+          trait E extends E1
+          trait A
+          val b: ZSTM[R, E, Boolean]   = ZSTM.succeedNow(true)
+          val onTrue: ZSTM[R1, E1, A]  = ZSTM.succeedNow(new A {})
+          val onFalse: ZSTM[R1, E1, A] = ZSTM.succeedNow(new A {})
+          val _                        = ZSTM.ifM(b)(onTrue, onFalse)
+          ZIO.succeed(assertCompletes)
+        }
+      ),
       testM("`mapError` to map from one error to another") {
         assertM(STM.failNow(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
       },
@@ -136,7 +158,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         ) {
           for {
             tvar <- TRef.makeCommit(42)
-            join <- tvar.get.filter(_ == 42).commit
+            join <- tvar.get.retryUntil(_ == 42).commit
             _    <- tvar.set(9).commit
             v    <- tvar.get.commit
           } yield assert(v)(equalTo(9)) && assert(join)(equalTo(42))
@@ -172,7 +194,7 @@ object ZSTMSpec extends ZIOBaseSpec {
               receiver  <- TRef.makeCommit(0)
               _         <- transfer(receiver, sender, 150).fork
               _         <- sender.update(_ + 100).commit
-              _         <- sender.get.filter(_ == 50).commit
+              _         <- sender.get.retryUntil(_ == 50).commit
               senderV   <- sender.get.commit
               receiverV <- receiver.get.commit
             } yield assert(senderV)(equalTo(50)) && assert(receiverV)(equalTo(150))
@@ -383,6 +405,15 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield assert(e)(equalTo(())) && assert(v)(equalTo(0))
       }
     ),
+    suite("commitEither")(
+      testM("commits this transaction whether it is a success or a failure") {
+        for {
+          tvar <- TRef.makeCommit(false)
+          e    <- (tvar.set(true) *> STM.failNow("Error!")).commitEither.flip
+          v    <- tvar.get.commit
+        } yield assert(e)(equalTo("Error!")) && assert(v)(isTrue)
+      }
+    ),
     suite("orElse must")(
       testM("rollback left retry") {
         import zio.CanFail.canFail
@@ -413,6 +444,28 @@ object ZSTMSpec extends ZIOBaseSpec {
                      newVal2 <- ref.get
                    } yield (newVal1, newVal2))
         } yield assert(result)(equalTo(2 -> 2))
+      }
+    ),
+    suite("orElseFail")(
+      testM("tries this effect first") {
+        import zio.CanFail.canFail
+        val transaction = ZSTM.succeedNow(true).orElseFail(false)
+        assertM(transaction.commit)(isTrue)
+      },
+      testM("if it fails, fails with the specified error") {
+        val transaction = ZSTM.failNow(false).orElseFail(true).fold(identity, _ => false)
+        assertM(transaction.commit)(isTrue)
+      }
+    ),
+    suite("orElseSucceed")(
+      testM("tries this effect first") {
+        import zio.CanFail.canFail
+        val transaction = ZSTM.succeedNow(true).orElseSucceed(false)
+        assertM(transaction.commit)(isTrue)
+      },
+      testM("if it succeeds, succeeds with the specified value") {
+        val transaction = ZSTM.failNow(false).orElseSucceed(true)
+        assertM(transaction.commit)(isTrue)
       }
     ),
     suite("when combinators")(
@@ -528,7 +581,20 @@ object ZSTMSpec extends ZIOBaseSpec {
         ans <- ZSTM.collectAll(List(tq.take, tq.take, tq.take))
       } yield ans
       assertM(tx.commit)(equalTo(List(1, 2, 3)))
-    }
+    },
+    suite("taps")(
+      testM("tap should apply the transactional function to the effect result while keeping the effect itself") {
+        val tx =
+          for {
+            refA <- TRef.make(10)
+            refB <- TRef.make(0)
+            a    <- refA.get.tap(v => refB.set(v + 1))
+            b    <- refB.get
+          } yield (a, b)
+
+        assertM(tx.commit)(equalTo((10, 11)))
+      }
+    )
   )
 
   trait STMEnv {

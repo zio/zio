@@ -107,6 +107,64 @@ object STM {
     ZSTM.fromTry(a)
 
   /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
+  def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
+    new ZSTM.IfM(b)
+
+  /**
+   * Iterates with the specified transactional function. The moral equivalent
+   * of:
+   *
+   * {{{
+   * var s = initial
+   *
+   * while (cont(s)) {
+   *   s = body(s)
+   * }
+   *
+   * s
+   * }}}
+   */
+  def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => STM[E, S]): STM[E, S] =
+    ZSTM.iterate(initial)(cont)(body)
+
+  /**
+   * Loops with the specified transactional function, collecting the results
+   * into a list. The moral equivalent of:
+   *
+   * {{{
+   * var s  = initial
+   * var as = List.empty[A]
+   *
+   * while (cont(s)) {
+   *   as = body(s) :: as
+   *   s  = inc(s)
+   * }
+   *
+   * as.reverse
+   * }}}
+   */
+  def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, A]): STM[E, List[A]] =
+    ZSTM.loop(initial)(cont, inc)(body)
+
+  /**
+   * Loops with the specified transactional function purely for its
+   * transactional effects. The moral equivalent of:
+   *
+   * {{{
+   * var s = initial
+   *
+   * while (cont(s)) {
+   *   body(s)
+   *   s = inc(s)
+   * }
+   * }}}
+   */
+  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, Any]): STM[E, Unit] =
+    ZSTM.loop_(initial)(cont, inc)(body)
+
+  /**
    * Creates an `STM` value from a partial (but pure) function.
    */
   def partial[A](a: => A): STM[Throwable, A] =

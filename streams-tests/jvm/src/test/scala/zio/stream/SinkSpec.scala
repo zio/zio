@@ -226,6 +226,21 @@ object SinkSpec extends ZIOBaseSpec {
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
         }
       ),
+      suite("count")(
+        testM("ints") {
+          checkM(Gen.listOfN(30)(Gen.anyInt)) { (ints: List[Int]) =>
+            val stream = Stream.fromIterable(ints)
+            assertM(stream.runCount <&> stream.run(Sink.count))(equalTo((30L, 30L)))
+          }
+        },
+        testM("foos") {
+          case class Foo()
+          checkM(Gen.listOfN(10)(Gen.const(Foo()))) { (foos: List[Foo]) =>
+            val stream = Stream.fromIterable(foos)
+            assertM(stream.runCount <&> stream.run(Sink.count))(equalTo((10L, 10L)))
+          }
+        }
+      ),
       suite("dimap")(
         testM("happy path") {
           val sink = ZSink.identity[Int].dimap[String, String](_.toInt)(_.toString.reverse)
@@ -1233,6 +1248,26 @@ object SinkSpec extends ZIOBaseSpec {
               .mapConcatChunk(identity)
               .runCollect
           )(equalTo(List("abc", "abc")))
+        }
+      ),
+      suite("sum")(
+        testM("Long") {
+          checkM(Gen.listOfN(10)(Gen.anyLong)) { longs =>
+            val stream = Stream.fromIterable(longs)
+            (assertM(stream.run(ZSink.sum[Long]) <&> stream.runSum)(equalTo((longs.sum, longs.sum))))
+          }
+        },
+        testM("Int") {
+          checkM(Gen.listOfN(10)(Gen.anyInt)) { ints =>
+            val stream = Stream.fromIterable(ints)
+            (assertM(stream.run(ZSink.sum[Int]) <&> stream.runSum)(equalTo((ints.sum, ints.sum))))
+          }
+        },
+        testM("Double") {
+          checkM(Gen.listOfN(10)(Gen.anyDouble)) { doubles =>
+            val stream = Stream.fromIterable(doubles)
+            assertM(stream.run(ZSink.sum[Double]) <&> stream.runSum)(equalTo((doubles.sum, doubles.sum)))
+          }
         }
       ),
       suite("throttleEnforce")(

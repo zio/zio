@@ -23,16 +23,13 @@ import zio.{ UIO, URIO }
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-trait RunnableSpec[R, E, L, T, S] extends AbstractRunnableSpec {
+trait RunnableSpec[R, E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
-  override type Label       = L
-  override type Test        = T
-  override type Success     = S
 
   private val runSpec: URIO[TestLogger with Clock, Int] = for {
     results     <- run
-    hasFailures <- results.exists { case TestCase(_, test) => test.map(_._1.isLeft); case _ => UIO.succeedNow(false) }
+    hasFailures <- results.exists { case TestCase(_, test, _) => test.map(_.isLeft); case _ => UIO.succeedNow(false) }
     summary     <- SummaryBuilder.buildSummary(results)
     _           <- TestLogger.logLine(summary.summary)
   } yield if (hasFailures) 1 else 0

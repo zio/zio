@@ -4,8 +4,6 @@ import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
 import zio.Cause._
-import zio.Cause._
-import zio.LatchOps._
 import zio.LatchOps._
 import zio.clock.Clock
 import zio.duration._
@@ -455,6 +453,22 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(sum)(equalTo(30))
       }
     ),
+    suite("foreach for Option")(
+      testM("succeeds with None given None") {
+        val task: UIO[Option[Int]] = IO.foreach(None)((str: String) => IO.succeed(str.length))
+        assertM(task)(isNone)
+      },
+      testM("succeeds with Some given Some") {
+        for {
+          optRes <- IO.foreach(Some("success"))(str => IO.succeed(str.length))
+        } yield assert(optRes)(equalTo(Some(7)))
+      },
+      testM("fails if the optional effect fails") {
+        val opt = Some("h")
+        val res = IO.foreach(opt)(x => IO.effectTotal[Int](x.toInt))
+        assertM(res.run)(dies(isSubtype[NumberFormatException](anything)))
+      }
+    ),
     suite("foreachPar")(
       testM("runs single task") {
         val as = List(2)
@@ -523,10 +537,22 @@ object ZIOSpec extends ZIOBaseSpec {
         val res  = IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt))
         assertM(res)(equalTo(List(1, 2, 3)))
       },
+      testM("returns results in the same order for Chunk") {
+        val chunk = Chunk("1", "2", "3")
+        val res   = IO.foreachPar(chunk)(x => IO.effectTotal[Int](x.toInt))
+        assertM(res)(equalTo(Chunk(1, 2, 3)))
+      },
       testM("runs effects in parallel") {
         assertM(for {
           p <- Promise.make[Nothing, Unit]
           _ <- UIO.foreachPar(List(UIO.never, p.succeed(())))(a => a).fork
+          _ <- p.await
+        } yield true)(isTrue)
+      },
+      testM("runs effects in parallel for Chunk") {
+        assertM(for {
+          p <- Promise.make[Nothing, Unit]
+          _ <- UIO.foreachPar(Chunk(UIO.never, p.succeed(()), UIO.never))(a => a).fork
           _ <- p.await
         } yield true)(isTrue)
       },
@@ -576,6 +602,15 @@ object ZIOSpec extends ZIOBaseSpec {
           rs  <- ref.get
         } yield assert(rs)(hasSize(equalTo(as.length))) &&
           assert(rs.toSet)(equalTo(as.toSet))
+      },
+      testM("runs all effects for Chunk") {
+        val as = Chunk(1, 2, 3, 4, 5)
+        for {
+          ref <- Ref.make(Seq.empty[Int])
+          _   <- ZIO.foreachPar_(as)(a => ref.update(_ :+ a))
+          rs  <- ref.get
+        } yield assert(rs)(hasSize(equalTo(as.length))) &&
+          assert(rs.toSet)(equalTo(as.toList.toSet))
       },
       testM("completes on empty input") {
         ZIO.foreachPar_(Nil)(_ => ZIO.unit).as(assertCompletes)
@@ -724,6 +759,28 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.failNow("Fail").head.either)(isLeft(isSome(equalTo("Fail"))))
       }
     ),
+    suite("ifM")(
+      testM("runs `onTrue` if result of `b` is `true`") {
+        val zio = ZIO.ifM(ZIO.succeedNow(true))(ZIO.succeedNow(true), ZIO.succeedNow(false))
+        assertM(zio)(isTrue)
+      },
+      testM("runs `onFalse` if result of `b` is `false`") {
+        val zio = ZIO.ifM(ZIO.succeedNow(false))(ZIO.succeedNow(true), ZIO.succeedNow(false))
+        assertM(zio)(isFalse)
+      },
+      testM("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean]   = ZIO.succeedNow(true)
+        val onTrue: ZIO[R1, E1, A]  = ZIO.succeedNow(new A {})
+        val onFalse: ZIO[R1, E1, A] = ZIO.succeedNow(new A {})
+        val _                       = ZIO.ifM(b)(onTrue, onFalse)
+        ZIO.succeed(assertCompletes)
+      }
+    ),
     suite("ignore")(
       testM("return success as Unit") {
         assertM(ZIO.succeedNow(11).ignore)(equalTo(()))
@@ -733,6 +790,13 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("not catch throwable") {
         assertM(ZIO.dieNow(ExampleError).ignore.run)(dies(equalTo(ExampleError)))
+      }
+    ),
+    suite("iterate")(
+      testM("iterates with the specified effectual function") {
+        for {
+          result <- ZIO.iterate(100)(_ > 0)(a => ZIO.succeedNow(a - 1))
+        } yield assert(result)(equalTo(0))
       }
     ),
     suite("left")(
@@ -760,6 +824,29 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("on Right value") {
         assertM(ZIO.succeedNow(Right(2)).leftOrFailException.run)(fails(Assertion.anything))
+      }
+    ),
+    suite("loop")(
+      testM("loops with the specified effectual function") {
+        for {
+          ref    <- Ref.make(List.empty[Int])
+          _      <- ZIO.loop(0)(_ < 5, _ + 1)(a => ref.update(a :: _))
+          result <- ref.get.map(_.reverse)
+        } yield assert(result)(equalTo(List(0, 1, 2, 3, 4)))
+      },
+      testM("collects the results into a list") {
+        for {
+          result <- ZIO.loop(0)(_ < 5, _ + 2)(a => ZIO.succeedNow(a * 3))
+        } yield assert(result)(equalTo(List(0, 6, 12)))
+      }
+    ),
+    suite("loop_")(
+      testM("loops with the specified effectual function") {
+        for {
+          ref    <- Ref.make(List.empty[Int])
+          _      <- ZIO.loop_(0)(_ < 5, _ + 1)(a => ref.update(a :: _))
+          result <- ref.get.map(_.reverse)
+        } yield assert(result)(equalTo(List(0, 1, 2, 3, 4)))
       }
     ),
     suite("mapN")(
@@ -981,6 +1068,24 @@ object ZIOSpec extends ZIOBaseSpec {
             Task(false)
         }
         assertM(orElse)(equalTo(true))
+      }
+    ),
+    suite("orElseFail")(
+      testM("executes this effect and returns its value if it succeeds") {
+        import zio.CanFail.canFail
+        assertM(ZIO.succeedNow(true).orElseFail(false))(isTrue)
+      },
+      testM("otherwise fails with the specified error") {
+        assertM(ZIO.failNow(false).orElseFail(true).flip)(isTrue)
+      }
+    ),
+    suite("orElseSucceed")(
+      testM("executes this effect and returns its value if it succeeds") {
+        import zio.CanFail.canFail
+        assertM(ZIO.succeedNow(true).orElseSucceed(false))(isTrue)
+      },
+      testM("otherwise succeeds with the specified value") {
+        assertM(ZIO.failNow(false).orElseSucceed(true))(isTrue)
       }
     ),
     suite("parallelErrors")(
@@ -2554,7 +2659,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           counter   <- Ref.make(0)
           increment = counter.updateAndGet(_ + 1)
-          result    <- increment.summarized((a: Int, b: Int) => (a, b))(increment)
+          result    <- increment.summarized(increment)((_, _))
         } yield {
           val ((start, end), value) = result
           assert(start)(equalTo(1)) &&
