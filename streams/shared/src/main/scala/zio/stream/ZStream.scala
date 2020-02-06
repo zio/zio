@@ -1040,19 +1040,18 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Effectfully transforms all elements of the stream for as long as the specified partial function is defined.
    */
   final def collectWhileM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZIO[R1, E1, B]]): ZStream[R1, E1, B] =
-    ZStream[R1, E1, B] {
+    ZStream {
       for {
         as   <- self.process
         done <- Ref.make(false).toManaged_
         pfIO = pf.andThen(Pull.fromEffect(_))
-        pull = for {
-          alreadyDone <- done.get
-          result <- if (alreadyDone) Pull.end
-                   else
-                     as.flatMap { a =>
-                       pfIO.applyOrElse(a, (_: A) => done.set(true) *> Pull.end)
-                     }
-        } yield result
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else
+            as.flatMap { a =>
+              pfIO.applyOrElse(a, (_: A) => done.set(true) *> Pull.end)
+            }
+        }
       } yield pull
     }
 
