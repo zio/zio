@@ -5,7 +5,6 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.test._
 import zio.test.environment.Live
 
 object ZSTMSpec extends ZIOBaseSpec {
@@ -18,6 +17,23 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("`STM.failed` to make a failed computation and check the value") {
         assertM(STM.failNow("Bye bye World").commit.run)(fails(equalTo("Bye bye World")))
       },
+      suite("`absolve` to convert ")(
+        testM("A successful Right computation into the success channel") {
+          assertM(STM.succeedNow(Right(42)).absolve.commit)(equalTo(42))
+        },
+        testM("A successful Left computation into the error channel") {
+          assertM(STM.succeedNow(Left("oh no!")).absolve.commit)(fails(equalTo("oh no!")))
+        }
+      ),
+      suite("`bimap` when")(
+        testM("having a success value") {
+          import zio.CanFail.canFail
+          assertM(STM.succeedNow(1).bimap(_ => -1, s => s"$s as string").commit)(equalTo("1 as string"))
+        },
+        testM("having a fail value") {
+          assertM(STM.failNow(-1).bimap(s => s"$s as string", _ => -1).commit)(equalTo("-1 as string"))
+        }
+      ),
       suite("`either` to convert")(
         testM("A successful computation into Right(a)") {
           import zio.CanFail.canFail
