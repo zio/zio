@@ -144,7 +144,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * the specified pair of functions, `f` and `g`.
    */
   final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, E2, B] =
-    mapError(f).map(g)
+    foldM(e => ZSTM.failNow(f(e)), a => ZSTM.succeedNow(g(a)))
 
   /**
    * Simultaneously filters and maps the value produced by this effect.
@@ -179,7 +179,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Repeats this `STM` effect until its result satisfies the specified predicate.
    */
   final def doUntil(f: A => Boolean): ZSTM[R, E, A] =
-    flatMap(a => if (!f(a)) doUntil(f) else ZSTM.succeedNow(a))
+    flatMap(a => if (f(a)) ZSTM.succeedNow(a) else doUntil(f))
 
   /**
    * Repeats this `STM` effect while its result satisfies the specified predicate.
@@ -886,10 +886,10 @@ object ZSTM {
 
   /**
    * Submerges the error case of an `Either` into the `STM`. The inverse
-   * operation of `IO.either`.
+   * operation of `STM.either`.
    */
   def absolve[R, E, A](z: ZSTM[R, E, Either[E, A]]): ZSTM[R, E, A] =
-    z.flatMap(fromEither)
+    z.flatMap(fromEither(_))
 
   /**
    * Accesses the environment of the transaction.
