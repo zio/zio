@@ -113,7 +113,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Returns an effect that submerges the error case of an `Either` into the
    * `STM`. The inverse operation of `STM.either`.
    */
-  final def absolve[R1 <: R, E1, B](implicit ev1: ZSTM[R, E, A] <:< ZSTM[R1, E1, Either[E1, B]]): ZSTM[R1, E1, B] =
+  def absolve[R1 <: R, E1, B](implicit ev1: ZSTM[R, E, A] <:< ZSTM[R1, E1, Either[E1, B]]): ZSTM[R1, E1, B] =
     ZSTM.absolve[R1, E1, B](ev1(self))
 
   /**
@@ -130,20 +130,20 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Maps the success value of this effect to an optional value.
    */
-  final def asSome: ZSTM[R, E, Option[A]] =
+  def asSome: ZSTM[R, E, Option[A]] =
     map(Some(_))
 
   /**
    * Maps the error value of this effect to an optional value.
    */
-  final def asSomeError: ZSTM[R, Option[E], A] =
+  def asSomeError: ZSTM[R, Option[E], A] =
     mapError(Some(_))
 
   /**
    * Returns an `STM` effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, E2, B] =
+  def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, E2, B] =
     foldM(e => ZSTM.failNow(f(e)), a => ZSTM.succeedNow(g(a)))
 
   /**
@@ -178,13 +178,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Repeats this `STM` effect until its result satisfies the specified predicate.
    */
-  final def doUntil(f: A => Boolean): ZSTM[R, E, A] =
+  def doUntil(f: A => Boolean): ZSTM[R, E, A] =
     flatMap(a => if (f(a)) ZSTM.succeedNow(a) else doUntil(f))
 
   /**
    * Repeats this `STM` effect while its result satisfies the specified predicate.
    */
-  final def doWhile(f: A => Boolean): ZSTM[R, E, A] =
+  def doWhile(f: A => Boolean): ZSTM[R, E, A] =
     flatMap(a => if (f(a)) doWhile(f) else ZSTM.succeedNow(a))
 
   /**
@@ -333,14 +333,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Tries this effect first, and if it fails, fails with the specified error.
    */
-  final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
+  def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
     orElse(ZSTM.failNow(e1))
 
   /**
    * Tries this effect first, and if it fails, succeeds with the specified
    * value.
    */
-  final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A1] =
+  def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A1] =
     orElse(ZSTM.succeedNow(a1))
 
   /**
