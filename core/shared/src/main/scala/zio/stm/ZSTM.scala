@@ -1031,11 +1031,11 @@ object ZSTM {
    * transactional effects. The moral equivalent of:
    *
    * {{{
-   * val s = initial
+   * var s = initial
    *
    * while (cont(s)) {
    *   body(s)
-   *   inc(s)
+   *   s = inc(s)
    * }
    * }}}
    */
