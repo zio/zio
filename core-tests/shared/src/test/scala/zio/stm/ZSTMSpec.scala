@@ -35,18 +35,18 @@ object ZSTMSpec extends ZIOBaseSpec {
         }
       ),
       testM("`doWhile` to run effect while it satisfies predicate") {
-        for {
-          a <- TQueue.bounded[Int](5).commit
-          _ <- a.offerAll(List(0, 0, 0, 1, 2)).commit
-          n <- a.take.doWhile(_ == 0).commit
-        } yield assert(n)(equalTo(1))
+        (for {
+          a <- TQueue.bounded[Int](5)
+          _ <- a.offerAll(List(0, 0, 0, 1, 2))
+          n <- a.take.doWhile(_ == 0)
+        } yield assert(n)(equalTo(1))).commit
       },
       testM("`doUntil` to run effect until it satisfies predicate") {
-        for {
-          a <- TQueue.bounded[Int](5).commit
-          _ <- a.offerAll(List(0, 0, 0, 1, 2)).commit
-          b <- a.take.doUntil(_ == 1).commit
-        } yield assert(b)(equalTo(1))
+        (for {
+          a <- TQueue.bounded[Int](5)
+          _ <- a.offerAll(List(0, 0, 0, 1, 2))
+          b <- a.take.doUntil(_ == 1)
+        } yield assert(b)(equalTo(1))).commit
       },
       suite("`either` to convert")(
         testM("A successful computation into Right(a)") {
