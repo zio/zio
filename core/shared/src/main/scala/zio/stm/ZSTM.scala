@@ -16,14 +16,16 @@
 
 package zio.stm
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
-import java.util.{HashMap => MutableMap}
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
+import java.util.{ HashMap => MutableMap }
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
+
 import com.github.ghik.silencer.silent
-import zio.internal.{Platform, Stack, Sync}
-import zio.{CanFail, Cause, Fiber, IO, UIO, URIO, ZIO, stm}
+
+import zio.internal.{ Platform, Stack, Sync }
+import zio.{ CanFail, Fiber, IO, UIO, ZIO }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -108,29 +110,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     orElse(that)
 
   /**
-   * Composes two ZSTM effects a => b
-   */
-  final def >>>[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
-    flatMap(that.provide)
-
-  /**
-   * Composes two ZSTM effects a => b
-   */
-  final def <<<[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
-    that >>> self
-
-  /**
    * Returns an effect that submerges the error case of an `Either` into the
    * `STM`. The inverse operation of `STM.either`.
    */
   final def absolve[R1 <: R, E1, B](implicit ev1: ZSTM[R, E, A] <:< ZSTM[R1, E1, Either[E1, B]]): ZSTM[R1, E1, B] =
     ZSTM.absolve[R1, E1, B](ev1(self))
 
-  /**
-   * Name alias for >>>
-   */
-  final def andThen[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
-    self >>> that
   /**
    * Maps the success value of this effect to the specified constant value.
    */
@@ -162,12 +147,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
     foldM(e => ZSTM.failNow(f(e)), a => ZSTM.succeedNow(g(a)))
 
   /**
-   * Recovers from all errors.
-   */
-  final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZSTM[R1, E2, A1])(implicit ev: CanFail[E]): ZSTM[R1, E2, A1] =
-    foldM(h, ZSTM.succeedNow)
-
-  /**
    * Simultaneously filters and maps the value produced by this effect.
    */
   def collect[B](pf: PartialFunction[A, B]): ZSTM[R, E, B] =
@@ -183,8 +162,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
       case TExit.Succeed(a) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry
       case TExit.Retry      => ZSTM.retry
     }
-
-  final def compose[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] = self <<< that
 
   /**
    * Commits this transaction atomically.
@@ -243,13 +220,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
-   * Creates a composite effect that represents this effect followed by another
-   * one that may depend on the error produced by this one.
-   */
-  final def flatMapError[R1 <: R, E2](f: E => ZSTM[R1, Nothing, E2])(implicit ev: CanFail[E]): ZSTM[R1, E2, A] =
-    flipWith(_ flatMap f)
-
-  /**
    * Flattens out a nested `STM` effect.
    */
   def flatten[R1 <: R, E1 >: E, B](implicit ev: A <:< ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
@@ -262,12 +232,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def flip(implicit ev: CanFail[E]): ZSTM[R, A, E] =
     foldM(ZSTM.succeedNow, ZSTM.failNow)
-
-  /**
-   *  Swaps the error/value parameters, applies the function `f` and flips the parameters back
-   */
-  final def flipWith[R1, A1, E1](f: ZSTM[R, A, E] => ZSTM[R1, A1, E1]): ZSTM[R1, E1, A1] =
-    f(self.flip).flip
 
   /**
    * Folds over the `STM` effect, handling both failure and success, but not
