@@ -2817,7 +2817,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
             if (done) Pull.end
             else
               currPull.get.flatten.catchAll {
-                case e @ Some(_) => ZIO.failNow(e)
+                case Some(e) => Pull.failNow(e)
                 case None =>
                   nextPull.get.flatMap {
                     case None => doneRef.set(true) *> Pull.end
