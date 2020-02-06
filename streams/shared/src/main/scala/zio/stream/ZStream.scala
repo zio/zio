@@ -1016,7 +1016,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     collectM(pf.andThen(ZIO.succeedNow(_)))
 
   final def collectM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZIO[R1, E1, B]]): ZStream[R1, E1, B] =
-    ZStream[R1, E1, B] {
+    ZStream {
       self.process.map { as =>
         val pfIO: PartialFunction[A, Pull[R1, E1, B]] = pf.andThen(Pull.fromEffect(_))
 
@@ -1026,7 +1026,6 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           }
 
         pull
-
       }
     }
 
