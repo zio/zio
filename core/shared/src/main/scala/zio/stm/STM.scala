@@ -23,6 +23,13 @@ import zio.{ Fiber, IO }
 object STM {
 
   /**
+   * Submerges the error case of an `Either` into the `STM`. The inverse
+   * operation of `STM.either`.
+   */
+  def absolve[R, E, A](e: STM[E, Either[E, A]]): STM[E, A] =
+    ZSTM.absolve(e)
+
+  /**
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[E, A](stm: STM[E, A]): IO[E, A] =
