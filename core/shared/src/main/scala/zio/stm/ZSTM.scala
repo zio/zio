@@ -698,21 +698,21 @@ object ZSTM {
     }
 
   /**
-    * Lifts a function `R => A` into a `ZSTM[R, Nothing, A]`.
-    */
+   * Lifts a function `R => A` into a `ZSTM[R, Nothing, A]`.
+   */
   def fromFunction[R, A](f: R => A): ZSTM[R, Nothing, A] =
     environment[R].map(f)
 
   /**
-    * Lifts an effectful function whose effect requires no environment into
-    * an effect that requires the input to the function.
-    */
+   * Lifts an effectful function whose effect requires no environment into
+   * an effect that requires the input to the function.
+   */
   def fromFunctionM[R, E, A](f: R => STM[E, A]): ZSTM[R, E, A] =
     environment[R].flatMap(f)
 
   /**
-    * Lifts an `Option` into a `STM`.
-    */
+   * Lifts an `Option` into a `STM`.
+   */
   def fromOption[A](v: => Option[A]): STM[Unit, A] =
     STM.suspend(v.fold[STM[Unit, A]](STM.failNow(()))(STM.succeedNow))
 
@@ -722,8 +722,8 @@ object ZSTM {
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     STM.suspend {
       a match {
-	      case Failure(t) => STM.failNow(t)
-	      case Success(a) => STM.succeedNow(a)
+        case Failure(t) => STM.failNow(t)
+        case Success(a) => STM.succeedNow(a)
       }
     }
 
