@@ -44,11 +44,10 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
     new ZLayer(
       ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
-        val zio = for {
-          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef)
-          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef).provide(l)
+        for {
+          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef).toManaged_
+          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef).provide(l).toManaged_
         } yield r
-        zio.toManaged_
       }
     )
 
@@ -61,11 +60,10 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
   )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     new ZLayer(
       ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
-        val zio: ZIO[RIn with RIn2, E1, ROut1 with ROut2] = for {
-          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef)
-          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef)
+        for {
+          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef).toManaged_
+          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef).toManaged_
         } yield l.union[ROut2](r)
-        zio.toManaged_
       }
     )
 
@@ -74,11 +72,10 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
     new ZLayer(
       ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
-        val zio: ZIO[RIn with RIn2, E1, ROut with ROut2] = for {
-          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef)
-          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef)
+        for {
+          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef).toManaged_
+          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef).toManaged_
         } yield l.unionAll[ROut2](r)
-        zio.toManaged_
       }
     )
 
