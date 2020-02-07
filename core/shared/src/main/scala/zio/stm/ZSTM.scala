@@ -112,13 +112,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Propagates the given environment to self
    */
-  final def >>>[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
+  def >>>[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
     flatMap(that.provide)
 
   /**
    * Propagates self environment to that
    */
-  final def <<<[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
+  def <<<[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
     that >>> self
 
   /**
@@ -131,7 +131,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Name alias for >>>
    */
-  final def andThen[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
+  def andThen[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
     self >>> that
 
   /**
@@ -167,7 +167,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Recovers from all errors.
    */
-  final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZSTM[R1, E2, A1])(implicit ev: CanFail[E]): ZSTM[R1, E2, A1] =
+  def catchAll[R1 <: R, E2, A1 >: A](h: E => ZSTM[R1, E2, A1])(implicit ev: CanFail[E]): ZSTM[R1, E2, A1] =
     foldM[R1, E2, A1](h, ZSTM.succeedNow)
 
   /**
@@ -187,7 +187,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
       case TExit.Retry      => ZSTM.retry
     }
 
-  final def compose[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
+  def compose[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
     self <<< that
 
   /**
@@ -231,8 +231,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
    */
-  final def eventually(implicit ev: CanFail[E]): ZSTM[R, Nothing, A] =
-    self orElse eventually
+  def eventually(implicit ev: CanFail[E]): ZSTM[R, Nothing, A] =
+    foldM(_ => eventually, ZSTM.succeedNow)
 
   /**
    * Tries this effect first, and if it fails, succeeds with the specified
@@ -256,7 +256,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Creates a composite effect that represents this effect followed by another
    * one that may depend on the error produced by this one.
    */
-  final def flatMapError[R1 <: R, E2](f: E => ZSTM[R1, Nothing, E2])(implicit ev: CanFail[E]): ZSTM[R1, E2, A] =
+  def flatMapError[R1 <: R, E2](f: E => ZSTM[R1, Nothing, E2])(implicit ev: CanFail[E]): ZSTM[R1, E2, A] =
     foldM(e => f(e).flip, ZSTM.succeedNow)
 
   /**
@@ -268,7 +268,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Unwraps the optional error, defaulting to the provided value.
    */
-  final def flattenErrorOption[E1, E2 <: E1](default: E2)(implicit ev: E <:< Option[E1]): ZSTM[R, E1, A] =
+  def flattenErrorOption[E1, E2 <: E1](default: E2)(implicit ev: E <:< Option[E1]): ZSTM[R, E1, A] =
     mapError(e => ev(e).getOrElse(default))
 
   /**
@@ -282,7 +282,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    *  Swaps the error/value parameters, applies the function `f` and flips the parameters back
    */
-  final def flipWith[R1, A1, E1](f: ZSTM[R, A, E] => ZSTM[R1, A1, E1]): ZSTM[R1, E1, A1] =
+  def flipWith[R1, A1, E1](f: ZSTM[R, A, E] => ZSTM[R1, A1, E1]): ZSTM[R1, E1, A1] =
     f(flip).flip
 
   /**
