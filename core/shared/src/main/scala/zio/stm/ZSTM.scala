@@ -708,9 +708,9 @@ object ZSTM {
    */
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     STM.suspend {
-      Try(a).flatten match {
-        case Failure(t) => STM.failNow(t)
-        case Success(a) => STM.succeedNow(a)
+      a match {
+	      case Failure(t) => STM.failNow(t)
+	      case Success(a) => STM.succeedNow(a)
       }
     }
 
