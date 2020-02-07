@@ -358,6 +358,37 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     provideSomeM(ZIO.fromFunction(f))
 
   /**
+   * Splits the environment into two parts, providing each test with one part
+   * using the specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   *
+   * val spec2 = spec.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayer[R0 <: Has[_]]: Spec.ProvideSomeLayer[R0, R, E, T] =
+    new Spec.ProvideSomeLayer[R0, R, E, T](self)
+
+  /**
+   * Splits the environment into two parts, providing all tests with a shared
+   * version of one part using the specified layer and leaving the remainder
+   * `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val spec: ZIO[Clock with Random, Nothing, Unit] = ???
+   *
+   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayerShared[R0 <: Has[_]]: Spec.ProvideSomeLayerShared[R0, R, E, T] =
+    new Spec.ProvideSomeLayerShared[R0, R, E, T](self)
+
+  /**
    * Uses the specified effect to provide each test in this spec with part of
    * its required environment.
    */
@@ -524,4 +555,18 @@ object Spec {
 
   final def test[R, E, T](label: String, test: ZIO[R, E, T], annotations: TestAnnotationMap): Spec[R, E, T] =
     Spec(TestCase(label, test, annotations))
+
+  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[E1 >: E, R1 <: Has[_]](
+      layer: ZLayer[R0, E1, R1]
+    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): Spec[R0, E1, T] =
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+  }
+
+  final class ProvideSomeLayerShared[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[E1 >: E, R1 <: Has[_]](
+      layer: ZLayer[R0, E1, R1]
+    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): Spec[R0, E1, T] =
+      self.provideLayerShared[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+  }
 }

@@ -1180,6 +1180,14 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
+    suite("provideSomeLayer")(
+      testM("can split environment into two parts") {
+        val clockLayer: ZLayer[Any, Nothing, Clock]    = Scheduler.live >>> Clock.live
+        val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
+        val zio2: ZIO[Random, Nothing, Unit]           = zio.provideSomeLayer[Random](clockLayer)
+        assertM(zio2)(anything)
+      }
+    ),
     suite("raceAll")(
       testM("returns first success") {
         assertM(ZIO.failNow("Fail").raceAll(List(IO.succeedNow(24))))(equalTo(24))
