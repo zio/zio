@@ -96,13 +96,13 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fromFunction]]
    */
-  def fromFunction[R, A](f: R => A): ZSTM[R, Nothing, A] =
+  def fromFunction[A](f: Any => A): STM[Nothing, A] =
     ZSTM.fromFunction(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fromFunctionM]]
    */
-  def fromFunctionM[R, E, A](f: R => STM[E, A]): ZSTM[R, E, A] =
+  def fromFunctionM[R, E, A](f: Any => STM[E, A]): STM[E, A] =
     ZSTM.fromFunctionM(f)
 
   /**
