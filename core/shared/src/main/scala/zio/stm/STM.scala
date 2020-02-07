@@ -94,25 +94,25 @@ object STM {
     ZSTM.fromEither(e)
 
   /**
-   * @see See [[zio.stm.ZSTM.fromTry]]
+   * @see See [[zio.stm.ZSTM.fromFunction]]
    */
   def fromFunction[R, A](f: R => A): ZSTM[R, Nothing, A] =
     ZSTM.fromFunction(f)
 
   /**
-   * @see [[zio.stm.ZSTM.fromFunctionM]]
+   * @see See [[zio.stm.ZSTM.fromFunctionM]]
    */
   def fromFunctionM[R, E, A](f: R => STM[E, A]): ZSTM[R, E, A] =
     ZSTM.fromFunctionM(f)
 
   /**
-   * @see [[zio.stm.ZSTM.fromOption]]
+   * @see See [[zio.stm.ZSTM.fromOption]]
    */
   def fromOption[A](v: => Option[A]): STM[Unit, A] =
     ZSTM.fromOption(v)
 
   /**
-   * @see [[zio.stm.ZSTM.fromTry]]
+   * @see See [[zio.stm.ZSTM.fromTry]]
    */
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     ZSTM.fromTry(a)
