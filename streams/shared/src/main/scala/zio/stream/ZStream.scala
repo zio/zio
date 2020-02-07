@@ -2465,13 +2465,17 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   def takeWhile(pred: A => Boolean): ZStream[R, E, A] =
     ZStream {
-      self.process.map { as =>
-        for {
-          a <- as
-          result <- if (pred(a)) Pull.emitNow(a)
-                   else Pull.end
-        } yield result
-      }
+      for {
+        as   <- self.process
+        done <- Ref.make(false).toManaged_
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else
+            as.flatMap { a =>
+              if (pred(a)) Pull.emitNow(a) else done.set(true) *> Pull.end
+            }
+        }
+      } yield pull
     }
 
   /**
