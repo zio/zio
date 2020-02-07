@@ -397,12 +397,16 @@ object ZLayer {
       case None =>
         layer.scope.flatMap(_.apply(memoMap)).reserve.flatMap {
           case Reservation(acquire, release) =>
-            acquire.tap(b => memoMap.memoize(layer, b)) <*
-              ZIO.accessM[A] { a =>
-                finalizerRef.update { finalizer => e =>
-                  release(e).provide(a) *> finalizer(e)
-                }
-              }
+            ZIO.bracket[A, E, B, B](
+              acquire.tap(b => memoMap.memoize(layer, b)),
+              _ =>
+                ZIO.accessM[A] { a =>
+                  finalizerRef.update { finalizer => exit =>
+                    release(exit).provide(a) *> finalizer(exit)
+                  }
+                },
+              ZIO.succeedNow
+            )
         }
     }
 }
