@@ -471,6 +471,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
     foldM(e => f(e) *> ZSTM.failNow(e), ZSTM.succeedNow)
 
   /**
+   * "Peeks" at both sides of an transactional effect.
+   */
+  def tapBoth[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any], g: A => ZSTM[R1, E1, Any])(
+    implicit ev: CanFail[E]
+  ): ZSTM[R1, E1, A] =
+    foldM(e => f(e) *> ZSTM.failNow(e), a => g(a) as a)
+
+  /**
    * Maps the success value of this effect to unit.
    */
   def unit: ZSTM[R, E, Unit] = as(())

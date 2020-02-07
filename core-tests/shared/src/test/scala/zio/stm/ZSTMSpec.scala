@@ -701,6 +701,30 @@ object ZSTMSpec extends ZIOBaseSpec {
           } yield (result, tappedError)
 
         assertM(tx.commit)(equalTo((Left("error"), "error")))
+      },
+      testM("tapBoth applies the success function to success values while keeping the effect intact") {
+        val tx =
+          for {
+            tapSuccess    <- TPromise.make[Nothing, Int]
+            tapError      <- TPromise.make[Nothing, String]
+            succeededSTM  = ZSTM.succeedNow(42): STM[String, Int]
+            result        <- succeededSTM.tapBoth(e => tapError.succeed(e), a => tapSuccess.succeed(a))
+            tappedSuccess <- tapSuccess.await
+          } yield (result, tappedSuccess)
+
+        assertM(tx.commit)(equalTo((42, 42)))
+      },
+      testM("tapBoth applies the function to error and successful values while keeping the effect itself on error") {
+        val tx =
+          for {
+            tapSuccess   <- TPromise.make[Nothing, Int]
+            tapError     <- TPromise.make[Nothing, String]
+            succeededSTM = ZSTM.failNow("error"): STM[String, Int]
+            result       <- succeededSTM.tapBoth(e => tapError.succeed(e), a => tapSuccess.succeed(a)).either
+            tappedError  <- tapError.await
+          } yield (result, tappedError)
+
+        assertM(tx.commit)(equalTo((Left("error"), "error")))
       }
     )
   )
