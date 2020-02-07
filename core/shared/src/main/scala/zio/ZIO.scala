@@ -2540,7 +2540,7 @@ object ZIO {
    * Lifts a function `R => A` into a `URIO[R, A]`.
    */
   def fromFunction[R, A](f: R => A): URIO[R, A] =
-    environment[R].map(f)
+    access(f)
 
   /**
    * Lifts a function returning Future into an effect that requires the input to the function.
@@ -2553,7 +2553,7 @@ object ZIO {
    * an effect that requires the input to the function.
    */
   def fromFunctionM[R, E, A](f: R => IO[E, A]): ZIO[R, E, A] =
-    environment[R].flatMap(f)
+    accessM(f)
 
   /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an

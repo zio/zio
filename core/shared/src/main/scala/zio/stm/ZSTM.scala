@@ -701,14 +701,14 @@ object ZSTM {
    * Lifts a function `R => A` into a `ZSTM[R, Nothing, A]`.
    */
   def fromFunction[R, A](f: R => A): ZSTM[R, Nothing, A] =
-    environment[R].map(f)
+    access(f)
 
   /**
    * Lifts an effectful function whose effect requires no environment into
    * an effect that requires the input to the function.
    */
   def fromFunctionM[R, E, A](f: R => STM[E, A]): ZSTM[R, E, A] =
-    environment[R].flatMap(f)
+    accessM(f)
 
   /**
    * Lifts an `Option` into a `STM`.
