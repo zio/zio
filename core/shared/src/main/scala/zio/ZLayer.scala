@@ -29,6 +29,9 @@ import zio.internal.Platform
  * Construction of layers can be effectful and utilize resources that must be
  * acquired and safetly released when the services are done being utilized.
  *
+ * By default layers are shared, meaning that if the same layer is used twice
+ * the layer will only be allocated a single time.
+ *
  * Because of their excellent composition properties, layers are the idiomatic
  * way in ZIO to create services that depend on other services.
  */
@@ -89,9 +92,16 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
       value   <- run(memoMap)
     } yield value
 
+  /**
+   * Creates a fresh version of this layer that will not be shared.
+   */
   def fresh: ZLayer[RIn, E, ROut] =
     new ZLayer(self.scope)
 
+  /**
+   * Returns an effect that, if evaluated, will return the lazily computed
+   * result of this layer.
+   */
   def memoize: ZManaged[RIn, Nothing, ZLayer[Any, E, ROut]] =
     build.memoize.map(ZLayer(_))
 
@@ -376,12 +386,27 @@ object ZLayer {
    */
   def succeed[A: Tagged](a: => A): ZLayer.NoDeps[Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
 
-  private trait MemoMap {
+  /**
+   * A `MemoMap` memoizes dependencies.
+   */
+  private trait MemoMap { self =>
+
+    /**
+     * Retrieves a dependency from the memo map if it exists.
+     */
     def get[E, A, B <: Has[_]](layer: ZLayer[A, E, B]): UIO[Option[B]]
+
+    /**
+     * Stores a dependency in the memo map.
+     */
     def memoize[E, A, B <: Has[_]](layer: ZLayer[A, E, B], b: B): UIO[Unit]
   }
 
   private object MemoMap {
+
+    /**
+     * Constructs an empty memo map backed by a `Ref`.
+     */
     def make: UIO[MemoMap] =
       Ref.make[Map[ZLayer[Nothing, Any, Has[_]], Any]](Map.empty).map { ref =>
         new MemoMap {
@@ -393,6 +418,11 @@ object ZLayer {
       }
   }
 
+  /**
+   * Checks the memo map to see if a dependency exists. If it is, immediately
+   * returns it. Otherwise, obtains the dependency, stores it in the memo map,
+   * and adds a finalizer to the outer `Managed`.
+   */
   private def getOrElseMemoize[E, A, B <: Has[_]](
     memoMap: MemoMap,
     layer: ZLayer[A, E, B],
