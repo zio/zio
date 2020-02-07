@@ -406,7 +406,7 @@ object ZLayer {
      * returns it. Otherwise, obtains the dependency, stores it in the memo map,
      * and adds a finalizer to the outer `Managed`.
      */
-    def getOrElseMemoize[E, A, B <: Has[_]](
+    final def getOrElseMemoize[E, A, B <: Has[_]](
       layer: ZLayer[A, E, B],
       finalizerRef: Ref[Exit[Any, Any] => ZIO[Any, Nothing, Any]]
     ): ZManaged[A, E, B] =
