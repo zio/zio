@@ -687,7 +687,7 @@ object ZSTM {
     }
 
   /**
-   * Creates an STM effect from an `Either` value.
+   * Lifts an `Either` into a `STM`.
    */
   def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
     STM.suspend {
@@ -698,11 +698,30 @@ object ZSTM {
     }
 
   /**
-   * Creates an STM effect from a `Try` value.
+   * Lifts a function `R => A` into a `ZSTM[R, Nothing, A]`.
+   */
+  def fromFunction[R, A](f: R => A): ZSTM[R, Nothing, A] =
+    access(f)
+
+  /**
+   * Lifts an effectful function whose effect requires no environment into
+   * an effect that requires the input to the function.
+   */
+  def fromFunctionM[R, E, A](f: R => STM[E, A]): ZSTM[R, E, A] =
+    accessM(f)
+
+  /**
+   * Lifts an `Option` into a `STM`.
+   */
+  def fromOption[A](v: => Option[A]): STM[Unit, A] =
+    STM.suspend(v.fold[STM[Unit, A]](STM.failNow(()))(STM.succeedNow))
+
+  /**
+   * Lifts a `Try` into a `STM`.
    */
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     STM.suspend {
-      Try(a).flatten match {
+      a match {
         case Failure(t) => STM.failNow(t)
         case Success(a) => STM.succeedNow(a)
       }
