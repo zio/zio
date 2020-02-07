@@ -17,7 +17,13 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("`STM.failed` to make a failed computation and check the value") {
         assertM(STM.failNow("Bye bye World").commit.run)(fails(equalTo("Bye bye World")))
       },
-      suite("`absolve` to convert ")(
+      testM("`andThen` two environments") {
+        val add   = ZSTM.access[Int](_ + 1)
+        val print = ZSTM.access[Int](n => s"$n is the sum")
+        val tx    = (add >>> print).provide(1)
+        assertM(tx.commit)(equalTo("2 is the sum"))
+      },
+      suite("`absolve` to convert")(
         testM("A successful Right computation into the success channel") {
           assertM(STM.succeedNow(Right(42)).absolve.commit)(equalTo(42))
         },
@@ -41,6 +47,12 @@ object ZSTMSpec extends ZIOBaseSpec {
             f <- ZSTM.succeedNow("everything is fine")
           } yield f
         assertM(tx.catchAll(s => ZSTM.succeed(s"$s phew")).commit)(equalTo("Uh oh! phew"))
+      },
+      testM("`compose` two environments") {
+        val print = ZSTM.access[Int](n => s"$n is the sum")
+        val add   = ZSTM.access[Int](_ + 1)
+        val tx    = (print <<< add).provide(1)
+        assertM(tx.commit)(equalTo("2 is the sum"))
       },
       testM("`doWhile` to run effect while it satisfies predicate") {
         (for {
