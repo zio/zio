@@ -463,6 +463,65 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )
       ) && assert(finalizers)(equalTo(List("outer 4", "inner 4", "outer 2", "inner 2")))
     },
+    suite("Stream.mapAccum")(
+      testM("ZStream#mapAccum is safe to pull again") {
+        Stream(1, 2, 3, 4, 5, 6)
+          .mapM(n => if (n % 2 == 0) IO.failNow(s"Ouch $n") else UIO.succeedNow(n))
+          .mapAccum(0)((sum, n) => (sum + n, sum + n))
+          .process
+          .use(nPulls(_, 8))
+          .map(
+            assert(_)(
+              equalTo(
+                List(
+                  Right(1),
+                  Left(Some("Ouch 2")),
+                  Right(4),
+                  Left(Some("Ouch 4")),
+                  Right(9),
+                  Left(Some("Ouch 6")),
+                  Left(None),
+                  Left(None)
+                )
+              )
+            )
+          )
+      },
+      testM("StreamEffect#mapAccum is safe to pull again") {
+        val stream = StreamEffect[Any, String, Int] {
+          Managed.effectTotal {
+            var counter = 0
+
+            () => {
+              counter += 1
+              if (counter >= 7) StreamEffect.end[Int]
+              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              else counter
+            }
+          }
+        }
+
+        assertM(
+          stream
+            .mapAccum(0)((sum, n) => (sum + n, sum + n))
+            .process
+            .use(nPulls(_, 8))
+        )(
+          equalTo(
+            List(
+              Right(1),
+              Left(Some("Ouch 2")),
+              Right(4),
+              Left(Some("Ouch 4")),
+              Right(9),
+              Left(Some("Ouch 6")),
+              Left(None),
+              Left(None)
+            )
+          )
+        )
+      }
+    ),
     testM("Stream.mapAccumM is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)
