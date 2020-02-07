@@ -645,7 +645,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
   def provideLayer[E1 >: E, R0, R1 <: Has[_]](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZManaged[R0, E1, A] =
-    provideSomeManaged(layer.value.map(ev))
+    provideSomeManaged(layer.build.map(ev))
 
   /**
    * An effectual version of `provide`, useful when the act of provision

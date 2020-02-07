@@ -1,9 +1,9 @@
+package zio
+
 import zio.test.Assertion._
 import zio.test._
-import zio.{ ZLayer => _, _ }
 
-object ExperimentSpec extends DefaultRunnableSpec {
-  import Experiment._
+object ZLayerSpec2 extends DefaultRunnableSpec {
 
   type Module1 = Has[Module1.Service]
 

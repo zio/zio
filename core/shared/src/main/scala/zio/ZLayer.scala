@@ -32,7 +32,9 @@ import zio.internal.Platform
  * Because of their excellent composition properties, layers are the idiomatic
  * way in ZIO to create services that depend on other services.
  */
-final case class ZLayer[-RIn, +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]) { self =>
+final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
+  private val scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]]
+) { self =>
 
   /**
    * Feeds the output services of this layer into the input of the specified
@@ -40,7 +42,15 @@ final case class ZLayer[-RIn, +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]
    * outputs of the specified layer.
    */
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    ZLayer(self.value.flatMap(v => that.value.provide(v)))
+    new ZLayer(
+      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
+        val zio = for {
+          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef)
+          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef).provide(l)
+        } yield r
+        zio.toManaged_
+      }
+    )
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -49,47 +59,68 @@ final case class ZLayer[-RIn, +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]
   def ++[E1 >: E, RIn2, ROut1 >: ROut <: Has[_], ROut2 <: Has[_]](
     that: ZLayer[RIn2, E1, ROut2]
   )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-    ZLayer(
-      ZManaged.accessManaged[RIn with RIn2] { env =>
-        (self.value.provide(env) zipWith that.value.provide(env))((l, r) => (l: ROut1).union[ROut2](r))
+    new ZLayer(
+      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
+        val zio = for {
+          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef)
+          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef)
+        } yield l.union[ROut2](r)
+        zio.toManaged_
       }
     )
 
   def +!+[E1 >: E, RIn2, ROut2 <: Has[_]](
     that: ZLayer[RIn2, E1, ROut2]
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
-    ZLayer(
-      ZManaged.accessManaged[RIn with RIn2] { env =>
-        (self.value.provide(env) zipWith that.value.provide(env))((l, r) => l.unionAll[ROut2](r))
+    new ZLayer(
+      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
+        val zio = for {
+          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef)
+          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef)
+        } yield l.unionAll[ROut2](r)
+        zio.toManaged_
       }
     )
 
   /**
-   * Builds a layer that has no dependencies into a managed value.
+   * Builds a layer into a managed value.
    */
-  def build[RIn2 <: RIn](implicit ev: Any =:= RIn2): Managed[E, ROut] = value.provide(ev(()))
+  def build: ZManaged[RIn, E, ROut] =
+    for {
+      memoMap <- ZLayer.MemoMap.make.toManaged_
+      run     <- self.scope
+      value   <- run(memoMap)
+    } yield value
 
   /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
   def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Any =:= RIn2): Managed[E, Runtime[ROut]] =
-    build.map(Runtime(_, p))
+    build.provide(ev).map(Runtime(_, p))
 
   /**
    * Updates one of the services output by this layer.
    */
   def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
-    ZLayer(value.map(env => env.update[A](f)))
+    new ZLayer(scope.map(run => run(_).map(_.update[A](f))))
 }
+
 object ZLayer {
   type NoDeps[+E, +B <: Has[_]] = ZLayer[Any, E, B]
+
+  /**
+   * Constructs a layer from a managed resource.
+   */
+  def apply[RIn, E, ROut <: Has[_]](managed: ZManaged[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
+    new ZLayer(Managed.succeed(_ => managed))
 
   /**
    * Constructs a layer from the specified effect, which must produce one or
    * more services.
    */
-  def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer.NoDeps[E, A] = ZLayer(ZManaged.fromEffect(zio))
+  def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer.NoDeps[E, A] =
+    ZLayer(Managed.fromEffect(zio))
 
   /**
    * Constructs a layer from the environment using the specified function,
@@ -115,13 +146,13 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified service.
    */
-  def fromService[A: Tagged, E, B <: Has[_]](f: A => B): ZLayer[Has[A], E, B] =
+  def fromService[A: Tagged, B <: Has[_]](f: A => B): ZLayer[Has[A], Nothing, B] =
     ZLayer(ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get[A]))))
 
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tagged, A1: Tagged, E, B <: Has[_]](f: (A0, A1) => B): ZLayer[Has[A0] with Has[A1], E, B] =
+  def fromServices[A0: Tagged, A1: Tagged, B <: Has[_]](f: (A0, A1) => B): ZLayer[Has[A0] with Has[A1], Nothing, B] =
     ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
@@ -132,9 +163,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, E, B <: Has[_]](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, B <: Has[_]](
     f: (A0, A1, A2) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2], E, B] =
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, B] =
     ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
@@ -146,9 +177,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, E, B <: Has[_]](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, B] =
     ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
@@ -161,9 +192,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, E, B <: Has[_]](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, B] =
     ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
@@ -177,13 +208,13 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified service.
    */
-  def fromServiceM[A: Tagged, R <: Has[_], E, B <: Has[_]](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
+  def fromServiceM[A: Tagged, R, E, B <: Has[_]](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
     ZLayer(ZManaged.fromEffect(ZIO.accessM[R with Has[A]](m => f(m.get[A]))))
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tagged, A1: Tagged, R <: Has[_], E, B <: Has[_]](
+  def fromServicesM[A0: Tagged, A1: Tagged, R, E, B <: Has[_]](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] =
     ZLayer(ZManaged.fromEffect {
@@ -197,7 +228,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, R <: Has[_], E, B <: Has[_]](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
     ZLayer(ZManaged.fromEffect {
@@ -212,7 +243,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R <: Has[_], E, B <: Has[_]](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
     ZLayer(ZManaged.fromEffect {
@@ -228,7 +259,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R <: Has[_], E, B <: Has[_]](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
     ZLayer(ZManaged.fromEffect {
@@ -341,4 +372,40 @@ object ZLayer {
    * Constructs a layer from the specified value.
    */
   def succeed[A: Tagged](a: => A): ZLayer.NoDeps[Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
+
+  private trait MemoMap {
+    def get[E, A, B <: Has[_]](layer: ZLayer[A, E, B]): UIO[Option[B]]
+    def memoize[E, A, B <: Has[_]](layer: ZLayer[A, E, B], b: B): UIO[Unit]
+  }
+
+  private object MemoMap {
+    def make: UIO[MemoMap] =
+      Ref.make[Map[ZLayer[Nothing, Any, Has[_]], Any]](Map.empty).map { ref =>
+        new MemoMap {
+          def get[E, A, B <: Has[_]](layer: ZLayer[A, E, B]): UIO[Option[B]] =
+            ref.get.map(_.get(layer).asInstanceOf[Option[B]])
+          def memoize[E, A, B <: Has[_]](layer: ZLayer[A, E, B], b: B): UIO[Unit] =
+            ref.update(_ + (layer -> b))
+        }
+      }
+  }
+
+  private def getOrElseMemoize[E, A, B <: Has[_]](
+    memoMap: MemoMap,
+    layer: ZLayer[A, E, B],
+    finalizerRef: Ref[Exit[Any, Any] => ZIO[Any, Nothing, Any]]
+  ): ZIO[A, E, B] =
+    memoMap.get(layer).flatMap {
+      case Some(b) => ZIO.succeed(b)
+      case None =>
+        layer.scope.flatMap(_.apply(memoMap)).reserve.flatMap {
+          case Reservation(acquire, release) =>
+            acquire.tap(b => memoMap.memoize(layer, b)) <*
+              ZIO.accessM[A] { a =>
+                finalizerRef.update { finalizer => e =>
+                  release(e).provide(a) *> finalizer(e)
+                }
+              }
+        }
+    }
 }
