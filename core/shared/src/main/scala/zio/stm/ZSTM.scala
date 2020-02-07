@@ -698,6 +698,12 @@ object ZSTM {
     }
 
   /**
+    * Lifts an `Option` into a `STM`.
+    */
+  def fromOption[A](v: => Option[A]): STM[Unit, A] =
+    STM.suspend(v.fold[STM[Unit, A]](STM.failNow(()))(STM.succeedNow))
+
+  /**
    * Lifts a `Try` into a `STM`.
    */
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
