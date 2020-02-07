@@ -704,6 +704,13 @@ object ZSTM {
     environment[R].map(f)
 
   /**
+    * Lifts an effectful function whose effect requires no environment into
+    * an effect that requires the input to the function.
+    */
+  def fromFunctionM[R, E, A](f: R => STM[E, A]): ZSTM[R, E, A] =
+    environment[R].flatMap(f)
+
+  /**
     * Lifts an `Option` into a `STM`.
     */
   def fromOption[A](v: => Option[A]): STM[Unit, A] =
