@@ -335,6 +335,20 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
+   * Translates `STM` effect failure into death of the fiber, making all failures unchecked and
+   * not a part of the type of the effect.
+   */
+  def orDie[E1 >: E](implicit ev1: E1 <:< Throwable, ev2: CanFail[E]): ZSTM[R, Nothing, A] =
+    orDieWith(ev1)
+
+  /**
+   * Keeps none of the errors, and terminates the fiber running the `STM` effect with them, using
+   * the specified function to convert the `E` into a `Throwable`.
+   */
+  def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A] =
+    mapError(f).catchAll(ZSTM.dieNow)
+
+  /**
    * Converts the failure channel into an `Option`.
    */
   def option(implicit ev: CanFail[E]): ZSTM[R, Nothing, Option[A]] =
