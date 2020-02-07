@@ -691,17 +691,6 @@ object ZSTMSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo((10, 11)))
       },
-      testM("tapError should apply the transactional function to the error result while keeping the effect itself") {
-        val tx =
-          for {
-            errorRef    <- TPromise.make[Nothing, String]
-            failedStm   = ZSTM.failNow("error") *> ZSTM.succeedNow(0)
-            result      <- failedStm.tapError(e => errorRef.succeed(e)).either
-            tappedError <- errorRef.await
-          } yield (result, tappedError)
-
-        assertM(tx.commit)(equalTo((Left("error"), "error")))
-      },
       testM("tapBoth applies the success function to success values while keeping the effect intact") {
         val tx =
           for {
@@ -722,6 +711,17 @@ object ZSTMSpec extends ZIOBaseSpec {
             succeededSTM = ZSTM.failNow("error"): STM[String, Int]
             result       <- succeededSTM.tapBoth(e => tapError.succeed(e), a => tapSuccess.succeed(a)).either
             tappedError  <- tapError.await
+          } yield (result, tappedError)
+
+        assertM(tx.commit)(equalTo((Left("error"), "error")))
+      },
+      testM("tapError should apply the transactional function to the error result while keeping the effect itself") {
+        val tx =
+          for {
+            errorRef    <- TPromise.make[Nothing, String]
+            failedStm   = ZSTM.failNow("error") *> ZSTM.succeedNow(0)
+            result      <- failedStm.tapError(e => errorRef.succeed(e)).either
+            tappedError <- errorRef.await
           } yield (result, tappedError)
 
         assertM(tx.commit)(equalTo((Left("error"), "error")))
