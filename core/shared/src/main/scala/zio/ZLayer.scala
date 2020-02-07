@@ -89,6 +89,12 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
       value   <- run(memoMap)
     } yield value
 
+  def fresh: ZLayer[RIn, E, ROut] =
+    new ZLayer(self.scope)
+
+  def memoize: ZManaged[RIn, Nothing, ZLayer[Any, E, ROut]] =
+    build.memoize.map(ZLayer(_))
+
   /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
