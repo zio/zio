@@ -690,6 +690,17 @@ object ZSTMSpec extends ZIOBaseSpec {
           } yield (a, b)
 
         assertM(tx.commit)(equalTo((10, 11)))
+      },
+      testM("tapError should apply the transactional function to the error result while keeping the effect itself") {
+        val tx =
+          for {
+            errorRef    <- TPromise.make[Nothing, String]
+            failedStm   = ZSTM.failNow("error") *> ZSTM.succeedNow(0)
+            result      <- failedStm.tapError(e => errorRef.succeed(e)).either
+            tappedError <- errorRef.await
+          } yield (result, tappedError)
+
+        assertM(tx.commit)(equalTo((Left("error"), "error")))
       }
     )
   )
