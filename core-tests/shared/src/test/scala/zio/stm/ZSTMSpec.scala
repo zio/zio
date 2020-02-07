@@ -153,6 +153,27 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("`mapError` to map from one error to another") {
         assertM(STM.failNow(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
       },
+      suite("`orDie`")(
+        testM("when failure should die") {
+          import zio.CanFail.canFail
+          val e = new Error("oops")
+          assertM(STM.fail(throw e).orDie.commit.run)(dies(equalTo(e)))
+        },
+        testM("when succeed should keep going") {
+          import zio.CanFail.canFail
+          assertM(STM.succeedNow(1).orDie.commit)(equalTo(1))
+        }
+      ),
+      suite("`orDieWith`")(
+        testM("when failure should die") {
+          import zio.CanFail.canFail
+          assertM(STM.fail("-1").orDieWith(n => new Error(n)).commit.run)(dies(hasMessage(equalTo("-1"))))
+        },
+        testM("when succeed should keep going") {
+          import zio.CanFail.canFail
+          assertM(STM.fromEither[String, Int](Right(1)).orDieWith(n => new Error(n)).commit)(equalTo(1))
+        }
+      ),
       testM("`orElse` to try another computation when the computation is failed") {
         import zio.CanFail.canFail
         (for {
