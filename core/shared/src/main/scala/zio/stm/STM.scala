@@ -85,13 +85,7 @@ object STM {
    * @see See [[zio.stm.ZSTM.foreach_]]
    */
   def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
-    STM.succeedNow(as.iterator).flatMap { it =>
-      def loop: STM[E, Unit] =
-        if (it.hasNext) f(it.next) *> loop
-        else STM.unit
-
-      loop
-    }
+    ZSTM.foreach_(as)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fromEither]]
