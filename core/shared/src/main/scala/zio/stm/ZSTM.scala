@@ -687,7 +687,7 @@ object ZSTM {
     }
 
   /**
-   * Creates an STM effect from an `Either` value.
+   * Lifts an `Either` into a `STM`.
    */
   def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
     STM.suspend {
@@ -698,7 +698,7 @@ object ZSTM {
     }
 
   /**
-   * Creates an STM effect from a `Try` value.
+   * Lifts a `Try` into a `STM`.
    */
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     STM.suspend {
