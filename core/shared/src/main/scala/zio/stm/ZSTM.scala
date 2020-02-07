@@ -465,6 +465,20 @@ final class ZSTM[-R, +E, +A] private[stm] (
     flatMap(a => f(a).as(a))
 
   /**
+   * "Peeks" at both sides of an transactional effect.
+   */
+  def tapBoth[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any], g: A => ZSTM[R1, E1, Any])(
+    implicit ev: CanFail[E]
+  ): ZSTM[R1, E1, A] =
+    foldM(e => f(e) *> ZSTM.failNow(e), a => g(a) as a)
+
+  /**
+   * "Peeks" at the error of the transactional effect.
+   */
+  def tapError[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any])(implicit ev: CanFail[E]): ZSTM[R1, E1, A] =
+    foldM(e => f(e) *> ZSTM.failNow(e), ZSTM.succeedNow)
+
+  /**
    * Maps the success value of this effect to unit.
    */
   def unit: ZSTM[R, E, Unit] = as(())
