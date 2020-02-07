@@ -61,7 +61,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
   )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     new ZLayer(
       ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
-        val zio = for {
+        val zio: ZIO[RIn with RIn2, E1, ROut1 with ROut2] = for {
           l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef)
           r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef)
         } yield l.union[ROut2](r)
@@ -74,7 +74,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
     new ZLayer(
       ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
-        val zio = for {
+        val zio: ZIO[RIn with RIn2, E1, ROut with ROut2] = for {
           l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef)
           r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef)
         } yield l.unionAll[ROut2](r)
