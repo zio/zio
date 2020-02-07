@@ -106,13 +106,13 @@ object STM {
     new ZSTM.IfM(b)
 
   /**
-    * @see See [[zio.stm.ZSTM.iterate]]
+   * @see See [[zio.stm.ZSTM.iterate]]
    */
   def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => STM[E, S]): STM[E, S] =
     ZSTM.iterate(initial)(cont)(body)
 
   /**
-    * @see See [[zio.stm.ZSTM.loop]]
+   * @see See [[zio.stm.ZSTM.loop]]
    */
   def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, A]): STM[E, List[A]] =
     ZSTM.loop(initial)(cont, inc)(body)
