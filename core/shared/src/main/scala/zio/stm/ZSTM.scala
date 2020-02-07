@@ -459,6 +459,36 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
+   * Returns a successful effect if the value is `Right`, or fails with the error `None`.
+   */
+  def right[B, C](implicit ev: A <:< Either[B, C]): ZSTM[R, Option[E], C] =
+    self.foldM(
+      e => ZSTM.failNow(Some(e)),
+      a => ev(a).fold(_ => ZSTM.failNow(None), ZSTM.succeedNow)
+    )
+
+  /**
+   * Returns a successful effect if the value is `Right`, or fails with the given error 'e'.
+   */
+  def rightOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, C] =
+    self.flatMap(ev(_) match {
+      case Right(value) => ZSTM.succeedNow(value)
+      case Left(_)      => ZSTM.failNow(e)
+    })
+
+  /**
+   * Returns a successful effect if the value is `Right`, or fails with a [[java.util.NoSuchElementException]].
+   */
+  def rightOrFailException[B, C, E1 >: NoSuchElementException](
+    implicit ev: A <:< Either[B, C],
+    ev2: E <:< E1
+  ): ZSTM[R, E1, C] =
+    self.foldM(
+      e => ZSTM.failNow(ev2(e)),
+      a => ev(a).fold(_ => ZSTM.failNow(new NoSuchElementException("Either.right.get on Left")), ZSTM.succeedNow(_))
+    )
+
+  /**
    * "Peeks" at the success of transactional effect.
    */
   def tap[R1 <: R, E1 >: E](f: A => ZSTM[R1, E1, Any]): ZSTM[R1, E1, A] =
