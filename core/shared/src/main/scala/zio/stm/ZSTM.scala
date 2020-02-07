@@ -698,6 +698,12 @@ object ZSTM {
     }
 
   /**
+    * Lifts a function `R => A` into a `ZSTM[R, Nothing, A]`.
+    */
+  def fromFunction[R, A](f: R => A): ZSTM[R, Nothing, A] =
+    environment[R].map(f)
+
+  /**
     * Lifts an `Option` into a `STM`.
     */
   def fromOption[A](v: => Option[A]): STM[Unit, A] =
