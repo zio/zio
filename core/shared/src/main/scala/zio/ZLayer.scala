@@ -46,10 +46,10 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    */
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
     new ZLayer(
-      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
+      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
         for {
-          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef).toManaged_
-          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef).provide(l).toManaged_
+          l <- memoMap.getOrElseMemoize(self, finalizerRef)
+          r <- memoMap.getOrElseMemoize(that, finalizerRef).provide(l)
         } yield r
       }
     )
@@ -62,10 +62,10 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     that: ZLayer[RIn2, E1, ROut2]
   )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     new ZLayer(
-      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
+      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
         for {
-          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef).toManaged_
-          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef).toManaged_
+          l <- memoMap.getOrElseMemoize(self, finalizerRef)
+          r <- memoMap.getOrElseMemoize(that, finalizerRef)
         } yield l.union[ROut2](r)
       }
     )
@@ -74,10 +74,10 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     that: ZLayer[RIn2, E1, ROut2]
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
     new ZLayer(
-      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => (memoMap: ZLayer.MemoMap) =>
+      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
         for {
-          l <- ZLayer.getOrElseMemoize(memoMap, self, finalizerRef).toManaged_
-          r <- ZLayer.getOrElseMemoize(memoMap, that, finalizerRef).toManaged_
+          l <- memoMap.getOrElseMemoize(self, finalizerRef)
+          r <- memoMap.getOrElseMemoize(that, finalizerRef)
         } yield l.unionAll[ROut2](r)
       }
     )
@@ -400,6 +400,33 @@ object ZLayer {
      * Stores a dependency in the memo map.
      */
     def memoize[E, A, B <: Has[_]](layer: ZLayer[A, E, B], b: B): UIO[Unit]
+
+    /**
+     * Checks the memo map to see if a dependency exists. If it is, immediately
+     * returns it. Otherwise, obtains the dependency, stores it in the memo map,
+     * and adds a finalizer to the outer `Managed`.
+     */
+    def getOrElseMemoize[E, A, B <: Has[_]](
+      layer: ZLayer[A, E, B],
+      finalizerRef: Ref[Exit[Any, Any] => ZIO[Any, Nothing, Any]]
+    ): ZManaged[A, E, B] =
+      ZManaged {
+        get(layer).flatMap {
+          case Some(b) => ZIO.succeedNow(Reservation(ZIO.succeedNow(b), _ => UIO.unit))
+          case None =>
+            layer.scope.flatMap(_.apply(self)).reserve.map { reservation =>
+              Reservation(
+                reservation.acquire.tap(b => memoize(layer, b)),
+                _ =>
+                  ZIO.accessM[A] { a =>
+                    finalizerRef.update { finalizer => exit =>
+                      finalizer(exit) *> reservation.release(exit).provide(a)
+                    }
+                  }
+              )
+            }
+        }
+      }
   }
 
   private object MemoMap {
@@ -417,32 +444,4 @@ object ZLayer {
         }
       }
   }
-
-  /**
-   * Checks the memo map to see if a dependency exists. If it is, immediately
-   * returns it. Otherwise, obtains the dependency, stores it in the memo map,
-   * and adds a finalizer to the outer `Managed`.
-   */
-  private def getOrElseMemoize[E, A, B <: Has[_]](
-    memoMap: MemoMap,
-    layer: ZLayer[A, E, B],
-    finalizerRef: Ref[Exit[Any, Any] => ZIO[Any, Nothing, Any]]
-  ): ZIO[A, E, B] =
-    memoMap.get(layer).flatMap {
-      case Some(b) => ZIO.succeed(b)
-      case None =>
-        layer.scope.flatMap(_.apply(memoMap)).reserve.flatMap {
-          case Reservation(acquire, release) =>
-            ZIO.bracket[A, E, B, B](
-              acquire.tap(b => memoMap.memoize(layer, b)),
-              _ =>
-                ZIO.accessM[A] { a =>
-                  finalizerRef.update { finalizer => exit =>
-                    release(exit).provide(a) *> finalizer(exit)
-                  }
-                },
-              ZIO.succeedNow
-            )
-        }
-    }
 }

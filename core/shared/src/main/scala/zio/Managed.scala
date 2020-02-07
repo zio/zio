@@ -85,6 +85,12 @@ object Managed {
     ZManaged.finalizer(f)
 
   /**
+   * See [[zio.ZManaged.finalizerRef]]
+   */
+  def finalizerRef(initial: Exit[Any, Any] => UIO[Any]): Managed[Nothing, Ref[Exit[Any, Any] => UIO[Any]]] =
+    ZManaged.finalizerRef(initial)
+
+  /**
    * See [[zio.ZManaged.flatten]]
    */
   def flatten[E, A](m: Managed[E, Managed[E, A]]): Managed[E, A] =
