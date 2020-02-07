@@ -306,10 +306,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R): Spec[R0, E1, T] =
-    self.provideSomeManaged(for {
-      r0 <- ZManaged.environment[R0]
-      r1 <- layer.value.provide(r0)
-    } yield ev(r1))
+    provideSomeManaged(layer.build.map(ev))
 
   /**
    * Provides a layer to the spec, sharing services between all tests.
@@ -317,10 +314,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   final def provideLayerShared[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R): Spec[R0, E1, T] =
-    self.provideSomeManagedShared(for {
-      r0 <- ZManaged.environment[R0]
-      r1 <- layer.value.provide(r0)
-    } yield ev(r1))
+    self.provideSomeManagedShared(layer.build.map(ev))
 
   /**
    * Uses the specified effect to provide each test in this spec with its
