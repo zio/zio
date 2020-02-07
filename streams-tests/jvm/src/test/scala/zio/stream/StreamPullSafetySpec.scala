@@ -607,11 +607,11 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )(
           equalTo(
             List(
-              Right(1), // took 1 up to here
+              Right(1),
               Left(Some("Ouch 2")),
-              Right(3), // took 2 up to here
+              Right(3),
               Left(Some("Ouch 4")),
-              Right(5), // took 3 up to here
+              Right(5),
               Left(None),
               Left(None)
             )
@@ -637,11 +637,63 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )(
           equalTo(
             List(
-              Right(1), // took 1 up to here
+              Right(1),
               Left(Some("Ouch 2")),
-              Right(3), // took 2 up to here
+              Right(3),
               Left(Some("Ouch 4")),
-              Right(5), // took 3 up to here
+              Right(5),
+              Left(None),
+              Left(None)
+            )
+          )
+        )
+      }
+    ),
+    suite("Stream.takeWhile")(
+      testM("ZStream#takeWhile is safe to pull again") {
+        assertM(
+          Stream(1, 2, 3, 4, 5, 7, 9)
+            .mapM(n => if (n % 2 == 0) IO.failNow(s"Ouch $n") else UIO.succeedNow(n))
+            .takeWhile(_ < 6)
+            .process
+            .use(nPulls(_, 7))
+        )(
+          equalTo(
+            List(
+              Right(1),
+              Left(Some("Ouch 2")),
+              Right(3),
+              Left(Some("Ouch 4")),
+              Right(5),
+              Left(None),
+              Left(None)
+            )
+          )
+        )
+      },
+      testM("StreamEffect#takeWhile is safe to pull again") {
+        val stream = StreamEffect[Any, String, Int] {
+          Managed.effectTotal {
+            var counter = 0
+
+            () => {
+              counter += 1
+              if (counter >= 6) StreamEffect.end[Int]
+              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              else counter
+            }
+          }
+        }
+
+        assertM(
+          stream.takeWhile(_ < 5).process.use(nPulls(_, 6))
+        )(
+          equalTo(
+            List(
+              Right(1),
+              Left(Some("Ouch 2")),
+              Right(3),
+              Left(Some("Ouch 4")),
               Left(None),
               Left(None)
             )
