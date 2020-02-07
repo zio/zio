@@ -648,7 +648,29 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           )
         )
       }
-    )
+    ),
+    testM("Stream.zipWithIndex is safe to pull again") {
+      Stream(1, 2, 3, 4, 5)
+        .mapM(n => if (n % 2 == 0) IO.failNow(s"Ouch $n") else UIO.succeedNow(n))
+        .zipWithIndex
+        .process
+        .use(nPulls(_, 7))
+        .map(
+          assert(_)(
+            equalTo(
+              List(
+                Right((1, 0L)),
+                Left(Some("Ouch 2")),
+                Right((3, 1L)),
+                Left(Some("Ouch 4")),
+                Right((5, 2L)),
+                Left(None),
+                Left(None)
+              )
+            )
+          )
+        )
+    }
   )
 
   def constructors = suite("Constructors")(
