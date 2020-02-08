@@ -670,7 +670,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
-  final def ignore: URIO[R, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
+  final def ignore: URIO[R, Unit] = self.foldCause(ZIO.unitFn, ZIO.unitFn)
 
   /**
    * Performs this effect interruptibly. Because this is the default, this
