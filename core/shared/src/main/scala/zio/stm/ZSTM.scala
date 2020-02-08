@@ -122,6 +122,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     that >>> self
 
   /**
+   * Depending on provided environment, lift result of self to `Left` or that to `Right`.
+   */
+  def +++[R1, B, E1 >: E](that: ZSTM[R1, E1, B]): ZSTM[Either[R, R1], E1, Either[A, B]] =
+    ZSTM.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
+
+  /**
    * Returns an effect that submerges the error case of an `Either` into the
    * `STM`. The inverse operation of `STM.either`.
    */
