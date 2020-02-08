@@ -201,8 +201,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
-    * Named alias for `<<<`.
-    */
+   * Named alias for `<<<`.
+   */
   def compose[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
     self <<< that
 
@@ -350,7 +350,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Returns a successful effect if the value is `Left`, or fails with
-    * a [[java.util.NoSuchElementException]].
+   * a [[java.util.NoSuchElementException]].
    */
   def leftOrFailException[B, C, E1 >: NoSuchElementException](
     implicit ev: A <:< Either[B, C],
@@ -396,8 +396,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Keeps none of the errors, and terminates the fiber running the `STM`
-    * effect with them, using the specified function to convert the `E`
-    * into a `Throwable`.
+   * effect with them, using the specified function to convert the `E`
+   * into a `Throwable`.
    */
   def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A] =
     mapError(f).catchAll(ZSTM.dieNow)
@@ -437,8 +437,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Returns a transactional effect that will produce the value of this effect
-    * in left side, unless it fails, in which case, it will produce the value
-    * of the specified effect in right side.
+   * in left side, unless it fails, in which case, it will produce the value
+   * of the specified effect in right side.
    */
   def orElseEither[R1 <: R, E1 >: E, B](
     that: => ZSTM[R1, E1, B]
@@ -518,7 +518,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Returns a successful effect if the value is `Right`, or fails with the
-    * given error 'e'.
+   * given error 'e'.
    */
   def rightOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, C] =
     self.flatMap(ev(_) match {
@@ -528,7 +528,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Returns a successful effect if the value is `Right`, or fails with
-    * a [[java.util.NoSuchElementException]].
+   * a [[java.util.NoSuchElementException]].
    */
   def rightOrFailException[B, C, E1 >: NoSuchElementException](
     implicit ev: A <:< Either[B, C],
@@ -600,8 +600,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Summarizes a `STM` effect by computing a provided value before and after
-    * execution, and then combining the values to produce a summary, together
-    * with the result of execution.
+   * execution, and then combining the values to produce a summary, together
+   * with the result of execution.
    */
   def summarized[R1 <: R, E1 >: E, B, C](summary: ZSTM[R1, E1, B])(f: (B, B) => C): ZSTM[R1, E1, (C, A)] =
     for {
