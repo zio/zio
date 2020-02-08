@@ -519,32 +519,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
-   * "Peeks" at the success of transactional effect.
-   */
-  def tap[R1 <: R, E1 >: E](f: A => ZSTM[R1, E1, Any]): ZSTM[R1, E1, A] =
-    flatMap(a => f(a).as(a))
-
-  /**
-   * "Peeks" at both sides of an transactional effect.
-   */
-  def tapBoth[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any], g: A => ZSTM[R1, E1, Any])(
-    implicit ev: CanFail[E]
-  ): ZSTM[R1, E1, A] =
-    foldM(e => f(e) *> ZSTM.failNow(e), a => g(a) as a)
-
-  /**
-   * "Peeks" at the error of the transactional effect.
-   */
-  def tapError[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any])(implicit ev: CanFail[E]): ZSTM[R1, E1, A] =
-    foldM(e => f(e) *> ZSTM.failNow(e), ZSTM.succeedNow)
-
-  /**
    * Converts an option on values into an option on errors.
    */
   def some[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], B] =
     self.foldM(
       e => ZSTM.failNow(Some(e)),
-      a => a.fold[ZSTM[R, Option[E], B]](ZSTM.failNow(Option.empty[E]))(ZSTM.succeedNow)
+      _.fold[ZSTM[R, Option[E], B]](ZSTM.failNow(Option.empty[E]))(ZSTM.succeedNow)
     )
 
   /**
@@ -564,6 +544,26 @@ final class ZSTM[-R, +E, +A] private[stm] (
       ZSTM.failNow,
       _.fold[ZSTM[R, E1, B]](ZSTM.failNow(ev2(new NoSuchElementException("None.get"))))(ZSTM.succeedNow)
     )
+
+  /**
+   * "Peeks" at the success of transactional effect.
+   */
+  def tap[R1 <: R, E1 >: E](f: A => ZSTM[R1, E1, Any]): ZSTM[R1, E1, A] =
+    flatMap(a => f(a).as(a))
+
+  /**
+   * "Peeks" at both sides of an transactional effect.
+   */
+  def tapBoth[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any], g: A => ZSTM[R1, E1, Any])(
+    implicit ev: CanFail[E]
+  ): ZSTM[R1, E1, A] =
+    foldM(e => f(e) *> ZSTM.failNow(e), a => g(a) as a)
+
+  /**
+   * "Peeks" at the error of the transactional effect.
+   */
+  def tapError[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any])(implicit ev: CanFail[E]): ZSTM[R1, E1, A] =
+    foldM(e => f(e) *> ZSTM.failNow(e), ZSTM.succeedNow)
 
   /**
    * Maps the success value of this effect to unit.
