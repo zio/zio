@@ -243,6 +243,53 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.succeedNow(Left(2)).rightOrFailException.commit.run)(fails(Assertion.anything))
         }
       ),
+      suite("some")(
+        testM("extracts the value from Some") {
+          assertM(STM.succeedNow(Some(1)).some.commit)(equalTo(1))
+        },
+        testM("fails on None") {
+          assertM(STM.succeedNow(None).some.commit.run)(fails(isNone))
+        },
+        testM("fails when given an exception") {
+          assertM(STM.failNow(ExampleError).some.commit.run)(fails(isSome(equalTo(ExampleError))))
+        }
+      ),
+      suite("someOrFail")(
+        testM("extracts the value from Some") {
+          assertM(STM.succeedNow(Some(1)).someOrFail(ExampleError).commit)(equalTo(1))
+        },
+        testM("fails on None") {
+          assertM(STM.succeedNow(None).someOrFail(ExampleError).commit.run)(fails(equalTo(ExampleError)))
+        },
+        testM("fails with the original error") {
+          val nError = new Error("not example")
+          assertM(STM.failNow(ExampleError).someOrFail(nError).commit.run)(fails(equalTo(ExampleError)))
+        }
+      ),
+      suite("someOrFailException")(
+        testM("extracts the optional value") {
+          assertM(STM.succeedNow(Some(42)).someOrFailException.commit)(equalTo(42))
+        },
+        testM("fails when given a None") {
+          val tx = STM.succeedNow(Option.empty[Int]).someOrFailException
+          assertM(tx.commit.run)(fails(isSubtype[NoSuchElementException](anything)))
+        },
+        suite("without another error type")(
+          testM("succeed something") {
+            assertM(STM.succeedNow(Option(3)).someOrFailException.commit)(equalTo(3))
+          },
+          testM("succeed nothing") {
+            assertM(STM.succeedNow(Option.empty[Int]).someOrFailException.commit.run)(fails(Assertion.anything))
+          }
+        ),
+        testM("with throwable as a base error type return something") {
+          assertM(STM.succeedNow(Option(3)).someOrFailException.commit)(equalTo(3))
+        },
+        testM("with exception as base error type return something") {
+          val e: Either[Exception, Option[Int]] = Right(Some(3))
+          assertM(STM.fromEither(e).someOrFailException.commit)(equalTo(3))
+        }
+      ),
       testM("`zip` to return a tuple of two computations") {
         assertM((STM.succeedNow(1) <*> STM.succeedNow('A')).commit)(equalTo((1, 'A')))
       },
