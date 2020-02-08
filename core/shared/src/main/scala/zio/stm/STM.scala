@@ -130,6 +130,12 @@ object STM {
     ZSTM.iterate(initial)(cont)(body)
 
   /**
+   * @see See [[zio.stm.ZSTM.left]]
+   */
+  def left[A](a: => A): STM[Nothing, Either[A, Nothing]] =
+    ZSTM.left(a)
+
+  /**
    * @see See [[zio.stm.ZSTM.loop]]
    */
   def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, A]): STM[E, List[A]] =
@@ -152,6 +158,12 @@ object STM {
    */
   val retry: STM[Nothing, Nothing] =
     ZSTM.retry
+
+  /**
+   * @see See [[zio.stm.ZSTM.right]]
+   */
+  def right[A](a: => A): STM[Nothing, Either[Nothing, A]] =
+    ZSTM.right(a)
 
   /**
    * @see See [[zio.stm.ZSTM.succeed]]
