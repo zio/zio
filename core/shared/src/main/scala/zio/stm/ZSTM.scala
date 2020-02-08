@@ -479,6 +479,33 @@ final class ZSTM[-R, +E, +A] private[stm] (
     foldM(e => f(e) *> ZSTM.failNow(e), ZSTM.succeedNow)
 
   /**
+   * Converts an option on values into an option on errors.
+   */
+  def some[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], B] =
+    self.foldM(
+      e => ZSTM.failNow(Some(e)),
+      a => a.fold[ZSTM[R, Option[E], B]](ZSTM.failNow(Option.empty[E]))(ZSTM.succeedNow)
+      )
+
+  /**
+   * Extracts the optional value, or fails with the given error 'e'.
+   */
+  def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZSTM[R, E1, B] =
+    flatMap(_.fold[ZSTM[R, E1, B]](ZSTM.failNow(e))(ZSTM.succeedNow))
+
+  /**
+   * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
+   */
+  def someOrFailException[B, E1 >: E](
+    implicit ev: A <:< Option[B],
+    ev2: NoSuchElementException <:< E1
+  ): ZSTM[R, E1, B] =
+    foldM(
+      ZSTM.failNow,
+      _.fold[ZSTM[R, E1, B]](ZSTM.failNow(ev2(new NoSuchElementException("None.get"))))(ZSTM.succeedNow)
+    )
+
+  /**
    * Maps the success value of this effect to unit.
    */
   def unit: ZSTM[R, E, Unit] = as(())
