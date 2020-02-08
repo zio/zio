@@ -929,20 +929,20 @@ object ZSTM {
   def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     b.flatMap(b => if (b) stm.unit else unit)
 
-  private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
+  private[stm] def dieNow(t: Throwable): STM[Nothing, Nothing] =
     succeedNow(throw t)
 
-  private[zio] def doneNow[E, A](exit: TExit[E, A]): STM[E, A] =
+  private[stm] def doneNow[E, A](exit: TExit[E, A]): STM[E, A] =
     exit match {
       case TExit.Retry      => STM.retry
       case TExit.Fail(e)    => STM.failNow(e)
       case TExit.Succeed(a) => STM.succeedNow(a)
     }
 
-  private[zio] def failNow[E](e: E): ZSTM[Any, E, Nothing] =
+  private[stm] def failNow[E](e: E): ZSTM[Any, E, Nothing] =
     fail(e)
 
-  private[zio] def succeedNow[A](a: A): ZSTM[Any, Nothing, A] =
+  private[stm] def succeedNow[A](a: A): ZSTM[Any, Nothing, A] =
     succeed(a)
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
