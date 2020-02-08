@@ -828,7 +828,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * whatever is on the right unmodified. Note that the result is lifted
    * in either.
    */
-  final def onLeft[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] =
+  final def onLeft[C]: ZIO[Either[R, C], E, Either[A, C]] =
     self +++ ZIO.identity[C]
 
   /**
@@ -836,7 +836,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * whatever is on the left unmodified. Note that the result is lifted
    * in either.
    */
-  final def onRight[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] =
+  final def onRight[C]: ZIO[Either[C, R], E, Either[C, A]] =
     ZIO.identity[C] +++ self
 
   /**

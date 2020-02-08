@@ -187,7 +187,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("returns result when environment is on the left") {
           val tx = ZSTM
             .access[String](_.length)
-            .onLeft[String, Int]
+            .onLeft[Int]
             .provide(Left("test"))
 
           assertM(tx.commit)(isLeft(equalTo(4)))
@@ -195,7 +195,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("returns whatever is provided on the right unmodified") {
           val tx = ZSTM
             .access[String](_.length)
-            .onLeft[String, Int]
+            .onLeft[Int]
             .provide(Right(42))
 
           assertM(tx.commit)(isRight(equalTo(42)))
@@ -205,7 +205,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("returns result when environment is on the right") {
           val tx = ZSTM
             .access[String](_.length)
-            .onRight[String, Int]
+            .onRight[Int]
             .provide(Right("test"))
 
           assertM(tx.commit)(isRight(equalTo(4)))
@@ -213,7 +213,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("returns whatever is provided on the left unmodified") {
           val tx = ZSTM
             .access[String](_.length)
-            .onRight[String, Int]
+            .onRight[Int]
             .provide(Left(42))
 
           assertM(tx.commit)(isLeft(equalTo(42)))
