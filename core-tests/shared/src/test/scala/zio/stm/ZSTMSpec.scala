@@ -216,6 +216,33 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.failNow("oh no!").option.commit)(isNone)
         }
       ),
+      suite("right")(
+        testM("on Right value") {
+          assertM(STM.succeedNow(Right("Right")).right.commit)(equalTo("Right"))
+        },
+        testM("on Left value") {
+          assertM(STM.succeedNow(Left("Left")).right.either.commit)(isLeft(isNone))
+        },
+        testM("on failure") {
+          assertM(STM.failNow("Fail").right.either.commit)(isLeft(isSome(equalTo("Fail"))))
+        }
+      ),
+      suite("rightOrFail")(
+        testM("on Right value") {
+          assertM(STM.succeedNow(Right(42)).rightOrFail(ExampleError).commit)(equalTo(42))
+        },
+        testM("on Left value") {
+          assertM(STM.succeedNow(Left(1)).rightOrFail(ExampleError).flip.commit)(equalTo(ExampleError))
+        }
+      ),
+      suite("rightOrFailException")(
+        testM("on Right value") {
+          assertM(STM.succeedNow(Right(42)).rightOrFailException.commit)(equalTo(42))
+        },
+        testM("on Left value") {
+          assertM(STM.succeedNow(Left(2)).rightOrFailException.commit.run)(fails(Assertion.anything))
+        }
+      ),
       testM("`zip` to return a tuple of two computations") {
         assertM((STM.succeedNow(1) <*> STM.succeedNow('A')).commit)(equalTo((1, 'A')))
       },
