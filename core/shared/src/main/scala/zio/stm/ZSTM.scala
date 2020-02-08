@@ -381,9 +381,19 @@ final class ZSTM[-R, +E, +A] private[stm] (
       case TExit.Retry      => ZSTM.retry
     }
 
+  /**
+   * Returns this effect if environment is on the left, otherwise returns
+   * whatever is on the right unmodified. Note that the result is lifted
+   * in either.
+   */
   def onLeft[R1 <: R, C]: ZSTM[Either[R1, C], E, Either[A, C]] =
     self +++ ZSTM.identity[C]
 
+  /**
+   * Returns this effect if environment is on the right, otherwise returns
+   * whatever is on the left unmodified. Note that the result is lifted
+   * in either.
+   */
   def onRight[R1 <: R, C]: ZSTM[Either[C, R1], E, Either[C, A]] =
     ZSTM.identity[C] +++ self
 

@@ -823,9 +823,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       ZIO.descriptorWith(descriptor => if (descriptor.interruptors.nonEmpty) cleanup else ZIO.unit)
     )
 
+  /**
+   * Returns this effect if environment is on the left, otherwise returns
+   * whatever is on the right unmodified. Note that the result is lifted
+   * in either.
+   */
   final def onLeft[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] =
     self +++ ZIO.identity[C]
 
+  /**
+   * Returns this effect if environment is on the right, otherwise returns
+   * whatever is on the left unmodified. Note that the result is lifted
+   * in either.
+   */
   final def onRight[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] =
     ZIO.identity[C] +++ self
 
