@@ -381,6 +381,9 @@ final class ZSTM[-R, +E, +A] private[stm] (
       case TExit.Retry      => ZSTM.retry
     }
 
+  def onLeft[R1 <: R, C]: ZSTM[Either[R1, C], E, Either[A, C]] =
+    self +++ ZSTM.identity[C]
+
   /**
    * Converts the failure channel into an `Option`.
    */
