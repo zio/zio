@@ -384,6 +384,9 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def onLeft[R1 <: R, C]: ZSTM[Either[R1, C], E, Either[A, C]] =
     self +++ ZSTM.identity[C]
 
+  def onRight[R1 <: R, C]: ZSTM[Either[C, R1], E, Either[C, A]] =
+    ZSTM.identity[C] +++ self
+
   /**
    * Converts the failure channel into an `Option`.
    */

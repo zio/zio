@@ -199,6 +199,22 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(tx.commit)(isRight(equalTo(42)))
         }
       ),
+      suite("`onRight`")(
+        testM("returns result when environment is on the right") {
+          val tx = ZSTM.access[String](_.length)
+            .onRight[String, Int]
+            .provide(Right("test"))
+
+          assertM(tx.commit)(isRight(equalTo(4)))
+        },
+        testM("returns whatever is provided on the left unmodified") {
+          val tx = ZSTM.access[String](_.length)
+            .onRight[String, Int]
+            .provide(Left(42))
+
+          assertM(tx.commit)(isLeft(equalTo(42)))
+        }
+      ),
       suite("`orDie`")(
         testM("when failure should die") {
           import zio.CanFail.canFail
