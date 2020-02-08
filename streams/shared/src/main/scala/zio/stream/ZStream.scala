@@ -19,8 +19,6 @@ package zio.stream
 import java.io.{ IOException, InputStream }
 import java.{ util => ju }
 
-import scala.annotation.tailrec
-
 import com.github.ghik.silencer.silent
 
 import zio._
@@ -2486,59 +2484,30 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       runtime <- ZIO.runtime[R].toManaged_
     } yield {
       new Iterator[Either[E, A]] {
-        /*
-         * Internal state of a Iterator pulling from a ZStream
-         *
-         * It starts as Running
-         *
-         * when Running  , on pull (hasNext), pull the ZStream and switch to Closed or Value
-         * when Value    , on consume (next), return the Value and switch to Running
-         * when Closed   , on pull (hasNext), stays Closed
-         */
-        sealed trait State
-        case object Running                   extends State
-        sealed trait ValueOrClosed            extends State
-        case object Closed                    extends ValueOrClosed
-        case class Value(value: Either[E, A]) extends ValueOrClosed
 
-        var state: State = Running
+        var nextTake: Take[E, A] = null
+        def unsafeTake(): Unit =
+          nextTake = runtime.unsafeRun(Take.fromPull(pull))
 
-        private def pool(): Unit =
-          state = runtime.unsafeRun(
-            pull
-              .fold({
-                case None    => Closed
-                case Some(e) => Value(Left(e))
-              }, x => Value(Right(x)))
-          )
-
-        private def setRunning(): Unit =
-          state = Running
-
-        @tailrec
-        override def hasNext: Boolean =
-          state match {
-            case Closed   => false
-            case Value(_) => true
-            case Running =>
-              pool()
-              hasNext
+        def hasNext: Boolean = {
+          if (nextTake == null) {
+            unsafeTake()
           }
+          !(nextTake == Take.End)
+        }
 
-        @tailrec
-        override def next(): Either[E, A] =
-          state match {
-            case Closed => throw new NoSuchElementException("next on empty iterator")
-
-            case Value(a) =>
-              setRunning()
-              a
-
-            //Should not happen, next() has to be called after a successful hasNext() (Iterator spec)
-            case Running =>
-              pool()
-              next()
+        def next(): Either[E, A] = {
+          if (nextTake == null) {
+            unsafeTake()
           }
+          val take: Either[E, A] = nextTake match {
+            case Take.End      => throw new NoSuchElementException("next on empty iterator")
+            case Take.Fail(e)  => Left(e.failureOrCause.fold(identity, c => throw FiberFailure(c)))
+            case Take.Value(a) => Right(a)
+          }
+          nextTake = null
+          take
+        }
       }
     }
 
