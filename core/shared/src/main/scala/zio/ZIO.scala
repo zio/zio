@@ -3239,6 +3239,7 @@ object ZIO {
   def apply[A](a: => A): Task[A] = effect(a)
 
   private val _IdentityFn: Any => Any = (a: Any) => a
+
   private val _UnitFn: Any => Unit = (_: Any) => ()
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
