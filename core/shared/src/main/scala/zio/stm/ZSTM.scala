@@ -312,7 +312,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
-  def ignore: ZSTM[R, Nothing, Unit] = self.fold(_ => (), _ => ())
+  def ignore: ZSTM[R, Nothing, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
 
   /**
    * Returns a successful effect if the value is `Left`, or fails with the error `None`.

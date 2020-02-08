@@ -670,7 +670,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
-  final def ignore: URIO[R, Unit] = self.foldM(_ => ZIO.unit, _ => ZIO.unit)
+  final def ignore: URIO[R, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
 
   /**
    * Performs this effect interruptibly. Because this is the default, this
@@ -3250,6 +3250,8 @@ object ZIO {
           b => (es, b :: bs)
         )
     }
+
+  private[zio] val unitFn: Any => Unit = (_: Any) => ()
 
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
