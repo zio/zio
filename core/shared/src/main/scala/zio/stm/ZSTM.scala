@@ -860,6 +860,11 @@ object ZSTM {
     }
 
   /**
+   * Returns the identity effectful function, which performs no effects
+   */
+  def identity[R]: ZSTM[R, Nothing, R] = fromFunction[R, R](ZIO.identityFn)
+
+  /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   def ifM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfM[R, E] =
