@@ -315,6 +315,36 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def ignore: ZSTM[R, Nothing, Unit] = self.fold(_ => (), _ => ())
 
   /**
+   * Returns a successful effect if the value is `Left`, or fails with the error `None`.
+   */
+  def left[B, C](implicit ev: A <:< Either[B, C]): ZSTM[R, Option[E], B] =
+    foldM(
+      e => ZSTM.failNow(Some(e)),
+      a => ev(a).fold(ZSTM.succeedNow, _ => ZSTM.failNow(None))
+    )
+
+  /**
+   * Returns a successful effect if the value is `Left`, or fails with the error e.
+   */
+  def leftOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, B] =
+    flatMap(ev(_) match {
+      case Right(_)    => ZSTM.failNow(e)
+      case Left(value) => ZSTM.succeedNow(value)
+    })
+
+  /**
+   * Returns a successful effect if the value is `Left`, or fails with a [[java.util.NoSuchElementException]].
+   */
+  def leftOrFailException[B, C, E1 >: NoSuchElementException](
+    implicit ev: A <:< Either[B, C],
+    ev2: E <:< E1
+  ): ZSTM[R, E1, B] =
+    foldM(
+      e => ZSTM.failNow(ev2(e)),
+      a => ev(a).fold(ZSTM.succeedNow(_), _ => ZSTM.failNow(new NoSuchElementException("Either.left.get on Right")))
+    )
+
+  /**
    * Maps the value produced by the effect.
    */
   def map[B](f: A => B): ZSTM[R, E, B] =
