@@ -515,7 +515,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self.foldM(
       e => ZSTM.failNow(Some(e)),
       a => a.fold[ZSTM[R, Option[E], B]](ZSTM.failNow(Option.empty[E]))(ZSTM.succeedNow)
-      )
+    )
 
   /**
    * Extracts the optional value, or fails with the given error 'e'.
