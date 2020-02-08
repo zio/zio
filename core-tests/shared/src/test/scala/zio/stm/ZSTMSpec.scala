@@ -150,14 +150,40 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.failNow(None).flattenErrorOption("default error").commit.run)(fails(equalTo("default error")))
         }
       ),
+      suite("left")(
+        testM("on Left value") {
+          assertM(ZSTM.succeedNow(Left("Left")).left.commit)(equalTo("Left"))
+        },
+        testM("on Right value") {
+          assertM(ZSTM.succeedNow(Right("Right")).left.either.commit)(isLeft(isNone))
+        },
+        testM("on failure") {
+          assertM(ZSTM.failNow("Fail").left.either.commit)(isLeft(isSome(equalTo("Fail"))))
+        }
+      ),
+      suite("leftOrFail")(
+        testM("on Left value") {
+          assertM(ZSTM.succeedNow(Left(42)).leftOrFail(ExampleError).commit)(equalTo(42))
+        },
+        testM("on Right value") {
+          assertM(ZSTM.succeedNow(Right(12)).leftOrFail(ExampleError).flip.commit)(equalTo(ExampleError))
+        }
+      ),
+      suite("leftOrFailException")(
+        testM("on Left value") {
+          assertM(ZSTM.succeedNow(Left(42)).leftOrFailException.commit)(equalTo(42))
+        },
+        testM("on Right value") {
+          assertM(ZSTM.succeedNow(Right(2)).leftOrFailException.commit.run)(fails(Assertion.anything))
+        }
+      ),
       testM("`mapError` to map from one error to another") {
         assertM(STM.failNow(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
       },
       suite("`orDie`")(
         testM("when failure should die") {
           import zio.CanFail.canFail
-          val e = new Error("oops")
-          assertM(STM.fail(throw e).orDie.commit.run)(dies(equalTo(e)))
+          assertM(STM.fail(throw ExampleError).orDie.commit.run)(dies(equalTo(ExampleError)))
         },
         testM("when succeed should keep going") {
           import zio.CanFail.canFail
