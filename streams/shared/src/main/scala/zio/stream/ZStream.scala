@@ -2502,6 +2502,43 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     } yield javaStream
 
   /**
+   * Converts this stream into a `scala.collection.Iterator` wrapped in a [[ZManaged]].
+   * The returned iterator will only be valid within the scope of the ZManaged.
+   */
+  def toIterator: ZManaged[R, Nothing, Iterator[Either[E, A]]] =
+    for {
+      pull    <- this.process
+      runtime <- ZIO.runtime[R].toManaged_
+    } yield {
+      new Iterator[Either[E, A]] {
+
+        var nextTake: Take[E, A] = null
+        def unsafeTake(): Unit =
+          nextTake = runtime.unsafeRun(Take.fromPull(pull))
+
+        def hasNext: Boolean = {
+          if (nextTake == null) {
+            unsafeTake()
+          }
+          !(nextTake == Take.End)
+        }
+
+        def next(): Either[E, A] = {
+          if (nextTake == null) {
+            unsafeTake()
+          }
+          val take: Either[E, A] = nextTake match {
+            case Take.End      => throw new NoSuchElementException("next on empty iterator")
+            case Take.Fail(e)  => Left(e.failureOrCause.fold(identity, c => throw FiberFailure(c)))
+            case Take.Value(a) => Right(a)
+          }
+          nextTake = null
+          take
+        }
+      }
+    }
+
+  /**
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
    * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
    * tokens up to a `units + burst` threshold. Elements that do not meet the bandwidth constraints are dropped.
