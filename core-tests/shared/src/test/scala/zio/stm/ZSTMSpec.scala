@@ -216,6 +216,17 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.failNow("oh no!").option.commit)(isNone)
         }
       ),
+      suite("summarized")(
+        testM("returns summary and value") {
+          val tx = for {
+            counter               <- TRef.make(0)
+            increment             = counter.updateAndGet(_ + 1)
+            result                <- increment.summarized(increment)((_, _))
+            ((start, end), value) = result
+          } yield (start, value, end)
+          assertM(tx.commit)(equalTo((1, 2, 3)))
+        }
+      ),
       suite("right")(
         testM("on Right value") {
           assertM(STM.succeedNow(Right("Right")).right.commit)(equalTo("Right"))
