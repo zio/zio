@@ -1965,6 +1965,18 @@ object StreamSpec extends ZIOBaseSpec {
                               )
                             }
       } yield assert(streamResult)(equalTo(inputStreamResult))
-    }
+    },
+    testM("Stream.toIterator, Iterators are lazy")((for {
+      counter  <- Ref.make(0).toManaged_ //Increment and get the value
+      effect   = counter.updateAndGet(_ + 1)
+      iterator <- Stream.repeatEffect(effect).toIterator
+      n        = 2000
+      out <- ZStream
+              .fromIterator(UIO(iterator.map(_.merge)))
+              .mapConcatM(element => effect.map(newElement => List(element, newElement)))
+              .take(n.toLong)
+              .runCollect
+              .toManaged_
+    } yield assert(out)(equalTo((1 to n).toList))).use(ZIO.succeedNow))
   )
 }
