@@ -2102,7 +2102,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield value
 
         assertM(Live.live(io))(equalTo(2))
-      } @@ nonFlaky(100),
+      } @@ flaky,
       testM("race of fail with success") {
         val io = IO.failNow(42).race(IO.succeedNow(24)).either
         assertM(io)(isRight(equalTo(24)))
