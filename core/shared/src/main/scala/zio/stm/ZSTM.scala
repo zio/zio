@@ -365,6 +365,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
+   * Converts the failure channel into an `Option`.
+   */
+  def option(implicit ev: CanFail[E]): ZSTM[R, Nothing, Option[A]] =
+    fold(_ => None, Some(_))
+
+  /**
    * Translates `STM` effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
@@ -377,12 +383,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A] =
     mapError(f).catchAll(ZSTM.dieNow)
-
-  /**
-   * Converts the failure channel into an `Option`.
-   */
-  def option(implicit ev: CanFail[E]): ZSTM[R, Nothing, Option[A]] =
-    fold(_ => None, Some(_))
 
   /**
    * Named alias for `<>`.
@@ -546,6 +546,18 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
+   * Summarizes a `STM` effect by computing a provided value before and after execution, and
+   * then combining the values to produce a summary, together with the result of
+   * execution.
+   */
+  def summarized[R1 <: R, E1 >: E, B, C](summary: ZSTM[R1, E1, B])(f: (B, B) => C): ZSTM[R1, E1, (C, A)] =
+    for {
+      start <- summary
+      value <- self
+      end   <- summary
+    } yield (f(start, end), value)
+
+  /**
    * "Peeks" at the success of transactional effect.
    */
   def tap[R1 <: R, E1 >: E](f: A => ZSTM[R1, E1, Any]): ZSTM[R1, E1, A] =
@@ -564,18 +576,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def tapError[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any])(implicit ev: CanFail[E]): ZSTM[R1, E1, A] =
     foldM(e => f(e) *> ZSTM.failNow(e), ZSTM.succeedNow)
-
-  /**
-   * Summarizes a `STM` effect by computing a provided value before and after execution, and
-   * then combining the values to produce a summary, together with the result of
-   * execution.
-   */
-  def summarized[R1 <: R, E1 >: E, B, C](summary: ZSTM[R1, E1, B])(f: (B, B) => C): ZSTM[R1, E1, (C, A)] =
-    for {
-      start <- summary
-      value <- self
-      end   <- summary
-    } yield (f(start, end), value)
 
   /**
    * Maps the success value of this effect to unit.
