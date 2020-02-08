@@ -159,6 +159,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         },
         testM("on failure") {
           assertM(ZSTM.failNow("Fail").left.either.commit)(isLeft(isSome(equalTo("Fail"))))
+        },
+        testM("lifting a value") {
+          assertM(ZSTM.left(42).commit)(isLeft(equalTo(42)))
         }
       ),
       suite("leftOrFail")(

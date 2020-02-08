@@ -851,6 +851,12 @@ object ZSTM {
     else ZSTM.succeedNow(initial)
 
   /**
+   * Returns an effect with the value on the left part.
+   */
+  def left[A](a: => A): STM[Nothing, Either[A, Nothing]] =
+    succeed(Left(a))
+
+  /**
    * Loops with the specified transactional function, collecting the results
    * into a list. The moral equivalent of:
    *
