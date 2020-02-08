@@ -1016,7 +1016,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     collectM(pf.andThen(ZIO.succeedNow(_)))
 
   final def collectM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZIO[R1, E1, B]]): ZStream[R1, E1, B] =
-    ZStream[R1, E1, B] {
+    ZStream {
       self.process.map { as =>
         val pfIO: PartialFunction[A, Pull[R1, E1, B]] = pf.andThen(Pull.fromEffect(_))
 
@@ -1026,7 +1026,6 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           }
 
         pull
-
       }
     }
 
@@ -1036,20 +1035,22 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   def collectWhile[B](pf: PartialFunction[A, B]): ZStream[R, E, B] =
     collectWhileM(pf.andThen(ZIO.succeedNow(_)))
 
+  /**
+   * Effectfully transforms all elements of the stream for as long as the specified partial function is defined.
+   */
   final def collectWhileM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZIO[R1, E1, B]]): ZStream[R1, E1, B] =
-    ZStream[R1, E1, B] {
+    ZStream {
       for {
         as   <- self.process
         done <- Ref.make(false).toManaged_
         pfIO = pf.andThen(Pull.fromEffect(_))
-        pull = for {
-          alreadyDone <- done.get
-          result <- if (alreadyDone) Pull.end
-                   else
-                     as.flatMap { a =>
-                       pfIO.applyOrElse(a, (_: A) => done.set(true) *> Pull.end)
-                     }
-        } yield result
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else
+            as.flatMap { a =>
+              pfIO.applyOrElse(a, (_: A) => done.set(true) *> Pull.end)
+            }
+        }
       } yield pull
     }
 
@@ -2133,6 +2134,14 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }.flatMap(ZStream.repeatEffectOption)
 
   /**
+   * Provides a layer to the stream, which translates it to another level.
+   */
+  final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
+    layer: ZLayer[R0, E1, R1]
+  )(implicit ev: R1 <:< R): ZStream[R0, E1, A] =
+    provideSomeManaged(layer.build.map(ev))
+
+  /**
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
@@ -2143,6 +2152,21 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         as <- self.process.provide(env(r0))
       } yield as.provide(env(r0))
     }
+
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayer[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, A] =
+    new ZStream.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -2259,12 +2283,26 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def runCollect: ZIO[R, E, List[A]] = run(Sink.collectAll[A])
 
   /**
+   * Runs the stream and emits the number of elements processed
+   *
+   * Equivalent to `run(ZSink.count)`
+   */
+  final def runCount: ZIO[R, E, Long] = self.run(Sink.count[A])
+
+  /**
    * Runs the stream purely for its effects. Any elements emitted by
    * the stream are discarded.
    *
    * Equivalent to `run(Sink.drain)`.
    */
   final def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
+
+  /**
+   * Runs the stream to a sink which sums elements, provided they are Numeric.
+   *
+   * Equivalent to `run(Sink.sum[A])`
+   */
+  final def runSum[A1 >: A](implicit ev: Numeric[A1]): ZIO[R, E, A1] = run(Sink.sum[A1])
 
   /**
    * Schedules the output of the stream using the provided `schedule` and emits its output at
@@ -2427,13 +2465,17 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   def takeWhile(pred: A => Boolean): ZStream[R, E, A] =
     ZStream {
-      self.process.map { as =>
-        for {
-          a <- as
-          result <- if (pred(a)) Pull.emitNow(a)
-                   else Pull.end
-        } yield result
-      }
+      for {
+        as   <- self.process
+        done <- Ref.make(false).toManaged_
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else
+            as.flatMap { a =>
+              if (pred(a)) Pull.emitNow(a) else done.set(true) *> Pull.end
+            }
+        }
+      } yield pull
     }
 
   /**
@@ -2458,6 +2500,43 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         }
       }
     } yield javaStream
+
+  /**
+   * Converts this stream into a `scala.collection.Iterator` wrapped in a [[ZManaged]].
+   * The returned iterator will only be valid within the scope of the ZManaged.
+   */
+  def toIterator: ZManaged[R, Nothing, Iterator[Either[E, A]]] =
+    for {
+      pull    <- this.process
+      runtime <- ZIO.runtime[R].toManaged_
+    } yield {
+      new Iterator[Either[E, A]] {
+
+        var nextTake: Take[E, A] = null
+        def unsafeTake(): Unit =
+          nextTake = runtime.unsafeRun(Take.fromPull(pull))
+
+        def hasNext: Boolean = {
+          if (nextTake == null) {
+            unsafeTake()
+          }
+          !(nextTake == Take.End)
+        }
+
+        def next(): Either[E, A] = {
+          if (nextTake == null) {
+            unsafeTake()
+          }
+          val take: Either[E, A] = nextTake match {
+            case Take.End      => throw new NoSuchElementException("next on empty iterator")
+            case Take.Fail(e)  => Left(e.failureOrCause.fold(identity, c => throw FiberFailure(c)))
+            case Take.Value(a) => Right(a)
+          }
+          nextTake = null
+          take
+        }
+      }
+    }
 
   /**
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
@@ -2803,7 +2882,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
             if (done) Pull.end
             else
               currPull.get.flatten.catchAll {
-                case e @ Some(_) => ZIO.failNow(e)
+                case Some(e) => Pull.failNow(e)
                 case None =>
                   nextPull.get.flatMap {
                     case None => doneRef.set(true) *> Pull.end
@@ -3512,6 +3591,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
       ZStream.environment[R].flatMap(f)
+  }
+
+  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1 <: Has[_]](
+      layer: ZLayer[R0, E1, R1]
+    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): ZStream[R0, E1, A] =
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   private[zio] def dieNow(ex: Throwable): Stream[Nothing, Nothing] =

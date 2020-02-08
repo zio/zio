@@ -85,16 +85,28 @@ object Managed {
     ZManaged.finalizer(f)
 
   /**
+   * See [[zio.ZManaged.finalizerRef]]
+   */
+  def finalizerRef(initial: Exit[Any, Any] => UIO[Any]): Managed[Nothing, Ref[Exit[Any, Any] => UIO[Any]]] =
+    ZManaged.finalizerRef(initial)
+
+  /**
    * See [[zio.ZManaged.flatten]]
    */
   def flatten[E, A](m: Managed[E, Managed[E, A]]): Managed[E, A] =
     ZManaged.flatten(m)
 
   /**
-   * See [[zio.ZManaged.foreach]]
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
    */
   def foreach[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.foreach(as)(f)
+
+  /**
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](in:Option*]]]
+   */
+  final def foreach[E, A1, A2](in: Option[A1])(f: A1 => Managed[E, A2]): Managed[E, Option[A2]] =
+    ZManaged.foreach(in)(f)
 
   /**
    * See [[zio.ZManaged.foreach_]]
@@ -151,9 +163,33 @@ object Managed {
     ZManaged.halt(cause)
 
   /**
+   * See [[zio.ZManaged.ifM]]
+   */
+  def ifM[E](b: Managed[E, Boolean]): ZManaged.IfM[Any, E] =
+    new ZManaged.IfM(b)
+
+  /**
    * See [[zio.ZManaged.interrupt]]
    */
   val interrupt: Managed[Nothing, Nothing] = ZManaged.interrupt
+
+  /**
+   * See [[zio.ZManaged.iterate]]
+   */
+  def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => Managed[E, S]): Managed[E, S] =
+    ZManaged.iterate(initial)(cont)(body)
+
+  /**
+   * See [[zio.ZManaged.loop]]
+   */
+  def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Managed[E, A]): Managed[E, List[A]] =
+    ZManaged.loop(initial)(cont, inc)(body)
+
+  /**
+   * See [[zio.ZManaged.loop_]]
+   */
+  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.loop_(initial)(cont, inc)(body)
 
   /**
    * See [[zio.ZManaged.make]]

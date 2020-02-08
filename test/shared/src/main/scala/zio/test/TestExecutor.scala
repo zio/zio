@@ -19,20 +19,19 @@ package zio.test
 import zio.{ Managed, UIO, ZIO }
 
 /**
- * A `TestExecutor[R, E, L, T, S]` is capable of executing specs containing
- * tests of type `T`, annotated with labels of type `L`, that require an
- * environment `R` and may fail with an `E` or succeed with a `S`.
+ * A `TestExecutor[R, E]` is capable of executing specs that require an
+ * environment `R` and may fail with an `E`.
  */
-trait TestExecutor[+R, E, L, -T, +S] {
-  def run(spec: ZSpec[R, E, L, T], defExec: ExecutionStrategy): UIO[ExecutedSpec[E, L, S]]
+trait TestExecutor[+R, E] {
+  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]]
   def environment: Managed[Nothing, R]
 }
 
 object TestExecutor {
-  def managed[R <: Annotations, E, L, S](
+  def managed[R <: Annotations, E](
     env: Managed[Nothing, R]
-  ): TestExecutor[R, E, L, S, S] = new TestExecutor[R, E, L, S, S] {
-    def run(spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy): UIO[ExecutedSpec[E, L, S]] =
+  ): TestExecutor[R, E] = new TestExecutor[R, E] {
+    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =
       spec.annotated
         .provideManaged(environment)
         .foreachExec(defExec)(
@@ -44,6 +43,15 @@ object TestExecutor {
             case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
           }
         )
+        .flatMap(_.fold[UIO[ExecutedSpec[E]]] {
+          case Spec.SuiteCase(label, specs, exec) =>
+            UIO.succeedNow(Spec.suite(label, specs.flatMap(UIO.collectAll).map(_.toVector), exec))
+          case Spec.TestCase(label, test, annotations) =>
+            test.map {
+              case (result, annotations1) =>
+                Spec.test(label, UIO.succeedNow(result), annotations ++ annotations1)
+            }
+        })
     val environment = env
   }
 }

@@ -232,6 +232,16 @@ object TestAspectSpec extends ZIOBaseSpec {
         } @@ timeout(10.milliseconds, 1.nanosecond) @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
         result <- isSuccess(spec.provideLayer(liveClock))
       } yield assert(result)(isTrue)
+    } @@ flaky,
+    testM("verify verifies the specified post-condition after each test is run") {
+      for {
+        ref <- Ref.make(false)
+        spec = suite("verify")(
+          testM("first test")(ZIO.succeedNow(assertCompletes)),
+          testM("second test")(ref.set(true).as(assertCompletes))
+        ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
+        result <- isSuccess(spec)
+      } yield assert(result)(isFalse)
     }
   )
 
