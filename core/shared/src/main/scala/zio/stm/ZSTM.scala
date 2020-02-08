@@ -110,16 +110,29 @@ final class ZSTM[-R, +E, +A] private[stm] (
     orElse(that)
 
   /**
-   * Propagates the given environment to self
+   * Propagates the given environment to self.
    */
   def >>>[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
     flatMap(that.provide)
 
   /**
-   * Propagates self environment to that
+   * Propagates self environment to that.
    */
   def <<<[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
     that >>> self
+
+  /**
+   * Depending on provided environment returns either this one or the other effect.
+   */
+  def |||[R1, E1 >: E, A1 >: A](that: ZSTM[R1, E1, A1]): ZSTM[Either[R, R1], E1, A1] =
+    ZSTM.accessM[Either[R, R1]](_.fold(self.provide, that.provide))
+
+  /**
+   * Depending on provided environment, returns either this one or the other
+   * effect lifted in `Left` or `Right`, respectively.
+   */
+  def +++[R1, B, E1 >: E](that: ZSTM[R1, E1, B]): ZSTM[Either[R, R1], E1, Either[A, B]] =
+    ZSTM.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
 
   /**
    * Returns an effect that submerges the error case of an `Either` into the
@@ -129,7 +142,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
     ZSTM.absolve[R1, E1, B](ev1(self))
 
   /**
-   * Name alias for >>>
+   * Named alias for `>>>`.
    */
   def andThen[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
     self >>> that
@@ -187,6 +200,9 @@ final class ZSTM[-R, +E, +A] private[stm] (
       case TExit.Retry      => ZSTM.retry
     }
 
+  /**
+   * Named alias for `<<<`.
+   */
   def compose[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
     self <<< that
 
@@ -333,7 +349,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
     })
 
   /**
-   * Returns a successful effect if the value is `Left`, or fails with a [[java.util.NoSuchElementException]].
+   * Returns a successful effect if the value is `Left`, or fails with
+   * a [[java.util.NoSuchElementException]].
    */
   def leftOrFailException[B, C, E1 >: NoSuchElementException](
     implicit ev: A <:< Either[B, C],
@@ -365,6 +382,22 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
+   * Returns this effect if environment is on the left, otherwise returns
+   * whatever is on the right unmodified. Note that the result is lifted
+   * in either.
+   */
+  def onLeft[C]: ZSTM[Either[R, C], E, Either[A, C]] =
+    self +++ ZSTM.identity[C]
+
+  /**
+   * Returns this effect if environment is on the right, otherwise returns
+   * whatever is on the left unmodified. Note that the result is lifted
+   * in either.
+   */
+  def onRight[C]: ZSTM[Either[C, R], E, Either[C, A]] =
+    ZSTM.identity[C] +++ self
+
+  /**
    * Converts the failure channel into an `Option`.
    */
   def option(implicit ev: CanFail[E]): ZSTM[R, Nothing, Option[A]] =
@@ -378,8 +411,9 @@ final class ZSTM[-R, +E, +A] private[stm] (
     orDieWith(ev1)
 
   /**
-   * Keeps none of the errors, and terminates the fiber running the `STM` effect with them, using
-   * the specified function to convert the `E` into a `Throwable`.
+   * Keeps none of the errors, and terminates the fiber running the `STM`
+   * effect with them, using the specified function to convert the `E`
+   * into a `Throwable`.
    */
   def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A] =
     mapError(f).catchAll(ZSTM.dieNow)
@@ -418,8 +452,9 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
-   * Returns a transactional effect that will produce the value of this effect in left side, unless it
-   * fails, in which case, it will produce the value of the specified effect in right side.
+   * Returns a transactional effect that will produce the value of this effect
+   * in left side, unless it fails, in which case, it will produce the value
+   * of the specified effect in right side.
    */
   def orElseEither[R1 <: R, E1 >: E, B](
     that: => ZSTM[R1, E1, B]
@@ -498,7 +533,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
-   * Returns a successful effect if the value is `Right`, or fails with the given error 'e'.
+   * Returns a successful effect if the value is `Right`, or fails with the
+   * given error 'e'.
    */
   def rightOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, C] =
     self.flatMap(ev(_) match {
@@ -507,7 +543,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
     })
 
   /**
-   * Returns a successful effect if the value is `Right`, or fails with a [[java.util.NoSuchElementException]].
+   * Returns a successful effect if the value is `Right`, or fails with
+   * a [[java.util.NoSuchElementException]].
    */
   def rightOrFailException[B, C, E1 >: NoSuchElementException](
     implicit ev: A <:< Either[B, C],
@@ -825,6 +862,11 @@ object ZSTM {
         case Success(a) => STM.succeedNow(a)
       }
     }
+
+  /**
+   * Returns the identity effectful function, which performs no effects
+   */
+  def identity[R]: ZSTM[R, Nothing, R] = fromFunction[R, R](ZIO.identityFn)
 
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.

@@ -118,6 +118,11 @@ object STM {
     ZSTM.fromTry(a)
 
   /**
+   * @see See [[zio.stm.ZSTM.identity]]
+   */
+  def identity: STM[Nothing, Any] = ZSTM.identity
+
+  /**
    * @see See [[zio.stm.ZSTM.ifM]]
    */
   def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
