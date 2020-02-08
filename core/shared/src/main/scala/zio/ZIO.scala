@@ -3239,6 +3239,7 @@ object ZIO {
   def apply[A](a: => A): Task[A] = effect(a)
 
   private val _IdentityFn: Any => Any = (a: Any) => a
+  private val _UnitFn: Any => Unit = (_: Any) => ()
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
@@ -3250,6 +3251,8 @@ object ZIO {
           b => (es, b :: bs)
         )
     }
+
+  private[zio] def unitFn[A]: A => Unit = _UnitFn.asInstanceOf[A => Unit]
 
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
