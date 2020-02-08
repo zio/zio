@@ -907,6 +907,12 @@ object ZSTM {
   val retry: ZSTM[Any, Nothing, Nothing] = new ZSTM((_, _, _, _) => TExit.Retry)
 
   /**
+   * Returns an effect with the value on the right part.
+   */
+  def right[A](a: => A): STM[Nothing, Either[Nothing, A]] =
+    succeed(Right(a))
+
+  /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
   def succeed[A](a: => A): ZSTM[Any, Nothing, A] =

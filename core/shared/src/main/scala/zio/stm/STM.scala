@@ -160,6 +160,12 @@ object STM {
     ZSTM.retry
 
   /**
+   * @see See [[zio.stm.ZSTM.right]]
+   */
+  def right[A](a: => A): STM[Nothing, Either[Nothing, A]] =
+    ZSTM.right(a)
+
+  /**
    * @see See [[zio.stm.ZSTM.succeed]]
    */
   def succeed[A](a: => A): STM[Nothing, A] =
