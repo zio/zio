@@ -3240,8 +3240,6 @@ object ZIO {
 
   private val _IdentityFn: Any => Any = (a: Any) => a
 
-  private val _UnitFn: Any => Unit = (_: Any) => ()
-
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
   private[zio] def partitionMap[A, A1, A2](iterable: Iterable[A])(f: A => Either[A1, A2]): (List[A1], List[A2]) =
@@ -3253,7 +3251,7 @@ object ZIO {
         )
     }
 
-  private[zio] def unitFn[A]: A => Unit = _UnitFn.asInstanceOf[A => Unit]
+  private[zio] val unitFn: Any => Unit = (_: Any) => ()
 
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
