@@ -219,10 +219,20 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
   override def takeWhile(pred: A => Boolean): StreamEffect[R, E, A] =
     StreamEffect {
       self.processEffect.flatMap { thunk =>
-        Managed.effectTotal { () =>
-          val a = thunk()
-          if (pred(a)) a
-          else StreamEffect.end
+        Managed.effectTotal {
+          var done = false
+
+          () => {
+            if (done) StreamEffect.end
+            else {
+              val a = thunk()
+              if (pred(a)) a
+              else {
+                done = true
+                StreamEffect.end
+              }
+            }
+          }
         }
       }
     }

@@ -670,7 +670,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
-  final def ignore: URIO[R, Unit] = self.foldM(_ => ZIO.unit, _ => ZIO.unit)
+  final def ignore: URIO[R, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
 
   /**
    * Performs this effect interruptibly. Because this is the default, this
@@ -823,10 +823,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       ZIO.descriptorWith(descriptor => if (descriptor.interruptors.nonEmpty) cleanup else ZIO.unit)
     )
 
-  final def onLeft[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] =
+  /**
+   * Returns this effect if environment is on the left, otherwise returns
+   * whatever is on the right unmodified. Note that the result is lifted
+   * in either.
+   */
+  final def onLeft[C]: ZIO[Either[R, C], E, Either[A, C]] =
     self +++ ZIO.identity[C]
 
-  final def onRight[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] =
+  /**
+   * Returns this effect if environment is on the right, otherwise returns
+   * whatever is on the left unmodified. Note that the result is lifted
+   * in either.
+   */
+  final def onRight[C]: ZIO[Either[C, R], E, Either[C, A]] =
     ZIO.identity[C] +++ self
 
   /**
@@ -930,7 +940,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZIO[R0, E1, A] =
-    provideSomeManaged(layer.value.map(ev))
+    provideSomeManaged(layer.build.map(ev))
 
   /**
    * An effectual version of `provide`, useful when the act of provision
@@ -966,6 +976,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.accessM(r0 => self.provide(f(r0)))
 
   /**
+   * Splits the environment into two parts, providing one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
+   *
+   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
+    new ZIO.ProvideSomeLayer[R0, R, E, A](self)
+
+  /**
    * An effectful version of `provideSome`, useful when the act of partial
    * provision requires an effect.
    *
@@ -987,12 +1012,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
     r0.use(self.provide)
 
+  /**
+   * Operator alias for `andThen`.
+   */
   final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
     self.flatMap(that.provide)
 
+  /**
+   * Depending on provided environment returns either this one or the other effect.
+   */
   final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
     ZIO.accessM(_.fold(self.provide, that.provide))
 
+  /**
+   * Depending on provided environment, returns either this one or the other
+   * effect lifted in `Left` or `Right`, respectively.
+   */
   final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
     ZIO.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
 
@@ -1750,6 +1785,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def <>[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1])(implicit ev: CanFail[E]): ZIO[R1, E2, A1] =
     orElse(that)
 
+  /**
+   * Operator alias for `compose`.
+   */
   final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
     that >>> self
 
@@ -2525,7 +2563,7 @@ object ZIO {
    * Lifts a function `R => A` into a `URIO[R, A]`.
    */
   def fromFunction[R, A](f: R => A): URIO[R, A] =
-    environment[R].map(f)
+    access(f)
 
   /**
    * Lifts a function returning Future into an effect that requires the input to the function.
@@ -2538,7 +2576,7 @@ object ZIO {
    * an effect that requires the input to the function.
    */
   def fromFunctionM[R, E, A](f: R => IO[E, A]): ZIO[R, E, A] =
-    environment[R].flatMap(f)
+    accessM(f)
 
   /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an
@@ -3236,6 +3274,8 @@ object ZIO {
         )
     }
 
+  private[zio] val unitFn: Any => Unit = (_: Any) => ()
+
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
     /**
@@ -3261,14 +3301,11 @@ object ZIO {
       self.refineOrDie { case e: E1 => e }
   }
 
-  /**
-   * TODO: Document and pull out to top-level.
-   */
-  def provideOne[R1](r1: R1): ProvideOne[R1] = new ProvideOne[R1](r1)
-
-  class ProvideOne[R1](r1: R1) {
-    def apply[R2 <: Has[_], E, A](zio: ZIO[Has[R1] with R2, E, A])(implicit R1: Tagged[R1]): ZIO[R2, E, A] =
-      zio.provideSome[R2](r2 => r2.add(r1))
+  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1 <: Has[_]](
+      layer: ZLayer[R0, E1, R1]
+    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): ZIO[R0, E1, A] =
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
