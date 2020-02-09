@@ -28,6 +28,8 @@ class ZStream[-R, +E, -M, +B, +A](
   /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
+   * @param pred predicate used for deciding whether element should be retained
+   * @return a stream containing only elements from the original stream that satisfy given `pred`
    */
   def filter(pred: A => Boolean): ZStream[R, E, M, B, A] =
     ZStream {
