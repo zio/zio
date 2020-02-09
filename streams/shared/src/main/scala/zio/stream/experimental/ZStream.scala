@@ -24,6 +24,23 @@ class ZStream[-R, +E, -M, +B, +A](
         )
       }
     }
+
+  /**
+   * Filters this stream by the specified predicate, retaining all elements for
+   * which the predicate evaluates to true.
+   */
+  def filter(pred: A => Boolean): ZStream[R, E, M, B, A] =
+    ZStream {
+      self.process.map { control =>
+        Control(
+          control.pull.flatMap { a =>
+            if (pred(a)) UIO.succeedNow(a)
+            else control.pull
+          },
+          control.command
+        )
+      }
+    }
 }
 
 object ZStream extends Serializable {
