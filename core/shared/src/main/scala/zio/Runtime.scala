@@ -39,12 +39,12 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
-  final def map[R1](f: R => R1): Runtime[R1] = Runtime(f(environment), platform)
+  def map[R1](f: R => R1): Runtime[R1] = Runtime(f(environment), platform)
 
   /**
    * Constructs a new `Runtime` by mapping the platform.
    */
-  final def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(environment, f(platform))
+  def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(environment, f(platform))
 
   /**
    * Executes the effect synchronously, failing
@@ -131,37 +131,37 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified new environment.
    */
-  final def as[R1](r1: R1): Runtime[R1] = map(_ => r1)
+  def as[R1](r1: R1): Runtime[R1] = map(_ => r1)
 
   /**
    * Constructs a new `Runtime` with the specified executor.
    */
-  final def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.withExecutor(e))
+  def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.withExecutor(e))
 
   /**
    * Constructs a new `Runtime` with the specified fatal predicate.
    */
-  final def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withFatal(f))
+  def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withFatal(f))
 
   /**
    * Constructs a new `Runtime` with the fatal error reporter.
    */
-  final def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapPlatform(_.withReportFatal(f))
+  def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapPlatform(_.withReportFatal(f))
 
   /**
    * Constructs a new `Runtime` with the specified error reporter.
    */
-  final def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
+  def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
 
   /**
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.
    */
-  final def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.withTracing(t))
+  def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.withTracing(t))
 
   /**
    * Constructs a new `Runtime` with the specified tracing configuration.
    */
-  final def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
+  def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
 }
 
 object Runtime {
@@ -177,6 +177,33 @@ object Runtime {
      * undefined and it should be discarded.
      */
     def shutdown(): Unit
+
+    override final def as[R1](r1: R1): Runtime.Managed[R1] =
+      map(_ => r1)
+
+    override final def map[R1](f: R => R1): Runtime.Managed[R1] =
+      Managed(f(environment), platform, () => shutdown())
+
+    override final def mapPlatform(f: Platform => Platform): Runtime.Managed[R] =
+      Managed(environment, f(platform), () => shutdown())
+
+    override final def withExecutor(e: Executor): Runtime.Managed[R] =
+      mapPlatform(_.withExecutor(e))
+
+    override final def withFatal(f: Throwable => Boolean): Runtime.Managed[R] =
+      mapPlatform(_.withFatal(f))
+
+    override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
+      mapPlatform(_.withReportFatal(f))
+
+    override final def withReportFailure(f: Cause[Any] => Unit): Runtime.Managed[R] =
+      mapPlatform(_.withReportFailure(f))
+
+    override final def withTracing(t: Tracing): Runtime.Managed[R] =
+      mapPlatform(_.withTracing(t))
+
+    override final def withTracingConfig(config: TracingConfig): Runtime[R] =
+      mapPlatform(_.withTracingConfig(config))
   }
 
   object Managed {
