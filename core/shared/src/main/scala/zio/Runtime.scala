@@ -165,7 +165,33 @@ trait Runtime[+R] {
 }
 
 object Runtime {
-  lazy val default = Runtime((), Platform.default)
+
+  /**
+   * A runtime that can be shutdown to release resources allocated to it.
+   */
+  trait Managed[+R] extends Runtime[R] {
+
+    /**
+     * Shuts down this runtime and releases resources allocated to it. Once
+     * this runtime has been shut down the behavior of methods on it is
+     * undefined and it should be discarded.
+     */
+    def shutdown(): Unit
+  }
+
+  object Managed {
+
+    /**
+     * Builds a new managed runtime given an environment `R`, a
+     * [[zio.internal.Platform]], and a shut down action.
+     */
+    def apply[R](r: R, platform0: Platform, shutdown0: () => Unit): Runtime.Managed[R] =
+      new Runtime.Managed[R] {
+        val environment = r
+        val platform    = platform0
+        def shutdown()  = shutdown0()
+      }
+  }
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
@@ -173,5 +199,39 @@ object Runtime {
   def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
     val environment = r
     val platform    = platform0
+  }
+
+  lazy val default = Runtime((), Platform.default)
+
+  lazy val global = Runtime((), Platform.global)
+
+  /**
+   * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
+   * allocated immediately, and not released until the `Runtime` is shut down
+   * or the end of the application.
+   *
+   * This method is useful for small applications and integrating ZIO with
+   * legacy code, but other applications should investigate using
+   * [[ZIO.provideLayer]] directly in their application entry points.
+   */
+  def unsafeFromLayer[R <: Has[_]](
+    layer: ZLayer.NoDeps[Any, R],
+    platform: Platform = Platform.default
+  ): Runtime.Managed[R] = {
+    val runtime = Runtime((), platform)
+    val (environment, shutdown) = runtime.unsafeRun {
+      layer.build.reserve.flatMap {
+        case Reservation(acquire, release) =>
+          Ref.make(true).flatMap { finalize =>
+            val finalizer = () =>
+              runtime.unsafeRun {
+                release(Exit.unit).whenM(finalize.getAndSet(false)).uninterruptible
+              }
+            UIO.effectTotal(Platform.addShutdownHook(finalizer)) *>
+              acquire.map((_, finalizer))
+          }
+      }
+    }
+    Runtime.Managed(environment, platform, shutdown)
   }
 }
