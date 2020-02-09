@@ -29,6 +29,16 @@ import zio.internal.tracing.TracingConfig
 private[internal] trait PlatformSpecific {
 
   /**
+   * Adds a shutdown hook that executes the specified action on shutdown.
+   */
+  def addShutdownHook(action: () => Unit): Unit =
+    java.lang.Runtime.getRuntime.addShutdownHook {
+      new Thread {
+        override def run() = action()
+      }
+    }
+
+  /**
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
    * and auto-yielding disabled.
    *
