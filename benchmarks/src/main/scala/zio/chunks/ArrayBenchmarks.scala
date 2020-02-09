@@ -1,19 +1,20 @@
-package zio
+package zio.chunks
 
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
+import zio.Chunk
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-class ChunkBenchmarks {
+class ArrayBenchmarks {
 
   @Param(Array("100", "1000", "10000"))
-  var chunkSize: Int = _
+  var array: Array[Int] = _
 
   var chunk: Chunk[Int] = _
 
-  var array: Array[Int] = _
+  var chunkSize: Int = _
 
   @Setup(Level.Trial)
   def setup() = {
@@ -22,34 +23,41 @@ class ChunkBenchmarks {
   }
 
   @Benchmark
-  def chunkFold(): Int =
-    chunk.fold(0)(_ + _)
-
-  @Benchmark
   def arrayFold(): Int =
     array.sum
-  @Benchmark
-  def chunkMap(): Chunk[Int] = chunk.map(_ * 2)
 
   @Benchmark
   def arrayMap(): Array[Int] = array.map(_ * 2)
 
   @Benchmark
-  def chunkFlatMap(): Chunk[Int] = chunk.flatMap(n => Chunk(n + 2))
+  def arrayMapOptimized(): Array[Int] = {
+    var i   = 0
+    val len = array.length
 
-  @Benchmark
-  def arrayFlatMap(): Array[Int] = array.flatMap(n => Array(n + 2))
+    while (i < len) {
+      array(i) = array(i) * 2
+      i = i + 1
+    }
 
-  @Benchmark
-  def chunkFind(): Option[Int] = chunk.find(_ > 2)
+    array
+  }
 
   @Benchmark
   def arrayFind(): Option[Int] = array.find(_ > 2)
 
-  @Benchmark
-  def chunkMapM(): UIO[Unit] = chunk.mapM_(_ => ZIO.unit)
+  def arrayFindOptimized(): Option[Int] = {
+    var i   = 0
+    val len = array.length
+
+    while (i < len) {
+      if (array(i) > 2) return Some(array(i))
+      i = i + 1
+    }
+
+    None
+  }
 
   @Benchmark
-  def chunkFoldM(): UIO[Int] = chunk.foldM(0)((s, a) => ZIO.succeed(s + a))
+  def arrayFlatMap(): Array[Int] = array.flatMap(n => Array(n + 2))
 
 }
