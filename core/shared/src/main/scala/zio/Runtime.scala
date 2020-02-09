@@ -202,7 +202,7 @@ object Runtime {
     override final def withTracing(t: Tracing): Runtime.Managed[R] =
       mapPlatform(_.withTracing(t))
 
-    override final def withTracingConfig(config: TracingConfig): Runtime[R] =
+    override final def withTracingConfig(config: TracingConfig): Runtime.Managed[R] =
       mapPlatform(_.withTracingConfig(config))
   }
 
