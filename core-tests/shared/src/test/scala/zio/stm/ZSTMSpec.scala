@@ -183,6 +183,14 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("`mapError` to map from one error to another") {
         assertM(STM.failNow(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
       },
+      testM("`onFirst` returns the effect A along with the unmodified input `R` as second element in a tuple") {
+        val tx = ZSTM
+          .access[String](_.length)
+          .onFirst
+          .provide("word")
+
+        assertM(tx.commit)(equalTo((4, "word")))
+      },
       suite("`onLeft`")(
         testM("returns result when environment is on the left") {
           val tx = ZSTM
@@ -219,6 +227,14 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(tx.commit)(isLeft(equalTo(42)))
         }
       ),
+      testM("`onSecond` returns the effect A along with the unmodified input `R` as first element in a tuple") {
+        val tx = ZSTM
+          .access[String](_.length)
+          .onSecond
+          .provide("word")
+
+        assertM(tx.commit)(equalTo(("word", 4)))
+      },
       suite("`orDie`")(
         testM("when failure should die") {
           import zio.CanFail.canFail

@@ -812,7 +812,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * passes the effect input `R` along unmodified as the second element
    * of the tuple.
    */
-  final def onFirst[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] =
+  final def onFirst[R1 <: R]: ZIO[R1, E, (A, R1)] =
     self &&& ZIO.identity[R1]
 
   /**
@@ -844,7 +844,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * passes the effect input `R` along unmodified as the first element
    * of the tuple.
    */
-  final def onSecond[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] =
+  final def onSecond[R1 <: R]: ZIO[R1, E, (R1, A)] =
     ZIO.identity[R1] &&& self
 
   /**
