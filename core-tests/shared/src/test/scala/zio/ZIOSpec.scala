@@ -10,7 +10,7 @@ import zio.duration._
 import zio.random.Random
 import zio.scheduler.Scheduler
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
+import zio.test.TestAspect.{ flaky, jvm, jvmOnly, nonFlaky, scala2Only }
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
@@ -2648,7 +2648,7 @@ object ZIOSpec extends ZIOBaseSpec {
           childPool  <- pool.fork.flatMap(_.join)
         } yield assert(parentPool)(equalTo(childPool))
         io.lock(executor)
-      } @@ jvm(nonFlaky(100))
+      } @@ nonFlaky @@ jvmOnly
     ),
     suite("someOrFail")(
       testM("extracts the optional value") {
