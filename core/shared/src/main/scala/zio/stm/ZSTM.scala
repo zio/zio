@@ -332,6 +332,15 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
+   * Unwraps the optional success of this effect, but can fail with unit value.
+   */
+  def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZSTM[R, Unit, B] =
+    foldM(
+      ev1,
+      ev2(_).fold[ZSTM[R, Unit, B]](ZSTM.failNow(()))(ZSTM.succeedNow(_))
+    )
+
+  /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
   def ignore: ZSTM[R, Nothing, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
