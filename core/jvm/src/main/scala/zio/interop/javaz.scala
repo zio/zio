@@ -21,13 +21,13 @@ import _root_.java.util.concurrent.{ CompletableFuture, CompletionException, Com
 
 import zio.Fiber.Status
 import zio._
-import zio.blocking.{ blocking, Blocking }
+import zio.blocking.{blocking, Blocking}
 
-import scala.concurrent.ExecutionException
+import java.util.concurrent.ExecutionException
 
 object javaz {
   def withCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
-    Task.effectSuspendTotalWith { p =>
+    Task.effectSuspendTotalWith[T] { (p, _) =>
       Task.effectAsync { k =>
         val handler = new CompletionHandler[T, Any] {
           def completed(result: T, u: Any): Unit = k(Task.succeed(result))
@@ -59,12 +59,12 @@ object javaz {
 
   private def unwrapDone[A](isFatal: Throwable => Boolean)(f: Future[A]): Task[A] =
     try {
-      Task.succeed(f.get())
+      Task.succeedNow(f.get())
     } catch catchFromGet(isFatal)
 
   def fromCompletionStage[A](csUio: UIO[CompletionStage[A]]): Task[A] =
     csUio.flatMap { cs =>
-      Task.effectSuspendTotalWith { p =>
+      Task.effectSuspendTotalWith { (p, _) =>
         val cf = cs.toCompletableFuture
         if (cf.isDone) {
           unwrapDone(p.fatal)(cf)
@@ -84,7 +84,7 @@ object javaz {
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
   def fromFutureJava[A](futureUio: UIO[Future[A]]): RIO[Blocking, A] =
     futureUio.flatMap { future =>
-      RIO.effectSuspendTotalWith { p =>
+      RIO.effectSuspendTotalWith { (p, _) =>
         if (future.isDone) {
           unwrapDone(p.fatal)(future)
         } else {
@@ -117,7 +117,7 @@ object javaz {
     def fromCompletionStage[A](thunk: => CompletionStage[A]): Fiber[Throwable, A] = {
       lazy val cs: CompletionStage[A] = thunk
 
-      new Fiber[Throwable, A] {
+      new Fiber.Synthetic[Throwable, A] {
         override def await: UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(UIO.effectTotal(cs)).run
 
         override def poll: UIO[Option[Exit[Throwable, A]]] =
@@ -125,19 +125,17 @@ object javaz {
             val cf = cs.toCompletableFuture
             if (cf.isDone) {
               Task
-                .effectSuspendWith(p => unwrapDone(p.fatal)(cf))
+                .effectSuspendWith((p, _) => unwrapDone(p.fatal)(cf))
                 .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))
             } else {
-              UIO.succeed(None)
+              UIO.succeedNow(None)
             }
           }
 
         final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
 
         final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
-
-        final def id: UIO[Option[Fiber.Id]] = UIO.none
 
         final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
@@ -147,8 +145,6 @@ object javaz {
           // TODO: Avoid toCompletableFuture?
           if (thunk.toCompletableFuture.isDone) Status.Done else Status.Running
         }
-
-        final def trace: UIO[Option[ZTrace]] = UIO.none
       }
     }
 
@@ -156,15 +152,15 @@ object javaz {
     def fromFutureJava[A](thunk: => Future[A]): Fiber[Throwable, A] = {
       lazy val ftr: Future[A] = thunk
 
-      new Fiber[Throwable, A] {
+      new Fiber.Synthetic[Throwable, A] {
         def await: UIO[Exit[Throwable, A]] =
-          ZIO.fromFutureJava(UIO.effectTotal(ftr)).provide(Blocking.Live).run
+          Blocking.live.value.use(ZIO.fromFutureJava(UIO.effectTotal(ftr)).provide(_).run)
 
         def poll: UIO[Option[Exit[Throwable, A]]] =
           UIO.effectSuspendTotal {
             if (ftr.isDone) {
               Task
-                .effectSuspendWith(p => unwrapDone(p.fatal)(ftr))
+                .effectSuspendWith((p, _) => unwrapDone(p.fatal)(ftr))
                 .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))
             } else {
@@ -176,8 +172,6 @@ object javaz {
 
         def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 
-        def id: UIO[Option[Fiber.Id]] = UIO.none
-
         def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
         def inheritRefs: UIO[Unit] = UIO.unit
@@ -185,8 +179,6 @@ object javaz {
         def status: UIO[Fiber.Status] = UIO {
           if (thunk.isDone) Status.Done else Status.Running
         }
-
-        def trace: UIO[Option[ZTrace]] = UIO.none
       }
     }
   }
