@@ -158,6 +158,18 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.succeedNow(None).get.commit.run)(fails(isUnit))
         }
       ),
+      suite("head")(
+        testM("extracts the value from the List") {
+          assertM(ZSTM.succeedNow(List(1, 2)).head.commit)(equalTo(1))
+        },
+        testM("returns None if list is Empty") {
+          assertM(ZSTM.succeedNow(List.empty[Int]).head.commit.run)(fails(isNone))
+        },
+        testM("returns the Error around Some") {
+          val ei: Either[String, List[Int]] = Left("my error")
+          assertM(ZSTM.fromEither(ei).head.commit.run)(fails(isSome(equalTo("my error"))))
+        }
+      ),
       suite("left")(
         testM("on Left value") {
           assertM(ZSTM.succeedNow(Left("Left")).left.commit)(equalTo("Left"))
