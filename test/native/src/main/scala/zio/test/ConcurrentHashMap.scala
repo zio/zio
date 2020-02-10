@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-package zio
+package zio.test
 
-/**
- * Represents a failure in a fiber. This could be caused by some non-
- * recoverable error, such as a defect or system error, by some typed error,
- * or by interruption (or combinations of all of the above).
- *
- * This class is used to wrap ZIO failures into something that can be thrown,
- * to better integrate with Scala exception handling.
- */
-final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null) {
-  override def getMessage: String = cause.prettyPrint
+import scala.collection.mutable.Map
+
+private[test] final case class ConcurrentHashMap[K, V] private (private val map: Map[K, V]) {
+  def foldLeft[B](z: B)(f: (B, (K, V)) => B): B =
+    map.foldLeft(z)(f)
+  def getOrElseUpdate(key: K, op: => V): V =
+    map.getOrElseUpdate(key, op)
+}
+
+private[test] object ConcurrentHashMap {
+  def empty[K, V]: ConcurrentHashMap[K, V] =
+    new ConcurrentHashMap[K, V](Map.empty[K, V])
 }

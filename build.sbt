@@ -40,7 +40,10 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
 )
-addCommandAlias("compileNative", ";coreNative/compile")
+addCommandAlias(
+  "compileNative",
+  ";coreTestsNative/test:compile;streamsNative/test:compile;testNative/test:compile"
+)
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
@@ -124,14 +127,13 @@ lazy val coreNative = core.native
     )
   )
 
-lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
+lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core-tests"))
   .dependsOn(core)
   .dependsOn(test)
   .settings(stdSettings("core-tests"))
   .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
@@ -141,13 +143,26 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
+  .dependsOn(testRunnerJVM)
 
 lazy val coreTestsJS = coreTests.js
   .settings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
   )
+  .dependsOn(testRunnerJS)
 
-lazy val streams = crossProject(JSPlatform, JVMPlatform)
+lazy val coreTestsNative = coreTests.native
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in doc := true)
+  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
+      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+    )
+  )
+
+lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
   .dependsOn(core)
   .settings(stdSettings("zio-streams"))
@@ -157,7 +172,20 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsJVM = streams.jvm.settings(dottySettings)
-lazy val streamsJS  = streams.js
+
+lazy val streamsJS = streams.js
+
+lazy val streamsNative = streams.native
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
+  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
+      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+    )
+  )
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams-tests"))
@@ -181,22 +209,40 @@ lazy val streamsTestsJS = streamsTests.js
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
   )
 
-lazy val test = crossProject(JSPlatform, JVMPlatform)
+lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
   .settings(crossProjectSettings)
   .settings(
     scalacOptions += "-language:experimental.macros",
-    libraryDependencies ++=
-      Seq("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0") ++ {
-        if (isDotty.value) Seq()
-        else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
-      }
+    libraryDependencies ++= {
+      if (isDotty.value) Seq()
+      else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
+    }
   )
 
-lazy val testJVM = test.jvm.settings(dottySettings)
-lazy val testJS  = test.js
+lazy val testJVM = test.jvm
+  .settings(dottySettings)
+  .settings(
+    libraryDependencies += "org.portable-scala" %%% "portable-scala-reflect" % "1.0.0"
+  )
+
+lazy val testJS = test.js.settings(
+  libraryDependencies += "org.portable-scala" %%% "portable-scala-reflect" % "1.0.0"
+)
+
+lazy val testNative = test.native
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
+  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
+      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+    )
+  )
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))

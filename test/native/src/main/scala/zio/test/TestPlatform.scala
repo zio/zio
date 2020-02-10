@@ -14,16 +14,26 @@
  * limitations under the License.
  */
 
-package zio
+package zio.test
 
 /**
- * Represents a failure in a fiber. This could be caused by some non-
- * recoverable error, such as a defect or system error, by some typed error,
- * or by interruption (or combinations of all of the above).
- *
- * This class is used to wrap ZIO failures into something that can be thrown,
- * to better integrate with Scala exception handling.
+ * `TestPlatform` provides information about the platform tests are being run
+ * on to enable platform specific test configuration.
  */
-final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null) {
-  override def getMessage: String = cause.prettyPrint
+object TestPlatform {
+
+  /**
+   * Returns whether the current platform is ScalaJS.
+   */
+  final val isJS = false
+
+  /**
+   * Returns whether the currently platform is the JVM.
+   */
+  final val isJVM = false
+
+  /**
+   * Returns whether the currently platform is Scala Native.
+   */
+  final val isNative = true
 }

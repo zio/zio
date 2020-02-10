@@ -284,7 +284,7 @@ package object environment extends PlatformSpecific {
        * Returns the current fiber time as an `OffsetDateTime`.
        */
       def currentDateTime: UIO[OffsetDateTime] =
-        fiberState.get.map(data => toDateTime(data.currentTimeMillis, data.timeZone))
+        fiberState.get.map(data => toDateTime(data.currentTimeMillis, data.timeZone()))
 
       /**
        * Returns the current fiber time in the specified time unit.
@@ -373,7 +373,7 @@ package object environment extends PlatformSpecific {
        * scheduled effects will be run as a result of this method.
        */
       def setTimeZone(zone: ZoneId): UIO[Unit] =
-        fiberState.update(_.copy(timeZone = zone))
+        fiberState.update(_.copy(timeZone = () => zone))
 
       /**
        * Semantically blocks the current fiber until the wall clock time is
@@ -409,7 +409,7 @@ package object environment extends PlatformSpecific {
        * Returns the time zone.
        */
       val timeZone: UIO[ZoneId] =
-        fiberState.get.map(_.timeZone)
+        fiberState.get.map(_.timeZone())
 
       private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
         UIO.forkAll_(wakes.sortBy(_._1).map(_._2.succeed(()))).fork.unit
@@ -453,7 +453,7 @@ package object environment extends PlatformSpecific {
       ZLayer.fromServiceManaged { (live: Live.Service) =>
         for {
           ref       <- Ref.make(data).toManaged_
-          fiberRef  <- FiberRef.make(FiberData(0, 0, ZoneId.of("UTC")), FiberData.combine).toManaged_
+          fiberRef  <- FiberRef.make(FiberData(0, 0, () => ZoneId.of("UTC")), FiberData.combine).toManaged_
           refM      <- RefM.make(WarningData.start).toManaged_
           test      <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
           scheduler <- test.scheduler.toManaged_
@@ -517,7 +517,7 @@ package object environment extends PlatformSpecific {
      */
     final case class Data(nanoTime: Long, sleeps: List[(Duration, Promise[Nothing, Unit])])
 
-    final case class FiberData(nanoTime: Long, currentTimeMillis: Long, timeZone: ZoneId)
+    final case class FiberData(nanoTime: Long, currentTimeMillis: Long, timeZone: () => ZoneId)
 
     object FiberData {
       def combine(first: FiberData, last: FiberData): FiberData =

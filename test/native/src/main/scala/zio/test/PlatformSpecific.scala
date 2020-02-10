@@ -16,24 +16,23 @@
 
 package zio.test
 
-/**
- * `TestPlatform` provides information about the platform tests are being run
- * on to enable platform specific test configuration.
- */
-object TestPlatform {
+import zio._
+import zio.test.environment._
 
-  /**
-   * Returns whether the current platform is ScalaJS.
-   */
-  final val isJS = true
+private[test] trait PlatformSpecific {
+  type TestEnvironment =
+    ZEnv with Annotations with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
 
-  /**
-   * Returns whether the currently platform is the JVM.
-   */
-  final val isJVM = false
-
-  /**
-   * Returns whether the currently platform is Scala Native.
-   */
-  final val isNative = false
+  object TestEnvironment {
+    val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
+      ZLayer.requires[TestEnvironment]
+    val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
+      Annotations.live ++
+        (Live.default >>> TestClock.default) ++
+        TestConsole.default ++
+        Live.default ++
+        TestRandom.random ++
+        Sized.live(100) ++
+        TestSystem.default
+  }
 }
