@@ -416,7 +416,7 @@ object Fiber {
    * A synthetic fiber that is created from a pure value or that combines
    * existing fibers.
    */
-  sealed trait Synthetic[+E, +A] extends Fiber[E, A] {}
+  private[zio] abstract class Synthetic[+E, +A] extends Fiber[E, A] {}
 
   /**
    * A record containing information about a [[Fiber]].
