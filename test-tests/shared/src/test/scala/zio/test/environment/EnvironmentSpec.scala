@@ -3,8 +3,11 @@ package zio.test.environment
 import java.util.concurrent.TimeUnit
 
 import zio._
+import zio.clock._
 import zio.duration._
+import zio.scheduler._
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
 
 object EnvironmentSpec extends ZIOBaseSpec {
@@ -66,6 +69,11 @@ object EnvironmentSpec extends ZIOBaseSpec {
         _       <- TestSystem.setLineSeparator(",")
         lineSep <- system.lineSeparator
       } yield assert(lineSep)(equalTo(","))
-    }
+    },
+    testM("clock can be set") {
+      val testEnvironment = TestEnvironment.live.overwrite(Scheduler.live >>> Clock.live)
+      val zio             = clock.sleep(1.nanosecond).provideLayer(testEnvironment)
+      assertM(zio)(anything)
+    } @@ nonFlaky
   )
 }

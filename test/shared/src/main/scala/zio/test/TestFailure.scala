@@ -23,4 +23,22 @@ sealed trait TestFailure[+E]
 object TestFailure {
   final case class Assertion(result: TestResult) extends TestFailure[Nothing]
   final case class Runtime[+E](cause: Cause[E])  extends TestFailure[E]
+
+  /**
+   * Constructs a new assertion failure with the specified result.
+   */
+  def assertion(result: TestResult): TestFailure[Nothing] =
+    Assertion(result)
+
+  /**
+   * Constructs a new runtime failure with the specified cause.
+   */
+  def die[E](cause: Cause[E]): TestFailure[E] =
+    Runtime(cause)
+
+  /**
+   * Constructs a new runtime failure with the specified error.
+   */
+  def fail[E](e: E): TestFailure[E] =
+    Runtime(Cause.fail(e))
 }
