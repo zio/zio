@@ -15,15 +15,9 @@ abstract class BaseTestTask(
   val args: TestArgs
 ) extends Task {
 
-  protected lazy val spec: AbstractRunnableSpec = {
-    import org.portablescala.reflect._
-    val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
-    Reflect
-      .lookupLoadableModuleClass(fqn, testClassLoader)
-      .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
-      .loadModule()
+  protected lazy val spec: AbstractRunnableSpec =
+    Reflect.loadModule(taskDef.fullyQualifiedName, testClassLoader)
       .asInstanceOf[AbstractRunnableSpec]
-  }
 
   protected def run(eventHandler: EventHandler) =
     for {
