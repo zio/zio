@@ -2639,13 +2639,20 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       },
       testM("executor is heritable") {
-        val exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
+        val threadName = ZIO.effectTotal(Thread.currentThread.getName)
+        val executor = internal.Executor.fromExecutionContext(100) {
+          scala.concurrent.ExecutionContext.Implicits.global
+        }
+        val poolName =
+          if (TestPlatform.isJS) "main"
+          else if (TestVersion.is211) "ForkJoinPool"
+          else "scala-execution-context-global"
         val io = for {
-          parentName <- ZIO.effectTotal(Thread.currentThread.getName)
-          childName  <- ZIO.effectTotal(Thread.currentThread.getName).fork.flatMap(_.join)
-        } yield assert(parentName)(containsString("scala-execution-context-global")) &&
-          assert(childName)(containsString("scala-execution-context-global"))
-        io.lock(exec)
+          parentName <- threadName
+          childName  <- threadName.fork.flatMap(_.join)
+        } yield assert(parentName)(containsString(poolName)) &&
+          assert(childName)(containsString(poolName))
+        io.lock(executor)
       } @@ jvm(nonFlaky(100))
     ),
     suite("someOrFail")(
