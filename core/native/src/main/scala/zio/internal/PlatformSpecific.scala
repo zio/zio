@@ -57,6 +57,12 @@ private[internal] trait PlatformSpecific {
   final val defaultYieldOpCount = 2048
 
   /**
+    * Returns the name of the thread group to which this thread belongs. This
+    * is a side-effecting method.
+    */
+  val getCurrentThreadGroup: String = ""
+
+  /**
    * A `Platform` created from Scala's global execution context.
    */
   lazy val global = fromExecutionContext(ExecutionContext.global)
