@@ -85,8 +85,7 @@ object JavaSpec extends ZIOBaseSpec {
         val ex                       = new Exception("IOs also can fail")
         val failedIO: Task[Unit]     = IO.fail[Throwable](ex)
         val failedFuture: Task[Unit] = failedIO.toCompletableFuture.flatMap(f => Task(f.get()))
-        assertM(
-          failedFuture.run)(
+        assertM(failedFuture.run)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )
       },
@@ -100,8 +99,7 @@ object JavaSpec extends ZIOBaseSpec {
         val failedIO: IO[String, Unit] = IO.fail[String]("IOs also can fail")
         val failedFuture: Task[Unit] =
           failedIO.toCompletableFutureWith(new Exception(_)).flatMap(f => Task(f.get()))
-        assertM(
-          failedFuture.run)(
+        assertM(failedFuture.run)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )
       }
@@ -186,7 +184,9 @@ object JavaSpec extends ZIOBaseSpec {
           _            <- ZIO.effectTotal(server.close())
         } yield (resultServer, resultClient)
 
-        assertM(task.run)(succeeds[(Integer, (Integer, List[Byte]))](equalTo((Integer.valueOf(1), (Integer.valueOf(1), list)))))
+        assertM(task.run)(
+          succeeds[(Integer, (Integer, List[Byte]))](equalTo((Integer.valueOf(1), (Integer.valueOf(1), list))))
+        )
       }
     )
   )

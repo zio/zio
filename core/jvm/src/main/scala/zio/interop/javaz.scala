@@ -21,7 +21,7 @@ import _root_.java.util.concurrent.{ CompletableFuture, CompletionException, Com
 
 import zio.Fiber.Status
 import zio._
-import zio.blocking.{blocking, Blocking}
+import zio.blocking.{ blocking, Blocking }
 
 import java.util.concurrent.ExecutionException
 
