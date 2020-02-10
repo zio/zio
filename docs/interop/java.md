@@ -3,4 +3,101 @@ id: interop_java
 title:  "Java"
 ---
 
-Coming soon...
+ZIO has full interoperability with foreign Java code. Let me show you how it works and then *BOOM*, tomorrow you can show off your purely functional Java at work.
+
+First, import the interop layer, like this:
+
+```scala
+import zio.interop.javaz._
+```
+
+## From Java CompletionStage and back
+
+`CompletionStage` is the interface that comes closest to emulate a functional asynchronous effects API like ZIO's, so with start with it. It's a breeze:
+
+```scala
+def loggedStage[A](stage: => CompletionStage[A]): Task[A] =
+    ZIO.fromCompletionStage(UIO {
+        stage.thenApplyAsync { a =>
+            println("Stage completed with " + a)
+            a
+        }
+    })
+```
+
+By Jove, you can even turn it into fiber!
+
+```scala
+def stageToFiber[A](stage: => CompletionStage[A]): Fiber[Throwable, A] = 
+  Fiber.fromCompletionStage(future)
+````
+
+This API creates a synthetic fiber which doesn't have any notion of identity.
+
+Additionally, you may want to go the other way and convert a ZIO value into a `CompletionStage`. Easy as pie:
+
+```scala
+def taskToStage[A](task: Task[A]): UIO[CompletableFuture[A]] =
+    task.toCompletableFuture
+```
+
+As you can see, it commits to a concrete class implementing the `CompletionStage` interface, i.e. `CompletableFuture`.
+
+## Java Future
+
+You can embed any `java.util.concurrent.Future` in a ZIO computation via `ZIO.fromFutureJava`. A toy wrapper around Apache Async HTTP client could look like:
+
+```scala
+def execute(client: HttpAsyncClient, request: HttpUriRequest): RIO[Blocking, HttpResponse] =
+    ZIO.fromFutureJava(UIO {
+        client.execute(request, null)
+    })
+```
+
+or, a bit shorter with
+
+```scala
+def execute(client: HttpAsyncClient, request: HttpUriRequest): RIO[Blocking, HttpResponse] =
+    UIO {
+        client.execute(request, null)
+    }.toZio
+```
+
+That's it. Just a bit of a warning here, mate. As you can see from the requirement on the produced value, ZIO uses the blocking `Future#get` call internally. It is running on the blocking thread pool, of course, but I thought you should know. If possible, use `ZIO.fromCompletionStage` instead, as detailed above.
+
+Should you need it, it is also possible to convert a future into a fiber using `Fiber.fromFutureJava`. Same same, but different:
+
+```scala
+def execute(client: HttpAsyncClient, request: HttpUriRequest): Fiber[Throwable, HttpResponse] =
+    Fiber.fromFutureJava {
+        client.execute(request, null)
+    }
+```
+
+## NIO Completion handler
+
+Java libraries using channels from the NIO API for asynchronous, interruptible I/O can be hooked into by providing completion handlers. As in, reading the contents of a file:
+
+```scala
+def readFile(file: AsynchronousFileChannel): Task[Chunk[Byte]] = for {
+    pos <- Ref.make(0)
+    buf <- ZIO.effectTotal(ByteBuffer.allocate(1024))
+    contents <- Ref.make[Chunk[Byte]](Chunk.empty)
+    def go = pos.get.flatMap { p =>
+        ZIO.withCompletionStage[Chunk[Byte]] { handler =>
+            file.read(buf, p, buf, handler)
+        }.flatMap {
+            case -1 => contents.get
+            case n  =>
+                ZIO.effectTotal {
+                    val arr = Array.ofDim[Byte](n)
+                    buf.get(arr, 0, n)
+                    buf.clear()
+                    Chunk.fromArray(arr)
+                }.flatMap { slice =>
+                    contents.update(_ ++ slice)
+                } *> pos.update(_ + n) *> go
+        }
+    }
+    dump <- go
+} yield dump
