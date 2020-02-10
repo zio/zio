@@ -135,6 +135,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     ZSTM.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
 
   /**
+   * Alias for `<*>` and `zip`.
+   */
+  def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
+    self <*> that
+
+  /**
    * Returns an effect that submerges the error case of an `Either` into the
    * `STM`. The inverse operation of `STM.either`.
    */
@@ -382,6 +388,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
+   * Propagates the success value to the first element of a tuple, but
+   * passes the effect input `R` along unmodified as the second element
+   * of the tuple.
+   */
+  def onFirst[R1 <: R, A1 >: A]: ZSTM[R1, E, (A1, R1)] =
+    self <*> ZSTM.identity[R1]
+
+  /**
    * Returns this effect if environment is on the left, otherwise returns
    * whatever is on the right unmodified. Note that the result is lifted
    * in either.
@@ -396,6 +410,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def onRight[C]: ZSTM[Either[C, R], E, Either[C, A]] =
     ZSTM.identity[C] +++ self
+
+  /**
+   * Propagates the success value to the second element of a tuple, but
+   * passes the effect input `R` along unmodified as the first element
+   * of the tuple.
+   */
+  def onSecond[R1 <: R, A1 >: A]: ZSTM[R1, E, (R1, A1)] =
+    ZSTM.identity[R1] <*> self
 
   /**
    * Converts the failure channel into an `Option`.
