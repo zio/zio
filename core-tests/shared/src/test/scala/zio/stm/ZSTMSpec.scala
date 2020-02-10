@@ -150,6 +150,14 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.failNow(None).flattenErrorOption("default error").commit.run)(fails(equalTo("default error")))
         }
       ),
+      suite("get")(
+        testM("extracts the value from Some") {
+          assertM(STM.succeedNow(Some(1)).get.commit)(equalTo(1))
+        },
+        testM("fails with Unit on None") {
+          assertM(STM.succeedNow(None).get.commit.run)(fails(isUnit))
+        }
+      ),
       suite("left")(
         testM("on Left value") {
           assertM(ZSTM.succeedNow(Left("Left")).left.commit)(equalTo("Left"))
