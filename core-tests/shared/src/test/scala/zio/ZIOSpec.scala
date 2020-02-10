@@ -10,7 +10,7 @@ import zio.duration._
 import zio.random.Random
 import zio.scheduler.Scheduler
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, jvm, jvmOnly, nonFlaky, scala2Only }
+import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
@@ -2639,16 +2639,21 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       },
       testM("executor is heritable") {
+        val threadName = ZIO.effectTotal(Thread.currentThread.getName)
         val executor = internal.Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
-        val pool = ZIO.effectTotal(Thread.currentThread.getThreadGroup)
+        val poolName =
+          if (TestPlatform.isJS) "main"
+          else if (TestVersion.isScala211) "ForkJoinPool"
+          else "scala-execution-context-global"
         val io = for {
-          parentPool <- pool
-          childPool  <- pool.fork.flatMap(_.join)
-        } yield assert(parentPool)(equalTo(childPool))
+          parentName <- threadName
+          childName  <- threadName.fork.flatMap(_.join)
+        } yield assert(parentName)(containsString(poolName)) &&
+          assert(childName)(containsString(poolName))
         io.lock(executor)
-      } @@ nonFlaky @@ jvmOnly
+      } @@ jvm(nonFlaky(100))
     ),
     suite("someOrFail")(
       testM("extracts the optional value") {
