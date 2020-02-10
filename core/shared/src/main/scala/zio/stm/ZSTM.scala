@@ -392,7 +392,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * passes the effect input `R` along unmodified as the second element
    * of the tuple.
    */
-  def onFirst[R1 <: R, A1 >: A]: ZSTM[R1, E, (A1, R1)] =
+  def onFirst[R1 <: R]: ZSTM[R1, E, (A, R1)] =
     self <*> ZSTM.identity[R1]
 
   /**
@@ -416,7 +416,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * passes the effect input `R` along unmodified as the first element
    * of the tuple.
    */
-  def onSecond[R1 <: R, A1 >: A]: ZSTM[R1, E, (R1, A1)] =
+  def onSecond[R1 <: R]: ZSTM[R1, E, (R1, A)] =
     ZSTM.identity[R1] <*> self
 
   /**
