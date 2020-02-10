@@ -16,14 +16,14 @@
 
 package zio.interop
 
+import scala.concurrent.ExecutionException
+
 import _root_.java.nio.channels.CompletionHandler
 import _root_.java.util.concurrent.{ CompletableFuture, CompletionException, CompletionStage, Future }
 
 import zio.Fiber.Status
 import zio._
 import zio.blocking.{ blocking, Blocking }
-
-import scala.concurrent.ExecutionException
 
 object javaz {
   def withCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
