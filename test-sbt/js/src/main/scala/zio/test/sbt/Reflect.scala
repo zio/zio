@@ -16,7 +16,7 @@
 
 package zio.test.sbt
 
-private [sbt] object Reflect {
+private[sbt] object Reflect {
 
   def loadModule(name: String, loader: ClassLoader): Any = {
     val fqn = name.stripSuffix("$") + "$"
@@ -25,5 +25,5 @@ private [sbt] object Reflect {
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
       .loadModule()
   }
-    
+
 }

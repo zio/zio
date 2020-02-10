@@ -16,7 +16,8 @@ abstract class BaseTestTask(
 ) extends Task {
 
   protected lazy val spec: AbstractRunnableSpec =
-    Reflect.loadModule(taskDef.fullyQualifiedName, testClassLoader)
+    Reflect
+      .loadModule(taskDef.fullyQualifiedName, testClassLoader)
       .asInstanceOf[AbstractRunnableSpec]
 
   protected def run(eventHandler: EventHandler) =

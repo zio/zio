@@ -134,6 +134,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("core-tests"))
   .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
@@ -143,13 +144,11 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
-  .dependsOn(testRunnerJVM)
 
 lazy val coreTestsJS = coreTests.js
   .settings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
   )
-  .dependsOn(testRunnerJS)
 
 lazy val coreTestsNative = coreTests.native
   .settings(scalaVersion := "2.11.12")
@@ -161,7 +160,6 @@ lazy val coreTestsNative = coreTests.native
       "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
     )
   )
-  .dependsOn(testRunnerNative)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -240,10 +238,10 @@ lazy val testNative = test.native
   .settings(sources in (Compile, doc) := Seq.empty)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
-      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1",
-      "org.scala-native" %%% "test-interface" % "0.4.0-M2",
-      "org.scalacheck" %%% "scalacheck" % "1.14.3"
+      "dev.whaling"      %%% "native-loop-core"      % "0.1.1",
+      "dev.whaling"      %%% "native-loop-js-compat" % "0.1.1",
+      "org.scala-native" %%% "test-interface"        % "0.4.0-M2",
+      "org.scalacheck"   %%% "scalacheck"            % "1.14.3"
     ),
     nativeLinkStubs := true
   )
@@ -332,7 +330,7 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
 
-lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
+lazy val testRunnerJVM    = testRunner.jvm.settings(dottySettings)
 lazy val testRunnerNative = testRunner.native
 lazy val testRunnerJS = testRunner.js
   .settings(
