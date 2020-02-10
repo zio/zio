@@ -2639,17 +2639,13 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       },
       testM("executor is heritable") {
-        val io =
-          for {
-            ref  <- Ref.make(Option.empty[internal.Executor])
-            exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
-            _ <- withLatch(release =>
-                  IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e)) *> release).fork.lock(exec)
-                )
-            v <- ref.get
-          } yield v.contains(exec)
-
-        assertM(io)(isTrue)
+        val exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
+        val io = for {
+          parentName <- ZIO.effectTotal(Thread.currentThread.getName)
+          childName  <- ZIO.effectTotal(Thread.currentThread.getName).fork.flatMap(_.join)
+        } yield assert(parentName)(containsString("scala-execution-context-global")) &&
+          assert(childName)(containsString("scala-execution-context-global"))
+        io.lock(exec)
       } @@ jvm(nonFlaky(100))
     ),
     suite("someOrFail")(
