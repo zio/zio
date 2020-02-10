@@ -156,14 +156,6 @@ object ZSTMSpec extends ZIOBaseSpec {
         },
         testM("fails with Unit on None") {
           assertM(STM.succeedNow(None).get.commit.run)(fails(isUnit))
-        },
-        testM("fails when given an error") {
-          val tx = for {
-            _ <- STM.failNow(ExampleError)
-            n <- STM.succeedNow(1)
-          } yield n
-
-          assertM(tx.get.commit.run)(fails(equalTo(ExampleError)))
         }
       ),
       suite("left")(
