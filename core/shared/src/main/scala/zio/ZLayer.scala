@@ -108,8 +108,12 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * Returns a layer with its error channel mapped using the specified
    * function.
    */
-  def mapError[E1 >: E](f: E => E1): ZLayer[RIn, E1, ROut] =
-    new ZLayer(scope.map(run => run(_).mapError(f)))
+  def mapError[E1](f: E => E1): ZLayer[RIn, E1, ROut] =
+    new ZLayer(
+      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
+        memoMap.getOrElseMemoize(self, finalizerRef).mapError(f)
+      }
+    )
 
   /**
    * Overwrites the services output by this laywr with the services output by
