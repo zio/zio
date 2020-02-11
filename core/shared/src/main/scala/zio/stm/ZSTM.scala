@@ -419,7 +419,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def none[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], Unit] =
     self.foldM(
       e => ZSTM.failNow(Some(e)),
-      _.fold[ZSTM[R, Option[E], Unit]](ZSTM.succeedNow(()))(_ => ZSTM.failNow(None))
+      _.fold[ZSTM[R, Option[E], Unit]](ZSTM.unit)(_ => ZSTM.failNow(None))
     )
 
   /**
@@ -827,8 +827,8 @@ object ZSTM {
    * Collects all the transactional effects in a list, returning a single
    * transactional effect that produces a list of values.
    */
-  def collectAll[R, E, A](i: Iterable[STM[E, A]]): ZSTM[R, E, List[A]] =
-    i.foldRight[STM[E, List[A]]](STM.succeedNow(Nil))(_.zipWith(_)(_ :: _))
+  def collectAll[R, E, A](i: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, List[A]] =
+    i.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil))(_.zipWith(_)(_ :: _))
 
   /**
    * Kills the fiber running the effect.
@@ -858,19 +858,19 @@ object ZSTM {
   /**
    * Returns a value that models failure in the transaction.
    */
-  def fail[E](e: => E): ZSTM[Any, E, Nothing] =
+  def fail[E](e: => E): STM[E, Nothing] =
     new ZSTM((_, _, _, _) => TExit.Fail(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  val fiberId: ZSTM[Any, Nothing, Fiber.Id] = new ZSTM((_, fiberId, _, _) => TExit.Succeed(fiberId))
+  val fiberId: STM[Nothing, Fiber.Id] = new ZSTM((_, fiberId, _, _) => TExit.Succeed(fiberId))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces a new `List[B]`.
    */
-  def foreach[R, E, A, B](as: Iterable[A])(f: A => STM[E, B]): ZSTM[R, E, List[B]] =
+  def foreach[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, List[B]] =
     collectAll(as.map(f))
 
   /**
@@ -880,7 +880,7 @@ object ZSTM {
    * Equivalent to `foreach(as)(f).unit`, but without the cost of building
    * the list of results.
    */
-  def foreach_[R, E, A, B](as: Iterable[A])(f: A => STM[E, B]): ZSTM[R, E, Unit] =
+  def foreach_[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Unit] =
     ZSTM.succeedNow(as.iterator).flatMap[R, E, Unit] { it =>
       def loop: ZSTM[R, E, Unit] =
         if (it.hasNext) f(it.next) *> loop
@@ -1014,10 +1014,19 @@ object ZSTM {
   def partial[A](a: => A): STM[Throwable, A] = fromTry(Try(a))
 
   /**
+   * Feeds elements of type `A` to a function `f` that returns an effect.
+   * Collects all successes and failures in a tupled fashion.
+   */
+  def partition[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZSTM[R, E, B])(implicit ev: CanFail[E]): ZSTM[R, Nothing, (List[E], List[B])] =
+    ZSTM.foreach(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
+
+  /**
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  val retry: ZSTM[Any, Nothing, Nothing] = new ZSTM((_, _, _, _) => TExit.Retry)
+  val retry: STM[Nothing, Nothing] = new ZSTM((_, _, _, _) => TExit.Retry)
 
   /**
    * Returns an effect with the value on the right part.
@@ -1034,7 +1043,7 @@ object ZSTM {
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  def succeed[A](a: => A): ZSTM[Any, Nothing, A] =
+  def succeed[A](a: => A): STM[Nothing, A] =
     new ZSTM((_, _, _, _) => TExit.Succeed(a))
 
   /**
@@ -1070,10 +1079,10 @@ object ZSTM {
       case TExit.Succeed(a) => STM.succeedNow(a)
     }
 
-  private[zio] def failNow[E](e: E): ZSTM[Any, E, Nothing] =
+  private[zio] def failNow[E](e: E): STM[E, Nothing] =
     fail(e)
 
-  private[zio] def succeedNow[A](a: A): ZSTM[Any, Nothing, A] =
+  private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
     succeed(a)
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
