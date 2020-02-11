@@ -5,12 +5,6 @@ title:  "Java"
 
 ZIO has full interoperability with foreign Java code. Let me show you how it works and then *BOOM*, tomorrow you can show off your purely functional Java at work.
 
-First, import the interop layer, like this:
-
-```scala
-import zio.interop.javaz._
-```
-
 ## From Java CompletionStage and back
 
 `CompletionStage` is the interface that comes closest to emulate a functional asynchronous effects API like ZIO's, so with start with it. It's a breeze:
@@ -41,7 +35,12 @@ def taskToStage[A](task: Task[A]): UIO[CompletableFuture[A]] =
     task.toCompletableFuture
 ```
 
-As you can see, it commits to a concrete class implementing the `CompletionStage` interface, i.e. `CompletableFuture`.
+As you can see, it commits to a concrete class implementing the `CompletionStage` interface, i.e. `CompletableFuture`. It is worth point out that any `IO[E, A]` can be turned into a completable future provided you can turn a value of type `E` into a `Throwable`:
+
+```scala
+def ioToStage[E, A](io: IO[E, A])(toThrowable: E => Throwable): UIO[CompletableFuture[A]] =
+    io.toCompletableFutureWith(toThrowable)
+```
 
 ## Java Future
 
@@ -102,3 +101,5 @@ def readFile(file: AsynchronousFileChannel): Task[Chunk[Byte]] = for {
     dump <- go
 } yield dump
 ```
+
+As you can see, ZIO provides a CPS-style API here which is a bit different from the two sections above, but hey still super elegant.
