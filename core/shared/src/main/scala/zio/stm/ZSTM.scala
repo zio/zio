@@ -858,13 +858,13 @@ object ZSTM {
   /**
    * Returns a value that models failure in the transaction.
    */
-  def fail[E](e: => E): ZSTM[Any, E, Nothing] =
+  def fail[E](e: => E): STM[E, Nothing] =
     new ZSTM((_, _, _, _) => TExit.Fail(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  val fiberId: ZSTM[Any, Nothing, Fiber.Id] = new ZSTM((_, fiberId, _, _) => TExit.Succeed(fiberId))
+  val fiberId: STM[Nothing, Fiber.Id] = new ZSTM((_, fiberId, _, _) => TExit.Succeed(fiberId))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1017,7 +1017,7 @@ object ZSTM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  val retry: ZSTM[Any, Nothing, Nothing] = new ZSTM((_, _, _, _) => TExit.Retry)
+  val retry: STM[Nothing, Nothing] = new ZSTM((_, _, _, _) => TExit.Retry)
 
   /**
    * Returns an effect with the value on the right part.
@@ -1034,7 +1034,7 @@ object ZSTM {
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  def succeed[A](a: => A): ZSTM[Any, Nothing, A] =
+  def succeed[A](a: => A): STM[Nothing, A] =
     new ZSTM((_, _, _, _) => TExit.Succeed(a))
 
   /**
@@ -1070,10 +1070,10 @@ object ZSTM {
       case TExit.Succeed(a) => STM.succeedNow(a)
     }
 
-  private[zio] def failNow[E](e: E): ZSTM[Any, E, Nothing] =
+  private[zio] def failNow[E](e: E): STM[E, Nothing] =
     fail(e)
 
-  private[zio] def succeedNow[A](a: A): ZSTM[Any, Nothing, A] =
+  private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
     succeed(a)
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
