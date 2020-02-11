@@ -407,6 +407,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
+   * Returns a new effect where the error channel has been merged into the
+   * success channel to their common combined type.
+   */
+  def merge[A1 >: A](implicit ev1: E <:< A1, ev2: CanFail[E]): ZSTM[R, Nothing, A1] =
+    foldM(e => ZSTM.succeedNow(ev1(e)), ZSTM.succeedNow)
+
+  /**
    * Requires the option produced by this value to be `None`.
    */
   def none[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], Unit] =
