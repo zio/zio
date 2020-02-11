@@ -97,7 +97,7 @@ object RTSSpec extends ZIOBaseSpec {
     testM("deadlock regression 1") {
       import java.util.concurrent.Executors
 
-      val rts = new DefaultRuntime {}
+      val rts = new BootstrapRuntime {}
       val e   = Executors.newSingleThreadExecutor()
 
       (0 until 10000).foreach { _ =>

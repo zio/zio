@@ -18,12 +18,16 @@ package zio
 
 import zio.internal.Platform
 
-trait DefaultRuntime extends Runtime[Unit] {
-  val environment: Unit = ()
-
-  /**
-   * The platform of the runtime, which provides the essential capabilities
-   * necessary to bootstrap execution of tasks.
-   */
-  val platform: Platform = Platform.default
+@deprecated(
+  "Use `Runtime.global` and provide the required environment directly using" +
+    "`ZIO#provideLayer`. In general, layers are managed resources that " +
+    "require allocation and deallocation and therefore scoping resources to" +
+    "an effect is highly recommended as a best practice. " +
+    "`Runtime.unsafefromLayer` can be used when this best practice is is too " +
+    "inconvenient.",
+  "1.0.0"
+)
+trait DefaultRuntime extends Runtime[ZEnv] {
+  override val platform: Platform = Platform.default
+  override val environment: ZEnv  = Runtime.unsafeFromLayer(ZEnv.live, platform).environment
 }

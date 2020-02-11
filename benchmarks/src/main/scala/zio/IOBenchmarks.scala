@@ -9,11 +9,11 @@ import monix.eval.{ Task => MTask }
 
 import zio.internal._
 
-object IOBenchmarks extends DefaultRuntime {
+object IOBenchmarks extends BootstrapRuntime {
 
   override val platform: Platform = Platform.benchmark
 
-  val TracedRuntime = new DefaultRuntime {
+  val TracedRuntime = new BootstrapRuntime {
     override val platform = Platform.benchmark.withTracing(Tracing.enabled)
   }
 
