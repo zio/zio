@@ -112,12 +112,12 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     new ZLayer(scope.map(run => run(_).mapError(f)))
 
   /**
-   * Returns a new layer with some of the services output by this layer
-   * replaced by the implementations in the specified layer
+   * Overwrites the services output by this laywr with the services output by
+   * the specified layer.
    */
-  def overwrite[E1 >: E, A: Tagged](
-    that: ZLayer.NoDeps[E1, Has[A]]
-  )(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E1, ROut] =
+  def overwrite[E1 >: E, RIn2, A: Tagged](
+    that: ZLayer[RIn2, E1, Has[A]]
+  )(implicit ev: ROut <:< Has[A]): ZLayer[RIn with RIn2, E1, ROut] =
     new ZLayer(
       Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
         for {
