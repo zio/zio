@@ -279,15 +279,18 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.failNow("oh no!").option.commit)(isNone)
         }
       ),
-      suite("summarized")(
-        testM("returns summary and value") {
-          val tx = for {
-            counter               <- TRef.make(0)
-            increment             = counter.updateAndGet(_ + 1)
-            result                <- increment.summarized(increment)((_, _))
-            ((start, end), value) = result
-          } yield (start, value, end)
-          assertM(tx.commit)(equalTo((1, 2, 3)))
+      suite("`optional` to convert:")(
+        testM("A Some(e) in E to a e in E") {
+          val ei: Either[Option[String], Int] = Left(Some("my Error"))
+          assertM(ZSTM.fromEither(ei).optional.commit.run)(fails(equalTo("my Error")))
+        },
+        testM("a None in E into None in A") {
+          val ei: Either[Option[String], Int] = Left(None)
+          assertM(ZSTM.fromEither(ei).optional.commit)(isNone)
+        },
+        testM("no error") {
+          val ei: Either[Option[String], Int] = Right(42)
+          assertM(ZSTM.fromEither(ei).optional.commit)(isSome(equalTo(42)))
         }
       ),
       suite("right")(
@@ -365,6 +368,17 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("with exception as base error type return something") {
           val e: Either[Exception, Option[Int]] = Right(Some(3))
           assertM(STM.fromEither(e).someOrFailException.commit)(equalTo(3))
+        }
+      ),
+      suite("summarized")(
+        testM("returns summary and value") {
+          val tx = for {
+            counter               <- TRef.make(0)
+            increment             = counter.updateAndGet(_ + 1)
+            result                <- increment.summarized(increment)((_, _))
+            ((start, end), value) = result
+          } yield (start, value, end)
+          assertM(tx.commit)(equalTo((1, 2, 3)))
         }
       ),
       testM("`zip` to return a tuple of two computations") {

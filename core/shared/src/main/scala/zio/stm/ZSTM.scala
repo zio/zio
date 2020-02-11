@@ -435,6 +435,15 @@ final class ZSTM[-R, +E, +A] private[stm] (
     fold(_ => None, Some(_))
 
   /**
+   * Converts an option on errors into an option on values.
+   */
+  def optional[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
+    foldM(
+      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.failNow(_)),
+      a => ZSTM.succeedNow(Some(a))
+    )
+
+  /**
    * Translates `STM` effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
