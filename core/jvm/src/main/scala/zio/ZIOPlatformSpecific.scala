@@ -24,6 +24,9 @@ import zio.interop.javaz
 
 private[zio] trait ZIOPlatformSpecific {
 
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
+    javaz.effectAsyncWithCompletionHandler(op)
+
   def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)
 
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
@@ -34,8 +37,5 @@ private[zio] trait ZIOPlatformSpecific {
 
   def toCompletableFutureWith[R, E, A](zio: ZIO[Any, E, A])(f: E => Throwable): UIO[CompletableFuture[A]] =
     zio.mapError(f).fold(javaz.CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
-
-  def withCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
-    javaz.withCompletionHandler(op)
 
 }

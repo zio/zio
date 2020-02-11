@@ -23,12 +23,12 @@ import zio.interop.javaz
 
 private[zio] trait TaskPlatformSpecific {
 
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
+    javaz.effectAsyncWithCompletionHandler(op)
+
   def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)
 
   def toCompletableFuture[A](io: Task[A]): UIO[CompletableFuture[A]] =
     ZIO.toCompletableFuture(io)
-
-  def withCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
-    javaz.withCompletionHandler(op)
 
 }

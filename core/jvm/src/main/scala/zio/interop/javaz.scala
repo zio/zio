@@ -25,7 +25,7 @@ import zio._
 import zio.blocking.{ blocking, Blocking }
 
 private[zio] object javaz {
-  def withCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
     Task.effectSuspendTotalWith[T] { (p, _) =>
       Task.effectAsync { k =>
         val handler = new CompletionHandler[T, Any] {
