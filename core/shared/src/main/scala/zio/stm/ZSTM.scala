@@ -997,6 +997,11 @@ object ZSTM {
     else ZSTM.unit
 
   /**
+   * Returns an effect wth the empty value.
+   */
+  val none: STM[Nothing, Option[Nothing]] = succeedNow(None)
+
+  /**
    * Creates an `STM` value from a partial (but pure) function.
    */
   def partial[A](a: => A): STM[Throwable, A] = fromTry(Try(a))
@@ -1012,6 +1017,12 @@ object ZSTM {
    */
   def right[A](a: => A): STM[Nothing, Either[Nothing, A]] =
     succeed(Right(a))
+
+  /**
+   * Returns an effect with the optional value.
+   */
+  def some[A](a: => A): STM[Nothing, Option[A]] =
+    succeed(Some(a))
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.
