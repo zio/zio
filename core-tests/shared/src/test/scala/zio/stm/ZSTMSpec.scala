@@ -331,13 +331,13 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("collects only successes") {
           val in = List.range(0, 10)
           for {
-            res <- STM.partition(in)(a => STM.succeedNow(a)).commit
+            res <- STM.partition(in)(STM.succeedNow).commit
           } yield assert(res._1)(isEmpty) && assert(res._2)(equalTo(in))
         },
         testM("collects only failures") {
           val in = List.fill(10)(0)
           for {
-            res <- STM.partition(in)(a => STM.failNow(a)).commit
+            res <- STM.partition(in)(STM.failNow).commit
           } yield assert(res._1)(equalTo(in)) && assert(res._2)(isEmpty)
         },
         testM("collects failures and successes") {
