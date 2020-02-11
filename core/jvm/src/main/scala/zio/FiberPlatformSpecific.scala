@@ -16,34 +16,13 @@
 
 package zio
 
-import _root_.java.nio.channels.CompletionHandler
-import _root_.java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
+import _root_.java.util.concurrent.{ CompletionStage, Future }
 
 import zio.Fiber.Status
 import zio.blocking.Blocking
 import zio.interop.javaz
 
-private[zio] trait JavaSpecific {
-
-  implicit class ZioObjJavaconcurrentOps(private val zioObj: ZIO.type) {
-    def withCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
-      javaz.withCompletionHandler(op)
-
-    def fromCompletionStage[A](csUio: UIO[CompletionStage[A]]): Task[A] = javaz.fromCompletionStage(csUio)
-
-    /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-    def fromFutureJava[A](futureUio: UIO[Future[A]]): RIO[Blocking, A] = javaz.fromFutureJava(futureUio)
-  }
-
-  implicit class CompletionStageJavaconcurrentOps[A](private val csUio: UIO[CompletionStage[A]]) {
-    def toZio: Task[A] = ZIO.fromCompletionStage(csUio)
-  }
-
-  implicit class FutureJavaconcurrentOps[A](private val futureUio: UIO[Future[A]]) {
-
-    /** WARNING: this uses the blocking Future#get, consider using `CompletionStage` */
-    def toZio: RIO[Blocking, A] = ZIO.fromFutureJava(futureUio)
-  }
+private[zio] trait FiberPlatformSpecific {
 
   implicit class FiberObjOps(private val fiberObj: Fiber.type) {
     def fromCompletionStage[A](thunk: => CompletionStage[A]): Fiber[Throwable, A] = {
@@ -114,15 +93,4 @@ private[zio] trait JavaSpecific {
       }
     }
   }
-
-  implicit class TaskCompletableFutureOps[A](private val io: Task[A]) {
-    def toCompletableFuture: UIO[CompletableFuture[A]] =
-      io.fold(javaz.CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
-  }
-
-  implicit class IOCompletableFutureOps[E, A](private val io: IO[E, A]) {
-    def toCompletableFutureWith(f: E => Throwable): UIO[CompletableFuture[A]] =
-      io.mapError(f).toCompletableFuture
-  }
-
 }

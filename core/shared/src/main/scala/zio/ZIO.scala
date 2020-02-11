@@ -1750,7 +1750,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self &&& that
 }
 
-object ZIO {
+object ZIO extends ZIOPlatformSpecific {
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse

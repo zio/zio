@@ -4,7 +4,7 @@ import scala.concurrent.ExecutionContext
 
 import zio.internal.{ Executor, Platform }
 
-object Task {
+object Task extends TaskPlatformSpecific {
 
   /**
    * @see See [[zio.ZIO.absolve]]

@@ -2,7 +2,7 @@ package zio
 
 import zio.internal.{ Executor, Platform }
 
-object UIO {
+object UIO extends UIOPlatformSpecific {
 
   /**
    * @see See [[zio.ZIO.absolve]]

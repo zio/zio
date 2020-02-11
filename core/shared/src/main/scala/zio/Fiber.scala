@@ -378,7 +378,7 @@ sealed trait Fiber[+E, +A] { self =>
     }
 }
 
-object Fiber {
+object Fiber extends FiberPlatformSpecific {
 
   /**
    * A runtime fiber that is executing an effect. Runtime fibers ave an
