@@ -997,8 +997,8 @@ object ZSTM {
     else ZSTM.unit
 
   /**
-    * Returns an effect wth the empty value.
-    */
+   * Returns an effect wth the empty value.
+   */
   val none: STM[Nothing, Option[Nothing]] = succeedNow(None)
 
   /**
