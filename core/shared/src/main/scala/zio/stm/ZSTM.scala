@@ -827,8 +827,8 @@ object ZSTM {
    * Collects all the transactional effects in a list, returning a single
    * transactional effect that produces a list of values.
    */
-  def collectAll[R, E, A](i: Iterable[STM[E, A]]): ZSTM[R, E, List[A]] =
-    i.foldRight[STM[E, List[A]]](STM.succeedNow(Nil))(_.zipWith(_)(_ :: _))
+  def collectAll[R, E, A](i: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, List[A]] =
+    i.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil))(_.zipWith(_)(_ :: _))
 
   /**
    * Kills the fiber running the effect.
@@ -870,7 +870,7 @@ object ZSTM {
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces a new `List[B]`.
    */
-  def foreach[R, E, A, B](as: Iterable[A])(f: A => STM[E, B]): ZSTM[R, E, List[B]] =
+  def foreach[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, List[B]] =
     collectAll(as.map(f))
 
   /**
@@ -880,7 +880,7 @@ object ZSTM {
    * Equivalent to `foreach(as)(f).unit`, but without the cost of building
    * the list of results.
    */
-  def foreach_[R, E, A, B](as: Iterable[A])(f: A => STM[E, B]): ZSTM[R, E, Unit] =
+  def foreach_[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Unit] =
     ZSTM.succeedNow(as.iterator).flatMap[R, E, Unit] { it =>
       def loop: ZSTM[R, E, Unit] =
         if (it.hasNext) f(it.next) *> loop
