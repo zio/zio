@@ -416,7 +416,11 @@ object Fiber extends FiberPlatformSpecific {
    * A synthetic fiber that is created from a pure value or that combines
    * existing fibers.
    */
-  private[zio] abstract class Synthetic[+E, +A] extends Fiber[E, A] {}
+  sealed trait Synthetic[+E, +A] extends Fiber[E, A] {}
+
+  private[zio] object Synthetic {
+    trait Internal[+E, +A] extends Synthetic[E, A]
+  }
 
   /**
    * A record containing information about a [[Fiber]].

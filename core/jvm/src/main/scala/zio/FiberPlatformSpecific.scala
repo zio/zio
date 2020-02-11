@@ -27,7 +27,7 @@ private[zio] trait FiberPlatformSpecific {
   def fromCompletionStage[A](thunk: => CompletionStage[A]): Fiber[Throwable, A] = {
     lazy val cs: CompletionStage[A] = thunk
 
-    new Fiber.Synthetic[Throwable, A] {
+    new Fiber.Synthetic.Internal[Throwable, A] {
       override def await: UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).run
 
       override def poll: UIO[Option[Exit[Throwable, A]]] =
@@ -62,7 +62,7 @@ private[zio] trait FiberPlatformSpecific {
   def fromFutureJava[A](thunk: => Future[A]): Fiber[Throwable, A] = {
     lazy val ftr: Future[A] = thunk
 
-    new Fiber.Synthetic[Throwable, A] {
+    new Fiber.Synthetic.Internal[Throwable, A] {
       def await: UIO[Exit[Throwable, A]] =
         Blocking.live.value.use(ZIO.fromFutureJava(ftr).provide(_).run)
 
