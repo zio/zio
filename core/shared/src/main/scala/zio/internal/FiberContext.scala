@@ -666,7 +666,7 @@ private[zio] final class FiberContext[E, A](
       Fiber.track(childContext)
     }
 
-    platform.executor.submitOrThrow(() => childContext.evaluateNow(zio))
+    executor.submitOrThrow(() => childContext.evaluateNow(zio))
 
     childContext
   }
