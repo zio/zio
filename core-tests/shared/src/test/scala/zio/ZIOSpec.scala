@@ -137,6 +137,16 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- clock.sleep(1.minute)
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
+      },
+      testM("correctly handled an infinite duration time to live") {
+        for {
+          ref             <- Ref.make(0)
+          getAndIncrement = ref.modify(curr => (curr, curr + 1))
+          cached          <- getAndIncrement.cached(Duration.Infinity)
+          a               <- cached
+          b               <- cached
+          c               <- cached
+        } yield assert((a, b, c))(equalTo((0, 0, 0)))
       }
     ),
     suite("catchSomeCause")(

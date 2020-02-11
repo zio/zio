@@ -261,8 +261,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       ZIO.uninterruptibleMask { restore =>
         clock.nanoTime.flatMap { time =>
           cache.updateSomeAndGet {
-            case None                          => compute(time)
-            case Some((end, _)) if time >= end => compute(time)
+            case None                              => compute(time)
+            case Some((end, _)) if end - time <= 0 => compute(time)
           }.flatMap(a => restore(a.get._2.await))
         }
       }
