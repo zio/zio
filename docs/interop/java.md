@@ -32,14 +32,14 @@ Additionally, you may want to go the other way and convert a ZIO value into a `C
 
 ```scala
 def taskToStage[A](task: Task[A]): UIO[CompletableFuture[A]] =
-    task.toCompletableFuture
+    Task.toCompletableFuture(task)
 ```
 
 As you can see, it commits to a concrete class implementing the `CompletionStage` interface, i.e. `CompletableFuture`. It is worth point out that any `IO[E, A]` can be turned into a completable future provided you can turn a value of type `E` into a `Throwable`:
 
 ```scala
 def ioToStage[E, A](io: IO[E, A])(toThrowable: E => Throwable): UIO[CompletableFuture[A]] =
-    io.toCompletableFutureWith(toThrowable)
+    IO.toCompletableFutureWith(io)(toThrowable)
 ```
 
 ## Java Future
@@ -51,15 +51,6 @@ def execute(client: HttpAsyncClient, request: HttpUriRequest): RIO[Blocking, Htt
     ZIO.fromFutureJava(UIO {
         client.execute(request, null)
     })
-```
-
-or, a bit shorter with
-
-```scala
-def execute(client: HttpAsyncClient, request: HttpUriRequest): RIO[Blocking, HttpResponse] =
-    UIO {
-        client.execute(request, null)
-    }.toZio
 ```
 
 That's it. Just a bit of a warning here, mate. As you can see from the requirement on the produced value, ZIO uses the blocking `Future#get` call internally. It is running on the blocking thread pool, of course, but I thought you should know. If possible, use `ZIO.fromCompletionStage` instead, as detailed above.
