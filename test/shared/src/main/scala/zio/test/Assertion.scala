@@ -111,6 +111,16 @@ object Assertion extends AssertionVariants {
     final case class Infix(left: RenderParam, op: String, right: RenderParam)    extends Render
 
     /**
+     * Creates a string representation of a class name.
+     */
+    def className[A](C: ClassTag[A]): String =
+      try {
+        C.runtimeClass.getSimpleName
+      } catch {
+        case _: Throwable => C.runtimeClass.getName
+      }
+
+    /**
      * Creates a string representation of a field accessor.
      */
     def field(name: String): String =
@@ -585,7 +595,7 @@ object Assertion extends AssertionVariants {
    * }}}
    */
   def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
-    Assertion.assertionRec("isSubtype")(param(C.runtimeClass.getSimpleName))(assertion) { actual =>
+    Assertion.assertionRec("isSubtype")(param(className(C)))(assertion) { actual =>
       if (C.runtimeClass.isAssignableFrom(actual.getClass())) Some(actual.asInstanceOf[A])
       else None
     }
