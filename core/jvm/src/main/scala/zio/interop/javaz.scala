@@ -61,34 +61,30 @@ private[zio] object javaz {
       Task.succeedNow(f.get())
     } catch catchFromGet(isFatal)
 
-  def fromCompletionStage[A](csUio: UIO[CompletionStage[A]]): Task[A] =
-    csUio.flatMap { cs =>
-      Task.effectSuspendTotalWith { (p, _) =>
-        val cf = cs.toCompletableFuture
-        if (cf.isDone) {
-          unwrapDone(p.fatal)(cf)
-        } else {
-          Task.effectAsync { cb =>
-            val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
-              val io = Option(t).fold[Task[A]](Task.succeed(v)) { t =>
-                catchFromGet(p.fatal).lift(t).getOrElse(Task.die(t))
-              }
-              cb(io)
+  def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] =
+    Task.effectSuspendTotalWith { (p, _) =>
+      val cf = cs.toCompletableFuture
+      if (cf.isDone) {
+        unwrapDone(p.fatal)(cf)
+      } else {
+        Task.effectAsync { cb =>
+          val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
+            val io = Option(t).fold[Task[A]](Task.succeed(v)) { t =>
+              catchFromGet(p.fatal).lift(t).getOrElse(Task.die(t))
             }
+            cb(io)
           }
         }
       }
     }
 
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-  def fromFutureJava[A](futureUio: UIO[Future[A]]): RIO[Blocking, A] =
-    futureUio.flatMap { future =>
-      RIO.effectSuspendTotalWith { (p, _) =>
-        if (future.isDone) {
-          unwrapDone(p.fatal)(future)
-        } else {
-          blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
-        }
+  def fromFutureJava[A](future: => Future[A]): RIO[Blocking, A] =
+    RIO.effectSuspendTotalWith { (p, _) =>
+      if (future.isDone) {
+        unwrapDone(p.fatal)(future)
+      } else {
+        blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
       }
     }
 

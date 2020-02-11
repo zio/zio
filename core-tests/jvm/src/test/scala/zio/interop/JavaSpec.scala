@@ -16,29 +16,29 @@ object JavaSpec extends ZIOBaseSpec {
       testM("be lazy on the `Future` parameter") {
         var evaluated         = false
         def ftr: Future[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
-        assertM(ZIO.fromFutureJava(UIO.effectTotal(ftr)).when(false).as(evaluated))(isFalse)
+        assertM(ZIO.fromFutureJava(ftr).when(false).as(evaluated))(isFalse)
       },
       testM("catch exceptions thrown by lazy block") {
         val ex                          = new Exception("no future for you!")
-        val noFuture: UIO[Future[Unit]] = UIO.effectTotal(throw ex)
+        lazy val noFuture: Future[Unit] = throw ex
         assertM(ZIO.fromFutureJava(noFuture).run)(dies(equalTo(ex)))
       },
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                         = new Exception("no value for you!")
-        val noValue: UIO[Future[Unit]] = UIO.effectTotal(CompletableFuture_.failedFuture(ex))
+        lazy val noValue: Future[Unit] = CompletableFuture_.failedFuture(ex)
         assertM(ZIO.fromFutureJava(noValue).run)(fails(equalTo(ex)))
       },
       testM("return an `IO` that fails if `Future` fails (supplyAsync)") {
         val ex                         = new Exception("no value for you!")
-        val noValue: UIO[Future[Unit]] = UIO.effectTotal(CompletableFuture.supplyAsync(() => throw ex))
+        lazy val noValue: Future[Unit] = CompletableFuture.supplyAsync(() => throw ex)
         assertM(ZIO.fromFutureJava(noValue).run)(fails(equalTo(ex)))
       },
       testM("return an `IO` that produces the value from `Future`") {
-        val someValue: UIO[Future[Int]] = UIO.effectTotal(CompletableFuture.completedFuture(42))
+        lazy val someValue: Future[Int] = CompletableFuture.completedFuture(42)
         assertM(ZIO.fromFutureJava(someValue))(equalTo(42))
       },
       testM("handle null produced by the completed `Future`") {
-        val someValue: UIO[Future[String]] = UIO.effectTotal(CompletableFuture.completedFuture[String](null))
+        lazy val someValue: Future[String] = CompletableFuture.completedFuture[String](null)
         assertM(ZIO.fromFutureJava(someValue).map(Option(_)))(isNone)
       }
     ),
@@ -46,60 +46,60 @@ object JavaSpec extends ZIOBaseSpec {
       testM("be lazy on the `Future` parameter") {
         var evaluated                 = false
         def cs: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
-        assertM(ZIO.fromCompletionStage(UIO.effectTotal(cs)).when(false).as(evaluated))(isFalse)
+        assertM(ZIO.fromCompletionStage(cs).when(false).as(evaluated))(isFalse)
       },
       testM("catch exceptions thrown by lazy block") {
         val ex                                   = new Exception("no future for you!")
-        val noFuture: UIO[CompletionStage[Unit]] = UIO.effectTotal(throw ex)
+        lazy val noFuture: CompletionStage[Unit] = throw ex
         assertM(ZIO.fromCompletionStage(noFuture).run)(dies(equalTo(ex)))
       },
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                                  = new Exception("no value for you!")
-        val noValue: UIO[CompletionStage[Unit]] = UIO.effectTotal(CompletableFuture_.failedFuture(ex))
+        lazy val noValue: CompletionStage[Unit] = CompletableFuture_.failedFuture(ex)
         assertM(ZIO.fromCompletionStage(noValue).run)(fails[Throwable](equalTo(ex)))
       },
       testM("return an `IO` that fails if `Future` fails (supplyAsync)") {
         val ex                                  = new Exception("no value for you!")
-        val noValue: UIO[CompletionStage[Unit]] = UIO.effectTotal(CompletableFuture.supplyAsync(() => throw ex))
+        lazy val noValue: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => throw ex)
         assertM(ZIO.fromCompletionStage(noValue).run)(fails[Throwable](equalTo(ex)))
       },
       testM("return an `IO` that produces the value from `Future`") {
-        val someValue: UIO[CompletionStage[Int]] = UIO.effectTotal(CompletableFuture.completedFuture(42))
+        lazy val someValue: CompletionStage[Int] = CompletableFuture.completedFuture(42)
         assertM(ZIO.fromCompletionStage(someValue))(equalTo(42))
       },
       testM("handle null produced by the completed `Future`") {
-        val someValue: UIO[CompletionStage[String]] = UIO.effectTotal(CompletableFuture.completedFuture[String](null))
+        lazy val someValue: CompletionStage[String] = CompletableFuture.completedFuture[String](null)
         assertM(ZIO.fromCompletionStage(someValue).map(Option(_)))(isNone)
       }
     ),
     suite("`Task.toCompletableFuture` must")(
       testM("produce always a successful `IO` of `Future`") {
         val failedIO = IO.fail[Throwable](new Exception("IOs also can fail"))
-        assertM(failedIO.toCompletableFuture)(isSubtype[CompletableFuture[Unit]](anything))
+        assertM(IO.toCompletableFuture(failedIO))(isSubtype[CompletableFuture[Unit]](anything))
       },
       test("be polymorphic in error type") {
         val unitIO: Task[Unit]                          = Task.unit
-        val polyIO: IO[String, CompletableFuture[Unit]] = unitIO.toCompletableFuture
+        val polyIO: IO[String, CompletableFuture[Unit]] = IO.toCompletableFuture(unitIO)
         assert(polyIO)(anything)
       },
       testM("return a `CompletableFuture` that fails if `IO` fails") {
         val ex                       = new Exception("IOs also can fail")
         val failedIO: Task[Unit]     = IO.fail[Throwable](ex)
-        val failedFuture: Task[Unit] = failedIO.toCompletableFuture.flatMap(f => Task(f.get()))
+        val failedFuture: Task[Unit] = IO.toCompletableFuture(failedIO).flatMap(f => Task(f.get()))
         assertM(failedFuture.run)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )
       },
       testM("return a `CompletableFuture` that produces the value from `IO`") {
         val someIO = Task.succeed[Int](42)
-        assertM(someIO.toCompletableFuture.map(_.get()))(equalTo(42))
+        assertM(IO.toCompletableFuture(someIO).map(_.get()))(equalTo(42))
       }
     ),
     suite("`Task.toCompletableFutureE` must")(
       testM("convert error of type `E` to `Throwable`") {
         val failedIO: IO[String, Unit] = IO.fail[String]("IOs also can fail")
         val failedFuture: Task[Unit] =
-          failedIO.toCompletableFutureWith(new Exception(_)).flatMap(f => Task(f.get()))
+          IO.toCompletableFutureWith[String, Unit](failedIO)(new Exception(_)).flatMap(f => Task(f.get()))
         assertM(failedFuture.run)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )

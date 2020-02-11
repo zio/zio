@@ -24,72 +24,70 @@ import zio.interop.javaz
 
 private[zio] trait FiberPlatformSpecific {
 
-  implicit class FiberObjOps(private val fiberObj: Fiber.type) {
-    def fromCompletionStage[A](thunk: => CompletionStage[A]): Fiber[Throwable, A] = {
-      lazy val cs: CompletionStage[A] = thunk
+  def fromCompletionStage[A](thunk: => CompletionStage[A]): Fiber[Throwable, A] = {
+    lazy val cs: CompletionStage[A] = thunk
 
-      new Fiber.Synthetic[Throwable, A] {
-        override def await: UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(UIO.effectTotal(cs)).run
+    new Fiber.Synthetic[Throwable, A] {
+      override def await: UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).run
 
-        override def poll: UIO[Option[Exit[Throwable, A]]] =
-          UIO.effectSuspendTotal {
-            val cf = cs.toCompletableFuture
-            if (cf.isDone) {
-              Task
-                .effectSuspendWith((p, _) => javaz.unwrapDone(p.fatal)(cf))
-                .fold(Exit.fail, Exit.succeed)
-                .map(Some(_))
-            } else {
-              UIO.succeedNow(None)
-            }
+      override def poll: UIO[Option[Exit[Throwable, A]]] =
+        UIO.effectSuspendTotal {
+          val cf = cs.toCompletableFuture
+          if (cf.isDone) {
+            Task
+              .effectSuspendWith((p, _) => javaz.unwrapDone(p.fatal)(cf))
+              .fold(Exit.fail, Exit.succeed)
+              .map(Some(_))
+          } else {
+            UIO.succeedNow(None)
           }
-
-        final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
-
-        final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
-
-        final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
-
-        final def inheritRefs: UIO[Unit] = IO.unit
-
-        final def status: UIO[Fiber.Status] = UIO {
-          // TODO: Avoid toCompletableFuture?
-          if (thunk.toCompletableFuture.isDone) Status.Done else Status.Running
         }
+
+      final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
+
+      final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
+
+      final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+
+      final def inheritRefs: UIO[Unit] = IO.unit
+
+      final def status: UIO[Fiber.Status] = UIO {
+        // TODO: Avoid toCompletableFuture?
+        if (thunk.toCompletableFuture.isDone) Status.Done else Status.Running
       }
     }
+  }
 
-    /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-    def fromFutureJava[A](thunk: => Future[A]): Fiber[Throwable, A] = {
-      lazy val ftr: Future[A] = thunk
+  /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
+  def fromFutureJava[A](thunk: => Future[A]): Fiber[Throwable, A] = {
+    lazy val ftr: Future[A] = thunk
 
-      new Fiber.Synthetic[Throwable, A] {
-        def await: UIO[Exit[Throwable, A]] =
-          Blocking.live.value.use(ZIO.fromFutureJava(UIO.effectTotal(ftr)).provide(_).run)
+    new Fiber.Synthetic[Throwable, A] {
+      def await: UIO[Exit[Throwable, A]] =
+        Blocking.live.value.use(ZIO.fromFutureJava(ftr).provide(_).run)
 
-        def poll: UIO[Option[Exit[Throwable, A]]] =
-          UIO.effectSuspendTotal {
-            if (ftr.isDone) {
-              Task
-                .effectSuspendWith((p, _) => javaz.unwrapDone(p.fatal)(ftr))
-                .fold(Exit.fail, Exit.succeed)
-                .map(Some(_))
-            } else {
-              UIO.succeed(None)
-            }
+      def poll: UIO[Option[Exit[Throwable, A]]] =
+        UIO.effectSuspendTotal {
+          if (ftr.isDone) {
+            Task
+              .effectSuspendWith((p, _) => javaz.unwrapDone(p.fatal)(ftr))
+              .fold(Exit.fail, Exit.succeed)
+              .map(Some(_))
+          } else {
+            UIO.succeed(None)
           }
-
-        def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
-
-        def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
-
-        def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
-
-        def inheritRefs: UIO[Unit] = UIO.unit
-
-        def status: UIO[Fiber.Status] = UIO {
-          if (thunk.isDone) Status.Done else Status.Running
         }
+
+      def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
+
+      def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
+
+      def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+
+      def inheritRefs: UIO[Unit] = UIO.unit
+
+      def status: UIO[Fiber.Status] = UIO {
+        if (thunk.isDone) Status.Done else Status.Running
       }
     }
   }

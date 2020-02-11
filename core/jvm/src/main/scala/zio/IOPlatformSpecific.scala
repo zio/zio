@@ -18,13 +18,12 @@ package zio
 
 import _root_.java.util.concurrent.CompletableFuture
 
-import zio.interop.javaz
-
 private[zio] trait IOPlatformSpecific {
 
-  implicit class IOCompletableFutureOps[E, A](private val io: IO[E, A]) {
-    def toCompletableFutureWith(f: E => Throwable): UIO[CompletableFuture[A]] =
-      io.mapError(f).fold(javaz.CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
-  }
+  def toCompletableFuture[E, A](io: IO[E, A])(implicit ev: E <:< Throwable): UIO[CompletableFuture[A]] =
+    toCompletableFutureWith(io)(ev)
+
+  def toCompletableFutureWith[E, A](io: IO[E, A])(f: E => Throwable): UIO[CompletableFuture[A]] =
+    ZIO.toCompletableFutureWith(io)(f)
 
 }

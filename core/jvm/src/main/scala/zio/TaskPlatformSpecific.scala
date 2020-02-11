@@ -16,15 +16,19 @@
 
 package zio
 
-import _root_.java.util.concurrent.{ CompletableFuture }
+import _root_.java.nio.channels.CompletionHandler
+import _root_.java.util.concurrent.{ CompletableFuture, CompletionStage }
 
 import zio.interop.javaz
 
 private[zio] trait TaskPlatformSpecific {
 
-  implicit class TaskCompletableFutureOps[A](private val io: Task[A]) {
-    def toCompletableFuture: UIO[CompletableFuture[A]] =
-      io.fold(javaz.CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
-  }
+  def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)
+
+  def toCompletableFuture[A](io: Task[A]): UIO[CompletableFuture[A]] =
+    ZIO.toCompletableFuture(io)
+
+  def withCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
+    javaz.withCompletionHandler(op)
 
 }
