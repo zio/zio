@@ -203,6 +203,14 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("`mapError` to map from one error to another") {
         assertM(STM.failNow(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
       },
+      suite("merge")(
+        testM("on error with same type") {
+          assertM(STM.fromEither[Int, Int](Left(1)).merge.commit)(equalTo(1))
+        },
+        testM("when having a successful value") {
+          assertM(STM.fromEither[Int, Int](Right(1)).merge.commit)(equalTo(1))
+        }
+      ),
       suite("none")(
         testM("when A is None") {
           assertM(STM.succeedNow(None).none.commit)(isUnit)
