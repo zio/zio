@@ -212,6 +212,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         },
         testM("when A is Some(a)") {
           assertM(STM.succeedNow(Some(1)).none.commit.run)(fails(isNone))
+        },
+        testM("lifting a value") {
+          assertM(STM.none.commit)(isNone)
         }
       ),
       testM("`onFirst` returns the effect A along with the unmodified input `R` as second element in a tuple") {

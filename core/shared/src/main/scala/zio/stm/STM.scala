@@ -153,6 +153,11 @@ object STM {
     ZSTM.loop_(initial)(cont, inc)(body)
 
   /**
+   * @see See [[zio.stm.ZSTM.none]]
+   */
+  val none: STM[Nothing, Option[Nothing]] = ZSTM.none
+
+  /**
    * @see See [[zio.stm.ZSTM.partial]]
    */
   def partial[A](a: => A): STM[Throwable, A] =
