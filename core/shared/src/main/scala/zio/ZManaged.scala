@@ -488,29 +488,31 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZManaged[R, E1, A] =
     ZManaged(reserve.mapErrorCause(f).map(r => Reservation(r.acquire.mapErrorCause(f), r.release)))
 
-  def memoize: ZManaged[R, E, ZManaged[R, E, A]] =
+  def memoize: ZManaged[R, Nothing, ZManaged[Any, E, A]] =
     ZManaged {
-      RefM.make[Option[(Reservation[R, E, A], Exit[E, A])]](None).map { ref =>
-        val acquire1: ZIO[R, E, A] =
-          ref.modify {
-            case v @ Some((_, e)) => ZIO.succeedNow(e -> v)
-            case None =>
-              ZIO.uninterruptibleMask { restore =>
-                self.reserve.flatMap { res =>
-                  restore(res.acquire).run.map(e => e -> Some(res -> e))
+      ZIO.accessM[R] { r =>
+        RefM.make[Option[(Reservation[Any, E, A], Exit[E, A])]](None).map { ref =>
+          val acquire1: ZIO[Any, E, A] =
+            ref.modify {
+              case v @ Some((_, e)) => ZIO.succeedNow(e -> v)
+              case None =>
+                ZIO.uninterruptibleMask { restore =>
+                  self.provide(r).reserve.flatMap { res =>
+                    restore(res.acquire).run.map(e => e -> Some(res -> e))
+                  }
                 }
-              }
-          }.flatMap(ZIO.doneNow)
+            }.flatMap(ZIO.doneNow)
 
-        val acquire2: ZIO[R, E, ZManaged[R, E, A]] =
-          ZIO.succeedNow(acquire1.toManaged_)
+          val acquire2: ZIO[R, Nothing, ZManaged[Any, E, A]] =
+            ZIO.succeedNow(acquire1.toManaged_)
 
-        val release2 = (_: Exit[_, _]) =>
-          ref.updateSome {
-            case Some((res, e)) => res.release(e).as(None)
-          }
+          val release2 = (_: Exit[_, _]) =>
+            ref.updateSome {
+              case Some((res, e)) => res.release(e).as(None)
+            }
 
-        Reservation(acquire2, release2)
+          Reservation(acquire2, release2)
+        }
       }
     }
 
@@ -645,7 +647,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
   def provideLayer[E1 >: E, R0, R1 <: Has[_]](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZManaged[R0, E1, A] =
-    provideSomeManaged(layer.value.map(ev))
+    provideSomeManaged(layer.build.map(ev))
 
   /**
    * An effectual version of `provide`, useful when the act of provision
@@ -679,6 +681,21 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZManaged[R0, E, A] =
     ZManaged(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), e => r.release(e).provideSome(f))))
+
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
+    new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
    * An effectful version of `provideSome`, useful when the act of partial
@@ -1073,6 +1090,13 @@ object ZManaged {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
+  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1 <: Has[_]](
+      layer: ZLayer[R0, E1, R1]
+    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): ZManaged[R0, E1, A] =
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+  }
+
   trait Scope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, (A, UIO[Any])]
   }
@@ -1438,11 +1462,11 @@ object ZManaged {
    * moral equivalent of:
    *
    * {{{
-   * val s = initial
+   * var s = initial
    *
    * while (cont(s)) {
    *   body(s)
-   *   inc(s)
+   *   s = inc(s)
    * }
    * }}}
    */

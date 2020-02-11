@@ -7,6 +7,7 @@ import zio.Cause._
 import zio.LatchOps._
 import zio.clock.Clock
 import zio.duration._
+import zio.internal.Platform
 import zio.random.Random
 import zio.scheduler.Scheduler
 import zio.test.Assertion._
@@ -1180,6 +1181,14 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
+    suite("provideSomeLayer")(
+      testM("can split environment into two parts") {
+        val clockLayer: ZLayer[Any, Nothing, Clock]    = Scheduler.live >>> Clock.live
+        val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
+        val zio2: ZIO[Random, Nothing, Unit]           = zio.provideSomeLayer[Random](clockLayer)
+        assertM(zio2)(anything)
+      }
+    ),
     suite("raceAll")(
       testM("returns first success") {
         assertM(ZIO.failNow("Fail").raceAll(List(IO.succeedNow(24))))(equalTo(24))
@@ -2094,7 +2103,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield value
 
         assertM(Live.live(io))(equalTo(2))
-      } @@ nonFlaky(100),
+      } @@ flaky,
       testM("race of fail with success") {
         val io = IO.failNow(42).race(IO.succeedNow(24)).either
         assertM(io)(isRight(equalTo(24)))
@@ -2631,17 +2640,15 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       },
       testM("executor is heritable") {
-        val io =
-          for {
-            ref  <- Ref.make(Option.empty[internal.Executor])
-            exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
-            _ <- withLatch(release =>
-                  IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e)) *> release).fork.lock(exec)
-                )
-            v <- ref.get
-          } yield v.contains(exec)
-
-        assertM(io)(isTrue)
+        val executor = internal.Executor.fromExecutionContext(100) {
+          scala.concurrent.ExecutionContext.Implicits.global
+        }
+        val pool = ZIO.effectTotal(Platform.getCurrentThreadGroup)
+        val io = for {
+          parentPool <- pool
+          childPool  <- pool.fork.flatMap(_.join)
+        } yield assert(parentPool)(equalTo(childPool))
+        io.lock(executor)
       } @@ jvm(nonFlaky(100))
     ),
     suite("someOrFail")(
