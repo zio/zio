@@ -21,11 +21,10 @@ import scala.concurrent.ExecutionException
 import _root_.java.nio.channels.CompletionHandler
 import _root_.java.util.concurrent.{ CompletableFuture, CompletionException, CompletionStage, Future }
 
-import zio.Fiber.Status
 import zio._
 import zio.blocking.{ blocking, Blocking }
 
-object javaz {
+private[zio] object javaz {
   def withCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
     Task.effectSuspendTotalWith[T] { (p, _) =>
       Task.effectAsync { k =>
@@ -57,7 +56,7 @@ object javaz {
       Task.fail(e)
   }
 
-  private def unwrapDone[A](isFatal: Throwable => Boolean)(f: Future[A]): Task[A] =
+  def unwrapDone[A](isFatal: Throwable => Boolean)(f: Future[A]): Task[A] =
     try {
       Task.succeedNow(f.get())
     } catch catchFromGet(isFatal)
@@ -93,95 +92,6 @@ object javaz {
       }
     }
 
-  implicit class CompletionStageJavaconcurrentOps[A](private val csUio: UIO[CompletionStage[A]]) extends AnyVal {
-    def toZio: Task[A] = ZIO.fromCompletionStage(csUio)
-  }
-
-  implicit class FutureJavaconcurrentOps[A](private val futureUio: UIO[Future[A]]) extends AnyVal {
-
-    /** WARNING: this uses the blocking Future#get, consider using `CompletionStage` */
-    def toZio: RIO[Blocking, A] = ZIO.fromFutureJava(futureUio)
-  }
-
-  implicit class ZioObjJavaconcurrentOps(private val zioObj: ZIO.type) extends AnyVal {
-    def withCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
-      javaz.withCompletionHandler(op)
-
-    def fromCompletionStage[A](csUio: UIO[CompletionStage[A]]): Task[A] = javaz.fromCompletionStage(csUio)
-
-    /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-    def fromFutureJava[A](futureUio: UIO[Future[A]]): RIO[Blocking, A] = javaz.fromFutureJava(futureUio)
-  }
-
-  implicit class FiberObjOps(private val fiberObj: Fiber.type) extends AnyVal {
-    def fromCompletionStage[A](thunk: => CompletionStage[A]): Fiber[Throwable, A] = {
-      lazy val cs: CompletionStage[A] = thunk
-
-      new Fiber.Synthetic[Throwable, A] {
-        override def await: UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(UIO.effectTotal(cs)).run
-
-        override def poll: UIO[Option[Exit[Throwable, A]]] =
-          UIO.effectSuspendTotal {
-            val cf = cs.toCompletableFuture
-            if (cf.isDone) {
-              Task
-                .effectSuspendWith((p, _) => unwrapDone(p.fatal)(cf))
-                .fold(Exit.fail, Exit.succeed)
-                .map(Some(_))
-            } else {
-              UIO.succeedNow(None)
-            }
-          }
-
-        final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
-
-        final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
-
-        final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
-
-        final def inheritRefs: UIO[Unit] = IO.unit
-
-        final def status: UIO[Fiber.Status] = UIO {
-          // TODO: Avoid toCompletableFuture?
-          if (thunk.toCompletableFuture.isDone) Status.Done else Status.Running
-        }
-      }
-    }
-
-    /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-    def fromFutureJava[A](thunk: => Future[A]): Fiber[Throwable, A] = {
-      lazy val ftr: Future[A] = thunk
-
-      new Fiber.Synthetic[Throwable, A] {
-        def await: UIO[Exit[Throwable, A]] =
-          Blocking.live.value.use(ZIO.fromFutureJava(UIO.effectTotal(ftr)).provide(_).run)
-
-        def poll: UIO[Option[Exit[Throwable, A]]] =
-          UIO.effectSuspendTotal {
-            if (ftr.isDone) {
-              Task
-                .effectSuspendWith((p, _) => unwrapDone(p.fatal)(ftr))
-                .fold(Exit.fail, Exit.succeed)
-                .map(Some(_))
-            } else {
-              UIO.succeed(None)
-            }
-          }
-
-        def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
-
-        def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
-
-        def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
-
-        def inheritRefs: UIO[Unit] = UIO.unit
-
-        def status: UIO[Fiber.Status] = UIO {
-          if (thunk.isDone) Status.Done else Status.Running
-        }
-      }
-    }
-  }
 
   /**
    * CompletableFuture#failedFuture(Throwable) available only since Java 9
@@ -192,15 +102,5 @@ object javaz {
       f.completeExceptionally(e)
       f
     }
-  }
-
-  implicit class TaskCompletableFutureOps[A](private val io: Task[A]) extends AnyVal {
-    def toCompletableFuture: UIO[CompletableFuture[A]] =
-      io.fold(CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
-  }
-
-  implicit class IOCompletableFutureOps[E, A](private val io: IO[E, A]) extends AnyVal {
-    def toCompletableFutureWith(f: E => Throwable): UIO[CompletableFuture[A]] =
-      io.mapError(f).toCompletableFuture
   }
 }
