@@ -7,6 +7,7 @@ import zio.Cause._
 import zio.LatchOps._
 import zio.clock.Clock
 import zio.duration._
+import zio.internal.Platform
 import zio.random.Random
 import zio.scheduler.Scheduler
 import zio.test.Assertion._
@@ -2639,17 +2640,15 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       },
       testM("executor is heritable") {
-        val io =
-          for {
-            ref  <- Ref.make(Option.empty[internal.Executor])
-            exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
-            _ <- withLatch(release =>
-                  IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e)) *> release).fork.lock(exec)
-                )
-            v <- ref.get
-          } yield v.contains(exec)
-
-        assertM(io)(isTrue)
+        val executor = internal.Executor.fromExecutionContext(100) {
+          scala.concurrent.ExecutionContext.Implicits.global
+        }
+        val pool = ZIO.effectTotal(Platform.getCurrentThreadGroup)
+        val io = for {
+          parentPool <- pool
+          childPool  <- pool.fork.flatMap(_.join)
+        } yield assert(parentPool)(equalTo(childPool))
+        io.lock(executor)
       } @@ jvm(nonFlaky(100))
     ),
     suite("someOrFail")(
