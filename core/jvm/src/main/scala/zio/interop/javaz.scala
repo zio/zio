@@ -92,7 +92,6 @@ private[zio] object javaz {
       }
     }
 
-
   /**
    * CompletableFuture#failedFuture(Throwable) available only since Java 9
    */

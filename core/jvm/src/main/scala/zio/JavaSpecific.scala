@@ -40,6 +40,7 @@ private[zio] trait JavaSpecific {
   }
 
   implicit class FutureJavaconcurrentOps[A](private val futureUio: UIO[Future[A]]) {
+
     /** WARNING: this uses the blocking Future#get, consider using `CompletionStage` */
     def toZio: RIO[Blocking, A] = ZIO.fromFutureJava(futureUio)
   }
@@ -123,6 +124,5 @@ private[zio] trait JavaSpecific {
     def toCompletableFutureWith(f: E => Throwable): UIO[CompletableFuture[A]] =
       io.mapError(f).toCompletableFuture
   }
-
 
 }
