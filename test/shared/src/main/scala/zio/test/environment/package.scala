@@ -185,7 +185,7 @@ package object environment extends PlatformSpecific {
    * methods, and all effects scheduled to take place on or before that wall
    * clock time will automically be run.
    *
-   * For example, here is how we can test [[ZIO.timeout]] using `TestClock:
+   * For example, here is how we can test [[zio.ZIO#timeout]] using `TestClock:
    *
    * {{{
    *  import zio.ZIO
@@ -1317,7 +1317,7 @@ package object environment extends PlatformSpecific {
     /**
      * Constructs a new `TestRandom` with the specified initial state. This can
      * be useful for providing the required environment to an effect that
-     * requires a `Random`, such as with [[ZIO!.provide]].
+     * requires a `Random`, such as with [[zio.ZIO#provide]].
      */
     def make(data: Data): ZLayer.NoDeps[Nothing, Random with TestRandom] =
       ZLayer.fromEffect(for {
@@ -1483,7 +1483,7 @@ package object environment extends PlatformSpecific {
     /**
      * Constructs a new `TestSystem` with the specified initial state. This can
      * be useful for providing the required environment to an effect that
-     * requires a `Console`, such as with [[ZIO!.provide]].
+     * requires a `Console`, such as with [[zio.ZIO#provide]].
      */
     def live(data: Data): ZLayer.NoDeps[Nothing, System with TestSystem] =
       ZLayer.fromEffect(Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref))))
