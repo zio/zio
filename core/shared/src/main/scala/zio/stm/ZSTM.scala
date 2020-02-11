@@ -411,10 +411,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * success channel to their common combined type.
    */
   def merge[A1 >: A](implicit ev1: E <:< A1, ev2: CanFail[E]): ZSTM[R, Nothing, A1] =
-    foldM(
-      e => ZSTM.succeedNow(ev1(e)),
-      ZSTM.succeedNow
-    )
+    foldM(e => ZSTM.succeedNow(ev1(e)), ZSTM.succeedNow)
 
   /**
    * Requires the option produced by this value to be `None`.
