@@ -358,6 +358,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         },
         testM("fails when given an exception") {
           assertM(STM.failNow(ExampleError).some.commit.run)(fails(isSome(equalTo(ExampleError))))
+        },
+        testM("lifting a value") {
+          assertM(STM.some(42).commit)(isSome(equalTo(42)))
         }
       ),
       suite("someOrFail")(

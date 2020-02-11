@@ -1019,6 +1019,12 @@ object ZSTM {
     succeed(Right(a))
 
   /**
+   * Returns an effect with the optional value.
+   */
+  def some[A](a: => A): STM[Nothing, Option[A]] =
+    succeed(Some(a))
+
+  /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
   def succeed[A](a: => A): ZSTM[Any, Nothing, A] =

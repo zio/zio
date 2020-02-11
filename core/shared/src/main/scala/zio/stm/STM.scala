@@ -176,6 +176,12 @@ object STM {
     ZSTM.right(a)
 
   /**
+   * @see See [[zio.stm.ZSTM.some]]
+   */
+  def some[A](a: => A): STM[Nothing, Option[A]] =
+    ZSTM.some(a)
+
+  /**
    * @see See [[zio.stm.ZSTM.succeed]]
    */
   def succeed[A](a: => A): STM[Nothing, A] =
