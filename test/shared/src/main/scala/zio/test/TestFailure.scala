@@ -25,20 +25,26 @@ object TestFailure {
   final case class Runtime[+E](cause: Cause[E])  extends TestFailure[E]
 
   /**
-   * Constructs a new assertion failure with the specified result.
+   * Constructs an assertion failure with the specified result.
    */
   def assertion(result: TestResult): TestFailure[Nothing] =
     Assertion(result)
 
   /**
-   * Constructs a new runtime failure with the specified cause.
+   * Constructs a runtime failure that dies with the specified `Throwable`.
    */
-  def die[E](cause: Cause[E]): TestFailure[E] =
-    Runtime(cause)
+  def die(t: Throwable): TestFailure[Nothing] =
+    halt(Cause.die(t))
 
   /**
-   * Constructs a new runtime failure with the specified error.
+   * Constructs a runtime failure that fails with the specified error.
    */
   def fail[E](e: E): TestFailure[E] =
-    Runtime(Cause.fail(e))
+    halt(Cause.fail(e))
+
+  /**
+   * Constructs a runtime failure with the specified cause.
+   */
+  def halt[E](cause: Cause[E]): TestFailure[E] =
+    Runtime(cause)
 }
