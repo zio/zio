@@ -341,6 +341,16 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
+   * Returns a successful effect with the head of the list if the list is
+   * non-empty or fails with the error `None` if the list is empty.
+   */
+  def head[B](implicit ev: A <:< List[B]): ZSTM[R, Option[E], B] =
+    foldM(
+      e => ZSTM.failNow(Some(e)),
+      ev(_).headOption.fold[ZSTM[R, Option[E], B]](ZSTM.failNow(None))(ZSTM.succeedNow)
+    )
+
+  /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
   def ignore: ZSTM[R, Nothing, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
