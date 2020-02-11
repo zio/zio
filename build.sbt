@@ -213,7 +213,6 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
   .settings(crossProjectSettings)
-  
   .settings(
     scalacOptions += "-language:experimental.macros",
     libraryDependencies ++= {
