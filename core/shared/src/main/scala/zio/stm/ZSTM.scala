@@ -1014,6 +1014,15 @@ object ZSTM {
   def partial[A](a: => A): STM[Throwable, A] = fromTry(Try(a))
 
   /**
+   * Feeds elements of type `A` to a function `f` that returns an effect.
+   * Collects all successes and failures in a tupled fashion.
+   */
+  def partition[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZSTM[R, E, B])(implicit ev: CanFail[E]): ZSTM[R, Nothing, (List[E], List[B])] =
+    ZSTM.foreach(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
+
+  /**
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */

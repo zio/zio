@@ -164,6 +164,12 @@ object STM {
     ZSTM.partial(a)
 
   /**
+   * @see See [[zio.stm.ZSTM.partition]]
+   */
+  def partition[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[Nothing, (List[E], List[B])] =
+    ZSTM.partition(in)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.retry]]
    */
   val retry: STM[Nothing, Nothing] =

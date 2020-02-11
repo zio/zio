@@ -327,6 +327,37 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(ZSTM.fromEither(ei).optional.commit)(isSome(equalTo(42)))
         }
       ),
+      suite("partition")(
+        testM("collects only successes") {
+          val in = List.range(0, 10)
+          for {
+            res <- STM.partition(in)(a => STM.succeedNow(a)).commit
+          } yield assert(res._1)(isEmpty) && assert(res._2)(equalTo(in))
+        },
+        testM("collects only failures") {
+          val in = List.fill(10)(0)
+          for {
+            res <- STM.partition(in)(a => STM.failNow(a)).commit
+          } yield assert(res._1)(equalTo(in)) && assert(res._2)(isEmpty)
+        },
+        testM("collects failures and successes") {
+          val in = List.range(0, 10)
+          for {
+            res <- STM.partition(in)(a => if (a % 2 == 0) STM.failNow(a) else STM.succeedNow(a)).commit
+          } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
+        },
+        testM("evaluates effects in correct order") {
+          val as = List(2, 4, 6, 3, 5, 6)
+          val tx =
+            for {
+              ref     <- TRef.make(List.empty[Int])
+              _       <- STM.partition(as)(a => ref.update(a :: _))
+              effects <- ref.get.map(_.reverse)
+            } yield effects
+
+          assertM(tx.commit)(equalTo(List(2, 4, 6, 3, 5, 6)))
+        }
+      ),
       suite("right")(
         testM("on Right value") {
           assertM(STM.succeedNow(Right("Right")).right.commit)(equalTo("Right"))
