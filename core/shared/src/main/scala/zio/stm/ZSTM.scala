@@ -397,6 +397,15 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
+   * Requires the option produced by this value to be `None`.
+   */
+  def none[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], Unit] =
+    self.foldM(
+      e => ZSTM.failNow(Some(e)),
+      _.fold[ZSTM[R, Option[E], Unit]](ZSTM.succeedNow(()))(_ => ZSTM.failNow(None))
+    )
+
+  /**
    * Propagates the success value to the first element of a tuple, but
    * passes the effect input `R` along unmodified as the second element
    * of the tuple.

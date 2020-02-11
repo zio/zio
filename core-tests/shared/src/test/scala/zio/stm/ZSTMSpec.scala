@@ -191,6 +191,17 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("`mapError` to map from one error to another") {
         assertM(STM.failNow(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
       },
+      suite("none")(
+        testM("when A is None") {
+          assertM(STM.succeedNow(None).none.commit)(isUnit)
+        },
+        testM("when Error") {
+          assertM(STM.failNow(ExampleError).none.commit.run)(fails(isSome(equalTo(ExampleError))))
+        },
+        testM("when A is Some(a)") {
+          assertM(STM.succeedNow(Some(1)).none.commit.run)(fails(isNone))
+        }
+      ),
       testM("`onFirst` returns the effect A along with the unmodified input `R` as second element in a tuple") {
         val tx = ZSTM
           .access[String](_.length)
