@@ -419,7 +419,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def none[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], Unit] =
     self.foldM(
       e => ZSTM.failNow(Some(e)),
-      _.fold[ZSTM[R, Option[E], Unit]](ZSTM.succeedNow(()))(_ => ZSTM.failNow(None))
+      _.fold[ZSTM[R, Option[E], Unit]](ZSTM.unit)(_ => ZSTM.failNow(None))
     )
 
   /**
