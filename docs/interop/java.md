@@ -32,14 +32,14 @@ Additionally, you may want to go the other way and convert a ZIO value into a `C
 
 ```scala
 def taskToStage[A](task: Task[A]): UIO[CompletableFuture[A]] =
-    Task.toCompletableFuture(task)
+    task.toCompletableFuture
 ```
 
 As you can see, it commits to a concrete class implementing the `CompletionStage` interface, i.e. `CompletableFuture`. It is worth point out that any `IO[E, A]` can be turned into a completable future provided you can turn a value of type `E` into a `Throwable`:
 
 ```scala
 def ioToStage[E, A](io: IO[E, A])(toThrowable: E => Throwable): UIO[CompletableFuture[A]] =
-    IO.toCompletableFutureWith(io)(toThrowable)
+    io.toCompletableFutureWith(toThrowable)
 ```
 
 ## Java Future
