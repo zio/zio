@@ -16,7 +16,7 @@
 
 package zio
 
-trait ManagedApp extends DefaultRuntime { ma =>
+trait ManagedApp extends BootstrapRuntime { ma =>
 
   /**
    * The main function of the application, which will be passed the command-line
