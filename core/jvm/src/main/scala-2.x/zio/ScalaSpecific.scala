@@ -19,7 +19,8 @@ package zio
 private[zio] object ScalaSpecific {
   import scala.reflect.runtime.universe._
 
-  type TagType = Type
+  type TaggedType[A] = TypeTag[A]
+  type TagType       = Type
 
   private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tag.tpe.dealias
 

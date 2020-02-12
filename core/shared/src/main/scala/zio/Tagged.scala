@@ -16,7 +16,7 @@
 
 package zio
 
-final case class Tagged[A](tag: TagType) {
+final case class Tagged[A](tag: TaggedType[A]) {
   override def equals(that: Any): Boolean = that match {
     case Tagged(that) => tag.toString == that.toString
     case _            => false
@@ -26,6 +26,6 @@ final case class Tagged[A](tag: TagType) {
 }
 
 object Tagged {
-  implicit def tagged[A](implicit tag: TagType): Tagged[A] =
+  implicit def tagged[A](implicit tag: TaggedType[A]): Tagged[A] =
     Tagged(tag)
 }

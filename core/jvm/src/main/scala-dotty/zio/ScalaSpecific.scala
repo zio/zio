@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package zio 
+package zio
 
 private[zio] object ScalaSpecific {
 
-  type TagType = scala.reflect.ClassTag[_]
+  type TaggedType[A] = scala.reflect.ClassTag[A]
+  type TagType       = scala.reflect.ClassTag[_]
 
   private[zio] def taggedIsSubtype[A, B](left: TagType, right: TagType): Boolean =
     right.runtimeClass.isAssignableFrom(left.runtimeClass)
