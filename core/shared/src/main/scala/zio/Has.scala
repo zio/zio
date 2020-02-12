@@ -31,8 +31,8 @@ package zio
  * environment must be monomorphic. Parameterized services are not supported.
  */
 final class Has[A] private (
-  private val map: Map[TagType, scala.Any],
-  private var cache: Map[TagType, scala.Any] = Map()
+  private val map: Map[Tagged[_], scala.Any],
+  private var cache: Map[Tagged[_], scala.Any] = Map()
 ) extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case that: Has[_] => map == that.map
@@ -81,7 +81,7 @@ object Has {
      * Good: `Logging`, bad: `Logging[String]`.
      */
     def add[B](b: B)(implicit tagged: Tagged[B], ev: Self MustNotHave B): Self with Has[B] =
-      new Has(self.map + (taggedTagType(tagged) -> b)).asInstanceOf[Self with Has[B]]
+      new Has(self.map + (tagged -> b)).asInstanceOf[Self with Has[B]]
 
     /**
      * Retrieves a service from the environment.
@@ -91,11 +91,11 @@ object Has {
 
       self.map
         .getOrElse(
-          tag,
+          tagged,
           self.cache.getOrElse(
-            tag, {
+            tagged, {
               self.map.collectFirst {
-                case (curTag, value) if taggedIsSubtype(curTag, tag) =>
+                case (curTag, value) if taggedIsSubtype(taggedTagType(curTag), tag) =>
                   self.cache = self.cache + (curTag -> value)
                   value
               }.getOrElse(throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}"))
@@ -114,7 +114,7 @@ object Has {
       val set = taggedGetHasServices(tag)
 
       if (set.isEmpty) self
-      else new Has(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(tag, _)))).asInstanceOf[Self]
+      else new Has(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(taggedTagType(tag), _)))).asInstanceOf[Self]
     }
 
     /**
@@ -163,7 +163,7 @@ object Has {
    * Constructs a new environment holding the single service. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(taggedTagType(TaggedAnyRef) -> (()))).add(a)
+  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(TaggedAnyRef -> (()))).add(a)
 
   /**
    * Constructs a new environment holding the specified services. The service

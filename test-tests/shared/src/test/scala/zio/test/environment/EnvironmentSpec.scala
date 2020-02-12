@@ -70,7 +70,7 @@ object EnvironmentSpec extends ZIOBaseSpec {
       } yield assert(lineSep)(equalTo(","))
     },
     testM("clock service can be overwritten") {
-      val withLiveClock = TestEnvironment.live.overwrite(Clock.live)
+      val withLiveClock = TestEnvironment.live ++ Clock.live
       val time          = clock.nanoTime.provideLayer(withLiveClock)
       assertM(time)(isGreaterThan(0L))
     } @@ nonFlaky
