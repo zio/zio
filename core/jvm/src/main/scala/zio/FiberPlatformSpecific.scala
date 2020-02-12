@@ -64,7 +64,7 @@ private[zio] trait FiberPlatformSpecific {
 
     new Fiber.Synthetic.Internal[Throwable, A] {
       def await: UIO[Exit[Throwable, A]] =
-        Blocking.live.value.use(ZIO.fromFutureJava(ftr).provide(_).run)
+        Blocking.live.build.use(ZIO.fromFutureJava(ftr).provide(_).run)
 
       def poll: UIO[Option[Exit[Throwable, A]]] =
         UIO.effectSuspendTotal {
