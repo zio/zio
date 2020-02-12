@@ -34,13 +34,11 @@ class ZStream[-R, +E, -M, +B, +A](
   def filter(pred: A => Boolean): ZStream[R, E, M, B, A] =
     ZStream {
       self.process.map { control =>
-        def pull(): ZIO[R, Either[E, B], A] =
+        Control(
           control.pull.flatMap { a =>
             if (pred(a)) UIO.succeedNow(a)
-            else pull()
-          }
-        Control(
-          pull,
+            else control.pull
+          },
           control.command
         )
       }
