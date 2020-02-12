@@ -117,7 +117,8 @@ object Assertion extends AssertionVariants {
       try {
         C.runtimeClass.getSimpleName
       } catch {
-        case _: Throwable => C.runtimeClass.getName
+        case t: InternalError if t.getMessage == "Malformed class name" =>
+          C.runtimeClass.getName
       }
 
     /**
