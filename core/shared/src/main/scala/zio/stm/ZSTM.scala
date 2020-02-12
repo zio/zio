@@ -273,8 +273,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Dies with a [[java.lang.RuntimeException]] having the specified text message
    * if the predicate fails.
    */
-  def filterOrDieMessage(p: A => Boolean)(message: => String): ZSTM[R, E, A] =
-    self.filterOrElse_(p)(ZSTM.dieMessage(message))
+  def filterOrDieMessage(p: A => Boolean)(msg: => String): ZSTM[R, E, A] =
+    filterOrElse_(p)(ZSTM.dieMessage(msg))
 
   /**
    * Applies `f` if the predicate fails.
