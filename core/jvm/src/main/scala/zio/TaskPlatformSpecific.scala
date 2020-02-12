@@ -17,7 +17,7 @@
 package zio
 
 import _root_.java.nio.channels.CompletionHandler
-import _root_.java.util.concurrent.{ CompletableFuture, CompletionStage }
+import _root_.java.util.concurrent.CompletionStage
 
 import zio.interop.javaz
 
@@ -27,8 +27,5 @@ private[zio] trait TaskPlatformSpecific {
     javaz.effectAsyncWithCompletionHandler(op)
 
   def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)
-
-  def toCompletableFuture[A](io: Task[A]): UIO[CompletableFuture[A]] =
-    ZIO.toCompletableFuture(io)
 
 }

@@ -22,7 +22,15 @@ import _root_.java.util.concurrent.{ CompletableFuture, CompletionStage, Future 
 import zio.blocking.Blocking
 import zio.interop.javaz
 
-private[zio] trait ZIOPlatformSpecific {
+private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
+  def toCompletableFuture[A1 >: A](implicit ev: E <:< Throwable): URIO[R, CompletableFuture[A1]] =
+    toCompletableFutureWith(ev)
+
+  def toCompletableFutureWith[A1 >: A](f: E => Throwable): URIO[R, CompletableFuture[A1]] =
+    self.mapError(f).fold(javaz.CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A1])
+}
+
+private[zio] trait ZIOCompanionPlatformSpecific {
 
   def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
     javaz.effectAsyncWithCompletionHandler(op)
@@ -31,11 +39,5 @@ private[zio] trait ZIOPlatformSpecific {
 
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
   def fromFutureJava[A](future: => Future[A]): RIO[Blocking, A] = javaz.fromFutureJava(future)
-
-  def toCompletableFuture[E, A](zio: ZIO[Any, E, A])(implicit ev: E <:< Throwable): UIO[CompletableFuture[A]] =
-    toCompletableFutureWith(zio)(ev)
-
-  def toCompletableFutureWith[R, E, A](zio: ZIO[Any, E, A])(f: E => Throwable): UIO[CompletableFuture[A]] =
-    zio.mapError(f).fold(javaz.CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
 
 }

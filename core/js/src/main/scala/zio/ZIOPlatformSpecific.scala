@@ -16,4 +16,6 @@
 
 package zio
 
-private[zio] trait ZIOPlatformSpecific
+private[zio] trait ZIOPlatformSpecific[-R, +E, +A]
+
+private[zio] trait ZIOCompanionPlatformSpecific

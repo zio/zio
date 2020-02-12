@@ -75,31 +75,31 @@ object JavaSpec extends ZIOBaseSpec {
     suite("`Task.toCompletableFuture` must")(
       testM("produce always a successful `IO` of `Future`") {
         val failedIO = IO.fail[Throwable](new Exception("IOs also can fail"))
-        assertM(IO.toCompletableFuture(failedIO))(isSubtype[CompletableFuture[Unit]](anything))
+        assertM(failedIO.toCompletableFuture)(isSubtype[CompletableFuture[Unit]](anything))
       },
       test("be polymorphic in error type") {
         val unitIO: Task[Unit]                          = Task.unit
-        val polyIO: IO[String, CompletableFuture[Unit]] = IO.toCompletableFuture(unitIO)
+        val polyIO: IO[String, CompletableFuture[Unit]] = unitIO.toCompletableFuture
         assert(polyIO)(anything)
       },
       testM("return a `CompletableFuture` that fails if `IO` fails") {
         val ex                       = new Exception("IOs also can fail")
         val failedIO: Task[Unit]     = IO.fail[Throwable](ex)
-        val failedFuture: Task[Unit] = IO.toCompletableFuture(failedIO).flatMap(f => Task(f.get()))
+        val failedFuture: Task[Unit] = failedIO.toCompletableFuture.flatMap(f => Task(f.get()))
         assertM(failedFuture.run)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )
       },
       testM("return a `CompletableFuture` that produces the value from `IO`") {
         val someIO = Task.succeed[Int](42)
-        assertM(IO.toCompletableFuture(someIO).map(_.get()))(equalTo(42))
+        assertM(someIO.toCompletableFuture.map(_.get()))(equalTo(42))
       }
     ),
     suite("`Task.toCompletableFutureE` must")(
       testM("convert error of type `E` to `Throwable`") {
         val failedIO: IO[String, Unit] = IO.fail[String]("IOs also can fail")
         val failedFuture: Task[Unit] =
-          IO.toCompletableFutureWith[String, Unit](failedIO)(new Exception(_)).flatMap(f => Task(f.get()))
+          failedIO.toCompletableFutureWith(new Exception(_)).flatMap(f => Task(f.get()))
         assertM(failedFuture.run)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )
