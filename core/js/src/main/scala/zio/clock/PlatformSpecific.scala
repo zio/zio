@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-package zio.scheduler
+package zio.clock
 
-import java.util.concurrent._
+import scala.scalajs.js
 
 import zio.duration.Duration
-import zio.internal.{ IScheduler, NamedThreadFactory }
+import zio.internal.Scheduler
 
-private[scheduler] trait PlatformSpecific {
-  import IScheduler.CancelToken
-
-  private[scheduler] val globalScheduler = new IScheduler {
-
-    private[this] val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
+private[clock] trait PlatformSpecific {
+  private[clock] val globalScheduler = new Scheduler {
+    import Scheduler.CancelToken
 
     private[this] val ConstFalse = () => false
 
@@ -37,15 +34,16 @@ private[scheduler] trait PlatformSpecific {
 
         ConstFalse
       case duration: Duration.Finite =>
-        val future = service.schedule(new Runnable {
-          def run: Unit =
-            task.run()
-        }, duration.toNanos, TimeUnit.NANOSECONDS)
+        var completed = false
 
+        val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
+          completed = true
+
+          task.run()
+        }
         () => {
-          val canceled = future.cancel(true)
-
-          canceled
+          js.timers.clearTimeout(handle)
+          !completed
         }
     }
   }

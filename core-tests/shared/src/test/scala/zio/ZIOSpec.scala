@@ -9,7 +9,6 @@ import zio.clock.Clock
 import zio.duration._
 import zio.internal.Platform
 import zio.random.Random
-import zio.scheduler.Scheduler
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
 import zio.test._
@@ -1193,7 +1192,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("provideSomeLayer")(
       testM("can split environment into two parts") {
-        val clockLayer: ZLayer[Any, Nothing, Clock]    = Scheduler.live >>> Clock.live
+        val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
         val zio2: ZIO[Random, Nothing, Unit]           = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
@@ -1608,7 +1607,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("timeout a long computation") {
         val io = (clock.sleep(5.seconds) *> IO.succeedNow(true)).timeout(10.millis)
-        assertM(io.provideManaged((Scheduler.live >>> Clock.live).build))(isNone)
+        assertM(io.provideLayer(Clock.live))(isNone)
       },
       testM("catchAllCause") {
         val io =

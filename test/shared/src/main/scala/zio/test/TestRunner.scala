@@ -20,7 +20,6 @@ import zio._
 import zio.clock.Clock
 import zio.console.Console
 import zio.internal.Platform
-import zio.scheduler.Scheduler
 
 /**
  * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that
@@ -31,8 +30,7 @@ final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[E] = DefaultTestReporter(TestAnnotationRenderer.default),
-  bootstrap: Managed[Nothing, TestLogger with Clock] =
-    ((Console.live >>> TestLogger.fromConsole) ++ (Scheduler.live >>> Clock.live)).build
+  bootstrap: Managed[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live).build
 ) { self =>
 
   lazy val runtime = Runtime((), platform)
