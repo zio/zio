@@ -34,11 +34,13 @@ class ZStream[-R, +E, -M, +B, +A](
   def filter(pred: A => Boolean): ZStream[R, E, M, B, A] =
     ZStream {
       self.process.map { control =>
-        Control(
+        def pull(): ZIO[R, Either[E, B], A] =
           control.pull.flatMap { a =>
             if (pred(a)) UIO.succeedNow(a)
-            else control.pull
-          },
+            else pull()
+          }
+        Control(
+          pull,
           control.command
         )
       }
@@ -128,4 +130,62 @@ object ZStream extends Serializable {
         }
       } yield Control(pull, Command.noop)
     }
+
+  /**
+   * Creates a stream from a [[zio.Chunk]] of values
+   *
+   * @tparam A the chunk value type
+   * @return a stream which emits values from chunk
+   */
+  def fromChunk[A](c: => Chunk[A]): ZStream[Any, Nothing, Any, Unit, A] =
+    ZStream {
+      Managed.effectTotal {
+        var index = 0
+        Control(
+          IO.succeedNow(c)
+            .flatMap(chunk =>
+              if (index >= chunk.length) Pull.endUnit
+              else {
+                val i = index
+                index += 1
+                IO.succeed(chunk(i))
+              }
+            ),
+          Command.noop
+        )
+      }
+    }
+
+  /**
+   * Creates a stream from an iterable collection of values
+   *
+   * @tparam A the iterable value type
+   * @return a stream which emits values from iterable
+   */
+  def fromIterable[A](as: => Iterable[A]): ZStream[Any, Nothing, Any, Unit, A] =
+    ZStream {
+      Managed.effectTotal {
+        Control(
+          IO.succeedNow(as.iterator).flatMap(iter => if (iter.hasNext) IO.succeed(iter.next()) else Pull.endUnit),
+          Command.noop
+        )
+      }
+    }
+
+  /**
+   * Creates a stream from an iterator
+   *
+   * @tparam A the value type of elements produced by iterator
+   * @return a stream which emits values produced by iterator
+   */
+  def fromIterator[A](iterator: => Iterator[A]): ZStream[Any, Nothing, Any, Unit, A] =
+    ZStream {
+      Managed.effectTotal {
+        Control(
+          IO.succeedNow(iterator).flatMap(iter => if (iter.hasNext) IO.succeed(iter.next()) else Pull.endUnit),
+          Command.noop
+        )
+      }
+    }
+
 }

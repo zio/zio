@@ -6,6 +6,12 @@ import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test._
 
 object ZStreamSpec extends ZIOBaseSpec {
+  def assertLazy(f: (=> Nothing) => Any): UIO[TestResult] =
+    UIO.effectTotal {
+      val _ = f(throw new RuntimeException("not lazy"))
+      assertCompletes
+    }
+
   def spec = suite("ZStreamSpec")(
     suite("Combinators")(
       testM("map") {
@@ -84,6 +90,76 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(fin)(isTrue) && assert(pulls)(
             equalTo(List(Left(Left("Ouch")), Left(Right(())), Left(Right(()))))
           )
+        }
+      ),
+      suite("fromIterable")(
+        testM("success") {
+          ZStream
+            .fromIterable(List(1, 2))
+            .process
+            .use(nPulls(_, 4))
+            .map(
+              assert(_)(
+                equalTo(
+                  List(
+                    Right(1),
+                    Right(2),
+                    Left(Right(())),
+                    Left(Right(()))
+                  )
+                )
+              )
+            )
+        },
+        testM("lazy") {
+          assertLazy(ZStream.fromIterable)
+        }
+      ),
+      suite("fromIterator")(
+        testM("success") {
+          ZStream
+            .fromIterator(List(1, 2).iterator)
+            .process
+            .use(nPulls(_, 4))
+            .map(
+              assert(_)(
+                equalTo(
+                  List(
+                    Right(1),
+                    Right(2),
+                    Left(Right(())),
+                    Left(Right(()))
+                  )
+                )
+              )
+            )
+        },
+        testM("lazy") {
+          assertLazy(ZStream.fromIterator)
+        }
+      ),
+      suite("fromChunk")(
+        testM("success") {
+          val stream = ZStream
+            .fromChunk(Chunk(1, 2))
+
+          stream.process
+            .use(nPulls(_, 4))
+            .map(
+              assert(_)(
+                equalTo(
+                  List(
+                    Right(1),
+                    Right(2),
+                    Left(Right(())),
+                    Left(Right(()))
+                  )
+                )
+              )
+            )
+        },
+        testM("lazy") {
+          assertLazy(ZStream.fromChunk)
         }
       )
     )
