@@ -898,6 +898,14 @@ object ZSTM {
   val fiberId: STM[Nothing, Fiber.Id] = new ZSTM((_, fiberId, _, _) => TExit.Succeed(fiberId))
 
   /**
+   * Filters the collection using the specified effectual predicate.
+   */
+  def filter[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, List[A]] =
+    as.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil)) { (a, zio) =>
+      f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
+    }
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces a new `List[B]`.
    */
