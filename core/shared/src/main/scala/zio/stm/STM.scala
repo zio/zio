@@ -82,6 +82,18 @@ object STM {
     ZSTM.filter(as)(f)
 
   /**
+   * @see See [[zio.stm.ZSTM.foldLeft]]
+   */
+  def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => STM[E, S]): STM[E, S] =
+    ZSTM.foldLeft(in)(zero)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.foldRight]]
+   */
+  def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => STM[E, S]): STM[E, S] =
+    ZSTM.foldRight(in)(zero)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.foreach]]
    */
   def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
