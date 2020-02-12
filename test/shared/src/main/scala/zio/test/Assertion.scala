@@ -117,6 +117,7 @@ object Assertion extends AssertionVariants {
       try {
         C.runtimeClass.getSimpleName
       } catch {
+        // See https://github.com/scala/bug/issues/2034.
         case t: InternalError if t.getMessage == "Malformed class name" =>
           C.runtimeClass.getName
       }
