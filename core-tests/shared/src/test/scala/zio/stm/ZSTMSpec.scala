@@ -101,6 +101,20 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.failNow("fail").fallback(1).commit)(equalTo(1))
         }
       ),
+      testM("filter filters a collection using an effectual predicate") {
+        val as = Iterable(2, 4, 6, 3, 5, 6)
+
+        val tx =
+          for {
+            ref     <- TRef.make(List.empty[Int])
+            results <- STM.filter(as)(a => ref.update(a :: _).as(a % 2 == 0))
+            effects <- ref.get.map(_.reverse)
+          } yield (results, effects)
+
+        val expected = (List(2, 4, 6, 6), List(2, 4, 6, 3, 5, 6))
+
+        assertM(tx.commit)(equalTo(expected))
+      },
       testM("filterOrDie dies when predicate fails") {
         val stm = ZSTM.succeedNow(1)
         assertM(stm.filterOrDie(_ != 1)(ExampleError).commit.run)(dies(equalTo(ExampleError)))
