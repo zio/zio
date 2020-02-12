@@ -76,6 +76,12 @@ object STM {
     ZSTM.fiberId
 
   /**
+   * @see [[zio.stm.ZSTM.filter]]
+   */
+  def filter[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, List[A]] =
+    ZSTM.filter(as)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.foreach]]
    */
   def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
