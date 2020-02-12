@@ -264,6 +264,37 @@ final class ZSTM[-R, +E, +A] private[stm] (
     fold(_ => a, identity)
 
   /**
+   * Dies with specified `Throwable` if the predicate fails.
+   */
+  def filterOrDie(p: A => Boolean)(t: => Throwable): ZSTM[R, E, A] =
+    filterOrElse_(p)(ZSTM.dieNow(t))
+
+  /**
+   * Dies with a [[java.lang.RuntimeException]] having the specified text message
+   * if the predicate fails.
+   */
+  def filterOrDieMessage(p: A => Boolean)(msg: => String): ZSTM[R, E, A] =
+    filterOrElse_(p)(ZSTM.dieMessage(msg))
+
+  /**
+   * Applies `f` if the predicate fails.
+   */
+  def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(f: A => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+    flatMap(v => if (!p(v)) f(v) else ZSTM.succeedNow(v))
+
+  /**
+   * Supplies `zstm` if the predicate fails.
+   */
+  def filterOrElse_[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(zstm: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+    filterOrElse[R1, E1, A1](p)(_ => zstm)
+
+  /**
+   * Fails with `e` if the predicate fails.
+   */
+  def filterOrFail[E1 >: E](p: A => Boolean)(e: => E1): ZSTM[R, E1, A] =
+    filterOrElse_[R, E1, A](p)(ZSTM.failNow(e))
+
+  /**
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
