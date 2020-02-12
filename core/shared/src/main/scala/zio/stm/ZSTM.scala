@@ -906,6 +906,16 @@ object ZSTM {
     }
 
   /**
+   * Folds an Iterable[A] using an effectual function f, working sequentially from left to right.
+   */
+  def foldLeft[R, E, S, A](
+    in: Iterable[A]
+  )(zero: S)(f: (S, A) => ZSTM[R, E, S]): ZSTM[R, E, S] =
+    in.foldLeft(ZSTM.succeedNow(zero): ZSTM[R, E, S]) { (acc, el) =>
+      acc.flatMap(f(_, el))
+    }
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces a new `List[B]`.
    */

@@ -169,6 +169,26 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield (s, f)
         assertM(stm.commit)(equalTo(("Yes!", "No!")))
       },
+      suite("foldLeft")(
+        testM("with a successful step function sums the list properly") {
+          checkM(Gen.listOf(Gen.anyInt)) { l =>
+            val tx = STM.foldLeft(l)(0)((acc, el) => STM.succeedNow(acc + el))
+            assertM(tx.commit)(equalTo(l.sum))
+          }
+        },
+        testM("`with a failing step function returns a failed transaction") {
+          checkM(Gen.listOf1(Gen.anyInt)) { l =>
+            val tx = STM.foldLeft(l)(0)((_, _) => STM.failNow("fail"))
+            assertM(tx.commit.run)(fails(equalTo("fail")))
+          }
+        },
+        testM("run sequentially from left to right") {
+          checkM(Gen.listOf1(Gen.anyInt)) { l =>
+            val tx = STM.foldLeft(l)(List.empty[Int])((acc, el) => STM.succeedNow(el :: acc))
+            assertM(tx.commit)(equalTo(l.reverse))
+          }
+        }
+      ),
       testM("`flatMapError` to flatMap from one error to another") {
         assertM(STM.failNow(-1).flatMapError(s => STM.succeedNow(s"log: $s")).commit.run)(fails(equalTo("log: -1")))
       },
