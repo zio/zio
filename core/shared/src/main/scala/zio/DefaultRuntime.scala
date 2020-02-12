@@ -19,7 +19,7 @@ package zio
 import zio.internal.Platform
 
 @deprecated(
-  "Use `Runtime.global` and provide the required environment directly using" +
+  "Use `Runtime.default` and provide the required environment directly using" +
     "`ZIO#provideLayer`. In general, layers are managed resources that " +
     "require allocation and deallocation and therefore scoping resources to" +
     "an effect is highly recommended as a best practice. " +
