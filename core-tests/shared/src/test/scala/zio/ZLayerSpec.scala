@@ -181,6 +181,44 @@ object ZLayerSpec extends ZIOBaseSpec {
         _      <- env.use_(ZIO.unit)
         actual <- ref.get
       } yield assert(actual)(equalTo(expected))
+    },
+    testM("map does not interfere with sharing") {
+      val expected = Vector(
+        "Acquiring Module 1",
+        "Acquiring Module 2",
+        "Acquiring Module 3",
+        "Releasing Module 3",
+        "Releasing Module 2",
+        "Releasing Module 1"
+      )
+      for {
+        ref    <- makeRef
+        layer1 = makeLayer1(ref)
+        layer2 = makeLayer2(ref)
+        layer3 = makeLayer3(ref)
+        env    = ((layer1.map(identity) >>> layer2) ++ (layer1 >>> layer3)).build
+        _      <- env.use_(ZIO.unit)
+        actual <- ref.get
+      } yield assert(actual)(equalTo(expected))
+    },
+    testM("mapError does not interfere with sharing") {
+      val expected = Vector(
+        "Acquiring Module 1",
+        "Acquiring Module 2",
+        "Acquiring Module 3",
+        "Releasing Module 3",
+        "Releasing Module 2",
+        "Releasing Module 1"
+      )
+      for {
+        ref    <- makeRef
+        layer1 = makeLayer1(ref)
+        layer2 = makeLayer2(ref)
+        layer3 = makeLayer3(ref)
+        env    = ((layer1.mapError(identity) >>> layer2) ++ (layer1 >>> layer3)).build
+        _      <- env.use_(ZIO.unit)
+        actual <- ref.get
+      } yield assert(actual)(equalTo(expected))
     }
   )
 }

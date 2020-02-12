@@ -99,17 +99,50 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     new ZLayer(self.scope)
 
   /**
+   * Returns a new layer whose output is mapped by the specified function.
+   */
+  def map[ROut1 >: ROut <: Has[_]](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
+    self >>> ZLayer.fromEnvironment(f)
+
+  /**
+   * Returns a layer with its error channel mapped using the specified
+   * function.
+   */
+  def mapError[E1](f: E => E1): ZLayer[RIn, E1, ROut] =
+    new ZLayer(
+      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
+        memoMap.getOrElseMemoize(self, finalizerRef).mapError(f)
+      }
+    )
+
+  /**
+   * Overwrites the services output by this laywr with the services output by
+   * the specified layer.
+   */
+  def overwrite[E1 >: E, RIn2, A: Tagged](
+    that: ZLayer[RIn2, E1, Has[A]]
+  )(implicit ev: ROut <:< Has[A]): ZLayer[RIn with RIn2, E1, ROut] =
+    new ZLayer(
+      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
+        for {
+          l <- memoMap.getOrElseMemoize(self, finalizerRef)
+          r <- memoMap.getOrElseMemoize(that, finalizerRef)
+        } yield l.update[A](_ => r.get[A])
+      }
+    )
+
+  /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
-  def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Any =:= RIn2): Managed[E, Runtime[ROut]] =
+  def toRuntime(p: Platform)(implicit ev: Any <:< RIn): Managed[E, Runtime[ROut]] =
     build.provide(ev).map(Runtime(_, p))
 
   /**
    * Updates one of the services output by this layer.
    */
   def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
-    new ZLayer(scope.map(run => run(_).map(_.update[A](f))))
+    self >>> ZLayer.fromEnvironment(_.update[A](f))
 }
 
 object ZLayer {

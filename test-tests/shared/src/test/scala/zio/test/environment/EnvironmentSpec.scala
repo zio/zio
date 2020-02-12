@@ -3,8 +3,10 @@ package zio.test.environment
 import java.util.concurrent.TimeUnit
 
 import zio._
+import zio.clock._
 import zio.duration._
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
 
 object EnvironmentSpec extends ZIOBaseSpec {
@@ -66,6 +68,11 @@ object EnvironmentSpec extends ZIOBaseSpec {
         _       <- TestSystem.setLineSeparator(",")
         lineSep <- system.lineSeparator
       } yield assert(lineSep)(equalTo(","))
-    }
+    },
+    testM("clock service can be overwritten") {
+      val withLiveClock = TestEnvironment.live.overwrite(Clock.live)
+      val time          = clock.nanoTime.provideLayer(withLiveClock)
+      assertM(time)(isGreaterThan(0L))
+    } @@ nonFlaky
   )
 }
