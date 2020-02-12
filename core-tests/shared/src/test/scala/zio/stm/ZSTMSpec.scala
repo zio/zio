@@ -101,6 +101,44 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.failNow("fail").fallback(1).commit)(equalTo(1))
         }
       ),
+      testM("filterOrDie dies when predicate fails") {
+        val stm = ZSTM.succeedNow(1)
+        assertM(stm.filterOrDie(_ != 1)(ExampleError).commit.run)(dies(equalTo(ExampleError)))
+      },
+      testM("filterOrDieMessage dies with message when predicate fails ") {
+        val stm = ZSTM.succeedNow(1)
+        assertM(stm.filterOrDieMessage(_ != 1)("dies").commit.run)(dies(hasMessage(equalTo("dies"))))
+      },
+      suite("filterOrElse")(
+        testM("returns checked failure") {
+          val stm1 = ZSTM.succeedNow(1)
+          assertM(stm1.filterOrElse(_ == 1)(n => ZSTM.succeedNow(n + 1)).commit)(equalTo(1))
+        },
+        testM("returns held value") {
+          val stm1 = ZSTM.succeedNow(1)
+          assertM(stm1.filterOrElse(_ != 1)(n => ZSTM.succeedNow(n + 1)).commit)(equalTo(2))
+        },
+        testM("returns error") {
+          val stm1 = ZSTM.failNow(ExampleError) *> ZSTM.succeedNow(1)
+          assertM(stm1.filterOrElse(_ == 1)(n => ZSTM.succeedNow(n + 1)).commit.run)(fails(equalTo(ExampleError)))
+        }
+      ),
+      suite("filterOrElse_")(
+        testM("returns checked failure") {
+          val stm1 = ZSTM.succeedNow(1)
+          val stm2 = ZSTM.succeedNow(2)
+          assertM(stm1.filterOrElse_(_ == 1)(stm2).commit)(equalTo(1))
+        },
+        testM("returns held value") {
+          val stm1 = ZSTM.succeedNow(1)
+          val stm2 = ZSTM.succeedNow(2)
+          assertM(stm1.filterOrElse_(_ != 1)(stm2).commit)(equalTo(2))
+        }
+      ),
+      testM("filterOrFail returns failure when predicate fails") {
+        val stm = ZSTM.succeedNow(1)
+        assertM(stm.filterOrFail(_ != 1)(ExampleError).commit.run)(fails(equalTo(ExampleError)))
+      },
       testM("`fold` to handle both failure and success") {
         import zio.CanFail.canFail
         val stm = for {
@@ -117,28 +155,6 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield (s, f)
         assertM(stm.commit)(equalTo(("Yes!", "No!")))
       },
-      suite("ifM")(
-        testM("runs `onTrue` if result of `b` is `true`") {
-          val transaction = ZSTM.ifM(ZSTM.succeedNow(true))(ZSTM.succeedNow(true), ZSTM.succeedNow(false))
-          assertM(transaction.commit)(isTrue)
-        },
-        testM("runs `onFalse` if result of `b` is `false`") {
-          val transaction = ZSTM.ifM(ZSTM.succeedNow(false))(ZSTM.succeedNow(true), ZSTM.succeedNow(false))
-          assertM(transaction.commit)(isFalse)
-        },
-        testM("infers correctly") {
-          trait R
-          trait R1 extends R
-          trait E1
-          trait E extends E1
-          trait A
-          val b: ZSTM[R, E, Boolean]   = ZSTM.succeedNow(true)
-          val onTrue: ZSTM[R1, E1, A]  = ZSTM.succeedNow(new A {})
-          val onFalse: ZSTM[R1, E1, A] = ZSTM.succeedNow(new A {})
-          val _                        = ZSTM.ifM(b)(onTrue, onFalse)
-          ZIO.succeed(assertCompletes)
-        }
-      ),
       testM("`flatMapError` to flatMap from one error to another") {
         assertM(STM.failNow(-1).flatMapError(s => STM.succeedNow(s"log: $s")).commit.run)(fails(equalTo("log: -1")))
       },
@@ -168,6 +184,28 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("returns the Error around Some") {
           val ei: Either[String, List[Int]] = Left("my error")
           assertM(ZSTM.fromEither(ei).head.commit.run)(fails(isSome(equalTo("my error"))))
+        }
+      ),
+      suite("ifM")(
+        testM("runs `onTrue` if result of `b` is `true`") {
+          val transaction = ZSTM.ifM(ZSTM.succeedNow(true))(ZSTM.succeedNow(true), ZSTM.succeedNow(false))
+          assertM(transaction.commit)(isTrue)
+        },
+        testM("runs `onFalse` if result of `b` is `false`") {
+          val transaction = ZSTM.ifM(ZSTM.succeedNow(false))(ZSTM.succeedNow(true), ZSTM.succeedNow(false))
+          assertM(transaction.commit)(isFalse)
+        },
+        testM("infers correctly") {
+          trait R
+          trait R1 extends R
+          trait E1
+          trait E extends E1
+          trait A
+          val b: ZSTM[R, E, Boolean]   = ZSTM.succeedNow(true)
+          val onTrue: ZSTM[R1, E1, A]  = ZSTM.succeedNow(new A {})
+          val onFalse: ZSTM[R1, E1, A] = ZSTM.succeedNow(new A {})
+          val _                        = ZSTM.ifM(b)(onTrue, onFalse)
+          ZIO.succeed(assertCompletes)
         }
       ),
       suite("left")(
