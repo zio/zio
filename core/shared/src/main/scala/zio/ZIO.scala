@@ -70,7 +70,7 @@ import zio.{ TracingStatus => TracingS }
  * values, see the default interpreter in `BootstrapRuntime` or the safe main
  * function in `App`.
  */
-sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
+sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
 
   /**
    * Returns an effect that submerges the error case of an `Either` into the
@@ -1818,7 +1818,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self &&& that
 }
 
-object ZIO {
+object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse
