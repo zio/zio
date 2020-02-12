@@ -378,10 +378,34 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     repeat(Schedule.doUntil(f))
 
   /**
+   * Repeats this effect until its result is equal to the predicate.
+   */
+  final def doUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+    repeat(Schedule.doUntilEquals(a))
+
+  /**
+   * Repeats this effect until its result satisfies the specified effectful predicate.
+   */
+  final def doUntilM(f: A => UIO[Boolean]): ZIO[R, E, A] =
+    repeat(Schedule.doUntilM(f))
+
+  /**
    * Repeats this effect while its result satisfies the specified predicate.
    */
   final def doWhile(f: A => Boolean): ZIO[R, E, A] =
     repeat(Schedule.doWhile(f))
+
+  /**
+   * Repeats this effect for as long as the predicate is equal to its result.
+   */
+  final def doWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+    repeat(Schedule.doWhileEquals(a))
+
+  /**
+   * Repeats this effect while its result satisfies the specified effectful predicate.
+   */
+  final def doWhileM(f: A => UIO[Boolean]): ZIO[R, E, A] =
+    repeat(Schedule.doWhileM(f))
 
   /**
    * Returns an effect whose failure and success have been lifted into an
@@ -1340,14 +1364,38 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Retries this effect until its error satisfies the specified predicate.
    */
-  final def retryUntil(f: E => Boolean): ZIO[R, E, A] =
+  final def retryUntil(f: E => Boolean)(implicit ev: CanFail[E]): ZIO[R, E, A] =
     retry(Schedule.doUntil(f))
+
+  /**
+   * Retries this effect until its error equals the predicate.
+   */
+  final def retryUntilEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
+    retry(Schedule.doUntilEquals(e))
+
+  /**
+   * Retries this effect until its error satisfies the specified effectful predicate.
+   */
+  final def retryUntilM(f: E => UIO[Boolean])(implicit ev: CanFail[E]): ZIO[R, E, A] =
+    retry(Schedule.doUntilM(f))
 
   /**
    * Retries this effect while its error satisfies the specified predicate.
    */
-  final def retryWhile(f: E => Boolean): ZIO[R, E, A] =
+  final def retryWhile(f: E => Boolean)(implicit ev: CanFail[E]): ZIO[R, E, A] =
     retry(Schedule.doWhile(f))
+
+  /**
+   * Repeats this effect for as long as the error equals the predicate.
+   */
+  final def retryWhileEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
+    retry(Schedule.doWhileEquals(e))
+
+  /**
+   * Retries this effect while its error satisfies the specified effectful predicate.
+   */
+  final def retryWhileM(f: E => UIO[Boolean])(implicit ev: CanFail[E]): ZIO[R, E, A] =
+    retry(Schedule.doWhileM(f))
 
   /**
    * Returns an effect that semantically runs the effect on a fiber,
