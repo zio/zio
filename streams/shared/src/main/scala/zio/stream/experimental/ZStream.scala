@@ -24,12 +24,12 @@ class ZStream[-R, +E, -M, +B, +A](
         done  <- Ref.make[Option[B]](None).toManaged_
         queue <- self.toQueue(capacity)
         pull = done.get.flatMap {
-          case Some(b) => Pull.end(b)
+          case Some(b) => Pull.endNow(b)
           case None =>
             queue.take.flatMap {
-              case Take.Fail(c)  => Pull.halt(c)
-              case Take.Value(a) => Pull.emit(a)
-              case Take.End(b)   => done.set(Some(b)) *> Pull.end(b)
+              case Take.Fail(c)  => Pull.haltNow(c)
+              case Take.Value(a) => Pull.emitNow(a)
+              case Take.End(b)   => done.set(Some(b)) *> Pull.endNow(b)
             }
         }
       } yield Control(pull, Command.noop)
@@ -105,15 +105,10 @@ class ZStream[-R, +E, -M, +B, +A](
       control <- self.process
       pull = {
         def go: ZIO[R1, Nothing, Unit] =
-          control.pull.foldCauseM(
-            cause =>
-              cause.failureOrCause match {
-                case Left(Right(b)) => queue.offer(Take.End(b)).unit
-                case Left(Left(e))  => queue.offer(Take.Fail(cause.as(e))) *> go
-                case Right(c)       => queue.offer(Take.Fail(c)) *> go
-              },
-            a => queue.offer(Take.Value(a)) *> go
-          )
+          Take.fromPull(control.pull).tap(queue.offer(_)).flatMap {
+            case Take.End(_) => UIO.unit
+            case _           => go
+          }
 
         go
       }
@@ -146,12 +141,24 @@ object ZStream extends Serializable {
   )
 
   object Pull extends Serializable {
-    def end[B](b: => B): IO[Either[Nothing, B], Nothing]         = IO.failNow(Right(b))
-    def emit[A](a: => A): UIO[A]                                 = UIO.succeedNow(a)
-    def fail[E](e: => E): IO[Either[E, Nothing], Nothing]        = IO.failNow(Left(e))
+    def end[B](b: => B): IO[Either[Nothing, B], Nothing]         = IO.fail(Right(b))
+    def emit[A](a: => A): UIO[A]                                 = UIO.succeed(a)
+    def fail[E](e: => E): IO[Either[E, Nothing], Nothing]        = IO.fail(Left(e))
     def halt[E](c: => Cause[E]): IO[Either[E, Nothing], Nothing] = IO.halt(c.map(Left(_)))
 
-    val endUnit: IO[Either[Nothing, Unit], Nothing] = end(())
+    def endNow[B](b: B): IO[Either[Nothing, B], Nothing]         = IO.failNow(Right(b))
+    def emitNow[A](a: A): UIO[A]                                 = UIO.succeedNow(a)
+    def failNow[E](e: E): IO[Either[E, Nothing], Nothing]        = IO.failNow(Left(e))
+    def haltNow[E](c: Cause[E]): IO[Either[E, Nothing], Nothing] = IO.haltNow(c.map(Left(_)))
+
+    val endUnit: IO[Either[Nothing, Unit], Nothing] = endNow(())
+
+    def fromTakeNow[E, B, A](take: Take[E, B, A]): IO[Either[E, B], A] =
+      take match {
+        case Take.Value(a) => emit(a)
+        case Take.Fail(e)  => halt(e)
+        case Take.End(b)   => end(b)
+      }
   }
 
   object Command extends Serializable {

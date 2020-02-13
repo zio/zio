@@ -98,7 +98,7 @@ object ZStreamSpec extends ZIOBaseSpec {
       )
     ),
     suite("Destructors")(
-      testM("ZStream.toQueue")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
+      testM("toQueue")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
         val s = ZStream.fromChunk(c)
         assertM(s.toQueue(1000).use { (queue: Queue[Take[Nothing, Unit, Int]]) =>
           waitForSize(queue, c.length + 1) *> queue.takeAll
