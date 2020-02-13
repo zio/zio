@@ -9,14 +9,14 @@ import zio._
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 class ChunkArrayBenchmarks {
-  @Param(Array("100", "1000", "10000"))
+  @Param(Array("1000"))
   var size: Int = _
 
   var chunk: Chunk[Int] = _
 
   @Setup(Level.Trial)
   def setup() = {
-    val array = Array.fill(0)(size)
+    val array = (1 to size).toArray
     chunk = Chunk.fromArray(array)
   }
 
