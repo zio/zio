@@ -129,7 +129,6 @@ object ZStream extends Serializable {
       } yield Control(pull, Command.noop)
     }
 
-
   /**
    * Creates a stream from an iterable collection of values
    *
