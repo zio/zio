@@ -61,26 +61,12 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
   def ++[E1 >: E, RIn2, ROut1 >: ROut <: Has[_], ROut2 <: Has[_]](
     that: ZLayer[RIn2, E1, ROut2]
   )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-    new ZLayer(
-      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
-        for {
-          l <- memoMap.getOrElseMemoize(self, finalizerRef)
-          r <- memoMap.getOrElseMemoize(that, finalizerRef)
-        } yield l.union[ROut2](r)
-      }
-    )
+    zipWith(that)(_.union[ROut2](_))
 
   def +!+[E1 >: E, RIn2, ROut2 <: Has[_]](
     that: ZLayer[RIn2, E1, ROut2]
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
-    new ZLayer(
-      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
-        for {
-          l <- memoMap.getOrElseMemoize(self, finalizerRef)
-          r <- memoMap.getOrElseMemoize(that, finalizerRef)
-        } yield l.unionAll[ROut2](r)
-      }
-    )
+    zipWith(that)(_.unionAll[ROut2](_))
 
   /**
    * Builds a layer into a managed value.
@@ -127,6 +113,23 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    */
   def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
     self >>> ZLayer.fromEnvironment(_.update[A](f))
+
+  /**
+   * Combines this layer with the specified layer, producing a new layer that
+   * has the inputs of both layers, and the outputs of both layers combined
+   * using the specified function.
+   */
+  def zipWith[E1 >: E, RIn2, ROut1 >: ROut <: Has[_], ROut2 <: Has[_], ROut3 <: Has[_]](
+    that: ZLayer[RIn2, E1, ROut2]
+  )(f: (ROut, ROut2) => ROut3): ZLayer[RIn with RIn2, E1, ROut3] =
+    new ZLayer(
+      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
+        for {
+          l <- memoMap.getOrElseMemoize(self, finalizerRef)
+          r <- memoMap.getOrElseMemoize(that, finalizerRef)
+        } yield f(l, r)
+      }
+    )
 }
 
 object ZLayer {
