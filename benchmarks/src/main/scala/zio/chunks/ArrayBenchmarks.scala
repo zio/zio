@@ -41,7 +41,7 @@ class ArrayBenchmarks {
 
   @Benchmark
   def findOptimized(): Option[Int] = {
-    var i   = 0
+    var i = 0
 
     while (i < size) {
       if (array(i) > 2) return Some(array(i))
