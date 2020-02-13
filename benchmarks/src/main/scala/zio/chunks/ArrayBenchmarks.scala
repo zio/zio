@@ -10,12 +10,12 @@ class ArrayBenchmarks {
 
   var array: Array[Int] = _
 
-  @Param(Array("100", "1000", "10000"))
+  @Param(Array("1000"))
   var size: Int = _
 
   @Setup(Level.Trial)
   def setup() =
-    array = Array.fill(0)(size)
+    array = (1 to size).toArray
 
   @Benchmark
   def fold(): Int = array.sum
@@ -35,14 +35,15 @@ class ArrayBenchmarks {
 
     mapped
   }
+
   @Benchmark
   def find(): Option[Int] = array.find(_ > 2)
 
+  @Benchmark
   def findOptimized(): Option[Int] = {
     var i   = 0
-    val len = array.length
 
-    while (i < len) {
+    while (i < size) {
       if (array(i) > 2) return Some(array(i))
       i = i + 1
     }
