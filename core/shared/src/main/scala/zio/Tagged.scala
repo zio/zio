@@ -16,20 +16,16 @@
 
 package zio
 
-private[zio] object ScalaSpecific {
-  import scala.reflect.runtime.universe._
+final case class Tagged[A](tag: TaggedType[A]) {
+  override def equals(that: Any): Boolean = that match {
+    case Tagged(that) => tag.toString == that.toString
+    case _            => false
+  }
+  override def hashCode: Int    = tag.toString.hashCode
+  override def toString: String = tag.toString
+}
 
-  type TaggedType[A] = TypeTag[A]
-  type TagType       = Type
-
-  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tag.tpe.dealias
-
-  private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
-    left <:< right
-
-  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] =
-    t.dealias match {
-      case RefinedType(parents, _) => parents.toSet.flatMap((p: TagType) => taggedGetHasServices(p))
-      case t                       => Set(t.typeArgs(0).dealias)
-    }
+object Tagged {
+  implicit def tagged[A](implicit tag: TaggedType[A]): Tagged[A] =
+    Tagged(tag)
 }

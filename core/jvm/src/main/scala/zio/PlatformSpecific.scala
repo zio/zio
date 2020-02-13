@@ -33,8 +33,8 @@ private[zio] trait PlatformSpecific {
       (Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live ++ Blocking.live
   }
 
-  type Tagged[A] = ScalaSpecific.Tagged[A]
-  type TagType   = ScalaSpecific.TagType
+  type TaggedType[A] = ScalaSpecific.TaggedType[A]
+  type TagType       = ScalaSpecific.TagType
 
   private[zio] def taggedTagType[A](t: Tagged[A]): TagType = ScalaSpecific.taggedTagType(t)
 
