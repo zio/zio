@@ -45,14 +45,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * outputs of the specified layer.
    */
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    new ZLayer(
-      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
-        for {
-          l <- memoMap.getOrElseMemoize(self, finalizerRef)
-          r <- memoMap.getOrElseMemoize(that, finalizerRef).provide(l)
-        } yield r
-      }
-    )
+    fold(ZLayer.fromEnvironmentM(ZIO.failNow), that)
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -79,6 +72,26 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     } yield value
 
   /**
+   * Feeds the error or output services of this layer into the input of either
+   * the specified `failure` or `success` layers, resulting in a new layer with
+   * the inputs of this layer, and the error or outputs of the specified layer.
+   */
+  def fold[E1, ROut2 <: Has[_]](
+    failure: ZLayer[E, E1, ROut2],
+    success: ZLayer[ROut, E1, ROut2]
+  ): ZLayer[RIn, E1, ROut2] =
+    new ZLayer(
+      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
+        memoMap
+          .getOrElseMemoize(self, finalizerRef)
+          .foldM(
+            e => memoMap.getOrElseMemoize(failure, finalizerRef).provide(e),
+            r => memoMap.getOrElseMemoize(success, finalizerRef).provide(r)
+          )
+      }
+    )
+
+  /**
    * Creates a fresh version of this layer that will not be shared.
    */
   def fresh: ZLayer[RIn, E, ROut] =
@@ -95,11 +108,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * function.
    */
   def mapError[E1](f: E => E1): ZLayer[RIn, E1, ROut] =
-    new ZLayer(
-      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
-        memoMap.getOrElseMemoize(self, finalizerRef).mapError(f)
-      }
-    )
+    fold(ZLayer.fromEnvironmentM(f andThen ZIO.failNow), ZLayer.identity)
 
   /**
    * Converts a layer that requires no services into a managed runtime, which
