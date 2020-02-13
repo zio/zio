@@ -27,7 +27,6 @@ import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
-import zio.scheduler.Scheduler
 import zio.system.System
 import zio.{ PlatformSpecific => _, _ }
 
@@ -333,18 +332,6 @@ package object environment extends PlatformSpecific {
         }
 
       /**
-       * Returns an effect that creates a new `Scheduler` backed by this
-       * `TestClock`.
-       */
-      val scheduler: UIO[Scheduler.Service] =
-        ZIO.succeedNow {
-          new Scheduler.Service {
-            override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
-              sleep(duration) *> task
-          }
-        }
-
-      /**
        * Sets the wall clock time to the specified `OffsetDateTime`. Any
        * effects that were scheduled to occur on or before the new time will
        * immediately be run.
@@ -449,21 +436,20 @@ package object environment extends PlatformSpecific {
      * Constructs a new `Test` object that implements the `TestClock` interface.
      * This can be useful for mixing in with implementations of other interfaces.
      */
-    def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
+    def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
       ZLayer.fromServiceManaged { (live: Live.Service) =>
         for {
-          ref       <- Ref.make(data).toManaged_
-          fiberRef  <- FiberRef.make(FiberData(0, 0, ZoneId.of("UTC")), FiberData.combine).toManaged_
-          refM      <- RefM.make(WarningData.start).toManaged_
-          test      <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
-          scheduler <- test.scheduler.toManaged_
-        } yield Has.allOf[Clock.Service, TestClock.Service, Scheduler.Service](test, test, scheduler)
+          ref      <- Ref.make(data).toManaged_
+          fiberRef <- FiberRef.make(FiberData(0, 0, ZoneId.of("UTC")), FiberData.combine).toManaged_
+          refM     <- RefM.make(WarningData.start).toManaged_
+          test     <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
+        } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
       }
 
-    val any: ZLayer[Clock with TestClock with Scheduler, Nothing, Clock with TestClock with Scheduler] =
-      ZLayer.requires[Clock with TestClock with Scheduler]
+    val any: ZLayer[Clock with TestClock, Nothing, Clock with TestClock] =
+      ZLayer.requires[Clock with TestClock]
 
-    val default: ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
+    val default: ZLayer[Live, Nothing, Clock with TestClock] =
       live(Data(0, Nil))
 
     /**
