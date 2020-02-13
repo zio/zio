@@ -1,9 +1,9 @@
 package zio.stream.experimental
 
-import zio._
 import zio.ZQueueSpecUtil.waitForSize
-import zio.stream.experimental.ZStreamUtils.nPulls
+import zio._
 import zio.stream.ChunkUtils.smallChunks
+import zio.stream.experimental.ZStreamUtils.nPulls
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test._
 
