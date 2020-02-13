@@ -16,7 +16,7 @@
 
 package zio.stream.experimental
 
-import zio.{ Cause, IO }
+import zio.{ Cause, IO, ZIO }
 
 /**
  * A `Take[E, B, A]` represents a single `take` from a queue modeling a stream of
@@ -27,7 +27,7 @@ sealed trait Take[+E, +B, +A] extends Product with Serializable { self =>
   final def flatMap[E1 >: E, B1 >: B, C](f: A => Take[E1, B1, C]): Take[E1, B1, C] = self match {
     case t @ Take.Fail(_) => t
     case Take.Value(a)    => f(a)
-    case Take.End(b)      => Take.End(b)
+    case e @ Take.End(_)  => e
   }
 
   final def isFailure: Boolean = self match {
@@ -38,7 +38,7 @@ sealed trait Take[+E, +B, +A] extends Product with Serializable { self =>
   final def map[B1 >: B, C](f: A => C): Take[E, B1, C] = self match {
     case t @ Take.Fail(_) => t
     case Take.Value(a)    => Take.Value(f(a))
-    case Take.End(b)      => Take.End(b)
+    case e @ Take.End(_)  => e
   }
 
   final def zip[E1 >: E, B1 >: B, C](that: Take[E1, B1, C]): Take[E1, B1, (A, C)] =
@@ -48,9 +48,9 @@ sealed trait Take[+E, +B, +A] extends Product with Serializable { self =>
     (self, that) match {
       case (Take.Value(a), Take.Value(b)) => Take.Value(f(a, b))
       case (Take.Fail(a), Take.Fail(b))   => Take.Fail(a && b)
-      case (Take.End(b), _)               => Take.End(b)
+      case (e @ Take.End(_), _)           => e
       case (t @ Take.Fail(_), _)          => t
-      case (_, Take.End(b))               => Take.End(b)
+      case (_, e @ Take.End(_))           => e
       case (_, t @ Take.Fail(_))          => t
     }
 }
@@ -60,8 +60,8 @@ object Take {
   final case class Value[+A](value: A)       extends Take[Nothing, Nothing, A]
   final case class End[+B](marker: B)        extends Take[Nothing, B, Nothing]
 
-  // def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
-  //   pull.fold(_.fold[Take[E, A]](Take.End)(e => Take.Fail(Cause.fail(e))), Take.Value(_))
+  def fromPull[R, E, B, A](pull: ZIO[R, Either[E, B], A]): ZIO[R, Nothing, Take[E, B, A]] =
+    pull.fold(_.fold[Take[E, B, A]](e => Take.Fail(Cause.fail(e)), Take.End(_)), Take.Value(_))
 
   def either[E, B, A](io: IO[E, Take[E, B, A]]): IO[E, Either[B, A]] =
     io.flatMap {
