@@ -181,7 +181,7 @@ object ZStream extends Serializable {
    */
   def fromChunk[A](c: => Chunk[A]): ZStream[Any, Nothing, Any, Unit, A] =
     ZStream {
-      Managed {
+      Managed.fromEffect {
         Ref.make(0).map { iRef =>
           val l = c.length
           val pull = iRef.get.flatMap { i =>
@@ -190,7 +190,8 @@ object ZStream extends Serializable {
             else
               iRef.update(_ + 1) *> Pull.emit(c(i))
           }
-          Reservation(UIO.succeedNow(Control(pull, Command.noop)), _ => UIO.unit)
+
+          Control(pull, Command.noop)
         }
       }
     }
