@@ -155,9 +155,9 @@ object ZStream extends Serializable {
 
     def fromTakeNow[E, B, A](take: Take[E, B, A]): IO[Either[E, B], A] =
       take match {
-        case Take.Value(a) => emit(a)
-        case Take.Fail(e)  => halt(e)
-        case Take.End(b)   => end(b)
+        case Take.Value(a) => emitNow(a)
+        case Take.Fail(e)  => haltNow(e)
+        case Take.End(b)   => endNow(b)
       }
   }
 
