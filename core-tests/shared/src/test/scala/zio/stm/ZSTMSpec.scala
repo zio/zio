@@ -459,11 +459,11 @@ object ZSTMSpec extends ZIOBaseSpec {
       ),
       suite("rejectM")(
         testM("doesnt collect value") {
-          val tx = ZSTM.succeedNow(0).rejectM { case v if v != 0 => ZSTM.succeedNow("Partial failed!") }
+          val tx = ZSTM.succeedNow(0).rejectM[Any, String] { case v if v != 0 => ZSTM.succeedNow("Partial failed!") }
           assertM(tx.commit)(equalTo(0))
         },
         testM("returns failure ignoring value") {
-          val tx = ZSTM.succeedNow(1).rejectM { case v if v != 0 => ZSTM.succeedNow("Partial failed!") }
+          val tx = ZSTM.succeedNow(1).rejectM[Any, String] { case v if v != 0 => ZSTM.succeedNow("Partial failed!") }
           assertM(tx.commit.run)(fails(equalTo("Partial failed!")))
         }
       ),
