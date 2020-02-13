@@ -447,6 +447,26 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(tx.commit)(equalTo(List(2, 4, 6, 3, 5, 6)))
         }
       ),
+      suite("reject")(
+        testM("returns failure ignoring value") {
+          val tx = ZSTM.succeedNow(0).reject { case v if v != 0 => "Partial failed!" }
+          assertM(tx.commit)(equalTo(0))
+        },
+        testM("returns failure ignoring value") {
+          val tx = ZSTM.succeedNow(1).reject { case v if v != 0 => "Partial failed!" }
+          assertM(tx.commit.run)(fails(equalTo("Partial failed!")))
+        }
+      ),
+      suite("rejectM")(
+        testM("doesnt collect value") {
+          val tx = ZSTM.succeedNow(0).rejectM { case v if v != 0 => ZSTM.succeedNow("Partial failed!") }
+          assertM(tx.commit)(equalTo(0))
+        },
+        testM("returns failure ignoring value") {
+          val tx = ZSTM.succeedNow(1).rejectM { case v if v != 0 => ZSTM.succeedNow("Partial failed!") }
+          assertM(tx.commit.run)(fails(equalTo("Partial failed!")))
+        }
+      ),
       suite("right")(
         testM("on Right value") {
           assertM(STM.succeedNow(Right("Right")).right.commit)(equalTo("Right"))
