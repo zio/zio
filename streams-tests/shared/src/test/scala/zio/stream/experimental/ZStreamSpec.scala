@@ -1,7 +1,9 @@
 package zio.stream.experimental
 
 import zio._
+import zio.ZQueueSpecUtil.waitForSize
 import zio.stream.experimental.ZStreamUtils.nPulls
+import zio.stream.ChunkUtils.smallChunks
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test._
 
@@ -31,6 +33,14 @@ object ZStreamSpec extends ZIOBaseSpec {
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Right(())), Left(Right(())), Left(Right(()))))))
+      },
+      testM("Stream.buffer is safe to pull again") {
+        ZStream
+          .fromEffect(UIO.succeed(1))
+          .buffer(2)
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_)(equalTo(List(Right(1), Left(Right(())), Left(Right(()))))))
       }
     ),
     suite("Constructors")(
@@ -86,6 +96,14 @@ object ZStreamSpec extends ZIOBaseSpec {
           )
         }
       )
+    ),
+    suite("Destructors")(
+      testM("ZStream.toQueue")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
+        val s = ZStream.fromChunk(c)
+        assertM(s.toQueue(1000).use { (queue: Queue[Take[Nothing, Unit, Int]]) =>
+          waitForSize(queue, c.length + 1) *> queue.takeAll
+        })(equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End(())))
+      })
     )
   )
 }

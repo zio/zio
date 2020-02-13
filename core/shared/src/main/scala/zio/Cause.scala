@@ -36,6 +36,12 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     if (self eq Empty) that else if (that eq Empty) self else Then(self, that)
 
   /**
+   * Maps the error value of this cause to the specified constant value.
+   */
+  final def as[E1](e: => E1): Cause[E1] =
+    map(_ => e)
+
+  /**
    * Determines if this cause contains or is equal to the specified cause.
    */
   final def contains[E1 >: E](that: Cause[E1]): Boolean =
