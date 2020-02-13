@@ -34,7 +34,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Right(())), Left(Right(())), Left(Right(()))))))
       },
-      testM("Stream.buffer is safe to pull again") {
+      testM("buffer - introduces a buffer between producer/consumer working at different rates") {
         ZStream
           .fromEffect(UIO.succeed(1))
           .buffer(2)
