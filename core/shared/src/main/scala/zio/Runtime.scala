@@ -95,7 +95,6 @@ trait Runtime[+R] {
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
-      null,
       platform,
       environment.asInstanceOf[AnyRef],
       platform.executor,

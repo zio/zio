@@ -806,9 +806,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Runs the specified effect if this effect is externally interrupted.
    */
   final def onInterrupt[R1 <: R](cleanup: URIO[R1, Any]): ZIO[R1, E, A] =
-    self.ensuring(
-      ZIO.descriptorWith(descriptor => if (descriptor.interruptors.nonEmpty) cleanup else ZIO.unit)
-    )
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).foldCauseM(
+        cause => if (cause.interrupted) cleanup *> ZIO.halt(cause) else ZIO.halt(cause),
+        a => ZIO.succeed(a)
+      )
+    }
+
+  // ensuring(
+  //   ZIO.descriptorWith(descriptor => if (descriptor.interruptors.nonEmpty) cleanup else UIO(println(s"onInterrupt: ${descriptor}")) *> ZIO.unit)
+  // )
 
   final def onLeft[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] =
     self +++ ZIO.identity[C]
@@ -1036,7 +1043,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * effect will fail with some error.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
-    raceEither(that).map(_.merge)
+    ZIO.fiberId
+      .flatMap(parentFiberId =>
+        (self raceWith that)(
+          (exit, right) =>
+            exit.foldM[Any, E1, A1](
+              cause => right.join mapErrorCause (cause && _), // TODO: Preserve error?
+              a => (right interruptAs parentFiberId) as a
+            ),
+          (exit, left) =>
+            exit.foldM[Any, E1, A1](
+              cause => left.join mapErrorCause (_ && cause), // TODO: Preserve error?
+              a => (left interruptAs parentFiberId) as a
+            )
+        )
+      )
+      .refailWithTrace
 
   /**
    * Returns an effect that races this effect with all the specified effects,
@@ -1102,23 +1124,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * composed effect will fail with some error.
    */
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
-    ZIO.descriptor
-      .map(_.id)
-      .flatMap(parentFiberId =>
-        raceWith(that)(
-          (exit, right) =>
-            exit.foldM[Any, E1, Either[A, B]](
-              _ => right.join.map(Right(_)),
-              a => ZIO.succeedLeft(a) <* right.interruptAs(parentFiberId)
-            ),
-          (exit, left) =>
-            exit.foldM[Any, E1, Either[A, B]](
-              _ => left.join.map(Left(_)),
-              b => ZIO.succeedRight(b) <* left.interruptAs(parentFiberId)
-            )
-        )
-      )
-      .refailWithTrace
+    (self.map(Left(_)) race that.map(Right(_)))
 
   /**
    * Returns an effect that races this effect with the specified effect, calling
@@ -1128,14 +1134,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
     rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
   ): ZIO[R1, E2, C] =
-    ZIO.nonDaemonMask { restore =>
-      new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
-        self,
-        that,
-        (exit, fiber) => restore(leftDone(exit, fiber)),
-        (exit, fiber) => restore(rightDone(exit, fiber))
-      )
-    }
+    // ZIO.nonDaemonMask { restore =>
+    new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
+      self,
+      that,
+      (exit, fiber) => (leftDone(exit, fiber)),
+      (exit, fiber) => (rightDone(exit, fiber))
+    )
+  // }
 
   /**
    * Attach a wrapping trace pointing to this location in case of error.
@@ -1475,7 +1481,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     raceWith(ZIO.sleep(d))(
       (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
       (_, fiber) => fiber.interrupt.flatMap(ZIO.done).fork.map(Left(_))
-    )
+    ).daemon
 
   /**
    * Returns an effect that will timeout this effect, returning either the
@@ -3447,5 +3453,16 @@ object ZIO {
     val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C]
   ) extends ZIO[R, E, C] {
     override def tag: Int = Tags.RaceWith
+  }
+
+  private val debug = new java.util.concurrent.atomic.AtomicReference[Set[String]](Set())
+
+  private[zio] def isDebug(name: String): Boolean = debug.get.contains(name)
+
+  private[zio] def withDebug[R, E, A](name: String)(zio: => ZIO[R, E, A]): ZIO[R, E, A] = {
+    val before = UIO(debug.updateAndGet(_ + name))
+    val after  = UIO(debug.updateAndGet(_ - name))
+
+    (before *> zio).ensuring(after)
   }
 }

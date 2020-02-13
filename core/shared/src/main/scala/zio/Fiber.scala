@@ -103,6 +103,12 @@ sealed trait Fiber[+E, +A] { self =>
   def children: UIO[Iterable[Fiber[Any, Any]]]
 
   /**
+   * Descendants of the fiber (children and their children, recursively).
+   */
+  def descendants: UIO[Iterable[Fiber[Any, Any]]] =
+    children.flatMap(children => ZIO.foreach(children)(_.descendants).map(collected => children ++ collected.flatten))
+
+  /**
    * If this fiber is running, evaluates the specified effect on this fiber,
    * otherwise, executes the specified fallback.
    */
@@ -510,17 +516,19 @@ object Fiber {
         (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
         (s"${millis}ms")
       val waitMsg = status match {
-        case Done    => ""
-        case Running => ""
-        case Suspended(_, _, blockingOn, _) =>
+        case Done      => ""
+        case Finishing => ""
+        case Running   => ""
+        case Suspended(_, _, _, blockingOn, _) =>
           if (blockingOn.nonEmpty)
             "waiting on " + blockingOn.map(id => s"#${id.seqNumber}").mkString(", ")
           else ""
       }
       val statMsg = status match {
-        case Done    => "Done"
-        case Running => "Running"
-        case Suspended(interruptible, epoch, _, asyncTrace) =>
+        case Done      => "Done"
+        case Finishing => "Finishing"
+        case Running   => "Running"
+        case Suspended(_, interruptible, epoch, _, asyncTrace) =>
           val in = if (interruptible) "interruptible" else "uninterruptible"
           val ep = s"${epoch} asyncs"
           val as = asyncTrace.map(_.prettyPrint).mkString(" ")
@@ -555,17 +563,21 @@ object Fiber {
      * Combines the two statuses into one in an associative way.
      */
     final def <>(that: Status): Status = (self, that) match {
-      case (Done, Done)                                           => Done
-      case (Suspended(i1, e1, l1, a1), Suspended(i2, e2, l2, a2)) => Suspended(i1 && i2, e1 max e2, l1 ++ l2, a1 ++ a2)
-      case (Suspended(_, _, _, _), _)                             => self
-      case (_, Suspended(_, _, _, _))                             => that
-      case _                                                      => Running
+      case (Done, Done)           => Done
+      case (Finishing, Finishing) => Finishing
+      case (Suspended(s1, i1, e1, l1, a1), Suspended(s2, i2, e2, l2, a2)) =>
+        Suspended(s1 <> s2, i1 && i2, e1 max e2, l1 ++ l2, a1 ++ a2)
+      case (Suspended(_, _, _, _, _), _) => self
+      case (_, Suspended(_, _, _, _, _)) => that
+      case _                             => Running
     }
   }
   object Status {
-    case object Done    extends Status
-    case object Running extends Status
+    case object Done      extends Status
+    case object Finishing extends Status
+    case object Running   extends Status
     final case class Suspended(
+      previous: Status,
       interruptible: Boolean,
       epoch: Long,
       blockingOn: List[Fiber.Id],
@@ -763,7 +775,7 @@ object Fiber {
       def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]] = IO.never
       def inheritRefs: UIO[Unit]                                 = IO.unit
       def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeed(None)
-      def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(false, 0, Nil, Nil))
+      def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(Status.Running, false, 0, Nil, Nil))
     }
 
   /**
@@ -799,11 +811,12 @@ object Fiber {
 
   private[zio] def newFiberId(): Fiber.Id = Fiber.Id(System.currentTimeMillis(), _fiberCounter.getAndIncrement())
 
-  private[zio] def track[E, A](context: internal.FiberContext[E, A]): Unit = {
-    Fiber._rootFibers.add(context)
+  private[zio] def track[E, A](context: internal.FiberContext[E, A]): Unit =
+    if (context ne null) {
+      Fiber._rootFibers.add(context)
 
-    context.onDone(_ => { val _ = Fiber._rootFibers.remove(context) })
-  }
+      context.onDone(_ => { val _ = Fiber._rootFibers.remove(context) })
+    }
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
