@@ -23,7 +23,7 @@ import zio.test._
  * <br/><br/>
  * Scala.JS is not supported, as JUnit TestFramework for SBT under Scala.JS doesn't support custom runners.
  */
-class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with DefaultRuntime {
+class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with BootstrapRuntime {
   private val className = klass.getName.stripSuffix("$")
 
   private lazy val spec: AbstractRunnableSpec = {

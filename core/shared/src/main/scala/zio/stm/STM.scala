@@ -76,6 +76,24 @@ object STM {
     ZSTM.fiberId
 
   /**
+   * @see [[zio.stm.ZSTM.filter]]
+   */
+  def filter[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, List[A]] =
+    ZSTM.filter(as)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.foldLeft]]
+   */
+  def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => STM[E, S]): STM[E, S] =
+    ZSTM.foldLeft(in)(zero)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.foldRight]]
+   */
+  def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => STM[E, S]): STM[E, S] =
+    ZSTM.foldRight(in)(zero)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.foreach]]
    */
   def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
@@ -153,10 +171,21 @@ object STM {
     ZSTM.loop_(initial)(cont, inc)(body)
 
   /**
+   * @see See [[zio.stm.ZSTM.none]]
+   */
+  val none: STM[Nothing, Option[Nothing]] = ZSTM.none
+
+  /**
    * @see See [[zio.stm.ZSTM.partial]]
    */
   def partial[A](a: => A): STM[Throwable, A] =
     ZSTM.partial(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.partition]]
+   */
+  def partition[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[Nothing, (List[E], List[B])] =
+    ZSTM.partition(in)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.retry]]
@@ -169,6 +198,12 @@ object STM {
    */
   def right[A](a: => A): STM[Nothing, Either[Nothing, A]] =
     ZSTM.right(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.some]]
+   */
+  def some[A](a: => A): STM[Nothing, Option[A]] =
+    ZSTM.some(a)
 
   /**
    * @see See [[zio.stm.ZSTM.succeed]]

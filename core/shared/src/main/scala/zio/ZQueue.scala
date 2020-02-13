@@ -53,7 +53,7 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   def offer(a: A): ZIO[RA, EA, Boolean]
 
   /**
-   * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and returns always true
+   * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and always returns true.
    * If the queue has reached capacity, then
    * the fiber performing the `offerAll` will be suspended until there is room in
    * the queue.
@@ -62,11 +62,11 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
    * Places all values in the queue and returns true.
    *
    * For Sliding Queue: uses `Sliding` Strategy
-   * If there is a room in the queue, it places the values and returns true otherwise it removed the old elements and
-   * enqueues the new ones
+   * If there is room in the queue, it places the values otherwise it removes the old elements and
+   * enqueues the new ones. Always returns true.
    *
    * For Dropping Queue: uses `Dropping` Strategy,
-   * It places the values in the queue but if there is no room it will not enqueue them and returns false
+   * It places the values in the queue but if there is no room it will not enqueue them and return false.
    *
    */
   def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean]
@@ -391,8 +391,7 @@ object ZQueue {
               queue.poll(null.asInstanceOf[A])
               if (queue.offer(head)) unsafeSlidingOffer(tail) else unsafeSlidingOffer(as)
           }
-        val loss = queue.capacity - queue.size() < as.size
-        IO.effectTotal(unsafeSlidingOffer(as)).map(_ => !loss)
+        IO.effectTotal(unsafeSlidingOffer(as)).as(true)
       }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()

@@ -16,17 +16,16 @@
 
 package zio
 
-trait App extends BootstrapRuntime {
+import _root_.java.nio.channels.CompletionHandler
+import _root_.java.util.concurrent.CompletionStage
 
-  /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program.
-   */
-  def run(args: List[String]): ZIO[ZEnv, Nothing, Int]
+import zio.interop.javaz
 
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList).provideLayer(ZEnv.live))(_ => ())
+private[zio] trait TaskPlatformSpecific {
+
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
+    javaz.effectAsyncWithCompletionHandler(op)
+
+  def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)
+
 }

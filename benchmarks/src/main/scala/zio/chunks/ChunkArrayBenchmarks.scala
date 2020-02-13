@@ -9,10 +9,10 @@ class ChunkArrayBenchmarks {
   @State(Scope.Thread)
   @BenchmarkMode(Array(Mode.AverageTime))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
-  class ChunkBenchmarks {
+  class ChunkArrayBenchmarks {
 
     @Param(Array("100", "1000", "10000"))
-    var chunkSize: Int = _
+    var size: Int = _
 
     var chunk: Chunk[Int] = _
 
@@ -20,7 +20,7 @@ class ChunkArrayBenchmarks {
 
     @Setup(Level.Trial)
     def setup() = {
-      array = Array.fill(0)(chunkSize)
+      array = Array.fill(0)(size)
       chunk = Chunk.fromArray(array)
     }
 

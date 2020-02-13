@@ -493,7 +493,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         l     <- queue.takeAll
       } yield assert(l)(equalTo(List(2, 3))) &&
         assert(v1)(isTrue) &&
-        assert(v2)(isFalse)
+        assert(v2)(isTrue)
     },
     testM("sliding strategy with offerAll") {
       for {
@@ -501,7 +501,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         v     <- queue.offerAll(List(1, 2, 3))
         size  <- queue.size
       } yield assert(size)(equalTo(2)) &&
-        assert(v)(isFalse)
+        assert(v)(isTrue)
     },
     testM("sliding strategy with enough capacity") {
       for {
@@ -518,7 +518,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         v1    <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
         l     <- queue.takeAll
       } yield assert(l)(equalTo(List(5, 6))) &&
-        assert(v1)(isFalse)
+        assert(v1)(isTrue)
     },
     testM("awaitShutdown") {
       for {
@@ -599,7 +599,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         oa       <- queue.offerAll(iter.toList)
         t        <- queue.take
       } yield assert(t)(equalTo(3)) &&
-        assert(oa)(isFalse)
+        assert(oa)(isTrue)
     },
     testM("sliding strategy, check offerAll returns true") {
       for {

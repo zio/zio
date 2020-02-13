@@ -67,10 +67,10 @@ import zio.{ TracingStatus => TracingS }
  * In order to integrate with Scala, `ZIO` values must be interpreted into the
  * Scala runtime. This process of interpretation executes the effects described
  * by a given immutable `ZIO` value. For more information on interpreting `ZIO`
- * values, see the default interpreter in `DefaultRuntime` or the safe main function in
- * `App`.
+ * values, see the default interpreter in `BootstrapRuntime` or the safe main
+ * function in `App`.
  */
-sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
+sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
 
   /**
    * Returns an effect that submerges the error case of an `Either` into the
@@ -261,8 +261,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       ZIO.uninterruptibleMask { restore =>
         clock.nanoTime.flatMap { time =>
           cache.updateSomeAndGet {
-            case None                          => compute(time)
-            case Some((end, _)) if time >= end => compute(time)
+            case None                              => compute(time)
+            case Some((end, _)) if end - time <= 0 => compute(time)
           }.flatMap(a => restore(a.get._2.await))
         }
       }
@@ -812,7 +812,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * passes the effect input `R` along unmodified as the second element
    * of the tuple.
    */
-  final def onFirst[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] =
+  final def onFirst[R1 <: R]: ZIO[R1, E, (A, R1)] =
     self &&& ZIO.identity[R1]
 
   /**
@@ -844,7 +844,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * passes the effect input `R` along unmodified as the first element
    * of the tuple.
    */
-  final def onSecond[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] =
+  final def onSecond[R1 <: R]: ZIO[R1, E, (R1, A)] =
     ZIO.identity[R1] &&& self
 
   /**
@@ -1818,7 +1818,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self &&& that
 }
 
-object ZIO {
+object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse

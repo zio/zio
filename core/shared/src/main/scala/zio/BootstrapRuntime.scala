@@ -16,17 +16,14 @@
 
 package zio
 
-trait App extends BootstrapRuntime {
+import zio.internal.Platform
+
+trait BootstrapRuntime extends Runtime[Unit] {
+  val environment: Unit = ()
 
   /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program.
+   * The platform of the runtime, which provides the essential capabilities
+   * necessary to bootstrap execution of tasks.
    */
-  def run(args: List[String]): ZIO[ZEnv, Nothing, Int]
-
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList).provideLayer(ZEnv.live))(_ => ())
+  val platform: Platform = Platform.default
 }

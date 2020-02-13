@@ -378,7 +378,7 @@ sealed trait Fiber[+E, +A] { self =>
     }
 }
 
-object Fiber {
+object Fiber extends FiberPlatformSpecific {
 
   /**
    * A runtime fiber that is executing an effect. Runtime fibers ave an
@@ -417,6 +417,10 @@ object Fiber {
    * existing fibers.
    */
   sealed trait Synthetic[+E, +A] extends Fiber[E, A] {}
+
+  private[zio] object Synthetic {
+    trait Internal[+E, +A] extends Synthetic[E, A]
+  }
 
   /**
    * A record containing information about a [[Fiber]].
