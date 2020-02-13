@@ -116,22 +116,6 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     )
 
   /**
-   * Overwrites the services output by this laywr with the services output by
-   * the specified layer.
-   */
-  def overwrite[E1 >: E, RIn2, A: Tagged](
-    that: ZLayer[RIn2, E1, Has[A]]
-  )(implicit ev: ROut <:< Has[A]): ZLayer[RIn with RIn2, E1, ROut] =
-    new ZLayer(
-      Managed.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
-        for {
-          l <- memoMap.getOrElseMemoize(self, finalizerRef)
-          r <- memoMap.getOrElseMemoize(that, finalizerRef)
-        } yield l.update[A](_ => r.get[A])
-      }
-    )
-
-  /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
