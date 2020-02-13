@@ -184,12 +184,12 @@ object ZStream extends Serializable {
       Managed.fromEffect {
         Ref.make(0).map { iRef =>
           val l = c.length
-          val pull = iRef.get.flatMap { i =>
+          val pull = iRef.modify { i =>
             if (i >= l)
-              Pull.endUnit
+              Pull.endUnit -> i
             else
-              iRef.update(_ + 1) *> Pull.emit(c(i))
-          }
+              Pull.emit(c(i)) -> (i + 1)
+          }.flatten
 
           Control(pull, Command.noop)
         }
