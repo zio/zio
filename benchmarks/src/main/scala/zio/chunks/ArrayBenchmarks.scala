@@ -32,13 +32,12 @@ class ArrayBenchmarks {
 
   @Benchmark
   def arrayMapOptimized(): Array[Int] = {
-    val len = array.length // we can drop this as it is equal to size which we're setting
 
-    val mapped = Array.ofDim[Int](len)
+    val mapped = Array.ofDim[Int](size)
     var i      = 0
 
-    while (i < len) {
-      mapped(i) = array(i) * 2 // this is f in chunk code
+    while (i < size) {
+      mapped(i) = array(i) * 2
       i += 1
     }
 
