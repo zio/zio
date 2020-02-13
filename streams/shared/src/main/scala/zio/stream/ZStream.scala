@@ -764,6 +764,53 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       } yield pull
     }
 
+  private final def bufferSignal[E1 >: E, A1 >: A](
+    queue: Queue[(Take[E1, A1], Promise[Nothing, Unit])]
+  ): ZManaged[R, Nothing, Pull[R, E1, A1]] =
+    for {
+      as    <- self.process
+      start <- Promise.make[Nothing, Unit].toManaged_
+      _     <- start.succeed(()).toManaged_
+      ref   <- Ref.make(start).toManaged_
+      done  <- Ref.make(false).toManaged_
+      upstream = {
+        def offer(take: Take[E1, A1]): UIO[Unit] = take match {
+          case Take.Value(_) =>
+            for {
+              p     <- Promise.make[Nothing, Unit]
+              added <- queue.offer((take, p))
+              _     <- ref.set(p).when(added)
+            } yield ()
+
+          case _ =>
+            for {
+              latch <- ref.get
+              _     <- latch.await
+              p     <- Promise.make[Nothing, Unit]
+              _     <- queue.offer((take, p))
+              _     <- ref.set(p)
+              _     <- p.await
+            } yield ()
+        }
+
+        def go: URIO[R, Unit] =
+          Take.fromPull(as).flatMap { take =>
+            offer(take) *> go.when(take != Take.End)
+          }
+
+        go
+      }
+      _ <- upstream.toManaged_.fork
+      pull = done.get.flatMap {
+        if (_) Pull.end
+        else
+          queue.take.flatMap {
+            case (take, p) =>
+              p.succeed(()) *> done.set(true).when(take == Take.End) *> Pull.fromTake(take)
+          }
+      }
+    } yield pull
+
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a dropping queue.
@@ -773,49 +820,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def bufferDropping(capacity: Int): ZStream[R, E, A] =
     ZStream {
       for {
-        as    <- self.process
         queue <- Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
-        start <- Promise.make[Nothing, Unit].toManaged_
-        _     <- start.succeed(()).toManaged_
-        ref   <- Ref.make(start).toManaged_
-        done  <- Ref.make(false).toManaged_
-        upstream = {
-          def offer(take: Take[E, A]): UIO[Unit] = take match {
-            case Take.Value(_) =>
-              for {
-                p     <- Promise.make[Nothing, Unit]
-                added <- queue.offer((take, p))
-                _     <- ref.set(p).when(added)
-              } yield ()
-
-            case _ =>
-              for {
-                latch <- ref.get
-                _     <- latch.await
-                p     <- Promise.make[Nothing, Unit]
-                _     <- queue.offer((take, p))
-                _     <- ref.set(p)
-                _     <- p.await
-              } yield ()
-          }
-
-          def go: ZIO[R, Nothing, Unit] =
-            Take.fromPull(as).flatMap { take =>
-              offer(take) *> go.when(take != Take.End)
-            }
-
-          go
-        }
-        _ <- upstream.toManaged_.fork
-        pull = done.get.flatMap {
-          if (_) Pull.end
-          else {
-            queue.take.flatMap {
-              case (take, p) =>
-                p.succeed(()) *> done.set(true).when(take == Take.End) *> Pull.fromTake(take)
-            }
-          }
-        }
+        pull  <- bufferSignal(queue)
       } yield pull
     }
 
@@ -828,49 +834,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def bufferSliding(capacity: Int): ZStream[R, E, A] =
     ZStream {
       for {
-        as    <- self.process
         queue <- Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
-        start <- Promise.make[Nothing, Unit].toManaged_
-        _     <- start.succeed(()).toManaged_
-        ref   <- Ref.make(start).toManaged_
-        done  <- Ref.make(false).toManaged_
-        upstream = {
-          def offer(take: Take[E, A]): UIO[Unit] = take match {
-            case Take.Value(_) =>
-              for {
-                p <- Promise.make[Nothing, Unit]
-                _ <- queue.offer((take, p))
-                _ <- ref.set(p)
-              } yield ()
-
-            case _ =>
-              for {
-                latch <- ref.get
-                _     <- latch.await
-                p     <- Promise.make[Nothing, Unit]
-                _     <- queue.offer((take, p))
-                _     <- ref.set(p)
-                _     <- p.await
-              } yield ()
-          }
-
-          def go: ZIO[R, Nothing, Unit] =
-            Take.fromPull(as).flatMap { take =>
-              offer(take) *> go.when(take != Take.End)
-            }
-
-          go
-        }
-        _ <- upstream.toManaged_.fork
-        pull = done.get.flatMap {
-          if (_) Pull.end
-          else {
-            queue.take.flatMap {
-              case (take, p) =>
-                p.succeed(()) *> done.set(true).when(take == Take.End) *> Pull.fromTake(take)
-            }
-          }
-        }
+        pull  <- bufferSignal(queue)
       } yield pull
     }
 
