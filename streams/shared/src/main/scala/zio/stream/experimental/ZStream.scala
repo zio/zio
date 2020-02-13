@@ -6,8 +6,8 @@ class ZStream[-R, +E, -M, +B, +A](
   val process: ZManaged[R, Nothing, ZStream.Control[R, E, M, B, A]]
 ) extends AnyVal
     with Serializable { self =>
-  import ZStream.Control
   import ZStream.Command
+  import ZStream.Control
   import ZStream.Pull
 
   /**
