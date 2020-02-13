@@ -20,12 +20,11 @@ import java.time.{ Instant, OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
-import zio.scheduler.Scheduler
 
 package object clock {
   type Clock = Has[Clock.Service]
 
-  object Clock extends Serializable {
+  object Clock extends PlatformSpecific with Serializable {
     trait Service extends Serializable {
       def currentTime(unit: TimeUnit): UIO[Long]
       def currentDateTime: UIO[OffsetDateTime]
@@ -36,15 +35,18 @@ package object clock {
     val any: ZLayer[Clock, Nothing, Clock] =
       ZLayer.requires[Clock]
 
-    val live: ZLayer[Scheduler, Nothing, Clock] = ZLayer.fromService { (scheduler: Scheduler.Service) =>
-      Has(new Service {
+    val live: ZLayer.NoDeps[Nothing, Clock] = ZLayer.succeed {
+      new Service {
         def currentTime(unit: TimeUnit): UIO[Long] =
           IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
         val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
 
         def sleep(duration: Duration): UIO[Unit] =
-          scheduler.schedule(UIO.unit, duration)
+          UIO.effectAsyncInterrupt { cb =>
+            val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+            Left(UIO.effectTotal(canceler()))
+          }
 
         def currentDateTime: ZIO[Any, Nothing, OffsetDateTime] =
           for {
@@ -52,7 +54,7 @@ package object clock {
             zone   <- ZIO.effectTotal(ZoneId.systemDefault)
           } yield OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), zone)
 
-      })
+      }
     }
   }
 
