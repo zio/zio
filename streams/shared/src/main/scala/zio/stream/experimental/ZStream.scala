@@ -181,21 +181,17 @@ object ZStream extends Serializable {
    */
   def fromChunk[A](c: => Chunk[A]): ZStream[Any, Nothing, Any, Unit, A] =
     ZStream {
-      Managed.reserve {
-        Reservation(
-          Ref.make(0).map { iRef =>
-            val l = c.length
-            def pull: IO[Either[Nothing, Unit], A] = iRef.get.flatMap { i =>
-              if (i >= l)
-                Pull.endUnit
-              else
-                iRef.update(_ + 1) *> Pull.emit(c(i))
-            }
-
-            Control(pull, Command.noop)
-          },
-          _ => UIO.unit
-        )
+      Managed {
+        Ref.make(0).map { iRef =>
+          val l = c.length
+          val pull = iRef.get.flatMap { i =>
+            if (i >= l)
+              Pull.endUnit
+            else
+              iRef.update(_ + 1) *> Pull.emit(c(i))
+          }
+          Reservation(UIO.succeedNow(Control(pull, Command.noop)), _ => UIO.unit)
+        }
       }
     }
 
