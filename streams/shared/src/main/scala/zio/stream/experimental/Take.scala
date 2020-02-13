@@ -61,7 +61,11 @@ object Take {
   final case class End[+B](marker: B)        extends Take[Nothing, B, Nothing]
 
   def fromPull[R, E, B, A](pull: ZIO[R, Either[E, B], A]): ZIO[R, Nothing, Take[E, B, A]] =
-    pull.fold(_.fold[Take[E, B, A]](e => Take.Fail(Cause.fail(e)), Take.End(_)), Take.Value(_))
+    pull.foldCause(
+      cause =>
+        cause.failureOrCause.fold(_.fold[Take[E, B, A]](e => Take.Fail(Cause.fail(e)), Take.End(_)), Take.Fail(_)),
+      Take.Value(_)
+    )
 
   def either[E, B, A](io: IO[E, Take[E, B, A]]): IO[E, Either[B, A]] =
     io.flatMap {
