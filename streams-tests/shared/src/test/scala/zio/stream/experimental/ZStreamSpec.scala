@@ -93,73 +93,47 @@ object ZStreamSpec extends ZIOBaseSpec {
         }
       ),
       suite("fromIterable")(
-        testM("success") {
+        testM("success")(checkM(Gen.listOf(Gen.anyInt)) { (list: List[Int]) =>
           ZStream
-            .fromIterable(List(1, 2))
+            .fromIterable(list)
             .process
-            .use(nPulls(_, 4))
+            .use(nPulls(_, list.size + 2))
             .map(
               assert(_)(
                 equalTo(
-                  List(
-                    Right(1),
-                    Right(2),
-                    Left(Right(())),
-                    Left(Right(()))
-                  )
+                  list.map(Right(_)) ++
+                    List(
+                      Left(Right(())),
+                      Left(Right(()))
+                    )
                 )
               )
             )
-        },
+        }),
         testM("lazy") {
           assertLazy(ZStream.fromIterable)
         }
       ),
       suite("fromIterator")(
-        testM("success") {
+        testM("success")(checkM(Gen.listOf(Gen.anyInt)) { (list: List[Int]) =>
           ZStream
-            .fromIterator(List(1, 2).iterator)
+            .fromIterator(list.iterator)
             .process
-            .use(nPulls(_, 4))
+            .use(nPulls(_, list.size + 2))
             .map(
               assert(_)(
                 equalTo(
-                  List(
-                    Right(1),
-                    Right(2),
-                    Left(Right(())),
-                    Left(Right(()))
-                  )
+                  list.map(Right(_)) ++
+                    List(
+                      Left(Right(())),
+                      Left(Right(()))
+                    )
                 )
               )
             )
-        },
+        }),
         testM("lazy") {
           assertLazy(ZStream.fromIterator)
-        }
-      ),
-      suite("fromChunk")(
-        testM("success") {
-          val stream = ZStream
-            .fromChunk(Chunk(1, 2))
-
-          stream.process
-            .use(nPulls(_, 4))
-            .map(
-              assert(_)(
-                equalTo(
-                  List(
-                    Right(1),
-                    Right(2),
-                    Left(Right(())),
-                    Left(Right(()))
-                  )
-                )
-              )
-            )
-        },
-        testM("lazy") {
-          assertLazy(ZStream.fromChunk)
         }
       )
     )
