@@ -3,36 +3,28 @@ package zio.chunks
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
-
-import zio.Chunk
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 class ArrayBenchmarks {
 
-  @Param(Array("100", "1000", "10000"))
   var array: Array[Int] = _
 
-  var chunk: Chunk[Int] = _
-
+  @Param(Array("100", "1000", "10000"))
   var size: Int = _
 
   @Setup(Level.Trial)
-  def setup() = {
+  def setup() =
     array = Array.fill(0)(size)
-    chunk = Chunk.fromArray(array)
-  }
 
   @Benchmark
-  def arrayFold(): Int =
-    array.sum
+  def fold(): Int = array.sum
 
   @Benchmark
-  def arrayMap(): Array[Int] = array.map(_ * 2)
+  def map(): Array[Int] = array.map(_ * 2)
 
   @Benchmark
-  def arrayMapOptimized(): Array[Int] = {
-
+  def mapOptimized(): Array[Int] = {
     val mapped = Array.ofDim[Int](size)
     var i      = 0
 
@@ -44,9 +36,9 @@ class ArrayBenchmarks {
     mapped
   }
   @Benchmark
-  def arrayFind(): Option[Int] = array.find(_ > 2)
+  def find(): Option[Int] = array.find(_ > 2)
 
-  def arrayFindOptimized(): Option[Int] = {
+  def findOptimized(): Option[Int] = {
     var i   = 0
     val len = array.length
 
@@ -59,16 +51,15 @@ class ArrayBenchmarks {
   }
 
   @Benchmark
-  def arrayFlatMap(): Array[Int] = array.flatMap(n => Array(n + 2))
+  def flatMap(): Array[Int] = array.flatMap(n => Array(n + 2))
 
+  @Benchmark
   def flatMapOptimized(): Array[Int] = {
-    val len = array.length
-
     var mappings = List.empty[Array[Int]]
     var i        = 0
     var total    = 0
 
-    while (i < len) {
+    while (i < size) {
 
       val mapped = Array(array(i) * 2)
 
