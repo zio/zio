@@ -237,16 +237,13 @@ class ZStream[-R, +E, -M, +B, +A](
   final def takeWhile(pred: A => Boolean): ZStream[R, E, M, Option[B], A] =
     ZStream {
       for {
-        done <- Ref.make(false).toManaged_
+        done    <- Ref.make(false).toManaged_
         control <- self.process
         pull = done.get.flatMap {
           if (_)
             Pull.end(None)
           else
-            control.pull.foldCauseM(
-              Cause.sequenceCauseEither(_).fold(b => Pull.end(Some(b)), Pull.haltNow),
-              a => if (pred(a)) Pull.emit(a) else done.set(true) *> Pull.end(None)
-            )
+            control.pull.mapError(_.map(Some(_))).flatMap(a => if (pred(a)) Pull.emit(a) else done.set(true) *> Pull.end(None))
         }
       } yield Control(pull, control.command)
     }
