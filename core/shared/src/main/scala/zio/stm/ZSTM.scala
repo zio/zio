@@ -1137,7 +1137,7 @@ object ZSTM {
   def suspend[R, E, A](stm: => ZSTM[R, E, A]): ZSTM[R, E, A] =
     STM.succeed(stm).flatten
 
-/**
+  /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
   def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, (B, A)] =
