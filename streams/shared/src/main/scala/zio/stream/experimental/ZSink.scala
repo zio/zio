@@ -61,4 +61,10 @@ object ZSink extends Serializable {
         query = buf.get.map(_.reverse)
       } yield Control(push, query)
     }
+
+  /**
+   * A sink that ignores all incoming elements.
+   */
+  val drain: ZSink[Any, Nothing, Unit, Any, Unit] =
+    ZSink(ZManaged.succeed(Control(_ => UIO.unit, UIO.unit)))
 }
