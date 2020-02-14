@@ -68,20 +68,24 @@ class ZStream[-R, +E, -M, +B, +A](
         }
       }
 
-      currPull.get.flatMap {
-        case None =>
-          pullOuter.foldCauseM(
-            Cause.sequenceCauseEither(_).fold(Pull.endNow, Pull.haltNow),
-            _ => go(as, finalizer, currPull, currCmd)
+      def pullInner: ZIO[R1, Either[E1, B1], C] =
+        currPull.get.flatMap(
+          _.fold(
+            pullOuter.foldCauseM(
+              Cause.sequenceCauseEither(_).fold(Pull.endNow, Pull.haltNow),
+              _ => pullInner
+            )
+          )(
+            _.foldCauseM(
+              Cause
+                .sequenceCauseEither(_)
+                .fold(_ => currCmd.set(None) *> currPull.set(None) *> pullInner, Pull.haltNow),
+              Pull.emitNow(_)
+            )
           )
-        case Some(pull) =>
-          pull.foldCauseM(
-            Cause
-              .sequenceCauseEither(_)
-              .fold(_ => currCmd.set(None) *> go(as, finalizer, currPull, currCmd), Pull.haltNow),
-            Pull.emitNow(_)
-          )
-      }
+        )
+
+      pullInner
     }
 
     ZStream {
