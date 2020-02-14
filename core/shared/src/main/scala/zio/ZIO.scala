@@ -939,8 +939,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
-  final def provideLayer[E1 >: E, R0, R1 <: Has[_]](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZIO[R0, E1, A] =
-    provideSomeManaged(layer.build.map(ev))
+  final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
+    layer: ZLayer[R0, E1, R1]
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZIO[R0, E1, A] =
+    provideSomeManaged(layer.build.map(ev1))
 
   /**
    * An effectual version of `provide`, useful when the act of provision
@@ -3304,7 +3306,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): ZIO[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): ZIO[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 

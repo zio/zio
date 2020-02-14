@@ -305,16 +305,16 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R): Spec[R0, E1, T] =
-    provideSomeManaged(layer.build.map(ev))
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+    provideSomeManaged(layer.build.map(ev1))
 
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
   final def provideLayerShared[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R): Spec[R0, E1, T] =
-    self.provideSomeManagedShared(layer.build.map(ev))
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+    self.provideSomeManagedShared(layer.build.map(ev1))
 
   /**
    * Uses the specified effect to provide each test in this spec with its
@@ -553,14 +553,14 @@ object Spec {
   final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): Spec[R0, E1, T] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): Spec[R0, E1, T] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   final class ProvideSomeLayerShared[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): Spec[R0, E1, T] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): Spec[R0, E1, T] =
       self.provideLayerShared[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 }
