@@ -1086,7 +1086,7 @@ object ZSTM {
   val none: STM[Nothing, Option[Nothing]] = succeedNow(None)
 
   /**
-   * Merges an `Iterable[IO]` to a single IO, working sequentially.
+   * Merges an `Iterable[ZSTM]` to a single ZSTM, working sequentially.
    */
   def mergeAll[R, E, A, B](
     in: Iterable[ZSTM[R, E, A]]
