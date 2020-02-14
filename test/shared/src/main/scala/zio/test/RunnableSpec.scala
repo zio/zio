@@ -27,12 +27,13 @@ trait RunnableSpec[R, E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
 
-  private val runSpec: URIO[TestLogger with Clock, Int] = for {
-    results     <- run
-    hasFailures <- results.exists { case TestCase(_, test, _) => test.map(_.isLeft); case _ => UIO.succeedNow(false) }
-    summary     <- SummaryBuilder.buildSummary(results)
-    _           <- TestLogger.logLine(summary.summary)
-  } yield if (hasFailures) 1 else 0
+  private def runSpec: URIO[TestLogger with Clock, Int] =
+    for {
+      results     <- run
+      hasFailures <- results.exists { case TestCase(_, test, _) => test.map(_.isLeft); case _ => UIO.succeedNow(false) }
+      summary     <- SummaryBuilder.buildSummary(results)
+      _           <- TestLogger.logLine(summary.summary)
+    } yield if (hasFailures) 1 else 0
 
   /**
    * A simple main function that can be used to run the spec.

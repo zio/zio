@@ -3,9 +3,17 @@ package zio.test
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
-import zio.{ Ref, UIO, ZIO, ZManaged }
+import zio.{ Has, Ref, UIO, ZIO, ZLayer, ZManaged }
 
 object SpecSpec extends ZIOBaseSpec {
+
+  type Module = Has[Module.Service]
+
+  object Module {
+    trait Service
+  }
+
+  val layer = ZLayer.succeed(new Module.Service {})
 
   def spec = suite("SpecSpec")(
     suite("provideManagedShared")(
@@ -76,6 +84,13 @@ object SpecSpec extends ZIOBaseSpec {
           passed <- isSuccess(mixedSpec.only(rootSuite))
         } yield assert(passed)(isFalse)
       }
+    ),
+    suite("provideLayer")(
+      testM("does not have early initialization issues") {
+        for {
+          _ <- ZIO.environment[Module]
+        } yield assertCompletes
+      }.provideLayer(layer)
     )
   )
 
