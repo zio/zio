@@ -36,6 +36,71 @@ class ZStream[-R, +E, -M, +B, +A](
     }
 
   /**
+   * Returns a stream made of the concatenation in strict order of all the streams
+   * produced by passing each element of this stream to `f0`
+   *
+   * @tparam R1 the type of requirement
+   * @tparam E1 the type of errors
+   * @tparam M1 the type of commands
+   * @tparam B1 the type of marker
+   * @tparam C the type of values
+   * @param f0 a function that yields a new stream for each value produced by this stream
+   * @return a stream made of the concatenation in strict order of all the streams
+   */
+  final def flatMap[R1 <: R, E1 >: E, M1 <: M, B1 >: B, C](
+    f0: A => ZStream[R1, E1, M1, B1, C]
+  ): ZStream[R1, E1, M1, B1, C] = {
+    def go(
+      as: ZIO[R1, Either[E1, B1], A],
+      finalizer: Ref[Exit[_, _] => URIO[R1, _]],
+      currPull: Ref[Option[ZIO[R1, Either[E1, B1], C]]],
+      currCmd: Ref[Option[M1 => ZIO[R1, E1, Any]]]
+    ): ZIO[R1, Either[E1, B1], C] = {
+      val pullOuter: ZIO[R1, Either[E1, B1], Unit] = ZIO.uninterruptibleMask { restore =>
+        restore(as).flatMap { a =>
+          (for {
+            reservation <- f0(a).process.reserve
+            control     <- restore(reservation.acquire)
+            _           <- finalizer.set(reservation.release)
+            _           <- currPull.set(Some(control.pull))
+            _           <- currCmd.set(Some(control.command))
+          } yield ())
+        }
+      }
+
+      def pullInner: ZIO[R1, Either[E1, B1], C] =
+        currPull.get.flatMap(
+          _.fold(
+            pullOuter.foldCauseM(
+              Cause.sequenceCauseEither(_).fold(Pull.endNow, Pull.haltNow),
+              _ => pullInner
+            )
+          )(
+            _.foldCauseM(
+              Cause
+                .sequenceCauseEither(_)
+                .fold(_ => currCmd.set(None) *> currPull.set(None) *> pullInner, Pull.haltNow),
+              Pull.emitNow(_)
+            )
+          )
+        )
+
+      pullInner
+    }
+
+    ZStream {
+      for {
+        currPull  <- Ref.make[Option[ZIO[R1, Either[E1, B1], C]]](None).toManaged_
+        currCmd   <- Ref.make[Option[M1 => ZIO[R1, E1, Any]]](None).toManaged_
+        control   <- self.process
+        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+        pull      = go(control.pull, finalizer, currPull, currCmd)
+        cmd       = (m: M1) => currCmd.get.flatMap(_.getOrElse(control.command)(m))
+      } yield Control(pull, cmd)
+    }
+  }
+
+  /**
    * Maps the elements of this stream using a ''pure'' function.
    *
    * @tparam C the value type of the new stream
@@ -116,6 +181,56 @@ class ZStream[-R, +E, -M, +B, +A](
     } yield ()
 
   /**
+   * Runs the sink on the stream to produce either the sink's internal state or an error.
+   *
+   * @tparam B the internal state of the sink
+   * @param sink the sink to run against
+   * @return the internal state of the sink after exhausting the stream
+   */
+  def runQuery[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, B, A1, Any]): ZIO[R1, E1, B] =
+    runQueryManaged(sink).use(UIO.succeedNow)
+
+  /**
+   * Runs the sink on the stream to produce either the sink's internal state or an error.
+   *
+   * @tparam B the internal state of the sink
+   * @param sink the sink to run against
+   * @return the internal state of the sink after exhausting the stream wrapped in a managed resource
+   */
+  def runQueryManaged[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, B, A1, Any]): ZManaged[R1, E1, B] =
+    for {
+      command <- self.process
+      control <- sink.process
+      go = {
+        def pull: ZIO[R1, E1, B] =
+          command.pull.foldM(
+            _.fold(ZIO.failNow, _ => control.query),
+            control.push(_).catchAll(_.fold(ZIO.failNow, _ => ZIO.unit)) *> pull
+          )
+        pull
+      }
+      b <- go.toManaged_
+    } yield b
+
+  /**
+   * Runs the stream and collects all of its elements in a list.
+   *
+   * Equivalent to `run(Sink.collectAll[A])`.
+   *
+   * @return an action that yields the list of elements in the stream
+   */
+  final def runCollect: ZIO[R, E, List[A]] = runQuery(ZSink.collectAll[A])
+
+  /**
+   * Runs the stream and collects all of its elements in a list.
+   *
+   * Equivalent to `run(Sink.collectAll[A])`.
+   *
+   * @return an action that yields the list of elements in the stream
+   */
+  final def runCollectManaged: ZManaged[R, E, List[A]] = runQueryManaged(ZSink.collectAll[A])
+
+  /**
    * Converts the stream to a managed queue. After the managed queue is used,
    * the queue will never again produce values and should be discarded.
    *
@@ -186,7 +301,7 @@ object ZStream extends Serializable {
    * @param c a chunk of values
    * @return a finite stream of values
    */
-  def fromChunk[A](c: => Chunk[A]): ZStream[Any, Nothing, Any, Unit, A] =
+  def fromChunk[A](c: => Chunk[A]): UStream[A] =
     ZStream {
       Managed.fromEffect {
         Ref.make(0).map { iRef =>
@@ -255,4 +370,14 @@ object ZStream extends Serializable {
         }
       } yield Control(pull, Command.noop)
     }
+
+  /**
+   * Creates a single-valued pure stream
+   *
+   * @tparam A the value type
+   * @param a the only value of the stream
+   * @return a single-valued stream
+   */
+  def succeedNow[A](a: A): UStream[A] =
+    managed(Managed.succeedNow(a))
 }

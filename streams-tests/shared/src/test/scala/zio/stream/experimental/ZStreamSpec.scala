@@ -10,6 +10,95 @@ import zio.test._
 object ZStreamSpec extends ZIOBaseSpec {
   def spec = suite("ZStreamSpec")(
     suite("Combinators")(
+      suite("flatMap")(
+        testM("deep flatMap stack safety") {
+          def fib(n: Int): UStream[Int] =
+            if (n <= 1) ZStream.succeedNow(n)
+            else
+              fib(n - 1).flatMap { a =>
+                fib(n - 2).flatMap { b =>
+                  ZStream.succeedNow(a + b)
+                }
+              }
+
+          val stream   = fib(20)
+          val expected = 6765
+
+          assertM(stream.runCollect)(equalTo(List(expected)))
+        }
+        //   testM("left identity")(checkM(Gen.anyInt, Gen.function(pureStreamOfInts)) { (x, f) =>
+        //     for {
+        //       res1 <- ZStream(x).flatMap(f).runCollect
+        //       res2 <- f(x).runCollect
+        //     } yield assert(res1)(equalTo(res2))
+        //   }),
+        //   testM("right identity")(
+        //     checkM(pureStreamOfInts)(m =>
+        //       for {
+        //         res1 <- m.flatMap(i => ZStream(i)).runCollect
+        //         res2 <- m.runCollect
+        //       } yield assert(res1)(equalTo(res2))
+        //     )
+        //   ),
+        //   testM("associativity") {
+        //     val tinyStream = Gen.int(0, 2).flatMap(pureStreamGen(Gen.anyInt, _))
+        //     val fnGen      = Gen.function(tinyStream)
+        //     checkM(tinyStream, fnGen, fnGen) { (m, f, g) =>
+        //       for {
+        //         leftStream  <- m.flatMap(f).flatMap(g).runCollect
+        //         rightStream <- m.flatMap(x => f(x).flatMap(g)).runCollect
+        //       } yield assert(leftStream)(equalTo(rightStream))
+        //     }
+        //   },
+        // TODO uncomment when bracket*, tap, ensuring, etc. are migrated
+        // testM("inner finalizers") {
+        //   for {
+        //     effects <- Ref.make(List[Int]())
+        //     push    = (i: Int) => effects.update(i :: _)
+        //     latch   <- Promise.make[Nothing, Unit]
+        //     fiber <- ZStream(
+        //               ZStream.bracket(push(1))(_ => push(1)),
+        //               ZStream.fromEffect(push(2)),
+        //               ZStream.bracket(push(3))(_ => push(3)) *> Stream.fromEffect(
+        //                 latch.succeed(()) *> ZIO.never
+        //               )
+        //             ).flatMap(identity).runDrain.fork
+        //     _      <- latch.await
+        //     _      <- fiber.interrupt
+        //     result <- effects.get
+        //   } yield assert(result)(equalTo(List(3, 3, 2, 1, 1)))
+
+        // },
+        // testM("finalizer ordering") {
+        //   for {
+        //     effects <- Ref.make(List[Int]())
+        //     push    = (i: Int) => effects.update(i :: _)
+        //     stream = for {
+        //       _ <- ZStream.bracket(push(1))(_ => push(1))
+        //       _ <- ZStream((), ()).tap(_ => push(2)).ensuring(push(2))
+        //       _ <- ZStream.bracket(push(3))(_ => push(3))
+        //       _ <- ZStream((), ()).tap(_ => push(4)).ensuring(push(4))
+        //     } yield ()
+        //     _      <- stream.runDrain
+        //     result <- effects.get
+        //   } yield assert(result)(equalTo(List(1, 2, 3, 4, 4, 4, 3, 2, 3, 4, 4, 4, 3, 2, 1).reverse))
+        // },
+        // testM("exit signal") {
+        //   for {
+        //     ref <- Ref.make(false)
+        //     inner = ZStream
+        //       .bracketExit(UIO.unit)((_, e) =>
+        //         e match {
+        //           case Exit.Failure(_) => ref.set(true)
+        //           case Exit.Success(_) => UIO.unit
+        //         }
+        //       )
+        //       .flatMap(_ => ZStream.failNow("Ouch"))
+        //     _   <- ZStream.succeedNow(()).flatMap(_ => inner).runDrain.either.unit
+        //     fin <- ref.get
+        //   } yield assert(fin)(isTrue)
+        // }
+      ),
       testM("map") {
         ZStream
           .fromEffect(UIO.succeed(1))
@@ -58,7 +147,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             .process
             .use(nPulls(_, 3))
             .map(assert(_)(equalTo(List(Left(Left("Ouch")), Left(Right(())), Left(Right(()))))))
-        }
+        },
+        testM("succeedNow")(checkM(Gen.anyInt) { i =>
+          ZStream
+            .succeedNow(i)
+            .process
+            .use(nPulls(_, 3))
+            .map(assert(_)(equalTo(List(Right(i), Left(Right(())), Left(Right(()))))))
+        })
       ),
       suite("managed")(
         testM("success") {
