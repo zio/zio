@@ -303,7 +303,7 @@ object ZStream extends Serializable {
    * @param c a chunk of values
    * @return a finite stream of values
    */
-  def fromChunk[A](c: => Chunk[A]): ZStream[Any, Nothing, Any, Unit, A] =
+  def fromChunk[A](c: => Chunk[A]): UStream[A] =
     ZStream {
       Managed.fromEffect {
         Ref.make(0).map { iRef =>
@@ -372,4 +372,14 @@ object ZStream extends Serializable {
         }
       } yield Control(pull, Command.noop)
     }
+
+  /**
+   * Creates a single-valued pure stream
+   *
+   * @tparam A the value type
+   * @param a the only value of the stream
+   * @return a single-valued stream
+   */
+  def succeedNow[A](a: A): UStream[A] =
+    managed(Managed.succeedNow(a))
 }
