@@ -53,14 +53,12 @@ object ZSink extends Serializable {
    * @tparam A the type of elements
    * @return a sink accumulating (forever) incoming elements
    */
-  def collectAll[A]: ZSink[Any, Nothing, List[A], A, Nothing] = {
-    import scala.collection.mutable.ListBuffer
+  def collectAll[A]: ZSink[Any, Nothing, List[A], A, Nothing] =
     ZSink[Any, Nothing, List[A], A, Nothing] {
       for {
-        buf   <- Ref.make(ListBuffer.empty[A]).toManaged_
-        push  = (a: A) => buf.update(_ :+ a)
-        query = buf.get.map(_.toList)
+        buf   <- Ref.make(List.empty[A]).toManaged_
+        push  = (a: A) => buf.update(a :: _)
+        query = buf.get.map(_.reverse)
       } yield Control(push, query)
     }
-  }
 }
