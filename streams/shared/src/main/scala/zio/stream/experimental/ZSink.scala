@@ -48,11 +48,11 @@ object ZSink extends Serializable {
     new ZSink(process)
 
   /**
-    * Accumulates all incoming elements into a list.
-    *
-    * @tparam A the type of elements
-    * @return a sink accumulating (forever) incoming elements
-    */
+   * Accumulates all incoming elements into a list.
+   *
+   * @tparam A the type of elements
+   * @return a sink accumulating (forever) incoming elements
+   */
   def collectAll[A]: ZSink[Any, Nothing, List[A], A, Nothing] = {
     import scala.collection.mutable.ListBuffer
     ZSink[Any, Nothing, List[A], A, Nothing] {

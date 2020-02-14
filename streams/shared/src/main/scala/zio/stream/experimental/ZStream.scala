@@ -34,7 +34,7 @@ class ZStream[-R, +E, -M, +B, +A](
         }
       } yield Control(pull, Command.noop)
     }
-  
+
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
    * produced by passing each element of this stream to `f0`
@@ -211,7 +211,7 @@ class ZStream[-R, +E, -M, +B, +A](
    * @return an action that yields the list of elements in the stream
    */
   final def runCollect: ZIO[R, E, List[A]] = runQuery(ZSink.collectAll[A])
-  
+
   /**
    * Converts the stream to a managed queue. After the managed queue is used,
    * the queue will never again produce values and should be discarded.
