@@ -231,6 +231,27 @@ class ZStream[-R, +E, -M, +B, +A](
   final def runCollectManaged: ZManaged[R, E, List[A]] = runQueryManaged(ZSink.collectAll[A])
 
   /**
+   * Takes all elements of the stream for as long as the specified predicate
+   * evaluates to `true`.
+   */
+  final def takeWhile(pred: A => Boolean): ZStream[R, E, M, Option[B], A] =
+    ZStream {
+      for {
+        done <- Ref.make(false).toManaged_
+        control <- self.process
+        pull = done.get.flatMap {
+          if (_)
+            Pull.end(None)
+          else
+            control.pull.foldCauseM(
+              Cause.sequenceCauseEither(_).fold(b => Pull.end(Some(b)), Pull.haltNow),
+              a => if (pred(a)) Pull.emit(a) else done.set(true) *> Pull.end(None)
+            )
+        }
+      } yield Control(pull, control.command)
+    }
+
+  /**
    * Converts the stream to a managed queue. After the managed queue is used,
    * the queue will never again produce values and should be discarded.
    *
@@ -295,6 +316,30 @@ object ZStream extends Serializable {
     new ZStream(process)
 
   /**
+   * The stream that always dies with the `ex`.
+   * 
+   * @param ex The exception that kills the stream
+   * @return a stream that dies with an exception
+   */
+  def die(ex: => Throwable): UStream[Nothing] =
+    halt(Cause.die(ex))
+
+  /**
+   * The stream that always dies with an exception described by `msg`.
+   * 
+   * @param msg The message to feed the runtime exception
+   * @return a stream that dies with a runtime exception
+   */
+  def dieMessage(msg: => String): UStream[Nothing] =
+    halt(Cause.die(new RuntimeException(msg)))
+
+  /**
+   * The empty stream
+   */
+  val empty: UStream[Nothing] =
+    ZStream(Managed.succeedNow(Control(Pull.endUnit, Command.noop)))
+
+  /**
    * Creates a stream from a [[zio.Chunk]] of values
    *
    * @tparam A the value type
@@ -343,6 +388,30 @@ object ZStream extends Serializable {
     }
 
   /**
+   * The stream that always halts with `cause`.
+   * 
+   * @tparam The error type
+   * @param the cause for halting the stream
+   * @return a stream that is halted
+   */
+  def halt[E](cause: => Cause[E]): Stream[E, Nothing] =
+    fromEffect(ZIO.halt(cause))
+
+  /**
+   * The infinite stream of iterative function application: a, f(a), f(f(a)), f(f(f(a))), ...
+   */
+  def iterate[A](a: A)(f: A => A): UStream[A] =
+    ZStream {
+      Managed.effectTotal {
+        var currA = a
+        Control(
+          ZIO.succeedNow(currA) <* ZIO.effectTotal { currA = f(currA) },
+          Command.noop
+        )
+      }
+    }
+
+  /**
    * Creates a single-valued stream from a managed resource.
    *
    * @tparam R the environment type
@@ -370,6 +439,21 @@ object ZStream extends Serializable {
         }
       } yield Control(pull, Command.noop)
     }
+
+  /**
+   * The stream that never produces any value or fails with any error.
+   */
+  val never: UStream[Nothing] =
+    ZStream(ZManaged.succeedNow(Control(UIO.never, Command.noop)))
+
+  /**
+   * Constructs a stream from a range of integers (lower bound included, upper bound not included)
+   * 
+   * @param min the lower bound
+   * @param max the upper bound
+   */
+  def range(min: Int, max: Int): ZStream[Any, Nothing, Any, Option[Unit], Int] =
+    iterate(min)(_ + 1).takeWhile(_ < max)
 
   /**
    * Creates a single-valued pure stream
