@@ -1,7 +1,8 @@
 package zio.stream.experimental
 
-import zio._
 import ZSinkUtils._
+
+import zio._
 import zio.test.Assertion.equalTo
 import zio.test._
 

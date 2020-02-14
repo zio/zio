@@ -1,7 +1,8 @@
 package zio.stream.experimental
 
-import zio._
 import ZSink.Control
+
+import zio._
 
 object ZSinkUtils {
   val initErrorSink = ZSink[Any, String, Int, Int, Int] {
