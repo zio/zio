@@ -176,6 +176,13 @@ object STM {
   val none: STM[Nothing, Option[Nothing]] = ZSTM.none
 
   /**
+   * @see See [[zio.stm.ZSTM.mergeAll]]
+   */
+  def mergeAll[R, E, A, B](
+    in: Iterable[ZSTM[R, E, A]]
+  )(zero: B)(f: (B, A) => B): ZSTM[R, E, B] = ZSTM.mergeAll(in)(zero)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.partial]]
    */
   def partial[A](a: => A): STM[Throwable, A] =

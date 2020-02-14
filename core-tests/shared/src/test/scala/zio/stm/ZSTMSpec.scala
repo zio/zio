@@ -936,6 +936,18 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(isTrue)
       }
     ),
+    suite("ZSTM mergeAll")(
+      testM("mergeAll") {
+        val tx = ZSTM.mergeAll(List.fill(5)(ZSTM.succeedNow("n")))(0) { (b, a) =>
+          b + a.length
+        }
+        assertM(tx.commit)(equalTo(5))
+      },
+      testM("mergeAllEmpty") {
+        val tx = ZSTM.mergeAll(List.empty[ZSTM[Any, Int, Int]])(0)(_ + _)
+        assertM(tx.commit)(equalTo(0))
+      }
+    ),
     suite("when combinators")(
       testM("when true") {
         for {
