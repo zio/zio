@@ -34,6 +34,73 @@ class ZStream[-R, +E, -M, +B, +A](
         }
       } yield Control(pull, Command.noop)
     }
+  
+  /**
+   * Returns a stream made of the concatenation in strict order of all the streams
+   * produced by passing each element of this stream to `f0`
+   *
+   * @tparam R1 the type of requirement
+   * @tparam E1 the type of errors
+   * @tparam M1 the type of commands
+   * @tparam B1 the type of marker
+   * @tparam C the type of values
+   * @param f0 a function that yields a new stream for each value produced by this stream
+   * @return a stream made of the concatenation in strict order of all the streams
+   */
+  final def flatMap[R1 <: R, E1 >: E, M1 <: M, B1 >: B, C](
+    f0: A => ZStream[R1, E1, M1, B1, C]
+  ): ZStream[R1, E1, M1, B1, C] = {
+    def go(
+      as: ZIO[R1, Either[E1, B1], A],
+      finalizer: Ref[Exit[_, _] => URIO[R1, _]],
+      currPull: Ref[Option[ZIO[R1, Either[E1, B1], C]]],
+      currCmd: Ref[Option[M1 => ZIO[R1, E1, Any]]]
+    ): ZIO[R1, Either[E1, B1], C] = {
+      val pullOuter: ZIO[R1, Either[E1, B1], Unit] = ZIO.uninterruptibleMask { restore =>
+        restore(as).flatMap { a =>
+          (for {
+            reservation <- f0(a).process.reserve
+            control     <- restore(reservation.acquire)
+            _           <- finalizer.set(reservation.release)
+            _           <- currPull.set(Some(control.pull))
+            _           <- currCmd.set(Some(control.command))
+          } yield ())
+        }
+      }
+
+      currPull.get.flatMap {
+        case None =>
+          pullOuter.foldCauseM(
+            _.failureOrCause match {
+              case Left(Left(e))  => Pull.failNow(e)
+              case Left(Right(b)) => Pull.endNow(b)
+              case Right(c)       => Pull.haltNow(c)
+            },
+            _ => go(as, finalizer, currPull, currCmd)
+          )
+        case Some(pull) =>
+          pull.foldCauseM(
+            _.failureOrCause match {
+              case Left(Left(e))  => Pull.failNow(e)
+              case Left(Right(_)) => currCmd.set(None) *> go(as, finalizer, currPull, currCmd)
+              case Right(c)       => Pull.haltNow(c)
+            },
+            Pull.emitNow(_)
+          )
+      }
+    }
+
+    ZStream {
+      for {
+        currPull  <- Ref.make[Option[ZIO[R1, Either[E1, B1], C]]](None).toManaged_
+        currCmd   <- Ref.make[Option[M1 => ZIO[R1, E1, Any]]](None).toManaged_
+        control   <- self.process
+        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+        pull      = go(control.pull, finalizer, currPull, currCmd)
+        cmd       = (m: M1) => currCmd.get.flatMap(_.getOrElse(control.command)(m))
+      } yield Control(pull, cmd)
+    }
+  }
 
   /**
    * Maps the elements of this stream using a ''pure'' function.
