@@ -147,7 +147,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             .process
             .use(nPulls(_, 3))
             .map(assert(_)(equalTo(List(Left(Left("Ouch")), Left(Right(())), Left(Right(()))))))
-        }
+        },
+        testM("succeedNow")(checkM(Gen.anyInt) { i =>
+          ZStream
+            .succeedNow(i)
+            .process
+            .use(nPulls(_, 3))
+            .map(assert(_)(equalTo(List(Right(i), Left(Right(())), Left(Right(()))))))
+        })
       ),
       suite("managed")(
         testM("success") {
