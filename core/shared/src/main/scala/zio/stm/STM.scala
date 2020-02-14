@@ -82,7 +82,7 @@ object STM {
     ZSTM.filter(as)(f)
 
   /**
-   * @see See [[zio.ZSTM.flatten]]
+   * @see See [[zio.stm.ZSTM.flatten]]
    */
   def flatten[E, A](task: STM[E, STM[E, A]]): STM[E, A] =
     ZSTM.flatten(task)
