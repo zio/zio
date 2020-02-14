@@ -179,8 +179,8 @@ object STM {
    * @see See [[zio.stm.ZSTM.mergeAll]]
    */
   def mergeAll[E, A, B](
-    in: Iterable[ZSTM[Any, E, A]]
-  )(zero: B)(f: (B, A) => B): ZSTM[Any, E, B] = ZSTM.mergeAll(in)(zero)(f)
+    in: Iterable[STM[E, A]]
+  )(zero: B)(f: (B, A) => B): STM[E, B] = ZSTM.mergeAll(in)(zero)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.partial]]
