@@ -76,7 +76,9 @@ class ZStream[-R, +E, -M, +B, +A](
           )
         case Some(pull) =>
           pull.foldCauseM(
-            Cause.sequenceCauseEither(_).fold(_ => currCmd.set(None) *> go(as, finalizer, currPull, currCmd), Pull.haltNow),
+            Cause
+              .sequenceCauseEither(_)
+              .fold(_ => currCmd.set(None) *> go(as, finalizer, currPull, currCmd), Pull.haltNow),
             Pull.emitNow(_)
           )
       }
@@ -176,10 +178,26 @@ class ZStream[-R, +E, -M, +B, +A](
 
   /**
    * Runs the sink on the stream to produce either the sink's internal state or an error.
+   *
+   * @tparam B the internal state of the sink
+   * @param sink the sink to run against
+   * @return the internal state of the sink after exhausting the stream
    */
   def runQuery[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, B, A1, Any]): ZIO[R1, E1, B] =
-    (self.process <*> sink.process).use {
-      case (command, control) =>
+    runQueryManaged(sink).use(UIO.succeedNow)
+
+  /**
+   * Runs the sink on the stream to produce either the sink's internal state or an error.
+   *
+   * @tparam B the internal state of the sink
+   * @param sink the sink to run against
+   * @return the internal state of the sink after exhausting the stream wrapped in a managed resource
+   */
+  def runQueryManaged[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, B, A1, Any]): ZManaged[R1, E1, B] =
+    for {
+      command <- self.process
+      control <- sink.process
+      go = {
         def pull: ZIO[R1, E1, B] =
           command.pull.foldM(
             {
@@ -191,9 +209,10 @@ class ZStream[-R, +E, -M, +B, +A](
               case Right(_) => ZIO.unit
             } *> pull
           )
-
         pull
-    }
+      }
+      b <- go.toManaged_
+    } yield b
 
   /**
    * Runs the stream and collects all of its elements in a list.
@@ -203,6 +222,15 @@ class ZStream[-R, +E, -M, +B, +A](
    * @return an action that yields the list of elements in the stream
    */
   final def runCollect: ZIO[R, E, List[A]] = runQuery(ZSink.collectAll[A])
+
+  /**
+   * Runs the stream and collects all of its elements in a list.
+   *
+   * Equivalent to `run(Sink.collectAll[A])`.
+   *
+   * @return an action that yields the list of elements in the stream
+   */
+  final def runCollectManaged: ZManaged[R, E, List[A]] = runQueryManaged(ZSink.collectAll[A])
 
   /**
    * Converts the stream to a managed queue. After the managed queue is used,
