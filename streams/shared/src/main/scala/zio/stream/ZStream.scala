@@ -2103,8 +2103,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R): ZStream[R0, E1, A] =
-    provideSomeManaged(layer.build.map(ev))
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZStream[R0, E1, A] =
+    provideSomeManaged(layer.build.map(ev1))
 
   /**
    * Provides some of the environment required to run this effect,
@@ -3561,7 +3561,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: Tagged[R1]): ZStream[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): ZStream[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
