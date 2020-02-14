@@ -71,20 +71,12 @@ class ZStream[-R, +E, -M, +B, +A](
       currPull.get.flatMap {
         case None =>
           pullOuter.foldCauseM(
-            _.failureOrCause match {
-              case Left(Left(e))  => Pull.failNow(e)
-              case Left(Right(b)) => Pull.endNow(b)
-              case Right(c)       => Pull.haltNow(c)
-            },
+            Cause.sequenceCauseEither(_).fold(Pull.endNow, Pull.haltNow),
             _ => go(as, finalizer, currPull, currCmd)
           )
         case Some(pull) =>
           pull.foldCauseM(
-            _.failureOrCause match {
-              case Left(Left(e))  => Pull.failNow(e)
-              case Left(Right(_)) => currCmd.set(None) *> go(as, finalizer, currPull, currCmd)
-              case Right(c)       => Pull.haltNow(c)
-            },
+            Cause.sequenceCauseEither(_).fold(_ => currCmd.set(None) *> go(as, finalizer, currPull, currCmd), Pull.haltNow),
             Pull.emitNow(_)
           )
       }
