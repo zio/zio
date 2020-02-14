@@ -36,6 +36,26 @@ class ZStream[-R, +E, -M, +B, +A](
     }
 
   /**
+   * Executes the provided finalizer after this stream's finalizers run.
+   *
+   * @tparam R1 the environment required by the finalizer
+   * @param fin the finalizer
+   * @return a stream that executes the provided finalizer in addition to the existing ones
+   */
+  final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, M, B, A] =
+    ZStream(self.process.ensuring(fin))
+
+  /**
+   * Executes the provided finalizer before this stream's finalizers run.
+   *
+   * @tparam R1 the environment required by the finalizer
+   * @param fin the finalizer
+   * @return a stream that executes the provided finalizer in addition to the existing ones
+   */
+  final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, M, B, A] =
+    ZStream(self.process.ensuringFirst(fin))
+
+  /**
    * Returns a stream made of the concatenation in strict order of all the streams
    * produced by passing each element of this stream to `f0`
    *
@@ -181,6 +201,40 @@ class ZStream[-R, +E, -M, +B, +A](
     } yield ()
 
   /**
+   * Runs the stream and collects all of its elements in a list.
+   *
+   * Equivalent to `run(Sink.collectAll[A])`.
+   *
+   * @return an action that yields the list of elements in the stream
+   */
+  final def runCollect: ZIO[R, E, List[A]] = runQuery(ZSink.collectAll[A])
+
+  /**
+   * Runs the stream and collects all of its elements in a list.
+   *
+   * Equivalent to `run(Sink.collectAll[A])`.
+   *
+   * @return an action that yields the list of elements in the stream
+   */
+  final def runCollectManaged: ZManaged[R, E, List[A]] = runQueryManaged(ZSink.collectAll[A])
+
+  /**
+   * Runs the stream purely for its effects. Any elements emitted by
+   * the stream are discarded.
+   *
+   * @return a managed effect that drains the stream
+   */
+  final def runDrainManaged: ZManaged[R, E, Unit] = runQueryManaged(ZSink.drain)
+
+  /**
+   * Runs the stream purely for its effects. Any elements emitted by
+   * the stream are discarded.
+   *
+   * @return an action that drains the stream
+   */
+  final def runDrain: ZIO[R, E, Unit] = runDrainManaged.use(UIO.succeedNow)
+
+  /**
    * Runs the sink on the stream to produce either the sink's internal state or an error.
    *
    * @tparam B the internal state of the sink
@@ -213,22 +267,21 @@ class ZStream[-R, +E, -M, +B, +A](
     } yield b
 
   /**
-   * Runs the stream and collects all of its elements in a list.
-   *
-   * Equivalent to `run(Sink.collectAll[A])`.
-   *
-   * @return an action that yields the list of elements in the stream
+   * Takes the specified number of elements from this stream.
+   * @param n the number of elements to retain
+   * @return a stream with `n` or less elements
    */
-  final def runCollect: ZIO[R, E, List[A]] = runQuery(ZSink.collectAll[A])
-
-  /**
-   * Runs the stream and collects all of its elements in a list.
-   *
-   * Equivalent to `run(Sink.collectAll[A])`.
-   *
-   * @return an action that yields the list of elements in the stream
-   */
-  final def runCollectManaged: ZManaged[R, E, List[A]] = runQueryManaged(ZSink.collectAll[A])
+  def take(n: Long): ZStream[R, E, M, Option[B], A] =
+    ZStream {
+      for {
+        as      <- self.process
+        counter <- Ref.make(0L).toManaged_
+        pull = counter.get.flatMap { c =>
+          if (c >= n) Pull.end(None)
+          else as.pull.mapError(_.map(Some(_))) <* counter.set(c + 1)
+        }
+      } yield Control(pull, as.command)
+    }
 
   /**
    * Takes all elements of the stream for as long as the specified predicate
@@ -311,6 +364,36 @@ object ZStream extends Serializable {
    */
   def apply[R, E, M, B, A](process: ZManaged[R, Nothing, Control[R, E, M, B, A]]): ZStream[R, E, M, B, A] =
     new ZStream(process)
+
+    /**
+     * Creates a stream from an effect and a finalizer. The finalizer will run
+   * once the stream consumption has ended.
+   *
+   * @tparam R the environment required by the effects
+   * @tparam E the error type yielded by the effect
+   * @tparam A the value type yielded by the effect
+   * @param acquire the effect
+   * @param release the finalizer
+   * @return a stream that emits the value yielded by the effect
+   */
+  def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any]): ZStream[R, E, Any, Unit, A] =
+    managed(ZManaged.make(acquire)(release))
+
+  /**
+   * Creates a stream from an effect and a finalizer. The finalizer will run
+   * once the stream consumption has ended.
+   *
+   * @tparam R the environment required by the effects
+   * @tparam E the error type yielded by the effect
+   * @tparam A the value type yielded by the effect
+   * @param acquire the effect
+   * @param release the finalizer
+   * @return a stream that emits the value yielded by the effect
+   */
+  def bracketExit[R, E, A](
+    acquire: ZIO[R, E, A]
+  )(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any]): ZStream[R, E, Any, Unit, A] =
+    managed(ZManaged.makeExit(acquire)(release))
 
   /**
    * The stream that always dies with the `ex`.
