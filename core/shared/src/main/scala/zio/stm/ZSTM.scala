@@ -603,6 +603,24 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
+   * Fail with the returned value if the `PartialFunction` matches, otherwise
+   * continue with our held value.
+   */
+  def reject[R1 <: R, E1 >: E](pf: PartialFunction[A, E1]): ZSTM[R1, E1, A] =
+    rejectM(pf.andThen(ZSTM.failNow(_)))
+
+  /**
+   * Continue with the returned computation if the `PartialFunction` matches,
+   * translating the successful match into a failure, otherwise continue with
+   * our held value.
+   */
+  def rejectM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZSTM[R1, E1, E1]]): ZSTM[R1, E1, A] =
+    self.flatMap { v =>
+      pf.andThen[ZSTM[R1, E1, A]](_.flatMap(ZSTM.failNow))
+        .applyOrElse[A, ZSTM[R1, E1, A]](v, ZSTM.succeedNow)
+    }
+
+  /**
    * Filters the value produced by this effect, retrying the transaction until
    * the predicate returns true for the value.
    */
