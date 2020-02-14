@@ -148,9 +148,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             .use(nPulls(_, 3))
             .map(assert(_)(equalTo(List(Left(Left("Ouch")), Left(Right(())), Left(Right(()))))))
         },
-        testM("range") {
-          assertM(ZStream.range(0, 10).runCollect)(equalTo(Range(0, 10).toList))
-        },
         testM("succeedNow")(checkM(Gen.anyInt) { i =>
           ZStream
             .succeedNow(i)
@@ -159,6 +156,9 @@ object ZStreamSpec extends ZIOBaseSpec {
             .map(assert(_)(equalTo(List(Right(i), Left(Right(())), Left(Right(()))))))
         })
       ),
+      // testM("Stream.iterate")(
+      //   assertM(Stream.iterate(1)(_ + 1).take(10).runCollect)(equalTo((1 to 10).toList))
+      // ),
       suite("managed")(
         testM("success") {
           for {
@@ -193,6 +193,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(fin)(isTrue) && assert(pulls)(
             equalTo(List(Left(Left("Ouch")), Left(Right(())), Left(Right(()))))
           )
+        },
+        testM("range") {
+          assertM(ZStream.range(0, 10).runCollect)(equalTo(Range(0, 10).toList))
         }
       )
     ),
