@@ -567,6 +567,12 @@ object ZSTMSpec extends ZIOBaseSpec {
           val env = (42, "test")
 
           assertM(tx.provide(env).commit)(equalTo(env._1))
+        },
+        testM("_1 should extract first") {
+          val tx = ZSTM._2[(Int, String), Nothing, Int, String]
+          val env = (42, "test")
+
+          assertM(tx.provide(env).commit)(equalTo(env._2))
         }
       ),
       testM("zip to return a tuple of two computations") {

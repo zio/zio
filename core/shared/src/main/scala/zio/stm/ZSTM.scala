@@ -1161,6 +1161,13 @@ object ZSTM {
   def _1[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, A] =
     fromFunction[R, A](_._1)
 
+  /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  def _2[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, B] =
+    fromFunction[R, B](_._2)
+
   private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
     succeedNow(throw t)
 
