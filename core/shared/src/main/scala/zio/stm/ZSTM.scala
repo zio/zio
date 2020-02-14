@@ -1154,6 +1154,13 @@ object ZSTM {
   def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     b.flatMap(b => if (b) stm.unit else unit)
 
+  /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  def _1[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, A] =
+    fromFunction[R, A](_._1)
+
   private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
     succeedNow(throw t)
 
