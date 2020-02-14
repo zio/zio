@@ -402,7 +402,11 @@ object ZStream extends Serializable {
       Managed.effectTotal {
         var currA = a
         Control(
-          ZIO.succeedNow(currA) <* ZIO.effectTotal { currA = f(currA) },
+          ZIO.effectTotal { 
+            val ret = currA
+            currA = f(currA)
+            ret
+          },
           Command.noop
         )
       }
