@@ -185,7 +185,7 @@ class ZStream[-R, +E, -M, +B, +A](
   /**
    * Runs the sink on the stream to produce either the sink's internal state or an error.
    */
-  def runQuery[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, B, A1, Nothing]): ZIO[R1, E1, B] =
+  def runQuery[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, B, A1, Any]): ZIO[R1, E1, B] =
     (self.process <*> sink.process).use {
       case (command, control) =>
         def pull: ZIO[R1, E1, B] =
