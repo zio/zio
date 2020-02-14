@@ -204,14 +204,8 @@ class ZStream[-R, +E, -M, +B, +A](
       go = {
         def pull: ZIO[R1, E1, B] =
           command.pull.foldM(
-            {
-              case Left(e)  => ZIO.failNow(e)
-              case Right(_) => control.query
-            },
-            control.push(_).catchAll {
-              case Left(e)  => ZIO.failNow(e)
-              case Right(_) => ZIO.unit
-            } *> pull
+            _.fold(ZIO.failNow, _ => control.query),
+            control.push(_).catchAll(_.fold(ZIO.failNow, _ => ZIO.unit)) *> pull
           )
         pull
       }
