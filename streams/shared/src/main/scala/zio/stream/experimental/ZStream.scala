@@ -183,6 +183,36 @@ class ZStream[-R, +E, -M, +B, +A](
     } yield ()
 
   /**
+   * Runs the sink on the stream to produce either the sink's internal state or an error.
+   */
+  def runQuery[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, B, A1, Nothing]): ZIO[R1, E1, B] =
+    (self.process <*> sink.process).use {
+      case (command, control) =>
+        def pull: ZIO[R1, E1, B] =
+          command.pull.foldM(
+            {
+              case Left(e)  => ZIO.failNow(e)
+              case Right(_) => control.query
+            },
+            control.push(_).catchAll {
+              case Left(e)  => ZIO.failNow(e)
+              case Right(_) => ZIO.unit
+            } *> pull
+          )
+
+        pull
+    }
+
+  /**
+   * Runs the stream and collects all of its elements in a list.
+   *
+   * Equivalent to `run(Sink.collectAll[A])`.
+   *
+   * @return an action that yields the list of elements in the stream
+   */
+  final def runCollect: ZIO[R, E, List[A]] = runQuery(ZSink.collectAll[A])
+  
+  /**
    * Converts the stream to a managed queue. After the managed queue is used,
    * the queue will never again produce values and should be discarded.
    *
