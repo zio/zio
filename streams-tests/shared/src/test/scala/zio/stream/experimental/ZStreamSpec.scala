@@ -155,6 +155,22 @@ object ZStreamSpec extends ZIOBaseSpec {
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Right(1), Left(Right(())), Left(Right(()))))))
       }
+      // suite("takeWhile")(
+      //   testM("happy path")(checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+      //     for {
+      //       streamTakeWhile <- s.takeWhile(p).runCollect.run
+      //       listTakeWhile   <- s.runCollect.map(_.takeWhile(p)).run
+      //     } yield assert(listTakeWhile.succeeded)(isTrue) implies assert(streamTakeWhile)(equalTo(listTakeWhile))
+      //   }),
+      //   testM("short circuits")(
+      //     assertM(
+      //       (ZStream.succeedNow(1) ++ Stream.failNow("Ouch"))
+      //         .takeWhile(_ => false)
+      //         .runDrain
+      //         .either
+      //     )(isRight(isUnit))
+      //   )
+      // )
     ),
     suite("Constructors")(
       suite("bracket")(
@@ -233,9 +249,9 @@ object ZStreamSpec extends ZIOBaseSpec {
             .map(assert(_)(equalTo(List(Right(i), Left(Right(())), Left(Right(()))))))
         })
       ),
-      // testM("Stream.iterate")(
-      //   assertM(Stream.iterate(1)(_ + 1).take(10).runCollect)(equalTo((1 to 10).toList))
-      // ),
+      testM("iterate")(
+        assertM(ZStream.iterate(1)(_ + 1).take(10).runCollect)(equalTo((1 to 10).toList))
+      ),
       suite("managed")(
         testM("success") {
           for {
