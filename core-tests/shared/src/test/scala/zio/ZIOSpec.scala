@@ -1210,6 +1210,14 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
+    suite("provideCustomLayer")(
+      testM("provides the part of the environment that is not part of the `ZEnv`") {
+        val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
+        val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
+        val zio2: ZIO[ZEnv, Nothing, Unit]              = zio.provideCustomLayer(loggingLayer)
+        assertM(zio2)(anything)
+      }
+    ),
     suite("provideSomeLayer")(
       testM("can split environment into two parts") {
         val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
@@ -3032,4 +3040,11 @@ object ZIOSpec extends ZIOBaseSpec {
       } yield v1 + v2
 
   def AsyncUnit[E] = IO.effectAsync[E, Unit](_(IO.unit))
+
+  type Logging = Has[Logging.Service]
+
+  object Logging {
+    trait Service
+    val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
+  }
 }

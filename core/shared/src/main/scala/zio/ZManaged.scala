@@ -644,6 +644,23 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     provideSome(_ => r)
 
   /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a managed effect that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+    layer: ZLayer[ZEnv, E1, R1]
+  )(implicit ev: ZEnv with R1 <:< R, tagged: Tagged[R1]): ZManaged[ZEnv, E1, A] =
+    provideSomeLayer[ZEnv](layer)
+
+  /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
   def provideLayer[E1 >: E, R0, R1 <: Has[_]](
