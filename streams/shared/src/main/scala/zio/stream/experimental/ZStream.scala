@@ -504,16 +504,13 @@ object ZStream extends Serializable {
    */
   def iterate[A](a: A)(f: A => A): UStream[A] =
     ZStream {
-      Managed.effectTotal {
-        var currA = a
-        Control(
-          ZIO.effectTotal {
-            val ret = currA
-            currA = f(currA)
-            ret
-          },
-          Command.noop
-        )
+      Managed.fromEffect {
+        Ref.make(a).map { currA =>
+          Control(
+            currA.modify(a => f(a) -> a),
+            Command.noop
+          )
+        }
       }
     }
 
