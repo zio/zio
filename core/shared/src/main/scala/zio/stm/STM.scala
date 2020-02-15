@@ -82,6 +82,12 @@ object STM {
     ZSTM.filter(as)(f)
 
   /**
+   * @see See [[zio.stm.ZSTM.flatten]]
+   */
+  def flatten[E, A](task: STM[E, STM[E, A]]): STM[E, A] =
+    ZSTM.flatten(task)
+
+  /**
    * @see See [[zio.stm.ZSTM.foldLeft]]
    */
   def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => STM[E, S]): STM[E, S] =
