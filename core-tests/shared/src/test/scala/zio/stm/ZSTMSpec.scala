@@ -153,6 +153,17 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("flatMapError to flatMap from one error to another") {
         assertM(STM.failNow(-1).flatMapError(s => STM.succeedNow(s"log: $s")).commit.run)(fails(equalTo("log: -1")))
       },
+      testM("flatten") {
+        checkM(Gen.alphaNumericString) { str =>
+          val tx =
+            for {
+              flatten1 <- STM.succeedNow(STM.succeedNow(str)).flatten
+              flatten2 <- STM.flatten(STM.succeedNow(STM.succeedNow(str)))
+            } yield flatten1 == flatten2
+
+          assertM(tx.commit)(isTrue)
+        }
+      },
       suite("flattenErrorOption")(
         testM("with an existing error and return it") {
           assertM(STM.failNow(Some("oh no!")).flattenErrorOption("default error").commit.run)(fails(equalTo("oh no!")))
