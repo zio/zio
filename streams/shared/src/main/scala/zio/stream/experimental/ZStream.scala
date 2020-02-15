@@ -507,7 +507,7 @@ object ZStream extends Serializable {
       Managed.fromEffect {
         Ref.make(a).map { currA =>
           Control(
-            currA.modify(a => f(a) -> a),
+            currA.modify(a => a -> f(a)),
             Command.noop
           )
         }
