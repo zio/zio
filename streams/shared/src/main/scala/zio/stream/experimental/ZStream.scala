@@ -141,11 +141,11 @@ class ZStream[-R, +E, -M, +B, +A](
     }
 
   /**
-   * Maps the elements of this stream using a ''pure'' function.
+   * Maps the end-of-stream marker using a ''pure'' function.
    *
-   * @tparam C the value type of the new stream
+   * @tparam C the value type of the new marker
    * @param f the ''pure'' transformation function
-   * @return a stream of transformed values
+   * @return a stream with a transformed marker
    */
   def mapMarker[C](f: B => C): ZStream[R, E, M, C, A] =
     ZStream {
