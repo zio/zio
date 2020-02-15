@@ -296,7 +296,9 @@ class ZStream[-R, +E, -M, +B, +A](
           if (_)
             Pull.end(None)
           else
-            control.pull.mapError(_.map(Some(_))).flatMap(a => if (pred(a)) Pull.emit(a) else done.set(true) *> Pull.end(None))
+            control.pull
+              .mapError(_.map(Some(_)))
+              .flatMap(a => if (pred(a)) Pull.emit(a) else done.set(true) *> Pull.end(None))
         }
       } yield Control(pull, control.command)
     }
@@ -365,8 +367,8 @@ object ZStream extends Serializable {
   def apply[R, E, M, B, A](process: ZManaged[R, Nothing, Control[R, E, M, B, A]]): ZStream[R, E, M, B, A] =
     new ZStream(process)
 
-    /**
-     * Creates a stream from an effect and a finalizer. The finalizer will run
+  /**
+   * Creates a stream from an effect and a finalizer. The finalizer will run
    * once the stream consumption has ended.
    *
    * @tparam R the environment required by the effects
@@ -397,7 +399,7 @@ object ZStream extends Serializable {
 
   /**
    * The stream that always dies with the `ex`.
-   * 
+   *
    * @param ex The exception that kills the stream
    * @return a stream that dies with an exception
    */
@@ -406,7 +408,7 @@ object ZStream extends Serializable {
 
   /**
    * The stream that always dies with an exception described by `msg`.
-   * 
+   *
    * @param msg The message to feed the runtime exception
    * @return a stream that dies with a runtime exception
    */
@@ -469,7 +471,7 @@ object ZStream extends Serializable {
 
   /**
    * The stream that always halts with `cause`.
-   * 
+   *
    * @tparam The error type
    * @param the cause for halting the stream
    * @return a stream that is halted
@@ -485,7 +487,7 @@ object ZStream extends Serializable {
       Managed.effectTotal {
         var currA = a
         Control(
-          ZIO.effectTotal { 
+          ZIO.effectTotal {
             val ret = currA
             currA = f(currA)
             ret
@@ -532,7 +534,7 @@ object ZStream extends Serializable {
 
   /**
    * Constructs a stream from a range of integers (lower bound included, upper bound not included)
-   * 
+   *
    * @param min the lower bound
    * @param max the upper bound
    */
