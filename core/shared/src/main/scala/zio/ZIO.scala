@@ -2867,7 +2867,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def mergeAll[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeedNow[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
+    in.foldLeft[ZIO[R, E, B]](succeedNow[B](zero))((acc, a) => acc.zipWith(a)(f))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.

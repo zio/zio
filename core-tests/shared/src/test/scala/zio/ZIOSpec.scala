@@ -938,6 +938,26 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(a)(equalTo(b))
       }
     ),
+    suite("mergeAll")(
+      testM("return zero element on empty input") {
+        val zeroElement = 42
+        val nonZero     = 43
+        UIO.mergeAll(Nil)(zeroElement)((_, _) => nonZero).map {
+          assert(_)(equalTo(zeroElement))
+        }
+      },
+      testM("merge list using function") {
+        val effects = List(3, 5, 7).map(UIO.succeedNow)
+        UIO.mergeAll(effects)(zero = 1)(_ + _).map {
+          assert(_)(equalTo(1 + 3 + 5 + 7))
+        }
+      },
+      testM("return error if it exists in list") {
+        val effects = List(UIO.unit, ZIO.failNow(1))
+        val merged  = ZIO.mergeAll(effects)(zero = ())((_, _) => ())
+        assertM(merged.run)(fails(equalTo(1)))
+      }
+    ),
     suite("mergeAllPar")(
       testM("return zero element on empty input") {
         val zeroElement = 42
