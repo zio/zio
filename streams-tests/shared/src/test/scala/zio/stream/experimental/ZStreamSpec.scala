@@ -286,11 +286,11 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(fin)(isTrue) && assert(pulls)(
             equalTo(List(Left(Left("Ouch")), Left(Right(())), Left(Right(()))))
           )
-        },
-        testM("range") {
-          assertM(ZStream.range(0, 10).runCollect)(equalTo(Range(0, 10).toList))
         }
-      )
+      ),
+      testM("range") {
+        assertM(ZStream.range(0, 10).runCollect)(equalTo(Range(0, 10).toList))
+      }
       // suite("take")(
       // testM("take")(checkM(streamOfBytes, Gen.anyInt) { (s: Stream[String, Byte], n: Int) =>
       //   for {
