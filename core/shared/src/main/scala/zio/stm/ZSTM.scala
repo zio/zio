@@ -1116,6 +1116,14 @@ object ZSTM {
     ZSTM.foreach(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
+   * Reduces an `Iterable[ZSTM]` to a single `ZSTM`, working sequentially.
+   */
+  def reduceAll[R, R1 <: R, E, A](a: ZSTM[R, E, A], as: Iterable[ZSTM[R1, E, A]])(
+    f: (A, A) => A
+  ): ZSTM[R1, E, A] =
+    as.foldLeft[ZSTM[R1, E, A]](a)((l, r) => l.zipWith(r)(f))
+
+  /**
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */

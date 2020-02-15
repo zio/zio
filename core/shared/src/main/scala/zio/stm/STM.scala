@@ -201,6 +201,13 @@ object STM {
     ZSTM.partition(in)(f)
 
   /**
+   * @see See [[zio.stm.ZSTM.reduceAll]]
+   */
+  def reduceAll[E, A](a: STM[E, A], as: Iterable[STM[E, A]])(
+    f: (A, A) => A
+  ): STM[E, A] = ZSTM.reduceAll(a, as)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.retry]]
    */
   val retry: STM[Nothing, Nothing] =
