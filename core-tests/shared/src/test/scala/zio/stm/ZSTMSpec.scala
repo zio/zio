@@ -936,16 +936,24 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(isTrue)
       }
     ),
-    suite("ZSTM mergeAll")(
-      testM("mergeAll") {
-        val tx = ZSTM.mergeAll(List.fill(5)(ZSTM.succeedNow("n")))(0) { (b, a) =>
-          b + a.length
+    suite("mergeAll")(
+      testM("return zero element on empty input") {
+        val zeroElement = 42
+        val nonZero     = 43
+        STM.mergeAll(Nil)(zeroElement)((_, _) => nonZero).commit.map {
+          assert(_)(equalTo(zeroElement))
         }
-        assertM(tx.commit)(equalTo(5))
       },
-      testM("mergeAllEmpty") {
-        val tx = ZSTM.mergeAll(List.empty[ZSTM[Any, Int, Int]])(0)(_ + _)
-        assertM(tx.commit)(equalTo(0))
+      testM("merge list using function") {
+        val effects = List(3, 5, 7).map(STM.succeedNow)
+        STM.mergeAll(effects)(zero = 1)(_ + _).commit.map {
+          assert(_)(equalTo(1 + 3 + 5 + 7))
+        }
+      },
+      testM("return error if it exists in list") {
+        val effects = List(STM.unit, STM.failNow(1))
+        val merged  = STM.mergeAll(effects)(zero = ())((_, _) => ())
+        assertM(merged.commit.run)(fails(equalTo(1)))
       }
     ),
     suite("when combinators")(
