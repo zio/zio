@@ -10,6 +10,9 @@ class ZStream[-R, +E, -M, +B, +A](
   import ZStream.Control
   import ZStream.Pull
 
+  final def asMarker[C](c: => C): ZStream[R, E, M, C, A] =
+    mapMarker(_ => c)
+
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a queue.
@@ -132,6 +135,23 @@ class ZStream[-R, +E, -M, +B, +A](
       self.process.map { control =>
         Control(
           control.pull.map(f),
+          control.command
+        )
+      }
+    }
+
+  /**
+   * Maps the elements of this stream using a ''pure'' function.
+   *
+   * @tparam C the value type of the new stream
+   * @param f the ''pure'' transformation function
+   * @return a stream of transformed values
+   */
+  def mapMarker[C](f: B => C): ZStream[R, E, M, C, A] =
+    ZStream {
+      self.process.map { control =>
+        Control(
+          control.pull.mapError(_.map(f)),
           control.command
         )
       }
@@ -538,8 +558,8 @@ object ZStream extends Serializable {
    * @param min the lower bound
    * @param max the upper bound
    */
-  def range(min: Int, max: Int): ZStream[Any, Nothing, Any, Option[Unit], Int] =
-    iterate(min)(_ + 1).takeWhile(_ < max)
+  def range(min: Int, max: Int): UStream[Int] =
+    iterate(min)(_ + 1).takeWhile(_ < max).asMarker(())
 
   /**
    * Creates a single-valued pure stream
