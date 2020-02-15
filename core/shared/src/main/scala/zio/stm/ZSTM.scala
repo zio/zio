@@ -1086,6 +1086,14 @@ object ZSTM {
   val none: STM[Nothing, Option[Nothing]] = succeedNow(None)
 
   /**
+   * Merges an `Iterable[ZSTM]` to a single ZSTM, working sequentially.
+   */
+  def mergeAll[R, E, A, B](
+    in: Iterable[ZSTM[R, E, A]]
+  )(zero: B)(f: (B, A) => B): ZSTM[R, E, B] =
+    in.foldLeft[ZSTM[R, E, B]](succeedNow(zero))((acc, a) => acc.zipWith(a)(f))
+
+  /**
    * Creates an `STM` value from a partial (but pure) function.
    */
   def partial[A](a: => A): STM[Throwable, A] = fromTry(Try(a))
