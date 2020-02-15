@@ -2080,6 +2080,23 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     ZStream(self.process.provide(r).map(_.provide(r)))
 
   /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a stream that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+    layer: ZLayer[ZEnv, E1, R1]
+  )(implicit ev: ZEnv with R1 <:< R, tagged: Tagged[R1]): ZStream[ZEnv, E1, A] =
+    provideSomeLayer[ZEnv](layer)
+
+  /**
    * An effectual version of `provide`, useful when the act of provision
    * requires an effect.
    */
