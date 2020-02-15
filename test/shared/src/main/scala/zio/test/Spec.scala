@@ -16,9 +16,9 @@
 
 package zio.test
 
-import Spec._
-
 import zio._
+import zio.test.Spec._
+import zio.test.environment.TestEnvironment
 
 /**
  * A `Spec[R, E, T]` is the backbone of _ZIO Test_. Every spec is either a
@@ -301,6 +301,42 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     provideM(ZIO.succeedNow(r))
 
   /**
+   * Provides each test with the part of the environment that is not part of
+   * the `TestEnvironment`, leaving a spec that only depends on the
+   * `TestEnvironment`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   *
+   * val spec2 = spec.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+    layer: ZLayer[TestEnvironment, E1, R1]
+  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tagged[R1]): Spec[TestEnvironment, E1, T] =
+    provideSomeLayer[TestEnvironment](layer)
+
+  /**
+   * Provides all tests with a shared version of the part of the environment
+   * that is not part of the `TestEnvironment`, leaving a spec that only
+   * depends on the `TestEnvironment`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   *
+   * val spec2 = spec.provideCustomLayerShared(loggingLayer)
+   * }}}
+   */
+  def provideCustomLayerShared[E1 >: E, R1 <: Has[_]](
+    layer: ZLayer[TestEnvironment, E1, R1]
+  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tagged[R1]): Spec[TestEnvironment, E1, T] =
+    provideSomeLayerShared[TestEnvironment](layer)
+
+  /**
    * Provides a layer to the spec, translating it up a level.
    */
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
@@ -374,9 +410,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val spec: ZIO[Clock with Random, Nothing, Unit] = ???
+   * val spec: ZSpec[Clock with Random, Nothing] = ???
    *
-   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
+   * val spec2 = spec.provideSomeLayerShared[Random](clockLayer)
    * }}}
    */
   final def provideSomeLayerShared[R0 <: Has[_]]: Spec.ProvideSomeLayerShared[R0, R, E, T] =

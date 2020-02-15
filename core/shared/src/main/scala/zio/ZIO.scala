@@ -937,6 +937,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provide(r: R)(implicit ev: NeedsEnv[R]): IO[E, A] = ZIO.provide(r)(self)
 
   /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving an effect that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val zio: ZIO[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val zio2 = zio.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  final def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+    layer: ZLayer[ZEnv, E1, R1]
+  )(implicit ev: ZEnv with R1 <:< R, tagged: Tagged[R1]): ZIO[ZEnv, E1, A] =
+    provideSomeLayer[ZEnv](layer)
+
+  /**
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](

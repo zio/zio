@@ -3,6 +3,7 @@ package zio.test
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
+import zio.test.environment.TestEnvironment
 import zio.{ Has, Ref, UIO, ZIO, ZLayer, ZManaged }
 
 object SpecSpec extends ZIOBaseSpec {
@@ -84,6 +85,14 @@ object SpecSpec extends ZIOBaseSpec {
           passed <- isSuccess(mixedSpec.only(rootSuite))
         } yield assert(passed)(isFalse)
       }
+    ),
+    suite("provideCustomLayer")(
+      testM("provides the part of the environment that is not part of the `TestEnvironment`") {
+        for {
+          _ <- ZIO.environment[TestEnvironment]
+          _ <- ZIO.environment[Module]
+        } yield assertCompletes
+      }.provideCustomLayer(layer)
     ),
     suite("provideLayer")(
       testM("does not have early initialization issues") {
