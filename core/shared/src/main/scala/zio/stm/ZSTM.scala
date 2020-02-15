@@ -1138,6 +1138,12 @@ object ZSTM {
     STM.succeed(stm).flatten
 
   /**
+   * Returns an effectful function that merely swaps the elements in a `Tuple2`.
+   */
+  def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, (B, A)] =
+    fromFunction[R, (B, A)](_.swap)
+
+  /**
    * Returns an `STM` effect that succeeds with `Unit`.
    */
   val unit: STM[Nothing, Unit] = succeedNow(())
@@ -1153,6 +1159,20 @@ object ZSTM {
    */
   def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     b.flatMap(b => if (b) stm.unit else unit)
+
+  /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  def _1[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, A] =
+    fromFunction[R, A](_._1)
+
+  /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  def _2[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, B] =
+    fromFunction[R, B](_._2)
 
   private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
     succeedNow(throw t)
