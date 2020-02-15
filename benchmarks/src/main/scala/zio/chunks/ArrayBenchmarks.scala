@@ -21,6 +21,19 @@ class ArrayBenchmarks {
   def fold(): Int = array.sum
 
   @Benchmark
+  def foldOptimized(): Int = {
+    var sum = 0
+    var i   = 0
+
+    while (i < size) {
+      sum += array(i)
+      i += 1
+    }
+
+    sum
+  }
+
+  @Benchmark
   def map(): Array[Int] = array.map(_ * 2)
 
   @Benchmark
