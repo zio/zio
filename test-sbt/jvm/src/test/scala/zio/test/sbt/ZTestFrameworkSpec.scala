@@ -122,8 +122,8 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map { task =>
-        val zTestTask = task.asInstanceOf[BaseTestTask]
+      .map(task => task.asInstanceOf[ZTestTask])
+      .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
@@ -143,8 +143,8 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map { task =>
-        val zTestTask = task.asInstanceOf[BaseTestTask]
+      .map(task => task.asInstanceOf[ZTestTask])
+      .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
@@ -171,7 +171,14 @@ object ZTestFrameworkSpec {
       .tasks(Array(taskDef))
       .head
 
-    task.execute(eventHandler, loggers.toArray)
+    @scala.annotation.tailrec
+    def doRun(tasks: Iterable[Task]): Unit = {
+      val more = tasks.flatMap(_.execute(eventHandler, loggers.toArray))
+      if (more.nonEmpty) {
+        doRun(more)
+      }
+    }
+    doRun(Iterable(task))
   }
 
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
