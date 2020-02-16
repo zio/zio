@@ -16,9 +16,6 @@
 
 package zio
 
-import izumi.fundamentals.reflection.Tags.Tag
-import izumi.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
-
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
