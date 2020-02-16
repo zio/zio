@@ -199,16 +199,16 @@ object STM {
     ZSTM.mapN(tx1, tx2, tx3, tx4)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.none]]
-   */
-  val none: STM[Nothing, Option[Nothing]] = ZSTM.none
-
-  /**
    * @see See [[zio.stm.ZSTM.mergeAll]]
    */
   def mergeAll[E, A, B](
     in: Iterable[STM[E, A]]
   )(zero: B)(f: (B, A) => B): STM[E, B] = ZSTM.mergeAll(in)(zero)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.none]]
+   */
+  val none: STM[Nothing, Option[Nothing]] = ZSTM.none
 
   /**
    * @see See [[zio.stm.ZSTM.partial]]
