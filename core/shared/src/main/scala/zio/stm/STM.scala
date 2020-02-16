@@ -223,6 +223,12 @@ object STM {
     ZSTM.partition(in)(f)
 
   /**
+   * @see See [[zio.stm.ZSTM.replicate]]
+   */
+  def replicate[E, A](n: Int)(tx: STM[E, A]): Iterable[STM[E, A]] =
+    ZSTM.replicate(n)(tx)
+
+  /**
    * @see See [[zio.stm.ZSTM.retry]]
    */
   val retry: STM[Nothing, Nothing] =
