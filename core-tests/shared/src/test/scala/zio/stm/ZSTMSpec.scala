@@ -303,6 +303,40 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("mapError to map from one error to another") {
         assertM(STM.failNow(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
       },
+      suite("mapN")(
+        testM("with Tuple2") {
+          checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
+            def f(i: Int, s: String): String = i.toString + s
+
+            val actual   = STM.mapN(STM.succeedNow(int), STM.succeedNow(str))(f)
+            val expected = f(int, str)
+
+            assertM(actual.commit)(equalTo(expected))
+          }
+        },
+        testM("with Tuple3") {
+          checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
+            def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
+
+            val actual   = STM.mapN(STM.succeedNow(int), STM.succeedNow(str1), STM.succeedNow(str2))(f)
+            val expected = f(int, str1, str2)
+
+            assertM(actual.commit)(equalTo(expected))
+          }
+        },
+        testM("with Tuple4") {
+          checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
+            (int: Int, str1: String, str2: String, str3: String) =>
+              def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
+
+              val actual =
+                STM.mapN(STM.succeedNow(int), STM.succeedNow(str1), STM.succeedNow(str2), STM.succeedNow(str3))(f)
+              val expected = f(int, str1, str2, str3)
+
+              assertM(actual.commit)(equalTo(expected))
+          }
+        }
+      ),
       suite("merge")(
         testM("on error with same type") {
           assertM(STM.fromEither[Int, Int](Left(1)).merge.commit)(equalTo(1))
@@ -476,6 +510,20 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("returns failure ignoring value") {
           val tx = ZSTM.succeedNow(1).rejectM[Any, String] { case v if v != 0 => ZSTM.succeedNow("Partial failed!") }
           assertM(tx.commit.run)(fails(equalTo("Partial failed!")))
+        }
+      ),
+      suite("replicate")(
+        testM("zero") {
+          val list: Iterable[STM[Nothing, Int]] = STM.replicate(0)(STM.succeedNow(12))
+          assertM(STM.collectAll(list).commit)(equalTo(List.empty))
+        },
+        testM("negative") {
+          val list: Iterable[STM[Nothing, Int]] = STM.replicate(-2)(STM.succeedNow(12))
+          assertM(STM.collectAll(list).commit)(equalTo(List.empty))
+        },
+        testM("positive") {
+          val list: Iterable[STM[Nothing, Int]] = STM.replicate(2)(STM.succeedNow(12))
+          assertM(STM.collectAll(list).commit)(equalTo(List(12, 12)))
         }
       ),
       suite("right")(

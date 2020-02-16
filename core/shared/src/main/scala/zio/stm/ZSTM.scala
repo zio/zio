@@ -1089,9 +1089,38 @@ object ZSTM {
     else ZSTM.unit
 
   /**
-   * Returns an effect wth the empty value.
+   * Sequentially zips the specified effects using the specified combiner
+   * function.
    */
-  val none: STM[Nothing, Option[Nothing]] = succeedNow(None)
+  def mapN[R, E, A, B, C](tx1: ZSTM[R, E, A], tx2: ZSTM[R, E, B])(f: (A, B) => C): ZSTM[R, E, C] =
+    tx1.zipWith(tx2)(f)
+
+  /**
+   * Sequentially zips the specified effects using the specified combiner
+   * function.
+   */
+  def mapN[R, E, A, B, C, D](tx1: ZSTM[R, E, A], tx2: ZSTM[R, E, B], tx3: ZSTM[R, E, C])(
+    f: (A, B, C) => D
+  ): ZSTM[R, E, D] =
+    for {
+      a <- tx1
+      b <- tx2
+      c <- tx3
+    } yield f(a, b, c)
+
+  /**
+   * Sequentially zips the specified effects using the specified combiner
+   * function.
+   */
+  def mapN[R, E, A, B, C, D, F](tx1: ZSTM[R, E, A], tx2: ZSTM[R, E, B], tx3: ZSTM[R, E, C], tx4: ZSTM[R, E, D])(
+    f: (A, B, C, D) => F
+  ): ZSTM[R, E, F] =
+    for {
+      a <- tx1
+      b <- tx2
+      c <- tx3
+      d <- tx4
+    } yield f(a, b, c, d)
 
   /**
    * Merges an `Iterable[ZSTM]` to a single ZSTM, working sequentially.
@@ -1100,6 +1129,11 @@ object ZSTM {
     in: Iterable[ZSTM[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZSTM[R, E, B] =
     in.foldLeft[ZSTM[R, E, B]](succeedNow(zero))((acc, a) => acc.zipWith(a)(f))
+
+  /**
+   * Returns an effect wth the empty value.
+   */
+  val none: STM[Nothing, Option[Nothing]] = succeedNow(None)
 
   /**
    * Creates an `STM` value from a partial (but pure) function.
@@ -1122,6 +1156,15 @@ object ZSTM {
     f: (A, A) => A
   ): ZSTM[R1, E, A] =
     as.foldLeft[ZSTM[R1, E, A]](a)((l, r) => l.zipWith(r)(f))
+
+  /**
+   * Replicates the given effect n times.
+   * If 0 or negative numbers are given, an empty `Iterable` will return.
+   */
+  def replicate[R, E, A](n: Int)(tx: ZSTM[R, E, A]): Iterable[ZSTM[R, E, A]] =
+    new Iterable[ZSTM[R, E, A]] {
+      override def iterator: Iterator[ZSTM[R, E, A]] = Iterator.range(0, n).map(_ => tx)
+    }
 
   /**
    * Abort and retry the whole transaction when any of the underlying
