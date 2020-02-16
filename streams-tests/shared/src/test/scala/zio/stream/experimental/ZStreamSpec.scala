@@ -300,7 +300,7 @@ object ZStreamSpec extends ZIOBaseSpec {
       suite("fromIterator")(
         testM("success")(checkM(Gen.listOf(Gen.anyInt)) { (list: List[Int]) =>
           ZStream
-            .fromIterator(list.iterator)
+            .fromIterator(ZIO.succeed(list.iterator))
             .process
             .use(nPulls(_, list.size + 2))
             .map(
@@ -314,7 +314,14 @@ object ZStreamSpec extends ZIOBaseSpec {
                 )
               )
             )
-        })
+        }),
+        testM("failure") {
+          ZStream
+            .fromIterator(IO.fail("Ouch"))
+            .process
+            .use(nPulls(_, 3))
+            .map(assert(_)(equalTo(List(Left(Left("Ouch")), Left(Right(())), Left(Right(()))))))
+        }
       )
       // suite("take")(
       // testM("take")(checkM(streamOfBytes, Gen.anyInt) { (s: Stream[String, Byte], n: Int) =>

@@ -458,35 +458,36 @@ object ZStream extends Serializable {
    * Creates a stream from an iterable collection of values
    *
    * @tparam A the iterable value type
-   * @return a stream which emits values from iterable
+   * @param as a iterable collection of values
+   * @return a stream which emits values from iterable collection
    */
   def fromIterable[A](as: => Iterable[A]): ZStream[Any, Nothing, Any, Unit, A] =
-    ZStream {
-      Managed.effectTotal {
-        Control(
-          IO.succeedNow(as.iterator).flatMap(iter => if (iter.hasNext) IO.succeed(iter.next()) else Pull.endUnit),
-          Command.noop
-        )
-      }
-    }
+    fromChunk(Chunk.fromIterable(as))
 
   /**
-   * Creates a stream from an iterator
+   * Creates a stream from an effect that produces iterator
    *
+   * @tparam R the environment type
+   * @tparam E the error type
    * @tparam A the value type of elements produced by iterator
+   * @param iterator effect that produces iterator
    * @return a stream which emits values produced by iterator
    */
-  def fromIterator[A](iterator: => Iterator[A]): ZStream[Any, Nothing, Any, Unit, A] =
-    ZStream {
-      Managed.effectTotal {
-        Control(
-          IO.succeedNow(iterator).flatMap(iter => if (iter.hasNext) IO.succeed(iter.next()) else Pull.endUnit),
-          Command.noop
-        )
+  def fromIterator[R, E, A](iterator: ZIO[R, E, Iterator[A]]): ZStream[R, E, Any, Unit, A] =
+    fromEffect(iterator).flatMap(iter =>
+      ZStream {
+        Managed.effectTotal {
+          Control(
+            IO.effectSuspendTotal {
+              if (iter.hasNext) UIO.succeed(iter.next()) else Pull.endUnit
+            },
+            Command.noop
+          )
+        }
       }
-    }
+    )
 
-   /**
+  /**
    * Creates a single-valued pure stream
    *
    * @tparam A the value type
