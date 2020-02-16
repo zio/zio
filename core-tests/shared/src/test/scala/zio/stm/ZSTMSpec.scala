@@ -1035,6 +1035,16 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(merged.commit.run)(fails(equalTo(1)))
       }
     ),
+    suite("ZSTM reduceAll")(
+      testM("reduceAll") {
+        val tx = ZSTM.reduceAll(ZSTM.succeedNow(1), List(2, 3, 4).map(ZSTM.succeedNow))(_ + _)
+        assertM(tx.commit)(equalTo(10))
+      },
+      testM("reduceAll Empty List") {
+        val tx = ZSTM.reduceAll(ZSTM.succeedNow(1), List.empty)(_ + _)
+        assertM(tx.commit)(equalTo(1))
+      }
+    ),
     suite("when combinators")(
       testM("when true") {
         for {
