@@ -8,7 +8,6 @@ import BuildInfoKeys._
 import scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb
 
 object BuildHelper {
-  val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.3" % "test")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -217,7 +216,6 @@ object BuildHelper {
     crossScalaVersions := Seq("2.12.10", "2.13.1", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
-    libraryDependencies ++= testDeps,
     libraryDependencies ++= {
       if (isDotty.value)
         Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.4.4" % Provided)
