@@ -59,7 +59,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * second part to that effect.
    */
   def ***[R1, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[(R, R1), E1, (A, B)] =
-    (ZManaged._1[E1, R, R1] >>> self) &&& (ZManaged._2[E1, R, R1] >>> that)
+    (ZManaged.first[E1, R, R1] >>> self) &&& (ZManaged.second[E1, R, R1] >>> that)
 
   /**
    * Symbolic alias for zipRight
@@ -1128,18 +1128,6 @@ object ZManaged {
   }
 
   /**
-   * Returns an effectful function that extracts out the first element of a
-   * tuple.
-   */
-  def _1[E, A, B]: ZManaged[(A, B), E, A] = fromFunction(_._1)
-
-  /**
-   * Returns an effectful function that extracts out the second element of a
-   * tuple.
-   */
-  def _2[E, A, B]: ZManaged[(A, B), E, B] = fromFunction(_._2)
-
-  /**
    * Submerges the error case of an `Either` into the `ZManaged`. The inverse
    * operation of `ZManaged.either`.
    */
@@ -1270,6 +1258,12 @@ object ZManaged {
         )
       } yield reservation
     }
+
+  /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  def first[E, A, B]: ZManaged[(A, B), E, A] = fromFunction(_._1)
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
@@ -1829,6 +1823,12 @@ object ZManaged {
         )
       }
     }
+
+  /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  def second[E, A, B]: ZManaged[(A, B), E, B] = fromFunction(_._2)
 
   /**
    *  Alias for [[ZManaged.collectAll]]

@@ -87,7 +87,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * second part to that effect.
    */
   def ***[R1, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[(R, R1), E1, (A, B)] =
-    (ZSTM._1[E1, R, R1] >>> self) &&& (ZSTM._2[E1, R, R1] >>> that)
+    (ZSTM.first[E1, R, R1] >>> self) &&& (ZSTM.second[E1, R, R1] >>> that)
 
   /**
    * Sequentially zips this value with the specified one, discarding the
@@ -931,6 +931,13 @@ object ZSTM {
     }
 
   /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  def first[E, A, B]: ZSTM[(A, B), E, A] =
+    fromFunction[(A, B), A](_._1)
+
+  /**
    * Returns an effect that first executes the outer effect, and then executes
    * the inner effect, returning the value from the inner effect, and effectively
    * flattening a nested effect.
@@ -1135,6 +1142,13 @@ object ZSTM {
     succeed(Right(a))
 
   /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  def second[E, A, B]: ZSTM[(A, B), E, B] =
+    fromFunction[(A, B), B](_._2)
+
+  /**
    * Returns an effect with the optional value.
    */
   def some[A](a: => A): STM[Nothing, Option[A]] =
@@ -1174,20 +1188,6 @@ object ZSTM {
    */
   def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     b.flatMap(b => if (b) stm.unit else unit)
-
-  /**
-   * Returns an effectful function that extracts out the first element of a
-   * tuple.
-   */
-  def _1[E, A, B]: ZSTM[(A, B), E, A] =
-    fromFunction[(A, B), A](_._1)
-
-  /**
-   * Returns an effectful function that extracts out the second element of a
-   * tuple.
-   */
-  def _2[E, A, B]: ZSTM[(A, B), E, B] =
-    fromFunction[(A, B), B](_._2)
 
   private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
     succeedNow(throw t)

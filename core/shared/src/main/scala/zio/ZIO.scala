@@ -92,7 +92,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * second part to that effect.
    */
   final def ***[R1, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[(R, R1), E1, (A, B)] =
-    (ZIO._1[E1, R, R1] >>> self) &&& (ZIO._2[E1, R, R1] >>> that)
+    (ZIO.first[E1, R, R1] >>> self) &&& (ZIO.second[E1, R, R1] >>> that)
 
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
@@ -2303,6 +2303,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  def first[E, A, B]: ZIO[(A, B), E, A] = fromFunction[(A, B), A](_._1)
+
+  /**
    * Returns an effect that races this effect with all the specified effects,
    * yielding the value of the first effect to succeed with a value.
    * Losers of the race will be interrupted immediately
@@ -3054,6 +3060,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     } yield Runtime(environment, platform)
 
   /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  def second[E, A, B]: ZIO[(A, B), E, B] = fromFunction[(A, B), B](_._2)
+
+  /**
    *  Alias for [[ZIO.collectAll]]
    */
   @deprecated("use collectAll", "1.0.0")
@@ -3272,18 +3284,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * overhead.
    */
   val yieldNow: UIO[Unit] = ZIO.Yield
-
-  /**
-   * Returns an effectful function that extracts out the first element of a
-   * tuple.
-   */
-  def _1[E, A, B]: ZIO[(A, B), E, A] = fromFunction[(A, B), A](_._1)
-
-  /**
-   * Returns an effectful function that extracts out the second element of a
-   * tuple.
-   */
-  def _2[E, A, B]: ZIO[(A, B), E, B] = fromFunction[(A, B), B](_._2)
 
   def apply[A](a: => A): Task[A] = effect(a)
 
