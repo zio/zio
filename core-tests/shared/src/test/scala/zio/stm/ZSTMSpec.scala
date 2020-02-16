@@ -478,20 +478,20 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(tx.commit.run)(fails(equalTo("Partial failed!")))
         }
       ),
-    suite("replicate")(
-      testM("zero") {
-        val list: Iterable[STM[Nothing, Int]] = STM.replicate(0)(STM.succeedNow(12))
-        assertM(STM.collectAll(list).commit)(equalTo(List.empty))
-      },
-      testM("negative") {
-        val list: Iterable[STM[Nothing, Int]] = STM.replicate(-2)(STM.succeedNow(12))
-        assertM(STM.collectAll(list).commit)(equalTo(List.empty))
-      },
-      testM("positive") {
-        val list: Iterable[STM[Nothing, Int]] = STM.replicate(2)(STM.succeedNow(12))
-        assertM(STM.collectAll(list).commit)(equalTo(List(12, 12)))
-      }
-    ),
+      suite("replicate")(
+        testM("zero") {
+          val list: Iterable[STM[Nothing, Int]] = STM.replicate(0)(STM.succeedNow(12))
+          assertM(STM.collectAll(list).commit)(equalTo(List.empty))
+        },
+        testM("negative") {
+          val list: Iterable[STM[Nothing, Int]] = STM.replicate(-2)(STM.succeedNow(12))
+          assertM(STM.collectAll(list).commit)(equalTo(List.empty))
+        },
+        testM("positive") {
+          val list: Iterable[STM[Nothing, Int]] = STM.replicate(2)(STM.succeedNow(12))
+          assertM(STM.collectAll(list).commit)(equalTo(List(12, 12)))
+        }
+      ),
       suite("right")(
         testM("on Right value") {
           assertM(STM.succeedNow(Right("Right")).right.commit)(equalTo("Right"))
