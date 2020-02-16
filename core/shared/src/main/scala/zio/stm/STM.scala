@@ -177,6 +177,28 @@ object STM {
     ZSTM.loop_(initial)(cont, inc)(body)
 
   /**
+   * @see See [[zio.stm.ZSTM.mapN]]
+   */
+  def mapN[E, A, B, C](tx1: STM[E, A], tx2: STM[E, B])(f: (A, B) => C): STM[E, C] =
+    ZSTM.mapN(tx1, tx2)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mapN]]
+   */
+  def mapN[E, A, B, C, D](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C])(
+    f: (A, B, C) => D
+  ): STM[E, D] =
+    ZSTM.mapN(tx1, tx2, tx3)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mapN]]
+   */
+  def mapN[E, A, B, C, D, F](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C], tx4: STM[E, D])(
+    f: (A, B, C, D) => F
+  ): STM[E, F] =
+    ZSTM.mapN(tx1, tx2, tx3, tx4)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.none]]
    */
   val none: STM[Nothing, Option[Nothing]] = ZSTM.none
