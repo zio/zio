@@ -1116,6 +1116,15 @@ object ZSTM {
     ZSTM.foreach(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
+   * Replicates the given effect n times.
+   * If 0 or negative numbers are given, an empty `Iterable` will return.
+   */
+  def replicate[R, E, A](n: Int)(tx: ZSTM[R, E, A]): Iterable[ZSTM[R, E, A]] =
+    new Iterable[ZSTM[R, E, A]] {
+      override def iterator: Iterator[ZSTM[R, E, A]] = Iterator.range(0, n).map(_ => tx)
+    }
+
+  /**
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
