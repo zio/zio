@@ -1128,7 +1128,7 @@ object ZSTM {
   def mergeAll[R, E, A, B](
     in: Iterable[ZSTM[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZSTM[R, E, B] =
-    in.foldLeft[ZSTM[R, E, B]](succeedNow(zero))((acc, a) => acc.zipWith(a)(f))
+    in.foldLeft[ZSTM[R, E, B]](succeedNow(zero))(_.zipWith(_)(f))
 
   /**
    * Returns an effect wth the empty value.
@@ -1148,6 +1148,14 @@ object ZSTM {
     in: Iterable[A]
   )(f: A => ZSTM[R, E, B])(implicit ev: CanFail[E]): ZSTM[R, Nothing, (List[E], List[B])] =
     ZSTM.foreach(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
+
+  /**
+   * Reduces an `Iterable[ZSTM]` to a single `ZSTM`, working sequentially.
+   */
+  def reduceAll[R, R1 <: R, E, A](a: ZSTM[R, E, A], as: Iterable[ZSTM[R1, E, A]])(
+    f: (A, A) => A
+  ): ZSTM[R1, E, A] =
+    as.foldLeft[ZSTM[R1, E, A]](a)(_.zipWith(_)(f))
 
   /**
    * Replicates the given effect n times.
