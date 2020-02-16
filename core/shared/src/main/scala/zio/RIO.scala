@@ -676,7 +676,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.swap]]
    */
-  def swap[R, A, B](implicit ev: R <:< (A, B)): RIO[R, (B, A)] =
+  def swap[A, B]: RIO[(A, B), (B, A)] =
     ZIO.swap
 
   /**
@@ -794,12 +794,12 @@ object RIO {
   /**
    * @see See [[zio.ZIO._1]]
    */
-  def _1[R, A, B](implicit ev: R <:< (A, B)): RIO[R, A] = ZIO._1
+  def _1[A, B]: RIO[(A, B), A] = ZIO._1
 
   /**
    * @see See [[zio.ZIO._2]]
    */
-  def _2[R, A, B](implicit ev: R <:< (A, B)): RIO[R, B] = ZIO._2
+  def _2[A, B]: RIO[(A, B), B] = ZIO._2
 
   private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
 

@@ -55,13 +55,62 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     zipPar(that).map(_._2)
 
   /**
-   * Symbolic alias for join
+   * Splits the environment, providing the first part to this effect and the
+   * second part to that effect.
    */
-  def |||[R1, E1 >: E, A1 >: A](that: ZManaged[R1, E1, A1]): ZManaged[Either[R, R1], E1, A1] =
+  def ***[R1, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[(R, R1), E1, (A, B)] =
+    (ZManaged._1[E1, R, R1] >>> self) &&& (ZManaged._2[E1, R, R1] >>> that)
+
+  /**
+   * Symbolic alias for zipRight
+   */
+  def *>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
+    flatMap(_ => that)
+
+  def +++[R1, B, E1 >: E](that: ZManaged[R1, E1, B]): ZManaged[Either[R, R1], E1, Either[A, B]] =
     for {
-      either <- ZManaged.environment[Either[R, R1]]
-      a1     <- either.fold(provide, that.provide)
-    } yield a1
+      e <- ZManaged.environment[Either[R, R1]]
+      r <- e.fold(map(Left(_)).provide(_), that.map(Right(_)).provide(_))
+    } yield r
+
+  /**
+   * Symbolic alias for zipParLeft
+   */
+  def <&[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] = zipPar(that).map(_._1)
+
+  /**
+   * Symbolic alias for zipPar
+   */
+  def <&>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+    zipWithPar(that)((_, _))
+
+  /**
+   * Symbolic alias for zipLeft.
+   */
+  def <*[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
+    flatMap(r => that.map(_ => r))
+
+  /**
+   * Symbolic alias for zip.
+   */
+  def <*>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+    zipWith(that)((_, _))
+
+  /**
+   * Symbolic alias for compose
+   */
+  def <<<[R1, E1 >: E](that: ZManaged[R1, E1, R]): ZManaged[R1, E1, A] =
+    for {
+      r1 <- ZManaged.environment[R1]
+      r  <- that.provide(r1)
+      a  <- provide(r)
+    } yield a
+
+  /**
+   * Operator alias for `orElse`.
+   */
+  def <>[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1])(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
+    orElse(that)
 
   /**
    * Symbolic alias for flatMap
@@ -80,55 +129,13 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     } yield a
 
   /**
-   * Symbolic alias for zipParLeft
+   * Symbolic alias for join
    */
-  def <&[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] = zipPar(that).map(_._1)
-
-  /**
-   * Symbolic alias for zipPar
-   */
-  def <&>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
-    zipWithPar(that)((_, _))
-
-  /**
-   * Operator alias for `orElse`.
-   */
-  def <>[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1])(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
-    orElse(that)
-
-  /**
-   * Symbolic alias for compose
-   */
-  def <<<[R1, E1 >: E](that: ZManaged[R1, E1, R]): ZManaged[R1, E1, A] =
+  def |||[R1, E1 >: E, A1 >: A](that: ZManaged[R1, E1, A1]): ZManaged[Either[R, R1], E1, A1] =
     for {
-      r1 <- ZManaged.environment[R1]
-      r  <- that.provide(r1)
-      a  <- provide(r)
-    } yield a
-
-  /**
-   * Symbolic alias for zipLeft.
-   */
-  def <*[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
-    flatMap(r => that.map(_ => r))
-
-  /**
-   * Symbolic alias for zip.
-   */
-  def <*>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
-    zipWith(that)((_, _))
-
-  def +++[R1, B, E1 >: E](that: ZManaged[R1, E1, B]): ZManaged[Either[R, R1], E1, Either[A, B]] =
-    for {
-      e <- ZManaged.environment[Either[R, R1]]
-      r <- e.fold(map(Left(_)).provide(_), that.map(Right(_)).provide(_))
-    } yield r
-
-  /**
-   * Symbolic alias for zipRight
-   */
-  def *>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
-    flatMap(_ => that)
+      either <- ZManaged.environment[Either[R, R1]]
+      a1     <- either.fold(provide, that.provide)
+    } yield a1
 
   /**
    * Submerges the error case of an `Either` into the `ZManaged`. The inverse
@@ -1124,13 +1131,13 @@ object ZManaged {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  def _1[R, E, A, B](implicit ev: R <:< (A, B)): ZManaged[R, E, A] = fromFunction(_._1)
+  def _1[E, A, B]: ZManaged[(A, B), E, A] = fromFunction(_._1)
 
   /**
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def _2[R, E, A, B](implicit ev: R <:< (A, B)): ZManaged[R, E, B] = fromFunction(_._2)
+  def _2[E, A, B]: ZManaged[(A, B), E, B] = fromFunction(_._2)
 
   /**
    * Submerges the error case of an `Either` into the `ZManaged`. The inverse
@@ -1859,7 +1866,7 @@ object ZManaged {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZManaged[R, E, (B, A)] = fromFunction(_.swap)
+  def swap[E, A, B]: ZManaged[(A, B), E, (B, A)] = fromFunction(_.swap)
 
   /**
    * Returns a ZManaged value that represents a managed resource that can be safely

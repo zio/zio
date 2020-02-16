@@ -594,7 +594,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.swap]]
    */
-  def swap[R, A, B](implicit ev: R <:< (A, B)): URIO[R, (B, A)] = ZIO.swap
+  def swap[A, B]: URIO[(A, B), (B, A)] = ZIO.swap
 
   /**
    * @see [[zio.ZIO.trace]]
@@ -699,12 +699,12 @@ object URIO {
   /**
    * @see [[zio.ZIO._1]]
    */
-  def _1[R, A, B](implicit ev: R <:< (A, B)): URIO[R, A] = ZIO._1
+  def _1[A, B]: URIO[(A, B), A] = ZIO._1
 
   /**
    * @see [[zio.ZIO._2]]
    */
-  def _2[R, A, B](implicit ev: R <:< (A, B)): URIO[R, B] = ZIO._2
+  def _2[A, B]: URIO[(A, B), B] = ZIO._2
 
   private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
 

@@ -17,6 +17,14 @@ import zio.test.environment.{ Live, TestClock }
 object ZIOSpec extends ZIOBaseSpec {
 
   def spec = suite("ZIOSpec")(
+    suite("***")(
+      testM("splits the environment") {
+        val zio1 = ZIO.fromFunction((n: Int) => n + 2)
+        val zio2 = ZIO.fromFunction((n: Int) => n * 3)
+        val zio3 = zio1 *** zio2
+        assertM(zio3.provide((4, 5)))(equalTo((6, 15)))
+      }
+    ),
     suite("absorbWith")(
       testM("on fail") {
         assertM(TaskExampleError.absorbWith(identity).run)(fails(equalTo(ExampleError)))
