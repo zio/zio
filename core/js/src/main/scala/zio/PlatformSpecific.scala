@@ -34,22 +34,12 @@ private[zio] trait PlatformSpecific {
       Clock.live ++ Console.live ++ System.live ++ Random.live
   }
 
-  type TaggedType[A] = Tag[A]
-  type TagType       = LightTypeTag
+  type TaggedType[A] = ScalaSpecific.TaggedType[A]
+  type TagType       = ScalaSpecific.TagType
 
-  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tag.tag
+  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = ScalaSpecific.taggedTagType(t)
 
-  private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
-    left <:< right
+  private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean = ScalaSpecific.taggedIsSubtype(left, right)
 
-  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] =
-    t.decompose.map { parent =>
-      parent.ref match {
-        case reference: LightTypeTagRef.AppliedNamedReference if reference.typeArgs.size == 1 =>
-          parent.typeArgs.head
-
-        case _ =>
-          parent
-      }
-    }
+  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] = ScalaSpecific.taggedGetHasServices(t)
 }
