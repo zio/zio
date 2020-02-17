@@ -16,8 +16,6 @@
 
 package zio.stm
 
-import zio.stm.ZSTM.{ suspend, unit }
-
 import scala.util.Try
 import zio.{ Fiber, IO }
 
