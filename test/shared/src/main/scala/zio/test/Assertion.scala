@@ -27,7 +27,8 @@ import zio.{ Cause, Exit, ZIO }
  */
 final class Assertion[-A] private (
   val render: Assertion.Render,
-  val run: (=> A) => AssertResult
+  val run: (=> A) => AssertResult,
+  val expected: Option[Any] = None
 ) extends ((=> A) => AssertResult) { self =>
   import zio.test.Assertion.Render._
 
@@ -85,6 +86,9 @@ final class Assertion[-A] private (
    */
   override def toString: String =
     render.toString
+
+  def withExpected(expected: Option[Any]): Assertion[A] =
+    new Assertion[A](render, run, expected)
 }
 
 object Assertion extends AssertionVariants {
