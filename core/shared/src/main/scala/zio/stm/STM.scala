@@ -16,8 +16,9 @@
 
 package zio.stm
 
-import scala.util.Try
+import zio.stm.ZSTM.{ suspend, unit }
 
+import scala.util.Try
 import zio.{ Fiber, IO }
 
 object STM {
@@ -275,6 +276,18 @@ object STM {
    * @see See [[zio.stm.ZSTM.when]]
    */
   def when[E](b: => Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenCase]]
+   */
+  def whenCase[E, A](a: => A)(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+    ZSTM.whenCase(a)(pf)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenCaseM]]
+   */
+  def whenCaseM[E, A](a: STM[E, A])(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+    ZSTM.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.stm.ZSTM.whenM]]
