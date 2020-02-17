@@ -461,7 +461,7 @@ object ZStream extends Serializable {
    * @param as a iterable collection of values
    * @return a stream which emits values from iterable collection
    */
-  def fromIterable[A](as: => Iterable[A]): ZStream[Any, Nothing, Any, Unit, A] =
+  def fromIterable[A](as: => Iterable[A]): UStream[A] =
     fromChunk(Chunk.fromIterable(as))
 
   /**
@@ -479,7 +479,7 @@ object ZStream extends Serializable {
         Managed.effectTotal {
           Control(
             IO.effectSuspendTotal {
-              if (iter.hasNext) UIO.succeed(iter.next()) else Pull.endUnit
+              if (iter.hasNext) UIO.succeedNow(iter.next()) else Pull.endUnit
             },
             Command.noop
           )
