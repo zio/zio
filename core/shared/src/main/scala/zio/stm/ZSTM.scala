@@ -1167,6 +1167,13 @@ object ZSTM {
     }
 
   /**
+   * Requires that the given `ZSTM[R, E, Option[A]]` contain a value. If there is no
+   * value, then the specified error will be raised.
+   */
+  def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
+    _.flatMap(_.fold[ZSTM[R, E, A]](failNow(error))(succeedNow))
+
+  /**
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
@@ -1236,6 +1243,18 @@ object ZSTM {
    */
   def when[R, E](b: => Boolean)(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     suspend(if (b) stm.unit else unit)
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
+   */
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
+    suspend(pf.applyOrElse(a, (_: A) => unit).unit)
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
+   */
+  def whenCaseM[R, E, A](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
+    a.flatMap(whenCase(_)(pf))
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects

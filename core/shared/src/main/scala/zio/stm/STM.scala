@@ -236,6 +236,12 @@ object STM {
     ZSTM.replicate(n)(tx)
 
   /**
+   * @see See [[zio.stm.ZSTM.require]]
+   */
+  def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
+    ZSTM.require(error)
+
+  /**
    * @see See [[zio.stm.ZSTM.retry]]
    */
   val retry: STM[Nothing, Nothing] =
@@ -291,6 +297,18 @@ object STM {
    * @see See [[zio.stm.ZSTM.when]]
    */
   def when[E](b: => Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenCase]]
+   */
+  def whenCase[E, A](a: => A)(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+    ZSTM.whenCase(a)(pf)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenCaseM]]
+   */
+  def whenCaseM[E, A](a: STM[E, A])(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+    ZSTM.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.stm.ZSTM.whenM]]

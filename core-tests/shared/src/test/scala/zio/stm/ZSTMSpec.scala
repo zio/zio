@@ -1089,6 +1089,18 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(tx.commit.run)(fails(equalTo(List(2, 4, 6, 3, 5, 6))))
       }
     ),
+    suite("ZSTM require")(
+      testM("require successful") {
+        val opt = ZSTM.fromEither[Throwable, Option[Int]](Right(Some(1)))
+        val tx  = ZSTM.require[Any, Throwable, Int](ExampleError)
+        assertM(tx(opt).commit)(equalTo(1))
+      },
+      testM("reduceAll on None") {
+        val opt = ZSTM.fromEither[Throwable, Option[Int]](Right(None))
+        val tx  = ZSTM.require[Any, Throwable, Int](ExampleError)
+        assertM(tx(opt).commit.run)(fails(equalTo(ExampleError)))
+      }
+    ),
     suite("when combinators")(
       testM("when true") {
         for {
@@ -1101,6 +1113,26 @@ object ZSTMSpec extends ZIOBaseSpec {
           ref    <- TRef.make(false).commit
           result <- (STM.when(false)(ref.set(true)) *> ref.get).commit
         } yield assert(result)(equalTo(false))
+      },
+      testM("whenCase executes correct branch only") {
+        val tx = for {
+          ref  <- TRef.make(false)
+          _    <- ZSTM.whenCase(Option.empty[Int]) { case Some(_) => ref.set(true) }
+          res1 <- ref.get
+          _    <- ZSTM.whenCase(Some(0)) { case Some(_) => ref.set(true) }
+          res2 <- ref.get
+        } yield (res1, res2)
+        assertM(tx.commit)(equalTo((false, true)))
+      },
+      testM("whenCaseM executes condition effect and correct branch") {
+        val tx = for {
+          ref  <- TRef.make(false)
+          _    <- ZSTM.whenCaseM(ZSTM.succeedNow(Option.empty[Int])) { case Some(_) => ref.set(true) }
+          res1 <- ref.get
+          _    <- ZSTM.whenCaseM(ZSTM.succeedNow(Some(0))) { case Some(_) => ref.set(true) }
+          res2 <- ref.get
+        } yield (res1, res2)
+        assertM(tx.commit)(equalTo((false, true)))
       },
       testM("whenM true") {
         for {
