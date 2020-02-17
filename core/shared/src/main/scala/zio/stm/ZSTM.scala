@@ -1167,6 +1167,13 @@ object ZSTM {
     }
 
   /**
+   * Requires that the given `ZSTM[R, E, Option[A]]` contain a value. If there is no
+   * value, then the specified error will be raised.
+   */
+  def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
+    _.flatMap(_.fold[ZSTM[R, E, A]](failNow(error))(succeedNow))
+
+  /**
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */

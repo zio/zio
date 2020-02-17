@@ -236,6 +236,12 @@ object STM {
     ZSTM.replicate(n)(tx)
 
   /**
+   * @see See [[zio.stm.ZSTM.require]]
+   */
+  def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
+    ZSTM.require(error)
+
+  /**
    * @see See [[zio.stm.ZSTM.retry]]
    */
   val retry: STM[Nothing, Nothing] =
