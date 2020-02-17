@@ -1612,13 +1612,13 @@ object ZManaged {
    * Merges an `Iterable[IO]` to a single IO, working sequentially.
    */
   def mergeAll[R, E, A, B](in: Iterable[ZManaged[R, E, A]])(zero: B)(f: (B, A) => B): ZManaged[R, E, B] =
-    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeedNow(zero))((acc, a) => acc.zip(a).map(f.tupled))
+    in.foldLeft[ZManaged[R, E, B]](succeedNow(zero))(_.zipWith(_)(f))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
    */
   def mergeAllPar[R, E, A, B](in: Iterable[ZManaged[R, E, A]])(zero: B)(f: (B, A) => B): ZManaged[R, E, B] =
-    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeedNow(zero))((acc, a) => acc.zipPar(a).map(f.tupled))
+    in.foldLeft[ZManaged[R, E, B]](succeedNow(zero))(_.zipWithPar(_)(f))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
@@ -1659,9 +1659,7 @@ object ZManaged {
                             _    <- queue.offer((a, prom))
                           } yield prom
                         }
-                b <- proms.foldLeft[ZIO[R, E, B]](ZIO.succeedNow(zero)) { (acc, prom) =>
-                      acc.zip(prom.await).map(f.tupled)
-                    }
+                b <- proms.foldLeft[ZIO[R, E, B]](ZIO.succeedNow(zero))((acc, prom) => acc.zipWith(prom.await)(f))
               } yield b).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
@@ -1699,9 +1697,7 @@ object ZManaged {
   def reduceAll[R, E, A](a: ZManaged[R, E, A], as: Iterable[ZManaged[R, E, A]])(
     f: (A, A) => A
   ): ZManaged[R, E, A] =
-    as.foldLeft[ZManaged[R, E, A]](a) { (l, r) =>
-      l.zip(r).map(f.tupled)
-    }
+    as.foldLeft[ZManaged[R, E, A]](a)(_.zipWith(_)(f))
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.
@@ -1709,9 +1705,7 @@ object ZManaged {
   def reduceAllPar[R, E, A](a: ZManaged[R, E, A], as: Iterable[ZManaged[R, E, A]])(
     f: (A, A) => A
   ): ZManaged[R, E, A] =
-    as.foldLeft[ZManaged[R, E, A]](a) { (l, r) =>
-      l.zipPar(r).map(f.tupled)
-    }
+    as.foldLeft[ZManaged[R, E, A]](a)(_.zipWithPar(_)(f))
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.
@@ -1757,9 +1751,7 @@ object ZManaged {
                       .flatMap(res => finalizers.update(res.release :: _).as(res))
                       .flatMap(res => restore(res.acquire))
                   }
-                  result <- proms.foldLeft[ZIO[R, E, A]](zero) { (acc, a) =>
-                             acc.zip(a.await).map(f.tupled)
-                           }
+                  result <- proms.foldLeft[ZIO[R, E, A]](zero)((acc, a) => acc.zipWith(a.await)(f))
                 } yield result).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },

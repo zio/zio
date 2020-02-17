@@ -2544,7 +2544,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber.Synthetic[E, List[A]]] =
     as.foldRight[URIO[R, Fiber.Synthetic[E, List[A]]]](succeedNow(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
-      asFiberIO.zip(aIO.fork).map {
+      asFiberIO.zipWith(aIO.fork) {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
       }
@@ -2884,7 +2884,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def mergeAll[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeedNow[B](zero))((acc, a) => acc.zipWith(a)(f))
+    in.foldLeft[ZIO[R, E, B]](succeedNow(zero))(_.zipWith(_)(f))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
@@ -2980,9 +2980,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def reduceAll[R, R1 <: R, E, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
   ): ZIO[R1, E, A] =
-    as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
-      l.zip(r).map(f.tupled)
-    }
+    as.foldLeft[ZIO[R1, E, A]](a)(_.zipWith(_)(f))
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.
