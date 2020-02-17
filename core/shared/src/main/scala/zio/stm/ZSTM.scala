@@ -77,17 +77,17 @@ final class ZSTM[-R, +E, +A] private[stm] (
   import ZSTM.internal.{ prepareResetJournal, TExit }
 
   /**
-   * Sequentially zips this value with the specified one.
+   * Alias for `<*>` and `zip`.
    */
-  def <*>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
-    self zip that
+  def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
+    self <*> that
 
   /**
-   * Sequentially zips this value with the specified one, discarding the
-   * second element of the tuple.
+   * Splits the environment, providing the first part to this effect and the
+   * second part to that effect.
    */
-  def <*[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, A] =
-    self zipLeft that
+  def ***[R1, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[(R, R1), E1, (A, B)] =
+    (ZSTM.first[E1, R, R1] >>> self) &&& (ZSTM.second[E1, R, R1] >>> that)
 
   /**
    * Sequentially zips this value with the specified one, discarding the
@@ -97,23 +97,24 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self zipRight that
 
   /**
-   * Feeds the value produced by this effect to the specified function,
-   * and then runs the returned effect as well to produce its results.
+   * Depending on provided environment, returns either this one or the other
+   * effect lifted in `Left` or `Right`, respectively.
    */
-  def >>=[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
-    self flatMap f
+  def +++[R1, B, E1 >: E](that: ZSTM[R1, E1, B]): ZSTM[Either[R, R1], E1, Either[A, B]] =
+    ZSTM.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
 
   /**
-   * Tries this effect first, and if it fails, tries the other effect.
+   * Sequentially zips this value with the specified one, discarding the
+   * second element of the tuple.
    */
-  def <>[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1])(implicit ev: CanFail[E]): ZSTM[R1, E1, A1] =
-    orElse(that)
+  def <*[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, A] =
+    self zipLeft that
 
   /**
-   * Propagates the given environment to self.
+   * Sequentially zips this value with the specified one.
    */
-  def >>>[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
-    flatMap(that.provide)
+  def <*>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
+    self zip that
 
   /**
    * Propagates self environment to that.
@@ -122,23 +123,29 @@ final class ZSTM[-R, +E, +A] private[stm] (
     that >>> self
 
   /**
+   * Tries this effect first, and if it fails, tries the other effect.
+   */
+  def <>[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1])(implicit ev: CanFail[E]): ZSTM[R1, E1, A1] =
+    orElse(that)
+
+  /**
+   * Feeds the value produced by this effect to the specified function,
+   * and then runs the returned effect as well to produce its results.
+   */
+  def >>=[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
+    self flatMap f
+
+  /**
+   * Propagates the given environment to self.
+   */
+  def >>>[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
+    flatMap(that.provide)
+
+  /**
    * Depending on provided environment returns either this one or the other effect.
    */
   def |||[R1, E1 >: E, A1 >: A](that: ZSTM[R1, E1, A1]): ZSTM[Either[R, R1], E1, A1] =
     ZSTM.accessM[Either[R, R1]](_.fold(self.provide, that.provide))
-
-  /**
-   * Depending on provided environment, returns either this one or the other
-   * effect lifted in `Left` or `Right`, respectively.
-   */
-  def +++[R1, B, E1 >: E](that: ZSTM[R1, E1, B]): ZSTM[Either[R, R1], E1, Either[A, B]] =
-    ZSTM.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
-
-  /**
-   * Alias for `<*>` and `zip`.
-   */
-  def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
-    self <*> that
 
   /**
    * Returns an effect that submerges the error case of an `Either` into the
@@ -924,6 +931,13 @@ object ZSTM {
     }
 
   /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  def first[E, A, B]: ZSTM[(A, B), E, A] =
+    fromFunction[(A, B), A](_._1)
+
+  /**
    * Returns an effect that first executes the outer effect, and then executes
    * the inner effect, returning the value from the inner effect, and effectively
    * flattening a nested effect.
@@ -1186,6 +1200,13 @@ object ZSTM {
     succeed(Right(a))
 
   /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  def second[E, A, B]: ZSTM[(A, B), E, B] =
+    fromFunction[(A, B), B](_._2)
+
+  /**
    * Returns an effect with the optional value.
    */
   def some[A](a: => A): STM[Nothing, Option[A]] =
@@ -1206,8 +1227,8 @@ object ZSTM {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, (B, A)] =
-    fromFunction[R, (B, A)](_.swap)
+  def swap[E, A, B]: ZSTM[(A, B), E, (B, A)] =
+    fromFunction[(A, B), (B, A)](_.swap)
 
   /**
    * Returns an `STM` effect that succeeds with `Unit`.
@@ -1237,20 +1258,6 @@ object ZSTM {
    */
   def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     b.flatMap(b => if (b) stm.unit else unit)
-
-  /**
-   * Returns an effectful function that extracts out the first element of a
-   * tuple.
-   */
-  def _1[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, A] =
-    fromFunction[R, A](_._1)
-
-  /**
-   * Returns an effectful function that extracts out the second element of a
-   * tuple.
-   */
-  def _2[R, E, A, B](implicit ev: R <:< (A, B)): ZSTM[R, E, B] =
-    fromFunction[R, B](_._2)
 
   private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
     succeedNow(throw t)
