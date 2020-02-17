@@ -272,6 +272,22 @@ object STM {
     ZSTM.unit
 
   /**
+   * @see See [[zio.stm.ZSTM.validate]]
+   */
+  def validate[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZSTM[R, E, B]): ZSTM[R, ::[E], List[B]] =
+    ZSTM.validate(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.validateFirst]]
+   */
+  def validateFirst[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZSTM[R, E, B]): ZSTM[R, List[E], B] =
+    ZSTM.foreach(in)(f(_).flip).flip
+
+  /**
    * @see See [[zio.stm.ZSTM.when]]
    */
   def when[E](b: => Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)

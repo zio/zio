@@ -1045,6 +1045,50 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(tx.commit)(equalTo(1))
       }
     ),
+    suite("ZSTM validate")(
+      testM("returns all errors if never valid") {
+        val in  = List.fill(10)(0)
+        val res = ZSTM.validate(in)(a => ZSTM.failNow(a))
+        assertM(res.commit.run)(fails(equalTo(in)))
+      },
+      testM("accumulate errors and ignore successes") {
+        import zio.CanFail.canFail
+        val in  = List.range(0, 10)
+        val res = ZSTM.validate(in)(a => if (a % 2 == 0) ZSTM.succeedNow(a) else ZSTM.failNow(a))
+        assertM(res.commit.run)(fails(equalTo(List(1, 3, 5, 7, 9))))
+      },
+      testM("accumulate successes") {
+        import zio.CanFail.canFail
+        val in  = List.range(0, 10)
+        val res = ZSTM.validate(in)(a => ZSTM.succeedNow(a))
+        assertM(res.commit)(equalTo(in))
+      }
+    ),
+    suite("ZSTM validateFirst")(
+      testM("returns all errors if never valid") {
+        val in  = List.fill(10)(0)
+        val res = ZSTM.validateFirst(in)(a => ZSTM.failNow(a))
+        assertM(res.commit.run)(fails(equalTo(in)))
+      },
+      testM("runs sequentially and short circuits on first success validation") {
+        import zio.CanFail.canFail
+        val in = List.range(1, 10)
+        val f  = (a: Int) => if (a == 6) ZSTM.succeedNow(a) else ZSTM.failNow(a)
+
+        val tx = for {
+          counter <- TRef.make(0)
+          res     <- ZSTM.validateFirst(in)(a => counter.update(_ + 1) *> f(a))
+          cc      <- counter.get
+        } yield (res, cc)
+
+        assertM(tx.commit)(equalTo((6, 6)))
+      },
+      testM("returns errors in correct order") {
+        val as = List(2, 4, 6, 3, 5, 6)
+        val tx = ZSTM.validateFirst(as)(ZSTM.failNow)
+        assertM(tx.commit.run)(fails(equalTo(List(2, 4, 6, 3, 5, 6))))
+      }
+    ),
     suite("when combinators")(
       testM("when true") {
         for {

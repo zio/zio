@@ -1208,6 +1208,30 @@ object ZSTM {
   val unit: STM[Nothing, Unit] = succeedNow(())
 
   /**
+   * Feeds elements of type `A` to `f` and accumulates all errors in error
+   * channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partition]].
+   */
+  def validate[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZSTM[R, E, B])(implicit ev: CanFail[E]): ZSTM[R, ::[E], List[B]] =
+    partition(in)(f).flatMap {
+      case (e :: es, _) => failNow(::(e, es))
+      case (_, bs)      => succeedNow(bs)
+    }
+
+  /**
+   * Feeds elements of type `A` to `f` until it succeeds. Returns first success
+   * or the accumulation of all errors.
+   */
+  def validateFirst[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZSTM[R, E, B])(implicit ev: CanFail[E]): ZSTM[R, List[E], B] =
+    ZSTM.foreach(in)(f(_).flip).flip
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
   def when[R, E](b: => Boolean)(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
