@@ -69,12 +69,6 @@ object RIO {
     ZIO.bracketExit(acquire, release, use)
 
   /**
-   * @see See [[zio.ZIO.checkDaemon]]
-   */
-  def checkDaemon[R, A](f: DaemonStatus => RIO[R, A]): RIO[R, A] =
-    ZIO.checkDaemon(f)
-
-  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   def checkInterruptible[R, A](f: InterruptStatus => RIO[R, A]): RIO[R, A] =
@@ -144,12 +138,6 @@ object RIO {
    */
   def collectAllWithParN[R, A, B](n: Int)(as: Iterable[RIO[R, A]])(f: PartialFunction[A, B]): RIO[R, List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.daemonMask]]
-   */
-  def daemonMask[R, A](k: ZIO.DaemonStatusRestore => RIO[R, A]): RIO[R, A] =
-    ZIO.daemonMask(k)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -492,12 +480,6 @@ object RIO {
    * @see See [[zio.ZIO.never]]
    */
   val never: UIO[Nothing] = ZIO.never
-
-  /**
-   * @see See [[zio.ZIO.nonDaemonMask]]
-   */
-  def nonDaemonMask[R, A](k: ZIO.DaemonStatusRestore => RIO[R, A]): RIO[R, A] =
-    ZIO.nonDaemonMask(k)
 
   /**
    * @see See [[zio.ZIO.none]]

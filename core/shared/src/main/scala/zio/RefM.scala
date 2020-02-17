@@ -169,7 +169,7 @@ object RefM extends Serializable {
     for {
       ref   <- Ref.make(a)
       queue <- Queue.bounded[Bundle[_, A, _]](n)
-      _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a, ref, onDefect))).forever.fork.daemon
+      _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a, ref, onDefect))).forever.forkDaemon
     } yield new RefM[A](ref, queue)
 
 }

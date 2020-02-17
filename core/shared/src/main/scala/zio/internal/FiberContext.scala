@@ -37,7 +37,6 @@ private[zio] final class FiberContext[E, A](
   startEnv: AnyRef,
   startExec: Executor,
   startIStatus: InterruptStatus,
-  startDStatus: Boolean,
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals
@@ -66,7 +65,6 @@ private[zio] final class FiberContext[E, A](
   private[this] val executors       = Stack[Executor](startExec)
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
   private[this] val _children       = Platform.newWeakSet[FiberContext[Any, Any]]()
-  private[this] val daemonStatus    = StackBool(startDStatus)
 
   private[this] val tracingStatus =
     if (traceExec || traceStack) StackBool()
@@ -202,7 +200,8 @@ private[zio] final class FiberContext[E, A](
   private[this] def executor: Executor = executors.peekOrElse(platform.executor)
 
   @inline private[this] def raceWithImpl[R, EL, ER, E, A, B, C](
-    race: ZIO.RaceWith[R, EL, ER, E, A, B, C]
+    race: ZIO.RaceWith[R, EL, ER, E, A, B, C],
+    daemonStatus: DaemonStatus
   ): ZIO[R, E, C] = {
     @inline def complete[E0, E1, A, B](
       winner: Fiber[E0, A],
@@ -223,8 +222,8 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val left  = fork[EL, A](race.left.interruptible.asInstanceOf[IO[EL, A]])
-    val right = fork[ER, B](race.right.interruptible.asInstanceOf[IO[ER, B]])
+    val left  = fork[EL, A](race.left.interruptible.asInstanceOf[IO[EL, A]], daemonStatus)
+    val right = fork[ER, B](race.right.interruptible.asInstanceOf[IO[ER, B]], daemonStatus)
 
     ZIO
       .effectAsync[R, E, C] { cb =>
@@ -490,17 +489,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = nextInstr(fork(zio.value))
-
-                  case ZIO.Tags.DaemonStatus =>
-                    val zio = curZio.asInstanceOf[ZIO.DaemonStatus[Any, E, Any]]
-
-                    curZio = daemonEnter(zio.flag).bracket_(daemonExit)(zio.zio)
-
-                  case ZIO.Tags.CheckDaemon =>
-                    val zio = curZio.asInstanceOf[ZIO.CheckDaemon[Any, E, Any]]
-
-                    curZio = zio.k(DaemonStatus.fromBoolean(daemonStatus.peekOrElse(false)))
+                    curZio = nextInstr(fork(zio.value, zio.status))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
@@ -585,7 +574,7 @@ private[zio] final class FiberContext[E, A](
 
                   case ZIO.Tags.RaceWith =>
                     val zio = curZio.asInstanceOf[ZIO.RaceWith[Any, Any, Any, Any, Any, Any, Any]]
-                    curZio = raceWithImpl(zio).asInstanceOf[IO[E, Any]]
+                    curZio = raceWithImpl(zio, zio.daemonStatus).asInstanceOf[IO[E, Any]]
                 }
               }
             } else {
@@ -628,9 +617,7 @@ private[zio] final class FiberContext[E, A](
   /**
    * Forks an `IO` with the specified failure handler.
    */
-  def fork[E, A](zio: IO[E, A]): FiberContext[E, A] = {
-    val isDaemon = daemonStatus.peekOrElse(false)
-
+  def fork[E, A](zio: IO[E, A], daemonStatus: DaemonStatus): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
     childFiberRefLocals.putAll(fiberRefLocals)
 
@@ -645,13 +632,12 @@ private[zio] final class FiberContext[E, A](
       environments.peek(),
       executors.peek(),
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
-      daemonStatus.peekOrElse(false),
       ancestry,
       tracingRegion,
       childFiberRefLocals
     )
 
-    if (!isDaemon) addChild(childContext.asInstanceOf[FiberContext[Any, Any]])
+    if (!daemonStatus.isDaemon) addChild(childContext.asInstanceOf[FiberContext[Any, Any]])
     else Fiber.track(childContext)
 
     platform.executor.submitOrThrow(() => childContext.evaluateNow(zio))
@@ -797,14 +783,6 @@ private[zio] final class FiberContext[E, A](
 
       case _ => false
     }
-  }
-
-  private[this] def daemonEnter(flag: DaemonStatus): UIO[Unit] = ZIO.effectTotal {
-    daemonStatus.push(flag.toBoolean)
-  }
-
-  private[this] def daemonExit: UIO[Unit] = ZIO.effectTotal {
-    val _ = daemonStatus.popOrElse(false)
   }
 
   @inline

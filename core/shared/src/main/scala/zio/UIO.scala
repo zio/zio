@@ -46,12 +46,6 @@ object UIO {
     ZIO.bracketExit(acquire, release, use)
 
   /**
-   * @see See [[zio.ZIO.checkDaemon]]
-   */
-  def checkDaemon[A](f: DaemonStatus => UIO[A]): UIO[A] =
-    ZIO.checkDaemon(f)
-
-  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   def checkInterruptible[A](f: InterruptStatus => UIO[A]): UIO[A] =
@@ -121,12 +115,6 @@ object UIO {
    */
   def collectAllWithParN[A, B](n: Int)(as: Iterable[UIO[A]])(f: PartialFunction[A, B]): UIO[List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.daemonMask]]
-   */
-  def daemonMask[A](k: ZIO.DaemonStatusRestore => UIO[A]): UIO[A] =
-    ZIO.daemonMask(k)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -405,12 +393,6 @@ object UIO {
    * @see See [[zio.ZIO.none]]
    */
   val none: UIO[Option[Nothing]] = ZIO.none
-
-  /**
-   * @see See [[zio.ZIO.nonDaemonMask]]
-   */
-  def nonDaemonMask[A](k: ZIO.DaemonStatusRestore => UIO[A]): UIO[A] =
-    ZIO.nonDaemonMask(k)
 
   /**
    * @see See [[zio.ZIO.never]]

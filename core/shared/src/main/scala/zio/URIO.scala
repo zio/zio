@@ -63,12 +63,6 @@ object URIO {
   ): URIO[R, B] = ZIO.bracketExit(acquire, release, use)
 
   /**
-   * @see [[zio.ZIO.checkDaemon]]
-   */
-  def checkDaemon[R, A](f: DaemonStatus => URIO[R, A]): URIO[R, A] =
-    ZIO.checkDaemon(f)
-
-  /**
    * @see [[zio.ZIO.checkInterruptible]]
    */
   def checkInterruptible[R, A](f: InterruptStatus => URIO[R, A]): URIO[R, A] =
@@ -138,12 +132,6 @@ object URIO {
    */
   def collectAllWithParN[R, A, B](n: Int)(as: Iterable[URIO[R, A]])(f: PartialFunction[A, B]): URIO[R, List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.daemonMask]]
-   */
-  def daemonMask[R, A](k: ZIO.DaemonStatusRestore => URIO[R, A]): URIO[R, A] =
-    ZIO.daemonMask(k)
 
   /**
    * @see [[zio.ZIO.descriptor]]
@@ -440,12 +428,6 @@ object URIO {
    * @see [[zio.ZIO.never]]
    */
   val never: UIO[Nothing] = ZIO.never
-
-  /**
-   * @see See [[zio.ZIO.nonDaemonMask]]
-   */
-  def nonDaemonMask[R, A](k: ZIO.DaemonStatusRestore => URIO[R, A]): URIO[R, A] =
-    ZIO.nonDaemonMask(k)
 
   /**
    * @see [[zio.ZIO.none]]

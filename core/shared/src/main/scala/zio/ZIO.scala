@@ -26,8 +26,6 @@ import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
-import zio.{ DaemonStatus => DaemonS }
-import zio.{ InterruptStatus => InterruptS }
 import zio.{ TracingStatus => TracingS }
 
 /**
@@ -337,21 +335,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
 
   /**
-   * Turns on daemon mode for this region, which means that any fibers forked
-   * in this region will be daemon fibers—new roots in the fiber graph and
-   * invisible to the their (otherwise) parent fiber, and not interrupted
-   * when their (otherwise) parent fiber is interrupted.
-   */
-  final def daemon: ZIO[R, E, A] = daemonStatus(DaemonStatus.Daemon)
-
-  /**
-   * Changes the daemon mode status for this region, either turning it off (the
-   * default), or turning it on.
-   */
-  final def daemonStatus(status: DaemonStatus): ZIO[R, E, A] =
-    new ZIO.DaemonStatus(self, status)
-
-  /**
    * Returns an effect that is delayed from this effect by the specified
    * [[zio.duration.Duration]].
    */
@@ -586,7 +569,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * } yield a
    * }}}
    */
-  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self)
+  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, DaemonStatus.NonDaemon)
 
   /**
    * Forks the effect into a new independent fiber, with the specified name.
@@ -603,7 +586,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * assuming the effect is in a non-daemon region (the default).
    */
   final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] =
-    ZIO.daemonMask(restore => restore(self).fork)
+    new ZIO.Fork(self, DaemonStatus.Daemon)
 
   /**
    * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
@@ -674,8 +657,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.uninterruptible {
       for {
         parentFiberId <- ZIO.fiberId
-        fiber         <- self.interruptible.fork.daemon
-        res           <- fiber.join.interruptible.onInterrupt(fiber.interruptAs(parentFiberId).fork.daemon)
+        fiber         <- self.interruptible.forkDaemon
+        res           <- fiber.join.interruptible.onInterrupt(fiber.interruptAs(parentFiberId).forkDaemon)
       } yield res
     }
 
@@ -750,14 +733,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def merge[A1 >: A](implicit ev1: E <:< A1, ev2: CanFail[E]): URIO[R, A1] =
     self.foldM(e => ZIO.succeed(ev1(e)), ZIO.succeed)
-
-  /**
-   * Turns off daemon mode for this region, which means that any fibers forked
-   * in this region will not be daemon fibers, so they will be visible as
-   * children of their parent fiber, and interrupted when their parent fiber is
-   * interrupted.
-   */
-  final def nonDaemon: ZIO[R, E, A] = daemonStatus(DaemonStatus.NonDaemon)
 
   /**
    * Requires the option produced by this value to be `None`.
@@ -1055,7 +1030,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
             exit.foldM[Any, E1, A1](
               cause => left.join mapErrorCause (_ && cause), // TODO: Preserve error?
               a => (left interruptAs parentFiberId) as a
-            )
+            ),
+          DaemonStatus.Daemon
         )
       )
       .refailWithTrace
@@ -1115,7 +1091,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def raceAttempt[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     raceWith(that)(
       { case (l, f) => f.interrupt *> l.fold(ZIO.halt, ZIO.succeed) },
-      { case (r, f) => f.interrupt *> r.fold(ZIO.halt, ZIO.succeed) }
+      { case (r, f) => f.interrupt *> r.fold(ZIO.halt, ZIO.succeed) },
+      DaemonStatus.Daemon
     ).refailWithTrace
 
   /**
@@ -1132,16 +1109,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def raceWith[R1 <: R, E1, E2, B, C](that: ZIO[R1, E1, B])(
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
-    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
+    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C],
+    daemonStatus: DaemonStatus = DaemonStatus.NonDaemon
   ): ZIO[R1, E2, C] =
-    // ZIO.nonDaemonMask { restore =>
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       self,
       that,
       (exit, fiber) => (leftDone(exit, fiber)),
-      (exit, fiber) => (rightDone(exit, fiber))
+      (exit, fiber) => (rightDone(exit, fiber)),
+      daemonStatus
     )
-  // }
 
   /**
    * Attach a wrapping trace pointing to this location in case of error.
@@ -1480,8 +1457,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber.Runtime[E, A], A]] =
     raceWith(ZIO.sleep(d))(
       (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
-      (_, fiber) => fiber.interrupt.flatMap(ZIO.done).fork.map(Left(_))
-    ).daemon
+      (_, fiber) => fiber.interrupt.flatMap(ZIO.done).forkDaemon.map(Left(_)),
+      DaemonStatus.Daemon
+    )
 
   /**
    * Returns an effect that will timeout this effect, returning either the
@@ -1910,17 +1888,10 @@ object ZIO {
     ZIO.bracketExit(acquire, release, use).interruptibleFork
 
   /**
-   * Checks the daemon status, and produces the effect returned by the
-   * specified callback.
-   */
-  def checkDaemon[R, E, A](f: DaemonS => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.CheckDaemon(f)
-
-  /**
    * Checks the interrupt status, and produces the effect returned by the
    * specified callback.
    */
-  def checkInterruptible[R, E, A](f: InterruptS => ZIO[R, E, A]): ZIO[R, E, A] =
+  def checkInterruptible[R, E, A](f: zio.InterruptStatus => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.CheckInterrupt(f)
 
   /**
@@ -2008,14 +1979,6 @@ object ZIO {
     in: Iterable[ZIO[R, E, A]]
   )(f: PartialFunction[A, U]): ZIO[R, E, List[U]] =
     ZIO.collectAllParN(n)(in).map(_.collect(f))
-
-  /**
-   * Makes the effect daemon, but passes it a restore function that
-   * can be used to restore the inherited daemon status from whatever region
-   * the effect is composed into.
-   */
-  def daemonMask[R, E, A](k: ZIO.DaemonStatusRestore => ZIO[R, E, A]): ZIO[R, E, A] =
-    checkDaemon(status => k(new ZIO.DaemonStatusRestore(status)).daemon)
 
   /**
    * Returns information about the current fiber, such as its identity.
@@ -2678,14 +2641,6 @@ object ZIO {
     }
 
   /**
-   * Makes the effect non-daemon, but passes it a restore function that
-   * can be used to restore the inherited daemon status from whatever region
-   * the effect is composed into.
-   */
-  def nonDaemonMask[R, E, A](k: ZIO.DaemonStatusRestore => ZIO[R, E, A]): ZIO[R, E, A] =
-    checkDaemon(status => k(new ZIO.DaemonStatusRestore(status)).nonDaemon)
-
-  /**
    * Returns an effect with the empty value.
    */
   val none: UIO[Option[Nothing]] = succeed(None)
@@ -3117,11 +3072,6 @@ object ZIO {
       zio.interruptStatus(flag)
   }
 
-  final class DaemonStatusRestore(private val status: zio.DaemonStatus) extends AnyVal {
-    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      zio.daemonStatus(status)
-  }
-
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
       self
@@ -3312,21 +3262,19 @@ object ZIO {
     final val EffectPartial            = 7
     final val EffectAsync              = 8
     final val Fork                     = 9
-    final val DaemonStatus             = 10
-    final val CheckDaemon              = 11
-    final val Descriptor               = 12
-    final val Lock                     = 13
-    final val Yield                    = 14
-    final val Access                   = 15
-    final val Provide                  = 16
-    final val EffectSuspendPartialWith = 17
-    final val FiberRefNew              = 18
-    final val FiberRefModify           = 19
-    final val Trace                    = 20
-    final val TracingStatus            = 21
-    final val CheckTracing             = 22
-    final val EffectSuspendTotalWith   = 23
-    final val RaceWith                 = 24
+    final val Descriptor               = 10
+    final val Lock                     = 11
+    final val Yield                    = 12
+    final val Access                   = 13
+    final val Provide                  = 14
+    final val EffectSuspendPartialWith = 15
+    final val FiberRefNew              = 16
+    final val FiberRefModify           = 17
+    final val Trace                    = 18
+    final val TracingStatus            = 19
+    final val CheckTracing             = 20
+    final val EffectSuspendTotalWith   = 21
+    final val RaceWith                 = 22
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -3367,24 +3315,16 @@ object ZIO {
     def apply(v: A): ZIO[R, E2, B] = success(v)
   }
 
-  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A]) extends URIO[R, Fiber.Runtime[E, A]] {
+  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A], val status: DaemonStatus) extends URIO[R, Fiber.Runtime[E, A]] {
     override def tag = Tags.Fork
   }
 
-  private[zio] final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: InterruptS) extends ZIO[R, E, A] {
+  private[zio] final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: _root_.zio.InterruptStatus) extends ZIO[R, E, A] {
     override def tag = Tags.InterruptStatus
   }
 
   private[zio] final class CheckInterrupt[R, E, A](val k: zio.InterruptStatus => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.CheckInterrupt
-  }
-
-  private[zio] final class DaemonStatus[R, E, A](val zio: ZIO[R, E, A], val flag: DaemonS) extends ZIO[R, E, A] {
-    override def tag = Tags.DaemonStatus
-  }
-
-  private[zio] final class CheckDaemon[R, E, A](val k: zio.DaemonStatus => ZIO[R, E, A]) extends ZIO[R, E, A] {
-    override def tag = Tags.CheckDaemon
   }
 
   private[zio] final class Fail[E, A](val fill: (() => ZTrace) => Cause[E]) extends IO[E, A] { self =>
@@ -3450,7 +3390,8 @@ object ZIO {
     val left: ZIO[R, EL, A],
     val right: ZIO[R, ER, B],
     val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
-    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C]
+    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
+    val daemonStatus: DaemonStatus
   ) extends ZIO[R, E, C] {
     override def tag: Int = Tags.RaceWith
   }

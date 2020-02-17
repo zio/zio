@@ -685,7 +685,7 @@ object ZIOSpec extends ZIOBaseSpec {
           latch <- ZIO.effectTotal(Promise[Unit]())
           fiber <- ZIO.fromFutureInterrupt { _ =>
                     latch.success(()); Promise[Unit]().future
-                  }.fork.daemon
+                  }.forkDaemon
           _      <- ZIO.fromFuture(_ => latch.future).orDie
           result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
         } yield assert(result)(isNone)
@@ -1696,8 +1696,7 @@ object ZIOSpec extends ZIOBaseSpec {
                    //never complete
                    })
                    .ensuring(unexpectedPlace.update(2 :: _))
-                   .fork
-                   .daemon
+                   .forkDaemon
           result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
           unexpected <- unexpectedPlace.get
         } yield {
@@ -1727,8 +1726,7 @@ object ZIOSpec extends ZIOBaseSpec {
                    }
                    .ensuring(unexpectedPlace.update(2 :: _))
                    .uninterruptible
-                   .fork
-                   .daemon
+                   .forkDaemon
           result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
           unexpected <- unexpectedPlace.get
         } yield {
@@ -1807,7 +1805,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("daemon fiber is unsupervised") {
         for {
           ref  <- Ref.make(Option.empty[Fiber[Any, Any]])
-          _    <- withLatch(release => (release *> UIO.never).fork.daemon.tap(fiber => ref.set(Some(fiber))))
+          _    <- withLatch(release => (release *> UIO.never).forkDaemon.tap(fiber => ref.set(Some(fiber))))
           fibs <- ZIO.children
         } yield assert(fibs)(isEmpty)
       },
@@ -1827,99 +1825,6 @@ object ZIOSpec extends ZIOBaseSpec {
           interrupted     <- interruptionRef.get
         } yield assert(interrupted)(equalTo(2)))
       } @@ flaky,
-      testM("daemon mask") {
-        def forkAwait =
-          for {
-            latch    <- Promise.make[Nothing, Unit]
-            latchEnd <- Promise.make[Nothing, Unit]
-            _        <- latchEnd.await.fork *> latch.succeed(())
-          } yield (latch, latchEnd)
-
-        def handleLatch(latches: (Promise[Nothing, Unit], Promise[Nothing, Unit])) =
-          latches._1.await.as(latches._2)
-
-        val io = for {
-          latches1    <- forkAwait
-          (l1, l1End) = latches1
-          _           <- l1.await
-          children1   <- ZIO.children
-          latchEnds <- ZIO.daemonMask { restore =>
-                        for {
-                          latches1 <- ZIO.sequence(
-                                       List(
-                                         forkAwait.flatMap(handleLatch),
-                                         forkAwait.flatMap(handleLatch),
-                                         forkAwait.flatMap(handleLatch)
-                                       )
-                                     )
-                          latches2 <- restore(
-                                       ZIO.sequence(
-                                         List(
-                                           forkAwait.flatMap(handleLatch),
-                                           forkAwait.flatMap(handleLatch)
-                                         )
-                                       )
-                                     )
-                        } yield latches1 ++ latches2
-                      }
-          children2 <- ZIO.children
-          _         <- l1End.succeed(())
-          _         <- ZIO.traverse_(latchEnds)(_.succeed(()))
-        } yield assert(children1.size)(equalTo(1)) && assert(children2.size)(equalTo(3))
-
-        io.nonDaemon
-      },
-      testM("nonDaemon mask") {
-        def forkAwait =
-          for {
-            latch    <- Promise.make[Nothing, Unit]
-            latchEnd <- Promise.make[Nothing, Unit]
-            _        <- latchEnd.await.fork *> latch.succeed(())
-          } yield (latch, latchEnd)
-
-        def handleLatch(latches: (Promise[Nothing, Unit], Promise[Nothing, Unit])) =
-          latches._1.await.as(latches._2)
-
-        val io =
-          for {
-            latches     <- forkAwait
-            (l1, l1End) = latches
-            _           <- l1.await
-            children1   <- ZIO.children
-            childrenWithLatches <- ZIO.nonDaemonMask { restore =>
-                                    for {
-                                      latches1 <- ZIO.sequence(
-                                                   List(
-                                                     forkAwait.flatMap(handleLatch),
-                                                     forkAwait.flatMap(handleLatch),
-                                                     forkAwait.flatMap(handleLatch)
-                                                   )
-                                                 )
-                                      latches2 <- restore(
-                                                   ZIO.sequence(
-                                                     List(
-                                                       forkAwait.flatMap(handleLatch),
-                                                       forkAwait.flatMap(handleLatch)
-                                                     )
-                                                   )
-                                                 )
-                                      children2 <- ZIO.children
-                                    } yield (children2, latches1 ++ latches2)
-                                  }
-            (children2, latchEnds) = childrenWithLatches
-            latches2               <- forkAwait
-            (l2, l2End)            = latches2
-            _                      <- l2.await
-            children3              <- ZIO.children
-            _                      <- l1End.succeed(())
-            _                      <- l2End.succeed(())
-            _                      <- ZIO.traverse_(latchEnds)(_.succeed(()))
-          } yield assert(children1.size)(equalTo(0)) && assert(children2.size)(equalTo(3)) && assert(children3.size)(
-            equalTo(3)
-          )
-
-        io.daemon
-      },
       testM("race in daemon is executed") {
         for {
           latch1 <- Promise.make[Nothing, Unit]
@@ -1928,7 +1833,7 @@ object ZIOSpec extends ZIOBaseSpec {
           p2     <- Promise.make[Nothing, Unit]
           loser1 = ZIO.bracket(latch1.succeed(()))(_ => p1.succeed(()))(_ => ZIO.never)
           loser2 = ZIO.bracket(latch2.succeed(()))(_ => p2.succeed(()))(_ => ZIO.never)
-          fiber  <- (loser1 race loser2).fork.daemon
+          fiber  <- (loser1 race loser2).forkDaemon
           _      <- latch1.await
           _      <- latch2.await
           _      <- fiber.interrupt
@@ -2098,7 +2003,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val io =
           for {
             promise <- Promise.make[Nothing, Unit]
-            fiber   <- (promise.succeed(()) <* IO.never).bracket(_ => IO.unit)(_ => IO.unit).fork.daemon
+            fiber   <- (promise.succeed(()) <* IO.never).bracket(_ => IO.unit)(_ => IO.unit).forkDaemon
             res     <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
           } yield res
 
@@ -2112,8 +2017,7 @@ object ZIOSpec extends ZIOBaseSpec {
                       .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[Any, Any]) => IO.unit)(
                         _ => IO.unit: IO[Nothing, Unit]
                       )
-                      .fork
-                      .daemon
+                      .forkDaemon
             res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
           } yield res
 
@@ -2540,7 +2444,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("returns `Left` with the interrupting fiber otherwise") {
         for {
-          fiber  <- ZIO.never.uninterruptible.timeoutFork(100.millis).fork.daemon
+          fiber  <- ZIO.never.uninterruptible.timeoutFork(100.millis).forkDaemon
           _      <- TestClock.adjust(100.millis)
           result <- fiber.join
         } yield assert(result)(isLeft(anything))

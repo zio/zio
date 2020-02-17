@@ -80,12 +80,6 @@ object Task {
     ZIO.bracketForkExit(acquire, release, use)
 
   /**
-   * @see See [[zio.ZIO.checkDaemon]]
-   */
-  def checkDaemon[A](f: DaemonStatus => Task[A]): Task[A] =
-    ZIO.checkDaemon(f)
-
-  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   def checkInterruptible[A](f: InterruptStatus => Task[A]): Task[A] =
@@ -155,12 +149,6 @@ object Task {
    */
   def collectAllWithParN[A, B](n: Int)(as: Iterable[Task[A]])(f: PartialFunction[A, B]): Task[List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.daemonMask]]
-   */
-  def daemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
-    ZIO.daemonMask(k)
 
   /**
    * @see See [[zio.ZIO.die]]
@@ -502,12 +490,6 @@ object Task {
    * @see See [[zio.ZIO.never]]
    */
   val never: UIO[Nothing] = ZIO.never
-
-  /**
-   * @see See [[zio.ZIO.nonDaemonMask]]
-   */
-  def nonDaemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
-    ZIO.nonDaemonMask(k)
 
   /**
    * @see See [[zio.ZIO.none]]
