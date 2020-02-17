@@ -14,20 +14,28 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.mock.internal
 
-import zio.{ IO, UIO }
+import zio.Has
+import zio.test.Assertion
+import zio.test.mock.Method
 
 /**
- * A `ReturnExpectation[-I, E, +A]` represents an expectation on output that given input arguments `I`
- * returns an effect that may fail with an error `E` or produce a single `A`.
+ * An `InvalidCall` describes failed expectation.
  */
-sealed trait ReturnExpectation[-I, +E, +A] {
-  val io: I => IO[E, A]
-}
+sealed trait InvalidCall
 
-object ReturnExpectation {
+object InvalidCall {
 
-  private[mock] final case class Succeed[-I, +A](io: I => UIO[A])      extends ReturnExpectation[I, Nothing, A]
-  private[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing]) extends ReturnExpectation[I, E, Nothing]
+  final case class InvalidArguments[R <: Has[_], I, A](
+    method: Method[R, I, A],
+    args: Any,
+    assertion: Assertion[Any]
+  ) extends InvalidCall
+
+  final case class InvalidMethod[R0 <: Has[_], R1 <: Has[_], In0, In1, A0, A1](
+    method: Method[R0, In0, A0],
+    expectedMethod: Method[R1, In1, A1],
+    assertion: Assertion[In1]
+  ) extends InvalidCall
 }

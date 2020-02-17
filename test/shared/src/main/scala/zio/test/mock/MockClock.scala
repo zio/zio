@@ -25,12 +25,12 @@ import zio.{ Has, UIO }
 
 object MockClock {
 
-  object currentTime     extends Method[Clock.Service, TimeUnit, Long]
-  object currentDateTime extends Method[Clock.Service, Unit, OffsetDateTime]
-  object nanoTime        extends Method[Clock.Service, Unit, Long]
-  object sleep           extends Method[Clock.Service, Duration, Unit]
+  object currentTime     extends Method[Clock, TimeUnit, Long]
+  object currentDateTime extends Method[Clock, Unit, OffsetDateTime]
+  object nanoTime        extends Method[Clock, Unit, Long]
+  object sleep           extends Method[Clock, Duration, Unit]
 
-  implicit val mockableClock: Mockable[Clock.Service] = (mock: Mock) =>
+  private[mock] val mockable: Mockable[Clock] = (mock: Mock) =>
     Has(new Clock.Service {
       def currentTime(unit: TimeUnit): UIO[Long] = mock(MockClock.currentTime, unit)
       def currentDateTime: UIO[OffsetDateTime]   = mock(MockClock.currentDateTime)

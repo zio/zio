@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.mock.internal
 
-import zio.{ IO, UIO }
+import zio.test.mock.Expectation
+import zio.{ Has, Ref, RefM }
 
 /**
- * A `ReturnExpectation[-I, E, +A]` represents an expectation on output that given input arguments `I`
- * returns an effect that may fail with an error `E` or produce a single `A`.
+ * A `State[R]` represents the state of a mock.
  */
-sealed trait ReturnExpectation[-I, +E, +A] {
-  val io: I => IO[E, A]
-}
-
-object ReturnExpectation {
-
-  private[mock] final case class Succeed[-I, +A](io: I => UIO[A])      extends ReturnExpectation[I, Nothing, A]
-  private[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing]) extends ReturnExpectation[I, E, Nothing]
-}
+private[mock] final case class State[R <: Has[_]](
+  expectationRef: RefM[Expectation[R]],
+  callsCountRef: Ref[Int],
+  failedMatchesRef: Ref[List[InvalidCall]]
+)

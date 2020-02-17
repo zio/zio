@@ -26,7 +26,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 trait Event
 ```
 
-```scala mdoc:silent
+```scala
 import scala.concurrent.Future
 
 def processEvent(event: Event): Future[Unit] = Future(println(s"Got $event"))
@@ -44,7 +44,7 @@ Inside the future there may be happening any side effects. It may open a file, p
 trait Event
 ```
 
-```scala mdoc:silent
+```scala mdoc
 import zio._
 import zio.console.Console
 
@@ -85,7 +85,7 @@ helpers (within `>` object) in the service companion object:
 trait AccountEvent
 ```
 
-```scala mdoc:silent
+```scala
 import zio.test.mock._
 
 type AccountObserver = Has[AccountObserver.Service]
@@ -115,7 +115,7 @@ We model input arguments according to following scheme:
 - for zero arguments the type is `Unit`
 - for one or more arguments, regardless in how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
 
-```scala mdoc:silent
+```scala
 type ExampleService = Has[ExampleService.Service]
 object ExampleService {
   trait Service {
@@ -150,8 +150,8 @@ For overloaded methods we simply nest a list of numbered objects, each represent
 
 Next, we create the mockable implementation of the service:
 
-```scala mdoc:silent
-implicit val mockableAccountObserver: Mockable[AccountObserver.Service] = (mock: Mock) =>
+```scala
+implicit val mockableAccountObserver: Mockable[AccountObserver] = (mock: Mock) =>
   Has(new AccountObserver.Service {
     def processEvent(event: AccountEvent): UIO[Unit] = mock(AccountObserver.Service.processEvent, event)
   })
@@ -187,7 +187,7 @@ object AccountObserver {
 
 Next we create the live version of the service with the implementation of the capabilities:
 
-``` scala mdoc
+``` scala
 import zio.console.Console
 
 val accountObserverLive: ZLayer[Console, Nothing, Has[AccountObserver.Service]] =
@@ -215,7 +215,7 @@ For each built-in ZIO service you will find their mockable counterparts in `zio.
 
 Finally we're all set and can create ad-hoc mock environments with our services.
 
-```scala mdoc:silent
+```scala
 import zio.test._
 import zio.test.Assertion._
 import zio.test.mock.Expectation._
@@ -225,15 +225,15 @@ import MockConsole._
 val event = new AccountEvent {}
 val app: ZIO[AccountObserver, Nothing, Unit] = AccountObserver.>.processEvent(event)
 val mockEnv: ZLayer[Any, Nothing, Console] = (
-  (putStrLn(equalTo(s"Got $event")) returns unit) *>
-  (getStrLn returns value("42")) *>
+  (putStrLn(equalTo(s"Got $event")) returns unit) andThen
+  (getStrLn returns value("42")) andThen
   (putStrLn(equalTo("You entered: 42")) returns unit)
 )
 ```
 
 ## Providing mocked environment
 
-```scala mdoc
+```scala
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
@@ -246,26 +246,20 @@ object AccountObserverSpec extends DefaultRunnableSpec {
 
 ## Mocking multiple collaborators
 
-In some cases we have more than one collaborating service being called. In such situations we need to build our expectations separately for each
-service and then combine them into single environment:
+In some cases we have more than one collaborating service being called. You can create mocks for rich environments, a mockable for it will be automatically derived if you have implicit mockables for each part of composed environment in scope.
 
-```scala mdoc:silent
+```scala
 import zio.console.Console
 import zio.random.Random
 import MockConsole._
 import MockRandom._
 
-val mockConsole: Layer[Nothing, Console] = (
-  (putStrLn(equalTo("What is your name?")) returns unit) *>
-  (getStrLn returns value("Mike")) *>
+val combinedEnv: Layer[Nothing, Console with Random] = (
+  (putStrLn(equalTo("What is your name?")) returns unit) andThen
+  (getStrLn returns value("Mike")) andThen
+  (nextInt._1 returns value(42)) andThen
   (putStrLn(equalTo("Mike, your lucky number today is 42!")) returns unit)
 )
-
-val mockRandom: Layer[Nothing, Random] =
-  nextInt._1 returns value(42)
-
-val combinedEnv: Layer[Nothing, Console with Random] =
-  mockConsole ++ mockRandom
 
 val combinedApp =
   for {

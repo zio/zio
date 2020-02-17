@@ -18,15 +18,14 @@ package zio.test.mock
 
 import zio.system.System
 import zio.{ Has, IO, UIO }
-import zio.{ IO, UIO }
 
 object MockSystem {
 
-  object env           extends Method[System.Service, String, Option[String]]
-  object property      extends Method[System.Service, String, Option[String]]
-  object lineSeparator extends Method[System.Service, Unit, String]
+  object env           extends Method[System, String, Option[String]]
+  object property      extends Method[System, String, Option[String]]
+  object lineSeparator extends Method[System, Unit, String]
 
-  implicit val mockableSystem: Mockable[System.Service] = (mock: Mock) =>
+  private[mock] val mockable: Mockable[System] = (mock: Mock) =>
     Has(new System.Service {
       def env(variable: String): IO[SecurityException, Option[String]] = mock(MockSystem.env, variable)
       def property(prop: String): IO[Throwable, Option[String]]        = mock(MockSystem.property, prop)

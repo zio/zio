@@ -18,28 +18,27 @@ package zio.test.mock
 
 import zio.random.Random
 import zio.{ Chunk, Has, UIO }
-import zio.{ Chunk, UIO }
 
 object MockRandom {
 
-  object nextBoolean  extends Method[Random.Service, Unit, Boolean]
-  object nextBytes    extends Method[Random.Service, Int, Chunk[Byte]]
-  object nextDouble   extends Method[Random.Service, Unit, Double]
-  object nextFloat    extends Method[Random.Service, Unit, Float]
-  object nextGaussian extends Method[Random.Service, Unit, Double]
+  object nextBoolean  extends Method[Random, Unit, Boolean]
+  object nextBytes    extends Method[Random, Int, Chunk[Byte]]
+  object nextDouble   extends Method[Random, Unit, Double]
+  object nextFloat    extends Method[Random, Unit, Float]
+  object nextGaussian extends Method[Random, Unit, Double]
   object nextInt {
-    object _0 extends Method[Random.Service, Int, Int]
-    object _1 extends Method[Random.Service, Unit, Int]
+    object _0 extends Method[Random, Int, Int]
+    object _1 extends Method[Random, Unit, Int]
   }
   object nextLong {
-    object _0 extends Method[Random.Service, Unit, Long]
-    object _1 extends Method[Random.Service, Long, Long]
+    object _0 extends Method[Random, Unit, Long]
+    object _1 extends Method[Random, Long, Long]
   }
-  object nextPrintableChar extends Method[Random.Service, Unit, Char]
-  object nextString        extends Method[Random.Service, Int, String]
-  object shuffle           extends Method[Random.Service, List[Any], List[Any]]
+  object nextPrintableChar extends Method[Random, Unit, Char]
+  object nextString        extends Method[Random, Int, String]
+  object shuffle           extends Method[Random, List[Any], List[Any]]
 
-  implicit val mockableRandom: Mockable[Random.Service] = (mock: Mock) =>
+  private[mock] val mockable: Mockable[Random] = (mock: Mock) =>
     Has(new Random.Service {
       val nextBoolean: UIO[Boolean]                = mock(MockRandom.nextBoolean)
       def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(MockRandom.nextBytes, length)

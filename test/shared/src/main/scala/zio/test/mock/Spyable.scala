@@ -26,27 +26,30 @@ import zio.{ Has, Ref, Tagged, UIO, ZIO, ZLayer }
  * a mock, see and modify state based on method calls, inputs, and outputs, and
  * then convert the mock back to a live environment to spy on the service.
  */
-trait Spyable[A] extends Mockable[A] { self =>
+trait Spyable[R <: Has[_]] extends Mockable[R] { self =>
 
   /**
    * Constructs a mock service from a live environment.
    */
-  def mock(environment: Has[A]): Mock
+  def mock(environment: R): Mock
 
   /**
    * Updates a live environment by spying on it using the specified partial
    * function, which has the ability to see method calls, inputs, and outputs
    * and update state based on them.
    */
-  final def spy(environment: Has[A])(f: PartialFunction[Invocation[A, _, _], UIO[Unit]]): Has[A] = {
-    val mocked = mock(environment)
-    val spied = new Mock {
-      def invoke[R0, E0, A0, M0, I0](method: Method[M0, I0, A0], input: I0): ZIO[R0, E0, A0] =
+  final def spy[F <: Invocation[R, _, _]](environment: R)(f: PartialFunction[F, UIO[Unit]]): R = {
+    val mocked: Mock = mock(environment)
+    val spied: Mock = new Mock {
+      def invoke[RIn <: Has[_], ROut, Input, Error, Value](
+        method: Method[RIn, Input, Value],
+        input: Input
+      ): ZIO[ROut, Error, Value] =
         mocked
           .invoke(method, input)
           .tap { output =>
             f.applyOrElse(
-              Invocation(method.asInstanceOf[Method[A, I0, A0]], input, output),
+              Invocation(method, input, output).asInstanceOf[F],
               (_: Any) => UIO.unit
             )
           }
@@ -62,12 +65,12 @@ object Spyable {
    * all method calls, inputs, and outputs and updates the returned `Ref` based
    * on them.
    */
-  def spyWithRef[R, E, A: Tagged](
-    layer: ZLayer[R, E, Has[A]]
-  )(implicit spyable: Spyable[A]): UIO[(Ref[Vector[Invocation[A, _, _]]], ZLayer[R, E, Has[A]])] =
+  def spyWithRef[R, E, A <: Has[_]: Tagged](
+    layer: ZLayer[R, E, A]
+  )(implicit spyable: Spyable[A]): UIO[(Ref[Vector[Invocation[A, _, _]]], ZLayer[R, E, A])] =
     Ref.make(Vector.empty[Invocation[A, _, _]]).map { ref =>
-      val spy = ZLayer.fromServiceMany { (environment: A) =>
-        spyable.spy(Has(environment)) {
+      val spy = ZLayer.requires[A].map { environment =>
+        spyable.spy[Invocation[A, _, _]](environment) {
           case invocation => ref.update(_ :+ invocation)
         }
       }

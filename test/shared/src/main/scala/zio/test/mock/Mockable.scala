@@ -17,15 +17,27 @@
 package zio.test.mock
 
 import zio.Has
+import zio.clock.Clock
+import zio.console.Console
+import zio.random.Random
+import zio.system.System
 
 /**
- * The `Mockable[A]` represents a mock service builder used by the mock
+ * The `Mockable[R]` represents a mock environment builder used by the mock
  * framework to construct a mock implementation from a mock.
  */
-trait Mockable[A] {
+trait Mockable[R <: Has[_]] {
 
   /**
-   * Provided a mock constructs a mock implementation of service `A`.
+   * Provided a mock constructs a mock implementation for environment `R`.
    */
-  def environment(mock: Mock): Has[A]
+  def environment(mock: Mock): R
+}
+
+object Mockable {
+
+  implicit val mockableSystem: Mockable[System]   = MockSystem.mockable
+  implicit val mockableClock: Mockable[Clock]     = MockClock.mockable
+  implicit val mockableConsole: Mockable[Console] = MockConsole.mockable
+  implicit val mockableRandom: Mockable[Random]   = MockRandom.mockable
 }

@@ -28,7 +28,7 @@ object SpySpec extends DefaultRunnableSpec {
       ZLayer.fromEffect(Ref.make(0).map(ref => Live(ref)))
   }
 
-  sealed trait Command[A] extends Method[Counter.Service, Unit, A]
+  sealed trait Command[A] extends Method[Counter, Unit, A]
 
   object Command {
     case object Increment extends Command[Unit]
@@ -39,9 +39,9 @@ object SpySpec extends DefaultRunnableSpec {
     val commands = Gen.elements(Increment, Decrement, Get, Reset)
   }
 
-  implicit val spyableCounter: Spyable[Counter.Service] =
-    new Spyable[Counter.Service] {
-      def environment(mock: Mock): Has[Counter.Service] =
+  implicit val spyableCounter: Spyable[Counter] =
+    new Spyable[Counter] {
+      def environment(mock: Mock): Counter =
         Has {
           new Counter.Service {
             def increment: UIO[Unit] = mock(Command.Increment)
@@ -50,19 +50,19 @@ object SpySpec extends DefaultRunnableSpec {
             def reset: UIO[Unit]     = mock(Command.Reset)
           }
         }
-      def mock(environment: Has[Counter.Service]): Mock =
+      def mock(environment: Counter): Mock =
         new Mock {
-          def invoke[R0, E0, A0, M0, I0](method: Method[M0, I0, A0], input: I0): ZIO[R0, E0, A0] =
-            method match {
+          def invoke[RIn <: Has[_], ROut, I, E, A](method: Method[RIn, I, A], input: I): ZIO[ROut, E, A] =
+            (method match {
               case Command.Increment => environment.get.increment
               case Command.Decrement => environment.get.decrement
               case Command.Get       => environment.get.get
               case Command.Reset     => environment.get.reset
-            }
+            }).asInstanceOf[ZIO[ROut, E, A]]
         }
     }
 
-  def testCounter(invocations: Iterable[Invocation[Counter.Service, _, _]]): TestResult =
+  def testCounter(invocations: Iterable[Invocation[Counter, _, _]]): TestResult =
     invocations
       .foldLeft((0, assertCompletes)) {
         case ((state, assertion), Invocation(method, _, output)) =>
