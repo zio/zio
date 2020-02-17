@@ -234,6 +234,11 @@ object URIO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.first]]
+   */
+  def first[A, B]: URIO[(A, B), A] = ZIO.first
+
+  /**
    * @see [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[R, A](
@@ -559,6 +564,11 @@ object URIO {
   def runtime[R]: URIO[R, Runtime[R]] = ZIO.runtime
 
   /**
+   * @see [[zio.ZIO.second]]
+   */
+  def second[A, B]: URIO[(A, B), B] = ZIO.second
+
+  /**
    * @see [[zio.ZIO.sleep]]
    */
   def sleep(duration: => Duration): URIO[Clock, Unit] = ZIO.sleep(duration)
@@ -594,7 +604,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.swap]]
    */
-  def swap[R, A, B](implicit ev: R <:< (A, B)): URIO[R, (B, A)] = ZIO.swap
+  def swap[A, B]: URIO[(A, B), (B, A)] = ZIO.swap
 
   /**
    * @see [[zio.ZIO.trace]]
@@ -695,16 +705,6 @@ object URIO {
    * @see [[zio.ZIO.yieldNow]]
    */
   val yieldNow: UIO[Unit] = ZIO.yieldNow
-
-  /**
-   * @see [[zio.ZIO._1]]
-   */
-  def _1[R, A, B](implicit ev: R <:< (A, B)): URIO[R, A] = ZIO._1
-
-  /**
-   * @see [[zio.ZIO._2]]
-   */
-  def _2[R, A, B](implicit ev: R <:< (A, B)): URIO[R, B] = ZIO._2
 
   private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
 
