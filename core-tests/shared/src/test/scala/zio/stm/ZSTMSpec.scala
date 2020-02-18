@@ -463,6 +463,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       },
       suite("partition")(
         testM("collects only successes") {
+          import zio.CanFail.canFail
           val in = List.range(0, 10)
           for {
             res <- STM.partition(in)(STM.succeedNow).commit
@@ -481,6 +482,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
         },
         testM("evaluates effects in correct order") {
+          import zio.CanFail.canFail
           val as = List(2, 4, 6, 3, 5, 6)
           val tx =
             for {
