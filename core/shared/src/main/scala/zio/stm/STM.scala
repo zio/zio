@@ -284,7 +284,7 @@ object STM {
    */
   def validate[E, A, B](
     in: Iterable[A]
-  )(f: A => STM[E, B]): STM[::[E], List[B]] =
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[::[E], List[B]] =
     ZSTM.validate(in)(f)
 
   /**
@@ -292,7 +292,7 @@ object STM {
    */
   def validateFirst[E, A, B](
     in: Iterable[A]
-  )(f: A => STM[E, B]): STM[List[E], B] =
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[List[E], B] =
     ZSTM.foreach(in)(f(_).flip).flip
 
   /**
