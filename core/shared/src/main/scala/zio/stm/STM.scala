@@ -18,7 +18,7 @@ package zio.stm
 
 import scala.util.Try
 
-import zio.{ Fiber, IO }
+import zio.{ CanFail, Fiber, IO }
 
 object STM {
 
@@ -219,7 +219,9 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.partition]]
    */
-  def partition[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[Nothing, (List[E], List[B])] =
+  def partition[E, A, B](
+    in: Iterable[A]
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[Nothing, (List[E], List[B])] =
     ZSTM.partition(in)(f)
 
   /**
