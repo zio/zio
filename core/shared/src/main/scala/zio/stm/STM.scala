@@ -280,17 +280,17 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.validate]]
    */
-  def validate[R, E, A, B](
+  def validate[E, A, B](
     in: Iterable[A]
-  )(f: A => ZSTM[R, E, B]): ZSTM[R, ::[E], List[B]] =
+  )(f: A => STM[E, B]): STM[::[E], List[B]] =
     ZSTM.validate(in)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.validateFirst]]
    */
-  def validateFirst[R, E, A, B](
+  def validateFirst[E, A, B](
     in: Iterable[A]
-  )(f: A => ZSTM[R, E, B]): ZSTM[R, List[E], B] =
+  )(f: A => STM[E, B]): STM[List[E], B] =
     ZSTM.foreach(in)(f(_).flip).flip
 
   /**
