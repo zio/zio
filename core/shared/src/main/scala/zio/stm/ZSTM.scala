@@ -610,6 +610,21 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
+   * Keeps some of the errors, and terminates the fiber with the rest.
+   */
+  final def refineOrDie[E1](
+    pf: PartialFunction[E, E1]
+  )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZSTM[R, E1, A] =
+    refineOrDieWith(pf)(ev1)
+
+  /**
+   * Keeps some of the errors, and terminates the fiber with the rest, using
+   * the specified function to convert the `E` into a `Throwable`.
+   */
+  def refineOrDieWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
+    self.catchAll(err => (pf.lift(err)).fold[ZSTM[R, E1, A]](ZSTM.dieNow(f(err)))(ZSTM.failNow(_)))
+
+  /**
    * Fail with the returned value if the `PartialFunction` matches, otherwise
    * continue with our held value.
    */
