@@ -2,6 +2,7 @@ import sbt._
 import Keys._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport._
+import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
@@ -85,7 +86,10 @@ object BuildHelper {
   val scalaReflectSettings = Seq(
     libraryDependencies ++=
       (if (isDotty.value) Seq()
-       else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value))
+       else
+         Seq(
+           "io.7mind.izumi" %%% "fundamentals-reflection" % "0.10.2-M6"
+         ))
   )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
@@ -218,7 +222,7 @@ object BuildHelper {
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.4.4" % Provided)
+        Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.5.0" % Provided)
       else
         Seq(
           "com.github.ghik" % "silencer-lib" % "1.4.4" % Provided cross CrossVersion.full,

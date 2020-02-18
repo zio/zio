@@ -688,7 +688,7 @@ object Schedule {
   /**
    * A schedule that recurs for as long as the predicate is equal.
    */
-  def doWhileEquals[A](a: A): Schedule[Any, A, A] =
+  def doWhileEquals[A](a: => A): Schedule[Any, A, A] =
     identity[A].whileInput(_ == a)
 
   /**
@@ -706,7 +706,7 @@ object Schedule {
   /**
    * A schedule that recurs for until the predicate is equal.
    */
-  def doUntilEquals[A](a: A): Schedule[Any, A, A] =
+  def doUntilEquals[A](a: => A): Schedule[Any, A, A] =
     identity[A].untilInput(_ == a)
 
   /**

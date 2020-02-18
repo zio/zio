@@ -17,6 +17,14 @@ import zio.test.environment.{ Live, TestClock }
 object ZIOSpec extends ZIOBaseSpec {
 
   def spec = suite("ZIOSpec")(
+    suite("***")(
+      testM("splits the environment") {
+        val zio1 = ZIO.fromFunction((n: Int) => n + 2)
+        val zio2 = ZIO.fromFunction((n: Int) => n * 3)
+        val zio3 = zio1 *** zio2
+        assertM(zio3.provide((4, 5)))(equalTo((6, 15)))
+      }
+    ),
     suite("absorbWith")(
       testM("on fail") {
         assertM(TaskExampleError.absorbWith(identity).run)(fails(equalTo(ExampleError)))
@@ -271,10 +279,38 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- out.get
         } yield assert(result)(equalTo(10))
       },
-      testM("doUntil always evaluates effect once") {
+      testM("doUntil always evaluates effect at least once") {
         for {
           ref    <- Ref.make(0)
           _      <- ref.update(_ + 1).doUntil(_ => true)
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
+      }
+    ),
+    suite("doUntilEquals")(
+      testM("doUntilEquals repeats until result is equal to predicate") {
+        for {
+          q      <- Queue.unbounded[Int]
+          _      <- q.offerAll(List(1, 2, 3, 4, 5, 6))
+          acc    <- Ref.make(0)
+          _      <- (q.take <* acc.update(_ + 1)).doUntilEquals(5)
+          result <- acc.get
+        } yield assert(result)(equalTo(5))
+      }
+    ),
+    suite("doUntilM")(
+      testM("doUntilM repeat until effectful condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).doUntilM(v => UIO.succeedNow(v == 0))
+          result <- out.get
+        } yield assert(result)(equalTo(10))
+      },
+      testM("doUntilM always evaluates effect at least once") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).doUntilM(_ => UIO.succeedNow(true))
           result <- ref.get
         } yield assert(result)(equalTo(1))
       }
@@ -288,10 +324,38 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- out.get
         } yield assert(result)(equalTo(11))
       },
-      testM("doWhile always evaluates effect once") {
+      testM("doWhile always evaluates effect at least once") {
         for {
           ref    <- Ref.make(0)
           _      <- ref.update(_ + 1).doWhile(_ => false)
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
+      }
+    ),
+    suite("doWhileEquals")(
+      testM("doWhileEquals repeats while result equals predicate") {
+        for {
+          q      <- Queue.unbounded[Int]
+          _      <- q.offerAll(List(0, 0, 0, 0, 1, 2))
+          acc    <- Ref.make(0)
+          _      <- (q.take <* acc.update(_ + 1)).doWhileEquals(0)
+          result <- acc.get
+        } yield assert(result)(equalTo(5))
+      }
+    ),
+    suite("doWhileM")(
+      testM("doWhileM repeats while condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).doWhileM(v => UIO.succeedNow(v >= 0))
+          result <- out.get
+        } yield assert(result)(equalTo(11))
+      },
+      testM("doWhileM always evaluates effect at least once") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).doWhileM(_ => UIO.succeedNow(false))
           result <- ref.get
         } yield assert(result)(equalTo(1))
       }
@@ -1288,10 +1352,38 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- out.get
         } yield assert(result)(equalTo(10))
       },
-      testM("retryUntil doesn't retry when condition is true") {
+      testM("retryUntil runs at least once") {
         for {
           ref    <- Ref.make(0)
-          _      <- ref.update(_ + 1).flipWith(_.doUntil(_ => true))
+          _      <- ref.update(_ + 1).flipWith(_.retryUntil(_ => true))
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
+      }
+    ),
+    suite("retryUntilEquals")(
+      testM("retryUntilEquals retries until error equals predicate") {
+        for {
+          q      <- Queue.unbounded[Int]
+          _      <- q.offerAll(List(1, 2, 3, 4, 5, 6))
+          acc    <- Ref.make(0)
+          _      <- (q.take <* acc.update(_ + 1)).flipWith(_.retryUntilEquals(5))
+          result <- acc.get
+        } yield assert(result)(equalTo(5))
+      }
+    ),
+    suite("retryUntilM")(
+      testM("retryUntilM retries until condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).flipWith(_.retryUntilM(v => UIO.succeedNow(v == 0)))
+          result <- out.get
+        } yield assert(result)(equalTo(10))
+      },
+      testM("retryUntilM runs at least once") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).flipWith(_.retryUntilM(_ => UIO.succeedNow(true)))
           result <- ref.get
         } yield assert(result)(equalTo(1))
       }
@@ -1305,10 +1397,38 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- out.get
         } yield assert(result)(equalTo(11))
       },
-      testM("retryWhile doesn't retry when condition is false") {
+      testM("retryWhile runs at least once") {
         for {
           ref    <- Ref.make(0)
           _      <- ref.update(_ + 1).flipWith(_.retryWhile(_ => false))
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
+      }
+    ),
+    suite("retryWhileEquals")(
+      testM("retryWhileEquals retries while error equals predicate") {
+        for {
+          q      <- Queue.unbounded[Int]
+          _      <- q.offerAll(List(0, 0, 0, 0, 1, 2))
+          acc    <- Ref.make(0)
+          _      <- (q.take <* acc.update(_ + 1)).flipWith(_.retryWhileEquals(0))
+          result <- acc.get
+        } yield assert(result)(equalTo(5))
+      }
+    ),
+    suite("retryWhileM")(
+      testM("retryWhileM retries while condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).flipWith(_.retryWhileM(v => UIO.succeedNow(v >= 0)))
+          result <- out.get
+        } yield assert(result)(equalTo(11))
+      },
+      testM("retryWhileM runs at least once") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).flipWith(_.retryWhileM(_ => UIO.succeedNow(false)))
           result <- ref.get
         } yield assert(result)(equalTo(1))
       }

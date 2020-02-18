@@ -463,6 +463,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       },
       suite("partition")(
         testM("collects only successes") {
+          import zio.CanFail.canFail
           val in = List.range(0, 10)
           for {
             res <- STM.partition(in)(STM.succeedNow).commit
@@ -481,6 +482,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
         },
         testM("evaluates effects in correct order") {
+          import zio.CanFail.canFail
           val as = List(2, 4, 6, 3, 5, 6)
           val tx =
             for {
@@ -622,19 +624,19 @@ object ZSTMSpec extends ZIOBaseSpec {
       ),
       suite("tupled environment")(
         testM("_1 should extract first") {
-          val tx  = ZSTM._1[(Int, String), Nothing, Int, String]
+          val tx  = ZSTM.first[Nothing, Int, String]
           val env = (42, "test")
 
           assertM(tx.provide(env).commit)(equalTo(env._1))
         },
         testM("_2 should extract second") {
-          val tx  = ZSTM._2[(Int, String), Nothing, Int, String]
+          val tx  = ZSTM.second[Nothing, Int, String]
           val env = (42, "test")
 
           assertM(tx.provide(env).commit)(equalTo(env._2))
         },
         testM("swap") {
-          val tx  = ZSTM.swap[(Int, String), Nothing, Int, String]
+          val tx  = ZSTM.swap[Nothing, Int, String]
           val env = (42, "test")
 
           assertM(tx.provide(env).commit)(equalTo(env.swap))

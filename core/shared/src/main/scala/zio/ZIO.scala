@@ -73,6 +73,103 @@ import zio.{ TracingStatus => TracingS }
 sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
 
   /**
+   * Sequentially zips this effect with the specified effect, combining the
+   * results into a tuple.
+   */
+  final def &&&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    self.zipWith(that)((a, b) => (a, b))
+
+  /**
+   * Returns an effect that executes both this effect and the specified effect,
+   * in parallel, returning result of provided effect. If either side fails,
+   * then the other side will be interrupted, interrupted the result.
+   */
+  final def &>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    self.zipWithPar(that)((_, b) => b)
+
+  /**
+   * Splits the environment, providing the first part to this effect and the
+   * second part to that effect.
+   */
+  final def ***[R1, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[(R, R1), E1, (A, B)] =
+    (ZIO.first[E1, R, R1] >>> self) &&& (ZIO.second[E1, R, R1] >>> that)
+
+  /**
+   * A variant of `flatMap` that ignores the value produced by this effect.
+   */
+  final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    self.flatMap(new ZIO.ZipRightFn(() => that))
+
+  /**
+   * Depending on provided environment, returns either this one or the other
+   * effect lifted in `Left` or `Right`, respectively.
+   */
+  final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
+    ZIO.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
+
+  /**
+   * Returns an effect that executes both this effect and the specified effect,
+   * in parallel, this effect result returned. If either side fails,
+   * then the other side will be interrupted, interrupted the result.
+   */
+  final def <&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, A] =
+    self.zipWithPar(that)((a, _) => a)
+
+  /**
+   * Returns an effect that executes both this effect and the specified effect,
+   * in parallel, combining their results into a tuple. If either side fails,
+   * then the other side will be interrupted, interrupted the result.
+   */
+  final def <&>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    self.zipWithPar(that)((a, b) => (a, b))
+
+  /**
+   * Sequences the specified effect after this effect, but ignores the
+   * value produced by the effect.
+   */
+  final def <*[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, A] =
+    self.flatMap(new ZIO.ZipLeftFn(() => that))
+
+  /**
+   * Alias for `&&&`.
+   */
+  final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    self &&& that
+
+  /**
+   * Operator alias for `compose`.
+   */
+  final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
+    that >>> self
+
+  /**
+   * Operator alias for `orElse`.
+   */
+  final def <>[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1])(implicit ev: CanFail[E]): ZIO[R1, E2, A1] =
+    orElse(that)
+
+  /**
+   * Alias for `flatMap`.
+   *
+   * {{{
+   * val parsed = readFile("foo.txt") >>= parseFile
+   * }}}
+   */
+  final def >>=[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] = flatMap(k)
+
+  /**
+   * Operator alias for `andThen`.
+   */
+  final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+    self.flatMap(that.provide)
+
+  /**
+   * Depending on provided environment returns either this one or the other effect.
+   */
+  final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
+    ZIO.accessM(_.fold(self.provide, that.provide))
+
+  /**
    * Returns an effect that submerges the error case of an `Either` into the
    * `ZIO`. The inverse operation of `ZIO.either`.
    */
@@ -378,10 +475,34 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     repeat(Schedule.doUntil(f))
 
   /**
+   * Repeats this effect until its result is equal to the predicate.
+   */
+  final def doUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+    repeat(Schedule.doUntilEquals(a))
+
+  /**
+   * Repeats this effect until its result satisfies the specified effectful predicate.
+   */
+  final def doUntilM(f: A => UIO[Boolean]): ZIO[R, E, A] =
+    repeat(Schedule.doUntilM(f))
+
+  /**
    * Repeats this effect while its result satisfies the specified predicate.
    */
   final def doWhile(f: A => Boolean): ZIO[R, E, A] =
     repeat(Schedule.doWhile(f))
+
+  /**
+   * Repeats this effect for as long as the predicate is equal to its result.
+   */
+  final def doWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+    repeat(Schedule.doWhileEquals(a))
+
+  /**
+   * Repeats this effect while its result satisfies the specified effectful predicate.
+   */
+  final def doWhileM(f: A => UIO[Boolean]): ZIO[R, E, A] =
+    repeat(Schedule.doWhileM(f))
 
   /**
    * Returns an effect whose failure and success have been lifted into an
@@ -1032,25 +1153,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     r0.use(self.provide)
 
   /**
-   * Operator alias for `andThen`.
-   */
-  final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
-    self.flatMap(that.provide)
-
-  /**
-   * Depending on provided environment returns either this one or the other effect.
-   */
-  final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
-    ZIO.accessM(_.fold(self.provide, that.provide))
-
-  /**
-   * Depending on provided environment, returns either this one or the other
-   * effect lifted in `Left` or `Right`, respectively.
-   */
-  final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
-    ZIO.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
-
-  /**
    * Returns a successful effect if the value is `Left`, or fails with the error `None`.
    */
   final def left[B, C](implicit ev: A <:< Either[B, C]): ZIO[R, Option[E], B] =
@@ -1359,14 +1461,38 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Retries this effect until its error satisfies the specified predicate.
    */
-  final def retryUntil(f: E => Boolean): ZIO[R, E, A] =
+  final def retryUntil(f: E => Boolean)(implicit ev: CanFail[E]): ZIO[R, E, A] =
     retry(Schedule.doUntil(f))
+
+  /**
+   * Retries this effect until its error equals the predicate.
+   */
+  final def retryUntilEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
+    retry(Schedule.doUntilEquals(e))
+
+  /**
+   * Retries this effect until its error satisfies the specified effectful predicate.
+   */
+  final def retryUntilM(f: E => UIO[Boolean])(implicit ev: CanFail[E]): ZIO[R, E, A] =
+    retry(Schedule.doUntilM(f))
 
   /**
    * Retries this effect while its error satisfies the specified predicate.
    */
-  final def retryWhile(f: E => Boolean): ZIO[R, E, A] =
+  final def retryWhile(f: E => Boolean)(implicit ev: CanFail[E]): ZIO[R, E, A] =
     retry(Schedule.doWhile(f))
+
+  /**
+   * Repeats this effect for as long as the error equals the predicate.
+   */
+  final def retryWhileEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
+    retry(Schedule.doWhileEquals(e))
+
+  /**
+   * Retries this effect while its error satisfies the specified effectful predicate.
+   */
+  final def retryWhileM(f: E => UIO[Boolean])(implicit ev: CanFail[E]): ZIO[R, E, A] =
+    retry(Schedule.doWhileM(f))
 
   /**
    * Returns an effect that semantically runs the effect on a fiber,
@@ -1764,77 +1890,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       }
     )
   }
-
-  /**
-   * Alias for `flatMap`.
-   *
-   * {{{
-   * val parsed = readFile("foo.txt") >>= parseFile
-   * }}}
-   */
-  final def >>=[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] = flatMap(k)
-
-  /**
-   * Returns an effect that executes both this effect and the specified effect,
-   * in parallel, combining their results into a tuple. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
-   */
-  final def <&>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
-    self.zipWithPar(that)((a, b) => (a, b))
-
-  /**
-   * Returns an effect that executes both this effect and the specified effect,
-   * in parallel, this effect result returned. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
-   */
-  final def <&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, A] =
-    self.zipWithPar(that)((a, _) => a)
-
-  /**
-   * Returns an effect that executes both this effect and the specified effect,
-   * in parallel, returning result of provided effect. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
-   */
-  final def &>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    self.zipWithPar(that)((_, b) => b)
-
-  /**
-   * Operator alias for `orElse`.
-   */
-  final def <>[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1])(implicit ev: CanFail[E]): ZIO[R1, E2, A1] =
-    orElse(that)
-
-  /**
-   * Operator alias for `compose`.
-   */
-  final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
-    that >>> self
-
-  /**
-   * A variant of `flatMap` that ignores the value produced by this effect.
-   */
-  final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    self.flatMap(new ZIO.ZipRightFn(() => that))
-
-  /**
-   * Sequences the specified effect after this effect, but ignores the
-   * value produced by the effect.
-   */
-  final def <*[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, A] =
-    self.flatMap(new ZIO.ZipLeftFn(() => that))
-
-  /**
-   * Sequentially zips this effect with the specified effect, combining the
-   * results into a tuple.
-   */
-  final def &&&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
-    self.zipWith(that)((a, b) => (a, b))
-
-  /**
-   * Alias for `&&&`.
-   */
-  final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
-    self &&& that
 }
 
 object ZIO extends ZIOCompanionPlatformSpecific {
@@ -2294,6 +2349,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     as.foldRight[ZIO[R, E, List[A]]](ZIO.succeedNow(Nil)) { (a, zio) =>
       f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
     }
+
+  /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  def first[E, A, B]: ZIO[(A, B), E, A] = fromFunction[(A, B), A](_._1)
 
   /**
    * Returns an effect that races this effect with all the specified effects,
@@ -3045,6 +3106,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     } yield Runtime(environment, platform)
 
   /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  def second[E, A, B]: ZIO[(A, B), E, B] = fromFunction[(A, B), B](_._2)
+
+  /**
    *  Alias for [[ZIO.collectAll]]
    */
   @deprecated("use collectAll", "1.0.0")
@@ -3087,8 +3154,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, (B, A)] =
-    fromFunction[R, (B, A)](_.swap)
+  def swap[E, A, B]: ZIO[(A, B), E, (B, A)] =
+    fromFunction[(A, B), (B, A)](_.swap)
 
   /**
    * Capture ZIO trace at the current point
@@ -3263,18 +3330,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * overhead.
    */
   val yieldNow: UIO[Unit] = ZIO.Yield
-
-  /**
-   * Returns an effectful function that extracts out the first element of a
-   * tuple.
-   */
-  def _1[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, A] = fromFunction[R, A](_._1)
-
-  /**
-   * Returns an effectful function that extracts out the second element of a
-   * tuple.
-   */
-  def _2[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, B] = fromFunction[R, B](_._2)
 
   def apply[A](a: => A): Task[A] = effect(a)
 
