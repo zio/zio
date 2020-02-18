@@ -1,10 +1,10 @@
 package zio.stream
 
+import scala.{ Stream => _ }
+
 import zio.test.Assertion.{ anything, equalTo, fails, isSubtype }
 import zio.test._
 import zio.{ Chunk, ZIOBaseSpec }
-
-import scala.{ Stream => _ }
 
 object FramingSpec extends ZIOBaseSpec {
 
