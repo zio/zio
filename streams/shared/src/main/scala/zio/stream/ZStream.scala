@@ -3371,6 +3371,19 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     fromQueue(queue).ensuringFirst(queue.shutdown)
 
   /**
+   * Creates a stream from a [[zio.Schedule]] that does not require any further
+   * input. The stream will emit an element for each value output from the
+   * schedule, continuing for as long as the schedule continues.
+   */
+  def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R, Nothing, A] =
+    ZStream.fromEffect(schedule.initial).flatMap { s =>
+      ZStream.succeed(schedule.extract((), s)) ++
+        ZStream.unfoldM(s) { s =>
+          schedule.update((), s).map(s => (schedule.extract((), s), s)).option
+        }
+    }
+
+  /**
    * Creates a stream from a [[zio.stm.TQueue]] of values.
    */
   def fromTQueue[A](queue: TQueue[A]): ZStream[Any, Nothing, A] =
