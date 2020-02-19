@@ -293,7 +293,7 @@ object STM {
   def validateFirst[E, A, B](
     in: Iterable[A]
   )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[List[E], B] =
-    ZSTM.foreach(in)(f(_).flip).flip
+    ZSTM.validateFirst(in)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.when]]
