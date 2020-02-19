@@ -98,7 +98,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- env.use_(ZIO.unit)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      },
+      } @@ nonFlaky,
       testM("sharing with >>>") {
         val expected = Vector(acquire1, release1)
         for {
@@ -108,7 +108,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- env.use_(ZIO.unit)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      },
+      } @@ nonFlaky,
       testM("sharing with multiple layers") {
         for {
           ref    <- makeRef
@@ -122,7 +122,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
           assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
           assert(actual(5))(equalTo(release1))
-      },
+      } @@ nonFlaky,
       testM("finalizers with ++") {
         for {
           ref    <- makeRef
@@ -133,7 +133,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield assert(actual.slice(0, 2))(hasSameElements(Vector(acquire1, acquire2))) &&
           assert(actual.slice(2, 4))(hasSameElements(Vector(release1, release2)))
-      },
+      } @@ nonFlaky,
       testM("finalizers with >>>") {
         val expected = Vector(acquire1, acquire2, release2, release1)
         for {
@@ -144,7 +144,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- env.use_(ZIO.unit)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      },
+      } @@ nonFlaky,
       testM("finalizers with multiple layers") {
         val expected =
           Vector(acquire1, acquire2, acquire3, release3, release2, release1)
@@ -157,7 +157,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- env.use_(ZIO.unit)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      },
+      } @@ nonFlaky,
       testM("map does not interfere with sharing") {
         for {
           ref    <- makeRef
@@ -171,7 +171,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
           assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
           assert(actual(5))(equalTo(release1))
-      },
+      } @@ nonFlaky,
       testM("mapError does not interfere with sharing") {
         for {
           ref    <- makeRef
@@ -185,7 +185,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
           assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
           assert(actual(5))(equalTo(release1))
-      },
+      } @@ nonFlaky,
       testM("interruption with ++") {
         for {
           ref    <- makeRef
@@ -197,7 +197,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      },
+      } @@ nonFlaky,
       testM("interruption with >>>") {
         for {
           ref    <- makeRef
@@ -209,7 +209,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      },
+      } @@ nonFlaky,
       testM("interruption with multiple layers") {
         for {
           ref    <- makeRef
@@ -223,7 +223,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2))) &&
           (assert(actual)(contains(acquire3)) ==> assert(actual)(contains(release3)))
-      },
+      } @@ nonFlaky,
       testM("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]
@@ -233,6 +233,6 @@ object ZLayerSpec extends ZIOBaseSpec {
           _       <- env.use_(ZIO.unit).fork
           _       <- promise.await
         } yield assertCompletes
-      }
-    ) @@ nonFlaky
+      } @@ nonFlaky
+    )
 }
