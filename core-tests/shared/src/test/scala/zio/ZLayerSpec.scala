@@ -1,6 +1,7 @@
 package zio
 
 import zio.test.Assertion._
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment._
 
@@ -14,6 +15,13 @@ object ZLayerSpec extends ZIOBaseSpec {
       ZIO.succeedNow(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label))
     }
 
+  val acquire1 = "Acquiring Module 1"
+  val acquire2 = "Acquiring Module 2"
+  val acquire3 = "Acquiring Module 3"
+  val release1 = "Releasing Module 1"
+  val release2 = "Releasing Module 2"
+  val release3 = "Releasing Module 3"
+
   type Module1 = Has[Module1.Service]
 
   object Module1 {
@@ -22,9 +30,7 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module1] =
     ZLayer {
-      ZManaged.make(ref.update(_ :+ "Acquiring Module 1").as(Has(new Module1.Service {})))(_ =>
-        ref.update(_ :+ "Releasing Module 1")
-      )
+      ZManaged.make(ref.update(_ :+ acquire1).as(Has(new Module1.Service {})))(_ => ref.update(_ :+ release1))
     }
 
   type Module2 = Has[Module2.Service]
@@ -35,9 +41,7 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module2] =
     ZLayer {
-      ZManaged.make(ref.update(_ :+ "Acquiring Module 2").as(Has(new Module2.Service {})))(_ =>
-        ref.update(_ :+ "Releasing Module 2")
-      )
+      ZManaged.make(ref.update(_ :+ acquire2).as(Has(new Module2.Service {})))(_ => ref.update(_ :+ release2))
     }
 
   type Module3 = Has[Module3.Service]
@@ -48,177 +52,149 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module3] =
     ZLayer {
-      ZManaged.make(ref.update(_ :+ "Acquiring Module 3").as(Has(new Module3.Service {})))(_ =>
-        ref.update(_ :+ "Releasing Module 3")
-      )
+      ZManaged.make(ref.update(_ :+ acquire3).as(Has(new Module3.Service {})))(_ => ref.update(_ :+ release3))
     }
 
   def makeRef: UIO[Ref[Vector[String]]] =
     Ref.make(Vector.empty)
 
-  def spec = suite("ZLayerSpec")(
-    testM("Size of >>> (1)") {
-      val layer = ZLayer.succeed(1) >>> ZLayer.fromService((i: Int) => Has(i.toString))
+  def spec =
+    suite("ZLayerSpec")(
+      testM("Size of >>> (1)") {
+        val layer = ZLayer.succeed(1) >>> ZLayer.fromService((i: Int) => Has(i.toString))
 
-      testSize(layer, 1)
-    },
-    testM("Size of >>> (2)") {
-      val layer = ZLayer.succeed(1) >>>
-        (ZLayer.fromService((i: Int) => Has(i.toString)) ++
-          ZLayer.fromService((i: Int) => Has(i % 2 == 0)))
+        testSize(layer, 1)
+      },
+      testM("Size of >>> (2)") {
+        val layer = ZLayer.succeed(1) >>>
+          (ZLayer.fromService((i: Int) => Has(i.toString)) ++
+            ZLayer.fromService((i: Int) => Has(i % 2 == 0)))
 
-      testSize(layer, 2)
-    },
-    testM("Size of Test layers") {
-      for {
-        r1 <- testSize(Annotations.live, 1, "Annotations.live")
-        r2 <- testSize(TestConsole.default, 2, "TestConsole.default")
-        r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
-        r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 2, "TestRandom.live")
-        r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
-        r6 <- testSize(TestSystem.default, 2, "TestSystem.default")
-      } yield r1 && r2 && r3 && r4 && r5 && r6
-    },
-    testM("Size of >>> (9)") {
-      val layer = (ZEnv.live >>>
-        (Annotations.live ++ TestConsole.default ++ Live.default ++ TestRandom.deterministic ++ Sized
-          .live(100) ++ TestSystem.default))
+        testSize(layer, 2)
+      },
+      testM("Size of Test layers") {
+        for {
+          r1 <- testSize(Annotations.live, 1, "Annotations.live")
+          r2 <- testSize(TestConsole.default, 2, "TestConsole.default")
+          r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
+          r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 2, "TestRandom.live")
+          r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
+          r6 <- testSize(TestSystem.default, 2, "TestSystem.default")
+        } yield r1 && r2 && r3 && r4 && r5 && r6
+      },
+      testM("Size of >>> (9)") {
+        val layer = (ZEnv.live >>>
+          (Annotations.live ++ TestConsole.default ++ Live.default ++ TestRandom.deterministic ++ Sized
+            .live(100) ++ TestSystem.default))
 
-      testSize(layer, 9)
-    },
-    testM("sharing with ++") {
-      val expected = Vector(
-        "Acquiring Module 1",
-        "Releasing Module 1"
-      )
-      for {
-        ref    <- makeRef
-        layer1 = makeLayer1(ref)
-        env    = (layer1 ++ layer1).build
-        _      <- env.use_(ZIO.unit)
-        actual <- ref.get
-      } yield assert(actual)(equalTo(expected))
-    },
-    testM("sharing with >>>") {
-      val expected = Vector(
-        "Acquiring Module 1",
-        "Releasing Module 1"
-      )
-      for {
-        ref    <- makeRef
-        layer1 = makeLayer1(ref)
-        env    = (layer1 >>> layer1).build
-        _      <- env.use_(ZIO.unit)
-        actual <- ref.get
-      } yield assert(actual)(equalTo(expected))
-    },
-    testM("sharing with multiple layers") {
-      val expected = Vector(
-        "Acquiring Module 1",
-        "Acquiring Module 2",
-        "Acquiring Module 3",
-        "Releasing Module 3",
-        "Releasing Module 2",
-        "Releasing Module 1"
-      )
-      for {
-        ref    <- makeRef
-        layer1 = makeLayer1(ref)
-        layer2 = makeLayer2(ref)
-        layer3 = makeLayer3(ref)
-        env    = ((layer1 >>> layer2) ++ (layer1 >>> layer3)).build
-        _      <- env.use_(ZIO.unit)
-        actual <- ref.get
-      } yield assert(actual)(equalTo(expected))
-    },
-    testM("finalizers with ++") {
-      val expected = Vector(
-        "Acquiring Module 1",
-        "Acquiring Module 2",
-        "Releasing Module 2",
-        "Releasing Module 1"
-      )
-      for {
-        ref    <- makeRef
-        layer1 = makeLayer1(ref)
-        layer2 = makeLayer2(ref)
-        env    = (layer1 ++ layer2).build
-        _      <- env.use_(ZIO.unit)
-        actual <- ref.get
-      } yield assert(actual)(equalTo(expected))
-    },
-    testM("finalizers with >>>") {
-      val expected = Vector(
-        "Acquiring Module 1",
-        "Acquiring Module 2",
-        "Releasing Module 2",
-        "Releasing Module 1"
-      )
-      for {
-        ref    <- makeRef
-        layer1 = makeLayer1(ref)
-        layer2 = makeLayer2(ref)
-        env    = (layer1 >>> layer2).build
-        _      <- env.use_(ZIO.unit)
-        actual <- ref.get
-      } yield assert(actual)(equalTo(expected))
-    },
-    testM("finalizers with multiple layers") {
-      val expected = Vector(
-        "Acquiring Module 1",
-        "Acquiring Module 2",
-        "Acquiring Module 3",
-        "Releasing Module 3",
-        "Releasing Module 2",
-        "Releasing Module 1"
-      )
-      for {
-        ref    <- makeRef
-        layer1 = makeLayer1(ref)
-        layer2 = makeLayer2(ref)
-        layer3 = makeLayer3(ref)
-        env    = (layer1 >>> layer2 >>> layer3).build
-        _      <- env.use_(ZIO.unit)
-        actual <- ref.get
-      } yield assert(actual)(equalTo(expected))
-    },
-    testM("map does not interfere with sharing") {
-      val expected = Vector(
-        "Acquiring Module 1",
-        "Acquiring Module 2",
-        "Acquiring Module 3",
-        "Releasing Module 3",
-        "Releasing Module 2",
-        "Releasing Module 1"
-      )
-      for {
-        ref    <- makeRef
-        layer1 = makeLayer1(ref)
-        layer2 = makeLayer2(ref)
-        layer3 = makeLayer3(ref)
-        env    = ((layer1.map(identity) >>> layer2) ++ (layer1 >>> layer3)).build
-        _      <- env.use_(ZIO.unit)
-        actual <- ref.get
-      } yield assert(actual)(equalTo(expected))
-    },
-    testM("mapError does not interfere with sharing") {
-      val expected = Vector(
-        "Acquiring Module 1",
-        "Acquiring Module 2",
-        "Acquiring Module 3",
-        "Releasing Module 3",
-        "Releasing Module 2",
-        "Releasing Module 1"
-      )
-      for {
-        ref    <- makeRef
-        layer1 = makeLayer1(ref)
-        layer2 = makeLayer2(ref)
-        layer3 = makeLayer3(ref)
-        env    = ((layer1.mapError(identity) >>> layer2) ++ (layer1 >>> layer3)).build
-        _      <- env.use_(ZIO.unit)
-        actual <- ref.get
-      } yield assert(actual)(equalTo(expected))
-    }
-  )
+        testSize(layer, 9)
+      },
+      testM("sharing with ++") {
+        val expected = Vector(acquire1, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          env    = (layer1 ++ layer1).build
+          _      <- env.use_(ZIO.unit)
+          actual <- ref.get
+        } yield assert(actual)(equalTo(expected))
+      },
+      testM("sharing with >>>") {
+        val expected = Vector(acquire1, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          env    = (layer1 >>> layer1).build
+          _      <- env.use_(ZIO.unit)
+          actual <- ref.get
+        } yield assert(actual)(equalTo(expected))
+      },
+      testM("sharing with multiple layers") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          layer3 = makeLayer3(ref)
+          env    = ((layer1 >>> layer2) ++ (layer1 >>> layer3)).build
+          _      <- env.use_(ZIO.unit)
+          actual <- ref.get
+        } yield assert(actual(0))(equalTo(acquire1)) &&
+          assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
+          assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
+          assert(actual(5))(equalTo(release1))
+      },
+      testM("finalizers with ++") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          env    = (layer1 ++ layer2).build
+          _      <- env.use_(ZIO.unit)
+          actual <- ref.get
+        } yield assert(actual.slice(0, 2))(hasSameElements(Vector(acquire1, acquire2))) &&
+          assert(actual.slice(2, 4))(hasSameElements(Vector(release1, release2)))
+      },
+      testM("finalizers with >>>") {
+        val expected = Vector(acquire1, acquire2, release2, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          env    = (layer1 >>> layer2).build
+          _      <- env.use_(ZIO.unit)
+          actual <- ref.get
+        } yield assert(actual)(equalTo(expected))
+      },
+      testM("finalizers with multiple layers") {
+        val expected =
+          Vector(acquire1, acquire2, acquire3, release3, release2, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          layer3 = makeLayer3(ref)
+          env    = (layer1 >>> layer2 >>> layer3).build
+          _      <- env.use_(ZIO.unit)
+          actual <- ref.get
+        } yield assert(actual)(equalTo(expected))
+      },
+      testM("map does not interfere with sharing") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          layer3 = makeLayer3(ref)
+          env    = ((layer1.map(identity) >>> layer2) ++ (layer1 >>> layer3)).build
+          _      <- env.use_(ZIO.unit)
+          actual <- ref.get
+        } yield assert(actual(0))(equalTo(acquire1)) &&
+          assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
+          assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
+          assert(actual(5))(equalTo(release1))
+      },
+      testM("mapError does not interfere with sharing") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          layer3 = makeLayer3(ref)
+          env    = ((layer1.mapError(identity) >>> layer2) ++ (layer1 >>> layer3)).build
+          _      <- env.use_(ZIO.unit)
+          actual <- ref.get
+        } yield assert(actual(0))(equalTo(acquire1)) &&
+          assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
+          assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
+          assert(actual(5))(equalTo(release1))
+      },
+      testM("layers can be acquired in parallel") {
+        for {
+          promise <- Promise.make[Nothing, Unit]
+          layer1  = ZLayer.fromManaged(Managed.make(ZIO.never)(_ => ZIO.unit))
+          layer2  = ZLayer.fromManaged(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
+          env     = (layer1 ++ layer2).build
+          _       <- env.use_(ZIO.unit).fork
+          _       <- promise.await
+        } yield assertCompletes
+      }
+    ) @@ nonFlaky
 }
