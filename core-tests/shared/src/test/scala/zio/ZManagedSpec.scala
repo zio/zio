@@ -1177,7 +1177,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           actual   <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      } @@ nonFlaky,
+      } @@ nonFlaky
     ),
     suite("flatten")(
       testM("Returns the same as ZManaged.flatten") {
