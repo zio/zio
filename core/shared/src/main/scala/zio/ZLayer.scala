@@ -428,9 +428,7 @@ object ZLayer {
      */
     def make: UIO[MemoMap] =
       RefM
-        .make[Map[ZLayer[Nothing, Any, Has[_]], (Promise[_, _], Exit[Any, Any] => ZIO[Any, Nothing, Any], Ref[Int])]](
-          Map.empty
-        )
+        .make[Map[ZLayer[Nothing, Any, Has[_]], Reservation[Any, Any, Any]]](Map.empty)
         .map { ref =>
           new MemoMap { self =>
             final def getOrElseMemoize[E, A, B <: Has[_]](
@@ -440,16 +438,14 @@ object ZLayer {
               ZManaged {
                 ref.modify { map =>
                   map.get(layer) match {
-                    case Some((promise, release, observers)) =>
+                    case Some(Reservation(acquire, release)) =>
                       ZIO.succeedNow {
                         (
                           Reservation(
-                            observers.update(_ + 1) *>
-                              promise.await.bimap(_.asInstanceOf[E], _.asInstanceOf[B]),
+                            acquire.bimap(_.asInstanceOf[E], _.asInstanceOf[B]),
                             _ =>
                               finalizerRef.update { finalizer => exit =>
-                                finalizer(exit) *>
-                                  release(exit).whenM(observers.updateAndGet(_ - 1).map(_ == 0))
+                                finalizer(exit) *> release(exit)
                               }
                           ),
                           map
@@ -461,20 +457,24 @@ object ZLayer {
                         promise     <- Promise.make[E, B]
                         observers   <- Ref.make(0)
                         reservation <- layer.scope.flatMap(_.apply(self)).reserve
+                        release = (exit: Exit[Any, Any]) =>
+                          reservation
+                            .release(exit)
+                            .whenM(observers.updateAndGet(_ - 1).map(_ == 0))
+                            .provide(a)
                       } yield (
                         Reservation(
                           observers.update(_ + 1) *>
                             reservation.acquire.to(promise) *> promise.await,
                           _ =>
                             finalizerRef.update { finalizer => exit =>
-                              finalizer(exit) *>
-                                reservation
-                                  .release(exit)
-                                  .whenM(observers.updateAndGet(_ - 1).map(_ == 0))
-                                  .provide(a)
+                              finalizer(exit) *> release(exit)
                             }
                         ),
-                        map + (layer -> ((promise, exit => reservation.release(exit).provide(a), observers)))
+                        map + (layer -> Reservation(
+                          observers.update(_ + 1) *> promise.await,
+                          release
+                        ))
                       )
                   }
                 }
