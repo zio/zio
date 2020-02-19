@@ -186,6 +186,44 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
           assert(actual(5))(equalTo(release1))
       },
+      testM("interruption with ++") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          env    = (layer1 ++ layer2).build
+          fiber  <- env.use_(ZIO.unit).fork
+          _      <- fiber.interrupt
+          actual <- ref.get
+        } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
+          (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
+      },
+      testM("interruption with >>>") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          env    = (layer1 >>> layer2).build
+          fiber  <- env.use_(ZIO.unit).fork
+          _      <- fiber.interrupt
+          actual <- ref.get
+        } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
+          (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
+      },
+      testM("interruption with multiple layers") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          layer3 = makeLayer3(ref)
+          env    = ((layer1 >>> layer2) ++ (layer1 >>> layer3)).build
+          fiber  <- env.use_(ZIO.unit).fork
+          _      <- fiber.interrupt
+          actual <- ref.get
+        } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
+          (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2))) &&
+          (assert(actual)(contains(acquire3)) ==> assert(actual)(contains(release3)))
+      },
       testM("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]

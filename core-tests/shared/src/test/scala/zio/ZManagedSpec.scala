@@ -4,6 +4,7 @@ import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.duration._
 import zio.test.Assertion._
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment._
 
@@ -1160,7 +1161,23 @@ object ZManagedSpec extends ZIOBaseSpec {
           _            <- first.zipPar(second).use_(ZIO.unit).orElse(ZIO.unit)
           count        <- releases.get
         } yield assert(count)(equalTo(1))
-      }
+      },
+      testM("Runs finalizers if it is interrupted") {
+        val acquire1 = "Acquiring Module 1"
+        val acquire2 = "Acquiring Module 2"
+        val release1 = "Releasing Module 1"
+        val release2 = "Releasing Module 2"
+        for {
+          ref      <- Ref.make(Vector.empty[String])
+          managed1 = ZManaged.make(ref.update(_ :+ acquire1))(_ => ref.update(_ :+ release1))
+          managed2 = ZManaged.make(ref.update(_ :+ acquire2))(_ => ref.update(_ :+ release2))
+          managed3 = managed1 <&> managed2
+          fiber    <- managed3.use_(ZIO.unit).fork
+          _        <- fiber.interrupt
+          actual   <- ref.get
+        } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
+          (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
+      } @@ nonFlaky,
     ),
     suite("flatten")(
       testM("Returns the same as ZManaged.flatten") {
