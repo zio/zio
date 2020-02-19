@@ -280,6 +280,22 @@ object STM {
     ZSTM.unit
 
   /**
+   * @see See [[zio.stm.ZSTM.validate]]
+   */
+  def validate[E, A, B](
+    in: Iterable[A]
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[::[E], List[B]] =
+    ZSTM.validate(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.validateFirst]]
+   */
+  def validateFirst[E, A, B](
+    in: Iterable[A]
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[List[E], B] =
+    ZSTM.validateFirst(in)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.when]]
    */
   def when[E](b: => Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
