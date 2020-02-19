@@ -270,6 +270,12 @@ object Stream extends Serializable {
     ZStream.fromQueueWithShutdown(queue)
 
   /**
+   * See [[ZStream.fromSchedule]]
+   */
+  def fromSchedule[A](schedule: Schedule[Any, Any, A]): Stream[Nothing, A] =
+    ZStream.fromSchedule(schedule)
+
+  /**
    * See [[ZStream.fromTQueue]]
    */
   def fromTQueue[A](queue: TQueue[A]): Stream[Nothing, A] =

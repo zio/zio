@@ -1050,6 +1050,13 @@ object StreamSpec extends ZIOBaseSpec {
         items <- fiber.join
       } yield assert(items)(equalTo(c.toSeq.toList))
     }),
+    testM("Stream.fromSchedule") {
+      val schedule = Schedule.exponential(1.second) <* Schedule.recurs(5)
+      val stream   = ZStream.fromSchedule(schedule)
+      val zio      = TestClock.adjust(62.seconds) *> stream.runCollect
+      val expected = List(2.seconds, 4.seconds, 8.seconds, 16.seconds, 32.seconds, 64.seconds)
+      assertM(zio)(equalTo(expected))
+    },
     testM("Stream.fromTQueue") {
       TQueue.bounded[Int](5).commit.flatMap {
         tqueue =>
