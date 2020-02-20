@@ -188,7 +188,7 @@ object AkkaLineNumbers {
       val cl       = c.getClassLoader
       val r        = if (cl ne null) cl.getResourceAsStream(resource) else null
       if (debug) println(s"LNB:     resource '$resource' resolved to stream $r")
-      if (r ne null) Some((r, name, None)) else null
+      if (r ne null) Some((r, name, None)) else None
     } catch {
       case ex if NonFatal(ex) =>
         if (debug) ex.printStackTrace()
