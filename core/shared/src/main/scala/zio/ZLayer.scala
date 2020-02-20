@@ -81,15 +81,13 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     success: ZLayer[ROut, E1, ROut2]
   ): ZLayer[RIn, E1, ROut2] =
     new ZLayer(
-      ZLayer.FinalizerRef.make.toManaged_.flatMap { finalizerRef =>
-        ZManaged.finalizerExit(finalizerRef.run).map { _ => memoMap =>
-          memoMap
-            .getOrElseMemoize(self, finalizerRef)
-            .foldM(
-              e => memoMap.getOrElseMemoize(failure, finalizerRef).provide(e),
-              r => memoMap.getOrElseMemoize(success, finalizerRef).provide(r)
-            )
-        }
+      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
+        memoMap
+          .getOrElseMemoize(self, finalizerRef)
+          .foldM(
+            e => memoMap.getOrElseMemoize(failure, finalizerRef).provide(e),
+            r => memoMap.getOrElseMemoize(success, finalizerRef).provide(r)
+          )
       }
     )
 
@@ -134,10 +132,8 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     that: ZLayer[RIn2, E1, ROut2]
   )(f: (ROut, ROut2) => ROut3): ZLayer[RIn with RIn2, E1, ROut3] =
     new ZLayer(
-      ZLayer.FinalizerRef.make.toManaged_.flatMap { finalizerRef =>
-        ZManaged.finalizerExit(finalizerRef.run).map { _ => memoMap =>
-          memoMap.getOrElseMemoize(self, finalizerRef).zipWithPar(memoMap.getOrElseMemoize(that, finalizerRef))(f)
-        }
+      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
+        memoMap.getOrElseMemoize(self, finalizerRef).zipWithPar(memoMap.getOrElseMemoize(that, finalizerRef))(f)
       }
     )
 }
@@ -421,7 +417,7 @@ object ZLayer {
      */
     def getOrElseMemoize[E, A, B <: Has[_]](
       layer: ZLayer[A, E, B],
-      finalizerRef: FinalizerRef
+      finalizerRef: ZManaged.FinalizerRef[Any]
     ): ZManaged[A, E, B]
   }
 
@@ -437,7 +433,7 @@ object ZLayer {
           new MemoMap { self =>
             final def getOrElseMemoize[E, A, B <: Has[_]](
               layer: ZLayer[A, E, B],
-              finalizerRef: FinalizerRef
+              finalizerRef: ZManaged.FinalizerRef[Any]
             ): ZManaged[A, E, B] =
               ZManaged {
                 ref.modify { map =>
@@ -447,7 +443,7 @@ object ZLayer {
                         (
                           Reservation(
                             acquire.bimap(_.asInstanceOf[E], _.asInstanceOf[B]),
-                            _ => finalizerRef.register(release)
+                            _ => finalizerRef.add(release)
                           ),
                           map
                         )
@@ -474,13 +470,13 @@ object ZLayer {
                               }
                             }
                           },
-                          _ => finalizerRef.register(exit => releaseRef.get.flatMap(_(exit)))
+                          _ => finalizerRef.add(exit => releaseRef.get.flatMap(_(exit)))
                         ),
                         map + (layer -> Reservation(
                           ZIO.uninterruptibleMask { restore =>
                             observers.update(_ + 1) *> restore(promise.await)
                           },
-                          _ => finalizerRef.register(exit => releaseRef.get.flatMap(_(exit)))
+                          _ => finalizerRef.add(exit => releaseRef.get.flatMap(_(exit)))
                         ))
                       )
                   }
@@ -488,50 +484,5 @@ object ZLayer {
               }
           }
         }
-  }
-
-  /**
-   * A `FinalizerRef` maintains a collection of finalizers associated with a
-   * scope, ensuring that all finalizers are run.
-   */
-  private trait FinalizerRef {
-
-    /**
-     * Register a finalizer. If finalizers have already been run the finalizer
-     * will be executed immediately, otherwise it will be executed when
-     * finalizers are run.
-     */
-    def register(finalizer: Exit[Any, Any] => ZIO[Any, Nothing, Any]): UIO[Unit]
-
-    /**
-     * Run all finalizers. After this effect has been executed any further
-     * finalizers registered will immediately be executed and invoking this
-     * method again will have no effect.
-     */
-    def run(exit: Exit[Any, Any]): UIO[Unit]
-  }
-
-  private object FinalizerRef {
-
-    val make: UIO[FinalizerRef] =
-      Ref.make[Either[Exit[Any, Any], Exit[Any, Any] => UIO[Any]]](Right(_ => UIO.unit)).map { ref =>
-        new FinalizerRef {
-
-          def register(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit] =
-            ref.updateSomeAndGet {
-              case Right(finalizers) => Right(exit => finalizers(exit) *> finalizer(exit))
-            }.flatMap {
-              case Left(exit) => finalizer(exit).unit
-              case _          => UIO.unit
-            }
-
-          def run(exit: Exit[Any, Any]): UIO[Unit] =
-            ref.getAndSet(Left(exit)).flatMap {
-              case Right(finalizers) => finalizers(exit).unit
-              case _                 => UIO.unit
-            }
-        }
-      }
-
   }
 }

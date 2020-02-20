@@ -847,15 +847,20 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("scope")(
       testM("runs finalizer on interruption") {
-        ZManaged.scope.use { scope =>
-          for {
-            ref    <- Ref.make(0)
-            res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
-            _      <- scope(res).run.ignore
-            result <- assertM(ref.get)(equalTo(1))
-          } yield result
-        }
-      },
+        for {
+          ref <- Ref.make(0)
+          managed = ZManaged {
+            val reserve = ref.update(_ + 1)
+            val acquire = ref.update(_ + 1)
+            val release = ref.set(0)
+            reserve *> ZIO.succeedNow(Reservation(acquire, _ => release))
+          }
+          zio    = ZManaged.scope.use(scope => scope(managed).fork.flatMap(_.join))
+          fiber  <- zio.fork
+          _      <- fiber.interrupt
+          result <- ref.get
+        } yield assert(result)(equalTo(0))
+      } @@ nonFlaky,
       testM("runs finalizer when close is called") {
         ZManaged.scope.use { scope =>
           for {

@@ -87,7 +87,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.finalizerRef]]
    */
-  def finalizerRef(initial: Exit[Any, Any] => UIO[Any]): Managed[Nothing, Ref[Exit[Any, Any] => UIO[Any]]] =
+  def finalizerRef(initial: Exit[Any, Any] => UIO[Any]): Managed[Nothing, ZManaged.FinalizerRef[Any]] =
     ZManaged.finalizerRef(initial)
 
   /**

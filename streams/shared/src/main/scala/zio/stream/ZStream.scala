@@ -880,7 +880,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
     ZStream {
       for {
-        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+        finalizer <- ZManaged.finalizerRefInternal[R1](_ => UIO.unit)
         selfPull  <- Ref.make[Pull[R, E, A]](Pull.end).toManaged_
         otherPull <- Ref.make[Pull[R1, E2, A1]](Pull.end).toManaged_
         stateRef  <- Ref.make[State](State.NotStarted).toManaged_
@@ -1331,7 +1331,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       for {
         currPull  <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
         as        <- self.process
-        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+        finalizer <- ZManaged.finalizerRefInternal[R1](_ => UIO.unit)
       } yield go(as, finalizer, currPull)
     }
   }
@@ -3256,7 +3256,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     ZStream {
       for {
         finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
-        pull         = (finalizerRef.set(_ => finalizer) *> Pull.end).uninterruptible
+        pull         = (finalizerRef.add(_ => finalizer) *> Pull.end).uninterruptible
       } yield pull
     }
 
@@ -3416,7 +3416,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
               (for {
                 _           <- doneRef.set(true)
                 reservation <- managed.reserve
-                _           <- finalizer.set(reservation.release)
+                _           <- finalizer.add(reservation.release)
                 a           <- restore(reservation.acquire)
               } yield a).mapError(Some(_))
           }
