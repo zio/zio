@@ -470,7 +470,7 @@ object ZLayer {
                                 observers.update(_ + 1) *>
                                   releaseRef.set(release) *>
                                   restore(reservation.acquire).to(promise) *>
-                                  promise.await,
+                                  promise.await
                               }
                             }
                           },
