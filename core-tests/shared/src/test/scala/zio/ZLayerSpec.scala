@@ -61,12 +61,12 @@ object ZLayerSpec extends ZIOBaseSpec {
   def spec =
     suite("ZLayerSpec")(
       testM("Size of >>> (1)") {
-        val layer = ZLayer.succeed(1) >>> ZLayer.fromService((i: Int) => Has(i.toString))
+        val layer = ZLayer.succeed(Has(1)) >>> ZLayer.fromService((i: Int) => Has(i.toString))
 
         testSize(layer, 1)
       },
       testM("Size of >>> (2)") {
-        val layer = ZLayer.succeed(1) >>>
+        val layer = ZLayer.succeed(Has(1)) >>>
           (ZLayer.fromService((i: Int) => Has(i.toString)) ++
             ZLayer.fromService((i: Int) => Has(i % 2 == 0)))
 

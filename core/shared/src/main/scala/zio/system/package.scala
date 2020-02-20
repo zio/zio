@@ -35,7 +35,7 @@ package object system {
       ZLayer.requires[System]
 
     val live: ZLayer.NoDeps[Nothing, System] = ZLayer.succeed(
-      new Service {
+      Has(new Service {
 
         def env(variable: String): IO[SecurityException, Option[String]] =
           IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
@@ -44,7 +44,7 @@ package object system {
           IO.effect(Option(JSystem.getProperty(prop)))
 
         val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
-      }
+      })
     )
   }
 

@@ -3,14 +3,12 @@ package zio.test
 import scala.reflect.ClassTag
 import scala.reflect.ClassTag
 
-import zio.ZEnv
-import zio.ZLayer
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
 import zio.test.environment.{ Live, TestClock }
-import zio.{ Ref, Schedule, ZIO }
+import zio.{ Has, Ref, Schedule, ZEnv, ZIO, ZLayer }
 
 object TestAspectSpec extends ZIOBaseSpec {
 
@@ -224,7 +222,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("timeout reports problem with interruption") {
       for {
         testClock <- ZIO.environment[TestClock].map(_.get[TestClock.Service])
-        liveClock = (ZEnv.live >>> Live.default) ++ ZLayer.succeed(testClock)
+        liveClock = (ZEnv.live >>> Live.default) ++ ZLayer.succeed(Has(testClock))
         spec = testM("uninterruptible test") {
           for {
             _ <- (TestClock.adjust(11.milliseconds) *> ZIO.never).uninterruptible

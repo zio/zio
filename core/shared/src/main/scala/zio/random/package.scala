@@ -24,7 +24,7 @@ package object random {
       ZLayer.requires[Random]
 
     val live: ZLayer.NoDeps[Nothing, Random] = ZLayer.succeed {
-      new Service {
+      Has(new Service {
         import scala.util.{ Random => SRandom }
 
         val nextBoolean: UIO[Boolean] = ZIO.effectTotal(SRandom.nextBoolean())
@@ -46,7 +46,7 @@ package object random {
         val nextPrintableChar: UIO[Char]            = ZIO.effectTotal(SRandom.nextPrintableChar())
         def nextString(length: Int): UIO[String]    = ZIO.effectTotal(SRandom.nextString(length))
         def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt(_), list)
-      }
+      })
     }
 
     protected[zio] def shuffleWith[A](nextInt: Int => UIO[Int], list: List[A]): UIO[List[A]] =

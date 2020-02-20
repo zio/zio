@@ -14,7 +14,7 @@ object SpecSpec extends ZIOBaseSpec {
     trait Service
   }
 
-  val layer = ZLayer.succeed(new Module.Service {})
+  val layer = ZLayer.succeed(Has(new Module.Service {}))
 
   def spec = suite("SpecSpec")(
     suite("provideManagedShared")(

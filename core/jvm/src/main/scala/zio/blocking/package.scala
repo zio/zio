@@ -142,9 +142,9 @@ package object blocking {
       ZLayer.requires[Blocking]
 
     val live: ZLayer.NoDeps[Nothing, Blocking] = ZLayer.succeed {
-      new Service {
+      Has(new Service {
         override val blockingExecutor: Executor = internal.blockingExecutor0
-      }
+      })
     }
   }
 

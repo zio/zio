@@ -37,7 +37,7 @@ package object console {
       ZLayer.requires[Console]
 
     val live: ZLayer.NoDeps[Nothing, Console] = ZLayer.succeed {
-      new Service {
+      Has(new Service {
 
         /**
          * Prints text to the console.
@@ -81,7 +81,7 @@ package object console {
             })
             .refineToOrDie[IOException]
 
-      }
+      })
     }
   }
 

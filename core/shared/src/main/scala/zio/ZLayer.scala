@@ -403,7 +403,7 @@ object ZLayer {
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: Tagged](a: => A): ZLayer.NoDeps[Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
+  def succeed[A <: Has[_]](a: => A): ZLayer.NoDeps[Nothing, A] = ZLayer(ZManaged.succeed(a))
 
   /**
    * A `MemoMap` memoizes dependencies.

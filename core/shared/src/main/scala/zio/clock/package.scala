@@ -36,7 +36,7 @@ package object clock {
       ZLayer.requires[Clock]
 
     val live: ZLayer.NoDeps[Nothing, Clock] = ZLayer.succeed {
-      new Service {
+      Has(new Service {
         def currentTime(unit: TimeUnit): UIO[Long] =
           IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
@@ -54,7 +54,7 @@ package object clock {
             zone   <- ZIO.effectTotal(ZoneId.systemDefault)
           } yield OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), zone)
 
-      }
+      })
     }
   }
 
