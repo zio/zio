@@ -1062,40 +1062,22 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f0: (A, A1) => A2): ZManaged[R1, E1, A2] =
     ZManaged[R1, E1, A2] {
-      Ref.make[Either[Exit[Any, Any], List[Exit[Any, Any] => ZIO[R1, Nothing, Any]]]](Right(Nil)).map { ref =>
+      ZManaged.FinalizerRef.make[R1](_ => UIO.unit).map { finalizers =>
         Reservation(
           acquire = {
             val left = ZIO.uninterruptibleMask { restore =>
-              self.reserve.flatMap { reservation =>
-                ref.updateSomeAndGet {
-                  case Right(finalizers) => Right(reservation.release :: finalizers)
-                }.flatMap {
-                  case Left(exit) => restore(reservation.acquire).ensuring(reservation.release(exit))
-                  case _          => restore(reservation.acquire)
-                }
-              }
+              reserve
+                .flatMap(res => finalizers.add(res.release).as(res))
+                .flatMap(res => restore(res.acquire))
             }
             val right = ZIO.uninterruptibleMask { restore =>
-              that.reserve.flatMap { reservation =>
-                ref.updateSomeAndGet {
-                  case Right(finalizers) => Right(reservation.release :: finalizers)
-                }.flatMap {
-                  case Left(exit) => restore(reservation.acquire).ensuring(reservation.release(exit))
-                  case _          => restore(reservation.acquire)
-                }
-              }
+              that.reserve
+                .flatMap(res => finalizers.add(res.release).as(res))
+                .flatMap(res => restore(res.acquire))
             }
             left.zipWithPar(right)(f0)
           },
-          release = exit =>
-            ref.getAndSet(Left(exit)).flatMap {
-              case Right(finalizers) =>
-                for {
-                  exits <- ZIO.foreach(finalizers)(_(exit).run)
-                  _     <- ZIO.doneNow(Exit.collectAllPar(exits).getOrElse(Exit.unit))
-                } yield ()
-              case _ => ZIO.unit
-            }
+          release = finalizers.run
         )
       }
     }
