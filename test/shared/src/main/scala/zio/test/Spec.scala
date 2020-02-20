@@ -342,29 +342,47 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    provideSomeManaged(layer.build.map(ev1))
+    transform[R0, E1, T] {
+      case SuiteCase(label, specs, exec)      => SuiteCase(label, specs.provideLayer(layer), exec)
+      case TestCase(label, test, annotations) => TestCase(label, test.provideLayer(layer), annotations)
+    }
 
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
   final def provideLayerShared[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    self.provideSomeManagedShared(layer.build.map(ev1))
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] = {
+    def loop(r: R)(spec: Spec[R, E, T]): UIO[Spec[Any, E, T]] =
+      spec.caseValue match {
+        case SuiteCase(label, specs, exec) =>
+          specs.provide(r).run.map { result =>
+            Spec.suite(label, ZIO.doneNow(result).flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector), exec)
+          }
+        case TestCase(label, test, annotations) =>
+          test.provide(r).run.map(result => Spec.test(label, ZIO.doneNow(result), annotations))
+      }
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        Spec.suite(label, layer.build.use(r => specs.flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector).provide(r)), exec)
+      case TestCase(label, test, annotations) =>
+        Spec.test(label, test.provideLayer(layer), annotations)
+    }
+  }
 
   /**
    * Uses the specified effect to provide each test in this spec with its
    * required environment.
    */
   final def provideM[E1 >: E](zio: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
-    provideManaged(zio.toManaged_)
+    provideSomeM(zio)
 
   /**
    * Uses the specified effect once to provide all tests in this spec with a
    * shared version of their required environment.
    */
   final def provideMShared[E1 >: E](zio: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
-    provideManagedShared(zio.toManaged_)
+    provideSomeMShared(zio)
 
   /**
    * Uses the specified `Managed` to provide each test in this spec with its
@@ -425,14 +443,32 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * its required environment.
    */
   final def provideSomeM[R0, E1 >: E](zio: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
-    provideSomeManaged(zio.toManaged_)
+    transform[R0, E1, T] {
+      case SuiteCase(label, specs, exec)      => SuiteCase(label, specs.provideSomeM(zio), exec)
+      case TestCase(label, test, annotations) => TestCase(label, test.provideSomeM(zio), annotations)
+    }
 
   /**
    * Uses the specified effect once to provide all tests in this spec with a
    * shared version of part of their required environment.
    */
-  final def provideSomeMShared[R0, E1 >: E](zio: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
-    provideSomeManagedShared(zio.toManaged_)
+  final def provideSomeMShared[R0, E1 >: E](zio: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] = {
+    def loop(r: R)(spec: Spec[R, E, T]): UIO[Spec[Any, E, T]] =
+      spec.caseValue match {
+        case SuiteCase(label, specs, exec) =>
+          specs.provide(r).run.map { result =>
+            Spec.suite(label, ZIO.doneNow(result).flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector), exec)
+          }
+        case TestCase(label, test, annotations) =>
+          test.provide(r).run.map(result => Spec.test(label, ZIO.doneNow(result), annotations))
+      }
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        Spec.suite(label, zio.flatMap(r => specs.flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector).provide(r)), exec)
+      case TestCase(label, test, annotations) =>
+        Spec.test(label, test.provideSomeM(zio), annotations)
+    }
+  }
 
   /**
    * Uses the specified `ZManaged` to provide each test in this spec with part

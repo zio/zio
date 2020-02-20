@@ -44,7 +44,7 @@ import zio.{ PlatformSpecific => _, _ }
  * {{{
  * import zio.test.environment._
  *
- * myProgram.provideManaged(testEnvironmentManaged)
+ * myProgram.provideLayer(testEnvironment)
  * }}}
  *
  * Then all environmental effects, such as printing to the console or
@@ -89,8 +89,8 @@ package object environment extends PlatformSpecific {
 
   val liveEnvironment: ZLayer.NoDeps[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
-    (ZEnv.live >>> TestEnvironment.live).build
+  val testEnvironment: ZLayer.NoDeps[Nothing, TestEnvironment] =
+    ZEnv.live >>> TestEnvironment.live
 
   /**
    * Provides an effect with the "real" environment as opposed to the test

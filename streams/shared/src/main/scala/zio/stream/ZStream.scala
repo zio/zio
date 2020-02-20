@@ -2161,7 +2161,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * leaving the remainder `R0`.
    */
   final def provideSomeM[R0, E1 >: E](env: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZStream[R0, E1, A] =
-    provideSomeManaged(env.toManaged_)
+    ZStream.managed {
+      for {
+        r  <- env.toManaged_
+        as <- self.process.provide(r)
+      } yield as.provide(r)
+    }.flatMap(ZStream.repeatEffectOption)
 
   /**
    * Uses the given [[ZManaged]] to provide some of the environment required to run
