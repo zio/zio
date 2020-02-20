@@ -508,6 +508,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * Uses the given [[Managed]] to provide the environment required to run this stream,
    * leaving no outstanding environments.
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideManaged[E1 >: E](m: Managed[E1, R])(implicit ev: NeedsEnv[R]): StreamChunk[E1, A] =
     provideSomeManaged(m)
 
@@ -529,6 +530,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * Uses the given [[Managed]] to provide some of the environment required to run
    * this stream, leaving the remainder `R0`.
    */
+  @deprecated("use provideSomeLayer", "1.0.0")
   final def provideSomeManaged[R0, E1 >: E](
     env: ZManaged[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): ZStreamChunk[R0, E1, A] =

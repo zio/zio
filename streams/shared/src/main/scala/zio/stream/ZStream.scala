@@ -2107,6 +2107,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Uses the given [[Managed]] to provide the environment required to run this stream,
    * leaving no outstanding environments.
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideManaged[E1 >: E](m: Managed[E1, R])(implicit ev: NeedsEnv[R]): Stream[E1, A] =
     ZStream.managed {
       for {
@@ -2121,7 +2122,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZStream[R0, E1, A] =
-    provideSomeManaged(layer.build.map(ev1))
+    ZStream.managed {
+      for {
+        r  <- layer.build.map(ev1)
+        as <- self.process.provide(r)
+      } yield as.provide(r)
+    }.flatMap(ZStream.repeatEffectOption)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -2161,6 +2167,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Uses the given [[ZManaged]] to provide some of the environment required to run
    * this stream, leaving the remainder `R0`.
    */
+  @deprecated("use provideSomeLayer", "1.0.0")
   final def provideSomeManaged[R0, E1 >: E](env: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZStream[R0, E1, A] =
     ZStream.managed {
       for {

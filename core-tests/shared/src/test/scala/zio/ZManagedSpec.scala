@@ -1066,6 +1066,15 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(res)(isNone)
       }
     ),
+    suite("toLayer")(
+      testM("converts a managed effect to a layer") {
+        val managed = ZEnv.live.build
+        val layer   = managed.toLayer
+        val zio1    = ZIO.environment[ZEnv]
+        val zio2    = zio1.provideLayer(layer)
+        assertM(zio2)(anything)
+      }
+    ),
     suite("withEarlyRelease")(
       testM("Provides a canceler that can be used to eagerly evaluate the finalizer") {
         for {

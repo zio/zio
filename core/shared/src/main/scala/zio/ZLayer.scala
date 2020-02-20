@@ -148,6 +148,13 @@ object ZLayer {
     new ZLayer(Managed.succeed(_ => managed))
 
   /**
+   * Constructs a layer from acquire and release actions. The acquire and
+   * release actions will be performed uninterruptibly.
+   */
+  def fromAcquireRelease[E, A <: Has[_]](acquire: IO[E, A])(release: A => UIO[Any]): ZLayer.NoDeps[E, A] =
+    fromManaged(Managed.make(acquire)(release))
+
+  /**
    * Constructs a layer from the specified effect, which must produce one or
    * more services.
    */

@@ -370,6 +370,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Uses the specified `Managed` to provide each test in this spec with its
    * required environment.
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideManaged[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
     provideSomeManaged(managed)
 
@@ -377,6 +378,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Uses the specified `Managed` once to provide all tests in this spec with
    * a shared version of their required environment.
    */
+  @deprecated("use provideLayerShared", "1.0.0")
   final def provideManagedShared[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
     provideSomeManagedShared(managed)
 
@@ -436,6 +438,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Uses the specified `ZManaged` to provide each test in this spec with part
    * of its required environment.
    */
+  @deprecated("use provideSomeLayer", "1.0.0")
   final def provideSomeManaged[R0, E1 >: E](
     managed: ZManaged[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
@@ -448,6 +451,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Uses the specified `ZManaged` once to provide all tests in this spec with
    * a shared version of part of their required environment.
    */
+  @deprecated("use provideSomeLayerShared", "1.0.0")
   final def provideSomeManagedShared[R0, E1 >: E](
     managed: ZManaged[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] = {
