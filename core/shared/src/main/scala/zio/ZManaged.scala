@@ -1060,20 +1060,54 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * in parallel, combining their results with the specified `f` function. If
    * either side fails, then the other side will be interrupted.
    */
-  def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f0: (A, A1) => A2): ZManaged[R1, E1, A2] =
+  def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f0: (A, A1) => A2): ZManaged[R1, E1, A2] = {
+
+    sealed trait State
+    case object Running   extends State
+    case object Acquiring extends State
+    case object Exited    extends State
+
     ZManaged[R1, E1, A2] {
       ZManaged.FinalizerRef.make[R1](_ => UIO.unit).map { finalizers =>
         Reservation(
           acquire = {
-            val left = ZIO.uninterruptibleMask { restore =>
-              reserve
-                .flatMap(res => finalizers.add(res.release).as(res))
-                .flatMap(res => restore(res.acquire))
+            val left = ZIO.uninterruptibleMask {
+              restore =>
+                for {
+                  ref   <- Ref.make[State](Running)
+                  latch <- Promise.make[Nothing, Unit]
+                  res   <- self.reservation
+                  acquire = ZIO.ifM(ref.getAndSet(Acquiring).map(_ == Running))(
+                    restore(res.acquire).ensuring(latch.succeed(())),
+                    ZIO.interrupt
+                  )
+                  release = (exit: Exit[Any, Any]) =>
+                    ZIO.ifM(ref.getAndSet(Exited).map(_ == Acquiring))(
+                      latch.await *> res.release(exit),
+                      res.release(exit)
+                    )
+                  _ <- finalizers.add(release)
+                  a <- acquire
+                } yield a
             }
-            val right = ZIO.uninterruptibleMask { restore =>
-              that.reserve
-                .flatMap(res => finalizers.add(res.release).as(res))
-                .flatMap(res => restore(res.acquire))
+            val right = ZIO.uninterruptibleMask {
+              restore =>
+                for {
+                  ref   <- Ref.make[State](Running)
+                  latch <- Promise.make[Nothing, Unit]
+                  res   <- that.reserve
+                  acquire = ZIO.ifM(ref.getAndSet(Acquiring).map(_ == Running))(
+                    restore(res.acquire).ensuring(latch.succeed(())),
+                    ZIO.interrupt
+                  )
+                  release = (exit: Exit[Any, Any]) =>
+                    ZIO.ifM(ref.getAndSet(Exited).map(_ == Acquiring))(
+                      latch.await *> res.release(exit),
+                      res.release(exit)
+                    )
+                  _  <- finalizers.add(release)
+                  a1 <- acquire
+                } yield a1
             }
             left.zipWithPar(right)(f0)
           },
@@ -1081,6 +1115,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
         )
       }
     }
+  }
 }
 
 object ZManaged {
@@ -1129,7 +1164,7 @@ object ZManaged {
       Ref.make[Either[Exit[Any, Any], Exit[Any, Any] => URIO[R, Any]]](Right(initial)).map { ref =>
         new FinalizerRef[R] {
           def add(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Unit] =
-            ref.updateSomeAndGet {
+            ref.getAndUpdateSome {
               case Right(finalizers) => Right(exit => finalizers(exit) *> finalizer(exit))
             }.flatMap {
               case Left(exit) => finalizer(exit).unit
@@ -1144,7 +1179,6 @@ object ZManaged {
             }
         }
       }
-
   }
 
   final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
