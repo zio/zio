@@ -258,7 +258,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             n <- ref.get
             r <- if (n < 10) ref.update(_ + 1)
-                 else ZSTM.failNow("Ouch")
+                else ZSTM.failNow("Ouch")
           } yield r
 
         val tx = for {
