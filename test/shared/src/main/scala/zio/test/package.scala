@@ -21,7 +21,7 @@ import scala.deprecated
 import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
-import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem }
+import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem }
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -337,7 +337,7 @@ package object test extends CompileVariants {
    * A `Runner` that provides a default testable environment.
    */
   val defaultTestRunner: TestRunner[TestEnvironment, Any] =
-    TestRunner(TestExecutor.managed(testEnvironmentManaged))
+    TestRunner(TestExecutor.default(testEnvironment))
 
   /**
    * Creates a failed test result with the specified runtime cause.
@@ -424,7 +424,7 @@ package object test extends CompileVariants {
      */
     def live: ZLayer.NoDeps[Nothing, Annotations] =
       ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
-        Has(new Annotations.Service {
+        new Annotations.Service {
           def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
             fiberRef.update(_.annotate(key, value))
           def get[V](key: TestAnnotation[V]): UIO[V] =
@@ -433,7 +433,7 @@ package object test extends CompileVariants {
             fiberRef.locally(TestAnnotationMap.empty) {
               zio.foldM(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
             }
-        })
+        }
       })
 
     /**
@@ -453,12 +453,12 @@ package object test extends CompileVariants {
 
     def live(size: Int): ZLayer.NoDeps[Nothing, Sized] =
       ZLayer.fromEffect(FiberRef.make(size).map { fiberRef =>
-        Has(new Sized.Service {
+        new Sized.Service {
           val size: UIO[Int] =
             fiberRef.get
           def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
             fiberRef.locally(size)(zio)
-        })
+        }
       })
 
     def size: ZIO[Sized, Nothing, Int] =
@@ -475,9 +475,9 @@ package object test extends CompileVariants {
 
     def fromConsole: ZLayer[Console, Nothing, TestLogger] =
       ZLayer.fromService { (console: Console.Service) =>
-        Has(new Service {
+        new Service {
           def logLine(line: String): UIO[Unit] = console.putStrLn(line)
-        })
+        }
       }
 
     def logLine(line: String): URIO[TestLogger, Unit] =

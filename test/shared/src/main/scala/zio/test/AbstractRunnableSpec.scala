@@ -16,14 +16,14 @@
 
 package zio.test
 
-import zio.URIO
 import zio.clock.Clock
 import zio.test.reflect.Reflect.EnableReflectiveInstantiation
+import zio.{ Has, URIO }
 
 @EnableReflectiveInstantiation
 abstract class AbstractRunnableSpec {
 
-  type Environment
+  type Environment <: Has[_]
   type Failure
 
   def aspects: List[TestAspect[Nothing, Environment, Nothing, Any]]

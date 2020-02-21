@@ -66,7 +66,7 @@ object Spyable {
     layer: ZLayer[R, E, Has[A]]
   )(implicit spyable: Spyable[A]): UIO[(Ref[Vector[Invocation[A, _, _]]], ZLayer[R, E, Has[A]])] =
     Ref.make(Vector.empty[Invocation[A, _, _]]).map { ref =>
-      val spy = ZLayer.fromService { (environment: A) =>
+      val spy = ZLayer.fromServiceMany { (environment: A) =>
         spyable.spy(Has(environment)) {
           case invocation => ref.update(_ :+ invocation)
         }

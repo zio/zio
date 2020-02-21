@@ -16,24 +16,24 @@
 
 package zio.test
 
-import zio.{ Managed, UIO, ZIO }
+import zio.{ Has, UIO, ZIO, ZLayer }
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
  * environment `R` and may fail with an `E`.
  */
-trait TestExecutor[+R, E] {
+trait TestExecutor[+R <: Has[_], E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]]
-  def environment: Managed[Nothing, R]
+  def environment: ZLayer.NoDeps[Nothing, R]
 }
 
 object TestExecutor {
-  def managed[R <: Annotations, E](
-    env: Managed[Nothing, R]
+  def default[R <: Annotations, E](
+    env: ZLayer.NoDeps[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =
       spec.annotated
-        .provideManaged(environment)
+        .provideLayer(environment)
         .foreachExec(defExec)(
           e =>
             e.failureOrCause.fold(
