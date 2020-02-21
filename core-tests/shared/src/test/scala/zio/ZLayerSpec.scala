@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment._
 
@@ -197,7 +197,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      } @@ nonFlaky,
+      } @@ flaky,
       testM("interruption with >>>") {
         for {
           ref    <- makeRef
@@ -223,7 +223,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2))) &&
           (assert(actual)(contains(acquire3)) ==> assert(actual)(contains(release3)))
-      } @@ nonFlaky,
+      } @@ flaky,
       testM("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]
