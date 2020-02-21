@@ -10,7 +10,7 @@ import zio.duration._
 import zio.internal.Platform
 import zio.random.Random
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
+import zio.test.TestAspect.{ flaky, forked, jvm, nonFlaky, scala2Only }
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
@@ -2270,7 +2270,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield value
 
         assertM(Live.live(io))(equalTo(2))
-      } @@ flaky,
+      } @@ forked,
       testM("race of fail with success") {
         val io = IO.failNow(42).race(IO.succeedNow(24)).either
         assertM(io)(isRight(equalTo(24)))
