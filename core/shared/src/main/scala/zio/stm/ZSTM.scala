@@ -197,6 +197,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
     foldM[R1, E2, A1](h, ZSTM.succeedNow)
 
   /**
+   * Recovers from some or all of the error cases.
+   */
+  def catchSome[R1 <: R, E1 >: E, A1 >: A](
+    pf: PartialFunction[E, ZSTM[R1, E1, A1]]
+  )(implicit ev: CanFail[E]): ZSTM[R1, E1, A1] =
+    catchAll(pf.applyOrElse(_, (e: E) => ZSTM.failNow(e)))
+
+  /**
    * Simultaneously filters and maps the value produced by this effect.
    */
   def collect[B](pf: PartialFunction[A, B]): ZSTM[R, E, B] =
