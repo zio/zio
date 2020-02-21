@@ -37,6 +37,7 @@ private[zio] final class FiberContext[E, A](
   startEnv: AnyRef,
   startExec: Executor,
   startIStatus: InterruptStatus,
+  interruptMode: InterruptMode,
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals
@@ -200,8 +201,7 @@ private[zio] final class FiberContext[E, A](
   private[this] def executor: Executor = executors.peekOrElse(platform.executor)
 
   @inline private[this] def raceWithImpl[R, EL, ER, E, A, B, C](
-    race: ZIO.RaceWith[R, EL, ER, E, A, B, C],
-    daemonStatus: DaemonStatus
+    race: ZIO.RaceWith[R, EL, ER, E, A, B, C]
   ): ZIO[R, E, C] = {
     @inline def complete[E0, E1, A, B](
       winner: Fiber[E0, A],
@@ -222,8 +222,8 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val left  = fork[EL, A](race.left.interruptible.asInstanceOf[IO[EL, A]], daemonStatus)
-    val right = fork[ER, B](race.right.interruptible.asInstanceOf[IO[ER, B]], daemonStatus)
+    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], InterruptMode.Fork)
+    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], InterruptMode.Fork)
 
     ZIO
       .effectAsync[R, E, C] { cb =>
@@ -489,7 +489,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = nextInstr(fork(zio.value, zio.status))
+                    curZio = nextInstr(fork(zio.value, zio.interruptMode))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
@@ -574,7 +574,18 @@ private[zio] final class FiberContext[E, A](
 
                   case ZIO.Tags.RaceWith =>
                     val zio = curZio.asInstanceOf[ZIO.RaceWith[Any, Any, Any, Any, Any, Any, Any]]
-                    curZio = raceWithImpl(zio, zio.daemonStatus).asInstanceOf[IO[E, Any]]
+                    curZio = raceWithImpl(zio).asInstanceOf[IO[E, Any]]
+
+                  case ZIO.Tags.Disown =>
+                    val zio = curZio.asInstanceOf[ZIO.Disown]
+
+                    curZio = nextInstr(withChildren { children =>
+                      val removed = children.remove(zio.fiber)
+
+                      if (removed) Fiber.track(zio.fiber.asInstanceOf[FiberContext[Any, Any]])
+
+                      removed
+                    }: Boolean)
                 }
               }
             } else {
@@ -617,7 +628,7 @@ private[zio] final class FiberContext[E, A](
   /**
    * Forks an `IO` with the specified failure handler.
    */
-  def fork[E, A](zio: IO[E, A], daemonStatus: DaemonStatus): FiberContext[E, A] = {
+  def fork[E, A](zio: IO[E, A], interruptMode: InterruptMode): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
     childFiberRefLocals.putAll(fiberRefLocals)
 
@@ -632,13 +643,13 @@ private[zio] final class FiberContext[E, A](
       environments.peek(),
       executors.peek(),
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
+      interruptMode,
       ancestry,
       tracingRegion,
       childFiberRefLocals
     )
 
-    if (!daemonStatus.isDaemon) addChild(childContext.asInstanceOf[FiberContext[Any, Any]])
-    else Fiber.track(childContext)
+    addChild(childContext.asInstanceOf[FiberContext[Any, Any]])
 
     platform.executor.submitOrThrow(() => childContext.evaluateNow(zio))
 
@@ -880,30 +891,39 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] def kill0(fiberId: Fiber.Id): UIO[Exit[E, A]] = {
+    val interruptedCause = Cause.interrupt(fiberId)
+
     @tailrec
-    def setInterruptedLoop(): Unit = {
+    def setInterruptedLoop(): Cause[Nothing] = {
       val oldState = state.get
 
       oldState match {
         case Executing(Fiber.Status.Suspended(status, true, _, _, _), observers, interrupted, evalOn) =>
-          if (!state.compareAndSet(
-                oldState,
-                Executing(status, observers, interrupted ++ Cause.interrupt(fiberId), evalOn)
-              )) setInterruptedLoop()
-          else evaluateLater(ZIO.interruptAs(fiberId))
+          val newCause = interrupted ++ interruptedCause
+
+          if (!state.compareAndSet(oldState, Executing(status, observers, newCause, evalOn)))
+            setInterruptedLoop()
+          else {
+            evaluateLater(ZIO.interruptAs(fiberId))
+
+            newCause
+          }
 
         case Executing(status, observers, interrupted, evalOn) =>
-          if (!state.compareAndSet(
-                oldState,
-                Executing(status, observers, interrupted ++ Cause.interrupt(fiberId), evalOn)
-              ))
-            setInterruptedLoop()
+          val newCause = interrupted ++ interruptedCause
 
-        case _ =>
+          if (!state.compareAndSet(oldState, Executing(status, observers, newCause, evalOn)))
+            setInterruptedLoop()
+          else newCause
+
+        case _ => interruptedCause
       }
     }
 
-    UIO(setInterruptedLoop()) *> await
+    UIO(setInterruptedLoop()).flatMap { newCause =>
+      if (interruptMode == InterruptMode.Fork) UIO(Exit.Failure(newCause))
+      else await
+    }
   }
 
   @tailrec
