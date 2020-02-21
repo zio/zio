@@ -437,7 +437,7 @@ package object environment extends PlatformSpecific {
      * This can be useful for mixing in with implementations of other interfaces.
      */
     def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
-      ZLayer.fromServiceManaged { (live: Live.Service) =>
+      ZLayer.fromServiceManyManaged { (live: Live.Service) =>
         for {
           ref      <- Ref.make(data).toManaged_
           fiberRef <- FiberRef.make(FiberData(0, 0, ZoneId.of("UTC")), FiberData.combine).toManaged_
@@ -1318,7 +1318,7 @@ package object environment extends PlatformSpecific {
 
     val random: ZLayer[Clock, Nothing, Random with TestRandom] =
       (ZLayer.service[Clock.Service] ++ deterministic) >>>
-        (ZLayer.fromFunctionM { (env: Clock with Random with TestRandom) =>
+        (ZLayer.fromFunctionManyM { (env: Clock with Random with TestRandom) =>
           val random     = env.get[Random.Service]
           val testRandom = env.get[TestRandom.Service]
 
