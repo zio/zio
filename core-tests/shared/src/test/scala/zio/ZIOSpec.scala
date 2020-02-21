@@ -877,48 +877,13 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("once")(
-      testM("returns an effect that returns the result of this effet a single time") {
+      testM("returns an effect that will only be executed once") {
         for {
           ref    <- Ref.make(0)
-          zio    <- ref.update(_ + 1).once(())
+          zio    <- ref.update(_ + 1).once
           _      <- ZIO.collectAllPar(ZIO.replicate(100)(zio))
           result <- ref.get
         } yield assert(result)(equalTo(1))
-      },
-      testM("returns the specified fallback value if the result has already been returned") {
-        for {
-          ref    <- Ref.make(0)
-          zio    <- ref.updateAndGet(_ + 2).once(1)
-          result <- ZIO.collectAllPar(ZIO.replicate(100)(zio)).map(_.sum)
-        } yield assert(result)(equalTo(101))
-      }
-    ),
-    suite("onceM")(
-      testM("returns the result of the specified fallback effect if the result has already been returned") {
-        for {
-          ref    <- Ref.make(0)
-          zio    <- ref.update(_ + 2).onceM(ref.update(_ + 1))
-          _      <- ZIO.collectAllPar(ZIO.replicate(100)(zio))
-          result <- ref.get
-        } yield assert(result)(equalTo(101))
-      },
-      testM("subsequent evaluations retry the effect if the effect fails with an error") {
-        for {
-          ref    <- Ref.make(0)
-          zio    <- (ref.update(_ + 1) *> ZIO.fail("fail")).onceM(ref.update(_ - 1))
-          _      <- ZIO.collectAll(ZIO.replicate(100)(zio.ignore))
-          result <- ref.get
-        } yield assert(result)(equalTo(100))
-      }
-    ),
-    suite("onceWithM")(
-      testM("uses the specified function to determine whether to retry this effect") {
-        for {
-          ref    <- Ref.make(0)
-          zio    <- (ref.update(_ + 1) *> ZIO.fail("fail")).onceWithM(ref.update(_ - 1))(_ => false)
-          _      <- ZIO.collectAll(ZIO.replicate(100)(zio.ignore))
-          result <- ref.get
-        } yield assert(result)(equalTo(-98))
       }
     ),
     suite("onExit")(
