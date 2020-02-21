@@ -763,8 +763,11 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           fiber  <- ZIO.forkAll(List(ZIO.dieNow(boom)))
           result <- fiber.join.sandbox.flip
-        } yield assert(result)(equalTo(Cause.die(boom)))
-      } @@ flaky
+        } yield {
+          assert(result)(equalTo(Cause.die(boom))) ||
+          (assert(result.dieOption)(isSome(equalTo(boom))) && assert(result.interrupted)(isTrue))
+        }
+      }
     ),
     suite("forkDaemon")(
       testM("child is unsupervised by parent") {
