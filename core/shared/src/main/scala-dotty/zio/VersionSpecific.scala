@@ -1,9 +1,6 @@
 package zio
 
-import izumi.fundamentals.reflection.Tags.Tag
-import izumi.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
-
-private[zio] trait ScalaSpecific {
+private[zio] trait VersionSpecific {
 
   type TaggedType[A] = scala.reflect.ClassTag[A]
   type TagType       = scala.reflect.ClassTag[_]
