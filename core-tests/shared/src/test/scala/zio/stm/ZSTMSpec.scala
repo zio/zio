@@ -54,7 +54,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             } yield f
           assertM(tx.catchSome { case Error1 => ZSTM.succeedNow("gotcha") }.commit)(equalTo("gotcha"))
         },
-        testM("catch the specified error") {
+        testM("lets the error pass") {
           sealed trait ErrorTest
           case object Error1 extends ErrorTest
           case object Error2 extends ErrorTest
