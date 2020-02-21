@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect._
+import zio.test.TestAspect.{ flaky, nonFlaky }
 import zio.test._
 import zio.test.environment._
 
