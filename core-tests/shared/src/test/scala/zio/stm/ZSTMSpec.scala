@@ -42,6 +42,31 @@ object ZSTMSpec extends ZIOBaseSpec {
           } yield f
         assertM(tx.catchAll(s => ZSTM.succeed(s"$s phew")).commit)(equalTo("Uh oh! phew"))
       },
+      suite("catchSome errors")(
+        testM("catch the specified error") {
+          sealed trait ErrorTest
+          case object Error1 extends ErrorTest
+
+          val tx =
+            for {
+              _ <- ZSTM.failNow[ErrorTest](Error1)
+              f <- ZSTM.succeedNow("everything is fine")
+            } yield f
+          assertM(tx.catchSome { case Error1 => ZSTM.succeedNow("gotcha") }.commit)(equalTo("gotcha"))
+        },
+        testM("lets the error pass") {
+          sealed trait ErrorTest
+          case object Error1 extends ErrorTest
+          case object Error2 extends ErrorTest
+
+          val tx =
+            for {
+              _ <- ZSTM.failNow[ErrorTest](Error2)
+              f <- ZSTM.succeedNow("everything is fine")
+            } yield f
+          assertM(tx.catchSome { case Error1 => ZSTM.succeedNow("gotcha") }.commit.run)(fails(equalTo(Error2)))
+        }
+      ),
       testM("compose two environments") {
         val print = ZSTM.access[Int](n => s"$n is the sum")
         val add   = ZSTM.access[Int](_ + 1)
