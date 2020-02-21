@@ -45,7 +45,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * outputs of the specified layer.
    */
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    fold(ZLayer.fromEnvironmentM(ZIO.failNow), that)
+    fold(ZLayer.fromFunctionM(ZIO.failNow), that)
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -101,14 +101,14 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * Returns a new layer whose output is mapped by the specified function.
    */
   def map[ROut1 >: ROut <: Has[_]](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
-    self >>> ZLayer.fromEnvironment(f)
+    self >>> ZLayer.fromFunction(f)
 
   /**
    * Returns a layer with its error channel mapped using the specified
    * function.
    */
   def mapError[E1](f: E => E1): ZLayer[RIn, E1, ROut] =
-    fold(ZLayer.fromEnvironmentM(f andThen ZIO.failNow), ZLayer.identity)
+    fold(ZLayer.fromFunctionM(f andThen ZIO.failNow), ZLayer.identity)
 
   /**
    * Converts a layer that requires no services into a managed runtime, which
@@ -121,7 +121,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * Updates one of the services output by this layer.
    */
   def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
-    self >>> ZLayer.fromEnvironment(_.update[A](f))
+    self >>> ZLayer.fromFunction(_.update[A](f))
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -151,35 +151,49 @@ object ZLayer {
    * Constructs a layer from acquire and release actions. The acquire and
    * release actions will be performed uninterruptibly.
    */
-  def fromAcquireRelease[E, A <: Has[_]](acquire: IO[E, A])(release: A => UIO[Any]): ZLayer.NoDeps[E, A] =
-    fromManaged(Managed.make(acquire)(release))
+  def fromAcquireRelease[R, E, A: Tagged](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, Has[A]] =
+    fromManaged(ZManaged.make(acquire)(release))
 
   /**
-   * Constructs a layer from the specified effect, which must produce one or
+   * Constructs a layer from acquire and release actions, which must return one
+   * or more services. The acquire and release actions will be performed
+   * uninterruptibly.
+   */
+  def fromAcquireReleaseMany[R, E, A <: Has[_]](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, A] =
+    fromManagedMany(ZManaged.make(acquire)(release))
+
+  /**
+   * Constructs a layer from the specified effect.
+   */
+  def fromEffect[R, E, A: Tagged](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
+    fromManaged(ZManaged.fromEffect(zio))
+
+  /**
+   * Constructs a layer from the specified effect, which must return one or
    * more services.
    */
-  def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer.NoDeps[E, A] =
-    ZLayer(Managed.fromEffect(zio))
+  def fromEffectMany[R, E, A <: Has[_]](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
+    ZLayer(ZManaged.fromEffect(zio))
 
   /**
    * Constructs a layer from the environment using the specified function,
    * which must return one or more services.
    */
-  def fromEnvironment[A, B <: Has[_]](f: A => B): ZLayer[A, Nothing, B] =
-    fromEnvironmentM(a => ZIO.succeedNow(f(a)))
+  def fromFunction[A, B <: Has[_]](f: A => B): ZLayer[A, Nothing, B] =
+    fromFunctionM(a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * function, which must return one or more services.
    */
-  def fromEnvironmentM[A, E, B <: Has[_]](f: A => IO[E, B]): ZLayer[A, E, B] =
-    fromEnvironmentManaged(a => f(a).toManaged_)
+  def fromFunctionM[A, E, B <: Has[_]](f: A => IO[E, B]): ZLayer[A, E, B] =
+    fromFunctionManaged(a => f(a).toManaged_)
 
   /**
-   * Constructs a layer from the environment using the specified effectful
-   * resourceful function, which must return one or more services.
+   * Constructs a layer from the specified effectful resourceful function,
+   * which must return one or more services.
    */
-  def fromEnvironmentManaged[A, E, B <: Has[_]](f: A => Managed[E, B]): ZLayer[A, E, B] =
+  def fromFunctionManaged[A, E, B <: Has[_]](f: A => Managed[E, B]): ZLayer[A, E, B] =
     ZLayer(ZManaged.fromFunctionM(f))
 
   /**
@@ -386,31 +400,50 @@ object ZLayer {
     }
 
   /**
-   * Constructs a layer that has no dependencies but must be created from a
-   * managed resource.
+   * Constructs a layer from a managed resource.
    */
-  def fromManaged[E, A <: Has[_]](m: Managed[E, A]): ZLayer.NoDeps[E, A] = ZLayer(m)
+  def fromManaged[R, E, A: Tagged](m: ZManaged[R, E, A]): ZLayer[R, E, Has[A]] =
+    ZLayer(m.asService)
+
+  /**
+   * Constructs a layer from a managed resource, which must return one or more
+   * services.
+   */
+  def fromManagedMany[R, E, A <: Has[_]](m: ZManaged[R, E, A]): ZLayer[R, E, A] =
+    ZLayer(m)
 
   /**
    * An identity layer that passes along its inputs.
    */
-  def identity[A <: Has[_]]: ZLayer[A, Nothing, A] = ZLayer.requires[A]
+  def identity[A <: Has[_]]: ZLayer[A, Nothing, A] =
+    ZLayer.requires[A]
 
   /**
-   * Constructs a layer that passes along the specified environment as an output.
+   * Constructs a layer that passes along the specified environment as an
+   * output.
    */
-  def requires[A <: Has[_]]: ZLayer[A, Nothing, A] = ZLayer(ZManaged.environment[A])
+  def requires[A <: Has[_]]: ZLayer[A, Nothing, A] =
+    ZLayer(ZManaged.environment[A])
 
   /**
    * Constructs a layer that accesses and returns the specified service from
    * the environment.
    */
-  def service[A]: ZLayer[Has[A], Nothing, Has[A]] = ZLayer(ZManaged.environment[Has[A]])
+  def service[A]: ZLayer[Has[A], Nothing, Has[A]] =
+    ZLayer(ZManaged.environment[Has[A]])
 
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: Tagged](a: => A): ZLayer.NoDeps[Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
+  def succeed[A: Tagged](a: => A): ZLayer.NoDeps[Nothing, Has[A]] =
+    ZLayer(ZManaged.succeed(Has(a)))
+
+  /**
+   * Constructs a layer from the specified value, which must return one or more
+   * services.
+   */
+  def succeedMany[A <: Has[_]](a: => A): ZLayer.NoDeps[Nothing, A] =
+    ZLayer(ZManaged.succeed(a))
 
   /**
    * A `MemoMap` memoizes dependencies.

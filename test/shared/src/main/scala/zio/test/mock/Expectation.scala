@@ -114,7 +114,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
           mock = Mock.make(state.callsRef)
         } yield mockable.environment(mock)
 
-    ZLayer.fromManaged(for {
+    ZLayer.fromManagedMany(for {
       state <- Managed.make(makeState)(checkUnmetExpectations)
       env   <- Managed.fromEffect(makeEnvironment(state))
     } yield env)

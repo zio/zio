@@ -424,7 +424,7 @@ package object test extends CompileVariants {
      */
     def live: ZLayer.NoDeps[Nothing, Annotations] =
       ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
-        Has(new Annotations.Service {
+        new Annotations.Service {
           def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
             fiberRef.update(_.annotate(key, value))
           def get[V](key: TestAnnotation[V]): UIO[V] =
@@ -433,7 +433,7 @@ package object test extends CompileVariants {
             fiberRef.locally(TestAnnotationMap.empty) {
               zio.foldM(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
             }
-        })
+        }
       })
 
     /**
@@ -453,12 +453,12 @@ package object test extends CompileVariants {
 
     def live(size: Int): ZLayer.NoDeps[Nothing, Sized] =
       ZLayer.fromEffect(FiberRef.make(size).map { fiberRef =>
-        Has(new Sized.Service {
+        new Sized.Service {
           val size: UIO[Int] =
             fiberRef.get
           def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
             fiberRef.locally(size)(zio)
-        })
+        }
       })
 
     def size: ZIO[Sized, Nothing, Int] =

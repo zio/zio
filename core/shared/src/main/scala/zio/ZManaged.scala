@@ -170,6 +170,12 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def asError[E1](e1: => E1): ZManaged[R, E1, A] = mapError(_ => e1)
 
   /**
+   * Maps the success value of this effect to a service.
+   */
+  def asService[A1 >: A](implicit tagged: Tagged[A1]): ZManaged[R, E, Has[A1]] =
+    map(Has(_))
+
+  /**
    * Maps the success value of this effect to an optional value.
    */
   final def asSome: ZManaged[R, E, Option[A]] =
@@ -679,8 +685,9 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * An effectual version of `provide`, useful when the act of provision
    * requires an effect.
    */
+  @deprecated("use provideLayer", "1.0.0")
   def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] =
-    r.toManaged_.flatMap(provide)
+    provideManaged(r.toManaged_)
 
   /**
    * Uses the given Managed[E1, R] to the environment required to run this managed effect,
@@ -736,10 +743,11 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * managed.provideSomeM(r0)
    * }}}
    */
+  @deprecated("use provideLayer", "1.0.0")
   def provideSomeM[R0, E1 >: E](
     r0: ZIO[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
-    r0.toManaged_.flatMap(provide)
+    provideSomeManaged(r0.toManaged_)
 
   /**
    * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
@@ -952,7 +960,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Constructs a layer from this managed resource.
    */
-  def toLayer[A1 <: Has[_]](implicit ev: A <:< A1): ZLayer[R, E, A1] =
+  def toLayer[A1 >: A](implicit tagged: Tagged[A1]): ZLayer[R, E, Has[A1]] =
+    ZLayer.fromManaged(self)
+
+  /**
+   * Constructs a layer from this managed resource, which must return one or
+   * more services.
+   */
+  def toLayerMany[A1 <: Has[_]](implicit ev: A <:< A1): ZLayer[R, E, A1] =
     ZLayer(self.map(ev))
 
   /**

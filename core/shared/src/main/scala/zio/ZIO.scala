@@ -209,6 +209,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     mapError(new ZIO.ConstFn(() => e1))
 
   /**
+   * Maps the success value of this effect to a service.
+   */
+  final def asService[A1 >: A](implicit tagged: Tagged[A1]): ZIO[R, E, Has[A1]] =
+    map(Has(_))
+
+  /**
    * Maps the success value of this effect to an optional value.
    */
   final def asSome: ZIO[R, E, Option[A]] =
@@ -1086,6 +1092,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * An effectual version of `provide`, useful when the act of provision
    * requires an effect.
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): ZIO[Any, E1, A] =
     r.flatMap(self.provide)
 
@@ -1143,6 +1150,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect.provideSomeM(r0)
    * }}}
    */
+  @deprecated("use contramapM", "1.0.0")
   final def provideSomeM[R0, E1 >: E](r0: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
     r0.flatMap(self.provide)
 
@@ -1726,10 +1734,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.fork >>= (_.toFutureWith(f))
 
   /**
-   * Constructs a layer from this effect, which must produce one or more
+   * Constructs a layer from this effect.
+   */
+  final def toLayer[A1 >: A](implicit ev: Tagged[A1]): ZLayer[R, E, Has[A1]] =
+    ZLayer.fromEffect(self)
+
+  /**
+   * Constructs a layer from this effect, which must return one or more
    * services.
    */
-  final def toLayer[A1 <: Has[_]](implicit ev: A <:< A1): ZLayer[R, E, A1] =
+  final def toLayerMany[A1 <: Has[_]](implicit ev: A <:< A1): ZLayer[R, E, A1] =
     ZLayer(ZManaged.fromEffect(self.map(ev)))
 
   /**

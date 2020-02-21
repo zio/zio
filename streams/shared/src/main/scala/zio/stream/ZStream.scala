@@ -2100,6 +2100,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * An effectual version of `provide`, useful when the act of provision
    * requires an effect.
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Stream[E1, A] =
     provideSomeM(r)
 
@@ -2160,13 +2161,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideSomeM[R0, E1 >: E](env: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZStream[R0, E1, A] =
-    ZStream.managed {
-      for {
-        r  <- env.toManaged_
-        as <- self.process.provide(r)
-      } yield as.provide(r)
-    }.flatMap(ZStream.repeatEffectOption)
+    provideSomeManaged(env.toManaged_)
 
   /**
    * Uses the given [[ZManaged]] to provide some of the environment required to run

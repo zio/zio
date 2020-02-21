@@ -660,7 +660,7 @@ package object environment extends PlatformSpecific {
      * interfaces.
      */
     def live(data: Data): ZLayer.NoDeps[Nothing, Console with TestConsole] =
-      ZLayer.fromEffect(
+      ZLayer.fromEffectMany(
         Ref.make(data).map(ref => Has.allOf[Console.Service, TestConsole.Service](Test(ref), Test(ref)))
       )
 
@@ -1304,7 +1304,7 @@ package object environment extends PlatformSpecific {
      * requires a `Random`, such as with `ZIO#provide`.
      */
     def make(data: Data): ZLayer.NoDeps[Nothing, Random with TestRandom] =
-      ZLayer.fromEffect(for {
+      ZLayer.fromEffectMany(for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
         test   = Test(data, buffer)
@@ -1318,7 +1318,7 @@ package object environment extends PlatformSpecific {
 
     val random: ZLayer[Clock, Nothing, Random with TestRandom] =
       (ZLayer.service[Clock.Service] ++ deterministic) >>>
-        (ZLayer.fromEnvironmentM { (env: Clock with Random with TestRandom) =>
+        (ZLayer.fromFunctionM { (env: Clock with Random with TestRandom) =>
           val random     = env.get[Random.Service]
           val testRandom = env.get[TestRandom.Service]
 
@@ -1470,7 +1470,9 @@ package object environment extends PlatformSpecific {
      * requires a `Console`, such as with `ZIO#provide`.
      */
     def live(data: Data): ZLayer.NoDeps[Nothing, System with TestSystem] =
-      ZLayer.fromEffect(Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref))))
+      ZLayer.fromEffectMany(
+        Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref)))
+      )
 
     val any: ZLayer[System with TestSystem, Nothing, System with TestSystem] =
       ZLayer.requires[System with TestSystem]

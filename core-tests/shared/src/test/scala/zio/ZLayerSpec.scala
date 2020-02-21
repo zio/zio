@@ -189,8 +189,8 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]
-          layer1  = ZLayer.fromManaged(Managed.make(ZIO.never)(_ => ZIO.unit))
-          layer2  = ZLayer.fromManaged(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
+          layer1  = ZLayer.fromManagedMany(Managed.make(ZIO.never)(_ => ZIO.unit))
+          layer2  = ZLayer.fromManagedMany(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env     = (layer1 ++ layer2).build
           _       <- env.use_(ZIO.unit).fork
           _       <- promise.await
