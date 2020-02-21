@@ -2161,7 +2161,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
-  @deprecated("use provideLayer", "1.0.0")
+  @deprecated("use provideSomeLayer", "1.0.0")
   final def provideSomeM[R0, E1 >: E](env: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZStream[R0, E1, A] =
     provideSomeManaged(env.toManaged_)
 

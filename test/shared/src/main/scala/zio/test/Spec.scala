@@ -447,7 +447,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Uses the specified effect to provide each test in this spec with part of
    * its required environment.
    */
-  @deprecated("use provideLayer", "1.0.0")
+  @deprecated("use provideSomeLayer", "1.0.0")
   final def provideSomeM[R0, E1 >: E](zio: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
     provideSomeManaged(zio.toManaged_)
 
@@ -455,7 +455,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Uses the specified effect once to provide all tests in this spec with a
    * shared version of part of their required environment.
    */
-  @deprecated("use provideLayerShared", "1.0.0")
+  @deprecated("use provideSomeLayerShared", "1.0.0")
   final def provideSomeMShared[R0, E1 >: E](zio: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
     provideSomeManagedShared(zio.toManaged_)
 

@@ -1150,7 +1150,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect.provideSomeM(r0)
    * }}}
    */
-  @deprecated("use contramapM", "1.0.0")
+  @deprecated("use provideLayer", "1.0.0")
   final def provideSomeM[R0, E1 >: E](r0: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
     r0.flatMap(self.provide)
 
@@ -1158,7 +1158,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
-  @deprecated("use provideSomeLayer", "1.0.0")
+  @deprecated("use provideLayer", "1.0.0")
   final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
     r0.use(self.provide)
 

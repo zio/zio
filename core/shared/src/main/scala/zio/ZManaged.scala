@@ -743,7 +743,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * managed.provideSomeM(r0)
    * }}}
    */
-  @deprecated("use provideLayer", "1.0.0")
+  @deprecated("use provideSomeLayer", "1.0.0")
   def provideSomeM[R0, E1 >: E](
     r0: ZIO[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
