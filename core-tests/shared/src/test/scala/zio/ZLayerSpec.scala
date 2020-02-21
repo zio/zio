@@ -61,14 +61,14 @@ object ZLayerSpec extends ZIOBaseSpec {
   def spec =
     suite("ZLayerSpec")(
       testM("Size of >>> (1)") {
-        val layer = ZLayer.succeed(1) >>> ZLayer.fromService((i: Int) => Has(i.toString))
+        val layer = ZLayer.succeed(1) >>> ZLayer.fromService((i: Int) => i.toString)
 
         testSize(layer, 1)
       },
       testM("Size of >>> (2)") {
         val layer = ZLayer.succeed(1) >>>
-          (ZLayer.fromService((i: Int) => Has(i.toString)) ++
-            ZLayer.fromService((i: Int) => Has(i % 2 == 0)))
+          (ZLayer.fromService((i: Int) => i.toString) ++
+            ZLayer.fromService((i: Int) => i % 2 == 0))
 
         testSize(layer, 2)
       },
@@ -227,8 +227,8 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]
-          layer1  = ZLayer.fromManaged(Managed.make(ZIO.never)(_ => ZIO.unit))
-          layer2  = ZLayer.fromManaged(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
+          layer1  = ZLayer.fromManagedMany(Managed.make(ZIO.never)(_ => ZIO.unit))
+          layer2  = ZLayer.fromManagedMany(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env     = (layer1 ++ layer2).build
           _       <- env.use_(ZIO.unit).fork
           _       <- promise.await

@@ -4,7 +4,7 @@ import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
 import zio.test.environment.TestEnvironment
-import zio.{ Has, Ref, UIO, ZIO, ZLayer, ZManaged }
+import zio.{ Has, Ref, ZIO, ZLayer }
 
 object SpecSpec extends ZIOBaseSpec {
 
@@ -17,14 +17,14 @@ object SpecSpec extends ZIOBaseSpec {
   val layer = ZLayer.succeed(new Module.Service {})
 
   def spec = suite("SpecSpec")(
-    suite("provideManagedShared")(
+    suite("provideLayerShared")(
       testM("gracefully handles fiber death") {
         import zio.NeedsEnv.needsEnv
         val spec = suite("Suite1")(
           test("Test1") {
             assert(true)(isTrue)
           }
-        ).provideManagedShared(ZManaged.dieMessage("everybody dies"))
+        ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes
@@ -32,19 +32,16 @@ object SpecSpec extends ZIOBaseSpec {
       testM("does not acquire the environment if the suite is ignored") {
         val spec = suite("Suite1")(
           testM("Test1") {
-            assertM(ZIO.accessM[Ref[Boolean]](_.get))(isTrue)
+            assertM(ZIO.accessM[Has[Ref[Boolean]]](_.get[Ref[Boolean]].get))(isTrue)
           },
           testM("another test") {
-            assertM(ZIO.accessM[Ref[Boolean]](_.get))(isTrue)
+            assertM(ZIO.accessM[Has[Ref[Boolean]]](_.get[Ref[Boolean]].get))(isTrue)
           }
         )
         for {
-          ref <- Ref.make(true)
-          _ <- execute {
-                spec.provideManagedShared {
-                  ZManaged.make(ref.set(false).as(ref))(_ => ZIO.unit)
-                } @@ ifEnvSet("foo")
-              }
+          ref    <- Ref.make(true)
+          layer  = ZLayer.fromEffect(ref.set(false).as(ref))
+          _      <- execute(spec.provideCustomLayerShared(layer) @@ ifEnvSet("foo"))
           result <- ref.get
         } yield assert(result)(isTrue)
       },
@@ -57,9 +54,9 @@ object SpecSpec extends ZIOBaseSpec {
             assert(1)(Assertion.equalTo(1))
           },
           testM("test requires env") {
-            assertM(ZIO.environment[Int])(Assertion.equalTo(42))
+            assertM(ZIO.access[Has[Int]](_.get[Int]))(Assertion.equalTo(42))
           }
-        ).provideManagedShared(UIO(43).toManaged_)
+        ).provideLayerShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
           successes    <- executedSpec.countTests(_.isRight)

@@ -6,7 +6,7 @@ import zio.{ UIO, ZIO }
 object TestUtils {
 
   def execute[E](spec: ZSpec[TestEnvironment, E]): UIO[ExecutedSpec[E]] =
-    TestExecutor.managed(environment.testEnvironmentManaged).run(spec, ExecutionStrategy.Sequential)
+    TestExecutor.default(environment.testEnvironment).run(spec, ExecutionStrategy.Sequential)
 
   def forAllTests[E](
     execSpec: UIO[ExecutedSpec[E]]

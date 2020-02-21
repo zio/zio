@@ -25,7 +25,7 @@ object SpySpec extends DefaultRunnableSpec {
     }
 
     val live: ZLayer.NoDeps[Nothing, Counter] =
-      ZLayer.fromEffect(Ref.make(0).map(ref => Has(Live(ref))))
+      ZLayer.fromEffect(Ref.make(0).map(ref => Live(ref)))
   }
 
   sealed trait Command[A] extends Method[Counter.Service, Unit, A]

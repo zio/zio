@@ -2779,19 +2779,6 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertM(zio.provide(4))(equalTo((4, 2, 4)))
       },
-      testM("provideManaged is modular") {
-        def managed(v: Int): ZManaged[Any, Nothing, Int] =
-          ZManaged.make(IO.succeedNow(v))(_ => IO.effectTotal(()))
-
-        val zio =
-          for {
-            v1 <- ZIO.environment[Int]
-            v2 <- ZIO.environment[Int].provideManaged(managed(2))
-            v3 <- ZIO.environment[Int]
-          } yield (v1, v2, v3)
-
-        assertM(zio.provideManaged(managed(4)))(equalTo((4, 2, 4)))
-      },
       testM("effectAsync can use environment") {
         val zio = ZIO.effectAsync[Int, Nothing, Int](cb => cb(ZIO.environment[Int]))
         assertM(zio.provide(10))(equalTo(10))
