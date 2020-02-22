@@ -229,23 +229,23 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts five random variables.
    */
-  def check[R, A, B, C, D, E](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D], rv5: Gen[R, E])(
-    test: (A, B, C, D, E) => TestResult
+  def check[R, A, B, C, D, F](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D], rv5: Gen[R, F])(
+    test: (A, B, C, D, F) => TestResult
   ): ZIO[R, Nothing, TestResult] =
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
 
   /**
    * A version of `check` that accepts six random variables.
    */
-  def check[R, A, B, C, D, E, F](
+  def check[R, A, B, C, D, F, G](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
     rv4: Gen[R, D],
-    rv5: Gen[R, E],
-    rv6: Gen[R, F]
+    rv5: Gen[R, F],
+    rv6: Gen[R, G]
   )(
-    test: (A, B, C, D, E, F) => TestResult
+    test: (A, B, C, D, F, G) => TestResult
   ): ZIO[R, Nothing, TestResult] =
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
@@ -342,23 +342,23 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts five random variables.
    */
-  def checkAll[R, A, B, C, D, E](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D], rv5: Gen[R, E])(
-    test: (A, B, C, D, E) => TestResult
+  def checkAll[R, A, B, C, D, F](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D], rv5: Gen[R, F])(
+    test: (A, B, C, D, F) => TestResult
   ): ZIO[R, Nothing, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
 
   /**
    * A version of `checkAll` that accepts six random variables.
    */
-  def checkAll[R, A, B, C, D, E, F](
+  def checkAll[R, A, B, C, D, F, G](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
     rv4: Gen[R, D],
-    rv5: Gen[R, E],
-    rv6: Gen[R, F]
+    rv5: Gen[R, F],
+    rv6: Gen[R, G]
   )(
-    test: (A, B, C, D, E, F) => TestResult
+    test: (A, B, C, D, F, G) => TestResult
   ): ZIO[R, Nothing, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
@@ -603,19 +603,19 @@ package object test extends CompileVariants {
         test: (A, B, C, D) => TestResult
       ): ZIO[R, Nothing, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
-      def apply[R, A, B, C, D, E](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D], rv5: Gen[R, E])(
-        test: (A, B, C, D, E) => TestResult
+      def apply[R, A, B, C, D, F](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D], rv5: Gen[R, F])(
+        test: (A, B, C, D, F) => TestResult
       ): ZIO[R, Nothing, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
-      def apply[R, A, B, C, D, E, F](
+      def apply[R, A, B, C, D, F, G](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
         rv4: Gen[R, D],
-        rv5: Gen[R, E],
-        rv6: Gen[R, F]
+        rv5: Gen[R, F],
+        rv6: Gen[R, G]
       )(
-        test: (A, B, C, D, E, F) => TestResult
+        test: (A, B, C, D, F, G) => TestResult
       ): ZIO[R, Nothing, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
     }
