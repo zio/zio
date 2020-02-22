@@ -286,6 +286,15 @@ object TestAspect extends TimeoutVariants {
     retry(Schedule.recurs(n))
 
   /**
+   * An aspect that runs each test on its own separate fiber.
+   */
+  val forked: TestAspectPoly =
+    new PerTest.Poly {
+      def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.fork.flatMap(_.join)
+    }
+
+  /**
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
