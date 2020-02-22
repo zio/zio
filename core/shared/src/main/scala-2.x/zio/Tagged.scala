@@ -18,11 +18,11 @@ package zio
 
 final case class Tagged[A](tag: TaggedType[A]) {
   override def equals(that: Any): Boolean = that match {
-    case Tagged(that) => tag.toString == that.toString
+    case Tagged(that) => tag.tag == that.tag
     case _            => false
   }
-  override def hashCode: Int    = tag.toString.hashCode
-  override def toString: String = tag.toString
+  override def hashCode: Int    = tag.tag.hashCode
+  override def toString: String = tag.tag.toString
 }
 
 object Tagged {
