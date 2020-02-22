@@ -222,8 +222,8 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], InterruptMode.Fork)
-    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], InterruptMode.Fork)
+    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], race.interruptMode)
+    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], race.interruptMode)
 
     ZIO
       .effectAsync[R, E, C] { cb =>

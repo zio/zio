@@ -109,6 +109,11 @@ sealed trait Fiber[+E, +A] { self =>
     children.flatMap(children => ZIO.foreach(children)(_.descendants).map(collected => children ++ collected.flatten))
 
   /**
+   * Disowns the fiber from the fiber calling this method.
+   */
+  final def disown: UIO[Boolean] = ZIO.disown(self)
+
+  /**
    * If this fiber is running, evaluates the specified effect on this fiber,
    * otherwise, executes the specified fallback.
    */
@@ -175,6 +180,15 @@ sealed trait Fiber[+E, +A] { self =>
    * @return `UIO[Exit, E, A]]`
    */
   def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]]
+
+  /**
+   * Interrupts the fiber from whichever fiber is calling this method. The
+   * interruption will happen in a separate daemon fiber, and the returned
+   * effect will always resume immediately without waiting.
+   *
+   * @return `UIO[Unit]`
+   */
+  final def interruptFork: UIO[Unit] = interrupt.forkDaemon.unit
 
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the

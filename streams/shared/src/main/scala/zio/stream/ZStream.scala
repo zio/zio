@@ -1757,7 +1757,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         pull = done.get flatMap {
           if (_) Pull.end
           else
-            as.raceAttempt(
+            as.raceFirst(
               p.await
                 .mapError(Some(_))
                 .foldCauseM(

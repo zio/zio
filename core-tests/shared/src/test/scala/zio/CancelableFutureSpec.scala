@@ -17,8 +17,9 @@ object CancelableFutureSpec extends ZIOBaseSpec {
       } yield assert(test)(equalTo(42))
     },
     testM("cancel returns the exit reason") {
+      val t = new Exception("test")
+
       for {
-        t  <- UIO(new Exception("test"))
         p1 <- Promise.make[Nothing, Unit]
         p2 <- Promise.make[Nothing, Unit]
         f1 <- (ZIO.succeed(42) <* p1.succeed(())).toFuture

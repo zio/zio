@@ -344,7 +344,13 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
-      (if (interrupted) Some(new InterruptedException) else None) orElse
+      (if (interrupted)
+         Some(
+           new InterruptedException(
+             "Interrupted by fibers: " + interruptors.map(_.seqNumber.toString()).map("#" + _).mkString(", ")
+           )
+         )
+       else None) orElse
       defects.headOption getOrElse (new InterruptedException)
 
   /**

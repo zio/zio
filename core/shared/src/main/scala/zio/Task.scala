@@ -406,16 +406,16 @@ object Task {
     ZIO.interruptible(task)
 
   /**
-   * @see See [[zio.ZIO.interruptibleFork]]
+   * @see See [[zio.ZIO.interruptibleDisconnect]]
    */
-  def interruptibleFork[A](task: Task[A]): Task[A] =
-    ZIO.interruptibleFork(task)
+  def interruptibleDisconnect[A](task: Task[A]): Task[A] =
+    ZIO.interruptibleDisconnect(task)
 
   /**
-   * @see See [[zio.ZIO.interruptibleForkMask]]
+   * @see See [[zio.ZIO.interruptibleDisconnectMask]]
    */
-  def interruptibleForkMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
-    ZIO.interruptibleForkMask(k)
+  def interruptibleDisconnectMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
+    ZIO.interruptibleDisconnectMask(k)
 
   /**
    * @see See [[zio.ZIO.interruptibleMask]]

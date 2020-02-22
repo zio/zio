@@ -411,16 +411,16 @@ object IO {
     ZIO.interruptible(io)
 
   /**
-   * @see See [[zio.ZIO.interruptibleFork]]
+   * @see See [[zio.ZIO.interruptibleDisconnect]]
    */
-  def interruptibleFork[E, A](io: IO[E, A]): IO[E, A] =
-    ZIO.interruptibleFork(io)
+  def interruptibleDisconnect[E, A](io: IO[E, A]): IO[E, A] =
+    ZIO.interruptibleDisconnect(io)
 
   /**
-   * @see See [[zio.ZIO.interruptibleForkMask]]
+   * @see See [[zio.ZIO.interruptibleDisconnectMask]]
    */
-  def interruptibleForkMask[E, A](k: ZIO.InterruptStatusRestore => IO[E, A]): IO[E, A] =
-    ZIO.interruptibleForkMask(k)
+  def interruptibleDisconnectMask[E, A](k: ZIO.InterruptStatusRestore => IO[E, A]): IO[E, A] =
+    ZIO.interruptibleDisconnectMask(k)
 
   /**
    * @see See [[zio.ZIO.interruptibleMask]]

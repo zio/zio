@@ -342,6 +342,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     clock.sleep(duration) *> self
 
   /**
+   * Returns an effect whose interruption will be disconnected from the
+   * fiber's interruption.
+   */
+  final def disconnect: ZIO[R, E, A] = self.fork(InterruptMode.Fork).flatMap(_.join)
+
+  /**
    * Repeats this effect until its result satisfies the specified predicate.
    */
   final def doUntil(f: A => Boolean): ZIO[R, E, A] =
@@ -672,17 +678,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def interruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Interruptible)
 
   /**
-   * Returns an effect that when interrupted returns immediately.
-   * However, the effect and its interruption occurs in a forked fiber
+   * Returns an effect that when interrupted returns immediately, performing
+   * the actual interruption in a separate fiber.
    */
-  final def interruptibleFork: ZIO[R, E, A] =
-    ZIO.uninterruptible {
-      for {
-        parentFiberId <- ZIO.fiberId
-        fiber         <- self.interruptible.forkDaemon
-        res           <- fiber.join.interruptible.onInterrupt(fiber.interruptAs(parentFiberId).forkDaemon)
-      } yield res
-    }
+  final def interruptibleDisconnect: ZIO[R, E, A] = self.interruptible.disconnect
 
   /**
    * Switches the interrupt status for this effect. If `true` is used, then the
@@ -1042,7 +1041,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     ZIO.fiberId
       .flatMap(parentFiberId =>
-        (self raceWith that)(
+        (self.interruptibleDisconnect raceWith that.interruptibleDisconnect)(
           (exit, right) =>
             exit.foldM[Any, E1, A1](
               cause => right.join mapErrorCause (cause && _), // TODO: Preserve error?
@@ -1104,16 +1103,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     } yield c).refailWithTrace
   }
 
+  @deprecated("Use raceFirst", "1.0.0")
+  final def raceAttempt[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
+    self raceFirst that
+
   /**
    * Returns an effect that races this effect with the specified effect,
    * yielding the first result to complete, whether by success or failure. If
    * neither effect completes, then the composed effect will not complete.
    */
-  final def raceAttempt[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
-    raceWith(that)(
-      { case (l, f) => f.interrupt *> l.fold(ZIO.halt, ZIO.succeed) },
-      { case (r, f) => f.interrupt *> r.fold(ZIO.halt, ZIO.succeed) }
-    ).refailWithTrace
+  final def raceFirst[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
+    (self.run race that.run).flatMap(ZIO.done(_))
 
   /**
    * Returns an effect that races this effect with the specified effect,
@@ -1129,13 +1129,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def raceWith[R1 <: R, E1, E2, B, C](that: ZIO[R1, E1, B])(
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
-    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
+    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C],
+    interruptMode: InterruptMode = InterruptMode.Await
   ): ZIO[R1, E2, C] =
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       self,
       that,
       (exit, fiber) => leftDone(exit, fiber),
-      (exit, fiber) => rightDone(exit, fiber)
+      (exit, fiber) => rightDone(exit, fiber),
+      interruptMode
     )
 
   /**
@@ -1472,6 +1474,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * completes before the timeout or `Left` with the interrupting fiber
    * otherwise.
    */
+  @deprecated(
+    "Ordinary timeout methods now have the fork semantic; there is no need to use this specialized operator.",
+    "1.0.0"
+  )
   final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber.Runtime[E, A], A]] =
     raceWith(ZIO.sleep(d))(
       (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
@@ -1902,7 +1908,7 @@ object ZIO {
     release: (A, Exit[E, B]) => URIO[R, Any],
     use: A => ZIO[R, E, B]
   ): ZIO[R, E, B] =
-    ZIO.bracketExit(acquire, release, use).interruptibleFork
+    ZIO.bracketExit(acquire, release, use).interruptibleDisconnect
 
   /**
    * Checks the interrupt status, and produces the effect returned by the
@@ -2031,6 +2037,12 @@ object ZIO {
   def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = new ZIO.Disown(fiber)
 
   /**
+   * Disowns all children.
+   */
+  val disownChildren: UIO[Boolean] =
+    ZIO.children.flatMap(children => ZIO.foreach(children)(disown(_)).map(_.exists(a => a)))
+
+  /**
    * Returns an effect from a [[zio.Exit]] value.
    */
   def done[E, A](r: Exit[E, A]): IO[E, A] = r match {
@@ -2119,7 +2131,7 @@ object ZIO {
       a <- ZIO.uninterruptibleMask { restore =>
             val f = register(k => r.unsafeRunAsync_(k.to(p)))
 
-            restore(f.catchAllCause(p.halt)).fork *> restore(p.await)
+            restore(f.catchAllCause(p.halt)).fork(InterruptMode.Fork) *> restore(p.await)
           }
     } yield a
 
@@ -2532,20 +2544,20 @@ object ZIO {
     zio.interruptible
 
   /**
-   * Prefix form of `ZIO#interruptibleFork`.
+   * Prefix form of `ZIO#interruptibleDisconnect`.
    */
-  def interruptibleFork[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    zio.interruptibleFork
+  def interruptibleDisconnect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.interruptibleDisconnect
 
   /**
    * Makes the effect immediately interruptible with the effect and its interruption occurring in a forked fiber.
    * A restore function is passed that can be used to restore the inherited interruptibility from whatever region
    * the effect is composed into.
    */
-  def interruptibleForkMask[R, E, A](
+  def interruptibleDisconnectMask[R, E, A](
     k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
   ): ZIO[R, E, A] =
-    checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).interruptibleFork)
+    checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).interruptibleDisconnect)
 
   /**
    * Makes the effect interruptible, but passes it a restore function that
@@ -3098,9 +3110,7 @@ object ZIO {
 
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
-      self
-        .map(f)
-        .sandboxWith[R with Clock, E, B1](io => ZIO.absolve(io.either race ZIO.succeedRight(b).delay(duration)))
+      (self map f) raceFirst (ZIO.sleep(duration) as b)
   }
 
   final class BracketAcquire_[-R, +E](private val acquire: ZIO[R, E, Any]) extends AnyVal {
@@ -3417,7 +3427,8 @@ object ZIO {
     val left: ZIO[R, EL, A],
     val right: ZIO[R, ER, B],
     val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
-    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C]
+    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
+    val interruptMode: InterruptMode
   ) extends ZIO[R, E, C] {
     override def tag: Int = Tags.RaceWith
   }
