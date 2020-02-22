@@ -253,60 +253,60 @@ package object test extends CompileVariants {
    * Checks the effectual test passes for "sufficient" numbers of samples from
    * the given random variable.
    */
-  def checkM[R, R1 <: R, Env, A](rv: Gen[R, A])(test: A => ZIO[R1, Env, TestResult]): ZIO[R1, Env, TestResult] =
+  def checkM[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
     checkNM(200)(rv)(test)
 
   /**
    * A version of `checkM` that accepts two random variables.
    */
-  def checkM[R, R1 <: R, Env, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-    test: (A, B) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+  def checkM[R, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+    test: (A, B) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2)(test.tupled)
 
   /**
    * A version of `checkM` that accepts three random variables.
    */
-  def checkM[R, R1 <: R, Env, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (A, B, C) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+  def checkM[R, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+    test: (A, B, C) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
    * A version of `checkM` that accepts four random variables.
    */
-  def checkM[R, R1 <: R, Env, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
-    test: (A, B, C, D) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+  def checkM[R, R1 <: R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+    test: (A, B, C, D) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
    * A version of `checkM` that accepts five random variables.
    */
-  def checkM[R, R1 <: R, Env, A, B, C, D, E](
+  def checkM[R, R1 <: R, E, A, B, C, D, F](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
     rv4: Gen[R, D],
-    rv5: Gen[R, E]
+    rv5: Gen[R, F]
   )(
-    test: (A, B, C, D, E) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+    test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
 
   /**
    * A version of `checkM` that accepts six random variables.
    */
-  def checkM[R, R1 <: R, Env, A, B, C, D, E, F](
+  def checkM[R, R1 <: R, E, A, B, C, D, F, G](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
     rv4: Gen[R, D],
-    rv5: Gen[R, E],
-    rv6: Gen[R, F]
+    rv5: Gen[R, F],
+    rv6: Gen[R, G]
   )(
-    test: (A, B, C, D, E, F) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+    test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
@@ -367,60 +367,60 @@ package object test extends CompileVariants {
    * variable. This is useful for deterministic `Gen` that comprehensively
    * explore all possibilities in a given domain.
    */
-  def checkAllM[R, R1 <: R, Env, A](rv: Gen[R, A])(test: A => ZIO[R1, Env, TestResult]): ZIO[R1, Env, TestResult] =
+  def checkAllM[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
     checkStream(rv.sample)(test)
 
   /**
    * A version of `checkAllM` that accepts two random variables.
    */
-  def checkAllM[R, R1 <: R, Env, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-    test: (A, B) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+  def checkAllM[R, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+    test: (A, B) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2)(test.tupled)
 
   /**
    * A version of `checkAllM` that accepts three random variables.
    */
-  def checkAllM[R, R1 <: R, Env, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (A, B, C) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+  def checkAllM[R, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+    test: (A, B, C) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
    * A version of `checkAllM` that accepts four random variables.
    */
-  def checkAllM[R, R1 <: R, Env, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
-    test: (A, B, C, D) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+  def checkAllM[R, R1 <: R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+    test: (A, B, C, D) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
    * A version of `checkAllM` that accepts five random variables.
    */
-  def checkAllM[R, R1 <: R, Env, A, B, C, D, E](
+  def checkAllM[R, R1 <: R, E, A, B, C, D, F](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
     rv4: Gen[R, D],
-    rv5: Gen[R, E]
+    rv5: Gen[R, F]
   )(
-    test: (A, B, C, D, E) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+    test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
 
   /**
    * A version of `checkAllM` that accepts six random variables.
    */
-  def checkAllM[R, R1 <: R, Env, A, B, C, D, E, F](
+  def checkAllM[R, R1 <: R, E, A, B, C, D, F, G](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
     rv4: Gen[R, D],
-    rv5: Gen[R, E],
-    rv6: Gen[R, F]
+    rv5: Gen[R, F],
+    rv6: Gen[R, G]
   )(
-    test: (A, B, C, D, E, F) => ZIO[R1, Env, TestResult]
-  ): ZIO[R1, Env, TestResult] =
+    test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
@@ -621,40 +621,40 @@ package object test extends CompileVariants {
     }
 
     final class CheckNM(private val n: Int) extends AnyVal {
-      def apply[R, R1 <: R, Env, A](rv: Gen[R, A])(test: A => ZIO[R1, Env, TestResult]): ZIO[R1, Env, TestResult] =
+      def apply[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
         checkStream(rv.sample.forever.take(n.toLong))(test)
-      def apply[R, R1 <: R, Env, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-        test: (A, B) => ZIO[R1, Env, TestResult]
-      ): ZIO[R1, Env, TestResult] =
+      def apply[R, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+        test: (A, B) => ZIO[R1, E, TestResult]
+      ): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2)(test.tupled)
-      def apply[R, R1 <: R, Env, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-        test: (A, B, C) => ZIO[R1, Env, TestResult]
-      ): ZIO[R1, Env, TestResult] =
+      def apply[R, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+        test: (A, B, C) => ZIO[R1, E, TestResult]
+      ): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
-      def apply[R, R1 <: R, Env, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
-        test: (A, B, C, D) => ZIO[R1, Env, TestResult]
-      ): ZIO[R1, Env, TestResult] =
+      def apply[R, R1 <: R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+        test: (A, B, C, D) => ZIO[R1, E, TestResult]
+      ): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
-      def apply[R, R1 <: R, Env, A, B, C, D, E](
+      def apply[R, R1 <: R, E, A, B, C, D, F](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
         rv4: Gen[R, D],
-        rv5: Gen[R, E]
+        rv5: Gen[R, F]
       )(
-        test: (A, B, C, D, E) => ZIO[R1, Env, TestResult]
-      ): ZIO[R1, Env, TestResult] =
+        test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
+      ): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
-      def apply[R, R1 <: R, Env, A, B, C, D, E, F](
+      def apply[R, R1 <: R, E, A, B, C, D, F, G](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
         rv4: Gen[R, D],
-        rv5: Gen[R, E],
-        rv6: Gen[R, F]
+        rv5: Gen[R, F],
+        rv6: Gen[R, G]
       )(
-        test: (A, B, C, D, E, F) => ZIO[R1, Env, TestResult]
-      ): ZIO[R1, Env, TestResult] =
+        test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
+      ): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
     }
   }
