@@ -203,12 +203,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def as[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstZIOFn(() => b))
 
   /**
-   * Maps the error value of this effect to the specified constant value.
-   */
-  final def asError[E1](e1: => E1)(implicit ev: CanFail[E]): ZIO[R, E1, A] =
-    mapError(new ZIO.ConstFn(() => e1))
-
-  /**
    * Maps the success value of this effect to a service.
    */
   final def asService[A1 >: A](implicit tagged: Tagged[A1]): ZIO[R, E, Has[A1]] =
@@ -571,13 +565,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def eventually(implicit ev: CanFail[E]): URIO[R, A] =
     self orElse eventually
-
-  /**
-   * Executes this effect and returns its value, if it succeeds, but otherwise
-   * returns the specified value.
-   */
-  final def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZIO[R, Nothing, A1] =
-    fold(_ => a, identity)
 
   /**
    * Dies with specified `Throwable` if the predicate fails.

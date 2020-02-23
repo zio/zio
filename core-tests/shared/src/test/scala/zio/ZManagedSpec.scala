@@ -196,15 +196,6 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List("Ensured")))
       }
     ),
-    suite("fallback")(
-      testM("executes an effect and returns its value if it succeeds") {
-        import zio.CanFail.canFail
-        assertM(ZManaged.succeedNow(1).fallback(2).use(ZIO.succeedNow))(equalTo(1))
-      },
-      testM("returns the specified value if the effect fails") {
-        assertM(ZManaged.failNow("fail").fallback(1).use(ZIO.succeedNow))(equalTo(1))
-      }
-    ),
     testM("eventually") {
       def acquire(ref: Ref[Int]) =
         for {

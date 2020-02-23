@@ -35,20 +35,6 @@ object SinkSpec extends ZIOBaseSpec {
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         }
       ),
-      suite("asError")(
-        testM("init error") {
-          val sink = initErrorSink.asError("Error")
-          assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Error")))
-        },
-        testM("step error") {
-          val sink = stepErrorSink.asError("Error")
-          assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Error")))
-        },
-        testM("extract error") {
-          val sink = extractErrorSink.asError("Error")
-          assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Error")))
-        }
-      ),
       suite("chunked")(
         testM("happy path") {
           val sink = ZSink.collectAll[Int].chunked
@@ -614,6 +600,20 @@ object SinkSpec extends ZIOBaseSpec {
             step5  <- sink.step(step4, 5)
             result <- sink.extract(step5)
           } yield assert(result)(equalTo((Right(List(1, 2)), Chunk(3, 4, 5))))
+        }
+      ),
+      suite("orElseFail")(
+        testM("init error") {
+          val sink = initErrorSink.orElseFail("Error")
+          assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Error")))
+        },
+        testM("step error") {
+          val sink = stepErrorSink.orElseFail("Error")
+          assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Error")))
+        },
+        testM("extract error") {
+          val sink = extractErrorSink.orElseFail("Error")
+          assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Error")))
         }
       ),
       suite("raceBoth")(

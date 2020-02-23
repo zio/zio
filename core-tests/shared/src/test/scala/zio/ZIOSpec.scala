@@ -373,15 +373,6 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(test)(equalTo(10))
       }
     ),
-    suite("fallback")(
-      testM("executes an effect and returns its value if it succeeds") {
-        import zio.CanFail.canFail
-        assertM(ZIO.succeedNow(1).fallback(2))(equalTo(1))
-      },
-      testM("returns the specified value if the effect fails") {
-        assertM(ZIO.failNow("fail").fallback(1))(equalTo(1))
-      }
-    ),
     suite("filter")(
       testM("filters a collection using an effectual predicate") {
         val as = Iterable(2, 4, 6, 3, 5, 6)

@@ -166,12 +166,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def as[B](b: => B): ZSTM[R, E, B] = self map (_ => b)
 
   /**
-   * Maps the error value of this effect to the specified constant value.
-   */
-  def asError[E1](e: => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
-    self mapError (_ => e)
-
-  /**
    * Maps the success value of this effect to an optional value.
    */
   def asSome: ZSTM[R, E, Option[A]] =
@@ -270,13 +264,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def eventually(implicit ev: CanFail[E]): ZSTM[R, Nothing, A] =
     foldM(_ => eventually, ZSTM.succeedNow)
-
-  /**
-   * Tries this effect first, and if it fails, succeeds with the specified
-   * value.
-   */
-  def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A1] =
-    fold(_ => a, identity)
 
   /**
    * Dies with specified `Throwable` if the predicate fails.

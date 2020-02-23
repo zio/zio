@@ -165,11 +165,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
       )
 
   /**
-   * Replaces the error value (if any) by the value provided.
-   */
-  def asError[E1](e1: => E1): ZManaged[R, E1, A] = mapError(_ => e1)
-
-  /**
    * Maps the success value of this effect to a service.
    */
   def asService[A1 >: A](implicit tagged: Tagged[A1]): ZManaged[R, E, Has[A1]] =
@@ -307,13 +302,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
         Reservation(r.acquire.eventually, r.release)
       }
     }
-
-  /**
-   * Executes this effect and returns its value, if it succeeds, but otherwise
-   * returns the specified value.
-   */
-  def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A1] =
-    fold(_ => a, identity)
 
   /**
    * Zips this effect with its environment
