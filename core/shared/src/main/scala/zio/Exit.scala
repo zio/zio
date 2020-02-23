@@ -61,6 +61,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Replaces the error value with the one provided.
    */
+  @deprecated("use orElseFail", "1.0.0")
   final def asError[E1](e1: E1): Exit[E1, A] = mapError(_ => e1)
 
   /**
@@ -153,6 +154,12 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
       case e @ Success(_) => e
       case Failure(c)     => Failure(f(c))
     }
+
+  /**
+   * Replaces the error value with the one provided.
+   */
+  final def orElseFail[E1](e1: E1): Exit[E1, A] =
+    mapError(_ => e1)
 
   /**
    * Determines if the result is a success.

@@ -114,15 +114,6 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("failed to make a failed computation and check the value") {
         assertM(STM.failNow("Bye bye World").commit.run)(fails(equalTo("Bye bye World")))
       },
-      suite("fallback")(
-        testM("Tries this effect first") {
-          import zio.CanFail.canFail
-          assertM(STM.succeedNow(1).fallback(2).commit)(equalTo(1))
-        },
-        testM("If it fails, succeeds with the specified value") {
-          assertM(STM.failNow("fail").fallback(1).commit)(equalTo(1))
-        }
-      ),
       testM("filter filters a collection using an effectual predicate") {
         val as = Iterable(2, 4, 6, 3, 5, 6)
 

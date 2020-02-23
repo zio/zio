@@ -205,6 +205,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Maps the error value of this effect to the specified constant value.
    */
+  @deprecated("use orElseFail", "1.0.0")
   final def asError[E1](e1: => E1)(implicit ev: CanFail[E]): ZIO[R, E1, A] =
     mapError(new ZIO.ConstFn(() => e1))
 
@@ -576,6 +577,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Executes this effect and returns its value, if it succeeds, but otherwise
    * returns the specified value.
    */
+  @deprecated("use orElseSucceed", "1.0.0")
   final def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZIO[R, Nothing, A1] =
     fold(_ => a, identity)
 
