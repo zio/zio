@@ -596,21 +596,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def fork(interruptMode: InterruptMode): URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, interruptMode)
 
   /**
-   * Forks the effect into a new independent fiber, with the specified name.
-   */
-  final def forkAs(name: String, interruptMode: InterruptMode = InterruptMode.Await): URIO[R, Fiber.Runtime[E, A]] =
-    (Fiber.fiberName.set(Some(name)) *> self).fork(interruptMode)
-
-  /**
    * Forks the effect into a new fiber, but immediately disowns the fiber, so
-   * that when the fiber executing this effect ends, the forked fiber will not
+   * that when the fiber executing this effect exits, the forked fiber will not
    * automatically be terminated. Disowned fibers become new root fibers.
    */
   final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = forkDaemon(InterruptMode.Await)
 
   /**
    * Forks the effect into a new fiber, but immediately disowns the fiber, so
-   * that when the fiber executing this effect ends, the forked fiber will not
+   * that when the fiber executing this effect exits, the forked fiber will not
    * automatically be terminated. Disowned fibers become new root fibers.
    */
   final def forkDaemon(interruptMode: InterruptMode): URIO[R, Fiber.Runtime[E, A]] =
@@ -1041,7 +1035,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     ZIO.fiberId
       .flatMap(parentFiberId =>
-        (self.interruptibleDisconnect raceWith that.interruptibleDisconnect)(
+        (self raceWith that)(
           (exit, right) =>
             exit.foldM[Any, E1, A1](
               cause => right.join mapErrorCause (cause && _), // TODO: Preserve error?
@@ -1129,15 +1123,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def raceWith[R1 <: R, E1, E2, B, C](that: ZIO[R1, E1, B])(
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
-    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C],
-    interruptMode: InterruptMode = InterruptMode.Await
+    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
   ): ZIO[R1, E2, C] =
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       self,
       that,
       (exit, fiber) => leftDone(exit, fiber),
       (exit, fiber) => rightDone(exit, fiber),
-      interruptMode
+      InterruptMode.Await
     )
 
   /**
@@ -1474,15 +1467,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * completes before the timeout or `Left` with the interrupting fiber
    * otherwise.
    */
-  @deprecated(
-    "Ordinary timeout methods now have the fork semantic; there is no need to use this specialized operator.",
-    "1.0.0"
-  )
-  final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber.Runtime[E, A], A]] =
-    raceWith(ZIO.sleep(d))(
-      (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
-      (_, fiber) => fiber.interrupt.flatMap(ZIO.done).forkDaemon.map(Left(_))
-    )
+  final def timeoutFork(d: Duration): ZIO[R with Clock, E, Option[A]] =
+    self.disconnect.timeout(d)
 
   /**
    * Returns an effect that will timeout this effect, returning either the
@@ -2030,7 +2016,7 @@ object ZIO {
   def dieMessage(message: String): UIO[Nothing] = die(new RuntimeException(message))
 
   /**
-   * Disowns the specified fiber, which means that when this fiber dies, the
+   * Disowns the specified fiber, which means that when this fiber exits, the
    * specified fiber will not be interrupted. Disowned fibers become new root
    * fibers, and are not terminated automatically when any other fibers ends.
    */
@@ -2052,8 +2038,8 @@ object ZIO {
 
   /**
    *
-   * Imports a synchronous effect into a pure `ZIO` value, translating any
-   * throwables into a `Throwable` failure in the returned value.
+   * Imports a synchronous side-effect into a pure `ZIO` value, translating any
+   * thrown exceptions into typed failed effects creating with `ZIO.fail`.
    *
    * {{{
    * def putStrLn(line: String): Task[Unit] = Task.effect(println(line))
@@ -2062,9 +2048,9 @@ object ZIO {
   def effect[A](effect: => A): Task[A] = new ZIO.EffectPartial(() => effect)
 
   /**
-   * Imports an asynchronous effect into a pure `ZIO` value. See `effectAsyncMaybe` for
-   * the more expressive variant of this function that can return a value
-   * synchronously.
+   * Imports an asynchronous side-effect into a pure `ZIO` value. See
+   * `effectAsyncMaybe` for the more expressive variant of this function that
+   * can return a value synchronously.
    *
    * The callback function `ZIO[R, E, A] => Unit` must be called at most once.
    */
@@ -2079,14 +2065,15 @@ object ZIO {
     }, blockingOn)
 
   /**
-   * Imports an asynchronous effect into a pure `IO` value. The effect has the
-   * option of returning the value synchronously, which is useful in cases
-   * where it cannot be determined if the effect is synchronous or asynchronous
-   * until the effect is actually executed. The effect also has the option of
-   * returning a canceler, which will be used by the runtime to cancel the
-   * asynchronous effect if the fiber executing the effect is interrupted.
+   * Imports an asynchronous side-effect into a ZIO effect. The side-effect
+   * has the option of returning the value synchronously, which is useful in
+   * cases where it cannot be determined if the effect is synchronous or
+   * asynchronous until the side-effect is actually executed. The effect also
+   * has the option of returning a canceler, which will be used by the runtime
+   * to cancel the asynchronous effect if the fiber executing the effect is
+   * interrupted.
    *
-   * If the register function returns a value synchronously then the callback
+   * If the register function returns a value synchronously, then the callback
    * function `ZIO[R, E, A] => Unit` must not be called. Otherwise the callback
    * function must be called at most once.
    */
