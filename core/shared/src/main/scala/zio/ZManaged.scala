@@ -165,6 +165,19 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
       )
 
   /**
+   * Maps this effect to the specified constant while preserving the
+   * effects of this effect.
+   */
+  def as[B](b: => B): ZManaged[R, E, B] =
+    map(_ => b)
+
+  /**
+   * Replaces the error value (if any) by the value provided.
+   */
+  @deprecated("use orElseFail", "1.0.0")
+  def asError[E1](e1: => E1): ZManaged[R, E1, A] = mapError(_ => e1)
+
+  /**
    * Maps the success value of this effect to a service.
    */
   def asService[A1 >: A](implicit tagged: Tagged[A1]): ZManaged[R, E, Has[A1]] =
@@ -253,13 +266,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     self <<< that
 
   /**
-   * Maps this effect to the specified constant while preserving the
-   * effects of this effect.
-   */
-  def as[B](b: => B): ZManaged[R, E, B] =
-    map(_ => b)
-
-  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail
    */
@@ -302,6 +308,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
         Reservation(r.acquire.eventually, r.release)
       }
     }
+
+  /**
+   * Executes this effect and returns its value, if it succeeds, but otherwise
+   * returns the specified value.
+   */
+  @deprecated("use orElseSucceed", "1.0.0")
+  def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A1] =
+    fold(_ => a, identity)
 
   /**
    * Zips this effect with its environment
