@@ -197,14 +197,14 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(
           TestClock
             .setTime(Duration.Infinity) *> run(Schedule.exponential(100.millis) >>> testElapsed)(List.fill(5)(()))
-        )(equalTo(List(0, 2, 6, 14, 30).map(i => (i * 100).millis)))
+        )(equalTo(List(0, 1, 3, 7, 15).map(i => (i * 100).millis)))
       },
       testM("exponential delay with other factor") {
         assertM(
           TestClock.setTime(Duration.Infinity) *> run(Schedule.exponential(100.millis, 3.0) >>> testElapsed)(
             List.fill(5)(())
           )
-        )(equalTo(List(0, 3, 12, 39, 120).map(i => (i * 100).millis)))
+        )(equalTo(List(0, 1, 4, 13, 40).map(i => (i * 100).millis)))
       }
     ),
     suite("Retry according to a provided strategy")(
