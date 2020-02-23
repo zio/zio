@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
+import zio.test.TestAspect.{ jvm, nonFlaky }
 import zio.test._
 import zio.test.environment.Live
 
@@ -57,7 +57,7 @@ object RTSSpec extends ZIOBaseSpec {
         } yield result == 42
 
       assertM(io)(isTrue)
-    } @@ flaky,
+    },
     testM("Fiber dump looks correct") {
       for {
         promise <- Promise.make[Nothing, Int]
