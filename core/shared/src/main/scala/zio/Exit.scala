@@ -62,8 +62,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
    * Replaces the error value with the one provided.
    */
   @deprecated("use orElseFail", "1.0.0")
-  final def asError[E1](e1: E1): Exit[E1, A] =
-    mapError(_ => e1)
+  final def asError[E1](e1: E1): Exit[E1, A] = mapError(_ => e1)
 
   /**
    * Maps over both the error and value type.
