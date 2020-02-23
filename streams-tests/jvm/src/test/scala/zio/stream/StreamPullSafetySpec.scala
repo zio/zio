@@ -60,7 +60,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
             def step(s: State, a: Int): UIO[State] = UIO.succeedNow(Some(a))
 
             def extract(s: State): IO[String, (String, Chunk[Nothing])] =
-              IO.fromOption(s).map(n => (n.toString, Chunk.empty)).asError("Empty")
+              IO.fromOption(s).map(n => (n.toString, Chunk.empty)).orElseFail("Empty")
 
             def cont(s: State): Boolean = s.isEmpty
           }

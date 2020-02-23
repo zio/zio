@@ -168,6 +168,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Maps the error value of this effect to the specified constant value.
    */
+  @deprecated("use orElseFail", "1.0.0")
   def asError[E1](e: => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
     self mapError (_ => e)
 
@@ -275,6 +276,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Tries this effect first, and if it fails, succeeds with the specified
    * value.
    */
+  @deprecated("use orElseSucceed", "1.0.0")
   def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A1] =
     fold(_ => a, identity)
 
