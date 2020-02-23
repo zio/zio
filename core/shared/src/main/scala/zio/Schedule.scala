@@ -745,7 +745,7 @@ object Schedule {
    * repetitions so far. Returns the current duration between recurrences.
    */
   def exponential(base: Duration, factor: Double = 2.0): Schedule[Clock, Any, Duration] =
-    delayed(forever.map(i => base * math.pow(factor, (i + 1).doubleValue)))
+    delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
 
   /**
    * A schedule that always recurs, increasing delays by summing the
