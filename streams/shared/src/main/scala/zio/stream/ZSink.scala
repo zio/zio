@@ -125,7 +125,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
   /**
    * Replaces any error produced by this sink.
    */
-  @deprecated("use asError", "1.0.0")
+  @deprecated("use orElseFail", "1.0.0")
   final def asError[E1](e1: => E1): ZSink[R, E1, A0, A, B] = self.mapError(new ZIO.ConstFn(() => e1))
 
   /**
