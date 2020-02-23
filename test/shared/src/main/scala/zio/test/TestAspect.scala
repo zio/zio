@@ -604,7 +604,7 @@ object TestAspect extends TimeoutVariants {
         def timeoutFailure =
           TestTimeoutException(s"Timeout of ${duration.render} exceeded.")
         Live
-          .withLive(test)(_.either.timeout(duration).flatMap {
+          .withLive(test)(_.either.timeoutFork(duration).flatMap {
             case None         => ZIO.fail(TestFailure.Runtime(Cause.die(timeoutFailure)))
             case Some(result) => ZIO.fromEither(result)
           })
