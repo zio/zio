@@ -236,7 +236,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  def forkAll[A](as: Iterable[UIO[A]]): UIO[Fiber.Synthetic[Nothing, List[A]]] =
+  def forkAll[A](as: Iterable[UIO[A]]): UIO[Fiber[Nothing, List[A]]] =
     ZIO.forkAll(as)
 
   /**
