@@ -4,7 +4,7 @@ import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 
 import zio.UIO
 import zio.clock.Clock
-import zio.test.{ AbstractRunnableSpec, SummaryBuilder, TestArgs, TestLogger }
+import zio.test.{ AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger }
 import zio.{ Runtime, ZIO, ZLayer }
 
 abstract class BaseTestTask(
@@ -14,7 +14,7 @@ abstract class BaseTestTask(
   val args: TestArgs
 ) extends Task {
 
-  protected lazy val spec: AbstractRunnableSpec = {
+  protected lazy val specInstance: AbstractRunnableSpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
     Reflect
@@ -26,30 +26,7 @@ abstract class BaseTestTask(
 
   protected def run(eventHandler: EventHandler) =
     for {
-      spec <- (args.testSearchTerms, args.tagSearchTerms) match {
-               case (Nil, Nil) => spec.run
-               case (testSearchTerms, Nil) =>
-                 spec.runner.run {
-                   spec.spec.filterLabels { label =>
-                     testSearchTerms.exists(term => label.contains(term))
-                   }.getOrElse(spec.spec)
-                 }
-               case (Nil, tagSearchTerms) =>
-                 spec.runner.run {
-                   spec.spec.filterTags { tag =>
-                     tagSearchTerms.exists(term => tag == term)
-                   }.getOrElse(spec.spec)
-                 }
-               case (testSearchTerms, tagSearchTerms) =>
-                 spec.runner.run {
-                   spec.spec.filterTags { tag =>
-                     testSearchTerms.exists(term => tag == term)
-                   }.flatMap(_.filterLabels { label =>
-                       tagSearchTerms.exists(term => label.contains(term))
-                     })
-                     .getOrElse(spec.spec)
-                 }
-             }
+      spec    <- specInstance.runner.run(FilteredSpec(specInstance.spec, args))
       summary <- SummaryBuilder.buildSummary(spec)
       _       <- sendSummary.provide(summary)
       events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
@@ -65,7 +42,7 @@ abstract class BaseTestTask(
     }) ++ Clock.live
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    Runtime((), spec.platform).unsafeRun(
+    Runtime((), specInstance.platform).unsafeRun(
       (sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_)
         .use_(ZIO.unit)
         .onError(e => UIO(println(e.prettyPrint)))
