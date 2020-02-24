@@ -851,7 +851,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ): ZIO[R with Clock, E, Option[(Duration, Reservation[R, E, A])]] =
       clock.nanoTime.flatMap { start =>
         zio
-          .raceWith(ZIO.sleep(d))(
+          .raceWith(ZIO.sleep(d).interruptible)(
             {
               case (leftDone, rightFiber) =>
                 rightFiber.interrupt.flatMap(_ =>

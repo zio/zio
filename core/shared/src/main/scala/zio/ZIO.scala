@@ -345,7 +345,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns an effect whose interruption will be disconnected from the
    * fiber's interruption.
    */
-  final def disconnect: ZIO[R, E, A] = self.fork(InterruptMode.Fork).flatMap(_.join)
+  final def disconnect: ZIO[R, E, A] = new ZIO.Fork(self, InterruptMode.Fork).flatMap(_.join)
 
   /**
    * Repeats this effect until its result satisfies the specified predicate.
@@ -575,40 +575,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * } yield a
    * }}}
    */
-  final def fork: URIO[R, Fiber.Runtime[E, A]] = fork(InterruptMode.Await)
-
-  /**
-   * Returns an effect that forks this effect into its own separate fiber,
-   * returning the fiber immediately, without waiting for it to begin
-   * executing the effect.
-   *
-   * The returned fiber can be used to interrupt the forked fiber, await its
-   * result, or join the fiber. See [[zio.Fiber]] for more information.
-   *
-   * {{{
-   * for {
-   *   fiber <- subtask.fork
-   *   // Do stuff...
-   *   a <- fiber.join
-   * } yield a
-   * }}}
-   */
-  final def fork(interruptMode: InterruptMode): URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, interruptMode)
+  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, InterruptMode.Await)
 
   /**
    * Forks the effect into a new fiber, but immediately disowns the fiber, so
    * that when the fiber executing this effect exits, the forked fiber will not
    * automatically be terminated. Disowned fibers become new root fibers.
    */
-  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = forkDaemon(InterruptMode.Await)
-
-  /**
-   * Forks the effect into a new fiber, but immediately disowns the fiber, so
-   * that when the fiber executing this effect exits, the forked fiber will not
-   * automatically be terminated. Disowned fibers become new root fibers.
-   */
-  final def forkDaemon(interruptMode: InterruptMode): URIO[R, Fiber.Runtime[E, A]] =
-    self.fork(interruptMode).tap(ZIO.disown(_))
+  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = self.fork.tap(ZIO.disown(_))
 
   /**
    * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
@@ -2118,7 +2092,7 @@ object ZIO {
       a <- ZIO.uninterruptibleMask { restore =>
             val f = register(k => r.unsafeRunAsync_(k.to(p)))
 
-            restore(f.catchAllCause(p.halt)).fork(InterruptMode.Fork) *> restore(p.await)
+            new ZIO.Fork(restore(f.catchAllCause(p.halt)), InterruptMode.Fork) *> restore(p.await)
           }
     } yield a
 

@@ -412,7 +412,7 @@ package object environment extends PlatformSpecific {
         fiberState.get.map(_.timeZone)
 
       private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
-        UIO.forkAll_(wakes.sortBy(_._1).map(_._2.succeed(()))).fork.unit
+        UIO.foreach(wakes.sortBy(_._1))(_._2.succeed(())).unit
 
       private[TestClock] val warningDone: UIO[Unit] =
         warningState

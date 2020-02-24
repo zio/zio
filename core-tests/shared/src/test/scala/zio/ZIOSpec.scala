@@ -1673,7 +1673,8 @@ object ZIOSpec extends ZIOBaseSpec {
                       // This will never complete because we never call the callback
                       acquire.succeed(()).bracket_(release.succeed(()))(IO.never)
                     }
-                    .fork(InterruptMode.Fork)
+                    .disconnect
+                    .fork
           _ <- acquire.await
           _ <- fiber.interruptFork
           a <- release.await
