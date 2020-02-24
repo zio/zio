@@ -1,7 +1,7 @@
 package zio
 
-import izumi.fundamentals.reflection.Tags.Tag
-import izumi.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
+import izreflect.fundamentals.reflection.Tags.Tag
+import izreflect.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
 
 private[zio] object ScalaSpecific {
 
@@ -13,6 +13,12 @@ private[zio] object ScalaSpecific {
   private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
     left <:< right
 
+  /**
+   * This method takes a tag for an intersection of [[zio.Has]]
+   * and returns a set of tags for parameters of each individual `Has`:
+   *
+   * `Tag[Has[A] with Has[B]]` should produce `Set(Tag[A], Tag[B])`
+   */
   private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] =
     t.decompose.map { parent =>
       parent.ref match {
