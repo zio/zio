@@ -2603,23 +2603,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect that forks all of the specified values, and returns a
    * composite fiber that produces a list of their results, in order.
    */
-  def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber.Synthetic[E, List[A]]] =
-    as.toList match {
-      case Nil => succeedNow(Fiber.succeed(Nil))
-
-      case a :: Nil => a.fork.map(_.map(List(_)))
-
-      case as =>
-        // Note that we could handle all cases with this code. However, then we would effectively
-        // fork two fibers even for iterables with a single element. If this single ZIO resulted
-        // in an error, the existence of the second fiber could then in rare cases be observed
-        // by callers in the form of an interruption. See issue #2096.
-        as.foldRight[URIO[R, Fiber.Synthetic[E, List[A]]]](succeedNow(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
-          asFiberIO.zipWith(aIO.fork) {
-            case (asFiber, aFiber) =>
-              asFiber.zipWith(aFiber)((as, a) => a :: as)
-          }
-        }
+  def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber[E, List[A]]] =
+    ZIO.foreach(as)(_.map(List(_)).fork).map { fibers =>
+      fibers
+        .reduceRightOption[Fiber[E, List[A]]]((a, as) => a.zipWith(as)((a, as) => a ::: as))
+        .getOrElse(Fiber.succeed(Nil))
     }
 
   /**
