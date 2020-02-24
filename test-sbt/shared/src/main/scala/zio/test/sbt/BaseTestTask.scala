@@ -26,7 +26,7 @@ abstract class BaseTestTask(
 
   protected def run(eventHandler: EventHandler) =
     for {
-      spec    <- specInstance.runner.run(FilteredSpec(specInstance.spec, args))
+      spec    <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary <- SummaryBuilder.buildSummary(spec)
       _       <- sendSummary.provide(summary)
       events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
