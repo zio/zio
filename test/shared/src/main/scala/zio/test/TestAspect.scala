@@ -16,11 +16,10 @@
 
 package zio.test
 
+import zio._
 import zio.duration._
-import zio.system
 import zio.test.Assertion.{ equalTo, hasMessage, isCase, isSubtype }
 import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem }
-import zio.{ Cause, Schedule, ZIO, ZManaged }
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -160,6 +159,24 @@ object TestAspect extends TimeoutVariants {
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
         effect *> test
+    }
+
+  /**
+   * An aspect that runs each test on a separate fiber and prints a fiber dump
+   * if the test fails or has not termianted within the specified duration.
+   */
+  def diagnose(duration: Duration): TestAspectAtLeastR[Live] =
+    new PerTest.AtLeastR[Live] {
+      def perTest[R <: Live, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] = {
+        def dump[E, A](fiber: Fiber.Runtime[E, A]): ZIO[Live, Nothing, Unit] =
+          fiber.dump.flatMap(_.prettyPrintM).flatMap(s => Live.live(console.putStrLn(s)))
+        test.fork.flatMap { fiber =>
+          Live.live(clock.sleep(duration)) *> fiber.poll.flatMap {
+            case None       => dump(fiber) *> fiber.join
+            case Some(exit) => dump(fiber).when(!exit.succeeded) *> ZIO.done(exit)
+          }
+        }
+      }
     }
 
   /**
