@@ -1085,7 +1085,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           result <- managed.use {
                      case (canceler, _) =>
                        for {
-                         fiber        <- canceler.fork
+                         fiber        <- canceler.forkDaemon
                          _            <- latch.await
                          interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds))
                          _            <- ref.set(false)
