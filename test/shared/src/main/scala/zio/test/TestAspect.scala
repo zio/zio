@@ -183,7 +183,7 @@ object TestAspect extends TimeoutVariants {
         spec.transform[R, TestFailure[E], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
           case Spec.TestCase(label, test, annotations) =>
-            Spec.TestCase(label, diagnose(label, test), annotations)
+            Spec.TestCase(label, if (predicate(label)) diagnose(label, test) else test, annotations)
         }
       }
     }
