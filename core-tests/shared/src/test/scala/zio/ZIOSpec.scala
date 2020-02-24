@@ -1944,15 +1944,15 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("RTS asynchronous correctness")(
-      testM("simple async must return") {
+      testM("simple effectAsync must return") {
         val io = IO.effectAsync[Throwable, Int](k => k(IO.succeedNow(42)))
         assertM(io)(equalTo(42))
       },
-      testM("simple asyncIO must return") {
+      testM("simple effectAsyncM must return") {
         val io = IO.effectAsyncM[Throwable, Int](k => IO.effectTotal(k(IO.succeedNow(42))))
         assertM(io)(equalTo(42))
       },
-      testM("deep asyncIO doesn't block threads") {
+      testM("deep effectAsyncM doesn't block threads") {
         def stackIOs(count: Int): URIO[Clock, Int] =
           if (count <= 0) IO.succeedNow(42)
           else asyncIO(stackIOs(count - 1))
@@ -2153,16 +2153,16 @@ object ZIOSpec extends ZIOBaseSpec {
           (clock.sleep(20.millis * n.toDouble) *> IO.never).fork
 
         val io =
-          (for {
+          for {
             counter <- Ref.make(0)
             _ <- (makeChild(1) *> makeChild(2)).handleChildrenWith { fs =>
                   fs.foldLeft(IO.unit)((acc, f) => acc *> f.interrupt *> counter.update(_ + 1))
                 }
             value <- counter.get
-          } yield value).fork.flatMap(_.join)
+          } yield value
 
         assertM(Live.live(io))(equalTo(2))
-      } @@ forked,
+      } @@ forked @@ flaky, // Due to weak supervision, this test is expected to fail sometimes
       testM("race of fail with success") {
         val io = IO.failNow(42).race(IO.succeedNow(24)).either
         assertM(io)(isRight(equalTo(24)))
@@ -2289,7 +2289,7 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertM(io)(equalTo(42))
       },
-      testM("asyncPure is interruptible") {
+      testM("effectAsyncM is interruptible") {
         val io =
           for {
             fiber <- IO.effectAsyncM[Nothing, Nothing](_ => IO.never).fork
@@ -2298,7 +2298,7 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertM(io)(equalTo(42))
       },
-      testM("async is interruptible") {
+      testM("effectAsync is interruptible") {
         val io =
           for {
             fiber <- IO.effectAsync[Nothing, Nothing](_ => ()).fork
@@ -2322,9 +2322,9 @@ object ZIOSpec extends ZIOBaseSpec {
           for {
             promise <- Promise.make[Nothing, Unit]
             fiber <- IO
-                      .bracketExit(promise.succeed(()) *> IO.never *> IO.succeedNow(1))((_, _: Exit[Any, Any]) => IO.unit)(
-                        _ => IO.unit: IO[Nothing, Unit]
-                      )
+                      .bracketExit(promise.succeed(()) *> IO.never *> IO.succeedNow(1))((_, _: Exit[Any, Any]) =>
+                        IO.unit
+                      )(_ => IO.unit: IO[Nothing, Unit])
                       .forkDaemon
             res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
           } yield res
