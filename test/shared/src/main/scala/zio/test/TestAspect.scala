@@ -163,18 +163,27 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that runs each test on a separate fiber and prints a fiber dump
-   * if the test fails or has not termianted within the specified duration.
+   * if the test fails or has not terminated within the specified duration.
    */
   def diagnose(duration: Duration): TestAspectAtLeastR[Live] =
-    new PerTest.AtLeastR[Live] {
-      def perTest[R <: Live, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] = {
-        def dump[E, A](fiber: Fiber.Runtime[E, A]): ZIO[Live, Nothing, Unit] =
-          fiber.dump.flatMap(_.prettyPrintM).flatMap(s => Live.live(console.putStrLn(s)))
-        test.fork.flatMap { fiber =>
-          Live.live(clock.sleep(duration)) *> fiber.poll.flatMap {
-            case None       => dump(fiber) *> fiber.join
-            case Some(exit) => dump(fiber).when(!exit.succeeded) *> ZIO.done(exit)
+    new TestAspectAtLeastR[Live] {
+      def some[R <: Live, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] = {
+        def diagnose[R <: Live, E](
+          label: String,
+          test: ZIO[R, TestFailure[E], TestSuccess]
+        ): ZIO[R, TestFailure[E], TestSuccess] =
+          test.fork.flatMap { fiber =>
+            Live.live(clock.sleep(duration)) *> fiber.poll.flatMap {
+              case None       => dump(label, fiber) *> fiber.join
+              case Some(exit) => dump(label, fiber).when(!exit.succeeded) *> ZIO.done(exit)
+            }
           }
+        def dump[E, A](label: String, fiber: Fiber.Runtime[E, A]): ZIO[Live, Nothing, Unit] =
+          fiber.dump.flatMap(_.prettyPrintM).flatMap(s => Live.live(console.putStrLn(s"$label: $s")))
+        spec.transform[R, TestFailure[E], TestSuccess] {
+          case c @ Spec.SuiteCase(_, _, _) => c
+          case Spec.TestCase(label, test, annotations) =>
+            Spec.TestCase(label, diagnose(label, test), annotations)
         }
       }
     }
