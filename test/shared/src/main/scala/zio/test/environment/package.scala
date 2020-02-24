@@ -27,7 +27,6 @@ import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
-import zio.scheduler.Scheduler
 import zio.system.System
 import zio.{ PlatformSpecific => _, _ }
 
@@ -45,7 +44,7 @@ import zio.{ PlatformSpecific => _, _ }
  * {{{
  * import zio.test.environment._
  *
- * myProgram.provideManaged(testEnvironmentManaged)
+ * myProgram.provideLayer(testEnvironment)
  * }}}
  *
  * Then all environmental effects, such as printing to the console or
@@ -90,8 +89,8 @@ package object environment extends PlatformSpecific {
 
   val liveEnvironment: ZLayer.NoDeps[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
-    (ZEnv.live >>> TestEnvironment.live).build
+  val testEnvironment: ZLayer.NoDeps[Nothing, TestEnvironment] =
+    ZEnv.live >>> TestEnvironment.live
 
   /**
    * Provides an effect with the "real" environment as opposed to the test
@@ -185,7 +184,7 @@ package object environment extends PlatformSpecific {
    * methods, and all effects scheduled to take place on or before that wall
    * clock time will automically be run.
    *
-   * For example, here is how we can test [[ZIO.timeout]] using `TestClock:
+   * For example, here is how we can test `ZIO#timeout` using `TestClock:
    *
    * {{{
    *  import zio.ZIO
@@ -333,18 +332,6 @@ package object environment extends PlatformSpecific {
         }
 
       /**
-       * Returns an effect that creates a new `Scheduler` backed by this
-       * `TestClock`.
-       */
-      val scheduler: UIO[Scheduler.Service] =
-        ZIO.succeed {
-          new Scheduler.Service {
-            override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
-              sleep(duration) *> task
-          }
-        }
-
-      /**
        * Sets the wall clock time to the specified `OffsetDateTime`. Any
        * effects that were scheduled to occur on or before the new time will
        * immediately be run.
@@ -373,7 +360,7 @@ package object environment extends PlatformSpecific {
        * scheduled effects will be run as a result of this method.
        */
       def setTimeZone(zone: ZoneId): UIO[Unit] =
-        fiberState.update(_.copy(timeZone = zone)).unit
+        fiberState.update(_.copy(timeZone = zone))
 
       /**
        * Semantically blocks the current fiber until the wall clock time is
@@ -415,12 +402,10 @@ package object environment extends PlatformSpecific {
         UIO.foreach(wakes.sortBy(_._1))(_._2.succeed(())).unit
 
       private[TestClock] val warningDone: UIO[Unit] =
-        warningState
-          .updateSome[Any, Nothing] {
-            case WarningData.Start          => ZIO.succeed(WarningData.done)
-            case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
-          }
-          .unit
+        warningState.updateSome[Any, Nothing] {
+          case WarningData.Start          => ZIO.succeedNow(WarningData.done)
+          case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
+        }
 
       private val warningStart: UIO[Unit] =
         warningState.updateSome {
@@ -428,7 +413,7 @@ package object environment extends PlatformSpecific {
             for {
               fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
             } yield WarningData.pending(fiber)
-        }.unit
+        }
 
     }
 
@@ -437,7 +422,7 @@ package object environment extends PlatformSpecific {
      * wall clock time by the specified duration, running any actions scheduled
      * for on or before the new time.
      */
-    def adjust(duration: Duration): ZIO[TestClock, Nothing, Unit] =
+    def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
 
     /**
@@ -451,21 +436,20 @@ package object environment extends PlatformSpecific {
      * Constructs a new `Test` object that implements the `TestClock` interface.
      * This can be useful for mixing in with implementations of other interfaces.
      */
-    def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
-      ZLayer.fromServiceManaged { (live: Live.Service) =>
+    def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
+      ZLayer.fromServiceManyManaged { (live: Live.Service) =>
         for {
-          ref       <- Ref.make(data).toManaged_
-          fiberRef  <- FiberRef.make(FiberData(0, 0, ZoneId.of("UTC")), FiberData.combine).toManaged_
-          refM      <- RefM.make(WarningData.start).toManaged_
-          test      <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
-          scheduler <- test.scheduler.toManaged_
-        } yield Has.allOf[Clock.Service, TestClock.Service, Scheduler.Service](test, test, scheduler)
+          ref      <- Ref.make(data).toManaged_
+          fiberRef <- FiberRef.make(FiberData(0, 0, ZoneId.of("UTC")), FiberData.combine).toManaged_
+          refM     <- RefM.make(WarningData.start).toManaged_
+          test     <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
+        } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
       }
 
-    val any: ZLayer[Clock with TestClock with Scheduler, Nothing, Clock with TestClock with Scheduler] =
-      ZLayer.requires[Clock with TestClock with Scheduler]
+    val any: ZLayer[Clock with TestClock, Nothing, Clock with TestClock] =
+      ZLayer.requires[Clock with TestClock]
 
-    val default: ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
+    val default: ZLayer[Live, Nothing, Clock with TestClock] =
       live(Data(0, Nil))
 
     /**
@@ -480,7 +464,7 @@ package object environment extends PlatformSpecific {
      * clock time to the specified `OffsetDateTime`, running any actions
      * scheduled for on or before the new time.
      */
-    def setDateTime(dateTime: OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
+    def setDateTime(dateTime: => OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setDateTime(dateTime))
 
     /**
@@ -488,7 +472,7 @@ package object environment extends PlatformSpecific {
      * clock time to the specified time in terms of duration since the epoch,
      * running any actions scheduled for on or before the new time.
      */
-    def setTime(duration: Duration): ZIO[TestClock, Nothing, Unit] =
+    def setTime(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTime(duration))
 
     /**
@@ -497,7 +481,7 @@ package object environment extends PlatformSpecific {
      * since the epoch will not be altered and no scheduled actions will be run
      * as a result of this effect.
      */
-    def setTimeZone(zone: ZoneId): ZIO[TestClock, Nothing, Unit] =
+    def setTimeZone(zone: => ZoneId): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTimeZone(zone))
 
     /**
@@ -603,13 +587,13 @@ package object environment extends PlatformSpecific {
        * Clears the contents of the input buffer.
        */
       val clearInput: UIO[Unit] =
-        consoleState.update(data => data.copy(input = List.empty)).unit
+        consoleState.update(data => data.copy(input = List.empty))
 
       /**
        * Clears the contents of the output buffer.
        */
       val clearOutput: UIO[Unit] =
-        consoleState.update(data => data.copy(output = Vector.empty)).unit
+        consoleState.update(data => data.copy(output = Vector.empty))
 
       /**
        * Writes the specified sequence of strings to the input buffer. The
@@ -618,7 +602,7 @@ package object environment extends PlatformSpecific {
        * input buffer.
        */
       def feedLines(lines: String*): UIO[Unit] =
-        consoleState.update(data => data.copy(input = lines.toList ::: data.input)).unit
+        consoleState.update(data => data.copy(input = lines.toList ::: data.input))
 
       /**
        * Takes the first value from the input buffer, if one exists, or else
@@ -649,7 +633,7 @@ package object environment extends PlatformSpecific {
       override def putStr(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ line)
-        }.unit
+        }
 
       /**
        * Writes the specified string to the output buffer followed by a newline
@@ -658,7 +642,7 @@ package object environment extends PlatformSpecific {
       override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ s"$line\n")
-        }.unit
+        }
 
       /**
        * Saves the `TestConsole`'s current state in an effect which, when run, will restore the `TestConsole`
@@ -676,7 +660,7 @@ package object environment extends PlatformSpecific {
      * interfaces.
      */
     def live(data: Data): ZLayer.NoDeps[Nothing, Console with TestConsole] =
-      ZLayer.fromEffect(
+      ZLayer.fromEffectMany(
         Ref.make(data).map(ref => Has.allOf[Console.Service, TestConsole.Service](Test(ref), Test(ref)))
       )
 
@@ -801,49 +785,49 @@ package object environment extends PlatformSpecific {
        * Clears the buffer of booleans.
        */
       val clearBooleans: UIO[Unit] =
-        bufferState.update(_.copy(booleans = List.empty)).unit
+        bufferState.update(_.copy(booleans = List.empty))
 
       /**
        * Clears the buffer of bytes.
        */
       val clearBytes: UIO[Unit] =
-        bufferState.update(_.copy(bytes = List.empty)).unit
+        bufferState.update(_.copy(bytes = List.empty))
 
       /**
        * Clears the buffer of characters.
        */
       val clearChars: UIO[Unit] =
-        bufferState.update(_.copy(chars = List.empty)).unit
+        bufferState.update(_.copy(chars = List.empty))
 
       /**
        * Clears the buffer of doubles.
        */
       val clearDoubles: UIO[Unit] =
-        bufferState.update(_.copy(doubles = List.empty)).unit
+        bufferState.update(_.copy(doubles = List.empty))
 
       /**
        * Clears the buffer of floats.
        */
       val clearFloats: UIO[Unit] =
-        bufferState.update(_.copy(floats = List.empty)).unit
+        bufferState.update(_.copy(floats = List.empty))
 
       /**
        * Clears the buffer of integers.
        */
       val clearInts: UIO[Unit] =
-        bufferState.update(_.copy(integers = List.empty)).unit
+        bufferState.update(_.copy(integers = List.empty))
 
       /**
        * Clears the buffer of longs.
        */
       val clearLongs: UIO[Unit] =
-        bufferState.update(_.copy(longs = List.empty)).unit
+        bufferState.update(_.copy(longs = List.empty))
 
       /**
        * Clears the buffer of strings.
        */
       val clearStrings: UIO[Unit] =
-        bufferState.update(_.copy(strings = List.empty)).unit
+        bufferState.update(_.copy(strings = List.empty))
 
       /**
        * Feeds the buffer with specified sequence of booleans. The first value in
@@ -851,7 +835,7 @@ package object environment extends PlatformSpecific {
        * before any values that were previously in the buffer.
        */
       def feedBooleans(booleans: Boolean*): UIO[Unit] =
-        bufferState.update(data => data.copy(booleans = booleans.toList ::: data.booleans)).unit
+        bufferState.update(data => data.copy(booleans = booleans.toList ::: data.booleans))
 
       /**
        * Feeds the buffer with specified sequence of chunks of bytes. The first
@@ -859,7 +843,7 @@ package object environment extends PlatformSpecific {
        * be taken before any values that were previously in the buffer.
        */
       def feedBytes(bytes: Chunk[Byte]*): UIO[Unit] =
-        bufferState.update(data => data.copy(bytes = bytes.toList ::: data.bytes)).unit
+        bufferState.update(data => data.copy(bytes = bytes.toList ::: data.bytes))
 
       /**
        * Feeds the buffer with specified sequence of characters. The first value
@@ -867,7 +851,7 @@ package object environment extends PlatformSpecific {
        * taken before any values that were previously in the buffer.
        */
       def feedChars(chars: Char*): UIO[Unit] =
-        bufferState.update(data => data.copy(chars = chars.toList ::: data.chars)).unit
+        bufferState.update(data => data.copy(chars = chars.toList ::: data.chars))
 
       /**
        * Feeds the buffer with specified sequence of doubles. The first value in
@@ -875,7 +859,7 @@ package object environment extends PlatformSpecific {
        * before any values that were previously in the buffer.
        */
       def feedDoubles(doubles: Double*): UIO[Unit] =
-        bufferState.update(data => data.copy(doubles = doubles.toList ::: data.doubles)).unit
+        bufferState.update(data => data.copy(doubles = doubles.toList ::: data.doubles))
 
       /**
        * Feeds the buffer with specified sequence of floats. The first value in
@@ -883,7 +867,7 @@ package object environment extends PlatformSpecific {
        * before any values that were previously in the buffer.
        */
       def feedFloats(floats: Float*): UIO[Unit] =
-        bufferState.update(data => data.copy(floats = floats.toList ::: data.floats)).unit
+        bufferState.update(data => data.copy(floats = floats.toList ::: data.floats))
 
       /**
        * Feeds the buffer with specified sequence of integers. The first value in
@@ -891,7 +875,7 @@ package object environment extends PlatformSpecific {
        * before any values that were previously in the buffer.
        */
       def feedInts(ints: Int*): UIO[Unit] =
-        bufferState.update(data => data.copy(integers = ints.toList ::: data.integers)).unit
+        bufferState.update(data => data.copy(integers = ints.toList ::: data.integers))
 
       /**
        * Feeds the buffer with specified sequence of longs. The first value in
@@ -899,7 +883,7 @@ package object environment extends PlatformSpecific {
        * before any values that were previously in the buffer.
        */
       def feedLongs(longs: Long*): UIO[Unit] =
-        bufferState.update(data => data.copy(longs = longs.toList ::: data.longs)).unit
+        bufferState.update(data => data.copy(longs = longs.toList ::: data.longs))
 
       /**
        * Feeds the buffer with specified sequence of strings. The first value in
@@ -907,7 +891,7 @@ package object environment extends PlatformSpecific {
        * before any values that were previously in the buffer.
        */
       def feedStrings(strings: String*): UIO[Unit] =
-        bufferState.update(data => data.copy(strings = strings.toList ::: data.strings)).unit
+        bufferState.update(data => data.copy(strings = strings.toList ::: data.strings))
 
       private val randomBoolean: UIO[Boolean] =
         randomBits(1).map(_ != 0)
@@ -920,11 +904,11 @@ package object environment extends PlatformSpecific {
           if (i == length)
             acc.map(_.reverse)
           else if (n > 0)
-            rnd.flatMap(rnd => loop(i + 1, UIO.succeed(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
+            rnd.flatMap(rnd => loop(i + 1, UIO.succeedNow(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
           else
             loop(i, nextInt, (length - i) min 4, acc)
 
-        loop(0, randomInt, length min 4, UIO.succeed(List.empty[Byte])).map(Chunk.fromIterable)
+        loop(0, randomInt, length min 4, UIO.succeedNow(List.empty[Byte])).map(Chunk.fromIterable)
       }
 
       private val randomDouble: UIO[Double] =
@@ -946,7 +930,7 @@ package object environment extends PlatformSpecific {
               case (d, queue) => (Some(d), Data(seed1, seed2, queue))
             }
         }.flatMap {
-          case Some(nextNextGaussian) => UIO.succeed(nextNextGaussian)
+          case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
           case None =>
             def loop: UIO[(Double, Double, Double)] =
               randomDouble.zip(randomDouble).flatMap {
@@ -954,7 +938,7 @@ package object environment extends PlatformSpecific {
                   val x      = 2 * d1 - 1
                   val y      = 2 * d2 - 1
                   val radius = x * x + y * y
-                  if (radius >= 1 || radius == 0) loop else UIO.succeed((x, y, radius))
+                  if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
               }
             loop.flatMap {
               case (x, y, radius) =>
@@ -971,7 +955,7 @@ package object environment extends PlatformSpecific {
 
       private def randomInt(n: Int): UIO[Int] =
         if (n <= 0)
-          UIO.die(new IllegalArgumentException("n must be positive"))
+          UIO.dieNow(new IllegalArgumentException("n must be positive"))
         else if ((n & -n) == n)
           randomBits(31).map(_ >> Integer.numberOfLeadingZeros(n))
         else {
@@ -979,7 +963,7 @@ package object environment extends PlatformSpecific {
             randomBits(31).flatMap { i =>
               val value = i % n
               if (i - value + (n - 1) < 0) loop
-              else UIO.succeed(value)
+              else UIO.succeedNow(value)
             }
           loop
         }
@@ -1160,7 +1144,7 @@ package object environment extends PlatformSpecific {
         )
 
       private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: UIO[A]): UIO[A] =
-        bufferState.modify(buffer).flatMap(_.fold(random)(UIO.succeed))
+        bufferState.modify(buffer).flatMap(_.fold(random)(UIO.succeedNow))
 
       @inline
       private def leastSignificantBits(x: Double): Int =
@@ -1317,10 +1301,10 @@ package object environment extends PlatformSpecific {
     /**
      * Constructs a new `TestRandom` with the specified initial state. This can
      * be useful for providing the required environment to an effect that
-     * requires a `Random`, such as with [[ZIO!.provide]].
+     * requires a `Random`, such as with `ZIO#provide`.
      */
     def make(data: Data): ZLayer.NoDeps[Nothing, Random with TestRandom] =
-      ZLayer.fromEffect(for {
+      ZLayer.fromEffectMany(for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
         test   = Test(data, buffer)
@@ -1334,7 +1318,7 @@ package object environment extends PlatformSpecific {
 
     val random: ZLayer[Clock, Nothing, Random with TestRandom] =
       (ZLayer.service[Clock.Service] ++ deterministic) >>>
-        (ZLayer.fromEnvironmentM { (env: Clock with Random with TestRandom) =>
+        (ZLayer.fromFunctionManyM { (env: Clock with Random with TestRandom) =>
           val random     = env.get[Random.Service]
           val testRandom = env.get[TestRandom.Service]
 
@@ -1364,7 +1348,7 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestRandom` instance in the environment and sets the seed to
      * the specified value.
      */
-    def setSeed(seed: Long): ZIO[TestRandom, Nothing, Unit] =
+    def setSeed(seed: => Long): ZIO[TestRandom, Nothing, Unit] =
       ZIO.accessM(_.get.setSeed(seed))
 
     /**
@@ -1435,33 +1419,33 @@ package object environment extends PlatformSpecific {
        * variables maintained by this `TestSystem`.
        */
       def putEnv(name: String, value: String): UIO[Unit] =
-        systemState.update(data => data.copy(envs = data.envs.updated(name, value))).unit
+        systemState.update(data => data.copy(envs = data.envs.updated(name, value)))
 
       /**
        * Adds the specified name and value to the mapping of system properties
        * maintained by this `TestSystem`.
        */
       def putProperty(name: String, value: String): UIO[Unit] =
-        systemState.update(data => data.copy(properties = data.properties.updated(name, value))).unit
+        systemState.update(data => data.copy(properties = data.properties.updated(name, value)))
 
       /**
        * Sets the system line separator maintained by this `TestSystem` to the
        * specified value.
        */
       def setLineSeparator(lineSep: String): UIO[Unit] =
-        systemState.update(_.copy(lineSeparator = lineSep)).unit
+        systemState.update(_.copy(lineSeparator = lineSep))
 
       /**
        * Clears the mapping of environment variables.
        */
       def clearEnv(variable: String): UIO[Unit] =
-        systemState.update(data => data.copy(envs = data.envs - variable)).unit
+        systemState.update(data => data.copy(envs = data.envs - variable))
 
       /**
        * Clears the mapping of system properties.
        */
       def clearProperty(prop: String): UIO[Unit] =
-        systemState.update(data => data.copy(properties = data.properties - prop)).unit
+        systemState.update(data => data.copy(properties = data.properties - prop))
 
       /**
        * Saves the `TestSystem``'s current state in an effect which, when run, will restore the `TestSystem`
@@ -1483,10 +1467,12 @@ package object environment extends PlatformSpecific {
     /**
      * Constructs a new `TestSystem` with the specified initial state. This can
      * be useful for providing the required environment to an effect that
-     * requires a `Console`, such as with [[ZIO!.provide]].
+     * requires a `Console`, such as with `ZIO#provide`.
      */
     def live(data: Data): ZLayer.NoDeps[Nothing, System with TestSystem] =
-      ZLayer.fromEffect(Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref))))
+      ZLayer.fromEffectMany(
+        Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref)))
+      )
 
     val any: ZLayer[System with TestSystem, Nothing, System with TestSystem] =
       ZLayer.requires[System with TestSystem]
@@ -1498,14 +1484,14 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of environment variables.
      */
-    def putEnv(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
+    def putEnv(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.putEnv(name, value))
 
     /**
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of system properties.
      */
-    def putProperty(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
+    def putProperty(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.putProperty(name, value))
 
     /**
@@ -1518,21 +1504,21 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and sets the line
      * separator to the specified value.
      */
-    def setLineSeparator(lineSep: String): ZIO[TestSystem, Nothing, Unit] =
+    def setLineSeparator(lineSep: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.setLineSeparator(lineSep))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of environment variables.
      */
-    def clearEnv(variable: String): ZIO[TestSystem, Nothing, Unit] =
+    def clearEnv(variable: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.clearEnv(variable))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of system properties.
      */
-    def clearProperty(prop: String): ZIO[TestSystem, Nothing, Unit] =
+    def clearProperty(prop: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.clearProperty(prop))
 
     /**

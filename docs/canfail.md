@@ -10,7 +10,6 @@ ZIO provides a variety of combinators to handle errors such as `orElse`, `catchA
 Code | Rewrite 
 --- | ---
 `uio <> zio` | `uio`
-`uio.asError(e)` | `uio`
 `uio.bimap(f, g)` |  `uio.map(g)`
 `uio.catchAll(f)` | `uio`
 `uio.catchSome(pf)` | `uio`
@@ -25,6 +24,8 @@ Code | Rewrite
 `uio.orDieWith(f)` | `uio`
 `uio.orElse(zio)` | `uio`
 `uio.orElseEither(zio)` | `uio`*
+`uio.orElseFail(e)` | `uio`
+`uio.asElseSucceed(a)` | `uio`
 `uio.refineOrDie(pf)` | `uio`
 `uio.refineOrDieWith(pf)(f)` | `uio`
 `uio.refineToOrDie` | `uio`
@@ -57,6 +58,8 @@ Code | Rewrite
 `umanaged.orDieWith(f)` | `umanaged`
 `umanaged.orElse(zmanaged)` | `umanaged`
 `umanaged.orElseEither(zmanaged)` | `umanaged`
+`umanaged.orElseFail(e)` | `umanaged`
+`umanaged.asElseSucceed(a)` | `umanaged`
 `umanaged.refineOrDie(pf)` | `umanaged`
 `umanaged.refineToOrDie` | `umanaged`
 `umanaged.refineToOrDieWith(pf)(f)` | `umanaged`

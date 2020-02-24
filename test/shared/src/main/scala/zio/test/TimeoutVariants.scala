@@ -29,49 +29,49 @@ trait TimeoutVariants {
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect[Nothing, Live, Nothing, Any, Nothing, Any] =
-    new TestAspect[Nothing, Live, Nothing, Any, Nothing, Any] {
-      def some[R <: Live, E, S, L](
-        predicate: L => Boolean,
-        spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] = {
-        def loop(labels: List[L], spec: ZSpec[R, E, L, S]): ZSpec[R with Live, E, L, S] =
+  ): TestAspect[Nothing, Live, Nothing, Any] =
+    new TestAspect[Nothing, Live, Nothing, Any] {
+      def some[R <: Live, E](
+        predicate: String => Boolean,
+        spec: ZSpec[R, E]
+      ): ZSpec[R, E] = {
+        def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Live, E] =
           spec.caseValue match {
             case Spec.SuiteCase(label, specs, exec) =>
               Spec.suite(label, specs.map(_.map(loop(label :: labels, _))), exec)
-            case Spec.TestCase(label, test) =>
-              Spec.test(label, warn(labels, label, test, duration))
+            case Spec.TestCase(label, test, annotations) =>
+              Spec.test(label, warn(labels, label, test, duration), annotations)
           }
 
         loop(Nil, spec)
       }
     }
 
-  private def warn[R, E, L, S](
-    suiteLabels: List[L],
-    testLabel: L,
-    test: ZTest[R, E, S],
+  private def warn[R, E](
+    suiteLabels: List[String],
+    testLabel: String,
+    test: ZTest[R, E],
     duration: Duration
-  ): ZTest[R with Live, E, S] =
+  ): ZTest[R with Live, E] =
     test.raceWith(Live.withLive(showWarning(suiteLabels, testLabel, duration))(_.delay(duration)))(
-      (result, fiber) => fiber.interrupt *> ZIO.done(result),
+      (result, fiber) => fiber.interrupt *> ZIO.doneNow(result),
       (_, fiber) => fiber.join
     )
 
-  private def showWarning[L](
-    suiteLabels: List[L],
-    testLabel: L,
+  private def showWarning(
+    suiteLabels: List[String],
+    testLabel: String,
     duration: Duration
   ): ZIO[Live, Nothing, Unit] =
     Live.live(console.putStrLn(renderWarning(suiteLabels, testLabel, duration)))
 
-  private def renderWarning[L](suiteLabels: List[L], testLabel: L, duration: Duration): String =
+  private def renderWarning(suiteLabels: List[String], testLabel: String, duration: Duration): String =
     (renderSuiteLabels(suiteLabels) + renderTest(testLabel, duration)).capitalize
 
-  private def renderSuiteLabels[L](suiteLabels: List[L]): String =
+  private def renderSuiteLabels(suiteLabels: List[String]): String =
     suiteLabels.map(label => "in Suite \"" + label + "\", ").reverse.mkString
 
-  private def renderTest[L](testLabel: L, duration: Duration): String =
+  private def renderTest(testLabel: String, duration: Duration): String =
     "test " + "\"" + testLabel + "\"" + " has taken more than " + duration.render +
       " to execute. If this is not expected, consider using TestAspect.timeout to timeout runaway tests for faster diagnostics."
 

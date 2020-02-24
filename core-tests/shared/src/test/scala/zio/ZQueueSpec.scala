@@ -37,7 +37,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         queue  <- Queue.bounded[Int](10)
         f      <- IO.forkAll(List.fill(10)(queue.take))
         values = Range.inclusive(1, 10).toList
-        _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
+        _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeedNow(false))(_ *> _)
         v      <- f.join
       } yield assert(v.toSet)(equalTo(values.toSet))
     },
@@ -132,7 +132,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         queue  <- Queue.bounded[Int](4)
         values = List(1, 2, 3, 4)
-        _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
+        _      <- values.map(queue.offer).foldLeft(IO.succeedNow(false))(_ *> _)
         _      <- queue.offer(5).fork
         _      <- waitForSize(queue, 5)
         v      <- queue.takeAll
@@ -225,7 +225,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         queue  <- Queue.bounded[Int](4)
         values = List(1, 2, 3, 4)
-        _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
+        _      <- values.map(queue.offer).foldLeft(IO.succeedNow(false))(_ *> _)
         f      <- queue.offer(5).fork
         _      <- waitForSize(queue, 5)
         l      <- queue.takeUpTo(5)
@@ -493,7 +493,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         l     <- queue.takeAll
       } yield assert(l)(equalTo(List(2, 3))) &&
         assert(v1)(isTrue) &&
-        assert(v2)(isFalse)
+        assert(v2)(isTrue)
     },
     testM("sliding strategy with offerAll") {
       for {
@@ -501,7 +501,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         v     <- queue.offerAll(List(1, 2, 3))
         size  <- queue.size
       } yield assert(size)(equalTo(2)) &&
-        assert(v)(isFalse)
+        assert(v)(isTrue)
     },
     testM("sliding strategy with enough capacity") {
       for {
@@ -518,7 +518,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         v1    <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
         l     <- queue.takeAll
       } yield assert(l)(equalTo(List(5, 6))) &&
-        assert(v1)(isFalse)
+        assert(v1)(isTrue)
     },
     testM("awaitShutdown") {
       for {
@@ -553,7 +553,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("dropping strategy with offerAll") {
       for {
-        capacity <- IO.succeed(4)
+        capacity <- IO.succeedNow(4)
         queue    <- Queue.dropping[Int](capacity)
         iter     = Range.inclusive(1, 5)
         _        <- queue.offerAll(iter)
@@ -562,7 +562,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("dropping strategy with offerAll, check offer returns false") {
       for {
-        capacity <- IO.succeed(2)
+        capacity <- IO.succeedNow(2)
         queue    <- Queue.dropping[Int](capacity)
         v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
         _        <- queue.takeAll
@@ -570,7 +570,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("dropping strategy with offerAll, check ordering") {
       for {
-        capacity <- IO.succeed(128)
+        capacity <- IO.succeedNow(128)
         queue    <- Queue.dropping[Int](capacity)
         iter     = Range.inclusive(1, 256)
         _        <- queue.offerAll(iter)
@@ -579,7 +579,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("dropping strategy with pending taker") {
       for {
-        capacity <- IO.succeed(2)
+        capacity <- IO.succeedNow(2)
         queue    <- Queue.dropping[Int](capacity)
         iter     = Range.inclusive(1, 4)
         f        <- queue.take.fork
@@ -591,7 +591,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("sliding strategy with pending taker") {
       for {
-        capacity <- IO.succeed(2)
+        capacity <- IO.succeedNow(2)
         queue    <- Queue.sliding[Int](capacity)
         iter     = Range.inclusive(1, 4)
         _        <- queue.take.fork
@@ -599,11 +599,11 @@ object ZQueueSpec extends ZIOBaseSpec {
         oa       <- queue.offerAll(iter.toList)
         t        <- queue.take
       } yield assert(t)(equalTo(3)) &&
-        assert(oa)(isFalse)
+        assert(oa)(isTrue)
     },
     testM("sliding strategy, check offerAll returns true") {
       for {
-        capacity <- IO.succeed(5)
+        capacity <- IO.succeedNow(5)
         queue    <- Queue.sliding[Int](capacity)
         iter     = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)
@@ -611,7 +611,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("bounded strategy, check offerAll returns true") {
       for {
-        capacity <- IO.succeed(5)
+        capacity <- IO.succeedNow(5)
         queue    <- Queue.bounded[Int](capacity)
         iter     = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)
@@ -662,7 +662,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("queue mapM") {
       for {
-        q <- Queue.bounded[Int](100).map(_.mapM(IO.succeed))
+        q <- Queue.bounded[Int](100).map(_.mapM(IO.succeedNow))
         _ <- q.offer(10)
         v <- q.take
       } yield assert(v)(equalTo(10))
@@ -670,14 +670,14 @@ object ZQueueSpec extends ZIOBaseSpec {
     testM("queue mapM with success") {
       for {
         q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
-        _ <- q.offer(IO.succeed(10))
+        _ <- q.offer(IO.succeedNow(10))
         v <- q.take.sandbox.either
       } yield assert(v)(isRight(equalTo(10)))
     },
     testM("queue mapM with failure") {
       for {
         q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
-        _ <- q.offer(IO.fail("Ouch"))
+        _ <- q.offer(IO.failNow("Ouch"))
         v <- q.take.run
       } yield assert(v)(fails(equalTo("Ouch")))
     },

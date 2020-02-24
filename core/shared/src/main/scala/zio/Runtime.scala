@@ -39,12 +39,12 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
-  final def map[R1](f: R => R1): Runtime[R1] = Runtime(f(environment), platform)
+  def map[R1](f: R => R1): Runtime[R1] = Runtime(f(environment), platform)
 
   /**
    * Constructs a new `Runtime` by mapping the platform.
    */
-  final def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(environment, f(platform))
+  def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(environment, f(platform))
 
   /**
    * Executes the effect synchronously, failing
@@ -130,41 +130,94 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified new environment.
    */
-  final def as[R1](r1: R1): Runtime[R1] = map(_ => r1)
+  def as[R1](r1: R1): Runtime[R1] = map(_ => r1)
 
   /**
    * Constructs a new `Runtime` with the specified executor.
    */
-  final def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.withExecutor(e))
+  def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.withExecutor(e))
 
   /**
    * Constructs a new `Runtime` with the specified fatal predicate.
    */
-  final def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withFatal(f))
+  def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withFatal(f))
 
   /**
    * Constructs a new `Runtime` with the fatal error reporter.
    */
-  final def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapPlatform(_.withReportFatal(f))
+  def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapPlatform(_.withReportFatal(f))
 
   /**
    * Constructs a new `Runtime` with the specified error reporter.
    */
-  final def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
+  def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
 
   /**
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.
    */
-  final def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.withTracing(t))
+  def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.withTracing(t))
 
   /**
    * Constructs a new `Runtime` with the specified tracing configuration.
    */
-  final def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
+  def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
 }
 
 object Runtime {
-  lazy val default = Runtime((), Platform.default)
+
+  /**
+   * A runtime that can be shutdown to release resources allocated to it.
+   */
+  trait Managed[+R] extends Runtime[R] {
+
+    /**
+     * Shuts down this runtime and releases resources allocated to it. Once
+     * this runtime has been shut down the behavior of methods on it is
+     * undefined and it should be discarded.
+     */
+    def shutdown(): Unit
+
+    override final def as[R1](r1: R1): Runtime.Managed[R1] =
+      map(_ => r1)
+
+    override final def map[R1](f: R => R1): Runtime.Managed[R1] =
+      Managed(f(environment), platform, () => shutdown())
+
+    override final def mapPlatform(f: Platform => Platform): Runtime.Managed[R] =
+      Managed(environment, f(platform), () => shutdown())
+
+    override final def withExecutor(e: Executor): Runtime.Managed[R] =
+      mapPlatform(_.withExecutor(e))
+
+    override final def withFatal(f: Throwable => Boolean): Runtime.Managed[R] =
+      mapPlatform(_.withFatal(f))
+
+    override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
+      mapPlatform(_.withReportFatal(f))
+
+    override final def withReportFailure(f: Cause[Any] => Unit): Runtime.Managed[R] =
+      mapPlatform(_.withReportFailure(f))
+
+    override final def withTracing(t: Tracing): Runtime.Managed[R] =
+      mapPlatform(_.withTracing(t))
+
+    override final def withTracingConfig(config: TracingConfig): Runtime.Managed[R] =
+      mapPlatform(_.withTracingConfig(config))
+  }
+
+  object Managed {
+
+    /**
+     * Builds a new managed runtime given an environment `R`, a
+     * [[zio.internal.Platform]], and a shut down action.
+     */
+    def apply[R](r: R, platform0: Platform, shutdown0: () => Unit): Runtime.Managed[R] =
+      new Runtime.Managed[R] {
+        val environment = r
+        val platform    = platform0
+        def shutdown()  = shutdown0()
+      }
+  }
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
@@ -172,5 +225,39 @@ object Runtime {
   def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
     val environment = r
     val platform    = platform0
+  }
+
+  lazy val default = Runtime((), Platform.default)
+
+  lazy val global = Runtime((), Platform.global)
+
+  /**
+   * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
+   * allocated immediately, and not released until the `Runtime` is shut down
+   * or the end of the application.
+   *
+   * This method is useful for small applications and integrating ZIO with
+   * legacy code, but other applications should investigate using
+   * [[ZIO.provideLayer]] directly in their application entry points.
+   */
+  def unsafeFromLayer[R <: Has[_]](
+    layer: ZLayer.NoDeps[Any, R],
+    platform: Platform = Platform.default
+  ): Runtime.Managed[R] = {
+    val runtime = Runtime((), platform)
+    val (environment, shutdown) = runtime.unsafeRun {
+      layer.build.reserve.flatMap {
+        case Reservation(acquire, release) =>
+          Ref.make(true).flatMap { finalize =>
+            val finalizer = () =>
+              runtime.unsafeRun {
+                release(Exit.unit).whenM(finalize.getAndSet(false)).uninterruptible
+              }
+            UIO.effectTotal(Platform.addShutdownHook(finalizer)) *>
+              acquire.map((_, finalizer))
+          }
+      }
+    }
+    Runtime.Managed(environment, platform, shutdown)
   }
 }

@@ -56,7 +56,7 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       import MockConsole._
       import MockRandom._
 
-      val app        = random.nextInt.map(_.toString) >>= console.putStrLn
+      val app        = random.nextInt.map(_.toString).flatMap(line => console.putStrLn(line))
       val randomEnv  = nextInt._1 returns value(42)
       val consoleEnv = putStrLn(equalTo("42")) returns unit
 
@@ -89,6 +89,16 @@ object MockingExampleSpec extends DefaultRunnableSpec {
 
       val result = app.provideLayer(mockEnv)
       assertM(result)(equalTo(42))
+    },
+    testM("failure if unexpected calls") {
+      import MockRandom._
+
+      val app = random.nextInt *> random.nextLong
+      val mockEnv =
+        (nextInt._1 returns value(42))
+
+      val result = app.provideLayer(mockEnv)
+      assertM(result)(equalTo(42L))
     }
   )
 }

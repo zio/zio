@@ -39,7 +39,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
 
   private def assertNonNegative(n: Long): STM[Nothing, Unit] =
     if (n < 0)
-      STM.die(new RuntimeException(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
+      STM.dieNow(new RuntimeException(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else STM.unit
 }
 

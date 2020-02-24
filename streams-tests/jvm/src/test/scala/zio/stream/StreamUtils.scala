@@ -18,13 +18,13 @@ trait StreamUtils extends ChunkUtils with GenZIO {
       case n =>
         Gen.oneOf(
           Gen.const(Stream.empty),
-          Gen.int(1, n).flatMap(Gen.listOfN(_)(a)).map(Stream.fromIterable)
+          Gen.int(1, n).flatMap(Gen.listOfN(_)(a)).map(Stream.fromIterable(_))
         )
     }
 
   def failingStreamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, Stream[String, A]] =
     max match {
-      case 0 => Gen.const(ZStream.fromEffect(IO.fail("fail-case")))
+      case 0 => Gen.const(ZStream.fromEffect(IO.failNow("fail-case")))
       case _ =>
         Gen
           .int(1, max)
@@ -33,14 +33,14 @@ trait StreamUtils extends ChunkUtils with GenZIO {
               i  <- Gen.int(0, n - 1)
               it <- Gen.listOfN(n)(a)
             } yield ZStream.unfoldM((i, it)) {
-              case (_, Nil) | (0, _) => IO.fail("fail-case")
-              case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
+              case (_, Nil) | (0, _) => IO.failNow("fail-case")
+              case (n, head :: rest) => IO.succeedNow(Some((head, (n - 1, rest))))
             }
           )
     }
 
   def pureStreamEffectGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, StreamEffect[Any, Nothing, A]] =
-    Gen.int(0, max).flatMap(Gen.listOfN(_)(a)).map(StreamEffect.fromIterable)
+    Gen.int(0, max).flatMap(Gen.listOfN(_)(a)).map(StreamEffect.fromIterable(_))
 
   def failingStreamEffectGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, StreamEffect[Any, String, A]] =
     for {
@@ -65,13 +65,11 @@ trait StreamUtils extends ChunkUtils with GenZIO {
 }
 
 object StreamUtils extends StreamUtils with GenUtils {
-  val streamOfBytes   = Gen.small(streamGen(Gen.anyByte, _))
-  val streamOfInts    = Gen.small(streamGen(intGen, _))
-  val streamOfStrings = Gen.small(streamGen(stringGen, _))
+  val streamOfBytes = Gen.small(streamGen(Gen.anyByte, _))
+  val streamOfInts  = Gen.small(streamGen(intGen, _))
 
   val listOfInts = Gen.listOf(intGen)
 
-  val pureStreamOfBytes   = Gen.small(pureStreamGen(Gen.anyByte, _))
-  val pureStreamOfInts    = Gen.small(pureStreamGen(intGen, _))
-  val pureStreamOfStrings = Gen.small(pureStreamGen(stringGen, _))
+  val pureStreamOfBytes = Gen.small(pureStreamGen(Gen.anyByte, _))
+  val pureStreamOfInts  = Gen.small(pureStreamGen(intGen, _))
 }

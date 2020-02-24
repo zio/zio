@@ -20,7 +20,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import sbt.testing._
 
-import zio.FunctionIO
+import zio.UIO
 import zio.test.sbt.TestingSupport._
 import zio.test.{ Assertion, DefaultRunnableSpec, Summary, TestArgs, TestAspect }
 
@@ -122,12 +122,12 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map { task =>
-        val zTestTask = task.asInstanceOf[BaseTestTask]
+      .map(task => task.asInstanceOf[ZTestTask])
+      .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          FunctionIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          UIO.succeedNow(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty
         )
       }
@@ -143,12 +143,12 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map { task =>
-        val zTestTask = task.asInstanceOf[BaseTestTask]
+      .map(task => task.asInstanceOf[ZTestTask])
+      .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          FunctionIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          UIO.succeedNow(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty
         )
       }
@@ -171,7 +171,14 @@ object ZTestFrameworkSpec {
       .tasks(Array(taskDef))
       .head
 
-    task.execute(eventHandler, loggers.toArray)
+    @scala.annotation.tailrec
+    def doRun(tasks: Iterable[Task]): Unit = {
+      val more = tasks.flatMap(_.execute(eventHandler, loggers.toArray))
+      if (more.nonEmpty) {
+        doRun(more)
+      }
+    }
+    doRun(Iterable(task))
   }
 
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName

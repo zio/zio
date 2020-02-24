@@ -4,7 +4,7 @@ import scala.{ Console => SConsole }
 
 import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
-import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
+import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment }
 import zio.test.mock.ExpectationSpecUtils.Module
 import zio.test.mock.MockException.{
   InvalidArgumentsException,
@@ -12,7 +12,7 @@ import zio.test.mock.MockException.{
   UnexpectedCallExpection,
   UnmetExpectationsException
 }
-import zio.{ Cause, Managed, ZIO }
+import zio.{ Cause, ZIO, ZLayer }
 
 object ReportingTestUtils {
 
@@ -47,17 +47,17 @@ object ReportingTestUtils {
     ) + "\n"
   }
 
-  def runLog[E](spec: ZSpec[TestEnvironment, String, String, Unit]) =
+  def runLog(spec: ZSpec[TestEnvironment, String]) =
     for {
-      _ <- TestTestRunner(testEnvironmentManaged)
+      _ <- TestTestRunner(testEnvironment)
             .run(spec)
             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
     } yield output.mkString
 
-  def runSummary[E](spec: ZSpec[TestEnvironment, String, String, Unit]) =
+  def runSummary(spec: ZSpec[TestEnvironment, String]) =
     for {
-      results <- TestTestRunner(testEnvironmentManaged)
+      results <- TestTestRunner(testEnvironment)
                   .run(spec)
                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
                     TestLogger.fromConsole ++ TestClock.default
@@ -65,9 +65,9 @@ object ReportingTestUtils {
       actualSummary <- SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
-  private[this] def TestTestRunner(testEnvironment: Managed[Nothing, TestEnvironment]) =
-    TestRunner[TestEnvironment, String, String, Unit, Unit](
-      executor = TestExecutor.managed[TestEnvironment, String, String, Unit](testEnvironment),
+  private[this] def TestTestRunner(testEnvironment: ZLayer.NoDeps[Nothing, TestEnvironment]) =
+    TestRunner[TestEnvironment, String](
+      executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
       reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 
@@ -90,7 +90,7 @@ object ReportingTestUtils {
     )
   )
 
-  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")))
+  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")), TestAnnotationMap.empty)
   val test4Expected = Vector(
     expectedFailure("Failing test"),
     withOffset(2)("Fiber failed.\n") +

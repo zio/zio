@@ -24,7 +24,7 @@ class SemaphoreBenchmark {
   def semaphoreContention() =
     unsafeRun(for {
       sem   <- Semaphore.make(fibers / 2L)
-      fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeed(1)))))
+      fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeedNow(1)))))
       _     <- fiber.join
     } yield ())
 
@@ -32,7 +32,7 @@ class SemaphoreBenchmark {
   def tsemaphoreContention() =
     unsafeRun(for {
       sem   <- TSemaphore.make(fibers / 2L).commit
-      fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(STM.succeed(1)).commit)))
+      fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(STM.succeedNow(1)).commit)))
       _     <- fiber.join
     } yield ())
 

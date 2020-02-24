@@ -11,7 +11,7 @@ import org.openjdk.jmh.annotations._
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class IODeepAttemptBenchmark {
-  case class ScalazError(message: String)
+  case class ZIOError(message: String)
 
   @Param(Array("1000"))
   var depth: Int = _
@@ -117,9 +117,9 @@ class IODeepAttemptBenchmark {
   }
 
   @Benchmark
-  def scalazDeepAttempt(): BigInt = {
-    def descend(n: Int): IO[ScalazError, BigInt] =
-      if (n == depth) IO.fail(ScalazError("Oh noes!"))
+  def zioDeepAttampt(): BigInt = {
+    def descend(n: Int): IO[ZIOError, BigInt] =
+      if (n == depth) IO.failNow(ZIOError("Oh noes!"))
       else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
 
@@ -127,9 +127,9 @@ class IODeepAttemptBenchmark {
   }
 
   @Benchmark
-  def scalazDeepAttemptBaseline(): BigInt = {
+  def zioDeepAttemptBaseline(): BigInt = {
     def descend(n: Int): IO[Error, BigInt] =
-      if (n == depth) IO.fail(new Error("Oh noes!"))
+      if (n == depth) IO.failNow(new Error("Oh noes!"))
       else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
 

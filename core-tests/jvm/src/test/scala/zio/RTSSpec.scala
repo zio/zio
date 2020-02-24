@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
+import zio.test.TestAspect.{ jvm, nonFlaky }
 import zio.test._
 import zio.test.environment.Live
 
@@ -33,11 +33,11 @@ object RTSSpec extends ZIOBaseSpec {
     testM("blocking IO is effect blocking") {
       for {
         done  <- Ref.make(false)
-        start <- IO.succeed(internal.OneShot.make[Unit])
+        start <- IO.succeedNow(internal.OneShot.make[Unit])
         fiber <- blocking.effectBlockingInterrupt { start.set(()); Thread.sleep(60L * 60L * 1000L) }
                   .ensuring(done.set(true))
                   .fork
-        _     <- IO.succeed(start.get())
+        _     <- IO.succeedNow(start.get())
         res   <- fiber.interrupt
         value <- done.get
       } yield assert(res)(isInterrupted) && assert(value)(isTrue)
@@ -57,7 +57,7 @@ object RTSSpec extends ZIOBaseSpec {
         } yield result == 42
 
       assertM(io)(isTrue)
-    } @@ flaky,
+    },
     testM("Fiber dump looks correct") {
       for {
         promise <- Promise.make[Nothing, Int]
@@ -84,8 +84,8 @@ object RTSSpec extends ZIOBaseSpec {
             .succeed(21)
             .bracketExit((r: Int, exit: Exit[Any, Any]) =>
               if (exit.interrupted) exitLatch.succeed(r)
-              else IO.die(new Error("Unexpected case"))
-            )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+              else IO.dieNow(new Error("Unexpected case"))
+            )(a => startLatch.succeed(a) *> IO.never *> IO.succeedNow(1))
           fiber      <- bracketed.fork
           startValue <- startLatch.await
           _          <- fiber.interrupt.fork
@@ -97,13 +97,13 @@ object RTSSpec extends ZIOBaseSpec {
     testM("deadlock regression 1") {
       import java.util.concurrent.Executors
 
-      val rts = new DefaultRuntime {}
+      val rts = new BootstrapRuntime {}
       val e   = Executors.newSingleThreadExecutor()
 
       (0 until 10000).foreach { _ =>
         rts.unsafeRun {
           IO.effectAsync[Nothing, Int] { k =>
-            val c: Callable[Unit] = () => k(IO.succeed(1))
+            val c: Callable[Unit] = () => k(IO.succeedNow(1))
             val _                 = e.submit(c)
           }
         }
@@ -114,13 +114,13 @@ object RTSSpec extends ZIOBaseSpec {
     testM("second callback call is ignored") {
       for {
         _ <- IO.effectAsync[Throwable, Int] { k =>
-              k(IO.succeed(42))
+              k(IO.succeedNow(42))
               Thread.sleep(500)
-              k(IO.succeed(42))
+              k(IO.succeedNow(42))
             }
         res <- IO.effectAsync[Throwable, String] { k =>
                 Thread.sleep(1000)
-                k(IO.succeed("ok"))
+                k(IO.succeedNow("ok"))
               }
       } yield assert(res)(equalTo("ok"))
     },

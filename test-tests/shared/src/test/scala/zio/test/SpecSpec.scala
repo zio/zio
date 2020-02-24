@@ -3,19 +3,28 @@ package zio.test
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
-import zio.{ Ref, UIO, ZIO, ZManaged }
+import zio.test.environment.TestEnvironment
+import zio.{ Has, Ref, ZIO, ZLayer }
 
 object SpecSpec extends ZIOBaseSpec {
 
+  type Module = Has[Module.Service]
+
+  object Module {
+    trait Service
+  }
+
+  val layer = ZLayer.succeed(new Module.Service {})
+
   def spec = suite("SpecSpec")(
-    suite("provideManagedShared")(
+    suite("provideLayerShared")(
       testM("gracefully handles fiber death") {
         import zio.NeedsEnv.needsEnv
         val spec = suite("Suite1")(
           test("Test1") {
             assert(true)(isTrue)
           }
-        ).provideManagedShared(ZManaged.dieMessage("everybody dies"))
+        ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes
@@ -23,19 +32,16 @@ object SpecSpec extends ZIOBaseSpec {
       testM("does not acquire the environment if the suite is ignored") {
         val spec = suite("Suite1")(
           testM("Test1") {
-            assertM(ZIO.accessM[Ref[Boolean]](_.get))(isTrue)
+            assertM(ZIO.accessM[Has[Ref[Boolean]]](_.get[Ref[Boolean]].get))(isTrue)
           },
           testM("another test") {
-            assertM(ZIO.accessM[Ref[Boolean]](_.get))(isTrue)
+            assertM(ZIO.accessM[Has[Ref[Boolean]]](_.get[Ref[Boolean]].get))(isTrue)
           }
         )
         for {
-          ref <- Ref.make(true)
-          _ <- execute {
-                spec.provideManagedShared {
-                  ZManaged.make(ref.set(false).as(ref))(_ => ZIO.unit)
-                } @@ ifEnvSet("foo")
-              }
+          ref    <- Ref.make(true)
+          layer  = ZLayer.fromEffect(ref.set(false).as(ref))
+          _      <- execute(spec.provideCustomLayerShared(layer) @@ ifEnvSet("foo"))
           result <- ref.get
         } yield assert(result)(isTrue)
       },
@@ -48,40 +54,49 @@ object SpecSpec extends ZIOBaseSpec {
             assert(1)(Assertion.equalTo(1))
           },
           testM("test requires env") {
-            assertM(ZIO.environment[Int])(Assertion.equalTo(42))
+            assertM(ZIO.access[Has[Int]](_.get[Int]))(Assertion.equalTo(42))
           }
-        ).provideManagedShared(UIO(43).toManaged_)
+        ).provideLayerShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
-          successes    <- executedSpec.countTests(_._1.isRight)
-          failures     <- executedSpec.countTests(_._1.isLeft)
+          successes    <- executedSpec.countTests(_.isRight)
+          failures     <- executedSpec.countTests(_.isLeft)
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),
     suite("only")(
       testM("ignores all tests except one matching the given label") {
-        checkM(genSuite) { spec =>
-          for {
-            passed1 <- isSuccess(spec.only(passingTest))
-            passed2 <- isSuccess(spec.only(failingTest))
-          } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
-        }
+        for {
+          passed1 <- isSuccess(mixedSpec.only(passingTest))
+          passed2 <- isSuccess(mixedSpec.only(failingTest))
+        } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
       },
       testM("ignores all tests except ones in the suite matching the given label") {
-        checkM(genSuite) { spec =>
-          for {
-            passed1 <- isSuccess(spec.only(passingSuite))
-            passed2 <- isSuccess(spec.only(failingSuite))
-          } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
-        }
+        for {
+          passed1 <- isSuccess(mixedSpec.only(passingSuite))
+          passed2 <- isSuccess(mixedSpec.only(failingSuite))
+        } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
       },
       testM("runs everything if root suite label given") {
-        checkM(genSuite) { spec =>
-          for {
-            passed <- isSuccess(spec.only(rootSuite))
-          } yield assert(passed)(isFalse)
-        }
+        for {
+          passed <- isSuccess(mixedSpec.only(rootSuite))
+        } yield assert(passed)(isFalse)
       }
+    ),
+    suite("provideCustomLayer")(
+      testM("provides the part of the environment that is not part of the `TestEnvironment`") {
+        for {
+          _ <- ZIO.environment[TestEnvironment]
+          _ <- ZIO.environment[Module]
+        } yield assertCompletes
+      }.provideCustomLayer(layer)
+    ),
+    suite("provideLayer")(
+      testM("does not have early initialization issues") {
+        for {
+          _ <- ZIO.environment[Module]
+        } yield assertCompletes
+      }.provideLayer(layer)
     )
   )
 
@@ -90,10 +105,10 @@ object SpecSpec extends ZIOBaseSpec {
   val passingTest  = "passing-test"
   val passingSuite = "passing-suite"
   val rootSuite    = "root-suite"
-  val genSuite = Gen.anyString zip Gen.anyString map {
-    case (prefix, suffix) => mixedSpec(prefix, suffix)
-  }
-  def mixedSpec(prefix: String, suffix: String) = suite(prefix + rootSuite + suffix)(
+  val prefix       = "prefix"
+  val suffix       = "suffix"
+
+  val mixedSpec = suite(prefix + rootSuite + suffix)(
     suite(prefix + failingSuite + suffix)(test(prefix + failingTest + suffix) {
       assert(1)(equalTo(2))
     }),

@@ -252,6 +252,14 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isSome must fail when supplied value is None") {
       assert(None)(isSome(equalTo("zio")))
     } @@ failure,
+    test("isSubtype gracefully handles malformed class names") {
+      sealed trait Exception
+      object Exception {
+        case class MyException() extends Exception
+      }
+      val exception = new Exception.MyException
+      assert(exception)(isSubtype[Exception.MyException](anything))
+    },
     test("isTrue must succeed when supplied value is true") {
       assert(true)(isTrue)
     },
