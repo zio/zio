@@ -180,7 +180,7 @@ object TestAspect extends TimeoutVariants {
           }
         def dump[E, A](label: String, fiber: Fiber.Runtime[E, A]): ZIO[Live, Nothing, Unit] =
           for {
-            dumps    <- Fiber.dumpAll(Set(fiber))
+            dumps    <- Fiber.dump(Set(fiber))
             dumpStrs <- ZIO.foreach(dumps)(_.prettyPrintM)
             dumpStr  = s"$label: ${dumpStrs.mkString("\n")}"
             _        <- Live.live(console.putStrLn(dumpStr))
