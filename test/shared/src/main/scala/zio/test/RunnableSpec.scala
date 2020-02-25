@@ -27,9 +27,9 @@ trait RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
 
-  private def runSpec: URIO[TestLogger with Clock, Int] =
+  private def run(spec: ZSpec[Environment, Failure]): URIO[TestLogger with Clock, Int] =
     for {
-      results     <- run
+      results     <- runSpec(spec)
       hasFailures <- results.exists { case TestCase(_, test, _) => test.map(_.isLeft); case _ => UIO.succeedNow(false) }
       summary     <- SummaryBuilder.buildSummary(results)
       _           <- TestLogger.logLine(summary.summary)
@@ -37,16 +37,16 @@ trait RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
 
   /**
    * A simple main function that can be used to run the spec.
-   *
-   * TODO: Parse command line options.
    */
   final def main(args: Array[String]): Unit = {
-    val runtime = runner.runtime
+    val testArgs     = TestArgs.parse(args)
+    val filteredSpec = FilteredSpec(spec, testArgs)
+    val runtime      = runner.runtime
     if (TestPlatform.isJVM) {
-      val exitCode = runtime.unsafeRun(runSpec.provideLayer(runner.bootstrap))
+      val exitCode = runtime.unsafeRun(run(filteredSpec).provideLayer(runner.bootstrap))
       doExit(exitCode)
     } else if (TestPlatform.isJS) {
-      runtime.unsafeRunAsync[Nothing, Int](runSpec.provideLayer(runner.bootstrap)) { exit =>
+      runtime.unsafeRunAsync[Nothing, Int](run(filteredSpec).provideLayer(runner.bootstrap)) { exit =>
         val exitCode = exit.getOrElse(_ => 1)
         doExit(exitCode)
       }
