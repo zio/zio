@@ -252,7 +252,19 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isSome must fail when supplied value is None") {
       assert(None)(isSome(equalTo("zio")))
     } @@ failure,
-    test("isSubtype gracefully handles malformed class names") {
+    test("isSubtype must succeed when value is subtype of specified type") {
+      assert(dog)(isSubtype[Animal](anything))
+    },
+    test("isSubtype must fail when value is supertype of specified type") {
+      assert(animal)(isSubtype[Cat](anything))
+    } @@ failure,
+    test("isSubtype must fail when value is neither subtype nor supertype of specified type") {
+      assert(cat)(isSubtype[Dog](anything))
+    } @@ failure,
+    test("isSubtype must handle primitive types") {
+      assert(1)(isSubtype[Int](anything))
+    },
+    test("isSubtype must handle malformed class names") {
       sealed trait Exception
       object Exception {
         case class MyException() extends Exception
@@ -336,4 +348,12 @@ object AssertionSpec extends ZIOBaseSpec {
   val ageGreaterThan20: Assertion[SampleUser] = hasField("age", _.age, isGreaterThan(20))
 
   val someException = new RuntimeException("Boom!")
+
+  trait Animal
+  trait Dog extends Animal
+  trait Cat extends Animal
+
+  val animal = new Animal {}
+  val dog    = new Dog    {}
+  val cat    = new Cat    {}
 }
