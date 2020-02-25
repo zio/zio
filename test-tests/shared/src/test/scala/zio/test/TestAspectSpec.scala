@@ -1,16 +1,13 @@
 package zio.test
 
 import scala.reflect.ClassTag
-import scala.reflect.ClassTag
 
-import zio.ZEnv
-import zio.ZLayer
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
 import zio.test.environment.{ Live, TestClock }
-import zio.{ Ref, Schedule, ZIO }
+import zio.{ Ref, Schedule, ZEnv, ZIO, ZLayer }
 
 object TestAspectSpec extends ZIOBaseSpec {
 
@@ -128,6 +125,12 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("flaky retries a test with a limit") {
       assert(true)(isFalse)
     } @@ flaky @@ failure,
+    testM("forked runs each test on its own separate fiber") {
+      for {
+        _        <- ZIO.never.fork
+        children <- ZIO.children
+      } yield assert(children)(hasSize(equalTo(1)))
+    } @@ forked @@ nonFlaky,
     test("ifEnv runs a test if environment variable satisfies assertion") {
       assert(true)(isTrue)
     } @@ ifEnv("PATH", containsString("bin")) @@ success @@ jvmOnly,

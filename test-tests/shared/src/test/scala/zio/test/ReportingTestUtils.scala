@@ -4,7 +4,7 @@ import scala.{ Console => SConsole }
 
 import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
-import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
+import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment }
 import zio.test.mock.ExpectationSpecUtils.Module
 import zio.test.mock.MockException.{
   InvalidArgumentsException,
@@ -12,7 +12,7 @@ import zio.test.mock.MockException.{
   UnexpectedCallExpection,
   UnmetExpectationsException
 }
-import zio.{ Cause, Managed, ZIO }
+import zio.{ Cause, ZIO, ZLayer }
 
 object ReportingTestUtils {
 
@@ -49,7 +49,7 @@ object ReportingTestUtils {
 
   def runLog(spec: ZSpec[TestEnvironment, String]) =
     for {
-      _ <- TestTestRunner(testEnvironmentManaged)
+      _ <- TestTestRunner(testEnvironment)
             .run(spec)
             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
@@ -57,7 +57,7 @@ object ReportingTestUtils {
 
   def runSummary(spec: ZSpec[TestEnvironment, String]) =
     for {
-      results <- TestTestRunner(testEnvironmentManaged)
+      results <- TestTestRunner(testEnvironment)
                   .run(spec)
                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
                     TestLogger.fromConsole ++ TestClock.default
@@ -65,9 +65,9 @@ object ReportingTestUtils {
       actualSummary <- SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
-  private[this] def TestTestRunner(testEnvironment: Managed[Nothing, TestEnvironment]) =
+  private[this] def TestTestRunner(testEnvironment: ZLayer.NoDeps[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
-      executor = TestExecutor.managed[TestEnvironment, String](testEnvironment),
+      executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
       reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 

@@ -10,7 +10,7 @@ import zio.duration._
 import zio.internal.Platform
 import zio.random.Random
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
+import zio.test.TestAspect.{ flaky, forked, jvm, nonFlaky, scala2Only }
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
@@ -371,15 +371,6 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield n
 
         assertM(test)(equalTo(10))
-      }
-    ),
-    suite("fallback")(
-      testM("executes an effect and returns its value if it succeeds") {
-        import zio.CanFail.canFail
-        assertM(ZIO.succeedNow(1).fallback(2))(equalTo(1))
-      },
-      testM("returns the specified value if the effect fails") {
-        assertM(ZIO.failNow("fail").fallback(1))(equalTo(1))
       }
     ),
     suite("filter")(
@@ -759,12 +750,26 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(boom))
       },
       testM("propagates defects") {
-        val boom = new Exception("boom")
+        val boom                                 = new Exception("boom")
+        val die                                  = ZIO.dieNow(boom)
+        def joinDefect(fiber: Fiber[Nothing, _]) = fiber.join.sandbox.flip
         for {
-          fiber  <- ZIO.forkAll(List(ZIO.dieNow(boom)))
-          result <- fiber.join.sandbox.flip
-        } yield assert(result)(equalTo(Cause.die(boom)))
-      } @@ flaky
+          fiber1 <- ZIO.forkAll(List(die))
+          fiber2 <- ZIO.forkAll(List(die, ZIO.succeed(42)))
+          fiber3 <- ZIO.forkAll(List(die, ZIO.succeed(42), ZIO.never))
+
+          result1 <- joinDefect(fiber1)
+          result2 <- joinDefect(fiber2)
+          result3 <- joinDefect(fiber3)
+        } yield {
+          assert(result1)(equalTo(Cause.die(boom))) && {
+            assert(result2)(equalTo(Cause.die(boom))) ||
+            (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.interrupted)(isTrue))
+          } && {
+            assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.interrupted)(isTrue)
+          }
+        }
+      }
     ),
     suite("forkDaemon")(
       testM("child is unsupervised by parent") {
@@ -2270,7 +2275,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield value
 
         assertM(Live.live(io))(equalTo(2))
-      } @@ flaky,
+      } @@ forked,
       testM("race of fail with success") {
         val io = IO.failNow(42).race(IO.succeedNow(24)).either
         assertM(io)(isRight(equalTo(24)))
@@ -2778,19 +2783,6 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield (v1, v2, v3)
 
         assertM(zio.provide(4))(equalTo((4, 2, 4)))
-      },
-      testM("provideManaged is modular") {
-        def managed(v: Int): ZManaged[Any, Nothing, Int] =
-          ZManaged.make(IO.succeedNow(v))(_ => IO.effectTotal(()))
-
-        val zio =
-          for {
-            v1 <- ZIO.environment[Int]
-            v2 <- ZIO.environment[Int].provideManaged(managed(2))
-            v3 <- ZIO.environment[Int]
-          } yield (v1, v2, v3)
-
-        assertM(zio.provideManaged(managed(4)))(equalTo((4, 2, 4)))
       },
       testM("effectAsync can use environment") {
         val zio = ZIO.effectAsync[Int, Nothing, Int](cb => cb(ZIO.environment[Int]))

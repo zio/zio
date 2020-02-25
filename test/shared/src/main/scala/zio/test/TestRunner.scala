@@ -26,11 +26,11 @@ import zio.internal.Platform
  * require an environment `R` and may fail with an error `E`. Test runners
  * require a test executor, a platform, and a reporter.
  */
-final case class TestRunner[R, E](
+final case class TestRunner[R <: Has[_], E](
   executor: TestExecutor[R, E],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[E] = DefaultTestReporter(TestAnnotationRenderer.default),
-  bootstrap: Managed[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live).build
+  bootstrap: ZLayer.NoDeps[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live)
 ) { self =>
 
   lazy val runtime = Runtime((), platform)
@@ -49,7 +49,7 @@ final case class TestRunner[R, E](
   def unsafeRun(
     spec: ZSpec[R, E]
   ): ExecutedSpec[E] =
-    runtime.unsafeRun(run(spec).provideManaged(bootstrap))
+    runtime.unsafeRun(run(spec).provideLayer(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
@@ -59,7 +59,7 @@ final case class TestRunner[R, E](
   )(
     k: ExecutedSpec[E] => Unit
   ): Unit =
-    runtime.unsafeRunAsync(run(spec).provideManaged(bootstrap)) {
+    runtime.unsafeRunAsync(run(spec).provideLayer(bootstrap)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -70,7 +70,7 @@ final case class TestRunner[R, E](
   def unsafeRunSync(
     spec: ZSpec[R, E]
   ): Exit[Nothing, ExecutedSpec[E]] =
-    runtime.unsafeRunSync(run(spec).provideManaged(bootstrap))
+    runtime.unsafeRunSync(run(spec).provideLayer(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the reporter.
@@ -85,5 +85,5 @@ final case class TestRunner[R, E](
     copy(platform = f(platform))
 
   private[test] def buildRuntime: Managed[Nothing, Runtime[TestLogger with Clock]] =
-    bootstrap.map(Runtime(_, platform))
+    bootstrap.toRuntime(platform)
 }

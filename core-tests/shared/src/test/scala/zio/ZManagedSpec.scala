@@ -196,15 +196,6 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List("Ensured")))
       }
     ),
-    suite("fallback")(
-      testM("executes an effect and returns its value if it succeeds") {
-        import zio.CanFail.canFail
-        assertM(ZManaged.succeedNow(1).fallback(2).use(ZIO.succeedNow))(equalTo(1))
-      },
-      testM("returns the specified value if the effect fails") {
-        assertM(ZManaged.failNow("fail").fallback(1).use(ZIO.succeedNow))(equalTo(1))
-      }
-    ),
     testM("eventually") {
       def acquire(ref: Ref[Int]) =
         for {
@@ -1065,6 +1056,15 @@ object ZManagedSpec extends ZIOBaseSpec {
           _   <- acquireLatch.succeed(())
           _   <- releaseLatch.await
         } yield assert(res)(isNone)
+      }
+    ),
+    suite("toLayerMany")(
+      testM("converts a managed effect to a layer") {
+        val managed = ZEnv.live.build
+        val layer   = managed.toLayerMany
+        val zio1    = ZIO.environment[ZEnv]
+        val zio2    = zio1.provideLayer(layer)
+        assertM(zio2)(anything)
       }
     ),
     suite("withEarlyRelease")(

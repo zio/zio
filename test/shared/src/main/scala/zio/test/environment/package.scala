@@ -44,7 +44,7 @@ import zio.{ PlatformSpecific => _, _ }
  * {{{
  * import zio.test.environment._
  *
- * myProgram.provideManaged(testEnvironmentManaged)
+ * myProgram.provideLayer(testEnvironment)
  * }}}
  *
  * Then all environmental effects, such as printing to the console or
@@ -89,8 +89,8 @@ package object environment extends PlatformSpecific {
 
   val liveEnvironment: ZLayer.NoDeps[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
-    (ZEnv.live >>> TestEnvironment.live).build
+  val testEnvironment: ZLayer.NoDeps[Nothing, TestEnvironment] =
+    ZEnv.live >>> TestEnvironment.live
 
   /**
    * Provides an effect with the "real" environment as opposed to the test
@@ -437,7 +437,7 @@ package object environment extends PlatformSpecific {
      * This can be useful for mixing in with implementations of other interfaces.
      */
     def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
-      ZLayer.fromServiceManaged { (live: Live.Service) =>
+      ZLayer.fromServiceManyManaged { (live: Live.Service) =>
         for {
           ref      <- Ref.make(data).toManaged_
           fiberRef <- FiberRef.make(FiberData(0, 0, ZoneId.of("UTC")), FiberData.combine).toManaged_
@@ -660,7 +660,7 @@ package object environment extends PlatformSpecific {
      * interfaces.
      */
     def live(data: Data): ZLayer.NoDeps[Nothing, Console with TestConsole] =
-      ZLayer.fromEffect(
+      ZLayer.fromEffectMany(
         Ref.make(data).map(ref => Has.allOf[Console.Service, TestConsole.Service](Test(ref), Test(ref)))
       )
 
@@ -1304,7 +1304,7 @@ package object environment extends PlatformSpecific {
      * requires a `Random`, such as with `ZIO#provide`.
      */
     def make(data: Data): ZLayer.NoDeps[Nothing, Random with TestRandom] =
-      ZLayer.fromEffect(for {
+      ZLayer.fromEffectMany(for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
         test   = Test(data, buffer)
@@ -1318,7 +1318,7 @@ package object environment extends PlatformSpecific {
 
     val random: ZLayer[Clock, Nothing, Random with TestRandom] =
       (ZLayer.service[Clock.Service] ++ deterministic) >>>
-        (ZLayer.fromEnvironmentM { (env: Clock with Random with TestRandom) =>
+        (ZLayer.fromFunctionManyM { (env: Clock with Random with TestRandom) =>
           val random     = env.get[Random.Service]
           val testRandom = env.get[TestRandom.Service]
 
@@ -1470,7 +1470,9 @@ package object environment extends PlatformSpecific {
      * requires a `Console`, such as with `ZIO#provide`.
      */
     def live(data: Data): ZLayer.NoDeps[Nothing, System with TestSystem] =
-      ZLayer.fromEffect(Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref))))
+      ZLayer.fromEffectMany(
+        Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref)))
+      )
 
     val any: ZLayer[System with TestSystem, Nothing, System with TestSystem] =
       ZLayer.requires[System with TestSystem]

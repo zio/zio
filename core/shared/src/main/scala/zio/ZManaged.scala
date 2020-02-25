@@ -165,9 +165,23 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
       )
 
   /**
+   * Maps this effect to the specified constant while preserving the
+   * effects of this effect.
+   */
+  def as[B](b: => B): ZManaged[R, E, B] =
+    map(_ => b)
+
+  /**
    * Replaces the error value (if any) by the value provided.
    */
+  @deprecated("use orElseFail", "1.0.0")
   def asError[E1](e1: => E1): ZManaged[R, E1, A] = mapError(_ => e1)
+
+  /**
+   * Maps the success value of this effect to a service.
+   */
+  def asService[A1 >: A](implicit tagged: Tagged[A1]): ZManaged[R, E, Has[A1]] =
+    map(Has(_))
 
   /**
    * Maps the success value of this effect to an optional value.
@@ -252,13 +266,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     self <<< that
 
   /**
-   * Maps this effect to the specified constant while preserving the
-   * effects of this effect.
-   */
-  def as[B](b: => B): ZManaged[R, E, B] =
-    map(_ => b)
-
-  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail
    */
@@ -306,6 +313,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Executes this effect and returns its value, if it succeeds, but otherwise
    * returns the specified value.
    */
+  @deprecated("use orElseSucceed", "1.0.0")
   def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A1] =
     fold(_ => a, identity)
 
@@ -673,12 +681,13 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def provideLayer[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
-    provideSomeManaged(layer.build.map(ev1))
+    layer.build.map(ev1).flatMap(self.provide)
 
   /**
    * An effectual version of `provide`, useful when the act of provision
    * requires an effect.
    */
+  @deprecated("use provideLayer", "1.0.0")
   def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] =
     provideManaged(r.toManaged_)
 
@@ -686,6 +695,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Uses the given Managed[E1, R] to the environment required to run this managed effect,
    * leaving no outstanding environments and returning Managed[E1, A]
    */
+  @deprecated("use provideLayer", "1.0.0")
   def provideManaged[E1 >: E](r: Managed[E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] = provideSomeManaged(r)
 
   /**
@@ -735,6 +745,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * managed.provideSomeM(r0)
    * }}}
    */
+  @deprecated("use provideSomeLayer", "1.0.0")
   def provideSomeM[R0, E1 >: E](
     r0: ZIO[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
@@ -752,6 +763,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * managed.provideSomeManaged(r0)
    * }}}
    */
+  @deprecated("use provideSomeLayer", "1.0.0")
   def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
     r0.flatMap(self.provide)
 
@@ -946,6 +958,19 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     }
 
   }
+
+  /**
+   * Constructs a layer from this managed resource.
+   */
+  def toLayer[A1 >: A](implicit tagged: Tagged[A1]): ZLayer[R, E, Has[A1]] =
+    ZLayer.fromManaged(self)
+
+  /**
+   * Constructs a layer from this managed resource, which must return one or
+   * more services.
+   */
+  def toLayerMany[A1 <: Has[_]](implicit ev: A <:< A1): ZLayer[R, E, A1] =
+    ZLayer(self.map(ev))
 
   /**
    * Return unit while running the effect

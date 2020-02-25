@@ -125,6 +125,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
   /**
    * Replaces any error produced by this sink.
    */
+  @deprecated("use orElseFail", "1.0.0")
   final def asError[E1](e1: => E1): ZSink[R, E1, A0, A, B] = self.mapError(new ZIO.ConstFn(() => e1))
 
   /**
@@ -385,7 +386,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
           case (Side.Error(_), Side.Value((c, leftover))) => UIO.succeedNow((Right(c), leftover))
           case (Side.Value((b, leftover)), _)             => UIO.succeedNow((Left(b), leftover))
           case (Side.State(s), Side.Error(e)) =>
-            self.extract(s).map { case (b, leftover) => (Left(b), leftover) }.asError(e)
+            self.extract(s).map { case (b, leftover) => (Left(b), leftover) }.orElseFail(e)
           case (Side.State(s), Side.Value((c, leftover))) =>
             self.extract(s).map { case (b, ll) => (Left(b), ll) }.catchAll(_ => UIO.succeedNow((Right(c), leftover)))
           case (Side.State(s1), Side.State(s2)) =>
@@ -412,6 +413,12 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
           case (Side.Value(_), _)               => false
         }
     }
+
+  /**
+   * Replaces any error produced by this sink.
+   */
+  final def orElseFail[E1](e1: => E1): ZSink[R, E1, A0, A, B] =
+    self.mapError(new ZIO.ConstFn(() => e1))
 
   /**
    * Narrows the environment by partially building it with `f`
@@ -527,7 +534,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
           case (Side.Error(_), Side.State(s))             => that.extract(s).map { case (c, leftover) => (Right(c), leftover) }
           case (Side.Error(_), Side.Value((c, leftover))) => UIO.succeedNow((Right(c), leftover))
           case (Side.State(s), Side.Error(e)) =>
-            self.extract(s).map { case (b, leftover) => (Left(b), leftover) }.asError(e)
+            self.extract(s).map { case (b, leftover) => (Left(b), leftover) }.orElseFail(e)
           case (Side.State(s1), Side.State(s2)) =>
             self
               .extract(s1)

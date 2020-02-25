@@ -205,8 +205,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Maps the error value of this effect to the specified constant value.
    */
+  @deprecated("use orElseFail", "1.0.0")
   final def asError[E1](e1: => E1)(implicit ev: CanFail[E]): ZIO[R, E1, A] =
     mapError(new ZIO.ConstFn(() => e1))
+
+  /**
+   * Maps the success value of this effect to a service.
+   */
+  final def asService[A1 >: A](implicit tagged: Tagged[A1]): ZIO[R, E, Has[A1]] =
+    map(Has(_))
 
   /**
    * Maps the success value of this effect to an optional value.
@@ -570,6 +577,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Executes this effect and returns its value, if it succeeds, but otherwise
    * returns the specified value.
    */
+  @deprecated("use orElseSucceed", "1.0.0")
   final def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZIO[R, Nothing, A1] =
     fold(_ => a, identity)
 
@@ -1087,12 +1095,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZIO[R0, E1, A] =
-    provideSomeManaged(layer.build.map(ev1))
+    layer.build.map(ev1).use(self.provide)
 
   /**
    * An effectual version of `provide`, useful when the act of provision
    * requires an effect.
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): ZIO[Any, E1, A] =
     r.flatMap(self.provide)
 
@@ -1100,6 +1109,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Uses the given Managed[E1, R] to the environment required to run this effect,
    * leaving no outstanding environments and returning IO[E1, A]
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideManaged[E1 >: E](r0: Managed[E1, R])(implicit ev: NeedsEnv[R]): IO[E1, A] = provideSomeManaged(r0)
 
   /**
@@ -1149,6 +1159,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect.provideSomeM(r0)
    * }}}
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideSomeM[R0, E1 >: E](r0: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
     r0.flatMap(self.provide)
 
@@ -1156,6 +1167,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
+  @deprecated("use provideLayer", "1.0.0")
   final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
     r0.use(self.provide)
 
@@ -1729,6 +1741,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def toFutureWith(f: E => Throwable): URIO[R, CancelableFuture[E, A]] =
     self.fork >>= (_.toFutureWith(f))
+
+  /**
+   * Constructs a layer from this effect.
+   */
+  final def toLayer[A1 >: A](implicit ev: Tagged[A1]): ZLayer[R, E, Has[A1]] =
+    ZLayer.fromEffect(self)
+
+  /**
+   * Constructs a layer from this effect, which must return one or more
+   * services.
+   */
+  final def toLayerMany[A1 <: Has[_]](implicit ev: A <:< A1): ZLayer[R, E, A1] =
+    ZLayer(ZManaged.fromEffect(self.map(ev)))
 
   /**
    * Converts this ZIO to [[zio.Managed]]. This ZIO and the provided release action
@@ -2610,12 +2635,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect that forks all of the specified values, and returns a
    * composite fiber that produces a list of their results, in order.
    */
-  def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber.Synthetic[E, List[A]]] =
-    as.foldRight[URIO[R, Fiber.Synthetic[E, List[A]]]](succeedNow(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
-      asFiberIO.zipWith(aIO.fork) {
-        case (asFiber, aFiber) =>
-          asFiber.zipWith(aFiber)((as, a) => a :: as)
-      }
+  def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber[E, List[A]]] =
+    ZIO.foreach(as)(_.map(List(_)).fork).map { fibers =>
+      fibers
+        .reduceRightOption[Fiber[E, List[A]]]((a, as) => a.zipWith(as)((a, as) => a ::: as))
+        .getOrElse(Fiber.succeed(Nil))
     }
 
   /**

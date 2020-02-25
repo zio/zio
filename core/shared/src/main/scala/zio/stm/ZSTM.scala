@@ -168,6 +168,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Maps the error value of this effect to the specified constant value.
    */
+  @deprecated("use orElseFail", "1.0.0")
   def asError[E1](e: => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
     self mapError (_ => e)
 
@@ -275,6 +276,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Tries this effect first, and if it fails, succeeds with the specified
    * value.
    */
+  @deprecated("use orElseSucceed", "1.0.0")
   def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A1] =
     fold(_ => a, identity)
 
@@ -376,6 +378,11 @@ final class ZSTM[-R, +E, +A] private[stm] (
       case TExit.Succeed(a) => g(a)
       case TExit.Retry      => ZSTM.retry
     }
+
+  /**
+   * Repeats this effect forever (until the first error).
+   */
+  def forever: ZSTM[R, E, Nothing] = self *> self.forever
 
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
@@ -620,7 +627,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  final def refineOrDie[E1](
+  def refineOrDie[E1](
     pf: PartialFunction[E, E1]
   )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZSTM[R, E1, A] =
     refineOrDieWith(pf)(ev1)

@@ -18,12 +18,12 @@ package zio.test
 
 import zio.clock.Clock
 import zio.test.Spec.TestCase
-import zio.{ UIO, URIO }
+import zio.{ Has, UIO, URIO }
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-trait RunnableSpec[R, E] extends AbstractRunnableSpec {
+trait RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
 
@@ -43,10 +43,10 @@ trait RunnableSpec[R, E] extends AbstractRunnableSpec {
   final def main(args: Array[String]): Unit = {
     val runtime = runner.runtime
     if (TestPlatform.isJVM) {
-      val exitCode = runtime.unsafeRun(runSpec.provideManaged(runner.bootstrap))
+      val exitCode = runtime.unsafeRun(runSpec.provideLayer(runner.bootstrap))
       doExit(exitCode)
     } else if (TestPlatform.isJS) {
-      runtime.unsafeRunAsync[Nothing, Int](runSpec.provideManaged(runner.bootstrap)) { exit =>
+      runtime.unsafeRunAsync[Nothing, Int](runSpec.provideLayer(runner.bootstrap)) { exit =>
         val exitCode = exit.getOrElse(_ => 1)
         doExit(exitCode)
       }
