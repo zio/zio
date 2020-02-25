@@ -2663,24 +2663,23 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     Task.descriptorWith { d =>
       val ec = d.executor.asEC
-      effect(make(ec)).flatMap { f =>
-        val cancelFuture = UIO {
-          f match {
-            case c: CancelableFuture[A] => c.cancel()
-            case _                      => ()
-          }
-        }
+      ZIO.effect(make(ec)).flatMap { f =>
+        // val cancelFuture = UIO {
+        //   f match {
+        //     case c: CancelableFuture[A] => c.cancel()
+        //     case _                      => ()
+        //   }
+        // }
 
-        (f.value
+        f.value
           .fold(
-            Task.effectAsync { (cb: Task[A] => Unit) =>
+            Task.effectAsync { (k: Task[A] => Unit) =>
               f.onComplete {
-                case Success(a) => cb(Task.succeedNow(a))
-                case Failure(t) => cb(Task.failNow(t))
+                case Success(a) => k(Task.succeedNow(a))
+                case Failure(t) => k(Task.failNow(t))
               }(ec)
             }
-          )(Task.fromTry(_)))
-          .onInterrupt(cancelFuture)
+          )(Task.fromTry(_))
       }
     }
 

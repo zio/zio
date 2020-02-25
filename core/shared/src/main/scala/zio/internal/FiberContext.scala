@@ -920,8 +920,10 @@ private[zio] final class FiberContext[E, A](
       }
     }
 
-    UIO(setInterruptedLoop()).flatMap { newCause =>
-      if (interruptMode == InterruptMode.Fork) UIO(Exit.Failure(newCause))
+    UIO.effectSuspendTotal {
+      val newCause = setInterruptedLoop()
+
+      if (interruptMode eq InterruptMode.Fork) UIO(Exit.Failure(newCause))
       else await
     }
   }

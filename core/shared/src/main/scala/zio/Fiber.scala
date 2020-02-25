@@ -356,9 +356,15 @@ sealed trait Fiber[+E, +A] { self =>
 
       for {
         runtime <- ZIO.runtime[Any]
-        _       <- completeFuture.forkDaemon
+        _       <- completeFuture.fork
       } yield new CancelableFuture[A](p.future) {
-        def cancel(): Future[Exit[Throwable, A]] = runtime.unsafeRunToFuture(self.interrupt.map(_.mapError(f)))
+        def cancel(): Future[Exit[Throwable, A]] = {
+          val p = scala.concurrent.Promise[Exit[Throwable, A]]()
+          runtime.unsafeRunAsync(self.interrupt) { exit =>
+            p.success(exit.flatten.mapError(f))
+          }
+          p.future
+        }
       }
     }.uninterruptible
 
