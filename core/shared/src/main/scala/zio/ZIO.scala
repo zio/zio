@@ -1700,13 +1700,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
    */
-  final def toFuture(implicit ev2: E <:< Throwable): URIO[R, CancelableFuture[E, A]] =
+  final def toFuture(implicit ev2: E <:< Throwable): URIO[R, CancelableFuture[A]] =
     self toFutureWith ev2
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
    */
-  final def toFutureWith(f: E => Throwable): URIO[R, CancelableFuture[E, A]] =
+  final def toFutureWith(f: E => Throwable): URIO[R, CancelableFuture[A]] =
     self.fork >>= (_.toFutureWith(f))
 
   /**
@@ -2664,15 +2664,23 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     Task.descriptorWith { d =>
       val ec = d.executor.asEC
       effect(make(ec)).flatMap { f =>
-        f.value
+        val cancelFuture = UIO {
+          f match {
+            case c: CancelableFuture[A] => c.cancel()
+            case _                      => ()
+          }
+        }
+
+        (f.value
           .fold(
             Task.effectAsync { (cb: Task[A] => Unit) =>
               f.onComplete {
-                case Success(a) => cb(Task.succeed(a))
+                case Success(a) => cb(Task.succeedNow(a))
                 case Failure(t) => cb(Task.failNow(t))
               }(ec)
             }
-          )(Task.fromTry(_))
+          )(Task.fromTry(_)))
+          .onInterrupt(cancelFuture)
       }
     }
 

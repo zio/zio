@@ -230,7 +230,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = ZLayer.fromManagedMany(Managed.make(ZIO.never)(_ => ZIO.unit))
           layer2  = ZLayer.fromManagedMany(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env     = (layer1 ++ layer2).build
-          _       <- env.use_(ZIO.unit).fork
+          _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
         } yield assertCompletes
       } @@ nonFlaky
