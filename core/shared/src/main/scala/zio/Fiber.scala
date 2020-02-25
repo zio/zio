@@ -592,10 +592,17 @@ object Fiber extends FiberPlatformSpecific {
    *
    * TODO: Switch to "streaming lazy" version.
    */
-  val dump: UIO[Iterable[Dump]] = UIO.effectSuspendTotal {
+  val dump: UIO[Iterable[Dump]] =
+    dumpAll(_rootFibers.asScala: @silent("JavaConverters"))
+
+  /**
+    * Collects a complete dump of the specified fibers and all children of the
+    * fibers.
+    */
+  def dumpAll(fibers: => Iterable[Fiber.Runtime[_, _]]): UIO[Iterable[Dump]] = UIO.effectSuspendTotal {
     import internal.FiberContext
 
-    def loop(fibers: Iterable[FiberContext[_, _]], acc: UIO[Vector[Dump]]): UIO[Vector[Dump]] =
+    def loop(fibers: Iterable[Fiber.Runtime[_, _]], acc: UIO[Vector[Dump]]): UIO[Vector[Dump]] =
       ZIO
         .collectAll(fibers.toIterable.map { context =>
           (context.children zip context.dump).map {
@@ -610,7 +617,7 @@ object Fiber extends FiberPlatformSpecific {
           if (children.isEmpty) acc2 else loop(children.asInstanceOf[Iterable[FiberContext[Any, Any]]], acc2)
         }
 
-    loop(_rootFibers.asScala: @silent("JavaConverters"), UIO(Vector()))
+    loop(fibers, UIO(Vector()))
   }
 
   /**
