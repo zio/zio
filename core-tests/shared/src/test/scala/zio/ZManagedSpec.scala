@@ -1421,7 +1421,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     Managed {
       val reserve = ref.update(_ + 1)
       val acquire = ref.update(_ + 1)
-      val release = ref.set(0)
+      val release = ref.update(n => if (n > 0) 0 else -1)
       reserve *> ZIO.succeedNow(Reservation(acquire, _ => release))
     }
 

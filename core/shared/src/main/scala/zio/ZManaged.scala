@@ -630,14 +630,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Preallocates the managed resource inside an outer managed, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
    */
   def preallocateManaged: ZManaged[R, E, Managed[Nothing, A]] =
-    ZManaged.finalizerRef[R](_ => ZIO.unit).mapM { finalizer =>
+    ZManaged.finalizerRef[R](_ => ZIO.unit).mapM { finalizers =>
       ZIO.uninterruptibleMask { restore =>
         for {
           env      <- ZIO.environment[R]
           res      <- reserve
-          _        <- finalizer.add(res.release)
+          _        <- finalizers.add(res.release)
           resource <- restore(res.acquire)
-        } yield ZManaged.make(ZIO.succeedNow(resource))(_ => finalizer.run(Exit.succeed(resource)).provide(env))
+        } yield ZManaged.make(ZIO.succeedNow(resource))(_ => finalizers.runAll(Exit.succeed(resource)).provide(env))
       }
     }
 
@@ -1111,7 +1111,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
             }
             left.zipWithPar(right)(f0)
           },
-          release = finalizers.run
+          release = finalizers.runAll
         )
       }
     }
@@ -1149,10 +1149,16 @@ object ZManaged {
     def add(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Unit]
 
     /**
+     * Runs the specified finalizer and removes it from the finalizers
+     * associated with this scope.
+     */
+    def run(finalizer: Exit[Any, Any] => URIO[R, Any])(exit: Exit[Any, Any]): URIO[R, Unit]
+
+    /**
      * Runs the finalizers associated with this scope. After this any
      * finalizers added to this scope will be run immediately.
      */
-    def run(exit: Exit[Any, Any]): URIO[R, Unit]
+    def runAll(exit: Exit[Any, Any]): URIO[R, Unit]
   }
 
   object FinalizerRef {
@@ -1160,25 +1166,45 @@ object ZManaged {
     /**
      * Constructs a new `FinalizerRef` with the specified initial finalizer.
      */
-    def make[R](initial: Exit[Any, Any] => URIO[R, Any]): UIO[FinalizerRef[R]] =
-      Ref.make[Either[Exit[Any, Any], Exit[Any, Any] => URIO[R, Any]]](Right(initial)).map { ref =>
+    def make[R](initial: Exit[Any, Any] => URIO[R, Any]): UIO[FinalizerRef[R]] = {
+
+      sealed trait State
+
+      final case class Exited(exit: Exit[Any, Any], done: Set[Exit[Any, Any] => URIO[R, Any]]) extends State
+      final case class Running(finalizers: Set[Exit[Any, Any] => URIO[R, Any]])                extends State
+
+      Ref.make[State](Running(Set(initial))).map { ref =>
         new FinalizerRef[R] {
           def add(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Unit] =
-            ref.getAndUpdateSome {
-              case Right(finalizers) => Right(exit => finalizers(exit) *> finalizer(exit))
+            ref.getAndUpdate {
+              case Exited(exit, done)  => Exited(exit, done + finalizer)
+              case Running(finalizers) => Running(finalizers + finalizer)
             }.flatMap {
-              case Left(exit) => finalizer(exit).unit
-              case _          => UIO.unit
+              case Exited(exit, done) if !done.contains(finalizer) => finalizer(exit).unit
+              case _                                               => UIO.unit
             }
-          def run(exit: Exit[Any, Any]): URIO[R, Unit] =
-            ref.getAndUpdateSome {
-              case Right(_) => Left(exit)
+          def run(finalizer: Exit[Any, Any] => URIO[R, Any])(exit: Exit[Any, Any]): URIO[R, Unit] =
+            ref.getAndUpdate {
+              case Exited(exit, done)  => Exited(exit, done + finalizer)
+              case Running(finalizers) => Running(finalizers - finalizer)
             }.flatMap {
-              case Right(finalizers) => finalizers(exit).unit
-              case _                 => UIO.unit
+              case Exited(_, done) if !done.contains(finalizer) => finalizer(exit).unit
+              case _                                            => finalizer(exit).unit
+            }
+          def runAll(exit: Exit[Any, Any]): URIO[R, Unit] =
+            ref.getAndUpdateSome {
+              case Running(finalizers) => Exited(exit, finalizers)
+            }.flatMap {
+              case Running(finalizers) =>
+                for {
+                  exits <- ZIO.foreach(finalizers)(_(exit).run)
+                  _     <- ZIO.doneNow(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+                } yield ()
+              case _ => UIO.unit
             }
         }
       }
+    }
   }
 
   final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
@@ -1325,10 +1351,10 @@ object ZManaged {
   ): ZManaged[R, Nothing, FinalizerRef[R]] =
     ZManaged {
       for {
-        ref <- FinalizerRef.make(initial)
+        finalizers <- FinalizerRef.make(initial)
         reservation = Reservation(
-          acquire = ZIO.succeedNow(ref),
-          release = ref.run
+          acquire = ZIO.succeedNow(finalizers),
+          release = finalizers.runAll
         )
       } yield reservation
     }
@@ -1878,7 +1904,7 @@ object ZManaged {
    */
   def scope: Managed[Nothing, Scope] =
     ZManaged {
-      FinalizerRef.make(_ => UIO.unit).map { finalizer =>
+      FinalizerRef.make(_ => UIO.unit).map { finalizers =>
         Reservation(
           acquire = ZIO.succeedNow {
             new Scope {
@@ -1889,13 +1915,13 @@ object ZManaged {
                     res      <- managed.reserve
                     resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
                     release  = res.release.andThen(_.provide(env))
-                    _        <- finalizer.add(release)
-                    done     = finalizer.run(Exit.succeed(resource))
+                    _        <- finalizers.add(release)
+                    done     = finalizers.run(release)(Exit.succeed(resource))
                   } yield (resource, done)
                 }
             }
           },
-          release = finalizer.run
+          release = finalizers.runAll
         )
       }
     }

@@ -3256,8 +3256,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     ZStream {
       for {
         finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
-        finalizer    <- finalizerRef.add(_ => finalizer).once.toManaged_
-        pull         = (finalizer *> Pull.end).uninterruptible
+        pull         = (finalizerRef.add(_ => finalizer) *> Pull.end).uninterruptible
       } yield pull
     }
 
