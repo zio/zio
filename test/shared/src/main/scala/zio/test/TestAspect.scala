@@ -182,7 +182,7 @@ object TestAspect extends TimeoutVariants {
           for {
             dumps    <- Fiber.dumpAll(Set(fiber))
             dumpStrs <- ZIO.foreach(dumps)(_.prettyPrintM)
-            dumpStr  = s"$label: ${s.mkString("\n")}"
+            dumpStr  = s"$label: ${dumpStrs.mkString("\n")}"
             _        <- Live.live(console.putStrLn(dumpStr))
           } yield ()
         spec.transform[R, TestFailure[E], TestSuccess] {
