@@ -1834,7 +1834,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The moral equivalent of `if (p) exp`
    */
-  final def when[R1 <: R, E1 >: E](b: => Boolean): ZIO[R1, E1, Unit] =
+  final def when(b: => Boolean): ZIO[R, E, Unit] =
     ZIO.when(b)(self)
 
   /**
