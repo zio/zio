@@ -1149,16 +1149,34 @@ object ZManaged {
     def add(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Unit]
 
     /**
+     * Removes the finalizers associated with this scope and returns them.
+     */
+    def remove: UIO[Set[Exit[Any, Any] => URIO[R, Any]]]
+
+    /**
+     * Replaces the finalizers associated with this scope and returns them.
+     * If the finalizers associated with this scope have already been run this
+     * finalizer will be run immediately.
+     */
+    def replace(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Set[Exit[Any, Any] => URIO[R, Any]]]
+
+    /**
      * Runs the specified finalizer and removes it from the finalizers
      * associated with this scope.
      */
     def run(finalizer: Exit[Any, Any] => URIO[R, Any])(exit: Exit[Any, Any]): URIO[R, Unit]
 
     /**
-     * Runs the finalizers associated with this scope. After this any
-     * finalizers added to this scope will be run immediately.
+     * Runs the finalizers associated with this scope sequentially. After this
+     * any finalizers added to this scope will be run immediately.
      */
     def runAll(exit: Exit[Any, Any]): URIO[R, Unit]
+
+    /**
+     * Runs the finalizers associated with this scope in parallel. After this
+     * any finalizers added to this scope will be run immediately.
+     */
+    def runAllPar(exit: Exit[Any, Any]): URIO[R, Unit]
   }
 
   object FinalizerRef {
@@ -1175,6 +1193,7 @@ object ZManaged {
 
       Ref.make[State](Running(Set(initial))).map { ref =>
         new FinalizerRef[R] {
+
           def add(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Unit] =
             ref.getAndUpdate {
               case Exited(exit, done)  => Exited(exit, done + finalizer)
@@ -1183,6 +1202,22 @@ object ZManaged {
               case Exited(exit, done) if !done.contains(finalizer) => finalizer(exit).unit
               case _                                               => UIO.unit
             }
+
+          def remove: UIO[Set[Exit[Any, Any] => URIO[R, Any]]] =
+            ref.modifySome(Set.empty[Exit[Any, Any] => URIO[R, Any]]) {
+              case Running(finalizers) => (finalizers, Running(Set.empty))
+            }
+
+          def replace(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Set[Exit[Any, Any] => URIO[R, Any]]] =
+            ref.getAndUpdate {
+              case Exited(exit, done) => Exited(exit, done + finalizer)
+              case Running(_)         => Running(Set(finalizer))
+            }.flatMap {
+              case Exited(exit, done) if !done.contains(finalizer) => finalizer(exit).as(Set.empty)
+              case Running(finalizers)                             => UIO.succeedNow(finalizers)
+              case _                                               => UIO.succeedNow(Set.empty)
+            }
+
           def run(finalizer: Exit[Any, Any] => URIO[R, Any])(exit: Exit[Any, Any]): URIO[R, Unit] =
             ref.getAndUpdate {
               case Exited(exit, done)  => Exited(exit, done + finalizer)
@@ -1191,13 +1226,22 @@ object ZManaged {
               case Exited(_, done) if !done.contains(finalizer) => finalizer(exit).unit
               case _                                            => finalizer(exit).unit
             }
+
           def runAll(exit: Exit[Any, Any]): URIO[R, Unit] =
+            runAllWith(exit)(ZIO.foreach(_)(_.run))
+
+          def runAllPar(exit: Exit[Any, Any]): URIO[R, Unit] =
+            runAllWith(exit)(ZIO.foreachPar(_)(_.run))
+
+          private def runAllWith(
+            exit: Exit[Any, Any]
+          )(f: Set[URIO[R, Any]] => URIO[R, List[Exit[Nothing, Any]]]): URIO[R, Unit] =
             ref.getAndUpdateSome {
               case Running(finalizers) => Exited(exit, finalizers)
             }.flatMap {
               case Running(finalizers) =>
                 for {
-                  exits <- ZIO.foreach(finalizers)(_(exit).run)
+                  exits <- f(finalizers.map(_(exit)))
                   _     <- ZIO.doneNow(Exit.collectAllPar(exits).getOrElse(Exit.unit))
                 } yield ()
               case _ => UIO.unit
@@ -1355,24 +1399,6 @@ object ZManaged {
         reservation = Reservation(
           acquire = ZIO.succeedNow(finalizers),
           release = finalizers.runAll
-        )
-      } yield reservation
-    }
-
-  /**
-   * Creates an effect that executes a finalizer stored in a [[Ref]]. The `Ref`
-   * is yielded as the result of the effect, allowing for control flows that require
-   * mutating finalizers.
-   */
-  private[zio] def finalizerRefInternal[R](
-    initial: Exit[Any, Any] => ZIO[R, Nothing, Any]
-  ): ZManaged[R, Nothing, Ref[Exit[Any, Any] => ZIO[R, Nothing, Any]]] =
-    ZManaged {
-      for {
-        ref <- Ref.make(initial)
-        reservation = Reservation(
-          acquire = ZIO.succeedNow(ref),
-          release = e => ref.get.flatMap(_.apply(e))
         )
       } yield reservation
     }
@@ -2004,15 +2030,15 @@ object ZManaged {
   def switchable[R, E, A]: ZManaged[R, Nothing, ZManaged[R, E, A] => ZIO[R, E, A]] =
     for {
       fiberId      <- ZManaged.fiberId
-      finalizerRef <- ZManaged.finalizerRefInternal[R](_ => UIO.unit)
+      finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
       switch = { (newResource: ZManaged[R, E, A]) =>
         ZIO.uninterruptibleMask { restore =>
           for {
             _ <- finalizerRef
-                  .modify(f => (f, _ => UIO.unit))
-                  .flatMap(f => f(Exit.interrupt(fiberId)))
+                  .replace(_ => UIO.unit)
+                  .flatMap(ZIO.foreach(_)(_(Exit.interrupt(fiberId))))
             reservation <- newResource.reserve
-            _           <- finalizerRef.set(reservation.release)
+            _           <- finalizerRef.add(reservation.release)
             a           <- restore(reservation.acquire)
           } yield a
         }
