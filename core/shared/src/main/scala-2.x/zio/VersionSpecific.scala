@@ -3,7 +3,7 @@ package zio
 import izreflect.fundamentals.reflection.Tags.Tag
 import izreflect.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
 
-private[zio] object ScalaSpecific {
+private[zio] trait VersionSpecific {
 
   type TaggedType[A] = Tag[A]
   type TagType       = LightTypeTag
