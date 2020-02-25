@@ -771,6 +771,7 @@ package object environment extends PlatformSpecific {
       def feedInts(ints: Int*): UIO[Unit]
       def feedLongs(longs: Long*): UIO[Unit]
       def feedStrings(strings: String*): UIO[Unit]
+      def getSeed: UIO[Long]
       def setSeed(seed: Long): UIO[Unit]
     }
 
@@ -893,103 +894,20 @@ package object environment extends PlatformSpecific {
       def feedStrings(strings: String*): UIO[Unit] =
         bufferState.update(data => data.copy(strings = strings.toList ::: data.strings))
 
-      private val randomBoolean: UIO[Boolean] =
-        randomBits(1).map(_ != 0)
-
-      private def randomBytes(length: Int): UIO[Chunk[Byte]] = {
-        //  Our RNG generates 32 bit integers so to maximize efficiency we want to
-        //  pull 8 bit bytes from the current integer until it is exhausted
-        //  before generating another random integer
-        def loop(i: Int, rnd: UIO[Int], n: Int, acc: UIO[List[Byte]]): UIO[List[Byte]] =
-          if (i == length)
-            acc.map(_.reverse)
-          else if (n > 0)
-            rnd.flatMap(rnd => loop(i + 1, UIO.succeedNow(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
-          else
-            loop(i, nextInt, (length - i) min 4, acc)
-
-        loop(0, randomInt, length min 4, UIO.succeedNow(List.empty[Byte])).map(Chunk.fromIterable)
-      }
-
-      private val randomDouble: UIO[Double] =
-        for {
-          i1 <- randomBits(26)
-          i2 <- randomBits(27)
-        } yield ((i1.toDouble * (1L << 27).toDouble) + i2.toDouble) / (1L << 53).toDouble
-
-      private val randomFloat: UIO[Float] =
-        randomBits(24).map(i => (i.toDouble / (1 << 24).toDouble).toFloat)
-
-      private val randomGaussian: UIO[Double] =
-        //  The Box-Muller transform generates two normally distributed random
-        //  doubles, so we store the second double in a queue and check the
-        //  queue before computing a new pair of values to avoid wasted work.
-        randomState.modify {
-          case Data(seed1, seed2, queue) =>
-            queue.dequeueOption.fold { (Option.empty[Double], Data(seed1, seed2, queue)) } {
-              case (d, queue) => (Some(d), Data(seed1, seed2, queue))
-            }
-        }.flatMap {
-          case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
-          case None =>
-            def loop: UIO[(Double, Double, Double)] =
-              randomDouble.zip(randomDouble).flatMap {
-                case (d1, d2) =>
-                  val x      = 2 * d1 - 1
-                  val y      = 2 * d2 - 1
-                  val radius = x * x + y * y
-                  if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
-              }
-            loop.flatMap {
-              case (x, y, radius) =>
-                val c = sqrt(-2 * log(radius) / radius)
-                randomState.modify {
-                  case Data(seed1, seed2, queue) =>
-                    (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
-                }
-            }
+      /**
+       * Gets the seed of this `TestRandom`.
+       */
+      val getSeed: UIO[Long] =
+        randomState.get.map {
+          case Data(seed1, seed2, _) =>
+            ((seed1.toLong << 24) | seed2) ^ 0X5DEECE66DL
         }
-
-      private val randomInt: UIO[Int] =
-        randomBits(32)
-
-      private def randomInt(n: Int): UIO[Int] =
-        if (n <= 0)
-          UIO.dieNow(new IllegalArgumentException("n must be positive"))
-        else if ((n & -n) == n)
-          randomBits(31).map(_ >> Integer.numberOfLeadingZeros(n))
-        else {
-          def loop: UIO[Int] =
-            randomBits(31).flatMap { i =>
-              val value = i % n
-              if (i - value + (n - 1) < 0) loop
-              else UIO.succeedNow(value)
-            }
-          loop
-        }
-
-      private val randomLong: UIO[Long] =
-        for {
-          i1 <- randomBits(32)
-          i2 <- randomBits(32)
-        } yield ((i1.toLong << 32) + i2)
-
-      private def randomLong(n: Long): UIO[Long] =
-        Random.nextLongWith(randomLong, n)
-
-      private val randomPrintableChar: UIO[Char] =
-        randomInt(127 - 33).map(i => (i + 33).toChar)
-
-      private def randomString(length: Int): UIO[String] = {
-        val safeChar = randomInt(0xD800 - 1).map(i => (i + 1).toChar)
-        UIO.collectAll(List.fill(length)(safeChar)).map(_.mkString)
-      }
 
       /**
        * Takes a boolean from the buffer if one exists or else generates a
        * pseudo-random boolean.
        */
-      val nextBoolean: UIO[Boolean] =
+      lazy val nextBoolean: UIO[Boolean] =
         getOrElse(bufferedBoolean)(randomBoolean)
 
       /**
@@ -1003,14 +921,14 @@ package object environment extends PlatformSpecific {
        * Takes a double from the buffer if one exists or else generates a
        * pseudo-random, uniformly distributed double between 0.0 and 1.0.
        */
-      val nextDouble: UIO[Double] =
+      lazy val nextDouble: UIO[Double] =
         getOrElse(bufferedDouble)(randomDouble)
 
       /**
        * Takes a float from the buffer if one exists or else generates a
        * pseudo-random, uniformly distributed float between 0.0 and 1.0.
        */
-      val nextFloat: UIO[Float] =
+      lazy val nextFloat: UIO[Float] =
         getOrElse(bufferedFloat)(randomFloat)
 
       /**
@@ -1018,14 +936,14 @@ package object environment extends PlatformSpecific {
        * pseudo-random double from a normal distribution with mean 0.0 and
        * standard deviation 1.0.
        */
-      val nextGaussian: UIO[Double] =
+      lazy val nextGaussian: UIO[Double] =
         getOrElse(bufferedDouble)(randomGaussian)
 
       /**
        * Takes an integer from the buffer if one exists or else generates a
        * pseudo-random integer.
        */
-      val nextInt: UIO[Int] =
+      lazy val nextInt: UIO[Int] =
         getOrElse(bufferedInt)(randomInt)
 
       /**
@@ -1040,7 +958,7 @@ package object environment extends PlatformSpecific {
        * Takes a long from the buffer if one exists or else generates a
        * pseudo-random long.
        */
-      val nextLong: UIO[Long] =
+      lazy val nextLong: UIO[Long] =
         getOrElse(bufferedLong)(randomLong)
 
       /**
@@ -1055,7 +973,7 @@ package object environment extends PlatformSpecific {
        * Takes a character from the buffer if one exists or else generates a
        * pseudo-random character from the ASCII range 33-126.
        */
-      val nextPrintableChar: UIO[Char] =
+      lazy val nextPrintableChar: UIO[Char] =
         getOrElse(bufferedChar)(randomPrintableChar)
 
       /**
@@ -1166,6 +1084,98 @@ package object environment extends PlatformSpecific {
           val result      = (newSeed1 << 8) | (newSeed2 >> 16)
           (result >>> (32 - bits), Data(newSeed1, newSeed2, data.nextNextGaussians))
         }
+
+      private val randomBoolean: UIO[Boolean] =
+        randomBits(1).map(_ != 0)
+
+      private def randomBytes(length: Int): UIO[Chunk[Byte]] = {
+        //  Our RNG generates 32 bit integers so to maximize efficiency we want to
+        //  pull 8 bit bytes from the current integer until it is exhausted
+        //  before generating another random integer
+        def loop(i: Int, rnd: UIO[Int], n: Int, acc: UIO[List[Byte]]): UIO[List[Byte]] =
+          if (i == length)
+            acc.map(_.reverse)
+          else if (n > 0)
+            rnd.flatMap(rnd => loop(i + 1, UIO.succeedNow(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
+          else
+            loop(i, nextInt, (length - i) min 4, acc)
+
+        loop(0, randomInt, length min 4, UIO.succeedNow(List.empty[Byte])).map(Chunk.fromIterable)
+      }
+
+      private val randomDouble: UIO[Double] =
+        for {
+          i1 <- randomBits(26)
+          i2 <- randomBits(27)
+        } yield ((i1.toDouble * (1L << 27).toDouble) + i2.toDouble) / (1L << 53).toDouble
+
+      private val randomFloat: UIO[Float] =
+        randomBits(24).map(i => (i.toDouble / (1 << 24).toDouble).toFloat)
+
+      private val randomGaussian: UIO[Double] =
+        //  The Box-Muller transform generates two normally distributed random
+        //  doubles, so we store the second double in a queue and check the
+        //  queue before computing a new pair of values to avoid wasted work.
+        randomState.modify {
+          case Data(seed1, seed2, queue) =>
+            queue.dequeueOption.fold { (Option.empty[Double], Data(seed1, seed2, queue)) } {
+              case (d, queue) => (Some(d), Data(seed1, seed2, queue))
+            }
+        }.flatMap {
+          case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
+          case None =>
+            def loop: UIO[(Double, Double, Double)] =
+              randomDouble.zip(randomDouble).flatMap {
+                case (d1, d2) =>
+                  val x      = 2 * d1 - 1
+                  val y      = 2 * d2 - 1
+                  val radius = x * x + y * y
+                  if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
+              }
+            loop.flatMap {
+              case (x, y, radius) =>
+                val c = sqrt(-2 * log(radius) / radius)
+                randomState.modify {
+                  case Data(seed1, seed2, queue) =>
+                    (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
+                }
+            }
+        }
+
+      private val randomInt: UIO[Int] =
+        randomBits(32)
+
+      private def randomInt(n: Int): UIO[Int] =
+        if (n <= 0)
+          UIO.dieNow(new IllegalArgumentException("n must be positive"))
+        else if ((n & -n) == n)
+          randomBits(31).map(_ >> Integer.numberOfLeadingZeros(n))
+        else {
+          def loop: UIO[Int] =
+            randomBits(31).flatMap { i =>
+              val value = i % n
+              if (i - value + (n - 1) < 0) loop
+              else UIO.succeedNow(value)
+            }
+          loop
+        }
+
+      private val randomLong: UIO[Long] =
+        for {
+          i1 <- randomBits(32)
+          i2 <- randomBits(32)
+        } yield ((i1.toLong << 32) + i2)
+
+      private def randomLong(n: Long): UIO[Long] =
+        Random.nextLongWith(randomLong, n)
+
+      private val randomPrintableChar: UIO[Char] =
+        randomInt(127 - 33).map(i => (i + 33).toChar)
+
+      private def randomString(length: Int): UIO[String] = {
+        val safeChar = randomInt(0xD800 - 1).map(i => (i + 1).toChar)
+        UIO.collectAll(List.fill(length)(safeChar)).map(_.mkString)
+      }
 
       @inline
       private def toInt(x: Double): Int =
@@ -1297,6 +1307,12 @@ package object environment extends PlatformSpecific {
      */
     def feedStrings(strings: String*): ZIO[TestRandom, Nothing, Unit] =
       ZIO.accessM(_.get.feedStrings(strings: _*))
+
+    /**
+     * Accesses a `TestRandom` instance in the environment and gets the seed.
+     */
+    val getSeed: ZIO[TestRandom, Nothing, Long] =
+      ZIO.accessM(_.get.getSeed)
 
     /**
      * Constructs a new `TestRandom` with the specified initial state. This can

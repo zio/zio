@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.clock
 import zio.duration._
 import zio.system
 import zio.test.Assertion.{ equalTo, hasMessage, isCase, isSubtype }
@@ -356,6 +357,13 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
+   * Sets the seed of the `TestRandom` instance in the environment to a random
+   * value before each test.
+   */
+  val nondeterministic: TestAspectAtLeastR[Live with TestRandom] =
+    before(Live.live(clock.nanoTime).flatMap(TestRandom.setSeed(_)))
+
+  /**
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
@@ -541,6 +549,13 @@ object TestAspect extends TimeoutVariants {
    */
   val scala213Only: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala213) identity else ignore
+
+  /**
+   * Sets the seed of the `TestRandom` instance in the environment to the
+   * specified value before each test.
+   */
+  def setSeed(seed: => Long): TestAspectAtLeastR[TestRandom] =
+    before(TestRandom.setSeed(seed))
 
   /**
    * An aspect that converts ignored tests into test failures.

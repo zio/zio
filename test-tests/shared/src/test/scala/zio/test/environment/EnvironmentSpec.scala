@@ -42,14 +42,11 @@ object EnvironmentSpec extends ZIOBaseSpec {
         j <- random.nextInt
       } yield !assert(i)(equalTo(j))
     },
-    /*Live clock is used to seed random number generator;
-            Node.js only has 1ms resolution so need to wait at least that long to avoid flakiness on ScalaJS*/
-    testM("Check different copies of TestEnvironment are seeded with different seeds") {
+    testM("Random is deterministic") {
       for {
-        i <- Live.live(random.nextInt.provideLayer(TestRandom.random))
-        _ <- Live.live(clock.sleep(1.millisecond))
-        j <- Live.live(random.nextInt.provideLayer(TestRandom.random))
-      } yield !assert(i)(equalTo(j))
+        i <- random.nextInt.provideLayer(testEnvironment)
+        j <- random.nextInt.provideLayer(testEnvironment)
+      } yield assert(i)(equalTo(j))
     },
     testM("System returns an environment variable when it is set") {
       for {
