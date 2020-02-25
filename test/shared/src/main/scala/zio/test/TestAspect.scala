@@ -173,10 +173,10 @@ object TestAspect extends TimeoutVariants {
           test: ZIO[R, TestFailure[E], TestSuccess]
         ): ZIO[R, TestFailure[E], TestSuccess] =
           test.fork.flatMap { fiber =>
-            Live.live(clock.sleep(duration)) *> fiber.poll.flatMap {
-              case None       => dump(label, fiber) *> fiber.join
-              case Some(exit) => dump(label, fiber).when(!exit.succeeded) *> ZIO.done(exit)
-            }
+            fiber.join.raceWith(Live.live(ZIO.sleep(duration)))(
+              (exit, sleepFiber) => dump(label, fiber).when(!exit.succeeded) *> sleepFiber.interrupt *> ZIO.done(exit),
+              (_, _) => dump(label, fiber) *> fiber.join
+            )
           }
         def dump[E, A](label: String, fiber: Fiber.Runtime[E, A]): ZIO[Live, Nothing, Unit] =
           fiber.dump.flatMap(_.prettyPrintM).flatMap(s => Live.live(console.putStrLn(s"$label: $s")))
