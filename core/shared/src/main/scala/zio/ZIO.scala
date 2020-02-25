@@ -2664,13 +2664,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     Task.descriptorWith { d =>
       val ec = d.executor.asEC
       ZIO.effect(make(ec)).flatMap { f =>
-        // val cancelFuture = UIO {
-        //   f match {
-        //     case c: CancelableFuture[A] => c.cancel()
-        //     case _                      => ()
-        //   }
-        // }
-
         f.value
           .fold(
             Task.effectAsync { (k: Task[A] => Unit) =>
