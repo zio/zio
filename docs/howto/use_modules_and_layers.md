@@ -321,6 +321,6 @@ val fullRepo: ZLayer.NoDeps[Nothing, UserRepo] = connectionLayer >>> postgresLay
 ```
 
 ## Layers are shared in the dependency graph
-One important feature of `ZIO` layers is that they are shared. For every layer in our dependency graph, there is only one instance of each layer that is shared between all the layers that depend on it. 
+One important feature of `ZIO` layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. If you don't want to share a module, create a fresh, non-shared version of it through `ZLayer.fresh`. 
 
 Notice also that the `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction. 
