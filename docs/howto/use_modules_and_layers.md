@@ -161,7 +161,7 @@ We can compose `layerA` and `layerB`  _horizontally_ to build a layer that has t
  
 We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first and the output of the second layer: `layerA >>> layerB` 
 
-### Example: wiring modules together
+## Wiring modules together
 Here we define a module to cope with CRUD operations for the `User` domain object. We provide also a live implemntation of the module that depends on a sql connection.
 
 ```scala mdoc:silent
@@ -204,15 +204,13 @@ object Logging {
 
 
   import zio.console.Console
-  val consoleLogger: ZLayer[Console, Nothing, Logging] = ZLayer.fromEnvironment( console =>
-    Has(
-      new Service {
-        def info(s: String): UIO[Unit] = console.get.putStrLn(s"info - $s")
-        def error(s: String): UIO[Unit] = console.get.putStrLn(s"error - $s")
-      }
-    )
+  val consoleLogger: ZLayer[Console, Nothing, Logging] = ZLayer.fromFunction( console =>
+    new Service {
+      def info(s: String): UIO[Unit] = console.get.putStrLn(s"info - $s")
+      def error(s: String): UIO[Unit] = console.get.putStrLn(s"error - $s")
+    }
   )
-
+    
   //accessor methods
   def info(s: String): ZIO[Logging, Nothing, Unit] =
     ZIO.accessM(_.get.info(s))
@@ -247,7 +245,7 @@ makeUser.provideLayer(fullLayer)
 
 ```
 
-### Example: providing partial environments
+## Providing partial environments
 Let's add some extra logic to our program that creates a user
 
 ```scala mdoc:silent
@@ -261,10 +259,23 @@ val makeUser2: ZIO[Logging with UserRepo with Clock with Random, DBError, Unit] 
   } yield ()
 ```
 
-Now the requirements of our program are richer, and we can satisfy the partially by providing our custom layers, and leaving out the layers that are covered by the standard environment `ZEnv`, in one line of code
+Now the requirements of our program are richer, and we can satisfy them partially by providing our custom layers, and leaving out the layers that are covered by the standard environment `ZEnv`, in one line of code
 
 ```scala mdoc:silent
   val zEnvMakeUser: ZIO[ZEnv, DBError, Unit] = makeUser2.provideCustomLayer(fullLayer)
 ```
 
 Notice that `provideCustomLayer` is just a special case of `provideSomeLayer`.
+
+## Updating local dependencies
+// TODO: write this
+
+## Dealing with managed dependencies
+Sometimes we must ensure that a module gets acquired during the bootstrap phase, and released when it is done servicing our program
+//TODO: write this
+
+## Sharing services 
+services are all singletons in the dependency tree
+
+## Parallel acquisition of services
+//TODO: write this 
