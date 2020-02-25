@@ -16,18 +16,16 @@
 
 package zio
 
-private[zio] object ScalaSpecific {
-
-  type TaggedType[A] = scala.reflect.ClassTag[A]
-  type TagType       = scala.reflect.ClassTag[_]
-
-  private[zio] def taggedIsSubtype[A, B](left: TagType, right: TagType): Boolean =
-    right.runtimeClass.isAssignableFrom(left.runtimeClass)
-
-  private[zio] def taggedTagType[A](tagged: Tagged[A]): TagType = tagged.tag
-
-  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] = {
-    val _ = t
-    Set()
+final case class Tagged[A](tag: TaggedType[A]) {
+  override def equals(that: Any): Boolean = that match {
+    case Tagged(that) => tag.tag == that.tag
+    case _            => false
   }
+  override def hashCode: Int    = tag.tag.hashCode
+  override def toString: String = tag.tag.toString
+}
+
+object Tagged {
+  implicit def tagged[A](implicit tag: TaggedType[A]): Tagged[A] =
+    Tagged(tag)
 }
