@@ -30,13 +30,4 @@ private[zio] trait PlatformSpecific {
     val live: ZLayer.NoDeps[Nothing, ZEnv] =
       Clock.live ++ Console.live ++ System.live ++ Random.live
   }
-
-  type TaggedType[A] = ScalaSpecific.TaggedType[A]
-  type TagType       = ScalaSpecific.TagType
-
-  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = ScalaSpecific.taggedTagType(t)
-
-  private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean = ScalaSpecific.taggedIsSubtype(left, right)
-
-  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] = ScalaSpecific.taggedGetHasServices(t)
 }
