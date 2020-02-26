@@ -303,5 +303,5 @@ object Exit extends Serializable {
 
   def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
-  def unit: Exit[Nothing, Unit] = succeed(())
+  val unit: Exit[Nothing, Unit] = succeed(())
 }

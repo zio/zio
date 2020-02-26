@@ -638,16 +638,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Preallocates the managed resource inside an outer managed, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
    */
   def preallocateManaged: ZManaged[R, E, Managed[Nothing, A]] =
-    ZManaged.finalizerRef[R](_ => ZIO.unit).mapM { finalizer =>
+    ZManaged.finalizerRef[R](_ => ZIO.unit).mapM { finalizers =>
       ZIO.uninterruptibleMask { restore =>
         for {
           env      <- ZIO.environment[R]
           res      <- reserve
-          _        <- finalizer.set(res.release)
+          _        <- finalizers.add(res.release)
           resource <- restore(res.acquire)
-        } yield ZManaged.make(ZIO.succeedNow(resource))(_ =>
-          res.release(Exit.Success(resource)).provide(env) *> finalizer.set(_ => ZIO.unit)
-        )
+        } yield ZManaged.make(ZIO.succeedNow(resource))(_ => finalizers.runAll(Exit.succeed(resource)).provide(env))
       }
     }
 
@@ -1087,45 +1085,62 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * in parallel, combining their results with the specified `f` function. If
    * either side fails, then the other side will be interrupted.
    */
-  def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f0: (A, A1) => A2): ZManaged[R1, E1, A2] =
+  def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f0: (A, A1) => A2): ZManaged[R1, E1, A2] = {
+
+    sealed trait State
+    case object Running   extends State
+    case object Acquiring extends State
+    case object Exited    extends State
+
     ZManaged[R1, E1, A2] {
-      Ref.make[Either[Exit[Any, Any], List[Exit[Any, Any] => ZIO[R1, Nothing, Any]]]](Right(Nil)).map { ref =>
+      ZManaged.FinalizerRef.make[R1](_ => UIO.unit).map { finalizers =>
         Reservation(
           acquire = {
-            val left = ZIO.uninterruptibleMask { restore =>
-              self.reserve.flatMap { reservation =>
-                ref.updateSomeAndGet {
-                  case Right(finalizers) => Right(reservation.release :: finalizers)
-                }.flatMap {
-                  case Left(exit) => restore(reservation.acquire).ensuring(reservation.release(exit))
-                  case _          => restore(reservation.acquire)
-                }
-              }
+            val left = ZIO.uninterruptibleMask {
+              restore =>
+                for {
+                  ref   <- Ref.make[State](Running)
+                  latch <- Promise.make[Nothing, Unit]
+                  res   <- self.reservation
+                  acquire = ZIO.ifM(ref.getAndSet(Acquiring).map(_ == Running))(
+                    restore(res.acquire).ensuring(latch.succeed(())),
+                    ZIO.interrupt
+                  )
+                  release = (exit: Exit[Any, Any]) =>
+                    ZIO.ifM(ref.getAndSet(Exited).map(_ == Acquiring))(
+                      latch.await *> res.release(exit),
+                      res.release(exit)
+                    )
+                  _ <- finalizers.add(release)
+                  a <- acquire
+                } yield a
             }
-            val right = ZIO.uninterruptibleMask { restore =>
-              that.reserve.flatMap { reservation =>
-                ref.updateSomeAndGet {
-                  case Right(finalizers) => Right(reservation.release :: finalizers)
-                }.flatMap {
-                  case Left(exit) => restore(reservation.acquire).ensuring(reservation.release(exit))
-                  case _          => restore(reservation.acquire)
-                }
-              }
+            val right = ZIO.uninterruptibleMask {
+              restore =>
+                for {
+                  ref   <- Ref.make[State](Running)
+                  latch <- Promise.make[Nothing, Unit]
+                  res   <- that.reserve
+                  acquire = ZIO.ifM(ref.getAndSet(Acquiring).map(_ == Running))(
+                    restore(res.acquire).ensuring(latch.succeed(())),
+                    ZIO.interrupt
+                  )
+                  release = (exit: Exit[Any, Any]) =>
+                    ZIO.ifM(ref.getAndSet(Exited).map(_ == Acquiring))(
+                      latch.await *> res.release(exit),
+                      res.release(exit)
+                    )
+                  _  <- finalizers.add(release)
+                  a1 <- acquire
+                } yield a1
             }
             left.zipWithPar(right)(f0)
           },
-          release = exit =>
-            ref.getAndSet(Left(exit)).flatMap {
-              case Right(finalizers) =>
-                for {
-                  exits <- ZIO.foreach(finalizers)(_(exit).run)
-                  _     <- ZIO.doneNow(Exit.collectAllPar(exits).getOrElse(Exit.unit))
-                } yield ()
-              case _ => ZIO.unit
-            }
+          release = finalizers.runAll
         )
       }
     }
+  }
 }
 
 object ZManaged {
@@ -1143,6 +1158,122 @@ object ZManaged {
   final class AccessManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZManaged[R, E, A]): ZManaged[R, E, A] =
       ZManaged.environment.flatMap(f)
+  }
+
+  /**
+   * A `FinalizerRef` describes the finalizers associated with a scope.
+   *
+   */
+  trait FinalizerRef[R] {
+
+    /**
+     * Adds a finalizer to the finalizers associated with this scope. If the
+     * finalizers associated with this scope have already been run this
+     * finalizer will be run immediately.
+     */
+    def add(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Unit]
+
+    /**
+     * Removes the finalizers associated with this scope and returns them.
+     */
+    def remove: UIO[Set[Exit[Any, Any] => URIO[R, Any]]]
+
+    /**
+     * Replaces the finalizers associated with this scope and returns them.
+     * If the finalizers associated with this scope have already been run this
+     * finalizer will be run immediately.
+     */
+    def replace(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Set[Exit[Any, Any] => URIO[R, Any]]]
+
+    /**
+     * Runs the specified finalizer and removes it from the finalizers
+     * associated with this scope.
+     */
+    def run(finalizer: Exit[Any, Any] => URIO[R, Any])(exit: Exit[Any, Any]): URIO[R, Unit]
+
+    /**
+     * Runs the finalizers associated with this scope sequentially. After this
+     * any finalizers added to this scope will be run immediately.
+     */
+    def runAll(exit: Exit[Any, Any]): URIO[R, Unit]
+
+    /**
+     * Runs the finalizers associated with this scope in parallel. After this
+     * any finalizers added to this scope will be run immediately.
+     */
+    def runAllPar(exit: Exit[Any, Any]): URIO[R, Unit]
+  }
+
+  object FinalizerRef {
+
+    /**
+     * Constructs a new `FinalizerRef` with the specified initial finalizer.
+     */
+    def make[R](initial: Exit[Any, Any] => URIO[R, Any]): UIO[FinalizerRef[R]] = {
+
+      sealed trait State
+
+      final case class Exited(exit: Exit[Any, Any], done: Set[Exit[Any, Any] => URIO[R, Any]]) extends State
+      final case class Running(finalizers: Set[Exit[Any, Any] => URIO[R, Any]])                extends State
+
+      Ref.make[State](Running(Set(initial))).map { ref =>
+        new FinalizerRef[R] {
+
+          def add(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Unit] =
+            ref.getAndUpdate {
+              case Exited(exit, done)  => Exited(exit, done + finalizer)
+              case Running(finalizers) => Running(finalizers + finalizer)
+            }.flatMap {
+              case Exited(exit, done) if !done.contains(finalizer) => finalizer(exit).unit
+              case _                                               => UIO.unit
+            }
+
+          def remove: UIO[Set[Exit[Any, Any] => URIO[R, Any]]] =
+            ref.modifySome(Set.empty[Exit[Any, Any] => URIO[R, Any]]) {
+              case Running(finalizers) => (finalizers, Running(Set.empty))
+            }
+
+          def replace(finalizer: Exit[Any, Any] => URIO[R, Any]): URIO[R, Set[Exit[Any, Any] => URIO[R, Any]]] =
+            ref.getAndUpdate {
+              case Exited(exit, done) => Exited(exit, done + finalizer)
+              case Running(_)         => Running(Set(finalizer))
+            }.flatMap {
+              case Exited(exit, done) if !done.contains(finalizer) => finalizer(exit).as(Set.empty)
+              case Running(finalizers)                             => UIO.succeedNow(finalizers)
+              case _                                               => UIO.succeedNow(Set.empty)
+            }
+
+          def run(finalizer: Exit[Any, Any] => URIO[R, Any])(exit: Exit[Any, Any]): URIO[R, Unit] =
+            ref.getAndUpdate {
+              case Exited(exit, done)  => Exited(exit, done + finalizer)
+              case Running(finalizers) => Running(finalizers - finalizer)
+            }.flatMap {
+              case Exited(_, done) if !done.contains(finalizer) => finalizer(exit).unit
+              case _                                            => finalizer(exit).unit
+            }
+
+          def runAll(exit: Exit[Any, Any]): URIO[R, Unit] =
+            runAllWith(exit)(ZIO.foreach(_)(_.run))
+
+          def runAllPar(exit: Exit[Any, Any]): URIO[R, Unit] =
+            runAllWith(exit)(ZIO.foreachPar(_)(_.run))
+
+          private def runAllWith(
+            exit: Exit[Any, Any]
+          )(f: Set[URIO[R, Any]] => URIO[R, List[Exit[Nothing, Any]]]): URIO[R, Unit] =
+            ref.getAndUpdateSome {
+              case Running(finalizers) => Exited(exit, finalizers)
+            }.flatMap {
+              case Running(finalizers) =>
+                for {
+                  exits <- f(finalizers.map(_(exit)))
+                  _     <- ZIO.doneNow(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+                } yield ()
+              case _ => UIO.unit
+            }
+        }
+      }
+    }
   }
 
   final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
@@ -1280,19 +1411,19 @@ object ZManaged {
     ZManaged.reserve(Reservation(ZIO.unit, f))
 
   /**
-   * Creates an effect that executes a finalizer stored in a [[Ref]]. The `Ref`
-   * is yielded as the result of the effect, allowing for control flows that require
-   * mutating finalizers.
+   * Creates an effect that executes a finalizer stored in a [[FinalizerRef]].
+   * The `FinalizerRef` is yielded as the result of the effect, allowing for
+   * control flows that require mutating finalizers.
    */
   def finalizerRef[R](
     initial: Exit[Any, Any] => ZIO[R, Nothing, Any]
-  ): ZManaged[R, Nothing, Ref[Exit[Any, Any] => ZIO[R, Nothing, Any]]] =
+  ): ZManaged[R, Nothing, FinalizerRef[R]] =
     ZManaged {
       for {
-        ref <- Ref.make(initial)
+        finalizers <- FinalizerRef.make(initial)
         reservation = Reservation(
-          acquire = ZIO.succeedNow(ref),
-          release = e => ref.get.flatMap(_.apply(e))
+          acquire = ZIO.succeedNow(finalizers),
+          release = finalizers.runAll
         )
       } yield reservation
     }
@@ -1824,8 +1955,7 @@ object ZManaged {
    */
   def scope: Managed[Nothing, Scope] =
     ZManaged {
-      // we abuse the fact that Function1 will use reference equality
-      Ref.make(Set.empty[Exit[Any, Any] => UIO[Any]]).map { finalizers =>
+      FinalizerRef.make(_ => UIO.unit).map { finalizers =>
         Reservation(
           acquire = ZIO.succeedNow {
             new Scope {
@@ -1836,20 +1966,13 @@ object ZManaged {
                     res      <- managed.reserve
                     resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
                     release  = res.release.andThen(_.provide(env))
-                    _        <- finalizers.update(_ + release)
-                    done <- Ref
-                             .make(release(Exit.Success(resource)).ensuring(finalizers.update(_ - release)))
-                             .map(_.modify((_, ZIO.unit)).flatten)
+                    _        <- finalizers.add(release)
+                    done     = finalizers.run(release)(Exit.succeed(resource))
                   } yield (resource, done)
                 }
             }
           },
-          release = exitU =>
-            for {
-              fs    <- finalizers.get
-              exits <- ZIO.foreachPar(fs)(_(exitU).run)
-              _     <- ZIO.doneNow(Exit.collectAllPar(exits).getOrElse(Exit.unit))
-            } yield ()
+          release = finalizers.runAll
         )
       }
     }
@@ -1937,10 +2060,10 @@ object ZManaged {
         ZIO.uninterruptibleMask { restore =>
           for {
             _ <- finalizerRef
-                  .modify(f => (f, _ => UIO.unit))
-                  .flatMap(f => f(Exit.interrupt(fiberId)))
+                  .replace(_ => UIO.unit)
+                  .flatMap(ZIO.foreach(_)(_(Exit.interrupt(fiberId))))
             reservation <- newResource.reserve
-            _           <- finalizerRef.set(reservation.release)
+            _           <- finalizerRef.add(reservation.release)
             a           <- restore(reservation.acquire)
           } yield a
         }

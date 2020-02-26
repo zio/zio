@@ -88,7 +88,7 @@ object BuildHelper {
       (if (isDotty.value) Seq()
        else
          Seq(
-           "io.7mind.izumi" %%% "fundamentals-reflection" % "0.10.2-M8"
+           "dev.zio" %%% "izumi-reflect" % "0.11.0-M1"
          ))
   )
 

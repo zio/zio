@@ -750,12 +750,26 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(boom))
       },
       testM("propagates defects") {
-        val boom = new Exception("boom")
+        val boom                                 = new Exception("boom")
+        val die                                  = ZIO.dieNow(boom)
+        def joinDefect(fiber: Fiber[Nothing, _]) = fiber.join.sandbox.flip
         for {
-          fiber  <- ZIO.forkAll(List(ZIO.dieNow(boom)))
-          result <- fiber.join.sandbox.flip
-        } yield assert(result)(equalTo(Cause.die(boom)))
-      } @@ flaky
+          fiber1 <- ZIO.forkAll(List(die))
+          fiber2 <- ZIO.forkAll(List(die, ZIO.succeed(42)))
+          fiber3 <- ZIO.forkAll(List(die, ZIO.succeed(42), ZIO.never))
+
+          result1 <- joinDefect(fiber1)
+          result2 <- joinDefect(fiber2)
+          result3 <- joinDefect(fiber3)
+        } yield {
+          assert(result1)(equalTo(Cause.die(boom))) && {
+            assert(result2)(equalTo(Cause.die(boom))) ||
+            (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.interrupted)(isTrue))
+          } && {
+            assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.interrupted)(isTrue)
+          }
+        }
+      }
     ),
     suite("forkDaemon")(
       testM("child is unsupervised by parent") {

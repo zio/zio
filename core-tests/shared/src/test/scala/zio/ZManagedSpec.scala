@@ -838,15 +838,15 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("scope")(
       testM("runs finalizer on interruption") {
-        ZManaged.scope.use { scope =>
-          for {
-            ref    <- Ref.make(0)
-            res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
-            _      <- scope(res).run.ignore
-            result <- assertM(ref.get)(equalTo(1))
-          } yield result
-        }
-      },
+        for {
+          ref     <- Ref.make(0)
+          managed = makeTestManaged(ref)
+          zio     = ZManaged.scope.use(scope => scope(managed).fork.flatMap(_.join))
+          fiber   <- zio.fork
+          _       <- fiber.interrupt
+          result  <- ref.get
+        } yield assert(result)(equalTo(0))
+      } @@ nonFlaky,
       testM("runs finalizer when close is called") {
         ZManaged.scope.use { scope =>
           for {
@@ -1163,20 +1163,17 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(count)(equalTo(1))
       },
       testM("Runs finalizers if it is interrupted") {
-        val acquire1 = "Acquiring Module 1"
-        val acquire2 = "Acquiring Module 2"
-        val release1 = "Releasing Module 1"
-        val release2 = "Releasing Module 2"
         for {
-          ref      <- Ref.make(Vector.empty[String])
-          managed1 = ZManaged.make(ref.update(_ :+ acquire1))(_ => ref.update(_ :+ release1))
-          managed2 = ZManaged.make(ref.update(_ :+ acquire2))(_ => ref.update(_ :+ release2))
+          ref1     <- Ref.make(0)
+          ref2     <- Ref.make(0)
+          managed1 = makeTestManaged(ref1)
+          managed2 = makeTestManaged(ref2)
           managed3 = managed1 <&> managed2
           fiber    <- managed3.use_(ZIO.unit).fork
           _        <- fiber.interrupt
-          actual   <- ref.get
-        } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
-          (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
+          result1  <- ref1.get
+          result2  <- ref2.get
+        } yield assert(result1)(equalTo(0)) && assert(result2)(equalTo(0))
       } @@ nonFlaky
     ),
     suite("flatten")(
@@ -1419,6 +1416,14 @@ object ZManagedSpec extends ZIOBaseSpec {
       _                  <- reachedAcquisition.await
       interruption       <- Live.live(managedFiber.interruptAs(fiberId).timeout(5.seconds))
     } yield assert(interruption.map(_.untraced))(equalTo(expected(fiberId)))
+
+  def makeTestManaged(ref: Ref[Int]): Managed[Nothing, Unit] =
+    Managed {
+      val reserve = ref.update(_ + 1)
+      val acquire = ref.update(_ + 1)
+      val release = ref.update(n => if (n > 0) 0 else -1)
+      reserve *> ZIO.succeedNow(Reservation(acquire, _ => release))
+    }
 
   def testFinalizersPar[R, E](
     n: Int,

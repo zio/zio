@@ -16,11 +16,10 @@
 
 package zio.test
 
+import zio._
 import zio.duration._
-import zio.system
 import zio.test.Assertion.{ equalTo, hasMessage, isCase, isSubtype }
 import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem }
-import zio.{ Cause, Schedule, ZIO, ZManaged }
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -160,6 +159,38 @@ object TestAspect extends TimeoutVariants {
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
         effect *> test
+    }
+
+  /**
+   * An aspect that runs each test on a separate fiber and prints a fiber dump
+   * if the test fails or has not terminated within the specified duration.
+   */
+  def diagnose(duration: Duration): TestAspectAtLeastR[Live] =
+    new TestAspectAtLeastR[Live] {
+      def some[R <: Live, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] = {
+        def diagnose[R <: Live, E](
+          label: String,
+          test: ZIO[R, TestFailure[E], TestSuccess]
+        ): ZIO[R, TestFailure[E], TestSuccess] =
+          test.fork.flatMap { fiber =>
+            fiber.join.raceWith(Live.live(ZIO.sleep(duration)))(
+              (exit, sleepFiber) => dump(label, fiber).when(!exit.succeeded) *> sleepFiber.interrupt *> ZIO.done(exit),
+              (_, _) => dump(label, fiber) *> fiber.join
+            )
+          }
+        def dump[E, A](label: String, fiber: Fiber.Runtime[E, A]): ZIO[Live, Nothing, Unit] =
+          for {
+            dumps    <- Fiber.dump(Set(fiber))
+            dumpStrs <- ZIO.foreach(dumps)(_.prettyPrintM)
+            dumpStr  = s"$label: ${dumpStrs.mkString("\n")}"
+            _        <- Live.live(console.putStrLn(dumpStr))
+          } yield ()
+        spec.transform[R, TestFailure[E], TestSuccess] {
+          case c @ Spec.SuiteCase(_, _, _) => c
+          case Spec.TestCase(label, test, annotations) =>
+            Spec.TestCase(label, if (predicate(label)) diagnose(label, test) else test, annotations)
+        }
+      }
     }
 
   /**

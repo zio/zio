@@ -880,17 +880,17 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
     ZStream {
       for {
-        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
-        selfPull  <- Ref.make[Pull[R, E, A]](Pull.end).toManaged_
-        otherPull <- Ref.make[Pull[R1, E2, A1]](Pull.end).toManaged_
-        stateRef  <- Ref.make[State](State.NotStarted).toManaged_
+        finalizers <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+        selfPull   <- Ref.make[Pull[R, E, A]](Pull.end).toManaged_
+        otherPull  <- Ref.make[Pull[R1, E2, A1]](Pull.end).toManaged_
+        stateRef   <- Ref.make[State](State.NotStarted).toManaged_
         pull = {
           def switch(e: Cause[Option[E]]): Pull[R1, E2, A1] = {
             def next(e: Cause[E]) = ZIO.uninterruptibleMask { restore =>
               for {
-                _  <- finalizer.get.flatMap(_.apply(Exit.fail(e)))
+                _  <- finalizers.remove.flatMap(ZIO.foreach(_)(_(Exit.fail(e))))
                 r  <- f(e).process.reserve
-                _  <- finalizer.set(r.release)
+                _  <- finalizers.add(r.release)
                 as <- restore(r.acquire)
                 _  <- otherPull.set(as)
                 _  <- stateRef.set(State.Other)
@@ -909,7 +909,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
               ZIO.uninterruptibleMask { restore =>
                 for {
                   r  <- self.process.reserve
-                  _  <- finalizer.set(r.release)
+                  _  <- finalizers.add(r.release)
                   as <- restore(r.acquire)
                   _  <- selfPull.set(as)
                   _  <- stateRef.set(State.Self)
@@ -1301,7 +1301,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] = {
     def go(
       as: Pull[R1, E1, A],
-      finalizer: Ref[Exit[_, _] => URIO[R1, _]],
+      finalizers: ZManaged.FinalizerRef[R1],
       currPull: Ref[Pull[R1, E1, B]]
     ): Pull[R1, E1, B] = {
       val pullOuter = ZIO.uninterruptibleMask { restore =>
@@ -1309,7 +1309,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           (for {
             reservation <- f0(a).process.reserve
             bs          <- restore(reservation.acquire)
-            _           <- finalizer.set(reservation.release)
+            _           <- finalizers.add(reservation.release)
             _           <- currPull.set(bs)
           } yield ())
         }
@@ -1319,10 +1319,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         Cause.sequenceCauseOption(c) match {
           case Some(e) => Pull.haltNow(e)
           case None =>
-            (finalizer.get.flatMap(_(Exit.succeed(()))) *>
-              finalizer.set(_ => UIO.unit)).uninterruptible *>
+            finalizers
+              .replace(_ => UIO.unit)
+              .flatMap(ZIO.foreach(_)(_(Exit.unit)))
+              .uninterruptible *>
               pullOuter *>
-              go(as, finalizer, currPull)
+              go(as, finalizers, currPull)
         }
       }
     }
@@ -3265,7 +3267,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     ZStream {
       for {
         finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
-        pull         = (finalizerRef.set(_ => finalizer) *> Pull.end).uninterruptible
+        pull         = (finalizerRef.add(_ => finalizer) *> Pull.end).uninterruptible
       } yield pull
     }
 
@@ -3425,7 +3427,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
               (for {
                 _           <- doneRef.set(true)
                 reservation <- managed.reserve
-                _           <- finalizer.set(reservation.release)
+                _           <- finalizer.add(reservation.release)
                 a           <- restore(reservation.acquire)
               } yield a).mapError(Some(_))
           }
