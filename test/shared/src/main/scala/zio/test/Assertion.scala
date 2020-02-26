@@ -597,10 +597,7 @@ object Assertion extends AssertionVariants {
    * }}}
    */
   def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
-    Assertion.assertionRec("isSubtype")(param(className(C)))(assertion) { actual =>
-      if (C.runtimeClass.isAssignableFrom(actual.getClass())) Some(actual.asInstanceOf[A])
-      else None
-    }
+    Assertion.assertionRec("isSubtype")(param(className(C)))(assertion)(C.unapply(_))
 
   /**
    * Makes a new assertion that requires a value be true.
