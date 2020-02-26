@@ -40,7 +40,7 @@ final case class TestRunner[R <: Has[_], E](
    */
   def run(spec: ZSpec[R, E]): URIO[TestLogger with Clock, ExecutedSpec[E]] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
-      case (duration, results) => reporter(duration, results).as(results)
+      case (duration, results) => reporter.report(duration, results).as(results)
     }
 
   /**

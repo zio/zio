@@ -16,12 +16,9 @@
 
 package zio
 
-import scala.deprecated
-
 import zio.console.Console
-import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
-import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem }
+import zio.test.environment._
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -65,20 +62,6 @@ package object test extends CompileVariants {
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
   type TestResult = BoolAlgebraM[Any, Nothing, FailureDetails]
-
-  /**
-   * A `TestReporter[E]` is capable of reporting test results with error type
-   * `E`.
-   */
-  type TestReporter[-E] = (Duration, ExecutedSpec[E]) => URIO[TestLogger, Unit]
-
-  object TestReporter {
-
-    /**
-     * TestReporter that does nothing
-     */
-    val silent: TestReporter[Any] = (_, _) => ZIO.unit
-  }
 
   /**
    * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable Restorable]]

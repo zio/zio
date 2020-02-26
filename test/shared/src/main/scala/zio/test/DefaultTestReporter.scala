@@ -18,26 +18,21 @@ package zio.test
 
 import java.util.regex.Pattern
 
-import scala.io.AnsiColor
-
 import zio.duration.Duration
-import zio.test.ConsoleUtils.{ cyan, red, _ }
-import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
+import zio.test.ConsoleUtils.{cyan, red, _}
+import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
-import zio.test.RenderedResult.{ CaseType, Status }
-import zio.test.mock.MockException.{
-  InvalidArgumentsException,
-  InvalidMethodException,
-  UnexpectedCallExpection,
-  UnmetExpectationsException
-}
-import zio.test.mock.{ Method, MockException }
-import zio.{ Cause, UIO, URIO }
+import zio.test.RenderedResult.{CaseType, Status}
+import zio.test.mock.MockException.{InvalidArgumentsException, InvalidMethodException, UnexpectedCallExpection, UnmetExpectationsException}
+import zio.test.mock.{Method, MockException}
+import zio.{Cause, UIO, URIO}
+
+import scala.io.AnsiColor
 
 object DefaultTestReporter {
 
-  def render[E](
+  def renderSpec[E](
     executedSpec: ExecutedSpec[E],
     testAnnotationRenderer: TestAnnotationRenderer
   ): UIO[Seq[RenderedResult[String]]] = {
@@ -102,13 +97,16 @@ object DefaultTestReporter {
     loop(executedSpec, 0, List.empty)
   }
 
-  def apply[E](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E] = {
-    (duration: Duration, executedSpec: ExecutedSpec[E]) =>
+  def apply[E](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E] = new TestReporter[E] {
+    override def report(duration: Duration, executedSpec: ExecutedSpec[E]): URIO[TestLogger, Unit] =
       for {
         rendered <- render(executedSpec, testAnnotationRenderer).map(_.flatMap(_.rendered))
         stats    <- logStats(duration, executedSpec)
         _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
       } yield ()
+
+    override def render(executedSpec: ExecutedSpec[E], renderer: TestAnnotationRenderer): UIO[Seq[RenderedResult[String]]] =
+      renderSpec(executedSpec, renderer)
   }
 
   private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): URIO[TestLogger, String] = {
