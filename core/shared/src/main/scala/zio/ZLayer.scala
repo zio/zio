@@ -81,12 +81,12 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     success: ZLayer[ROut, E1, ROut2]
   ): ZLayer[RIn, E1, ROut2] =
     new ZLayer(
-      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
+      ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
         memoMap
-          .getOrElseMemoize(self, finalizerRef)
+          .getOrElseMemoize(self, finalizers)
           .foldM(
-            e => memoMap.getOrElseMemoize(failure, finalizerRef).provide(e),
-            r => memoMap.getOrElseMemoize(success, finalizerRef).provide(r)
+            e => memoMap.getOrElseMemoize(failure, finalizers).provide(e),
+            r => memoMap.getOrElseMemoize(success, finalizers).provide(r)
           )
       }
     )
@@ -132,8 +132,8 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     that: ZLayer[RIn2, E1, ROut2]
   )(f: (ROut, ROut2) => ROut3): ZLayer[RIn with RIn2, E1, ROut3] =
     new ZLayer(
-      ZManaged.finalizerRef(_ => UIO.unit).map { finalizerRef => memoMap =>
-        memoMap.getOrElseMemoize(self, finalizerRef).zipWithPar(memoMap.getOrElseMemoize(that, finalizerRef))(f)
+      ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
+        memoMap.getOrElseMemoize(self, finalizers).zipWithPar(memoMap.getOrElseMemoize(that, finalizers))(f)
       }
     )
 }
@@ -622,52 +622,48 @@ object ZLayer {
           new MemoMap { self =>
             final def getOrElseMemoize[E, A, B <: Has[_]](
               layer: ZLayer[A, E, B],
-              finalizerRef: ZManaged.FinalizerRef[Any]
+              finalizers: ZManaged.FinalizerRef[Any]
             ): ZManaged[A, E, B] =
               ZManaged {
                 ref.modify { map =>
                   map.get(layer) match {
                     case Some(Reservation(acquire, release)) =>
-                      ZIO.succeedNow {
-                        (
-                          Reservation(
-                            acquire.bimap(_.asInstanceOf[E], _.asInstanceOf[B]),
-                            _ => finalizerRef.add(release)
-                          ),
-                          map
-                        )
-                      }
+                      val reservation = Reservation(
+                        acquire = acquire.asInstanceOf[IO[E, B]],
+                        release = _ => finalizers.add(release)
+                      )
+                      ZIO.succeedNow((reservation, map))
                     case None =>
                       for {
-                        promise    <- Promise.make[E, B]
-                        observers  <- Ref.make(0)
-                        releaseRef <- Ref.make[Exit[Any, Any] => ZIO[Any, Nothing, Any]](_ => UIO.unit)
-                      } yield (
-                        Reservation(
-                          ZIO.uninterruptibleMask { restore =>
-                            ZIO.accessM[A] { a =>
-                              layer.scope.flatMap(_.apply(self)).reserve.flatMap { reservation =>
-                                val release = (exit: Exit[Any, Any]) =>
-                                  reservation
-                                    .release(exit)
-                                    .whenM(observers.updateAndGet(_ - 1).map(_ == 0))
-                                    .provide(a)
-                                observers.update(_ + 1) *>
-                                  releaseRef.set(release) *>
-                                  restore(reservation.acquire).to(promise) *>
-                                  promise.await
-                              }
-                            }
+                        observers <- Ref.make(0)
+                        finalizer <- Ref.make[Exit[Any, Any] => UIO[Any]](_ => UIO.unit)
+                        promise   <- Promise.make[E, B]
+                      } yield {
+                        val reservation = Reservation(
+                          acquire = ZIO.uninterruptibleMask { restore =>
+                            for {
+                              env <- ZIO.environment[A]
+                              _   <- observers.update(_ + 1)
+                              res <- layer.scope.flatMap(_.apply(self)).reserve
+                              _ <- finalizer.set { exit =>
+                                    ZIO.whenM(observers.modify(n => (n == 1, n - 1))) {
+                                      res.release(exit).provide(env)
+                                    }
+                                  }
+                              _ <- restore(res.acquire).to(promise)
+                              b <- promise.await
+                            } yield b
                           },
-                          _ => finalizerRef.add(exit => releaseRef.get.flatMap(_(exit)))
-                        ),
-                        map + (layer -> Reservation(
-                          ZIO.uninterruptibleMask { restore =>
+                          release = _ => finalizers.add(exit => finalizer.get.flatMap(_(exit)))
+                        )
+                        val memoized = Reservation(
+                          acquire = ZIO.uninterruptibleMask { restore =>
                             observers.update(_ + 1) *> restore(promise.await)
                           },
-                          _ => finalizerRef.add(exit => releaseRef.get.flatMap(_(exit)))
-                        ))
-                      )
+                          release = exit => finalizer.get.flatMap(_(exit))
+                        )
+                        (reservation, map + (layer -> memoized))
+                      }
                   }
                 }
               }
