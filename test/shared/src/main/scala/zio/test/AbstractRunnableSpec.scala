@@ -41,9 +41,9 @@ abstract class AbstractRunnableSpec {
    */
   private[zio] final def runSpec(
     spec: ZSpec[Environment, Failure],
-    reporter: TestReporter[Failure] = runner.reporter
+    reporter: TestRenderer[Failure] = runner.renderer
   ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
-    runner.withReporter(reporter).run(aspects.foldLeft(spec)(_ @@ _))
+    runner.withRenderer(reporter).run(aspects.foldLeft(spec)(_ @@ _))
 
   /**
    * the platform used by the runner

@@ -29,18 +29,20 @@ import zio.internal.Platform
 final case class TestRunner[R <: Has[_], E](
   executor: TestExecutor[R, E],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[E] = DefaultTestReporter(TestAnnotationRenderer.default),
-  bootstrap: ZLayer.NoDeps[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live)
+  renderer: TestRenderer[E] = DefaultTestRenderer(),
+  bootstrap: ZLayer.NoDeps[Nothing, TestLogger with Clock] = (Console.live >>> TestLogger.fromConsole) ++ Clock.live
 ) { self =>
 
   lazy val runtime = Runtime((), platform)
+
+  lazy val reporter = DefaultTestReporter(renderer, TestAnnotationRenderer.default)
 
   /**
    * Runs the spec, producing the execution results.
    */
   def run(spec: ZSpec[R, E]): URIO[TestLogger with Clock, ExecutedSpec[E]] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
-      case (duration, results) => reporter.report(duration, results).as(results)
+      case (duration, results) => reporter(duration, results).as(results)
     }
 
   /**
@@ -73,10 +75,10 @@ final case class TestRunner[R <: Has[_], E](
     runtime.unsafeRunSync(run(spec).provideLayer(bootstrap))
 
   /**
-   * Creates a copy of this runner replacing the reporter.
+   * Creates a copy of this runner replacing the test renderer.
    */
-  def withReporter[E1 >: E](reporter: TestReporter[E1]) =
-    copy(reporter = reporter)
+  def withRenderer[E1 >: E](renderer: TestRenderer[E1]): TestRunner[R, E] =
+    copy(renderer = renderer)
 
   /**
    * Creates a copy of this runner replacing the platform

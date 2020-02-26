@@ -62,13 +62,12 @@ object ReportingTestUtils {
                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
                     TestLogger.fromConsole ++ TestClock.default
                   )
-      actualSummary <- SummaryBuilder.buildSummary(results)(DefaultTestReporter(TestAnnotationRenderer.default).render)
+      actualSummary <- SummaryBuilder.buildSummary(results, TestTestRunner(testEnvironment).renderer)
     } yield actualSummary.summary
 
   private[this] def TestTestRunner(testEnvironment: ZLayer.NoDeps[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
-      executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
-      reporter = DefaultTestReporter(TestAnnotationRenderer.default)
+      executor = TestExecutor.default[TestEnvironment, String](testEnvironment)
     )
 
   val test1         = zio.test.test("Addition works fine")(assert(1 + 1)(equalTo(2)))

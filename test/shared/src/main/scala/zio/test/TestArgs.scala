@@ -1,10 +1,10 @@
 package zio.test
 
 final case class TestArgs(
-  testSearchTerms: List[String],
-  tagSearchTerms: List[String],
-  testTaskPolicy: Option[String],
-  customTestReporter: Option[String]
+                           testSearchTerms: List[String],
+                           tagSearchTerms: List[String],
+                           testTaskPolicy: Option[String],
+                           customTestRenderer: Option[String]
 )
 
 object TestArgs {
@@ -18,7 +18,7 @@ object TestArgs {
         case Array("-t", term)       => ("testSearchTerm", term)
         case Array("-tags", term)    => ("tagSearchTerm", term)
         case Array("-policy", name)  => ("policy", name)
-        case Array("-reporter", fqn) => ("reporter", fqn)
+        case Array("-renderer", fqn) => ("renderer", fqn)
       }
       .toList
       .groupBy(_._1)
@@ -30,7 +30,7 @@ object TestArgs {
     val terms              = parsedArgs.getOrElse("testSearchTerm", Nil)
     val tags               = parsedArgs.getOrElse("tagSearchTerm", Nil)
     val testTaskPolicy     = parsedArgs.getOrElse("policy", Nil).headOption
-    val customTestReporter = parsedArgs.getOrElse("reporter", Nil).headOption
-    TestArgs(terms, tags, testTaskPolicy, customTestReporter)
+    val customTestRenderer = parsedArgs.getOrElse("renderer", Nil).headOption
+    TestArgs(terms, tags, testTaskPolicy, customTestRenderer)
   }
 }

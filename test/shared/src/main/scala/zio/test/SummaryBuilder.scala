@@ -4,9 +4,7 @@ import zio.test.Spec._
 import zio.{ UIO, ZIO }
 
 object SummaryBuilder {
-  def buildSummary[E](
-    executedSpec: ExecutedSpec[E]
-  )(ren: (ExecutedSpec[E], TestAnnotationRenderer) => UIO[Seq[RenderedResult[String]]]): UIO[Summary] =
+  def buildSummary[E](executedSpec: ExecutedSpec[E], renderer: TestRenderer[E]): UIO[Summary] =
     for {
       success <- countTestResults(executedSpec) {
                   case Right(TestSuccess.Succeeded(_)) => true
@@ -18,7 +16,7 @@ object SummaryBuilder {
                  case _                          => false
                }
       failures <- extractFailures(executedSpec)
-      rendered <- ZIO.foreach(failures)(ren(_, TestAnnotationRenderer.silent))
+      rendered <- ZIO.foreach(failures)(renderer.render(_, TestAnnotationRenderer.silent))
     } yield Summary(success, fail, ignore, rendered.flatten.flatMap(_.rendered).mkString("\n"))
 
   private def countTestResults[E](

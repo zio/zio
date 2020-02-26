@@ -29,25 +29,14 @@ trait RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
 
   private def run(
     spec: ZSpec[Environment, Failure],
-    reporter: TestReporter[Failure]
+    renderer: TestRenderer[Failure]
   ): URIO[TestLogger with Clock, Int] =
     for {
-      results     <- runSpec(spec, reporter)
+      results     <- runSpec(spec, renderer)
       hasFailures <- results.exists { case TestCase(_, test, _) => test.map(_.isLeft); case _ => UIO.succeedNow(false) }
-      summary     <- SummaryBuilder.buildSummary(results)(reporter.render)
+      summary     <- SummaryBuilder.buildSummary(results, runner.renderer)
       _           <- TestLogger.logLine(summary.summary)
     } yield if (hasFailures) 1 else 0
-
-  private def customReporter(testArgs: TestArgs): Option[TestReporter[Failure]] = {
-    import org.portablescala.reflect._
-    testArgs.customTestReporter
-      .map(_.stripSuffix("$") + "$")
-      .flatMap { fqn =>
-        Reflect
-          .lookupLoadableModuleClass(fqn)
-          .map(_.loadModule().asInstanceOf[TestReporter[Failure]])
-      }
-  }
 
   /**
    * A simple main function that can be used to run the spec.
@@ -55,17 +44,28 @@ trait RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
   final def main(args: Array[String]): Unit = {
     val testArgs     = TestArgs.parse(args)
     val filteredSpec = FilteredSpec(spec, testArgs)
-    val reporter     = customReporter(testArgs).getOrElse(runner.reporter)
+    val renderer     = customRenderer(testArgs).getOrElse(runner.renderer)
     val runtime      = runner.runtime
     if (TestPlatform.isJVM) {
-      val exitCode = runtime.unsafeRun(run(filteredSpec, reporter).provideLayer(runner.bootstrap))
+      val exitCode = runtime.unsafeRun(run(filteredSpec, renderer).provideLayer(runner.bootstrap))
       doExit(exitCode)
     } else if (TestPlatform.isJS) {
-      runtime.unsafeRunAsync[Nothing, Int](run(filteredSpec, reporter).provideLayer(runner.bootstrap)) { exit =>
+      runtime.unsafeRunAsync[Nothing, Int](run(filteredSpec, renderer).provideLayer(runner.bootstrap)) { exit =>
         val exitCode = exit.getOrElse(_ => 1)
         doExit(exitCode)
       }
     }
+  }
+
+  private def customRenderer(testArgs: TestArgs): Option[TestRenderer[Failure]] = {
+    import org.portablescala.reflect._
+    testArgs.customTestRenderer
+      .map(_.stripSuffix("$") + "$")
+      .flatMap { fqn =>
+        Reflect
+          .lookupLoadableModuleClass(fqn)
+          .map(_.loadModule().asInstanceOf[TestRenderer[Failure]])
+      }
   }
 
   private def doExit(exitCode: Int): Unit =
