@@ -96,9 +96,9 @@ object Take {
   case object End extends Take[Nothing, Nothing]
 
   /**
-    * Creates a `Take` from an effect.
-    */
-  def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Nothing, Take[E, A]] = 
+   * Creates a `Take` from an effect.
+   */
+  def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
     zio.foldCause(Take.Fail(_), Take.Value(_))
 
   /**

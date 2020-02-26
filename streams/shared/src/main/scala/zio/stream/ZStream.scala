@@ -1912,7 +1912,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         _ <- self.foreachManaged { a =>
               for {
                 p     <- Promise.make[E1, B]
-                latch <- Promise.make[Nothing,  Unit]
+                latch <- Promise.make[Nothing, Unit]
                 _     <- out.offer(Pull.fromPromise(p))
                 _     <- permits.withPermit(latch.succeed(()))
                 _     <- (f(a) to p).fork //Daemon
