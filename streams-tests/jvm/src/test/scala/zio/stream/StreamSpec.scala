@@ -1417,7 +1417,7 @@ object StreamSpec extends ZIOBaseSpec {
           mapMPar <- Stream.fromIterable(m).mapMPar(n)(UIO.succeedNow).runCollect
         } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
       })
-    ),
+    ) @@ TestAspect.forked,
     suite("Stream merging")(
       testM("merge")(checkM(streamOfInts, streamOfInts) { (s1: Stream[String, Int], s2: Stream[String, Int]) =>
         for {

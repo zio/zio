@@ -1387,10 +1387,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 cause => (ZIO.children.flatMap(Fiber.interruptAll) *> out.offer(Pull.haltNow(cause))).unit.toManaged_,
                 _ =>
                   ZIO.children.flatMap { pendingFibers =>
-                    innerFailure.await
+                    innerFailure.await.interruptible
                     // Important to use `withPermits` here because the ZManaged#fork below may interrupt
                     // the driver, and we want the permits to be released in that case
-                      .raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
+                      .raceWith(permits.withPermits(n.toLong)(ZIO.unit).interruptible)(
                         // One of the inner fibers failed. It already enqueued its failure, so we
                         // interrupt the inner fibers. The finalizer below will make sure
                         // that they actually end.
@@ -1909,15 +1909,15 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         permits <- Semaphore.make(n.toLong).toManaged_
         _ <- self.foreachManaged { a =>
               for {
-                latch <- Promise.make[Nothing, Unit]
                 p     <- Promise.make[E1, B]
+                latch <- Promise.make[Nothing,  Unit]
                 _     <- out.offer(Pull.fromPromise(p))
-                _     <- (permits.withPermit(latch.succeed(()) *> f(a).to(p))).fork
+                _     <- permits.withPermit(latch.succeed(()))
+                _     <- (f(a) to p).fork //Daemon
                 _     <- latch.await
               } yield ()
-
             }.foldCauseM(
-                c => (ZIO.children.flatMap(Fiber.interruptAll) *> out.offer(Pull.haltNow(c))).unit.toManaged_,
+                c => out.offer(Pull.haltNow(c)).unit.toManaged_,
                 _ => out.offer(Pull.end).unit.toManaged_
               )
               .fork
