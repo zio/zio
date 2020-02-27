@@ -462,7 +462,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect whose interruption will be disconnected from the
    * fiber's own interruption.
    */
-  final def disconnect: ZIO[R, E, A] = self.fork(SuperviseMode.Disown).flatMap(_.join)
+  final def disconnect: ZIO[R, E, A] =
+    ZIO.uninterruptibleMask { restore =>
+      for {
+        parentFiberId <- ZIO.fiberId
+        fiber         <- self.forkDaemon
+        res <- restore(fiber.join).onInterrupt(interruptors =>
+                fiber.interruptAs(interruptors.headOption.getOrElse(parentFiberId)).forkDaemon
+              )
+      } yield res
+    }
 
   /**
    * Repeats this effect until its result satisfies the specified predicate.
@@ -726,10 +735,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * that when the fiber executing this effect exits, the forked fiber will not
    * automatically be terminated. Disowned fibers become new root fibers.
    */
-  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = forkDaemon(SuperviseMode.Interrupt)
-
-  final def forkDaemon(superviseMode: SuperviseMode): URIO[R, Fiber.Runtime[E, A]] =
-    self.fork(superviseMode).tap(ZIO.disown(_))
+  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = self.fork.tap(ZIO.disown(_)).uninterruptible
 
   /**
    * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
@@ -927,19 +933,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self &&& ZIO.identity[R1]
 
   /**
-   * Runs the specified effect if this effect is externally interrupted.
+   * Runs the specified effect if this effect is interrupted.
    */
   final def onInterrupt[R1 <: R](cleanup: URIO[R1, Any]): ZIO[R1, E, A] =
+    onInterrupt(_ => cleanup)
+
+  /**
+   * Calls the specified function, and runs the effect it returns, if this
+   * effect is interrupted.
+   */
+  final def onInterrupt[R1 <: R](cleanup: Set[Fiber.Id] => URIO[R1, Any]): ZIO[R1, E, A] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).foldCauseM(
-        cause => if (cause.interrupted) cleanup *> ZIO.halt(cause) else ZIO.halt(cause),
+        cause => if (cause.interrupted) cleanup(cause.interruptors) *> ZIO.halt(cause) else ZIO.halt(cause),
         a => ZIO.succeed(a)
       )
     }
-
-  // ensuring(
-  //   ZIO.descriptorWith(descriptor => if (descriptor.interruptors.nonEmpty) cleanup else UIO(println(s"onInterrupt: ${descriptor}")) *> ZIO.unit)
-  // )
 
   /**
    * Returns this effect if environment is on the left, otherwise returns

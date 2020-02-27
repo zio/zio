@@ -2432,8 +2432,8 @@ object ZIOSpec extends ZIOBaseSpec {
             _     <- p2.await
           } yield ()
 
-        assertM(Live.live(io).timeoutTo(42)(_ => 0)(1.second))(equalTo(0))
-      } @@ flaky,
+        assertM(Live.live(io).timeoutTo(false)(_ => true)(10.seconds))(isTrue)
+      },
       testM("bracketForkExit release called on interrupt in separate fiber") {
         for {
           done <- Promise.make[Nothing, Unit]
@@ -2443,8 +2443,8 @@ object ZIOSpec extends ZIOBaseSpec {
                   }
 
           _ <- fiber.interrupt
-          r <- Live.live(done.await.timeoutTo(42)(_ => 0)(1.second))
-        } yield assert(r)(equalTo(0))
+          r <- Live.live(done.await.timeoutTo(false)(_ => true)(10.seconds))
+        } yield assert(r)(isTrue)
       },
       testM("catchAll + ensuring + interrupt") {
         import zio.CanFail.canFail
@@ -2587,15 +2587,14 @@ object ZIOSpec extends ZIOBaseSpec {
           res <- s.interrupt
           _   <- p3.succeed(())
         } yield assert(res)(isInterrupted)
-      },
+      } @@ TestAspect.diagnose(10.seconds),
       testM("interruptibleDisconnect forks execution and interrupts fork") {
         val io =
           for {
             r  <- Ref.make(false)
             p1 <- Promise.make[Nothing, Unit]
-            p2 <- Promise.make[Nothing, Int]
             p3 <- Promise.make[Nothing, Unit]
-            s <- (p1.succeed(()) *> p2.await)
+            s <- (p1.succeed(()) *> ZIO.never)
                   .ensuring(r.set(true) *> clock.sleep(10.millis) *> p3.succeed(()))
                   .interruptibleDisconnect
                   .fork
@@ -2606,7 +2605,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield test
 
         assertM(Live.live(io))(isTrue)
-      },
+      } @@ TestAspect.diagnose(10.seconds),
       testM("cause reflects interruption") {
         val io =
           for {
