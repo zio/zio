@@ -458,28 +458,15 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
         acquire = UIO.succeedNow(fiber),
         release = e =>
           (superviseMode match {
-            case SuperviseMode.Interrupt => fiber.interrupt
-            case SuperviseMode.Await     => fiber.await
-            case SuperviseMode.Disown    => fiber.interrupt // TODO
-          }) *> finalizer.get.flatMap(f => f(e))
+            case SuperviseMode.Interrupt => fiber.interrupt *> finalizer.get.flatMap(f => f(e))
+            case SuperviseMode.Await     => fiber.await *> finalizer.get.flatMap(f => f(e))
+            case SuperviseMode.Disown =>
+              ZIO.disown(fiber) *> (fiber.await *> finalizer.get.flatMap(f => f(e)).uninterruptible.forkDaemon) // TODO: Testme
+          })
       )
     }
 
-  def fork: ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
-    ZManaged {
-      for {
-        finalizer <- Ref.make[Exit[Any, Any] => ZIO[R, Nothing, Any]](_ => UIO.unit)
-        // The reservation phase of the new `ZManaged` runs uninterruptibly;
-        // so to make sure the acquire phase of the original `ZManaged` runs
-        // interruptibly, we need to create an interruptible hole in the region.
-        fiber <- ZIO.interruptibleMask { restore =>
-                  restore(self.reserve.tap(r => finalizer.set(r.release))) >>= (_.acquire)
-                }.fork
-      } yield Reservation(
-        acquire = UIO.succeedNow(fiber),
-        release = e => fiber.interrupt *> finalizer.get.flatMap(f => f(e))
-      )
-    }
+  def fork: ZManaged[R, Nothing, Fiber.Runtime[E, A]] = fork(SuperviseMode.Interrupt)
 
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
