@@ -444,6 +444,26 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * and provides that fiber. The finalizer for this value will interrupt the fiber
    * and run the original finalizer.
    */
+  def fork(superviseMode: SuperviseMode): ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
+    ZManaged {
+      for {
+        finalizer <- Ref.make[Exit[Any, Any] => ZIO[R, Nothing, Any]](_ => UIO.unit)
+        // The reservation phase of the new `ZManaged` runs uninterruptibly;
+        // so to make sure the acquire phase of the original `ZManaged` runs
+        // interruptibly, we need to create an interruptible hole in the region.
+        fiber <- ZIO.interruptibleMask { restore =>
+                  restore(self.reserve.tap(r => finalizer.set(r.release))) >>= (_.acquire)
+                }.fork
+      } yield Reservation(
+        acquire = UIO.succeedNow(fiber),
+        release = e => (superviseMode match {
+          case SuperviseMode.Interrupt => fiber.interrupt
+          case SuperviseMode.Await     => fiber.await 
+          case SuperviseMode.Disown    => fiber.interrupt // TODO
+        }) *> finalizer.get.flatMap(f => f(e))
+      )
+    }
+
   def fork: ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
     ZManaged {
       for {

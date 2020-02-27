@@ -99,7 +99,7 @@ trait Runtime[+R] {
       environment.asInstanceOf[AnyRef],
       platform.executor,
       InitialInterruptStatus,
-      InterruptMode.Await,
+      SuperviseMode.Interrupt,
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap()

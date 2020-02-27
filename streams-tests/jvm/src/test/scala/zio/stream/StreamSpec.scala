@@ -23,7 +23,7 @@ import zio.test.Assertion.{
   isUnit,
   startsWith
 }
-import zio.test.TestAspect.flaky
+import zio.test.TestAspect.{ diagnose, flaky }
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
@@ -1388,7 +1388,7 @@ object StreamSpec extends ZIOBaseSpec {
             r <- IO.foreachParN(8)(data)(f)
           } yield assert(l)(equalTo(r))
         }
-      },
+      } @@ diagnose(30.seconds),
       testM("order when n = 1") {
         for {
           queue  <- Queue.unbounded[Int]

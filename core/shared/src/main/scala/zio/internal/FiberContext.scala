@@ -37,7 +37,7 @@ private[zio] final class FiberContext[E, A](
   startEnv: AnyRef,
   startExec: Executor,
   startIStatus: InterruptStatus,
-  interruptMode: InterruptMode,
+  private val superviseMode: SuperviseMode,
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals
@@ -222,8 +222,8 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], race.interruptMode)
-    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], race.interruptMode)
+    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], race.leftSuperviseMode)
+    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], race.rightSuperviseMode)
 
     ZIO
       .effectAsync[R, E, C] { cb =>
@@ -489,7 +489,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = nextInstr(fork(zio.value, zio.interruptMode))
+                    curZio = nextInstr(fork(zio.value, zio.superviseMode))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
@@ -628,7 +628,7 @@ private[zio] final class FiberContext[E, A](
   /**
    * Forks an `IO` with the specified failure handler.
    */
-  def fork[E, A](zio: IO[E, A], interruptMode: InterruptMode): FiberContext[E, A] = {
+  def fork[E, A](zio: IO[E, A], superviseMode: SuperviseMode): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
     childFiberRefLocals.putAll(fiberRefLocals)
 
@@ -643,7 +643,7 @@ private[zio] final class FiberContext[E, A](
       environments.peek(),
       executors.peek(),
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
-      interruptMode,
+      superviseMode,
       ancestry,
       tracingRegion,
       childFiberRefLocals
@@ -723,7 +723,7 @@ private[zio] final class FiberContext[E, A](
   final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(childrenToScala())
 
   @silent("JavaConverters")
-  private def childrenToScala(): Iterable[Fiber[Any, Any]] = withChildren(_.asScala.toSet.filter(_ ne null))
+  private def childrenToScala(): Iterable[FiberContext[Any, Any]] = withChildren(_.asScala.toSet.filter(_ ne null))
 
   def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.doneNow(x)))
@@ -867,18 +867,24 @@ private[zio] final class FiberContext[E, A](
         else {
           // Create an effect to interrupt all children, making sure to clear
           // out the child list:
-          val interruptAll = UIO.effectSuspendTotal {
+          val completeAll = UIO.effectSuspendTotal {
             val children = childrenToScala()
 
             withChildren(_.clear())
 
-            Fiber.interruptAllAs(fiberId)(children)
+            ZIO.foreach_(children) { child =>
+              child.superviseMode match {
+                case SuperviseMode.Disown    => UIO(Fiber.track(child))
+                case SuperviseMode.Await     => child.await
+                case SuperviseMode.Interrupt => child.interruptAs(fiberId)
+              }
+            }
           }
 
           // Create an effect do execute the pending effects:
           val pendingEffects = evalOn.fold[UIO[Any]](ZIO.unit)(identity)
 
-          pendingEffects *> interruptAll *> ZIO.done(v)
+          pendingEffects *> completeAll *> ZIO.done(v)
         }
 
       case Done(_) => null // Already done
@@ -921,10 +927,9 @@ private[zio] final class FiberContext[E, A](
     }
 
     UIO.effectSuspendTotal {
-      val newCause = setInterruptedLoop()
+      setInterruptedLoop()
 
-      if (interruptMode eq InterruptMode.Fork) UIO(Exit.Failure(newCause))
-      else await
+      await
     }
   }
 

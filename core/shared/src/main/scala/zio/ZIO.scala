@@ -460,9 +460,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Returns an effect whose interruption will be disconnected from the
-   * fiber's interruption.
+   * fiber's own interruption.
    */
-  final def disconnect: ZIO[R, E, A] = new ZIO.Fork(self, InterruptMode.Fork).flatMap(_.join)
+  final def disconnect: ZIO[R, E, A] = self.fork(SuperviseMode.Disown).flatMap(_.join)
 
   /**
    * Repeats this effect until its result satisfies the specified predicate.
@@ -717,28 +717,39 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * } yield a
    * }}}
    */
-  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, InterruptMode.Await)
+  final def fork: URIO[R, Fiber.Runtime[E, A]] = fork(SuperviseMode.Interrupt)
+
+  final def fork(superviseMode: SuperviseMode): URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, superviseMode)
 
   /**
    * Forks the effect into a new fiber, but immediately disowns the fiber, so
    * that when the fiber executing this effect exits, the forked fiber will not
    * automatically be terminated. Disowned fibers become new root fibers.
    */
-  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = self.fork.tap(ZIO.disown(_))
+  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = forkDaemon(SuperviseMode.Interrupt)
+
+  final def forkDaemon(superviseMode: SuperviseMode): URIO[R, Fiber.Runtime[E, A]] =
+    self.fork(superviseMode).tap(ZIO.disown(_))
 
   /**
    * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
    * execute the effect in the fiber, while ensuring its interruption when
    * the effect supplied to [[ZManaged#use]] completes.
    */
-  final def forkManaged: ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
-    toManaged_.fork
+  final def forkManaged(
+    superviseMode: SuperviseMode = SuperviseMode.Interrupt
+  ): ZManaged[R, Nothing, Fiber.Runtime[E, A]] = toManaged_.fork(superviseMode)
+
+  final def forkManaged: ZManaged[R, Nothing, Fiber.Runtime[E, A]] = forkManaged(SuperviseMode.Interrupt)
 
   /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
    */
-  final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber.Runtime[E, A]] =
-    self.on(ec).fork
+  final def forkOn(
+    ec: ExecutionContext,
+    superviseMode: SuperviseMode = SuperviseMode.Interrupt
+  ): ZIO[R, E, Fiber.Runtime[E, A]] =
+    self.on(ec).fork(superviseMode)
 
   /**
    * Like [[fork]] but handles an error with the provided handler.
@@ -1299,14 +1310,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def raceWith[R1 <: R, E1, E2, B, C](that: ZIO[R1, E1, B])(
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
-    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
+    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C],
+    leftSuperviseMode: SuperviseMode = SuperviseMode.Interrupt,
+    rightSuperviseMode: SuperviseMode = SuperviseMode.Interrupt
   ): ZIO[R1, E2, C] =
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       self,
       that,
       (exit, fiber) => leftDone(exit, fiber),
       (exit, fiber) => rightDone(exit, fiber),
-      InterruptMode.Await
+      leftSuperviseMode,
+      rightSuperviseMode
     )
 
   /**
@@ -2266,7 +2280,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       a <- ZIO.uninterruptibleMask { restore =>
             val f = register(k => r.unsafeRunAsync_(k.to(p)))
 
-            new ZIO.Fork(restore(f.catchAllCause(p.halt)), InterruptMode.Fork) *> restore(p.await)
+            restore(f.catchAllCause(p.halt)).fork(SuperviseMode.Disown) *> restore(p.await)
           }
     } yield a
 
@@ -3630,7 +3644,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply(v: A): ZIO[R, E2, B] = success(v)
   }
 
-  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A], val interruptMode: InterruptMode)
+  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A], val superviseMode: SuperviseMode)
       extends URIO[R, Fiber.Runtime[E, A]] {
     override def tag = Tags.Fork
   }
@@ -3708,7 +3722,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val right: ZIO[R, ER, B],
     val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
     val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
-    val interruptMode: InterruptMode
+    val leftSuperviseMode: SuperviseMode,
+    val rightSuperviseMode: SuperviseMode
   ) extends ZIO[R, E, C] {
     override def tag: Int = Tags.RaceWith
   }
@@ -3731,11 +3746,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] def dieNow(t: Throwable): UIO[Nothing] = die(t)
 
   private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = r match {
-    case Exit.Success(b)     => succeed(b)
-    case Exit.Failure(cause) => halt(cause)
+    case Exit.Success(b)     => succeedNow(b)
+    case Exit.Failure(cause) => haltNow(cause)
   }
 
-  private[zio] def failNow[E](error: E): IO[E, Nothing] = fail(error)
+  private[zio] def failNow[E](error: E): IO[E, Nothing] = new ZIO.Fail(_ => Cause.fail(error))
 
   private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
 
