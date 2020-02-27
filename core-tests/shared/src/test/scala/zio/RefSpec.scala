@@ -1,7 +1,7 @@
 package zio
 
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 object RefSpec extends ZIOBaseSpec {
 
@@ -10,49 +10,45 @@ object RefSpec extends ZIOBaseSpec {
       for {
         ref   <- Ref.make(current)
         value <- ref.get
-      } yield assert(value, equalTo(current))
+      } yield assert(value)(equalTo(current))
     },
-    testM("set") {
+    testM("getAndUpdate") {
       for {
-        ref   <- Ref.make(current)
-        _     <- ref.set(update)
-        value <- ref.get
-      } yield assert(value, equalTo(update))
+        ref    <- Ref.make(current)
+        value1 <- ref.getAndUpdate(_ => update)
+        value2 <- ref.get
+      } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
     },
-    testM("update") {
-      for {
-        ref   <- Ref.make(current)
-        value <- ref.update(_ => update)
-      } yield assert(value, equalTo(update))
-    },
-    testM("updateSome") {
-      for {
-        ref   <- Ref.make[State](Active)
-        value <- ref.updateSome { case Closed => Changed }
-      } yield assert(value, equalTo(Active))
-    },
-    testM("updateSome twice") {
+    testM("getAndUpdateSome") {
       for {
         ref    <- Ref.make[State](Active)
-        value1 <- ref.updateSome { case Active => Changed }
-        value2 <- ref.updateSome {
+        value1 <- ref.getAndUpdateSome { case Closed => Changed }
+        value2 <- ref.get
+      } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Active))
+    },
+    testM("getAndUpdateSome twice") {
+      for {
+        ref    <- Ref.make[State](Active)
+        value1 <- ref.getAndUpdateSome { case Active => Changed }
+        value2 <- ref.getAndUpdateSome {
                    case Active  => Changed
                    case Changed => Closed
                  }
-      } yield assert(value1, equalTo(Changed)) && assert(value2, equalTo(Closed))
+        value3 <- ref.get
+      } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Changed)) && assert(value3)(equalTo(Closed))
     },
     testM("modify") {
       for {
         ref   <- Ref.make(current)
         r     <- ref.modify[String](_ => ("hello", update))
         value <- ref.get
-      } yield assert(r, equalTo("hello")) && assert(value, equalTo(update))
+      } yield assert(r)(equalTo("hello")) && assert(value)(equalTo(update))
     },
     testM("modifySome") {
       for {
         ref   <- Ref.make[State](Active)
         value <- ref.modifySome[String]("State doesn't change") { case Closed => ("active", Active) }
-      } yield assert(value, equalTo("State doesn't change"))
+      } yield assert(value)(equalTo("State doesn't change"))
     },
     testM("modifySome twice") {
       for {
@@ -62,7 +58,36 @@ object RefSpec extends ZIOBaseSpec {
                    case Active  => ("changed", Changed)
                    case Changed => ("closed", Closed)
                  }
-      } yield assert(value1, equalTo("changed")) && assert(value2, equalTo("closed"))
+      } yield assert(value1)(equalTo("changed")) && assert(value2)(equalTo("closed"))
+    },
+    testM("set") {
+      for {
+        ref   <- Ref.make(current)
+        _     <- ref.set(update)
+        value <- ref.get
+      } yield assert(value)(equalTo(update))
+    },
+    testM("updateAndGet") {
+      for {
+        ref   <- Ref.make(current)
+        value <- ref.updateAndGet(_ => update)
+      } yield assert(value)(equalTo(update))
+    },
+    testM("updateSomeAndGet") {
+      for {
+        ref   <- Ref.make[State](Active)
+        value <- ref.updateSomeAndGet { case Closed => Changed }
+      } yield assert(value)(equalTo(Active))
+    },
+    testM("updateSomeAndGet twice") {
+      for {
+        ref    <- Ref.make[State](Active)
+        value1 <- ref.updateSomeAndGet { case Active => Changed }
+        value2 <- ref.updateSomeAndGet {
+                   case Active  => Changed
+                   case Changed => Closed
+                 }
+      } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
     }
   )
 

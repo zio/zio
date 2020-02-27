@@ -1,8 +1,9 @@
 package zio
 
-import zio.test._
-import zio.test.Assertion._
 import zio.LatchOps._
+import zio.test.Assertion._
+import zio.test.TestAspect._
+import zio.test._
 
 object FiberSpec extends ZIOBaseSpec {
 
@@ -16,7 +17,7 @@ object FiberSpec extends ZIOBaseSpec {
         _     <- fiber.toManaged.use(_ => IO.unit)
         _     <- fiber.await
         value <- ref.get
-      } yield assert(value, isTrue)
+      } yield assert(value)(isTrue)
     }),
     suite("`inheritLocals` works for Fiber created using:")(
       testM("`map`") {
@@ -27,7 +28,7 @@ object FiberSpec extends ZIOBaseSpec {
                   }
           _     <- child.map(_ => ()).inheritRefs
           value <- fiberRef.get
-        } yield assert(value, equalTo(update))
+        } yield assert(value)(equalTo(update))
       },
       testM("`orElse`") {
         for {
@@ -39,7 +40,7 @@ object FiberSpec extends ZIOBaseSpec {
           _        <- latch1.await *> latch2.await
           _        <- child1.orElse(child2).inheritRefs
           value    <- fiberRef.get
-        } yield assert(value, equalTo("child1"))
+        } yield assert(value)(equalTo("child1"))
       },
       testM("`zip`") {
         for {
@@ -51,7 +52,7 @@ object FiberSpec extends ZIOBaseSpec {
           _        <- latch1.await *> latch2.await
           _        <- child1.zip(child2).inheritRefs
           value    <- fiberRef.get
-        } yield assert(value, equalTo("child1"))
+        } yield assert(value)(equalTo("child1"))
       }
     ),
     suite("`Fiber.join` on interrupted Fiber")(
@@ -60,29 +61,29 @@ object FiberSpec extends ZIOBaseSpec {
 
         for {
           exit <- Fiber.interruptAs(fiberId).join.run
-        } yield assert(exit, equalTo(Exit.interrupt(fiberId)))
+        } yield assert(exit)(equalTo(Exit.interrupt(fiberId)))
       }
     ),
     suite("if one composed fiber fails then all must fail")(
       testM("`await`") {
         for {
           exit <- Fiber.fail("fail").zip(Fiber.never).await
-        } yield assert(exit, fails(equalTo("fail")))
+        } yield assert(exit)(fails(equalTo("fail")))
       },
       testM("`join`") {
         for {
           exit <- Fiber.fail("fail").zip(Fiber.never).join.run
-        } yield assert(exit, fails(equalTo("fail")))
+        } yield assert(exit)(fails(equalTo("fail")))
       },
       testM("`awaitAll`") {
         for {
           exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).run
-        } yield assert(exit, succeeds(isUnit))
+        } yield assert(exit)(succeeds(isUnit))
       },
       testM("`joinAll`") {
         for {
           exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).run
-        } yield assert(exit, succeeds(isUnit))
+        } yield assert(exit)(succeeds(isUnit))
       },
       testM("shard example") {
         def shard[R, E, A](queue: Queue[A], n: Int, worker: A => ZIO[R, E, Unit]): ZIO[R, E, Nothing] = {
@@ -92,13 +93,38 @@ object FiberSpec extends ZIOBaseSpec {
         for {
           queue  <- Queue.unbounded[Int]
           _      <- queue.offerAll(1 to 100)
-          worker = (n: Int) => if (n == 100) ZIO.fail("fail") else queue.offer(n).unit
+          worker = (n: Int) => if (n == 100) ZIO.failNow("fail") else queue.offer(n).unit
           exit   <- shard(queue, 4, worker).run
           _      <- queue.shutdown
-        } yield assert(exit, fails(equalTo("fail")))
+        } yield assert(exit)(fails(equalTo("fail")))
       }
-    )
+    ),
+    testM("grandparent interruption is propagated to grandchild despite parent termination") {
+      for {
+        latch1 <- Promise.make[Nothing, Unit]
+        latch2 <- Promise.make[Nothing, Unit]
+        c      = ZIO.never.interruptible.onInterrupt(latch2.succeed(()))
+        b      = c.fork
+        a      = (latch1.succeed(()) *> b.fork).uninterruptible *> ZIO.never
+        fiber  <- a.fork
+        _      <- latch1.await
+        _      <- fiber.interrupt
+        _      <- latch2.await
+      } yield assertCompletes
+    } @@ nonFlaky,
+    suite("stack safety")(
+      testM("awaitAll") {
+        assertM(Fiber.awaitAll(fibers))(anything)
+      },
+      testM("joinAll") {
+        assertM(Fiber.joinAll(fibers))(anything)
+      },
+      testM("collectAll") {
+        assertM(Fiber.collectAll(fibers).join)(anything)
+      }
+    ) @@ sequential
   )
 
   val (initial, update) = ("initial", "update")
+  val fibers            = List.fill(100000)(Fiber.unit)
 }

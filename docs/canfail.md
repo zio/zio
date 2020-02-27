@@ -10,7 +10,6 @@ ZIO provides a variety of combinators to handle errors such as `orElse`, `catchA
 Code | Rewrite 
 --- | ---
 `uio <> zio` | `uio`
-`uio.asError(e)` | `uio`
 `uio.bimap(f, g)` |  `uio.map(g)`
 `uio.catchAll(f)` | `uio`
 `uio.catchSome(pf)` | `uio`
@@ -25,6 +24,8 @@ Code | Rewrite
 `uio.orDieWith(f)` | `uio`
 `uio.orElse(zio)` | `uio`
 `uio.orElseEither(zio)` | `uio`*
+`uio.orElseFail(e)` | `uio`
+`uio.asElseSucceed(a)` | `uio`
 `uio.refineOrDie(pf)` | `uio`
 `uio.refineOrDieWith(pf)(f)` | `uio`
 `uio.refineToOrDie` | `uio`
@@ -33,6 +34,11 @@ Code | Rewrite
 `uio.retryOrElseEither(s, f)` | `uio`*
 `uio.tapBoth(f, g)` | `uio.tap(g)`
 `uio.tapError(f)` | `uio`
+`ZIO.partitionM(in)(f)` | `ZIO.foreach(in)(f)`*
+`ZIO.partitionMPar(in)(f)` | `ZIO.foreachPar(in)(f)`*
+`ZIO.partitionMParN(n)(in)(f)` | `ZIO.foreachParN(n)(in)(f)`*
+`ZIO.validateM(in)(f)` | `ZIO.foreach(in)(f)`*
+`ZIO.validateFirstM(in)(f)` | `ZIO.foreach(in)(f)`*
 
 **ZManaged**
 
@@ -52,6 +58,8 @@ Code | Rewrite
 `umanaged.orDieWith(f)` | `umanaged`
 `umanaged.orElse(zmanaged)` | `umanaged`
 `umanaged.orElseEither(zmanaged)` | `umanaged`
+`umanaged.orElseFail(e)` | `umanaged`
+`umanaged.asElseSucceed(a)` | `umanaged`
 `umanaged.refineOrDie(pf)` | `umanaged`
 `umanaged.refineToOrDie` | `umanaged`
 `umanaged.refineToOrDieWith(pf)(f)` | `umanaged`
@@ -74,4 +82,8 @@ Code | Rewrite
 `ustream.either` | `ustream`
 `ustream.orElse(zstream)` | `ustream`
 
-* `either`, `option`, `orElseEither`, and `retryOrElseEither` wrap their results in `Some` or `Right` so after rewriting, code calling these methods can be simplified to accept an `A` rather than an `Option[A]` or `Either[E, A]`.
+(*) Notes:
+
+- `either`, `option`, `orElseEither`, and `retryOrElseEither` wrap their results in `Some` or `Right` so after rewriting, code calling these methods can be simplified to accept an `A` rather than an `Option[A]` or `Either[E, A]`. 
+
+- `partitionM`, `partitionMPar`, `partitionMParN`, `validateM` and `validateFirstM` have error accumulating semantics on either error channel or success channel. After rewrite the error type can be simplified to `E` rather than `List[E]` or the success type `List[B]` instead of `(List[E], List[B])`.

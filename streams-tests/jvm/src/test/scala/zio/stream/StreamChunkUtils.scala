@@ -2,6 +2,7 @@ package zio.stream
 
 import scala.annotation.tailrec
 import scala.reflect.ClassTag
+
 import zio.random.Random
 import zio.test.{ Gen, Sized }
 import zio.{ Chunk, IO }
@@ -37,6 +38,5 @@ object StreamChunkUtils extends StreamChunkUtils with GenUtils {
     loop(list, zero)
   }
 
-  val chunksOfInts    = pureStreamChunkGen(smallChunks(intGen))
-  val chunksOfStrings = pureStreamChunkGen(smallChunks(stringGen))
+  val chunksOfInts = pureStreamChunkGen(smallChunks(intGen))
 }

@@ -1,7 +1,7 @@
 package zio
 
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 object NeedsEnvSpec extends ZIOBaseSpec {
 
@@ -12,10 +12,10 @@ object NeedsEnvSpec extends ZIOBaseSpec {
             import zio._
             import zio.console._
             val sayHello = console.putStrLn("Hello, World!")
-            sayHello.provide(Console.Live)
+            sayHello.provideLayer(Console.live)
             """
       }
-      assertM(result, isRight(isUnit))
+      assertM(result)(isRight(isUnit))
     },
     testM("useless combinators don't compile") {
       val result = typeCheck {
@@ -23,10 +23,10 @@ object NeedsEnvSpec extends ZIOBaseSpec {
             import zio._
             import zio.console._
             val uio = UIO.succeed("Hello, World!")
-            uio.provide(Console.Live)
+            uio.provideLayer(Console.live)
             """
       }
-      assertM(result, isLeft(anything))
+      assertM(result)(isLeft(anything))
     }
   )
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package zio.stm
 
-import zio.{ Fiber, Managed }
-
 import TReentrantLock._
+
+import zio.{ Fiber, Managed }
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
@@ -36,11 +36,11 @@ import TReentrantLock._
  * allows this structure to be composed into more complicated concurrent
  * structures that are consumed from effectful code.
  */
-class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
+final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
 
   /**
-   * Acquires a read lock. The transaction will suspend until no other fibers
-   * are holding read locks. Succeeds with the number of write locks held by
+   * Acquires a read lock. The transaction will suspend until no other fiber
+   * is holding a write lock. Succeeds with the number of read locks held by
    * this fiber.
    */
   lazy val acquireRead: STM[Nothing, Int] =
@@ -70,29 +70,29 @@ class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
    *
    * See [[writeLock]].
    */
-  final lazy val lock: Managed[Nothing, Int] = writeLock
+  lazy val lock: Managed[Nothing, Int] = writeLock
 
   /**
    * Determines if any fiber has a read or write lock.
    */
-  final def locked: STM[Nothing, Boolean] =
+  def locked: STM[Nothing, Boolean] =
     (readLocked zipWith writeLocked)(_ || _)
 
   /**
    * Obtains a read lock in a managed context.
    */
-  final lazy val readLock: Managed[Nothing, Int] =
+  lazy val readLock: Managed[Nothing, Int] =
     Managed.make(acquireRead.commit)(_ => releaseRead.commit)
 
   /**
    * Retrieves the number of acquired read locks.
    */
-  final def readLocks: STM[Nothing, Int] = data.get.map(_.fold(_.readLocks, _.readLocks))
+  def readLocks: STM[Nothing, Int] = data.get.map(_.fold(_.readLocks, _.readLocks))
 
   /**
    * Determines if any fiber has a read lock.
    */
-  final def readLocked: STM[Nothing, Boolean] = readLocks.map(_ > 0)
+  def readLocked: STM[Nothing, Boolean] = readLocks.map(_ > 0)
 
   /**
    * Releases a read lock held by this fiber. Succeeds with the outstanding
@@ -106,36 +106,35 @@ class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
    * number of write locks held by this fiber.
    */
   lazy val releaseWrite: STM[Nothing, Int] =
-    STM.fiberId.flatMap(
-      fiberId =>
-        data.modify {
-          case Right(WriteLock(1, m, `fiberId`)) =>
-            0 -> Left(ReadLock(fiberId, m))
+    STM.fiberId.flatMap(fiberId =>
+      data.modify {
+        case Right(WriteLock(1, m, `fiberId`)) =>
+          0 -> Left(ReadLock(fiberId, m))
 
-          case Right(WriteLock(n, m, `fiberId`)) if n > 1 =>
-            val newCount = n - 1
+        case Right(WriteLock(n, m, `fiberId`)) if n > 1 =>
+          val newCount = n - 1
 
-            newCount -> Right(WriteLock(newCount, m, fiberId))
+          newCount -> Right(WriteLock(newCount, m, fiberId))
 
-          case s => die(s"Defect: Fiber ${fiberId} releasing write lock it does not hold: ${s}")
-        }
+        case s => die(s"Defect: Fiber ${fiberId} releasing write lock it does not hold: ${s}")
+      }
     )
 
   /**
    * Obtains a write lock in a managed context.
    */
-  final lazy val writeLock: Managed[Nothing, Int] =
+  lazy val writeLock: Managed[Nothing, Int] =
     Managed.make(acquireWrite.commit)(_ => releaseWrite.commit)
 
   /**
    * Determines if a write lock is held by some fiber.
    */
-  final def writeLocked: STM[Nothing, Boolean] = writeLocks.map(_ > 0)
+  def writeLocked: STM[Nothing, Boolean] = writeLocks.map(_ > 0)
 
   /**
    * Computes the number of write locks held by fibers.
    */
-  final def writeLocks: STM[Nothing, Int] = data.get.map(_.fold(_ => 0, _.writeLocks))
+  def writeLocks: STM[Nothing, Int] = data.get.map(_.fold(_ => 0, _.writeLocks))
 
   private def adjustRead(fiberId: Fiber.Id, delta: Int): STM[Nothing, Int] =
     (data.get.collect {
@@ -167,7 +166,7 @@ object TReentrantLock {
     /**
      * Computes the total number of read locks acquired.
      */
-    final def readLocks: Int = readers.values.sum
+    def readLocks: Int = readers.values.sum
 
     /**
      * Determines if there is no other holder of read locks aside from the
@@ -175,18 +174,18 @@ object TReentrantLock {
      * aside from the specified fiber id, then it is safe to upgrade the
      * read lock into a write lock.
      */
-    final def noOtherHolder(fiberId: Fiber.Id): Boolean =
+    def noOtherHolder(fiberId: Fiber.Id): Boolean =
       readers.isEmpty || (readers.size == 1 && readers.contains(fiberId))
 
     /**
      * Computes the number of read locks held by the specified fiber id.
      */
-    final def readLocks(fiberId: Fiber.Id): Int = readers.get(fiberId).getOrElse(0)
+    def readLocks(fiberId: Fiber.Id): Int = readers.get(fiberId).getOrElse(0)
 
     /**
      * Adjusts the number of read locks held by the specified fiber id.
      */
-    final def adjust(fiberId: Fiber.Id, adjust: Int): ReadLock = {
+    def adjust(fiberId: Fiber.Id, adjust: Int): ReadLock = {
       val total = readLocks(fiberId)
 
       val newTotal = total + adjust
@@ -217,7 +216,7 @@ object TReentrantLock {
   /**
    * Makes a new reentrant read/write lock.
    */
-  final def make: STM[Nothing, TReentrantLock] =
+  def make: STM[Nothing, TReentrantLock] =
     TRef.make[Either[ReadLock, WriteLock]](Left(ReadLock.empty)).map(tref => new TReentrantLock(tref))
 
   private def die(message: String): Nothing =

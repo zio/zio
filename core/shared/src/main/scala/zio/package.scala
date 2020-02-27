@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package object zio extends ZEnvDefinition with EitherCompat {
+package object zio extends EitherCompat with PlatformSpecific with VersionSpecific {
   private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
-  type Canceler[R] = URIO[R, Any]
+  type Canceler[-R] = URIO[R, Any]
 
   type RIO[-R, +A]  = ZIO[R, Throwable, A]
   type URIO[-R, +A] = ZIO[R, Nothing, A]

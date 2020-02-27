@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,11 @@ import zio.test.environment.TestEnvironment
  * A default runnable spec that provides testable versions of all of the
  * modules in ZIO (Clock, Random, etc).
  */
-trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any, String, Any, Any] {
+trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
-  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any, Nothing, Any]] =
+  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
     List(TestAspect.timeoutWarning(60.seconds))
 
-  override def runner: TestRunner[TestEnvironment, Any, String, Any, Any] =
-    DefaultTestRunner
+  override def runner: TestRunner[TestEnvironment, Any] =
+    defaultTestRunner
 }

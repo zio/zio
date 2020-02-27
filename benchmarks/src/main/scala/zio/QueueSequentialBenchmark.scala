@@ -2,16 +2,17 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
+import scala.concurrent.ExecutionContext
+
 import cats.effect.{ ContextShift, IO => CIO }
 import cats.implicits._
 import monix.eval.{ Task => MTask }
 import monix.execution.BufferCapacity.Bounded
 import monix.execution.ChannelType.SPSC
 import org.openjdk.jmh.annotations._
+
 import zio.IOBenchmarks._
 import zio.stm._
-
-import scala.concurrent.ExecutionContext
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -37,7 +38,7 @@ class QueueSequentialBenchmark {
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](totalSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
-    zioTQ = unsafeRun(TQueue.make(totalSize).commit)
+    zioTQ = unsafeRun(TQueue.bounded(totalSize).commit)
     monixQ = monix.catnap.ConcurrentQueue.withConfig[MTask, Int](Bounded(totalSize), SPSC).runSyncUnsafe()
   }
 

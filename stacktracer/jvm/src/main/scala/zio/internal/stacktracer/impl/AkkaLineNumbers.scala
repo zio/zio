@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2019 Lightbend Inc. <https://www.lightbend.com>
+ * Copyright (C) 2014-2020 Lightbend Inc. <https://www.lightbend.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -171,7 +171,7 @@ object AkkaLineNumbers {
         }
 
     } catch {
-      case NonFatal(ex) => UnknownSourceFormat(s"parse error: ${ex.getMessage}")
+      case ex if NonFatal(ex) => UnknownSourceFormat(s"parse error: ${ex.getMessage}")
     } finally {
       try dis.close()
       catch {
@@ -181,14 +181,19 @@ object AkkaLineNumbers {
     }
   }
 
-  private[this] def getStreamForClass(c: Class[_]): Option[(InputStream, String, None.type)] = {
-    val name     = c.getName
-    val resource = name.replace('.', '/') + ".class"
-    val cl       = c.getClassLoader
-    val r        = cl.getResourceAsStream(resource)
-    if (debug) println(s"LNB:     resource '$resource' resolved to stream $r")
-    Option(r).map((_, name, None))
-  }
+  private[this] def getStreamForClass(c: Class[_]): Option[(InputStream, String, None.type)] =
+    try {
+      val name     = c.getName
+      val resource = name.replace('.', '/') + ".class"
+      val cl       = c.getClassLoader
+      val r        = if (cl ne null) cl.getResourceAsStream(resource) else null
+      if (debug) println(s"LNB:     resource '$resource' resolved to stream $r")
+      if (r ne null) Some((r, name, None)) else None
+    } catch {
+      case ex if NonFatal(ex) =>
+        if (debug) ex.printStackTrace()
+        None
+    }
 
   private[this] def getStreamForLambda(l: AnyRef): Option[(InputStream, String, Some[String])] =
     try {
@@ -199,12 +204,12 @@ object AkkaLineNumbers {
         case serialized: SerializedLambda =>
           if (debug)
             println(s"LNB:     found Lambda implemented in ${serialized.getImplClass}:${serialized.getImplMethodName}")
-          Option(c.getClassLoader.getResourceAsStream(serialized.getImplClass + ".class"))
-            .map((_, serialized.getImplClass, Some(serialized.getImplMethodName)))
+          val r = c.getClassLoader.getResourceAsStream(serialized.getImplClass + ".class")
+          if (r ne null) Some((r, serialized.getImplClass, Some(serialized.getImplMethodName))) else None
         case _ => None
       }
     } catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         if (debug) ex.printStackTrace()
         None
     }
@@ -289,7 +294,8 @@ object AkkaLineNumbers {
         } match {
         case (Int.MaxValue, 0) => None
         case other             => Some(other)
-      } else {
+      }
+    else {
       if (debug) println(s"LNB:   (skipped)")
       var i = 1
       while (i <= count) {

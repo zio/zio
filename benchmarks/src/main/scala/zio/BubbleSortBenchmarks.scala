@@ -2,11 +2,10 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations._
-
 import scala.collection.immutable.Range
 
 import IOBenchmarks.unsafeRun
+import org.openjdk.jmh.annotations._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -22,8 +21,8 @@ class BubbleSortBenchmarks {
     }
 
   @Benchmark
-  def scalazBubbleSort() = {
-    import ScalazIOArray._
+  def zioBubbleSort() = {
+    import ZIOArray._
 
     unsafeRun(
       for {
@@ -46,9 +45,9 @@ class BubbleSortBenchmarks {
   }
   @Benchmark
   def monixBubbleSort() = {
+    import IOBenchmarks.monixScheduler
     import MonixIOArray._
     import monix.eval.Task
-    import IOBenchmarks.monixScheduler
 
     (for {
       array <- Task.eval(createTestArray)

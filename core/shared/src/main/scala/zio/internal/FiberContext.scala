@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,15 +18,15 @@ package zio.internal
 
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 
-import com.github.ghik.silencer.silent
+import scala.annotation.{ switch, tailrec }
+import scala.collection.JavaConverters._
 
-import zio._
 import FiberContext.FiberRefLocals
+import com.github.ghik.silencer.silent
 import stacktracer.ZTraceElement
 import tracing.ZIOFn
 
-import scala.annotation.{ switch, tailrec }
-import scala.collection.JavaConverters._
+import zio._
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -42,7 +42,7 @@ private[zio] final class FiberContext[E, A](
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals
-) extends Fiber[E, A] { self =>
+) extends Fiber.Runtime.Internal[E, A] { self =>
 
   import FiberContext._
   import FiberState._
@@ -66,7 +66,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val environments    = Stack[AnyRef](startEnv)
   private[this] val executors       = Stack[Executor](startExec)
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
-  private[this] val _children       = Platform.newConcurrentSet[FiberContext[Any, Any]]()
+  private[zio] val _children        = Platform.newConcurrentSet[FiberContext[Any, Any]]()
   private[this] val daemonStatus    = StackBool(startDStatus)
 
   private[this] val tracingStatus =
@@ -84,11 +84,11 @@ private[zio] final class FiberContext[E, A](
   private[this] val tracer = platform.tracing.tracer
 
   @noinline
-  private[this] final def inTracingRegion: Boolean =
+  private[this] def inTracingRegion: Boolean =
     if (tracingStatus ne null) tracingStatus.peekOrElse(initialTracingStatus) else false
 
   @noinline
-  private[this] final def unwrap(lambda: AnyRef): AnyRef =
+  private[this] def unwrap(lambda: AnyRef): AnyRef =
     // This is a huge hotspot, hiding loop under
     // the match allows a faster happy path
     lambda match {
@@ -102,22 +102,22 @@ private[zio] final class FiberContext[E, A](
     }
 
   @noinline
-  private[this] final def traceLocation(lambda: AnyRef): ZTraceElement =
+  private[this] def traceLocation(lambda: AnyRef): ZTraceElement =
     tracer.traceLocation(unwrap(lambda))
 
   @noinline
-  private[this] final def addTrace(lambda: AnyRef): Unit =
+  private[this] def addTrace(lambda: AnyRef): Unit =
     execTrace.put(traceLocation(lambda))
 
-  @noinline private[this] final def pushContinuation(k: Any => IO[Any, Any]): Unit = {
+  @noinline private[this] def pushContinuation(k: Any => IO[Any, Any]): Unit = {
     if (traceStack && inTracingRegion) stackTrace.put(traceLocation(k))
     stack.push(k)
   }
 
-  private[this] final def popStackTrace(): Unit =
+  private[this] def popStackTrace(): Unit =
     stackTrace.dropLast()
 
-  private[this] final def captureTrace(lastStack: ZTraceElement): ZTrace = {
+  private[this] def captureTrace(lastStack: ZTraceElement): ZTrace = {
     val exec = if (execTrace ne null) execTrace.toReversedList else Nil
     val stack = {
       val stack0 = if (stackTrace ne null) stackTrace.toReversedList else Nil
@@ -126,7 +126,7 @@ private[zio] final class FiberContext[E, A](
     ZTrace(fiberId, exec, stack, parentTrace)
   }
 
-  private[this] final def cutAncestryTrace(trace: ZTrace): ZTrace = {
+  private[this] def cutAncestryTrace(trace: ZTrace): ZTrace = {
     val maxExecLength  = platform.tracing.tracingConfig.ancestorExecutionTraceLength
     val maxStackLength = platform.tracing.tracingConfig.ancestorStackTraceLength
     val maxAncestors   = platform.tracing.tracingConfig.ancestryLength - 1
@@ -141,29 +141,29 @@ private[zio] final class FiberContext[E, A](
     )
   }
 
-  private[zio] final def runAsync(k: Callback[E, A]): Unit =
+  private[zio] def runAsync(k: Callback[E, A]): Unit =
     register0(xx => k(Exit.flatten(xx))) match {
       case null =>
       case v    => k(v)
     }
 
   private[this] object InterruptExit extends Function[Any, IO[E, Any]] {
-    final def apply(v: Any): IO[E, Any] =
+    def apply(v: Any): IO[E, Any] =
       if (isInterruptible()) {
         interruptStatus.popDrop(())
 
-        ZIO.succeed(v)
+        ZIO.succeedNow(v)
       } else {
         ZIO.effectTotal { interruptStatus.popDrop(v) }
       }
   }
 
   private[this] object TracingRegionExit extends Function[Any, IO[E, Any]] {
-    final def apply(v: Any): IO[E, Any] = {
+    def apply(v: Any): IO[E, Any] = {
       // don't use effectTotal to avoid TracingRegionExit appearing in execution trace twice with traceEffects=true
       tracingStatus.popDrop(())
 
-      ZIO.succeed(v)
+      ZIO.succeedNow(v)
     }
   }
 
@@ -171,7 +171,7 @@ private[zio] final class FiberContext[E, A](
    * Unwinds the stack, looking for the first error handler, and exiting
    * interruptible / uninterruptible regions.
    */
-  private[this] final def unwindStack(): Unit = {
+  private[this] def unwindStack(): Unit = {
     var unwinding = true
 
     // Unwind the stack, looking for an error handler:
@@ -200,9 +200,9 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def executor: Executor = executors.peekOrElse(platform.executor)
+  private[this] def executor: Executor = executors.peekOrElse(platform.executor)
 
-  @inline private[this] final def raceWithImpl[R, EL, ER, E, A, B, C](
+  @inline private[this] def raceWithImpl[R, EL, ER, E, A, B, C](
     race: ZIO.RaceWith[R, EL, ER, E, A, B, C]
   ): ZIO[R, E, C] = {
     @inline def complete[E0, E1, A, B](
@@ -258,7 +258,7 @@ private[zio] final class FiberContext[E, A](
    *
    * @param io0 The `IO` to evaluate on the fiber.
    */
-  final def evaluateNow(io0: IO[E, Any]): Unit =
+  def evaluateNow(io0: IO[E, Any]): Unit =
     try {
       // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
       // it in `ObjectRef` and performance will plummet.
@@ -346,11 +346,12 @@ private[zio] final class FiberContext[E, A](
                         val kTrace = fastPathTrace(k, effect)
 
                         var failIO = null.asInstanceOf[IO[E, Any]]
-                        val value = try effect()
-                        catch {
-                          case t: Throwable if !platform.fatal(t) =>
-                            failIO = ZIO.fail(t.asInstanceOf[E])
-                        }
+                        val value =
+                          try effect()
+                          catch {
+                            case t: Throwable if !platform.fatal(t) =>
+                              failIO = ZIO.failNow(t.asInstanceOf[E])
+                          }
 
                         if (failIO eq null) {
                           // delete continuation as it was "popped" after success
@@ -455,11 +456,12 @@ private[zio] final class FiberContext[E, A](
                     if (traceEffects && inTracingRegion) addTrace(effect)
 
                     var nextIo = null.asInstanceOf[IO[E, Any]]
-                    val value = try effect()
-                    catch {
-                      case t: Throwable if !platform.fatal(t) =>
-                        nextIo = ZIO.fail(t.asInstanceOf[E])
-                    }
+                    val value =
+                      try effect()
+                      catch {
+                        case t: Throwable if !platform.fatal(t) =>
+                          nextIo = ZIO.failNow(t.asInstanceOf[E])
+                      }
                     if (nextIo eq null) curZio = nextInstr(value)
                     else curZio = nextIo
 
@@ -509,7 +511,9 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Lock =>
                     val zio = curZio.asInstanceOf[ZIO.Lock[Any, E, Any]]
 
-                    curZio = lock(zio.executor).bracket_(unlock, zio.zio)
+                    curZio =
+                      if (zio.executor eq executors.peek()) zio.zio
+                      else lock(zio.executor).bracket_(unlock, zio.zio)
 
                   case ZIO.Tags.Yield =>
                     evaluateLater(ZIO.unit)
@@ -543,10 +547,11 @@ private[zio] final class FiberContext[E, A](
                     val k = zio.f
                     if (traceExec && inTracingRegion) addTrace(k)
 
-                    curZio = try k(platform, fiberId).asInstanceOf[ZIO[Any, E, Any]]
-                    catch {
-                      case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
-                    }
+                    curZio =
+                      try k(platform, fiberId).asInstanceOf[ZIO[Any, E, Any]]
+                      catch {
+                        case t: Throwable if !platform.fatal(t) => ZIO.failNow(t.asInstanceOf[E])
+                      }
 
                   case ZIO.Tags.EffectSuspendTotalWith =>
                     val zio = curZio.asInstanceOf[ZIO.EffectSuspendTotalWith[Any, E, Any]]
@@ -583,7 +588,7 @@ private[zio] final class FiberContext[E, A](
               }
             } else {
               // Fiber was interrupted
-              curZio = ZIO.halt(state.get.interrupted)
+              curZio = ZIO.haltNow(state.get.interrupted)
             }
 
             opcount = opcount + 1
@@ -597,18 +602,18 @@ private[zio] final class FiberContext[E, A](
           // either a bug in the interpreter or a bug in the user's code. Let the
           // fiber die but attempt finalization & report errors.
           case t: Throwable =>
-            curZio = if (platform.fatal(t)) platform.reportFatal(t) else ZIO.die(t)
+            curZio = if (platform.fatal(t)) platform.reportFatal(t) else ZIO.dieNow(t)
         }
       }
     } finally Fiber._currentFiber.remove()
 
-  private[this] final def lock(executor: Executor): UIO[Unit] =
+  private[this] def lock(executor: Executor): UIO[Unit] =
     ZIO.effectTotal { executors.push(executor) } *> ZIO.yieldNow
 
-  private[this] final def unlock: UIO[Unit] =
+  private[this] def unlock: UIO[Unit] =
     ZIO.effectTotal { executors.pop() } *> ZIO.yieldNow
 
-  private[this] final def getDescriptor(): Fiber.Descriptor =
+  private[this] def getDescriptor(): Fiber.Descriptor =
     Fiber.Descriptor(
       fiberId,
       state.get.status,
@@ -621,7 +626,7 @@ private[zio] final class FiberContext[E, A](
   /**
    * Forks an `IO` with the specified failure handler.
    */
-  final def fork[E, A](zio: IO[E, A]): FiberContext[E, A] = {
+  def fork[E, A](zio: IO[E, A]): FiberContext[E, A] = {
     val isDaemon = daemonStatus.peekOrElse(false)
 
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
@@ -647,17 +652,26 @@ private[zio] final class FiberContext[E, A](
 
     if (!isDaemon) {
       self._children.add(childContext.asInstanceOf[FiberContext[Any, Any]])
-      childContext.onDone(_ => { val _ = self._children.remove(childContext) })
+      childContext.onDone { _ =>
+        val _ = {
+          val iterator = childContext._children.iterator()
+          while (iterator.hasNext()) {
+            val child = iterator.next()
+            self._children.add(child)
+          }
+          self._children.remove(childContext)
+        }
+      }
     } else {
       Fiber.track(childContext)
     }
 
-    platform.executor.submitOrThrow(() => childContext.evaluateNow(zio))
+    executor.submitOrThrow(() => childContext.evaluateNow(zio))
 
     childContext
   }
 
-  private[this] final def evaluateLater(zio: IO[E, Any]): Unit =
+  private[this] def evaluateLater(zio: IO[E, Any]): Unit =
     executor.submitOrThrow(() => evaluateNow(zio))
 
   /**
@@ -665,30 +679,30 @@ private[zio] final class FiberContext[E, A](
    *
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] final def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio =>
+  private[this] def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio =>
     if (exitAsync(epoch)) evaluateLater(zio)
   }
 
-  final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
+  def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
 
   @silent("JavaConverters")
-  final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(_children.asScala.toSet)
+  def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(_children.asScala.toSet)
 
-  final def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
-    observe0(x => k(ZIO.done(x)))
+  def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
+    observe0(x => k(ZIO.doneNow(x)))
   }
 
-  final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
+  def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
     val oldValue = Option(fiberRefLocals.get(ref))
 
     oldValue.asInstanceOf[Option[A]].getOrElse(ref.initial)
   }
 
-  final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
+  def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
-  final def id: UIO[Option[Fiber.Id]] = UIO(Some(fiberId))
+  def id: UIO[Fiber.Id] = UIO(fiberId)
 
-  final def inheritRefs: UIO[Unit] = UIO.effectSuspendTotal {
+  def inheritRefs: UIO[Unit] = UIO.effectSuspendTotal {
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
     if (locals.isEmpty) UIO.unit
     else
@@ -699,12 +713,12 @@ private[zio] final class FiberContext[E, A](
       }
   }
 
-  final def status: UIO[Fiber.Status] = UIO(state.get.status)
+  def status: UIO[Fiber.Status] = UIO(state.get.status)
 
-  final def trace: UIO[Option[ZTrace]] = UIO(Some(captureTrace(null)))
+  def trace: UIO[ZTrace] = UIO(captureTrace(null))
 
   @tailrec
-  private[this] final def enterAsync(epoch: Long, register: AnyRef, blockingOn: List[Fiber.Id]): IO[E, Any] = {
+  private[this] def enterAsync(epoch: Long, register: AnyRef, blockingOn: List[Fiber.Id]): IO[E, Any] = {
     val oldState = state.get
 
     oldState match {
@@ -718,7 +732,7 @@ private[zio] final class FiberContext[E, A](
         else if (shouldInterrupt()) {
           // Fiber interrupted, so go back into running state:
           exitAsync(epoch)
-          ZIO.halt(state.get.interrupted)
+          ZIO.haltNow(state.get.interrupted)
         } else null
 
       case _ => throw new RuntimeException(s"Unexpected fiber completion ${fiberId}")
@@ -726,7 +740,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  private[this] final def exitAsync(epoch: Long): Boolean = {
+  private[this] def exitAsync(epoch: Long): Boolean = {
     val oldState = state.get
 
     oldState match {
@@ -738,15 +752,15 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def daemonEnter(flag: DaemonStatus): UIO[Unit] = ZIO.effectTotal {
+  private[this] def daemonEnter(flag: DaemonStatus): UIO[Unit] = ZIO.effectTotal {
     daemonStatus.push(flag.toBoolean)
   }
 
-  private[this] final def daemonExit: UIO[Unit] = ZIO.effectTotal {
+  private[this] def daemonExit: UIO[Unit] = ZIO.effectTotal {
     val _ = daemonStatus.popOrElse(false)
   }
 
-  private[this] final def propagateAncestorInterruption(): Unit = {
+  private[this] def propagateAncestorInterruption(): Unit = {
     var fiber = self: FiberContext[_, _]
 
     while (fiber ne null) {
@@ -757,17 +771,17 @@ private[zio] final class FiberContext[E, A](
   }
 
   @inline
-  private final def isInterrupted(): Boolean = !state.get.interrupted.isEmpty
+  private def isInterrupted(): Boolean = !state.get.interrupted.isEmpty
 
   @inline
-  private[this] final def isInterruptible(): Boolean = interruptStatus.peekOrElse(true)
+  private[this] def isInterruptible(): Boolean = interruptStatus.peekOrElse(true)
 
   @inline
-  private[this] final def shouldInterrupt(): Boolean =
+  private[this] def shouldInterrupt(): Boolean =
     isInterrupted() && isInterruptible()
 
   @tailrec
-  private[this] final def addInterruptor(cause: Cause[Nothing]): Unit =
+  private[this] def addInterruptor(cause: Cause[Nothing]): Unit =
     if (!cause.isEmpty) {
       val oldState = state.get
 
@@ -784,7 +798,7 @@ private[zio] final class FiberContext[E, A](
     }
 
   @inline
-  private[this] final def nextInstr(value: Any): IO[E, Any] =
+  private[this] def nextInstr(value: Any): IO[E, Any] =
     if (!stack.isEmpty) {
       val k = stack.pop()
 
@@ -798,7 +812,7 @@ private[zio] final class FiberContext[E, A](
     } else done(Exit.succeed(value.asInstanceOf[A]))
 
   @tailrec
-  private[this] final def done(v: Exit[E, A]): IO[E, Any] = {
+  private[this] def done(v: Exit[E, A]): IO[E, Any] = {
     val oldState = state.get
 
     oldState match {
@@ -812,7 +826,8 @@ private[zio] final class FiberContext[E, A](
           while (iterator.hasNext()) {
             val child = iterator.next()
 
-            child.parentFiber = self.parentFiber
+            if (self.parentFiber ne null) child.parentFiber = self.parentFiber
+            else Fiber.track(child)
           }
           self.parentFiber = null
           null
@@ -822,12 +837,12 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def reportUnhandled(v: Exit[E, A]): Unit = v match {
+  private[this] def reportUnhandled(v: Exit[E, A]): Unit = v match {
     case Exit.Failure(cause) => platform.reportFailure(cause)
     case _                   =>
   }
 
-  private[this] final def kill0(fiberId: Fiber.Id): UIO[Exit[E, A]] = {
+  private[this] def kill0(fiberId: Fiber.Id): UIO[Exit[E, A]] = {
     @tailrec
     def setInterruptedLoop(): Unit = {
       val oldState = state.get
@@ -860,7 +875,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  private[zio] final def onDone(k: Callback[Nothing, Exit[E, A]]): Unit = {
+  private[zio] def onDone(k: Callback[Nothing, Exit[E, A]]): Unit = {
     val oldState = state.get
 
     oldState match {
@@ -873,16 +888,16 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def observe0(
+  private[this] def observe0(
     k: Callback[Nothing, Exit[E, A]]
   ): Option[IO[Nothing, Exit[E, A]]] =
     register0(k) match {
       case null => None
-      case x    => Some(ZIO.succeed(x))
+      case x    => Some(ZIO.succeedNow(x))
     }
 
   @tailrec
-  private final def register0(k: Callback[Nothing, Exit[E, A]]): Exit[E, A] = {
+  private def register0(k: Callback[Nothing, Exit[E, A]]): Exit[E, A] = {
     val oldState = state.get
 
     oldState match {
@@ -896,13 +911,13 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def poll0: Option[Exit[E, A]] =
+  private[this] def poll0: Option[Exit[E, A]] =
     state.get match {
       case Done(r) => Some(r)
       case _       => None
     }
 
-  private[this] final def notifyObservers(
+  private[this] def notifyObservers(
     v: Exit[E, A],
     observers: List[Callback[Nothing, Exit[E, A]]]
   ): Unit = {

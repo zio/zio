@@ -1,7 +1,6 @@
 package zio
 
 import zio.FiberRefSpecUtil._
-import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -16,37 +15,46 @@ object FiberRefSpec extends ZIOBaseSpec {
         for {
           fiberRef <- FiberRef.make(initial)
           value    <- fiberRef.get
-        } yield assert(value, equalTo(initial))
+        } yield assert(value)(equalTo(initial))
       },
       testM("`get` returns the current value for a child") {
         for {
           fiberRef <- FiberRef.make(initial)
           child    <- fiberRef.get.fork
           value    <- child.join
-        } yield assert(value, equalTo(initial))
+        } yield assert(value)(equalTo(initial))
       },
-      testM("`set` updates the current value") {
+      testM("`getAndUpdate` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
-          _        <- fiberRef.set(update)
-          value    <- fiberRef.get
-        } yield assert(value, equalTo(update))
+          value1   <- fiberRef.getAndUpdate(_ => update)
+          value2   <- fiberRef.get
+        } yield assert(value1)(equalTo(initial)) && assert(value2)(equalTo(update))
       },
-      testM("`set` by a child doesn't update parent's value") {
+      testM("`getAndUpdateSome` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
-          promise  <- Promise.make[Nothing, Unit]
-          _        <- (fiberRef.set(update) *> promise.succeed(())).fork
-          _        <- promise.await
-          value    <- fiberRef.get
-        } yield assert(value, equalTo(initial))
+          value1 <- fiberRef.getAndUpdateSome {
+                     case _ => update
+                   }
+          value2 <- fiberRef.get
+        } yield assert(value1)(equalTo(initial)) && assert(value2)(equalTo(update))
+      },
+      testM("`getAndUpdateSome` not changes value") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          value1 <- fiberRef.getAndUpdateSome {
+                     case _ if false => update
+                   }
+          value2 <- fiberRef.get
+        } yield assert(value1)(equalTo(initial)) && assert(value2)(equalTo(initial))
       },
       testM("`locally` restores original value") {
         for {
           fiberRef <- FiberRef.make(initial)
           local    <- fiberRef.locally(update)(fiberRef.get)
           value    <- fiberRef.get
-        } yield assert(local, equalTo(update)) && assert(value, equalTo(initial))
+        } yield assert(local)(equalTo(update)) && assert(value)(equalTo(initial))
       },
       testM("`locally` restores parent's value") {
         for {
@@ -54,72 +62,23 @@ object FiberRefSpec extends ZIOBaseSpec {
           child    <- fiberRef.locally(update)(fiberRef.get).fork
           local    <- child.join
           value    <- fiberRef.get
-        } yield assert(local, equalTo(update)) && assert(value, equalTo(initial))
+        } yield assert(local)(equalTo(update)) && assert(value)(equalTo(initial))
       },
       testM("`locally` restores undefined value") {
         for {
           child <- FiberRef.make(initial).fork
           // Don't use join as it inherits values from child.
-          fiberRef   <- child.await.flatMap(ZIO.done)
+          fiberRef   <- child.await.flatMap(ZIO.doneNow)
           localValue <- fiberRef.locally(update)(fiberRef.get)
           value      <- fiberRef.get
-        } yield assert(localValue, equalTo(update)) && assert(value, equalTo(initial))
-      },
-      testM("its value is inherited on join") {
-        for {
-          fiberRef <- FiberRef.make(initial)
-          child    <- fiberRef.set(update).fork
-          _        <- child.join
-          value    <- fiberRef.get
-        } yield assert(value, equalTo(update))
-      },
-      testM("initial value is always available") {
-        for {
-          child    <- FiberRef.make(initial).fork
-          fiberRef <- child.await.flatMap(ZIO.done)
-          value    <- fiberRef.get
-        } yield assert(value, equalTo(initial))
-      },
-      testM("`update` changes value") {
-        for {
-          fiberRef <- FiberRef.make(initial)
-          value1   <- fiberRef.update(_ => update)
-          value2   <- fiberRef.get
-        } yield assert(value1, equalTo(update)) && assert(value2, equalTo(update))
-      },
-      testM("`updateSome` changes value") {
-        for {
-          fiberRef <- FiberRef.make(initial)
-          value1 <- fiberRef.updateSome {
-                     case _ => update
-                   }
-          value2 <- fiberRef.get
-        } yield assert(value1, equalTo(update)) && assert(value2, equalTo(update))
-      },
-      testM("`updateSome` changes value") {
-        for {
-          fiberRef <- FiberRef.make(initial)
-          value1 <- fiberRef.updateSome {
-                     case _ => update
-                   }
-          value2 <- fiberRef.get
-        } yield assert(value1, equalTo(update)) && assert(value2, equalTo(update))
-      },
-      testM("`updateSome` not changes value") {
-        for {
-          fiberRef <- FiberRef.make(initial)
-          value1 <- fiberRef.updateSome {
-                     case _ if false => update
-                   }
-          value2 <- fiberRef.get
-        } yield assert(value1, equalTo(initial)) && assert(value2, equalTo(initial))
+        } yield assert(localValue)(equalTo(update)) && assert(value)(equalTo(initial))
       },
       testM("`modify` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
           value1   <- fiberRef.modify(_ => (1, update))
           value2   <- fiberRef.get
-        } yield assert(value1, equalTo(1)) && assert(value2, equalTo(update))
+        } yield assert(value1)(equalTo(1)) && assert(value2)(equalTo(update))
       },
       testM("`modifySome` not changes value") {
         for {
@@ -128,32 +87,88 @@ object FiberRefSpec extends ZIOBaseSpec {
                      case _ if false => (1, update)
                    }
           value2 <- fiberRef.get
-        } yield assert(value1, equalTo(2)) && assert(value2, equalTo(initial))
+        } yield assert(value1)(equalTo(2)) && assert(value2)(equalTo(initial))
+      },
+      testM("`set` updates the current value") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          _        <- fiberRef.set(update)
+          value    <- fiberRef.get
+        } yield assert(value)(equalTo(update))
+      },
+      testM("`set` by a child doesn't update parent's value") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          promise  <- Promise.make[Nothing, Unit]
+          _        <- (fiberRef.set(update) *> promise.succeed(())).fork
+          _        <- promise.await
+          value    <- fiberRef.get
+        } yield assert(value)(equalTo(initial))
+      },
+      testM("`updateAndGet` changes value") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          value1   <- fiberRef.updateAndGet(_ => update)
+          value2   <- fiberRef.get
+        } yield assert(value1)(equalTo(update)) && assert(value2)(equalTo(update))
+      },
+      testM("`updateSomeAndGet` changes value") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          value1 <- fiberRef.updateSomeAndGet {
+                     case _ => update
+                   }
+          value2 <- fiberRef.get
+        } yield assert(value1)(equalTo(update)) && assert(value2)(equalTo(update))
+      },
+      testM("`updateSomeAndGet` not changes value") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          value1 <- fiberRef.updateSomeAndGet {
+                     case _ if false => update
+                   }
+          value2 <- fiberRef.get
+        } yield assert(value1)(equalTo(initial)) && assert(value2)(equalTo(initial))
+      },
+      testM("its value is inherited on join") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          child    <- fiberRef.set(update).fork
+          _        <- child.join
+          value    <- fiberRef.get
+        } yield assert(value)(equalTo(update))
+      },
+      testM("initial value is always available") {
+        for {
+          child    <- FiberRef.make(initial).fork
+          fiberRef <- child.await.flatMap(ZIO.doneNow)
+          value    <- fiberRef.get
+        } yield assert(value)(equalTo(initial))
       },
       testM("its value is inherited after simple race") {
         for {
           fiberRef <- FiberRef.make(initial)
           _        <- fiberRef.set(update1).race(fiberRef.set(update2))
           value    <- fiberRef.get
-        } yield assert(value, equalTo(update1)) || assert(value, equalTo(update2))
+        } yield assert(value)(equalTo(update1)) || assert(value)(equalTo(update2))
       },
       testM("its value is inherited after a race with a bad winner") {
         for {
           fiberRef  <- FiberRef.make(initial)
-          badWinner = fiberRef.set(update1) *> ZIO.fail("ups")
+          badWinner = fiberRef.set(update1) *> ZIO.failNow("ups")
           goodLoser = fiberRef.set(update2) *> looseTimeAndCpu
           _         <- badWinner.race(goodLoser)
           value     <- fiberRef.get
-        } yield assert(value, equalTo(update2))
+        } yield assert(value)(equalTo(update2))
       },
       testM("its value is not inherited after a race of losers") {
         for {
           fiberRef <- FiberRef.make(initial)
-          loser1   = fiberRef.set(update1) *> ZIO.fail("ups1")
-          loser2   = fiberRef.set(update2) *> ZIO.fail("ups2")
+          loser1   = fiberRef.set(update1) *> ZIO.failNow("ups1")
+          loser2   = fiberRef.set(update2) *> ZIO.failNow("ups2")
           _        <- loser1.race(loser2).catchAll(_ => ZIO.unit)
           value    <- fiberRef.get
-        } yield assert(value, equalTo(initial))
+        } yield assert(value)(equalTo(initial))
       },
       testM("the value of the loser is inherited in zipPar") {
         for {
@@ -163,17 +178,17 @@ object FiberRefSpec extends ZIOBaseSpec {
           loser    = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
           _        <- winner.zipPar(loser)
           value    <- fiberRef.get
-        } yield assert(value, equalTo(update2))
+        } yield assert(value)(equalTo(update2))
       },
       testM("nothing gets inherited with a failure in zipPar") {
         for {
           fiberRef <- FiberRef.make(initial)
           success  = fiberRef.set(update)
-          failure1 = fiberRef.set(update1) *> ZIO.fail(":-(")
-          failure2 = fiberRef.set(update2) *> ZIO.fail(":-O")
+          failure1 = fiberRef.set(update1) *> ZIO.failNow(":-(")
+          failure2 = fiberRef.set(update2) *> ZIO.failNow(":-O")
           _        <- success.zipPar(failure1.zipPar(failure2)).orElse(ZIO.unit)
           value    <- fiberRef.get
-        } yield assert(value, equalTo(initial))
+        } yield assert(value)(equalTo(initial))
       },
       testM("combine function is applied on join - 1") {
         for {
@@ -181,7 +196,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           child    <- fiberRef.update(_ + 1).fork
           _        <- child.join
           value    <- fiberRef.get
-        } yield assert(value, equalTo(1))
+        } yield assert(value)(equalTo(1))
       },
       testM("combine function is applied on join - 2") {
         for {
@@ -190,14 +205,14 @@ object FiberRefSpec extends ZIOBaseSpec {
           _        <- fiberRef.update(_ + 2)
           _        <- child.join
           value    <- fiberRef.get
-        } yield assert(value, equalTo(2))
+        } yield assert(value)(equalTo(2))
       },
       testM("its value is inherited in a trivial race") {
         for {
           fiberRef <- FiberRef.make(initial)
           _        <- fiberRef.set(update).raceAll(Iterable.empty)
           value    <- fiberRef.get
-        } yield assert(value, equalTo(update))
+        } yield assert(value)(equalTo(update))
       },
       testM("the value of the winner is inherited when racing two ZIOs with raceAll") {
         for {
@@ -210,10 +225,10 @@ object FiberRefSpec extends ZIOBaseSpec {
           value1  <- fiberRef.get <* fiberRef.set(initial)
 
           winner2 = fiberRef.set(update1)
-          loser2  = fiberRef.set(update2) *> ZIO.fail(":-O")
+          loser2  = fiberRef.set(update2) *> ZIO.failNow(":-O")
           _       <- loser2.raceAll(List(winner2))
           value2  <- fiberRef.get <* fiberRef.set(initial)
-        } yield assert((value1, value2), equalTo((update1, update1)))
+        } yield assert((value1, value2))(equalTo((update1, update1)))
       } @@ flaky,
       testM("the value of the winner is inherited when racing many ZIOs with raceAll") {
         for {
@@ -228,19 +243,19 @@ object FiberRefSpec extends ZIOBaseSpec {
           value1  <- fiberRef.get <* fiberRef.set(initial)
 
           winner2 = fiberRef.set(update1) *> looseTimeAndCpu
-          loser2  = fiberRef.set(update2) *> ZIO.fail("Nooooo")
+          loser2  = fiberRef.set(update2) *> ZIO.failNow("Nooooo")
           losers2 = Iterable.fill(n)(loser2)
           _       <- winner2.raceAll(losers2)
           value2  <- fiberRef.get <* fiberRef.set(initial)
-        } yield assert((value1, value2), equalTo((update1, update1)))
+        } yield assert((value1, value2))(equalTo((update1, update1)))
       },
       testM("nothing gets inherited when racing failures with raceAll") {
         for {
           fiberRef <- FiberRef.make(initial)
-          loser    = fiberRef.set(update) *> ZIO.fail("darn")
+          loser    = fiberRef.set(update) *> ZIO.failNow("darn")
           _        <- loser.raceAll(Iterable.fill(63)(loser)).orElse(ZIO.unit)
           value    <- fiberRef.get
-        } yield assert(value, equalTo(initial))
+        } yield assert(value)(equalTo(initial))
       },
       testM("an unsafe handle is initialized and updated properly") {
         for {
@@ -251,7 +266,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           value2   <- UIO(handle.get())
           _        <- UIO(handle.set(update2))
           value3   <- fiberRef.get
-        } yield assert((value1, value2, value3), equalTo((initial, update1, update2)))
+        } yield assert((value1, value2, value3))(equalTo((initial, update1, update2)))
       },
       testM("unsafe handles work properly when initialized in a race") {
         for {
@@ -262,7 +277,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           doUpdate   = fiberRef.set(update)
           _          <- ZIO.raceAll(doUpdate, Iterable.fill(64)(doUpdate))
           value2     <- UIO(handle.get())
-        } yield assert(value1, equalTo(initial)) && assert(value2, equalTo(update))
+        } yield assert(value1)(equalTo(initial)) && assert(value2)(equalTo(update))
       },
       testM("unsafe handles work properly when accessed concurrently") {
         for {
@@ -272,7 +287,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           n      = 64
           fiber  <- ZIO.forkAll(1.to(n).map(setAndGet))
           values <- fiber.join
-        } yield assert(values, equalTo(1.to(n).toList))
+        } yield assert(values)(equalTo(1.to(n).toList))
       },
       testM("unsafe handles don't see updates from other fibers") {
         for {
@@ -283,7 +298,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           fiber    <- ZIO.forkAll(Iterable.fill(n)(fiberRef.set(update).race(UIO(handle.set(update)))))
           _        <- fiber.await
           value2   <- UIO(handle.get())
-        } yield assert(value1, equalTo(initial)) && assert(value2, equalTo(initial))
+        } yield assert(value1)(equalTo(initial)) && assert(value2)(equalTo(initial))
       },
       testM("unsafe handles keep their values if there are async boundaries") {
         for {
@@ -295,7 +310,7 @@ object FiberRefSpec extends ZIOBaseSpec {
               _      <- setRefOrHandle(fiberRef, handle, i)
               _      <- ZIO.yieldNow
               value  <- UIO(handle.get())
-            } yield assert(value, equalTo(i))
+            } yield assert(value)(equalTo(i))
 
           n       = 64
           results <- ZIO.reduceAllPar(test(1), 2.to(n).map(test))(_ && _)
@@ -309,7 +324,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           _        <- UIO(handle.remove())
           value1   <- fiberRef.get
           value2   <- UIO(handle.get())
-        } yield assert((value1, value2), equalTo((initial, initial)))
+        } yield assert((value1, value2))(equalTo((initial, initial)))
       }
     )
   )
@@ -317,7 +332,7 @@ object FiberRefSpec extends ZIOBaseSpec {
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
-  val looseTimeAndCpu: ZIO[Live[Clock], Nothing, (Int, Int)] = Live.live {
+  val looseTimeAndCpu: ZIO[Live, Nothing, (Int, Int)] = Live.live {
     ZIO.yieldNow.repeat(Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100))
   }
 

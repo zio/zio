@@ -2,10 +2,11 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
-
 import scala.concurrent.Await
+
+import org.openjdk.jmh.annotations._
+
+import zio.IOBenchmarks._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -115,10 +116,10 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
-  def scalazDeepFlatMap(): BigInt = zioDeepFlatMap(IOBenchmarks)
+  def zioDeepFlatMap(): BigInt = zioDeepFlatMap(IOBenchmarks)
 
   @Benchmark
-  def scalazTracedDeepFlatMap(): BigInt = zioDeepFlatMap(TracedRuntime)
+  def zioTracedDeepFlatMap(): BigInt = zioDeepFlatMap(TracedRuntime)
 
   private[this] def zioDeepFlatMap(runtime: Runtime[Any]): BigInt = {
     def fib(n: Int): UIO[BigInt] =

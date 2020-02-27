@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package zio.test.sbt
 import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing._
+
 import zio.ZIO
 import zio.test.{ Summary, TestArgs }
 
@@ -26,12 +27,11 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     extends Runner {
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
-  val sendSummary: SendSummary = SendSummary.fromSendM(
-    summary =>
-      ZIO.effectTotal {
-        summaries.updateAndGet(_ :+ summary)
-        ()
-      }
+  val sendSummary: SendSummary = SendSummary.fromSendM(summary =>
+    ZIO.effectTotal {
+      summaries.updateAndGet(_ :+ summary)
+      ()
+    }
   )
 
   def done(): String = {
@@ -50,9 +50,26 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
         .mkString("", "", "Done")
   }
 
-  def tasks(defs: Array[TaskDef]): Array[Task] =
-    defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))
+  def tasks(defs: Array[TaskDef]): Array[Task] = {
+    val testArgs        = TestArgs.parse(args)
+    val tasks           = defs.map(new ZTestTask(_, testClassLoader, sendSummary, testArgs))
+    val entrypointClass = testArgs.testTaskPolicy.getOrElse(classOf[ZTestTaskPolicyDefaultImpl].getName)
+    val taskPolicy = getClass.getClassLoader
+      .loadClass(entrypointClass)
+      .getConstructor()
+      .newInstance()
+      .asInstanceOf[ZTestTaskPolicy]
+    taskPolicy.merge(tasks)
+  }
 }
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
+final class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
     extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs)
+
+trait ZTestTaskPolicy {
+  def merge(zioTasks: Array[ZTestTask]): Array[Task]
+}
+
+class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
+  override def merge(zioTasks: Array[ZTestTask]): Array[Task] = zioTasks.toArray
+}
