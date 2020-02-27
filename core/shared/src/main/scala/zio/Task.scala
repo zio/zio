@@ -52,34 +52,6 @@ object Task extends TaskPlatformSpecific {
     ZIO.bracketExit(acquire, release, use)
 
   /**
-   * @see See bracketFork [[zio.ZIO]]
-   */
-  def bracketFork[A](acquire: Task[A]): ZIO.BracketForkAcquire[Any, Throwable, A] =
-    ZIO.bracketFork(acquire)
-
-  /**
-   * @see See bracketFork [[zio.ZIO]]
-   */
-  def bracketFork[A, B](acquire: Task[A], release: A => UIO[Any], use: A => Task[B]): Task[B] =
-    ZIO.bracketFork(acquire, release, use)
-
-  /**
-   * @see See bracketForkExit [[zio.ZIO]]
-   */
-  def bracketForkExit[A](acquire: Task[A]): ZIO.BracketForkExitAcquire[Any, Throwable, A] =
-    ZIO.bracketForkExit(acquire)
-
-  /**
-   * @see See bracketForkExit [[zio.ZIO]]
-   */
-  def bracketForkExit[A, B](
-    acquire: Task[A],
-    release: (A, Exit[Throwable, B]) => UIO[Any],
-    use: A => Task[B]
-  ): Task[B] =
-    ZIO.bracketForkExit(acquire, release, use)
-
-  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   def checkInterruptible[A](f: InterruptStatus => Task[A]): Task[A] =
@@ -446,18 +418,6 @@ object Task extends TaskPlatformSpecific {
    */
   def interruptible[A](task: Task[A]): Task[A] =
     ZIO.interruptible(task)
-
-  /**
-   * @see See [[zio.ZIO.interruptibleDisconnect]]
-   */
-  def interruptibleDisconnect[A](task: Task[A]): Task[A] =
-    ZIO.interruptibleDisconnect(task)
-
-  /**
-   * @see See [[zio.ZIO.interruptibleDisconnectMask]]
-   */
-  def interruptibleDisconnectMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
-    ZIO.interruptibleDisconnectMask(k)
 
   /**
    * @see See [[zio.ZIO.interruptibleMask]]

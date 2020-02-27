@@ -52,34 +52,6 @@ object IO {
     ZIO.bracketExit(acquire, release, use)
 
   /**
-   * @see See bracketFork [[zio.ZIO]]
-   */
-  def bracketFork[E, A](acquire: IO[E, A]): BracketForkAcquire[E, A] =
-    new BracketForkAcquire(acquire)
-
-  /**
-   * @see See bracketFork [[zio.ZIO]]
-   */
-  def bracketFork[E, A, B](acquire: IO[E, A], release: A => UIO[Any], use: A => IO[E, B]): IO[E, B] =
-    ZIO.bracketFork(acquire, release, use)
-
-  /**
-   * @see See bracketForkExit [[zio.ZIO]]
-   */
-  def bracketForkExit[E, A](acquire: IO[E, A]): ZIO.BracketForkExitAcquire[Any, E, A] =
-    ZIO.bracketForkExit(acquire)
-
-  /**
-   * @see See bracketForkExit [[zio.ZIO]]
-   */
-  def bracketForkExit[E, A, B](
-    acquire: IO[E, A],
-    release: (A, Exit[E, B]) => UIO[Any],
-    use: A => IO[E, B]
-  ): IO[E, B] =
-    ZIO.bracketForkExit(acquire, release, use)
-
-  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   def checkInterruptible[E, A](f: InterruptStatus => IO[E, A]): IO[E, A] =
@@ -453,18 +425,6 @@ object IO {
     ZIO.interruptible(io)
 
   /**
-   * @see See [[zio.ZIO.interruptibleDisconnect]]
-   */
-  def interruptibleDisconnect[E, A](io: IO[E, A]): IO[E, A] =
-    ZIO.interruptibleDisconnect(io)
-
-  /**
-   * @see See [[zio.ZIO.interruptibleDisconnectMask]]
-   */
-  def interruptibleDisconnectMask[E, A](k: ZIO.InterruptStatusRestore => IO[E, A]): IO[E, A] =
-    ZIO.interruptibleDisconnectMask(k)
-
-  /**
    * @see See [[zio.ZIO.interruptibleMask]]
    */
   def interruptibleMask[E, A](k: ZIO.InterruptStatusRestore => IO[E, A]): IO[E, A] =
@@ -813,24 +773,6 @@ object IO {
   class BracketRelease[E, A](acquire: IO[E, A], release: A => IO[Nothing, Any]) {
     def apply[E1 >: E, B](use: A => IO[E1, B]): IO[E1, B] =
       ZIO.bracket(acquire, release, use)
-  }
-
-  class BracketForkAcquire_[E](private val acquire: IO[E, Any]) extends AnyVal {
-    def apply(release: IO[Nothing, Any]): BracketForkRelease_[E] =
-      new BracketForkRelease_(acquire, release)
-  }
-  class BracketForkRelease_[E](acquire: IO[E, Any], release: IO[Nothing, Any]) {
-    def apply[E1 >: E, B](use: IO[E1, B]): IO[E1, B] =
-      ZIO.bracketFork(acquire, (_: Any) => release, (_: Any) => use)
-  }
-
-  class BracketForkAcquire[E, A](private val acquire: IO[E, A]) extends AnyVal {
-    def apply(release: A => IO[Nothing, Any]): BracketForkRelease[E, A] =
-      new BracketForkRelease[E, A](acquire, release)
-  }
-  class BracketForkRelease[E, A](acquire: IO[E, A], release: A => IO[Nothing, Any]) {
-    def apply[E1 >: E, B](use: A => IO[E1, B]): IO[E1, B] =
-      ZIO.bracketFork(acquire, release, use)
   }
 
   private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
