@@ -718,6 +718,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * The returned fiber can be used to interrupt the forked fiber, await its
    * result, or join the fiber. See [[zio.Fiber]] for more information.
    *
+   * The fiber is forked with interrupt supervision mode, meaning that when the
+   * fiber that forks the child exits, the child will be interrupted.
+   *
    * {{{
    * for {
    *   fiber <- subtask.fork
@@ -728,6 +731,27 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def fork: URIO[R, Fiber.Runtime[E, A]] = fork(SuperviseMode.Interrupt)
 
+  /**
+   * Returns an effect that forks this effect into its own separate fiber,
+   * returning the fiber immediately, without waiting for it to begin
+   * executing the effect.
+   *
+   * The returned fiber can be used to interrupt the forked fiber, await its
+   * result, or join the fiber. See [[zio.Fiber]] for more information.
+   *
+   * The specified supervision mode dictates what happens when the fiber that
+   * forks the effect exits. Available supervision modes allow for the parent
+   * fiber to interrupt, await, or disown the child fiber. See
+   * [[zio.SuperviseMode]] for more details.
+   *
+   * {{{
+   * for {
+   *   fiber <- subtask.fork
+   *   // Do stuff...
+   *   a <- fiber.join
+   * } yield a
+   * }}}
+   */
   final def fork(superviseMode: SuperviseMode): URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, superviseMode)
 
   /**
