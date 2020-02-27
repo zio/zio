@@ -456,11 +456,12 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
                 }.fork
       } yield Reservation(
         acquire = UIO.succeedNow(fiber),
-        release = e => (superviseMode match {
-          case SuperviseMode.Interrupt => fiber.interrupt
-          case SuperviseMode.Await     => fiber.await 
-          case SuperviseMode.Disown    => fiber.interrupt // TODO
-        }) *> finalizer.get.flatMap(f => f(e))
+        release = e =>
+          (superviseMode match {
+            case SuperviseMode.Interrupt => fiber.interrupt
+            case SuperviseMode.Await     => fiber.await
+            case SuperviseMode.Disown    => fiber.interrupt // TODO
+          }) *> finalizer.get.flatMap(f => f(e))
       )
     }
 
