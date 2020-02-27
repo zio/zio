@@ -39,4 +39,10 @@ object SuperviseMode {
    * The child fiber will be interrupted when the parent fiber exits.
    */
   case object Interrupt extends SuperviseMode
+
+  /**
+   * The child fiber will be interrupted when the parent fiber exits, but in
+   * the background, without blocking the parent fiber.
+   */
+  case object InterruptFork extends SuperviseMode
 }

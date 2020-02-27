@@ -2584,7 +2584,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _   <- p1.await
           res <- s.interrupt
         } yield assert(res)(isInterrupted)
-      } @@ TestAspect.diagnose(10.seconds),
+      },
       testM("disconnected effect that is then interrupted eventually performs interruption") {
         val io =
           for {
@@ -2602,7 +2602,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield test
 
         assertM(Live.live(io))(isTrue)
-      } @@ TestAspect.diagnose(10.seconds),
+      },
       testM("cause reflects interruption") {
         val io =
           for {
