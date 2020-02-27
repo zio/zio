@@ -466,7 +466,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.uninterruptibleMask { restore =>
       for {
         parentFiberId <- ZIO.fiberId
-        fiber         <- self.forkDaemon
+        fiber         <- restore(self).forkDaemon
         res <- restore(fiber.join).onInterrupt(interruptors =>
                 fiber.interruptAs(interruptors.headOption.getOrElse(parentFiberId)).forkDaemon
               )
@@ -759,7 +759,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * that when the fiber executing this effect exits, the forked fiber will not
    * automatically be terminated. Disowned fibers become new root fibers.
    */
-  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = self.fork.tap(ZIO.disown(_)).uninterruptible
+  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] =
+    ZIO.uninterruptibleMask(restore => restore(self).fork.tap(ZIO.disown))
 
   /**
    * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
@@ -2313,7 +2314,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       a <- ZIO.uninterruptibleMask { restore =>
             val f = register(k => r.unsafeRunAsync_(k.to(p)))
 
-            restore(f.catchAllCause(p.halt)).fork(SuperviseMode.Disown) *> restore(p.await)
+            restore(f.catchAllCause(p.halt)).fork *> restore(p.await)
           }
     } yield a
 
