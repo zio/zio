@@ -2574,21 +2574,21 @@ object ZIOSpec extends ZIOBaseSpec {
           value <- ref.get
         } yield assert(value)(isTrue)
       },
-      testM("interruptibleDisconnect returns immediately on interrupt") {
+      testM("disconnect returns immediately on interrupt") {
         for {
           p1 <- Promise.make[Nothing, Unit]
           p2 <- Promise.make[Nothing, Int]
           p3 <- Promise.make[Nothing, Unit]
           s <- (p1.succeed(()) *> p2.await)
                 .ensuring(p3.await)
-                .interruptibleDisconnect
+                .disconnect
                 .fork
           _   <- p1.await
           res <- s.interrupt
           _   <- p3.succeed(())
         } yield assert(res)(isInterrupted)
       } @@ TestAspect.diagnose(10.seconds),
-      testM("interruptibleDisconnect forks execution and interrupts fork") {
+      testM("disconnect unblocks interruption of blocking effect") {
         val io =
           for {
             r  <- Ref.make(false)
@@ -2596,7 +2596,7 @@ object ZIOSpec extends ZIOBaseSpec {
             p3 <- Promise.make[Nothing, Unit]
             s <- (p1.succeed(()) *> ZIO.never)
                   .ensuring(r.set(true) *> clock.sleep(10.millis) *> p3.succeed(()))
-                  .interruptibleDisconnect
+                  .disconnect
                   .fork
             _    <- p1.await
             _    <- s.interrupt
