@@ -2577,9 +2577,8 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("disconnect returns immediately on interrupt") {
         for {
           p1 <- Promise.make[Nothing, Unit]
-          p2 <- Promise.make[Nothing, Int]
           p3 <- Promise.make[Nothing, Unit]
-          s <- (p1.succeed(()) *> p2.await)
+          s <- (p1.succeed(()) *> ZIO.never)
                 .ensuring(p3.await)
                 .disconnect
                 .fork
