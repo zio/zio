@@ -1700,8 +1700,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * `Some` of the produced value otherwise.
    *
    * If the timeout elapses without producing a value, the running effect
-   * will be safely interrupted
-   *
+   * will be safely interrupted.
+   * 
+   * WARNING: The effect returned by this method will not itself return until
+   * the underlying effect is actually interrupted. This leads to more 
+   * predictable resource utilization. If early return is desired, then 
+   * instead of using `effect.timeout(d)`, use `effect.disconnect.timeout(d)`, 
+   * which first disconnects the effect's interruption signal before performing
+   * the timeout, resulting in earliest possible return, before an underlying 
+   * effect has been successfully interrupted.
    */
   final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] = timeoutTo(None)(Some(_))(d)
 
