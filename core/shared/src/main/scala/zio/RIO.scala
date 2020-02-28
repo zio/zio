@@ -425,9 +425,9 @@ object RIO {
     ZIO.fromTry(value)
 
   /**
-   * @see See [[zio.Task.getOrFail]]
+   * @see See [[zio.ZIO.getOrFail]]
    */
-  final def getOrFail[A](v: => Option[A]): Task[A] = Task.getOrFail(v)
+  final def getOrFail[A](v: => Option[A]): Task[A] = ZIO.getOrFail(v)
 
   /**
    * @see See [[zio.ZIO.halt]]

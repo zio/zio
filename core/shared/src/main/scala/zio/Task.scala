@@ -422,9 +422,9 @@ object Task extends TaskPlatformSpecific {
     ZIO.fromTry(value)
 
   /**
-   * Wraps the value of the given option into a Task, if the option is empty the task fails with NoSuchElementException
+   * @see See [[zio.ZIO.getOrFail]]
    */
-  final def getOrFail[A](v: => Option[A]): Task[A] = Task(v.get)
+  final def getOrFail[A](v: => Option[A]): Task[A] = ZIO.getOrFail(v)
 
   /**
    * @see See [[zio.ZIO.halt]]
