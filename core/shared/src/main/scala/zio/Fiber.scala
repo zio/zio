@@ -301,7 +301,7 @@ sealed trait Fiber[+E, +A] { self =>
    *   _      <- putStrLn("Pausing fiber...")
    *   either <- fiber.pause
    *   _      <- either match {
-   *               case Left(exit) => putStrLn(s"Fiber already done: ${exit}")
+   *               case Left(exit) => putStrLn(s"Fiber already done: $exit")
    *               case Right(resume) => putStrLn("About to resume fiber...") *> resume)
    *             }
    * } yield ()
@@ -359,9 +359,10 @@ sealed trait Fiber[+E, +A] { self =>
         _       <- completeFuture.fork
       } yield new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] = {
+          // For Dotty compatibility
           val p = scala.concurrent.Promise[Exit[Throwable, A]]()
-          runtime.unsafeRunAsync(self.interrupt) { exit =>
-            p.success(exit.flatten.mapError(f))
+          runtime.unsafeRunAsync(self.interrupt) { (exit: Exit[Nothing, Exit[E, A]]) =>
+            val _ = p.success(exit.flatten.mapError(f))
           }
           p.future
         }
