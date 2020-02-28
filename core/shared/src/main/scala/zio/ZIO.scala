@@ -1333,6 +1333,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that races this effect with the specified effect,
    * yielding the first result to complete, whether by success or failure. If
    * neither effect completes, then the composed effect will not complete.
+   * 
+   * WARNING: The raced effect will safely interrupt the "loser", but will not 
+   * resume until the loser has been cleanly terminated. If early return is 
+   * desired, then instead of performing `l raceFirst r`, perform 
+   * `l.disconnect raceFirst r.disconnect`, which disconnects left and right 
+   * interrupt signal, allowing the earliest possible return.
    */
   final def raceFirst[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     (self.run race that.run).flatMap(ZIO.done(_)).refailWithTrace
@@ -1341,6 +1347,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that races this effect with the specified effect,
    * yielding the first result to succeed. If neither effect succeeds, then the
    * composed effect will fail with some error.
+   * 
+   * WARNING: The raced effect will safely interrupt the "loser", but will not 
+   * resume until the loser has been cleanly terminated. If early return is 
+   * desired, then instead of performing `l raceEither r`, perform 
+   * `l.disconnect raceEither r.disconnect`, which disconnects left and right 
+   * interrupt signal, allowing the earliest possible return.
    */
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
     (self.map(Left(_)) race that.map(Right(_)))
