@@ -1495,10 +1495,10 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(task)(equalTo(1))
       },
       testM("make a task from a defined option") {
-        assertM(Task.fromOption(Some(1)))(equalTo(1))
+        assertM(Task.getOrFail(Some(1)))(equalTo(1))
       },
       testM("make a task from an empty option") {
-        assertM(Task.fromOption(None).run)(fails(isSubtype[NoSuchElementException](anything)))
+        assertM(Task.getOrFail(None).run)(fails(isSubtype[NoSuchElementException](anything)))
       },
       testM("fails on None") {
         val task: IO[Option[Throwable], Int] = Task(None).some
