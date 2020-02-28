@@ -194,6 +194,14 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that sets the `TestConsole` instance in the environment to
+   * debug mode before each test so that console output is rendered to
+   * standard output in addition to being written to the output buffer.
+   */
+  val debug: TestAspectAtLeastR[TestConsole] =
+    before(TestConsole.debug)
+
+  /**
    * An aspect that applies the specified aspect on Dotty.
    */
   def dotty[LowerR, UpperR, LowerE, UpperE](
@@ -387,6 +395,14 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
+   * An aspect that causes calls to `sleep` and methods implemented in terms
+   * of it to be executed immediately instead of requiring the `TestClock` to
+   * be adjusted.
+   */
+  val noDelay: TestAspectAtLeastR[TestClock] =
+    before(TestClock.runAll)
+
+  /**
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
@@ -572,6 +588,14 @@ object TestAspect extends TimeoutVariants {
    */
   val scala213Only: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala213) identity else ignore
+
+  /**
+   * An aspect that sets the `TestConsole` instance in the environment to
+   * silent mode before each test so that console output is only written to
+   * the output buffer and not rendered to standard output.
+   */
+  val silent: TestAspectAtLeastR[TestConsole] =
+    before(TestConsole.silent)
 
   /**
    * An aspect that converts ignored tests into test failures.

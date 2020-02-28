@@ -580,13 +580,20 @@ package object environment extends PlatformSpecific {
   object TestConsole extends Serializable {
 
     trait Service extends Restorable {
-      def feedLines(lines: String*): UIO[Unit]
-      def output: UIO[Vector[String]]
       def clearInput: UIO[Unit]
       def clearOutput: UIO[Unit]
+      def debug: UIO[Unit]
+      def feedLines(lines: String*): UIO[Unit]
+      def output: UIO[Vector[String]]
+      def silent: UIO[Unit]
     }
 
-    case class Test(consoleState: Ref[TestConsole.Data]) extends Console.Service with TestConsole.Service {
+    case class Test(
+      consoleState: Ref[TestConsole.Data],
+      live: Live.Service,
+      debugState: Ref[Boolean]
+    ) extends Console.Service
+        with TestConsole.Service {
 
       /**
        * Clears the contents of the input buffer.
@@ -599,6 +606,9 @@ package object environment extends PlatformSpecific {
        */
       val clearOutput: UIO[Unit] =
         consoleState.update(data => data.copy(output = Vector.empty))
+
+      val debug: UIO[Unit] =
+        debugState.set(true)
 
       /**
        * Writes the specified sequence of strings to the input buffer. The
@@ -638,16 +648,16 @@ package object environment extends PlatformSpecific {
       override def putStr(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ line)
-        }
+        } *> live.provide(console.putStr(line)).whenM(debugState.get)
 
       /**
        * Writes the specified string to the output buffer followed by a newline
        * character.
        */
-      override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
+      override def putStrLn(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ s"$line\n")
-        }
+        } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
 
       /**
        * Saves the `TestConsole`'s current state in an effect which, when run,
@@ -657,6 +667,9 @@ package object environment extends PlatformSpecific {
         for {
           consoleData <- consoleState.get
         } yield consoleState.set(consoleData)
+
+      val silent: UIO[Unit] =
+        debugState.set(false)
     }
 
     /**
@@ -664,15 +677,19 @@ package object environment extends PlatformSpecific {
      * interface. This can be useful for mixing in with implementations of other
      * interfaces.
      */
-    def live(data: Data): ZLayer.NoDeps[Nothing, Console with TestConsole] =
-      ZLayer.fromEffectMany(
-        Ref.make(data).map(ref => Has.allOf[Console.Service, TestConsole.Service](Test(ref), Test(ref)))
-      )
+    def live(data: Data): ZLayer[Live, Nothing, Console with TestConsole] =
+      ZLayer.fromServiceManyM { (live: Live.Service) =>
+        for {
+          ref      <- Ref.make(data)
+          debugRef <- Ref.make(true)
+          test     = Test(ref, live, debugRef)
+        } yield Has.allOf[Console.Service, TestConsole.Service](test, test)
+      }
 
     val any: ZLayer[Console with TestConsole, Nothing, Console with TestConsole] =
       ZLayer.requires[Console with TestConsole]
 
-    val default: ZLayer.NoDeps[Nothing, Console with TestConsole] =
+    val default: ZLayer[Live, Nothing, Console with TestConsole] =
       live(Data(Nil, Vector()))
 
     /**
@@ -703,6 +720,9 @@ package object environment extends PlatformSpecific {
     val clearOutput: ZIO[TestConsole, Nothing, Unit] =
       ZIO.accessM(_.get.clearOutput)
 
+    val debug: ZIO[TestConsole, Nothing, Unit] =
+      ZIO.accessM(_.get.debug)
+
     /**
      * Accesses a `TestConsole` instance in the environment and saves the
      * console state in an effect which, when run, will restore the
@@ -710,6 +730,9 @@ package object environment extends PlatformSpecific {
      */
     val save: ZIO[TestConsole, Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
+
+    val silent: ZIO[TestConsole, Nothing, Unit] =
+      ZIO.accessM(_.get.silent)
 
     /**
      * The state of the `TestConsole`.
