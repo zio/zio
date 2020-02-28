@@ -50,7 +50,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
             .run(spec)
-            .provideLayer(TestLogger.fromConsole ++ TestClock.default)
+            .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
     } yield output.mkString
 
@@ -58,7 +58,9 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                   .run(spec)
-                  .provideLayer(TestLogger.fromConsole ++ TestClock.default)
+                  .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+                     TestLogger.fromConsole ++ TestClock.default
+                   )
       actualSummary <- SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
