@@ -823,11 +823,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns a new effect that performs the same operations as this effect, but
    * interruptibly, even if composed inside of an uninterruptible region.
-   * 
-   * Note that effects are interruptible by default, so this function only has 
+   *
+   * Note that effects are interruptible by default, so this function only has
    * meaning if used within an uninterruptible region.
-   * 
-   * WARNING: This operator "punches holes" into effects, allowing them to be 
+   *
+   * WARNING: This operator "punches holes" into effects, allowing them to be
    * interrupted in unexpected places. Do not use this operator unless you know
    * exactly what you are doing. Instead, you should use [[ZIO.uninterruptibleMask]].
    */
@@ -1253,11 +1253,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * returning the first successful `A` from the faster side. If one effect
    * succeeds, the other will be interrupted. If neither succeeds, then the
    * effect will fail with some error.
-   * 
-   * WARNING: The raced effect will safely interrupt the "loser", but will not 
-   * resume until the loser has been cleanly terminated. If early return is 
-   * desired, then instead of performing `l race r`, perform 
-   * `l.disconnect race r.disconnect`, which disconnects left and right 
+   *
+   * WARNING: The raced effect will safely interrupt the "loser", but will not
+   * resume until the loser has been cleanly terminated. If early return is
+   * desired, then instead of performing `l race r`, perform
+   * `l.disconnect race r.disconnect`, which disconnects left and right
    * interrupt signal, allowing the earliest possible return.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
@@ -1333,11 +1333,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that races this effect with the specified effect,
    * yielding the first result to complete, whether by success or failure. If
    * neither effect completes, then the composed effect will not complete.
-   * 
-   * WARNING: The raced effect will safely interrupt the "loser", but will not 
-   * resume until the loser has been cleanly terminated. If early return is 
-   * desired, then instead of performing `l raceFirst r`, perform 
-   * `l.disconnect raceFirst r.disconnect`, which disconnects left and right 
+   *
+   * WARNING: The raced effect will safely interrupt the "loser", but will not
+   * resume until the loser has been cleanly terminated. If early return is
+   * desired, then instead of performing `l raceFirst r`, perform
+   * `l.disconnect raceFirst r.disconnect`, which disconnects left and right
    * interrupt signal, allowing the earliest possible return.
    */
   final def raceFirst[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
@@ -1347,11 +1347,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that races this effect with the specified effect,
    * yielding the first result to succeed. If neither effect succeeds, then the
    * composed effect will fail with some error.
-   * 
-   * WARNING: The raced effect will safely interrupt the "loser", but will not 
-   * resume until the loser has been cleanly terminated. If early return is 
-   * desired, then instead of performing `l raceEither r`, perform 
-   * `l.disconnect raceEither r.disconnect`, which disconnects left and right 
+   *
+   * WARNING: The raced effect will safely interrupt the "loser", but will not
+   * resume until the loser has been cleanly terminated. If early return is
+   * desired, then instead of performing `l raceEither r`, perform
+   * `l.disconnect raceEither r.disconnect`, which disconnects left and right
    * interrupt signal, allowing the earliest possible return.
    */
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
@@ -1719,13 +1719,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * If the timeout elapses without producing a value, the running effect
    * will be safely interrupted.
-   * 
+   *
    * WARNING: The effect returned by this method will not itself return until
-   * the underlying effect is actually interrupted. This leads to more 
-   * predictable resource utilization. If early return is desired, then 
-   * instead of using `effect.timeout(d)`, use `effect.disconnect.timeout(d)`, 
+   * the underlying effect is actually interrupted. This leads to more
+   * predictable resource utilization. If early return is desired, then
+   * instead of using `effect.timeout(d)`, use `effect.disconnect.timeout(d)`,
    * which first disconnects the effect's interruption signal before performing
-   * the timeout, resulting in earliest possible return, before an underlying 
+   * the timeout, resulting in earliest possible return, before an underlying
    * effect has been successfully interrupted.
    */
   final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] = timeoutTo(None)(Some(_))(d)
@@ -3815,7 +3815,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     case Exit.Failure(cause) => haltNow(cause)
   }
 
-  private[zio] def failNow[E](error: E): IO[E, Nothing] = new ZIO.Fail(_ => Cause.fail(error))
+  private[zio] def failNow[E](error: E): IO[E, Nothing] = fail(error)
 
   private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
 
