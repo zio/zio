@@ -1967,6 +1967,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     descriptorWith(d => if (d.interruptors.nonEmpty) interrupt else ZIO.unit)
 
   /**
+   * Awaits all child fibers of the fiber executing the effect.
+   */
+  def awaitAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.awaitAll(_))
+
+  /**
    * When this effect represents acquisition of a resource (for example,
    * opening a file, launching a thread, etc.), `bracket` can be used to ensure
    * the acquisition is not interrupted and the resource is always released.
@@ -2805,6 +2810,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * method.
    */
   val interrupt: UIO[Nothing] = ZIO.fiberId.flatMap(fiberId => interruptAs(fiberId))
+
+  /**
+   * Interrupts all child fibers of the fiber executing the effect.
+   */
+  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
