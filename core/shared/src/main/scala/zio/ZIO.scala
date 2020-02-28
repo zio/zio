@@ -2053,6 +2053,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Thus the fiber executing bracketFork is able to be interrupted right away even if in the middle
    * of a lengthy acquisition operation.
    */
+  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
   def bracketFork[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketForkAcquire[R, E, A] =
     new ZIO.BracketForkAcquire[R, E, A](acquire)
 
