@@ -2108,7 +2108,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- fiber.interrupt
           a     <- release.await
         } yield assert(a)(equalTo(42))
-      },
+      } @@ ignore,
       testM("asyncInterrupt runs cancel token on interrupt") {
         for {
           release <- Promise.make[Nothing, Int]
