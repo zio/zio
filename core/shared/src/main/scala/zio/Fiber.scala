@@ -301,7 +301,7 @@ sealed trait Fiber[+E, +A] { self =>
    *   _      <- putStrLn("Pausing fiber...")
    *   either <- fiber.pause
    *   _      <- either match {
-   *               case Left(exit) => putStrLn(s"Fiber already done: $exit")
+   *               case Left(exit) => putStrLn(s"Fiber already done: " + exit)
    *               case Right(resume) => putStrLn("About to resume fiber...") *> resume)
    *             }
    * } yield ()
