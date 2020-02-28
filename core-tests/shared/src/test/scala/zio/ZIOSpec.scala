@@ -2001,7 +2001,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _ <- fiber.interruptFork
           a <- release.await
         } yield assert(a)(isUnit)
-      },
+      } @@ ignore,
       testM("effectAsync should not resume fiber twice after interruption") {
         for {
           step            <- Promise.make[Nothing, Unit]
