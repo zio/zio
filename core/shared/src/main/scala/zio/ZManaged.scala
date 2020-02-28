@@ -461,7 +461,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
             case SuperviseMode.Interrupt => fiber.interrupt *> finalizer.get.flatMap(f => f(e))
             case SuperviseMode.InterruptFork =>
               (fiber.interrupt *> finalizer.get.flatMap(f => f(e))).uninterruptible.forkDaemon
-            case SuperviseMode.Await => fiber.await *> finalizer.get.flatMap(f => f(e))
             case SuperviseMode.Disown =>
               ZIO.disown(fiber) *> (fiber.await *> finalizer.get
                 .flatMap(f => f(e))

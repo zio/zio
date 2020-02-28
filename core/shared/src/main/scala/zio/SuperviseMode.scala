@@ -18,8 +18,8 @@ package zio
 
 /**
  * Dictates the supervision mode when a child fiber is forked from a parent
- * fiber. There are three possible supervision modes: `Disown`, `Await`,
- * and `Interrupt`, which determine what the parent fiber will do with the
+ * fiber. There are three possible supervision modes: `Disown`, `Interrupt`,
+ * and `InterruptFork`, which determine what the parent fiber will do with the
  * child fiber when the parent fiber exits.
  */
 sealed trait SuperviseMode extends Serializable with Product
@@ -29,11 +29,6 @@ object SuperviseMode {
    * The child fiber will be disowned when the parent fiber exits.
    */
   case object Disown extends SuperviseMode
-
-  /**
-   * The child fiber will be awaited when the parent fiber exits.
-   */
-  case object Await extends SuperviseMode
 
   /**
    * The child fiber will be interrupted when the parent fiber exits.

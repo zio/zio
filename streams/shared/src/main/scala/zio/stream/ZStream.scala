@@ -1914,12 +1914,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 p     <- Promise.make[E1, B]
                 latch <- Promise.make[Nothing, Unit]
                 _     <- out.offer(Pull.fromPromise(p))
-                _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork(SuperviseMode.Await)
+                _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork
                 _     <- latch.await
               } yield ()
             }.foldCauseM(
                 c => out.offer(Pull.haltNow(c)).unit.toManaged_,
-                _ => out.offer(Pull.end).unit.toManaged_
+                _ => (out.offer(Pull.end) <* ZIO.awaitAllChildren).unit.toManaged_
               )
               .fork
       } yield out.take.flatten
