@@ -1425,18 +1425,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     }
 
   /**
-   * Repeats this effect with the specified schedule until the schedule
-   * completes, or until the first failure.
-   * Repeats are done in addition to the first execution so that
-   * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
+   * Returns a new effect that repeats this effect according to the specified
+   * schedule or until the first failure. Scheduled recurrences are in addition
+   * to the first execution, so that `io.repeat(Schedule.once)` yields an
+   * effect that executes `io`, and then if that succeeds, executes `io` an
+   * additional time.
    */
   final def repeat[R1 <: R, B](schedule: Schedule[R1, A, B]): ZIO[R1, E, B] =
     repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.failNow(e))
 
   /**
-   * Repeats this effect with the specified schedule until the schedule
-   * completes, or until the first failure. In the event of failure the progress
-   * to date, together with the error, will be passed to the specified handler.
+   * Returns a new effect that repeats this effect according to the specified
+   * schedule or until the first failure, at which point, the failure value
+   * and schedule output are passed to the specified handler.
+   *
+   * Scheduled recurrences are in addition to the first execution, so that
+   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then
+   * if that succeeds, executes `io` an additional time.
    */
   final def repeatOrElse[R1 <: R, E2, B](
     schedule: Schedule[R1, A, B],
@@ -1445,9 +1450,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     repeatOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
 
   /**
-   * Repeats this effect with the specified schedule until the schedule
-   * completes, or until the first failure. In the event of failure the progress
-   * to date, together with the error, will be passed to the specified handler.
+   * Returns a new effect that repeats this effect according to the specified
+   * schedule or until the first failure, at which point, the failure value
+   * and schedule output are passed to the specified handler.
+   *
+   * Scheduled recurrences are in addition to the first execution, so that
+   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then
+   * if that succeeds, executes `io` an additional time.
    */
   final def repeatOrElseEither[R1 <: R, B, E2, C](
     schedule: Schedule[R1, A, B],
@@ -2836,6 +2845,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def ifM[R, E](b: ZIO[R, E, Boolean]): ZIO.IfM[R, E] =
     new ZIO.IfM(b)
+
+  /**
+   * Like [[never]], but fibers that running this effect won't be garbage
+   * collected unless interrupted.
+   */
+  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this
