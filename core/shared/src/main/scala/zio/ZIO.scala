@@ -821,9 +821,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def ignore: URIO[R, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
 
   /**
-   * Performs this effect interruptibly. Because this is the default, this
-   * operation only has additional meaning if the effect is located within
-   * an uninterruptible section.
+   * Returns a new effect that performs the same operations as this effect, but
+   * interruptibly, even if composed inside of an uninterruptible region.
+   * 
+   * Note that effects are interruptible by default, so this function only has 
+   * meaning if used within an uninterruptible region.
+   * 
+   * WARNING: This operator "punches holes" into effects, allowing them to be 
+   * interrupted in unexpected places. Do not use this operator unless you know
+   * exactly what you are doing. Instead, you should use [[ZIO.uninterruptibleMask]].
    */
   final def interruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Interruptible)
 
