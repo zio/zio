@@ -21,6 +21,7 @@ import scala.concurrent.Future
 
 import com.github.ghik.silencer.silent
 
+import zio.console.Console
 import zio.internal.Executor
 import zio.internal.stacktracer.ZTraceElement
 
@@ -593,13 +594,13 @@ object Fiber extends FiberPlatformSpecific {
    * TODO: Switch to "streaming lazy" version.
    */
   val dumpAll: UIO[Iterable[Dump]] =
-    dump(_rootFibers.asScala: @silent("JavaConverters"))
+    dump((_rootFibers.asScala: @silent("JavaConverters")).toList: _*)
 
   /**
    * Collects a complete dump of the specified fibers and all children of the
    * fibers.
    */
-  def dump(fibers: => Iterable[Fiber.Runtime[_, _]]): UIO[Iterable[Dump]] = UIO.effectSuspendTotal {
+  def dump(fibers: Fiber.Runtime[_, _]*): UIO[Iterable[Dump]] = UIO.effectSuspendTotal {
     import internal.FiberContext
 
     def loop(fibers: Iterable[Fiber.Runtime[_, _]], acc: UIO[Vector[Dump]]): UIO[Vector[Dump]] =
@@ -619,6 +620,17 @@ object Fiber extends FiberPlatformSpecific {
 
     loop(fibers, UIO(Vector()))
   }
+
+  /**
+   * Collects a complete dump of the specified fibers and all children of the
+   * fibers and renders it as a string.
+   */
+  def dumpStr(fibers: Fiber.Runtime[_, _]*): UIO[String] =
+    for {
+      dumps    <- Fiber.dump(fibers: _*)
+      dumpStrs <- ZIO.foreach(dumps)(_.prettyPrintM)
+      dumpStr  = dumpStrs.mkString("\n")
+    } yield dumpStr
 
   /**
    * A fiber that has already failed with the specified value.
@@ -729,6 +741,13 @@ object Fiber extends FiberPlatformSpecific {
       def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeedNow(None)
       def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(false, 0, Nil, Nil))
     }
+
+  /**
+   * Collects a complete dump of the specified fibers and all children of the
+   * fibers and renders it to the console.
+   */
+  def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*): URIO[Console, Unit] =
+    dumpStr(fibers: _*).flatMap(str => console.putStrLn(s"$label: ${str}"))
 
   /**
    * The root fibers.
