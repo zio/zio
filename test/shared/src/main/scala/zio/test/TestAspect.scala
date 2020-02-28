@@ -179,12 +179,7 @@ object TestAspect extends TimeoutVariants {
             )
           }
         def dump[E, A](label: String, fiber: Fiber.Runtime[E, A]): ZIO[Live, Nothing, Unit] =
-          for {
-            dumps    <- Fiber.dump(Set(fiber))
-            dumpStrs <- ZIO.foreach(dumps)(_.prettyPrintM)
-            dumpStr  = s"$label: ${dumpStrs.mkString("\n")}"
-            _        <- Live.live(console.putStrLn(dumpStr))
-          } yield ()
+          Live.live(Fiber.putDumpStr(label, fiber))
         spec.transform[R, TestFailure[E], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
           case Spec.TestCase(label, test, annotations) =>
