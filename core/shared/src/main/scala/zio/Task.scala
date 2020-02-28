@@ -422,6 +422,11 @@ object Task extends TaskPlatformSpecific {
     ZIO.fromTry(value)
 
   /**
+   * @see See [[zio.ZIO.getOrFail]]
+   */
+  final def getOrFail[A](v: => Option[A]): Task[A] = ZIO.getOrFail(v)
+
+  /**
    * @see See [[zio.ZIO.halt]]
    */
   def halt(cause: => Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
