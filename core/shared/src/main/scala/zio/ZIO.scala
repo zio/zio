@@ -1253,6 +1253,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * returning the first successful `A` from the faster side. If one effect
    * succeeds, the other will be interrupted. If neither succeeds, then the
    * effect will fail with some error.
+   * 
+   * WARNING: The raced effect will safely interrupt the "loser", but will not 
+   * resume until the loser has been cleanly terminated. If early return is 
+   * desired, then instead of performing `l race r`, perform 
+   * `l.disconnect race r.disconnect`, which disconnects left and right 
+   * interrupt signal, allowing the earliest possible return.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     ZIO.fiberId
