@@ -416,15 +416,15 @@ object Task extends TaskPlatformSpecific {
     ZIO.fromFuture(make)
 
   /**
-   * Wraps the value of the given option into a Task, if the option is empty the task fails with NoSuchElementException
-   */
-  final def getOrFail[A](v: => Option[A]): Task[A] = Task(v.get)
-
-  /**
    * @see See [[zio.ZIO.fromTry]]
    */
   def fromTry[A](value: => scala.util.Try[A]): Task[A] =
     ZIO.fromTry(value)
+
+  /**
+   * Wraps the value of the given option into a Task, if the option is empty the task fails with NoSuchElementException
+   */
+  final def getOrFail[A](v: => Option[A]): Task[A] = Task(v.get)
 
   /**
    * @see See [[zio.ZIO.halt]]

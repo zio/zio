@@ -419,15 +419,15 @@ object RIO {
     ZIO.fromFutureInterrupt(make)
 
   /**
-   * @see See [[zio.Task.getOrFail]]
-   */
-  final def getOrFail[A](v: => Option[A]): Task[A] = Task.getOrFail(v)
-
-  /**
    * @see See [[zio.ZIO.fromTry]]
    */
   def fromTry[A](value: => scala.util.Try[A]): Task[A] =
     ZIO.fromTry(value)
+
+  /**
+   * @see See [[zio.Task.getOrFail]]
+   */
+  final def getOrFail[A](v: => Option[A]): Task[A] = Task.getOrFail(v)
 
   /**
    * @see See [[zio.ZIO.halt]]
