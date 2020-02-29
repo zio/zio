@@ -1386,23 +1386,20 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 _ <- latch.await
               } yield ()
             }.foldCauseM(
-                cause => (ZIO.children.flatMap(Fiber.interruptAll) *> out.offer(Pull.haltNow(cause))).unit.toManaged_,
+                cause => (ZIO.interruptAllChildren *> out.offer(Pull.haltNow(cause)).unit).toManaged_,
                 _ =>
-                  ZIO.children.flatMap { pendingFibers =>
-                    innerFailure.await.interruptible
-                    // Important to use `withPermits` here because the ZManaged#fork below may interrupt
-                    // the driver, and we want the permits to be released in that case
-                      .raceWith(permits.withPermits(n.toLong)(ZIO.unit).interruptible)(
-                        // One of the inner fibers failed. It already enqueued its failure, so we
-                        // interrupt the inner fibers. The finalizer below will make sure
-                        // that they actually end.
-                        leftDone = (_, permitAcquisition) =>
-                          Fiber.interruptAll(pendingFibers) *> permitAcquisition.interrupt.unit,
-                        // All fibers completed successfully, so we signal that we're done.
-                        rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
-                      )
-
-                  }.toManaged_
+                  innerFailure.await.interruptible
+                  // Important to use `withPermits` here because the ZManaged#fork below may interrupt
+                  // the driver, and we want the permits to be released in that case
+                    .raceWith(permits.withPermits(n.toLong)(ZIO.unit).interruptible)(
+                      // One of the inner fibers failed. It already enqueued its failure, so we
+                      // interrupt the inner fibers. The finalizer below will make sure
+                      // that they actually end.
+                      leftDone = (_, permitAcquisition) => ZIO.interruptAllChildren *> permitAcquisition.interrupt.unit,
+                      // All fibers completed successfully, so we signal that we're done.
+                      rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
+                    )
+                    .toManaged_
               )
               .fork
       } yield out.take.flatten
@@ -1445,17 +1442,14 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 _ <- latch.await
               } yield ()
             }.foldCauseM(
-                cause => (ZIO.children.flatMap(Fiber.interruptAll) *> out.offer(Pull.haltNow(cause))).unit.toManaged_,
+                cause => (ZIO.interruptAllChildren *> out.offer(Pull.haltNow(cause))).unit.toManaged_,
                 _ =>
-                  ZIO.children.flatMap { pendingFibers =>
-                    innerFailure.await
-                      .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
-                        leftDone = (_, permitAcquisition) =>
-                          Fiber.interruptAll(pendingFibers) *> permitAcquisition.interrupt.unit,
-                        rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
-                      )
-
-                  }.toManaged_
+                  innerFailure.await
+                    .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
+                      leftDone = (_, permitAcquisition) => ZIO.interruptAllChildren *> permitAcquisition.interrupt.unit,
+                      rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
+                    )
+                    .toManaged_
               )
               .fork
       } yield out.take.flatten

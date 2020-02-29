@@ -820,7 +820,7 @@ private[zio] final class FiberContext[E, A](
 
   @inline
   private[this] final def shouldInterrupt(): Boolean =
-    isInterrupted() && isInterruptible() && !isInterrupting
+    isInterrupted() && isInterruptible() && !isInterrupting()
 
   @tailrec
   private[this] def addInterruptor(cause: Cause[Nothing]): Unit =
