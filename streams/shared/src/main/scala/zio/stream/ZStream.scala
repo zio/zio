@@ -473,28 +473,27 @@ abstract class ZStream[-R, +E, +O](
   final def catchAllCause[R1 <: R, E2, O1 >: O](f: Cause[E] => ZStream[R1, E2, O1]): ZStream[R1, E2, O1] = {
     sealed abstract class State
     object State {
-      case object NotStarted extends State
-      case object Self       extends State
-      case object Other      extends State
+      case object NotStarted                         extends State
+      case class Self(finalizer: ZManaged.Finalizer) extends State
+      case object Other                              extends State
     }
 
     ZStream {
       for {
-        finalizers <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+        finalizers <- ZManaged.releaseMap
         selfPull   <- Ref.make[ZIO[R, Option[E], Chunk[O]]](Pull.end).toManaged_
         otherPull  <- Ref.make[ZIO[R1, Option[E2], Chunk[O1]]](Pull.end).toManaged_
         stateRef   <- Ref.make[State](State.NotStarted).toManaged_
         pull = {
-          def switch(e: Cause[Option[E]]): ZIO[R1, Option[E2], Chunk[O1]] = {
-            def next(e: Cause[E]) = ZIO.uninterruptibleMask { restore =>
+          def switch(releasePrev: ZManaged.Finalizer, e: Cause[Option[E]]): ZIO[R1, Option[E2], Chunk[O1]] = {
+            def next(e: Cause[E]) = ZIO.uninterruptible {
               for {
-                _  <- finalizers.remove.flatMap(ZIO.foreach(_)(_(Exit.fail(e))))
-                r  <- f(e).process.reserve
-                _  <- finalizers.add(r.release)
-                as <- restore(r.acquire)
-                _  <- otherPull.set(as)
-                _  <- stateRef.set(State.Other)
-                a  <- as
+                _             <- releasePrev(Exit.fail(e))
+                tp            <- f(e).process.zio.provideSome[R1]((_, finalizers))
+                (release, as) = tp
+                _             <- otherPull.set(as)
+                _             <- stateRef.set(State.Other)
+                a             <- as
               } yield a
             }
 
@@ -506,19 +505,18 @@ abstract class ZStream[-R, +E, +O](
 
           stateRef.get.flatMap {
             case State.NotStarted =>
-              ZIO.uninterruptibleMask { restore =>
+              ZIO.uninterruptible {
                 for {
-                  r  <- self.process.reserve
-                  _  <- finalizers.add(r.release)
-                  as <- restore(r.acquire)
-                  _  <- selfPull.set(as)
-                  _  <- stateRef.set(State.Self)
-                  a  <- as
+                  tp            <- self.process.zio.provideSome[R1]((_, finalizers))
+                  (release, as) = tp
+                  _             <- selfPull.set(as)
+                  _             <- stateRef.set(State.Self(release))
+                  a             <- as
                 } yield a
-              }.catchAllCause(switch)
+              }.catchAllCause(switch(ZManaged.Finalizer.noop, _))
 
-            case State.Self =>
-              selfPull.get.flatten.catchAllCause(switch)
+            case State.Self(release) =>
+              selfPull.get.flatten.catchAllCause(switch(release, _))
 
             case State.Other =>
               otherPull.get.flatten
@@ -2956,8 +2954,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Nothing] =
     ZStream {
       for {
-        finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
-        pull         = (finalizerRef.add(_ => finalizer) *> Pull.end).uninterruptible
+        finalizers <- ZManaged.releaseMap
+        r          <- ZManaged.environment[R]
+        pull       = (finalizers.add(_ => finalizer.provide(r)) *> Pull.end).uninterruptible
       } yield pull
     }
 
@@ -3181,16 +3180,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream {
       for {
         doneRef   <- Ref.make(false).toManaged_
-        finalizer <- ZManaged.finalizerRef[R](_ => UIO.unit)
+        finalizer <- ZManaged.releaseMap
         pull = ZIO.uninterruptibleMask { restore =>
           doneRef.get.flatMap { done =>
             if (done) Pull.end
             else
               (for {
-                reservation <- managed.reserve.onError(_ => doneRef.set(true))
-                _           <- finalizer.add(reservation.release)
-                _           <- doneRef.set(true)
-                a           <- restore(reservation.acquire).onError(_ => doneRef.set(true))
+                a <- restore(managed.zio.map(_._2).provideSome[R]((_, finalizer))).onError(_ => doneRef.set(true))
+                _ <- doneRef.set(true)
               } yield Chunk(a)).mapError(Some(_))
           }
         }

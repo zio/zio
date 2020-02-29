@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.ZManaged.ReleaseMap
 import zio.internal.Platform
 
 /**
@@ -201,21 +202,21 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
   private final def scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]] =
     self match {
       case ZLayer.Fold(self, failure, success) =>
-        ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
+        ZManaged.succeed(memoMap =>
           memoMap
-            .getOrElseMemoize(self, finalizers)
+            .getOrElseMemoize(self)
             .foldCauseM(
-              e => ZManaged.environment[RIn].flatMap(r => memoMap.getOrElseMemoize(failure, finalizers).provide((r, e))),
-              r => memoMap.getOrElseMemoize(success, finalizers).provide(r)(NeedsEnv.needsEnv)
+              e => ZManaged.environment[RIn].flatMap(r => memoMap.getOrElseMemoize(failure).provide((r, e))),
+              r => memoMap.getOrElseMemoize(success).provide(r)(NeedsEnv.needsEnv)
             )
-        }
+        )
       case ZLayer.Fresh(self) =>
         Managed.succeed(_ => self.build)
       case ZLayer.Managed(self) =>
         Managed.succeed(_ => self)
       case ZLayer.ZipWithPar(self, that, f) =>
-        ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
-          memoMap.getOrElseMemoize(self, finalizers).zipWith(memoMap.getOrElseMemoize(that, finalizers))(f)
+        ZManaged.succeed { memoMap =>
+          memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f)
         }
     }
 }
@@ -2131,9 +2132,7 @@ object ZLayer {
      * and adds a finalizer to the outer `Managed`.
      */
     def getOrElseMemoize[E, A, B](
-      layer: ZLayer[A, E, B],
-      finalizerRef: ZManaged.FinalizerRef[Any]
-    ): ZManaged[A, E, B]
+      layer: ZLayer[A, E, B]): ZManaged[A, E, B]
   }
 
   private object MemoMap {
@@ -2143,54 +2142,68 @@ object ZLayer {
      */
     def make: UIO[MemoMap] =
       RefM
-        .make[Map[ZLayer[Nothing, Any, Any], Reservation[Any, Any, Any]]](Map.empty)
+        .make[Map[ZLayer[Nothing, Any, Any], (IO[Any, Any], ZManaged.Finalizer)]](Map.empty)
         .map { ref =>
           new MemoMap { self =>
-            final def getOrElseMemoize[E, A, B](
-              layer: ZLayer[A, E, B],
-              finalizers: ZManaged.FinalizerRef[Any]
-            ): ZManaged[A, E, B] =
+            final def getOrElseMemoize[E, A, B](layer: ZLayer[A, E, B]): ZManaged[A, E, B] =
               ZManaged {
                 ref.modify { map =>
                   map.get(layer) match {
-                    case Some(Reservation(acquire, release)) =>
-                      val reservation = Reservation(
-                        acquire = acquire.asInstanceOf[IO[E, B]],
-                        release = _ => finalizers.add(release)
-                      )
-                      ZIO.succeedNow((reservation, map))
+                    case Some((acquire, release)) =>
+                      val cached =
+                        ZIO.accessM[(A, ReleaseMap)] { case (_, releaseMap) =>
+                          acquire
+                            .asInstanceOf[IO[E, B]]
+                            .onExit {
+                              case Exit.Success(_) => releaseMap.add(release)
+                              case Exit.Failure(_) => UIO.unit
+                            }
+                            .map((release, _))
+                        }
+
+                      UIO.succeed((cached, map))
+
                     case None =>
                       for {
                         observers <- Ref.make(0)
-                        finalizer <- Ref.make[Exit[Any, Any] => UIO[Any]](_ => UIO.unit)
                         promise   <- Promise.make[E, B]
-                      } yield {
-                        val reservation = Reservation(
-                          acquire = ZIO.uninterruptibleMask { restore =>
+                        finalizerRef <- Ref.make[ZManaged.Finalizer](ZManaged.Finalizer.noop)
+
+                        resource =
+                          ZIO.uninterruptibleMask { restore =>
                             for {
-                              env <- ZIO.environment[A]
-                              _   <- observers.update(_ + 1)
-                              res <- layer.scope.flatMap(_.apply(self)).reserve
-                              _ <- finalizer.set { exit =>
-                                    ZIO.whenM(observers.modify(n => (n == 1, n - 1))) {
-                                      res.release(exit).provide(env)
-                                    }
-                                  }
-                              _ <- restore(res.acquire).to(promise)
-                              b <- promise.await
-                            } yield b
+                              env <- ZIO.environment[(A, ReleaseMap)]
+                              (a, outerReleaseMap) = env
+                              innerReleaseMap <- ZManaged.ReleaseMap.make
+                              tp <- restore(layer.scope.flatMap(_.apply(self)).zio.provide((a, innerReleaseMap))).run.flatMap {
+                                case e @ Exit.Failure(cause) =>
+                                  promise.halt(cause) *> innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential) *> ZIO.halt(cause)
+
+                                case Exit.Success((_, b)) =>
+                                  for {
+                                    _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
+                                           ZIO.whenM(observers.modify(n => (n == 1, n - 1) ))(
+                                             innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential))
+                                         }
+                                    _              <- observers.update(_ + 1)
+                                    outerFinalizer <- outerReleaseMap.add(e => finalizerRef.get.flatMap(_.apply(e)))
+                                    _              <- promise.succeed(b)
+                                  } yield (outerFinalizer, b)
+                              }
+                            } yield tp
+                          }
+
+                        memoized = (
+                          promise.await.onExit {
+                            case Exit.Failure(_) => UIO.unit
+                            case Exit.Success(_) => observers.update(_ + 1)
                           },
-                          release = _ => finalizers.add(exit => finalizer.get.flatMap(_(exit)))
+                          (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
                         )
-                        val memoized = Reservation(
-                          acquire =
-                            ZIO.uninterruptibleMask(restore => observers.update(_ + 1) *> restore(promise.await)),
-                          release = exit => finalizer.get.flatMap(_(exit))
-                        )
-                        (reservation, map + (layer -> memoized))
-                      }
+                      } yield (resource, map + (layer -> memoized))
+
                   }
-                }
+                }.flatten
               }
           }
         }

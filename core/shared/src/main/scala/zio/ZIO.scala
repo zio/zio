@@ -929,12 +929,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect if it exists. The provided effect will not be interrupted.
    */
   final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any]): ZIO[R1, E, A] =
-    ZIO.bracketExit(ZIO.unit)((_, eb: Exit[E, A]) =>
-      eb match {
-        case Exit.Success(_)     => ZIO.unit
-        case Exit.Failure(cause) => cleanup(cause)
-      }
-    )(_ => self)
+    onExit {
+      case Exit.Success(_)     => UIO.unit
+      case Exit.Failure(cause) => cleanup(cause)
+    }
 
   /**
    * Ensures that a cleanup functions runs, whether this effect succeeds,
@@ -3117,17 +3115,32 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
    *
+   * Due to the parallel nature of this combinator, `f` must be both:
+   * - commutative: `f(a, b) == f(b, a)`
+   * - associative: `f(a, f(b, c)) == f(f(a, b), c)`
+   *
    * It's unsafe to execute side effects inside `f`, as `f` may be executed
    * more than once for some of `in` elements during effect execution.
    */
   def mergeAllPar[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    Ref.make(zero) >>= { acc =>
-      foreachPar_(in) {
-        Predef.identity(_) >>= { a => acc.update(f(_, a)) }
-      } *> acc.get
-    }
+    Ref.make(zero).flatMap(acc => foreachPar_(in)(_.flatMap(a => acc.update(f(_, a)))) *> acc.get)
+
+  /**
+   * Merges an `Iterable[IO]` to a single IO, working in with up to `n` fibers in parallel.
+   *
+   * Due to the parallel nature of this combinator, `f` must be both:
+   * - commutative: `f(a, b) == f(b, a)`
+   * - associative: `f(a, f(b, c)) == f(f(a, b), c)`
+   *
+   * It's unsafe to execute side effects inside `f`, as `f` may be executed
+   * more than once for some of `in` elements during effect execution.
+   */
+  def mergeAllParN[R, E, A, B](n: Int)(
+    in: Iterable[ZIO[R, E, A]]
+  )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
+    Ref.make(zero).flatMap(acc => foreachParN_(n)(in)(_.flatMap(a => acc.update(f(_, a)))) *> acc.get)
 
   /**
    * Returns an effect with the empty value.
@@ -3218,6 +3231,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   /**
+   * Reduces an `Iterable[IO]` to a single `IO`, working in up to `n` fibers in parallel.
+   */
+  def reduceAllParN[R, R1 <: R, E, A](n: Int)(a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
+    f: (A, A) => A
+  ): ZIO[R1, E, A] = {
+    def prepend[Z](z: Z, zs: Iterable[Z]): Iterable[Z] =
+      new Iterable[Z] {
+        override def iterator: Iterator[Z] = Iterator(z) ++ zs.iterator
+      }
+
+    val all = prepend(a, as)
+    mergeAllParN(n)(all)(Option.empty[A])((acc, elem) => Some(acc.fold(elem)(f(_, elem)))).map(_.get)
+  }
+
+  /**
    * Replicates the given effect `n` times. If 0 or negative numbers are given,
    * an empty `Iterable` will be returned. This method is more efficient than
    * using `List.fill` or similar methods, because the returned `Iterable`
@@ -3245,7 +3273,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * inspecting internal / external state.
    */
   def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
-    ZManaged(reservation).use(use)
+    ZManaged.makeReserve(reservation).use(use)
 
   /**
    *  Returns an effect with the value on the right part.

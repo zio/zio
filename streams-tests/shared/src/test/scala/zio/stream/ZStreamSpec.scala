@@ -1468,6 +1468,17 @@ object ZStreamSpec extends ZIOBaseSpec {
             } @@ zioTag(errors)
           ) @@ zioTag(interruption)
         ),
+        suite("managed")(
+          testM("preserves interruptibility of effect") {
+            for {
+              interruptible <- ZStream.managed(ZManaged.fromEffect(ZIO.checkInterruptible(UIO.succeed(_)))).runHead
+              uninterruptible <- ZStream
+                                  .managed(ZManaged.fromEffectUninterruptible(ZIO.checkInterruptible(UIO.succeed(_))))
+                                  .runHead
+            } yield assert(interruptible)(isSome(equalTo(InterruptStatus.Interruptible))) &&
+              assert(uninterruptible)(isSome(equalTo(InterruptStatus.Uninterruptible)))
+          }
+        ),
         testM("map")(checkM(pureStreamOfBytes, Gen.function(Gen.anyInt)) { (s, f) =>
           for {
             res1 <- s.map(f).runCollect
