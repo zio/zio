@@ -31,7 +31,7 @@ private[test] trait PlatformSpecific {
       Annotations.live ++
         Blocking.live ++
         (Live.default >>> TestClock.default) ++
-        (Live.default >>> TestConsole.default) ++
+        (Live.default >>> TestConsole.debug) ++
         Live.default ++
         TestRandom.random ++
         Sized.live(100) ++

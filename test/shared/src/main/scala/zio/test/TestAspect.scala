@@ -194,12 +194,15 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that sets the `TestConsole` instance in the environment to
-   * debug mode before each test so that console output is rendered to
+   * An aspect that runs each test with the `TestConsole` instance in the
+   * environment set to debug mode so that console output is rendered to
    * standard output in addition to being written to the output buffer.
    */
   val debug: TestAspectAtLeastR[TestConsole] =
-    before(TestConsole.debug)
+    new PerTest.AtLeastR[TestConsole] {
+      def perTest[R <: TestConsole, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConsole.debug(test)
+    }
 
   /**
    * An aspect that applies the specified aspect on Dotty.
@@ -590,12 +593,15 @@ object TestAspect extends TimeoutVariants {
     if (TestVersion.isScala213) identity else ignore
 
   /**
-   * An aspect that sets the `TestConsole` instance in the environment to
-   * silent mode before each test so that console output is only written to
+   * An aspect that runs each test with the `TestConsole` instance in the
+   * environment set to silent mode so that console output is only written to
    * the output buffer and not rendered to standard output.
    */
   val silent: TestAspectAtLeastR[TestConsole] =
-    before(TestConsole.silent)
+    new PerTest.AtLeastR[TestConsole] {
+      def perTest[R <: TestConsole, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConsole.silent(test)
+    }
 
   /**
    * An aspect that converts ignored tests into test failures.
