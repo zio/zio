@@ -30,6 +30,12 @@ import java.util.concurrent.atomic.AtomicReference
  *   _   <- console.putStrLn("Value = " + v) // Value = 5
  * } yield ()
  * }}}
+ *
+ * NOTE: WHile `Ref` provides the functional equivalent of a mutable reference,
+ * the value inside the `Ref` should be immutable. For performance reasons
+ * `Ref` is implemented in terms of compare and swap operations rather than
+ * synchronization. These operations are not safe for mutable values that do
+ * not support concurrent access.
  */
 final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVal with Serializable {
 
