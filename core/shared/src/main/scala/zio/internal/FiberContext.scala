@@ -409,6 +409,8 @@ private[zio] final class FiberContext[E, A](
 
                       curZio = done(Exit.halt(cause))
                     } else {
+                      clearInterruptingStatus()
+
                       // Error caught, next continuation on the stack will deal
                       // with it, so we just have to compute it here:
                       curZio = nextInstr(cause0)
@@ -594,7 +596,7 @@ private[zio] final class FiberContext[E, A](
               curZio = ZIO.haltNow(state.get.interrupted)
 
               // Prevent interruption of interruption:
-              preventInterruption()
+              setFiberStatus(Fiber.Status.Interrupting(_))
             }
 
             opcount = opcount + 1
@@ -602,7 +604,7 @@ private[zio] final class FiberContext[E, A](
         } catch {
           case _: InterruptedException =>
             // Prevent interruption of interruption:
-            preventInterruption()
+            setFiberStatus(Fiber.Status.Interrupting(_))
 
             // Reset thread interrupt status and interrupt with zero fiber id:
             Thread.interrupted()
@@ -614,12 +616,7 @@ private[zio] final class FiberContext[E, A](
           case t: Throwable =>
             curZio =
               if (platform.fatal(t)) platform.reportFatal(t)
-              else {
-                // Prevent interruption of interruption:
-                preventInterruption()
-
-                ZIO.dieNow(t)
-              }
+              else ZIO.dieNow(t)
         }
       }
     } finally Fiber._currentFiber.remove()
@@ -853,13 +850,31 @@ private[zio] final class FiberContext[E, A](
     } else done(Exit.succeed(value.asInstanceOf[A]))
 
   @tailrec
-  private[this] def preventInterruption(): Unit = {
+  private[this] def setFiberStatus(f: Fiber.Status => Fiber.Status): Unit = {
     val oldState = state.get
 
     oldState match {
-      case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], interrupted, evalOn) => // TODO: Dotty doesn't infer this properly
-        if (!state.compareAndSet(oldState, Executing(Fiber.Status.Finishing, observers, interrupted, evalOn)))
-          preventInterruption()
+      case Executing(oldStatus, observers: List[Callback[Nothing, Exit[E, A]]], interrupted, evalOn) => // TODO: Dotty doesn't infer this properly
+        if (!state.compareAndSet(oldState, Executing(f(oldStatus), observers, interrupted, evalOn)))
+          setFiberStatus(f)
+
+      case _ =>
+    }
+  }
+
+  @tailrec
+  private[this] def clearInterruptingStatus(): Unit = {
+    val oldState = state.get
+
+    oldState match {
+      case Executing(
+          Fiber.Status.Interrupting(oldStatus),
+          observers: List[Callback[Nothing, Exit[E, A]]],
+          interrupted,
+          evalOn
+          ) => // TODO: Dotty doesn't infer this properly
+        if (!state.compareAndSet(oldState, Executing(oldStatus, observers, interrupted, evalOn)))
+          clearInterruptingStatus()
 
       case _ =>
     }
@@ -932,10 +947,13 @@ private[zio] final class FiberContext[E, A](
       val oldState = state.get
 
       oldState match {
-        case Executing(Fiber.Status.Suspended(_, true, _, _, _), observers, interrupted, evalOn) =>
+        case Executing(Fiber.Status.Suspended(oldStatus, true, _, _, _), observers, interrupted, evalOn) =>
           val newCause = interrupted ++ interruptedCause
 
-          if (!state.compareAndSet(oldState, Executing(Fiber.Status.Finishing, observers, newCause, evalOn)))
+          if (!state.compareAndSet(
+                oldState,
+                Executing(Fiber.Status.Interrupting(oldStatus), observers, newCause, evalOn)
+              ))
             setInterruptedLoop()
           else {
             evaluateLater(ZIO.interruptAs(fiberId))
@@ -1025,6 +1043,7 @@ private[zio] object FiberContext {
           case Fiber.Status.Running                       => true
           case Fiber.Status.Suspended(status, _, _, _, _) => loop(status)
           case Fiber.Status.Finishing                     => false
+          case Fiber.Status.Interrupting(_)               => false
           case Fiber.Status.Done                          => false
         }
 
