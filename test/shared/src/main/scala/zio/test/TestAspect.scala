@@ -189,6 +189,17 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that runs each test with the `TestConsole` instance in the
+   * environment set to debug mode so that console output is rendered to
+   * standard output in addition to being written to the output buffer.
+   */
+  val debug: TestAspectAtLeastR[TestConsole] =
+    new PerTest.AtLeastR[TestConsole] {
+      def perTest[R <: TestConsole, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConsole.debug(test)
+    }
+
+  /**
    * An aspect that applies the specified aspect on Dotty.
    */
   def dotty[LowerR, UpperR, LowerE, UpperE](
@@ -382,6 +393,14 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
+   * An aspect that causes calls to `sleep` and methods implemented in terms
+   * of it to be executed immediately instead of requiring the `TestClock` to
+   * be adjusted.
+   */
+  val noDelay: TestAspectAtLeastR[TestClock] =
+    before(TestClock.runAll)
+
+  /**
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
@@ -567,6 +586,17 @@ object TestAspect extends TimeoutVariants {
    */
   val scala213Only: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala213) identity else ignore
+
+  /**
+   * An aspect that runs each test with the `TestConsole` instance in the
+   * environment set to silent mode so that console output is only written to
+   * the output buffer and not rendered to standard output.
+   */
+  val silent: TestAspectAtLeastR[TestConsole] =
+    new PerTest.AtLeastR[TestConsole] {
+      def perTest[R <: TestConsole, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConsole.silent(test)
+    }
 
   /**
    * An aspect that converts ignored tests into test failures.

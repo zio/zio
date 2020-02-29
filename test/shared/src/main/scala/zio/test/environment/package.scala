@@ -546,19 +546,23 @@ package object environment extends PlatformSpecific {
   /**
    * `TestConsole` provides a testable interface for programs interacting with
    * the console by modeling input and output as reading from and writing to
-   * input and output buffers maintained by `TestConsole` and backed by a `Ref`.
+   * input and output buffers maintained by `TestConsole` and backed by a
+   * `Ref`.
    *
-   * All calls to `putStr` and `putStrLn` using the `TestConsole` will write the
-   * string to the output buffer and all calls to `getStrLn` will take a string
-   * from the input buffer. No actual printing or reading from the console will
-   * occur. `TestConsole` has several methods to access and manipulate the
-   * content of these buffers including `feedLines` to feed strings to the input
-   * buffer that will then be returned by calls to `getStrLn`, `output` to get
-   * the content of the output buffer from calls to `putStr` and `putStrLn`, and
+   * All calls to `putStr` and `putStrLn` using the `TestConsole` will write
+   * the string to the output buffer and all calls to `getStrLn` will take a
+   * string from the input buffer. To facilitate debugging, by default output
+   * will also be rendered to standard output. You can enable or disable this
+   * for a scope using `debug`, `silent`, or the corresponding test aspects.
+   *
+   * `TestConsole` has several methods to access and manipulate the content of
+   * these buffers including `feedLines` to feed strings to the input  buffer
+   * that will then be returned by calls to `getStrLn`, `output` to get the
+   * content of the output buffer from calls to `putStr` and `putStrLn`, and
    * `clearInput` and `clearOutput` to clear the respective buffers.
    *
-   * Together, these functions make it easy to test programs interacting with the
-   * console.
+   * Together, these functions make it easy to test programs interacting with
+   * the console.
    *
    * {{{
    * import zio.console._
@@ -580,13 +584,20 @@ package object environment extends PlatformSpecific {
   object TestConsole extends Serializable {
 
     trait Service extends Restorable {
-      def feedLines(lines: String*): UIO[Unit]
-      def output: UIO[Vector[String]]
       def clearInput: UIO[Unit]
       def clearOutput: UIO[Unit]
+      def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
+      def feedLines(lines: String*): UIO[Unit]
+      def output: UIO[Vector[String]]
+      def silent[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
     }
 
-    case class Test(consoleState: Ref[TestConsole.Data]) extends Console.Service with TestConsole.Service {
+    case class Test(
+      consoleState: Ref[TestConsole.Data],
+      live: Live.Service,
+      debugState: FiberRef[Boolean]
+    ) extends Console.Service
+        with TestConsole.Service {
 
       /**
        * Clears the contents of the input buffer.
@@ -599,6 +610,14 @@ package object environment extends PlatformSpecific {
        */
       val clearOutput: UIO[Unit] =
         consoleState.update(data => data.copy(output = Vector.empty))
+
+      /**
+       * Runs the specified effect with the `TestConsole` set to debug mode,
+       * so that console output is rendered to standard output in addition to
+       * being written to the output buffer.
+       */
+      def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        debugState.locally(true)(zio)
 
       /**
        * Writes the specified sequence of strings to the input buffer. The
@@ -638,16 +657,16 @@ package object environment extends PlatformSpecific {
       override def putStr(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ line)
-        }
+        } *> live.provide(console.putStr(line)).whenM(debugState.get)
 
       /**
        * Writes the specified string to the output buffer followed by a newline
        * character.
        */
-      override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
+      override def putStrLn(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ s"$line\n")
-        }
+        } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
 
       /**
        * Saves the `TestConsole`'s current state in an effect which, when run,
@@ -657,6 +676,14 @@ package object environment extends PlatformSpecific {
         for {
           consoleData <- consoleState.get
         } yield consoleState.set(consoleData)
+
+      /**
+       * Runs the specified effect with the `TestConsole` set to silent mode,
+       * so that console output is only written to the output buffer and not
+       * rendered to standard output.
+       */
+      def silent[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        debugState.locally(false)(zio)
     }
 
     /**
@@ -664,30 +691,23 @@ package object environment extends PlatformSpecific {
      * interface. This can be useful for mixing in with implementations of other
      * interfaces.
      */
-    def live(data: Data): ZLayer.NoDeps[Nothing, Console with TestConsole] =
-      ZLayer.fromEffectMany(
-        Ref.make(data).map(ref => Has.allOf[Console.Service, TestConsole.Service](Test(ref), Test(ref)))
-      )
+    def make(data: Data, debug: Boolean = true): ZLayer[Live, Nothing, Console with TestConsole] =
+      ZLayer.fromServiceManyM { (live: Live.Service) =>
+        for {
+          ref      <- Ref.make(data)
+          debugRef <- FiberRef.make(debug)
+          test     = Test(ref, live, debugRef)
+        } yield Has.allOf[Console.Service, TestConsole.Service](test, test)
+      }
 
     val any: ZLayer[Console with TestConsole, Nothing, Console with TestConsole] =
       ZLayer.requires[Console with TestConsole]
 
-    val default: ZLayer.NoDeps[Nothing, Console with TestConsole] =
-      live(Data(Nil, Vector()))
+    val debug: ZLayer[Live, Nothing, Console with TestConsole] =
+      make(Data(Nil, Vector()), true)
 
-    /**
-     * Accesses a `TestConsole` instance in the environment and writes the
-     * specified sequence of strings to the input buffer.
-     */
-    def feedLines(lines: String*): ZIO[TestConsole, Nothing, Unit] =
-      ZIO.accessM(_.get.feedLines(lines: _*))
-
-    /**
-     * Accesses a `TestConsole` instance in the environment and returns the
-     * contents of the output buffer.
-     */
-    val output: ZIO[TestConsole, Nothing, Vector[String]] =
-      ZIO.accessM(_.get.output)
+    val silent: ZLayer[Live, Nothing, Console with TestConsole] =
+      make(Data(Nil, Vector()), false)
 
     /**
      * Accesses a `TestConsole` instance in the environment and clears the input
@@ -704,12 +724,44 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.clearOutput)
 
     /**
+     * Accesses a `TestConsole` instance in the environment and runs the
+     * specified effect with the `TestConsole` set to debug mode, so that
+     * console output is rendered to standard output in addition to being
+     * written to the output buffer.
+     */
+    def debug[R <: TestConsole, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      ZIO.accessM(_.get.debug(zio))
+
+    /**
+     * Accesses a `TestConsole` instance in the environment and writes the
+     * specified sequence of strings to the input buffer.
+     */
+    def feedLines(lines: String*): ZIO[TestConsole, Nothing, Unit] =
+      ZIO.accessM(_.get.feedLines(lines: _*))
+
+    /**
+     * Accesses a `TestConsole` instance in the environment and returns the
+     * contents of the output buffer.
+     */
+    val output: ZIO[TestConsole, Nothing, Vector[String]] =
+      ZIO.accessM(_.get.output)
+
+    /**
      * Accesses a `TestConsole` instance in the environment and saves the
      * console state in an effect which, when run, will restore the
      * `TestConsole` to the saved state.
      */
     val save: ZIO[TestConsole, Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
+
+    /**
+     * Accesses a `TestConsole` instance in the environment and runs the
+     * specified effect with the `TestConsole` set to silent mode, so that
+     * console output is only written to the output buffer and not rendered to
+     * standard output.
+     */
+    def silent[R <: TestConsole, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      ZIO.accessM(_.get.silent(zio))
 
     /**
      * The state of the `TestConsole`.
