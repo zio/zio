@@ -226,6 +226,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     mapError(Some(_))
 
   /**
+   * Returns a new effect that will not succeed with its value before first
+   * waiting for the end of all child fibers forked by the effect.
+   */
+  final def awaitAllChildren: ZIO[R, E, A] = (self <* ZIO.awaitAllChildren).fork.flatMap(_.join)
+
+  /**
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
@@ -819,6 +825,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns a new effect that ignores the success or failure of this effect.
    */
   final def ignore: URIO[R, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
+
+  /**
+   * Returns a new effect that will not succeed with its value before first
+   * interrupting all child fibers forked by the effect.
+   */
+  final def interruptAllChildren: ZIO[R, E, A] = (self <* ZIO.interruptAllChildren).fork.flatMap(_.join)
 
   /**
    * Returns a new effect that performs the same operations as this effect, but
