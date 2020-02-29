@@ -594,7 +594,7 @@ private[zio] final class FiberContext[E, A](
               curZio = ZIO.haltNow(state.get.interrupted)
 
               // Prevent interruption of interruption:
-              enterFinishing()
+              preventInterruption()
             }
 
             opcount = opcount + 1
@@ -602,7 +602,7 @@ private[zio] final class FiberContext[E, A](
         } catch {
           case _: InterruptedException =>
             // Prevent interruption of interruption:
-            enterFinishing()
+            preventInterruption()
 
             // Reset thread interrupt status and interrupt with zero fiber id:
             Thread.interrupted()
@@ -616,7 +616,7 @@ private[zio] final class FiberContext[E, A](
               if (platform.fatal(t)) platform.reportFatal(t)
               else {
                 // Prevent interruption of interruption:
-                enterFinishing()
+                preventInterruption()
 
                 ZIO.dieNow(t)
               }
@@ -853,13 +853,13 @@ private[zio] final class FiberContext[E, A](
     } else done(Exit.succeed(value.asInstanceOf[A]))
 
   @tailrec
-  private[this] def enterFinishing(): Unit = {
+  private[this] def preventInterruption(): Unit = {
     val oldState = state.get
 
     oldState match {
       case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], interrupted, evalOn) => // TODO: Dotty doesn't infer this properly
         if (!state.compareAndSet(oldState, Executing(Fiber.Status.Finishing, observers, interrupted, evalOn)))
-          enterFinishing()
+          preventInterruption()
 
       case _ =>
     }
@@ -932,10 +932,10 @@ private[zio] final class FiberContext[E, A](
       val oldState = state.get
 
       oldState match {
-        case Executing(Fiber.Status.Suspended(status, true, _, _, _), observers, interrupted, evalOn) =>
+        case Executing(Fiber.Status.Suspended(_, true, _, _, _), observers, interrupted, evalOn) =>
           val newCause = interrupted ++ interruptedCause
 
-          if (!state.compareAndSet(oldState, Executing(status, observers, newCause, evalOn)))
+          if (!state.compareAndSet(oldState, Executing(Fiber.Status.Finishing, observers, newCause, evalOn)))
             setInterruptedLoop()
           else {
             evaluateLater(ZIO.interruptAs(fiberId))
