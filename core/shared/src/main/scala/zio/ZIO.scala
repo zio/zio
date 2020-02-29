@@ -3097,8 +3097,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
 
   /**
-   * Returns a effect that will never produce anything. The moral
-   * equivalent of `while(true) {}`, only without the wasted CPU cycles.
+   * Returns a effect that will never produce anything. The moral equivalent of
+   * `while(true) {}`, only without the wasted CPU cycles. Fibers that suspended
+   * running this effect are automatically garbage collected on the JVM,
+   * because they cannot be reactivated.
    */
   val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
 
@@ -3138,8 +3140,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   /**
-   * Replicates the given effect n times.
-   * If 0 or negative numbers are given, an empty `Iterable` will return.
+   * Replicates the given effect `n` times. If 0 or negative numbers are given,
+   * an empty `Iterable` will be returned. This method is more efficient than
+   * using `List.fill` or similar methods, because the returned `Iterable`
+   * consumes only a small amount of heap regardless of `n`.
    */
   def replicate[R, E, A](n: Int)(effect: ZIO[R, E, A]): Iterable[ZIO[R, E, A]] =
     new Iterable[ZIO[R, E, A]] {
@@ -3173,8 +3177,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Returns an effect that accesses the runtime, which can be used to
-   * (unsafely) execute tasks. This is useful for integration with
-   * non-functional code that must call back into functional code.
+   * (unsafely) execute tasks. This is useful for integration with legacy
+   * code that must call back into ZIO code.
    */
   def runtime[R]: URIO[R, Runtime[R]] =
     for {
@@ -3210,8 +3214,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     collectAllParN[R, E, A](n)(as)
 
   /**
-   * Sleeps for the specified duration. This method is asynchronous, and does
-   * not actually block the fiber.
+   * Returns an effect that suspends for the specified duration. This method is
+   * asynchronous, and does not actually block the fiber executing the effect.
    */
   def sleep(duration: => Duration): URIO[Clock, Unit] =
     clock.sleep(duration)
@@ -3292,7 +3296,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     foreachParN_[R, E, A](n)(as)(f)
 
   /**
-   * Strictly-evaluated unit lifted into the `ZIO` monad.
+   * An effect that succeeds with a unit value.
    */
   val unit: UIO[Unit] = succeedNow(())
 

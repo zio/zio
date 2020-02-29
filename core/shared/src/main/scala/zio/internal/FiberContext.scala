@@ -293,7 +293,7 @@ private[zio] final class FiberContext[E, A](
             val tag = curZio.tag
 
             // Check to see if the fiber should continue executing or not:
-            if (tag == ZIO.Tags.Fail || !shouldInterrupt()) {
+            if (!shouldInterrupt()) {
               // Fiber does not need to be interrupted, but might need to yield:
               if (opcount == maxopcount) {
                 evaluateLater(curZio)
@@ -418,6 +418,7 @@ private[zio] final class FiberContext[E, A](
                     val zio = curZio.asInstanceOf[ZIO.Fold[Any, E, Any, Any, Any]]
 
                     curZio = zio.value
+
                     pushContinuation(zio)
 
                   case ZIO.Tags.InterruptStatus =>
@@ -591,12 +592,19 @@ private[zio] final class FiberContext[E, A](
             } else {
               // Fiber was interrupted
               curZio = ZIO.haltNow(state.get.interrupted)
+
+              // Prevent interruption of interruption:
+              enterFinishing()
             }
 
             opcount = opcount + 1
           }
         } catch {
           case _: InterruptedException =>
+            // Prevent interruption of interruption:
+            enterFinishing()
+
+            // Reset thread interrupt status and interrupt with zero fiber id:
             Thread.interrupted()
             curZio = ZIO.interruptAs(Fiber.Id.None)
 
@@ -604,7 +612,14 @@ private[zio] final class FiberContext[E, A](
           // either a bug in the interpreter or a bug in the user's code. Let the
           // fiber die but attempt finalization & report errors.
           case t: Throwable =>
-            curZio = if (platform.fatal(t)) platform.reportFatal(t) else ZIO.dieNow(t)
+            curZio =
+              if (platform.fatal(t)) platform.reportFatal(t)
+              else {
+                // Prevent interruption of interruption:
+                enterFinishing()
+
+                ZIO.dieNow(t)
+              }
         }
       }
     } finally Fiber._currentFiber.remove()
@@ -838,6 +853,19 @@ private[zio] final class FiberContext[E, A](
     } else done(Exit.succeed(value.asInstanceOf[A]))
 
   @tailrec
+  private[this] def enterFinishing(): Unit = {
+    val oldState = state.get
+
+    oldState match {
+      case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], interrupted, evalOn) => // TODO: Dotty doesn't infer this properly
+        if (!state.compareAndSet(oldState, Executing(Fiber.Status.Finishing, observers, interrupted, evalOn)))
+          enterFinishing()
+
+      case _ =>
+    }
+  }
+
+  @tailrec
   private[this] def done(v: Exit[E, A]): IO[E, Any] = {
     val oldState = state.get
 
@@ -991,6 +1019,7 @@ private[zio] object FiberContext {
     def interrupted: Cause[Nothing]
     def status: Fiber.Status
     def runnable: Boolean = {
+      @tailrec
       def loop(status0: Fiber.Status): Boolean =
         status0 match {
           case Fiber.Status.Running                       => true
