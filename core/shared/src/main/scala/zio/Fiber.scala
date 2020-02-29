@@ -546,8 +546,8 @@ object Fiber extends FiberPlatformSpecific {
       }
       val statMsg = status match {
         case Done         => "Done"
-        case Finishing(b) => "Finishing(" + (if (b) "interrupting") + ")"
-        case Running(b)   => "Running(" + (if (b) "interrupting") + ")"
+        case Finishing(b) => "Finishing(" + (if (b) "interrupting" else "") + ")"
+        case Running(b)   => "Running(" + (if (b) "interrupting" else "") + ")"
         case Suspended(_, interruptible, epoch, _, asyncTrace) =>
           val in = if (interruptible) "interruptible" else "uninterruptible"
           val ep = s"${epoch} asyncs"
