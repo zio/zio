@@ -2477,7 +2477,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           p1 <- Promise.make[Nothing, Boolean]
           c  <- Promise.make[Nothing, Unit]
-          f1 <- (c.succeed(()) *> IO.never)
+          f1 <- (c.succeed(()) *> ZIO.never)
                  .ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interruptors.nonEmpty)))
                  .fork
           _   <- c.await
@@ -2490,7 +2490,7 @@ object ZIOSpec extends ZIOBaseSpec {
           ref   <- Ref.make(0)
           cont1 <- Promise.make[Nothing, Unit]
           cont2 <- Promise.make[Nothing, Unit]
-          make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> IO.never).onInterrupt(ref.update(_ + 1))
+          make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> ZIO.infinity).onInterrupt(ref.update(_ + 1))
           raced <- (make(cont1) race (make(cont2))).fork
           _     <- cont1.await *> cont2.await
           _     <- raced.interrupt
