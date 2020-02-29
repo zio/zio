@@ -99,6 +99,21 @@ private[internal] trait PlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
+   * Returns whether the current platform is ScalaJS.
+   */
+  val isJS = true
+
+  /**
+   * Returns whether the currently platform is the JVM.
+   */
+  val isJVM = false
+
+  /**
+   * Returns whether the currently platform is Scala Native.
+   */
+  val isNative = false
+
+  /**
    * Makes a new default platform. This is a side-effecting method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
