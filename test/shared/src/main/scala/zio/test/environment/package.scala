@@ -546,19 +546,23 @@ package object environment extends PlatformSpecific {
   /**
    * `TestConsole` provides a testable interface for programs interacting with
    * the console by modeling input and output as reading from and writing to
-   * input and output buffers maintained by `TestConsole` and backed by a `Ref`.
+   * input and output buffers maintained by `TestConsole` and backed by a
+   * `Ref`.
    *
-   * All calls to `putStr` and `putStrLn` using the `TestConsole` will write the
-   * string to the output buffer and all calls to `getStrLn` will take a string
-   * from the input buffer. No actual printing or reading from the console will
-   * occur. `TestConsole` has several methods to access and manipulate the
-   * content of these buffers including `feedLines` to feed strings to the input
-   * buffer that will then be returned by calls to `getStrLn`, `output` to get
-   * the content of the output buffer from calls to `putStr` and `putStrLn`, and
+   * All calls to `putStr` and `putStrLn` using the `TestConsole` will write
+   * the string to the output buffer and all calls to `getStrLn` will take a
+   * string from the input buffer. To facilitate debugging, by default output
+   * will also be rendered to standard output. You can enable or disable this
+   * for a scope using `debug`, `silent`, or the corresponding test aspects.
+   *
+   * `TestConsole` has several methods to access and manipulate the content of
+   * these buffers including `feedLines` to feed strings to the input  buffer
+   * that will then be returned by calls to `getStrLn`, `output` to get the
+   * content of the output buffer from calls to `putStr` and `putStrLn`, and
    * `clearInput` and `clearOutput` to clear the respective buffers.
    *
-   * Together, these functions make it easy to test programs interacting with the
-   * console.
+   * Together, these functions make it easy to test programs interacting with
+   * the console.
    *
    * {{{
    * import zio.console._
