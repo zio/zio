@@ -26,6 +26,11 @@ object RIO {
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
+   * @see See [[zio.ZIO.awaitAllChildren]]
+   */
+  val awaitAllChildren = ZIO.awaitAllChildren
+
+  /**
    * @see See [[zio.ZIO.access]]
    */
   def access[R]: ZIO.AccessPartiallyApplied[R] =
@@ -159,6 +164,11 @@ object RIO {
    * @see See [[zio.ZIO.dieMessage]]
    */
   def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
+
+  /**
+   * @see See [[zio.ZIO.disown]]
+   */
+  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = ZIO.disown(fiber)
 
   /**
    * @see See [[zio.ZIO.done]]
@@ -440,9 +450,19 @@ object RIO {
     new ZIO.IfM(b)
 
   /**
+   * @see [[zio.ZIO.infinity]]
+   */
+  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+
+  /**
    * @see See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
+
+  /**
+   * @see See [zio.ZIO.interruptAllChildren]
+   */
+  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
 
   /**
    * @see See [[zio.ZIO.interruptAs]]
