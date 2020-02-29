@@ -613,7 +613,7 @@ package object environment extends PlatformSpecific {
        * being written to the output buffer.
        */
       def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-        debugState.locally(false)(zio)
+        debugState.locally(true)(zio)
 
       /**
        * Writes the specified sequence of strings to the input buffer. The
