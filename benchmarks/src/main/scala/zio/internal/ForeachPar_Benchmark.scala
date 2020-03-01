@@ -26,8 +26,5 @@ private[this] class ForeachPar_Benchmark {
   private def naiveForeachPar_[R, E, A](
     as: Iterable[A]
   )(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    as.foldLeft(ZIO.unit: ZIO[R, E, Unit]) { (acc, a) =>
-        acc.zipParLeft(f(a))
-      }
-      .refailWithTrace
+    as.foldLeft(ZIO.unit: ZIO[R, E, Unit])((acc, a) => acc.zipParLeft(f(a))).refailWithTrace
 }

@@ -127,9 +127,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
     if (array.isEmpty) STM.succeedNow(acc)
     else
-      array.head.get.flatMap { a =>
-        op(acc, a).flatMap(acc2 => new TArray(array.tail).foldM(acc2)(op))
-      }
+      array.head.get.flatMap(a => op(acc, a).flatMap(acc2 => new TArray(array.tail).foldM(acc2)(op)))
 
   /**
    * Atomically evaluate the conjunction of a predicate across the members

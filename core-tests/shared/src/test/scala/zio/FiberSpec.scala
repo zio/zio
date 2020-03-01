@@ -10,10 +10,8 @@ object FiberSpec extends ZIOBaseSpec {
   def spec = suite("FiberSpec")(
     suite("Create a new Fiber and")(testM("lift it into Managed") {
       for {
-        ref <- Ref.make(false)
-        fiber <- withLatch { release =>
-                  (release *> IO.unit).bracket_(ref.set(true))(IO.never).fork
-                }
+        ref   <- Ref.make(false)
+        fiber <- withLatch(release => (release *> IO.unit).bracket_(ref.set(true))(IO.never).fork)
         _     <- fiber.toManaged.use(_ => IO.unit)
         _     <- fiber.await
         value <- ref.get
@@ -23,11 +21,9 @@ object FiberSpec extends ZIOBaseSpec {
       testM("`map`") {
         for {
           fiberRef <- FiberRef.make(initial)
-          child <- withLatch { release =>
-                    (fiberRef.set(update) *> release).fork
-                  }
-          _     <- child.map(_ => ()).inheritRefs
-          value <- fiberRef.get
+          child    <- withLatch(release => (fiberRef.set(update) *> release).fork)
+          _        <- child.map(_ => ()).inheritRefs
+          value    <- fiberRef.get
         } yield assert(value)(equalTo(update))
       },
       testM("`orElse`") {

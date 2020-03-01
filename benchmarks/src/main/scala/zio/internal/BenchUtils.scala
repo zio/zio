@@ -20,7 +20,5 @@ object BenchUtils {
   def queueByType[A](tpe: String, capacity: Int): MutableConcurrentQueue[A] =
     BenchQueueType
       .lookup(tpe)
-      .fold(sys.error(s"$tpe is not a valid BenchQueueType")) { parsedTpe =>
-        queueByType(parsedTpe, capacity)
-      }
+      .fold(sys.error(s"$tpe is not a valid BenchQueueType"))(parsedTpe => queueByType(parsedTpe, capacity))
 }

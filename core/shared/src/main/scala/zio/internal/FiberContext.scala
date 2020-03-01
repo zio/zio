@@ -153,7 +153,7 @@ private[zio] final class FiberContext[E, A](
 
         ZIO.succeedNow(v)
       } else {
-        ZIO.effectTotal { interruptStatus.popDrop(v) }
+        ZIO.effectTotal(interruptStatus.popDrop(v))
       }
   }
 
@@ -618,10 +618,10 @@ private[zio] final class FiberContext[E, A](
     } finally Fiber._currentFiber.remove()
 
   private[this] def lock(executor: Executor): UIO[Unit] =
-    ZIO.effectTotal { executors.push(executor) } *> ZIO.yieldNow
+    ZIO.effectTotal(executors.push(executor)) *> ZIO.yieldNow
 
   private[this] def unlock: UIO[Unit] =
-    ZIO.effectTotal { executors.pop() } *> ZIO.yieldNow
+    ZIO.effectTotal(executors.pop()) *> ZIO.yieldNow
 
   private[this] def getDescriptor(): Fiber.Descriptor =
     Fiber.Descriptor(
@@ -665,6 +665,8 @@ private[zio] final class FiberContext[E, A](
       // collection to remove the child from the weak set.
       childContext.onDone { _ =>
         val _ = self.withChildren(_.remove(childContext))
+
+        ()
       }
     }
 
@@ -681,12 +683,10 @@ private[zio] final class FiberContext[E, A](
    *
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio =>
-    if (exitAsync(epoch)) evaluateLater(zio)
-  }
+  private[this] def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio => if (exitAsync(epoch)) evaluateLater(zio) }
 
   private def withChildren[A](f: java.util.Set[FiberContext[Any, Any]] => A): A =
-    Sync(self._children) { f(self._children) }
+    Sync(self._children)(f(self._children))
 
   private def addChild(child: FiberContext[Any, Any]): Unit =
     if (child ne null) {
@@ -700,9 +700,7 @@ private[zio] final class FiberContext[E, A](
   @silent("JavaConverters")
   private def childrenToScala(): Iterable[FiberContext[Any, Any]] = withChildren(_.asScala.toSet.filter(_ ne null))
 
-  def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
-    observe0(x => k(ZIO.doneNow(x)))
-  }
+  def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]](k => observe0(x => k(ZIO.doneNow(x))))
 
   def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
     val oldValue = Option(fiberRefLocals.get(ref))
@@ -818,7 +816,11 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(status, observers: List[Callback[Nothing, Exit[E, A]]], interrupted) => // TODO: Dotty doesn't infer this properly
+      case Executing(
+          status,
+          observers: List[Callback[Nothing, Exit[E, A]]],
+          interrupted
+          ) => // TODO: Dotty doesn't infer this properly
         if (!state.compareAndSet(oldState, Executing(status.withInterrupting(value), observers, interrupted)))
           setInterrupting(value)
 
@@ -846,7 +848,11 @@ private[zio] final class FiberContext[E, A](
           null
         }
 
-      case Executing(oldStatus, observers: List[Callback[Nothing, Exit[E, A]]], interrupted) => // TODO: Dotty doesn't infer this properly
+      case Executing(
+          oldStatus,
+          observers: List[Callback[Nothing, Exit[E, A]]],
+          interrupted
+          ) => // TODO: Dotty doesn't infer this properly
 
         /*
          * We are not done yet, because there are children to interrupt, or

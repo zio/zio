@@ -815,7 +815,11 @@ object Fiber extends FiberPlatformSpecific {
     if (context ne null) {
       Fiber._rootFibers.add(context)
 
-      context.onDone(_ => { val _ = Fiber._rootFibers.remove(context) })
+      context.onDone { _ =>
+        val _ = Fiber._rootFibers.remove(context)
+
+        ()
+      }
     }
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =

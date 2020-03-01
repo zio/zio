@@ -87,9 +87,8 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
         case (Left(_), Right(r))  => Right(r)
         case (Right(l), Left(_))  => Right(l)
         case (Left(l), Left(r))   => Left(l || r)
-      }, {
-        _.swap
-      }
+      },
+      _.swap
     ).fold(Some(_), _ => None)
 
   /**

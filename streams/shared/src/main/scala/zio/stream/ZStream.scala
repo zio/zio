@@ -794,9 +794,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         }
 
         def go: URIO[R, Unit] =
-          Take.fromPull(as).flatMap { take =>
-            offer(take) *> go.when(take != Take.End)
-          }
+          Take.fromPull(as).flatMap(take => offer(take) *> go.when(take != Take.End))
 
         go
       }
@@ -944,9 +942,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                   val i1 = i + 1
                   if (i1 >= chunkSize) Pull.emitNow(Chunk.fromArray(acc)) else loop(acc, i1)
                 },
-                failure = { e =>
-                  stateRef.set(Some(e)) *> Pull.emitNow(Chunk.fromArray(acc).take(i))
-                }
+                failure = { e => stateRef.set(Some(e)) *> Pull.emitNow(Chunk.fromArray(acc).take(i)) }
               )
             def first: Pull[R, E, Chunk[A]] =
               as.foldM(
@@ -959,9 +955,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                     loop(acc, 1)
                   }
                 },
-                failure = { e =>
-                  stateRef.set(Some(e)) *> ZIO.failNow(e)
-                }
+                failure = { e => stateRef.set(Some(e)) *> ZIO.failNow(e) }
               )
             IO.succeed {
               stateRef.get.flatMap {
@@ -986,9 +980,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         val pfIO: PartialFunction[A, Pull[R1, E1, B]] = pf.andThen(Pull.fromEffect(_))
 
         def pull: Pull[R1, E1, B] =
-          as.flatMap { a =>
-            pfIO.applyOrElse(a, (_: A) => pull)
-          }
+          as.flatMap(a => pfIO.applyOrElse(a, (_: A) => pull))
 
         pull
       }
@@ -1012,9 +1004,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         pull = done.get.flatMap {
           if (_) Pull.end
           else
-            as.flatMap { a =>
-              pfIO.applyOrElse(a, (_: A) => done.set(true) *> Pull.end)
-            }
+            as.flatMap(a => pfIO.applyOrElse(a, (_: A) => done.set(true) *> Pull.end))
         }
       } yield pull
     }
@@ -2456,9 +2446,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         pull = done.get.flatMap {
           if (_) Pull.end
           else
-            as.flatMap { a =>
-              if (pred(a)) Pull.emitNow(a) else done.set(true) *> Pull.end
-            }
+            as.flatMap(a => if (pred(a)) Pull.emitNow(a) else done.set(true) *> Pull.end)
         }
       } yield pull
     }
@@ -3381,9 +3369,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R, Nothing, A] =
     ZStream.fromEffect(schedule.initial).flatMap { s =>
       ZStream.succeed(schedule.extract((), s)) ++
-        ZStream.unfoldM(s) { s =>
-          schedule.update((), s).map(s => (schedule.extract((), s), s)).option
-        }
+        ZStream.unfoldM(s)(s => schedule.update((), s).map(s => (schedule.extract((), s), s)).option)
     }
 
   /**

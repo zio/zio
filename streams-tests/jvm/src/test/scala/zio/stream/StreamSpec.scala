@@ -105,10 +105,8 @@ object StreamSpec extends ZIOBaseSpec {
         )(dies(equalTo(e)))
       },
       testM("error propagation") {
-        val e = new RuntimeException("Boom")
-        val sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true) { (_, _) =>
-          ZIO.dieNow(e)
-        }
+        val e    = new RuntimeException("Boom")
+        val sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.dieNow(e))
 
         assertM(
           Stream(1, 1)
@@ -153,9 +151,7 @@ object StreamSpec extends ZIOBaseSpec {
           Stream(data: _*)
             .aggregateAsync(
               Sink
-                .foldWeighted(List[Int]())((i: Int) => i.toLong, 4) { (acc, el) =>
-                  el :: acc
-                }
+                .foldWeighted(List[Int]())((i: Int) => i.toLong, 4)((acc, el) => el :: acc)
                 .map(_.reverse)
             )
             .runCollect
@@ -190,10 +186,8 @@ object StreamSpec extends ZIOBaseSpec {
         )(dies(equalTo(e)))
       },
       testM("error propagation") {
-        val e = new RuntimeException("Boom")
-        val sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true) { (_, _) =>
-          ZIO.dieNow(e)
-        }
+        val e    = new RuntimeException("Boom")
+        val sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.dieNow(e))
 
         assertM(
           Stream(1, 1)
@@ -246,9 +240,7 @@ object StreamSpec extends ZIOBaseSpec {
           Stream(data: _*)
             .aggregateAsyncWithinEither(
               Sink
-                .foldWeighted(List[Int]())((i: Int) => i.toLong, 4) { (acc, el) =>
-                  el :: acc
-                }
+                .foldWeighted(List[Int]())((i: Int) => i.toLong, 4)((acc, el) => el :: acc)
                 .map(_.reverse),
               Schedule.spaced(100.millis)
             )
@@ -647,11 +639,7 @@ object StreamSpec extends ZIOBaseSpec {
         def fib(n: Int): Stream[Nothing, Int] =
           if (n <= 1) Stream.succeedNow(n)
           else
-            fib(n - 1).flatMap { a =>
-              fib(n - 2).flatMap { b =>
-                Stream.succeedNow(a + b)
-              }
-            }
+            fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Stream.succeedNow(a + b)))
 
         val stream   = fib(20)
         val expected = 6765
@@ -1401,9 +1389,7 @@ object StreamSpec extends ZIOBaseSpec {
           interrupted <- Ref.make(false)
           latch       <- Promise.make[Nothing, Unit]
           fib <- Stream(())
-                  .mapMPar(1) { _ =>
-                    (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true))
-                  }
+                  .mapMPar(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
                   .runDrain
                   .fork
           _      <- latch.await
@@ -1423,9 +1409,7 @@ object StreamSpec extends ZIOBaseSpec {
         for {
           mergedStream <- (s1 merge s2).runCollect.map(_.toSet).run
           mergedLists <- s1.runCollect
-                          .zipWith(s2.runCollect) { (left, right) =>
-                            left ++ right
-                          }
+                          .zipWith(s2.runCollect)((left, right) => left ++ right)
                           .map(_.toSet)
                           .run
         } yield assert(!mergedStream.succeeded && !mergedLists.succeeded)(isTrue) || assert(mergedStream)(
@@ -1531,10 +1515,12 @@ object StreamSpec extends ZIOBaseSpec {
       testM("backpressure") {
         Stream
           .range(0, 6)
-          .partitionEither({ i =>
-            if (i % 2 == 0) ZIO.succeedNow(Left(i))
-            else ZIO.succeedNow(Right(i))
-          }, 1)
+          .partitionEither(
+            i =>
+              if (i % 2 == 0) ZIO.succeedNow(Left(i))
+              else ZIO.succeedNow(Right(i)),
+            1
+          )
           .use {
             case (s1, s2) =>
               for {
@@ -1885,9 +1871,7 @@ object StreamSpec extends ZIOBaseSpec {
           Stream
             .range(0, 10)
             .toQueue[Nothing, Int](1)
-            .use { q =>
-              Stream.fromQueue(q).unTake.run(Sink.collectAll[Int])
-            }
+            .use(q => Stream.fromQueue(q).unTake.run(Sink.collectAll[Int]))
         )(equalTo(Range(0, 10).toList))
       },
       testM("unTake with error") {
@@ -1895,9 +1879,7 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(
           (Stream.range(0, 10) ++ Stream.failNow(e))
             .toQueue[Throwable, Int](1)
-            .use { q =>
-              Stream.fromQueue(q).unTake.run(Sink.collectAll[Int])
-            }
+            .use(q => Stream.fromQueue(q).unTake.run(Sink.collectAll[Int]))
             .run
         )(fails(equalTo(e)))
       }

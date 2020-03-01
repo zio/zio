@@ -439,9 +439,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * continue with the returned value.
    */
   final def collectM[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZIO[R1, E1, B]]): ZIO[R1, E1, B] =
-    self.flatMap { v =>
-      pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.failNow(e))
-    }
+    self.flatMap(v => pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.failNow(e)))
 
   final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
 
@@ -1303,9 +1301,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
                       io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
                   }
 
-              inheritRefs = { (res: (A1, Fiber[E1, A1])) =>
-                res._2.inheritRefs.as(res._1)
-              }
+              inheritRefs = { (res: (A1, Fiber[E1, A1])) => res._2.inheritRefs.as(res._1) }
 
               c <- restore(done.await >>= inheritRefs)
                     .onInterrupt(fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt))
@@ -2461,9 +2457,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foldLeft[R, E, S, A](
     in: Iterable[A]
   )(zero: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    in.foldLeft(IO.succeedNow(zero): ZIO[R, E, S]) { (acc, el) =>
-      acc.flatMap(f(_, el))
-    }
+    in.foldLeft(IO.succeedNow(zero): ZIO[R, E, S])((acc, el) => acc.flatMap(f(_, el)))
 
   /**
    * Folds an Iterable[A] using an effectual function f, working sequentially from right to left.
@@ -2471,9 +2465,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foldRight[R, E, S, A](
     in: Iterable[A]
   )(zero: S)(f: (A, S) => ZIO[R, E, S]): ZIO[R, E, S] =
-    in.foldRight(IO.succeedNow(zero): ZIO[R, E, S]) { (el, acc) =>
-      acc.flatMap(f(el, _))
-    }
+    in.foldRight(IO.succeedNow(zero): ZIO[R, E, S])((el, acc) => acc.flatMap(f(el, _)))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -2482,9 +2474,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * For a parallel version of this method, see `foreachPar`.
    */
   def foreach[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    in.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil)) { (a, io) =>
-      f(a).zipWith(io)((b, bs) => b :: bs)
-    }
+    in.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil))((a, io) => f(a).zipWith(io)((b, bs) => b :: bs))
 
   /**
    * Applies the function `f` if the argument is non-empty and
@@ -2541,9 +2531,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
     foreachPar_(as.zipWithIndex)(wrappedFn).as(
-      (0 until size).reverse.foldLeft[List[B]](Nil) { (acc, i) =>
-        resultArr.get(i) :: acc
-      }
+      (0 until size).reverse.foldLeft[List[B]](Nil)((acc, i) => resultArr.get(i) :: acc)
     )
   }
 
@@ -2672,11 +2660,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     Semaphore
       .make(n.toLong)
-      .flatMap { semaphore =>
-        ZIO.foreachPar_(as) { a =>
-          semaphore.withPermit(f(a))
-        }
-      }
+      .flatMap(semaphore => ZIO.foreachPar_(as)(a => semaphore.withPermit(f(a))))
       .refailWithTrace
 
   /**
@@ -3041,9 +3025,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
     Ref.make(zero) >>= { acc =>
       foreachPar_(in) {
-        Predef.identity(_) >>= { a =>
-          acc.update(f(_, a))
-        }
+        Predef.identity(_) >>= { a => acc.update(f(_, a)) }
       } *> acc.get
     }
 
@@ -3132,9 +3114,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
 
     val all = prepend(a, as)
-    mergeAllPar(all)(Option.empty[A]) { (acc, elem) =>
-      Some(acc.fold(elem)(f(_, elem)))
-    }.map(_.get)
+    mergeAllPar(all)(Option.empty[A])((acc, elem) => Some(acc.fold(elem)(f(_, elem)))).map(_.get)
   }
 
   /**

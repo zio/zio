@@ -101,9 +101,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       testM("is safe to pull again after sink extraction failure") {
         assertM(
           Stream(1, 2, 3, 4)
-            .aggregate(ZSink.fromFunctionM { (n: Int) =>
-              if (n % 2 == 0) IO.failNow("Ouch") else UIO.succeedNow(n)
-            })
+            .aggregate(ZSink.fromFunctionM((n: Int) => if (n % 2 == 0) IO.failNow("Ouch") else UIO.succeedNow(n)))
             .process
             .use(nPulls(_, 6))
         )(
@@ -812,9 +810,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       testM("is safe to pull again after error") {
         Stream
           .effectAsync[String, Int] { k =>
-            List(1, 2, 3).foreach { n =>
-              k(if (n % 2 == 0) Pull.failNow("Ouch") else Pull.emitNow(n))
-            }
+            List(1, 2, 3).foreach(n => k(if (n % 2 == 0) Pull.failNow("Ouch") else Pull.emitNow(n)))
           }
           .process
           .use(nPulls(_, 3))
@@ -835,9 +831,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       testM("is safe to pull again after error") {
         Stream
           .effectAsyncM[String, Int] { k =>
-            List(1, 2, 3).foreach { n =>
-              k(if (n % 2 == 0) Pull.failNow("Ouch") else Pull.emitNow(n))
-            }
+            List(1, 2, 3).foreach(n => k(if (n % 2 == 0) Pull.failNow("Ouch") else Pull.emitNow(n)))
             UIO.unit
           }
           .process
@@ -860,9 +854,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       testM("is safe to pull again after error async case") {
         Stream
           .effectAsyncMaybe[String, Int] { k =>
-            List(1, 2, 3).foreach { n =>
-              k(if (n % 2 == 0) Pull.failNow("Ouch") else Pull.emitNow(n))
-            }
+            List(1, 2, 3).foreach(n => k(if (n % 2 == 0) Pull.failNow("Ouch") else Pull.emitNow(n)))
             None
           }
           .process
@@ -907,9 +899,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           ref <- Ref.make(false)
           pulls <- Stream
                     .effectAsyncInterrupt[String, Int] { k =>
-                      List(1, 2, 3).foreach { n =>
-                        k(if (n % 2 == 0) Pull.failNow("Ouch") else Pull.emitNow(n))
-                      }
+                      List(1, 2, 3).foreach(n => k(if (n % 2 == 0) Pull.failNow("Ouch") else Pull.emitNow(n)))
                       Left(ref.set(true))
                     }
                     .process

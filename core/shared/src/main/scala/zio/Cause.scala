@@ -243,9 +243,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     }
 
     def renderTrace(maybeTrace: Option[ZTrace]): List[String] =
-      maybeTrace.fold("No ZIO Trace available." :: Nil) { trace =>
-        "" :: lines(trace.prettyPrint)
-      }
+      maybeTrace.fold("No ZIO Trace available." :: Nil)(trace => "" :: lines(trace.prettyPrint))
 
     def renderFail(error: List[String], maybeTrace: Option[ZTrace]): Sequential =
       Sequential(

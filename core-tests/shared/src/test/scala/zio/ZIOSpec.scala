@@ -540,24 +540,18 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("foreachPar")(
       testM("runs single task") {
-        val as = List(2)
-        val results = IO.foreachPar(as) { a =>
-          IO.succeedNow(2 * a)
-        }
+        val as      = List(2)
+        val results = IO.foreachPar(as)(a => IO.succeedNow(2 * a))
         assertM(results)(equalTo(List(4)))
       },
       testM("runs two tasks") {
-        val as = List(2, 3)
-        val results = IO.foreachPar(as) { a =>
-          IO.succeedNow(2 * a)
-        }
+        val as      = List(2, 3)
+        val results = IO.foreachPar(as)(a => IO.succeedNow(2 * a))
         assertM(results)(equalTo(List(4, 6)))
       },
       testM("runs many tasks") {
-        val as = (1 to 1000)
-        val results = IO.foreachPar(as) { a =>
-          IO.succeedNow(2 * a)
-        }
+        val as      = (1 to 1000)
+        val results = IO.foreachPar(as)(a => IO.succeedNow(2 * a))
         assertM(results)(equalTo(as.toList.map(2 * _)))
       },
       testM("runs a task that fails") {
@@ -627,9 +621,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("propagates error") {
         val ints = List(1, 2, 3, 4, 5, 6)
-        val odds = ZIO.foreachPar(ints) { n =>
-          if (n % 2 != 0) ZIO.succeedNow(n) else ZIO.failNow("not odd")
-        }
+        val odds = ZIO.foreachPar(ints)(n => if (n % 2 != 0) ZIO.succeedNow(n) else ZIO.failNow("not odd"))
         assertM(odds.flip)(equalTo("not odd"))
       },
       testM("interrupts effects on first failure") {
@@ -707,9 +699,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("propagates error") {
         val ints = List(1, 2, 3, 4, 5, 6)
-        val odds = ZIO.foreachParN(4)(ints) { n =>
-          if (n % 2 != 0) ZIO.succeedNow(n) else ZIO.failNow("not odd")
-        }
+        val odds = ZIO.foreachParN(4)(ints)(n => if (n % 2 != 0) ZIO.succeedNow(n) else ZIO.failNow("not odd"))
         assertM(odds.either)(isLeft(equalTo("not odd")))
       },
       testM("interrupts effects on first failure") {
@@ -821,10 +811,8 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("interruption blocks on interruption of the Future") {
         import scala.concurrent.Promise
         for {
-          latch <- ZIO.effectTotal(Promise[Unit]())
-          fiber <- ZIO.fromFutureInterrupt { _ =>
-                    latch.success(()); Promise[Unit]().future
-                  }.forkDaemon
+          latch  <- ZIO.effectTotal(Promise[Unit]())
+          fiber  <- ZIO.fromFutureInterrupt { _ => latch.success(()); Promise[Unit]().future }.forkDaemon
           _      <- ZIO.fromFuture(_ => latch.future).orDie
           result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
         } yield assert(result)(isNone)
@@ -1931,9 +1919,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(deepMapEffect(10000))(equalTo(10000))
       },
       testM("deep attempt") {
-        val io = (0 until 10000).foldLeft(IO.effect(())) { (acc, _) =>
-          acc.either.unit
-        }
+        val io = (0 until 10000).foldLeft(IO.effect(()))((acc, _) => acc.either.unit)
         assertM(io)(equalTo(()))
       },
       testM("deep flatMap") {
@@ -1953,9 +1939,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("deep absolve/attempt is identity") {
         import zio.CanFail.canFail
-        val io = (0 until 1000).foldLeft(IO.succeedNow(42)) { (acc, _) =>
-          IO.absolve(acc.either)
-        }
+        val io = (0 until 1000).foldLeft(IO.succeedNow(42))((acc, _) => IO.absolve(acc.either))
 
         assertM(io)(equalTo(42))
       },
@@ -2119,10 +2103,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           release <- Promise.make[Nothing, Int]
           latch   = scala.concurrent.Promise[Unit]()
-          async = IO.effectAsyncInterrupt[Nothing, Nothing] { _ =>
-            latch.success(()); Left(release.succeed(42).unit)
-          }
-          fiber <- async.fork
+          async   = IO.effectAsyncInterrupt[Nothing, Nothing] { _ => latch.success(()); Left(release.succeed(42).unit) }
+          fiber   <- async.fork
           _ <- IO.effectAsync[Throwable, Unit] { k =>
                 latch.future.onComplete {
                   case Success(a) => k(IO.succeedNow(a))
@@ -2251,9 +2233,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(countdown(50))(equalTo(150))
       },
       testM("mergeAll") {
-        val io = IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeedNow[String](_)))(0) { (b, a) =>
-          b + a.length
-        }
+        val io = IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeedNow[String](_)))(0)((b, a) => b + a.length)
 
         assertM(io)(equalTo(10))
       },
@@ -2623,9 +2603,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val io =
           for {
             finished <- Ref.make(false)
-            fiber <- withLatch { release =>
-                      (release *> ZIO.failNow("foo")).catchAll(_ => finished.set(true)).fork
-                    }
+            fiber    <- withLatch(release => (release *> ZIO.failNow("foo")).catchAll(_ => finished.set(true)).fork)
             exit     <- fiber.interrupt
             finished <- finished.get
           } yield exit.interrupted == true || finished == true
