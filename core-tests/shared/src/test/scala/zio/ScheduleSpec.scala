@@ -286,7 +286,8 @@ object ScheduleSpec extends ZIOBaseSpec {
     },
     testM("Retry type parameters should infer correctly") {
       def foo[O](v: O): ZIO[Any with Clock, Error, Either[ScheduleFailure, ScheduleSuccess[O]]] =
-        ZIO.fromFuture(_ => Future.successful(v))
+        ZIO
+          .fromFuture(_ => Future.successful(v))
           .foldM(
             _ => ZIO.failNow(ScheduleError("Some error")),
             ok => ZIO.succeedNow(Right(ScheduleSuccess(ok)))
