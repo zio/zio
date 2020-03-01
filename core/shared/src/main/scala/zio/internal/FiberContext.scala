@@ -665,6 +665,15 @@ private[zio] final class FiberContext[E, A](
 
     addChild(childContext.asInstanceOf[FiberContext[Any, Any]])
 
+    if (!Platform.isJVM) {
+      // On all platforms except the JVM, we must remove the child from the
+      // parent when the child is done. On the JVM, we rely on garbage
+      // collection to remove the child from the weak set.
+      childContext.onDone { _ =>
+        val _ = self.withChildren(_.remove(childContext))
+      }
+    }
+
     executor.submitOrThrow(() => childContext.evaluateNow(zio))
 
     childContext
