@@ -363,7 +363,7 @@ lazy val docs = project.module
     libraryDependencies ++= Seq(
       "com.github.ghik"     % "silencer-lib"                 % "1.4.4" % Provided cross CrossVersion.full,
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
-      "org.jsoup"           % "jsoup"                        % "1.12.2" % "provided",
+      "org.jsoup"           % "jsoup"                        % "1.13.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC10",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC6",
