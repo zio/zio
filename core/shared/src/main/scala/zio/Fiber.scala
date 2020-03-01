@@ -115,29 +115,6 @@ sealed trait Fiber[+E, +A] { self =>
   final def disown: UIO[Boolean] = ZIO.disown(self)
 
   /**
-   * If this fiber is running, evaluates the specified effect on this fiber,
-   * otherwise, executes the specified fallback.
-   */
-  final def evalOn[B](on: UIO[B], orElse: Exit[E, A] => UIO[B]): UIO[B] =
-    ZIO.uninterruptibleMask(restore =>
-      for {
-        promise <- Promise.make[Nothing, B]
-        _       <- self.evalOn_(on.flatMap(promise.succeed(_)), e => orElse(e).flatMap(promise.succeed(_)))
-        b       <- restore(promise.await)
-      } yield b
-    )
-
-  /**
-   * If this fiber is running, evaluates the specified effect on this fiber,
-   * otherwise, executes the specified fallback. If this is a synthetic fiber,
-   * then the fallback will always be executed.
-   */
-  def evalOn_(on: UIO[Any], orElse: Exit[E, A] => UIO[Any]): UIO[Unit] = {
-    val _ = on
-    await.flatMap(orElse).fork.unit
-  }
-
-  /**
    * Folds over the runtime or synthetic fiber.
    */
   final def fold[Z](
@@ -288,30 +265,6 @@ sealed trait Fiber[+E, +A] { self =>
    */
   final def orElseEither[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, Either[A, B]] =
     (self map (Left(_))) orElse (that map (Right(_)))
-
-  /**
-   * Pauses the execution of the fiber, returning an effect that can resume
-   * execution of the fiber. If the fiber has already completed, then its exit
-   * value will be returned instead.
-   * {{{
-   * for {
-   *   fiber  <- myEffect.fork
-   *   _      <- putStrLn("Pausing fiber...")
-   *   either <- fiber.pause
-   *   _      <- either match {
-   *               case Left(exit) => putStrLn(s"Fiber already done: " + exit)
-   *               case Right(resume) => putStrLn("About to resume fiber...") *> resume)
-   *             }
-   * } yield ()
-   * }}}
-   */
-  final def pause: UIO[Either[Exit[E, A], UIO[Unit]]] =
-    for {
-      result <- Promise.make[Nothing, Either[Exit[E, A], UIO[Unit]]]
-      latch  <- Promise.make[Nothing, Unit]
-      _      <- evalOn_(result.succeed(Right(latch.succeed(()).unit)) *> latch.await, exit => result.succeed(Left(exit)))
-      either <- result.await
-    } yield either
 
   /**
    * Tentatively observes the fiber, but returns immediately if it is not already done.
