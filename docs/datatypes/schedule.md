@@ -100,8 +100,7 @@ val expCapped = Schedule.exponential(100.milliseconds) || Schedule.spaced(1.seco
 Stops retrying after a specified amount of time has elapsed:
 
 ```scala mdoc:silent
-val action = clock.nanoTime.flatMap(n => console.putStrLn(n.toString)) *> ZIO.fail("fail")
-action.retry(expCapped).timeout(30.seconds)
+val expMaxElapsed = (Schedule.exponential(10.milliseconds) >>> Schedule.elapsed).whileOutput(_ < 30.seconds)
 ```
 
 Retry only when a specific exception occurs:
