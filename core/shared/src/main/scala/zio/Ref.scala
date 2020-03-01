@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicReference
  * } yield ()
  * }}}
  *
- * NOTE: WHile `Ref` provides the functional equivalent of a mutable reference,
+ * NOTE: While `Ref` provides the functional equivalent of a mutable reference,
  * the value inside the `Ref` should be immutable. For performance reasons
  * `Ref` is implemented in terms of compare and swap operations rather than
  * synchronization. These operations are not safe for mutable values that do
