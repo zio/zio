@@ -2174,7 +2174,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("supervise fibers") {
         def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
-          (clock.sleep(20.millis * n.toDouble) *> IO.never).fork
+          (clock.sleep(20.millis * n.toDouble) *> ZIO.infinity).fork
 
         val io =
           for {
@@ -2220,7 +2220,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner = s.await *> IO.fromEither(Right(()))
-          loser  = IO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => IO.never)
+          loser  = ZIO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity)
           race   = winner raceFirst loser
           _      <- race
           b      <- effect.await
@@ -2231,7 +2231,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner = s.await *> IO.fromEither(Left(new Exception))
-          loser  = IO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => IO.never)
+          loser  = ZIO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity)
           race   = winner raceFirst loser
           _      <- race.either
           b      <- effect.await
@@ -2757,18 +2757,17 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(effect)(isTrue)
       }
     ),
-    suite("timeout")(
+    suite("timeout disconnect")(
       testM("returns `Some` with the produced value if the effect completes before the timeout elapses") {
-        assertM(ZIO.unit.timeout(100.millis))(isSome(isUnit))
+        assertM(ZIO.unit.disconnect.timeout(100.millis))(isSome(isUnit))
       },
       testM("returns `None` otherwise") {
         for {
-          fiber  <- ZIO.never.uninterruptible.timeout(100.millis).fork
-          _      <- Live.live(ZIO.sleep(1.second)) // FIXME: Bug in TestClock?
+          fiber  <- ZIO.never.uninterruptible.disconnect.timeout(100.millis).fork
           _      <- TestClock.adjust(100.millis)
           result <- fiber.join
         } yield assert(result)(isNone)
-      } @@ ignore
+      }
     ),
     suite("unsandbox")(
       testM("unwraps exception") {
