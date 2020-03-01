@@ -29,44 +29,25 @@ import zio.internal.{ Executor, Platform }
 import zio.{ TracingStatus => TracingS }
 
 /**
- * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
- * that models an effectful program. The effect requires an environment `R`,
- * and the effect may fail with an error `E` or produce a single `A`.
+ * A `ZIO[R, E, A]` value is an immutable value that lazily describes a 
+ * workflow or job. The workflow requires some environment `R`, and may fail 
+ * with an error of type `E`, or succeed with a value of type `A`.
+ * 
+ * These lazy workflows, referred to as _effects_, can be informally thought 
+ * of as functions in the form: 
+ * 
+ * {{{
+ * R => Either[E, A]
+ * }}}
+ * 
+ * ZIO effects model resourceful interaction with the outside world, including
+ * synchronous, asynchronous, concurrent, and parallel interaction.
+ * 
+ * ZIO effects use a fiber-based concurrency model, with built-in support for 
+ * scheduling, fine-grained interruption, structured concurrency, and high scalability.
  *
- * Conceptually, this structure is equivalent to `ReaderT[R, EitherT[UIO, E, ?]]`
- * for some infallible effect monad `UIO`, but because monad transformers
- * perform poorly in Scala, this data structure bakes in the reader effect of
- * `ReaderT` with the recoverable error effect of `EitherT` without runtime
- * overhead.
- *
- * `ZIO` values are ordinary immutable values, and may be used like any other
- * value in purely functional code. Because `ZIO` values just *model* effects
- * (like input / output), which must be interpreted by a separate runtime system,
- * `ZIO` values are entirely pure and do not violate referential transparency.
- *
- * `ZIO` values can efficiently describe the following classes of effects:
- *
- *  - '''Pure Values''' — `ZIO.succeed`
- *  - '''Error Effects''' — `ZIO.fail`
- *  - '''Synchronous Effects''' — `IO.effect`
- *  - '''Asynchronous Effects''' — `IO.effectAsync`
- *  - '''Concurrent Effects''' — `IO#fork`
- *  - '''Resource Effects''' — `IO#bracket`
- *  - '''Contextual Effects''' — `ZIO.access`
- *
- * The concurrency model is based on ''fibers'', a user-land lightweight thread,
- * which permit cooperative multitasking, fine-grained interruption, and very
- * high performance with large numbers of concurrently executing fibers.
- *
- * `ZIO` values compose with other `ZIO` values in a variety of ways to build
- * complex, rich, interactive applications. See the methods on `ZIO` for more
- * details about how to compose `ZIO` values.
- *
- * In order to integrate with Scala, `ZIO` values must be interpreted into the
- * Scala runtime. This process of interpretation executes the effects described
- * by a given immutable `ZIO` value. For more information on interpreting `ZIO`
- * values, see the default interpreter in `BootstrapRuntime` or the safe main
- * function in `App`.
+ * To run an effect, you need a `Runtime`, which is capable of executing effects.
+ * Runtimes bundle a thread pool together with the environment that effects need.
  */
 sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
 
