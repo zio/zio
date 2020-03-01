@@ -1278,12 +1278,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         (self raceWith that)(
           (exit, right) =>
             exit.foldM[Any, E1, A1](
-              cause => right.join mapErrorCause (cause && _), // TODO: Preserve error?
+              cause => right.join mapErrorCause (cause && _),
               a => (right interruptAs parentFiberId) as a
             ),
           (exit, left) =>
             exit.foldM[Any, E1, A1](
-              cause => left.join mapErrorCause (_ && cause), // TODO: Preserve error?
+              cause => left.join mapErrorCause (_ && cause),
               a => (left interruptAs parentFiberId) as a
             )
         )
