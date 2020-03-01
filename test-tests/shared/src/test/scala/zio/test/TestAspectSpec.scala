@@ -126,7 +126,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ flaky @@ failure,
     testM("forked runs each test on its own separate fiber") {
       for {
-        _        <- ZIO.never.fork
+        _        <- ZIO.infinity.fork
         children <- ZIO.children
       } yield assert(children)(hasSize(equalTo(1)))
     } @@ forked @@ nonFlaky,
