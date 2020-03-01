@@ -29,21 +29,21 @@ import zio.internal.{ Executor, Platform }
 import zio.{ TracingStatus => TracingS }
 
 /**
- * A `ZIO[R, E, A]` value is an immutable value that lazily describes a 
- * workflow or job. The workflow requires some environment `R`, and may fail 
+ * A `ZIO[R, E, A]` value is an immutable value that lazily describes a
+ * workflow or job. The workflow requires some environment `R`, and may fail
  * with an error of type `E`, or succeed with a value of type `A`.
- * 
- * These lazy workflows, referred to as _effects_, can be informally thought 
- * of as functions in the form: 
- * 
+ *
+ * These lazy workflows, referred to as _effects_, can be informally thought
+ * of as functions in the form:
+ *
  * {{{
  * R => Either[E, A]
  * }}}
- * 
+ *
  * ZIO effects model resourceful interaction with the outside world, including
  * synchronous, asynchronous, concurrent, and parallel interaction.
- * 
- * ZIO effects use a fiber-based concurrency model, with built-in support for 
+ *
+ * ZIO effects use a fiber-based concurrency model, with built-in support for
  * scheduling, fine-grained interruption, structured concurrency, and high scalability.
  *
  * To run an effect, you need a `Runtime`, which is capable of executing effects.
