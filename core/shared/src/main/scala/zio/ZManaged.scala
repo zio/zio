@@ -255,9 +255,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * continue with the returned value.
    */
   def collectM[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZManaged[R1, E1, B]]): ZManaged[R1, E1, B] =
-    self.flatMap { v =>
-      pf.applyOrElse[A, ZManaged[R1, E1, B]](v, _ => ZManaged.failNow(e))
-    }
+    self.flatMap(v => pf.applyOrElse[A, ZManaged[R1, E1, B]](v, _ => ZManaged.failNow(e)))
 
   /**
    * Executes the second effect and then provides its output as an environment to this effect
@@ -280,9 +278,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def ensuring[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {
-      reserve.map { r =>
-        r.copy(release = e => r.release(e).ensuring(f))
-      }
+      reserve.map(r => r.copy(release = e => r.release(e).ensuring(f)))
     }
 
   /**
@@ -293,9 +289,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def ensuringFirst[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {
-      reserve.map { r =>
-        r.copy(release = e => f.ensuring(r.release(e)))
-      }
+      reserve.map(r => r.copy(release = e => f.ensuring(r.release(e))))
     }
 
   /**
@@ -304,9 +298,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def eventually(implicit ev: CanFail[E]): ZManaged[R, Nothing, A] =
     ZManaged {
-      reserve.eventually.map { r =>
-        Reservation(r.acquire.eventually, r.release)
-      }
+      reserve.eventually.map(r => Reservation(r.acquire.eventually, r.release))
     }
 
   /**
@@ -486,9 +478,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
     ZManaged[R1, E1, B] {
-      reserve.map { token =>
-        token.copy(acquire = token.acquire.flatMap(f))
-      }
+      reserve.map(token => token.copy(acquire = token.acquire.flatMap(f)))
     }
 
   /**
@@ -512,9 +502,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
               case v @ Some((_, e)) => ZIO.succeedNow(e -> v)
               case None =>
                 ZIO.uninterruptibleMask { restore =>
-                  self.provide(r).reserve.flatMap { res =>
-                    restore(res.acquire).run.map(e => e -> Some(res -> e))
-                  }
+                  self.provide(r).reserve.flatMap(res => restore(res.acquire).run.map(e => e -> Some(res -> e)))
                 }
             }.flatMap(ZIO.doneNow)
 
@@ -791,9 +779,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def refineOrDieWith[E1](
     pf: PartialFunction[E, E1]
   )(f: E => Throwable)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
-    catchAll { e =>
-      pf.lift(e).fold[ZManaged[R, E1, A]](ZManaged.dieNow(f(e)))(ZManaged.failNow)
-    }
+    catchAll(e => pf.lift(e).fold[ZManaged[R, E1, A]](ZManaged.dieNow(f(e)))(ZManaged.failNow))
 
   /**
    * Retries with the specified retry policy.
@@ -921,7 +907,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ): ZIO[R with Clock, E, Option[(Duration, Reservation[R, E, A])]] =
       clock.nanoTime.flatMap { start =>
         zio
-          .raceWith(ZIO.sleep(d))(
+          .raceWith(ZIO.sleep(d).interruptible)(
             {
               case (leftDone, rightFiber) =>
                 rightFiber.interrupt.flatMap(_ =>
@@ -1450,9 +1436,7 @@ object ZManaged {
    * For a parallel version of this method, see `foreachPar`.
    */
   def foreach[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
-    as.foldRight[ZManaged[R, E, List[A2]]](succeedNow(Nil)) { (a, m) =>
-      f(a).zipWith(m)(_ :: _)
-    }
+    as.foldRight[ZManaged[R, E, List[A2]]](succeedNow(Nil))((a, m) => f(a).zipWith(m)(_ :: _))
 
   /**
    * Applies the function `f` if the argument is non-empty and
@@ -1515,9 +1499,7 @@ object ZManaged {
    * For a sequential version of this method, see `foreach_`.
    */
   def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    as.foldLeft(unit: ZManaged[R, E, Unit]) { (acc, a) =>
-      acc.zipParLeft(f(a))
-    }
+    as.foldLeft(unit: ZManaged[R, E, Unit])((acc, a) => acc.zipParLeft(f(a)))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -1532,9 +1514,7 @@ object ZManaged {
   )(
     f: A => ZManaged[R, E, Any]
   ): ZManaged[R, E, Unit] =
-    mergeAllParN[R, E, Any, Unit](n)(as.map(f))(()) { (_, _) =>
-      ()
-    }
+    mergeAllParN[R, E, Any, Unit](n)(as.map(f))(())((_, _) => ())
 
   /**
    * Creates a [[ZManaged]] from an `AutoCloseable` resource. The resource's `close`

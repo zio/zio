@@ -47,9 +47,7 @@ sealed abstract class ZTestRunner(
     defs.map(new ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
 
   override def receiveMessage(summary: String): Option[String] = {
-    SummaryProtocol.deserialize(summary).foreach { s =>
-      summaries += s
-    }
+    SummaryProtocol.deserialize(summary).foreach(s => summaries += s)
 
     None
   }

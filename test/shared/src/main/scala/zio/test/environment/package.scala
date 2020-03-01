@@ -396,7 +396,7 @@ package object environment extends PlatformSpecific {
         fiberState.get.map(_.timeZone)
 
       private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
-        UIO.forkAll_(wakes.sortBy(_._1).map(_._2.succeed(()))).fork.unit
+        UIO.foreach(wakes.sortBy(_._1))(_._2.succeed(())).unit
 
       private[TestClock] val warningDone: UIO[Unit] =
         warningState.updateSome[Any, Nothing] {
@@ -638,9 +638,7 @@ package object environment extends PlatformSpecific {
                     IO.fromOption(d.input.headOption)
                       .mapError(_ => new EOFException("There is no more input left to read"))
                   )
-          _ <- consoleState.update { data =>
-                Data(data.input.tail, data.output)
-              }
+          _ <- consoleState.update(data => Data(data.input.tail, data.output))
         } yield input
       }
 
@@ -985,7 +983,7 @@ package object environment extends PlatformSpecific {
         //  queue before computing a new pair of values to avoid wasted work.
         randomState.modify {
           case Data(seed1, seed2, queue) =>
-            queue.dequeueOption.fold { (Option.empty[Double], Data(seed1, seed2, queue)) } {
+            queue.dequeueOption.fold((Option.empty[Double], Data(seed1, seed2, queue))) {
               case (d, queue) => (Some(d), Data(seed1, seed2, queue))
             }
         }.flatMap {

@@ -60,9 +60,7 @@ object GenSpec extends ZIOBaseSpec {
         val ints                                      = Gen.listOf(Gen.int(-10, 10))
         val intBooleanFn: Gen[Random, Int => Boolean] = Gen.function(Gen.boolean)
 
-        Check(ints, intBooleanFn) { (as, f) =>
-          assert(as.takeWhile(f).forall(f))(isTrue)
-        }
+        Check(ints, intBooleanFn)((as, f) => assert(as.takeWhile(f).forall(f))(isTrue))
       },
       testM("with multiple parameter function generator") {
         val ints                                  = Gen.anyInt
@@ -525,9 +523,7 @@ object GenSpec extends ZIOBaseSpec {
       assertM(provideSize(result)(100))(isTrue)
     },
     testM("suspend lazily constructs a generator") {
-      check(genIntList) { as =>
-        assert(as.reverse.reverse)(equalTo(as))
-      }
+      check(genIntList)(as => assert(as.reverse.reverse)(equalTo(as)))
     },
     testM("runCollect") {
       val domain = List.range(-10, 10)

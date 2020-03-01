@@ -43,9 +43,7 @@ object PolySpec extends DefaultRunnableSpec {
 
   def spec = suite("PolySpec")(
     testM("map fusion") {
-      check(GenPoly.genPoly.flatMap(genExpr(_))) { expr =>
-        assert(eval(fuse(expr)))(equalTo(eval(expr)))
-      }
+      check(GenPoly.genPoly.flatMap(genExpr(_)))(expr => assert(eval(fuse(expr)))(equalTo(eval(expr))))
     }
   )
 }

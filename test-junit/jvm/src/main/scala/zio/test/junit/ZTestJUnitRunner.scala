@@ -79,9 +79,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
   ): ZIO[Any, Nothing, Unit] =
     FailureRenderer
       .renderTestFailure("", result)
-      .flatMap { rendered =>
-        notifier.fireTestFailure(label, path, renderToString(rendered))
-      }
+      .flatMap(rendered => notifier.fireTestFailure(label, path, renderToString(rendered)))
 
   private def testDescription(label: String, path: Vector[String]) = {
     val uniqueId = path.mkString(":") + ":" + label

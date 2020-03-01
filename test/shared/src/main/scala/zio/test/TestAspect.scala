@@ -636,24 +636,17 @@ object TestAspect extends TimeoutVariants {
    * @param duration maximum test duration
    * @param interruptDuration after test timeout will wait given duration for successful interruption
    */
-  def timeout(duration: Duration, interruptDuration: Duration = 1.second): TestAspectAtLeastR[Live] =
+  def timeout(
+    duration: Duration
+  ): TestAspectAtLeastR[Live] =
     new PerTest.AtLeastR[Live] {
       def perTest[R <: Live, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] = {
         def timeoutFailure =
           TestTimeoutException(s"Timeout of ${duration.render} exceeded.")
-        def interruptionTimeoutFailure = {
-          val msg =
-            s"Timeout of ${duration.render} exceeded. Couldn't interrupt test within ${interruptDuration.render}, possible resource leak!"
-          TestTimeoutException(msg)
-        }
         Live
-          .withLive(test)(_.either.timeoutFork(duration).flatMap {
-            case Left(fiber) =>
-              fiber.join.raceWith(ZIO.sleep(interruptDuration))(
-                (_, fiber) => fiber.interrupt *> ZIO.failNow(TestFailure.Runtime(Cause.die(timeoutFailure))),
-                (_, _) => ZIO.failNow(TestFailure.Runtime(Cause.die(interruptionTimeoutFailure)))
-              )
-            case Right(result) => result.fold(ZIO.failNow, ZIO.succeedNow)
+          .withLive(test)(_.either.disconnect.timeout(duration).flatMap {
+            case None         => ZIO.failNow(TestFailure.Runtime(Cause.die(timeoutFailure)))
+            case Some(result) => ZIO.fromEither(result)
           })
       }
     }

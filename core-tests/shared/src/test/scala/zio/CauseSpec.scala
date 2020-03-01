@@ -10,14 +10,10 @@ object CauseSpec extends ZIOBaseSpec {
   def spec = suite("CauseSpec")(
     suite("Cause")(
       testM("`Cause#died` and `Cause#stripFailures` are consistent") {
-        check(causes) { c =>
-          assert(c.stripFailures)(if (c.died) isSome(anything) else isNone)
-        }
+        check(causes)(c => assert(c.stripFailures)(if (c.died) isSome(anything) else isNone))
       },
       testM("`Cause.equals` is symmetric") {
-        check(causes, causes) { (a, b) =>
-          assert(a == b)(equalTo(b == a))
-        }
+        check(causes, causes)((a, b) => assert(a == b)(equalTo(b == a)))
       },
       testM("`Cause.equals` and `Cause.hashCode` satisfy the contract") {
         check(equalCauses) {
@@ -26,9 +22,7 @@ object CauseSpec extends ZIOBaseSpec {
         }
       },
       testM("`Cause#untraced` removes all traces") {
-        check(causes) { c =>
-          assert(c.untraced.traces.headOption)(isNone)
-        }
+        check(causes)(c => assert(c.untraced.traces.headOption)(isNone))
       },
       zio.test.test("`Cause.failures is stack safe") {
         val n     = 100000
@@ -64,9 +58,7 @@ object CauseSpec extends ZIOBaseSpec {
         }
       },
       testM("`Both.equals` satisfies commutativity") {
-        check(causes, causes) { (a, b) =>
-          assert(Both(a, b))(equalTo(Both(b, a)))
-        }
+        check(causes, causes)((a, b) => assert(Both(a, b))(equalTo(Both(b, a))))
       }
     ),
     suite("Meta")(
@@ -77,9 +69,7 @@ object CauseSpec extends ZIOBaseSpec {
         }
       },
       testM("`Meta` is excluded from hashCode") {
-        check(causes) { c =>
-          assert(Cause.stackless(c).hashCode)(equalTo(c.hashCode))
-        }
+        check(causes)(c => assert(Cause.stackless(c).hashCode)(equalTo(c.hashCode)))
       }
     ),
     suite("Empty")(
@@ -98,14 +88,10 @@ object CauseSpec extends ZIOBaseSpec {
     ),
     suite("Monad Laws:")(
       testM("Left identity") {
-        check(causes) { c =>
-          assert(c.flatMap(Cause.fail))(equalTo(c))
-        }
+        check(causes)(c => assert(c.flatMap(Cause.fail))(equalTo(c)))
       },
       testM("Right identity") {
-        check(errors, errorCauseFunctions) { (e, f) =>
-          assert(Cause.fail(e).flatMap(f))(equalTo(f(e)))
-        }
+        check(errors, errorCauseFunctions)((e, f) => assert(Cause.fail(e).flatMap(f))(equalTo(f(e))))
       },
       testM("Associativity") {
         check(causes, errorCauseFunctions, errorCauseFunctions) { (c, f, g) =>

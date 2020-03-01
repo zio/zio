@@ -126,11 +126,7 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
 
   override def map[B](f0: A => B): StreamEffect[R, E, B] =
     StreamEffect {
-      self.processEffect.flatMap { thunk =>
-        Managed.effectTotal { () =>
-          f0(thunk())
-        }
-      }
+      self.processEffect.flatMap(thunk => Managed.effectTotal(() => f0(thunk())))
     }
 
   override def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): StreamEffect[R, E, B] =
@@ -348,9 +344,7 @@ private[stream] object StreamEffect extends Serializable {
 
   val empty: StreamEffect[Any, Nothing, Nothing] =
     StreamEffect {
-      Managed.effectTotal { () =>
-        end
-      }
+      Managed.effectTotal(() => end)
     }
 
   def apply[R, E, A](pull: ZManaged[R, Nothing, () => A]): StreamEffect[R, E, A] =
@@ -397,9 +391,7 @@ private[stream] object StreamEffect extends Serializable {
 
   def fromIterator[A](iterator: => Iterator[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
-      Managed.effectTotal { () =>
-        if (iterator.hasNext) iterator.next() else end
-      }
+      Managed.effectTotal(() => if (iterator.hasNext) iterator.next() else end)
     }
 
   def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {

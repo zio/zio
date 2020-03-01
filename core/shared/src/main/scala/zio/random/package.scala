@@ -61,11 +61,7 @@ package object random {
               buffer(i2) = tmp
               buffer
           }
-        _ <- ZIO.foreach(list.length to 2 by -1) { (n: Int) =>
-              nextInt(n).flatMap { k =>
-                swap(n - 1, k)
-              }
-            }
+        _      <- ZIO.foreach(list.length to 2 by -1)((n: Int) => nextInt(n).flatMap(k => swap(n - 1, k)))
         buffer <- bufferRef.get
       } yield buffer.toList
 

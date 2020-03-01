@@ -6,8 +6,7 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
-import zio.test.environment.{ Live, TestClock }
-import zio.{ Ref, Schedule, ZEnv, ZIO, ZLayer }
+import zio.{ Ref, Schedule, ZIO }
 
 object TestAspectSpec extends ZIOBaseSpec {
 
@@ -127,7 +126,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ flaky @@ failure,
     testM("forked runs each test on its own separate fiber") {
       for {
-        _        <- ZIO.never.fork
+        _        <- ZIO.infinity.fork
         children <- ZIO.children
       } yield assert(children)(hasSize(equalTo(1)))
     } @@ forked @@ nonFlaky,
@@ -227,18 +226,6 @@ object TestAspectSpec extends ZIOBaseSpec {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
       @@ failure(diesWithSubtypeOf[TestTimeoutException]),
-    testM("timeout reports problem with interruption") {
-      for {
-        testClock <- ZIO.environment[TestClock].map(_.get[TestClock.Service])
-        liveClock = (ZEnv.live >>> Live.default) ++ ZLayer.succeed(testClock)
-        spec = testM("uninterruptible test") {
-          for {
-            _ <- (TestClock.adjust(11.milliseconds) *> ZIO.never).uninterruptible
-          } yield assertCompletes
-        } @@ timeout(10.milliseconds, 1.nanosecond) @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
-        result <- isSuccess(spec.provideLayer(liveClock))
-      } yield assert(result)(isTrue)
-    } @@ flaky,
     testM("verify verifies the specified post-condition after each test is run") {
       for {
         ref <- Ref.make(false)

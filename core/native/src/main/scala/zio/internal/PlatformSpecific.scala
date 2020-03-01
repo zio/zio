@@ -115,6 +115,8 @@ private[internal] trait PlatformSpecific {
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))
 
+  final def newWeakSet[A](): JSet[A] = new HashSet[A]()
+
   final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
 
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()

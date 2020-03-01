@@ -44,9 +44,9 @@ final case class ZTrace(
       else s"Fiber:$fiberId ZIO Execution trace: <empty trace>" :: Nil
 
     val ancestry: List[String] =
-      parentTrace.map { trace =>
-        s"Fiber:$fiberId was spawned by:\n" :: trace.prettyPrint :: Nil
-      }.getOrElse(s"Fiber:$fiberId was spawned by: <empty trace>" :: Nil)
+      parentTrace
+        .map(trace => s"Fiber:$fiberId was spawned by:\n" :: trace.prettyPrint :: Nil)
+        .getOrElse(s"Fiber:$fiberId was spawned by: <empty trace>" :: Nil)
 
     (stackPrint ++ ("" :: execPrint) ++ ("" :: ancestry)).mkString("\n")
   }
