@@ -95,12 +95,11 @@ trait Runtime[+R] {
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
-      null,
       platform,
       environment.asInstanceOf[AnyRef],
       platform.executor,
       InitialInterruptStatus,
-      false,
+      SuperviseMode.Interrupt,
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap()
@@ -125,7 +124,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be used at the edges of your program.
    */
-  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): CancelableFuture[E, A] =
+  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): CancelableFuture[A] =
     unsafeRun(io.toFuture)
 
   /**

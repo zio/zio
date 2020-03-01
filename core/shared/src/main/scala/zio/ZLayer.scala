@@ -657,9 +657,8 @@ object ZLayer {
                           release = _ => finalizers.add(exit => finalizer.get.flatMap(_(exit)))
                         )
                         val memoized = Reservation(
-                          acquire = ZIO.uninterruptibleMask { restore =>
-                            observers.update(_ + 1) *> restore(promise.await)
-                          },
+                          acquire =
+                            ZIO.uninterruptibleMask(restore => observers.update(_ + 1) *> restore(promise.await)),
                           release = exit => finalizer.get.flatMap(_(exit))
                         )
                         (reservation, map + (layer -> memoized))

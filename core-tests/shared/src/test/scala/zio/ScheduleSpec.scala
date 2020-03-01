@@ -131,9 +131,7 @@ object ScheduleSpec extends ZIOBaseSpec {
             err => IO.succeedNow(err),
             _ => IO.succeedNow("it should not be a success")
           )
-        failed.map { actual =>
-          assert(actual)(equalTo("Error: 1"))
-        }
+        failed.map(actual => assert(actual)(equalTo("Error: 1")))
       },
       testM("retry exactly one time for `once` when second time succeeds") {
         // one retry on failure
@@ -211,9 +209,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       testM("for up to 10 times") {
         var i        = 0
         val strategy = Schedule.recurs(10)
-        val io = IO.effectTotal(i += 1).flatMap { _ =>
-          if (i < 5) IO.failNow("KeepTryingError") else IO.succeedNow(i)
-        }
+        val io       = IO.effectTotal(i += 1).flatMap(_ => if (i < 5) IO.failNow("KeepTryingError") else IO.succeedNow(i))
         assertM(io.retry(strategy))(equalTo(5))
       }
     ),
@@ -290,9 +286,9 @@ object ScheduleSpec extends ZIOBaseSpec {
     },
     testM("Retry type parameters should infer correctly") {
       def foo[O](v: O): ZIO[Any with Clock, Error, Either[ScheduleFailure, ScheduleSuccess[O]]] =
-        ZIO.fromFuture { _ =>
-          Future.successful(v)
-        }.foldM(
+        ZIO
+          .fromFuture(_ => Future.successful(v))
+          .foldM(
             _ => ZIO.failNow(ScheduleError("Some error")),
             ok => ZIO.succeedNow(Right(ScheduleSuccess(ok)))
           )

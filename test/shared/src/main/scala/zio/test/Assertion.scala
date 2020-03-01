@@ -35,9 +35,7 @@ final class Assertion[-A] private (
    * Returns a new assertion that succeeds only if both assertions succeed.
    */
   def &&[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
-    new Assertion(infix(param(self), "&&", param(that)), { actual =>
-      self.run(actual) && that.run(actual)
-    })
+    new Assertion(infix(param(self), "&&", param(that)), actual => self.run(actual) && that.run(actual))
 
   /**
    * A symbolic alias for `label`.
@@ -49,9 +47,7 @@ final class Assertion[-A] private (
    * Returns a new assertion that succeeds if either assertion succeeds.
    */
   def ||[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
-    new Assertion(infix(param(self), "||", param(that)), { actual =>
-      self.run(actual) || that.run(actual)
-    })
+    new Assertion(infix(param(self), "||", param(that)), actual => self.run(actual) || that.run(actual))
 
   /**
    * Evaluates the assertion with the specified value.
@@ -343,11 +339,7 @@ object Assertion extends AssertionVariants {
   def exists[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRecM("exists")(param(assertion))(assertion) { actual =>
       ZIO
-        .foreach(actual) { a =>
-          assertion.test(a).map { p =>
-            if (p) Some(a) else None
-          }
-        }
+        .foreach(actual)(a => assertion.test(a).map(p => if (p) Some(a) else None))
         .map(_.find(_.isDefined).flatten)
     }
 
@@ -378,11 +370,7 @@ object Assertion extends AssertionVariants {
     Assertion.assertionRecM("forall")(param(assertion))(assertion)(
       actual =>
         ZIO
-          .foreach(actual) { a =>
-            assertion.test(a).map { p =>
-              if (p) None else Some(a)
-            }
-          }
+          .foreach(actual)(a => assertion.test(a).map(p => if (p) None else Some(a)))
           .map(_.find(_.isDefined).flatten),
       BoolAlgebraM.success
     )
@@ -417,18 +405,14 @@ object Assertion extends AssertionVariants {
    * element satisfying the given assertion
    */
   def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("hasFirst")(param(assertion))(assertion) { actual =>
-      actual.headOption
-    }
+    Assertion.assertionRec("hasFirst")(param(assertion))(assertion)(actual => actual.headOption)
 
   /**
    * Makes a new assertion that requires an iterable to contain the last
    * element satisfying the given assertion
    */
   def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("hasLast")(param(assertion))(assertion) { actual =>
-      actual.lastOption
-    }
+    Assertion.assertionRec("hasLast")(param(assertion))(assertion)(actual => actual.lastOption)
 
   /**
    * Makes a new assertion that requires an Iterable to have the same elements
@@ -447,18 +431,14 @@ object Assertion extends AssertionVariants {
    * by the specified assertion.
    */
   def hasSize[A](assertion: Assertion[Int]): Assertion[Iterable[A]] =
-    Assertion.assertionM("hasSize")(param(assertion)) { actual =>
-      assertion.test(actual.size)
-    }
+    Assertion.assertionM("hasSize")(param(assertion))(actual => assertion.test(actual.size))
 
   /**
    * Makes a new assertion that requires the size of a string be satisfied by
    * the specified assertion.
    */
   def hasSizeString(assertion: Assertion[Int]): Assertion[String] =
-    Assertion.assertionM("hasSizeString")(param(assertion)) { actual =>
-      assertion.test(actual.size)
-    }
+    Assertion.assertionM("hasSizeString")(param(assertion))(actual => assertion.test(actual.size))
 
   /**
    * Makes a new assertion that requires the sum type be a specified term.
@@ -497,18 +477,14 @@ object Assertion extends AssertionVariants {
    * specified reference value.
    */
   def isGreaterThan[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isGreaterThan")(param(reference)) { actual =>
-      ord.gt(actual, reference)
-    }
+    Assertion.assertion("isGreaterThan")(param(reference))(actual => ord.gt(actual, reference))
 
   /**
    * Makes a new assertion that requires the value be greater than or equal to
    * the specified reference value.
    */
   def isGreaterThanEqualTo[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isGreaterThanEqualTo")(param(reference)) { actual =>
-      ord.gteq(actual, reference)
-    }
+    Assertion.assertion("isGreaterThanEqualTo")(param(reference))(actual => ord.gteq(actual, reference))
 
   /**
    * Makes a new assertion that requires an exit value to be interrupted.
@@ -534,18 +510,14 @@ object Assertion extends AssertionVariants {
    * reference value.
    */
   def isLessThan[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isLessThan")(param(reference)) { actual =>
-      ord.lt(actual, reference)
-    }
+    Assertion.assertion("isLessThan")(param(reference))(actual => ord.lt(actual, reference))
 
   /**
    * Makes a new assertion that requires the value be less than or equal to the
    * specified reference value.
    */
   def isLessThanEqualTo[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isLessThanEqualTo")(param(reference)) { actual =>
-      ord.lteq(actual, reference)
-    }
+    Assertion.assertion("isLessThanEqualTo")(param(reference))(actual => ord.lteq(actual, reference))
 
   /**
    * Makes a new assertion that requires an Iterable to be non empty.
@@ -616,9 +588,7 @@ object Assertion extends AssertionVariants {
    * specified min and max (inclusive).
    */
   def isWithin[A](min: A, max: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isWithin")(param(min), param(max)) { actual =>
-      ord.gteq(actual, min) && ord.lteq(actual, max)
-    }
+    Assertion.assertion("isWithin")(param(min), param(max))(actual => ord.gteq(actual, min) && ord.lteq(actual, max))
 
   /**
    * Makes a new assertion that requires a given string to match the specified regular expression.

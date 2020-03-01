@@ -243,9 +243,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     }
 
     def renderTrace(maybeTrace: Option[ZTrace]): List[String] =
-      maybeTrace.fold("No ZIO Trace available." :: Nil) { trace =>
-        "" :: lines(trace.prettyPrint)
-      }
+      maybeTrace.fold("No ZIO Trace available." :: Nil)(trace => "" :: lines(trace.prettyPrint))
 
     def renderFail(error: List[String], maybeTrace: Option[ZTrace]): Sequential =
       Sequential(
@@ -344,7 +342,13 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
-      (if (interrupted) Some(new InterruptedException) else None) orElse
+      (if (interrupted)
+         Some(
+           new InterruptedException(
+             "Interrupted by fibers: " + interruptors.map(_.seqNumber.toString()).map("#" + _).mkString(", ")
+           )
+         )
+       else None) orElse
       defects.headOption getOrElse (new InterruptedException)
 
   /**

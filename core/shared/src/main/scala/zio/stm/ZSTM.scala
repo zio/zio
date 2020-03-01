@@ -541,34 +541,32 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Named alias for `<>`.
    */
   def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1])(implicit ev: CanFail[E]): ZSTM[R1, E1, A1] =
-    new ZSTM(
-      (journal, fiberId, stackSize, r) => {
-        val reset = prepareResetJournal(journal)
+    new ZSTM((journal, fiberId, stackSize, r) => {
+      val reset = prepareResetJournal(journal)
 
-        val continueM: TExit[E, A] => STM[E1, A1] = {
-          case TExit.Fail(_)    => { reset(); that.provide(r) }
-          case TExit.Succeed(a) => ZSTM.succeedNow(a)
-          case TExit.Retry      => { reset(); that.provide(r) }
-        }
-
-        val framesCount = stackSize.incrementAndGet()
-
-        if (framesCount > ZSTM.MaxFrames) {
-          throw new ZSTM.Resumable(self.provide(r), Stack(continueM))
-        } else {
-          val continued =
-            try {
-              continueM(self.exec(journal, fiberId, stackSize, r))
-            } catch {
-              case res: ZSTM.Resumable[e, e1, a, b] =>
-                res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-                throw res
-            }
-
-          continued.exec(journal, fiberId, stackSize, r)
-        }
+      val continueM: TExit[E, A] => STM[E1, A1] = {
+        case TExit.Fail(_)    => { reset(); that.provide(r) }
+        case TExit.Succeed(a) => ZSTM.succeedNow(a)
+        case TExit.Retry      => { reset(); that.provide(r) }
       }
-    )
+
+      val framesCount = stackSize.incrementAndGet()
+
+      if (framesCount > ZSTM.MaxFrames) {
+        throw new ZSTM.Resumable(self.provide(r), Stack(continueM))
+      } else {
+        val continued =
+          try {
+            continueM(self.exec(journal, fiberId, stackSize, r))
+          } catch {
+            case res: ZSTM.Resumable[e, e1, a, b] =>
+              res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+              throw res
+          }
+
+        continued.exec(journal, fiberId, stackSize, r)
+      }
+    })
 
   /**
    * Returns a transactional effect that will produce the value of this effect
@@ -605,24 +603,20 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * leaving the remainder `R0`.
    */
   def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] =
-    new ZSTM(
-      (journal, fiberId, stackSize, r0) => {
+    new ZSTM((journal, fiberId, stackSize, r0) => {
 
-        val framesCount = stackSize.incrementAndGet()
+      val framesCount = stackSize.incrementAndGet()
 
-        if (framesCount > ZSTM.MaxFrames) {
-          throw new ZSTM.Resumable(
-            new ZSTM(
-              (journal, fiberId, stackSize, _) => self.exec(journal, fiberId, stackSize, f(r0))
-            ),
-            Stack[TExit[E, A] => STM[E, A]]()
-          )
-        } else {
-          // no need to catch resumable here
-          self.exec(journal, fiberId, stackSize, f(r0))
-        }
+      if (framesCount > ZSTM.MaxFrames) {
+        throw new ZSTM.Resumable(
+          new ZSTM((journal, fiberId, stackSize, _) => self.exec(journal, fiberId, stackSize, f(r0))),
+          Stack[TExit[E, A] => STM[E, A]]()
+        )
+      } else {
+        // no need to catch resumable here
+        self.exec(journal, fiberId, stackSize, f(r0))
       }
-    )
+    })
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -812,26 +806,24 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self flatMap (a => that map (b => f(a, b)))
 
   private def continueWithM[R1 <: R, E1, B](continueM: TExit[E, A] => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
-    new ZSTM(
-      (journal, fiberId, stackSize, r) => {
-        val framesCount = stackSize.incrementAndGet()
+    new ZSTM((journal, fiberId, stackSize, r) => {
+      val framesCount = stackSize.incrementAndGet()
 
-        if (framesCount > ZSTM.MaxFrames) {
-          throw new ZSTM.Resumable(self.provide(r), Stack(continueM.andThen(_.provide(r))))
-        } else {
-          val continued =
-            try {
-              continueM(self.exec(journal, fiberId, stackSize, r))
-            } catch {
-              case res: ZSTM.Resumable[e, e1, a, b] =>
-                res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-                throw res
-            }
+      if (framesCount > ZSTM.MaxFrames) {
+        throw new ZSTM.Resumable(self.provide(r), Stack(continueM.andThen(_.provide(r))))
+      } else {
+        val continued =
+          try {
+            continueM(self.exec(journal, fiberId, stackSize, r))
+          } catch {
+            case res: ZSTM.Resumable[e, e1, a, b] =>
+              res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+              throw res
+          }
 
-          continued.exec(journal, fiberId, stackSize, r)
-        }
+        continued.exec(journal, fiberId, stackSize, r)
       }
-    )
+    })
 
   private def run(journal: ZSTM.internal.Journal, fiberId: Fiber.Id, r: R): TExit[E, A] = {
     type Cont = ZSTM.internal.TExit[Any, Any] => STM[Any, Any]
@@ -895,7 +887,7 @@ object ZSTM {
           case TryCommit.Suspend(journal) =>
             val txnId     = makeTxnId()
             val done      = new AtomicBoolean(false)
-            val interrupt = UIO(Sync(done) { done.set(true) })
+            val interrupt = UIO(Sync(done)(done.set(true)))
             val async     = ZIO.effectAsync(tryCommitAsync(journal, platform, fiberId, stm, txnId, done, r))
 
             async ensuring interrupt
@@ -981,9 +973,7 @@ object ZSTM {
   def foldLeft[R, E, S, A](
     in: Iterable[A]
   )(zero: S)(f: (S, A) => ZSTM[R, E, S]): ZSTM[R, E, S] =
-    in.foldLeft(ZSTM.succeedNow(zero): ZSTM[R, E, S]) { (acc, el) =>
-      acc.flatMap(f(_, el))
-    }
+    in.foldLeft(ZSTM.succeedNow(zero): ZSTM[R, E, S])((acc, el) => acc.flatMap(f(_, el)))
 
   /**
    * Folds an Iterable[A] using an effectual function f, working sequentially from right to left.
@@ -991,9 +981,7 @@ object ZSTM {
   def foldRight[R, E, S, A](
     in: Iterable[A]
   )(zero: S)(f: (A, S) => ZSTM[R, E, S]): ZSTM[R, E, S] =
-    in.foldRight(ZSTM.succeedNow(zero): ZSTM[R, E, S]) { (el, acc) =>
-      acc.flatMap(f(el, _))
-    }
+    in.foldRight(ZSTM.succeedNow(zero): ZSTM[R, E, S])((el, acc) => acc.flatMap(f(el, _)))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and

@@ -1085,7 +1085,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           result <- managed.use {
                      case (canceler, _) =>
                        for {
-                         fiber        <- canceler.fork
+                         fiber        <- canceler.forkDaemon
                          _            <- latch.await
                          interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds))
                          _            <- ref.set(false)
@@ -1281,9 +1281,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val myBad   = "#@*!"
         val managed = Managed.make(ZIO.unit)(_ => ZIO.dieMessage(myBad))
 
-        val program = managed.memoize.use { memoized =>
-          memoized.use_(ZIO.unit)
-        }
+        val program = managed.memoize.use(memoized => memoized.use_(ZIO.unit))
 
         assertM(program.run)(dies(hasMessage(equalTo(myBad))))
       },
@@ -1293,10 +1291,8 @@ object ZManagedSpec extends ZIOBaseSpec {
           latch    <- Promise.make[Nothing, Unit]
           released <- Ref.make(false)
           managed  = Managed.make(ZIO.unit)(_ => released.set(true) *> latch.succeed(()))
-          v1 <- managed.memoize.use { memoized =>
-                 memoized.use_(ZIO.dieMessage(darn))
-               }.run
-          v2 <- released.get
+          v1       <- managed.memoize.use(memoized => memoized.use_(ZIO.dieMessage(darn))).run
+          v2       <- released.get
         } yield assert(v1)(dies(hasMessage(equalTo(darn)))) && assert(v2)(isTrue)
       },
       testM("behaves properly if use is interrupted") {
@@ -1308,15 +1304,13 @@ object ZManagedSpec extends ZIOBaseSpec {
           acquire  = resource.update(_ + 1)
           release  = resource.update(_ - 1) *> latch3.succeed(())
           managed  = ZManaged.make(acquire)(_ => release)
-          fiber <- managed.memoize.use { memoized =>
-                    memoized.use_(latch1.succeed(()) *> latch2.await)
-                  }.fork
-          _    <- latch1.await
-          res1 <- assertM(resource.get)(equalTo(1))
-          _    <- fiber.interrupt
-          _    <- latch3.await
-          res2 <- assertM(resource.get)(equalTo(0))
-          res3 <- assertM(latch2.isDone)(isFalse)
+          fiber    <- managed.memoize.use(memoized => memoized.use_(latch1.succeed(()) *> latch2.await)).fork
+          _        <- latch1.await
+          res1     <- assertM(resource.get)(equalTo(1))
+          _        <- fiber.interrupt
+          _        <- latch3.await
+          res2     <- assertM(resource.get)(equalTo(0))
+          res3     <- assertM(latch2.isDone)(isFalse)
         } yield res1 && res2 && res3
       }
     ),
@@ -1412,7 +1406,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       fiberId            <- ZIO.fiberId
       never              <- Promise.make[Nothing, Unit]
       reachedAcquisition <- Promise.make[Nothing, Unit]
-      managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
+      managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).forkDaemon
       _                  <- reachedAcquisition.await
       interruption       <- Live.live(managedFiber.interruptAs(fiberId).timeout(5.seconds))
     } yield assert(interruption.map(_.untraced))(equalTo(expected(fiberId)))

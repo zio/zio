@@ -11,9 +11,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   trait Cat extends Animal
 
   def testSize[R <: Has[_]](layer: ZLayer.NoDeps[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
-    layer.build.use { env =>
-      ZIO.succeedNow(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label))
-    }
+    layer.build.use(env => ZIO.succeedNow(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
 
   val acquire1 = "Acquiring Module 1"
   val acquire2 = "Acquiring Module 2"
@@ -231,7 +229,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = ZLayer.fromManagedMany(Managed.make(ZIO.never)(_ => ZIO.unit))
           layer2  = ZLayer.fromManagedMany(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env     = (layer1 ++ layer2).build
-          _       <- env.use_(ZIO.unit).fork
+          _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
         } yield assertCompletes
       } @@ nonFlaky

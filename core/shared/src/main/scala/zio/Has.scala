@@ -87,13 +87,12 @@ object Has {
         .getOrElse(
           tagged,
           self.cache.getOrElse(
-            tagged, {
-              self.map.collectFirst {
-                case (curTag, value) if taggedIsSubtype(taggedTagType(curTag), tag) =>
-                  self.cache = self.cache + (curTag -> value)
-                  value
-              }.getOrElse(throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}"))
-            }
+            tagged,
+            self.map.collectFirst {
+              case (curTag, value) if taggedIsSubtype(taggedTagType(curTag), tag) =>
+                self.cache = self.cache + (curTag -> value)
+                value
+            }.getOrElse(throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}"))
           )
         )
         .asInstanceOf[B]

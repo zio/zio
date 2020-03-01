@@ -27,7 +27,5 @@ private[this] class ReduceAllParBenchmark {
   def naiveReduceAllPar[R, R1 <: R, E, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
   ): ZIO[R1, E, A] =
-    as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
-      l.zipPar(r).map(f.tupled)
-    }
+    as.foldLeft[ZIO[R1, E, A]](a)((l, r) => l.zipPar(r).map(f.tupled))
 }

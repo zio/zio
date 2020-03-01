@@ -96,6 +96,12 @@ object Take {
   case object End extends Take[Nothing, Nothing]
 
   /**
+   * Creates a `Take` from an effect.
+   */
+  def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
+    zio.foldCause(Take.Fail(_), Take.Value(_))
+
+  /**
    * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with the `Take[E, A]`.
    * Error from stream when pulling is converted to `Take.Fail`, end of stream to `Take.End`.
    */

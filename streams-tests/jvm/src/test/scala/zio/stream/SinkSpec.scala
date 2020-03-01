@@ -1043,8 +1043,7 @@ object SinkSpec extends ZIOBaseSpec {
               .aggregate(
                 Sink
                   .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
-                    (acc, el) =>
-                      el :: acc
+                    (acc, el) => el :: acc
                   }
                   .map(_.reverse)
               )
@@ -1073,9 +1072,7 @@ object SinkSpec extends ZIOBaseSpec {
                     (i: Int) => UIO.succeedNow(i.toLong),
                     4,
                     (i: Int) => UIO.succeedNow(Chunk(i - 1, 1))
-                  ) { (acc, el) =>
-                    UIO.succeedNow(el :: acc)
-                  }
+                  )((acc, el) => UIO.succeedNow(el :: acc))
                   .map(_.reverse)
               )
               .runCollect

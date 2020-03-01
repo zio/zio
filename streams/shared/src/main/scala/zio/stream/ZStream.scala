@@ -794,9 +794,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         }
 
         def go: URIO[R, Unit] =
-          Take.fromPull(as).flatMap { take =>
-            offer(take) *> go.when(take != Take.End)
-          }
+          Take.fromPull(as).flatMap(take => offer(take) *> go.when(take != Take.End))
 
         go
       }
@@ -944,9 +942,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                   val i1 = i + 1
                   if (i1 >= chunkSize) Pull.emitNow(Chunk.fromArray(acc)) else loop(acc, i1)
                 },
-                failure = { e =>
-                  stateRef.set(Some(e)) *> Pull.emitNow(Chunk.fromArray(acc).take(i))
-                }
+                failure = { e => stateRef.set(Some(e)) *> Pull.emitNow(Chunk.fromArray(acc).take(i)) }
               )
             def first: Pull[R, E, Chunk[A]] =
               as.foldM(
@@ -959,9 +955,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                     loop(acc, 1)
                   }
                 },
-                failure = { e =>
-                  stateRef.set(Some(e)) *> ZIO.failNow(e)
-                }
+                failure = { e => stateRef.set(Some(e)) *> ZIO.failNow(e) }
               )
             IO.succeed {
               stateRef.get.flatMap {
@@ -986,9 +980,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         val pfIO: PartialFunction[A, Pull[R1, E1, B]] = pf.andThen(Pull.fromEffect(_))
 
         def pull: Pull[R1, E1, B] =
-          as.flatMap { a =>
-            pfIO.applyOrElse(a, (_: A) => pull)
-          }
+          as.flatMap(a => pfIO.applyOrElse(a, (_: A) => pull))
 
         pull
       }
@@ -1012,9 +1004,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         pull = done.get.flatMap {
           if (_) Pull.end
           else
-            as.flatMap { a =>
-              pfIO.applyOrElse(a, (_: A) => done.set(true) *> Pull.end)
-            }
+            as.flatMap(a => pfIO.applyOrElse(a, (_: A) => done.set(true) *> Pull.end))
         }
       } yield pull
     }
@@ -1386,23 +1376,20 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 _ <- latch.await
               } yield ()
             }.foldCauseM(
-                cause => (ZIO.children.flatMap(Fiber.interruptAll) *> out.offer(Pull.haltNow(cause))).unit.toManaged_,
+                cause => (ZIO.interruptAllChildren *> out.offer(Pull.haltNow(cause)).unit).toManaged_,
                 _ =>
-                  ZIO.children.flatMap { pendingFibers =>
-                    innerFailure.await
-                    // Important to use `withPermits` here because the ZManaged#fork below may interrupt
-                    // the driver, and we want the permits to be released in that case
-                      .raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
-                        // One of the inner fibers failed. It already enqueued its failure, so we
-                        // interrupt the inner fibers. The finalizer below will make sure
-                        // that they actually end.
-                        leftDone = (_, permitAcquisition) =>
-                          Fiber.interruptAll(pendingFibers) *> permitAcquisition.interrupt.unit,
-                        // All fibers completed successfully, so we signal that we're done.
-                        rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
-                      )
-
-                  }.toManaged_
+                  innerFailure.await.interruptible
+                  // Important to use `withPermits` here because the ZManaged#fork below may interrupt
+                  // the driver, and we want the permits to be released in that case
+                    .raceWith(permits.withPermits(n.toLong)(ZIO.unit).interruptible)(
+                      // One of the inner fibers failed. It already enqueued its failure, so we
+                      // interrupt the inner fibers. The finalizer below will make sure
+                      // that they actually end.
+                      leftDone = (_, permitAcquisition) => ZIO.interruptAllChildren *> permitAcquisition.interrupt.unit,
+                      // All fibers completed successfully, so we signal that we're done.
+                      rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
+                    )
+                    .toManaged_
               )
               .fork
       } yield out.take.flatten
@@ -1445,17 +1432,14 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 _ <- latch.await
               } yield ()
             }.foldCauseM(
-                cause => (ZIO.children.flatMap(Fiber.interruptAll) *> out.offer(Pull.haltNow(cause))).unit.toManaged_,
+                cause => (ZIO.interruptAllChildren *> out.offer(Pull.haltNow(cause))).unit.toManaged_,
                 _ =>
-                  ZIO.children.flatMap { pendingFibers =>
-                    innerFailure.await
-                      .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
-                        leftDone = (_, permitAcquisition) =>
-                          Fiber.interruptAll(pendingFibers) *> permitAcquisition.interrupt.unit,
-                        rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
-                      )
-
-                  }.toManaged_
+                  innerFailure.await
+                    .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
+                      leftDone = (_, permitAcquisition) => ZIO.interruptAllChildren *> permitAcquisition.interrupt.unit,
+                      rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
+                    )
+                    .toManaged_
               )
               .fork
       } yield out.take.flatten
@@ -1773,7 +1757,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         pull = done.get flatMap {
           if (_) Pull.end
           else
-            as.raceAttempt(
+            as.raceFirst(
               p.await
                 .mapError(Some(_))
                 .foldCauseM(
@@ -1907,20 +1891,18 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def mapMPar[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
     ZStream[R1, E1, B] {
       for {
-        out     <- Queue.bounded[Pull[R1, E1, B]](n).toManaged(_.shutdown)
-        permits <- Semaphore.make(n.toLong).toManaged_
+        out <- Queue.bounded[Pull[R1, E1, B]](n).toManaged(_.shutdown)
         _ <- self.foreachManaged { a =>
               for {
-                latch <- Promise.make[Nothing, Unit]
                 p     <- Promise.make[E1, B]
+                latch <- Promise.make[Nothing, Unit]
                 _     <- out.offer(Pull.fromPromise(p))
-                _     <- (permits.withPermit(latch.succeed(()) *> f(a).to(p))).fork
+                _     <- (latch.succeed(()) *> f(a).to(p)).fork
                 _     <- latch.await
               } yield ()
-
             }.foldCauseM(
-                c => (ZIO.children.flatMap(Fiber.interruptAll) *> out.offer(Pull.haltNow(c))).unit.toManaged_,
-                _ => out.offer(Pull.end).unit.toManaged_
+                c => out.offer(Pull.haltNow(c)).unit.toManaged_,
+                _ => (out.offer(Pull.end) <* ZIO.awaitAllChildren).unit.toManaged_
               )
               .fork
       } yield out.take.flatten
@@ -2464,9 +2446,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         pull = done.get.flatMap {
           if (_) Pull.end
           else
-            as.flatMap { a =>
-              if (pred(a)) Pull.emitNow(a) else done.set(true) *> Pull.end
-            }
+            as.flatMap(a => if (pred(a)) Pull.emitNow(a) else done.set(true) *> Pull.end)
         }
       } yield pull
     }
@@ -3389,9 +3369,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R, Nothing, A] =
     ZStream.fromEffect(schedule.initial).flatMap { s =>
       ZStream.succeed(schedule.extract((), s)) ++
-        ZStream.unfoldM(s) { s =>
-          schedule.update((), s).map(s => (schedule.extract((), s), s)).option
-        }
+        ZStream.unfoldM(s)(s => schedule.update((), s).map(s => (schedule.extract((), s), s)).option)
     }
 
   /**
