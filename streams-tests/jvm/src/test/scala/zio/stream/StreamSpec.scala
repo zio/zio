@@ -1008,19 +1008,21 @@ object StreamSpec extends ZIOBaseSpec {
       import java.io.ByteArrayInputStream
       val chunkSize = ZStreamChunk.DefaultChunkSize
       val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
-      val is        = new ByteArrayInputStream(data)
+      def is        = new ByteArrayInputStream(data)
       ZStream.fromInputStream(is, chunkSize).run(Sink.collectAll[Chunk[Byte]]) map { chunks =>
         assert(chunks.flatMap(_.toArray[Byte]).toArray)(equalTo(data))
       }
     },
     testM("Stream.fromIterable")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
-      assertM(Stream.fromIterable(l).runCollect)(equalTo(l))
+      def lazyL = l
+      assertM(Stream.fromIterable(lazyL).runCollect)(equalTo(l))
     }),
     testM("Stream.fromIterableM")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
       assertM(Stream.fromIterableM(UIO.effectTotal(l)).runCollect)(equalTo(l))
     }),
     testM("Stream.fromIterator")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
-      assertM(Stream.fromIterator(UIO.effectTotal(l.iterator)).runCollect)(equalTo(l))
+      def lazyIt = l.iterator
+      assertM(Stream.fromIterator(UIO.effectTotal(lazyIt)).runCollect)(equalTo(l))
     }),
     testM("Stream.fromQueue")(checkM(smallChunks(Gen.anyInt)) { c =>
       for {
