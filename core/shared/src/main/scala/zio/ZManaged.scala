@@ -444,7 +444,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * and provides that fiber. The finalizer for this value will interrupt the fiber
    * and run the original finalizer.
    */
-  def fork(superviseMode: SuperviseMode): ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
+  def fork: ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
     ZManaged {
       for {
         finalizer <- Ref.make[Exit[Any, Any] => ZIO[R, Nothing, Any]](_ => UIO.unit)
@@ -456,21 +456,9 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
                 }.fork
       } yield Reservation(
         acquire = UIO.succeedNow(fiber),
-        release = e =>
-          (superviseMode match {
-            case SuperviseMode.Interrupt => fiber.interrupt *> finalizer.get.flatMap(f => f(e))
-            case SuperviseMode.InterruptFork =>
-              (fiber.interrupt *> finalizer.get.flatMap(f => f(e))).uninterruptible.forkDaemon
-            case SuperviseMode.Disown =>
-              ZIO.disown(fiber) *> (fiber.await *> finalizer.get
-                .flatMap(f => f(e))
-                .uninterruptible
-                .forkDaemon) // TODO: Testme
-          })
+        release = e => fiber.interrupt *> finalizer.get.flatMap(f => f(e))
       )
     }
-
-  def fork: ZManaged[R, Nothing, Fiber.Runtime[E, A]] = fork(SuperviseMode.Interrupt)
 
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.

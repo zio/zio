@@ -771,11 +771,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * execute the effect in the fiber, while ensuring its interruption when
    * the effect supplied to [[ZManaged#use]] completes.
    */
-  final def forkManaged(
-    superviseMode: SuperviseMode = SuperviseMode.Interrupt
-  ): ZManaged[R, Nothing, Fiber.Runtime[E, A]] = toManaged_.fork(superviseMode)
-
-  final def forkManaged: ZManaged[R, Nothing, Fiber.Runtime[E, A]] = forkManaged(SuperviseMode.Interrupt)
+  final def forkManaged: ZManaged[R, Nothing, Fiber.Runtime[E, A]] = self.toManaged_.fork
 
   /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
