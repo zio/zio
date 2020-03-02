@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import zio.duration._
 import zio.test.Assertion._
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.{ UIO, ZIOBaseSpec }
 
@@ -42,7 +43,7 @@ object BlockingSpec extends ZIOBaseSpec {
       },
       testM("effectBlockingInterrupt can be interrupted") {
         assertM(effectBlockingInterrupt(Thread.sleep(50000)).timeout(Duration.Zero))(isNone)
-      }
+      } @@ nonFlaky
     )
   )
 

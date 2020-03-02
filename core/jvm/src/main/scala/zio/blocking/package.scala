@@ -83,6 +83,7 @@ package object blocking {
             val lock    = new ReentrantLock()
             val thread  = new AtomicReference[Option[Thread]](None)
             val barrier = OneShot.make[Unit]
+            val latch   = OneShot.make[Unit]
 
             def withMutex[B](b: => B): B =
               try {
@@ -109,10 +110,14 @@ package object blocking {
 
             val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
 
+            val awaitLatch: UIO[Unit] = UIO(latch.get())
+
             blocking(
               ZIO.uninterruptibleMask(restore =>
                 for {
                   fiber <- ZIO.effectSuspend {
+                            latch.set(())
+
                             val current = Some(Thread.currentThread)
 
                             withMutex(thread.set(current))
@@ -130,7 +135,7 @@ package object blocking {
                               withMutex { thread.set(None); barrier.set(()) }
                             }
                           }.forkDaemon
-                  a <- restore(fiber.join).ensuring(interruptThread *> awaitInterruption)
+                  a <- restore(fiber.join).ensuring(awaitLatch *> interruptThread *> awaitInterruption)
                 } yield a
               )
             )
