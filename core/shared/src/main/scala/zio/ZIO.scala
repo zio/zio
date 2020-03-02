@@ -1559,23 +1559,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Exposes the full cause of failure of this effect.
    *
    * {{{
-   * case class DomainError()
+   * final case class DomainError()
    *
    * val veryBadIO: IO[DomainError, Unit] =
    *   IO.effectTotal(5 / 0) *> IO.fail(DomainError())
    *
-   * val caught: UIO[Unit] =
-   *   veryBadIO.sandbox.catchAll {
+   * val caught: IO[DomainError, Unit] =
+   *   veryBadIO.sandbox.mapError(_.untraced).catchAll {
    *     case Cause.Die(_: ArithmeticException) =>
    *       // Caught defect: divided by zero!
-   *       IO.succeed(0)
-   *     case Cause.Fail(e) =>
+   *       IO.unit
+   *     case Cause.Fail(_) =>
    *       // Caught error: DomainError!
-   *       IO.succeed(0)
+   *       IO.unit
    *     case cause =>
    *       // Caught unknown defects, shouldn't recover!
    *       IO.halt(cause)
-   *    *
    *   }
    * }}}
    */
