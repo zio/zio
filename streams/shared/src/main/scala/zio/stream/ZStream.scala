@@ -1891,13 +1891,14 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def mapMPar[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
     ZStream[R1, E1, B] {
       for {
-        out <- Queue.bounded[Pull[R1, E1, B]](n).toManaged(_.shutdown)
+        out     <- Queue.bounded[Pull[R1, E1, B]](n).toManaged(_.shutdown)
+        permits <- Semaphore.make(n.toLong).toManaged_
         _ <- self.foreachManaged { a =>
               for {
                 p     <- Promise.make[E1, B]
                 latch <- Promise.make[Nothing, Unit]
                 _     <- out.offer(Pull.fromPromise(p))
-                _     <- (latch.succeed(()) *> f(a).to(p)).fork
+                _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork
                 _     <- latch.await
               } yield ()
             }.foldCauseM(
