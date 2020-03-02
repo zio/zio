@@ -80,10 +80,10 @@ package object blocking {
 
             import zio.internal.OneShot
 
-            val lock    = new ReentrantLock()
-            val thread  = new AtomicReference[Option[Thread]](None)
-            val barrier = OneShot.make[Unit]
-            val latch   = OneShot.make[Unit]
+            val lock   = new ReentrantLock()
+            val thread = new AtomicReference[Option[Thread]](None)
+            val begin  = OneShot.make[Unit]
+            val end    = OneShot.make[Unit]
 
             def withMutex[B](b: => B): B =
               try {
@@ -92,6 +92,8 @@ package object blocking {
 
             val interruptThread: UIO[Unit] =
               ZIO.effectTotal {
+                begin.get()
+
                 var looping = true
                 var n       = 0L
                 val base    = 2L
@@ -106,24 +108,23 @@ package object blocking {
                     Thread.sleep(math.min(50, base * n))
                   }
                 }
+
+                end.get()
               }
-
-            val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
-
-            val awaitLatch: UIO[Unit] = UIO(latch.get())
 
             blocking(
               ZIO.uninterruptibleMask(restore =>
                 for {
                   fiber <- ZIO.effectSuspend {
-                            latch.set(())
-
                             val current = Some(Thread.currentThread)
 
                             withMutex(thread.set(current))
 
+                            begin.set(())
+
                             try {
                               val a = effect
+
                               ZIO.succeedNow(a)
                             } catch {
                               case _: InterruptedException =>
@@ -132,10 +133,10 @@ package object blocking {
                               case t: Throwable =>
                                 ZIO.failNow(t)
                             } finally {
-                              withMutex { thread.set(None); barrier.set(()) }
+                              withMutex { thread.set(None); end.set(()) }
                             }
                           }.forkDaemon
-                  a <- restore(fiber.join).ensuring(awaitLatch *> interruptThread *> awaitInterruption)
+                  a <- restore(fiber.join).ensuring(interruptThread)
                 } yield a
               )
             )
