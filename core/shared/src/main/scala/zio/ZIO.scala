@@ -2279,6 +2279,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * can return a value synchronously.
    *
    * The callback function `ZIO[R, E, A] => Unit` must be called at most once.
+   *
+   * The list of fibers, that may complete the async callback, is used to
+   * provide better diagnostics.
    */
   def effectAsync[R, E, A](
     register: (ZIO[R, E, A] => Unit) => Unit,
@@ -2302,6 +2305,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * If the register function returns a value synchronously, then the callback
    * function `ZIO[R, E, A] => Unit` must not be called. Otherwise the callback
    * function must be called at most once.
+   *
+   * The list of fibers, that may complete the async callback, is used to
+   * provide better diagnostics.
    */
   def effectAsyncInterrupt[R, E, A](
     register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
@@ -2351,6 +2357,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
    * the value synchronously.
+   *
+   * If the register function returns a value synchronously, then the callback
+   * function `ZIO[R, E, A] => Unit` must not be called. Otherwise the callback
+   * function must be called at most once.
+   *
+   * The list of fibers, that may complete the async callback, is used to
+   * provide better diagnostics.
    */
   def effectAsyncMaybe[R, E, A](
     register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
