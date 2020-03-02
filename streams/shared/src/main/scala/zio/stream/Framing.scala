@@ -61,13 +61,17 @@ object Framing {
       .foldM((true, Chunk.empty: Chunk[A]))(_._1) { (acc, in: Chunk[A]) =>
         val buffer       = acc._2
         val searchBuffer = buffer ++ in
-        if (searchBuffer.length > maxFrameLength) {
-          ZIO.failNow(new IllegalArgumentException(s"Delimiter not found within $maxFrameLength elements"))
-        } else {
-          findDelimiter(math.max(0, buffer.length - delimiterLength + 1))(searchBuffer).map {
-            case (found, remaining) =>
+        findDelimiter(math.max(0, buffer.length - delimiterLength + 1))(searchBuffer).map {
+          case (found, remaining) =>
+            if (found.length > maxFrameLength) {
+              ZIO.failNow(new IllegalArgumentException(s"Delimiter not found within $maxFrameLength elements"))
+            } else {
               ZIO.succeedNow(((false, found), Chunk.single(remaining)))
-          }.getOrElse {
+            }
+        }.getOrElse {
+          if (searchBuffer.length > maxFrameLength) {
+            ZIO.failNow(new IllegalArgumentException(s"Delimiter not found within $maxFrameLength elements"))
+          } else {
             ZIO.succeedNow(((true, searchBuffer), Chunk.empty))
           }
         }

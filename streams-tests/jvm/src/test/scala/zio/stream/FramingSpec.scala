@@ -57,17 +57,17 @@ object FramingSpec extends ZIOBaseSpec {
       assertM(in.aggregate(sink).runCount)(equalTo(0L))
     },
     testM("fails if maximum frame length exceeded") {
-      val sink = Framing.delimiter(Chunk(-1), 3)
-      val in   = Stream(Chunk(1, 2), Chunk(3, 4, -1, 5))
+      val sink = Framing.delimiter(Chunk(-1, -2), 3)
+      val in   = Stream(Chunk(1, 2), Chunk(3, 4, -1, -2, 5))
       assertM(in.aggregate(sink).runCollect.run)(
         fails(isSubtype[IllegalArgumentException](anything))
       )
     },
     testM("succeeds if maximum frame length hit exactly") {
-      val sink = Framing.delimiter(Chunk(-1), 4)
-      val in   = Stream(Chunk(1, 2), Chunk(3, 4, -1, 5))
-      assertM(in.aggregate(sink).runCollect.run)(
-        fails(isSubtype[IllegalArgumentException](anything))
+      val sink = Framing.delimiter(Chunk(-1, -2), 4)
+      val in   = Stream(Chunk(1, 2), Chunk(3, 4, -1, -2, 5))
+      assertM(in.aggregate(sink).runCollect)(
+        equalTo(List(Chunk(1, 2, 3, 4), Chunk(5)))
       )
     }
   )
