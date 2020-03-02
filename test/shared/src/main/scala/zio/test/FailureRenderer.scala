@@ -104,8 +104,8 @@ object FailureRenderer {
     else
       parts.foldLeft(Line()) { (line, part) =>
         if (line.fragments.size < parts.size * 2 - 2)
-          line + Fragment(part, fragment.ansiColorCode) + Fragment(substring, colorCode)
-        else line + Fragment(part, fragment.ansiColorCode)
+          line + Fragment.of(part, fragment.ansiColorCode) + Fragment.of(substring, colorCode)
+        else line + Fragment.of(part, fragment.ansiColorCode)
       }
   }
 

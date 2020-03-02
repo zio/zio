@@ -13,7 +13,7 @@ object MessageMarkup {
   }
   object Message {
     def apply(lines: Seq[Line]): Message = Message(lines.toVector)
-    def apply(lineText: String): Message = fragment(lineText).toLine.toMessage
+    def apply(lineText: String): Message = Fragment.of(lineText).toLine.toMessage
   }
   case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
     def :+(fragment: Fragment)    = Line(fragments :+ fragment, offset)
@@ -27,7 +27,7 @@ object MessageMarkup {
     def splitOnLineBreaks: Seq[Line] = {
       case class SubFragment(fragment: Fragment, endsWithLF: Boolean)
       def subFragment(ansiColor: String)(text: String) =
-        SubFragment(fragment(text.stripLineEnd, ansiColor), text.endsWith("\n") || text.endsWith("\r"))
+        SubFragment(Fragment.of(text.stripLineEnd, ansiColor), text.endsWith("\n") || text.endsWith("\r"))
       case class SubLine(line: Line, endsWithLF: Boolean) {
         def +(fragment: SubFragment) = SubLine(line + fragment.fragment, fragment.endsWithLF)
       }
@@ -69,16 +69,15 @@ object MessageMarkup {
     def replace(what: String, withWhat: String) = copy(text.replace(what, withWhat))
   }
 
-  def fragment(text: String, ansiColorCode: String = "") =
-    if (text.isEmpty) Fragment(text, "")
-    else Fragment(text.replace("\u001b", "\\e"), ansiColorCode)
-
   object Fragment {
-    def red(s: String)    = fragment(s, AnsiColor.RED)
-    def blue(s: String)   = fragment(s, AnsiColor.BLUE)
-    def yellow(s: String) = fragment(s, AnsiColor.YELLOW)
-    def green(s: String)  = fragment(s, AnsiColor.GREEN)
-    def cyan(s: String)   = fragment(s, AnsiColor.CYAN)
-    def plain(s: String)  = fragment(s)
+    def red(s: String)    = of(s, AnsiColor.RED)
+    def blue(s: String)   = of(s, AnsiColor.BLUE)
+    def yellow(s: String) = of(s, AnsiColor.YELLOW)
+    def green(s: String)  = of(s, AnsiColor.GREEN)
+    def cyan(s: String)   = of(s, AnsiColor.CYAN)
+    def plain(s: String)  = of(s)
+    def of(text: String, ansiColorCode: String = "") =
+      if (text.isEmpty) Fragment(text, "")
+      else Fragment(text.replace("\u001b", "\\e"), ansiColorCode)
   }
 }
