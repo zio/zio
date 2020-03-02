@@ -30,7 +30,7 @@ package object console {
 
       def putStrLn(line: String): UIO[Unit]
 
-      val getStrLn: IO[IOException, String]
+      def getStrLn: IO[IOException, String]
     }
 
     val any: ZLayer[Console, Nothing, Console] =

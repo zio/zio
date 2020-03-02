@@ -6,16 +6,16 @@ package object random {
   object Random extends Serializable {
     trait Service extends Serializable {
 
-      val nextBoolean: UIO[Boolean]
+      def nextBoolean: UIO[Boolean]
       def nextBytes(length: Int): UIO[Chunk[Byte]]
-      val nextDouble: UIO[Double]
-      val nextFloat: UIO[Float]
-      val nextGaussian: UIO[Double]
+      def nextDouble: UIO[Double]
+      def nextFloat: UIO[Float]
+      def nextGaussian: UIO[Double]
       def nextInt(n: Int): UIO[Int]
-      val nextInt: UIO[Int]
-      val nextLong: UIO[Long]
+      def nextInt: UIO[Int]
+      def nextLong: UIO[Long]
       def nextLong(n: Long): UIO[Long]
-      val nextPrintableChar: UIO[Char]
+      def nextPrintableChar: UIO[Char]
       def nextString(length: Int): UIO[String]
       def shuffle[A](list: List[A]): UIO[List[A]]
     }

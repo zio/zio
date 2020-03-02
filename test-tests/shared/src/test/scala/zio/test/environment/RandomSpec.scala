@@ -58,7 +58,19 @@ object RandomSpec extends ZIOBaseSpec {
         value2 <- zio.random.nextInt
         _      <- ZIO.accessM[TestRandom](_.get[TestRandom.Service].feedInts(1, 2))
       } yield assert(value)(equalTo(-1157408321)) && assert(value2)(equalTo(758500184))
-    } @@ nonFlaky
+    } @@ nonFlaky,
+    testM("getting the seed and setting the seed is an identity") {
+      checkM(Gen.anyLong) { seed =>
+        for {
+          _        <- TestRandom.setSeed(seed)
+          newSeed  <- TestRandom.getSeed
+          value    <- random.nextInt
+          _        <- TestRandom.setSeed(newSeed)
+          newValue <- random.nextInt
+        } yield assert(newSeed)(equalTo(seed & ((1L << 48) - 1))) &&
+          assert(newValue)(equalTo(value))
+      }
+    }
   )
 
   def checkClear[A, B <: Random](generate: SRandom => A)(feed: (ZRandom, List[A]) => UIO[Unit])(

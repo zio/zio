@@ -431,6 +431,13 @@ object TestAspect extends TimeoutVariants {
       )
 
   /**
+   * Sets the seed of the `TestRandom` instance in the environment to a random
+   * value before each test.
+   */
+  val nondeterministic: TestAspectAtLeastR[Live with TestRandom] =
+    before(Live.live(clock.nanoTime).flatMap(TestRandom.setSeed(_)))
+
+  /**
    * An aspect that executes the members of a suite in parallel.
    */
   val parallel: TestAspectPoly =
@@ -586,6 +593,13 @@ object TestAspect extends TimeoutVariants {
    */
   val scala213Only: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala213) identity else ignore
+
+  /**
+   * Sets the seed of the `TestRandom` instance in the environment to the
+   * specified value before each test.
+   */
+  def setSeed(seed: => Long): TestAspectAtLeastR[TestRandom] =
+    before(TestRandom.setSeed(seed))
 
   /**
    * An aspect that runs each test with the `TestConsole` instance in the
