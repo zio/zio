@@ -61,6 +61,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Replaces the error value with the one provided.
    */
+  @deprecated("use orElseFail", "1.0.0")
   final def asError[E1](e1: E1): Exit[E1, A] = mapError(_ => e1)
 
   /**
@@ -83,8 +84,11 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def flatMapM[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
     self match {
       case Success(a)     => f(a)
-      case e @ Failure(_) => ZIO.succeed(e)
+      case e @ Failure(_) => ZIO.succeedNow(e)
     }
+
+  final def flatten[E1 >: E, B](implicit ev: A <:< Exit[E1, B]): Exit[E1, B] =
+    Exit.flatten(self.map(ev))
 
   /**
    * Folds over the value or cause.
@@ -109,7 +113,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
    * returns the result in a new `Exit`.
    */
   final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
-    fold(c => ZIO.succeed(halt(c)), a => f(a).run)
+    fold(c => ZIO.succeedNow(halt(c)), a => f(a).run)
 
   /**
    * Retrieves the `A` if succeeded, or else returns the specified default `A`.
@@ -155,6 +159,12 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
     }
 
   /**
+   * Replaces the error value with the one provided.
+   */
+  final def orElseFail[E1](e1: E1): Exit[E1, A] =
+    mapError(_ => e1)
+
+  /**
    * Determines if the result is a success.
    */
   final def succeeded: Boolean = self match {
@@ -174,6 +184,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Alias for [[Exit.foreach]]
    */
+  @deprecated("use foreach", "1.0.0")
   final def traverse[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
     foreach(f)
 
@@ -250,6 +261,7 @@ object Exit extends Serializable {
   /**
    *  Alias for [[Exit.collectAll]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAll[E, A](exits)
 
@@ -264,6 +276,7 @@ object Exit extends Serializable {
   /**
    *  Alias for [[Exit.collectAllPar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAllPar[E, A](exits)
 
@@ -290,5 +303,5 @@ object Exit extends Serializable {
 
   def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
-  def unit: Exit[Nothing, Unit] = succeed(())
+  val unit: Exit[Nothing, Unit] = succeed(())
 }

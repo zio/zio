@@ -17,21 +17,21 @@ final case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def from[E, L, S](
-    executedSpec: ExecutedSpec[E, L, S],
+  def from[E](
+    executedSpec: ExecutedSpec[E],
     fullyQualifiedName: String,
     fingerprint: Fingerprint
   ): UIO[Seq[ZTestEvent]] =
-    executedSpec.mapLabel(_.toString).fold[UIO[Seq[ZTestEvent]]] {
+    executedSpec.fold[UIO[Seq[ZTestEvent]]] {
       case Spec.SuiteCase(_, results, _) =>
         results.flatMap(UIO.collectAll(_).map(_.flatten))
-      case zio.test.Spec.TestCase(label, result) =>
+      case Spec.TestCase(label, result, _) =>
         result.map { result =>
-          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result._1), None, 0, fingerprint))
+          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
         }
     }
 
-  private def toStatus[E, L, S](result: Either[TestFailure[E], TestSuccess[S]]) = result match {
+  private def toStatus[E](result: Either[TestFailure[E], TestSuccess]) = result match {
     case Left(_)                         => Status.Failure
     case Right(TestSuccess.Succeeded(_)) => Status.Success
     case Right(TestSuccess.Ignored)      => Status.Ignored

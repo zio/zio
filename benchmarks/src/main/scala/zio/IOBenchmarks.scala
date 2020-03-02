@@ -9,11 +9,11 @@ import monix.eval.{ Task => MTask }
 
 import zio.internal._
 
-object IOBenchmarks extends DefaultRuntime {
+object IOBenchmarks extends BootstrapRuntime {
 
   override val platform: Platform = Platform.benchmark
 
-  val TracedRuntime = new DefaultRuntime {
+  val TracedRuntime = new BootstrapRuntime {
     override val platform = Platform.benchmark.withTracing(Tracing.enabled)
   }
 
@@ -30,7 +30,7 @@ object IOBenchmarks extends DefaultRuntime {
     else zio *> repeat(n - 1)(zio)
 
   def verify(cond: Boolean)(message: => String): IO[AssertionError, Unit] =
-    ZIO.when(!cond)(IO.fail(new AssertionError(message)))
+    ZIO.when(!cond)(IO.failNow(new AssertionError(message)))
 
   def catsForkAll[A](as: Iterable[CIO[A]]): CIO[CFiber[CIO, List[A]]] = {
     type Fiber[A] = CFiber[CIO, A]
@@ -62,12 +62,12 @@ object IOBenchmarks extends DefaultRuntime {
     def flatMap[B](afb: A => Thunk[B]): Thunk[B] =
       new Thunk(() => afb(unsafeRun()).unsafeRun())
     def attempt: Thunk[Either[Throwable, A]] =
-      new Thunk(() => {
+      new Thunk(() =>
         try Right(unsafeRun())
         catch {
           case t: Throwable => Left(t)
         }
-      })
+      )
   }
   object Thunk {
     def apply[A](a: => A): Thunk[A] = new Thunk(() => a)

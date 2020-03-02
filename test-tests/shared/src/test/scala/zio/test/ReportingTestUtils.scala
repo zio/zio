@@ -4,8 +4,15 @@ import scala.{ Console => SConsole }
 
 import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
-import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
-import zio.{ Cause, Managed, ZIO }
+import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment }
+import zio.test.mock.ExpectationSpecUtils.Module
+import zio.test.mock.MockException.{
+  InvalidArgumentsException,
+  InvalidMethodException,
+  UnexpectedCallExpection,
+  UnmetExpectationsException
+}
+import zio.{ Cause, ZIO, ZLayer }
 
 object ReportingTestUtils {
 
@@ -40,17 +47,17 @@ object ReportingTestUtils {
     ) + "\n"
   }
 
-  def runLog[E](spec: ZSpec[TestEnvironment, String, String, Unit]) =
+  def runLog(spec: ZSpec[TestEnvironment, String]) =
     for {
-      _ <- TestTestRunner(testEnvironmentManaged)
+      _ <- TestTestRunner(testEnvironment)
             .run(spec)
             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
     } yield output.mkString
 
-  def runSummary[E](spec: ZSpec[TestEnvironment, String, String, Unit]) =
+  def runSummary(spec: ZSpec[TestEnvironment, String]) =
     for {
-      results <- TestTestRunner(testEnvironmentManaged)
+      results <- TestTestRunner(testEnvironment)
                   .run(spec)
                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
                     TestLogger.fromConsole ++ TestClock.default
@@ -58,9 +65,9 @@ object ReportingTestUtils {
       actualSummary <- SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
-  private[this] def TestTestRunner(testEnvironment: Managed[Nothing, TestEnvironment]) =
-    TestRunner[TestEnvironment, String, String, Unit, Unit](
-      executor = TestExecutor.managed[TestEnvironment, String, String, Unit](testEnvironment),
+  private[this] def TestTestRunner(testEnvironment: ZLayer.NoDeps[Nothing, TestEnvironment]) =
+    TestRunner[TestEnvironment, String](
+      executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
       reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 
@@ -83,7 +90,7 @@ object ReportingTestUtils {
     )
   )
 
-  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")))
+  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")), TestAnnotationMap.empty)
   val test4Expected = Vector(
     expectedFailure("Failing test"),
     withOffset(2)("Fiber failed.\n") +
@@ -164,4 +171,52 @@ object ReportingTestUtils {
   val suite4Expected = Vector(expectedFailure("Suite4")) ++
     suite1Expected.map(withOffset(2)) ++
     test3Expected.map(withOffset(2))
+
+  val mock1 = zio.test.test("Expected method, wrong arguments") {
+    throw InvalidArgumentsException(Module.command, 2, equalTo(1))
+  }
+
+  val mock1Expected = Vector(
+    expectedFailure("Expected method, wrong arguments"),
+    withOffset(2)(s"${red("- zio.test.mock.ExpectationSpecUtils.Module.command called with invalid arguments")}\n"),
+    withOffset(4)(s"${blue("2")} did not satisfy ${cyan("equalTo(1)")}\n")
+  )
+
+  val mock2 = zio.test.test("Wrong method") {
+    throw InvalidMethodException(Module.singleParam, Module.command, equalTo(1))
+  }
+
+  val mock2Expected = Vector(
+    expectedFailure("Wrong method"),
+    withOffset(2)(s"${red("- invalid call to zio.test.mock.ExpectationSpecUtils.Module.singleParam")}\n"),
+    withOffset(4)(s"expected zio.test.mock.ExpectationSpecUtils.Module.command with arguments ${cyan("equalTo(1)")}\n")
+  )
+
+  val mock3 = zio.test.test("Unsatisfied expectations") {
+    throw UnmetExpectationsException(
+      List(
+        Module.command -> (equalTo(2)),
+        Module.command -> (equalTo(3))
+      )
+    )
+  }
+
+  val mock3Expected = Vector(
+    expectedFailure("Unsatisfied expectations"),
+    withOffset(2)(s"${red("- unmet expectations")}\n"),
+    withOffset(4)(s"expected zio.test.mock.ExpectationSpecUtils.Module.command with arguments ${cyan("equalTo(2)")}\n"),
+    withOffset(4)(s"expected zio.test.mock.ExpectationSpecUtils.Module.command with arguments ${cyan("equalTo(3)")}\n")
+  )
+
+  val mock4 = zio.test.test("Extra calls") {
+    throw UnexpectedCallExpection(Module.manyParams, (2, "3", 4L))
+  }
+
+  val mock4Expected = Vector(
+    expectedFailure("Extra calls"),
+    withOffset(2)(
+      s"${red("- unexpected call to zio.test.mock.ExpectationSpecUtils.Module.manyParams with arguments")}\n"
+    ),
+    withOffset(4)(s"${cyan("(2,3,4)")}\n")
+  )
 }

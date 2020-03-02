@@ -21,8 +21,8 @@ class BubbleSortBenchmarks {
     }
 
   @Benchmark
-  def scalazBubbleSort() = {
-    import ScalazIOArray._
+  def zioBubbleSort() = {
+    import ZIOArray._
 
     unsafeRun(
       for {

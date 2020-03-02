@@ -101,12 +101,10 @@ private[stream] final class StreamEffectChunk[-R, +E, +A](override val chunks: S
     StreamEffectChunk(chunks.map(_.filter(pred)))
 
   final override def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
-    chunks.foldWhileManaged(s)(cont) { (s, as) =>
-      as.foldWhile(s)(cont)(f)
-    }
+    chunks.foldWhileManaged(s)(cont)((s, as) => as.foldWhile(s)(cont)(f))
 
   override def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
-    foldWhileManaged(s)(_ => true)(f).use(UIO.succeed)
+    foldWhileManaged(s)(_ => true)(f).use(UIO.succeedNow)
 
   override def map[B](f: A => B): StreamEffectChunk[R, E, B] =
     StreamEffectChunk(chunks.map(_.map(f)))

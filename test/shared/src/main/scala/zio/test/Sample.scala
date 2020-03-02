@@ -65,6 +65,9 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     Sample(sample.value, sample.shrink ++ shrink.map(_.flatMap(f)))
   }
 
+  def foreach[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): ZIO[R1, Nothing, Sample[R1, B]] =
+    f(value).map(Sample(_, shrink.mapM(_.foreach(f))))
+
   def map[B](f: A => B): Sample[R, B] =
     Sample(f(value), shrink.map(_.map(f)))
 
@@ -79,9 +82,6 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
       ZStream(value)
     else
       ZStream(value) ++ shrink.takeUntil(v => f(v.value)).flatMap(_.shrinkSearch(f))
-
-  def traverse[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): ZIO[R1, Nothing, Sample[R1, B]] =
-    f(value).map(Sample(_, shrink.mapM(_.traverse(f))))
 
   /**
    * Zips two samples together pairwise.

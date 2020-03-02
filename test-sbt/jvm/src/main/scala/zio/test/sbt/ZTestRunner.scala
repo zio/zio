@@ -27,12 +27,11 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     extends Runner {
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
-  val sendSummary: SendSummary = SendSummary.fromSendM(
-    summary =>
-      ZIO.effectTotal {
-        summaries.updateAndGet(_ :+ summary)
-        ()
-      }
+  val sendSummary: SendSummary = SendSummary.fromSendM(summary =>
+    ZIO.effectTotal {
+      summaries.updateAndGet(_ :+ summary)
+      ()
+    }
   )
 
   def done(): String = {
@@ -51,9 +50,26 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
         .mkString("", "", "Done")
   }
 
-  def tasks(defs: Array[TaskDef]): Array[Task] =
-    defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))
+  def tasks(defs: Array[TaskDef]): Array[Task] = {
+    val testArgs        = TestArgs.parse(args)
+    val tasks           = defs.map(new ZTestTask(_, testClassLoader, sendSummary, testArgs))
+    val entrypointClass = testArgs.testTaskPolicy.getOrElse(classOf[ZTestTaskPolicyDefaultImpl].getName)
+    val taskPolicy = getClass.getClassLoader
+      .loadClass(entrypointClass)
+      .getConstructor()
+      .newInstance()
+      .asInstanceOf[ZTestTaskPolicy]
+    taskPolicy.merge(tasks)
+  }
 }
 
 final class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
     extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs)
+
+trait ZTestTaskPolicy {
+  def merge(zioTasks: Array[ZTestTask]): Array[Task]
+}
+
+class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
+  override def merge(zioTasks: Array[ZTestTask]): Array[Task] = zioTasks.toArray
+}

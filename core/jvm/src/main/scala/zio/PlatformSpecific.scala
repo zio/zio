@@ -17,27 +17,18 @@
 package zio
 
 import zio.blocking.Blocking
-import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
-import zio.scheduler.Scheduler
 import zio.system.System
 
 private[zio] trait PlatformSpecific {
-  type ZEnv = Clock with Console with System with Random with Scheduler with Blocking
+  type ZEnv = Clock with Console with System with Random with Blocking
 
   object ZEnv {
+    val any: ZLayer[ZEnv, Nothing, ZEnv] =
+      ZLayer.requires[ZEnv]
     val live: ZLayer.NoDeps[Nothing, ZEnv] =
-      (Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live ++ Blocking.live
+      Clock.live ++ Console.live ++ System.live ++ Random.live ++ Blocking.live
   }
-
-  type Tagged[A] = ScalaSpecific.Tagged[A]
-  type TagType   = ScalaSpecific.TagType
-
-  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = ScalaSpecific.taggedTagType(t)
-
-  private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean = ScalaSpecific.taggedIsSubtype(left, right)
-
-  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] = ScalaSpecific.taggedGetHasServices(t)
 }

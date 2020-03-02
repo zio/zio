@@ -1,15 +1,11 @@
 package zio.test
 
 import scala.reflect.ClassTag
-import scala.reflect.ClassTag
 
-import zio.ZEnv
-import zio.ZLayer
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
-import zio.test.environment.{ Live, TestClock }
 import zio.{ Ref, Schedule, ZIO }
 
 object TestAspectSpec extends ZIOBaseSpec {
@@ -32,7 +28,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = testM("test") {
-          ZIO.fail("error")
+          ZIO.failNow("error")
         } @@ after(ref.set(-1))
         result <- isSuccess(spec)
         after  <- ref.get
@@ -109,7 +105,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = testM("flaky test") {
-          assertM(ref.update(_ + 1))(equalTo(100))
+          assertM(ref.updateAndGet(_ + 1))(equalTo(100))
         } @@ flaky
         result <- isSuccess(spec)
         n      <- ref.get
@@ -119,7 +115,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = testM("flaky test that dies") {
-          assertM(ref.update(_ + 1).filterOrDieMessage(_ >= 100)("die"))(equalTo(100))
+          assertM(ref.updateAndGet(_ + 1).filterOrDieMessage(_ >= 100)("die"))(equalTo(100))
         } @@ flaky
         result <- isSuccess(spec)
         n      <- ref.get
@@ -128,6 +124,12 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("flaky retries a test with a limit") {
       assert(true)(isFalse)
     } @@ flaky @@ failure,
+    testM("forked runs each test on its own separate fiber") {
+      for {
+        _        <- ZIO.infinity.fork
+        children <- ZIO.children
+      } yield assert(children)(hasSize(equalTo(1)))
+    } @@ forked @@ nonFlaky,
     test("ifEnv runs a test if environment variable satisfies assertion") {
       assert(true)(isTrue)
     } @@ ifEnv("PATH", containsString("bin")) @@ success @@ jvmOnly,
@@ -184,6 +186,9 @@ object TestAspectSpec extends ZIOBaseSpec {
       val result = if (TestPlatform.isJVM) isSuccess(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
+    testM("noDelay causes sleep effects to be executed immediately") {
+      assertM(ZIO.sleep(Duration.Infinity))(anything)
+    } @@ noDelay,
     suite("nonTermination")(
       testM("makes a test pass if it does not terminate within the specified time") {
         assertM(ZIO.never)(anything)
@@ -192,14 +197,14 @@ object TestAspectSpec extends ZIOBaseSpec {
         assertM(ZIO.unit)(anything)
       } @@ nonTermination(1.minute) @@ failure,
       testM("makes a test fail if it fails within the specified time") {
-        assertM(ZIO.fail("fail"))(anything)
+        assertM(ZIO.failNow("fail"))(anything)
       } @@ nonTermination(1.minute) @@ failure
     ),
     testM("retry retries failed tests according to a schedule") {
       for {
         ref <- Ref.make(0)
         spec = testM("retry") {
-          assertM(ref.update(_ + 1))(equalTo(2))
+          assertM(ref.updateAndGet(_ + 1))(equalTo(2))
         } @@ retry(Schedule.recurs(1))
         result <- isSuccess(spec)
       } yield assert(result)(isTrue)
@@ -221,17 +226,15 @@ object TestAspectSpec extends ZIOBaseSpec {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
       @@ failure(diesWithSubtypeOf[TestTimeoutException]),
-    testM("timeout reports problem with interruption") {
+    testM("verify verifies the specified post-condition after each test is run") {
       for {
-        testClock <- ZIO.environment[TestClock].map(_.get[TestClock.Service])
-        liveClock = (ZEnv.live >>> Live.default) ++ ZLayer.succeed(testClock)
-        spec = testM("uninterruptible test") {
-          for {
-            _ <- (TestClock.adjust(11.milliseconds) *> ZIO.never).uninterruptible
-          } yield assertCompletes
-        } @@ timeout(10.milliseconds, 1.nanosecond) @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
-        result <- isSuccess(spec.provideLayer(liveClock))
-      } yield assert(result)(isTrue)
+        ref <- Ref.make(false)
+        spec = suite("verify")(
+          testM("first test")(ZIO.succeedNow(assertCompletes)),
+          testM("second test")(ref.set(true).as(assertCompletes))
+        ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
+        result <- isSuccess(spec)
+      } yield assert(result)(isFalse)
     }
   )
 

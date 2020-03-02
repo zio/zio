@@ -14,9 +14,7 @@ object StackBoolSpec extends ZIOBaseSpec {
       checkAll(gen)(list => assert(StackBool.fromIterable(list).size.toInt)(equalTo(list.length)))
     },
     testM("From/to list identity") {
-      checkAll(gen) { list =>
-        assert(StackBool.fromIterable(list).toList)(equalTo(list))
-      }
+      checkAll(gen)(list => assert(StackBool.fromIterable(list).toList)(equalTo(list)))
     },
     testM("Push/pop example") {
       checkAll(gen) { list =>

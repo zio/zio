@@ -28,10 +28,10 @@ class IODeepLeftBindBenchmark {
   }
 
   @Benchmark
-  def scalazDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(IOBenchmarks)
+  def zioDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(IOBenchmarks)
 
   @Benchmark
-  def scalazTracedDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(TracedRuntime)
+  def zioTracedDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(TracedRuntime)
 
   def zioDeepLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     var i  = 0

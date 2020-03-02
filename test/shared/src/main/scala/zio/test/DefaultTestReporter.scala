@@ -26,18 +26,23 @@ import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
+import zio.test.mock.MockException.{
+  InvalidArgumentsException,
+  InvalidMethodException,
+  UnexpectedCallExpection,
+  UnmetExpectationsException
+}
 import zio.test.mock.{ Method, MockException }
 import zio.{ Cause, UIO, URIO }
 
 object DefaultTestReporter {
 
-  def render[E, S](
-    executedSpec: ExecutedSpec[E, String, S],
+  def render[E](
+    executedSpec: ExecutedSpec[E],
     testAnnotationRenderer: TestAnnotationRenderer
   ): UIO[Seq[RenderedResult[String]]] = {
     def loop(
-      executedSpec: ExecutedSpec[E, String, S],
+      executedSpec: ExecutedSpec[E],
       depth: Int,
       ancestors: List[TestAnnotationMap]
     ): UIO[Seq[RenderedResult[String]]] =
@@ -46,13 +51,13 @@ object DefaultTestReporter {
           for {
             specs <- executedSpecs
             failures <- UIO.foreach(specs)(_.exists {
-                         case Spec.TestCase(_, test) => test.map(_._1.isLeft);
-                         case _                      => UIO.succeed(false)
+                         case Spec.TestCase(_, test, _) => test.map(_.isLeft);
+                         case _                         => UIO.succeedNow(false)
                        })
             annotations <- Spec(c).fold[UIO[TestAnnotationMap]] {
                             case Spec.SuiteCase(_, specs, _) =>
                               specs.flatMap(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
-                            case Spec.TestCase(_, test) => test.map(_._2)
+                            case Spec.TestCase(_, _, annotations) => UIO.succeedNow(annotations)
                           }
             hasFailures = failures.exists(identity)
             status      = if (hasFailures) Failed else Passed
@@ -63,54 +68,51 @@ object DefaultTestReporter {
             rest                <- UIO.foreach(specs)(loop(_, depth + tabSize, annotations :: ancestors)).map(_.flatten)
           } yield rendered(Suite, label, status, depth, (renderedLabel): _*)
             .withAnnotations(renderedAnnotations) +: rest
-        case Spec.TestCase(label, result) =>
-          result.flatMap {
-            case (result, annotations) =>
-              val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
-              val renderedResult = result match {
-                case Right(TestSuccess.Succeeded(_)) =>
-                  UIO.succeed(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
-                case Right(TestSuccess.Ignored) =>
-                  UIO.succeed(rendered(Test, label, Ignored, depth))
-                case Left(TestFailure.Assertion(result)) =>
-                  result.run.flatMap(
-                    result =>
-                      result
-                        .fold(
-                          details =>
-                            renderFailure(label, depth, details)
-                              .map(failures => rendered(Test, label, Failed, depth, failures: _*))
-                        )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
+        case Spec.TestCase(label, result, annotations) =>
+          result.flatMap { result =>
+            val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
+            val renderedResult = result match {
+              case Right(TestSuccess.Succeeded(_)) =>
+                UIO.succeedNow(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
+              case Right(TestSuccess.Ignored) =>
+                UIO.succeedNow(rendered(Test, label, Ignored, depth))
+              case Left(TestFailure.Assertion(result)) =>
+                result.run.flatMap(result =>
+                  result
+                    .fold(details =>
+                      renderFailure(label, depth, details)
+                        .map(failures => rendered(Test, label, Failed, depth, failures: _*))
+                    )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
+                )
+              case Left(TestFailure.Runtime(cause)) =>
+                renderCause(cause, depth).map { string =>
+                  rendered(
+                    Test,
+                    label,
+                    Failed,
+                    depth,
+                    (Seq(renderFailureLabel(label, depth)) ++ Seq(string)): _*
                   )
-                case Left(TestFailure.Runtime(cause)) =>
-                  renderCause(cause, depth).map { string =>
-                    rendered(
-                      Test,
-                      label,
-                      Failed,
-                      depth,
-                      (Seq(renderFailureLabel(label, depth)) ++ Seq(string)): _*
-                    )
 
-                  }
-              }
-              renderedResult.map(result => Seq(result.withAnnotations(renderedAnnotations)))
+                }
+            }
+            renderedResult.map(result => Seq(result.withAnnotations(renderedAnnotations)))
           }
       }
     loop(executedSpec, 0, List.empty)
   }
 
-  def apply[E, S](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E, String, S] = {
-    (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
+  def apply[E](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E] = {
+    (duration: Duration, executedSpec: ExecutedSpec[E]) =>
       for {
-        rendered <- render(executedSpec.mapLabel(_.toString), testAnnotationRenderer).map(_.flatMap(_.rendered))
+        rendered <- render(executedSpec, testAnnotationRenderer).map(_.flatMap(_.rendered))
         stats    <- logStats(duration, executedSpec)
         _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
       } yield ()
   }
 
-  private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, String] = {
-    def loop(executedSpec: ExecutedSpec[E, String, S]): UIO[(Int, Int, Int)] =
+  private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): URIO[TestLogger, String] = {
+    def loop(executedSpec: ExecutedSpec[E]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           for {
@@ -119,15 +121,15 @@ object DefaultTestReporter {
           } yield stats.foldLeft((0, 0, 0)) {
             case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
           }
-        case Spec.TestCase(_, result) =>
+        case Spec.TestCase(_, result, _) =>
           result.map {
-            case (Left(_), _)                         => (0, 0, 1)
-            case (Right(TestSuccess.Succeeded(_)), _) => (1, 0, 0)
-            case (Right(TestSuccess.Ignored), _)      => (0, 1, 0)
+            case Left(_)                         => (0, 0, 1)
+            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
+            case Right(TestSuccess.Ignored)      => (0, 1, 0)
           }
       }
     for {
-      stats                      <- loop(executedSpec.mapLabel(_.toString))
+      stats                      <- loop(executedSpec)
       (success, ignore, failure) = stats
       total                      = success + ignore + failure
     } yield cyan(
@@ -159,9 +161,7 @@ object DefaultTestReporter {
       if (f.ansiColorCode.nonEmpty) f.ansiColorCode + f.text + AnsiColor.RESET
       else f.text
     message.lines.map { line =>
-      withOffset(line.offset)(line.fragments.foldLeft("") { (str, f) =>
-        str + renderFragment(f)
-      })
+      withOffset(line.offset)(line.fragments.foldLeft("")((str, f) => str + renderFragment(f)))
     }
   }
 
@@ -284,7 +284,7 @@ object FailureRenderer {
         case fragment :: whole :: failureDetails =>
           renderWhole(fragment, whole, offset).flatMap(s => loop(whole :: failureDetails, rendered :+ s))
         case _ =>
-          UIO.succeed(rendered)
+          UIO.succeedNow(rendered)
       }
     for {
       fragment <- renderFragment(failureDetails.head, offset)
@@ -341,17 +341,15 @@ object FailureRenderer {
   }
 
   private def renderSatisfied(fragment: AssertionValue): UIO[Fragment] =
-    fragment.assertion.test(fragment.value).map { p =>
-      Fragment(if (p) " satisfied " else " did not satisfy ")
-    }
+    fragment.assertion.test(fragment.value).map(p => Fragment(if (p) " satisfied " else " did not satisfy "))
 
   def renderCause(cause: Cause[Any], offset: Int): UIO[Message] =
     cause.dieOption match {
-      case Some(TestTimeoutException(message)) => UIO.succeed(Message(message))
+      case Some(TestTimeoutException(message)) => UIO.succeedNow(Message(message))
       case Some(exception: MockException) =>
         renderMockException(exception).map(_.map(withOffset(offset + tabSize)))
       case _ =>
-        UIO.succeed(
+        UIO.succeedNow(
           Message(
             cause.prettyPrint
               .split("\n")
@@ -367,14 +365,24 @@ object FailureRenderer {
         renderTestFailure(s"$method called with invalid arguments", assert(args)(assertion))
 
       case InvalidMethodException(method, expectedMethod, assertion) =>
-        UIO.succeed(
+        UIO.succeedNow(
           Message(Seq(red(s"- invalid call to $method").toLine, renderExpectation(expectedMethod, assertion, tabSize)))
         )
 
       case UnmetExpectationsException(expectations) =>
-        UIO.succeed(Message(red(s"- unmet expectations").toLine +: expectations.map {
+        UIO.succeedNow(Message(red(s"- unmet expectations").toLine +: expectations.map {
           case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
         }))
+
+      case UnexpectedCallExpection(method, args) =>
+        UIO.succeedNow(
+          Message(
+            Seq(
+              red(s"- unexpected call to $method with arguments").toLine,
+              withOffset(tabSize)(cyan(args.toString).toLine)
+            )
+          )
+        )
     }
 
   private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[I], offset: Int): Line =
@@ -382,11 +390,10 @@ object FailureRenderer {
 
   def renderTestFailure(label: String, testResult: TestResult): UIO[Message] =
     testResult.run.flatMap(
-      _.failures.fold(UIO.succeed(Message()))(
-        _.fold(
-          details =>
-            renderFailure(label, 0, details)
-              .map(failures => rendered(Test, label, Failed, 0, failures.lines: _*))
+      _.failures.fold(UIO.succeedNow(Message()))(
+        _.fold(details =>
+          renderFailure(label, 0, details)
+            .map(failures => rendered(Test, label, Failed, 0, failures.lines: _*))
         )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
           .map(_.rendered)
           .map(Message.apply)

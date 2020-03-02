@@ -2,6 +2,7 @@ package zio.stream
 
 import zio._
 import zio.test.Assertion.{ equalTo, isLeft, isTrue }
+import zio.test.TestAspect.flaky
 import zio.test._
 
 object StreamInterruptWhenSpec extends ZIOBaseSpec {
@@ -20,7 +21,7 @@ object StreamInterruptWhenSpec extends ZIOBaseSpec {
         _      <- fiber.await
         result <- interrupted.get
       } yield assert(result)(isTrue)
-    },
+    } @@ flaky,
     testM("propagates errors") {
       for {
         halt <- Promise.make[String, Nothing]

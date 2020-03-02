@@ -47,9 +47,7 @@ sealed abstract class ZTestRunner(
     defs.map(new ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
 
   override def receiveMessage(summary: String): Option[String] = {
-    SummaryProtocol.deserialize(summary).foreach { s =>
-      summaries += s
-    }
+    SummaryProtocol.deserialize(summary).foreach(s => summaries += s)
 
     None
   }
@@ -65,10 +63,10 @@ final class ZMasterTestRunner(args: Array[String], remoteArgs: Array[String], te
     extends ZTestRunner(args, remoteArgs, testClassLoader, "master") {
 
   //This implementation seems to be used when there's only single spec to run
-  override val sendSummary: SendSummary = SendSummary.fromSend(summary => {
+  override val sendSummary: SendSummary = SendSummary.fromSend { summary =>
     summaries += summary
     ()
-  })
+  }
 
 }
 
@@ -88,7 +86,7 @@ final class ZTestTask(
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs) {
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
-    Runtime((), spec.platform)
+    Runtime((), specInstance.platform)
       .unsafeRunAsync((sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_).use_(ZIO.unit)) { exit =>
         exit match {
           case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)

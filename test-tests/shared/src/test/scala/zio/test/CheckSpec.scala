@@ -25,15 +25,13 @@ object CheckSpec extends ZIOBaseSpec {
     testM("error in checkM is test failure") {
       checkM(Gen.int(1, 100)) { n =>
         for {
-          _ <- ZIO.fail("fail")
+          _ <- ZIO.failNow("fail")
           r <- random.nextInt(n)
         } yield assert(r)(isLessThan(n))
       }
     } @@ failure,
     testM("overloaded check methods work") {
-      check(Gen.anyInt, Gen.anyInt, Gen.anyInt) { (x, y, z) =>
-        assert((x + y) + z)(equalTo(x + (y + z)))
-      }
+      check(Gen.anyInt, Gen.anyInt, Gen.anyInt)((x, y, z) => assert((x + y) + z)(equalTo(x + (y + z))))
     },
     testM("max shrinks is respected") {
       val gen = Gen.listOfN(10)(Gen.int(-10, 10))
@@ -61,14 +59,10 @@ object CheckSpec extends ZIOBaseSpec {
       }
     },
     testM("tests with filtered generators terminate") {
-      check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0)) { (a, b) =>
-        assert(a)(equalTo(b))
-      }
+      check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0))((a, b) => assert(a)(equalTo(b)))
     } @@ failure,
     testM("failing tests contain gen failure details") {
-      check(Gen.anyInt) { a =>
-        assert(a)(isGreaterThan(0))
-      }.flatMap {
+      check(Gen.anyInt)(a => assert(a)(isGreaterThan(0))).flatMap {
         _.run.map(_.failures match {
           case Some(BoolAlgebra.Value(details)) => details.gen.fold(false)(_.shrinkedInput == 0)
           case _                                => false

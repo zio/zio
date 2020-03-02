@@ -10,10 +10,8 @@ object FiberSpec extends ZIOBaseSpec {
   def spec = suite("FiberSpec")(
     suite("Create a new Fiber and")(testM("lift it into Managed") {
       for {
-        ref <- Ref.make(false)
-        fiber <- withLatch { release =>
-                  (release *> IO.unit).bracket_(ref.set(true))(IO.never).fork
-                }
+        ref   <- Ref.make(false)
+        fiber <- withLatch(release => (release *> IO.unit).bracket_(ref.set(true))(IO.never).fork)
         _     <- fiber.toManaged.use(_ => IO.unit)
         _     <- fiber.await
         value <- ref.get
@@ -23,11 +21,9 @@ object FiberSpec extends ZIOBaseSpec {
       testM("`map`") {
         for {
           fiberRef <- FiberRef.make(initial)
-          child <- withLatch { release =>
-                    (fiberRef.set(update) *> release).fork
-                  }
-          _     <- child.map(_ => ()).inheritRefs
-          value <- fiberRef.get
+          child    <- withLatch(release => (fiberRef.set(update) *> release).fork)
+          _        <- child.map(_ => ()).inheritRefs
+          value    <- fiberRef.get
         } yield assert(value)(equalTo(update))
       },
       testM("`orElse`") {
@@ -93,7 +89,7 @@ object FiberSpec extends ZIOBaseSpec {
         for {
           queue  <- Queue.unbounded[Int]
           _      <- queue.offerAll(1 to 100)
-          worker = (n: Int) => if (n == 100) ZIO.fail("fail") else queue.offer(n).unit
+          worker = (n: Int) => if (n == 100) ZIO.failNow("fail") else queue.offer(n).unit
           exit   <- shard(queue, 4, worker).run
           _      <- queue.shutdown
         } yield assert(exit)(fails(equalTo("fail")))
@@ -104,8 +100,7 @@ object FiberSpec extends ZIOBaseSpec {
         latch1 <- Promise.make[Nothing, Unit]
         latch2 <- Promise.make[Nothing, Unit]
         c      = ZIO.never.interruptible.onInterrupt(latch2.succeed(()))
-        b      = c.fork
-        a      = (latch1.succeed(()) *> b.fork).uninterruptible *> ZIO.never
+        a      = (latch1.succeed(()) *> c.fork.fork).uninterruptible *> ZIO.never
         fiber  <- a.fork
         _      <- latch1.await
         _      <- fiber.interrupt

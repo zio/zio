@@ -18,132 +18,314 @@ package zio.stm
 
 import scala.util.Try
 
-import zio.{ Fiber, IO }
+import zio.{ CanFail, Fiber, IO }
 
 object STM {
 
   /**
-   * Atomically performs a batch of operations in a single transaction.
+   * @see See [[zio.stm.ZSTM.absolve]]
+   */
+  def absolve[R, E, A](e: STM[E, Either[E, A]]): STM[E, A] =
+    ZSTM.absolve(e)
+
+  /**
+   * @see See [[zio.stm.ZSTM.atomically]]
    */
   def atomically[E, A](stm: STM[E, A]): IO[E, A] =
     ZSTM.atomically(stm)
 
   /**
-   * Checks the condition, and if it's true, returns unit, otherwise, retries.
+   * @see See [[zio.stm.ZSTM.check]]
    */
-  def check(p: Boolean): STM[Nothing, Unit] = ZSTM.check(p)
+  def check(p: => Boolean): STM[Nothing, Unit] = ZSTM.check(p)
 
   /**
-   * Collects all the transactional effects in a list, returning a single
-   * transactional effect that produces a list of values.
+   * @see See [[zio.stm.ZSTM.collectAll]]
    */
   def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
     ZSTM.collectAll(i)
 
   /**
-   * Kills the fiber running the effect.
+   * @see See [[zio.stm.ZSTM.die]]
    */
-  def die(t: Throwable): STM[Nothing, Nothing] =
+  def die(t: => Throwable): STM[Nothing, Nothing] =
     ZSTM.die(t)
 
   /**
-   * Kills the fiber running the effect with a `RuntimeException` that contains
-   * the specified message.
+   * @see See [[zio.stm.ZSTM.dieMessage]]
    */
-  def dieMessage(m: String): STM[Nothing, Nothing] =
+  def dieMessage(m: => String): STM[Nothing, Nothing] =
     ZSTM.dieMessage(m)
 
   /**
-   * Returns a value modelled on provided exit status.
+   * @see See [[zio.stm.ZSTM.done]]
    */
-  def done[E, A](exit: ZSTM.internal.TExit[E, A]): STM[E, A] =
+  def done[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
     ZSTM.done(exit)
 
   /**
-   * Returns a value that models failure in the transaction.
+   * @see See [[zio.stm.ZSTM.fail]]
    */
-  def fail[E](e: E): STM[E, Nothing] =
+  def fail[E](e: => E): STM[E, Nothing] =
     ZSTM.fail(e)
 
   /**
-   * Returns the fiber id of the fiber committing the transaction.
+   * @see See [[zio.stm.ZSTM.fiberId]]
    */
   val fiberId: STM[Nothing, Fiber.Id] =
     ZSTM.fiberId
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns a transactional effect that produces a new `List[B]`.
+   * @see [[zio.stm.ZSTM.filter]]
+   */
+  def filter[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, List[A]] =
+    ZSTM.filter(as)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.flatten]]
+   */
+  def flatten[E, A](task: STM[E, STM[E, A]]): STM[E, A] =
+    ZSTM.flatten(task)
+
+  /**
+   * @see See [[zio.stm.ZSTM.foldLeft]]
+   */
+  def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => STM[E, S]): STM[E, S] =
+    ZSTM.foldLeft(in)(zero)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.foldRight]]
+   */
+  def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => STM[E, S]): STM[E, S] =
+    ZSTM.foldRight(in)(zero)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.foreach]]
    */
   def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
     ZSTM.foreach(as)(f)
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns a transactional effect that produces `Unit`.
-   *
-   * Equivalent to `foreach(as)(f).unit`, but without the cost of building
-   * the list of results.
+   * @see See [[zio.stm.ZSTM.foreach_]]
    */
   def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
-    STM.succeed(as.iterator).flatMap { it =>
-      def loop: STM[E, Unit] =
-        if (it.hasNext) f(it.next) *> loop
-        else STM.unit
-
-      loop
-    }
+    ZSTM.foreach_(as)(f)
 
   /**
-   * Creates an STM effect from an `Either` value.
+   * @see See [[zio.stm.ZSTM.fromEither]]
    */
   def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
     ZSTM.fromEither(e)
 
   /**
-   * Creates an STM effect from a `Try` value.
+   * @see See [[zio.stm.ZSTM.fromFunction]]
+   */
+  def fromFunction[A](f: Any => A): STM[Nothing, A] =
+    ZSTM.fromFunction(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.fromFunctionM]]
+   */
+  def fromFunctionM[R, E, A](f: Any => STM[E, A]): STM[E, A] =
+    ZSTM.fromFunctionM(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.fromOption]]
+   */
+  def fromOption[A](v: => Option[A]): STM[Unit, A] =
+    ZSTM.fromOption(v)
+
+  /**
+   * @see See [[zio.stm.ZSTM.fromTry]]
    */
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     ZSTM.fromTry(a)
 
   /**
-   * Creates an `STM` value from a partial (but pure) function.
+   * @see See [[zio.stm.ZSTM.identity]]
+   */
+  def identity: STM[Nothing, Any] = ZSTM.identity
+
+  /**
+   * @see See [[zio.stm.ZSTM.ifM]]
+   */
+  def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
+    new ZSTM.IfM(b)
+
+  /**
+   * @see See [[zio.stm.ZSTM.iterate]]
+   */
+  def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => STM[E, S]): STM[E, S] =
+    ZSTM.iterate(initial)(cont)(body)
+
+  /**
+   * @see See [[zio.stm.ZSTM.left]]
+   */
+  def left[A](a: => A): STM[Nothing, Either[A, Nothing]] =
+    ZSTM.left(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.loop]]
+   */
+  def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, A]): STM[E, List[A]] =
+    ZSTM.loop(initial)(cont, inc)(body)
+
+  /**
+   * @see See [[zio.stm.ZSTM.loop_]]
+   */
+  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, Any]): STM[E, Unit] =
+    ZSTM.loop_(initial)(cont, inc)(body)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C]*]]
+   */
+  def mapN[E, A, B, C](tx1: STM[E, A], tx2: STM[E, B])(f: (A, B) => C): STM[E, C] =
+    ZSTM.mapN(tx1, tx2)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D]*]]
+   */
+  def mapN[E, A, B, C, D](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C])(
+    f: (A, B, C) => D
+  ): STM[E, D] =
+    ZSTM.mapN(tx1, tx2, tx3)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D,F]*]]
+   */
+  def mapN[E, A, B, C, D, F](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C], tx4: STM[E, D])(
+    f: (A, B, C, D) => F
+  ): STM[E, F] =
+    ZSTM.mapN(tx1, tx2, tx3, tx4)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mergeAll]]
+   */
+  def mergeAll[E, A, B](
+    in: Iterable[STM[E, A]]
+  )(zero: B)(f: (B, A) => B): STM[E, B] = ZSTM.mergeAll(in)(zero)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.none]]
+   */
+  val none: STM[Nothing, Option[Nothing]] = ZSTM.none
+
+  /**
+   * @see See [[zio.stm.ZSTM.partial]]
    */
   def partial[A](a: => A): STM[Throwable, A] =
     ZSTM.partial(a)
 
   /**
-   * Abort and retry the whole transaction when any of the underlying
-   * transactional variables have changed.
+   * @see See [[zio.stm.ZSTM.partition]]
+   */
+  def partition[E, A, B](
+    in: Iterable[A]
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[Nothing, (List[E], List[B])] =
+    ZSTM.partition(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.reduceAll]]
+   */
+  def reduceAll[E, A](a: STM[E, A], as: Iterable[STM[E, A]])(
+    f: (A, A) => A
+  ): STM[E, A] = ZSTM.reduceAll(a, as)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.replicate]]
+   */
+  def replicate[E, A](n: Int)(tx: STM[E, A]): Iterable[STM[E, A]] =
+    ZSTM.replicate(n)(tx)
+
+  /**
+   * @see See [[zio.stm.ZSTM.require]]
+   */
+  def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
+    ZSTM.require(error)
+
+  /**
+   * @see See [[zio.stm.ZSTM.retry]]
    */
   val retry: STM[Nothing, Nothing] =
     ZSTM.retry
 
   /**
-   * Returns an `STM` effect that succeeds with the specified value.
+   * @see See [[zio.stm.ZSTM.right]]
    */
-  def succeed[A](a: A): STM[Nothing, A] =
+  def right[A](a: => A): STM[Nothing, Either[Nothing, A]] =
+    ZSTM.right(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.some]]
+   */
+  def some[A](a: => A): STM[Nothing, Option[A]] =
+    ZSTM.some(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.succeed]]
+   */
+  def succeed[A](a: => A): STM[Nothing, A] =
     ZSTM.succeed(a)
 
   /**
-   * Suspends creation of the specified transaction lazily.
+   * @see See [[zio.stm.ZSTM.suspend]]
    */
   def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
     ZSTM.suspend(stm)
 
   /**
-   * The moral equivalent of `if (p) exp`
-   */
-  def when[E](b: Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
-
-  /**
-   * The moral equivalent of `if (p) exp` when `p` has side-effects
-   */
-  def whenM[E](b: STM[E, Boolean])(stm: STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
-
-  /**
-   * Returns an `STM` effect that succeeds with `Unit`.
+   * @see See [[zio.stm.ZSTM.unit]]
    */
   val unit: STM[Nothing, Unit] =
     ZSTM.unit
+
+  /**
+   * @see See [[zio.stm.ZSTM.validate]]
+   */
+  def validate[E, A, B](
+    in: Iterable[A]
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[::[E], List[B]] =
+    ZSTM.validate(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.validateFirst]]
+   */
+  def validateFirst[E, A, B](
+    in: Iterable[A]
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[List[E], B] =
+    ZSTM.validateFirst(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.when]]
+   */
+  def when[E](b: => Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenCase]]
+   */
+  def whenCase[E, A](a: => A)(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+    ZSTM.whenCase(a)(pf)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenCaseM]]
+   */
+  def whenCaseM[E, A](a: STM[E, A])(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+    ZSTM.whenCaseM(a)(pf)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenM]]
+   */
+  def whenM[E](b: STM[E, Boolean])(stm: STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
+
+  private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
+    ZSTM.dieNow(t)
+
+  private[zio] def doneNow[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
+    ZSTM.doneNow(exit)
+
+  private[zio] def failNow[E](e: E): STM[E, Nothing] =
+    ZSTM.failNow(e)
+
+  private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
+    ZSTM.succeedNow(a)
 }

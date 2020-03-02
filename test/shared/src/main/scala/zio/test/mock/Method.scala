@@ -25,7 +25,7 @@ import zio.test.Assertion
  * A `Model[M, I, A]` represents a capability of module `M` that takes an
  * input `I` and returns an effect that may produce a single `A`.
  */
-trait Method[-M, I, +A] { self =>
+trait Method[-M, I, A] { self =>
 
   /**
    * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.
@@ -42,10 +42,10 @@ trait Method[-M, I, +A] { self =>
    * Available only for methods that don't take arguments.
    */
   @silent("parameter value ev in method returns is never used")
-  def returns[A1 >: A, E](
-    returns: ReturnExpectation[I, E, A1]
-  )(implicit ev: I <:< Unit): Expectation[M, E, A1] =
-    Expectation.Call[M, I, E, A1](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
+  def returns[E](
+    returns: ReturnExpectation[I, E, A]
+  )(implicit ev: I <:< Unit): Expectation[M, E, A] =
+    Expectation.Call[M, I, E, A](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
 
   /**
    * Render method fully qualified name.

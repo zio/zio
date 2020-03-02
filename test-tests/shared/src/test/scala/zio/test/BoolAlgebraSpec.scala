@@ -10,19 +10,13 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       assert(BoolAlgebra.all(List(success1, failure1, failure2)))(isSome(isFailure))
     },
     testM("and distributes over or") {
-      check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
-        assert(a && (b || c))(equalTo((a && b) || (a && c)))
-      }
+      check(boolAlgebra, boolAlgebra, boolAlgebra)((a, b, c) => assert(a && (b || c))(equalTo((a && b) || (a && c))))
     },
     testM("and is associative") {
-      check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
-        assert((a && b) && c)(equalTo(a && (b && c)))
-      }
+      check(boolAlgebra, boolAlgebra, boolAlgebra)((a, b, c) => assert((a && b) && c)(equalTo(a && (b && c))))
     },
     testM("and is commutative") {
-      check(boolAlgebra, boolAlgebra) { (a, b) =>
-        assert(a && b)(equalTo(b && a))
-      }
+      check(boolAlgebra, boolAlgebra)((a, b) => assert(a && b)(equalTo(b && a)))
     },
     test("any returns disjunction of values") {
       assert(BoolAlgebra.any(List(success1, failure1, failure2)))(isSome(isSuccess))
@@ -102,16 +96,12 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       assert(actual)(equalTo(expected))
     },
     testM("monad left identity") {
-      check(boolAlgebra) { a =>
-        assert(a.flatMap(BoolAlgebra.success))(equalTo(a))
-      }
+      check(boolAlgebra)(a => assert(a.flatMap(BoolAlgebra.success))(equalTo(a)))
     },
     testM("monad right identity") {
       val genInt      = Gen.int(0, 9)
       val genFunction = Gen.function[Random with Sized, Int, BoolAlgebra[Int]](boolAlgebra)
-      check(genInt, genFunction) { (a, f) =>
-        assert(BoolAlgebra.success(a).flatMap(f))(equalTo(f(a)))
-      }
+      check(genInt, genFunction)((a, f) => assert(BoolAlgebra.success(a).flatMap(f))(equalTo(f(a))))
     },
     testM("monad associativity") {
       val genFunction = Gen.function[Random with Sized, Int, BoolAlgebra[Int]](boolAlgebra)
@@ -134,9 +124,7 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       }
     },
     testM("or is commutative") {
-      check(boolAlgebra, boolAlgebra) { (a, b) =>
-        assert(a || b)(equalTo(b || a))
-      }
+      check(boolAlgebra, boolAlgebra)((a, b) => assert(a || b)(equalTo(b || a)))
     }
   )
 

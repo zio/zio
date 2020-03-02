@@ -31,7 +31,8 @@ class IOForkInterruptBenchmark {
             .start
             .flatMap(f => p1.get.flatMap(_ => f.cancel.flatMap(_ => p2.get.flatMap(_ => loop(i + 1)))))
         }
-      } else Task.unit
+      }
+      else Task.unit
 
     loop(0).runSyncUnsafe()
   }
@@ -50,7 +51,8 @@ class IOForkInterruptBenchmark {
               .start
               .flatMap(f => p1.get.flatMap(_ => f.cancel.flatMap(_ => p2.get.flatMap(_ => loop(i + 1)))))
           }
-        } else IO.unit
+        }
+      else IO.unit
 
     loop(0).unsafeRunSync()
   }

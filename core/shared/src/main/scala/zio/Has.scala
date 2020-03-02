@@ -26,13 +26,10 @@ package zio
  * {{{
  * type Console = Has[ConsoleService]
  * }}}
- *
- * Currently, to be portable across all platforms, all services added to an
- * environment must be monomorphic. Parameterized services are not supported.
  */
 final class Has[A] private (
-  private val map: Map[TagType, scala.Any],
-  private var cache: Map[TagType, scala.Any] = Map()
+  private val map: Map[Tagged[_], scala.Any],
+  private var cache: Map[Tagged[_], scala.Any] = Map()
 ) extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case that: Has[_] => map == that.map
@@ -75,13 +72,10 @@ object Has {
     def ++[B <: Has[_]](that: B)(implicit tagged: Tagged[B]): Self with B = self.union[B](that)
 
     /**
-     * Adds a service to the environment. The service must be monomorphic rather
-     * than parameterized. Parameterized services are not supported.
-     *
-     * Good: `Logging`, bad: `Logging[String]`.
+     * Adds a service to the environment.
      */
     def add[B](b: B)(implicit tagged: Tagged[B], ev: Self MustNotHave B): Self with Has[B] =
-      new Has(self.map + (taggedTagType(tagged) -> b)).asInstanceOf[Self with Has[B]]
+      new Has(self.map + (tagged -> b)).asInstanceOf[Self with Has[B]]
 
     /**
      * Retrieves a service from the environment.
@@ -91,15 +85,14 @@ object Has {
 
       self.map
         .getOrElse(
-          tag,
+          tagged,
           self.cache.getOrElse(
-            tag, {
-              self.map.collectFirst {
-                case (curTag, value) if taggedIsSubtype(curTag, tag) =>
-                  self.cache = self.cache + (curTag -> value)
-                  value
-              }.getOrElse(throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}"))
-            }
+            tagged,
+            self.map.collectFirst {
+              case (curTag, value) if taggedIsSubtype(taggedTagType(curTag), tag) =>
+                self.cache = self.cache + (curTag -> value)
+                value
+            }.getOrElse(throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}"))
           )
         )
         .asInstanceOf[B]
@@ -114,7 +107,7 @@ object Has {
       val set = taggedGetHasServices(tag)
 
       if (set.isEmpty) self
-      else new Has(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(tag, _)))).asInstanceOf[Self]
+      else new Has(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(taggedTagType(tag), _)))).asInstanceOf[Self]
     }
 
     /**
@@ -161,26 +154,26 @@ object Has {
 
   /**
    * Constructs a new environment holding the single service. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * must be monomorphic.
    */
-  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(taggedTagType(TaggedAnyRef) -> (()))).add(a)
+  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(TaggedAnyRef -> (()))).add(a)
 
   /**
    * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * must be monomorphic.
    */
   def allOf[A: Tagged, B: Tagged](a: A, b: B): Has[A] with Has[B] = Has(a).add(b)
 
   /**
    * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * must be monomorphic.
    */
   def allOf[A: Tagged, B: Tagged, C: Tagged](a: A, b: B, c: C): Has[A] with Has[B] with Has[C] =
     Has(a).add(b).add(c)
 
   /**
    * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * must be monomorphic.
    */
   def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged](
     a: A,
@@ -192,7 +185,7 @@ object Has {
 
   /**
    * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * must be monomorphic.
    */
   def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged](
     a: A,

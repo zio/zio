@@ -93,7 +93,7 @@ putStrLn("Hello World")
 If you need to read input from the console, you can use `getStrLn`:
 
 ```scala mdoc
-val echo = getStrLn flatMap putStrLn
+val echo = getStrLn.flatMap(line => putStrLn(line))
 ```
 
 ## Learning More

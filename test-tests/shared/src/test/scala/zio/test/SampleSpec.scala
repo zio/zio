@@ -27,11 +27,11 @@ object SampleSpec extends ZIOBaseSpec {
     },
     testM("traverse fusion") {
       val sample              = Sample.shrinkIntegral(0)(5)
-      def f(n: Int): UIO[Int] = ZIO.succeed(n + 2)
-      def g(n: Int): UIO[Int] = ZIO.succeed(n * 3)
+      def f(n: Int): UIO[Int] = ZIO.succeedNow(n + 2)
+      def g(n: Int): UIO[Int] = ZIO.succeedNow(n * 3)
       val result = equalEffects(
-        sample.traverse(a => f(a).flatMap(g)),
-        sample.traverse(f).flatMap(_.traverse(g))
+        sample.foreach(a => f(a).flatMap(g)),
+        sample.foreach(f).flatMap(_.foreach(g))
       )
       assertM(result)(isTrue)
     }
@@ -44,7 +44,7 @@ object SampleSpec extends ZIOBaseSpec {
     left.flatMap(a => right.flatMap(b => equalSamples(a, b)))
 
   def equalSamples[A, B](left: Sample[Any, A], right: Sample[Any, B]): UIO[Boolean] =
-    if (left.value != right.value) UIO.succeed(false) else equalShrinks(left.shrink, right.shrink)
+    if (left.value != right.value) UIO.succeedNow(false) else equalShrinks(left.shrink, right.shrink)
 
   def equalShrinks[A, B](
     left: ZStream[Any, Nothing, Sample[Any, A]],
