@@ -109,31 +109,31 @@ package object blocking {
 
             val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
 
-            blocking(for {
-              a <- (for {
-                    fiber <- ZIO
-                              .effectTotal[IO[Throwable, A]] {
-                                val current = Some(Thread.currentThread)
+            blocking(
+              ZIO.uninterruptibleMask(restore =>
+                for {
+                  fiber <- ZIO.effectSuspend {
+                            val current = Some(Thread.currentThread)
 
-                                withMutex(thread.set(current))
+                            withMutex(thread.set(current))
 
-                                try {
-                                  val a = effect
-                                  ZIO.succeedNow(a)
-                                } catch {
-                                  case _: InterruptedException =>
-                                    Thread.interrupted // Clear interrupt status
-                                    ZIO.interrupt
-                                  case t: Throwable =>
-                                    ZIO.failNow(t)
-                                } finally {
-                                  withMutex { thread.set(None); barrier.set(()) }
-                                }
-                              }
-                              .fork
-                    a <- fiber.join.flatten
-                  } yield a).ensuring(interruptThread *> awaitInterruption)
-            } yield a)
+                            try {
+                              val a = effect
+                              ZIO.succeedNow(a)
+                            } catch {
+                              case _: InterruptedException =>
+                                Thread.interrupted // Clear interrupt status
+                                ZIO.interrupt
+                              case t: Throwable =>
+                                ZIO.failNow(t)
+                            } finally {
+                              withMutex { thread.set(None); barrier.set(()) }
+                            }
+                          }.forkDaemon
+                  a <- restore(fiber.join).ensuring(interruptThread *> awaitInterruption)
+                } yield a
+              )
+            )
           }
         }
     }
