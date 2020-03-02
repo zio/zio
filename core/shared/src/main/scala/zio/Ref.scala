@@ -185,6 +185,9 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    */
   def setAsync(a: A): UIO[Unit] = IO.effectTotal(value.lazySet(a))
 
+  override def toString: String =
+    s"Ref(${value.get})"
+
   /**
    * Atomically modifies the `Ref` with the specified function. This is not
    * implemented in terms of `modify` purely for performance reasons.
