@@ -57,5 +57,5 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
       testM("correctly reports mock failure of unexpected call") {
         assertM(runLog(mock4))(equalTo(mock4Expected.mkString + reportStats(0, 0, 1)))
       }
-    ).only("include diff") /*@@ silent*/
+    ) @@ silent
 }
