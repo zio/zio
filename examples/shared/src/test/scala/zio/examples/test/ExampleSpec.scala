@@ -16,7 +16,6 @@ object ExampleSpec extends DefaultRunnableSpec {
     },
     test("multiline string expected to be single line") {
       assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
-    },
-
+    }
   )
 }
