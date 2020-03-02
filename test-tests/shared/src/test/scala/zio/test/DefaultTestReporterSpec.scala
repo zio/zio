@@ -3,6 +3,7 @@ package zio.test
 import zio.test.Assertion._
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
+import zio.test.diff.Diffing
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
 
@@ -41,6 +42,9 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
       testM("correctly reports negated failures") {
         assertM(runLog(test8))(equalTo(test8Expected.mkString + reportStats(0, 0, 1)))
       },
+      testM("include diff if string equality fails") {
+        assertM(runLog(test9))(equalTo(test9Expected.mkString + reportStats(0, 0, 1), Diffing.noDiffing))
+      },
       testM("correctly reports mock failure of invalid argument") {
         assertM(runLog(mock1))(equalTo(mock1Expected.mkString + reportStats(0, 0, 1)))
       },
@@ -53,5 +57,5 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
       testM("correctly reports mock failure of unexpected call") {
         assertM(runLog(mock4))(equalTo(mock4Expected.mkString + reportStats(0, 0, 1)))
       }
-    ) @@ silent
+    ).only("include diff") /*@@ silent*/
 }

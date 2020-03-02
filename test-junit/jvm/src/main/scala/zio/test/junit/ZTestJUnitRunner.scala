@@ -7,7 +7,7 @@ import org.junit.runner.{ Description, RunWith, Runner }
 
 import zio.ZIO.effectTotal
 import zio._
-import zio.test.FailureRenderer.FailureMessage.Message
+import zio.test.MessageMarkup.Message
 import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
 import zio.test.TestFailure.{ Assertion, Runtime }
 import zio.test.TestSuccess.{ Ignored, Succeeded }

@@ -1,6 +1,6 @@
 package zio.test.diff.meyers
 
-import zio.test.diff.Delta.TYPE.UNCHANGED
+import zio.test.diff.Delta.DiffType.Unchanged
 import zio.test.diff._
 
 /**
@@ -22,7 +22,7 @@ private[diff] class MyersDiff[T](equality: Equality[T] = Equality.default[T]) {
           val (origEndOffset, revisedEndOffset) = endOffsets(patch)
           if (delta.original.position > origEndOffset || delta.revised.position > revisedEndOffset) {
             val unchanged = Delta(
-              UNCHANGED,
+              Unchanged,
               Chunk(origEndOffset, original.slice(origEndOffset, delta.original.position)),
               Chunk(revisedEndOffset, revised.slice(revisedEndOffset, delta.revised.position))
             )
@@ -35,7 +35,7 @@ private[diff] class MyersDiff[T](equality: Equality[T] = Equality.default[T]) {
     if (origEndOffset < original.length - 1 || revisedEndOffset < revised.length - 1) {
       result.addDelta(
         Delta(
-          UNCHANGED,
+          Unchanged,
           Chunk(origEndOffset, original.slice(origEndOffset, original.length)),
           Chunk(revisedEndOffset, revised.slice(revisedEndOffset, revised.length))
         )

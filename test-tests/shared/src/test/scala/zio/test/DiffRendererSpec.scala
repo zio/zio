@@ -1,10 +1,10 @@
 package zio.test
 
 import zio.test.Assertion.equalTo
-import zio.test.FailureRenderer.FailureMessage.Fragment._
-import zio.test.FailureRenderer.FailureMessage.{ Line, Message }
-import zio.test.diff.DiffElement
-import zio.test.diff.DiffElement.{ Changed, Deleted, Inserted, Unchanged }
+import zio.test.MessageMarkup.Fragment._
+import zio.test.MessageMarkup._
+import zio.test.diff.DiffComponent
+import zio.test.diff.DiffComponent.{ Changed, Deleted, Inserted, Unchanged }
 
 object DiffRendererSpec extends ZIOBaseSpec {
 
@@ -14,8 +14,12 @@ object DiffRendererSpec extends ZIOBaseSpec {
       plain("[-") + red("foo ") + plain("]") + green("bar") + plain("[+") + red(" foo") + plain("]")
     ),
     testCase("multiline diff")(D("foo "), U("\nbar"), I(" foo"))(
-      plain("[-") + red("foo ") + plain("]"),
+      plain("[-") + red("foo ") + plain("]") + green("\\n"),
       green("bar") + plain("[+") + red(" foo") + plain("]")
+    ),
+    testCase("multiline diff 2")(U("Hello,"), C(" ", "\n"), U("World!"))(
+      green("Hello,") + plain("[-") + red(" ") + plain("+") + blue("\\n"),
+      plain("]") + green("World!")
     )
   )
 
@@ -24,7 +28,7 @@ object DiffRendererSpec extends ZIOBaseSpec {
   private def I(t: String)            = Inserted(t)
   private def D(t: String)            = Deleted(t)
 
-  private def testCase(l: String)(diffs: DiffElement*)(expected: Line*) =
+  private def testCase(l: String)(diffs: DiffComponent*)(expected: Line*) =
     test(l) {
       assert(DiffRenderer.renderDiff(diffs.toVector))(equalTo(Message(expected.toVector)))
     }

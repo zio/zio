@@ -11,8 +11,12 @@ object ExampleSpec extends DefaultRunnableSpec {
     test("passing test") {
       assert(1)(Assertion.equalTo(1))
     },
-    test("strings not equal") {
+    test("multiline strings not equal") {
       assert("foo bar\nbazz buzzard")(Assertion.equalTo("bar foo\nbazard"))
-    }
+    },
+    test("multiline string expected to be single line") {
+      assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
+    },
+
   )
 }

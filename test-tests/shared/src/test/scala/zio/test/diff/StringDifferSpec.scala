@@ -2,7 +2,7 @@ package zio.test.diff
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.diff.DiffElement._
+import zio.test.diff.DiffComponent._
 
 object StringDifferSpec extends ZIOBaseSpec {
   override def spec = suite("diff when")(
@@ -11,7 +11,8 @@ object StringDifferSpec extends ZIOBaseSpec {
     testCase("char deleted in the middle")("foo-bar", "foobar")(U("foo"), D("-"), U("bar")),
     testCase("word added to the middle")("foo bar", "foo moo bar")(U("foo "), I("moo "), U("bar")),
     testCase("char doubled at the end")("foo bar", "foo barr")(U("foo bar"), I("r")),
-    testCase("char doubled at the beginning")("foo bar", "ffoo bar")(U("f"), I("f"), U("oo bar"))
+    testCase("char doubled at the beginning")("foo bar", "ffoo bar")(U("f"), I("f"), U("oo bar")),
+    testCase("line break inserted")("Hello, World!", "Hello,\nWorld!")(U("Hello,"), C(" ", "\n"), U("World!"))
   )
 
   private def U(t: String)            = Unchanged(t)
@@ -19,8 +20,8 @@ object StringDifferSpec extends ZIOBaseSpec {
   private def I(t: String)            = Inserted(t)
   private def D(t: String)            = Deleted(t)
 
-  private def testCase(l: String)(a: String, b: String)(expected: DiffElement*) =
+  private def testCase(l: String)(a: String, b: String)(expected: DiffComponent*) =
     test(l) {
-      assert(StringDiffer.default.diff(a, b))(equalTo(Vector(expected: _*)))
+      assert(StringDiffer.default.diff(b, a).components)(equalTo(Vector(expected: _*)))
     }
 }

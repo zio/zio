@@ -18,6 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 
+import zio.test.diff.DiffResult
 import zio.{ Cause, Exit, ZIO }
 
 /**
@@ -28,7 +29,7 @@ import zio.{ Cause, Exit, ZIO }
 final class Assertion[-A] private (
   val render: Assertion.Render,
   val run: (=> A) => AssertResult,
-  val expected: Option[Any] = None
+  val diffing: Option[A => Option[DiffResult]] = None
 ) extends ((=> A) => AssertResult) { self =>
   import zio.test.Assertion.Render._
 
@@ -87,8 +88,8 @@ final class Assertion[-A] private (
   override def toString: String =
     render.toString
 
-  def withExpected(expected: Option[Any]): Assertion[A] =
-    new Assertion[A](render, run, expected)
+  def withDiffing[A1 <: A](diffing: Option[A1 => Option[DiffResult]]): Assertion[A1] =
+    new Assertion[A1](render, run, diffing)
 }
 
 object Assertion extends AssertionVariants {
