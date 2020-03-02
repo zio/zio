@@ -6,6 +6,7 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
+import zio.test.environment.TestRandom
 import zio.{ Ref, Schedule, ZIO }
 
 object TestAspectSpec extends ZIOBaseSpec {
@@ -222,6 +223,9 @@ object TestAspectSpec extends ZIOBaseSpec {
       val result = if (TestVersion.isScala2) isSuccess(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
+    testM("setSeed sets the random seed to the specified value before each test") {
+      assertM(TestRandom.getSeed)(equalTo(seed & ((1L << 48) - 1)))
+    } @@ setSeed(seed),
     testM("timeout makes tests fail after given duration") {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
@@ -254,4 +258,6 @@ object TestAspectSpec extends ZIOBaseSpec {
     TestTimeoutException(
       "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
     )
+
+  val seed = -1157790455010312737L
 }

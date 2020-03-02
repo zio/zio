@@ -31,7 +31,7 @@ private[test] trait PlatformSpecific {
         (Live.default >>> TestClock.default) ++
         (Live.default >>> TestConsole.debug) ++
         Live.default ++
-        TestRandom.random ++
+        TestRandom.deterministic ++
         Sized.live(100) ++
         TestSystem.default
   }

@@ -28,7 +28,7 @@ package object clock {
     trait Service extends Serializable {
       def currentTime(unit: TimeUnit): UIO[Long]
       def currentDateTime: UIO[OffsetDateTime]
-      val nanoTime: UIO[Long]
+      def nanoTime: UIO[Long]
       def sleep(duration: Duration): UIO[Unit]
     }
 

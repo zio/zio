@@ -28,7 +28,7 @@ package object system {
 
       def property(prop: String): IO[Throwable, Option[String]]
 
-      val lineSeparator: UIO[String]
+      def lineSeparator: UIO[String]
     }
 
     val any: ZLayer[System, Nothing, System] =
