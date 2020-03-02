@@ -437,7 +437,6 @@ object TestAspect extends TimeoutVariants {
   val nondeterministic: TestAspectAtLeastR[Live with TestRandom] =
     before(Live.live(clock.nanoTime).flatMap(TestRandom.setSeed(_)))
 
-
   /**
    * An aspect that executes the members of a suite in parallel.
    */

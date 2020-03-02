@@ -1172,7 +1172,7 @@ package object environment extends PlatformSpecific {
         //  queue before computing a new pair of values to avoid wasted work.
         randomState.modify {
           case Data(seed1, seed2, queue) =>
-            queue.dequeueOption.fold { (Option.empty[Double], Data(seed1, seed2, queue)) } {
+            queue.dequeueOption.fold((Option.empty[Double], Data(seed1, seed2, queue))) {
               case (d, queue) => (Some(d), Data(seed1, seed2, queue))
             }
         }.flatMap {
