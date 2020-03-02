@@ -47,13 +47,11 @@ object RTSSpec extends ZIOBaseSpec {
         for {
           release <- zio.Promise.make[Nothing, Int]
           latch   = internal.OneShot.make[Unit]
-          async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
-            latch.set(()); Left(release.succeed(42).unit)
-          }
-          fiber  <- async.fork
-          _      <- IO.effectTotal(latch.get(1000))
-          _      <- fiber.interrupt.fork
-          result <- release.await
+          async   = IO.effectAsyncInterrupt[Nothing, Unit] { _ => latch.set(()); Left(release.succeed(42).unit) }
+          fiber   <- async.fork
+          _       <- IO.effectTotal(latch.get(1000))
+          _       <- fiber.interrupt.fork
+          result  <- release.await
         } yield result == 42
 
       assertM(io)(isTrue)

@@ -65,19 +65,18 @@ object ZTestFrameworkSpec {
 
     loadAndExecute(failingSpecFQN, loggers = loggers)
 
-    loggers.map(_.messages) foreach (
-      messages =>
-        assertEquals(
-          "logged messages",
-          messages.mkString.split("\n").dropRight(1).mkString("\n"),
-          List(
-            s"${reset("info:")} ${red("- some suite")} - ignored: 1",
-            s"${reset("info:")}   ${red("- failing test")}",
-            s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-            s"${reset("info:")}   ${green("+")} passing test"
-          ).mkString("\n")
-        )
+    loggers.map(_.messages) foreach (messages =>
+      assertEquals(
+        "logged messages",
+        messages.mkString.split("\n").dropRight(1).mkString("\n"),
+        List(
+          s"${reset("info:")} ${red("- some suite")} - ignored: 1",
+          s"${reset("info:")}   ${red("- failing test")}",
+          s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
+          s"${reset("info:")}   ${green("+")} passing test"
+        ).mkString("\n")
       )
+    )
   }
 
   def testColored() = {
@@ -85,18 +84,17 @@ object ZTestFrameworkSpec {
 
     loadAndExecute(multiLineSpecFQN, loggers = loggers)
 
-    loggers.map(_.messages) foreach (
-      messages =>
-        assertEquals(
-          "logged messages",
-          messages.mkString.split("\n").dropRight(1).mkString("\n"),
-          List(
-            s"${reset("info:")} ${red("- multi-line test")}",
-            s"${reset("info:")}   ${Console.BLUE}Hello,",
-            s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}"
-          ).mkString("\n")
-        )
+    loggers.map(_.messages) foreach (messages =>
+      assertEquals(
+        "logged messages",
+        messages.mkString.split("\n").dropRight(1).mkString("\n"),
+        List(
+          s"${reset("info:")} ${red("- multi-line test")}",
+          s"${reset("info:")}   ${Console.BLUE}Hello,",
+          s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}"
+        ).mkString("\n")
       )
+    )
   }
 
   def testTestSelection() = {
@@ -104,17 +102,16 @@ object ZTestFrameworkSpec {
 
     loadAndExecute(failingSpecFQN, loggers = loggers, testArgs = Array("-t", "passing test"))
 
-    loggers.map(_.messages) foreach (
-      messages =>
-        assertEquals(
-          "logged messages",
-          messages.mkString.split("\n").dropRight(1).mkString("\n"),
-          List(
-            s"${reset("info:")} ${green("+")} some suite",
-            s"${reset("info:")}   ${green("+")} passing test"
-          ).mkString("\n")
-        )
+    loggers.map(_.messages) foreach (messages =>
+      assertEquals(
+        "logged messages",
+        messages.mkString.split("\n").dropRight(1).mkString("\n"),
+        List(
+          s"${reset("info:")} ${green("+")} some suite",
+          s"${reset("info:")}   ${green("+")} passing test"
+        ).mkString("\n")
       )
+    )
   }
 
   def testSummary() = {

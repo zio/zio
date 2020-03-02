@@ -87,6 +87,9 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
       case e @ Failure(_) => ZIO.succeedNow(e)
     }
 
+  final def flatten[E1 >: E, B](implicit ev: A <:< Exit[E1, B]): Exit[E1, B] =
+    Exit.flatten(self.map(ev))
+
   /**
    * Folds over the value or cause.
    */

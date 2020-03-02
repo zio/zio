@@ -25,9 +25,7 @@ object SummaryBuilder {
     executedSpec.fold[UIO[Int]] {
       case SuiteCase(_, counts, _) => counts.flatMap(ZIO.collectAll(_).map(_.sum))
       case TestCase(_, test, _) =>
-        test.map { r =>
-          if (pred(r)) 1 else 0
-        }
+        test.map(r => if (pred(r)) 1 else 0)
     }
 
   private def extractFailures[E](executedSpec: ExecutedSpec[E]): UIO[Seq[ExecutedSpec[E]]] = {

@@ -57,9 +57,9 @@ private[internal] trait PlatformSpecific {
   final val defaultYieldOpCount = 2048
 
   /**
-    * Returns the name of the thread group to which this thread belongs. This
-    * is a side-effecting method.
-    */
+   * Returns the name of the thread group to which this thread belongs. This
+   * is a side-effecting method.
+   */
   val getCurrentThreadGroup: String = ""
 
   /**
@@ -95,10 +95,27 @@ private[internal] trait PlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
+   * Returns whether the current platform is ScalaJS.
+   */
+  val isJS = false
+
+  /**
+   * Returns whether the currently platform is the JVM.
+   */
+  val isJVM = false
+
+  /**
+   * Returns whether the currently platform is Scala Native.
+   */
+  val isNative = true
+
+  /**
    * Makes a new default platform. This is a side-effecting method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))
+
+  final def newWeakSet[A](): JSet[A] = new HashSet[A]()
 
   final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
 

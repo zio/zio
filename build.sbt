@@ -326,7 +326,7 @@ lazy val benchmarks = project.module
         "org.ow2.asm"               % "asm"            % "7.3.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"            % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"   % "2.1.1",
+        "org.typelevel"             %% "cats-effect"   % "2.1.2",
         "org.scalacheck"            %% "scalacheck"    % "1.14.3",
         "hedgehog"                  %% "hedgehog-core" % "0.1.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % "0.9.0"
@@ -363,7 +363,7 @@ lazy val docs = project.module
     libraryDependencies ++= Seq(
       "com.github.ghik"     % "silencer-lib"                 % "1.4.4" % Provided cross CrossVersion.full,
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
-      "org.jsoup"           % "jsoup"                        % "1.12.2" % "provided",
+      "org.jsoup"           % "jsoup"                        % "1.13.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC10",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC6",

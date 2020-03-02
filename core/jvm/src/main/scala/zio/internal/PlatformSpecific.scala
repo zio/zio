@@ -106,6 +106,21 @@ private[internal] trait PlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(defaultYieldOpCount)(ec))
 
   /**
+   * Returns whether the current platform is ScalaJS.
+   */
+  val isJS = false
+
+  /**
+   * Returns whether the currently platform is the JVM.
+   */
+  val isJVM = true
+
+  /**
+   * Returns whether the currently platform is Scala Native.
+   */
+  val isNative = false
+
+  /**
    * Makes a new default platform. This is a side-effecting method.
    */
   def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
@@ -113,6 +128,9 @@ private[internal] trait PlatformSpecific {
 
   final def newWeakHashMap[A, B](): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
+
+  final def newWeakSet[A](): JSet[A] =
+    Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
   final def newConcurrentSet[A](): JSet[A] = ConcurrentHashMap.newKeySet[A]()
 

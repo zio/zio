@@ -131,9 +131,7 @@ object ScheduleSpec extends ZIOBaseSpec {
             err => IO.succeedNow(err),
             _ => IO.succeedNow("it should not be a success")
           )
-        failed.map { actual =>
-          assert(actual)(equalTo("Error: 1"))
-        }
+        failed.map(actual => assert(actual)(equalTo("Error: 1")))
       },
       testM("retry exactly one time for `once` when second time succeeds") {
         // one retry on failure
@@ -156,13 +154,13 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("for a given number of times with random jitter in (0, 1)") {
         val schedule  = Schedule.spaced(500.millis).jittered(0, 1)
-        val scheduled = TestClock.setTime(Duration.Infinity) *> run(schedule >>> testElapsed)(List.fill(5)(()))
+        val scheduled = TestClock.runAll *> run(schedule >>> testElapsed)(List.fill(5)(()))
         val expected  = List(0.millis, 250.millis, 500.millis, 750.millis, 1000.millis)
         assertM(TestRandom.feedDoubles(0.5, 0.5, 0.5, 0.5, 0.5) *> scheduled)(equalTo(expected))
       },
       testM("for a given number of times with random jitter in custom interval") {
         val schedule  = Schedule.spaced(500.millis).jittered(2, 4)
-        val scheduled = TestClock.setTime(Duration.Infinity) *> run(schedule >>> testElapsed)((List.fill(5)(())))
+        val scheduled = TestClock.runAll *> run(schedule >>> testElapsed)((List.fill(5)(())))
         val expected  = List(0, 1500, 3000, 5000, 7000).map(_.millis)
         assertM(TestRandom.feedDoubles(0.5, 0.5, 1, 1, 0.5) *> scheduled)(equalTo(expected))
       },
@@ -174,7 +172,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
         val expected = (800.millis, "GiveUpError", 4)
         val result   = io.retryOrElseEither(strategy, (e: String, r: Int) => TestClock.fiberTime.map((_, e, r)))
-        assertM(TestClock.setTime(Duration.Infinity) *> result)(isLeft(equalTo(expected)))
+        assertM(TestClock.runAll *> result)(isLeft(equalTo(expected)))
       },
       testM("fibonacci delay") {
         assertM(
@@ -189,7 +187,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         )(equalTo(List(0, 1, 3, 6, 10).map(i => (i * 100).millis)))
       },
       testM("modified linear delay") {
-        assertM(TestClock.setTime(Duration.Infinity) *> run(Schedule.linear(100.millis).modifyDelay {
+        assertM(TestClock.runAll *> run(Schedule.linear(100.millis).modifyDelay {
           case (_, d) => ZIO.succeedNow(d * 2)
         } >>> testElapsed)(List.fill(5)(())))(equalTo(List(0, 1, 3, 6, 10).map(i => (i * 200).millis)))
       },
@@ -201,7 +199,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("exponential delay with other factor") {
         assertM(
-          TestClock.setTime(Duration.Infinity) *> run(Schedule.exponential(100.millis, 3.0) >>> testElapsed)(
+          TestClock.runAll *> run(Schedule.exponential(100.millis, 3.0) >>> testElapsed)(
             List.fill(5)(())
           )
         )(equalTo(List(0, 1, 4, 13, 40).map(i => (i * 100).millis)))
@@ -211,9 +209,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       testM("for up to 10 times") {
         var i        = 0
         val strategy = Schedule.recurs(10)
-        val io = IO.effectTotal(i += 1).flatMap { _ =>
-          if (i < 5) IO.failNow("KeepTryingError") else IO.succeedNow(i)
-        }
+        val io       = IO.effectTotal(i += 1).flatMap(_ => if (i < 5) IO.failNow("KeepTryingError") else IO.succeedNow(i))
         assertM(io.retry(strategy))(equalTo(5))
       }
     ),
@@ -290,9 +286,9 @@ object ScheduleSpec extends ZIOBaseSpec {
     },
     testM("Retry type parameters should infer correctly") {
       def foo[O](v: O): ZIO[Any with Clock, Error, Either[ScheduleFailure, ScheduleSuccess[O]]] =
-        ZIO.fromFuture { _ =>
-          Future.successful(v)
-        }.foldM(
+        ZIO
+          .fromFuture(_ => Future.successful(v))
+          .foldM(
             _ => ZIO.failNow(ScheduleError("Some error")),
             ok => ZIO.succeedNow(Right(ScheduleSuccess(ok)))
           )

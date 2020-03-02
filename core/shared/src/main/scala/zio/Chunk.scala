@@ -323,9 +323,7 @@ sealed trait Chunk[+A] { self =>
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    fold[ZIO[R, E, S]](IO.succeedNow(s)) { (s, a) =>
-      s.flatMap(f(_, a))
-    }
+    fold[ZIO[R, E, S]](IO.succeedNow(s))((s, a) => s.flatMap(f(_, a)))
 
   /**
    * Folds over the elements in this chunk from the right.

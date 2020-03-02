@@ -191,14 +191,6 @@ object SerializableSpec extends ZIOBaseSpec {
         result  <- managed.use(_ => UIO.unit)
       } yield assert(result)(equalTo(()))
     },
-    testSync("SuperviseStatus.supervised is serializable") {
-      val supervised = SuperviseStatus.supervised
-      assert(serializeAndDeserialize(supervised))(equalTo(supervised))
-    },
-    testSync("SuperviseStatus.unsupervised is serializable") {
-      val unsupervised = SuperviseStatus.unsupervised
-      assert(serializeAndDeserialize(unsupervised))(equalTo(unsupervised))
-    },
     testSync("ZTrace is serializable") {
       val trace = ZTrace(
         Fiber.Id(0L, 0L),

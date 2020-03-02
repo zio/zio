@@ -26,6 +26,11 @@ object RIO {
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
+   * @see See [[zio.ZIO.awaitAllChildren]]
+   */
+  val awaitAllChildren = ZIO.awaitAllChildren
+
+  /**
    * @see See [[zio.ZIO.access]]
    */
   def access[R]: ZIO.AccessPartiallyApplied[R] =
@@ -67,12 +72,6 @@ object RIO {
     use: A => RIO[R, B]
   ): RIO[R, B] =
     ZIO.bracketExit(acquire, release, use)
-
-  /**
-   * @see See [[zio.ZIO.checkDaemon]]
-   */
-  def checkDaemon[R, A](f: DaemonStatus => RIO[R, A]): RIO[R, A] =
-    ZIO.checkDaemon(f)
 
   /**
    * @see See [[zio.ZIO.checkInterruptible]]
@@ -146,12 +145,6 @@ object RIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
-   * @see See [[zio.ZIO.daemonMask]]
-   */
-  def daemonMask[R, A](k: ZIO.DaemonStatusRestore => RIO[R, A]): RIO[R, A] =
-    ZIO.daemonMask(k)
-
-  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -171,6 +164,11 @@ object RIO {
    * @see See [[zio.ZIO.dieMessage]]
    */
   def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
+
+  /**
+   * @see See [[zio.ZIO.disown]]
+   */
+  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = ZIO.disown(fiber)
 
   /**
    * @see See [[zio.ZIO.done]]
@@ -418,13 +416,16 @@ object RIO {
   def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     ZIO.fromFutureInterrupt(make)
 
-  def fromOption[A](v: => Option[A]): IO[Unit, A] = ZIO.fromOption(v)
-
   /**
    * @see See [[zio.ZIO.fromTry]]
    */
   def fromTry[A](value: => scala.util.Try[A]): Task[A] =
     ZIO.fromTry(value)
+
+  /**
+   * @see See [[zio.ZIO.getOrFail]]
+   */
+  final def getOrFail[A](v: => Option[A]): Task[A] = ZIO.getOrFail(v)
 
   /**
    * @see See [[zio.ZIO.halt]]
@@ -449,9 +450,19 @@ object RIO {
     new ZIO.IfM(b)
 
   /**
+   * @see [[zio.ZIO.infinity]]
+   */
+  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+
+  /**
    * @see See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
+
+  /**
+   * @see See [zio.ZIO.interruptAllChildren]
+   */
+  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
 
   /**
    * @see See [[zio.ZIO.interruptAs]]
@@ -557,12 +568,6 @@ object RIO {
    * @see See [[zio.ZIO.never]]
    */
   val never: UIO[Nothing] = ZIO.never
-
-  /**
-   * @see See [[zio.ZIO.nonDaemonMask]]
-   */
-  def nonDaemonMask[R, A](k: ZIO.DaemonStatusRestore => RIO[R, A]): RIO[R, A] =
-    ZIO.nonDaemonMask(k)
 
   /**
    * @see See [[zio.ZIO.none]]

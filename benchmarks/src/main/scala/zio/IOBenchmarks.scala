@@ -62,12 +62,12 @@ object IOBenchmarks extends BootstrapRuntime {
     def flatMap[B](afb: A => Thunk[B]): Thunk[B] =
       new Thunk(() => afb(unsafeRun()).unsafeRun())
     def attempt: Thunk[Either[Throwable, A]] =
-      new Thunk(() => {
+      new Thunk(() =>
         try Right(unsafeRun())
         catch {
           case t: Throwable => Left(t)
         }
-      })
+      )
   }
   object Thunk {
     def apply[A](a: => A): Thunk[A] = new Thunk(() => a)

@@ -161,7 +161,7 @@ package object environment extends PlatformSpecific {
      * Provides an effect with the "live" environment.
      */
     def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Live, E, A] =
-      ZIO.accessM[Live](_.get.provide(zio))
+      ZIO.accessM(_.get.provide(zio))
 
     /**
      * Provides a transformation function with access to the live environment
@@ -248,6 +248,7 @@ package object environment extends PlatformSpecific {
     trait Service extends Restorable {
       def adjust(duration: Duration): UIO[Unit]
       def fiberTime: UIO[Duration]
+      def runAll: UIO[Unit]
       def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
       def setTime(duration: Duration): UIO[Unit]
       def setTimeZone(zone: ZoneId): UIO[Unit]
@@ -270,12 +271,9 @@ package object environment extends PlatformSpecific {
        */
       def adjust(duration: Duration): UIO[Unit] =
         warningDone *> clockState.modify { data =>
-          val nanoTime        = data.nanoTime + duration.toNanos
-          val (wakes, sleeps) = data.sleeps.partition(_._1 <= Duration.fromNanos(nanoTime))
-          val updated = data.copy(
-            nanoTime = nanoTime,
-            sleeps = sleeps
-          )
+          val end             = data.duration + duration
+          val (wakes, sleeps) = data.sleeps.partition(_._1 <= end)
+          val updated         = data.copy(duration = end, sleeps = sleeps)
           (wakes, updated)
         }.flatMap(run)
 
@@ -283,13 +281,13 @@ package object environment extends PlatformSpecific {
        * Returns the current fiber time as an `OffsetDateTime`.
        */
       def currentDateTime: UIO[OffsetDateTime] =
-        fiberState.get.map(data => toDateTime(data.currentTimeMillis, data.timeZone))
+        fiberState.get.map(data => toDateTime(data.duration, data.timeZone))
 
       /**
        * Returns the current fiber time in the specified time unit.
        */
       def currentTime(unit: TimeUnit): UIO[Long] =
-        fiberState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
+        fiberState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
 
       /**
        * Returns the current fiber time for this fiber. The fiber time is backed
@@ -308,13 +306,20 @@ package object environment extends PlatformSpecific {
        * }}}
        */
       val fiberTime: UIO[Duration] =
-        fiberState.get.map(_.nanoTime.nanos)
+        fiberState.get.map(_.duration)
 
       /**
        * Returns the current fiber time in nanoseconds.
        */
       val nanoTime: UIO[Long] =
-        fiberState.get.map(_.nanoTime)
+        fiberState.get.map(_.duration.toNanos)
+
+      /**
+       * Runs all scheduled effects. After this any scheduled effects will be
+       * run immediately
+       */
+      def runAll: UIO[Unit] =
+        setTime(Duration.Infinity)
 
       /**
        * Saves the `TestClock`'s current state in an effect which, when run,
@@ -322,14 +327,9 @@ package object environment extends PlatformSpecific {
        */
       val save: UIO[UIO[Unit]] =
         for {
-          fState <- fiberState.get
-          cState <- clockState.get
-          wState <- warningState.get
-        } yield {
-          fiberState.set(fState) *>
-            clockState.set(cState) *>
-            warningState.set(wState)
-        }
+          fiberData <- fiberState.get
+          clockData <- clockState.get
+        } yield fiberState.set(fiberData) *> clockState.set(clockData)
 
       /**
        * Sets the wall clock time to the specified `OffsetDateTime`. Any
@@ -347,10 +347,7 @@ package object environment extends PlatformSpecific {
       def setTime(duration: Duration): UIO[Unit] =
         warningDone *> clockState.modify { data =>
           val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
-          val updated = data.copy(
-            nanoTime = duration.toNanos,
-            sleeps = sleeps
-          )
+          val updated         = data.copy(duration = duration, sleeps = sleeps)
           (wakes, updated)
         }.flatMap(run)
 
@@ -372,13 +369,12 @@ package object environment extends PlatformSpecific {
         for {
           latch <- Promise.make[Nothing, Unit]
           start <- fiberState.modify { data =>
-                    val nanoTime          = data.nanoTime + duration.toNanos
-                    val currentTimeMillis = data.currentTimeMillis + duration.toMillis
-                    (data.nanoTime, FiberData(nanoTime, currentTimeMillis, data.timeZone))
+                    val end = data.duration + duration
+                    (data.duration, FiberData(end, data.timeZone))
                   }
           await <- clockState.modify { data =>
-                    val end = Duration.fromNanos(start) + duration
-                    if (end > Duration.fromNanos(data.nanoTime))
+                    val end = start + duration
+                    if (end > data.duration)
                       (true, data.copy(sleeps = (end, latch) :: data.sleeps))
                     else
                       (false, data)
@@ -390,16 +386,17 @@ package object environment extends PlatformSpecific {
        * Returns a list of the wall clock times at which all queued effects are
        * scheduled to resume.
        */
-      val sleeps: UIO[List[Duration]] = clockState.get.map(_.sleeps.map(_._1))
+      lazy val sleeps: UIO[List[Duration]] =
+        clockState.get.map(_.sleeps.map(_._1))
 
       /**
        * Returns the time zone.
        */
-      val timeZone: UIO[ZoneId] =
+      lazy val timeZone: UIO[ZoneId] =
         fiberState.get.map(_.timeZone)
 
       private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
-        UIO.forkAll_(wakes.sortBy(_._1).map(_._2.succeed(()))).fork.unit
+        UIO.foreach(wakes.sortBy(_._1))(_._2.succeed(())).unit
 
       private[TestClock] val warningDone: UIO[Unit] =
         warningState.updateSome[Any, Nothing] {
@@ -440,7 +437,7 @@ package object environment extends PlatformSpecific {
       ZLayer.fromServiceManyManaged { (live: Live.Service) =>
         for {
           ref      <- Ref.make(data).toManaged_
-          fiberRef <- FiberRef.make(FiberData(0, 0, ZoneId.of("UTC")), FiberData.combine).toManaged_
+          fiberRef <- FiberRef.make(FiberData(Duration.Zero, ZoneId.of("UTC")), FiberData.combine).toManaged_
           refM     <- RefM.make(WarningData.start).toManaged_
           test     <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
         } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
@@ -450,14 +447,23 @@ package object environment extends PlatformSpecific {
       ZLayer.requires[Clock with TestClock]
 
     val default: ZLayer[Live, Nothing, Clock with TestClock] =
-      live(Data(0, Nil))
+      live(Data(Duration.Zero, Nil))
+
+    /**
+     * Accesses a `TestClock` instance in the environment and runs all
+     * scheduled effects. After this any scheduled effects will be run
+     * immediately.
+     */
+    val runAll: ZIO[TestClock, Nothing, Unit] =
+      setTime(Duration.Infinity)
 
     /**
      * Accesses a `TestClock` instance in the environment and saves the clock
      * state in an effect which, when run, will restore the `TestClock` to the
      * saved state
      */
-    val save: ZIO[TestClock, Nothing, UIO[Unit]] = ZIO.accessM[TestClock](_.get.save)
+    val save: ZIO[TestClock, Nothing, UIO[Unit]] =
+      ZIO.accessM(_.get.save)
 
     /**
      * Accesses a `TestClock` instance in the environment and sets the wall
@@ -501,15 +507,14 @@ package object environment extends PlatformSpecific {
     /**
      * The state of the `TestClock`.
      */
-    final case class Data(nanoTime: Long, sleeps: List[(Duration, Promise[Nothing, Unit])])
+    final case class Data(duration: Duration, sleeps: List[(Duration, Promise[Nothing, Unit])])
 
-    final case class FiberData(nanoTime: Long, currentTimeMillis: Long, timeZone: ZoneId)
+    final case class FiberData(duration: Duration, timeZone: ZoneId)
 
     object FiberData {
       def combine(first: FiberData, last: FiberData): FiberData =
         FiberData(
-          first.nanoTime max last.nanoTime,
-          first.currentTimeMillis max last.currentTimeMillis,
+          first.duration max last.duration,
           last.timeZone
         )
     }
@@ -526,8 +531,8 @@ package object environment extends PlatformSpecific {
       val done: WarningData                                 = Done
     }
 
-    private def toDateTime(millis: Long, timeZone: ZoneId): OffsetDateTime =
-      OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), timeZone)
+    private def toDateTime(duration: Duration, timeZone: ZoneId): OffsetDateTime =
+      OffsetDateTime.ofInstant(Instant.ofEpochMilli(duration.toMillis), timeZone)
 
     private def fromDateTime(dateTime: OffsetDateTime): Duration =
       Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
@@ -541,19 +546,23 @@ package object environment extends PlatformSpecific {
   /**
    * `TestConsole` provides a testable interface for programs interacting with
    * the console by modeling input and output as reading from and writing to
-   * input and output buffers maintained by `TestConsole` and backed by a `Ref`.
+   * input and output buffers maintained by `TestConsole` and backed by a
+   * `Ref`.
    *
-   * All calls to `putStr` and `putStrLn` using the `TestConsole` will write the
-   * string to the output buffer and all calls to `getStrLn` will take a string
-   * from the input buffer. No actual printing or reading from the console will
-   * occur. `TestConsole` has several methods to access and manipulate the
-   * content of these buffers including `feedLines` to feed strings to the input
-   * buffer that will then be returned by calls to `getStrLn`, `output` to get
-   * the content of the output buffer from calls to `putStr` and `putStrLn`, and
+   * All calls to `putStr` and `putStrLn` using the `TestConsole` will write
+   * the string to the output buffer and all calls to `getStrLn` will take a
+   * string from the input buffer. To facilitate debugging, by default output
+   * will also be rendered to standard output. You can enable or disable this
+   * for a scope using `debug`, `silent`, or the corresponding test aspects.
+   *
+   * `TestConsole` has several methods to access and manipulate the content of
+   * these buffers including `feedLines` to feed strings to the input  buffer
+   * that will then be returned by calls to `getStrLn`, `output` to get the
+   * content of the output buffer from calls to `putStr` and `putStrLn`, and
    * `clearInput` and `clearOutput` to clear the respective buffers.
    *
-   * Together, these functions make it easy to test programs interacting with the
-   * console.
+   * Together, these functions make it easy to test programs interacting with
+   * the console.
    *
    * {{{
    * import zio.console._
@@ -575,13 +584,20 @@ package object environment extends PlatformSpecific {
   object TestConsole extends Serializable {
 
     trait Service extends Restorable {
-      def feedLines(lines: String*): UIO[Unit]
-      def output: UIO[Vector[String]]
       def clearInput: UIO[Unit]
       def clearOutput: UIO[Unit]
+      def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
+      def feedLines(lines: String*): UIO[Unit]
+      def output: UIO[Vector[String]]
+      def silent[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
     }
 
-    case class Test(consoleState: Ref[TestConsole.Data]) extends Console.Service with TestConsole.Service {
+    case class Test(
+      consoleState: Ref[TestConsole.Data],
+      live: Live.Service,
+      debugState: FiberRef[Boolean]
+    ) extends Console.Service
+        with TestConsole.Service {
 
       /**
        * Clears the contents of the input buffer.
@@ -594,6 +610,14 @@ package object environment extends PlatformSpecific {
        */
       val clearOutput: UIO[Unit] =
         consoleState.update(data => data.copy(output = Vector.empty))
+
+      /**
+       * Runs the specified effect with the `TestConsole` set to debug mode,
+       * so that console output is rendered to standard output in addition to
+       * being written to the output buffer.
+       */
+      def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        debugState.locally(true)(zio)
 
       /**
        * Writes the specified sequence of strings to the input buffer. The
@@ -614,9 +638,7 @@ package object environment extends PlatformSpecific {
                     IO.fromOption(d.input.headOption)
                       .mapError(_ => new EOFException("There is no more input left to read"))
                   )
-          _ <- consoleState.update { data =>
-                Data(data.input.tail, data.output)
-              }
+          _ <- consoleState.update(data => Data(data.input.tail, data.output))
         } yield input
       }
 
@@ -633,25 +655,33 @@ package object environment extends PlatformSpecific {
       override def putStr(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ line)
-        }
+        } *> live.provide(console.putStr(line)).whenM(debugState.get)
 
       /**
        * Writes the specified string to the output buffer followed by a newline
        * character.
        */
-      override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
+      override def putStrLn(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ s"$line\n")
-        }
+        } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
 
       /**
-       * Saves the `TestConsole`'s current state in an effect which, when run, will restore the `TestConsole`
-       * state to the saved state
+       * Saves the `TestConsole`'s current state in an effect which, when run,
+       * will restore the `TestConsole` state to the saved state.
        */
       val save: UIO[UIO[Unit]] =
         for {
-          cState <- consoleState.get
-        } yield consoleState.set(cState)
+          consoleData <- consoleState.get
+        } yield consoleState.set(consoleData)
+
+      /**
+       * Runs the specified effect with the `TestConsole` set to silent mode,
+       * so that console output is only written to the output buffer and not
+       * rendered to standard output.
+       */
+      def silent[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        debugState.locally(false)(zio)
     }
 
     /**
@@ -659,30 +689,23 @@ package object environment extends PlatformSpecific {
      * interface. This can be useful for mixing in with implementations of other
      * interfaces.
      */
-    def live(data: Data): ZLayer.NoDeps[Nothing, Console with TestConsole] =
-      ZLayer.fromEffectMany(
-        Ref.make(data).map(ref => Has.allOf[Console.Service, TestConsole.Service](Test(ref), Test(ref)))
-      )
+    def make(data: Data, debug: Boolean = true): ZLayer[Live, Nothing, Console with TestConsole] =
+      ZLayer.fromServiceManyM { (live: Live.Service) =>
+        for {
+          ref      <- Ref.make(data)
+          debugRef <- FiberRef.make(debug)
+          test     = Test(ref, live, debugRef)
+        } yield Has.allOf[Console.Service, TestConsole.Service](test, test)
+      }
 
     val any: ZLayer[Console with TestConsole, Nothing, Console with TestConsole] =
       ZLayer.requires[Console with TestConsole]
 
-    val default: ZLayer.NoDeps[Nothing, Console with TestConsole] =
-      live(Data(Nil, Vector()))
+    val debug: ZLayer[Live, Nothing, Console with TestConsole] =
+      make(Data(Nil, Vector()), true)
 
-    /**
-     * Accesses a `TestConsole` instance in the environment and writes the
-     * specified sequence of strings to the input buffer.
-     */
-    def feedLines(lines: String*): ZIO[TestConsole, Nothing, Unit] =
-      ZIO.accessM(_.get.feedLines(lines: _*))
-
-    /**
-     * Accesses a `TestConsole` instance in the environment and returns the
-     * contents of the output buffer.
-     */
-    val output: ZIO[TestConsole, Nothing, Vector[String]] =
-      ZIO.accessM(_.get.output)
+    val silent: ZLayer[Live, Nothing, Console with TestConsole] =
+      make(Data(Nil, Vector()), false)
 
     /**
      * Accesses a `TestConsole` instance in the environment and clears the input
@@ -699,10 +722,44 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.clearOutput)
 
     /**
-     * Accesses a `TestConsole` instance in the environment and saves the console state in an effect which, when run,
-     * will restore the `TestConsole` to the saved state
+     * Accesses a `TestConsole` instance in the environment and runs the
+     * specified effect with the `TestConsole` set to debug mode, so that
+     * console output is rendered to standard output in addition to being
+     * written to the output buffer.
      */
-    val save: ZIO[TestConsole, Nothing, UIO[Unit]] = ZIO.accessM[TestConsole](_.get.save)
+    def debug[R <: TestConsole, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      ZIO.accessM(_.get.debug(zio))
+
+    /**
+     * Accesses a `TestConsole` instance in the environment and writes the
+     * specified sequence of strings to the input buffer.
+     */
+    def feedLines(lines: String*): ZIO[TestConsole, Nothing, Unit] =
+      ZIO.accessM(_.get.feedLines(lines: _*))
+
+    /**
+     * Accesses a `TestConsole` instance in the environment and returns the
+     * contents of the output buffer.
+     */
+    val output: ZIO[TestConsole, Nothing, Vector[String]] =
+      ZIO.accessM(_.get.output)
+
+    /**
+     * Accesses a `TestConsole` instance in the environment and saves the
+     * console state in an effect which, when run, will restore the
+     * `TestConsole` to the saved state.
+     */
+    val save: ZIO[TestConsole, Nothing, UIO[Unit]] =
+      ZIO.accessM(_.get.save)
+
+    /**
+     * Accesses a `TestConsole` instance in the environment and runs the
+     * specified effect with the `TestConsole` set to silent mode, so that
+     * console output is only written to the output buffer and not rendered to
+     * standard output.
+     */
+    def silent[R <: TestConsole, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      ZIO.accessM(_.get.silent(zio))
 
     /**
      * The state of the `TestConsole`.
@@ -984,17 +1041,14 @@ package object environment extends PlatformSpecific {
         getOrElse(bufferedString)(randomString(length))
 
       /**
-       * Saves the `TestRandom`'s current state in an effect which, when run, will restore the `TestRandom`
-       * state to the saved state
+       * Saves the `TestRandom`'s current state in an effect which, when run,
+       * will restore the `TestRandom` state to the saved state.
        */
       val save: UIO[UIO[Unit]] =
         for {
-          rState <- randomState.get
-          bState <- bufferState.get
-        } yield {
-          randomState.set(rState) *>
-            bufferState.set(bState)
-        }
+          randomData <- randomState.get
+          bufferData <- bufferState.get
+        } yield randomState.set(randomData) *> bufferState.set(bufferData)
 
       /**
        * Sets the seed of this `TestRandom` to the specified value.
@@ -1355,10 +1409,12 @@ package object environment extends PlatformSpecific {
       } yield Test(data, buffer)
 
     /**
-     * Accesses a `TestRandom` instance in the environment and saves the random state in an effect which, when run,
-     * will restore the `TestRandom` to the saved state
+     * Accesses a `TestRandom` instance in the environment and saves the random
+     * state in an effect which, when run, will restore the `TestRandom` to the
+     * saved state.
      */
-    val save: ZIO[TestRandom, Nothing, UIO[Unit]] = ZIO.accessM[TestRandom](_.get.save)
+    val save: ZIO[TestRandom, Nothing, UIO[Unit]] =
+      ZIO.accessM(_.get.save)
 
     /**
      * Accesses a `TestRandom` instance in the environment and sets the seed to
@@ -1469,8 +1525,8 @@ package object environment extends PlatformSpecific {
        */
       val save: UIO[UIO[Unit]] =
         for {
-          sState <- systemState.get
-        } yield systemState.set(sState)
+          systemData <- systemState.get
+        } yield systemState.set(systemData)
     }
 
     /**
@@ -1514,7 +1570,8 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and saves the system state in an effect which, when run,
      * will restore the `TestSystem` to the saved state
      */
-    val save: ZIO[TestSystem, Nothing, UIO[Unit]] = ZIO.accessM[TestSystem](_.get.save)
+    val save: ZIO[TestSystem, Nothing, UIO[Unit]] =
+      ZIO.accessM(_.get.save)
 
     /**
      * Accesses a `TestSystem` instance in the environment and sets the line

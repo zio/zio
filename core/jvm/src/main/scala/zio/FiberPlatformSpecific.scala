@@ -18,7 +18,6 @@ package zio
 
 import _root_.java.util.concurrent.{ CompletionStage, Future }
 
-import zio.Fiber.Status
 import zio.blocking.Blocking
 import zio.interop.javaz
 
@@ -50,11 +49,6 @@ private[zio] trait FiberPlatformSpecific {
       final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
       final def inheritRefs: UIO[Unit] = IO.unit
-
-      final def status: UIO[Fiber.Status] = UIO {
-        // TODO: Avoid toCompletableFuture?
-        if (thunk.toCompletableFuture.isDone) Status.Done else Status.Running
-      }
     }
   }
 
@@ -85,10 +79,6 @@ private[zio] trait FiberPlatformSpecific {
       def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
       def inheritRefs: UIO[Unit] = UIO.unit
-
-      def status: UIO[Fiber.Status] = UIO {
-        if (thunk.isDone) Status.Done else Status.Running
-      }
     }
   }
 }

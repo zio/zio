@@ -19,7 +19,7 @@ package zio
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Try
 
-private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[Any, A] =>
+private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[A] =>
   def transform[S](f: Try[A] => Try[S])(implicit executor: ExecutionContext): Future[S] =
     future.transform(f)(executor)
 

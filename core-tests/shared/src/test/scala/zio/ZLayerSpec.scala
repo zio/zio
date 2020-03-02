@@ -11,9 +11,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   trait Cat extends Animal
 
   def testSize[R <: Has[_]](layer: ZLayer.NoDeps[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
-    layer.build.use { env =>
-      ZIO.succeedNow(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label))
-    }
+    layer.build.use(env => ZIO.succeedNow(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
 
   val acquire1 = "Acquiring Module 1"
   val acquire2 = "Acquiring Module 2"
@@ -75,7 +73,7 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("Size of Test layers") {
         for {
           r1 <- testSize(Annotations.live, 1, "Annotations.live")
-          r2 <- testSize(TestConsole.default, 2, "TestConsole.default")
+          r2 <- testSize(ZEnv.live >>> Live.default >>> TestConsole.debug, 2, "TestConsole.default")
           r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
           r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 2, "TestRandom.live")
           r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
@@ -84,8 +82,9 @@ object ZLayerSpec extends ZIOBaseSpec {
       },
       testM("Size of >>> (9)") {
         val layer = (ZEnv.live >>>
-          (Annotations.live ++ TestConsole.default ++ Live.default ++ TestRandom.deterministic ++ Sized
-            .live(100) ++ TestSystem.default))
+          (Annotations.live ++ (Live.default >>> TestConsole.debug) ++
+            Live.default ++ TestRandom.deterministic ++ Sized.live(100)
+            ++ TestSystem.default))
 
         testSize(layer, 9)
       },
@@ -230,7 +229,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = ZLayer.fromManagedMany(Managed.make(ZIO.never)(_ => ZIO.unit))
           layer2  = ZLayer.fromManagedMany(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env     = (layer1 ++ layer2).build
-          _       <- env.use_(ZIO.unit).fork
+          _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
         } yield assertCompletes
       } @@ nonFlaky

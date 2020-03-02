@@ -33,9 +33,7 @@ private[internal] trait PlatformSpecific {
    * Adds a shutdown hook that executes the specified action on shutdown.
    */
   def addShutdownHook(action: () => Unit): Unit =
-    js.Dynamic.global.onunload = { (_: Any) =>
-      action()
-    }
+    js.Dynamic.global.onunload = { (_: Any) => action() }
 
   /**
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
@@ -99,10 +97,27 @@ private[internal] trait PlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
+   * Returns whether the current platform is ScalaJS.
+   */
+  val isJS = true
+
+  /**
+   * Returns whether the currently platform is the JVM.
+   */
+  val isJVM = false
+
+  /**
+   * Returns whether the currently platform is Scala Native.
+   */
+  val isNative = false
+
+  /**
    * Makes a new default platform. This is a side-effecting method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))
+
+  final def newWeakSet[A](): JSet[A] = new HashSet[A]()
 
   final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
 

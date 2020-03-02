@@ -179,18 +179,24 @@ object TestAspect extends TimeoutVariants {
             )
           }
         def dump[E, A](label: String, fiber: Fiber.Runtime[E, A]): ZIO[Live, Nothing, Unit] =
-          for {
-            dumps    <- Fiber.dump(Set(fiber))
-            dumpStrs <- ZIO.foreach(dumps)(_.prettyPrintM)
-            dumpStr  = s"$label: ${dumpStrs.mkString("\n")}"
-            _        <- Live.live(console.putStrLn(dumpStr))
-          } yield ()
+          Live.live(Fiber.putDumpStr(label, fiber))
         spec.transform[R, TestFailure[E], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
           case Spec.TestCase(label, test, annotations) =>
             Spec.TestCase(label, if (predicate(label)) diagnose(label, test) else test, annotations)
         }
       }
+    }
+
+  /**
+   * An aspect that runs each test with the `TestConsole` instance in the
+   * environment set to debug mode so that console output is rendered to
+   * standard output in addition to being written to the output buffer.
+   */
+  val debug: TestAspectAtLeastR[TestConsole] =
+    new PerTest.AtLeastR[TestConsole] {
+      def perTest[R <: TestConsole, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConsole.debug(test)
     }
 
   /**
@@ -387,11 +393,12 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
-   * Sets the seed of the `TestRandom` instance in the environment to a random
-   * value before each test.
+   * An aspect that causes calls to `sleep` and methods implemented in terms
+   * of it to be executed immediately instead of requiring the `TestClock` to
+   * be adjusted.
    */
-  val nondeterministic: TestAspectAtLeastR[Live with TestRandom] =
-    before(Live.live(clock.nanoTime).flatMap(TestRandom.setSeed(_)))
+  val noDelay: TestAspectAtLeastR[TestClock] =
+    before(TestClock.runAll)
 
   /**
    * An aspect that repeats the test a default number of times, ensuring it is
@@ -422,6 +429,14 @@ object TestAspect extends TimeoutVariants {
           isSubtype[TestTimeoutException](hasMessage(equalTo(s"Timeout of ${duration.render} exceeded.")))
         )
       )
+
+  /**
+   * Sets the seed of the `TestRandom` instance in the environment to a random
+   * value before each test.
+   */
+  val nondeterministic: TestAspectAtLeastR[Live with TestRandom] =
+    before(Live.live(clock.nanoTime).flatMap(TestRandom.setSeed(_)))
+
 
   /**
    * An aspect that executes the members of a suite in parallel.
@@ -588,6 +603,17 @@ object TestAspect extends TimeoutVariants {
     before(TestRandom.setSeed(seed))
 
   /**
+   * An aspect that runs each test with the `TestConsole` instance in the
+   * environment set to silent mode so that console output is only written to
+   * the output buffer and not rendered to standard output.
+   */
+  val silent: TestAspectAtLeastR[TestConsole] =
+    new PerTest.AtLeastR[TestConsole] {
+      def perTest[R <: TestConsole, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConsole.silent(test)
+    }
+
+  /**
    * An aspect that converts ignored tests into test failures.
    */
   val success: TestAspectPoly =
@@ -625,24 +651,17 @@ object TestAspect extends TimeoutVariants {
    * @param duration maximum test duration
    * @param interruptDuration after test timeout will wait given duration for successful interruption
    */
-  def timeout(duration: Duration, interruptDuration: Duration = 1.second): TestAspectAtLeastR[Live] =
+  def timeout(
+    duration: Duration
+  ): TestAspectAtLeastR[Live] =
     new PerTest.AtLeastR[Live] {
       def perTest[R <: Live, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] = {
         def timeoutFailure =
           TestTimeoutException(s"Timeout of ${duration.render} exceeded.")
-        def interruptionTimeoutFailure = {
-          val msg =
-            s"Timeout of ${duration.render} exceeded. Couldn't interrupt test within ${interruptDuration.render}, possible resource leak!"
-          TestTimeoutException(msg)
-        }
         Live
-          .withLive(test)(_.either.timeoutFork(duration).flatMap {
-            case Left(fiber) =>
-              fiber.join.raceWith(ZIO.sleep(interruptDuration))(
-                (_, fiber) => fiber.interrupt *> ZIO.failNow(TestFailure.Runtime(Cause.die(timeoutFailure))),
-                (_, _) => ZIO.failNow(TestFailure.Runtime(Cause.die(interruptionTimeoutFailure)))
-              )
-            case Right(result) => result.fold(ZIO.failNow, ZIO.succeedNow)
+          .withLive(test)(_.either.disconnect.timeout(duration).flatMap {
+            case None         => ZIO.failNow(TestFailure.Runtime(Cause.die(timeoutFailure)))
+            case Some(result) => ZIO.fromEither(result)
           })
       }
     }

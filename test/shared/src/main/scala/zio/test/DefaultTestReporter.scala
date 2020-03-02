@@ -161,9 +161,7 @@ object DefaultTestReporter {
       if (f.ansiColorCode.nonEmpty) f.ansiColorCode + f.text + AnsiColor.RESET
       else f.text
     message.lines.map { line =>
-      withOffset(line.offset)(line.fragments.foldLeft("") { (str, f) =>
-        str + renderFragment(f)
-      })
+      withOffset(line.offset)(line.fragments.foldLeft("")((str, f) => str + renderFragment(f)))
     }
   }
 
@@ -343,9 +341,7 @@ object FailureRenderer {
   }
 
   private def renderSatisfied(fragment: AssertionValue): UIO[Fragment] =
-    fragment.assertion.test(fragment.value).map { p =>
-      Fragment(if (p) " satisfied " else " did not satisfy ")
-    }
+    fragment.assertion.test(fragment.value).map(p => Fragment(if (p) " satisfied " else " did not satisfy "))
 
   def renderCause(cause: Cause[Any], offset: Int): UIO[Message] =
     cause.dieOption match {

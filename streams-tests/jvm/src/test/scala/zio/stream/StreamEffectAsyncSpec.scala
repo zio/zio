@@ -36,9 +36,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(Nil))
       },
       testM("effectAsyncMaybe Some")(checkM(Gen.listOf(Gen.anyInt)) { list =>
-        val s = Stream.effectAsyncMaybe[Throwable, Int] { _ =>
-          Some(Stream.fromIterable(list))
-        }
+        val s = Stream.effectAsyncMaybe[Throwable, Int](_ => Some(Stream.fromIterable(list)))
 
         assertM(s.runCollect.map(_.take(list.size)))(equalTo(list))
       }),
@@ -148,9 +146,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
         } yield assert(result)(isTrue)
       },
       testM("effectAsyncInterrupt Right")(checkM(Gen.listOf(Gen.anyInt)) { list =>
-        val s = Stream.effectAsyncInterrupt[Throwable, Int] { _ =>
-          Right(Stream.fromIterable(list))
-        }
+        val s = Stream.effectAsyncInterrupt[Throwable, Int](_ => Right(Stream.fromIterable(list)))
 
         assertM(s.take(list.size.toLong).runCollect)(equalTo(list))
       }),

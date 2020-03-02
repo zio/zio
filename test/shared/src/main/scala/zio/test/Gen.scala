@@ -69,9 +69,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * }}}
    */
   def filter(f: A => Boolean): Gen[R, A] = Gen {
-    sample.flatMap { sample =>
-      if (f(sample.value)) sample.filter(f) else ZStream.empty
-    }
+    sample.flatMap(sample => if (f(sample.value)) sample.filter(f) else ZStream.empty)
   }
 
   def withFilter(f: A => Boolean): Gen[R, A] = filter(f)
