@@ -28,17 +28,19 @@ class TReentrantLockBenchmark {
   @Param(Array("100"))
   var ops: Int = _
 
+  @Param(Array("1000"))
+  var dataSize: Int = _
+  private var data: Map[Int, Int] = _
+
   private var zioLock: UIO[TReentrantLock] = _
 
   private var javaLock: UIO[JavaStampedLock] = _
-
-  private var data: Map[Int, Int] = _
 
   val rnd = new Random(0)
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    data = (0 to 1000).toList.zipWithIndex.toMap
+    data = (0 to dataSize).toList.zipWithIndex.toMap
     zioLock = TReentrantLock.make.commit
     javaLock = UIO(new JavaStampedLock(new StampedLock()))
   }
@@ -53,7 +55,7 @@ class TReentrantLockBenchmark {
   @Benchmark
   def reentrantLock(): Unit = {
 
-    val io = (for {
+    val io = for {
       lock           <- zioLock
       reader         = lock.readLock.use(_ => readData)
       writer         = lock.writeLock.use(_ => writeData)
@@ -61,7 +63,7 @@ class TReentrantLockBenchmark {
       writers        <- ZIO.forkAll(List.fill(numWriters)(repeat(ops)(writer)))
       _              <- readers.join
       _              <- writers.join
-    } yield 0)
+    } yield 0
 
     unsafeRun(io)
   }
@@ -82,11 +84,11 @@ class TReentrantLockBenchmark {
     unsafeRun(io)
   }
 
-  def readData: UIO[Int] = ZIO.succeed(data.get(rnd.nextInt(1000)).getOrElse(0))
+  def readData: UIO[Int] = ZIO.succeed(data.get(rnd.nextInt(dataSize)).getOrElse(0))
 
-  def writeData =  ZIO.succeed {
-    lazy val nrnd = rnd.nextInt(1000)
-    ZIO.succeed(data.updated(nrnd, nrnd))
+  def writeData: UIO[Map[Int, Int]] =  ZIO.succeed {
+    lazy val nrnd = rnd.nextInt(dataSize)
+    data.updated(nrnd, nrnd)
   }
 
   class JavaStampedLock(jLock: StampedLock) {
