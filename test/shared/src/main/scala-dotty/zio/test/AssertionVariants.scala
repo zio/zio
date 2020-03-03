@@ -24,13 +24,13 @@ trait AssertionVariants {
   /**
    * Makes a new assertion that requires a value equal the specified value.
    */
-  final def equalTo[A](expected: A): Assertion[A] = {
+  final def equalTo[A](expected: A, diffing: Diffing = Diffing.default): Assertion[A] = {
     val assertion = Assertion.assertion("equalTo")(param(expected)) { actual =>
       (actual, expected) match {
         case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
         case (left, right)                     => left == right
       }
     }
-    assertion.withDiffing(Some(a => Diffing.default.diff(a, expected)))
+    assertion.withDiffing(Some(a => diffing.diff(a, expected)))
   }
 }
