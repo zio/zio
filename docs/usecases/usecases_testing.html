@@ -125,10 +125,10 @@ testFrameworks += <span class="hljs-keyword">new</span> <span class="hljs-type">
 <p>Test aspects are powerful tools for modifying behavior of individual tests or even entire suites that you have already written. Convenient syntax <code>@@</code> is provided for applying test aspects. So for example you could apply a timeout to a test by using <code>test @@ timeout(60.seconds)</code> or only run a test on javascript by using <code>test @@ jsOnly</code>. Test aspects are highly composable so you can combine multiple test aspects together or apply them only to certain tests that match a predicate you specify.</p>
 <p><strong>Zero Dependencies</strong></p>
 <p>As a library with zero third party dependencies, this project is available on the JVM, ScalaJS, Dotty, and will be available on Scala Native in the near future. So you can write your tests once and make sure that your code works correctly across all platforms that you support.</p>
-<p><strong>JUnit integration</strong>*</p>
+<p><strong>JUnit integration</strong></p>
 <p>A custom JUnit runner is provided for running ZIO Test specs under other build tools (like Maven, Gradle, Bazel, etc.) and under IDEs.
 To get the runner, add the equivalent of following dependency definition under your build tool:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-string">"dev.zio"</span> %% <span class="hljs-string">"zio-test-sbt"</span>   % zioVersion % <span class="hljs-string">"test"</span>
+<pre><code class="hljs css language-scala"><span class="hljs-string">"dev.zio"</span> %% <span class="hljs-string">"zio-test-junit"</span>   % zioVersion % <span class="hljs-string">"test"</span>
 </code></pre>
 <p>To make your spec appear as a JUnit test to build tools and IDEs, convert it to a <code>class</code> (JUnit won't run scala objects) and
 annotate it with <code>@RunWith(classOf[zio.test.junit.ZTestJUnitRunner])</code> or simply extend <code>zio.test.junit.JUnitRunnableSpec</code>.
