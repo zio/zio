@@ -86,11 +86,7 @@ object FailureRenderer {
     }
 
   private def maybeDiff(fragment: AssertionValue, offset: Int): Message = {
-    val diffRes = for {
-      diffing <- fragment.assertion.diffing
-      diff    <- diffing(fragment.value)
-    } yield diff
-
+    val diffRes = fragment.assertion.diffing(fragment.value)
     diffRes.fold(Message())(d =>
       DiffRenderer
         .renderDiff(d.components)

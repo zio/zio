@@ -31,6 +31,6 @@ trait AssertionVariants {
         case (left, right)                     => left == right
       }
     }
-    assertion.withDiffing(Some(a => diffing.diff(a, expected)))
+    assertion.withDiffing(expected, diffing)
   }
 }
