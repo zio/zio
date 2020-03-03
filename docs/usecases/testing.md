@@ -91,12 +91,12 @@ Test aspects are powerful tools for modifying behavior of individual tests or ev
 
 As a library with zero third party dependencies, this project is available on the JVM, ScalaJS, Dotty, and will be available on Scala Native in the near future. So you can write your tests once and make sure that your code works correctly across all platforms that you support.
 
-**JUnit integration***
+**JUnit integration**
 
 A custom JUnit runner is provided for running ZIO Test specs under other build tools (like Maven, Gradle, Bazel, etc.) and under IDEs.
 To get the runner, add the equivalent of following dependency definition under your build tool:
   ```scala
-      "dev.zio" %% "zio-test-sbt"   % zioVersion % "test"
+      "dev.zio" %% "zio-test-junit"   % zioVersion % "test"
   ```
 
 To make your spec appear as a JUnit test to build tools and IDEs, convert it to a `class` (JUnit won't run scala objects) and 
