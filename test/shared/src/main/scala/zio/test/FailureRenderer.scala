@@ -16,7 +16,7 @@ import zio.test.mock.MockException.{
 import zio.test.mock.{ Method, MockException }
 import zio.{ Cause, UIO }
 
-object FailureRenderer {
+private[test] object FailureRenderer {
 
   private val tabSize = 2
 

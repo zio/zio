@@ -2,7 +2,7 @@ package zio.test
 
 import scala.io.AnsiColor
 
-object MessageMarkup {
+private[test] object MessageMarkup {
   case class Message(lines: Vector[Line] = Vector.empty) {
     def :+(line: Line)                          = Message(lines :+ line)
     def ++(message: Message)                    = Message(lines ++ message.lines)
