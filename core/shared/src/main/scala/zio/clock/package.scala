@@ -16,47 +16,13 @@
 
 package zio
 
-import java.time.{ Instant, OffsetDateTime, ZoneId }
+import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
 
 package object clock {
-  type Clock = Has[Clock.Service]
-
-  object Clock extends PlatformSpecific with Serializable {
-    trait Service extends Serializable {
-      def currentTime(unit: TimeUnit): UIO[Long]
-      def currentDateTime: UIO[OffsetDateTime]
-      def nanoTime: UIO[Long]
-      def sleep(duration: Duration): UIO[Unit]
-    }
-
-    val any: ZLayer[Clock, Nothing, Clock] =
-      ZLayer.requires[Clock]
-
-    val live: ZLayer.NoDeps[Nothing, Clock] = ZLayer.succeed {
-      new Service {
-        def currentTime(unit: TimeUnit): UIO[Long] =
-          IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
-
-        val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
-
-        def sleep(duration: Duration): UIO[Unit] =
-          UIO.effectAsyncInterrupt { cb =>
-            val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
-            Left(UIO.effectTotal(canceler()))
-          }
-
-        def currentDateTime: ZIO[Any, Nothing, OffsetDateTime] =
-          for {
-            millis <- currentTime(TimeUnit.MILLISECONDS)
-            zone   <- ZIO.effectTotal(ZoneId.systemDefault)
-          } yield OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), zone)
-
-      }
-    }
-  }
+  type Clock = Has[Service]
 
   /**
    * Returns the current time, relative to the Unix epoch.
@@ -81,5 +47,4 @@ package object clock {
    */
   def sleep(duration: => Duration): ZIO[Clock, Nothing, Unit] =
     ZIO.accessM(_.get.sleep(duration))
-
 }

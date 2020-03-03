@@ -19,19 +19,19 @@ package zio.test.mock
 import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
 
-import zio.clock.Clock
+import zio.clock
 import zio.duration.Duration
 import zio.{ Has, UIO }
 
 object MockClock {
 
-  object currentTime     extends Method[Clock.Service, TimeUnit, Long]
-  object currentDateTime extends Method[Clock.Service, Unit, OffsetDateTime]
-  object nanoTime        extends Method[Clock.Service, Unit, Long]
-  object sleep           extends Method[Clock.Service, Duration, Unit]
+  object currentTime     extends Method[clock.Service, TimeUnit, Long]
+  object currentDateTime extends Method[clock.Service, Unit, OffsetDateTime]
+  object nanoTime        extends Method[clock.Service, Unit, Long]
+  object sleep           extends Method[clock.Service, Duration, Unit]
 
-  implicit val mockableClock: Mockable[Clock.Service] = (mock: Mock) =>
-    Has(new Clock.Service {
+  implicit val mockableClock: Mockable[clock.Service] = (mock: Mock) =>
+    Has(new clock.Service {
       def currentTime(unit: TimeUnit): UIO[Long] = mock(MockClock.currentTime, unit)
       def currentDateTime: UIO[OffsetDateTime]   = mock(MockClock.currentDateTime)
       val nanoTime: UIO[Long]                    = mock(MockClock.nanoTime)

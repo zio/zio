@@ -261,7 +261,7 @@ package object environment extends PlatformSpecific {
       fiberState: FiberRef[TestClock.FiberData],
       live: Live.Service,
       warningState: RefM[TestClock.WarningData]
-    ) extends Clock.Service
+    ) extends clock.Service
         with TestClock.Service {
 
       /**
@@ -440,7 +440,7 @@ package object environment extends PlatformSpecific {
           fiberRef <- FiberRef.make(FiberData(Duration.Zero, ZoneId.of("UTC")), FiberData.combine).toManaged_
           refM     <- RefM.make(WarningData.start).toManaged_
           test     <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
-        } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
+        } yield Has.allOf[clock.Service, TestClock.Service](test, test)
       }
 
     val any: ZLayer[Clock with TestClock, Nothing, Clock with TestClock] =
@@ -1387,13 +1387,13 @@ package object environment extends PlatformSpecific {
       make(DefaultData)
 
     val random: ZLayer[Clock, Nothing, Random with TestRandom] =
-      (ZLayer.service[Clock.Service] ++ deterministic) >>>
+      (ZLayer.service[clock.Service] ++ deterministic) >>>
         (ZLayer.fromFunctionManyM { (env: Clock with Random with TestRandom) =>
           val random     = env.get[Random.Service]
           val testRandom = env.get[TestRandom.Service]
 
           for {
-            time <- env.get[Clock.Service].nanoTime
+            time <- env.get[clock.Service].nanoTime
             _    <- env.get[TestRandom.Service].setSeed(time)
           } yield Has.allOf[Random.Service, TestRandom.Service](random, testRandom)
         })

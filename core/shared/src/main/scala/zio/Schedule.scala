@@ -278,7 +278,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   final def delayedM[R1 <: R](
     f: Duration => ZIO[R1, Nothing, Duration]
   )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = {
-    def proxy(clock0: Clock.Service, r1: R1): Clock.Service = new Clock.Service {
+    def proxy(clock0: clock.Service, r1: R1): clock.Service = new clock.Service {
       def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
       def currentDateTime             = clock0.currentDateTime
       val nanoTime                    = clock0.nanoTime
@@ -289,7 +289,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       val initial =
         for {
           oldEnv <- ZIO.environment[R1]
-          env    = ev1.update[R1, Clock.Service](oldEnv, proxy(_, oldEnv))
+          env    = ev1.update[R1, clock.Service](oldEnv, proxy(_, oldEnv))
           init   <- self.initial.provide(env)
         } yield (init, env)
       val extract = (a: A, s: State) => self.extract(a, s._1)
@@ -427,7 +427,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   final def modifyDelay[R1 <: R](
     f: (B, Duration) => ZIO[R1, Nothing, Duration]
   )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = {
-    def proxy(clock0: Clock.Service, env: R1, current: B): Clock.Service = new Clock.Service {
+    def proxy(clock0: clock.Service, env: R1, current: B): clock.Service = new clock.Service {
       def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
       def currentDateTime             = clock0.currentDateTime
       val nanoTime                    = clock0.nanoTime
@@ -438,7 +438,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       val initial = self.initial
       val extract = (a: A, s: self.State) => self.extract(a, s)
       val update = (a: A, s: self.State) =>
-        self.update(a, s).provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy(_, env, self.extract(a, s))))
+        self.update(a, s).provideSome[R1](env => ev1.update[R1, clock.Service](env, proxy(_, env, self.extract(a, s))))
     }
   }
 
