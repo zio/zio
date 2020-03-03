@@ -91,7 +91,9 @@ object ZTestFrameworkSpec {
         List(
           s"${reset("info:")} ${red("- multi-line test")}",
           s"${reset("info:")}   ${Console.BLUE}Hello,",
-          s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}"
+          s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
+          s"${reset("info:")}     ${green("Hello,")}[-${red(" ")}+${blue("\\n")}",
+          s"${reset("info:")}     ]${green("World!")}"
         ).mkString("\n")
       )
     )
