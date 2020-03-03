@@ -16,11 +16,12 @@
 
 package zio.test
 
+import scala.reflect.ClassTag
+
 import com.github.ghik.silencer.silent
 
-import scala.reflect.ClassTag
-import zio.test.diff.{DiffResult, Diffing}
-import zio.{Cause, Exit, ZIO}
+import zio.test.diff.{ DiffResult, Diffing }
+import zio.{ Cause, Exit, ZIO }
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
