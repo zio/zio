@@ -232,7 +232,12 @@ object Assertion extends AssertionVariants {
     lazy val result: Assertion[A] = assertionDirect(name)(params: _*) { a =>
       get(a) match {
         case Some(b) =>
-          assertion.run(b).as(AssertionValue(new Assertion(assertion.render, assertion.run), b))
+          BoolAlgebraM {
+            assertion.run(b).run.map { p =>
+              if (p.isSuccess) BoolAlgebra.success(AssertionValue(result, a))
+              else BoolAlgebra.failure(AssertionValue(assertion, b))
+            }
+          }
         case None =>
           orElse(AssertionValue(result, a))
       }
@@ -251,7 +256,12 @@ object Assertion extends AssertionVariants {
     lazy val result: Assertion[A] = assertionDirect(name)(params: _*) { a =>
       BoolAlgebraM.fromEffect(get(a)).flatMap {
         case Some(b) =>
-          assertion.run(b).as(AssertionValue(new Assertion(assertion.render, assertion.run), b))
+          BoolAlgebraM {
+            assertion.run(b).run.map { p =>
+              if (p.isSuccess) BoolAlgebra.success(AssertionValue(result, a))
+              else BoolAlgebra.failure(AssertionValue(assertion, b))
+            }
+          }
         case None =>
           orElse(AssertionValue(result, a))
       }
