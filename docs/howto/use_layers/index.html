@@ -1,0 +1,234 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Use modules and layers · ZIO</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="# Unleash ZIO environment with `ZLayer`"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Use modules and layers · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="# Unleash ZIO environment with `ZLayer`"/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+        document.addEventListener('DOMContentLoaded', function() {
+          addBackToTop(
+            {"zIndex":100,"cornerOffset":100}
+          )
+        });
+        </script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/howto/howto_index" target="_self">How to</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li><li class=""><a href="/docs/about/about_index" target="_self">About</a></li><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Use modules and layers</h1></header><article><div><span><h1><a class="anchor" aria-hidden="true" id="unleash-zio-environment-with-zlayer"></a><a href="#unleash-zio-environment-with-zlayer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unleash ZIO environment with <code>ZLayer</code></h1>
+<p><code>ZIO</code> is designed around 3 parameters, <code>R, E, A</code>. <code>R</code> represents the <em>requirement</em> for the effect to run, meaning we need to fulfill
+the requirement in order to make the effect <em>runnable</em>. We will explore what we can do with <code>R</code>, as it plays a crucial role in <code>ZIO</code>.</p>
+<h2><a class="anchor" aria-hidden="true" id="a-simple-case-for-zio-environment"></a><a href="#a-simple-case-for-zio-environment" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>A simple case for <code>ZIO</code> environment</h2>
+<p>Let's build a simple program for user management, that can retrieve a user (if they exist), and create a user.
+To access the DB we need a <code>DBConnection</code>, and each step in our program represents this through the environment type. We can then combine the two (small) steps through <code>flatMap</code> or more conveniently through a <code>for</code> comprehension.</p>
+<p>The result is a program that, in turn, depends on the <code>DBConnection</code>.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">User</span>(<span class="hljs-params">id: <span class="hljs-type">UserId</span>, name: <span class="hljs-type">String</span></span>)</span>
+</code></pre>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">DBConnection</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] = <span class="hljs-type">UIO</span>(???)
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">DBConnection</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-type">UIO</span>(???)
+
+<span class="hljs-keyword">val</span> user: <span class="hljs-type">User</span> = <span class="hljs-type">User</span>(<span class="hljs-type">UserId</span>(<span class="hljs-number">1234</span>), <span class="hljs-string">"Chet"</span>)
+<span class="hljs-keyword">val</span> created: <span class="hljs-type">ZIO</span>[<span class="hljs-type">DBConnection</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Boolean</span>] = <span class="hljs-keyword">for</span> {
+  maybeUser &lt;- getUser(user.id)
+  res       &lt;- maybeUser.fold(createUser(user).as(<span class="hljs-literal">true</span>))(_ =&gt; <span class="hljs-type">ZIO</span>.succeed(<span class="hljs-literal">false</span>))
+} <span class="hljs-keyword">yield</span> res
+</code></pre>
+<p>To run the program we must supply a <code>DBConnection</code> through <code>provide</code>, before feeding it to ZIO runtime.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> dbConnection: <span class="hljs-type">DBConnection</span> = ???
+<span class="hljs-keyword">val</span> runnable: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Boolean</span>] = created.provide(dbConnection)
+
+<span class="hljs-keyword">val</span> finallyCreated  = runtime.unsafeRun(runnable)
+</code></pre>
+<p>Notice that the act of <code>provide</code>ing an effect with its environment eliminates the environment dependency in the resulting effect type, represented by type <code>Any</code> of the resulting environment.</p>
+<p>In general we need more than just a DB connection though. We need components that enable us to perform different operations, and we need to be able to wire them together. This is what <em>modules</em> are for.</p>
+<h2><a class="anchor" aria-hidden="true" id="our-first-zio-module"></a><a href="#our-first-zio-module" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Our first ZIO module</h2>
+<p>We will see now how to define modules and use them to create different application layers relying on each other. The core idea is that a layer depends on the layers imediately below but it is completely agnostic about their internal implementation.</p>
+<p>This formulation of module pattern is <em>the way</em> ZIO manages dependencies between application components, giving extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during the testing/mocking phase.</p>
+<h3><a class="anchor" aria-hidden="true" id="what-is-a-module"></a><a href="#what-is-a-module" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What is a module?</h3>
+<p>A module is a group of functions that deals with only one concern. Keeping the scope of a module limited improves our ability to understand code, in that we need to focus
+only on one topic at a time without juggling with too many concepts together in our head.</p>
+<p><code>ZIO</code> iself provides the basic capabilities through modules, e.g. see how <code>ZEnv</code> is defined.</p>
+<h3><a class="anchor" aria-hidden="true" id="the-module-recipe"></a><a href="#the-module-recipe" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The module recipe</h3>
+<p>Let's build a module for user data access, following these simple steps:</p>
+<ol>
+<li>Define an object that gives the name to the module, this can be (not necessarily) a package object</li>
+<li>Within the module object define a <code>trait Service</code> that defines the interface our module is exposing, in our case 2 methods to retrieve and create a user</li>
+<li>Within the module object define the different implementations of <code>ModuleName</code> through <code>ZLayer</code> (see below for details on <code>ZLayer</code>)</li>
+<li>Define a type alias like <code>type ModuleName = Has[Service]</code> (see below for details on <code>Has</code>)</li>
+</ol>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.{<span class="hljs-type">Has</span>, <span class="hljs-type">ZLayer</span>}
+
+<span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">UserRepo</span> </span>= <span class="hljs-type">Has</span>[<span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span>]
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">UserRepo</span> </span>{
+  <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Service</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>]
+  }
+
+  <span class="hljs-keyword">val</span> testRepo: <span class="hljs-type">ZLayer</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">ZLayer</span>.succeed(???)
+}
+</code></pre>
+<p>We encountered two new data types <code>Has</code> and <code>ZLayer</code>, let's get familiar with them.</p>
+<h3><a class="anchor" aria-hidden="true" id="the-has-data-type"></a><a href="#the-has-data-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The <code>Has</code> data type</h3>
+<p><code>Has[A]</code> represents a dependency on a service of type <code>A</code>. Two <code>Has[_]</code> can be combined <em>horizontally</em> through <code>+</code> and <code>++</code> operators, as in</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> repo: <span class="hljs-type">Has</span>[<span class="hljs-type">Repo</span>.<span class="hljs-type">Service</span>] = <span class="hljs-type">Has</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">Repo</span>.<span class="hljs-type">Service</span>{})
+<span class="hljs-keyword">val</span> logger: <span class="hljs-type">Has</span>[<span class="hljs-type">Logger</span>.<span class="hljs-type">Service</span>] = <span class="hljs-type">Has</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">Logger</span>.<span class="hljs-type">Service</span>{})
+
+<span class="hljs-keyword">val</span> mix: <span class="hljs-type">Has</span>[<span class="hljs-type">Repo</span>.<span class="hljs-type">Service</span>] <span class="hljs-keyword">with</span> <span class="hljs-type">Has</span>[<span class="hljs-type">Logger</span>.<span class="hljs-type">Service</span>] = repo ++ logger
+</code></pre>
+<p>At this point you might ask: what's the use of <code>Has</code> if the resulting type is just a mix of two traits? Why aren't we just relying on trait mixins?</p>
+<p>The extra power given by <code>Has</code> is that the resulting data structure is backed by an <em>heterogeneous map</em> from service type to service implementation, that collects each instance that is mixed in so that the instances can be accessed/extracted/modified individually, still guaranteeing supreme type safety.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// get back the logger service from the mixed value:</span>
+<span class="hljs-keyword">val</span> log = mix.get[<span class="hljs-type">Logger</span>.<span class="hljs-type">Service</span>].log(<span class="hljs-string">"Hello modules!"</span>)
+</code></pre>
+<p>As per the recipe above, it is extremely convenient to define a type alias for <code>Has[Service]</code>.
+Usually we don't create a <code>Has</code> directly, but we do that through <code>ZLayer</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="the-zlayer-data-type"></a><a href="#the-zlayer-data-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The <code>ZLayer</code> data type</h3>
+<p><code>ZLayer[-RIn, +E, +ROut &lt;: Has[_]]</code> is a recipe to build an environment of type <code>ROut</code>, starting from a value <code>RIn</code>, possibly producing an error <code>E</code> during creation.</p>
+<p>In adherence with environmental concepts, the absence of a required input is represented by <code>RIn = Any</code>, conveniently  used in the type alias <code>ZLayer#NoDeps</code>.</p>
+<p>There are many ways to create a <code>ZLayer</code>, here's an incomplete list:</p>
+<ul>
+<li><code>ZLayer.succeed</code> or <code>ZIO.asService</code>  to create a layer from an existing service</li>
+<li><code>ZLayer.fromFunction</code> to create a layer from a function from the requirement to the service</li>
+<li><code>ZLayer.fromEffect</code> to lift a <code>ZIO</code> effect to a layer requiring the effect environment</li>
+<li><code>ZLayer.fromAcquireRelease</code> for a layer based on resource acquisition/release. The idea is the same as <code>ZManaged</code></li>
+<li><code>ZLayer.fromServices</code> to build a layer from a number of required services</li>
+</ul>
+<p>Where it makes sense, these methods have also variants to build a service effecfully (suffixed by <code>M</code>), resourcefully (suffixed by <code>Managed</code>), or to create a combination of services (suffixed by <code>Many</code>).</p>
+<p>We can compose <code>layerA</code> and <code>layerB</code>  <em>horizontally</em> to build a layer that has the requirements of both layers, to provide the capabilities of both layers, through <code>layerA ++ layerB</code></p>
+<p>We can also compose layers <em>vertically</em>, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first and the output of the second layer: <code>layerA &gt;&gt;&gt; layerB</code></p>
+<h2><a class="anchor" aria-hidden="true" id="wiring-modules-together"></a><a href="#wiring-modules-together" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Wiring modules together</h2>
+<p>Here we define a module to cope with CRUD operations for the <code>User</code> domain object. We provide also an in memory implementation of the module</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">UserRepo</span> </span>= <span class="hljs-type">Has</span>[<span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span>]
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">UserRepo</span> </span>{
+  <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Service</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>]
+  }
+
+
+  <span class="hljs-comment">// This simple live version depends only on a DB Connection</span>
+  <span class="hljs-keyword">val</span> inMemory: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">ZLayer</span>.succeed(
+    <span class="hljs-keyword">new</span> <span class="hljs-type">Service</span> {
+      <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] = <span class="hljs-type">UIO</span>(???)
+      <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-type">UIO</span>(???)
+    }
+  )
+
+  <span class="hljs-comment">//accessor methods</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">UserRepo</span>, <span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] =
+    <span class="hljs-type">ZIO</span>.accessM(_.get.getUser(userId))
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">UserRepo</span>, <span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] =
+    <span class="hljs-type">ZIO</span>.accessM(_.get.createUser(user))
+}
+</code></pre>
+<p>Then, we define another module to perform some basic logging. We provide also a <code>consoleLogger</code> implementation that relies on zio <code>Console</code></p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">Logging</span> </span>= <span class="hljs-type">Has</span>[<span class="hljs-type">Logging</span>.<span class="hljs-type">Service</span>]
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Logging</span> </span>{
+  <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Service</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">info</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">error</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>]
+  }
+
+
+  <span class="hljs-keyword">import</span> zio.console.<span class="hljs-type">Console</span>
+  <span class="hljs-keyword">val</span> consoleLogger: <span class="hljs-type">ZLayer</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Logging</span>] = <span class="hljs-type">ZLayer</span>.fromFunction( console =&gt;
+    <span class="hljs-keyword">new</span> <span class="hljs-type">Service</span> {
+      <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">info</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>]  = console.get.putStrLn(<span class="hljs-string">s"info - <span class="hljs-subst">$s</span>"</span>)
+      <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">error</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>] = console.get.putStrLn(<span class="hljs-string">s"error - <span class="hljs-subst">$s</span>"</span>)
+    }
+  )
+    
+  <span class="hljs-comment">//accessor methods</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">info</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Logging</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
+    <span class="hljs-type">ZIO</span>.accessM(_.get.info(s))
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">error</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Logging</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
+    <span class="hljs-type">ZIO</span>.accessM(_.get.error(s))
+}
+</code></pre>
+<p>The accessor methods are provided so that we can build programs without bothering about the implementation details of the required modules, the compiler will infer fully all the required modules to complete the task</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> user2: <span class="hljs-type">User</span> = <span class="hljs-type">User</span>(<span class="hljs-type">UserId</span>(<span class="hljs-number">123</span>), <span class="hljs-string">"Tommy"</span>)
+<span class="hljs-keyword">val</span> makeUser: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Logging</span> <span class="hljs-keyword">with</span> <span class="hljs-type">UserRepo</span>, <span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-keyword">for</span> {
+  _ &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"inserting user"</span>)  <span class="hljs-comment">// ZIO[Logging, Nothing, Unit]</span>
+  _ &lt;- <span class="hljs-type">UserRepo</span>.createUser(user2)       <span class="hljs-comment">// ZIO[UserRepo, DBError, Unit]</span>
+  _ &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"user inserted"</span>)   <span class="hljs-comment">// ZIO[Logging, Nothing, Unit]</span>
+} <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<p>Given a program with these requirements, we can build the required layer:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// compose horizontally</span>
+<span class="hljs-keyword">val</span> horizontal: <span class="hljs-type">ZLayer</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Logging</span> <span class="hljs-keyword">with</span> <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">Logging</span>.consoleLogger ++ <span class="hljs-type">UserRepo</span>.inMemory
+
+<span class="hljs-comment">// fulfill missing deps, composing vertically</span>
+<span class="hljs-keyword">val</span> fullLayer: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Logging</span> <span class="hljs-keyword">with</span> <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">Console</span>.live &gt;&gt;&gt; horizontal
+
+<span class="hljs-comment">// provide the layer to the program</span>
+makeUser.provideLayer(fullLayer)
+  
+
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="providing-partial-environments"></a><a href="#providing-partial-environments" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Providing partial environments</h2>
+<p>Let's add some extra logic to our program that creates a user</p>
+<pre><code class="hljs css language-scala">
+<span class="hljs-keyword">val</span> makeUser2: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Logging</span> <span class="hljs-keyword">with</span> <span class="hljs-type">UserRepo</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Clock</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Random</span>, <span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-keyword">for</span> {
+    uId       &lt;- zio.random.nextLong.map(<span class="hljs-type">UserId</span>)
+    createdAt &lt;- zio.clock.currentDateTime
+    _         &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"inserting user"</span>)        
+    _         &lt;- <span class="hljs-type">UserRepo</span>.createUser(<span class="hljs-type">User</span>(uId, <span class="hljs-string">"Chet"</span>))   
+    _         &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"user inserted, created at <span class="hljs-subst">$createdAt</span>"</span>)
+  } <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<p>Now the requirements of our program are richer, and we can satisfy them partially by providing our custom layers, and leaving out the layers that are covered by the standard environment <code>ZEnv</code>, in one line of code</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> zEnvMakeUser: <span class="hljs-type">ZIO</span>[<span class="hljs-type">ZEnv</span>, <span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = makeUser2.provideCustomLayer(fullLayer)
+</code></pre>
+<p>Notice that <code>provideCustomLayer</code> is just a special case of <code>provideSomeLayer</code>.</p>
+<h2><a class="anchor" aria-hidden="true" id="updating-local-dependencies"></a><a href="#updating-local-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Updating local dependencies</h2>
+<p>Given a layer, it is possible to update one or more components it provides. One way is through a function to replace an old service with new service</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> withPostgresService = horizontal.update[<span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span>]{ oldRepo  =&gt; <span class="hljs-keyword">new</span> <span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span> {
+      <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] = <span class="hljs-type">UIO</span>(???)
+      <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-type">UIO</span>(???)
+    }
+  }
+</code></pre>
+<p>Another way is by composing horizontally with a layer that provides the updated service</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> dbLayer: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">ZLayer</span>.succeed(<span class="hljs-keyword">new</span> <span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span> {
+    <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] = ???
+    <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = ???
+  })
+
+<span class="hljs-keyword">val</span> updatedHorizontal2 = horizontal ++ dbLayer
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="dealing-with-managed-dependencies"></a><a href="#dealing-with-managed-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dealing with managed dependencies</h2>
+<p>Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). <code>ZLayer</code> relies on the powerful <code>ZManaged</code> data type and this makes this process extremely simple.</p>
+<p>For example, to build a postgres-based repository we need a <code>java.sql.Connection</code> to be opened at startup, and closed in the release phase.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.sql.<span class="hljs-type">Connection</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">makeConnection</span></span>: <span class="hljs-type">UIO</span>[<span class="hljs-type">Connection</span>] = <span class="hljs-type">UIO</span>(???)
+<span class="hljs-keyword">val</span> connectionLayer: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Has</span>[<span class="hljs-type">Connection</span>]] = 
+    <span class="hljs-type">ZLayer</span>.fromAcquireRelease(makeConnection)(c =&gt; <span class="hljs-type">UIO</span>(c.close()))
+<span class="hljs-keyword">val</span> postgresLayer: <span class="hljs-type">ZLayer</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">Connection</span>], <span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = 
+  <span class="hljs-type">ZLayer</span>.fromFunction { hasC =&gt;
+    <span class="hljs-keyword">new</span> <span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span> {
+      <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] = <span class="hljs-type">UIO</span>(???)
+      <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-type">UIO</span>(???)
+    }
+  }
+
+<span class="hljs-keyword">val</span> fullRepo: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = connectionLayer &gt;&gt;&gt; postgresLayer
+
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="layers-are-shared-in-the-dependency-graph"></a><a href="#layers-are-shared-in-the-dependency-graph" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Layers are shared in the dependency graph</h2>
+<p>One important feature of <code>ZIO</code> layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. If you don't want to share a module, create a fresh, non-shared version of it through <code>ZLayer.fresh</code>.</p>
+<p>Notice also that the <code>ZLayer</code> mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.</p>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#a-simple-case-for-zio-environment">A simple case for <code>ZIO</code> environment</a></li><li><a href="#our-first-zio-module">Our first ZIO module</a><ul class="toc-headings"><li><a href="#what-is-a-module">What is a module?</a></li><li><a href="#the-module-recipe">The module recipe</a></li><li><a href="#the-has-data-type">The <code>Has</code> data type</a></li><li><a href="#the-zlayer-data-type">The <code>ZLayer</code> data type</a></li></ul></li><li><a href="#wiring-modules-together">Wiring modules together</a></li><li><a href="#providing-partial-environments">Providing partial environments</a></li><li><a href="#updating-local-dependencies">Updating local dependencies</a></li><li><a href="#dealing-with-managed-dependencies">Dealing with managed dependencies</a></li><li><a href="#layers-are-shared-in-the-dependency-graph">Layers are shared in the dependency graph</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: '0c94b59071da7001757d08ab43d9e033',
+                indexName: 'zio',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {}
+              });
+            </script></body></html>
