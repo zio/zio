@@ -2082,27 +2082,6 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     provideSomeLayer[ZEnv](layer)
 
   /**
-   * An effectual version of `provide`, useful when the act of provision
-   * requires an effect.
-   */
-  @deprecated("use provideLayer", "1.0.0")
-  final def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Stream[E1, A] =
-    provideSomeM(r)
-
-  /**
-   * Uses the given [[Managed]] to provide the environment required to run this stream,
-   * leaving no outstanding environments.
-   */
-  @deprecated("use provideLayer", "1.0.0")
-  final def provideManaged[E1 >: E](m: Managed[E1, R])(implicit ev: NeedsEnv[R]): Stream[E1, A] =
-    ZStream.managed {
-      for {
-        r  <- m
-        as <- self.process.provide(r)
-      } yield as.provide(r)
-    }.flatMap(ZStream.repeatEffectOption)
-
-  /**
    * Provides a layer to the stream, which translates it to another level.
    */
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
@@ -2141,27 +2120,6 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def provideSomeLayer[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, A] =
     new ZStream.ProvideSomeLayer[R0, R, E, A](self)
-
-  /**
-   * Provides some of the environment required to run this effect,
-   * leaving the remainder `R0`.
-   */
-  @deprecated("use provideSomeLayer", "1.0.0")
-  final def provideSomeM[R0, E1 >: E](env: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZStream[R0, E1, A] =
-    provideSomeManaged(env.toManaged_)
-
-  /**
-   * Uses the given [[ZManaged]] to provide some of the environment required to run
-   * this stream, leaving the remainder `R0`.
-   */
-  @deprecated("use provideSomeLayer", "1.0.0")
-  final def provideSomeManaged[R0, E1 >: E](env: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZStream[R0, E1, A] =
-    ZStream.managed {
-      for {
-        r  <- env
-        as <- self.process.provide(r)
-      } yield as.provide(r)
-    }.flatMap(ZStream.repeatEffectOption)
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,

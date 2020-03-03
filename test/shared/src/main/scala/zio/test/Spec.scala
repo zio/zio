@@ -371,38 +371,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   }
 
   /**
-   * Uses the specified effect to provide each test in this spec with its
-   * required environment.
-   */
-  @deprecated("use provideLayer", "1.0.0")
-  final def provideM[E1 >: E](zio: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
-    provideManaged(zio.toManaged_)
-
-  /**
-   * Uses the specified effect once to provide all tests in this spec with a
-   * shared version of their required environment.
-   */
-  @deprecated("use provideLayerShared", "1.0.0")
-  final def provideMShared[E1 >: E](zio: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
-    provideManagedShared(zio.toManaged_)
-
-  /**
-   * Uses the specified `Managed` to provide each test in this spec with its
-   * required environment.
-   */
-  @deprecated("use provideLayer", "1.0.0")
-  final def provideManaged[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
-    provideSomeManaged(managed)
-
-  /**
-   * Uses the specified `Managed` once to provide all tests in this spec with
-   * a shared version of their required environment.
-   */
-  @deprecated("use provideLayerShared", "1.0.0")
-  final def provideManagedShared[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
-    provideSomeManagedShared(managed)
-
-  /**
    * Uses the specified function to provide each test in this spec with part of
    * its required environment.
    */
@@ -442,60 +410,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   final def provideSomeLayerShared[R0 <: Has[_]]: Spec.ProvideSomeLayerShared[R0, R, E, T] =
     new Spec.ProvideSomeLayerShared[R0, R, E, T](self)
-
-  /**
-   * Uses the specified effect to provide each test in this spec with part of
-   * its required environment.
-   */
-  @deprecated("use provideSomeLayer", "1.0.0")
-  final def provideSomeM[R0, E1 >: E](zio: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
-    provideSomeManaged(zio.toManaged_)
-
-  /**
-   * Uses the specified effect once to provide all tests in this spec with a
-   * shared version of part of their required environment.
-   */
-  @deprecated("use provideSomeLayerShared", "1.0.0")
-  final def provideSomeMShared[R0, E1 >: E](zio: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
-    provideSomeManagedShared(zio.toManaged_)
-
-  /**
-   * Uses the specified `ZManaged` to provide each test in this spec with part
-   * of its required environment.
-   */
-  @deprecated("use provideSomeLayer", "1.0.0")
-  final def provideSomeManaged[R0, E1 >: E](
-    managed: ZManaged[R0, E1, R]
-  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
-    transform[R0, E1, T] {
-      case SuiteCase(label, specs, exec)      => SuiteCase(label, specs.provideSomeManaged(managed), exec)
-      case TestCase(label, test, annotations) => TestCase(label, test.provideSomeManaged(managed), annotations)
-    }
-
-  /**
-   * Uses the specified `ZManaged` once to provide all tests in this spec with
-   * a shared version of part of their required environment.
-   */
-  @deprecated("use provideSomeLayerShared", "1.0.0")
-  final def provideSomeManagedShared[R0, E1 >: E](
-    managed: ZManaged[R0, E1, R]
-  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] = {
-    def loop(r: R)(spec: Spec[R, E, T]): UIO[Spec[Any, E, T]] =
-      spec.caseValue match {
-        case SuiteCase(label, specs, exec) =>
-          specs.provide(r).run.map { result =>
-            Spec.suite(label, ZIO.doneNow(result).flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector), exec)
-          }
-        case TestCase(label, test, annotations) =>
-          test.provide(r).run.map(result => Spec.test(label, ZIO.doneNow(result), annotations))
-      }
-    caseValue match {
-      case SuiteCase(label, specs, exec) =>
-        Spec.suite(label, managed.use(r => specs.flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector).provide(r)), exec)
-      case TestCase(label, test, annotations) =>
-        Spec.test(label, test.provideSomeManaged(managed), annotations)
-    }
-  }
 
   /**
    * Computes the size of the spec, i.e. the number of tests in the spec.
