@@ -3,18 +3,17 @@ package zio.stm
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
-import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
-import zio.{Managed, _}
-
 import scala.util.Random
 
+import org.openjdk.jmh.annotations._
 
+import zio.IOBenchmarks._
+import zio.{ Managed, _ }
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Warmup(iterations = 2, time = 1, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 2, time = 1, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 5)
+@Warmup(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 5)
 @Fork(1)
 @Threads(1)
 class TReentrantLockBenchmark {
@@ -29,7 +28,7 @@ class TReentrantLockBenchmark {
   var ops: Int = _
 
   @Param(Array("1000"))
-  var dataSize: Int = _
+  var dataSize: Int               = _
   private var data: Map[Int, Int] = _
 
   private var zioLock: UIO[TReentrantLock] = _
@@ -46,23 +45,22 @@ class TReentrantLockBenchmark {
   }
 
   @TearDown(Level.Trial)
-  def tearDown(): Unit = {
+  def tearDown(): Unit =
     data.foreach {
       case (k, v) => assert(k == v)
     }
-  }
 
   @Benchmark
   def reentrantLock(): Unit = {
 
     val io = for {
-      lock           <- zioLock
-      reader         = lock.readLock.use(_ => readData)
-      writer         = lock.writeLock.use(_ => writeData)
-      readers        <- ZIO.forkAll(List.fill(numReaders)(repeat(ops)(reader)))
-      writers        <- ZIO.forkAll(List.fill(numWriters)(repeat(ops)(writer)))
-      _              <- readers.join
-      _              <- writers.join
+      lock    <- zioLock
+      reader  = lock.readLock.use(_ => readData)
+      writer  = lock.writeLock.use(_ => writeData)
+      readers <- ZIO.forkAll(List.fill(numReaders)(repeat(ops)(reader)))
+      writers <- ZIO.forkAll(List.fill(numWriters)(repeat(ops)(writer)))
+      _       <- readers.join
+      _       <- writers.join
     } yield 0
 
     unsafeRun(io)
@@ -72,13 +70,13 @@ class TReentrantLockBenchmark {
   def stampedLock(): Unit = {
 
     val io = for {
-      lock           <- javaLock
-      reader         = lock.readLock.use(_ => readData)
-      writer         = lock.writeLock.use(_ => writeData)
-      readers        <- ZIO.forkAll(List.fill(numReaders)(repeat(ops)(reader)))
-      writers        <- ZIO.forkAll(List.fill(numWriters)(repeat(ops)(writer)))
-      _              <- readers.join
-      _              <- writers.join
+      lock    <- javaLock
+      reader  = lock.readLock.use(_ => readData)
+      writer  = lock.writeLock.use(_ => writeData)
+      readers <- ZIO.forkAll(List.fill(numReaders)(repeat(ops)(reader)))
+      writers <- ZIO.forkAll(List.fill(numWriters)(repeat(ops)(writer)))
+      _       <- readers.join
+      _       <- writers.join
     } yield 0
 
     unsafeRun(io)
@@ -86,7 +84,7 @@ class TReentrantLockBenchmark {
 
   def readData: UIO[Int] = ZIO.succeed(data.get(rnd.nextInt(dataSize)).getOrElse(0))
 
-  def writeData: UIO[Map[Int, Int]] =  ZIO.succeed {
+  def writeData: UIO[Map[Int, Int]] = ZIO.succeed {
     lazy val nrnd = rnd.nextInt(dataSize)
     data.updated(nrnd, nrnd)
   }
