@@ -713,7 +713,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when[R](b: => Boolean)(rio: RIO[R, Any]): RIO[R, Unit] =
+  def when[R](b: Boolean)(rio: => RIO[R, Any]): RIO[R, Unit] =
     ZIO.when(b)(rio)
 
   /**
@@ -731,7 +731,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  def whenM[R](b: RIO[R, Boolean])(rio: RIO[R, Any]): RIO[R, Unit] =
+  def whenM[R](b: RIO[R, Boolean])(rio: => RIO[R, Any]): RIO[R, Unit] =
     ZIO.whenM(b)(rio)
 
   /**

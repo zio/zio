@@ -1986,7 +1986,7 @@ object ZManaged {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  def when[R, E](b: Boolean)(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     if (b) zManaged.unit else unit
 
   /**
@@ -2006,7 +2006,7 @@ object ZManaged {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     b.flatMap(b => if (b) zManaged.unit else unit)
 
   private[zio] def dieNow(t: Throwable): ZManaged[Any, Nothing, Nothing] =

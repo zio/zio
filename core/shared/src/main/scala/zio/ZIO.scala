@@ -1732,7 +1732,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The moral equivalent of `if (p) exp`
    */
-  final def when(b: => Boolean): ZIO[R, E, Unit] =
+  final def when(b: Boolean): ZIO[R, E, Unit] =
     ZIO.when(b)(self)
 
   /**
@@ -3124,7 +3124,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(zio: ZIO[R, E, Any]): ZIO[R, E, Unit] =
+  def when[R, E](b: Boolean)(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     if (b) zio.unit else unit
 
   /**
@@ -3142,7 +3142,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZIO[R, E, Boolean])(zio: ZIO[R, E, Any]): ZIO[R, E, Unit] =
+  def whenM[R, E](b: ZIO[R, E, Boolean])(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     b.flatMap(b => if (b) zio.unit else unit)
 
   /**

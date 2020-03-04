@@ -629,7 +629,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.when]]
    */
-  def when[R](b: => Boolean)(rio: URIO[R, Any]): URIO[R, Unit] = ZIO.when(b)(rio)
+  def when[R](b: Boolean)(rio: => URIO[R, Any]): URIO[R, Unit] = ZIO.when(b)(rio)
 
   /**
    * @see [[zio.ZIO.whenCase]]
@@ -645,7 +645,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.whenM]]
    */
-  def whenM[R](b: URIO[R, Boolean])(rio: URIO[R, Any]): URIO[R, Unit] = ZIO.whenM(b)(rio)
+  def whenM[R](b: URIO[R, Boolean])(rio: => URIO[R, Any]): URIO[R, Unit] = ZIO.whenM(b)(rio)
 
   /**
    * @see [[zio.ZIO.yieldNow]]
