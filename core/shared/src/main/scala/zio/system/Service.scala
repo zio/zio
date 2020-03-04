@@ -14,20 +14,12 @@
  * limitations under the License.
  */
 
-package zio
+package zio.system
 
-package object system {
-  type System = Has[Service]
+import zio._
 
-  /** Retrieve the value of an environment variable **/
-  def env(variable: => String): ZIO[System, SecurityException, Option[String]] =
-    ZIO.accessM(_.get env variable)
-
-  /** Retrieve the value of a system property **/
-  def property(prop: => String): ZIO[System, Throwable, Option[String]] =
-    ZIO.accessM(_.get property prop)
-
-  /** System-specific line separator **/
-  val lineSeparator: ZIO[System, Nothing, String] =
-    ZIO.accessM(_.get.lineSeparator)
+trait Service extends Serializable {
+  def env(variable: String): IO[SecurityException, Option[String]]
+  def property(prop: String): IO[Throwable, Option[String]]
+  def lineSeparator: UIO[String]
 }

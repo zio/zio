@@ -14,20 +14,27 @@
  * limitations under the License.
  */
 
-package zio
+package zio.system
 
-package object system {
-  type System = Has[Service]
+import java.lang.{ System => JSystem }
 
-  /** Retrieve the value of an environment variable **/
-  def env(variable: => String): ZIO[System, SecurityException, Option[String]] =
-    ZIO.accessM(_.get env variable)
+import zio._
 
-  /** Retrieve the value of a system property **/
-  def property(prop: => String): ZIO[System, Throwable, Option[String]] =
-    ZIO.accessM(_.get property prop)
+object System extends Serializable {
 
-  /** System-specific line separator **/
-  val lineSeparator: ZIO[System, Nothing, String] =
-    ZIO.accessM(_.get.lineSeparator)
+  val any: ZLayer[System, Nothing, System] =
+    ZLayer.requires[System]
+
+  val live: ZLayer.NoDeps[Nothing, System] = ZLayer.succeed(
+    new Service {
+
+      def env(variable: String): IO[SecurityException, Option[String]] =
+        IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
+
+      def property(prop: String): IO[Throwable, Option[String]] =
+        IO.effect(Option(JSystem.getProperty(prop)))
+
+      val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
+    }
+  )
 }

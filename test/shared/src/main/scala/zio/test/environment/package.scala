@@ -26,10 +26,9 @@ import scala.math.{ log, sqrt }
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
-import zio.{ random => zrandom }
 import zio.random.Random
 import zio.system.System
-import zio.{ PlatformSpecific => _, _ }
+import zio.{ PlatformSpecific => _, random => zrandom, _ }
 
 /**
  * The `environment` package contains testable versions of all the standard ZIO
@@ -1467,7 +1466,7 @@ package object environment extends PlatformSpecific {
       def clearProperty(prop: String): UIO[Unit]
     }
 
-    final case class Test(systemState: Ref[TestSystem.Data]) extends System.Service with TestSystem.Service {
+    final case class Test(systemState: Ref[TestSystem.Data]) extends system.Service with TestSystem.Service {
 
       /**
        * Returns the specified environment variable if it exists.
@@ -1544,7 +1543,7 @@ package object environment extends PlatformSpecific {
      */
     def live(data: Data): ZLayer.NoDeps[Nothing, System with TestSystem] =
       ZLayer.fromEffectMany(
-        Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref)))
+        Ref.make(data).map(ref => Has.allOf[system.Service, TestSystem.Service](Test(ref), Test(ref)))
       )
 
     val any: ZLayer[System with TestSystem, Nothing, System with TestSystem] =

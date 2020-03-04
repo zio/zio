@@ -16,9 +16,8 @@
 
 package zio.test.mock
 
-import zio.random
 import zio.{ Chunk, Has, UIO }
-import zio.{ Chunk, UIO }
+import zio.{ random, Chunk, UIO }
 
 object MockRandom {
 

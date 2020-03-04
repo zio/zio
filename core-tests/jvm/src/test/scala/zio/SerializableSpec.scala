@@ -215,7 +215,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("TracingStatus.Untraced is serializable") {
       Live.live(for {
-        system <- ZIO.accessM[System](has => serializeAndBack(has.get[System.Service]))
+        system <- ZIO.accessM[System](has => serializeAndBack(has.get[system.Service]))
         result <- system.property("notpresent")
       } yield assert(result)(equalTo(Option.empty[String])))
     }
