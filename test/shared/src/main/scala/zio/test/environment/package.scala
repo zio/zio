@@ -596,7 +596,7 @@ package object environment extends PlatformSpecific {
       consoleState: Ref[TestConsole.Data],
       live: Live.Service,
       debugState: FiberRef[Boolean]
-    ) extends Console.Service
+    ) extends console.Service
         with TestConsole.Service {
 
       /**
@@ -695,7 +695,7 @@ package object environment extends PlatformSpecific {
           ref      <- Ref.make(data)
           debugRef <- FiberRef.make(debug)
           test     = Test(ref, live, debugRef)
-        } yield Has.allOf[Console.Service, TestConsole.Service](test, test)
+        } yield Has.allOf[console.Service, TestConsole.Service](test, test)
       }
 
     val any: ZLayer[Console with TestConsole, Nothing, Console with TestConsole] =

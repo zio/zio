@@ -19,8 +19,8 @@ package zio
 /**
  * The trait `Has[A]` is used with ZIO environment to express an effect's
  * dependency on a service of type `A`. For example,
- * `RIO[Has[Console.Service], Unit]` is an effect that requires a
- * `Console.Service` service. Inside the ZIO library, type aliases are provided
+ * `RIO[Has[console.Service], Unit]` is an effect that requires a
+ * `console.Service` service. Inside the ZIO library, type aliases are provided
  * as shorthands for common services, e.g.:
  *
  * {{{

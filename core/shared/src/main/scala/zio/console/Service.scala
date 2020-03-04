@@ -14,28 +14,14 @@
  * limitations under the License.
  */
 
-package zio
+package zio.console
 
 import java.io.IOException
 
-package object console {
-  type Console = Has[Service]
+import zio._
 
-  /**
-   * Prints text to the console.
-   */
-  def putStr(line: => String): ZIO[Console, Nothing, Unit] =
-    ZIO.accessM(_.get putStr line)
-
-  /**
-   * Prints a line of text to the console, including a newline character.
-   */
-  def putStrLn(line: => String): ZIO[Console, Nothing, Unit] =
-    ZIO.accessM(_.get putStrLn line)
-
-  /**
-   * Retrieves a line of input from the console.
-   */
-  val getStrLn: ZIO[Console, IOException, String] =
-    ZIO.accessM(_.get.getStrLn)
+trait Service extends Serializable {
+  def putStr(line: String): UIO[Unit]
+  def putStrLn(line: String): UIO[Unit]
+  def getStrLn: IO[IOException, String]
 }

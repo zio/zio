@@ -191,7 +191,7 @@ Next we create the live version of the service with the implementation of the ca
 import zio.console.Console
 
 val accountObserverLive: ZLayer[Console, Nothing, Has[AccountObserver.Service]] =
-  ZLayer.fromService { (console: Console.Service) =>
+  ZLayer.fromService { (console: console.Service) =>
     new AccountObserver.Service {
       def processEvent(event: AccountEvent): UIO[Unit] =
         for {
