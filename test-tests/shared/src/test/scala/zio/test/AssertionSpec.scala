@@ -279,7 +279,7 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(())(isUnit)
     },
     testM("isUnit must not compile when supplied value is not ()") {
-      val result = typeCheck("assert(10, isUnit)")
+      val result = typeCheck("assert(10)(isUnit)")
       assertM(result)(isLeft(anything))
     },
     test("isWithin must succeed when supplied value is within range (inclusive)") {

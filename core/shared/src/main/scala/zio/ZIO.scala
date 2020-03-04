@@ -182,13 +182,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def as[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstZIOFn(() => b))
 
   /**
-   * Maps the error value of this effect to the specified constant value.
-   */
-  @deprecated("Use ZIO#orElseFail", "1.0.0")
-  final def asError[E1](e1: => E1)(implicit ev: CanFail[E]): ZIO[R, E1, A] =
-    mapError(new ZIO.ConstFn(() => e1))
-
-  /**
    * Maps the success value of this effect to a service.
    */
   final def asService[A1 >: A](implicit tagged: Tagged[A1]): ZIO[R, E, Has[A1]] =
@@ -270,71 +263,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     release: A => URIO[R1, Any]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     ZIO.bracketExit(self)((a: A, eb: Exit[E1, B]) =>
-      eb match {
-        case Exit.Failure(_) => release(a)
-        case _               => ZIO.unit
-      }
-    )(use)
-
-  /**
-   * Shorthand for the uncurried version of `ZIO.bracketFork`.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  final def bracketFork[R1 <: R, E1 >: E, B](
-    release: A => URIO[R1, Any],
-    use: A => ZIO[R1, E1, B]
-  ): ZIO[R1, E1, B] = ZIO.bracketFork(self, release, use)
-
-  /**
-   * Shorthand for the curried version of `ZIO.bracketFork`.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  final def bracketFork: ZIO.BracketForkAcquire[R, E, A] = ZIO.bracketFork(self)
-
-  /**
-   * A less powerful variant of `bracketFork` where the resource acquired by this
-   * effect is not needed.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  final def bracketFork_[R1 <: R, E1 >: E]: ZIO.BracketForkAcquire_[R1, E1] =
-    new ZIO.BracketForkAcquire_(self)
-
-  /**
-   * Uncurried version of `bracketFork_` Doesn't offer curried syntax and has worse
-   * type-inference characteristics, but it doesn't allocate intermediate
-   * [[zio.ZIO.BracketForkAcquire_]] and [[zio.ZIO.BracketForkRelease_]] objects.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  final def bracketFork_[R1 <: R, E1 >: E, B](
-    release: URIO[R1, Any],
-    use: ZIO[R1, E1, B]
-  ): ZIO[R1, E1, B] =
-    ZIO.bracketFork(self, (_: A) => release, (_: A) => use)
-
-  /**
-   * Shorthand for the uncurried version of `ZIO.bracketForkExit`.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  final def bracketForkExit[R1 <: R, E1 >: E, B](
-    release: (A, Exit[E1, B]) => URIO[R1, Any],
-    use: A => ZIO[R1, E1, B]
-  ): ZIO[R1, E1, B] = ZIO.bracketForkExit(self, release, use)
-
-  /**
-   * Shorthand for the curried version of `ZIO.bracketForkExit`.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  final def bracketForkExit[R1 <: R, E1 >: E, A1 >: A]: ZIO.BracketForkExitAcquire[R1, E1, A1] =
-    ZIO.bracketForkExit(self)
-
-  /**
-   * Executes the release effect only if there was an error.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  final def bracketForkOnError[R1 <: R, E1 >: E, B](
-    release: A => URIO[R1, Any]
-  )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracketForkExit(self)((a: A, eb: Exit[E1, B]) =>
       eb match {
         case Exit.Failure(_) => release(a)
         case _               => ZIO.unit
@@ -553,14 +481,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def eventually(implicit ev: CanFail[E]): URIO[R, A] =
     self orElse eventually
-
-  /**
-   * Executes this effect and returns its value, if it succeeds, but otherwise
-   * returns the specified value.
-   */
-  @deprecated("Use ZIO#orElseSucceed", "1.0.0")
-  final def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZIO[R, Nothing, A1] =
-    fold(_ => a, identity)
 
   /**
    * Dies with specified `Throwable` if the predicate fails.
@@ -819,9 +739,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * exactly what you are doing. Instead, you should use [[ZIO.uninterruptibleMask]].
    */
   final def interruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Interruptible)
-
-  @deprecated("Use ZIO#interruptible.disconnect", "1.0.0")
-  final def interruptibleFork: ZIO[R, E, A] = self.interruptible.disconnect
 
   /**
    * Switches the interrupt status for this effect. If `true` is used, then the
@@ -1102,21 +1019,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     layer.build.map(ev1).use(self.provide)
 
   /**
-   * An effectual version of `provide`, useful when the act of provision
-   * requires an effect.
-   */
-  @deprecated("Use ZIO#provideLayer", "1.0.0")
-  final def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): ZIO[Any, E1, A] =
-    r.flatMap(self.provide)
-
-  /**
-   * Uses the given Managed[E1, R] to the environment required to run this effect,
-   * leaving no outstanding environments and returning IO[E1, A]
-   */
-  @deprecated("Use ZIO#provideLayer", "1.0.0")
-  final def provideManaged[E1 >: E](r0: Managed[E1, R])(implicit ev: NeedsEnv[R]): IO[E1, A] = provideSomeManaged(r0)
-
-  /**
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    *
@@ -1150,30 +1052,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
     new ZIO.ProvideSomeLayer[R0, R, E, A](self)
-
-  /**
-   * An effectful version of `provideSome`, useful when the act of partial
-   * provision requires an effect.
-   *
-   * {{{
-   * val effect: ZIO[Console with Logging, Nothing, Unit] = ???
-   *
-   * val r0: URIO[Console, Console with Logging] = ???
-   *
-   * effect.provideSomeM(r0)
-   * }}}
-   */
-  @deprecated("Use ZIO#provideLayer", "1.0.0")
-  final def provideSomeM[R0, E1 >: E](r0: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
-    r0.flatMap(self.provide)
-
-  /**
-   * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
-   * leaving the remainder `R0`.
-   */
-  @deprecated("Use ZIO#provideLayer", "1.0.0")
-  final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
-    r0.use(self.provide)
 
   /**
    * Returns a successful effect if the value is `Left`, or fails with the error `None`.
@@ -1309,10 +1187,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
           }
     } yield c).refailWithTrace
   }
-
-  @deprecated("Use ZIO#raceFirst", "1.0.0")
-  final def raceAttempt[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
-    self raceFirst that
 
   /**
    * Returns an effect that races this effect with the specified effect,
@@ -1731,17 +1605,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.flatten(timeoutTo(ZIO.failNow(e))(ZIO.succeedNow)(d))
 
   /**
-   * Returns an effect that will attempt to timeout this effect, but will not
-   * wait for the running effect to terminate if the timeout elapses without
-   * producing a value. Returns `Right` with the produced value if the effect
-   * completes before the timeout or `Left` with the interrupting fiber
-   * otherwise.
-   */
-  @deprecated("Use ZIO#disconnect.timeout(d)", "1.0.0")
-  final def timeoutFork(d: Duration): ZIO[R with Clock, E, Option[A]] =
-    self.disconnect.timeout(d)
-
-  /**
    * Returns an effect that will timeout this effect, returning either the
    * default value if the timeout elapses before the effect has produced a
    * value; and or returning the result of applying the function `f` to the
@@ -2069,52 +1932,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         })
       })
     )
-
-  /**
-   * A variant of `bracket` which returns immediately on interruption.
-   * however, it does not actually interrupt the underlying acquisition, but rather, in a separate fiber,
-   * awaits the acquisition and then gracefully and immediately releases the resource after acquisition.
-   * Thus the fiber executing bracketFork is able to be interrupted right away even if in the middle
-   * of a lengthy acquisition operation.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  def bracketFork[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketForkAcquire[R, E, A] =
-    new ZIO.BracketForkAcquire[R, E, A](acquire)
-
-  /**
-   * Uncurried version of `bracketFork`. Doesn't offer curried syntax and has worse type-inference
-   * characteristics, but guarantees no extra allocations of intermediate
-   * [[zio.ZIO.BracketForkAcquire]] and [[zio.ZIO.BracketForkRelease]] objects.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  def bracketFork[R, E, A, B](
-    acquire: ZIO[R, E, A],
-    release: A => URIO[R, Any],
-    use: A => ZIO[R, E, B]
-  ): ZIO[R, E, B] =
-    bracketForkExit(acquire, new ZIO.BracketReleaseFn(release): (A, Exit[E, B]) => URIO[R, Any], use)
-
-  /**
-   * A variant of `bracketExit` which returns immediately on interruption.
-   * However, it does not actually interrupt the underlying acquisition, but rather, in a separate fiber,
-   * awaits the acquisition and then gracefully and immediately releases the resource after acquisition.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  def bracketForkExit[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketForkExitAcquire[R, E, A] =
-    new ZIO.BracketForkExitAcquire(acquire)
-
-  /**
-   * Uncurried version of `bracketForkExit`. Doesn't offer curried syntax and has worse type-inference
-   * characteristics, but guarantees no extra allocations of intermediate
-   * [[zio.ZIO.BracketForkExitAcquire]] and [[zio.ZIO.BracketForkExitRelease]] objects.
-   */
-  @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-  def bracketForkExit[R, E, A, B](
-    acquire: ZIO[R, E, A],
-    release: (A, Exit[E, B]) => URIO[R, Any],
-    use: A => ZIO[R, E, B]
-  ): ZIO[R, E, B] =
-    ZIO.bracketExit(acquire, release, use).interruptibleFork
 
   /**
    * Checks the interrupt status, and produces the effect returned by the
@@ -3183,27 +3000,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def second[E, A, B]: ZIO[(A, B), E, B] = fromFunction[(A, B), B](_._2)
 
   /**
-   *  Alias for [[ZIO.collectAll]]
-   */
-  @deprecated("Use ZIO.collectAll", "1.0.0")
-  def sequence[R, E, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    collectAll[R, E, A](in)
-
-  /**
-   *  Alias for [[ZIO.collectAllPar]]
-   */
-  @deprecated("Use ZIO.collectAllPar", "1.0.0")
-  def sequencePar[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    collectAllPar[R, E, A](as)
-
-  /**
-   *  Alias for [[ZIO.collectAllParN]]
-   */
-  @deprecated("Use ZIO.collectAllParN", "1.0.0")
-  def sequenceParN[R, E, A](n: Int)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    collectAllParN[R, E, A](n)(as)
-
-  /**
    * Returns an effect that suspends for the specified duration. This method is
    * asynchronous, and does not actually block the fiber executing the effect.
    */
@@ -3238,52 +3034,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def traced[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.traced
-
-  /**
-   * Alias for [[[ZIO.foreach[R,E,A,B](in:Iterable*]]]
-   */
-  @deprecated("Use ZIO.foreach", "1.0.0")
-  def traverse[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    foreach[R, E, A, B](in)(f)
-
-  /**
-   * Alias for [[[ZIO.foreach_[R,E,A](as:Iterable*]]]
-   */
-  @deprecated("Use ZIO.foreach_", "1.0.0")
-  def traverse_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    foreach_[R, E, A](as)(f)
-
-  /**
-   * Alias for [[[ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
-   */
-  @deprecated("Use ZIO.foreachPar", "1.0.0")
-  def traversePar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    foreachPar[R, E, A, B](as)(fn)
-
-  /**
-   * Alias for [[[ZIO.foreachPar_[R,E,A](as:Iterable*]]]
-   */
-  @deprecated("Use ZIO.foreachPar_", "1.0.0")
-  def traversePar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    foreachPar_[R, E, A](as)(f)
-
-  /**
-   * Alias for [[ZIO.foreachParN]]
-   */
-  @deprecated("Use ZIO.foreachParN", "1.0.0")
-  def traverseParN[R, E, A, B](
-    n: Int
-  )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    foreachParN[R, E, A, B](n)(as)(fn)
-
-  /**
-   * Alias for [[ZIO.foreachParN_]]
-   */
-  @deprecated("Use ZIO.foreachParN_", "1.0.0")
-  def traverseParN_[R, E, A](
-    n: Int
-  )(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    foreachParN_[R, E, A](n)(as)(f)
 
   /**
    * An effect that succeeds with a unit value.
@@ -3514,42 +3264,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) {
     def apply[R1 <: R, E2 >: E <: E1, B1 <: B](use: A => ZIO[R1, E2, B1]): ZIO[R1, E2, B1] =
       ZIO.bracketExit(acquire, release, use)
-  }
-
-  final class BracketForkAcquire_[-R, +E](private val acquire: ZIO[R, E, Any]) extends AnyVal {
-    @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-    def apply[R1 <: R](release: URIO[R1, Any]): BracketForkRelease_[R1, E] =
-      new BracketForkRelease_(acquire, release)
-  }
-  final class BracketForkRelease_[-R, +E](acquire: ZIO[R, E, Any], release: URIO[R, Any]) {
-    @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-    def apply[R1 <: R, E1 >: E, B](use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      ZIO.bracketFork(acquire, (_: Any) => release, (_: Any) => use)
-  }
-  final class BracketForkAcquire[-R, +E, +A](private val acquire: ZIO[R, E, A]) extends AnyVal {
-    @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-    def apply[R1](release: A => URIO[R1, Any]): BracketForkRelease[R with R1, E, A] =
-      new BracketForkRelease[R with R1, E, A](acquire, release)
-  }
-  final class BracketForkRelease[-R, +E, +A](acquire: ZIO[R, E, A], release: A => URIO[R, Any]) {
-    @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-    def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      ZIO.bracketFork(acquire, release, use)
-  }
-  final class BracketForkExitAcquire[-R, +E, +A](private val acquire: ZIO[R, E, A]) extends AnyVal {
-    @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-    def apply[R1 <: R, E1 >: E, B](
-      release: (A, Exit[E1, B]) => URIO[R1, Any]
-    ): BracketForkExitRelease[R1, E, E1, A, B] =
-      new BracketForkExitRelease(acquire, release)
-  }
-  final class BracketForkExitRelease[-R, +E, E1, +A, B](
-    acquire: ZIO[R, E, A],
-    release: (A, Exit[E1, B]) => URIO[R, Any]
-  ) {
-    @deprecated("Use ZIO#disconnect on an ordinary bracket", "1.0.0")
-    def apply[R1 <: R, E2 >: E <: E1, B1 <: B](use: A => ZIO[R1, E2, B1]): ZIO[R1, E2, B1] =
-      ZIO.bracketForkExit(acquire, release, use)
   }
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {

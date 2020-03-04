@@ -123,12 +123,6 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
   final def as[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
 
   /**
-   * Replaces any error produced by this sink.
-   */
-  @deprecated("use orElseFail", "1.0.0")
-  final def asError[E1](e1: => E1): ZSink[R, E1, A0, A, B] = self.mapError(new ZIO.ConstFn(() => e1))
-
-  /**
    * Creates a sink where every element of type `A` entering the sink is first
    * transformed by `f`
    */

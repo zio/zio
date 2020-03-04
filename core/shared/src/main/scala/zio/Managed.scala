@@ -331,27 +331,6 @@ object Managed {
     ZManaged.sandbox(v)
 
   /**
-   * See [[zio.ZManaged.sequence]]
-   */
-  @deprecated("use collectAll", "1.0.0")
-  def sequence[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
-    ZManaged.sequence(ms)
-
-  /**
-   * See [[zio.ZManaged.sequencePar]]
-   */
-  @deprecated("use collectAllPar", "1.0.0")
-  def sequencePar[E, A](as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
-    ZManaged.sequencePar(as)
-
-  /**
-   * See [[zio.ZManaged.sequenceParN]]
-   */
-  @deprecated("use collectAllParN", "1.0.0")
-  def sequenceParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
-    ZManaged.sequenceParN(n)(as)
-
-  /**
    * See [[zio.ZManaged.succeed]]
    */
   def succeed[A](r: => A): Managed[Nothing, A] =
@@ -362,48 +341,6 @@ object Managed {
    */
   def suspend[E, A](managed: => Managed[E, A]): Managed[E, A] =
     ZManaged.suspend(managed)
-
-  /**
-   * See [[zio.ZManaged.traverse]]
-   */
-  @deprecated("use foreach", "1.0.0")
-  def traverse[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
-    ZManaged.traverse(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverse_]]
-   */
-  @deprecated("use foreach_", "1.0.0")
-  def traverse_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
-    ZManaged.traverse_(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traversePar]]
-   */
-  @deprecated("use foreachPar", "1.0.0")
-  def traversePar[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
-    ZManaged.traversePar(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traversePar_]]
-   */
-  @deprecated("use foreachPar_", "1.0.0")
-  def traversePar_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
-    ZManaged.traversePar_(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverseParN]]
-   */
-  @deprecated("use foreachParN", "1.0.0")
-  def traverseParN[E, A1, A2](n: Int)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
-    ZManaged.traverseParN(n)(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverseParN_]]
-   */
-  @deprecated("use foreachParN_", "1.0.0")
-  def traverseParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
-    ZManaged.traverseParN_(n)(as)(f)
 
   /**
    * See [[zio.ZManaged.unit]]
