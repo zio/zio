@@ -324,7 +324,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * {{{
    * openFile("data.json").catchSome {
-   *   case FileNotFoundException(_) => openFile("backup.json")
+   *   case _: FileNotFoundException => openFile("backup.json")
    * }
    * }}}
    */
