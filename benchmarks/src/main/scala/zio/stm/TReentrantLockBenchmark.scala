@@ -12,8 +12,8 @@ import zio.{ Managed, _ }
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Measurement(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 5)
-@Warmup(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 5)
+@Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 5)
+@Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 5)
 @Fork(1)
 @Threads(1)
 class TReentrantLockBenchmark {
@@ -51,7 +51,7 @@ class TReentrantLockBenchmark {
     }
 
   @Benchmark
-  def reentrantLock(): Unit = {
+  def reentrantLock(): Int = {
 
     val io = for {
       lock    <- zioLock
@@ -67,7 +67,7 @@ class TReentrantLockBenchmark {
   }
 
   @Benchmark
-  def stampedLock(): Unit = {
+  def stampedLock(): Int = {
 
     val io = for {
       lock    <- javaLock
@@ -82,7 +82,7 @@ class TReentrantLockBenchmark {
     unsafeRun(io)
   }
 
-  def readData: UIO[Int] = ZIO.succeed(data.get(rnd.nextInt(dataSize)).getOrElse(0))
+  def readData: UIO[Int] = ZIO.succeed(data.getOrElse(rnd.nextInt(dataSize), 0))
 
   def writeData: UIO[Map[Int, Int]] = ZIO.succeed {
     lazy val nrnd = rnd.nextInt(dataSize)
