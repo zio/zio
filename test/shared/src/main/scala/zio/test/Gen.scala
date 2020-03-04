@@ -21,6 +21,7 @@ import java.util.UUID
 import scala.collection.immutable.SortedMap
 import scala.math.Numeric.DoubleIsFractional
 
+import zio.random
 import zio.random._
 import zio.stream.{ Stream, ZStream }
 import zio.{ UIO, ZIO }
@@ -381,14 +382,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Constructs a generator from a function that uses randomness. The returned
    * generator will not have any shrinking.
    */
-  final def fromRandom[A](f: Random.Service => UIO[A]): Gen[Random, A] =
+  final def fromRandom[A](f: random.Service => UIO[A]): Gen[Random, A] =
     Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get)).map(Sample.noShrink)))
 
   /**
    * Constructs a generator from a function that uses randomness to produce a
    * sample.
    */
-  final def fromRandomSample[R <: Random, A](f: Random.Service => UIO[Sample[R, A]]): Gen[R, A] =
+  final def fromRandomSample[R <: Random, A](f: random.Service => UIO[Sample[R, A]]): Gen[R, A] =
     Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get))))
 
   /**

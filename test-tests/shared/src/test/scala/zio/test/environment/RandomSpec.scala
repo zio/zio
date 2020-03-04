@@ -179,13 +179,13 @@ object RandomSpec extends ZIOBaseSpec {
     }
 
   def forAllBounded[A: Numeric](gen: Gen[Random, A])(
-    next: (Random.Service, A) => UIO[A]
+    next: (random.Service, A) => UIO[A]
   ): ZIO[Random, Nothing, TestResult] = {
     val num = implicitly[Numeric[A]]
     import num._
     checkM(gen.map(num.abs(_))) { upper =>
       for {
-        testRandom <- ZIO.environment[Random].map(_.get[Random.Service])
+        testRandom <- ZIO.environment[Random].map(_.get[random.Service])
         nextRandom <- next(testRandom, upper)
       } yield assert(nextRandom)(isWithin(zero, upper))
     }

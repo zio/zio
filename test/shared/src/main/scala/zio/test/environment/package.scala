@@ -26,6 +26,7 @@ import scala.math.{ log, sqrt }
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
+import zio.{ random => zrandom }
 import zio.random.Random
 import zio.system.System
 import zio.{ PlatformSpecific => _, _ }
@@ -836,7 +837,7 @@ package object environment extends PlatformSpecific {
      * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
      */
     final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer])
-        extends Random.Service
+        extends zrandom.Service
         with TestRandom.Service {
 
       /**
@@ -1378,7 +1379,7 @@ package object environment extends PlatformSpecific {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
         test   = Test(data, buffer)
-      } yield Has.allOf[Random.Service, TestRandom.Service](test, test))
+      } yield Has.allOf[zrandom.Service, TestRandom.Service](test, test))
 
     val any: ZLayer[Random with TestRandom, Nothing, Random with TestRandom] =
       ZLayer.requires[Random with TestRandom]
@@ -1389,13 +1390,13 @@ package object environment extends PlatformSpecific {
     val random: ZLayer[Clock, Nothing, Random with TestRandom] =
       (ZLayer.service[clock.Service] ++ deterministic) >>>
         (ZLayer.fromFunctionManyM { (env: Clock with Random with TestRandom) =>
-          val random     = env.get[Random.Service]
-          val testRandom = env.get[TestRandom.Service]
+          val rand     = env.get[zrandom.Service]
+          val testRand = env.get[TestRandom.Service]
 
           for {
             time <- env.get[clock.Service].nanoTime
             _    <- env.get[TestRandom.Service].setSeed(time)
-          } yield Has.allOf[Random.Service, TestRandom.Service](random, testRandom)
+          } yield Has.allOf[zrandom.Service, TestRandom.Service](rand, testRand)
         })
 
     /**
