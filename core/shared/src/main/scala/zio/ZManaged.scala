@@ -172,12 +172,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     map(_ => b)
 
   /**
-   * Replaces the error value (if any) by the value provided.
-   */
-  @deprecated("use orElseFail", "1.0.0")
-  def asError[E1](e1: => E1): ZManaged[R, E1, A] = mapError(_ => e1)
-
-  /**
    * Maps the success value of this effect to a service.
    */
   def asService[A1 >: A](implicit tagged: Tagged[A1]): ZManaged[R, E, Has[A1]] =
@@ -300,14 +294,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged {
       reserve.eventually.map(r => Reservation(r.acquire.eventually, r.release))
     }
-
-  /**
-   * Executes this effect and returns its value, if it succeeds, but otherwise
-   * returns the specified value.
-   */
-  @deprecated("use orElseSucceed", "1.0.0")
-  def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A1] =
-    fold(_ => a, identity)
 
   /**
    * Zips this effect with its environment
@@ -670,21 +656,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     layer.build.map(ev1).flatMap(self.provide)
 
   /**
-   * An effectual version of `provide`, useful when the act of provision
-   * requires an effect.
-   */
-  @deprecated("use provideLayer", "1.0.0")
-  def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] =
-    provideManaged(r.toManaged_)
-
-  /**
-   * Uses the given Managed[E1, R] to the environment required to run this managed effect,
-   * leaving no outstanding environments and returning Managed[E1, A]
-   */
-  @deprecated("use provideLayer", "1.0.0")
-  def provideManaged[E1 >: E](r: Managed[E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] = provideSomeManaged(r)
-
-  /**
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    *
@@ -718,40 +689,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   final def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
     new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
-
-  /**
-   * An effectful version of `provideSome`, useful when the act of partial
-   * provision requires an effect.
-   *
-   * {{{
-   * val managed: ZManaged[Console with Logging, Nothing, Unit] = ???
-   *
-   * val r0: URIO[Console, Console with Logging] = ???
-   *
-   * managed.provideSomeM(r0)
-   * }}}
-   */
-  @deprecated("use provideSomeLayer", "1.0.0")
-  def provideSomeM[R0, E1 >: E](
-    r0: ZIO[R0, E1, R]
-  )(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
-    provideSomeManaged(r0.toManaged_)
-
-  /**
-   * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
-   * leaving the remainder `R0`.
-   *
-   * {{{
-   * val managed: ZManaged[Console with Logging, Nothing, Unit] = ???
-   *
-   * val r0: ZManaged[Console, Nothing, Console with Logging] = ???
-   *
-   * managed.provideSomeManaged(r0)
-   * }}}
-   */
-  @deprecated("use provideSomeLayer", "1.0.0")
-  def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
-    r0.flatMap(self.provide)
 
   /**
    * Gives access to wrapped [[Reservation]].
@@ -1964,27 +1901,6 @@ object ZManaged {
   def second[E, A, B]: ZManaged[(A, B), E, B] = fromFunction(_._2)
 
   /**
-   *  Alias for [[ZManaged.collectAll]]
-   */
-  @deprecated("use collectAll", "1.0.0")
-  def sequence[R, E, A1, A2](ms: Iterable[ZManaged[R, E, A2]]): ZManaged[R, E, List[A2]] =
-    collectAll[R, E, A1, A2](ms)
-
-  /**
-   *  Alias for [[ZManaged.collectAllPar]]
-   */
-  @deprecated("use collectAllPar", "1.0.0")
-  def sequencePar[R, E, A](as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
-    collectAllPar[R, E, A](as)
-
-  /**
-   *  Alias for [[ZManaged.collectAllParN]]
-   */
-  @deprecated("use collectAllParN", "1.0.0")
-  def sequenceParN[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
-    collectAllParN[R, E, A](n)(as)
-
-  /**
    * Lifts a lazy, pure value into a Managed.
    */
   def succeed[R, A](r: => A): ZManaged[R, Nothing, A] =
@@ -2049,64 +1965,6 @@ object ZManaged {
         }
       }
     } yield switch
-
-  /**
-   * Alias for [[[ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
-   */
-  @deprecated("use foreach", "1.0.0")
-  def traverse[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
-    foreach[R, E, A1, A2](as)(f)
-
-  /**
-   * Alias for [[ZManaged.foreach_]]
-   */
-  @deprecated("use foreach_", "1.0.0")
-  def traverse_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    foreach_[R, E, A](as)(f)
-
-  /**
-   * Alias for [[ZManaged.foreachPar]]
-   */
-  @deprecated("use foreachPar", "1.0.0")
-  def traversePar[R, E, A1, A2](
-    as: Iterable[A1]
-  )(
-    f: A1 => ZManaged[R, E, A2]
-  ): ZManaged[R, E, List[A2]] =
-    foreachPar[R, E, A1, A2](as)(f)
-
-  /**
-   * Alias for [[ZManaged.foreachPar_]]
-   */
-  @deprecated("use foreachPar_", "1.0.0")
-  def traversePar_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    foreachPar_[R, E, A](as)(f)
-
-  /**
-   * Alias for [[ZManaged.foreachParN]]
-   */
-  @deprecated("use foreachParN", "1.0.0")
-  def traverseParN[R, E, A1, A2](
-    n: Int
-  )(
-    as: Iterable[A1]
-  )(
-    f: A1 => ZManaged[R, E, A2]
-  ): ZManaged[R, E, List[A2]] =
-    foreachParN[R, E, A1, A2](n)(as)(f)
-
-  /**
-   * Alias for [[ZManaged.foreachParN_]]
-   */
-  @deprecated("use foreachParN_", "1.0.0")
-  def traverseParN_[R, E, A](
-    n: Int
-  )(
-    as: Iterable[A]
-  )(
-    f: A => ZManaged[R, E, Any]
-  ): ZManaged[R, E, Unit] =
-    foreachParN_[R, E, A](n)(as)(f)
 
   /**
    * Returns the effect resulting from mapping the success of this effect to unit.

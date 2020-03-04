@@ -64,7 +64,7 @@ If you are integrating ZIO into an existing application, using dependency inject
 import zio._
 
 object IntegrationExample {
-  val runtime = new DefaultRuntime {}
+  val runtime = Runtime.default
 
   runtime.unsafeRun(Task(println("Hello World!")))
 }

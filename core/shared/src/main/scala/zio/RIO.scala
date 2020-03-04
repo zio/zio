@@ -668,27 +668,6 @@ object RIO {
   def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
-   *  See [[zio.ZIO.sequence]]
-   */
-  @deprecated("use collectAll", "1.0.0")
-  def sequence[R, A](in: Iterable[RIO[R, A]]): RIO[R, List[A]] =
-    ZIO.sequence(in)
-
-  /**
-   *  See [[zio.ZIO.sequencePar]]
-   */
-  @deprecated("use collectAllPar", "1.0.0")
-  def sequencePar[R, A](as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
-    ZIO.sequencePar(as)
-
-  /**
-   *  See [[zio.ZIO.sequenceParN]]
-   */
-  @deprecated("use collectAllParN", "1.0.0")
-  def sequenceParN[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
-    ZIO.sequenceParN(n)(as)
-
-  /**
    * @see See [[zio.ZIO.swap]]
    */
   def swap[A, B]: RIO[(A, B), (B, A)] =
@@ -703,52 +682,6 @@ object RIO {
    * @see See [[zio.ZIO.traced]]
    */
   def traced[R, A](zio: RIO[R, A]): RIO[R, A] = ZIO.traced(zio)
-
-  /**
-   * @see See [[zio.ZIO.traverse]]
-   */
-  @deprecated("use foreach", "1.0.0")
-  def traverse[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, List[B]] =
-    ZIO.traverse(in)(f)
-
-  /**
-   * @see See [[zio.ZIO.traversePar]]
-   */
-  @deprecated("use foreachPar", "1.0.0")
-  def traversePar[R, A, B](as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
-    ZIO.traversePar(as)(fn)
-
-  /**
-   * Alias for [[ZIO.foreachParN]]
-   */
-  @deprecated("use foreachParN", "1.0.0")
-  def traverseParN[R, A, B](
-    n: Int
-  )(as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
-    ZIO.traverseParN(n)(as)(fn)
-
-  /**
-   * @see See [[zio.ZIO.traverse_]]
-   */
-  @deprecated("use foreach_", "1.0.0")
-  def traverse_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
-    ZIO.traverse_(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.traversePar_]]
-   */
-  @deprecated("use foreachPar_", "1.0.0")
-  def traversePar_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
-    ZIO.traversePar_(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.traverseParN_]]
-   */
-  @deprecated("use foreachParN_", "1.0.0")
-  def traverseParN_[R, A](
-    n: Int
-  )(as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
-    ZIO.traverseParN_(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.unit]]
