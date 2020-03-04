@@ -2489,7 +2489,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * in Scala's standard library. On standard collections, `foreach` applies a side-effecting
    * function on the elements of the collection and returns `Unit`. Here, the `foreach` method
    * applies the `f` function to every elements of `in` and aggregates the results in a single
-   * `ZIO` context. In other libraries, this behaviour is most often called `traverse`.
+   * `ZIO` context. 
+   * ADVANCED: In other typeclass-based FP libraries, this behaviour is most often called `traverse`.
    */
   def foreach[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     in.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil))((a, io) => f(a).zipWith(io)((b, bs) => b :: bs))
