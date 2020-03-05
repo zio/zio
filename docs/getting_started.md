@@ -28,21 +28,19 @@ println(s"""```""")
 Your application can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
 ```scala mdoc:silent
-import zio.App
+import zio.{App => _, _}
 import zio.console._
 
-object MyApp extends App {
+object Hello extends App {
+  val runtime = Runtime.default
 
-  def run(args: List[String]) =
-    myAppLogic.fold(_ => 1, _ => 0)
-
-  val myAppLogic =
-    for {
+  val program = for {
       _    <- putStrLn("Hello! What is your name?")
       name <- getStrLn
       _    <- putStrLn(s"Hello, ${name}, welcome to ZIO!")
     } yield ()
-}
+
+  runtime.unsafeRun(program.provideLayer(ZEnv.live))}
 ```
 The run `run` method should return a ZIO value which has all its errors handled,  
 which, in ZIO parlance, is an unexceptional ZIO value.  
