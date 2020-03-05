@@ -111,6 +111,13 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     fold(ZLayer.fromFunctionManyM(f andThen ZIO.failNow), ZLayer.identity)
 
   /**
+   * Returns a managed effect that, if evaluated, will return the lazily
+   * computed result of this layer.
+   */
+  def memoize: ZManaged[RIn, Nothing, ZLayer[Any, E, ROut]] =
+    build.memoize.map(ZLayer(_))
+
+  /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
