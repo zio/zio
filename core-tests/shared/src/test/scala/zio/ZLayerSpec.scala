@@ -232,6 +232,14 @@ object ZLayerSpec extends ZIOBaseSpec {
           _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
         } yield assertCompletes
-      } @@ nonFlaky
+      } @@ nonFlaky,
+      testM("map can map the output of a layer to an unrelated type") {
+        case class A(name: String, value: Int)
+        case class B(name: String)
+        val l1: ZLayer.NoDeps[Nothing, Has[A]]       = ZLayer.succeed(A("name", 1))
+        val l2: ZLayer[Has[String], Nothing, Has[B]] = ZLayer.fromService(B)
+        val live: ZLayer.NoDeps[Nothing, Has[B]]     = l1.map(a => Has(a.get[A].name)) >>> l2
+        assertM(ZIO.access[Has[B]](_.get).provideLayer(live))(equalTo(B("name")))
+      }
     )
 }
