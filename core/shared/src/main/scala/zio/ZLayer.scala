@@ -100,7 +100,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
   /**
    * Returns a new layer whose output is mapped by the specified function.
    */
-  def map[ROut1 >: ROut <: Has[_]](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
+  def map[ROut1 <: Has[_]](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
     self >>> ZLayer.fromFunctionMany(f)
 
   /**
