@@ -14,6 +14,9 @@ final case class BoolAlgebraM[-R, +E, +A](run: ZIO[R, E, BoolAlgebra[A]]) { self
   def ==>[R1 <: R, E1 >: E, A1 >: A](that: BoolAlgebraM[R1, E1, A1]): BoolAlgebraM[R1, E1, A1] =
     BoolAlgebraM(run.zipWith(that.run)(_ ==> _))
 
+  def <==>[R1 <: R, E1 >: E, A1 >: A](that: BoolAlgebraM[R1, E1, A1]): BoolAlgebraM[R1, E1, A1] =
+    BoolAlgebraM(run.zipWith(that.run)(_ <==> _))
+
   def unary_! : BoolAlgebraM[R, E, A] =
     BoolAlgebraM(run.map(!_))
 
