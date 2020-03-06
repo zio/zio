@@ -31,12 +31,14 @@ object CancelableFutureSpec extends ZIOBaseSpec {
       } @@ tag("supervision", "regression") @@ nonFlaky,
       testM("roundtrip preserves interruptibility") {
         for {
-          latch <- Promise.make[Nothing, Int]
-          fiber <- roundtrip(ZIO.infinity.onInterrupt(latch.succeed(42))).fork
+          start <- Promise.make[Nothing, Unit]
+          end   <- Promise.make[Nothing, Int]
+          fiber <- roundtrip((start.succeed(()) *> ZIO.infinity).onInterrupt(end.succeed(42))).fork
+          _     <- start.await
           _     <- fiber.interrupt
-          value <- latch.await
+          value <- end.await
         } yield assert(value)(equalTo(42))
-      },
+      } @@ nonFlaky,
       testM("survives roundtrip without being auto-killed") {
         val exception = new Exception("Uh oh")
         val value     = 42
