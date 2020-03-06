@@ -590,11 +590,5 @@ object UIO {
    */
   val yieldNow: UIO[Unit] = ZIO.yieldNow
 
-  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
-
-  private[zio] def doneNow[A](r: Exit[Nothing, A]): UIO[A] = ZIO.doneNow(r)
-
-  private[zio] def haltNow(cause: Cause[Nothing]): UIO[Nothing] = ZIO.haltNow(cause)
-
   private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

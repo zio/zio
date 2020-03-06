@@ -131,7 +131,7 @@ package object blocking {
                                 Thread.interrupted // Clear interrupt status
                                 ZIO.interrupt
                               case t: Throwable =>
-                                ZIO.failNow(t)
+                                ZIO.fail(t)
                             } finally {
                               withMutex { thread.set(None); end.set(()) }
                             }

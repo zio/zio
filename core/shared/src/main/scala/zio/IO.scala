@@ -723,13 +723,5 @@ object IO {
       ZIO.bracket(acquire, release, use)
   }
 
-  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
-
-  private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = ZIO.doneNow(r)
-
-  private[zio] def failNow[E](error: E): IO[E, Nothing] = ZIO.failNow(error)
-
-  private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] = ZIO.haltNow(cause)
-
   private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

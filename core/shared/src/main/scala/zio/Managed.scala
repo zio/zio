@@ -385,18 +385,6 @@ object Managed {
   def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, Any]): Managed[E, Unit] =
     ZManaged.whenM(b)(managed)
 
-  private[zio] def dieNow(t: Throwable): Managed[Nothing, Nothing] =
-    ZManaged.dieNow(t)
-
-  private[zio] def failNow[E](error: E): Managed[E, Nothing] =
-    ZManaged.failNow(error)
-
-  private[zio] def haltNow[E](cause: Cause[E]): Managed[E, Nothing] =
-    ZManaged.haltNow(cause)
-
-  private[zio] def doneNow[E, A](r: Exit[E, A]): Managed[E, A] =
-    ZManaged.doneNow(r)
-
   private[zio] def succeedNow[A](r: A): Managed[Nothing, A] =
     ZManaged.succeedNow(r)
 }

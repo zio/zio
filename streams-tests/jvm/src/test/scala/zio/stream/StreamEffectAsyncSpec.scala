@@ -29,7 +29,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
         for {
           result <- Stream
                      .effectAsyncMaybe[Nothing, Int] { k =>
-                       k(IO.failNow(None))
+                       k(IO.fail(None))
                        None
                      }
                      .runCollect
@@ -59,7 +59,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
               inParallel {
                 // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
                 (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(1)))
-                cb(refDone.set(true) *> ZIO.failNow(None))
+                cb(refDone.set(true) *> ZIO.fail(None))
               }(global)
               None
             },
@@ -96,7 +96,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           result <- Stream
                      .effectAsyncM[Nothing, Int] { k =>
                        inParallel {
-                         k(IO.failNow(None))
+                         k(IO.fail(None))
                        }(global)
                        UIO.unit
                      }
@@ -112,7 +112,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
               inParallel {
                 // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
                 (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(1)))
-                cb(refDone.set(true) *> ZIO.failNow(None))
+                cb(refDone.set(true) *> ZIO.fail(None))
               }(global)
               UIO.unit
             },
@@ -155,7 +155,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           result <- Stream
                      .effectAsyncInterrupt[Nothing, Int] { k =>
                        inParallel {
-                         k(IO.failNow(None))
+                         k(IO.fail(None))
                        }(global)
                        Left(UIO.succeedNow(()))
                      }
@@ -172,7 +172,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
               inParallel {
                 // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
                 (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(1)))
-                cb(refDone.set(true) *> ZIO.failNow(None))
+                cb(refDone.set(true) *> ZIO.fail(None))
               }(global)
               Left(UIO.unit)
             },

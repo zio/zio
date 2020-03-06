@@ -677,7 +677,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     testM("queue mapM with failure") {
       for {
         q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
-        _ <- q.offer(IO.failNow("Ouch"))
+        _ <- q.offer(IO.fail("Ouch"))
         v <- q.take.run
       } yield assert(v)(fails(equalTo("Ouch")))
     },

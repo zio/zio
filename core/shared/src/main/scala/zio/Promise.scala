@@ -76,13 +76,13 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def die(e: Throwable): UIO[Boolean] = completeWith(IO.dieNow(e))
+  def die(e: Throwable): UIO[Boolean] = completeWith(IO.die(e))
 
   /**
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.doneNow(e))
+  def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.done(e))
 
   /**
    * Completes the promise with the result of the specified effect. If the
@@ -137,13 +137,13 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def fail(e: E): UIO[Boolean] = completeWith(IO.failNow(e))
+  def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.haltNow(e))
+  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.halt(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers

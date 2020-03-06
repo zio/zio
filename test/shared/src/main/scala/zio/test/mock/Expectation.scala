@@ -104,7 +104,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
         state.callsRef.get
           .filterOrElse[Any, Nothing, Any](_.isEmpty) { calls =>
             val expectations = calls.map(call => call.method -> call.assertion)
-            ZIO.dieNow(UnmetExpectationsException(expectations))
+            ZIO.die(UnmetExpectationsException(expectations))
           }
 
     val makeEnvironment =
@@ -131,7 +131,7 @@ object Expectation {
   /**
    * Returns a return expectation to fail with `E`.
    */
-  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.failNow(failure))
+  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
 
   /**
    * Maps the input arguments `I` to a return expectation to fail with `E`.
