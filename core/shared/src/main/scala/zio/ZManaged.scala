@@ -1903,7 +1903,7 @@ object ZManaged {
   /**
    * Lifts a lazy, pure value into a Managed.
    */
-  def succeed[R, A](r: => A): ZManaged[R, Nothing, A] =
+  def succeed[A](r: => A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow(Reservation(IO.succeed(r), _ => IO.unit)))
 
   /**
@@ -2021,6 +2021,6 @@ object ZManaged {
   private[zio] def haltNow[E](cause: Cause[E]): ZManaged[Any, E, Nothing] =
     ZManaged.fromEffect(ZIO.haltNow(cause))
 
-  private[zio] def succeedNow[R, A](r: A): ZManaged[R, Nothing, A] =
+  private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
 }
