@@ -28,7 +28,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val result = roundtrip.orDie.as(0)
 
         assertM(Live.live(result))(equalTo(0))
-      } @@ jvmOnly @@ nonFlaky @@ tag("supervision", "regression"),
+      } @@ nonFlaky @@ tag("supervision", "regression"),
       testM("auto-kill regression 2") {
         val effect = clock.currentDateTime.map(_.toString()).delay(10.millisecond)
 
@@ -40,7 +40,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val result = roundtrip.orDie.forever
 
         assertM(Live.live(result.timeout(1.seconds)))(isNone)
-      } @@ jvmOnly @@ tag("supervision", "regression"),
+      } @@ tag("supervision", "regression"),
       testM("roundtrip preserves interruptibility") {
         for {
           start <- Promise.make[Nothing, Unit]
@@ -50,7 +50,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           _     <- fiber.interrupt
           value <- end.await
         } yield assert(value)(equalTo(42))
-      } @@ jvmOnly @@ nonFlaky,
+      } @@ nonFlaky,
       testM("survives roundtrip without being auto-killed") {
         val exception = new Exception("Uh oh")
         val value     = 42
@@ -59,7 +59,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           failure <- roundtrip(ZIO.fail(exception)).either
           success <- roundtrip(ZIO.succeed(value)).either
         } yield assert(failure)(isLeft(equalTo(exception))) && assert(success)(isRight(equalTo(value)))
-      } @@ jvmOnly @@ tag("supervision") @@ nonFlaky,
+      } @@ tag("supervision") @@ nonFlaky,
       testM("interrupts the underlying task on cancel") {
         for {
           p  <- Promise.make[Nothing, Unit]

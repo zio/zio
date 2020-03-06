@@ -10,7 +10,7 @@ import zio.duration._
 import zio.internal.Platform
 import zio.random.Random
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, forked, ignore, jvm, nonFlaky, scala2Only }
+import zio.test.TestAspect.{ flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only }
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
@@ -1773,7 +1773,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val effect = ZIO.unit.uninterruptible.forever
 
         assertM(Live.live(effect.timeout(1.second)))(isNone)
-      },
+      } @@ jvmOnly,
       testM("catchAllCause") {
         val io =
           for {
