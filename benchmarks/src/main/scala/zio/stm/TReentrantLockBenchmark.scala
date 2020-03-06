@@ -84,7 +84,7 @@ class TReentrantLockBenchmark {
 
   def readData: UIO[Int] = ZIO.succeed(data.getOrElse(rnd.nextInt(dataSize), 0))
 
-  def writeData: UIO[Map[Int, Int]] = ZIO.succeed {
+  def writeData: UIO[Map[Int, Int]] = UIO {
     lazy val nrnd = rnd.nextInt(dataSize)
     data.updated(nrnd, nrnd)
   }
