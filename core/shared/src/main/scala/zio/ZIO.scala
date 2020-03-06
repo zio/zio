@@ -2343,7 +2343,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * returns the results in a new `Chunk[B]`.
    *
    * For a parallel version of this method, see `foreachPar`.
-   * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
   final def foreach_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     as.mapM_(f)
