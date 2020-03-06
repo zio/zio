@@ -1371,6 +1371,7 @@ object ZManaged {
    * returns the results in a new `List[B]`.
    *
    * For a parallel version of this method, see `foreachPar`.
+   * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
   def foreach[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
     as.foldRight[ZManaged[R, E, List[A2]]](succeedNow(Nil))((a, m) => f(a).zipWith(m)(_ :: _))
@@ -1903,7 +1904,7 @@ object ZManaged {
   /**
    * Lifts a lazy, pure value into a Managed.
    */
-  def succeed[R, A](r: => A): ZManaged[R, Nothing, A] =
+  def succeed[A](r: => A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow(Reservation(IO.succeed(r), _ => IO.unit)))
 
   /**
@@ -2009,6 +2010,6 @@ object ZManaged {
   def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     b.flatMap(b => if (b) zManaged.unit else unit)
 
-  private[zio] def succeedNow[R, A](r: A): ZManaged[R, Nothing, A] =
+  private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
 }

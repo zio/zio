@@ -1363,7 +1363,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("collect")(
       testM("collectM maps value, if PF matched") {
-        val managed = ZManaged.succeedNow[Any, Int](42).collectM("Oh No!") {
+        val managed = ZManaged.succeedNow(42).collectM("Oh No!") {
           case 42 => ZManaged.succeedNow(84)
         }
         val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeedNow)
@@ -1371,7 +1371,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         assertM(effect)(equalTo(84))
       },
       testM("collectM produces given error, if PF not matched") {
-        val managed = ZManaged.succeedNow[Any, Int](42).collectM("Oh No!") {
+        val managed = ZManaged.succeedNow(42).collectM("Oh No!") {
           case 43 => ZManaged.succeedNow(84)
         }
         val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeedNow)
