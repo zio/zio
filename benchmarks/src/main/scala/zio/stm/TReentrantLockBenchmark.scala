@@ -82,7 +82,7 @@ class TReentrantLockBenchmark {
     unsafeRun(io)
   }
 
-  def readData: UIO[Int] = ZIO.succeed(data.getOrElse(rnd.nextInt(dataSize), 0))
+  def readData: UIO[Int] = UIO(data.getOrElse(rnd.nextInt(dataSize), 0))
 
   def writeData: UIO[Map[Int, Int]] = UIO {
     lazy val nrnd = rnd.nextInt(dataSize)
