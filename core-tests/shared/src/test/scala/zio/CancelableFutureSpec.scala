@@ -28,7 +28,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val result = roundtrip.orDie.as(0)
 
         assertM(Live.live(result))(equalTo(0))
-      } @@ tag("supervision", "regression") @@ nonFlaky,
+      } @@ jvm(nonFlaky) @@ tag("supervision", "regression"),
       testM("auto-kill regression 2") {
         val effect = clock.currentDateTime.map(_.toString()).delay(10.millisecond)
 
@@ -40,7 +40,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val result = roundtrip.orDie.forever
 
         assertM(Live.live(result.timeout(1.seconds)))(isNone)
-      } @@ tag("supervision", "regression"),
+      } @@ jvmOnly @@ tag("supervision", "regression"),
       testM("roundtrip preserves interruptibility") {
         for {
           start <- Promise.make[Nothing, Unit]
