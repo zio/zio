@@ -177,7 +177,7 @@ sealed trait Fiber[+E, +A] { self =>
    *
    * @return `IO[E, A]`
    */
-  final def join: IO[E, A] = await.flatMap(IO.doneNow) <* inheritRefs
+  final def join: IO[E, A] = await.flatMap(IO.done(_)) <* inheritRefs
 
   /**
    * Maps over the value the Fiber computes.
@@ -378,7 +378,7 @@ sealed trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber.Synthetic[E1, C] =
     new Fiber.Synthetic[E1, C] {
       final def await: UIO[Exit[E1, C]] =
-        self.await.flatMap(IO.doneNow).zipWithPar(that.await.flatMap(IO.doneNow))(f).run
+        self.await.flatMap(IO.done(_)).zipWithPar(that.await.flatMap(IO.done(_)))(f).run
 
       final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
 
@@ -576,7 +576,7 @@ object Fiber extends FiberPlatformSpecific {
   def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber.Synthetic[E, List[A]] =
     new Fiber.Synthetic[E, List[A]] {
       def await: UIO[Exit[E, List[A]]] =
-        IO.foreachPar(fibers)(_.await.flatMap(IO.doneNow)).run
+        IO.foreachPar(fibers)(_.await.flatMap(IO.done(_))).run
       def children: UIO[Iterable[Fiber[Any, Any]]] =
         UIO.foreach(fibers)(_.children).map(_.foldRight(Iterable.empty[Fiber[Any, Any]])(_ ++ _))
       def getRef[A](ref: FiberRef[A]): UIO[A] =

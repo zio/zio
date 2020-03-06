@@ -1201,7 +1201,7 @@ package object environment extends PlatformSpecific {
 
       private def randomInt(n: Int): UIO[Int] =
         if (n <= 0)
-          UIO.dieNow(new IllegalArgumentException("n must be positive"))
+          UIO.die(new IllegalArgumentException("n must be positive"))
         else if ((n & -n) == n)
           randomBits(31).map(_ >> Integer.numberOfLeadingZeros(n))
         else {

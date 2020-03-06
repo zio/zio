@@ -99,7 +99,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       spec.caseValue match {
         case SuiteCase(label, specs, exec) =>
           specs.foldCauseM(
-            c => ZIO.succeedNow(Some(Spec.suite(label, ZIO.haltNow(c), exec))),
+            c => ZIO.succeedNow(Some(Spec.suite(label, ZIO.halt(c), exec))),
             ZIO.foreach(_)(loop).map(_.toVector.flatten).map { specs =>
               if (specs.isEmpty) None
               else Some(Spec.suite(label, ZIO.succeedNow(specs), exec))
@@ -135,7 +135,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
             ZIO.succeedNow(Some(Spec.suite(label, specs, exec)))
           else
             specs.foldCauseM(
-              c => ZIO.succeedNow(Some(Spec.suite(label, ZIO.haltNow(c), exec))),
+              c => ZIO.succeedNow(Some(Spec.suite(label, ZIO.halt(c), exec))),
               ZIO.foreach(_)(loop).map(_.toVector.flatten).map { specs =>
                 if (specs.isEmpty) None
                 else Some(Spec.suite(label, ZIO.succeedNow(specs), exec))
@@ -184,21 +184,21 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
         exec.getOrElse(defExec) match {
           case ExecutionStrategy.Parallel =>
             specs.foldCauseM(
-              c => f(SuiteCase(label, ZIO.haltNow(c), exec)),
+              c => f(SuiteCase(label, ZIO.halt(c), exec)),
               ZIO
                 .foreachPar(_)(_.foldM(defExec)(f))
                 .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
             )
           case ExecutionStrategy.ParallelN(n) =>
             specs.foldCauseM(
-              c => f(SuiteCase(label, ZIO.haltNow(c), exec)),
+              c => f(SuiteCase(label, ZIO.halt(c), exec)),
               ZIO
                 .foreachParN(n)(_)(_.foldM(defExec)(f))
                 .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
             )
           case ExecutionStrategy.Sequential =>
             specs.foldCauseM(
-              c => f(SuiteCase(label, ZIO.haltNow(c), exec)),
+              c => f(SuiteCase(label, ZIO.halt(c), exec)),
               ZIO
                 .foreach(_)(_.foldM(defExec)(f))
                 .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
@@ -357,10 +357,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       spec.caseValue match {
         case SuiteCase(label, specs, exec) =>
           specs.provide(r).run.map { result =>
-            Spec.suite(label, ZIO.doneNow(result).flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector), exec)
+            Spec.suite(label, ZIO.done(result).flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector), exec)
           }
         case TestCase(label, test, annotations) =>
-          test.provide(r).run.map(result => Spec.test(label, ZIO.doneNow(result), annotations))
+          test.provide(r).run.map(result => Spec.test(label, ZIO.done(result), annotations))
       }
     caseValue match {
       case SuiteCase(label, specs, exec) =>

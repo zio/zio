@@ -67,7 +67,7 @@ package object random {
 
     protected[zio] def nextLongWith(nextLong: UIO[Long], n: Long): UIO[Long] =
       if (n <= 0)
-        UIO.dieNow(new IllegalArgumentException("n must be positive"))
+        UIO.die(new IllegalArgumentException("n must be positive"))
       else {
         nextLong.flatMap { r =>
           val m = n - 1

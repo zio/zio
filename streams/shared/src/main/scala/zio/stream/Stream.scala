@@ -369,15 +369,6 @@ object Stream extends Serializable {
   ): Stream[E, F] =
     ZStream.zipN(stream1, stream2, stream3, stream4)(f)
 
-  private[zio] def dieNow(ex: Throwable): Stream[Nothing, Nothing] =
-    ZStream.dieNow(ex)
-
-  private[zio] def failNow[E](error: E): Stream[E, Nothing] =
-    ZStream.failNow(error)
-
-  private[zio] def haltNow[E](cause: Cause[E]): Stream[E, Nothing] =
-    ZStream.haltNow(cause)
-
   private[zio] def succeedNow[A](a: A): Stream[Nothing, A] =
     ZStream.succeedNow(a)
 }

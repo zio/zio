@@ -54,7 +54,7 @@ trait TimeoutVariants {
     duration: Duration
   ): ZTest[R with Live, E] =
     test.raceWith(Live.withLive(showWarning(suiteLabels, testLabel, duration))(_.delay(duration)))(
-      (result, fiber) => fiber.interrupt *> ZIO.doneNow(result),
+      (result, fiber) => fiber.interrupt *> ZIO.done(result),
       (_, fiber) => fiber.join
     )
 

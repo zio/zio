@@ -311,15 +311,6 @@ object Sink extends Serializable {
   val utf8DecodeChunk: Sink[Nothing, Chunk[Byte], Chunk[Byte], String] =
     ZSink.utf8DecodeChunk
 
-  private[zio] def dieNow(e: Throwable): Sink[Nothing, Nothing, Any, Nothing] =
-    ZSink.dieNow(e)
-
-  private[zio] def failNow[E](e: E): Sink[E, Nothing, Any, Nothing] =
-    ZSink.failNow(e)
-
-  private[zio] def haltNow[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
-    ZSink.haltNow(e)
-
   private[zio] def succeedNow[A, B](b: B): Sink[Nothing, A, A, B] =
     ZSink.succeedNow(b)
 }
