@@ -1767,7 +1767,12 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("timeout a long computation") {
         val io = (clock.sleep(5.seconds) *> IO.succeedNow(true)).timeout(10.millis)
-        assertM(io.provideLayer(Clock.live))(isNone)
+        assertM(Live.live(io))(isNone)
+      },
+      testM("timeout repetition of uninterruptible effect") {
+        val effect = ZIO.unit.uninterruptible.forever
+
+        assertM(Live.live(effect.timeout(1.second)))(isNone)
       },
       testM("catchAllCause") {
         val io =
