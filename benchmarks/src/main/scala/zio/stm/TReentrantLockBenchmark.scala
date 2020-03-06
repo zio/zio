@@ -93,7 +93,7 @@ class TReentrantLockBenchmark {
 
     def readLock: ZManaged[Any, Nothing, Long] = {
       val unlock = stamp => jLock.unlockRead(stamp)
-      Managed.makeEffect(jLock.readLock())(unlock).refineToOrDie
+      Managed.makeEffect(jLock.readLock())(unlock).orDie
     }
 
     def writeLock: ZManaged[Any, Nothing, Long] = {
