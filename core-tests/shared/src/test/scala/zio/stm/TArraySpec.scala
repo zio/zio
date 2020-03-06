@@ -15,9 +15,9 @@
  */
 package zio.stm
 
+import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
-import zio.{ ZIO, ZIOBaseSpec }
 
 object TArraySpec extends ZIOBaseSpec {
 
@@ -33,8 +33,8 @@ object TArraySpec extends ZIOBaseSpec {
       testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
         for {
           tArray <- makeTArray(1)(42).commit
-          result <- ZIO.effect(tArray(-1)).run
-        } yield assert(result)(fails(isArrayIndexOutOfBoundsException))
+          result <- tArray(-1).commit.run
+        } yield assert(result)(dies(isArrayIndexOutOfBoundsException))
       }
     ),
     suite("collectFirst")(
@@ -746,8 +746,8 @@ object TArraySpec extends ZIOBaseSpec {
       testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
         for {
           tArray <- makeTArray(1)(42).commit
-          result <- ZIO.effect(tArray.update(-1, identity)).run
-        } yield assert(result)(fails(isArrayIndexOutOfBoundsException))
+          result <- tArray.update(-1, identity).commit.run
+        } yield assert(result)(dies(isArrayIndexOutOfBoundsException))
       }
     ),
     suite("updateM")(
@@ -760,8 +760,8 @@ object TArraySpec extends ZIOBaseSpec {
       testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
         for {
           tArray <- makeTArray(10)(0).commit
-          result <- ZIO.effect(tArray.updateM(10, STM.succeedNow)).run
-        } yield assert(result)(fails(isArrayIndexOutOfBoundsException))
+          result <- tArray.updateM(10, STM.succeedNow).commit.run
+        } yield assert(result)(dies(isArrayIndexOutOfBoundsException))
       },
       testM("updateM failure") {
         for {
