@@ -1440,7 +1440,7 @@ object StreamSpec extends ZIOBaseSpec {
 
         assertM(
           s1.mergeWith(s2)(_.toString, _.toString)
-            .run(Sink.succeedNow[String, String]("done"))
+            .run(Sink.succeedNow("done"))
         )(equalTo("done"))
       },
       testM("mergeWith prioritizes failure") {

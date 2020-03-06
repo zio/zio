@@ -265,8 +265,8 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.succeed]]
    */
-  def succeed[A, B](b: => B): Sink[Nothing, A, A, B] =
-    ZSink.succeed(b)
+  def succeed[A](a: => A): Sink[Nothing, Nothing, Any, A] =
+    ZSink.succeed(a)
 
   /**
    * see [[ZSink.sum]]
@@ -320,6 +320,6 @@ object Sink extends Serializable {
   private[zio] def haltNow[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
     ZSink.haltNow(e)
 
-  private[zio] def succeedNow[A, B](b: B): Sink[Nothing, A, A, B] =
-    ZSink.succeedNow(b)
+  private[zio] def succeedNow[A](a: A): Sink[Nothing, Nothing, Any, A] =
+    ZSink.succeedNow(a)
 }
