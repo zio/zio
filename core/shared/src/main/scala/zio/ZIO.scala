@@ -382,7 +382,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect whose interruption will be disconnected from the
    * fiber's own interruption.
    */
-  final def disconnect: ZIO[R, E, A] = self.fork(SuperviseMode.InterruptFork).flatMap(_.join)
+  final def disconnect: ZIO[R, E, A] = 
+    ZIO.uninterruptibleMask(restore =>
+      for {
+        id    <- ZIO.fiberId 
+        fiber <- restore(self).forkDaemon
+        a     <- restore(fiber.join).onInterrupt(fiber.interruptAs(id).forkDaemon)
+      } yield a
+    )
 
   /**
    * Repeats this effect until its result satisfies the specified predicate.
