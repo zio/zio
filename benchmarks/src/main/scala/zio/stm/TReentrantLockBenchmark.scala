@@ -98,7 +98,7 @@ class TReentrantLockBenchmark {
 
     def writeLock: ZManaged[Any, Nothing, Long] = {
       val unlock = stamp => jLock.unlockWrite(stamp)
-      Managed.makeEffect(jLock.writeLock())(unlock).refineToOrDie
+      Managed.makeEffect(jLock.writeLock())(unlock).orDie
     }
   }
 }
