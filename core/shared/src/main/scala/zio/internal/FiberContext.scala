@@ -38,7 +38,6 @@ private[zio] final class FiberContext[E, A](
   startEnv: AnyRef,
   startExec: Executor,
   startIStatus: InterruptStatus,
-  private val superviseMode: SuperviseMode,
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals
@@ -223,8 +222,8 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], race.leftSuperviseMode)
-    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], race.rightSuperviseMode)
+    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]])
+    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]])
 
     ZIO
       .effectAsync[R, E, C] { cb =>
@@ -487,7 +486,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = nextInstr(fork(zio.value, zio.superviseMode))
+                    curZio = nextInstr(fork(zio.value))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
@@ -636,7 +635,7 @@ private[zio] final class FiberContext[E, A](
   /**
    * Forks an `IO` with the specified failure handler.
    */
-  def fork[E, A](zio: IO[E, A], superviseMode: SuperviseMode): FiberContext[E, A] = {
+  def fork[E, A](zio: IO[E, A]): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
     childFiberRefLocals.putAll(fiberRefLocals)
 
@@ -651,7 +650,6 @@ private[zio] final class FiberContext[E, A](
       environments.peek(),
       executors.peek(),
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
-      superviseMode,
       ancestry,
       tracingRegion,
       childFiberRefLocals
@@ -867,13 +865,7 @@ private[zio] final class FiberContext[E, A](
 
             withChildren(_.clear())
 
-            ZIO.foreach_(children) { child =>
-              child.superviseMode match {
-                case SuperviseMode.Disown        => UIO(Fiber.track(child))
-                case SuperviseMode.Interrupt     => child.interruptAs(fiberId)
-                case SuperviseMode.InterruptFork => child.interruptAs(fiberId).forkDaemon
-              }
-            }
+            ZIO.foreach_(children)(_.interruptAs(fiberId))
           }
 
           completeAll *> ZIO.done(v)
