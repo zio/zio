@@ -32,11 +32,8 @@ package object clock {
       def sleep(duration: Duration): UIO[Unit]
     }
 
-    val any: ZLayer[Clock, Nothing, Clock] =
-      ZLayer.requires[Clock]
-
-    val live: ZLayer.NoDeps[Nothing, Clock] = ZLayer.succeed {
-      new Service {
+    object Service {
+      val live: Service = new Service {
         def currentTime(unit: TimeUnit): UIO[Long] =
           IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
@@ -56,6 +53,12 @@ package object clock {
 
       }
     }
+
+    val any: ZLayer[Clock, Nothing, Clock] =
+      ZLayer.requires[Clock]
+
+    val live: ZLayer.NoDeps[Nothing, Clock] =
+      ZLayer.succeed(Service.live)
   }
 
   /**
