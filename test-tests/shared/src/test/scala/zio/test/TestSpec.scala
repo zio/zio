@@ -14,7 +14,7 @@ object TestSpec extends ZIOBaseSpec {
     },
     testM("testM error is test failure") {
       for {
-        _      <- ZIO.failNow("fail")
+        _      <- ZIO.fail("fail")
         result <- ZIO.succeedNow("succeed")
       } yield assert(result)(equalTo("succeed"))
     } @@ failure,

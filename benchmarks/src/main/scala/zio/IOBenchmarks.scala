@@ -30,7 +30,7 @@ object IOBenchmarks extends BootstrapRuntime {
     else zio *> repeat(n - 1)(zio)
 
   def verify(cond: Boolean)(message: => String): IO[AssertionError, Unit] =
-    ZIO.when(!cond)(IO.failNow(new AssertionError(message)))
+    ZIO.when(!cond)(IO.fail(new AssertionError(message)))
 
   def catsForkAll[A](as: Iterable[CIO[A]]): CIO[CFiber[CIO, List[A]]] = {
     type Fiber[A] = CFiber[CIO, A]

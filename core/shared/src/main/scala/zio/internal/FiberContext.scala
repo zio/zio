@@ -346,7 +346,7 @@ private[zio] final class FiberContext[E, A](
                           try effect()
                           catch {
                             case t: Throwable if !platform.fatal(t) =>
-                              failIO = ZIO.failNow(t.asInstanceOf[E])
+                              failIO = ZIO.fail(t.asInstanceOf[E])
                           }
 
                         if (failIO eq null) {
@@ -459,7 +459,7 @@ private[zio] final class FiberContext[E, A](
                       try effect()
                       catch {
                         case t: Throwable if !platform.fatal(t) =>
-                          nextIo = ZIO.failNow(t.asInstanceOf[E])
+                          nextIo = ZIO.fail(t.asInstanceOf[E])
                       }
                     if (nextIo eq null) curZio = nextInstr(value)
                     else curZio = nextIo
@@ -539,7 +539,7 @@ private[zio] final class FiberContext[E, A](
                     curZio =
                       try k(platform, fiberId).asInstanceOf[ZIO[Any, E, Any]]
                       catch {
-                        case t: Throwable if !platform.fatal(t) => ZIO.failNow(t.asInstanceOf[E])
+                        case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
                       }
 
                   case ZIO.Tags.EffectSuspendTotalWith =>
@@ -588,7 +588,7 @@ private[zio] final class FiberContext[E, A](
               }
             } else {
               // Fiber was interrupted
-              curZio = ZIO.haltNow(state.get.interrupted)
+              curZio = ZIO.halt(state.get.interrupted)
 
               // Prevent interruption of interruption:
               setInterrupting(true)
@@ -611,7 +611,7 @@ private[zio] final class FiberContext[E, A](
               else {
                 setInterrupting(true)
 
-                ZIO.dieNow(t)
+                ZIO.die(t)
               }
         }
       }
@@ -700,7 +700,7 @@ private[zio] final class FiberContext[E, A](
   @silent("JavaConverters")
   private def childrenToScala(): Iterable[FiberContext[Any, Any]] = withChildren(_.asScala.toSet.filter(_ ne null))
 
-  def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]](k => observe0(x => k(ZIO.doneNow(x))))
+  def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]](k => observe0(x => k(ZIO.done(x))))
 
   def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
     val oldValue = Option(fiberRefLocals.get(ref))
@@ -746,7 +746,7 @@ private[zio] final class FiberContext[E, A](
         else if (shouldInterrupt()) {
           // Fiber interrupted, so go back into running state:
           exitAsync(epoch)
-          ZIO.haltNow(state.get.interrupted)
+          ZIO.halt(state.get.interrupted)
         } else null
 
       case _ => throw new RuntimeException(s"Unexpected fiber completion ${fiberId}")

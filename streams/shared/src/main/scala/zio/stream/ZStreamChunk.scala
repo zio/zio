@@ -83,7 +83,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   final def catchAll[R1 <: R, E2, A1 >: A](
     f: E => ZStreamChunk[R1, E2, A1]
   )(implicit ev: CanFail[E]): ZStreamChunk[R1, E2, A1] =
-    self.catchAllCause(_.failureOrCause.fold(f, c => ZStreamChunk(ZStream.haltNow(c))))
+    self.catchAllCause(_.failureOrCause.fold(f, c => ZStreamChunk(ZStream.halt(c))))
 
   /**
    * Switches over to the stream produced by the provided function in case this one
@@ -114,7 +114,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
                     {
                       case None if chunk0.length == 0 => Pull.end
                       case None                       => Pull.emitNow(chunk0) <* state.set(true -> Chunk.empty)
-                      case e @ Some(_)                => ZIO.failNow(e)
+                      case e @ Some(_)                => ZIO.fail(e)
                     },
                     xs =>
                       state.modify {
@@ -661,13 +661,13 @@ object ZStreamChunk {
     new StreamEffectChunk(StreamEffect.fromIterable(as))
 
   /**
-   * Creates a `ZStreamChunk` from an eagerly evaluated chunk
+   * Creates a `ZStreamChunk` from a lazily evaluated chunk
    */
   def succeed[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
     new StreamEffectChunk(StreamEffect.succeed(as))
 
   /**
-   * Creates a `ZStreamChunk` from a lazily evaluated chunk
+   * Creates a `ZStreamChunk` from an eagerly evaluated chunk
    */
   private[zio] def succeedNow[A](as: Chunk[A]): StreamChunk[Nothing, A] =
     succeed(as)
