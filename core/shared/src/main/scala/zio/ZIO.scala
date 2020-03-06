@@ -2301,6 +2301,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * returns the results in a new `List[B]`.
    *
    * For a parallel version of this method, see `foreachPar`.
+   * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
   def foreach[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     in.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil))((a, io) => f(a).zipWith(io)((b, bs) => b :: bs))
@@ -2317,6 +2318,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * returns the results in a new `Chunk[B]`.
    *
    * For a parallel version of this method, see `foreachPar`.
+   * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
   final def foreach[R, E, A, B](in: Chunk[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
     in.mapM(f)
@@ -2341,6 +2343,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * returns the results in a new `Chunk[B]`.
    *
    * For a parallel version of this method, see `foreachPar`.
+   * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
   final def foreach_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     as.mapM_(f)
