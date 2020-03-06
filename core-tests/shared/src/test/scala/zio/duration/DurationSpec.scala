@@ -23,7 +23,7 @@ object DurationSpec extends ZIOBaseSpec {
         assert(Duration.fromNanos(1) * -1.0)(equalTo(Duration.Zero: Duration))
       },
       test("Its stdlib representation is correct and matches type") {
-        val duration: ScalaFiniteDuration = Duration.fromNanos(1234L).asScala
+        val duration: ScalaFiniteDuration = Duration.Finite(1234L).asScala
         val expected: ScalaFiniteDuration = ScalaFiniteDuration(1234L, TimeUnit.NANOSECONDS)
         assert(duration)(equalTo(expected))
       },
@@ -80,6 +80,10 @@ object DurationSpec extends ZIOBaseSpec {
       },
       test("Folding picks up the correct value") {
         assert(Duration.fromNanos(Long.MaxValue).fold("Infinity", _ => "Finite"))(equalTo("Finite"))
+      },
+      test("Durations can be accumulated") {
+        val durations = List(1.second, 2.seconds, 3.seconds)
+        assert(durations.foldLeft(Duration.Zero)(_ + _))(equalTo(6.seconds))
       }
     ),
     suite("Make a Duration from negative nanos and check that:")(
