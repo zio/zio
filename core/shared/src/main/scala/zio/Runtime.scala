@@ -124,8 +124,8 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be used at the edges of your program.
    */
-  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): CancelableFuture[A] =
-    unsafeRun(io.toFuture)
+  final def unsafeRunToFuture[E <: Throwable, A](zio: ZIO[R, E, A]): CancelableFuture[A] =
+    unsafeRun(zio.forkDaemon >>= (_.toFuture))
 
   /**
    * Constructs a new `Runtime` with the specified new environment.

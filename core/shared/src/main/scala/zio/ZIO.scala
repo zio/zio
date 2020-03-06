@@ -2560,13 +2560,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     Task.descriptorWith { d =>
       val ec = d.executor.asEC
       ZIO.effect(make(ec)).flatMap { f =>
+        val canceler: UIO[Unit] = f match {
+          case cancelable: CancelableFuture[A] =>
+            UIO.effectSuspendTotal(if (f.isCompleted) ZIO.unit else ZIO.fromFuture(_ => cancelable.cancel()).ignore)
+          case _ => ZIO.unit
+        }
+
         f.value
           .fold(
-            Task.effectAsync { (k: Task[A] => Unit) =>
+            Task.effectAsyncInterrupt { (k: Task[A] => Unit) =>
               f.onComplete {
                 case Success(a) => k(Task.succeedNow(a))
                 case Failure(t) => k(Task.fail(t))
               }(ec)
+
+              Left(canceler)
             }
           )(Task.fromTry(_))
       }
@@ -3233,7 +3241,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
-      (self map f) raceFirst (ZIO.sleep(duration) as b)
+      (self map f) raceFirst (ZIO.sleep(duration) as b) // TODO: Make right-hand side interruptible?
   }
 
   final class BracketAcquire_[-R, +E](private val acquire: ZIO[R, E, Any]) extends AnyVal {
