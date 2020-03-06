@@ -2558,13 +2558,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     Task.descriptorWith { d =>
       val ec = d.executor.asEC
       ZIO.effect(make(ec)).flatMap { f =>
+        val canceler: UIO[Unit] = f match {
+          case cancelable: CancelableFuture[A] =>
+            UIO.effectSuspendTotal(if (f.isCompleted) ZIO.unit else ZIO.fromFuture(_ => cancelable.cancel()).ignore)
+          case _ => ZIO.unit
+        }
+
         f.value
           .fold(
-            Task.effectAsync { (k: Task[A] => Unit) =>
+            Task.effectAsyncInterrupt { (k: Task[A] => Unit) =>
               f.onComplete {
                 case Success(a) => k(Task.succeedNow(a))
                 case Failure(t) => k(Task.failNow(t))
               }(ec)
+
+              Left(canceler)
             }
           )(Task.fromTry(_))
       }

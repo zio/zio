@@ -1,56 +1,83 @@
 package zio
 
+import zio.clock.Clock
+import zio.console._
+import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
+import zio.test.environment._
 
 object CancelableFutureSpec extends ZIOBaseSpec {
+  def roundtrip[R, A](zio: RIO[R, A]): RIO[R, A] =
+    for {
+      future <- zio.toFuture
+      a      <- RIO.fromFuture(_ => future)
+    } yield a
 
-  def spec = suite("CancelableFutureSpec")(
-    testM("interrupts the underlying task on cancel 2") {
-      for {
-        p  <- Promise.make[Nothing, Unit]
-        p2 <- Promise.make[Nothing, Int]
-        f <- (p.succeed(()) *> IO.never)
-              .onInterrupt(p2.succeed(42))
-              .fork
-        _    <- p.await
-        _    <- f.interrupt
-        test <- p2.await
-      } yield assert(test)(equalTo(42))
-    } @@ nonFlaky,
-    testM("interrupts the underlying task on cancel") {
-      for {
-        p  <- Promise.make[Nothing, Unit]
-        p2 <- Promise.make[Nothing, Int]
-        f <- (p.succeed(()) *> IO.never)
-              .onInterrupt(p2.succeed(42))
-              .toFuture
-        _    <- p.await
-        _    <- ZIO.fromFuture(_ => f.cancel())
-        test <- p2.await
-      } yield assert(test)(equalTo(42))
-    } @@ nonFlaky,
-    testM("cancel returns the exit reason") {
-      val t = new Exception("test")
+  def spec =
+    suite("CancelableFutureSpec")(
+      testM("auto-kill regression") {
+        val effect = ZIO.unit.delay(1.millisecond)
 
-      for {
-        p1 <- Promise.make[Nothing, Unit]
-        p2 <- Promise.make[Nothing, Unit]
-        f1 <- (ZIO.succeedNow(42) <* p1.succeed(())).toFuture
-        f2 <- ZIO.failNow(t).onError(_ => p2.succeed(())).toFuture
-        _  <- p1.await *> p2.await
-        e1 <- ZIO.fromFuture(_ => f1.cancel())
-        e2 <- ZIO.fromFuture(_ => f2.cancel())
-      } yield assert(e1.succeeded)(isTrue) && assert(e2.succeeded)(isFalse)
-    },
-    testM("is a scala.concurrent.Future") {
-      for {
-        f <- ZIO(42).toFuture
-        v <- ZIO.fromFuture(_ => f)
-      } yield {
-        assert(v)(equalTo(42))
+        val roundtrip = for {
+          rt <- ZIO.runtime[Console with Clock]
+          _  <- Task.fromFuture(_ => rt.unsafeRunToFuture(effect))
+        } yield ()
+
+        val result = roundtrip.orDie.as(0)
+
+        assertM(Live.live(result))(equalTo(0))
+      } @@ tag("supervision", "regression") @@ nonFlaky,
+      testM("roundtrip preserves interruptibility") {
+        for {
+          latch <- Promise.make[Nothing, Int]
+          fiber <- roundtrip(ZIO.infinity.onInterrupt(latch.succeed(42))).fork
+          _     <- fiber.interrupt
+          value <- latch.await
+        } yield assert(value)(equalTo(42))
+      },
+      testM("survives roundtrip without being auto-killed") {
+        val exception = new Exception("Uh oh")
+        val value     = 42
+
+        for {
+          failure <- roundtrip(ZIO.fail(exception)).either
+          success <- roundtrip(ZIO.succeed(value)).either
+        } yield assert(failure)(isLeft(equalTo(exception))) && assert(success)(isRight(equalTo(value)))
+      } @@ tag("supervision") @@ nonFlaky,
+      testM("interrupts the underlying task on cancel") {
+        for {
+          p  <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Int]
+          f <- (p.succeed(()) *> IO.never)
+                .onInterrupt(p2.succeed(42))
+                .toFuture
+          _    <- p.await
+          _    <- ZIO.fromFuture(_ => f.cancel())
+          test <- p2.await
+        } yield assert(test)(equalTo(42))
+      } @@ nonFlaky,
+      testM("cancel returns the exit reason") {
+        val t = new Exception("test")
+
+        for {
+          p1 <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Unit]
+          f1 <- (ZIO.succeedNow(42) <* p1.succeed(())).toFuture
+          f2 <- ZIO.failNow(t).onError(_ => p2.succeed(())).toFuture
+          _  <- p1.await *> p2.await
+          e1 <- ZIO.fromFuture(_ => f1.cancel())
+          e2 <- ZIO.fromFuture(_ => f2.cancel())
+        } yield assert(e1.succeeded)(isTrue) && assert(e2.succeeded)(isFalse)
+      },
+      testM("is a scala.concurrent.Future") {
+        for {
+          f <- ZIO(42).toFuture
+          v <- ZIO.fromFuture(_ => f)
+        } yield {
+          assert(v)(equalTo(42))
+        }
       }
-    }
-  )
+    ) @@ tag("interop", "future")
 }
