@@ -1840,7 +1840,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       type State = Chunk[Any]
       val initialPure                    = Chunk.empty
       def stepPure(state: State, a: Any) = state ++ Chunk(a)
-      def extractPure(state: State)      = Right((a, initialPure))
+      def extractPure(state: State)      = Right((a, Chunk.empty))
       def cont(state: State)             = false
     }
 
