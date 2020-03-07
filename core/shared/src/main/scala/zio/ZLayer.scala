@@ -285,21 +285,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], Nothing, Has[
-    B
-  ]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -307,22 +295,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -330,23 +305,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -354,24 +315,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -379,25 +325,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -405,26 +335,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -432,27 +345,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -460,28 +355,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -489,29 +365,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -519,32 +375,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], Nothing, Has[
-    B
-  ]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -552,33 +385,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -586,34 +395,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -621,35 +405,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -657,36 +415,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -694,37 +425,9 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    A21: Tagged,
-    B: Tagged
-  ](
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -788,18 +491,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
@@ -809,23 +501,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, Has[
-    B
-  ]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -833,24 +511,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -858,25 +521,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -884,26 +531,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -911,27 +541,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -939,28 +551,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -968,29 +561,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -998,30 +571,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1029,31 +581,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1061,34 +591,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, Has[
-    B
-  ]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1096,35 +601,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1132,36 +611,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1169,37 +621,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1207,38 +631,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1246,62 +641,9 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    A21: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20,
-      A21
-    ) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B: Tagged](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZIO[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1372,18 +714,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1394,23 +725,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, Has[
-    B
-  ]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1419,24 +736,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1445,25 +747,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1472,26 +758,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1500,27 +769,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1529,28 +780,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1559,29 +791,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1590,30 +802,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1622,31 +813,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1655,34 +824,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, Has[
-    B
-  ]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1691,35 +835,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1728,36 +846,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1766,37 +857,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B: Tagged](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1805,149 +868,18 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20
-    ) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] =
-    fromServicesManyManaged[
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20,
-      R,
-      E,
-      Has[B]
-    ]((a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) =>
-      f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20).asService
-    )
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B: Tagged](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZManaged[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] =
+    fromServicesManyManaged[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, R, E, Has[B]]((a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) => f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20).asService)
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    A21: Tagged,
-    R,
-    E,
-    B: Tagged
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20,
-      A21
-    ) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B: Tagged](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZManaged[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -2029,17 +961,7 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2050,22 +972,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2074,23 +983,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2099,51 +994,20 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
-
+ 
   /**
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2152,26 +1016,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2180,27 +1027,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2209,28 +1038,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2239,29 +1049,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2270,32 +1060,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[
-    A9
-  ] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2304,33 +1071,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2339,34 +1082,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2375,35 +1093,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2412,36 +1104,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2450,37 +1115,9 @@ object ZLayer {
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services.
    */
-  def fromServicesMany[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    A21: Tagged,
-    B <: Has[_]
-  ](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2551,18 +1188,7 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -2573,19 +1199,7 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -2596,24 +1210,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2622,25 +1221,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2649,26 +1232,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2677,27 +1243,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2706,28 +1254,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2736,29 +1265,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2767,30 +1276,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2799,31 +1287,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2832,32 +1298,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2866,35 +1309,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2903,36 +1320,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2941,37 +1331,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -2980,38 +1342,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -3020,62 +1353,9 @@ object ZLayer {
    * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services.
    */
-  def fromServicesManyM[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    A21: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20,
-      A21
-    ) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] = {
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B <: Has[_]](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZIO[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -3157,9 +1437,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, R, E, B <: Has[
-    _
-  ]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] =
     ZLayer {
@@ -3178,18 +1456,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] =
     ZLayer {
@@ -3209,19 +1476,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, B] =
     ZLayer {
@@ -3242,24 +1497,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3279,25 +1519,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3318,26 +1542,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3359,27 +1566,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3402,28 +1591,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3447,29 +1617,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3494,30 +1644,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3543,31 +1672,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3594,32 +1701,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3647,35 +1731,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3704,36 +1762,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3763,37 +1794,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3824,60 +1827,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20
-    ) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20], E, B] =
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B <: Has[_]](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZManaged[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3909,62 +1861,9 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services.
    */
-  def fromServicesManyManaged[
-    A0: Tagged,
-    A1: Tagged,
-    A2: Tagged,
-    A3: Tagged,
-    A4: Tagged,
-    A5: Tagged,
-    A6: Tagged,
-    A7: Tagged,
-    A8: Tagged,
-    A9: Tagged,
-    A10: Tagged,
-    A11: Tagged,
-    A12: Tagged,
-    A13: Tagged,
-    A14: Tagged,
-    A15: Tagged,
-    A16: Tagged,
-    A17: Tagged,
-    A18: Tagged,
-    A19: Tagged,
-    A20: Tagged,
-    A21: Tagged,
-    R,
-    E,
-    B <: Has[_]
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20,
-      A21
-    ) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
-    A8
-  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[
-    A17
-  ] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] =
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B <: Has[_]](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZManaged[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -4127,147 +2026,54 @@ object ZLayer {
   private def andThen[A0, A1, A2, A3, A4, B, C](f: (A0, A1, A2, A3, A4) => B)(g: B => C): (A0, A1, A2, A3, A4) => C =
     (a0, a1, a2, a3, a4) => g(f(a0, a1, a2, a3, a4))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, B, C](
-    f: (A0, A1, A2, A3, A4, A5) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, B, C](f: (A0, A1, A2, A3, A4, A5) => B)(g: B => C): (A0, A1, A2, A3, A4, A5) => C =
     (a0, a1, a2, a3, a4, a5) => g(f(a0, a1, a2, a3, a4, a5))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, B, C](f: (A0, A1, A2, A3, A4, A5, A6) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6) => C =
     (a0, a1, a2, a3, a4, a5, a6) => g(f(a0, a1, a2, a3, a4, a5, a6))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7) => g(f(a0, a1, a2, a3, a4, a5, a6, a7))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19))
 
-  private def andThen[
-    A0,
-    A1,
-    A2,
-    A3,
-    A4,
-    A5,
-    A6,
-    A7,
-    A8,
-    A9,
-    A10,
-    A11,
-    A12,
-    A13,
-    A14,
-    A15,
-    A16,
-    A17,
-    A18,
-    A19,
-    A20,
-    B,
-    C
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20))
 
-  private def andThen[
-    A0,
-    A1,
-    A2,
-    A3,
-    A4,
-    A5,
-    A6,
-    A7,
-    A8,
-    A9,
-    A10,
-    A11,
-    A12,
-    A13,
-    A14,
-    A15,
-    A16,
-    A17,
-    A18,
-    A19,
-    A20,
-    A21,
-    B,
-    C
-  ](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
 }

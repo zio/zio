@@ -230,18 +230,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged](
     a: A,
     b: B,
     c: C,
@@ -252,34 +241,13 @@ object Has {
     h: H,
     i: I,
     j: J
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J] =
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] =
     Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged](
     a: A,
     b: B,
     c: C,
@@ -291,36 +259,13 @@ object Has {
     i: I,
     j: J,
     k: K
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K] =
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] =
     Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged](
     a: A,
     b: B,
     c: C,
@@ -333,38 +278,13 @@ object Has {
     j: J,
     k: K,
     l: L
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L] =
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] =
     Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged](
     a: A,
     b: B,
     c: C,
@@ -378,40 +298,13 @@ object Has {
     k: K,
     l: L,
     m: M
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M] =
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] =
     Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged,
-    N: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged](
     a: A,
     b: B,
     c: C,
@@ -426,42 +319,13 @@ object Has {
     l: L,
     m: M,
     n: N
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M]
-    with Has[N] =
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] =
     Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged,
-    N: Tagged,
-    O: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged](
     a: A,
     b: B,
     c: C,
@@ -476,45 +340,14 @@ object Has {
     l: L,
     m: M,
     n: N,
-    o: O
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M]
-    with Has[N]
-    with Has[O] =
+    o: O,
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] =
     Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n).add(o)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged,
-    N: Tagged,
-    O: Tagged,
-    P: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged](
     a: A,
     b: B,
     c: C,
@@ -531,46 +364,13 @@ object Has {
     n: N,
     o: O,
     p: P
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M]
-    with Has[N]
-    with Has[O]
-    with Has[P] =
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P] =
     Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n).add(o).add(p)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged,
-    N: Tagged,
-    O: Tagged,
-    P: Tagged,
-    Q: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged](
     a: A,
     b: B,
     c: C,
@@ -588,64 +388,13 @@ object Has {
     o: O,
     p: P,
     q: Q
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M]
-    with Has[N]
-    with Has[O]
-    with Has[P]
-    with Has[Q] =
-    Has(a)
-      .add(b)
-      .add(c)
-      .add(d)
-      .add(e)
-      .add(f)
-      .add(g)
-      .add(h)
-      .add(i)
-      .add(j)
-      .add(k)
-      .add(l)
-      .add(m)
-      .add(n)
-      .add(o)
-      .add(p)
-      .add(q)
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P] with Has[Q] =
+    Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n).add(o).add(p).add(q)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged,
-    N: Tagged,
-    O: Tagged,
-    P: Tagged,
-    Q: Tagged,
-    R: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged](
     a: A,
     b: B,
     c: C,
@@ -664,67 +413,13 @@ object Has {
     p: P,
     q: Q,
     r: R
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M]
-    with Has[N]
-    with Has[O]
-    with Has[P]
-    with Has[Q]
-    with Has[R] =
-    Has(a)
-      .add(b)
-      .add(c)
-      .add(d)
-      .add(e)
-      .add(f)
-      .add(g)
-      .add(h)
-      .add(i)
-      .add(j)
-      .add(k)
-      .add(l)
-      .add(m)
-      .add(n)
-      .add(o)
-      .add(p)
-      .add(q)
-      .add(r)
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P] with Has[Q] with Has[R] =
+    Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n).add(o).add(p).add(q).add(r)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged,
-    N: Tagged,
-    O: Tagged,
-    P: Tagged,
-    Q: Tagged,
-    R: Tagged,
-    S: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged, S: Tagged](
     a: A,
     b: B,
     c: C,
@@ -744,70 +439,13 @@ object Has {
     q: Q,
     r: R,
     s: S
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M]
-    with Has[N]
-    with Has[O]
-    with Has[P]
-    with Has[Q]
-    with Has[R]
-    with Has[S] =
-    Has(a)
-      .add(b)
-      .add(c)
-      .add(d)
-      .add(e)
-      .add(f)
-      .add(g)
-      .add(h)
-      .add(i)
-      .add(j)
-      .add(k)
-      .add(l)
-      .add(m)
-      .add(n)
-      .add(o)
-      .add(p)
-      .add(q)
-      .add(r)
-      .add(s)
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P] with Has[Q] with Has[R] with Has[S] =
+    Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n).add(o).add(p).add(q).add(r).add(s)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged,
-    N: Tagged,
-    O: Tagged,
-    P: Tagged,
-    Q: Tagged,
-    R: Tagged,
-    S: Tagged,
-    T: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged, S: Tagged, T: Tagged](
     a: A,
     b: B,
     c: C,
@@ -828,73 +466,13 @@ object Has {
     r: R,
     s: S,
     t: T
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M]
-    with Has[N]
-    with Has[O]
-    with Has[P]
-    with Has[Q]
-    with Has[R]
-    with Has[S]
-    with Has[T] =
-    Has(a)
-      .add(b)
-      .add(c)
-      .add(d)
-      .add(e)
-      .add(f)
-      .add(g)
-      .add(h)
-      .add(i)
-      .add(j)
-      .add(k)
-      .add(l)
-      .add(m)
-      .add(n)
-      .add(o)
-      .add(p)
-      .add(q)
-      .add(r)
-      .add(s)
-      .add(t)
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P] with Has[Q] with Has[R] with Has[S] with Has[T] =
+    Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n).add(o).add(p).add(q).add(r).add(s).add(t)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged,
-    N: Tagged,
-    O: Tagged,
-    P: Tagged,
-    Q: Tagged,
-    R: Tagged,
-    S: Tagged,
-    T: Tagged,
-    U: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged, S: Tagged, T: Tagged, U: Tagged](
     a: A,
     b: B,
     c: C,
@@ -916,76 +494,13 @@ object Has {
     s: S,
     t: T,
     u: U
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M]
-    with Has[N]
-    with Has[O]
-    with Has[P]
-    with Has[Q]
-    with Has[R]
-    with Has[S]
-    with Has[T]
-    with Has[U] =
-    Has(a)
-      .add(b)
-      .add(c)
-      .add(d)
-      .add(e)
-      .add(f)
-      .add(g)
-      .add(h)
-      .add(i)
-      .add(j)
-      .add(k)
-      .add(l)
-      .add(m)
-      .add(n)
-      .add(o)
-      .add(p)
-      .add(q)
-      .add(r)
-      .add(s)
-      .add(t)
-      .add(u)
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P] with Has[Q] with Has[R] with Has[S] with Has[T] with Has[U] =
+    Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n).add(o).add(p).add(q).add(r).add(s).add(t).add(u)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[
-    A: Tagged,
-    B: Tagged,
-    C: Tagged,
-    D: Tagged,
-    E: Tagged,
-    F: Tagged,
-    G: Tagged,
-    H: Tagged,
-    I: Tagged,
-    J: Tagged,
-    K: Tagged,
-    L: Tagged,
-    M: Tagged,
-    N: Tagged,
-    O: Tagged,
-    P: Tagged,
-    Q: Tagged,
-    R: Tagged,
-    S: Tagged,
-    T: Tagged,
-    U: Tagged,
-    V: Tagged
-  ](
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged, S: Tagged, T: Tagged, U: Tagged, V: Tagged](
     a: A,
     b: B,
     c: C,
@@ -1008,50 +523,8 @@ object Has {
     t: T,
     u: U,
     v: V
-  ): Has[A]
-    with Has[B]
-    with Has[C]
-    with Has[D]
-    with Has[E]
-    with Has[F]
-    with Has[G]
-    with Has[H]
-    with Has[I]
-    with Has[J]
-    with Has[K]
-    with Has[L]
-    with Has[M]
-    with Has[N]
-    with Has[O]
-    with Has[P]
-    with Has[Q]
-    with Has[R]
-    with Has[S]
-    with Has[T]
-    with Has[U]
-    with Has[V] =
-    Has(a)
-      .add(b)
-      .add(c)
-      .add(d)
-      .add(e)
-      .add(f)
-      .add(g)
-      .add(h)
-      .add(i)
-      .add(j)
-      .add(k)
-      .add(l)
-      .add(m)
-      .add(n)
-      .add(o)
-      .add(p)
-      .add(q)
-      .add(r)
-      .add(s)
-      .add(t)
-      .add(u)
-      .add(v)
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P] with Has[Q] with Has[R] with Has[S] with Has[T] with Has[U] with Has[V] =
+    Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n).add(o).add(p).add(q).add(r).add(s).add(t).add(u).add(v)
 
   /**
    * Modifies an environment in a scoped way.
