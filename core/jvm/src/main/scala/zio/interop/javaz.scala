@@ -29,11 +29,11 @@ private[zio] object javaz {
     Task.effectSuspendTotalWith[T] { (p, _) =>
       Task.effectAsync { k =>
         val handler = new CompletionHandler[T, Any] {
-          def completed(result: T, u: Any): Unit = { val _ = k(Task.succeed(result)) }
+          def completed(result: T, u: Any): Unit = k(Task.succeed(result))
 
           def failed(t: Throwable, u: Any): Unit = t match {
-            case e if !p.fatal(e) => { val _ = k(Task.fail(e)) }
-            case _                => { val _ = k(Task.die(t)) }
+            case e if !p.fatal(e) => k(Task.fail(e))
+            case _                => k(Task.die(t))
           }
         }
 
@@ -72,7 +72,7 @@ private[zio] object javaz {
             val io = Option(t).fold[Task[A]](Task.succeed(v)) { t =>
               catchFromGet(p.fatal).lift(t).getOrElse(Task.die(t))
             }
-            val _ = cb(io)
+            cb(io)
           }
         }
       }
