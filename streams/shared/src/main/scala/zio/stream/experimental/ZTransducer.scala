@@ -24,7 +24,7 @@ object ZTransducer {
       for {
         buffered <- Ref.make[Chunk[I]](Chunk.empty).toManaged_
         done     <- Ref.make(false).toManaged_
-        push = { input: Option[Chunk[I]] =>
+        push = { (input: Option[Chunk[I]]) =>
           input match {
             case None => done.set(true) *> buffered.getAndSet(Chunk.empty)
             case Some(is) =>
