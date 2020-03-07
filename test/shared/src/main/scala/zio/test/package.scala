@@ -16,8 +16,6 @@
 
 package zio
 
-import scala.deprecated
-
 import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
@@ -101,11 +99,11 @@ package object test extends CompileVariants {
       ZIO
         .effectSuspendTotal(assertion)
         .foldCauseM(
-          cause => ZIO.failNow(TestFailure.Runtime(cause)),
+          cause => ZIO.fail(TestFailure.Runtime(cause)),
           result =>
             result.run.flatMap(_.failures match {
               case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-              case Some(failures) => ZIO.failNow(TestFailure.Assertion(BoolAlgebraM(ZIO.succeedNow(failures))))
+              case Some(failures) => ZIO.fail(TestFailure.Assertion(BoolAlgebraM(ZIO.succeedNow(failures))))
             })
         )
   }
@@ -154,20 +152,6 @@ package object test extends CompileVariants {
     }
 
   /**
-   * Checks the assertion holds for the given value.
-   */
-  @deprecated(
-    "To benefit from much better type inference and type safety, we " +
-      "recommend that you use the curried version of assert, which takes " +
-      "two parameter lists instead of one: assert(value)(assertion)",
-    "1.0.0"
-  )
-  def assert[A](value: => A, assertion: Assertion[A], dummy: Boolean = true): TestResult = {
-    val _ = dummy
-    assert(value)(assertion)
-  }
-
-  /**
    * Asserts that the given test was completed.
    */
   val assertCompletes: TestResult =
@@ -178,24 +162,6 @@ package object test extends CompileVariants {
    */
   def assertM[R, E, A](value: ZIO[R, E, A])(assertion: Assertion[A]): ZIO[R, E, TestResult] =
     value.map(assert(_)(assertion))
-
-  /**
-   * Checks the assertion holds for the given effectfully-computed value.
-   */
-  @deprecated(
-    "To benefit from much better type inference and type safety, we " +
-      "recommend that you use the curried version of assertM, which takes " +
-      "two parameter lists instead of one: assertM(value)(assertion)",
-    "1.0.0"
-  )
-  def assertM[R, E, A](
-    value: ZIO[R, E, A],
-    assertion: Assertion[A],
-    dummy: Boolean = true
-  ): ZIO[R, E, TestResult] = {
-    val _ = dummy
-    assertM(value)(assertion)
-  }
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the
@@ -447,7 +413,7 @@ package object test extends CompileVariants {
    * Creates a failed test result with the specified runtime cause.
    */
   def failed[E](cause: Cause[E]): ZIO[Any, TestFailure[E], Nothing] =
-    ZIO.failNow(TestFailure.Runtime(cause))
+    ZIO.fail(TestFailure.Runtime(cause))
 
   /**
    * Creates an ignored test result.
@@ -687,7 +653,7 @@ package object test extends CompileVariants {
                 )
               }
             }
-          )(_.fold(e => ZIO.failNow(e), a => ZIO.succeedNow(BoolAlgebraM(ZIO.succeedNow(a)))))
+          )(_.fold(e => ZIO.fail(e), a => ZIO.succeedNow(BoolAlgebraM(ZIO.succeedNow(a)))))
       }
       .untraced
 

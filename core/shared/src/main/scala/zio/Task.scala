@@ -13,6 +13,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.absolve(v)
 
   /**
+   * @see See [[zio.ZIO.adopt]]
+   */
+  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
+    ZIO.adopt(fiber)
+
+  /**
    * @see See [[zio.ZIO.allowInterrupt]]
    */
   def allowInterrupt: UIO[Unit] =
@@ -166,7 +172,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  def effectAsync[A](register: (Task[A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): Task[A] =
+  def effectAsync[A](register: (Task[A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): Task[A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -606,27 +612,6 @@ object Task extends TaskPlatformSpecific {
   def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
-   *  See [[zio.ZIO.sequence]]
-   */
-  @deprecated("use collectAll", "1.0.0")
-  def sequence[A](in: Iterable[Task[A]]): Task[List[A]] =
-    ZIO.sequence(in)
-
-  /**
-   *  See [[zio.ZIO.sequencePar]]
-   */
-  @deprecated("use collectAllPar", "1.0.0")
-  def sequencePar[A](as: Iterable[Task[A]]): Task[List[A]] =
-    ZIO.sequencePar(as)
-
-  /**
-   *  See [[zio.ZIO.sequenceParN]]
-   */
-  @deprecated("use collectAllParN", "1.0.0")
-  def sequenceParN[A](n: Int)(as: Iterable[Task[A]]): Task[List[A]] =
-    ZIO.sequenceParN(n)(as)
-
-  /**
    *  @see [[zio.ZIO.some]]
    */
   def some[A](a: => A): Task[Option[A]] = ZIO.some(a)
@@ -640,52 +625,6 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.traced]]
    */
   def traced[A](task: Task[A]): Task[A] = ZIO.traced(task)
-
-  /**
-   * @see See [[zio.ZIO.traverse]]
-   */
-  @deprecated("use foreach", "1.0.0")
-  def traverse[A, B](in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
-    ZIO.traverse(in)(f)
-
-  /**
-   * @see See [[zio.ZIO.traversePar]]
-   */
-  @deprecated("use foreachPar", "1.0.0")
-  def traversePar[A, B](as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
-    ZIO.traversePar(as)(fn)
-
-  /**
-   * Alias for [[ZIO.foreachParN]]
-   */
-  @deprecated("use foreachParN", "1.0.0")
-  def traverseParN[A, B](
-    n: Int
-  )(as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
-    ZIO.traverseParN(n)(as)(fn)
-
-  /**
-   * @see See [[zio.ZIO.traverse_]]
-   */
-  @deprecated("use foreach_", "1.0.0")
-  def traverse_[A](as: Iterable[A])(f: A => Task[Any]): Task[Unit] =
-    ZIO.traverse_(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.traversePar_]]
-   */
-  @deprecated("use foreachPar_", "1.0.0")
-  def traversePar_[A](as: Iterable[A])(f: A => Task[Any]): Task[Unit] =
-    ZIO.traversePar_(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.traverseParN_]]
-   */
-  @deprecated("use foreachParN_", "1.0.0")
-  def traverseParN_[A](
-    n: Int
-  )(as: Iterable[A])(f: A => Task[Any]): Task[Unit] =
-    ZIO.traverseParN_(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.unit]]
@@ -742,14 +681,6 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.yieldNow]]
    */
   val yieldNow: UIO[Unit] = ZIO.yieldNow
-
-  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
-
-  private[zio] def doneNow[A](r: Exit[Throwable, A]): Task[A] = ZIO.doneNow(r)
-
-  private[zio] def failNow(error: Throwable): Task[Nothing] = ZIO.failNow(error)
-
-  private[zio] def haltNow(cause: Cause[Throwable]): Task[Nothing] = ZIO.haltNow(cause)
 
   private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

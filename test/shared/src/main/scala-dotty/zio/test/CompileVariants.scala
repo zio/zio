@@ -33,7 +33,7 @@ trait CompileVariants {
       if (typeChecks(code)) UIO.succeedNow(Right(()))
       else UIO.succeedNow(Left(errorMessage))
     } catch {
-      case _: Throwable => UIO.dieNow(new RuntimeException("Compilation failed"))
+      case _: Throwable => UIO.die(new RuntimeException("Compilation failed"))
     }
 
   private val errorMessage =

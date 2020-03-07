@@ -1,5 +1,5 @@
 ---
-id: use_layers
+id: howto_use_layers
 title:  "Use modules and layers"
 ---
 

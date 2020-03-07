@@ -31,11 +31,8 @@ package object system {
       def lineSeparator: UIO[String]
     }
 
-    val any: ZLayer[System, Nothing, System] =
-      ZLayer.requires[System]
-
-    val live: ZLayer.NoDeps[Nothing, System] = ZLayer.succeed(
-      new Service {
+    object Service {
+      val live: Service = new Service {
 
         def env(variable: String): IO[SecurityException, Option[String]] =
           IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
@@ -45,7 +42,13 @@ package object system {
 
         val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
       }
-    )
+    }
+
+    val any: ZLayer[System, Nothing, System] =
+      ZLayer.requires[System]
+
+    val live: ZLayer.NoDeps[Nothing, System] =
+      ZLayer.succeed(Service.live)
   }
 
   /** Retrieve the value of an environment variable **/

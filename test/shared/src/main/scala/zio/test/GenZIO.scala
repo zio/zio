@@ -83,13 +83,13 @@ trait GenZIO {
    * A generator of effects that have died with a `Throwable`.
    */
   final def died[R](gen: Gen[R, Throwable]): Gen[R, ZIO[Any, Nothing, Nothing]] =
-    gen.map(ZIO.dieNow)
+    gen.map(ZIO.die(_))
 
   /**
    * A generator of effects that have failed with an error.
    */
   final def failures[R, E](gen: Gen[R, E]): Gen[R, ZIO[Any, E, Nothing]] =
-    gen.map(ZIO.failNow)
+    gen.map(ZIO.fail(_))
 
   /**
    * A generator of effects that are the result of applying parallelism

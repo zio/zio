@@ -33,20 +33,23 @@ needs to be available.
 ```scala
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
-import zio.{ IO, DefaultRuntime }
+import zio.{ IO, Runtime }
 import zio.interop.monix._
 
-object UnsafeExample extends DefaultRuntime {
+object UnsafeExample extends App {
+
+  val runtime = Runtime.default
+
   def main(args: Array[String]): Unit = {
     val io1 = IO.succeed(10)
-    val t1  = unsafeRun(io1.toTask)
+    val t1  = runtime.unsafeRun(io1.toTask)
 
     t1.runToFuture.foreach(r => println(s"IO to task result is $r"))
 
     val t2  = Task(10)
     val io2 = IO.fromTask(t2).map(r => s"Task to IO result is $r")
 
-    println(unsafeRun(io2))
+    println(runtime.unsafeRun(io2))
   }
 }
 ```
@@ -70,20 +73,23 @@ def fromCoeval[A](coeval: eval.Coeval[A]): Task[A]
 
 ```scala
 import monix.eval.Coeval
-import zio.{ IO, DefaultRuntime }
+import zio.{ IO, Runtime }
 import zio.interop.monix._
 
-object UnsafeExample extends DefaultRuntime {
+object UnsafeExample extends App {
+
+  val runtime = Runtime.default
+
   def main(args: Array[String]): Unit = {
     val io1 = IO.succeed(10)
-    val c1  = unsafeRun(io1.toCoeval) 
+    val c1  = runtime.unsafeRun(io1.toCoeval) 
 
     println(s"IO to coeval result is ${c1.value}")
 
     val c2  = Coeval(10)
     val io2 = IO.fromCoeval(c2).map(r => s"Coeval to IO result is $r")
 
-    println(unsafeRun(io2))
+    println(runtime.unsafeRun(io2))
   }
 }
 ```

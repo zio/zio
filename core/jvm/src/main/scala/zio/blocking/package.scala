@@ -131,7 +131,7 @@ package object blocking {
                                 Thread.interrupted // Clear interrupt status
                                 ZIO.interrupt
                               case t: Throwable =>
-                                ZIO.failNow(t)
+                                ZIO.fail(t)
                             } finally {
                               withMutex { thread.set(None); end.set(()) }
                             }
@@ -144,14 +144,17 @@ package object blocking {
         }
     }
 
-    val any: ZLayer[Blocking, Nothing, Blocking] =
-      ZLayer.requires[Blocking]
-
-    val live: ZLayer.NoDeps[Nothing, Blocking] = ZLayer.succeed {
-      new Service {
+    object Service {
+      val live: Service = new Service {
         override val blockingExecutor: Executor = internal.blockingExecutor0
       }
     }
+
+    val any: ZLayer[Blocking, Nothing, Blocking] =
+      ZLayer.requires[Blocking]
+
+    val live: ZLayer.NoDeps[Nothing, Blocking] =
+      ZLayer.succeed(Service.live)
   }
 
   def blocking[R <: Blocking, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =

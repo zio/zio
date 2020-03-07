@@ -88,7 +88,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
+  final def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Unit = {
     val InitialInterruptStatus = InterruptStatus.Interruptible
 
     val fiberId = Fiber.newFiberId()
@@ -99,7 +99,6 @@ trait Runtime[+R] {
       environment.asInstanceOf[AnyRef],
       platform.executor,
       InitialInterruptStatus,
-      SuperviseMode.Interrupt,
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap()
@@ -109,6 +108,8 @@ trait Runtime[+R] {
 
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
+
+    ()
   }
 
   /**
@@ -124,8 +125,8 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be used at the edges of your program.
    */
-  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): CancelableFuture[A] =
-    unsafeRun(io.toFuture)
+  final def unsafeRunToFuture[E <: Throwable, A](zio: ZIO[R, E, A]): CancelableFuture[A] =
+    unsafeRun(zio.forkDaemon >>= (_.toFuture))
 
   /**
    * Constructs a new `Runtime` with the specified new environment.
@@ -227,9 +228,9 @@ object Runtime {
     val platform    = platform0
   }
 
-  lazy val default = Runtime((), Platform.default)
+  lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.default)
 
-  lazy val global = Runtime((), Platform.global)
+  lazy val global: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.global)
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be

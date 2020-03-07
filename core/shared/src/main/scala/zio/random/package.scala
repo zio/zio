@@ -20,11 +20,8 @@ package object random {
       def shuffle[A](list: List[A]): UIO[List[A]]
     }
 
-    val any: ZLayer[Random, Nothing, Random] =
-      ZLayer.requires[Random]
-
-    val live: ZLayer.NoDeps[Nothing, Random] = ZLayer.succeed {
-      new Service {
+    object Service {
+      val live: Service = new Service {
         import scala.util.{ Random => SRandom }
 
         val nextBoolean: UIO[Boolean] = ZIO.effectTotal(SRandom.nextBoolean())
@@ -49,6 +46,12 @@ package object random {
       }
     }
 
+    val any: ZLayer[Random, Nothing, Random] =
+      ZLayer.requires[Random]
+
+    val live: ZLayer.NoDeps[Nothing, Random] =
+      ZLayer.succeed(Service.live)
+
     protected[zio] def shuffleWith[A](nextInt: Int => UIO[Int], list: List[A]): UIO[List[A]] =
       for {
         bufferRef <- Ref.make(new scala.collection.mutable.ArrayBuffer[A])
@@ -67,7 +70,7 @@ package object random {
 
     protected[zio] def nextLongWith(nextLong: UIO[Long], n: Long): UIO[Long] =
       if (n <= 0)
-        UIO.dieNow(new IllegalArgumentException("n must be positive"))
+        UIO.die(new IllegalArgumentException("n must be positive"))
       else {
         nextLong.flatMap { r =>
           val m = n - 1

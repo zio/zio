@@ -46,7 +46,7 @@ object ChunkSpec extends ZIOBaseSpec {
         assertM(Chunk(1, 1, 1).mapAccumM(0)((s, el) => UIO.succeedNow((s + el, s + el))))(equalTo((3, Chunk(1, 2, 3))))
       },
       testM("mapAccumM error") {
-        Chunk(1, 1, 1).mapAccumM(0)((_, _) => IO.failNow("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
+        Chunk(1, 1, 1).mapAccumM(0)((_, _) => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
       }
     ),
     testM("map") {
@@ -58,7 +58,7 @@ object ChunkSpec extends ZIOBaseSpec {
         chunk.mapM(s => UIO.succeedNow(f(s))).map(assert(_)(equalTo(chunk.map(f))))
       }),
       testM("mapM error") {
-        Chunk(1, 2, 3).mapM(_ => IO.failNow("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
+        Chunk(1, 2, 3).mapM(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     testM("flatMap") {
@@ -100,7 +100,7 @@ object ChunkSpec extends ZIOBaseSpec {
         chunk.filterM(s => UIO.succeedNow(p(s))).map(assert(_)(equalTo(chunk.filter(p))))
       }),
       testM("filterM error") {
-        Chunk(1, 2, 3).filterM(_ => IO.failNow("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
+        Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     testM("drop chunk") {
@@ -172,7 +172,7 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       testM("collectM chunk that fails") {
-        Chunk(1, 2).collectM { case 2 => IO.failNow("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
+        Chunk(1, 2).collectM { case 2 => IO.fail("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
       }
     ),
     suite("collectWhile")(
@@ -200,7 +200,7 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       testM("collectWhileM chunk that fails") {
-        Chunk(1, 2).collectWhileM { case _ => IO.failNow("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
+        Chunk(1, 2).collectWhileM { case _ => IO.fail("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
       }
     ),
     testM("foreach") {

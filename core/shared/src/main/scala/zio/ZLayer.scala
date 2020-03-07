@@ -45,7 +45,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * outputs of the specified layer.
    */
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    fold(ZLayer.fromFunctionManyM(ZIO.failNow), that)
+    fold(ZLayer.fromFunctionManyM(ZIO.fail(_)), that)
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -100,7 +100,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
   /**
    * Returns a new layer whose output is mapped by the specified function.
    */
-  def map[ROut1 >: ROut <: Has[_]](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
+  def map[ROut1 <: Has[_]](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
     self >>> ZLayer.fromFunctionMany(f)
 
   /**
@@ -108,7 +108,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * function.
    */
   def mapError[E1](f: E => E1): ZLayer[RIn, E1, ROut] =
-    fold(ZLayer.fromFunctionManyM(f andThen ZIO.failNow), ZLayer.identity)
+    fold(ZLayer.fromFunctionManyM(e => ZIO.fail(f(e))), ZLayer.identity)
 
   /**
    * Converts a layer that requires no services into a managed runtime, which

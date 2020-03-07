@@ -14,27 +14,27 @@
  * limitations under the License.
  */
 
-package zio
+package zio.stream
 
-import zio.clock.Clock
-import zio.console.Console
-import zio.random.Random
-import zio.system.System
+import zio.Chunk
 
-private[zio] trait PlatformSpecific {
-  type ZEnv = Clock with Console with System with Random
+package object internal {
 
-  object ZEnv {
+  /**
+   * Creates a single-value sink from a value.
+   */
+  def ZSinkSucceedNow[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+    ZSink.succeedNow(b)
 
-    object Services { 
-      val live: ZEnv =
-        Has.allOf[Clock.Service, Console.Service, System.Service, Random.Service](Clock.Service.live, Console.Service.live, System.Service.live, Random.Service.live)
-      }
+  /**
+   * Creates a `ZStreamChunk` from an eagerly evaluated chunk
+   */
+  def ZStreamChunkSucceedNow[A](as: Chunk[A]): ZStreamChunk[Any, Nothing, A] =
+    new StreamEffectChunk(StreamEffect.succeed(as))
 
-    val any: ZLayer[ZEnv, Nothing, ZEnv] =
-      ZLayer.requires[ZEnv]
-
-    val live: ZLayer.NoDeps[Nothing, ZEnv] =
-      Clock.live ++ Console.live ++ System.live ++ Random.live
-  }
+  /**
+   * Creates a single-valued pure stream
+   */
+  def ZStreamSucceedNow[A](a: A): ZStream[Any, Nothing, A] =
+    StreamEffect.succeed(a)
 }
