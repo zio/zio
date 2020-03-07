@@ -1835,6 +1835,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def accessM[R]: ZIO.AccessMPartiallyApplied[R] =
     new ZIO.AccessMPartiallyApplied[R]
 
+  /**
+   * Returns an effect that adopts the specified fiber as a child of the fiber
+   * running this effect. Note that adoption will succeed only if the specified
+   * fiber is not a child fo any other fiber.
+   *
+   * The returned effect will succeed with true if the fiber has been adopted,
+   * and false otherwise.
+   *
+   * See also [[zio.ZIO.disown]].
+   */
   def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
     new ZIO.Adopt(fiber)
 
