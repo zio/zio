@@ -25,15 +25,15 @@ import zio._
 import zio.blocking.{ blocking, Blocking }
 
 private[zio] object javaz {
-  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
     Task.effectSuspendTotalWith[T] { (p, _) =>
       Task.effectAsync { k =>
         val handler = new CompletionHandler[T, Any] {
-          def completed(result: T, u: Any): Unit = k(Task.succeed(result))
+          def completed(result: T, u: Any): Unit = { val _ = k(Task.succeed(result)) }
 
           def failed(t: Throwable, u: Any): Unit = t match {
-            case e if !p.fatal(e) => k(Task.fail(e))
-            case _                => k(Task.die(t))
+            case e if !p.fatal(e) => { val _ = k(Task.fail(e)) }
+            case _                => { val _ = k(Task.die(t)) }
           }
         }
 
@@ -68,11 +68,11 @@ private[zio] object javaz {
         unwrapDone(p.fatal)(cf)
       } else {
         Task.effectAsync { cb =>
-          val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
+          cs.handle[Unit] { (v: A, t: Throwable) =>
             val io = Option(t).fold[Task[A]](Task.succeed(v)) { t =>
               catchFromGet(p.fatal).lift(t).getOrElse(Task.die(t))
             }
-            cb(io)
+            val _ = cb(io)
           }
         }
       }

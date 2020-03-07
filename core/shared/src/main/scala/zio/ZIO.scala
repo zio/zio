@@ -380,7 +380,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Returns an effect whose interruption will be disconnected from the
-   * fiber's own interruption.
+   * fiber's own interruption, being performed in the background without
+   * slowing down the fiber's interruption.
+   *
+   * This method is useful to create "fast interrupting" effects. For
+   * example, if you call this on a bracketed effect, then even if the
+   * effect is "stuck" in acquire or release, its interruption will return
+   * immediately, while the acquire / release are performed in the
+   * background.
+   *
+   * See timeout and race for other applications.
    */
   final def disconnect: ZIO[R, E, A] =
     ZIO.uninterruptibleMask(restore =>
@@ -1105,7 +1114,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * resume until the loser has been cleanly terminated. If early return is
    * desired, then instead of performing `l race r`, perform
    * `l.disconnect race r.disconnect`, which disconnects left and right
-   * interrupt signal, allowing the earliest possible return.
+   * interrupt signal, allowing a fast return, with interruption performed
+   * in the background.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     ZIO.fiberId
@@ -1179,7 +1189,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * resume until the loser has been cleanly terminated. If early return is
    * desired, then instead of performing `l raceFirst r`, perform
    * `l.disconnect raceFirst r.disconnect`, which disconnects left and right
-   * interrupt signal, allowing the earliest possible return.
+   * interrupt signal, allowing a fast return, with interruption performed
+   * in the background.
    */
   final def raceFirst[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     (self.run race that.run).flatMap(ZIO.done(_)).refailWithTrace
@@ -1824,6 +1835,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def accessM[R]: ZIO.AccessMPartiallyApplied[R] =
     new ZIO.AccessMPartiallyApplied[R]
 
+  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
+    new ZIO.Adopt(fiber)
+
   /**
    * Makes an explicit check to see if the fiber has been interrupted, and if
    * so, performs self-interruption
@@ -2072,13 +2086,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * `effectAsyncMaybe` for the more expressive variant of this function that
    * can return a value synchronously.
    *
-   * The callback function `ZIO[R, E, A] => Unit` must be called at most once.
+   * The callback function `ZIO[R, E, A] => Any` must be called at most once.
    *
    * The list of fibers, that may complete the async callback, is used to
    * provide better diagnostics.
    */
   def effectAsync[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Unit,
+    register: (ZIO[R, E, A] => Unit) => Any,
     blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] =
     effectAsyncMaybe(ZIOFn(register) { (callback: ZIO[R, E, A] => Unit) =>
@@ -2097,7 +2111,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * interrupted.
    *
    * If the register function returns a value synchronously, then the callback
-   * function `ZIO[R, E, A] => Unit` must not be called. Otherwise the callback
+   * function `ZIO[R, E, A] => Any` must not be called. Otherwise the callback
    * function must be called at most once.
    *
    * The list of fibers, that may complete the async callback, is used to
@@ -2153,7 +2167,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * the value synchronously.
    *
    * If the register function returns a value synchronously, then the callback
-   * function `ZIO[R, E, A] => Unit` must not be called. Otherwise the callback
+   * function `ZIO[R, E, A] => Any` must not be called. Otherwise the callback
    * function must be called at most once.
    *
    * The list of fibers, that may complete the async callback, is used to
@@ -2584,7 +2598,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       effect(make(interruptibleEC)).flatMap { f =>
         f.value
           .fold(
-            Task.effectAsync { (cb: Task[A] => Unit) =>
+            Task.effectAsync { (cb: Task[A] => Any) =>
               f.onComplete {
                 case Success(a) => latch.success(()); cb(Task.succeed(a))
                 case Failure(t) => latch.success(()); cb(Task.fail(t))
@@ -3380,6 +3394,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val EffectSuspendTotalWith   = 21
     final val RaceWith                 = 22
     final val Disown                   = 23
+    final val Adopt                    = 24
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -3503,6 +3518,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class Disown(val fiber: Fiber[Any, Any]) extends UIO[Boolean] {
     override def tag = Tags.Disown
+  }
+
+  private[zio] final class Adopt(val fiber: Fiber[Any, Any]) extends UIO[Boolean] {
+    override def tag = Tags.Adopt
   }
 
   private val debug = new java.util.concurrent.atomic.AtomicReference[Set[String]](Set())

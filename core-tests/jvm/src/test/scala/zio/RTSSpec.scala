@@ -101,7 +101,7 @@ object RTSSpec extends ZIOBaseSpec {
       (0 until 10000).foreach { _ =>
         rts.unsafeRun {
           IO.effectAsync[Nothing, Int] { k =>
-            val c: Callable[Unit] = () => k(IO.succeedNow(1))
+            val c: Callable[Unit] = () => { val _ = k(IO.succeedNow(1)) }
             val _                 = e.submit(c)
           }
         }
