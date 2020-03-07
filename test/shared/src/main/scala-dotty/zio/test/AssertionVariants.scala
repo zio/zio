@@ -17,20 +17,17 @@
 package zio.test
 
 import zio.test.Assertion.Render._
-import zio.test.diff.Diffing
 
 trait AssertionVariants {
 
   /**
    * Makes a new assertion that requires a value equal the specified value.
    */
-  final def equalTo[A](expected: A, diffing: Diffing = Diffing.default): Assertion[A] = {
-    val assertion = Assertion.assertion("equalTo")(param(expected)) { actual =>
+  final def equalTo[A](expected: A): Assertion[A] =
+    Assertion.assertion("equalTo")(param(expected)) { actual =>
       (actual, expected) match {
         case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
         case (left, right)                     => left == right
       }
     }
-    assertion.withDiffing(expected, diffing)
-  }
 }

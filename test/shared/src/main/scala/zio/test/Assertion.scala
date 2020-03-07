@@ -18,9 +18,6 @@ package zio.test
 
 import scala.reflect.ClassTag
 
-import com.github.ghik.silencer.silent
-
-import zio.test.diff.{ DiffResult, Diffing }
 import zio.{ Cause, Exit, ZIO }
 
 /**
@@ -30,8 +27,7 @@ import zio.{ Cause, Exit, ZIO }
  */
 final class Assertion[-A] private (
   val render: Assertion.Render,
-  val run: (=> A) => AssertResult,
-  val diffing: A => Option[DiffResult] = Assertion.noDiffing _
+  val run: (=> A) => AssertResult
 ) extends ((=> A) => AssertResult) { self =>
   import zio.test.Assertion.Render._
 
@@ -89,12 +85,6 @@ final class Assertion[-A] private (
    */
   override def toString: String =
     render.toString
-
-  /**
-   * Constructs a new assertion with given expected value and diffing strategy
-   */
-  def withDiffing[A1 <: A, B](expected: B, diffing: Diffing): Assertion[A1] =
-    new Assertion[A1](render, run, a => diffing.diff(a, expected))
 }
 
 object Assertion extends AssertionVariants {
@@ -669,7 +659,4 @@ object Assertion extends AssertionVariants {
    */
   def throwsA[E: ClassTag]: Assertion[Any] =
     throws(isSubtype[E](anything))
-
-  @silent("is never used")
-  private def noDiffing[A](a: A): Option[DiffResult] = None
 }

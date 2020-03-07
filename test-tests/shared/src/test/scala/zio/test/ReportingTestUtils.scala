@@ -147,14 +147,6 @@ object ReportingTestUtils {
     )
   )
 
-  val test9 = zio.test.test("Text comparison")(assert("foo bar\nbazz buzzard")(equalTo("bar foo\nbazard")))
-  val test9Expected = Vector(
-    expectedFailure("Text comparison"),
-    withOffset(2)(s"${blue("foo bar\nbazz buzzard")} did not satisfy ${cyan("equalTo(bar foo\nbazard)")}\n"),
-    withOffset(4)(s"[-${red("bar ")}]${green("foo")}[+${red(" bar")}]${green("\\n")}\n"),
-    withOffset(4)(s"${green("baz")}[+${red("z buzz")}]${green("ard")}\n")
-  )
-
   val suite1 = suite("Suite1")(test1, test2)
   val suite1Expected = Vector(
     expectedSuccess("Suite1"),
