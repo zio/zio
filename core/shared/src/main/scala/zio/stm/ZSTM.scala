@@ -1508,7 +1508,7 @@ object ZSTM {
       r: R
     )(
       k: ZIO[R, E, A] => Any
-    ): Any = {
+    ): Unit = {
       def complete(io: IO[E, A]): Unit = { done.set(true); k(io); () }
 
       @tailrec

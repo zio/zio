@@ -58,7 +58,7 @@ final case class TestRunner[R <: Has[_], E](
     spec: ZSpec[R, E]
   )(
     k: ExecutedSpec[E] => Unit
-  ): Any =
+  ): Unit =
     runtime.unsafeRunAsync(run(spec).provideLayer(bootstrap)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
