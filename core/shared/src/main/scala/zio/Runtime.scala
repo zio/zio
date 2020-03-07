@@ -226,9 +226,9 @@ object Runtime {
     val platform    = platform0
   }
 
-  lazy val default = Runtime((), Platform.default)
+  lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.default)
 
-  lazy val global = Runtime((), Platform.global)
+  lazy val global: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.global)
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
