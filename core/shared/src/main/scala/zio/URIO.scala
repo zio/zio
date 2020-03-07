@@ -13,6 +13,12 @@ object URIO {
     ZIO.absolve(v)
 
   /**
+   * @see See [[zio.ZIO.adopt]]
+   */
+  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
+    ZIO.adopt(fiber)
+
+  /**
    * @see [[zio.ZIO.access]]
    */
   def access[R]: ZIO.AccessPartiallyApplied[R] = ZIO.access[R]
@@ -172,7 +178,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.effectAsync]]
    */
-  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): URIO[R, A] =
+  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): URIO[R, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**

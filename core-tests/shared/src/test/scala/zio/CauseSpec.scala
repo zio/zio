@@ -176,7 +176,7 @@ object CauseSpec extends ZIOBaseSpec {
         }
       }
     ),
-    suite("squashWithTrace")(
+    suite("squashTraceWith")(
       testM("converts Cause to original exception with ZTraces in root cause") {
         val throwable = (Gen.alphaNumericString <*> Gen.alphaNumericString).flatMap {
           case (msg1, msg2) =>
@@ -195,7 +195,7 @@ object CauseSpec extends ZIOBaseSpec {
           val causeMessage     = e.getCause.getMessage
           val throwableMessage = e.getMessage
           val renderedCause    = Cause.stackless(cause).prettyPrint
-          val squashed         = cause.squashWithTrace(identity)
+          val squashed         = cause.squashTraceWith(identity)
 
           assert(squashed)(
             equalTo(e) &&
