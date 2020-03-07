@@ -71,6 +71,6 @@ object Take {
     io.flatMap {
       case Take.End(b)   => IO.succeedNow(Left(b))
       case Take.Value(a) => IO.succeedNow(Right(a))
-      case Take.Fail(e)  => IO.haltNow(e)
+      case Take.Fail(e)  => IO.halt(e)
     }
 }

@@ -5,6 +5,13 @@ import zio._
 abstract class ZStream[-R, +E, +O](
   val process: ZManaged[R, Nothing, ZIO[R, Either[E, Unit], Chunk[O]]]
 ) extends ZConduit[R, E, Unit, O, Unit](process.map(pull => _ => pull)) { self =>
+
+  /**
+   * Maps the success values of this stream to the specified constant value.
+   */
+  def as[O2](o2: => O2): ZStream[R, E, O2] =
+    map(new ZIO.ConstFn(() => o2))
+
   def map[O2](f: O => O2): ZStream[R, E, O2] =
     ZStream(self.process.map(_.map(_.map(f))))
 
@@ -23,7 +30,7 @@ abstract class ZStream[-R, +E, +O](
       outerStream: ZIO[R1, Either[E1, Unit], Chunk[O]],
       currOuterChunk: Ref[Chunk[O]],
       currOuterChunkIdx: Ref[Int],
-      finalizer: Ref[Exit[_, _] => URIO[R1, _]],
+      finalizer: ZManaged.FinalizerRef[R1],
       currInnerStream: Ref[ZIO[R1, Either[E1, Unit], Chunk[O2]]]
     ): ZIO[R1, Either[E1, Unit], Chunk[O2]] = {
       def pullOuter: ZIO[R1, Either[E1, Unit], Unit] = ZIO.uninterruptibleMask { restore =>
@@ -39,15 +46,16 @@ abstract class ZStream[-R, +E, +O](
                       _           <- currOuterChunkIdx.set(1)
                       reservation <- f0(o(0)).process.reserve
                       innerStream <- restore(reservation.acquire)
-                      _           <- finalizer.set(reservation.release)
+                      _           <- finalizer.add(reservation.release)
                       _           <- currInnerStream.set(innerStream)
                     } yield ())
-                } else
+                }
+              else
                 (for {
                   _           <- currOuterChunkIdx.update(_ + 1)
                   reservation <- f0(outerChunk(outerIdx)).process.reserve
                   innerStream <- restore(reservation.acquire)
-                  _           <- finalizer.set(reservation.release)
+                  _           <- finalizer.add(reservation.release)
                   _           <- currInnerStream.set(innerStream)
                 } yield ())
 
@@ -58,7 +66,7 @@ abstract class ZStream[-R, +E, +O](
         Cause.sequenceCauseEither(c) match {
           case Right(e) => ZIO.halt(e.map(Left(_)))
           case Left(_) =>
-            finalizer.modify(fin => (fin(Exit.succeed(())), _ => UIO.unit)).flatten.uninterruptible *>
+            finalizer.remove.flatMap(fins => ZIO.foreach(fins)(fin => fin(Exit.succeed(())))).uninterruptible *>
               pullOuter *>
               go(outerStream, currOuterChunk, currOuterChunkIdx, finalizer, currInnerStream)
         }
@@ -75,6 +83,21 @@ abstract class ZStream[-R, +E, +O](
       } yield go(outerStream, currOuterChunk, currOuterChunkIdx, finalizer, currInnerStream)
     }
   }
+
+  def transduce[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]): ZStream[R1, E1, O3] =
+    ZStream {
+      for {
+        pushTransducer <- transducer.push
+        pullSelf       <- self.process
+        pull = pullSelf.foldM(
+          {
+            case l @ Left(_) => ZIO.fail(l)
+            case Right(_)    => pushTransducer(None)
+          },
+          os => pushTransducer(Some(os))
+        )
+      } yield pull
+    }
 }
 
 object ZStream {
@@ -91,7 +114,15 @@ object ZStream {
    * @return a finite stream of values
    */
   def fromChunk[O](c: => Chunk[O]): ZStream[Any, Nothing, O] =
-    ZStream(Managed.succeed(UIO.succeed(c)))
+    ZStream {
+      for {
+        doneRef <- Ref.make(false).toManaged_
+        pull = doneRef.modify {
+          if (_) ZIO.fail(Right(())) -> true
+          else ZIO.succeed(c)        -> true
+        }.flatten
+      } yield pull
+    }
 
   /**
    * Creates a single-valued stream from a managed resource
@@ -108,7 +139,7 @@ object ZStream {
               (for {
                 _           <- doneRef.set(true)
                 reservation <- managed.reserve
-                _           <- finalizer.set(reservation.release)
+                _           <- finalizer.add(reservation.release)
                 a           <- restore(reservation.acquire)
               } yield Chunk(a)).mapError(Left(_))
           }
