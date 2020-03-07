@@ -1509,10 +1509,10 @@ object ZSTM {
     )(
       k: ZIO[R, E, A] => Any
     ): Any = {
-      def complete(io: IO[E, A]): Any = { done.set(true); k(io) }
+      def complete(io: IO[E, A]): Unit = { done.set(true); k(io); () }
 
       @tailrec
-      def suspend(accum: Journal, journal: Journal): Any = {
+      def suspend(accum: Journal, journal: Journal): Unit = {
         addTodo(txnId, journal, () => tryCommitAsync(null, platform, fiberId, stm, txnId, done, r)(k))
 
         if (isInvalid(journal)) tryCommit(platform, fiberId, stm, r) match {
