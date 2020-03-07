@@ -38,7 +38,7 @@ object ZSink {
     ZSink {
       for {
         state <- Ref.make(z).toManaged_
-        push = { inputs: Option[Chunk[I]] =>
+        push = { (inputs: Option[Chunk[I]]) =>
           inputs match {
             case None => state.get.flatMap(s => ZIO.fail(Right(s)))
             case Some(value) =>
@@ -58,7 +58,7 @@ object ZSink {
     ZSink {
       for {
         state <- Ref.make(z).toManaged_
-        push = { inputs: Option[Chunk[I]] =>
+        push = { (inputs: Option[Chunk[I]]) =>
           inputs match {
             case None => state.get.flatMap(s => ZIO.fail(Right(s)))
             case Some(value) =>
