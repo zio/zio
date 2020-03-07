@@ -30,7 +30,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         assertM(Live.live(result))(equalTo(0))
       } @@ nonFlaky @@ tag("supervision", "regression"),
       testM("auto-kill regression 2") {
-        val effect = clock.currentDateTime.map(_.toString()).delay(10.millisecond)
+        val effect = clock.nanoTime.map(_.toString()).delay(10.millisecond)
 
         val roundtrip = for {
           rt <- ZIO.runtime[Console with Clock]

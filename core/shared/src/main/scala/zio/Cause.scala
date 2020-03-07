@@ -358,7 +358,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * with this `Cause` "pretty printed" (in stackless mode) as the message.
    */
   final def squashTrace(implicit ev: E <:< Throwable): Throwable =
-    squashWithTrace(ev)
+    squashTraceWith(ev)
 
   /**
    * Squashes a `Cause` down to a single `Throwable`, chosen to be the
@@ -366,7 +366,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * In addition, appends a new element the to `Throwable`s "caused by" chain,
    * with this `Cause` "pretty printed" (in stackless mode) as the message.
    */
-  final def squashWithTrace(f: E => Throwable): Throwable =
+  final def squashTraceWith(f: E => Throwable): Throwable =
     attachTrace(squashWith(f))
 
   /**

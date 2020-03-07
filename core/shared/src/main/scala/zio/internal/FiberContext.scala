@@ -65,7 +65,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val environments    = Stack[AnyRef](startEnv)
   private[this] val executors       = Stack[Executor](startExec)
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
-  private[this] val _children       = Platform.newWeakSet[FiberContext[Any, Any]]()
+  private[this] val _children       = Platform.newConcurrentWeakSet[FiberContext[Any, Any]]()
 
   private[this] val tracingStatus =
     if (traceExec || traceStack) StackBool()
@@ -139,7 +139,7 @@ private[zio] final class FiberContext[E, A](
     )
   }
 
-  private[zio] def runAsync(k: Callback[E, A]): Unit =
+  private[zio] def runAsync(k: Callback[E, A]): Any =
     register0(xx => k(Exit.flatten(xx))) match {
       case null =>
       case v    => k(v)
@@ -209,8 +209,8 @@ private[zio] final class FiberContext[E, A](
       cont: (Exit[E0, A], Fiber[E1, B]) => ZIO[R, E, C],
       winnerExit: Exit[E0, A],
       ab: AtomicBoolean,
-      cb: ZIO[R, E, C] => Unit
-    ): Unit =
+      cb: ZIO[R, E, C] => Any
+    ): Any =
       if (ab.compareAndSet(true, false)) {
         winnerExit match {
           case exit: Exit.Success[_] =>
@@ -576,13 +576,27 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Disown =>
                     val zio = curZio.asInstanceOf[ZIO.Disown]
 
-                    curZio = nextInstr(withChildren { children =>
-                      val removed = children.remove(zio.fiber)
+                    curZio = nextInstr {
+                      val removed = _children.remove(zio.fiber)
 
                       if (removed) Fiber.track(zio.fiber.asInstanceOf[FiberContext[Any, Any]])
 
                       removed
-                    }: Boolean)
+                    }
+
+                  case ZIO.Tags.Adopt =>
+                    val zio = curZio.asInstanceOf[ZIO.Adopt]
+
+                    curZio = nextInstr {
+                      zio.fiber match {
+                        case fiber: FiberContext[Any, Any] =>
+                          val removed = Fiber.untrack(fiber.asInstanceOf[FiberContext[Any, Any]])
+
+                          if (removed) _children.add(fiber) else false
+
+                        case _ => false
+                      }
+                    }
                 }
               }
             } else {
@@ -661,11 +675,7 @@ private[zio] final class FiberContext[E, A](
       // On all platforms except the JVM, we must remove the child from the
       // parent when the child is done. On the JVM, we rely on garbage
       // collection to remove the child from the weak set.
-      childContext.onDone { _ =>
-        val _ = self.withChildren(_.remove(childContext))
-
-        ()
-      }
+      childContext.onDone(_ => _children.remove(childContext))
     }
 
     executor.submitOrThrow(() => childContext.evaluateNow(zio))
@@ -683,20 +693,16 @@ private[zio] final class FiberContext[E, A](
    */
   private[this] def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio => if (exitAsync(epoch)) evaluateLater(zio) }
 
-  private def withChildren[A](f: java.util.Set[FiberContext[Any, Any]] => A): A =
-    Sync(self._children)(f(self._children))
-
-  private def addChild(child: FiberContext[Any, Any]): Unit =
-    if (child ne null) {
-      val _ = withChildren(_.add(child))
-    }
+  private def addChild(child: FiberContext[Any, Any]): Any =
+    if (child ne null) _children.add(child)
 
   final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
 
   final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(childrenToScala())
 
   @silent("JavaConverters")
-  private def childrenToScala(): Iterable[FiberContext[Any, Any]] = withChildren(_.asScala.toSet.filter(_ ne null))
+  private def childrenToScala(): Iterable[FiberContext[Any, Any]] =
+    Sync(_children)(_children.asScala.toArray.filter(_ ne null))
 
   def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]](k => observe0(x => k(ZIO.done(x))))
 
@@ -863,7 +869,7 @@ private[zio] final class FiberContext[E, A](
           val completeAll = UIO.effectSuspendTotal {
             val children = childrenToScala()
 
-            withChildren(_.clear())
+            _children.clear()
 
             ZIO.foreach_(children)(_.interruptAs(fiberId))
           }
@@ -930,7 +936,7 @@ private[zio] final class FiberContext[E, A](
 
         if (!state.compareAndSet(oldState, Executing(status, observers, interrupt))) onDone(k)
 
-      case Done(v) => k(Exit.succeed(v))
+      case Done(v) => k(Exit.succeed(v)); ()
     }
   }
 

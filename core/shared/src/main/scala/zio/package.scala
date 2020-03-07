@@ -15,7 +15,7 @@
  */
 
 package object zio extends EitherCompat with PlatformSpecific with VersionSpecific {
-  private[zio] type Callback[E, A] = Exit[E, A] => Unit
+  private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
 

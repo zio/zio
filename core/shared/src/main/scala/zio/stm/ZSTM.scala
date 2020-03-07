@@ -1321,12 +1321,12 @@ object ZSTM {
     type Journal =
       MutableMap[TRef[_], ZSTM.internal.Entry]
 
-    type Todo = () => Unit
+    type Todo = () => Any
 
     /**
      * Creates a function that can reset the journal.
      */
-    def prepareResetJournal(journal: Journal): () => Unit = {
+    def prepareResetJournal(journal: Journal): () => Any = {
       val saved = new MutableMap[TRef[_], Entry](journal.size)
 
       val it = journal.entrySet.iterator
@@ -1507,9 +1507,9 @@ object ZSTM {
       done: AtomicBoolean,
       r: R
     )(
-      k: ZIO[R, E, A] => Unit
+      k: ZIO[R, E, A] => Any
     ): Unit = {
-      def complete(io: IO[E, A]): Unit = { done.set(true); k(io) }
+      def complete(io: IO[E, A]): Unit = { done.set(true); k(io); () }
 
       @tailrec
       def suspend(accum: Journal, journal: Journal): Unit = {
