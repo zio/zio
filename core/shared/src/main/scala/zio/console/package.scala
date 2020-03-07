@@ -85,7 +85,7 @@ package object console {
       ZLayer.requires[Console]
 
     val live: ZLayer.NoDeps[Nothing, Console] =
-      ZLayer.succeed(Service.live)
+      ZLayer.make(Service.live)
   }
 
   /**

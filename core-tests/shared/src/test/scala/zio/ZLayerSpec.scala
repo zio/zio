@@ -59,12 +59,12 @@ object ZLayerSpec extends ZIOBaseSpec {
   def spec =
     suite("ZLayerSpec")(
       testM("Size of >>> (1)") {
-        val layer = ZLayer.succeed(1) >>> ZLayer.fromService((i: Int) => i.toString)
+        val layer = ZLayer.make(1) >>> ZLayer.fromService((i: Int) => i.toString)
 
         testSize(layer, 1)
       },
       testM("Size of >>> (2)") {
-        val layer = ZLayer.succeed(1) >>>
+        val layer = ZLayer.make(1) >>>
           (ZLayer.fromService((i: Int) => i.toString) ++
             ZLayer.fromService((i: Int) => i % 2 == 0))
 
@@ -236,7 +236,7 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("map can map the output of a layer to an unrelated type") {
         case class A(name: String, value: Int)
         case class B(name: String)
-        val l1: ZLayer.NoDeps[Nothing, Has[A]]       = ZLayer.succeed(A("name", 1))
+        val l1: ZLayer.NoDeps[Nothing, Has[A]]       = ZLayer.make(A("name", 1))
         val l2: ZLayer[Has[String], Nothing, Has[B]] = ZLayer.fromService(B)
         val live: ZLayer.NoDeps[Nothing, Has[B]]     = l1.map(a => Has(a.get[A].name)) >>> l2
         assertM(ZIO.access[Has[B]](_.get).provideLayer(live))(equalTo(B("name")))

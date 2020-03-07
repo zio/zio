@@ -14,7 +14,7 @@ object SpecSpec extends ZIOBaseSpec {
     trait Service
   }
 
-  val layer = ZLayer.succeed(new Module.Service {})
+  val layer = ZLayer.make(new Module.Service {})
 
   def spec = suite("SpecSpec")(
     suite("provideLayerShared")(
@@ -56,7 +56,7 @@ object SpecSpec extends ZIOBaseSpec {
           testM("test requires env") {
             assertM(ZIO.access[Has[Int]](_.get[Int]))(Assertion.equalTo(42))
           }
-        ).provideLayerShared(ZLayer.succeed(43))
+        ).provideLayerShared(ZLayer.make(43))
         for {
           executedSpec <- execute(spec)
           successes    <- executedSpec.countTests(_.isRight)

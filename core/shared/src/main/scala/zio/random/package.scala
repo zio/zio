@@ -50,7 +50,7 @@ package object random {
       ZLayer.requires[Random]
 
     val live: ZLayer.NoDeps[Nothing, Random] =
-      ZLayer.succeed(Service.live)
+      ZLayer.make(Service.live)
 
     protected[zio] def shuffleWith[A](nextInt: Int => UIO[Int], list: List[A]): UIO[List[A]] =
       for {

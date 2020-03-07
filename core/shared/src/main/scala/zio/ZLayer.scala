@@ -568,6 +568,19 @@ object ZLayer {
     ZLayer.requires[A]
 
   /**
+   * Constructs a layer from the specified value.
+   */
+  def make[A: Tagged](a: => A): ZLayer.NoDeps[Nothing, Has[A]] =
+    ZLayer(ZManaged.succeed(Has(a)))
+
+  /**
+   * Constructs a layer from the specified value, which must return one or more
+   * services.
+   */
+  def makeMany[A <: Has[_]](a: => A): ZLayer.NoDeps[Nothing, A] =
+    ZLayer(ZManaged.succeed(a))
+
+  /**
    * Constructs a layer that passes along the specified environment as an
    * output.
    */
@@ -580,19 +593,6 @@ object ZLayer {
    */
   def service[A]: ZLayer[Has[A], Nothing, Has[A]] =
     ZLayer(ZManaged.environment[Has[A]])
-
-  /**
-   * Constructs a layer from the specified value.
-   */
-  def succeed[A: Tagged](a: => A): ZLayer.NoDeps[Nothing, Has[A]] =
-    ZLayer(ZManaged.succeed(Has(a)))
-
-  /**
-   * Constructs a layer from the specified value, which must return one or more
-   * services.
-   */
-  def succeedMany[A <: Has[_]](a: => A): ZLayer.NoDeps[Nothing, A] =
-    ZLayer(ZManaged.succeed(a))
 
   /**
    * A `MemoMap` memoizes dependencies.

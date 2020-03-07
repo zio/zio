@@ -154,7 +154,7 @@ package object blocking {
       ZLayer.requires[Blocking]
 
     val live: ZLayer.NoDeps[Nothing, Blocking] =
-      ZLayer.succeed(Service.live)
+      ZLayer.make(Service.live)
   }
 
   def blocking[R <: Blocking, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =

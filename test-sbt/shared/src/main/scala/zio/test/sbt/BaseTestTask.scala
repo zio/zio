@@ -34,7 +34,7 @@ abstract class BaseTestTask(
     } yield ()
 
   protected def sbtTestLayer(loggers: Array[Logger]): ZLayer.NoDeps[Nothing, TestLogger with Clock] =
-    ZLayer.succeed[TestLogger.Service](new TestLogger.Service {
+    ZLayer.make[TestLogger.Service](new TestLogger.Service {
       def logLine(line: String): UIO[Unit] =
         ZIO
           .effect(loggers.foreach(_.info(colored(line))))

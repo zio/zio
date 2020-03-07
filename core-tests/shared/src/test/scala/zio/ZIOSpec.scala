@@ -3063,6 +3063,6 @@ object ZIOSpec extends ZIOBaseSpec {
 
   object Logging {
     trait Service
-    val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
+    val live: ZLayer[Any, Nothing, Logging] = ZLayer.make(new Logging.Service {})
   }
 }

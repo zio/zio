@@ -58,7 +58,7 @@ package object clock {
       ZLayer.requires[Clock]
 
     val live: ZLayer.NoDeps[Nothing, Clock] =
-      ZLayer.succeed(Service.live)
+      ZLayer.make(Service.live)
   }
 
   /**

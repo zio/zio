@@ -48,7 +48,7 @@ package object system {
       ZLayer.requires[System]
 
     val live: ZLayer.NoDeps[Nothing, System] =
-      ZLayer.succeed(Service.live)
+      ZLayer.make(Service.live)
   }
 
   /** Retrieve the value of an environment variable **/
