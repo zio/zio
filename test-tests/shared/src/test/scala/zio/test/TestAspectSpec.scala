@@ -29,7 +29,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = testM("test") {
-          ZIO.failNow("error")
+          ZIO.fail("error")
         } @@ after(ref.set(-1))
         result <- isSuccess(spec)
         after  <- ref.get
@@ -198,7 +198,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         assertM(ZIO.unit)(anything)
       } @@ nonTermination(1.minute) @@ failure,
       testM("makes a test fail if it fails within the specified time") {
-        assertM(ZIO.failNow("fail"))(anything)
+        assertM(ZIO.fail("fail"))(anything)
       } @@ nonTermination(1.minute) @@ failure
     ),
     testM("retry retries failed tests according to a schedule") {

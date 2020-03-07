@@ -45,7 +45,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * outputs of the specified layer.
    */
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    fold(ZLayer.fromFunctionManyM(ZIO.failNow), that)
+    fold(ZLayer.fromFunctionManyM(ZIO.fail(_)), that)
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -108,7 +108,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * function.
    */
   def mapError[E1](f: E => E1): ZLayer[RIn, E1, ROut] =
-    fold(ZLayer.fromFunctionManyM(f andThen ZIO.failNow), ZLayer.identity)
+    fold(ZLayer.fromFunctionManyM(e => ZIO.fail(f(e))), ZLayer.identity)
 
   /**
    * Returns a managed effect that, if evaluated, will return the lazily

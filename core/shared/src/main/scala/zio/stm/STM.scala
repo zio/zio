@@ -317,15 +317,6 @@ object STM {
    */
   def whenM[E](b: STM[E, Boolean])(stm: STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
 
-  private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
-    ZSTM.dieNow(t)
-
-  private[zio] def doneNow[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
-    ZSTM.doneNow(exit)
-
-  private[zio] def failNow[E](e: E): STM[E, Nothing] =
-    ZSTM.failNow(e)
-
   private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
     ZSTM.succeedNow(a)
 }

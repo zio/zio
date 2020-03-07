@@ -16,14 +16,23 @@
 
 package zio.test
 
+import java.util.regex.Pattern
+
 import scala.io.AnsiColor
 
 import zio.duration.Duration
 import zio.test.ConsoleUtils.{ cyan, red, _ }
-import zio.test.MessageMarkup.{ Fragment, Message }
+import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
+import zio.test.mock.MockException.{
+  InvalidArgumentsException,
+  InvalidMethodException,
+  UnexpectedCallExpection,
+  UnmetExpectationsException
+}
+import zio.test.mock.{ Method, MockException }
 import zio.{ Cause, UIO, URIO }
 
 object DefaultTestReporter {
@@ -93,14 +102,13 @@ object DefaultTestReporter {
     loop(executedSpec, 0, List.empty)
   }
 
-  def apply[E](
-    testAnnotationRenderer: TestAnnotationRenderer
-  ): TestReporter[E] = { (duration: Duration, executedSpec: ExecutedSpec[E]) =>
-    for {
-      rendered <- render(executedSpec, testAnnotationRenderer).map(_.flatMap(_.rendered))
-      stats    <- logStats(duration, executedSpec)
-      _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
-    } yield ()
+  def apply[E](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E] = {
+    (duration: Duration, executedSpec: ExecutedSpec[E]) =>
+      for {
+        rendered <- render(executedSpec, testAnnotationRenderer).map(_.flatMap(_.rendered))
+        stats    <- logStats(duration, executedSpec)
+        _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
+      } yield ()
   }
 
   private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): URIO[TestLogger, String] = {
@@ -132,20 +140,13 @@ object DefaultTestReporter {
   private def renderSuccessLabel(label: String, offset: Int) =
     withOffset(offset)(green("+") + " " + label)
 
-  private def renderFailure(
-    label: String,
-    offset: Int,
-    details: FailureDetails
-  ): UIO[Seq[String]] =
+  private def renderFailure(label: String, offset: Int, details: FailureDetails): UIO[Seq[String]] =
     renderFailureDetails(details, offset).map(renderFailureLabel(label, offset) +: _)
 
   private def renderFailureLabel(label: String, offset: Int): String =
     withOffset(offset)(red("- " + label))
 
-  private def renderFailureDetails(
-    failureDetails: FailureDetails,
-    offset: Int
-  ): UIO[Seq[String]] =
+  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): UIO[Seq[String]] =
     FailureRenderer
       .renderFailureDetails(failureDetails, offset)
       .map(renderToStringLines)
@@ -231,4 +232,192 @@ case class RenderedResult[T](caseType: CaseType, label: String, status: Status, 
       self.copy(rendered = renderedWithAnnotations.asInstanceOf[Seq[T]])
     }
   }
+}
+
+object FailureRenderer {
+
+  private val tabSize = 2
+
+  object FailureMessage {
+    case class Message(lines: Vector[Line] = Vector.empty) {
+      def :+(line: Line)       = Message(lines :+ line)
+      def ++(message: Message) = Message(lines ++ message.lines)
+      def map(f: Line => Line) = copy(lines = lines.map(f))
+    }
+    object Message {
+      def apply(lines: Seq[Line]): Message = Message(lines.toVector)
+      def apply(lineText: String): Message = Fragment(lineText).toLine.toMessage
+    }
+    case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
+      def :+(fragment: Fragment)    = Line(fragments :+ fragment)
+      def +(fragment: Fragment)     = Line(fragments :+ fragment)
+      def prepend(message: Message) = Message(this +: message.lines)
+      def +(line: Line)             = Message(Vector(this, line))
+      def ++(line: Line)            = copy(fragments = fragments ++ line.fragments)
+      def withOffset(shift: Int)    = copy(offset = offset + shift)
+      def toMessage                 = Message(Vector(this))
+    }
+    object Line {
+      def fromString(text: String, offset: Int = 0): Line = Fragment(text).toLine.withOffset(offset)
+    }
+    case class Fragment(text: String, ansiColorCode: String = "") {
+      def +:(line: Line)      = prepend(line)
+      def prepend(line: Line) = Line(this +: line.fragments, line.offset)
+      def +(f: Fragment)      = Line(Vector(this, f))
+      def toLine              = Line(Vector(this))
+    }
+  }
+
+  import FailureMessage._
+
+  def renderFailureDetails(failureDetails: FailureDetails, offset: Int): UIO[Message] =
+    failureDetails match {
+      case FailureDetails(assertionFailureDetails, genFailureDetails) =>
+        renderAssertionFailureDetails(assertionFailureDetails, offset).map(
+          renderGenFailureDetails(genFailureDetails, offset) ++ _
+        )
+    }
+
+  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): UIO[Message] = {
+    def loop(failureDetails: List[AssertionValue], rendered: Message): UIO[Message] =
+      failureDetails match {
+        case fragment :: whole :: failureDetails =>
+          renderWhole(fragment, whole, offset).flatMap(s => loop(whole :: failureDetails, rendered :+ s))
+        case _ =>
+          UIO.succeedNow(rendered)
+      }
+    for {
+      fragment <- renderFragment(failureDetails.head, offset)
+      rest     <- loop(failureDetails, Message())
+    } yield fragment.toMessage ++ rest
+  }
+
+  private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Message =
+    failureDetails match {
+      case Some(details) =>
+        val shrinked = details.shrinkedInput.toString
+        val initial  = details.initialInput.toString
+        val renderShrinked = withOffset(offset + tabSize)(
+          Fragment(
+            s"Test failed after ${details.iterations + 1} iteration${if (details.iterations > 0) "s" else ""} with input: "
+          ) +
+            red(shrinked)
+        )
+        if (initial == shrinked) renderShrinked.toMessage
+        else
+          renderShrinked + withOffset(offset + tabSize)(
+            Fragment(s"Original input before shrinking was: ") + red(initial)
+          )
+      case None => Message()
+    }
+
+  private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int): UIO[Line] =
+    renderSatisfied(whole).map { satisfied =>
+      withOffset(offset + tabSize) {
+        blue(whole.value.toString) +
+          satisfied ++
+          highlight(cyan(whole.assertion.toString), fragment.assertion.toString)
+      }
+    }
+
+  private def renderFragment(fragment: AssertionValue, offset: Int): UIO[Line] =
+    renderSatisfied(fragment).map { satisfied =>
+      withOffset(offset + tabSize) {
+        blue(fragment.value.toString) +
+          satisfied +
+          cyan(fragment.assertion.toString)
+      }
+    }
+
+  private def highlight(fragment: Fragment, substring: String, colorCode: String = AnsiColor.YELLOW): Line = {
+    val parts = fragment.text.split(Pattern.quote(substring))
+    if (parts.size == 1) fragment.toLine
+    else
+      parts.foldLeft(Line()) { (line, part) =>
+        if (line.fragments.size < parts.size * 2 - 2)
+          line + Fragment(part, fragment.ansiColorCode) + Fragment(substring, colorCode)
+        else line + Fragment(part, fragment.ansiColorCode)
+      }
+  }
+
+  private def renderSatisfied(fragment: AssertionValue): UIO[Fragment] =
+    fragment.assertion.test(fragment.value).map(p => Fragment(if (p) " satisfied " else " did not satisfy "))
+
+  def renderCause(cause: Cause[Any], offset: Int): UIO[Message] =
+    cause.dieOption match {
+      case Some(TestTimeoutException(message)) => UIO.succeedNow(Message(message))
+      case Some(exception: MockException) =>
+        renderMockException(exception).map(_.map(withOffset(offset + tabSize)))
+      case _ =>
+        UIO.succeedNow(
+          Message(
+            cause.prettyPrint
+              .split("\n")
+              .map(s => withOffset(offset + tabSize)(Line.fromString(s)))
+              .toVector
+          )
+        )
+    }
+
+  private def renderMockException(exception: MockException): UIO[Message] =
+    exception match {
+      case InvalidArgumentsException(method, args, assertion) =>
+        renderTestFailure(s"$method called with invalid arguments", assert(args)(assertion))
+
+      case InvalidMethodException(method, expectedMethod, assertion) =>
+        UIO.succeedNow(
+          Message(Seq(red(s"- invalid call to $method").toLine, renderExpectation(expectedMethod, assertion, tabSize)))
+        )
+
+      case UnmetExpectationsException(expectations) =>
+        UIO.succeedNow(Message(red(s"- unmet expectations").toLine +: expectations.map {
+          case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
+        }))
+
+      case UnexpectedCallExpection(method, args) =>
+        UIO.succeedNow(
+          Message(
+            Seq(
+              red(s"- unexpected call to $method with arguments").toLine,
+              withOffset(tabSize)(cyan(args.toString).toLine)
+            )
+          )
+        )
+    }
+
+  private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[I], offset: Int): Line =
+    withOffset(offset)(Fragment(s"expected $method with arguments ") + cyan(assertion.toString))
+
+  def renderTestFailure(label: String, testResult: TestResult): UIO[Message] =
+    testResult.run.flatMap(
+      _.failures.fold(UIO.succeedNow(Message()))(
+        _.fold(details =>
+          renderFailure(label, 0, details)
+            .map(failures => rendered(Test, label, Failed, 0, failures.lines: _*))
+        )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
+          .map(_.rendered)
+          .map(Message.apply)
+      )
+    )
+
+  private def rendered[T](
+    caseType: CaseType,
+    label: String,
+    result: Status,
+    offset: Int,
+    rendered: T*
+  ): RenderedResult[T] =
+    RenderedResult(caseType, label, result, offset, rendered)
+
+  private def renderFailure(label: String, offset: Int, details: FailureDetails): UIO[Message] =
+    renderFailureDetails(details, offset).map(renderFailureLabel(label, offset).prepend)
+
+  private def renderFailureLabel(label: String, offset: Int): Line =
+    withOffset(offset)(red("- " + label).toLine)
+
+  private def red(s: String)                                      = FailureMessage.Fragment(s, AnsiColor.RED)
+  private def blue(s: String)                                     = FailureMessage.Fragment(s, AnsiColor.BLUE)
+  private def cyan(s: String)                                     = FailureMessage.Fragment(s, AnsiColor.CYAN)
+  private def withOffset(i: Int)(line: FailureMessage.Line): Line = line.withOffset(i)
+
 }

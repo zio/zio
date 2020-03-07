@@ -16,25 +16,25 @@
 
 package zio
 
-import zio.clock.Clock
-import zio.console.Console
-import zio.random.Random
-import zio.system.System
+import zio.stm.ZSTM
 
-private[zio] trait PlatformSpecific {
-  type ZEnv = Clock with Console with System with Random
+package object internal {
 
-  object ZEnv {
+  /**
+   * Returns an effect that models success with the specified value.
+   */
+  def ZIOSucceedNow[A](a: A): ZIO[Any, Nothing, A] =
+    ZIO.succeedNow(a)
 
-    object Services { 
-      val live: ZEnv =
-        Has.allOf[Clock.Service, Console.Service, System.Service, Random.Service](Clock.Service.live, Console.Service.live, System.Service.live, Random.Service.live)
-      }
+  /**
+   * Lifts an eager, pure value into a Managed.
+   */
+  def ZManagedSucceedNow[A](r: A): ZManaged[Any, Nothing, A] =
+    ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
 
-    val any: ZLayer[ZEnv, Nothing, ZEnv] =
-      ZLayer.requires[ZEnv]
-
-    val live: ZLayer.NoDeps[Nothing, ZEnv] =
-      Clock.live ++ Console.live ++ System.live ++ Random.live
-  }
+  /**
+   * Returns an `STM` effect that succeeds with the specified value.
+   */
+  def ZSTMSucceedNow[A](a: A): ZSTM[Any, Nothing, A] =
+    ZSTM.succeedNow(a)
 }

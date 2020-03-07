@@ -13,6 +13,12 @@ object IO {
     ZIO.absolve(v)
 
   /**
+   * @see See [[zio.ZIO.adopt]]
+   */
+  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
+    ZIO.adopt(fiber)
+
+  /**
    * @see See [[zio.ZIO.allowInterrupt]]
    */
   def allowInterrupt: UIO[Unit] =
@@ -166,7 +172,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  def effectAsync[E, A](register: (IO[E, A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): IO[E, A] =
+  def effectAsync[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): IO[E, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -722,14 +728,6 @@ object IO {
     def apply[E1 >: E, B](use: A => IO[E1, B]): IO[E1, B] =
       ZIO.bracket(acquire, release, use)
   }
-
-  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
-
-  private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = ZIO.doneNow(r)
-
-  private[zio] def failNow[E](error: E): IO[E, Nothing] = ZIO.failNow(error)
-
-  private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] = ZIO.haltNow(cause)
 
   private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

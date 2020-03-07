@@ -61,7 +61,7 @@ trait App extends BootstrapRuntime {
               }))
           result <- fiber.join
           _      <- fiber.interrupt
-        } yield result).provideLayer(ZEnv.live)
+        } yield result)
       )
     )
     catch { case _: SecurityException => }

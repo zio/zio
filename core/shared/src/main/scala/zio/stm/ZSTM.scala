@@ -182,7 +182,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * the specified pair of functions, `f` and `g`.
    */
   def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, E2, B] =
-    foldM(e => ZSTM.failNow(f(e)), a => ZSTM.succeedNow(g(a)))
+    foldM(e => ZSTM.fail(f(e)), a => ZSTM.succeedNow(g(a)))
 
   /**
    * Recovers from all errors.
@@ -196,7 +196,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def catchSome[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[E, ZSTM[R1, E1, A1]]
   )(implicit ev: CanFail[E]): ZSTM[R1, E1, A1] =
-    catchAll(pf.applyOrElse(_, (e: E) => ZSTM.failNow(e)))
+    catchAll(pf.applyOrElse(_, (e: E) => ZSTM.fail(e)))
 
   /**
    * Simultaneously filters and maps the value produced by this effect.
@@ -210,7 +210,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def collectM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZSTM[R1, E1, B]]): ZSTM[R1, E1, B] =
     self.continueWithM {
-      case TExit.Fail(e)    => ZSTM.failNow(e)
+      case TExit.Fail(e)    => ZSTM.fail(e)
       case TExit.Succeed(a) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry
       case TExit.Retry      => ZSTM.retry
     }
@@ -257,7 +257,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * if the full transaction fails, everything will be rolled back.
    */
   def ensuring[R1 <: R](finalizer: ZSTM[R1, Nothing, Any]): ZSTM[R1, E, A] =
-    foldM(e => finalizer *> ZSTM.failNow(e), a => finalizer *> ZSTM.succeedNow(a))
+    foldM(e => finalizer *> ZSTM.fail(e), a => finalizer *> ZSTM.succeedNow(a))
 
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
@@ -269,7 +269,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Dies with specified `Throwable` if the predicate fails.
    */
   def filterOrDie(p: A => Boolean)(t: => Throwable): ZSTM[R, E, A] =
-    filterOrElse_(p)(ZSTM.dieNow(t))
+    filterOrElse_(p)(ZSTM.die(t))
 
   /**
    * Dies with a [[java.lang.RuntimeException]] having the specified text message
@@ -294,7 +294,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Fails with `e` if the predicate fails.
    */
   def filterOrFail[E1 >: E](p: A => Boolean)(e: => E1): ZSTM[R, E1, A] =
-    filterOrElse_[R, E1, A](p)(ZSTM.failNow(e))
+    filterOrElse_[R, E1, A](p)(ZSTM.fail(e))
 
   /**
    * Feeds the value produced by this effect to the specified function,
@@ -303,7 +303,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def flatMap[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
     self.continueWithM {
       case TExit.Succeed(a) => f(a)
-      case TExit.Fail(e)    => ZSTM.failNow(e)
+      case TExit.Fail(e)    => ZSTM.fail(e)
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -332,7 +332,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * flipping back.
    */
   def flip(implicit ev: CanFail[E]): ZSTM[R, A, E] =
-    foldM(ZSTM.succeedNow, ZSTM.failNow)
+    foldM(ZSTM.succeedNow, ZSTM.fail(_))
 
   /**
    *  Swaps the error/value parameters, applies the function `f` and flips the parameters back
@@ -375,7 +375,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZSTM[R, Unit, B] =
     foldM(
       ev1,
-      ev2(_).fold[ZSTM[R, Unit, B]](ZSTM.failNow(()))(ZSTM.succeedNow(_))
+      ev2(_).fold[ZSTM[R, Unit, B]](ZSTM.fail(()))(ZSTM.succeedNow(_))
     )
 
   /**
@@ -384,8 +384,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def head[B](implicit ev: A <:< List[B]): ZSTM[R, Option[E], B] =
     foldM(
-      e => ZSTM.failNow(Some(e)),
-      ev(_).headOption.fold[ZSTM[R, Option[E], B]](ZSTM.failNow(None))(ZSTM.succeedNow)
+      e => ZSTM.fail(Some(e)),
+      ev(_).headOption.fold[ZSTM[R, Option[E], B]](ZSTM.fail(None))(ZSTM.succeedNow)
     )
 
   /**
@@ -398,8 +398,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def left[B, C](implicit ev: A <:< Either[B, C]): ZSTM[R, Option[E], B] =
     foldM(
-      e => ZSTM.failNow(Some(e)),
-      a => ev(a).fold(ZSTM.succeedNow, _ => ZSTM.failNow(None))
+      e => ZSTM.fail(Some(e)),
+      a => ev(a).fold(ZSTM.succeedNow, _ => ZSTM.fail(None))
     )
 
   /**
@@ -407,7 +407,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def leftOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, B] =
     flatMap(ev(_) match {
-      case Right(_)    => ZSTM.failNow(e)
+      case Right(_)    => ZSTM.fail(e)
       case Left(value) => ZSTM.succeedNow(value)
     })
 
@@ -420,8 +420,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
     ev2: E <:< E1
   ): ZSTM[R, E1, B] =
     foldM(
-      e => ZSTM.failNow(ev2(e)),
-      a => ev(a).fold(ZSTM.succeedNow(_), _ => ZSTM.failNow(new NoSuchElementException("Either.left.get on Right")))
+      e => ZSTM.fail(ev2(e)),
+      a => ev(a).fold(ZSTM.succeedNow(_), _ => ZSTM.fail(new NoSuchElementException("Either.left.get on Right")))
     )
 
   /**
@@ -430,7 +430,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def map[B](f: A => B): ZSTM[R, E, B] =
     self.continueWithM {
       case TExit.Succeed(a) => ZSTM.succeedNow(f(a))
-      case TExit.Fail(e)    => ZSTM.failNow(e)
+      case TExit.Fail(e)    => ZSTM.fail(e)
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -440,7 +440,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
     self.continueWithM {
       case TExit.Succeed(a) => ZSTM.succeedNow(a)
-      case TExit.Fail(e)    => ZSTM.failNow(f(e))
+      case TExit.Fail(e)    => ZSTM.fail(f(e))
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -456,8 +456,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def none[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], Unit] =
     self.foldM(
-      e => ZSTM.failNow(Some(e)),
-      _.fold[ZSTM[R, Option[E], Unit]](ZSTM.unit)(_ => ZSTM.failNow(None))
+      e => ZSTM.fail(Some(e)),
+      _.fold[ZSTM[R, Option[E], Unit]](ZSTM.unit)(_ => ZSTM.fail(None))
     )
 
   /**
@@ -503,7 +503,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def optional[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
     foldM(
-      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.failNow(_)),
+      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
       a => ZSTM.succeedNow(Some(a))
     )
 
@@ -520,7 +520,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * into a `Throwable`.
    */
   def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): ZSTM[R, Nothing, A] =
-    mapError(f).catchAll(ZSTM.dieNow)
+    mapError(f).catchAll(ZSTM.die(_))
 
   /**
    * Named alias for `<>`.
@@ -567,7 +567,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Tries this effect first, and if it fails, fails with the specified error.
    */
   def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
-    orElse(ZSTM.failNow(e1))
+    orElse(ZSTM.fail(e1))
 
   /**
    * Tries this effect first, and if it fails, succeeds with the specified
@@ -616,14 +616,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * the specified function to convert the `E` into a `Throwable`.
    */
   def refineOrDieWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
-    self.catchAll(err => (pf.lift(err)).fold[ZSTM[R, E1, A]](ZSTM.dieNow(f(err)))(ZSTM.failNow(_)))
+    self.catchAll(err => (pf.lift(err)).fold[ZSTM[R, E1, A]](ZSTM.die(f(err)))(ZSTM.fail(_)))
 
   /**
    * Fail with the returned value if the `PartialFunction` matches, otherwise
    * continue with our held value.
    */
   def reject[R1 <: R, E1 >: E](pf: PartialFunction[A, E1]): ZSTM[R1, E1, A] =
-    rejectM(pf.andThen(ZSTM.failNow(_)))
+    rejectM(pf.andThen(ZSTM.fail(_)))
 
   /**
    * Continue with the returned computation if the `PartialFunction` matches,
@@ -632,7 +632,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def rejectM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZSTM[R1, E1, E1]]): ZSTM[R1, E1, A] =
     self.flatMap { v =>
-      pf.andThen[ZSTM[R1, E1, A]](_.flatMap(ZSTM.failNow))
+      pf.andThen[ZSTM[R1, E1, A]](_.flatMap(ZSTM.fail(_)))
         .applyOrElse[A, ZSTM[R1, E1, A]](v, ZSTM.succeedNow)
     }
 
@@ -659,8 +659,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def right[B, C](implicit ev: A <:< Either[B, C]): ZSTM[R, Option[E], C] =
     self.foldM(
-      e => ZSTM.failNow(Some(e)),
-      a => ev(a).fold(_ => ZSTM.failNow(None), ZSTM.succeedNow)
+      e => ZSTM.fail(Some(e)),
+      a => ev(a).fold(_ => ZSTM.fail(None), ZSTM.succeedNow)
     )
 
   /**
@@ -670,7 +670,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def rightOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, C] =
     self.flatMap(ev(_) match {
       case Right(value) => ZSTM.succeedNow(value)
-      case Left(_)      => ZSTM.failNow(e)
+      case Left(_)      => ZSTM.fail(e)
     })
 
   /**
@@ -682,8 +682,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
     ev2: E <:< E1
   ): ZSTM[R, E1, C] =
     self.foldM(
-      e => ZSTM.failNow(ev2(e)),
-      a => ev(a).fold(_ => ZSTM.failNow(new NoSuchElementException("Either.right.get on Left")), ZSTM.succeedNow(_))
+      e => ZSTM.fail(ev2(e)),
+      a => ev(a).fold(_ => ZSTM.fail(new NoSuchElementException("Either.right.get on Left")), ZSTM.succeedNow(_))
     )
 
   /**
@@ -691,15 +691,15 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def some[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], B] =
     self.foldM(
-      e => ZSTM.failNow(Some(e)),
-      _.fold[ZSTM[R, Option[E], B]](ZSTM.failNow(Option.empty[E]))(ZSTM.succeedNow)
+      e => ZSTM.fail(Some(e)),
+      _.fold[ZSTM[R, Option[E], B]](ZSTM.fail(Option.empty[E]))(ZSTM.succeedNow)
     )
 
   /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
   def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZSTM[R, E1, B] =
-    flatMap(_.fold[ZSTM[R, E1, B]](ZSTM.failNow(e))(ZSTM.succeedNow))
+    flatMap(_.fold[ZSTM[R, E1, B]](ZSTM.fail(e))(ZSTM.succeedNow))
 
   /**
    * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
@@ -709,8 +709,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
     ev2: NoSuchElementException <:< E1
   ): ZSTM[R, E1, B] =
     foldM(
-      ZSTM.failNow,
-      _.fold[ZSTM[R, E1, B]](ZSTM.failNow(ev2(new NoSuchElementException("None.get"))))(ZSTM.succeedNow)
+      ZSTM.fail(_),
+      _.fold[ZSTM[R, E1, B]](ZSTM.fail(ev2(new NoSuchElementException("None.get"))))(ZSTM.succeedNow)
     )
 
   /**
@@ -737,13 +737,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def tapBoth[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any], g: A => ZSTM[R1, E1, Any])(
     implicit ev: CanFail[E]
   ): ZSTM[R1, E1, A] =
-    foldM(e => f(e) *> ZSTM.failNow(e), a => g(a) as a)
+    foldM(e => f(e) *> ZSTM.fail(e), a => g(a) as a)
 
   /**
    * "Peeks" at the error of the transactional effect.
    */
   def tapError[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any])(implicit ev: CanFail[E]): ZSTM[R1, E1, A] =
-    foldM(e => f(e) *> ZSTM.failNow(e), ZSTM.succeedNow)
+    foldM(e => f(e) *> ZSTM.fail(e), ZSTM.succeedNow)
 
   /**
    * Maps the success value of this effect to unit.
@@ -910,7 +910,7 @@ object ZSTM {
    * Returns a value modelled on provided exit status.
    */
   def done[R, E, A](exit: => TExit[E, A]): ZSTM[R, E, A] =
-    suspend(doneNow(exit))
+    suspend(done(exit))
 
   /**
    * Retrieves the environment inside an stm.
@@ -996,7 +996,7 @@ object ZSTM {
   def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
     STM.suspend {
       e match {
-        case Left(t)  => STM.failNow(t)
+        case Left(t)  => STM.fail(t)
         case Right(a) => STM.succeedNow(a)
       }
     }
@@ -1018,7 +1018,7 @@ object ZSTM {
    * Lifts an `Option` into a `STM`.
    */
   def fromOption[A](v: => Option[A]): STM[Unit, A] =
-    STM.suspend(v.fold[STM[Unit, A]](STM.failNow(()))(STM.succeedNow))
+    STM.suspend(v.fold[STM[Unit, A]](STM.fail(()))(STM.succeedNow))
 
   /**
    * Lifts a `Try` into a `STM`.
@@ -1026,7 +1026,7 @@ object ZSTM {
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     STM.suspend {
       a match {
-        case Failure(t) => STM.failNow(t)
+        case Failure(t) => STM.fail(t)
         case Success(a) => STM.succeedNow(a)
       }
     }
@@ -1188,7 +1188,7 @@ object ZSTM {
    * value, then the specified error will be raised.
    */
   def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
-    _.flatMap(_.fold[ZSTM[R, E, A]](failNow(error))(succeedNow))
+    _.flatMap(_.fold[ZSTM[R, E, A]](fail(error))(succeedNow))
 
   /**
    * Abort and retry the whole transaction when any of the underlying
@@ -1249,7 +1249,7 @@ object ZSTM {
     in: Iterable[A]
   )(f: A => ZSTM[R, E, B])(implicit ev: CanFail[E]): ZSTM[R, ::[E], List[B]] =
     partition(in)(f).flatMap {
-      case (e :: es, _) => failNow(::(e, es))
+      case (e :: es, _) => fail(::(e, es))
       case (_, bs)      => succeedNow(bs)
     }
 
@@ -1286,19 +1286,6 @@ object ZSTM {
   def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     b.flatMap(b => if (b) stm.unit else unit)
 
-  private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
-    succeedNow(throw t)
-
-  private[zio] def doneNow[E, A](exit: TExit[E, A]): STM[E, A] =
-    exit match {
-      case TExit.Retry      => STM.retry
-      case TExit.Fail(e)    => STM.failNow(e)
-      case TExit.Succeed(a) => STM.succeedNow(a)
-    }
-
-  private[zio] def failNow[E](e: E): STM[E, Nothing] =
-    fail(e)
-
   private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
     succeed(a)
 
@@ -1334,12 +1321,12 @@ object ZSTM {
     type Journal =
       MutableMap[TRef[_], ZSTM.internal.Entry]
 
-    type Todo = () => Unit
+    type Todo = () => Any
 
     /**
      * Creates a function that can reset the journal.
      */
-    def prepareResetJournal(journal: Journal): () => Unit = {
+    def prepareResetJournal(journal: Journal): () => Any = {
       val saved = new MutableMap[TRef[_], Entry](journal.size)
 
       val it = journal.entrySet.iterator
@@ -1520,9 +1507,9 @@ object ZSTM {
       done: AtomicBoolean,
       r: R
     )(
-      k: ZIO[R, E, A] => Unit
+      k: ZIO[R, E, A] => Any
     ): Unit = {
-      def complete(io: IO[E, A]): Unit = { done.set(true); k(io) }
+      def complete(io: IO[E, A]): Unit = { done.set(true); k(io); () }
 
       @tailrec
       def suspend(accum: Journal, journal: Journal): Unit = {
@@ -1587,7 +1574,7 @@ object ZSTM {
 
       value match {
         case TExit.Succeed(a) => completeTodos(IO.succeedNow(a), journal, platform)
-        case TExit.Fail(e)    => completeTodos(IO.failNow(e), journal, platform)
+        case TExit.Fail(e)    => completeTodos(IO.fail(e), journal, platform)
         case TExit.Retry      => TryCommit.Suspend(journal)
       }
     }

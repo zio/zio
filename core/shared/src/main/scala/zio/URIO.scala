@@ -13,6 +13,12 @@ object URIO {
     ZIO.absolve(v)
 
   /**
+   * @see See [[zio.ZIO.adopt]]
+   */
+  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
+    ZIO.adopt(fiber)
+
+  /**
    * @see [[zio.ZIO.access]]
    */
   def access[R]: ZIO.AccessPartiallyApplied[R] = ZIO.access[R]
@@ -172,7 +178,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.effectAsync]]
    */
-  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): URIO[R, A] =
+  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): URIO[R, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -651,12 +657,6 @@ object URIO {
    * @see [[zio.ZIO.yieldNow]]
    */
   val yieldNow: UIO[Unit] = ZIO.yieldNow
-
-  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
-
-  private[zio] def doneNow[A](r: Exit[Nothing, A]): UIO[A] = ZIO.doneNow(r)
-
-  private[zio] def haltNow(cause: Cause[Nothing]): UIO[Nothing] = ZIO.haltNow(cause)
 
   private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

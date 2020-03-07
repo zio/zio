@@ -15,6 +15,12 @@ object RIO {
     ZIO.absolve(v)
 
   /**
+   * @see See [[zio.ZIO.adopt]]
+   */
+  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
+    ZIO.adopt(fiber)
+
+  /**
    * @see See [[zio.ZIO.allowInterrupt]]
    */
   def allowInterrupt: UIO[Unit] =
@@ -183,7 +189,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  def effectAsync[R, A](register: (RIO[R, A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): RIO[R, A] =
+  def effectAsync[R, A](register: (RIO[R, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): RIO[R, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -738,14 +744,6 @@ object RIO {
    * @see See [[zio.ZIO.yieldNow]]
    */
   val yieldNow: UIO[Unit] = ZIO.yieldNow
-
-  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
-
-  private[zio] def doneNow[A](r: Exit[Throwable, A]): Task[A] = ZIO.doneNow(r)
-
-  private[zio] def failNow(error: Throwable): Task[Nothing] = ZIO.failNow(error)
-
-  private[zio] def haltNow(cause: Cause[Throwable]): Task[Nothing] = ZIO.haltNow(cause)
 
   private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

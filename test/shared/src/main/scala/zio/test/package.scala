@@ -99,11 +99,11 @@ package object test extends CompileVariants {
       ZIO
         .effectSuspendTotal(assertion)
         .foldCauseM(
-          cause => ZIO.failNow(TestFailure.Runtime(cause)),
+          cause => ZIO.fail(TestFailure.Runtime(cause)),
           result =>
             result.run.flatMap(_.failures match {
               case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-              case Some(failures) => ZIO.failNow(TestFailure.Assertion(BoolAlgebraM(ZIO.succeedNow(failures))))
+              case Some(failures) => ZIO.fail(TestFailure.Assertion(BoolAlgebraM(ZIO.succeedNow(failures))))
             })
         )
   }
@@ -413,7 +413,7 @@ package object test extends CompileVariants {
    * Creates a failed test result with the specified runtime cause.
    */
   def failed[E](cause: Cause[E]): ZIO[Any, TestFailure[E], Nothing] =
-    ZIO.failNow(TestFailure.Runtime(cause))
+    ZIO.fail(TestFailure.Runtime(cause))
 
   /**
    * Creates an ignored test result.
@@ -653,7 +653,7 @@ package object test extends CompileVariants {
                 )
               }
             }
-          )(_.fold(e => ZIO.failNow(e), a => ZIO.succeedNow(BoolAlgebraM(ZIO.succeedNow(a)))))
+          )(_.fold(e => ZIO.fail(e), a => ZIO.succeedNow(BoolAlgebraM(ZIO.succeedNow(a)))))
       }
       .untraced
 
