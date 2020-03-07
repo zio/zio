@@ -76,13 +76,13 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def die(e: Throwable): UIO[Boolean] = completeWith(IO.dieNow(e))
+  def die(e: Throwable): UIO[Boolean] = completeWith(IO.die(e))
 
   /**
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.doneNow(e))
+  def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.done(e))
 
   /**
    * Completes the promise with the result of the specified effect. If the
@@ -137,13 +137,13 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def fail(e: E): UIO[Boolean] = completeWith(IO.failNow(e))
+  def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.haltNow(e))
+  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.halt(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
@@ -182,7 +182,7 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    */
   def succeed(a: A): UIO[Boolean] = completeWith(IO.succeedNow(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler[Any] = IO.effectTotal {
+  private def interruptJoiner(joiner: IO[E, A] => Any): Canceler[Any] = IO.effectTotal {
     var retry = true
 
     while (retry) {
@@ -201,8 +201,8 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
   }
 
   private[zio] def unsafeDone(io: IO[E, A]): Unit = {
-    var retry: Boolean                  = true
-    var joiners: List[IO[E, A] => Unit] = null
+    var retry: Boolean                 = true
+    var joiners: List[IO[E, A] => Any] = null
 
     while (retry) {
       val oldState = state.get
@@ -225,9 +225,9 @@ object Promise {
   private val ConstFalse: () => Boolean = () => false
 
   private[zio] object internal {
-    sealed trait State[E, A]                                        extends Serializable with Product
-    final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
-    final case class Done[E, A](value: IO[E, A])                    extends State[E, A]
+    sealed trait State[E, A]                                       extends Serializable with Product
+    final case class Pending[E, A](joiners: List[IO[E, A] => Any]) extends State[E, A]
+    final case class Done[E, A](value: IO[E, A])                   extends State[E, A]
   }
 
   /**

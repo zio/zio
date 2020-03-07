@@ -16,18 +16,25 @@
 
 package zio
 
-import zio.internal.Platform
+import zio.stm.ZSTM
 
-@deprecated(
-  "Use `Runtime.default` and provide the required environment directly using" +
-    "`ZIO#provideLayer`. In general, layers are managed resources that " +
-    "require allocation and deallocation and therefore scoping resources to" +
-    "an effect is highly recommended as a best practice. " +
-    "`Runtime.unsafefromLayer` can be used when this best practice is is too " +
-    "inconvenient.",
-  "1.0.0"
-)
-trait DefaultRuntime extends Runtime[ZEnv] {
-  override val platform: Platform = Platform.default
-  override val environment: ZEnv  = Runtime.unsafeFromLayer(ZEnv.live, platform).environment
+package object internal {
+
+  /**
+   * Returns an effect that models success with the specified value.
+   */
+  def ZIOSucceedNow[A](a: A): ZIO[Any, Nothing, A] =
+    ZIO.succeedNow(a)
+
+  /**
+   * Lifts an eager, pure value into a Managed.
+   */
+  def ZManagedSucceedNow[A](r: A): ZManaged[Any, Nothing, A] =
+    ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
+
+  /**
+   * Returns an `STM` effect that succeeds with the specified value.
+   */
+  def ZSTMSucceedNow[A](a: A): ZSTM[Any, Nothing, A] =
+    ZSTM.succeedNow(a)
 }

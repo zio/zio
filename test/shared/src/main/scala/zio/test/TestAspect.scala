@@ -93,8 +93,8 @@ object TestAspect extends TimeoutVariants {
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
         test.run
-          .zipWith(effect.catchAllCause(cause => ZIO.failNow(TestFailure.Runtime(cause))).run)(_ <* _)
-          .flatMap(ZIO.doneNow)
+          .zipWith(effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).run)(_ <* _)
+          .flatMap(ZIO.done(_))
     }
 
   /**
@@ -116,7 +116,7 @@ object TestAspect extends TimeoutVariants {
   )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        before.catchAllCause(c => ZIO.failNow(TestFailure.Runtime(c))).bracket(after)(_ => test)
+        before.catchAllCause(c => ZIO.fail(TestFailure.Runtime(c))).bracket(after)(_ => test)
     }
 
   /**
@@ -300,10 +300,10 @@ object TestAspect extends TimeoutVariants {
             case testFailure =>
               p.run(testFailure).run.flatMap { p1 =>
                 if (p1.isSuccess) succeed
-                else ZIO.failNow(TestFailure.Assertion(assert(testFailure)(p)))
+                else ZIO.fail(TestFailure.Assertion(assert(testFailure)(p)))
               }
           },
-          _ => ZIO.failNow(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))
+          _ => ZIO.fail(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))
         )
       }
     }
@@ -620,7 +620,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
         test.flatMap {
           case TestSuccess.Ignored =>
-            ZIO.failNow(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
+            ZIO.fail(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
           case x => ZIO.succeedNow(x)
         }
     }
@@ -659,7 +659,7 @@ object TestAspect extends TimeoutVariants {
           TestTimeoutException(s"Timeout of ${duration.render} exceeded.")
         Live
           .withLive(test)(_.either.disconnect.timeout(duration).flatMap {
-            case None         => ZIO.failNow(TestFailure.Runtime(Cause.die(timeoutFailure)))
+            case None         => ZIO.fail(TestFailure.Runtime(Cause.die(timeoutFailure)))
             case Some(result) => ZIO.fromEither(result)
           })
       }

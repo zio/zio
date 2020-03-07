@@ -509,8 +509,8 @@ object SinkSpec extends ZIOBaseSpec {
           val s = new ZSink[Any, String, Nothing, Any, Nothing] {
             type State = Unit
             val initial                    = UIO.unit
-            def step(state: State, a: Any) = IO.failNow("Ouch")
-            def extract(state: State)      = IO.failNow("Ouch")
+            def step(state: State, a: Any) = IO.fail("Ouch")
+            def extract(state: State)      = IO.fail("Ouch")
             def cont(state: State)         = true
           }
           assertM(sinkIteration(s.optional, 1))(equalTo((None, Chunk.single(1))))
@@ -526,11 +526,11 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("orElse")(
         testM("left") {
-          val sink = ZSink.identity[Int] orElse ZSink.failNow("Ouch")
+          val sink = ZSink.identity[Int] orElse ZSink.fail("Ouch")
           assertM(sinkIteration(sink, 1))(equalTo((Left(1), Chunk.empty)))
         },
         testM("right") {
-          val sink = ZSink.failNow("Ouch") orElse ZSink.identity[Int]
+          val sink = ZSink.fail("Ouch") orElse ZSink.identity[Int]
           assertM(sinkIteration(sink, 1))(equalTo((Right(1), Chunk.empty)))
         },
         testM("init error left") {
@@ -590,7 +590,7 @@ object SinkSpec extends ZIOBaseSpec {
           } yield assert(result)(equalTo((Left(List(1, 2, 3, 4)), Chunk.empty)))
         },
         testM("left long fail right short") {
-          val sink = (ZSink.collectAll[Int] <* ZSink.failNow("Ouch")) orElse ZSink.collectAllN[Int](2)
+          val sink = (ZSink.collectAll[Int] <* ZSink.fail("Ouch")) orElse ZSink.collectAllN[Int](2)
           for {
             init   <- sink.initial
             step1  <- sink.step(init, 1)
@@ -914,7 +914,7 @@ object SinkSpec extends ZIOBaseSpec {
           val empty: Stream[Nothing, Int]     = ZStream.empty
           val single: Stream[Nothing, Int]    = ZStream.succeedNow(1)
           val double: Stream[Nothing, Int]    = ZStream(1, 2)
-          val failed: Stream[String, Nothing] = ZStream.failNow("Ouch")
+          val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
 
           def run[E](stream: Stream[E, Int]) =
             for {
@@ -956,7 +956,7 @@ object SinkSpec extends ZIOBaseSpec {
           val empty: Stream[Nothing, Int]     = ZStream.empty
           val single: Stream[Nothing, Int]    = ZStream.succeedNow(1)
           val double: Stream[Nothing, Int]    = ZStream(1, 2)
-          val failed: Stream[String, Nothing] = ZStream.failNow("Ouch")
+          val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
 
           def run[E](stream: Stream[E, Int]) =
             (for {
@@ -1466,7 +1466,7 @@ object SinkSpec extends ZIOBaseSpec {
                     a match {
                       case a if a.isWhitespace => UIO.succeedNow(((ParserState.Start, acc, true), Chunk.empty))
                       case '['                 => UIO.succeedNow(((ParserState.Element(""), acc, true), Chunk.empty))
-                      case _                   => IO.failNow("Expected '['")
+                      case _                   => IO.fail("Expected '['")
                     }
 
                   case (ParserState.Element(el), acc, _) =>
@@ -1475,7 +1475,7 @@ object SinkSpec extends ZIOBaseSpec {
                         UIO.succeedNow(((ParserState.Element(el + a), acc, true), Chunk.empty))
                       case ',' => UIO.succeedNow(((ParserState.Element(""), acc :+ el.toInt, true), Chunk.empty))
                       case ']' => UIO.succeedNow(((ParserState.Done, acc :+ el.toInt, false), Chunk.empty))
-                      case _   => IO.failNow("Expected a digit or ,")
+                      case _   => IO.fail("Expected a digit or ,")
                     }
 
                   case (ParserState.Done, acc, _) =>
@@ -1505,10 +1505,10 @@ object SinkSpec extends ZIOBaseSpec {
         val elements = numbers <* brace
 
         lazy val start: ZSink[Any, String, Char, Char, List[Int]] =
-          ZSink.pull1(IO.failNow("Input was empty")) {
+          ZSink.pull1(IO.fail("Input was empty")) {
             case a if a.isWhitespace => start
             case '['                 => elements
-            case _                   => ZSink.failNow("Expected '['")
+            case _                   => ZSink.fail("Expected '['")
           }
 
         val src1         = ZStreamChunk.succeedNow(Chunk.fromArray(Array('[', '1', '2')))

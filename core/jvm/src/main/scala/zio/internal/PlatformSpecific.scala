@@ -129,6 +129,9 @@ private[internal] trait PlatformSpecific {
   final def newWeakHashMap[A, B](): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
 
+  final def newConcurrentWeakSet[A](): JSet[A] =
+    Collections.synchronizedSet(newWeakSet[A]())
+
   final def newWeakSet[A](): JSet[A] =
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 

@@ -15,9 +15,9 @@
  */
 package zio.stm
 
+import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
-import zio.{ ZIO, ZIOBaseSpec }
 
 object TArraySpec extends ZIOBaseSpec {
 
@@ -33,8 +33,8 @@ object TArraySpec extends ZIOBaseSpec {
       testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
         for {
           tArray <- makeTArray(1)(42).commit
-          result <- ZIO.effect(tArray(-1)).run
-        } yield assert(result)(fails(isArrayIndexOutOfBoundsException))
+          result <- tArray(-1).commit.run
+        } yield assert(result)(dies(isArrayIndexOutOfBoundsException))
       }
     ),
     suite("collectFirst")(
@@ -113,7 +113,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStairWithHoles(n).commit
           result <- tArray.collectFirstM {
                      case Some(i) if i > 2 => STM.succeedNow(i.toString)
-                     case _                => STM.failNow(boom)
+                     case _                => STM.fail(boom)
                    }.commit.flip
         } yield assert(result)(equalTo(boom))
       },
@@ -122,7 +122,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStairWithHoles(n).commit
           result <- tArray.collectFirstM {
                      case Some(i) if i > 2 => STM.succeedNow(i.toString)
-                     case Some(7)          => STM.failNow(boom)
+                     case Some(7)          => STM.fail(boom)
                    }.commit
         } yield assert(result)(isSome(equalTo("4")))
       }
@@ -229,13 +229,13 @@ object TArraySpec extends ZIOBaseSpec {
       testM("fails for errors before witness") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.existsM(i => if (i == 4) STM.failNow(boom) else STM.succeedNow(i == 5)).commit.flip
+          result <- tArray.existsM(i => if (i == 4) STM.fail(boom) else STM.succeedNow(i == 5)).commit.flip
         } yield assert(result)(equalTo(boom))
       },
       testM("fails for errors after witness") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.existsM(i => if (i == 6) STM.failNow(boom) else STM.succeedNow(i == 5)).commit.flip
+          result <- tArray.existsM(i => if (i == 6) STM.fail(boom) else STM.succeedNow(i == 5)).commit.flip
         } yield assert(result)(equalTo(boom))
       }
     ),
@@ -325,13 +325,13 @@ object TArraySpec extends ZIOBaseSpec {
       testM("succeeds on errors before result found") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.findLastM(i => if (i == 4) STM.failNow(boom) else STM.succeedNow(i % 7 == 0)).commit
+          result <- tArray.findLastM(i => if (i == 4) STM.fail(boom) else STM.succeedNow(i % 7 == 0)).commit
         } yield assert(result)(isSome(equalTo(7)))
       },
       testM("fails on errors after result found") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.findLastM(i => if (i == 8) STM.failNow(boom) else STM.succeedNow(i % 7 == 0)).commit.flip
+          result <- tArray.findLastM(i => if (i == 8) STM.fail(boom) else STM.succeedNow(i % 7 == 0)).commit.flip
         } yield assert(result)(equalTo(boom))
       }
     ),
@@ -365,13 +365,13 @@ object TArraySpec extends ZIOBaseSpec {
       testM("fails on errors before result found") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.findM(i => if (i == 4) STM.failNow(boom) else STM.succeedNow(i % 5 == 0)).commit.flip
+          result <- tArray.findM(i => if (i == 4) STM.fail(boom) else STM.succeedNow(i % 5 == 0)).commit.flip
         } yield assert(result)(equalTo(boom))
       },
       testM("succeeds on errors after result found") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.findM(i => if (i == 6) STM.failNow(boom) else STM.succeedNow(i % 5 == 0)).commit
+          result <- tArray.findM(i => if (i == 6) STM.fail(boom) else STM.succeedNow(i % 5 == 0)).commit
         } yield assert(result)(isSome(equalTo(5)))
       }
     ),
@@ -410,7 +410,7 @@ object TArraySpec extends ZIOBaseSpec {
       },
       testM("returns effect failure") {
         def failInTheMiddle(acc: Int, a: Int): STM[Exception, Int] =
-          if (acc == N / 2) STM.failNow(boom) else STM.succeedNow(acc + a)
+          if (acc == N / 2) STM.fail(boom) else STM.succeedNow(acc + a)
 
         for {
           tArray <- makeTArray(N)(1).commit
@@ -460,13 +460,13 @@ object TArraySpec extends ZIOBaseSpec {
       testM("fails for errors before counterexample") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.forallM(i => if (i == 4) STM.failNow(boom) else STM.succeedNow(i != 5)).commit.flip
+          result <- tArray.forallM(i => if (i == 4) STM.fail(boom) else STM.succeedNow(i != 5)).commit.flip
         } yield assert(result)(equalTo(boom))
       },
       testM("fails for errors after counterexample") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.forallM(i => if (i == 6) STM.failNow(boom) else STM.succeedNow(i == 5)).commit.flip
+          result <- tArray.forallM(i => if (i == 6) STM.fail(boom) else STM.succeedNow(i == 5)).commit.flip
         } yield assert(result)(equalTo(boom))
       }
     ),
@@ -630,19 +630,19 @@ object TArraySpec extends ZIOBaseSpec {
       testM("fails on errors before result found") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.indexWhereM(i => if (i == 4) STM.failNow(boom) else STM.succeedNow(i % 5 == 0)).commit.flip
+          result <- tArray.indexWhereM(i => if (i == 4) STM.fail(boom) else STM.succeedNow(i % 5 == 0)).commit.flip
         } yield assert(result)(equalTo(boom))
       },
       testM("succeeds on errors after result found") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.indexWhereM(i => if (i == 6) STM.failNow(boom) else STM.succeedNow(i % 5 == 0)).commit
+          result <- tArray.indexWhereM(i => if (i == 6) STM.fail(boom) else STM.succeedNow(i % 5 == 0)).commit
         } yield assert(result)(equalTo(4))
       },
       testM("succeeds when error excluded by offset") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.indexWhereM(i => if (i == 1) STM.failNow(boom) else STM.succeedNow(i % 5 == 0), 2).commit
+          result <- tArray.indexWhereM(i => if (i == 1) STM.fail(boom) else STM.succeedNow(i % 5 == 0), 2).commit
         } yield assert(result)(equalTo(4))
       }
     ),
@@ -731,7 +731,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray <- makeTArray(N)(0).commit
           _      <- tArray.update(N / 2, _ => 1).commit
-          result <- tArray.transformM(a => if (a == 0) STM.succeedNow(42) else STM.failNow(boom)).commit.either
+          result <- tArray.transformM(a => if (a == 0) STM.succeedNow(42) else STM.fail(boom)).commit.either
           first  <- tArray(0).commit
         } yield assert(result.left.map(r => (first, r)))(isLeft(equalTo((0, boom))))
       }
@@ -746,8 +746,8 @@ object TArraySpec extends ZIOBaseSpec {
       testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
         for {
           tArray <- makeTArray(1)(42).commit
-          result <- ZIO.effect(tArray.update(-1, identity)).run
-        } yield assert(result)(fails(isArrayIndexOutOfBoundsException))
+          result <- tArray.update(-1, identity).commit.run
+        } yield assert(result)(dies(isArrayIndexOutOfBoundsException))
       }
     ),
     suite("updateM")(
@@ -760,13 +760,13 @@ object TArraySpec extends ZIOBaseSpec {
       testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
         for {
           tArray <- makeTArray(10)(0).commit
-          result <- ZIO.effect(tArray.updateM(10, STM.succeedNow)).run
-        } yield assert(result)(fails(isArrayIndexOutOfBoundsException))
+          result <- tArray.updateM(10, STM.succeedNow).commit.run
+        } yield assert(result)(dies(isArrayIndexOutOfBoundsException))
       },
       testM("updateM failure") {
         for {
           tArray <- makeTArray(n)(0).commit
-          result <- tArray.updateM(0, _ => STM.failNow(boom)).commit.either
+          result <- tArray.updateM(0, _ => STM.fail(boom)).commit.either
         } yield assert(result)(isLeft(equalTo(boom)))
       }
     ),
@@ -856,7 +856,7 @@ object TArraySpec extends ZIOBaseSpec {
       testM("fails on errors") {
         for {
           tArray <- makeStair(n).commit
-          result <- tArray.reduceOptionM((a, b) => if (b == 4) STM.failNow(boom) else STM.succeedNow(a + b)).commit.flip
+          result <- tArray.reduceOptionM((a, b) => if (b == 4) STM.fail(boom) else STM.succeedNow(a + b)).commit.flip
         } yield assert(result)(equalTo(boom))
       }
     )

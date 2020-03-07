@@ -137,7 +137,7 @@ private object internals {
 
   def assertNonNegative(n: Long): UIO[Unit] =
     if (n < 0)
-      IO.dieNow(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
+      IO.die(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else IO.unit
 
   final class NegativeArgument(message: String) extends IllegalArgumentException(message)
