@@ -48,7 +48,7 @@ final class Has[A] private (
 object Has {
   private val TaggedAnyRef: Tagged[AnyRef] = implicitly[Tagged[AnyRef]]
 
-  type MustHave[A, B]    = A <:< Has[B]
+  type MustHave[A, B] = A <:< Has[B]
 
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
