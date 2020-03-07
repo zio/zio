@@ -49,7 +49,6 @@ object Has {
   private val TaggedAnyRef: Tagged[AnyRef] = implicitly[Tagged[AnyRef]]
 
   type MustHave[A, B]    = A <:< Has[B]
-  type MustNotHave[A, B] = NotExtends[A, Has[B]]
 
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
@@ -74,7 +73,7 @@ object Has {
     /**
      * Adds a service to the environment.
      */
-    def add[B](b: B)(implicit tagged: Tagged[B], ev: Self MustNotHave B): Self with Has[B] =
+    def add[B](b: B)(implicit tagged: Tagged[B]): Self with Has[B] =
       new Has(self.map + (tagged -> b)).asInstanceOf[Self with Has[B]]
 
     /**
