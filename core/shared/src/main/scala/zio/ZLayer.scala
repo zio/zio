@@ -114,7 +114,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * Returns a managed effect that, if evaluated, will return the lazily
    * computed result of this layer.
    */
-  def memoize: ZManaged[RIn, Nothing, ZLayer[Any, E, ROut]] =
+  def memoize: ZManaged[Any, Nothing, ZLayer[RIn, E, ROut]] =
     build.memoize.map(ZLayer(_))
 
   /**

@@ -254,6 +254,6 @@ object ZLayerSpec extends ZIOBaseSpec {
               }
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      }
+      } @@ nonFlaky
     )
 }
