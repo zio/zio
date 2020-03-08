@@ -16,6 +16,8 @@
 
 package zio
 
+import com.github.ghik.silencer.silent
+
 final case class Tagged[A](tag: TaggedType[A]) {
   override def equals(that: Any): Boolean = that match {
     case Tagged(that) => tag.tag == that.tag
@@ -26,6 +28,37 @@ final case class Tagged[A](tag: TaggedType[A]) {
 }
 
 object Tagged {
-  implicit def tagged[A](implicit tag: TaggedType[A]): Tagged[A] =
-    Tagged(tag)
+
+  implicit def tagged[A: TaggedType](implicit a: TaggedType[A]): Tagged[A] =
+    Tagged(a)
+
+  @silent("is never used")
+  implicit def taggedF[F[_], A](implicit tag: TaggedTypeF[F], a: Tagged[A]): Tagged[F[A]] = {
+    implicit val tag0 = a.tag
+    Tagged(TaggedType[F[A]])
+  }
+
+  @silent("is never used")
+  implicit def taggedF2[F[_, _], A, B](
+    implicit tag: TaggedTypeF2[F],
+    a: Tagged[A],
+    b: Tagged[B]
+  ): Tagged[F[A, B]] = {
+    implicit val tag0 = a.tag
+    implicit val tag1 = b.tag
+    Tagged(TaggedType[F[A, B]])
+  }
+
+  @silent("is never used")
+  implicit def taggedF3[F[_, _, _], A, B, C](
+    implicit tag: TagggedTypeF3[F],
+    a: Tagged[A],
+    b: Tagged[B],
+    c: Tagged[C]
+  ): Tagged[F[A, B, C]] = {
+    implicit val tag0 = a.tag
+    implicit val tag1 = b.tag
+    implicit val tag2 = c.tag
+    Tagged(TaggedType[F[A, B, C]])
+  }
 }

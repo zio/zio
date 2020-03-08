@@ -1,12 +1,17 @@
 package zio
 
-import izreflect.fundamentals.reflection.Tags.Tag
+import izreflect.fundamentals.reflection.Tags._
 import izreflect.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
 
 private[zio] trait VersionSpecific {
 
-  type TaggedType[A] = Tag[A]
-  type TagType       = LightTypeTag
+  type TaggedType[A]             = Tag[A]
+  type TaggedTypeF[F[_]]         = TagK[F]
+  type TaggedTypeF2[F[_, _]]     = TagKK[F]
+  type TagggedTypeF3[F[_, _, _]] = TagK3[F]
+  type TagType                   = LightTypeTag
+
+  private[zio] val TaggedType = Tag
 
   private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tag.tag
 
