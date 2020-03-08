@@ -788,13 +788,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that, if evaluated, will return the lazily computed result
    * of this effect.
    */
-  final def memoize: URIO[R, IO[E, A]] =
+  final def memoize: UIO[ZIO[R, E, A]] =
     for {
-      r <- ZIO.environment[R]
-      p <- Promise.make[E, A]
-      l <- Promise.make[Nothing, Unit]
-      _ <- (l.await *> ((self provide r) to p)).fork
-    } yield l.succeed(()) *> p.await
+      promise  <- Promise.make[E, A]
+      complete <- self.to(promise).once
+    } yield complete *> promise.await
 
   /**
    * Returns a new effect where the error channel has been merged into the

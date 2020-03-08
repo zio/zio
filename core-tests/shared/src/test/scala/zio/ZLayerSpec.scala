@@ -240,6 +240,20 @@ object ZLayerSpec extends ZIOBaseSpec {
         val l2: ZLayer[Has[String], Nothing, Has[B]] = ZLayer.fromService(B)
         val live: ZLayer.NoDeps[Nothing, Has[B]]     = l1.map(a => Has(a.get[A].name)) >>> l2
         assertM(ZIO.access[Has[B]](_.get).provideLayer(live))(equalTo(B("name")))
-      }
+      },
+      testM("memoization") {
+        val expected = Vector(acquire1, release1)
+        for {
+          ref      <- makeRef
+          memoized = makeLayer1(ref).memoize
+          _ <- memoized.use { layer =>
+                for {
+                  _ <- ZIO.environment[Module1].provideLayer(layer)
+                  _ <- ZIO.environment[Module1].provideLayer(layer)
+                } yield ()
+              }
+          actual <- ref.get
+        } yield assert(actual)(equalTo(expected))
+      } @@ nonFlaky
     )
 }
