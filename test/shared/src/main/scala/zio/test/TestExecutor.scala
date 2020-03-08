@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Has, UIO, ZIO, ZLayer }
+import zio.{ Has, Layer, UIO, ZIO }
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -24,12 +24,12 @@ import zio.{ Has, UIO, ZIO, ZLayer }
  */
 trait TestExecutor[+R <: Has[_], E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]]
-  def environment: ZLayer.NoDeps[Nothing, R]
+  def environment: Layer[Nothing, R]
 }
 
 object TestExecutor {
   def default[R <: Annotations, E](
-    env: ZLayer.NoDeps[Nothing, R]
+    env: Layer[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =
       spec.annotated

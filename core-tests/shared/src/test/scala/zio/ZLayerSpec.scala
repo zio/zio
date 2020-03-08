@@ -10,7 +10,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   trait Dog extends Animal
   trait Cat extends Animal
 
-  def testSize[R <: Has[_]](layer: ZLayer.NoDeps[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
+  def testSize[R <: Has[_]](layer: Layer[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
     layer.build.use(env => ZIO.succeedNow(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
 
   val acquire1 = "Acquiring Module 1"
@@ -236,9 +236,9 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("map can map the output of a layer to an unrelated type") {
         case class A(name: String, value: Int)
         case class B(name: String)
-        val l1: ZLayer.NoDeps[Nothing, Has[A]]       = ZLayer.succeed(A("name", 1))
+        val l1: Layer[Nothing, Has[A]]               = ZLayer.succeed(A("name", 1))
         val l2: ZLayer[Has[String], Nothing, Has[B]] = ZLayer.fromService(B)
-        val live: ZLayer.NoDeps[Nothing, Has[B]]     = l1.map(a => Has(a.get[A].name)) >>> l2
+        val live: Layer[Nothing, Has[B]]             = l1.map(a => Has(a.get[A].name)) >>> l2
         assertM(ZIO.access[Has[B]](_.get).provideLayer(live))(equalTo(B("name")))
       },
       testM("memoization") {

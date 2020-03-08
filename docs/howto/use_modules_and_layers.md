@@ -184,7 +184,7 @@ object UserRepo {
 
 
   // This simple live version depends only on a DB Connection
-  val inMemory: ZLayer.NoDeps[Nothing, UserRepo] = ZLayer.succeed(
+  val inMemory: Layer[Nothing, UserRepo] = ZLayer.succeed(
     new Service {
       def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
       def createUser(user: User): IO[DBError, Unit] = UIO(???)
@@ -246,7 +246,7 @@ Given a program with these requirements, we can build the required layer:
 val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
 
 // fulfill missing deps, composing vertically
-val fullLayer: ZLayer.NoDeps[Nothing, Logging with UserRepo] = Console.live >>> horizontal
+val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizontal
 
 // provide the layer to the program
 makeUser.provideLayer(fullLayer)
@@ -290,7 +290,7 @@ val withPostgresService = horizontal.update[UserRepo.Service]{ oldRepo  => new U
 Another way is by composing horizontally with a layer that provides the updated service
 
 ```scala mdoc:silent
-val dbLayer: ZLayer.NoDeps[Nothing, UserRepo] = ZLayer.succeed(new UserRepo.Service {
+val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo.Service {
     override def getUser(userId: UserId): IO[DBError, Option[User]] = ???
     override def createUser(user: User): IO[DBError, Unit] = ???
   })
@@ -306,7 +306,7 @@ For example, to build a postgres-based repository we need a `java.sql.Connection
 ```scala mdoc:silent
 import java.sql.Connection
 def makeConnection: UIO[Connection] = UIO(???)
-val connectionLayer: ZLayer.NoDeps[Nothing, Has[Connection]] = 
+val connectionLayer: Layer[Nothing, Has[Connection]] = 
     ZLayer.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
 val postgresLayer: ZLayer[Has[Connection], Nothing, UserRepo] = 
   ZLayer.fromFunction { hasC =>
@@ -316,7 +316,7 @@ val postgresLayer: ZLayer[Has[Connection], Nothing, UserRepo] =
     }
   }
 
-val fullRepo: ZLayer.NoDeps[Nothing, UserRepo] = connectionLayer >>> postgresLayer
+val fullRepo: Layer[Nothing, UserRepo] = connectionLayer >>> postgresLayer
 
 ```
 

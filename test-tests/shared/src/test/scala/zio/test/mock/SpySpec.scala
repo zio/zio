@@ -2,7 +2,7 @@ package zio.test.mock
 
 import zio.test.Assertion._
 import zio.test._
-import zio.{ Has, Ref, UIO, ZIO, ZLayer }
+import zio.{ Has, Layer, Ref, UIO, ZIO, ZLayer }
 
 object SpySpec extends DefaultRunnableSpec {
 
@@ -24,7 +24,7 @@ object SpySpec extends DefaultRunnableSpec {
       def reset: UIO[Unit]     = counterState.set(0)
     }
 
-    val live: ZLayer.NoDeps[Nothing, Counter] =
+    val live: Layer[Nothing, Counter] =
       ZLayer.fromEffect(Ref.make(0).map(ref => Live(ref)))
   }
 
