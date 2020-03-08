@@ -15,182 +15,107 @@
  */
 
 package zio
+
 import java.util.concurrent.atomic.AtomicReference
 
-/**
- * A mutable atomic reference for the `IO` monad. This is the `IO` equivalent of
- * a volatile `var`, augmented with atomic operations, which make it useful as a
- * reasonably efficient (if low-level) concurrency primitive.
- *
- * {{{
- * for {
- *   ref <- Ref.make(2)
- *   v   <- ref.update(_ + 3)
- *   _   <- console.putStrLn("Value = " + v) // Value = 5
- * } yield ()
- * }}}
- *
- * NOTE: While `Ref` provides the functional equivalent of a mutable reference,
- * the value inside the `Ref` should be immutable. For performance reasons
- * `Ref` is implemented in terms of compare and swap operations rather than
- * synchronization. These operations are not safe for mutable values that do
- * not support concurrent access.
- */
-trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
+sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
-  /**
-   * Reads the value from the `Ref`.
-   *
-   * @return `IO[EB, B]` value from the `Ref`
-   */
   def get: IO[EB, B]
 
-  /**
-   * Atomically writes the specified value to the `Ref`, returning the value
-   * immediately before modification. This is not implemented in terms of
-   * `modify` purely for performance reasons.
-   *
-   * @param a value to be written to the `Ref`
-   * @return `IO[EA, B]` value of the `Ref` immediately before modification
-   */
-  def getAndSet(a: A): IO[EA, B]
+  def fold[EC, ED, C, D](
+    ea: EA => EC,
+    eb: EB => ED,
+    ca: C => Either[EC, A],
+    bc: B => Either[ED, D]
+  ): ZRef[EC, ED, C, D]
 
-  /**
-   * Atomically modifies the `Ref` with the specified function, returning the
-   * value immediately before modification. This is not implemented in terms of
-   * `modify` purely for performance reasons.
-   *
-   * @param f function to atomically modify the `Ref`
-   * @return `IO[E, B]` value of the `Ref` immediately before modification
-   */
-  def getAndUpdate[E](f: B => A)(implicit ev1: EA <:< E, ev2: EB <:< E): IO[E, B]
-
-  /**
-   * Atomically modifies the `Ref` with the specified partial function,
-   * returning the value immediately before modification.
-   * If the function is undefined on the current value it doesn't change it.
-   *
-   * @param pf partial function to atomically modify the `Ref`
-   * @return `IO[E, B]` value of the `Ref` immediately before modification
-   */
-  def getAndUpdateSome[E](pf: PartialFunction[B, A])(implicit ev1: EA <:< E, ev2: EB <:< E): IO[E, B]
-
-  /**
-   * Atomically modifies the `Ref` with the specified function, which computes
-   * a return value for the modification. This is a more powerful version of
-   * `update`.
-   *
-   * @param f function which computes a return value for the modification
-   * @tparam C type of the value of the `Ref` to be modified
-   * @return `IO[E, C]` modified value the `Ref`
-   */
-  def modify[E, C](f: B => (C, A))(implicit ev1: EA <:< E, ev2: EB <:< E): IO[E, C]
-
-  /**
-   * Atomically modifies the `Ref` with the specified partial function, which computes
-   * a return value for the modification if the function is defined in the current value
-   * otherwise it returns a default value.
-   * This is a more powerful version of `updateSome`.
-   *
-   * @param default default value to be returned if the partial function is not defined on the current value
-   * @param pf partial function to be computed on the current value if defined on the current value
-   * @tparam C type of the value of the `Ref` to be modified
-   * @return `IO[E, C]` modified value of the `Ref`
-   */
-  def modifySome[E, C](default: C)(pf: PartialFunction[B, (C, A)])(implicit ev1: EA <:< E, ev2: EB <:< E): IO[E, C]
-
-  /**
-   * Writes a new value to the `Ref`, with a guarantee of immediate
-   * consistency (at some cost to performance).
-   *
-   * @param a value to be written to the `Ref`
-   * @return `IO[EA, Unit]`
-   */
   def set(a: A): IO[EA, Unit]
 
-  /**
-   * Writes a new value to the `Ref` without providing a guarantee of
-   * immediate consistency.
-   *
-   * @param a value to be written to the `Ref`
-   * @return `IO[EA, Unit]`
-   */
   def setAsync(a: A): IO[EA, Unit]
 
-  /**
-   * Atomically modifies the `Ref` with the specified function. This is not
-   * implemented in terms of `modify` purely for performance reasons.
-   *
-   * @param f function to atomically modify the `Ref`
-   * @return `IO[E, Unit]`
-   */
-  def update[E](f: B => A)(implicit ev1: EA <:< E, ev2: EB <:< E): IO[E, Unit] =
-    modify(b => ((), f(b)))
+  final def collect[C](pf: PartialFunction[B, C]): ZRef[EA, Option[EB], A, C] =
+    fold(identity, Some(_), Right(_), pf.lift(_).fold[Either[Option[EB], C]](Left(None))(Right(_)))
 
-  /**
-   * Atomically modifies the `Ref` with the specified function and returns the
-   * updated value. This is not implemented in terms of `modify` purely for
-   * performance reasons.
-   *
-   * @param f function to atomically modify the `Ref`
-   * @return `IO[E, B]` modified value of the `Ref`
-   */
-  def updateAndGet[E](f: B => A)(implicit ev1: EA <:< E, ev2: EB <:< E): IO[E, B] =
-    modify(b => (b, f(b)))
+  final def contramap[C](f: C => A): ZRef[EA, EB, C, B] =
+    contramapEither(c => Right(f(c)))
 
-  /**
-   * Atomically modifies the `Ref` with the specified partial function.
-   * If the function is undefined on the current value it doesn't change it.
-   *
-   * @param pf partial function to atomically modify the `Ref`
-   * @return `IO[E, Unit]`
-   */
-  def updateSome[E](pf: PartialFunction[B, A])(implicit ev1: EA <:< E, ev2: EB <:< E): IO[E, Unit]
+  final def contramapEither[EC >: EA, C](f: C => Either[EC, A]): ZRef[EC, EB, C, B] =
+    dimapEither(f, Right(_))
 
-  /**
-   * Atomically modifies the `Ref` with the specified partial function.
-   * If the function is undefined on the current value it returns the old value
-   * without changing it.
-   *
-   * @param pf partial function to atomically modify the `Ref`
-   * @return `IO[E, B]` modified value of the `Ref`
-   */
-  def updateSomeAndGet[E](pf: PartialFunction[B, A])(implicit ev1: EA <:< E, ev2: EB <:< E): IO[E, B]
+  final def dimap[C, D](f: C => A, g: B => D): ZRef[EA, EB, C, D] =
+    dimapEither(c => Right(f(c)), b => Right(g(b)))
 
+  final def dimapEither[EC >: EA, ED >: EB, C, D](f: C => Either[EC, A], g: B => Either[ED, D]): ZRef[EC, ED, C, D] =
+    fold(identity, identity, f, g)
+
+  final def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZRef[EC, ED, A, B] =
+    fold(f, g, Right(_), Right(_))
+
+  final def map[C](f: B => C): ZRef[EA, EB, A, C] =
+    mapEither(b => Right(f(b)))
+
+  final def mapEither[EC >: EB, C](f: B => Either[EC, C]): ZRef[EA, EC, A, C] =
+    dimapEither(Right(_), f)
+
+  final def unifyError[E](ea: EA => E, eb: EB => E): ZRef[E, E, A, B] =
+    dimapError(ea, eb)
+
+  final def unifyValue[C](ca: C => A, bc: B => C): ZRef[EA, EB, C, C] =
+    dimap(ca, bc)
 }
+
 object ZRef extends Serializable {
-  final case class Atomic[A](value: AtomicReference[A]) extends ZRef[Nothing, Nothing, A, A] {
-    self =>
 
-    def get: UIO[A] = IO.effectTotal(value.get)
-    def getAndSet(a: A): UIO[A] = IO.effectTotal {
-      var loop       = true
-      var current: A = null.asInstanceOf[A]
+  private final case class Atomic[A](value: AtomicReference[A]) extends ZRef[Nothing, Nothing, A, A] { self =>
 
-      while (loop) {
-        current = value.get
-
-        loop = !value.compareAndSet(current, a)
+    def fold[EC, ED, C, D](
+      ea: Nothing => EC,
+      eb: Nothing => ED,
+      ca: C => Either[EC, A],
+      bc: A => Either[ED, D]
+    ): ZRef[EC, ED, C, D] =
+      new Derived[EC, ED, C, D] {
+        type S = A
+        def getEither(s: S): Either[ED, D] = bc(s)
+        def setEither(c: C): Either[EC, S] = ca(c)
+        val value: Atomic[S]               = self
       }
 
-      current
-    }
-    def getAndUpdate[E](f: A => A)(implicit ev1: Nothing <:< E, ev2: Nothing <:< E): IO[E, A] = IO.effectTotal {
-      var loop       = true
-      var current: A = null.asInstanceOf[A]
+    def get: UIO[A] =
+      UIO.effectTotal(value.get)
 
-      while (loop) {
-        current = value.get
+    def getAndSet(a: A): UIO[A] =
+      UIO.effectTotal {
+        var loop       = true
+        var current: A = null.asInstanceOf[A]
 
-        val next = f(current)
+        while (loop) {
+          current = value.get
 
-        loop = !value.compareAndSet(current, next)
+          loop = !value.compareAndSet(current, a)
+        }
+
+        current
       }
 
-      current
-    }
-    def getAndUpdateSome[E](pf: PartialFunction[A, A])(implicit ev1: Nothing <:< E, ev2: Nothing <:< E): IO[E, A] =
-      IO.effectTotal {
+    def getAndUpdate(f: A => A): UIO[A] =
+      UIO.effectTotal {
+        var loop       = true
+        var current: A = null.asInstanceOf[A]
+
+        while (loop) {
+          current = value.get
+
+          val next = f(current)
+
+          loop = !value.compareAndSet(current, next)
+        }
+
+        current
+      }
+
+    def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] =
+      UIO.effectTotal {
         var loop       = true
         var current: A = null.asInstanceOf[A]
 
@@ -204,60 +129,70 @@ object ZRef extends Serializable {
 
         current
       }
-    def modify[E, C](f: A => (C, A))(implicit ev1: Nothing <:< E, ev2: Nothing <:< E): IO[E, C] = IO.effectTotal {
-      var loop = true
-      var b: C = null.asInstanceOf[C]
 
-      while (loop) {
-        val current = value.get
+    def modify[B](f: A => (B, A)): UIO[B] =
+      UIO.effectTotal {
+        var loop = true
+        var b: B = null.asInstanceOf[B]
 
-        val tuple = f(current)
+        while (loop) {
+          val current = value.get
 
-        b = tuple._1
+          val tuple = f(current)
 
-        loop = !value.compareAndSet(current, tuple._2)
+          b = tuple._1
+
+          loop = !value.compareAndSet(current, tuple._2)
+        }
+
+        b
       }
 
-      b
-    }
-    def modifySome[E, C](
-      default: C
-    )(pf: PartialFunction[A, (C, A)])(implicit ev1: Nothing <:< E, ev2: Nothing <:< E): IO[E, C] = IO.effectTotal {
-      var loop = true
-      var b: C = null.asInstanceOf[C]
+    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] =
+      UIO.effectTotal {
+        var loop = true
+        var b: B = null.asInstanceOf[B]
 
-      while (loop) {
-        val current = value.get
+        while (loop) {
+          val current = value.get
 
-        val tuple = pf.applyOrElse(current, (_: A) => (default, current))
+          val tuple = pf.applyOrElse(current, (_: A) => (default, current))
 
-        b = tuple._1
+          b = tuple._1
 
-        loop = !value.compareAndSet(current, tuple._2)
+          loop = !value.compareAndSet(current, tuple._2)
+        }
+
+        b
       }
 
-      b
-    }
-    def set(a: A): UIO[Unit]      = IO.effectTotal(value.set(a))
-    def setAsync(a: A): UIO[Unit] = IO.effectTotal(value.lazySet(a))
+    def set(a: A): UIO[Unit] =
+      UIO.effectTotal(value.set(a))
+
+    def setAsync(a: A): UIO[Unit] =
+      UIO.effectTotal(value.lazySet(a))
+
     override def toString: String =
       s"Ref(${value.get})"
-    override def update[E](f: A => A)(implicit ev1: Nothing <:< E, ev2: Nothing <:< E): IO[E, Unit] = IO.effectTotal {
-      var loop    = true
-      var next: A = null.asInstanceOf[A]
 
-      while (loop) {
-        val current = value.get
+    def update(f: A => A): UIO[Unit] =
+      UIO.effectTotal {
+        var loop    = true
+        var next: A = null.asInstanceOf[A]
 
-        next = f(current)
+        while (loop) {
+          val current = value.get
 
-        loop = !value.compareAndSet(current, next)
+          next = f(current)
+
+          loop = !value.compareAndSet(current, next)
+        }
+
+        ()
       }
 
-      ()
-    }
-    override def updateAndGet[E](f: A => A)(implicit ev1: Nothing <:< E, ev2: Nothing <:< E): IO[E, A] =
-      IO.effectTotal {
+    def updateAndGet(f: A => A): UIO[A] =
+      UIO.effectTotal {
         var loop    = true
         var next: A = null.asInstanceOf[A]
 
@@ -271,8 +206,9 @@ object ZRef extends Serializable {
 
         next
       }
-    def updateSome[E](pf: PartialFunction[A, A])(implicit ev1: Nothing <:< E, ev2: Nothing <:< E): zio.IO[E, Unit] =
-      IO.effectTotal {
+
+    def updateSome(pf: PartialFunction[A, A]): UIO[Unit] =
+      UIO.effectTotal {
         var loop    = true
         var next: A = null.asInstanceOf[A]
 
@@ -286,8 +222,9 @@ object ZRef extends Serializable {
 
         ()
       }
-    def updateSomeAndGet[E](pf: PartialFunction[A, A])(implicit ev1: Nothing <:< E, ev2: Nothing <:< E): IO[E, A] =
-      IO.effectTotal {
+
+    def updateSomeAndGet(pf: PartialFunction[A, A]): UIO[A] =
+      UIO.effectTotal {
         var loop    = true
         var next: A = null.asInstanceOf[A]
 
@@ -301,13 +238,111 @@ object ZRef extends Serializable {
 
         next
       }
-
   }
 
-  private final def unsafeCreate[E, A](a: A): ZRef[E, E, A, A] =
-    new Atomic[A](new AtomicReference[A](a))
+  private trait Derived[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
+    type S
 
-  final def make[E, A](a: A): UIO[ZRef[E, E, A, A]] = IO.effectTotal {
-    unsafeCreate(a)
+    def getEither(s: S): Either[EB, B]
+
+    def setEither(a: A): Either[EA, S]
+
+    val value: Atomic[S]
+
+    final def get: IO[EB, B] =
+      value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
+
+    final def fold[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => Either[EC, A],
+      bc: B => Either[ED, D]
+    ): ZRef[EC, ED, C, D] =
+      new Derived[EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): Either[ED, D] =
+          self.getEither(s).fold(e => Left(eb(e)), bc)
+        def setEither(c: C): Either[EC, S] =
+          ca(c).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
+        val value: Atomic[S] =
+          self.value
+      }
+
+    final def set(a: A): IO[EA, Unit] =
+      setEither(a).fold(ZIO.fail(_), value.set)
+
+    final def setAsync(a: A): IO[EA, Unit] =
+      setEither(a).fold(ZIO.fail(_), value.setAsync)
   }
+
+  implicit class UnifiedSyntax[E, A](private val self: ZRef[E, E, A, A]) extends AnyVal {
+    def getAndSet(a: A): IO[E, A] = self match {
+      case atomic: Atomic[A]            => atomic.getAndSet(a)
+      case derived: Derived[E, E, A, A] => derived.modify(v => (v, a))
+    }
+    def getAndUpdate(f: A => A): IO[E, A] = self match {
+      case atomic: Atomic[A]            => atomic.getAndUpdate(f)
+      case derived: Derived[E, E, A, A] => derived.modify(v => (v, f(v)))
+    }
+    def getAndUpdateSome(pf: PartialFunction[A, A]): IO[E, A] = self match {
+      case atomic: Atomic[A] => atomic.getAndUpdateSome(pf)
+      case derived: Derived[E, E, A, A] =>
+        derived.modify { v =>
+          val result = pf.applyOrElse[A, A](v, identity)
+          (v, result)
+        }
+    }
+    def modify[B](f: A => (B, A)): IO[E, B] = self match {
+      case atomic: Atomic[A] => atomic.modify(f)
+      case derived: Derived[E, E, A, A] =>
+        derived.value.modify { s =>
+          derived.getEither(s) match {
+            case Left(e) => (Left(e), s)
+            case Right(b) => {
+              val (c, a) = f(b)
+              derived.setEither(a) match {
+                case Left(e)  => (Left(e), s)
+                case Right(s) => (Right(c), s)
+              }
+            }
+          }
+        }.absolve
+    }
+    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): IO[E, B] = self match {
+      case atomic: Atomic[A] => atomic.modifySome(default)(pf)
+      case derived: Derived[E, E, A, A] =>
+        derived.modify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
+    }
+    def update(f: A => A): IO[E, Unit] = self match {
+      case atomic: Atomic[A]            => atomic.update(f)
+      case derived: Derived[E, E, A, A] => derived.modify(v => ((), v))
+    }
+    def updateAndGet(f: A => A): IO[E, A] = self match {
+      case atomic: Atomic[A] => atomic.updateAndGet(f)
+      case derived: Derived[E, E, A, A] =>
+        derived.modify { v =>
+          val result = f(v)
+          (result, result)
+        }
+    }
+    def updateSome(pf: PartialFunction[A, A]): IO[E, Unit] = self match {
+      case atomic: Atomic[A] => atomic.updateSome(pf)
+      case derived: Derived[E, E, A, A] =>
+        derived.modify { v =>
+          val result = pf.applyOrElse[A, A](v, identity)
+          ((), result)
+        }
+    }
+    def updateSomeAndGet(pf: PartialFunction[A, A]): IO[E, A] = self match {
+      case atomic: Atomic[A] => atomic.updateSomeAndGet(pf)
+      case derived: Derived[E, E, A, A] =>
+        derived.modify { v =>
+          val result = pf.applyOrElse[A, A](v, identity)
+          (result, result)
+        }
+    }
+  }
+
+  def make[A](a: A): UIO[Ref[A]] =
+    UIO.effectTotal(Atomic(new AtomicReference(a)))
 }
