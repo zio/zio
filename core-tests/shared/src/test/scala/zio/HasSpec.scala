@@ -63,13 +63,6 @@ object HasSpec extends ZIOBaseSpec {
         assert(updated.get[Dog])(equalTo(dog2)) &&
         assert(updated.get[Cat])(equalTo(cat2))
       },
-      zio.test.test("Upcast will delete what is not known about") {
-        val whole: Has[Dog] with Has[Cat] = Has(dog1).add(cat1)
-
-        assert(whole.size)(equalTo(2)) &&
-        assert(whole.upcast[Dog].size)(equalTo(1)) &&
-        assert(whole.upcast[Cat].size)(equalTo(1))
-      },
       zio.test.test("Prune will delete what is not known about") {
         val whole: Has[Dog] with Has[Cat] = Has(dog1).add(cat1)
 
@@ -114,13 +107,6 @@ object HasSpec extends ZIOBaseSpec {
         assert(updated.get[IList[Dog]])(equalTo(dogs2)) &&
         assert(updated.get[IList[Cat]])(equalTo(cats2))
       },
-      zio.test.test("Upcast will delete what is not known about") {
-        val whole: Has[IList[Dog]] with Has[IList[Cat]] = Has(dogs1).add(cats1)
-
-        assert(whole.size)(equalTo(2)) &&
-        assert(whole.upcast[IList[Dog]].size)(equalTo(1)) &&
-        assert(whole.upcast[IList[Cat]].size)(equalTo(1))
-      },
       zio.test.test("Prune will delete what is not known about") {
         val whole: Has[IList[Dog]] with Has[IList[Cat]] = Has(dogs1).add(cats1)
 
@@ -163,13 +149,6 @@ object HasSpec extends ZIOBaseSpec {
         assert(updated.size)(equalTo(2)) &&
         assert(updated.get[PetHotel[Dog]])(equalTo(dogHotel2)) &&
         assert(updated.get[PetHotel[Cat]])(equalTo(catHotel2))
-      },
-      zio.test.test("Upcast will delete what is not known about") {
-        val whole: Has[PetHotel[Dog]] with Has[PetHotel[Cat]] = Has(dogHotel1).add(catHotel1)
-
-        assert(whole.size)(equalTo(2)) &&
-        assert(whole.upcast[PetHotel[Dog]].size)(equalTo(1)) &&
-        assert(whole.upcast[PetHotel[Cat]].size)(equalTo(1))
       },
       zio.test.test("Prune will delete what is not known about") {
         val whole: Has[PetHotel[Dog]] with Has[PetHotel[Cat]] = Has(dogHotel1).add(catHotel1)
