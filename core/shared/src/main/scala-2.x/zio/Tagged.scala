@@ -122,7 +122,7 @@ object Tagged {
     a3: Tagged[A3],
     a4: Tagged[A4],
     a5: Tagged[A5],
-    a6: Tagged[A6],
+    a6: Tagged[A6]
   ): Tagged[F[A0, A1, A2, A3, A4, A5, A6]] = {
     implicit val tag0 = a0.tag
     implicit val tag1 = a1.tag
