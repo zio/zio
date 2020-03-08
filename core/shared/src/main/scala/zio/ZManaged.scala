@@ -479,30 +479,23 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZManaged[R, E1, A] =
     ZManaged(reserve.mapErrorCause(f).map(r => Reservation(r.acquire.mapErrorCause(f), r.release)))
 
-  def memoize: ZManaged[R, Nothing, ZManaged[Any, E, A]] =
-    ZManaged {
-      ZIO.accessM[R] { r =>
-        RefM.make[Option[(Reservation[Any, E, A], Exit[E, A])]](None).map { ref =>
-          val acquire1: ZIO[Any, E, A] =
-            ref.modify {
-              case v @ Some((_, e)) => ZIO.succeedNow(e -> v)
-              case None =>
-                ZIO.uninterruptibleMask { restore =>
-                  self.provide(r).reserve.flatMap(res => restore(res.acquire).run.map(e => e -> Some(res -> e)))
-                }
-            }.flatMap(ZIO.done(_))
-
-          val acquire2: ZIO[R, Nothing, ZManaged[Any, E, A]] =
-            ZIO.succeedNow(acquire1.toManaged_)
-
-          val release2 = (_: Exit[_, _]) =>
-            ref.updateSome {
-              case Some((res, e)) => res.release(e).as(None)
-            }
-
-          Reservation(acquire2, release2)
-        }
-      }
+  def memoize: ZManaged[Any, Nothing, ZManaged[R, E, A]] =
+    ZManaged.finalizerRef(_ => UIO.unit).mapM { finalizers =>
+      for {
+        promise <- Promise.make[E, A]
+        complete <- ZIO.uninterruptibleMask { restore =>
+                     ZIO.accessM[R] { r =>
+                       self
+                         .provide(r)
+                         .reserve
+                         .flatMap {
+                           case Reservation(acquire, release) =>
+                             restore(acquire).ensuring(finalizers.add(release))
+                         }
+                         .to(promise)
+                     }
+                   }.once
+      } yield (complete *> promise.await).toManaged_
     }
 
   /**
