@@ -1,10 +1,40 @@
 package zio.stream.experimental
 
 import zio._
+import zio.stm.TQueue
 
 abstract class ZStream[-R, +E, +O](
   val process: ZManaged[R, Nothing, ZIO[R, Either[E, Unit], Chunk[O]]]
 ) extends ZConduit[R, E, Unit, O, Unit](process.map(pull => _ => pull)) { self =>
+
+  /**
+   * Composes this stream with the specified stream to create a cartesian product of elements.
+   * The `that` stream would be run multiple times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
+   */
+  final def <*>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] =
+    (self crossWith that)((_, _))
+
+  /**
+   * Composes this stream with the specified stream to create a cartesian product of elements
+   * and keeps only the elements from the `this` stream. The `that` stream would be run multiple
+   * times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zipWith]] and [[ZStream#<&>]] for the more common point-wise variant.
+   */
+  final def <*[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O] =
+    (self <*> that).map(_._1)
+
+  /**
+   * Composes this stream with the specified stream to create a cartesian product of elements
+   * and keeps only the elements from the `that` stream. The `that` stream would be run multiple
+   * times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zipWith]] and [[ZStream#<&>]] for the more common point-wise variant.
+   */
+  final def *>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O2] =
+    (self <*> that).map(_._2)
 
   /**
    * Symbolic alias for [[ZStream#concat]].
@@ -70,6 +100,25 @@ abstract class ZStream[-R, +E, +O](
     ZStream.concatAll(Chunk(self, that))
 
   /**
+   * Composes this stream with the specified stream to create a cartesian product of elements
+   * with a specified function.
+   * The `that` stream would be run multiple times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
+   */
+  final def crossWith[R1 <: R, E1 >: E, O2, C](that: ZStream[R1, E1, O2])(f: (O, O2) => C): ZStream[R1, E1, C] =
+    self.flatMap(l => that.map(r => f(l, r)))
+
+  /**
+   * Composes this stream with the specified stream to create a cartesian product of elements.
+   * The `that` stream would be run multiple times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
+   */
+  final def cross[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] =
+    (self crossWith that)((_, _))
+
+  /**
    * Converts this stream to a stream that executes its effects but emits no
    * elements. Useful for sequencing effects using streams:
    *
@@ -117,6 +166,12 @@ abstract class ZStream[-R, +E, +O](
    * which the predicate evaluates to true.
    */
   final def filterNot(pred: O => Boolean): ZStream[R, E, O] = filter(a => !pred(a))
+
+  /**
+   * Flattens this stream-of-streams into a stream made of the concatenation in
+   * strict order of all the streams.
+   */
+  def flatten[R1 <: R, E1 >: E, O1](implicit ev: O <:< ZStream[R1, E1, O1]) = flatMap(ev(_))
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
@@ -281,6 +336,81 @@ object ZStream {
     new ZStream(process) {}
 
   /**
+   * Creates a pure stream from a variable list of values
+   */
+  def apply[A](as: A*): ZStream[Any, Nothing, A] = fromIterable(as)
+
+  /**
+   * Creates a stream from a single value that will get cleaned up after the
+   * stream is consumed
+   */
+  def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any]): ZStream[R, E, A] =
+    managed(ZManaged.make(acquire)(release))
+
+  /**
+   * Creates a stream from a single value that will get cleaned up after the
+   * stream is consumed
+   */
+  def bracketExit[R, E, A](
+    acquire: ZIO[R, E, A]
+  )(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any]): ZStream[R, E, A] =
+    managed(ZManaged.makeExit(acquire)(release))
+
+  /**
+   * Composes the specified streams to create a cartesian product of elements
+   * with a specified function. Subsequent streams would be run multiple times,
+   * for every combination of elements in the prior streams.
+   *
+   * See also [[ZStream#zipN[R,E,A,B,C]*]] for the more common point-wise variant.
+   */
+  def crossN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
+    f: (A, B) => C
+  ): ZStream[R, E, C] =
+    zStream1.crossWith(zStream2)(f)
+
+  /**
+   * Composes the specified streams to create a cartesian product of elements
+   * with a specified function. Subsequent stream would be run multiple times,
+   * for every combination of elements in the prior streams.
+   *
+   * See also [[ZStream#zipN[R,E,A,B,C,D]*]] for the more common point-wise variant.
+   */
+  def crossN[R, E, A, B, C, D](
+    zStream1: ZStream[R, E, A],
+    zStream2: ZStream[R, E, B],
+    zStream3: ZStream[R, E, C]
+  )(
+    f: (A, B, C) => D
+  ): ZStream[R, E, D] =
+    for {
+      a <- zStream1
+      b <- zStream2
+      c <- zStream3
+    } yield f(a, b, c)
+
+  /**
+   * Composes the specified streams to create a cartesian product of elements
+   * with a specified function. Subsequent stream would be run multiple times,
+   * for every combination of elements in the prior streams.
+   *
+   * See also [[ZStream#zipN[R,E,A,B,C,D,F]*]] for the more common point-wise variant.
+   */
+  def crossN[R, E, A, B, C, D, F](
+    zStream1: ZStream[R, E, A],
+    zStream2: ZStream[R, E, B],
+    zStream3: ZStream[R, E, C],
+    zStream4: ZStream[R, E, D]
+  )(
+    f: (A, B, C, D) => F
+  ): ZStream[R, E, F] =
+    for {
+      a <- zStream1
+      b <- zStream2
+      c <- zStream3
+      d <- zStream4
+    } yield f(a, b, c, d)
+
+  /**
    * Concatenates all of the streams in the chunk to one stream.
    */
   def concatAll[R, E, O](streams: Chunk[ZStream[R, E, O]]): ZStream[R, E, O] =
@@ -310,6 +440,47 @@ object ZStream {
     }
 
   /**
+   * The stream that always dies with the `ex`.
+   */
+  def die(ex: => Throwable): ZStream[Any, Nothing, Nothing] =
+    halt(Cause.die(ex))
+
+  /**
+   * The stream that always dies with an exception described by `msg`.
+   */
+  def dieMessage(msg: => String): ZStream[Any, Nothing, Nothing] =
+    halt(Cause.die(new RuntimeException(msg)))
+
+  /**
+   * The empty stream
+   */
+  val empty: ZStream[Any, Nothing, Nothing] =
+    ZStream(ZManaged.succeedNow(ZIO.fail(Right(()))))
+
+  /**
+   * Accesses the whole environment of the stream.
+   */
+  def environment[R]: ZStream[R, Nothing, R] =
+    fromEffect(ZIO.environment[R])
+
+  /**
+   * The stream that always fails with the `error`
+   */
+  def fail[E](error: => E): ZStream[Any, E, Nothing] =
+    ZStream(ZManaged.succeedNow(ZIO.fail(Left(error))))
+
+  /**
+   * Creates an empty stream that never fails and executes the finalizer when it ends.
+   */
+  def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Nothing] =
+    ZStream {
+      for {
+        finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
+        pull         = (finalizerRef.add(_ => finalizer) *> ZIO.fail(Right(()))).uninterruptible
+      } yield pull
+    }
+
+  /**
    * Creates a stream from a [[zio.Chunk]] of values
    *
    * @tparam A the value type
@@ -328,6 +499,92 @@ object ZStream {
     }
 
   /**
+   * Creates a stream from an effect producing a value of type `A`
+   */
+  def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
+    ZStream {
+      for {
+        doneRef <- Ref.make(false).toManaged_
+        pull = doneRef.modify {
+          if (_) ZIO.fail(Right(()))               -> true
+          else fa.bimap(Left(_), Chunk.succeed(_)) -> true
+        }.flatten
+      } yield pull
+    }
+
+  /**
+   * Creates a stream from an effect producing a value of type `A` or an empty Stream
+   */
+  def fromEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] =
+    ZStream.unwrap {
+      fa.fold(_.fold[ZStream[Any, E, Nothing]](ZStream.empty)(ZStream.fail(_)), ZStream.succeed(_))
+    }
+
+  /**
+   * Creates a stream from an iterable collection of values
+   */
+  def fromIterable[O](as: => Iterable[O]): ZStream[Any, Nothing, O] =
+    fromChunk(Chunk.fromIterable(as))
+
+  /**
+   * Creates a stream from an effect producing a value of type `Iterable[A]`
+   */
+  def fromIterableM[R, E, O](iterable: ZIO[R, E, Iterable[O]]): ZStream[R, E, O] =
+    fromEffect(iterable).mapConcat(identity)
+
+  /**
+   * Creates a stream from a [[zio.ZQueue]] of values
+   */
+  def fromQueue[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
+    ZStream {
+      ZManaged.succeedNow {
+        queue.take
+          .map(Chunk.single)
+          .catchAllCause(c =>
+            queue.isShutdown.flatMap { down =>
+              if (down && c.interrupted) ZIO.fail(Right(()))
+              else ZIO.halt(c.map(Left(_)))
+            }
+          )
+      }
+    }
+
+  /**
+   * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
+   */
+  def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
+    fromQueue(queue).ensuringFirst(queue.shutdown)
+
+  /**
+   * Creates a stream from a [[zio.Schedule]] that does not require any further
+   * input. The stream will emit an element for each value output from the
+   * schedule, continuing for as long as the schedule continues.
+   */
+  def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R, Nothing, A] =
+    ZStream.fromEffect(schedule.initial).flatMap { s =>
+      ZStream.succeed(schedule.extract((), s)) ++
+        ZStream.unfoldM(s)(s => schedule.update((), s).map(s => (schedule.extract((), s), s)).option)
+    }
+
+  /**
+   * Creates a stream from a [[zio.stm.TQueue]] of values.
+   */
+  def fromTQueue[A](queue: TQueue[A]): ZStream[Any, Nothing, A] =
+    ZStream.repeatEffect(queue.take.commit)
+
+  /**
+   * The stream that always halts with `cause`.
+   */
+  def halt[E](cause: => Cause[E]): ZStream[Any, E, Nothing] =
+    fromEffect(ZIO.halt(cause))
+
+  /**
+   * The infinite stream of iterative function application: a, f(a), f(f(a)), f(f(f(a))), ...
+   */
+  def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] =
+    ZStream(Ref.make(a).toManaged_.map(_.getAndUpdate(f).map(Chunk.single(_))))
+
+  /**
    * Creates a single-valued stream from a managed resource
    */
   def managed[R, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
@@ -340,7 +597,7 @@ object ZStream {
             if (done) ZIO.fail(Right(()))
             else
               (for {
-                _           <- doneRef.set(true)
+
                 reservation <- managed.reserve
                 _           <- finalizer.add(reservation.release)
                 a           <- restore(reservation.acquire)
@@ -349,4 +606,90 @@ object ZStream {
         }
       } yield pull
     }
+
+  /**
+   * The stream that never produces any value or fails with any error.
+   */
+  val never: ZStream[Any, Nothing, Nothing] =
+    ZStream(ZManaged.succeedNow(UIO.never))
+
+  /**
+   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
+  def paginateM[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
+    ZStream {
+      for {
+        ref <- Ref.make[Option[S]](Some(s)).toManaged_
+      } yield ref.get.flatMap {
+        case Some(s) => f(s).foldM(e => ZIO.fail(Left(e)), { case (a, s) => ref.set(s).as(Chunk.single(a)) })
+        case None    => ZIO.fail(Right(()))
+      }
+    }
+
+  /**
+   * Creates a stream from an effect producing a value of type `A` which repeats forever
+   */
+  def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
+    fromEffect(fa).forever
+
+  /**
+   * Creates a stream from an effect producing values of type `A` until it fails with None.
+   */
+  def repeatEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] =
+    ZStream(ZManaged.succeedNow(fa.bimap({
+      case Some(e) => Left(e)
+      case None    => Right(())
+    }, Chunk.single(_))))
+
+  /**
+   * Creates a single-valued pure stream
+   */
+  def succeed[A](a: => A): ZStream[Any, Nothing, A] =
+    fromChunk(Chunk.single(a))
+
+  /**
+   * A stream that contains a single `Unit` value.
+   */
+  val unit: ZStream[Any, Nothing, Unit] =
+    ZStream.succeed(())
+
+  /**
+   * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
+   */
+  def unfoldM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
+    ZStream {
+      for {
+        done <- Ref.make(false).toManaged_
+        ref  <- Ref.make(s).toManaged_
+        pull = done.get.flatMap {
+          if (_) ZIO.fail(Right(()))
+          else {
+            ref.get
+              .flatMap(f0)
+              .foldM(
+                e => ZIO.fail(Left(e)),
+                opt =>
+                  opt match {
+                    case Some((a, s)) => ref.set(s).as(Chunk.single(a))
+                    case None         => done.set(true) *> ZIO.fail(Right(()))
+                  }
+              )
+          }
+        }
+      } yield pull
+    }
+
+  /**
+   * Creates a stream produced from an effect
+   */
+  def unwrap[R, E, A](fa: ZIO[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
+    fromEffect(fa).flatten
+
+  /**
+   * Creates a stream produced from a [[ZManaged]]
+   */
+  def unwrapManaged[R, E, A](fa: ZManaged[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
+    managed(fa).flatten
 }
