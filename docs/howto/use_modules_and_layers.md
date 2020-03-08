@@ -16,12 +16,7 @@ The result is a program that, in turn, depends on the `DBConnection`.
 
 
 ```scala mdoc:invisible
-import zio.ZIO          
-import zio.IO
-import zio.UIO    
-import zio.Has
-import zio.ZEnv
-import zio.ZLayer
+import zio. { Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
@@ -81,7 +76,7 @@ Let's build a module for user data access, following these simple steps:
 1. Define a type alias like `type ModuleName = Has[Service]` (see below for details on `Has`)
 
 ```scala mdoc:silent
-import zio.{Has, ZLayer}
+import zio.{ Has, ZLayer }
 
 type UserRepo = Has[UserRepo.Service]
 
@@ -96,12 +91,7 @@ object UserRepo {
 ```
 
 ```scala mdoc:reset:invisible
-import zio.ZIO          
-import zio.IO
-import zio.UIO    
-import zio.Has
-import zio.ZEnv
-import zio.ZLayer
+import zio. { Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }          
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
@@ -155,7 +145,7 @@ Usually we don't create a `Has` directly, but we do that through `ZLayer`.
 
 `ZLayer[-RIn, +E, +ROut <: Has[_]]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, possibly producing an error `E` during creation. 
 
-In adherence with environmental concepts, the absence of a required input is represented by `RIn = Any`, conveniently  used in the type alias `ZLayer#NoDeps`.
+In adherence with environmental concepts, the absence of a required input is represented by `RIn = Any`, conveniently  used in the type alias `Layer`.
 
 There are many ways to create a `ZLayer`, here's an incomplete list:
  - `ZLayer.succeed` or `ZIO.asService`  to create a layer from an existing service
