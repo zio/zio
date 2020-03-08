@@ -893,14 +893,16 @@ object ZLayer {
 
   /**
    * Constructs a layer that purely depends on the specified service, which
-   * must return one or more services.
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServiceMany[A: Tagged, B <: Has[_]](f: A => B): ZLayer[Has[A], Nothing, B] =
     fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, B <: Has[_]](
     f: (A0, A1) => B
@@ -910,8 +912,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, B <: Has[_]](
     f: (A0, A1, A2) => B
@@ -921,8 +924,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3) => B
@@ -932,8 +936,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4) => B
@@ -943,8 +948,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5) => B
@@ -954,8 +960,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
@@ -965,8 +972,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
@@ -976,8 +984,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
@@ -987,8 +996,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
@@ -998,8 +1008,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
@@ -1009,8 +1020,9 @@ object ZLayer {
   }
  
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
@@ -1020,8 +1032,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
@@ -1031,8 +1044,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
@@ -1042,8 +1056,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
@@ -1053,8 +1068,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
@@ -1064,8 +1080,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
@@ -1075,8 +1092,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
@@ -1086,8 +1104,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
@@ -1097,8 +1116,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
@@ -1108,8 +1128,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
@@ -1119,8 +1140,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services.
+   * Constructs a layer that purely depends on the specified service, which
+   * must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServices]].
    */
   def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
@@ -1131,14 +1153,16 @@ object ZLayer {
 
   /**
    * Constructs a layer that effectfully depends on the specified service,
-   * which must return one or more services.
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServiceManyM[A: Tagged, R, E, B <: Has[_]](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
     fromServiceManyManaged(a => f(a).toManaged_)
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, R, E, B <: Has[_]](
     f: (A0, A1) => ZIO[R, E, B]
@@ -1148,8 +1172,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2) => ZIO[R, E, B]
@@ -1159,8 +1184,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
@@ -1170,8 +1196,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
@@ -1181,8 +1208,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
@@ -1192,8 +1220,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
@@ -1203,8 +1232,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
@@ -1214,8 +1244,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
@@ -1225,8 +1256,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
@@ -1236,8 +1268,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
@@ -1247,8 +1280,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
@@ -1258,8 +1292,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
@@ -1269,8 +1304,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
@@ -1280,8 +1316,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
@@ -1291,8 +1328,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
@@ -1302,8 +1340,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
@@ -1313,8 +1352,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
@@ -1324,8 +1364,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
@@ -1335,8 +1376,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
@@ -1346,8 +1388,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
@@ -1357,8 +1400,9 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services.
+   * Constructs a layer that effectfully depends on the specified service,
+   * which must return one or more services. For the more common variant that
+   * returns a single service see [[zio.ZLayer.fromServicesM]].
    */
   def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZIO[R, E, B]
@@ -1369,14 +1413,18 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServiceManyManaged[A: Tagged, R, E, B <: Has[_]](f: A => ZManaged[R, E, B]): ZLayer[R with Has[A], E, B] =
     ZLayer(ZManaged.accessManaged[R with Has[A]](m => f(m.get[A])))
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, R, E, B <: Has[_]](
     f: (A0, A1) => ZManaged[R, E, B]
@@ -1391,7 +1439,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2) => ZManaged[R, E, B]
@@ -1407,7 +1457,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
@@ -1424,7 +1476,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
@@ -1442,7 +1496,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
@@ -1461,7 +1517,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
@@ -1481,7 +1539,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
@@ -1502,7 +1562,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
@@ -1524,7 +1586,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
@@ -1547,7 +1611,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
@@ -1571,7 +1637,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
@@ -1596,7 +1664,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
@@ -1622,7 +1692,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
@@ -1649,7 +1721,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
@@ -1677,7 +1751,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
@@ -1706,7 +1782,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
@@ -1736,7 +1814,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
@@ -1767,7 +1847,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
@@ -1799,7 +1881,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
@@ -1832,7 +1916,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZManaged[R, E, B]
@@ -1866,7 +1952,9 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified services, which must return one or more services.
+   * specified service, which must return one or more services. For the more
+   * common variant that returns a single service see
+   * [[zio.ZLayer.fromServicesManaged]].
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZManaged[R, E, B]
