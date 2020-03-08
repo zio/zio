@@ -900,7 +900,7 @@ object ZLayer {
     fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -912,7 +912,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -924,7 +924,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -936,7 +936,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -948,7 +948,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -960,7 +960,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -972,7 +972,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -984,7 +984,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -996,7 +996,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1008,7 +1008,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1020,7 +1020,7 @@ object ZLayer {
   }
  
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1032,7 +1032,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1044,7 +1044,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1056,7 +1056,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1068,7 +1068,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1080,7 +1080,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1092,7 +1092,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1104,7 +1104,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1116,7 +1116,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1128,7 +1128,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1140,7 +1140,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that purely depends on the specified service, which
+   * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
@@ -1160,7 +1160,7 @@ object ZLayer {
     fromServiceManyManaged(a => f(a).toManaged_)
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1172,7 +1172,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1184,7 +1184,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1196,7 +1196,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1208,7 +1208,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1220,7 +1220,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1232,7 +1232,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1244,7 +1244,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1256,7 +1256,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1268,7 +1268,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1280,7 +1280,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1292,7 +1292,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1304,7 +1304,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1316,7 +1316,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1328,7 +1328,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1340,7 +1340,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1352,7 +1352,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1364,7 +1364,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1376,7 +1376,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1388,7 +1388,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1400,7 +1400,7 @@ object ZLayer {
   }
 
   /**
-   * Constructs a layer that effectfully depends on the specified service,
+   * Constructs a layer that effectfully depends on the specified services,
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
@@ -1421,7 +1421,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, R, E, B <: Has[_]](
@@ -1437,7 +1437,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, R, E, B <: Has[_]](
@@ -1454,7 +1454,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R, E, B <: Has[_]](
@@ -1472,7 +1472,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R, E, B <: Has[_]](
@@ -1491,7 +1491,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, R, E, B <: Has[_]](
@@ -1511,7 +1511,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B <: Has[_]](
@@ -1532,7 +1532,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B <: Has[_]](
@@ -1554,7 +1554,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B <: Has[_]](
@@ -1577,7 +1577,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B <: Has[_]](
@@ -1601,7 +1601,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B <: Has[_]](
@@ -1626,7 +1626,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B <: Has[_]](
@@ -1652,7 +1652,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B <: Has[_]](
@@ -1679,7 +1679,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B <: Has[_]](
@@ -1707,7 +1707,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B <: Has[_]](
@@ -1736,7 +1736,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B <: Has[_]](
@@ -1766,7 +1766,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B <: Has[_]](
@@ -1797,7 +1797,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B <: Has[_]](
@@ -1829,7 +1829,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B <: Has[_]](
@@ -1862,7 +1862,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B <: Has[_]](
@@ -1896,7 +1896,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B <: Has[_]](
@@ -1931,7 +1931,7 @@ object ZLayer {
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
-   * specified service, which must return one or more services. For the more
+   * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
   def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B <: Has[_]](
