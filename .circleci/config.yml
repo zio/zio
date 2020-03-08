@@ -234,7 +234,7 @@ release: &release
             $HOME/bin/gpg --version
             echo RELOADAGENT | gpg-connect-agent
             echo $PGP_SECRET | base64 -di | gpg2 --import --no-tty --batch --yes
-            PATH=$HOME/bin:$PATH ./sbt ++${SCALA_VERSION}! clean ci-release
+            PATH=$HOME/bin:$PATH ./sbt ++${SCALA_VERSION}! ci-release
 
 microsite: &microsite
   steps:
