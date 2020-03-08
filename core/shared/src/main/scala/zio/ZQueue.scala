@@ -268,7 +268,7 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
       def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
     }
 
-  /*
+  /**
    * Transforms elements dequeued from this queue with a function.
    */
   final def map[C](f: B => C): ZQueue[RA, EA, RB, EB, A, C] =
