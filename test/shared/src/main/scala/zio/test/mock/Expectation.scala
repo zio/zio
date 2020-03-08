@@ -21,8 +21,8 @@ import scala.language.implicitConversions
 import zio.test.Assertion
 import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
 import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
-import zio.test.mock.internal.{ InvalidCall, MockException, MockFactory, State }
-import zio.{ Has, IO, Managed, Ref, RefM, Tagged, ZIO, ZLayer }
+import zio.test.mock.internal.{ MockException, MockRuntime, State }
+import zio.{ Has, IO, Managed, Tagged, ZLayer }
 
 /**
  * An `Expectation[R]` is an immutable tree structure that represents
@@ -31,37 +31,21 @@ import zio.{ Has, IO, Managed, Ref, RefM, Tagged, ZIO, ZLayer }
 sealed trait Expectation[R <: Has[_]] { self =>
 
   /**
-   * Mock execution flag.
-   */
-  val satisfied: Boolean
-
-  /**
-   * Short-circuit flag. If an expectation has been saturated
-   * it's branch will be skipped in the invocation search.
-   */
-  val saturated: Boolean
-
-  /**
-   * Invocations log.
-   */
-  val invocations: List[Int]
-
-  /**
    * Operator alias for `and`.
    */
-  def &&[R0 <: Has[_]](that: Expectation[R0]): Expectation[R with R0] =
+  def &&[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     and[R0](that)
 
   /**
    * Operator alias for `or`.
    */
-  def ||[R0 <: Has[_]](that: Expectation[R0]): Expectation[R with R0] =
+  def ||[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     or[R0](that)
 
   /**
    * Operator alias for `andThen`.
    */
-  def ++[R0 <: Has[_]](that: Expectation[R0]): Expectation[R with R0] =
+  def ++[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     andThen[R0](that)
 
   /**
@@ -71,12 +55,12 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) and (MockConsole.getStrLn returns value("foo"))
    * }}
    */
-  def and[R0 <: Has[_]](that: Expectation[R0]): Expectation[R with R0] =
+  def and[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
-      case (And.Items(xs1), And.Items(xs2)) => And(cast(xs1 ++ xs2))
-      case (And.Items(xs), _)               => And(cast(xs :+ that))
-      case (_, And.Items(xs))               => And(cast(self :: xs))
-      case _                                => And(cast(self :: that :: Nil))
+      case (And.Items(xs1), And.Items(xs2)) => And(cast(xs1 ++ xs2), self.mock ++ that.mock)
+      case (And.Items(xs), _)               => And(cast(xs :+ that), self.mock ++ that.mock)
+      case (_, And.Items(xs))               => And(cast(self :: xs), self.mock ++ that.mock)
+      case _                                => And(cast(self :: that :: Nil), self.mock ++ that.mock)
     }
 
   /**
@@ -86,12 +70,12 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) andThen (MockConsole.getStrLn returns value("foo"))
    * }}
    */
-  def andThen[R0 <: Has[_]](that: Expectation[R0]): Expectation[R with R0] =
+  def andThen[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
-      case (Chain.Items(xs1), Chain.Items(xs2)) => Chain(cast(xs1 ++ xs2))
-      case (Chain.Items(xs), _)                 => Chain(cast(xs :+ that))
-      case (_, Chain.Items(xs))                 => Chain(cast(self :: xs))
-      case _                                    => Chain(cast(self :: that :: Nil))
+      case (Chain.Items(xs1), Chain.Items(xs2)) => Chain(cast(xs1 ++ xs2), self.mock ++ that.mock)
+      case (Chain.Items(xs), _)                 => Chain(cast(xs :+ that), self.mock ++ that.mock)
+      case (_, Chain.Items(xs))                 => Chain(cast(self :: xs), self.mock ++ that.mock)
+      case _                                    => Chain(cast(self :: that :: Nil), self.mock ++ that.mock)
     }
 
   /**
@@ -115,12 +99,12 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) or (MockConsole.getStrLn returns value("foo"))
    * }}
    */
-  def or[R0 <: Has[_]](that: Expectation[R0]): Expectation[R with R0] =
+  def or[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
-      case (Or.Items(xs1), Or.Items(xs2)) => Or(cast(xs1 ++ xs2))
-      case (Or.Items(xs), _)              => Or(cast(xs :+ that))
-      case (_, Or.Items(xs))              => Or(cast(self :: xs))
-      case _                              => Or(cast(self :: that :: Nil))
+      case (Or.Items(xs1), Or.Items(xs2)) => Or(cast(xs1 ++ xs2), self.mock ++ that.mock)
+      case (Or.Items(xs), _)              => Or(cast(xs :+ that), self.mock ++ that.mock)
+      case (_, Or.Items(xs))              => Or(cast(self :: xs), self.mock ++ that.mock)
+      case _                              => Or(cast(self :: that :: Nil), self.mock ++ that.mock)
     }
 
   /**
@@ -144,6 +128,27 @@ sealed trait Expectation[R <: Has[_]] { self =>
    */
   private def cast[R1 <: Has[_]](children: List[Expectation[_]]): List[Expectation[R1]] =
     children.asInstanceOf[List[Expectation[R1]]]
+
+  /**
+   * Invocations log.
+   */
+  private[test] val invocations: List[Int]
+
+  /**
+   * Provided a `MockRuntime` constructs a layer with environment `R`.
+   */
+  private[test] def mock: ZLayer[MockRuntime, Nothing, R]
+
+  /**
+   * Mock execution flag.
+   */
+  private[test] val satisfied: Boolean
+
+  /**
+   * Short-circuit flag. If an expectation has been saturated
+   * it's branch will be skipped in the invocation search.
+   */
+  private[test] val saturated: Boolean
 }
 
 object Expectation {
@@ -157,16 +162,16 @@ object Expectation {
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  ) extends Expectation[R]
+  )(val mock: ZLayer[MockRuntime, Nothing, R])
+      extends Expectation[R]
 
   private[test] object And {
 
-    def apply[R <: Has[_]](children: List[Expectation[R]]): And[R] =
-      And(children, false, false, List.empty)
+    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): And[R] =
+      And(children, false, false, List.empty)(mock)
 
     object Items {
-
-      private[test] def unapply[R <: Has[_]](and: And[R]): Option[List[Expectation[R]]] =
+      def unapply[R <: Has[_]](and: And[R]): Option[List[Expectation[R]]] =
         Some(and.children)
     }
   }
@@ -182,7 +187,9 @@ object Expectation {
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  ) extends Expectation[R]
+  ) extends Expectation[R] {
+    def mock: ZLayer[MockRuntime, Nothing, R] = method.mock
+  }
 
   private[test] object Call {
 
@@ -202,16 +209,16 @@ object Expectation {
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  ) extends Expectation[R]
+  )(val mock: ZLayer[MockRuntime, Nothing, R])
+      extends Expectation[R]
 
   private[test] object Chain {
 
-    def apply[R <: Has[_]](children: List[Expectation[R]]): Chain[R] =
-      Chain(children, false, false, List.empty)
+    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): Chain[R] =
+      Chain(children, false, false, List.empty)(mock)
 
     object Items {
-
-      private[test] def unapply[R <: Has[_]](chain: Chain[R]): Option[List[Expectation[R]]] =
+      def unapply[R <: Has[_]](chain: Chain[R]): Option[List[Expectation[R]]] =
         Some(chain.children)
     }
   }
@@ -225,16 +232,16 @@ object Expectation {
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  ) extends Expectation[R]
+  )(val mock: ZLayer[MockRuntime, Nothing, R])
+      extends Expectation[R]
 
   private[test] object Or {
 
-    def apply[R <: Has[_]](children: List[Expectation[R]]): Or[R] =
-      Or(children, false, false, List.empty)
+    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): Or[R] =
+      Or(children, false, false, List.empty)(mock)
 
     object Items {
-
-      private[test] def unapply[R <: Has[_]](or: Or[R]): Option[List[Expectation[R]]] =
+      def unapply[R <: Has[_]](or: Or[R]): Option[List[Expectation[R]]] =
         Some(or.children)
     }
   }
@@ -250,19 +257,15 @@ object Expectation {
     invocations: List[Int],
     started: Int,
     completed: Int
-  ) extends Expectation[R]
+  ) extends Expectation[R] {
+    def mock: ZLayer[MockRuntime, Nothing, R] = child.mock
+  }
 
   private[test] object Repeated {
 
     def apply[R <: Has[_]](child: Expectation[R], range: Range): Repeated[R] =
       if (range.step <= 0) throw MockException.InvalidRangeException(range)
       else Repeated(child, range, false, false, List.empty, 0, 0)
-
-    object Item {
-
-      private[test] def unapply[R <: Has[_]](repeated: Repeated[R]): Option[(Expectation[R], Range)] =
-        Some((repeated.child, repeated.range))
-    }
   }
 
   /**
@@ -308,27 +311,11 @@ object Expectation {
   /**
    * Implicitly converts Expectation to ZLayer mock environment.
    */
-  implicit def toLayer[R <: Has[_]: Tagged](
-    trunk: Expectation[R]
-  )(implicit mockable: Mockable[R]): ZLayer.NoDeps[Nothing, R] = {
-
-    val makeState =
+  implicit def toLayer[R <: Has[_]: Tagged](trunk: Expectation[R]): ZLayer.NoDeps[Nothing, R] =
+    ZLayer.fromManagedMany(
       for {
-        expectationRef   <- RefM.make[Expectation[R]](trunk)
-        callsCountRef    <- Ref.make[Int](0)
-        failedMatchesRef <- Ref.make[List[InvalidCall]](List.empty)
-      } yield State[R](expectationRef, callsCountRef, failedMatchesRef)
-
-    val checkUnmetExpectations =
-      (state: State[R]) =>
-        state.expectationRef.get
-          .filterOrElse[Any, Nothing, Any](_.satisfied) { expectation =>
-            ZIO.die(MockException.UnsatisfiedExpectationsException(expectation))
-          }
-
-    ZLayer.fromManagedMany(for {
-      state <- Managed.make(makeState)(checkUnmetExpectations)
-      mock  = MockFactory.make(state)
-    } yield mockable.environment(mock))
-  }
+        state <- Managed.make(State.make(trunk))(State.checkUnmetExpectations)
+        env   <- (Mock.makeRuntime(state) >>> trunk.mock).build
+      } yield env
+    )
 }

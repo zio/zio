@@ -21,20 +21,27 @@ import java.util.concurrent.TimeUnit
 
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.{ Has, UIO }
+import zio.test.mock.internal.MockRuntime
+import zio.{ UIO, ZLayer }
 
 object MockClock {
 
-  object currentTime     extends Method[Clock, TimeUnit, Long]
-  object currentDateTime extends Method[Clock, Unit, OffsetDateTime]
-  object nanoTime        extends Method[Clock, Unit, Long]
-  object sleep           extends Method[Clock, Duration, Unit]
+  sealed trait Tag[I, A] extends Method[Clock, I, A] {
+    val mock = MockClock.Mock
+  }
 
-  private[mock] val mockable: Mockable[Clock] = (mock: Mock) =>
-    Has(new Clock.Service {
-      def currentTime(unit: TimeUnit): UIO[Long] = mock(MockClock.currentTime, unit)
-      def currentDateTime: UIO[OffsetDateTime]   = mock(MockClock.currentDateTime)
-      val nanoTime: UIO[Long]                    = mock(MockClock.nanoTime)
-      def sleep(duration: Duration): UIO[Unit]   = mock(MockClock.sleep, duration)
-    })
+  object CurrentTime     extends Tag[TimeUnit, Long]
+  object CurrentDateTime extends Tag[Unit, OffsetDateTime]
+  object NanoTime        extends Tag[Unit, Long]
+  object Sleep           extends Tag[Duration, Unit]
+
+  private lazy val Mock: ZLayer[MockRuntime, Nothing, Clock] =
+    ZLayer.fromService(mock =>
+      new Clock.Service {
+        def currentTime(unit: TimeUnit): UIO[Long] = mock(CurrentTime, unit)
+        def currentDateTime: UIO[OffsetDateTime]   = mock(CurrentDateTime)
+        val nanoTime: UIO[Long]                    = mock(NanoTime)
+        def sleep(duration: Duration): UIO[Unit]   = mock(Sleep, duration)
+      }
+    )
 }

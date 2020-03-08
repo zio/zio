@@ -11,145 +11,144 @@ object MockSpec extends ZIOBaseSpec {
   import Expectation._
   import InvalidCall._
   import MockException._
-  import Module.Command._
 
   def spec = suite("MockSpec")(
     suite("methods")(
       suite("static")(
         testSpec("returns value")(
-          Static returns value("foo"),
+          ModuleMock.Static returns value("foo"),
           Module.static,
           equalTo("foo")
         ),
         testSpec("returns failure")(
-          Static returns failure("foo"),
+          ModuleMock.Static returns failure("foo"),
           Module.static.flip,
           equalTo("foo")
         )
       ),
       suite("zeroParams")(
         testSpec("returns value")(
-          ZeroParams returns value("foo"),
+          ModuleMock.ZeroParams returns value("foo"),
           Module.zeroParams,
           equalTo("foo")
         ),
         testSpec("returns failure")(
-          ZeroParams returns failure("foo"),
+          ModuleMock.ZeroParams returns failure("foo"),
           Module.zeroParams.flip,
           equalTo("foo")
         )
       ),
       suite("zeroParamsWithParens")(
         testSpec("returns value")(
-          ZeroParamsWithParens returns value("foo"),
+          ModuleMock.ZeroParamsWithParens returns value("foo"),
           Module.zeroParamsWithParens(),
           equalTo("foo")
         ),
         testSpec("returns failure")(
-          ZeroParamsWithParens returns failure("foo"),
+          ModuleMock.ZeroParamsWithParens returns failure("foo"),
           Module.zeroParamsWithParens().flip,
           equalTo("foo")
         )
       ),
       suite("singleParam")(
         testSpec("returns value")(
-          SingleParam(equalTo(1)) returns value("foo"),
+          ModuleMock.SingleParam(equalTo(1)) returns value("foo"),
           Module.singleParam(1),
           equalTo("foo")
         ),
         testSpec("returns valueF")(
-          SingleParam(equalTo(1)) returns valueF(i => s"foo $i"),
+          ModuleMock.SingleParam(equalTo(1)) returns valueF(i => s"foo $i"),
           Module.singleParam(1),
           equalTo("foo 1")
         ),
         testSpec("returns valueM")(
-          SingleParam(equalTo(1)) returns valueM(i => UIO.succeed(s"foo $i")),
+          ModuleMock.SingleParam(equalTo(1)) returns valueM(i => UIO.succeed(s"foo $i")),
           Module.singleParam(1),
           equalTo("foo 1")
         ),
         testSpec("returns failure")(
-          SingleParam(equalTo(1)) returns failure("foo"),
+          ModuleMock.SingleParam(equalTo(1)) returns failure("foo"),
           Module.singleParam(1).flip,
           equalTo("foo")
         ),
         testSpec("returns failureF")(
-          SingleParam(equalTo(1)) returns failureF(i => s"foo $i"),
+          ModuleMock.SingleParam(equalTo(1)) returns failureF(i => s"foo $i"),
           Module.singleParam(1).flip,
           equalTo("foo 1")
         ),
         testSpec("returns failureM")(
-          SingleParam(equalTo(1)) returns failureM(i => IO.fail(s"foo $i")),
+          ModuleMock.SingleParam(equalTo(1)) returns failureM(i => IO.fail(s"foo $i")),
           Module.singleParam(1).flip,
           equalTo("foo 1")
         )
       ),
       suite("manyParams")(
         testSpec("returns value")(
-          ManyParams(equalTo((1, "2", 3L))) returns value("foo"),
+          ModuleMock.ManyParams(equalTo((1, "2", 3L))) returns value("foo"),
           Module.manyParams(1, "2", 3L),
           equalTo("foo")
         ),
         testSpec("returns valueF")(
-          ManyParams(equalTo((1, "2", 3L))) returns valueF(i => s"foo $i"),
+          ModuleMock.ManyParams(equalTo((1, "2", 3L))) returns valueF(i => s"foo $i"),
           Module.manyParams(1, "2", 3L),
           equalTo("foo (1,2,3)")
         ),
         testSpec("returns valueM")(
-          ManyParams(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeed(s"foo $i")),
+          ModuleMock.ManyParams(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeed(s"foo $i")),
           Module.manyParams(1, "2", 3L),
           equalTo("foo (1,2,3)")
         ),
         testSpec("returns failure")(
-          ManyParams(equalTo((1, "2", 3L))) returns failure("foo"),
+          ModuleMock.ManyParams(equalTo((1, "2", 3L))) returns failure("foo"),
           Module.manyParams(1, "2", 3L).flip,
           equalTo("foo")
         ),
         testSpec("returns failureF")(
-          ManyParams(equalTo((1, "2", 3L))) returns failureF(i => s"foo $i"),
+          ModuleMock.ManyParams(equalTo((1, "2", 3L))) returns failureF(i => s"foo $i"),
           Module.manyParams(1, "2", 3L).flip,
           equalTo("foo (1,2,3)")
         ),
         testSpec("returns failureM")(
-          ManyParams(equalTo((1, "2", 3L))) returns failureM(i => IO.fail(s"foo $i")),
+          ModuleMock.ManyParams(equalTo((1, "2", 3L))) returns failureM(i => IO.fail(s"foo $i")),
           Module.manyParams(1, "2", 3L).flip,
           equalTo("foo (1,2,3)")
         )
       ),
       suite("manyParamLists")(
         testSpec("returns value")(
-          ManyParamLists(equalTo((1, "2", 3L))) returns value("foo"),
+          ModuleMock.ManyParamLists(equalTo((1, "2", 3L))) returns value("foo"),
           Module.manyParamLists(1)("2")(3L),
           equalTo("foo")
         ),
         testSpec("returns valueF")(
-          ManyParamLists(equalTo((1, "2", 3L))) returns valueF(i => s"foo $i"),
+          ModuleMock.ManyParamLists(equalTo((1, "2", 3L))) returns valueF(i => s"foo $i"),
           Module.manyParamLists(1)("2")(3L),
           equalTo("foo (1,2,3)")
         ),
         testSpec("returns valueM")(
-          ManyParamLists(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeed(s"foo $i")),
+          ModuleMock.ManyParamLists(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeed(s"foo $i")),
           Module.manyParamLists(1)("2")(3L),
           equalTo("foo (1,2,3)")
         ),
         testSpec("returns failure")(
-          ManyParamLists(equalTo((1, "2", 3L))) returns failure("foo"),
+          ModuleMock.ManyParamLists(equalTo((1, "2", 3L))) returns failure("foo"),
           Module.manyParamLists(1)("2")(3L).flip,
           equalTo("foo")
         ),
         testSpec("returns failureF")(
-          ManyParamLists(equalTo((1, "2", 3L))) returns failureF(i => s"foo $i"),
+          ModuleMock.ManyParamLists(equalTo((1, "2", 3L))) returns failureF(i => s"foo $i"),
           Module.manyParamLists(1)("2")(3L).flip,
           equalTo("foo (1,2,3)")
         ),
         testSpec("returns failureM")(
-          ManyParamLists(equalTo((1, "2", 3L))) returns failureM(i => IO.fail(s"foo $i")),
+          ModuleMock.ManyParamLists(equalTo((1, "2", 3L))) returns failureM(i => IO.fail(s"foo $i")),
           Module.manyParamLists(1)("2")(3L).flip,
           equalTo("foo (1,2,3)")
         )
       ),
       suite("command")(
         testSpec("returns unit")(
-          Command(equalTo(1)) returns unit,
+          ModuleMock.Command(equalTo(1)) returns unit,
           Module.command(1),
           isUnit
         )
@@ -157,64 +156,64 @@ object MockSpec extends ZIOBaseSpec {
       suite("overloaded")(
         suite("_0")(
           testSpec("returns value")(
-            Overloaded._0(equalTo(1)) returns value("foo"),
+            ModuleMock.Overloaded._0(equalTo(1)) returns value("foo"),
             Module.overloaded(1),
             equalTo("foo")
           ),
           testSpec("returns valueF")(
-            Overloaded._0(equalTo(1)) returns valueF(i => s"foo $i"),
+            ModuleMock.Overloaded._0(equalTo(1)) returns valueF(i => s"foo $i"),
             Module.overloaded(1),
             equalTo("foo 1")
           ),
           testSpec("returns valueM")(
-            Overloaded._0(equalTo(1)) returns valueM(i => UIO.succeed(s"foo $i")),
+            ModuleMock.Overloaded._0(equalTo(1)) returns valueM(i => UIO.succeed(s"foo $i")),
             Module.overloaded(1),
             equalTo("foo 1")
           ),
           testSpec("returns failure")(
-            Overloaded._0(equalTo(1)) returns failure("foo"),
+            ModuleMock.Overloaded._0(equalTo(1)) returns failure("foo"),
             Module.overloaded(1).flip,
             equalTo("foo")
           ),
           testSpec("returns failureF")(
-            Overloaded._0(equalTo(1)) returns failureF(i => s"foo $i"),
+            ModuleMock.Overloaded._0(equalTo(1)) returns failureF(i => s"foo $i"),
             Module.overloaded(1).flip,
             equalTo("foo 1")
           ),
           testSpec("returns failureM")(
-            Overloaded._0(equalTo(1)) returns failureM(i => IO.fail(s"foo $i")),
+            ModuleMock.Overloaded._0(equalTo(1)) returns failureM(i => IO.fail(s"foo $i")),
             Module.overloaded(1).flip,
             equalTo("foo 1")
           )
         ),
         suite("_1")(
           testSpec("returns value")(
-            Overloaded._1(equalTo(1L)) returns value("foo"),
+            ModuleMock.Overloaded._1(equalTo(1L)) returns value("foo"),
             Module.overloaded(1L),
             equalTo("foo")
           ),
           testSpec("returns valueF")(
-            Overloaded._1(equalTo(1L)) returns valueF(i => s"foo $i"),
+            ModuleMock.Overloaded._1(equalTo(1L)) returns valueF(i => s"foo $i"),
             Module.overloaded(1L),
             equalTo("foo 1")
           ),
           testSpec("returns valueM")(
-            Overloaded._1(equalTo(1L)) returns valueM(i => UIO.succeed(s"foo $i")),
+            ModuleMock.Overloaded._1(equalTo(1L)) returns valueM(i => UIO.succeed(s"foo $i")),
             Module.overloaded(1L),
             equalTo("foo 1")
           ),
           testSpec("returns failure")(
-            Overloaded._1(equalTo(1L)) returns failure("foo"),
+            ModuleMock.Overloaded._1(equalTo(1L)) returns failure("foo"),
             Module.overloaded(1L).flip,
             equalTo("foo")
           ),
           testSpec("returns failureF")(
-            Overloaded._1(equalTo(1L)) returns failureF(i => s"foo $i"),
+            ModuleMock.Overloaded._1(equalTo(1L)) returns failureF(i => s"foo $i"),
             Module.overloaded(1L).flip,
             equalTo("foo 1")
           ),
           testSpec("returns failureM")(
-            Overloaded._1(equalTo(1L)) returns failureM(i => IO.fail(s"foo $i")),
+            ModuleMock.Overloaded._1(equalTo(1L)) returns failureM(i => IO.fail(s"foo $i")),
             Module.overloaded(1L).flip,
             equalTo("foo 1")
           )
@@ -222,39 +221,39 @@ object MockSpec extends ZIOBaseSpec {
       ),
       suite("maxParams")(
         testSpec("returns value")(
-          MaxParams(equalTo(intTuple22)) returns value("foo"),
+          ModuleMock.MaxParams(equalTo(intTuple22)) returns value("foo"),
           (Module.maxParams _).tupled(intTuple22),
           equalTo("foo")
         ),
         testSpec("returns valueF")(
-          MaxParams(equalTo(intTuple22)) returns valueF(i => s"foo $i"),
+          ModuleMock.MaxParams(equalTo(intTuple22)) returns valueF(i => s"foo $i"),
           (Module.maxParams _).tupled(intTuple22),
           equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
         ),
         testSpec("returns valueM")(
-          MaxParams(equalTo(intTuple22)) returns valueM(i => UIO.succeed(s"foo $i")),
+          ModuleMock.MaxParams(equalTo(intTuple22)) returns valueM(i => UIO.succeed(s"foo $i")),
           (Module.maxParams _).tupled(intTuple22),
           equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
         ),
         testSpec("returns failure")(
-          MaxParams(equalTo(intTuple22)) returns failure("foo"),
+          ModuleMock.MaxParams(equalTo(intTuple22)) returns failure("foo"),
           (Module.maxParams _).tupled(intTuple22).flip,
           equalTo("foo")
         ),
         testSpec("returns failureF")(
-          MaxParams(equalTo(intTuple22)) returns failureF(i => s"foo $i"),
+          ModuleMock.MaxParams(equalTo(intTuple22)) returns failureF(i => s"foo $i"),
           (Module.maxParams _).tupled(intTuple22).flip,
           equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
         ),
         testSpec("returns failureM")(
-          MaxParams(equalTo(intTuple22)) returns failureM(i => IO.fail(s"foo $i")),
+          ModuleMock.MaxParams(equalTo(intTuple22)) returns failureM(i => IO.fail(s"foo $i")),
           (Module.maxParams _).tupled(intTuple22).flip,
           equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
         )
       ),
       suite("looped")(
         testSpecTimeboxed("returns never")(500.millis)(
-          Looped(equalTo(1)) returns never,
+          ModuleMock.Looped(equalTo(1)) returns never,
           Module.looped(1),
           isNone
         )
@@ -262,33 +261,33 @@ object MockSpec extends ZIOBaseSpec {
     ),
     suite("assertions composition")(
       testSpec("&&")(
-        SingleParam(equalTo(3) && isWithin(1, 5)) returns valueF(input => s"foo $input"),
+        ModuleMock.SingleParam(equalTo(3) && isWithin(1, 5)) returns valueF(input => s"foo $input"),
         Module.singleParam(3),
         equalTo("foo 3")
       ),
       testSpec("||")(
-        SingleParam(equalTo(10) || isWithin(1, 5)) returns valueF(input => s"foo $input"),
+        ModuleMock.SingleParam(equalTo(10) || isWithin(1, 5)) returns valueF(input => s"foo $input"),
         Module.singleParam(3),
         equalTo("foo 3")
       )
     ),
     suite("expectations failure")(
       testSpecDied("invalid arguments")(
-        Command(equalTo(1)) returns unit,
+        ModuleMock.Command(equalTo(1)) returns unit,
         Module.command(2),
-        equalTo(InvalidCallException(List(InvalidArguments(Command, 2, equalTo(1)))))
+        equalTo(InvalidCallException(List(InvalidArguments(ModuleMock.Command, 2, equalTo(1)))))
       ),
       testSpecDied("invalid method")(
-        Command(equalTo(1)) returns unit,
+        ModuleMock.Command(equalTo(1)) returns unit,
         Module.singleParam(1),
-        equalTo(InvalidCallException(List(InvalidMethod(SingleParam, Command, equalTo(1)))))
+        equalTo(InvalidCallException(List(InvalidMethod(ModuleMock.SingleParam, ModuleMock.Command, equalTo(1)))))
       ), {
         type E0 = Chain[Module]
         type E1 = Call[Module, Int, Unit, Unit]
         type L  = List[Expectation[Module]]
         type X  = UnsatisfiedExpectationsException[Module]
 
-        def cmd(n: Int) = Command(equalTo(n)) returns unit
+        def cmd(n: Int) = ModuleMock.Command(equalTo(n)) returns unit
 
         def hasCall(index: Int, satisfied: Boolean, saturated: Boolean, invocations: List[Int]) =
           hasAt(index)(
@@ -336,10 +335,10 @@ object MockSpec extends ZIOBaseSpec {
         type X = UnexpectedCallExpection[Module, (Int, String, Long), String]
 
         testSpecDied("unexpected call")(
-          SingleParam(equalTo(1)) returns value("foo"),
+          ModuleMock.SingleParam(equalTo(1)) returns value("foo"),
           Module.singleParam(1) *> Module.manyParams(2, "3", 4L),
           isSubtype[X](
-            hasField[X, M]("method", _.method, equalTo(ManyParams)) &&
+            hasField[X, M]("method", _.method, equalTo(ModuleMock.ManyParams)) &&
               hasField[X, Any]("args", _.args, equalTo((2, "3", 4L)))
           )
         )

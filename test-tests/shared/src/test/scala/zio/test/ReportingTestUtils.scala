@@ -6,7 +6,7 @@ import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
 import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment }
 import zio.test.mock.Expectation._
-import zio.test.mock.Module.Command
+import zio.test.mock.ModuleMock
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.{ Cause, Layer, ZIO }
@@ -172,8 +172,8 @@ object ReportingTestUtils {
   val mock1 = zio.test.test("Invalid call") {
     throw InvalidCallException(
       List(
-        InvalidMethod(Command.SingleParam, Command.Command, equalTo(1)),
-        InvalidArguments(Command.Command, 2, equalTo(1))
+        InvalidMethod(ModuleMock.SingleParam, ModuleMock.Command, equalTo(1)),
+        InvalidArguments(ModuleMock.Command, 2, equalTo(1))
       )
     )
   }
@@ -181,16 +181,16 @@ object ReportingTestUtils {
   val mock1Expected = Vector(
     expectedFailure("Invalid call"),
     withOffset(2)(s"${red("- could not find a matching expectation")}\n"),
-    withOffset(4)(s"${red("- zio.test.mock.Module.Command.command called with invalid arguments")}\n"),
+    withOffset(4)(s"${red("- zio.test.mock.ModuleMock.Command called with invalid arguments")}\n"),
     withOffset(6)(s"${blue("2")} did not satisfy ${cyan("equalTo(1)")}\n"),
-    withOffset(4)(s"${red("- invalid call to zio.test.mock.Module.Command.singleParam")}\n"),
-    withOffset(6)(s"expected zio.test.mock.Module.Command.command with arguments ${cyan("equalTo(1)")}\n")
+    withOffset(4)(s"${red("- invalid call to zio.test.mock.ModuleMock.SingleParam")}\n"),
+    withOffset(6)(s"expected zio.test.mock.ModuleMock.Command with arguments ${cyan("equalTo(1)")}\n")
   )
 
   val mock2 = zio.test.test("Unsatisfied expectations") {
     throw UnsatisfiedExpectationsException(
-      (Command.SingleParam(equalTo(2)) returns value("foo")) ++
-        (Command.SingleParam(equalTo(3)) returns value("bar"))
+      (ModuleMock.SingleParam(equalTo(2)) returns value("foo")) ++
+        (ModuleMock.SingleParam(equalTo(3)) returns value("bar"))
     )
   }
 
@@ -198,17 +198,17 @@ object ReportingTestUtils {
     expectedFailure("Unsatisfied expectations"),
     withOffset(2)(s"${red("- unsatisfied expectations")}\n"),
     withOffset(4)(s"in sequential order\n"),
-    withOffset(6)(s"""zio.test.mock.Module.Command.singleParam with arguments ${cyan("equalTo(2)")}\n"""),
-    withOffset(6)(s"""zio.test.mock.Module.Command.singleParam with arguments ${cyan("equalTo(3)")}\n""")
+    withOffset(6)(s"""zio.test.mock.ModuleMock.SingleParam with arguments ${cyan("equalTo(2)")}\n"""),
+    withOffset(6)(s"""zio.test.mock.ModuleMock.SingleParam with arguments ${cyan("equalTo(3)")}\n""")
   )
 
   val mock3 = zio.test.test("Extra calls") {
-    throw UnexpectedCallExpection(Command.ManyParams, (2, "3", 4L))
+    throw UnexpectedCallExpection(ModuleMock.ManyParams, (2, "3", 4L))
   }
 
   val mock3Expected = Vector(
     expectedFailure("Extra calls"),
-    withOffset(2)(s"${red("- unexpected call to zio.test.mock.Module.Command.manyParams with arguments")}\n"),
+    withOffset(2)(s"${red("- unexpected call to zio.test.mock.ModuleMock.ManyParams with arguments")}\n"),
     withOffset(4)(s"${cyan("(2,3,4)")}\n")
   )
 

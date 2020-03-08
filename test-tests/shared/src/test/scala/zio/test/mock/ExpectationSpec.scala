@@ -1,31 +1,31 @@
 package zio.test.mock
 
-import zio.test.Assertion.equalTo
+import zio.test.Assertion
 import zio.test.{ assert, suite, test, ZIOBaseSpec }
 
 object ExpectationSpec extends ZIOBaseSpec {
 
+  import Assertion._
   import Expectation._
-  import Module.Command._
 
-  lazy val A = SingleParam(equalTo(1)) returns value("foo")
-  lazy val B = Static returns value("bar")
-  lazy val C = Looped(equalTo(1)) returns never
+  lazy val A = ModuleMock.SingleParam(equalTo(1)) returns value("foo")
+  lazy val B = ModuleMock.Static returns value("bar")
+  lazy val C = ModuleMock.Looped(equalTo(1)) returns never
 
   def spec = suite("ExpectationSpec")(
     suite("and")(
-      test("A and B")(assert(A and B)(equalTo(And(A :: B :: Nil)))),
-      test("A && B")(assert(A && B)(equalTo(And(A :: B :: Nil)))),
+      test("A and B")(assert(A and B)(equalTo(And(A :: B :: Nil, ModuleMock.Mock)))),
+      test("A && B")(assert(A && B)(equalTo(And(A :: B :: Nil, ModuleMock.Mock)))),
       test("associativity")(assert((A and B) and C)(equalTo(A and (B and C))))
     ),
     suite("andThen")(
-      test("A andThen B")(assert(A andThen B)(equalTo(Chain(A :: B :: Nil)))),
-      test("A ++ B")(assert(A ++ B)(equalTo(Chain(A :: B :: Nil)))),
+      test("A andThen B")(assert(A andThen B)(equalTo(Chain(A :: B :: Nil, ModuleMock.Mock)))),
+      test("A ++ B")(assert(A ++ B)(equalTo(Chain(A :: B :: Nil, ModuleMock.Mock)))),
       test("associativity")(assert((A andThen B) andThen C)(equalTo(A andThen (B andThen C))))
     ),
     suite("or")(
-      test("A or B")(assert(A or B)(equalTo(Or(A :: B :: Nil)))),
-      test("A || B")(assert(A || B)(equalTo(Or(A :: B :: Nil)))),
+      test("A or B")(assert(A or B)(equalTo(Or(A :: B :: Nil, ModuleMock.Mock)))),
+      test("A || B")(assert(A || B)(equalTo(Or(A :: B :: Nil, ModuleMock.Mock)))),
       test("associativity")(assert((A or B) or C)(equalTo(A or (B or C))))
     ),
     suite("repeats")(

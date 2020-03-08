@@ -245,7 +245,7 @@ object FailureRenderer {
     object Message {
       def apply(lines: Seq[Line]): Message = Message(lines.toVector)
       def apply(lineText: String): Message = Fragment(lineText).toLine.toMessage
-      val empty: Message                   = Message.empty
+      val empty: Message                   = Message()
     }
     case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
       def :+(fragment: Fragment)    = Line(fragments :+ fragment)
@@ -258,7 +258,7 @@ object FailureRenderer {
     }
     object Line {
       def fromString(text: String, offset: Int = 0): Line = Fragment(text).toLine.withOffset(offset)
-      val empty: Line                                     = Line.empty
+      val empty: Line                                     = Line()
     }
     case class Fragment(text: String, ansiColorCode: String = "") {
       def +:(line: Line)      = prepend(line)
@@ -358,7 +358,6 @@ object FailureRenderer {
           )
         )
     }
-
 
   private def renderMockException(exception: MockException): UIO[Message] =
     exception match {

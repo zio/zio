@@ -9,15 +9,14 @@ object MockAdvancedSpec extends ZIOBaseSpec {
   import Expectation._
   import InvalidCall._
   import MockException._
-  import Module.Command._
 
-  val cmdA = SingleParam
-  val cmdB = Overloaded._0
-  val cmdC = ZeroParams
+  val cmdA = ModuleMock.SingleParam
+  val cmdB = ModuleMock.Overloaded._0
+  val cmdC = ModuleMock.ZeroParams
 
-  val A = SingleParam(equalTo(1)) returns value("A")
-  val B = Overloaded._0(equalTo(2)) returns value("B")
-  val C = ZeroParams returns value("C")
+  val A = ModuleMock.SingleParam(equalTo(1)) returns value("A")
+  val B = ModuleMock.Overloaded._0(equalTo(2)) returns value("B")
+  val C = ModuleMock.ZeroParams returns value("C")
 
   val a = Module.singleParam(1)
   val b = Module.overloaded(2)
@@ -109,8 +108,8 @@ object MockAdvancedSpec extends ZIOBaseSpec {
           testSpec("1xA passes")(expectation, a, equalTo("A")),
           testSpec("2xA passes")(expectation, a *> a, equalTo("A")),
           testSpec("3xA passes")(expectation, a *> a *> a, equalTo("A")),
-          testSpecDied("4xA fails")(expectation, a *> a *> a *> a, hasUnexpectedCall(SingleParam, 1)),
-          testSpecDied("5xA fails")(expectation, a *> a *> a *> a *> a, hasUnexpectedCall(SingleParam, 1))
+          testSpecDied("4xA fails")(expectation, a *> a *> a *> a, hasUnexpectedCall(ModuleMock.SingleParam, 1)),
+          testSpecDied("5xA fails")(expectation, a *> a *> a *> a *> a, hasUnexpectedCall(ModuleMock.SingleParam, 1))
         )
       }, {
         val expectation = A repeats (1 to 2) repeats (1 to 2)
@@ -120,7 +119,7 @@ object MockAdvancedSpec extends ZIOBaseSpec {
           testSpec("2xA passes")(expectation, a *> a, equalTo("A")),
           testSpec("3xA passes")(expectation, a *> a *> a, equalTo("A")),
           testSpec("4xA passes")(expectation, a *> a *> a *> a, equalTo("A")),
-          testSpecDied("5xA fails")(expectation, a *> a *> a *> a *> a, hasUnexpectedCall(SingleParam, 1))
+          testSpecDied("5xA fails")(expectation, a *> a *> a *> a *> a, hasUnexpectedCall(ModuleMock.SingleParam, 1))
         )
       }, {
         val expectation = ((A or B) andThen C) repeats (1 to 2)
@@ -136,10 +135,26 @@ object MockAdvancedSpec extends ZIOBaseSpec {
           testSpec("A->C->B->C passes")(expectation, a *> c *> b *> c, equalTo("C")),
           testSpec("B->C->A->C passes")(expectation, b *> c *> a *> c, equalTo("C")),
           testSpec("B->C->B->C passes")(expectation, b *> c *> b *> c, equalTo("C")),
-          testSpecDied("A->C->A->C->A fails")(expectation, a *> c *> a *> c *> a, hasUnexpectedCall(SingleParam, 1)),
-          testSpecDied("A->C->B->C->A fails")(expectation, a *> c *> b *> c *> a, hasUnexpectedCall(SingleParam, 1)),
-          testSpecDied("B->C->A->C->A fails")(expectation, b *> c *> a *> c *> a, hasUnexpectedCall(SingleParam, 1)),
-          testSpecDied("B->C->B->C->A fails")(expectation, b *> c *> b *> c *> a, hasUnexpectedCall(SingleParam, 1))
+          testSpecDied("A->C->A->C->A fails")(
+            expectation,
+            a *> c *> a *> c *> a,
+            hasUnexpectedCall(ModuleMock.SingleParam, 1)
+          ),
+          testSpecDied("A->C->B->C->A fails")(
+            expectation,
+            a *> c *> b *> c *> a,
+            hasUnexpectedCall(ModuleMock.SingleParam, 1)
+          ),
+          testSpecDied("B->C->A->C->A fails")(
+            expectation,
+            b *> c *> a *> c *> a,
+            hasUnexpectedCall(ModuleMock.SingleParam, 1)
+          ),
+          testSpecDied("B->C->B->C->A fails")(
+            expectation,
+            b *> c *> b *> c *> a,
+            hasUnexpectedCall(ModuleMock.SingleParam, 1)
+          )
         )
       }
     )

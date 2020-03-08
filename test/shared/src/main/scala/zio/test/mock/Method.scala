@@ -19,13 +19,16 @@ package zio.test.mock
 import com.github.ghik.silencer.silent
 
 import zio.test.Assertion
-import zio.{ =!=, Has, Tagged }
+import zio.test.mock.internal.MockRuntime
+import zio.{ =!=, Has, Tagged, ZLayer }
 
 /**
  * A `Model[R, I, A]` represents a capability of environment `R` that
  * takes an input `I` and returns an effect that may produce a single `A`.
  */
 abstract class Method[R <: Has[_]: Tagged, I, A] { self =>
+
+  def mock: ZLayer[MockRuntime, Nothing, R]
 
   /**
    * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.

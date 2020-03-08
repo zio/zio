@@ -194,10 +194,11 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++=
       Seq("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0") ++ {
         if (isDotty.value) Seq()
-        else Seq(
-          "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
-          "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
-        )
+        else
+          Seq(
+            "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided",
+            "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
+          )
       }
   )
 

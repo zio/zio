@@ -17,7 +17,7 @@
 package zio.test.mock.internal
 
 import zio.test.mock.Expectation
-import zio.{ Has, Ref, RefM }
+import zio.{ Has, Ref, RefM, UIO, ZIO }
 
 /**
  * A `State[R]` represents the state of a mock.
@@ -27,3 +27,19 @@ private[mock] final case class State[R <: Has[_]](
   callsCountRef: Ref[Int],
   failedMatchesRef: Ref[List[InvalidCall]]
 )
+
+private[mock] object State {
+
+  def make[R <: Has[_]](trunk: Expectation[R]): UIO[State[R]] =
+    for {
+      expectationRef   <- RefM.make[Expectation[R]](trunk)
+      callsCountRef    <- Ref.make[Int](0)
+      failedMatchesRef <- Ref.make[List[InvalidCall]](List.empty)
+    } yield State[R](expectationRef, callsCountRef, failedMatchesRef)
+
+  def checkUnmetExpectations[R <: Has[_]](state: State[R]) =
+    state.expectationRef.get
+      .filterOrElse[Any, Nothing, Any](_.satisfied) { expectation =>
+        ZIO.die(MockException.UnsatisfiedExpectationsException(expectation))
+      }
+}

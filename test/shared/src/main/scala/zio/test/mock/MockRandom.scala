@@ -17,40 +17,47 @@
 package zio.test.mock
 
 import zio.random.Random
-import zio.{ Chunk, Has, UIO }
+import zio.test.mock.internal.MockRuntime
+import zio.{ Chunk, UIO, ZLayer }
 
 object MockRandom {
 
-  object nextBoolean  extends Method[Random, Unit, Boolean]
-  object nextBytes    extends Method[Random, Int, Chunk[Byte]]
-  object nextDouble   extends Method[Random, Unit, Double]
-  object nextFloat    extends Method[Random, Unit, Float]
-  object nextGaussian extends Method[Random, Unit, Double]
-  object nextInt {
-    object _0 extends Method[Random, Int, Int]
-    object _1 extends Method[Random, Unit, Int]
+  sealed trait Tag[I, A] extends Method[Random, I, A] {
+    val mock = MockRandom.Mock
   }
-  object nextLong {
-    object _0 extends Method[Random, Unit, Long]
-    object _1 extends Method[Random, Long, Long]
-  }
-  object nextPrintableChar extends Method[Random, Unit, Char]
-  object nextString        extends Method[Random, Int, String]
-  object shuffle           extends Method[Random, List[Any], List[Any]]
 
-  private[mock] val mockable: Mockable[Random] = (mock: Mock) =>
-    Has(new Random.Service {
-      val nextBoolean: UIO[Boolean]                = mock(MockRandom.nextBoolean)
-      def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(MockRandom.nextBytes, length)
-      val nextDouble: UIO[Double]                  = mock(MockRandom.nextDouble)
-      val nextFloat: UIO[Float]                    = mock(MockRandom.nextFloat)
-      val nextGaussian: UIO[Double]                = mock(MockRandom.nextGaussian)
-      def nextInt(n: Int): UIO[Int]                = mock(MockRandom.nextInt._0, n)
-      val nextInt: UIO[Int]                        = mock(MockRandom.nextInt._1)
-      val nextLong: UIO[Long]                      = mock(MockRandom.nextLong._0)
-      def nextLong(n: Long): UIO[Long]             = mock(MockRandom.nextLong._1, n)
-      val nextPrintableChar: UIO[Char]             = mock(MockRandom.nextPrintableChar)
-      def nextString(length: Int)                  = mock(MockRandom.nextString, length)
-      def shuffle[A](list: List[A]): UIO[List[A]]  = mock(MockRandom.shuffle, list).asInstanceOf[UIO[List[A]]]
-    })
+  object NextBoolean  extends Tag[Unit, Boolean]
+  object NextBytes    extends Tag[Int, Chunk[Byte]]
+  object NextDouble   extends Tag[Unit, Double]
+  object NextFloat    extends Tag[Unit, Float]
+  object NextGaussian extends Tag[Unit, Double]
+  object NextInt {
+    object _0 extends Tag[Int, Int]
+    object _1 extends Tag[Unit, Int]
+  }
+  object NextLong {
+    object _0 extends Tag[Unit, Long]
+    object _1 extends Tag[Long, Long]
+  }
+  object NextPrintableChar extends Tag[Unit, Char]
+  object NextString        extends Tag[Int, String]
+  object Shuffle           extends Tag[List[Any], List[Any]]
+
+  private lazy val Mock: ZLayer[MockRuntime, Nothing, Random] =
+    ZLayer.fromService(mock =>
+      new Random.Service {
+        val nextBoolean: UIO[Boolean]                = mock(NextBoolean)
+        def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(NextBytes, length)
+        val nextDouble: UIO[Double]                  = mock(NextDouble)
+        val nextFloat: UIO[Float]                    = mock(NextFloat)
+        val nextGaussian: UIO[Double]                = mock(NextGaussian)
+        def nextInt(n: Int): UIO[Int]                = mock(NextInt._0, n)
+        val nextInt: UIO[Int]                        = mock(NextInt._1)
+        val nextLong: UIO[Long]                      = mock(NextLong._0)
+        def nextLong(n: Long): UIO[Long]             = mock(NextLong._1, n)
+        val nextPrintableChar: UIO[Char]             = mock(NextPrintableChar)
+        def nextString(length: Int)                  = mock(NextString, length)
+        def shuffle[A](list: List[A]): UIO[List[A]]  = mock(Shuffle, list).asInstanceOf[UIO[List[A]]]
+      }
+    )
 }

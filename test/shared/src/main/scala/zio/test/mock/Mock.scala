@@ -16,379 +16,226 @@
 
 package zio.test.mock
 
-import zio.{ Has, ZIO }
+import zio.test.Assertion
+import zio.test.mock.internal.{ InvalidCall, Matched, MockException, MockRuntime, Scope, State }
+import zio.{ Has, IO, Promise, UIO, ZIO, ZLayer }
 
-/**
- * A `Mock` provides the machinery to map mocked invocations to predefined results
- * and check some constraints on the way.
- */
-trait Mock {
+object Mock {
 
-  def invoke[RIn <: Has[_], ROut, Input, Error, Value](
-    method: Method[RIn, Input, Value],
-    input: Input
-  ): ZIO[ROut, Error, Value]
+  import Expectation._
+  import InvalidCall._
+  import MockException._
 
-  final def apply[RIn <: Has[_], ROut, Error, Value](method: Method[RIn, Unit, Value]): ZIO[ROut, Error, Value] =
-    invoke(method, ())
+  /**
+   * Given initial `State[R]`, constructs a `MockRuntime` running that state.
+   */
+  def makeRuntime[R <: Has[_]](state: State[R]): ZLayer[Any, Nothing, MockRuntime] =
+    ZLayer.succeed(new MockRuntime.Service {
+      def invoke[RIn <: Has[_], ROut, I, E, A](invokedMethod: Method[RIn, I, A], args: I): ZIO[ROut, E, A] = {
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A](method: Method[RIn, A, Value], a: A): ZIO[ROut, Error, Value] =
-    invoke(method, a)
+        def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] =
+          scopes match {
+            case Nil => ZIO.die(UnexpectedCallExpection(invokedMethod, args))
+            case Scope(expectation, id, update) :: nextScopes =>
+              expectation match {
+                case anyExpectation if anyExpectation.saturated =>
+                  findMatching(nextScopes)
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B](
-    method: Method[RIn, (A, B), Value],
-    a: A,
-    b: B
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b))
+                case Call(method, assertion, _, _, _, _) if invokedMethod != method =>
+                  handleLeafFailure(InvalidMethod(invokedMethod, method, assertion), nextScopes)
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C](
-    method: Method[RIn, (A, B, C), Value],
-    a: A,
-    b: B,
-    c: C
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c))
+                case self @ Call(_, assertion, returns, _, _, invocations) =>
+                  assertion.asInstanceOf[Assertion[I]].test(args).flatMap {
+                    case true =>
+                      val result = returns.asInstanceOf[I => IO[E, A]](args)
+                      val updated = self.copy(
+                        satisfied = true,
+                        saturated = true,
+                        invocations = id :: invocations
+                      )
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D](
-    method: Method[RIn, (A, B, C, D), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d))
+                      UIO.succeed(Matched[R, E, A](update(updated), result))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E](
-    method: Method[RIn, (A, B, C, D, E), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e))
+                    case false =>
+                      handleLeafFailure(
+                        InvalidArguments(invokedMethod, args, assertion.asInstanceOf[Assertion[Any]]),
+                        nextScopes
+                      )
+                  }
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F](
-    method: Method[RIn, (A, B, C, D, E, F), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f))
+                case self @ Chain(children, _, _, invocations) =>
+                  children.zipWithIndex.collectFirst {
+                    case (child, index) if !child.saturated =>
+                      Scope[R](
+                        child,
+                        id,
+                        updatedChild => {
+                          val updatedChildren = children.updated(index, updatedChild)
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G](
-    method: Method[RIn, (A, B, C, D, E, F, G), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g))
+                          update(
+                            self.copy(
+                              children = updatedChildren,
+                              satisfied = updatedChildren.forall(_.satisfied),
+                              saturated = updatedChildren.forall(_.saturated),
+                              invocations = id :: invocations
+                            )(self.mock)
+                          )
+                        }
+                      )
+                  } match {
+                    case None =>
+                      ZIO.dieMessage(
+                        "Illegal state. Unsaturated `Chain` node implies at least one unsaturated child expectation."
+                      )
+                    case Some(scope) => findMatching(scope :: nextScopes)
+                  }
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H](
-    method: Method[RIn, (A, B, C, D, E, F, G, H), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h))
+                case self @ And(children, _, _, invocations) =>
+                  children.zipWithIndex.collect {
+                    case (child, index) if !child.saturated =>
+                      Scope[R](
+                        child,
+                        id,
+                        updatedChild => {
+                          val updatedChildren = children.updated(index, updatedChild)
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i))
+                          update(
+                            self.copy(
+                              children = updatedChildren,
+                              satisfied = updatedChildren.forall(_.satisfied),
+                              saturated = updatedChildren.forall(_.saturated),
+                              invocations = id :: invocations
+                            )(self.mock)
+                          )
+                        }
+                      )
+                  } match {
+                    case Nil =>
+                      ZIO.dieMessage(
+                        "Illegal state. Unsaturated `And` node implies at least one unsaturated child expectation."
+                      )
+                    case scopes => findMatching(scopes ++ nextScopes)
+                  }
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j))
+                case self @ Or(children, _, _, invocations) =>
+                  children.zipWithIndex.collect {
+                    case (child, index) =>
+                      Scope[R](
+                        child,
+                        id,
+                        updatedChild => {
+                          val updatedChildren = children.updated(index, updatedChild)
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k))
+                          update(
+                            self.copy(
+                              children = updatedChildren,
+                              satisfied = updatedChildren.exists(_.satisfied),
+                              saturated = updatedChildren.exists(_.saturated),
+                              invocations = id :: invocations
+                            )(self.mock)
+                          )
+                        }
+                      )
+                  } match {
+                    case Nil =>
+                      ZIO.dieMessage(
+                        "Illegal state. Unsaturated `Or` node implies at least one unsaturated child expectation."
+                      )
+                    case scopes => findMatching(scopes ++ nextScopes)
+                  }
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l))
+                case self @ Repeated(expectation, range, _, _, invocations, started, completed) =>
+                  val initialize = expectation.saturated && completed < range.max
+                  val child      = if (initialize) resetTree(expectation) else expectation
+                  val scope = Scope[R](
+                    child,
+                    id,
+                    updatedChild => {
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m))
+                      val updatedStarted =
+                        if (started == completed) started + 1
+                        else started
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M,
-    n: N
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
+                      val updatedCompleted =
+                        if (updatedChild.saturated) completed + 1
+                        else completed
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M,
-    n: N,
-    o: O
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
+                      val subtree =
+                        if (updatedChild.saturated) resetTree(updatedChild)
+                        else updatedChild
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M,
-    n: N,
-    o: O,
-    p: P
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
+                      update(
+                        self.copy(
+                          child = subtree,
+                          satisfied = (range contains updatedStarted) && updatedChild.satisfied,
+                          saturated = range.max == updatedCompleted,
+                          invocations = id :: invocations,
+                          started = updatedStarted,
+                          completed = updatedCompleted
+                        )
+                      )
+                    }
+                  )
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M,
-    n: N,
-    o: O,
-    p: P,
-    q: Q
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
+                  findMatching(scope :: nextScopes)
+              }
+          }
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M,
-    n: N,
-    o: O,
-    p: P,
-    q: Q,
-    r: R
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
+        def handleLeafFailure(failure: => InvalidCall, nextScopes: List[Scope[R]]): UIO[Matched[R, E, A]] =
+          state.failedMatchesRef
+            .updateAndGet(failure :: _)
+            .flatMap { failures =>
+              if (nextScopes.isEmpty) ZIO.die(InvalidCallException(failures))
+              else findMatching(nextScopes)
+            }
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M,
-    n: N,
-    o: O,
-    p: P,
-    q: Q,
-    r: R,
-    s: S
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
+        def resetTree(expectation: Expectation[R]): Expectation[R] =
+          expectation match {
+            case self: Call[R, _, _, _] =>
+              self.copy(
+                satisfied = false,
+                saturated = false
+              )
+            case self: Chain[R] =>
+              self.copy(
+                children = self.children.map(resetTree),
+                satisfied = false,
+                saturated = false
+              )(self.mock)
+            case self: And[R] =>
+              self.copy(
+                children = self.children.map(resetTree),
+                satisfied = false,
+                saturated = false
+              )(self.mock)
+            case self: Or[R] =>
+              self.copy(
+                children = self.children.map(resetTree),
+                satisfied = false,
+                saturated = false
+              )(self.mock)
+            case self: Repeated[R] =>
+              self.copy(
+                child = resetTree(self.child),
+                satisfied = false,
+                saturated = false,
+                completed = 0
+              )
+          }
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M,
-    n: N,
-    o: O,
-    p: P,
-    q: Q,
-    r: R,
-    s: S,
-    t: T
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
-
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M,
-    n: N,
-    o: O,
-    p: P,
-    q: Q,
-    r: R,
-    s: S,
-    t: T,
-    u: U
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
-
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V), Value],
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-    i: I,
-    j: J,
-    k: K,
-    l: L,
-    m: M,
-    n: N,
-    o: O,
-    p: P,
-    q: Q,
-    r: R,
-    s: S,
-    t: T,
-    u: U,
-    v: V
-  ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+        for {
+          promise <- Promise.make[E, A]
+          id      <- state.callsCountRef.updateAndGet(_ + 1)
+          _       <- state.failedMatchesRef.set(List.empty)
+          _ <- state.expectationRef.update { root =>
+                val rootScope = Scope[R](root, id, identity)
+                findMatching(rootScope :: Nil).flatMap {
+                  case Matched(expectation, result) =>
+                    promise.complete(result) as (expectation)
+                }
+              }
+          output <- promise.await
+        } yield output
+      }
+    })
 }

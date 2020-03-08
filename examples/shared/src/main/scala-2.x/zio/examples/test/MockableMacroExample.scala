@@ -1,6 +1,6 @@
 package zio.examples.test
 
-import zio.test.mock.MethodTags
+import zio.test.mock.Mockable
 import zio.ZIO
 
 object DiffrentScopeExample {
@@ -10,10 +10,7 @@ object DiffrentScopeExample {
     def get(key: String): ZIO[Any, Nothing, Int]
     def set(key: String, value: Int): ZIO[Any, Nothing, Unit]
   }
-
 }
 
-@MethodTags[DiffrentScopeExample.Service]
-object MethodTagsMacrosExample {
-
-}
+@Mockable[DiffrentScopeExample.Service]
+object MockableMacroExample
