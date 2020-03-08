@@ -2644,17 +2644,15 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         state <- Ref.make[(Option[A], Option[B])]((None, None)).toManaged_
         pull: Pull[R1, E1, C] = {
           def go: Pull[R1, E1, C] = is.flatMap { i =>
-            state
-              .modify[Pull[R1, E1, C]] {
-                case (previousLeft, previousRight) =>
-                  i match {
-                    case Left(a) =>
-                      previousRight.fold(go)(b => Pull.emitNow(f0(a, b))) -> (Some(a) -> previousRight)
-                    case Right(b) =>
-                      previousLeft.fold(go)(a => Pull.emitNow(f0(a, b))) -> (previousLeft -> Some(b))
-                  }
-              }
-              .flatten
+            state.modify {
+              case (previousLeft, previousRight) =>
+                i match {
+                  case Left(a) =>
+                    previousRight.fold(go)(b => Pull.emitNow(f0(a, b))) -> (Some(a) -> previousRight)
+                  case Right(b) =>
+                    previousLeft.fold(go)(a => Pull.emitNow(f0(a, b))) -> (previousLeft -> Some(b))
+                }
+            }.flatten
           }
 
           go

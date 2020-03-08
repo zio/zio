@@ -40,21 +40,21 @@ object RefSpec extends ZIOBaseSpec {
     testM("modify") {
       for {
         ref   <- Ref.make(current)
-        r     <- ref.modify[String](_ => ("hello", update))
+        r     <- ref.modify(_ => ("hello", update))
         value <- ref.get
       } yield assert(r)(equalTo("hello")) && assert(value)(equalTo(update))
     },
     testM("modifySome") {
       for {
         ref   <- Ref.make[State](Active)
-        value <- ref.modifySome[String]("State doesn't change") { case Closed => ("active", Active) }
+        value <- ref.modifySome("State doesn't change") { case Closed => ("active", Active) }
       } yield assert(value)(equalTo("State doesn't change"))
     },
     testM("modifySome twice") {
       for {
         ref    <- Ref.make[State](Active)
-        value1 <- ref.modifySome[String]("doesn't change the state") { case Active => ("changed", Changed) }
-        value2 <- ref.modifySome[String]("doesn't change the state") {
+        value1 <- ref.modifySome("doesn't change the state") { case Active => ("changed", Changed) }
+        value2 <- ref.modifySome("doesn't change the state") {
                    case Active  => ("changed", Changed)
                    case Changed => ("closed", Closed)
                  }
