@@ -32,6 +32,7 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type TaskManaged[+A]   = ZManaged[Any, Throwable, A]
 
   type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
+  type Ref[A]   = ZRef[Nothing, Nothing, A, A]
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =

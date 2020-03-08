@@ -386,24 +386,22 @@ object Mock {
       def invoke[R0, E0, A0, M0, I0](invokedMethod: Method[M0, I0, A0], args: I0): ZIO[R0, E0, A0] =
         for {
           promise <- Promise.make[E0, A0]
-          _ <- callsRef
-                .modify[Option[Call[Any, Any, Any, Any]]] {
-                  case (head :: tail) => Some(head) -> tail
-                  case x              => None       -> x
-                }
-                .flatMap {
-                  case Some(Call(method, assertion, returns)) =>
-                    if (invokedMethod != method)
-                      ZIO.die(
-                        InvalidMethodException(invokedMethod.asInstanceOf[Method[Any, Any, Any]], method, assertion)
-                      )
-                    else
-                      assertion.test(args).flatMap { p =>
-                        if (!p) ZIO.die(InvalidArgumentsException(invokedMethod, args, assertion))
-                        else promise.completeWith(returns(args).asInstanceOf[IO[E0, A0]])
-                      }
-                  case None => ZIO.die(UnexpectedCallExpection(invokedMethod, args))
-                }
+          _ <- callsRef.modify {
+                case (head :: tail) => Some(head) -> tail
+                case x              => None       -> x
+              }.flatMap {
+                case Some(Call(method, assertion, returns)) =>
+                  if (invokedMethod != method)
+                    ZIO.die(
+                      InvalidMethodException(invokedMethod.asInstanceOf[Method[Any, Any, Any]], method, assertion)
+                    )
+                  else
+                    assertion.test(args).flatMap { p =>
+                      if (!p) ZIO.die(InvalidArgumentsException(invokedMethod, args, assertion))
+                      else promise.completeWith(returns(args).asInstanceOf[IO[E0, A0]])
+                    }
+                case None => ZIO.die(UnexpectedCallExpection(invokedMethod, args))
+              }
           output <- promise.await
         } yield output
     }
