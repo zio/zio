@@ -40,32 +40,7 @@ abstract class ZStream[-R, +E, +O](
    * Symbolic alias for [[ZStream#concat]].
    */
   def ++[R1 <: R, E1 >: E, O1 >: O](that: => ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
-    ZStream {
-      // This implementation is identical to ZStream.concatAll, but specialized so we can
-      // maintain laziness on `that`. Laziness on concatenation is important for combinators
-      // such as `forever`.
-      for {
-        currStream   <- Ref.make[ZIO[R1, Either[E1, Unit], Chunk[O1]]](ZIO.fail(Right(()))).toManaged_
-        switchStream <- ZManaged.switchable[R1, Nothing, ZIO[R1, Either[E1, Unit], Chunk[O1]]]
-        switched     <- Ref.make(false).toManaged_
-        _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
-        pull = {
-          def go: ZIO[R1, Either[E1, Unit], Chunk[O1]] =
-            currStream.get.flatten.catchAllCause {
-              Cause.sequenceCauseEither(_) match {
-                case Left(e) => ZIO.halt(e.map(Left(_)))
-                case Right(_) =>
-                  switched.getAndSet(true).flatMap {
-                    if (_) ZIO.fail(Right(()))
-                    else switchStream(that.process).flatMap(currStream.set) *> go
-                  }
-              }
-            }
-
-          go
-        }
-      } yield pull
-    }
+    self concat that
 
   /**
    * Maps the success values of this stream to the specified constant value.
@@ -96,8 +71,33 @@ abstract class ZStream[-R, +E, +O](
    * Concatenates the specified stream with this stream, resulting in a stream
    * that emits the elements from this stream and then the elements from the specified stream.
    */
-  def concat[R1 <: R, E1 >: E, O1 >: O](that: ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
-    ZStream.concatAll(Chunk(self, that))
+  def concat[R1 <: R, E1 >: E, O1 >: O](that: => ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+    ZStream {
+      // This implementation is identical to ZStream.concatAll, but specialized so we can
+      // maintain laziness on `that`. Laziness on concatenation is important for combinators
+      // such as `forever`.
+      for {
+        currStream   <- Ref.make[ZIO[R1, Either[E1, Unit], Chunk[O1]]](ZIO.fail(Right(()))).toManaged_
+        switchStream <- ZManaged.switchable[R1, Nothing, ZIO[R1, Either[E1, Unit], Chunk[O1]]]
+        switched     <- Ref.make(false).toManaged_
+        _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
+        pull = {
+          def go: ZIO[R1, Either[E1, Unit], Chunk[O1]] =
+            currStream.get.flatten.catchAllCause {
+              Cause.sequenceCauseEither(_) match {
+                case Left(e) => ZIO.halt(e.map(Left(_)))
+                case Right(_) =>
+                  switched.getAndSet(true).flatMap {
+                    if (_) ZIO.fail(Right(()))
+                    else switchStream(that.process).flatMap(currStream.set) *> go
+                  }
+              }
+            }
+
+          go
+        }
+      } yield pull
+    }
 
   /**
    * Composes this stream with the specified stream to create a cartesian product of elements
