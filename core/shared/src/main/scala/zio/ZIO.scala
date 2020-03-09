@@ -1678,7 +1678,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       self,
       ZIOFn(() => that) { cause =>
         cause.stripFailures match {
-          case None    => that.catchAllCause(cause2 => ZIO.halt(Cause.die(FiberFailure(cause)) ++ cause2))
+          case None    => that
           case Some(c) => ZIO.halt(c)
         }
       },
@@ -3241,7 +3241,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
-      (self map f) raceFirst (ZIO.sleep(duration) as b) // TODO: Make right-hand side interruptible?
+      (self map f) raceFirst (ZIO.sleep(duration).interruptible as b)
   }
 
   final class BracketAcquire_[-R, +E](private val acquire: ZIO[R, E, Any]) extends AnyVal {

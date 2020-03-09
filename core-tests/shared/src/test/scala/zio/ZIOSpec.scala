@@ -1151,10 +1151,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val z1                = Task.fail(new Throwable("1"))
         val z2: Task[Nothing] = Task.die(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-          case Then(Die(FiberFailure(Traced(Fail(a: Throwable), _))), Traced(Die(b: Throwable), _)) =>
-            Task(a.getMessage == "1" && b.getMessage == "2")
-          case _ =>
-            Task(false)
+          case Traced(Die(e: Throwable), _) => Task(e.getMessage == "2")
+          case _                            => Task(false)
         }
         assertM(orElse)(equalTo(true))
       },
@@ -1162,12 +1160,27 @@ object ZIOSpec extends ZIOBaseSpec {
         val z1                = Task.fail(new Throwable("1"))
         val z2: Task[Nothing] = Task.fail(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-          case Then(Die(FiberFailure(Traced(Fail(a: Throwable), _))), Traced(Fail(b: Throwable), _)) =>
-            Task(a.getMessage == "1" && b.getMessage == "2")
-          case _ =>
-            Task(false)
+          case Traced(Fail(e: Throwable), _) => Task(e.getMessage == "2")
+          case _                             => Task(false)
         }
         assertM(orElse)(equalTo(true))
+      },
+      testM("is associative") {
+        val smallInts = Gen.int(0, 100)
+        val causes    = Gen.causes(smallInts, Gen.throwable)
+        val successes = Gen.successes(smallInts)
+        val exits     = Gen.either(causes, successes).map(_.fold(Exit.halt, Exit.succeed))
+        checkM(exits, exits, exits) { (exit1, exit2, exit3) =>
+          val zio1  = ZIO.done(exit1)
+          val zio2  = ZIO.done(exit2)
+          val zio3  = ZIO.done(exit3)
+          val left  = (zio1 orElse zio2) orElse zio3
+          val right = zio1 orElse (zio2 orElse zio3)
+          for {
+            left  <- left.run
+            right <- right.run
+          } yield assert(left)(equalTo(right))
+        }
       }
     ),
     suite("orElseFail")(
@@ -1774,6 +1787,10 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertM(Live.live(effect.timeout(1.second)))(isNone)
       } @@ jvmOnly,
+      testM("timeout in uninterruptible region") {
+        val effect = (ZIO.unit.timeout(Duration.Infinity)).uninterruptible
+        assertM(effect)(isSome(isUnit))
+      },
       testM("catchAllCause") {
         val io =
           for {
