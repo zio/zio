@@ -57,11 +57,17 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
   final def mapEither[EC >: EB, C](f: B => Either[EC, C]): ZRef[EA, EC, A, C] =
     dimapEither(Right(_), f)
 
+  final def readOnly: ZRef[EA, EB, Nothing, B] =
+    contramap[Nothing](identity)
+
   final def unifyError[E](ea: EA => E, eb: EB => E): ZRef[E, E, A, B] =
     dimapError(ea, eb)
 
   final def unifyValue[C](ca: C => A, bc: B => C): ZRef[EA, EB, C, C] =
     dimap(ca, bc)
+
+  final def writeOnly: ZRef[EA, EB, A, Any] =
+    map(_ => ())
 }
 
 object ZRef extends Serializable {
