@@ -136,7 +136,7 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * Returns a read only view of the `ZRef`.
    */
   final def readOnly: ZRef[EA, EB, Nothing, B] =
-    contramap[Nothing](identity)
+    self
 
   /**
    * Unifies the error types of the `ZRef` by mapping both error types with the
@@ -155,8 +155,8 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Returns a write only view of the `ZRef`.
    */
-  final def writeOnly: ZRef[EA, EB, A, Any] =
-    map(_ => ())
+  final def writeOnly: ZRef[EA, Unit, A, Nothing] =
+    fold(identity, _ => (), Right(_), _ => Left(()))
 }
 
 object ZRef extends Serializable {
@@ -320,6 +320,22 @@ object ZRef extends Serializable {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
           self.getEither(s).fold(e => Left(eb(e)), bc)
+        def setEither(c: C): Either[EC, S] =
+          ca(c).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
+        val value: Atomic[S] =
+          self.value
+      }
+
+    final def fold0[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => Either[ED, D],
+      ca: C => Either[EC, A],
+      bc: B => Either[ED, D]
+    ): ZRef[EC, ED, C, D] =
+      new Derived[EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): Either[ED, D] =
+          self.getEither(s).fold(eb, bc)
         def setEither(c: C): Either[EC, S] =
           ca(c).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
