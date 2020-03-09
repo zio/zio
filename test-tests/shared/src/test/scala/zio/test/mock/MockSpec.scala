@@ -62,7 +62,7 @@ object MockSpec extends ZIOBaseSpec {
           equalTo("foo 1")
         ),
         testSpec("returns valueM")(
-          ModuleMock.SingleParam(equalTo(1)) returns valueM(i => UIO.succeed(s"foo $i")),
+          ModuleMock.SingleParam(equalTo(1)) returns valueM(i => UIO.succeedNow(s"foo $i")),
           Module.singleParam(1),
           equalTo("foo 1")
         ),
@@ -94,7 +94,7 @@ object MockSpec extends ZIOBaseSpec {
           equalTo("foo (1,2,3)")
         ),
         testSpec("returns valueM")(
-          ModuleMock.ManyParams(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeed(s"foo $i")),
+          ModuleMock.ManyParams(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeedNow(s"foo $i")),
           Module.manyParams(1, "2", 3L),
           equalTo("foo (1,2,3)")
         ),
@@ -126,7 +126,7 @@ object MockSpec extends ZIOBaseSpec {
           equalTo("foo (1,2,3)")
         ),
         testSpec("returns valueM")(
-          ModuleMock.ManyParamLists(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeed(s"foo $i")),
+          ModuleMock.ManyParamLists(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeedNow(s"foo $i")),
           Module.manyParamLists(1)("2")(3L),
           equalTo("foo (1,2,3)")
         ),
@@ -166,7 +166,7 @@ object MockSpec extends ZIOBaseSpec {
             equalTo("foo 1")
           ),
           testSpec("returns valueM")(
-            ModuleMock.Overloaded._0(equalTo(1)) returns valueM(i => UIO.succeed(s"foo $i")),
+            ModuleMock.Overloaded._0(equalTo(1)) returns valueM(i => UIO.succeedNow(s"foo $i")),
             Module.overloaded(1),
             equalTo("foo 1")
           ),
@@ -198,7 +198,7 @@ object MockSpec extends ZIOBaseSpec {
             equalTo("foo 1")
           ),
           testSpec("returns valueM")(
-            ModuleMock.Overloaded._1(equalTo(1L)) returns valueM(i => UIO.succeed(s"foo $i")),
+            ModuleMock.Overloaded._1(equalTo(1L)) returns valueM(i => UIO.succeedNow(s"foo $i")),
             Module.overloaded(1L),
             equalTo("foo 1")
           ),
@@ -231,7 +231,7 @@ object MockSpec extends ZIOBaseSpec {
           equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
         ),
         testSpec("returns valueM")(
-          ModuleMock.MaxParams(equalTo(intTuple22)) returns valueM(i => UIO.succeed(s"foo $i")),
+          ModuleMock.MaxParams(equalTo(intTuple22)) returns valueM(i => UIO.succeedNow(s"foo $i")),
           (Module.maxParams _).tupled(intTuple22),
           equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
         ),

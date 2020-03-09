@@ -19,7 +19,6 @@ package zio.test.mock
 import com.github.ghik.silencer.silent
 
 import zio.test.Assertion
-import zio.test.mock.internal.MockRuntime
 import zio.{ =!=, Has, Tagged, ZLayer }
 
 /**
@@ -28,7 +27,7 @@ import zio.{ =!=, Has, Tagged, ZLayer }
  */
 abstract class Method[R <: Has[_]: Tagged, I, A] { self =>
 
-  def mock: ZLayer[Has[MockRuntime], Nothing, R]
+  def mock: ZLayer[Has[Mock], Nothing, R]
 
   /**
    * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.

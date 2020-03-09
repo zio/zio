@@ -47,12 +47,12 @@ object DefaultTestReporter {
             specs <- executedSpecs
             failures <- UIO.foreach(specs)(_.exists {
                          case Spec.TestCase(_, test, _) => test.map(_.isLeft);
-                         case _                         => UIO.succeed(false)
+                         case _                         => UIO.succeedNow(false)
                        })
             annotations <- Spec(c).fold[UIO[TestAnnotationMap]] {
                             case Spec.SuiteCase(_, specs, _) =>
                               specs.flatMap(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
-                            case Spec.TestCase(_, _, annotations) => UIO.succeed(annotations)
+                            case Spec.TestCase(_, _, annotations) => UIO.succeedNow(annotations)
                           }
             hasFailures = failures.exists(identity)
             status      = if (hasFailures) Failed else Passed
@@ -68,9 +68,9 @@ object DefaultTestReporter {
             val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
             val renderedResult = result match {
               case Right(TestSuccess.Succeeded(_)) =>
-                UIO.succeed(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
+                UIO.succeedNow(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
               case Right(TestSuccess.Ignored) =>
-                UIO.succeed(rendered(Test, label, Ignored, depth))
+                UIO.succeedNow(rendered(Test, label, Ignored, depth))
               case Left(TestFailure.Assertion(result)) =>
                 result.run.flatMap(result =>
                   result
@@ -284,7 +284,7 @@ object FailureRenderer {
         case fragment :: whole :: failureDetails =>
           renderWhole(fragment, whole, offset).flatMap(s => loop(whole :: failureDetails, rendered :+ s))
         case _ =>
-          UIO.succeed(rendered)
+          UIO.succeedNow(rendered)
       }
     for {
       fragment <- renderFragment(failureDetails.head, offset)
@@ -345,7 +345,7 @@ object FailureRenderer {
 
   def renderCause(cause: Cause[Any], offset: Int): UIO[Message] =
     cause.dieOption match {
-      case Some(TestTimeoutException(message)) => UIO.succeed(Message(message))
+      case Some(TestTimeoutException(message)) => UIO.succeedNow(Message(message))
       case Some(exception: MockException) =>
         renderMockException(exception).map(_.map(withOffset(offset + tabSize)))
       case _ =>
@@ -374,7 +374,7 @@ object FailureRenderer {
         }
 
       case MockException.UnexpectedCallExpection(method, args) =>
-        UIO.succeed(
+        UIO.succeedNow(
           Message(
             Seq(
               red(s"- unexpected call to $method with arguments").toLine,
@@ -384,7 +384,7 @@ object FailureRenderer {
         )
 
       case MockException.InvalidRangeException(range) =>
-        UIO.succeed(
+        UIO.succeedNow(
           Message(
             Seq(
               red(s"- invalid repetition range ${range.start} to ${range.end} by ${range.step}").toLine
@@ -403,7 +403,7 @@ object FailureRenderer {
           }
 
         case InvalidCall.InvalidMethod(method, expectedMethod, assertion) =>
-          UIO.succeed(
+          UIO.succeedNow(
             Message(
               Seq(
                 withOffset(tabSize)(red(s"- invalid call to $method").toLine),
@@ -457,12 +457,12 @@ object FailureRenderer {
       }
 
     val lines = loop(List(tabSize -> expectation), Vector.empty)
-    UIO.succeed(Message(lines))
+    UIO.succeedNow(Message(lines))
   }
 
   def renderTestFailure(label: String, testResult: TestResult): UIO[Message] =
     testResult.run.flatMap(
-      _.failures.fold(UIO.succeed(Message.empty))(
+      _.failures.fold(UIO.succeedNow(Message.empty))(
         _.fold(details =>
           renderFailure(label, 0, details)
             .map(failures => rendered(Test, label, Failed, 0, failures.lines: _*))

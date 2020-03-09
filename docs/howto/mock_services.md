@@ -82,7 +82,6 @@ We'll be assuming you've read [How to use modules and layers][doc-use-modules-an
 
 ```scala mdoc:silent
 import zio.test.mock._
-import zio.test.mock.internal.MockRuntime
 
 // main sources
 type Example = Has[Example.Service]
@@ -105,7 +104,7 @@ object Example {
 object ExampleMock {
 
   sealed trait Tag[I, A] extends Method[Example, I, A] {
-    val mock: ZLayer[Has[MockRuntime], Nothing, Example] = ???
+    val mock: ZLayer[Has[Mock], Nothing, Example] = ???
   }
 
   object Static             extends Tag[Unit, String]
@@ -140,7 +139,7 @@ We also need to define a _mock layer_ that defines how calls will be translated 
 ```scala mdoc:silent
 import ExampleMock._
 
-val Mock: ZLayer[Has[MockRuntime], Nothing, Example] =
+val mockable: ZLayer[Has[Mock], Nothing, Example] =
   ZLayer.fromService(mock =>
     new Example.Service {
       val static                                 = mock(Static)
@@ -161,7 +160,7 @@ by the mock framework as we define our expectations.
 
 ```scala mdoc:silent
 sealed trait Tag[I, A] extends Method[Example, I, A] {
-  val mock: ZLayer[Has[MockRuntime], Nothing, Example] = Mock
+  val mock: ZLayer[Has[Mock], Nothing, Example] = mockable
 }
 ```
 
@@ -174,7 +173,6 @@ trait AccountEvent
 ```scala mdoc:silent
 import zio._
 import zio.test.mock._
-import zio.test.mock.internal.MockRuntime
 
 // main sources
 type AccountObserver = Has[AccountObserver.Service]
@@ -192,13 +190,13 @@ object AccountObserver {
 object AccountObserverMock {
 
   sealed trait Tag[I, A] extends Method[AccountObserver, I, A] {
-    val mock: ZLayer[Has[MockRuntime], Nothing, AccountObserver] =
+    val mock: ZLayer[Has[Mock], Nothing, AccountObserver] =
       AccountObserverMock.Mock
   }
 
   object ProcessEvent extends Tag[AccountEvent, Unit]
 
-  private val Mock: ZLayer[Has[MockRuntime], Nothing, AccountObserver] =
+  private val Mock: ZLayer[Has[Mock], Nothing, AccountObserver] =
     ZLayer.fromService(mock =>
       new AccountObserver.Service {
         def processEvent(event: AccountEvent) = mock(ProcessEvent, event)
@@ -212,7 +210,6 @@ object AccountObserverMock {
 To reduce the amount of repetetive work ZIO provides a `@Mockable[A]` macro annotation which will generate _capability tags_ and _mock layer_ into annotated object:
 
 ```scala
-
 type AccountObserver = Has[AccountObserver.Service]
 
 object AccountObserver {
@@ -267,7 +264,7 @@ import AccountObserverMock._
 
 val event = new AccountEvent {}
 val app: ZIO[AccountObserver, Nothing, Unit] = AccountObserver.processEvent(event)
-val mockEnv: ZLayer[Any, Nothing, Console] = (
+val mockEnv: Layer[Nothing, Console] = (
   (PutStrLn(equalTo(s"Got $event")) returns unit) andThen
   (GetStrLn returns value("42")) andThen
   (PutStrLn(equalTo("You entered: 42")) returns unit)
@@ -289,7 +286,7 @@ object AccountObserverSpec extends DefaultRunnableSpec {
 
 ## Mocking multiple collaborators
 
-In some cases we have more than one collaborating service being called. You can create mocks for rich environments, a mockable for it will be automatically derived if you have implicit mockables for each part of composed environment in scope.
+In some cases we have more than one collaborating service being called. You can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlaying mocked layer will be updated.
 
 ```scala mdoc:silent
 import zio.console.Console

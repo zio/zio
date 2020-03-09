@@ -16,7 +16,6 @@
 
 package zio.test.mock
 
-import zio.test.mock.internal.MockRuntime
 import zio.{ Has, IO, UIO, ZLayer }
 
 /**
@@ -43,7 +42,7 @@ object ModuleMock {
 
   case object MaxParams extends Tag[T22[Int], String]
 
-  private[test] lazy val mock: ZLayer[Has[MockRuntime], Nothing, Module] =
+  private[test] lazy val mock: ZLayer[Has[Mock], Nothing, Module] =
     ZLayer.fromService(mock =>
       new Module.Service {
         val static: IO[String, String]                                     = mock(ModuleMock.Static)

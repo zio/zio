@@ -155,7 +155,7 @@ private[mock] object MockableMacro {
 
           ..$tags
 
-          private lazy val mock: _root_.zio.ZLayer[_root_.zio.Has[_root_.zio.test.mock.internal.MockRuntime], Nothing, $envType] =
+          private lazy val mock: _root_.zio.ZLayer[_root_.zio.Has[_root_.zio.test.mock.Mock], Nothing, $envType] =
             _root_.zio.ZLayer.fromService(mock =>
               new $serviceType {
                 ..$mocks
