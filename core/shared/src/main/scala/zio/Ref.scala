@@ -19,11 +19,8 @@ package zio
 object Ref extends Serializable {
 
   /**
-   * Creates a new `Ref` with the specified value.
-   *
-   * @param a value of the new `Ref`
-   * @tparam A type of the value
-   * @return `UIO[Ref[A]]`
+   * @see [[zio.ZRef.make]]
    */
-  final def make[A](a: A): UIO[Ref[A]] = ZRef.make[Nothing, A](a)
+  def make[A](a: A): UIO[Ref[A]] =
+    ZRef.make(a)
 }
