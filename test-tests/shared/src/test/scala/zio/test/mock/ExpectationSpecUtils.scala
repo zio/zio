@@ -19,12 +19,12 @@ package zio.test.mock
 import zio.duration.Duration
 import zio.test.environment.Live
 import zio.test.{ assertM, testM, Assertion }
-import zio.{ Has, IO, UIO, ZIO, ZLayer }
+import zio.{ Has, IO, Layer, UIO, ZIO }
 
 object ExpectationSpecUtils {
 
   private[mock] def testSpec[E, A](name: String)(
-    mock: ZLayer.NoDeps[Nothing, Has[Module]],
+    mock: Layer[Nothing, Has[Module]],
     app: ZIO[Has[Module], E, A],
     check: Assertion[A]
   ) = testM(name) {
@@ -33,7 +33,7 @@ object ExpectationSpecUtils {
   }
 
   private[mock] def testSpecTimeboxed[E, A](name: String)(duration: Duration)(
-    mock: ZLayer.NoDeps[Nothing, Has[Module]],
+    mock: Layer[Nothing, Has[Module]],
     app: ZIO[Has[Module], E, A],
     check: Assertion[Option[A]]
   ) = testM(name) {
@@ -48,7 +48,7 @@ object ExpectationSpecUtils {
   }
 
   private[mock] def testSpecDied[E, A](name: String)(
-    mock: ZLayer.NoDeps[Nothing, Has[Module]],
+    mock: Layer[Nothing, Has[Module]],
     app: ZIO[Has[Module], E, A],
     check: Assertion[Throwable]
   ) = testM(name) {

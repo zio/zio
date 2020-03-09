@@ -146,6 +146,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
 }
 
 object ZLayer {
+  @deprecated("use Layer", "1.0.0")
   type NoDeps[+E, +B <: Has[_]] = ZLayer[Any, E, B]
 
   /**
@@ -2001,14 +2002,14 @@ object ZLayer {
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: Tagged](a: => A): ZLayer.NoDeps[Nothing, Has[A]] =
+  def succeed[A: Tagged](a: => A): Layer[Nothing, Has[A]] =
     ZLayer(ZManaged.succeed(Has(a)))
 
   /**
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
-  def succeedMany[A <: Has[_]](a: => A): ZLayer.NoDeps[Nothing, A] =
+  def succeedMany[A <: Has[_]](a: => A): Layer[Nothing, A] =
     ZLayer(ZManaged.succeed(a))
 
   /**
