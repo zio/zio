@@ -112,6 +112,14 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
     fold(f, g, Right(_), Right(_))
 
   /**
+   * Filters the `get` value of the `ZRef` with the specified predicate,
+   * returning a `ZRef` with a `get` value that succeeds with its result if the
+   * predicate is satisfied or else fails with `None`.
+   */
+  final def filter(f: B => Boolean): ZRef[EA, Option[EB], A, B] =
+    fold(identity, Some(_), Right(_), b => if (f(b)) Right(b) else Left(None))
+
+  /**
    * Transforms the `get` value of the `ZRef` with the specified function.
    */
   final def map[C](f: B => C): ZRef[EA, EB, A, C] =
@@ -325,7 +333,7 @@ object ZRef extends Serializable {
       setEither(a).fold(ZIO.fail(_), value.setAsync)
   }
 
-  implicit class UnifiedSyntax[E, A](private val self: ZRef[E, E, A, A]) extends AnyVal {
+  implicit class UnifiedSyntax[E, A](private val self: ERef[E, A]) extends AnyVal {
 
     /**
      * Atomically writes the specified value to the `ZRef`, returning the value
@@ -404,7 +412,7 @@ object ZRef extends Serializable {
     def update(f: A => A): IO[E, Unit] =
       self match {
         case atomic: Atomic[A]            => atomic.update(f)
-        case derived: Derived[E, E, A, A] => derived.modify(v => ((), v))
+        case derived: Derived[E, E, A, A] => derived.modify(v => ((), f(v)))
       }
 
     /**
