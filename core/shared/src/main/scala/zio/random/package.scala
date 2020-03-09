@@ -6,25 +6,22 @@ package object random {
   object Random extends Serializable {
     trait Service extends Serializable {
 
-      val nextBoolean: UIO[Boolean]
+      def nextBoolean: UIO[Boolean]
       def nextBytes(length: Int): UIO[Chunk[Byte]]
-      val nextDouble: UIO[Double]
-      val nextFloat: UIO[Float]
-      val nextGaussian: UIO[Double]
+      def nextDouble: UIO[Double]
+      def nextFloat: UIO[Float]
+      def nextGaussian: UIO[Double]
       def nextInt(n: Int): UIO[Int]
-      val nextInt: UIO[Int]
-      val nextLong: UIO[Long]
+      def nextInt: UIO[Int]
+      def nextLong: UIO[Long]
       def nextLong(n: Long): UIO[Long]
-      val nextPrintableChar: UIO[Char]
+      def nextPrintableChar: UIO[Char]
       def nextString(length: Int): UIO[String]
       def shuffle[A](list: List[A]): UIO[List[A]]
     }
 
-    val any: ZLayer[Random, Nothing, Random] =
-      ZLayer.requires[Random]
-
-    val live: ZLayer.NoDeps[Nothing, Random] = ZLayer.succeed {
-      new Service {
+    object Service {
+      val live: Service = new Service {
         import scala.util.{ Random => SRandom }
 
         val nextBoolean: UIO[Boolean] = ZIO.effectTotal(SRandom.nextBoolean())
@@ -49,6 +46,12 @@ package object random {
       }
     }
 
+    val any: ZLayer[Random, Nothing, Random] =
+      ZLayer.requires[Random]
+
+    val live: Layer[Nothing, Random] =
+      ZLayer.succeed(Service.live)
+
     protected[zio] def shuffleWith[A](nextInt: Int => UIO[Int], list: List[A]): UIO[List[A]] =
       for {
         bufferRef <- Ref.make(new scala.collection.mutable.ArrayBuffer[A])
@@ -67,7 +70,7 @@ package object random {
 
     protected[zio] def nextLongWith(nextLong: UIO[Long], n: Long): UIO[Long] =
       if (n <= 0)
-        UIO.dieNow(new IllegalArgumentException("n must be positive"))
+        UIO.die(new IllegalArgumentException("n must be positive"))
       else {
         nextLong.flatMap { r =>
           val m = n - 1

@@ -177,7 +177,7 @@ sealed trait Fiber[+E, +A] { self =>
    *
    * @return `IO[E, A]`
    */
-  final def join: IO[E, A] = await.flatMap(IO.doneNow) <* inheritRefs
+  final def join: IO[E, A] = await.flatMap(IO.done(_)) <* inheritRefs
 
   /**
    * Maps over the value the Fiber computes.
@@ -285,7 +285,7 @@ sealed trait Fiber[+E, +A] { self =>
   /**
    * Converts this fiber into a [[scala.concurrent.Future]], translating
    * any errors to [[java.lang.Throwable]] with the specified conversion function,
-   * using [[Cause.squashWithTrace]]
+   * using [[Cause.squashTraceWith]]
    *
    * @param f function to the error into a Throwable
    * @return `UIO[Future[A]]`
@@ -294,7 +294,7 @@ sealed trait Fiber[+E, +A] { self =>
     UIO.effectSuspendTotal {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
-      def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWithTrace(f)))
+      def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashTraceWith(f)))
       def success(value: A): UIO[p.type]        = UIO(p.success(value))
 
       val completeFuture =
@@ -302,16 +302,10 @@ sealed trait Fiber[+E, +A] { self =>
 
       for {
         runtime <- ZIO.runtime[Any]
-        _       <- completeFuture.fork
+        _       <- completeFuture.forkDaemon // Cannot afford to NOT complete the promise, no matter what, so we fork daemon
       } yield new CancelableFuture[A](p.future) {
-        def cancel(): Future[Exit[Throwable, A]] = {
-          // For Dotty compatibility
-          val p = scala.concurrent.Promise[Exit[Throwable, A]]()
-          runtime.unsafeRunAsync(self.interrupt) { (exit: Exit[Nothing, Exit[E, A]]) =>
-            val _ = p.success(exit.flatten.mapError(f))
-          }
-          p.future
-        }
+        def cancel(): Future[Exit[Throwable, A]] =
+          runtime.unsafeRunToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapError(f)))
       }
     }.uninterruptible
 
@@ -378,7 +372,7 @@ sealed trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber.Synthetic[E1, C] =
     new Fiber.Synthetic[E1, C] {
       final def await: UIO[Exit[E1, C]] =
-        self.await.flatMap(IO.doneNow).zipWithPar(that.await.flatMap(IO.doneNow))(f).run
+        self.await.flatMap(IO.done(_)).zipWithPar(that.await.flatMap(IO.done(_)))(f).run
 
       final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
 
@@ -576,7 +570,7 @@ object Fiber extends FiberPlatformSpecific {
   def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber.Synthetic[E, List[A]] =
     new Fiber.Synthetic[E, List[A]] {
       def await: UIO[Exit[E, List[A]]] =
-        IO.foreachPar(fibers)(_.await.flatMap(IO.doneNow)).run
+        IO.foreachPar(fibers)(_.await.flatMap(IO.done(_))).run
       def children: UIO[Iterable[Fiber[Any, Any]]] =
         UIO.foreach(fibers)(_.children).map(_.foldRight(Iterable.empty[Fiber[Any, Any]])(_ ++ _))
       def getRef[A](ref: FiberRef[A]): UIO[A] =
@@ -619,9 +613,10 @@ object Fiber extends FiberPlatformSpecific {
    *
    * TODO: Switch to "streaming lazy" version.
    */
+  @silent("JavaConverters")
   val dumpAll: UIO[Iterable[Dump]] =
     UIO.effectSuspendTotal {
-      dump((_rootFibers.asScala: @silent("JavaConverters")).toList: _*)
+      dump(internal.Sync(rootFibers)(rootFibers.asScala.toList): _*)
     }
 
   /**
@@ -782,7 +777,7 @@ object Fiber extends FiberPlatformSpecific {
    * The root fibers.
    */
   val roots: UIO[Set[Fiber[Any, Any]]] = UIO {
-    _rootFibers.asScala.toSet: @silent("JavaConverters")
+    internal.Sync(rootFibers)(rootFibers.asScala.toSet[Fiber[Any, Any]].filterNot(_ eq null): @silent("JavaConverters"))
   }
 
   /**
@@ -811,22 +806,25 @@ object Fiber extends FiberPlatformSpecific {
 
   private[zio] def newFiberId(): Fiber.Id = Fiber.Id(System.currentTimeMillis(), _fiberCounter.getAndIncrement())
 
+  private[zio] def untrack[E, A](context: internal.FiberContext[E, A]): Boolean =
+    if (context ne null) Fiber.rootFibers.remove(context)
+    else false
+
   private[zio] def track[E, A](context: internal.FiberContext[E, A]): Unit =
     if (context ne null) {
-      Fiber._rootFibers.add(context)
+      Fiber.rootFibers.add(context)
 
-      context.onDone { _ =>
-        val _ = Fiber._rootFibers.remove(context)
-
-        ()
-      }
+      // On the JVM, rely on garbage collection of the weak set to clean things up:
+      if (!internal.Platform.isJVM) context.onDone(_ => Fiber.rootFibers.remove(context))
     }
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
 
-  private val _rootFibers: java.util.Set[internal.FiberContext[_, _]] =
-    internal.Platform.newConcurrentSet[internal.FiberContext[_, _]]()
+  private type RootFibers = java.util.Set[internal.FiberContext[_, _]]
+
+  private val rootFibers: RootFibers =
+    internal.Platform.newConcurrentWeakSet[internal.FiberContext[_, _]]()
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicLong(0)
 }

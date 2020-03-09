@@ -42,7 +42,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
         val n = 1L
         for {
           s       <- Semaphore.make(n)
-          _       <- s.withPermit(IO.failNow("fail")).either
+          _       <- s.withPermit(IO.fail("fail")).either
           permits <- s.available
         } yield assert(permits)(equalTo(1L))
       },

@@ -14,19 +14,27 @@
  * limitations under the License.
  */
 
-package zio
+package zio.stream
 
-trait App extends BootstrapRuntime {
+import zio.Chunk
 
-  /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program.
-   */
-  def run(args: List[String]): ZIO[ZEnv, Nothing, Int]
+package object internal {
 
   /**
-   * The Scala main function, intended to be called only by the Scala runtime.
+   * Creates a single-value sink from a value.
    */
-  final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList))(_ => ())
+  def ZSinkSucceedNow[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+    ZSink.succeedNow(b)
+
+  /**
+   * Creates a `ZStreamChunk` from an eagerly evaluated chunk
+   */
+  def ZStreamChunkSucceedNow[A](as: Chunk[A]): ZStreamChunk[Any, Nothing, A] =
+    new StreamEffectChunk(StreamEffect.succeed(as))
+
+  /**
+   * Creates a single-valued pure stream
+   */
+  def ZStreamSucceedNow[A](a: A): ZStream[Any, Nothing, A] =
+    StreamEffect.succeed(a)
 }

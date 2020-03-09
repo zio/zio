@@ -21,7 +21,7 @@ import zio._
 import zio.interop.reactiveStreams._
 import zio.stream._
 
-val runtime = new DefaultRuntime {}
+val runtime = Runtime.default
 ```
 
 We use the following `Publisher` and `Subscriber` for the examples: 

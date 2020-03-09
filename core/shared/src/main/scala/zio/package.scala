@@ -15,7 +15,7 @@
  */
 
 package object zio extends EitherCompat with PlatformSpecific with VersionSpecific {
-  private[zio] type Callback[E, A] = Exit[E, A] => Unit
+  private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
 
@@ -31,7 +31,16 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type UManaged[+A]      = ZManaged[Any, Nothing, A]
   type TaskManaged[+A]   = ZManaged[Any, Throwable, A]
 
+  type RLayer[-RIn, +ROut <: Has[_]]  = ZLayer[RIn, Throwable, ROut]
+  type URLayer[-RIn, +ROut <: Has[_]] = ZLayer[RIn, Nothing, ROut]
+  type Layer[+E, +ROut <: Has[_]]     = ZLayer[Any, E, ROut]
+  type ULayer[+ROut <: Has[_]]        = ZLayer[Any, Nothing, ROut]
+  type TaskLayer[+ROut <: Has[_]]     = ZLayer[Any, Throwable, ROut]
+
   type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
+
+  type Ref[A]      = ZRef[Nothing, Nothing, A, A]
+  type ERef[+E, A] = ZRef[E, E, A, A]
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =

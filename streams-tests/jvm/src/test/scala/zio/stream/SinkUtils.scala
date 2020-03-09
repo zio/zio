@@ -7,17 +7,17 @@ import zio.{ Chunk, IO, UIO }
 trait SinkUtils {
   def initErrorSink = new ZSink[Any, String, Int, Int, Int] {
     type State = Unit
-    val initial                    = IO.failNow("Ouch")
-    def step(state: State, a: Int) = IO.failNow("Ouch")
-    def extract(state: State)      = IO.failNow("Ouch")
+    val initial                    = IO.fail("Ouch")
+    def step(state: State, a: Int) = IO.fail("Ouch")
+    def extract(state: State)      = IO.fail("Ouch")
     def cont(state: State)         = false
   }
 
   def stepErrorSink = new ZSink[Any, String, Int, Int, Int] {
     type State = Unit
     val initial                    = UIO.unit
-    def step(state: State, a: Int) = IO.failNow("Ouch")
-    def extract(state: State)      = IO.failNow("Ouch")
+    def step(state: State, a: Int) = IO.fail("Ouch")
+    def extract(state: State)      = IO.fail("Ouch")
     def cont(state: State)         = false
   }
 
@@ -25,7 +25,7 @@ trait SinkUtils {
     type State = Unit
     val initial                    = UIO.unit
     def step(state: State, a: Int) = UIO.unit
-    def extract(state: State)      = IO.failNow("Ouch")
+    def extract(state: State)      = IO.fail("Ouch")
     def cont(state: State)         = false
   }
 

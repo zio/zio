@@ -84,6 +84,12 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       assert(failure1 ==> success1)(isSuccess) &&
       assert(failure1 ==> failure2)(isSuccess)
     },
+    test("iff returns double implication of two values") {
+      assert(success1 <==> success2)(isSuccess) &&
+      assert(success1 <==> failure1)(isFailure) &&
+      assert(failure1 <==> success1)(isFailure) &&
+      assert(failure1 <==> failure2)(isSuccess)
+    },
     test("isFailure returns whether result is failure") {
       assert(!success1.isFailure && failure1.isFailure)(isTrue)
     },

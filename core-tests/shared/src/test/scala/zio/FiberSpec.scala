@@ -89,7 +89,7 @@ object FiberSpec extends ZIOBaseSpec {
         for {
           queue  <- Queue.unbounded[Int]
           _      <- queue.offerAll(1 to 100)
-          worker = (n: Int) => if (n == 100) ZIO.failNow("fail") else queue.offer(n).unit
+          worker = (n: Int) => if (n == 100) ZIO.fail("fail") else queue.offer(n).unit
           exit   <- shard(queue, 4, worker).run
           _      <- queue.shutdown
         } yield assert(exit)(fails(equalTo("fail")))

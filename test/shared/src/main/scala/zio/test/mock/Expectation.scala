@@ -22,8 +22,7 @@ import zio.test.Assertion
 import zio.test.mock.Expectation.{ AnyCall, Call, Compose, Empty, Next, State }
 import zio.test.mock.MockException.UnmetExpectationsException
 import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
-import zio.{ Has, IO, Managed, Ref, UIO, ZIO, ZLayer }
-import zio.{ IO, Managed, Ref, UIO, ZIO }
+import zio.{ Has, IO, Layer, Managed, Ref, UIO, ZIO, ZLayer }
 
 /**
  * An `Expectation[-M, +E, +A]` is an immutable data structure that represents
@@ -57,7 +56,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
   /**
    * Converts this Expectation to ZManaged mock environment.
    */
-  final def toLayer[M1 <: M](implicit mockable: Mockable[M1]): ZLayer.NoDeps[Nothing, Has[M1]] = {
+  final def toLayer[M1 <: M](implicit mockable: Mockable[M1]): Layer[Nothing, Has[M1]] = {
 
     def extract(
       state: State[M, E],
@@ -104,7 +103,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
         state.callsRef.get
           .filterOrElse[Any, Nothing, Any](_.isEmpty) { calls =>
             val expectations = calls.map(call => call.method -> call.assertion)
-            ZIO.dieNow(UnmetExpectationsException(expectations))
+            ZIO.die(UnmetExpectationsException(expectations))
           }
 
     val makeEnvironment =
@@ -131,7 +130,7 @@ object Expectation {
   /**
    * Returns a return expectation to fail with `E`.
    */
-  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.failNow(failure))
+  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
 
   /**
    * Maps the input arguments `I` to a return expectation to fail with `E`.
@@ -178,7 +177,7 @@ object Expectation {
    */
   implicit def toLayer[M: Mockable, E, A](
     expectation: Expectation[M, E, A]
-  ): ZLayer.NoDeps[Nothing, Has[M]] = expectation.toLayer
+  ): Layer[Nothing, Has[M]] = expectation.toLayer
 
   private[Expectation] type AnyCall      = Call[Any, Any, Any, Any]
   private[Expectation] type Next[-M, +E] = Expectation[M, E, Any]

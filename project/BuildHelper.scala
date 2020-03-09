@@ -40,7 +40,7 @@ object BuildHelper {
     sys.props.get(property).map(_.toBoolean).getOrElse(default)
 
   private def customOptions =
-    if (propertyFlag("fatal.warnings", false)) {
+    if (propertyFlag("fatal.warnings", true)) {
       Seq("-Xfatal-warnings")
     } else {
       Nil

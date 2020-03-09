@@ -1,5 +1,5 @@
 ---
-id: use_layers
+id: howto_use_layers
 title:  "Use modules and layers"
 ---
 
@@ -16,12 +16,7 @@ The result is a program that, in turn, depends on the `DBConnection`.
 
 
 ```scala mdoc:invisible
-import zio.ZIO          
-import zio.IO
-import zio.UIO    
-import zio.Has
-import zio.ZEnv
-import zio.ZLayer
+import zio. { Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
@@ -81,7 +76,7 @@ Let's build a module for user data access, following these simple steps:
 1. Define a type alias like `type ModuleName = Has[Service]` (see below for details on `Has`)
 
 ```scala mdoc:silent
-import zio.{Has, ZLayer}
+import zio.{ Has, ZLayer }
 
 type UserRepo = Has[UserRepo.Service]
 
@@ -96,12 +91,7 @@ object UserRepo {
 ```
 
 ```scala mdoc:reset:invisible
-import zio.ZIO          
-import zio.IO
-import zio.UIO    
-import zio.Has
-import zio.ZEnv
-import zio.ZLayer
+import zio. { Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }          
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
@@ -155,7 +145,7 @@ Usually we don't create a `Has` directly, but we do that through `ZLayer`.
 
 `ZLayer[-RIn, +E, +ROut <: Has[_]]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, possibly producing an error `E` during creation. 
 
-In adherence with environmental concepts, the absence of a required input is represented by `RIn = Any`, conveniently  used in the type alias `ZLayer#NoDeps`.
+In adherence with environmental concepts, the absence of a required input is represented by `RIn = Any`, conveniently  used in the type alias `Layer`.
 
 There are many ways to create a `ZLayer`, here's an incomplete list:
  - `ZLayer.succeed` or `ZIO.asService`  to create a layer from an existing service
@@ -184,7 +174,7 @@ object UserRepo {
 
 
   // This simple live version depends only on a DB Connection
-  val inMemory: ZLayer.NoDeps[Nothing, UserRepo] = ZLayer.succeed(
+  val inMemory: Layer[Nothing, UserRepo] = ZLayer.succeed(
     new Service {
       def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
       def createUser(user: User): IO[DBError, Unit] = UIO(???)
@@ -246,7 +236,7 @@ Given a program with these requirements, we can build the required layer:
 val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
 
 // fulfill missing deps, composing vertically
-val fullLayer: ZLayer.NoDeps[Nothing, Logging with UserRepo] = Console.live >>> horizontal
+val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizontal
 
 // provide the layer to the program
 makeUser.provideLayer(fullLayer)
@@ -290,7 +280,7 @@ val withPostgresService = horizontal.update[UserRepo.Service]{ oldRepo  => new U
 Another way is by composing horizontally with a layer that provides the updated service
 
 ```scala mdoc:silent
-val dbLayer: ZLayer.NoDeps[Nothing, UserRepo] = ZLayer.succeed(new UserRepo.Service {
+val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo.Service {
     override def getUser(userId: UserId): IO[DBError, Option[User]] = ???
     override def createUser(user: User): IO[DBError, Unit] = ???
   })
@@ -306,7 +296,7 @@ For example, to build a postgres-based repository we need a `java.sql.Connection
 ```scala mdoc:silent
 import java.sql.Connection
 def makeConnection: UIO[Connection] = UIO(???)
-val connectionLayer: ZLayer.NoDeps[Nothing, Has[Connection]] = 
+val connectionLayer: Layer[Nothing, Has[Connection]] = 
     ZLayer.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
 val postgresLayer: ZLayer[Has[Connection], Nothing, UserRepo] = 
   ZLayer.fromFunction { hasC =>
@@ -316,7 +306,7 @@ val postgresLayer: ZLayer[Has[Connection], Nothing, UserRepo] =
     }
   }
 
-val fullRepo: ZLayer.NoDeps[Nothing, UserRepo] = connectionLayer >>> postgresLayer
+val fullRepo: Layer[Nothing, UserRepo] = connectionLayer >>> postgresLayer
 
 ```
 

@@ -30,14 +30,11 @@ package object console {
 
       def putStrLn(line: String): UIO[Unit]
 
-      val getStrLn: IO[IOException, String]
+      def getStrLn: IO[IOException, String]
     }
 
-    val any: ZLayer[Console, Nothing, Console] =
-      ZLayer.requires[Console]
-
-    val live: ZLayer.NoDeps[Nothing, Console] = ZLayer.succeed {
-      new Service {
+    object Service {
+      val live: Service = new Service {
 
         /**
          * Prints text to the console.
@@ -83,6 +80,12 @@ package object console {
 
       }
     }
+
+    val any: ZLayer[Console, Nothing, Console] =
+      ZLayer.requires[Console]
+
+    val live: Layer[Nothing, Console] =
+      ZLayer.succeed(Service.live)
   }
 
   /**

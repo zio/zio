@@ -33,7 +33,7 @@ type RIO[-R, +A]   = ZIO[  R, Throwable, A]
 In order to use Cats Effect instances for these types, you should have an implicit `Runtime[R]` in scope for the environment type of your effects. The following code snippet creates an implicit `Runtime` for all the modules built into ZIO:
 
 ```scala
-implicit val runtime: Runtime[Environment] = new DefaultRuntime {}
+implicit val runtime: Runtime[ZEnv] = Runtime.default
 ```
 
 If you are using `RIO` for a custom environment `R`, then you will have to create your own `Runtime[R]`, and ensure that implicit wherever you need Cats Effect instances.

@@ -123,12 +123,6 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
   final def as[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
 
   /**
-   * Replaces any error produced by this sink.
-   */
-  @deprecated("use orElseFail", "1.0.0")
-  final def asError[E1](e1: => E1): ZSink[R, E1, A0, A, B] = self.mapError(new ZIO.ConstFn(() => e1))
-
-  /**
    * Creates a sink where every element of type `A` entering the sink is first
    * transformed by `f`
    */
@@ -319,7 +313,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def decide(state: State): ZIO[R1, E1, State] =
         state match {
-          case (Side.Error(_), Side.Error(e)) => IO.failNow(e)
+          case (Side.Error(_), Side.Error(e)) => IO.fail(e)
           case sides                          => UIO.succeedNow(sides)
         }
 
@@ -381,7 +375,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def extract(state: State) =
         state match {
-          case (Side.Error(_), Side.Error(e))             => IO.failNow(e)
+          case (Side.Error(_), Side.Error(e))             => IO.fail(e)
           case (Side.Error(_), Side.State(s))             => that.extract(s).map { case (c, leftover) => (Right(c), leftover) }
           case (Side.Error(_), Side.Value((c, leftover))) => UIO.succeedNow((Right(c), leftover))
           case (Side.Value((b, leftover)), _)             => UIO.succeedNow((Left(b), leftover))
@@ -472,7 +466,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def decide(state: State): ZIO[R1, E1, State] =
         state match {
-          case (Side.Error(e1), Side.Error(e2)) => IO.haltNow(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
+          case (Side.Error(e1), Side.Error(e2)) => IO.halt(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
           case sides                            => UIO.succeedNow(sides)
         }
 
@@ -530,7 +524,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def extract(state: State) =
         state match {
-          case (Side.Error(e1), Side.Error(e2))           => IO.haltNow(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
+          case (Side.Error(e1), Side.Error(e2))           => IO.halt(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
           case (Side.Error(_), Side.State(s))             => that.extract(s).map { case (c, leftover) => (Right(c), leftover) }
           case (Side.Error(_), Side.Value((c, leftover))) => UIO.succeedNow((Right(c), leftover))
           case (Side.State(s), Side.Error(e)) =>
@@ -1209,11 +1203,11 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     }
 
     def assertNonNegative(n: Long): UIO[Unit] =
-      if (n < 0) UIO.dieNow(new NegativeArgument(s"Unexpected negative unit value `$n`"))
+      if (n < 0) UIO.die(new NegativeArgument(s"Unexpected negative unit value `$n`"))
       else UIO.unit
 
     def assertPositive(n: Long): UIO[Unit] =
-      if (n <= 0) UIO.dieNow(new NonpositiveArgument(s"Unexpected nonpositive unit value `$n`"))
+      if (n <= 0) UIO.die(new NonpositiveArgument(s"Unexpected nonpositive unit value `$n`"))
       else UIO.unit
 
     class NegativeArgument(message: String) extends IllegalArgumentException(message)
@@ -1574,7 +1568,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       type State = Unit
       val initial                    = UIO.unit
       def step(state: State, a: Any) = UIO.unit
-      def extract(state: State)      = IO.haltNow(e)
+      def extract(state: State)      = IO.halt(e)
       def cont(state: State)         = false
     }
 
@@ -2053,15 +2047,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
 
       def cont(state: State) = state._3
     }
-
-  private[zio] def dieNow(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
-    ZSink.haltNow(Cause.die(e))
-
-  private[zio] def failNow[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
-    fail(e)
-
-  private[zio] def haltNow[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
-    halt(e)
 
   private[zio] def succeedNow[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
     succeed(b)
