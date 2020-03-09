@@ -170,7 +170,7 @@ object Expectation {
     def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): And[R] =
       And(children, false, false, List.empty)(mock)
 
-    object Items {
+    private[test] object Items {
       def unapply[R <: Has[_]](and: And[R]): Option[List[Expectation[R]]] =
         Some(and.children)
     }
@@ -217,7 +217,7 @@ object Expectation {
     def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): Chain[R] =
       Chain(children, false, false, List.empty)(mock)
 
-    object Items {
+    private[test] object Items {
       def unapply[R <: Has[_]](chain: Chain[R]): Option[List[Expectation[R]]] =
         Some(chain.children)
     }
@@ -240,7 +240,7 @@ object Expectation {
     def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): Or[R] =
       Or(children, false, false, List.empty)(mock)
 
-    object Items {
+    private[test] object Items {
       def unapply[R <: Has[_]](or: Or[R]): Option[List[Expectation[R]]] =
         Some(or.children)
     }
