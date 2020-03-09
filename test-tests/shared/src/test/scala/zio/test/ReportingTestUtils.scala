@@ -12,7 +12,7 @@ import zio.test.mock.MockException.{
   UnexpectedCallExpection,
   UnmetExpectationsException
 }
-import zio.{ Cause, ZIO, ZLayer }
+import zio.{ Cause, Layer, ZIO }
 
 object ReportingTestUtils {
 
@@ -65,7 +65,7 @@ object ReportingTestUtils {
       actualSummary <- SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
-  private[this] def TestTestRunner(testEnvironment: ZLayer.NoDeps[Nothing, TestEnvironment]) =
+  private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
       reporter = DefaultTestReporter(TestAnnotationRenderer.default)

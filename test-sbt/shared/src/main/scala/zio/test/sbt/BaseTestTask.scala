@@ -5,7 +5,7 @@ import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 import zio.UIO
 import zio.clock.Clock
 import zio.test.{ AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger }
-import zio.{ Runtime, ZIO, ZLayer }
+import zio.{ Layer, Runtime, ZIO, ZLayer }
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -33,7 +33,7 @@ abstract class BaseTestTask(
       _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
-  protected def sbtTestLayer(loggers: Array[Logger]): ZLayer.NoDeps[Nothing, TestLogger with Clock] =
+  protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, TestLogger with Clock] =
     ZLayer.succeed[TestLogger.Service](new TestLogger.Service {
       def logLine(line: String): UIO[Unit] =
         ZIO

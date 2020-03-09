@@ -492,7 +492,7 @@ package object test extends CompileVariants {
     /**
      * Constructs a new `Annotations` service.
      */
-    def live: ZLayer.NoDeps[Nothing, Annotations] =
+    def live: Layer[Nothing, Annotations] =
       ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
         new Annotations.Service {
           def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
@@ -521,7 +521,7 @@ package object test extends CompileVariants {
       def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A]
     }
 
-    def live(size: Int): ZLayer.NoDeps[Nothing, Sized] =
+    def live(size: Int): Layer[Nothing, Sized] =
       ZLayer.fromEffect(FiberRef.make(size).map { fiberRef =>
         new Sized.Service {
           val size: UIO[Int] =

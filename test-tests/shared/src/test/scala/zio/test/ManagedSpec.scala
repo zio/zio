@@ -13,7 +13,7 @@ object ManagedSpec extends ZIOBaseSpec {
       def incrementAndGet: UIO[Int]
     }
 
-    val live: ZLayer.NoDeps[Nothing, Counter] =
+    val live: Layer[Nothing, Counter] =
       ZLayer.fromManaged {
         Ref.make(1).toManaged(_.set(-10)).map { ref =>
           new Counter.Service {

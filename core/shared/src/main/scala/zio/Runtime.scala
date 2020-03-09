@@ -242,7 +242,7 @@ object Runtime {
    * [[ZIO.provideLayer]] directly in their application entry points.
    */
   def unsafeFromLayer[R <: Has[_]](
-    layer: ZLayer.NoDeps[Any, R],
+    layer: Layer[Any, R],
     platform: Platform = Platform.default
   ): Runtime.Managed[R] = {
     val runtime = Runtime((), platform)
