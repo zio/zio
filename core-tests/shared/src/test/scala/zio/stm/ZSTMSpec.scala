@@ -494,7 +494,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       suite("partition")(
         testM("collects only successes") {
           implicit val canFail = CanFail
-          val in = List.range(0, 10)
+          val in               = List.range(0, 10)
           for {
             res <- STM.partition(in)(STM.succeedNow).commit
           } yield assert(res._1)(isEmpty) && assert(res._2)(equalTo(in))
@@ -513,7 +513,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         },
         testM("evaluates effects in correct order") {
           implicit val canFail = CanFail
-          val as = List(2, 4, 6, 3, 5, 6)
+          val as               = List(2, 4, 6, 3, 5, 6)
           val tx =
             for {
               ref     <- TRef.make(List.empty[Int])
@@ -1028,7 +1028,7 @@ object ZSTMSpec extends ZIOBaseSpec {
     suite("orElseFail")(
       testM("tries this effect first") {
         implicit val canFail = CanFail
-        val transaction = ZSTM.succeedNow(true).orElseFail(false)
+        val transaction      = ZSTM.succeedNow(true).orElseFail(false)
         assertM(transaction.commit)(isTrue)
       },
       testM("if it fails, fails with the specified error") {
@@ -1039,7 +1039,7 @@ object ZSTMSpec extends ZIOBaseSpec {
     suite("orElseSucceed")(
       testM("tries this effect first") {
         implicit val canFail = CanFail
-        val transaction = ZSTM.succeedNow(true).orElseSucceed(false)
+        val transaction      = ZSTM.succeedNow(true).orElseSucceed(false)
         assertM(transaction.commit)(isTrue)
       },
       testM("if it succeeds, succeeds with the specified value") {
@@ -1080,34 +1080,34 @@ object ZSTMSpec extends ZIOBaseSpec {
     suite("ZSTM validate")(
       testM("returns all errors if never valid") {
         implicit val canFail = CanFail
-        val in  = List.fill(10)(0)
-        val res = STM.validate(in)(a => STM.fail(a))
+        val in               = List.fill(10)(0)
+        val res              = STM.validate(in)(a => STM.fail(a))
         assertM(res.commit.run)(fails(equalTo(in)))
       },
       testM("accumulate errors and ignore successes") {
         implicit val canFail = CanFail
-        val in  = List.range(0, 10)
-        val res = STM.validate(in)(a => if (a % 2 == 0) STM.succeedNow(a) else STM.fail(a))
+        val in               = List.range(0, 10)
+        val res              = STM.validate(in)(a => if (a % 2 == 0) STM.succeedNow(a) else STM.fail(a))
         assertM(res.commit.run)(fails(equalTo(List(1, 3, 5, 7, 9))))
       },
       testM("accumulate successes") {
         implicit val canFail = CanFail
-        val in  = List.range(0, 10)
-        val res = STM.validate(in)(a => STM.succeedNow(a))
+        val in               = List.range(0, 10)
+        val res              = STM.validate(in)(a => STM.succeedNow(a))
         assertM(res.commit)(equalTo(in))
       }
     ),
     suite("ZSTM validateFirst")(
       testM("returns all errors if never valid") {
         implicit val canFail = CanFail
-        val in  = List.fill(10)(0)
-        val res = STM.validateFirst(in)(a => STM.fail(a))
+        val in               = List.fill(10)(0)
+        val res              = STM.validateFirst(in)(a => STM.fail(a))
         assertM(res.commit.run)(fails(equalTo(in)))
       },
       testM("runs sequentially and short circuits on first success validation") {
         implicit val canFail = CanFail
-        val in = List.range(1, 10)
-        val f  = (a: Int) => if (a == 6) STM.succeedNow(a) else STM.fail(a)
+        val in               = List.range(1, 10)
+        val f                = (a: Int) => if (a == 6) STM.succeedNow(a) else STM.fail(a)
 
         val tx = for {
           counter <- TRef.make(0)
@@ -1119,8 +1119,8 @@ object ZSTMSpec extends ZIOBaseSpec {
       },
       testM("returns errors in correct order") {
         implicit val canFail = CanFail
-        val as = List(2, 4, 6, 3, 5, 6)
-        val tx = STM.validateFirst(as)(STM.fail(_))
+        val as               = List(2, 4, 6, 3, 5, 6)
+        val tx               = STM.validateFirst(as)(STM.fail(_))
         assertM(tx.commit.run)(fails(equalTo(List(2, 4, 6, 3, 5, 6))))
       }
     ),

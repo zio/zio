@@ -1134,8 +1134,8 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("orElse")(
       testM("does not recover from defects") {
-        val ex      = new Exception("Died")
-        val fiberId = Fiber.Id(0L, 123L)
+        val ex               = new Exception("Died")
+        val fiberId          = Fiber.Id(0L, 123L)
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> IO.unit).run
@@ -1211,7 +1211,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("partition")(
       testM("collects only successes") {
         implicit val canFail = CanFail
-        val in = List.range(0, 10)
+        val in               = List.range(0, 10)
         for {
           res <- ZIO.partition(in)(a => ZIO.succeedNow(a))
         } yield assert(res._1)(isEmpty) && assert(res._2)(equalTo(in))
@@ -1230,7 +1230,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("evaluates effects in correct order") {
         implicit val canFail = CanFail
-        val as = List(2, 4, 6, 3, 5, 6)
+        val as               = List(2, 4, 6, 3, 5, 6)
         for {
           ref     <- Ref.make(List.empty[Int])
           _       <- ZIO.partition(as)(a => ref.update(a :: _))
@@ -1241,7 +1241,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("partitionPar")(
       testM("collects a lot of successes") {
         implicit val canFail = CanFail
-        val in = List.range(0, 1000)
+        val in               = List.range(0, 1000)
         for {
           res <- ZIO.partitionPar(in)(a => ZIO.succeedNow(a))
         } yield assert(res._1)(isEmpty) && assert(res._2)(equalTo(in))
@@ -1262,7 +1262,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("partitionParN")(
       testM("collects a lot of successes") {
         implicit val canFail = CanFail
-        val in = List.range(0, 1000)
+        val in               = List.range(0, 1000)
         for {
           res <- ZIO.partitionParN(3)(in)(a => ZIO.succeedNow(a))
         } yield assert(res._1)(isEmpty) && assert(res._2)(equalTo(in))
@@ -1944,7 +1944,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("deep absolve/attempt is identity") {
         implicit val canFail = CanFail
-        val io = (0 until 1000).foldLeft(IO.succeedNow(42))((acc, _) => IO.absolve(acc.either))
+        val io               = (0 until 1000).foldLeft(IO.succeedNow(42))((acc, _) => IO.absolve(acc.either))
 
         assertM(io)(equalTo(42))
       },
@@ -2781,14 +2781,14 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("accumulate errors and ignore successes") {
         implicit val canFail = CanFail
-        val in  = List.range(0, 10)
-        val res = ZIO.validate(in)(a => if (a % 2 == 0) ZIO.succeedNow(a) else ZIO.fail(a))
+        val in               = List.range(0, 10)
+        val res              = ZIO.validate(in)(a => if (a % 2 == 0) ZIO.succeedNow(a) else ZIO.fail(a))
         assertM(res.flip)(equalTo(List(1, 3, 5, 7, 9)))
       },
       testM("accumulate successes") {
         implicit val canFail = CanFail
-        val in  = List.range(0, 10)
-        val res = IO.validate(in)(a => ZIO.succeedNow(a))
+        val in               = List.range(0, 10)
+        val res              = IO.validate(in)(a => ZIO.succeedNow(a))
         assertM(res)(equalTo(in))
       }
     ),
@@ -2800,14 +2800,14 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("accumulate errors and ignore successes") {
         implicit val canFail = CanFail
-        val in  = List.range(0, 10)
-        val res = ZIO.validatePar(in)(a => if (a % 2 == 0) ZIO.succeedNow(a) else ZIO.fail(a))
+        val in               = List.range(0, 10)
+        val res              = ZIO.validatePar(in)(a => if (a % 2 == 0) ZIO.succeedNow(a) else ZIO.fail(a))
         assertM(res.flip)(equalTo(List(1, 3, 5, 7, 9)))
       },
       testM("accumulate successes") {
         implicit val canFail = CanFail
-        val in  = List.range(0, 10)
-        val res = IO.validatePar(in)(a => ZIO.succeedNow(a))
+        val in               = List.range(0, 10)
+        val res              = IO.validatePar(in)(a => ZIO.succeedNow(a))
         assertM(res)(equalTo(in))
       }
     ),
@@ -2819,8 +2819,8 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("runs sequentially and short circuits on first success validation") {
         implicit val canFail = CanFail
-        val in = List.range(1, 10)
-        val f  = (a: Int) => if (a == 6) ZIO.succeedNow(a) else ZIO.fail(a)
+        val in               = List.range(1, 10)
+        val f                = (a: Int) => if (a == 6) ZIO.succeedNow(a) else ZIO.fail(a)
 
         for {
           counter    <- Ref.make(0)
@@ -2843,9 +2843,9 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("returns success if valid") {
         implicit val canFail = CanFail
-        val in  = List.range(1, 10)
-        val f   = (a: Int) => if (a == 6) ZIO.succeedNow(a) else ZIO.fail(a)
-        val res = ZIO.validateFirstPar(in)(f(_))
+        val in               = List.range(1, 10)
+        val f                = (a: Int) => if (a == 6) ZIO.succeedNow(a) else ZIO.fail(a)
+        val res              = ZIO.validateFirstPar(in)(f(_))
         assertM(res)(equalTo(6))
       }
     ),

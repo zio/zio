@@ -546,7 +546,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("orElseFail")(
       testM("executes this effect and returns its value if it succeeds") {
         implicit val canFail = CanFail
-        val managed = ZManaged.succeedNow(true).orElseFail(false)
+        val managed          = ZManaged.succeedNow(true).orElseFail(false)
         assertM(managed.use(ZIO.succeedNow))(isTrue)
       },
       testM("otherwise fails with the specified error") {
@@ -557,7 +557,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("orElseSucceed")(
       testM("executes this effect and returns its value if it succeeds") {
         implicit val canFail = CanFail
-        val managed = ZManaged.succeedNow(true).orElseSucceed(false)
+        val managed          = ZManaged.succeedNow(true).orElseSucceed(false)
         assertM(managed.use(ZIO.succeedNow))(isTrue)
       },
       testM("otherwise succeeds with the specified value") {
