@@ -255,16 +255,16 @@ import zio.random.Random
 import MockConsole._
 import MockRandom._
 
-val mockConsole: ZLayer.NoDeps[Nothing, Console] = (
+val mockConsole: Layer[Nothing, Console] = (
   (putStrLn(equalTo("What is your name?")) returns unit) *>
   (getStrLn returns value("Mike")) *>
   (putStrLn(equalTo("Mike, your lucky number today is 42!")) returns unit)
 )
 
-val mockRandom: ZLayer.NoDeps[Nothing, Random] =
+val mockRandom: Layer[Nothing, Random] =
   nextInt._1 returns value(42)
 
-val combinedEnv: ZLayer.NoDeps[Nothing, Console with Random] =
+val combinedEnv: Layer[Nothing, Console with Random] =
   mockConsole ++ mockRandom
 
 val combinedApp =

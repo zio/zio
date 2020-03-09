@@ -87,9 +87,9 @@ package object environment extends PlatformSpecific {
   type TestRandom  = Has[TestRandom.Service]
   type TestSystem  = Has[TestSystem.Service]
 
-  val liveEnvironment: ZLayer.NoDeps[Nothing, ZEnv] = ZEnv.live
+  val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironment: ZLayer.NoDeps[Nothing, TestEnvironment] =
+  val testEnvironment: Layer[Nothing, TestEnvironment] =
     ZEnv.live >>> TestEnvironment.live
 
   /**
@@ -1373,7 +1373,7 @@ package object environment extends PlatformSpecific {
      * be useful for providing the required environment to an effect that
      * requires a `Random`, such as with `ZIO#provide`.
      */
-    def make(data: Data): ZLayer.NoDeps[Nothing, Random with TestRandom] =
+    def make(data: Data): Layer[Nothing, Random with TestRandom] =
       ZLayer.fromEffectMany(for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
@@ -1383,7 +1383,7 @@ package object environment extends PlatformSpecific {
     val any: ZLayer[Random with TestRandom, Nothing, Random with TestRandom] =
       ZLayer.requires[Random with TestRandom]
 
-    val deterministic: ZLayer.NoDeps[Nothing, Random with TestRandom] =
+    val deterministic: Layer[Nothing, Random with TestRandom] =
       make(DefaultData)
 
     val random: ZLayer[Clock, Nothing, Random with TestRandom] =
@@ -1541,7 +1541,7 @@ package object environment extends PlatformSpecific {
      * be useful for providing the required environment to an effect that
      * requires a `Console`, such as with `ZIO#provide`.
      */
-    def live(data: Data): ZLayer.NoDeps[Nothing, System with TestSystem] =
+    def live(data: Data): Layer[Nothing, System with TestSystem] =
       ZLayer.fromEffectMany(
         Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref)))
       )
@@ -1549,7 +1549,7 @@ package object environment extends PlatformSpecific {
     val any: ZLayer[System with TestSystem, Nothing, System with TestSystem] =
       ZLayer.requires[System with TestSystem]
 
-    val default: ZLayer.NoDeps[Nothing, System with TestSystem] =
+    val default: Layer[Nothing, System with TestSystem] =
       live(DefaultData)
 
     /**
