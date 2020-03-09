@@ -3,7 +3,7 @@ package zio.stm
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
-import org.openjdk.jmh.annotations.{Benchmark, Group, GroupThreads, _}
+import org.openjdk.jmh.annotations.{ Benchmark, Group, GroupThreads, _ }
 import org.openjdk.jmh.infra.Blackhole
 
 import zio.IOBenchmarks._
@@ -105,7 +105,7 @@ class TReentrantLockBenchmark {
   def zioLockRead(): Unit = {
     val io = for {
       lock <- zioLock
-      _ <- lock.readLock.use(_ => doWorkM())
+      _    <- lock.readLock.use(_ => doWorkM())
     } yield ()
 
     unsafeRun(io)
@@ -115,7 +115,7 @@ class TReentrantLockBenchmark {
   def zioLockWrite(): Unit = {
     val io = for {
       lock <- zioLock
-      _ <- lock.writeLock.use(_ => doWorkM())
+      _    <- lock.writeLock.use(_ => doWorkM())
     } yield ()
 
     unsafeRun(io)
