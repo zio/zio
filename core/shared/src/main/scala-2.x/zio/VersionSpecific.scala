@@ -1,12 +1,35 @@
 package zio
 
-import izreflect.fundamentals.reflection.Tags.Tag
+import izreflect.fundamentals.reflection.Tags.{ Tag, TagK, TagKK, TagK3 }
 import izreflect.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
 
 private[zio] trait VersionSpecific {
 
   type Tagged[A] = Tag[A]
   type TagType   = LightTypeTag
+
+  type TaggedF[F[_]] = TagK[F]
+  type TaggedF2[F[_, _]] = TagKK[F]
+  type TaggedF3[F[_, _, _]] = TagK3[F]
+  type TaggedF4[F[_, _, _, _]] = Tag.auto.T[F]
+  type TaggedF5[F[_, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF6[F[_, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF7[F[_, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF8[F[_, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF9[F[_, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF10[F[_, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF11[F[_, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF12[F[_, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF13[F[_, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF14[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF15[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF16[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF17[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF18[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF19[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF20[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF21[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
+  type TaggedF22[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
 
   private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
     left <:< right
