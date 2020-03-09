@@ -172,12 +172,28 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual(5))(equalTo(release1))
       } @@ nonFlaky,
       testM("mapError does not interfere with sharing") {
+        import zio.CanFail.canFail
         for {
           ref    <- makeRef
           layer1 = makeLayer1(ref)
           layer2 = makeLayer2(ref)
           layer3 = makeLayer3(ref)
           env    = ((layer1.mapError(identity) >>> layer2) ++ (layer1 >>> layer3)).build
+          _      <- env.use_(ZIO.unit)
+          actual <- ref.get
+        } yield assert(actual(0))(equalTo(acquire1)) &&
+          assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
+          assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
+          assert(actual(5))(equalTo(release1))
+      } @@ nonFlaky,
+      testM("orDie does not interfere with sharing") {
+        import zio.CanFail.canFail
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          layer3 = makeLayer3(ref)
+          env    = ((layer1.orDie >>> layer2) ++ (layer1 >>> layer3)).build
           _      <- env.use_(ZIO.unit)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
