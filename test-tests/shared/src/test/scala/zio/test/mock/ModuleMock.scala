@@ -17,7 +17,7 @@
 package zio.test.mock
 
 import zio.test.mock.internal.MockRuntime
-import zio.{ IO, UIO, ZLayer }
+import zio.{ Has, IO, UIO, ZLayer }
 
 /**
  * Example module used for testing ZIO Mock framework.
@@ -25,7 +25,7 @@ import zio.{ IO, UIO, ZLayer }
 object ModuleMock {
 
   sealed trait Tag[I, A] extends Method[Module, I, A] {
-    val mock = ModuleMock.Mock
+    val mock = ModuleMock.mock
   }
 
   case object Static               extends Tag[Unit, String]
@@ -43,19 +43,19 @@ object ModuleMock {
 
   case object MaxParams extends Tag[T22[Int], String]
 
-  private[mock] lazy val Mock: ZLayer[MockRuntime, Nothing, Module] =
+  private[test] lazy val mock: ZLayer[Has[MockRuntime], Nothing, Module] =
     ZLayer.fromService(mock =>
       new Module.Service {
-        val static: IO[String, String]                                     = mock(Static)
-        def zeroParams: IO[String, String]                                 = mock(ZeroParams)
-        def zeroParamsWithParens(): IO[String, String]                     = mock(ZeroParamsWithParens)
-        def singleParam(a: Int): IO[String, String]                        = mock(SingleParam, a)
-        def manyParams(a: Int, b: String, c: Long): IO[String, String]     = mock(ManyParams, (a, b, c))
-        def manyParamLists(a: Int)(b: String)(c: Long): IO[String, String] = mock(ManyParamLists, a, b, c)
-        def command(a: Int): IO[Unit, Unit]                                = mock(Command, a)
-        def looped(a: Int): UIO[Nothing]                                   = mock(Looped, a)
-        def overloaded(n: Int): IO[String, String]                         = mock(Overloaded._0, n)
-        def overloaded(n: Long): IO[String, String]                        = mock(Overloaded._1, n)
+        val static: IO[String, String]                                     = mock(ModuleMock.Static)
+        def zeroParams: IO[String, String]                                 = mock(ModuleMock.ZeroParams)
+        def zeroParamsWithParens(): IO[String, String]                     = mock(ModuleMock.ZeroParamsWithParens)
+        def singleParam(a: Int): IO[String, String]                        = mock(ModuleMock.SingleParam, a)
+        def manyParams(a: Int, b: String, c: Long): IO[String, String]     = mock(ModuleMock.ManyParams, (a, b, c))
+        def manyParamLists(a: Int)(b: String)(c: Long): IO[String, String] = mock(ModuleMock.ManyParamLists, a, b, c)
+        def command(a: Int): IO[Unit, Unit]                                = mock(ModuleMock.Command, a)
+        def looped(a: Int): UIO[Nothing]                                   = mock(ModuleMock.Looped, a)
+        def overloaded(n: Int): IO[String, String]                         = mock(ModuleMock.Overloaded._0, n)
+        def overloaded(n: Long): IO[String, String]                        = mock(ModuleMock.Overloaded._1, n)
         def maxParams(
           a: Int,
           b: Int,
@@ -80,7 +80,7 @@ object ModuleMock {
           u: Int,
           v: Int
         ): IO[String, String] =
-          mock(MaxParams, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+          mock(ModuleMock.MaxParams, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
       }
     )
 }

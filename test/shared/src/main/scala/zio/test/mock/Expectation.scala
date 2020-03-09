@@ -137,7 +137,7 @@ sealed trait Expectation[R <: Has[_]] { self =>
   /**
    * Provided a `MockRuntime` constructs a layer with environment `R`.
    */
-  private[test] def mock: ZLayer[MockRuntime, Nothing, R]
+  private[test] def mock: ZLayer[Has[MockRuntime], Nothing, R]
 
   /**
    * Mock execution flag.
@@ -162,12 +162,12 @@ object Expectation {
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  )(val mock: ZLayer[MockRuntime, Nothing, R])
+  )(val mock: ZLayer[Has[MockRuntime], Nothing, R])
       extends Expectation[R]
 
   private[test] object And {
 
-    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): And[R] =
+    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[Has[MockRuntime], Nothing, R]): And[R] =
       And(children, false, false, List.empty)(mock)
 
     private[test] object Items {
@@ -188,7 +188,7 @@ object Expectation {
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def mock: ZLayer[MockRuntime, Nothing, R] = method.mock
+    def mock: ZLayer[Has[MockRuntime], Nothing, R] = method.mock
   }
 
   private[test] object Call {
@@ -209,12 +209,12 @@ object Expectation {
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  )(val mock: ZLayer[MockRuntime, Nothing, R])
+  )(val mock: ZLayer[Has[MockRuntime], Nothing, R])
       extends Expectation[R]
 
   private[test] object Chain {
 
-    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): Chain[R] =
+    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[Has[MockRuntime], Nothing, R]): Chain[R] =
       Chain(children, false, false, List.empty)(mock)
 
     private[test] object Items {
@@ -232,12 +232,12 @@ object Expectation {
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  )(val mock: ZLayer[MockRuntime, Nothing, R])
+  )(val mock: ZLayer[Has[MockRuntime], Nothing, R])
       extends Expectation[R]
 
   private[test] object Or {
 
-    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): Or[R] =
+    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[Has[MockRuntime], Nothing, R]): Or[R] =
       Or(children, false, false, List.empty)(mock)
 
     private[test] object Items {
@@ -258,7 +258,7 @@ object Expectation {
     started: Int,
     completed: Int
   ) extends Expectation[R] {
-    def mock: ZLayer[MockRuntime, Nothing, R] = child.mock
+    def mock: ZLayer[Has[MockRuntime], Nothing, R] = child.mock
   }
 
   private[test] object Repeated {

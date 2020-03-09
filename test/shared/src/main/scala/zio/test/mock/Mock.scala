@@ -29,8 +29,8 @@ object Mock {
   /**
    * Given initial `State[R]`, constructs a `MockRuntime` running that state.
    */
-  def makeRuntime[R <: Has[_]](state: State[R]): ZLayer[Any, Nothing, MockRuntime] =
-    ZLayer.succeed(new MockRuntime.Service {
+  def makeRuntime[R <: Has[_]](state: State[R]): ZLayer[Any, Nothing, Has[MockRuntime]] =
+    ZLayer.succeed(new MockRuntime {
       def invoke[RIn <: Has[_], ROut, I, E, A](invokedMethod: Method[RIn, I, A], args: I): ZIO[ROut, E, A] = {
 
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] =
