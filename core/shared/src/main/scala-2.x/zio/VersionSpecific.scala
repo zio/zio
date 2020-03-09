@@ -1,7 +1,7 @@
 package zio
 
-import izreflect.fundamentals.reflection.Tags.Tag
-import izreflect.fundamentals.reflection.macrortti.{ LightTypeTag, LightTypeTagRef }
+import izumi.reflect.Tags.Tag
+import izumi.reflect.macrortti.{ LightTypeTag, LightTypeTagRef }
 
 private[zio] trait VersionSpecific {
 
