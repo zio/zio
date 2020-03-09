@@ -45,7 +45,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * outputs of the specified layer.
    */
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    fold(ZLayer.fromFunctionManyM(ZIO.fail(_)), that)
+    fold(ZLayer.fromFunctionManyM(ZIO.halt(_)), that)
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -77,14 +77,14 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * the inputs of this layer, and the error or outputs of the specified layer.
    */
   def fold[E1, ROut2 <: Has[_]](
-    failure: ZLayer[E, E1, ROut2],
+    failure: ZLayer[Cause[E], E1, ROut2],
     success: ZLayer[ROut, E1, ROut2]
-  ): ZLayer[RIn, E1, ROut2] =
+  )(implicit ev: CanFail[E]): ZLayer[RIn, E1, ROut2] =
     new ZLayer(
       ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
         memoMap
           .getOrElseMemoize(self, finalizers)
-          .foldM(
+          .foldCauseM(
             e => memoMap.getOrElseMemoize(failure, finalizers).provide(e),
             r => memoMap.getOrElseMemoize(success, finalizers).provide(r)
           )
@@ -107,8 +107,8 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * Returns a layer with its error channel mapped using the specified
    * function.
    */
-  def mapError[E1](f: E => E1): ZLayer[RIn, E1, ROut] =
-    fold(ZLayer.fromFunctionManyM(e => ZIO.fail(f(e))), ZLayer.identity)
+  def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZLayer[RIn, E1, ROut] =
+    fold(ZLayer.fromFunctionManyM(e => ZIO.halt(e.map(f))), ZLayer.identity)
 
   /**
    * Returns a managed effect that, if evaluated, will return the lazily
@@ -116,6 +116,13 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    */
   def memoize: ZManaged[Any, Nothing, ZLayer[RIn, E, ROut]] =
     build.memoize.map(ZLayer(_))
+
+  /**
+   * Translates effect failure into death of the fiber, making all failures
+   * unchecked and not a part of the type of the layer.
+   */
+  def orDie(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
+    fold(ZLayer.fromFunctionManyM(_.failureOrCause.fold(ZIO.die(_), ZIO.halt(_))), ZLayer.identity)
 
   /**
    * Converts a layer that requires no services into a managed runtime, which
