@@ -1774,6 +1774,10 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertM(Live.live(effect.timeout(1.second)))(isNone)
       } @@ jvmOnly,
+      testM("timeout in uninterruptible region") {
+        val effect = (ZIO.unit.timeout(Duration.Infinity)).uninterruptible
+        assertM(effect)(isSome(isUnit))
+      },
       testM("catchAllCause") {
         val io =
           for {
