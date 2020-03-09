@@ -236,7 +236,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(values)(equalTo(List(1, 1)))
       },
       testM("Runs onSuccess on success") {
-        import zio.CanFail.canFail
+        implicit val canFail = CanFail
         for {
           effects <- Ref.make[List[Int]](Nil)
           res     = (x: Int) => Managed.make(effects.update(x :: _))(_ => effects.update(x :: _))
@@ -253,7 +253,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(values)(equalTo(List(1, 2, 2, 1)))
       },
       testM("Invokes cleanups on interrupt - 1") {
-        import zio.CanFail.canFail
+        implicit val canFail = CanFail
         for {
           effects <- Ref.make[List[Int]](Nil)
           res     = (x: Int) => Managed.make(effects.update(x :: _))(_ => effects.update(x :: _))
@@ -545,7 +545,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("orElseFail")(
       testM("executes this effect and returns its value if it succeeds") {
-        import zio.CanFail.canFail
+        implicit val canFail = CanFail
         val managed = ZManaged.succeedNow(true).orElseFail(false)
         assertM(managed.use(ZIO.succeedNow))(isTrue)
       },
@@ -556,7 +556,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("orElseSucceed")(
       testM("executes this effect and returns its value if it succeeds") {
-        import zio.CanFail.canFail
+        implicit val canFail = CanFail
         val managed = ZManaged.succeedNow(true).orElseSucceed(false)
         assertM(managed.use(ZIO.succeedNow))(isTrue)
       },

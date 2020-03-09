@@ -372,11 +372,11 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
-  def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZSTM[R, Unit, B] =
+  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Unit, B] =
     foldM(
       ev1,
       ev2(_).fold[ZSTM[R, Unit, B]](ZSTM.fail(()))(ZSTM.succeedNow(_))
-    )
+    )(CanFail)
 
   /**
    * Returns a successful effect with the head of the list if the list is
@@ -511,7 +511,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Translates `STM` effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
-  def orDie[E1 >: E](implicit ev1: E1 <:< Throwable, ev2: CanFail[E]): ZSTM[R, Nothing, A] =
+  def orDie(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZSTM[R, Nothing, A] =
     orDieWith(ev1)
 
   /**
