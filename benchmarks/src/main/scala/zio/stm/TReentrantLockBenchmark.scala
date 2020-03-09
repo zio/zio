@@ -19,7 +19,7 @@ class TReentrantLockBenchmark {
 
   val javaLock = new StampedLock()
 
-  val zioLock = TReentrantLock.make.commit
+  val zioLock: ZIO[Any, Nothing, TReentrantLock] = TReentrantLock.make.commit
 
   @Benchmark
   @Group("ZioLockBasic")
@@ -105,7 +105,7 @@ class TReentrantLockBenchmark {
   def zioLockRead(): Unit = {
     val io = for {
       lock <- zioLock
-       _    <- lock.readLock.use(_ => doWorkM())
+      _ <- lock.readLock.use(_ => doWorkM())
     } yield ()
 
     unsafeRun(io)
@@ -115,7 +115,7 @@ class TReentrantLockBenchmark {
   def zioLockWrite(): Unit = {
     val io = for {
       lock <- zioLock
-       _   <- lock.writeLock.use(_ => doWorkM())
+      _ <- lock.writeLock.use(_ => doWorkM())
     } yield ()
 
     unsafeRun(io)
@@ -127,8 +127,7 @@ class TReentrantLockBenchmark {
 
     if (javaLock.validate(stamp)) {
       doWork()
-    }
-    else {
+    } else {
       val stamp = javaLock.readLock()
       doWork()
       javaLock.unlockRead(stamp)
@@ -146,8 +145,6 @@ class TReentrantLockBenchmark {
   def doWorkM(): UIO[Unit] = ZIO.effectTotal(doWork())
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def doWork(): Unit = {
-    Blackhole.consumeCPU(100L)
-  }
+  def doWork(): Unit = Blackhole.consumeCPU(100L)
 
 }
