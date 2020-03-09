@@ -55,8 +55,7 @@ abstract class Method[R <: Has[_]: Tagged, I, A] { self =>
     val fragments = getClass.getName.replaceAll("\\$", ".").split("\\.")
     fragments.toList.splitAt(fragments.size - 3) match {
       case (namespace, module :: service :: method :: Nil) =>
-        val capability = s"${method.head.toLower}${method.tail}"
-        s"""${namespace.mkString(".")}.$module.$service.$capability"""
+        s"""${namespace.mkString(".")}.$module.$service.$method"""
       case _ => fragments.mkString(".")
     }
   }

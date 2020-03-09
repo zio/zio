@@ -150,12 +150,12 @@ private[mock] object MockableMacro {
       q"""
         object $mockName {
           sealed trait Tag[I, A] extends _root_.zio.test.mock.Method[$envType, I, A] {
-            val mock = $mockName.Mock
+            val mock = $mockName.mock
           }
 
           ..$tags
 
-          private lazy val Mock: _root_.zio.ZLayer[_root_.zio.test.mock.internal.MockRuntime, Nothing, $envType] =
+          private lazy val mock: _root_.zio.ZLayer[_root_.zio.test.mock.internal.MockRuntime, Nothing, $envType] =
             _root_.zio.ZLayer.fromService(mock =>
               new $serviceType {
                 ..$mocks

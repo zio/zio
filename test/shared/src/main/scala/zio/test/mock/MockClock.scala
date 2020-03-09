@@ -27,7 +27,7 @@ import zio.{ UIO, ZLayer }
 object MockClock {
 
   sealed trait Tag[I, A] extends Method[Clock, I, A] {
-    val mock = MockClock.Mock
+    val mock = MockClock.mock
   }
 
   object CurrentTime     extends Tag[TimeUnit, Long]
@@ -35,7 +35,7 @@ object MockClock {
   object NanoTime        extends Tag[Unit, Long]
   object Sleep           extends Tag[Duration, Unit]
 
-  private lazy val Mock: ZLayer[MockRuntime, Nothing, Clock] =
+  private lazy val mock: ZLayer[MockRuntime, Nothing, Clock] =
     ZLayer.fromService(mock =>
       new Clock.Service {
         def currentTime(unit: TimeUnit): UIO[Long] = mock(CurrentTime, unit)

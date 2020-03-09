@@ -25,14 +25,14 @@ import zio.{ IO, UIO, ZLayer }
 object MockConsole {
 
   sealed trait Tag[I, A] extends Method[Console, I, A] {
-    val mock = MockConsole.Mock
+    val mock = MockConsole.mock
   }
 
   object PutStr   extends Tag[String, Unit]
   object PutStrLn extends Tag[String, Unit]
   object GetStrLn extends Tag[Unit, String]
 
-  private lazy val Mock: ZLayer[MockRuntime, Nothing, Console] =
+  private lazy val mock: ZLayer[MockRuntime, Nothing, Console] =
     ZLayer.fromService(mock =>
       new Console.Service {
         def putStr(line: String): UIO[Unit]   = mock(PutStr, line)

@@ -22,7 +22,7 @@ import zio.test.Assertion
 import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
 import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
 import zio.test.mock.internal.{ MockException, MockRuntime, State }
-import zio.{ Has, IO, Managed, Tagged, ZLayer }
+import zio.{ Has, IO, Layer, Managed, Tagged, ZLayer }
 
 /**
  * An `Expectation[R]` is an immutable tree structure that represents
@@ -311,7 +311,7 @@ object Expectation {
   /**
    * Implicitly converts Expectation to ZLayer mock environment.
    */
-  implicit def toLayer[R <: Has[_]: Tagged](trunk: Expectation[R]): ZLayer.NoDeps[Nothing, R] =
+  implicit def toLayer[R <: Has[_]: Tagged](trunk: Expectation[R]): Layer[Nothing, R] =
     ZLayer.fromManagedMany(
       for {
         state <- Managed.make(State.make(trunk))(State.checkUnmetExpectations)

@@ -23,14 +23,14 @@ import zio.{ IO, UIO, ZLayer }
 object MockSystem {
 
   sealed trait Tag[I, A] extends Method[System, I, A] {
-    val mock = MockSystem.Mock
+    val mock = MockSystem.mock
   }
 
   object Env           extends Tag[String, Option[String]]
   object Property      extends Tag[String, Option[String]]
   object LineSeparator extends Tag[Unit, String]
 
-  private lazy val Mock: ZLayer[MockRuntime, Nothing, System] =
+  private lazy val mock: ZLayer[MockRuntime, Nothing, System] =
     ZLayer.fromService(mock =>
       new System.Service {
         def env(variable: String): IO[SecurityException, Option[String]] = mock(Env, variable)

@@ -17,7 +17,7 @@ package zio.test
 
 import zio.duration._
 import zio.test.environment.Live
-import zio.{ Has, Tagged, ZIO, ZLayer }
+import zio.{ Has, Layer, Tagged, ZIO }
 
 package object mock {
 
@@ -29,7 +29,7 @@ package object mock {
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
 
   private[mock] def testSpec[E, A](name: String)(
-    mock: ZLayer.NoDeps[Nothing, Module],
+    mock: Layer[Nothing, Module],
     app: ZIO[Module, E, A],
     check: Assertion[A]
   ) = testM(name) {
@@ -38,7 +38,7 @@ package object mock {
   }
 
   private[mock] def testSpecTimeboxed[E, A](name: String)(duration: Duration)(
-    mock: ZLayer.NoDeps[Nothing, Module],
+    mock: Layer[Nothing, Module],
     app: ZIO[Module, E, A],
     check: Assertion[Option[A]]
   ) = testM(name) {
@@ -53,7 +53,7 @@ package object mock {
   }
 
   private[mock] def testSpecDied[E, A](name: String)(
-    mock: ZLayer.NoDeps[Nothing, Module],
+    mock: Layer[Nothing, Module],
     app: ZIO[Module, E, A],
     check: Assertion[Throwable]
   ) = testM(name) {
@@ -68,7 +68,7 @@ package object mock {
   }
 
   private[mock] def testSpecComposed[R <: Has[_]: Tagged, E, A](name: String)(
-    mock: ZLayer.NoDeps[Nothing, R],
+    mock: Layer[Nothing, R],
     app: ZIO[R, E, A],
     check: Assertion[A]
   ) = testM(name) {

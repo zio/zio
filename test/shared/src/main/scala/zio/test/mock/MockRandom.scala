@@ -23,7 +23,7 @@ import zio.{ Chunk, UIO, ZLayer }
 object MockRandom {
 
   sealed trait Tag[I, A] extends Method[Random, I, A] {
-    val mock = MockRandom.Mock
+    val mock = MockRandom.mock
   }
 
   object NextBoolean  extends Tag[Unit, Boolean]
@@ -43,7 +43,7 @@ object MockRandom {
   object NextString        extends Tag[Int, String]
   object Shuffle           extends Tag[List[Any], List[Any]]
 
-  private lazy val Mock: ZLayer[MockRuntime, Nothing, Random] =
+  private lazy val mock: ZLayer[MockRuntime, Nothing, Random] =
     ZLayer.fromService(mock =>
       new Random.Service {
         val nextBoolean: UIO[Boolean]                = mock(NextBoolean)
