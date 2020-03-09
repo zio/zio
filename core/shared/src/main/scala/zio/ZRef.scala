@@ -382,11 +382,11 @@ object ZRef extends Serializable {
           derived.value.modify { s =>
             derived.getEither(s) match {
               case Left(e) => (Left(e), s)
-              case Right(b) => {
-                val (c, a) = f(b)
-                derived.setEither(a) match {
+              case Right(a1) => {
+                val (b, a2) = f(a1)
+                derived.setEither(a2) match {
                   case Left(e)  => (Left(e), s)
-                  case Right(s) => (Right(c), s)
+                  case Right(s) => (Right(b), s)
                 }
               }
             }
