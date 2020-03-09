@@ -1678,7 +1678,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       self,
       ZIOFn(() => that) { cause =>
         cause.stripFailures match {
-          case None    => that.catchAllCause(cause2 => ZIO.halt(Cause.die(FiberFailure(cause)) ++ cause2))
+          case None    => that
           case Some(c) => ZIO.halt(c)
         }
       },
