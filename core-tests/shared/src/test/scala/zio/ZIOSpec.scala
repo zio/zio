@@ -160,6 +160,29 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert((a, b, c))(equalTo((0, 0, 0)))
       }
     ),
+    suite("catchAllDefect")(
+      testM("recovers from all defects") {
+        val s   = "division by zero"
+        val zio = ZIO.die(new IllegalArgumentException(s))
+        for {
+          result <- zio.catchAllDefect(e => ZIO.succeedNow(e.getMessage))
+        } yield assert(result)(equalTo(s))
+      },
+      testM("leaves errors") {
+        val t   = new IllegalArgumentException("division by zero")
+        val zio = ZIO.fail(t)
+        for {
+          exit <- zio.catchAllDefect(e => ZIO.succeedNow(e.getMessage)).run
+        } yield assert(exit)(fails(equalTo(t)))
+      },
+      testM("leaves values") {
+        val t   = new IllegalArgumentException("division by zero")
+        val zio = ZIO.succeedNow(t)
+        for {
+          result <- zio.catchAllDefect(e => ZIO.succeedNow(e.getMessage))
+        } yield assert(result)((equalTo(t)))
+      }
+    ),
     suite("catchSomeCause")(
       testM("catches matching cause") {
         ZIO.interrupt.catchSomeCause {
@@ -176,6 +199,44 @@ object ZIOSpec extends ZIOBaseSpec {
             assert(_)(isLeft(equalTo(Cause.interrupt(fiberId))))
           )
         }
+      }
+    ),
+    suite("catchSomeDefect")(
+      testM("recovers from some defects") {
+        val s   = "division by zero"
+        val zio = ZIO.die(new IllegalArgumentException(s))
+        for {
+          result <- zio.catchSomeDefect {
+                     case e: IllegalArgumentException => ZIO.succeedNow(e.getMessage)
+                   }
+        } yield assert(result)(equalTo(s))
+      },
+      testM("leaves the rest") {
+        val t   = new IllegalArgumentException("division by zero")
+        val zio = ZIO.die(t)
+        for {
+          exit <- zio.catchSomeDefect {
+                   case e: NumberFormatException => ZIO.succeedNow(e.getMessage)
+                 }.run
+        } yield assert(exit)(dies(equalTo(t)))
+      },
+      testM("leaves errors") {
+        val t   = new IllegalArgumentException("division by zero")
+        val zio = ZIO.fail(t)
+        for {
+          exit <- zio.catchSomeDefect {
+                   case e: IllegalArgumentException => ZIO.succeedNow(e.getMessage)
+                 }.run
+        } yield assert(exit)(fails(equalTo(t)))
+      },
+      testM("leaves values") {
+        val t   = new IllegalArgumentException("division by zero")
+        val zio = ZIO.succeedNow(t)
+        for {
+          result <- zio.catchSomeDefect {
+                     case e: IllegalArgumentException => ZIO.succeedNow(e.getMessage)
+                   }
+        } yield assert(result)((equalTo(t)))
       }
     ),
     suite("collect")(
