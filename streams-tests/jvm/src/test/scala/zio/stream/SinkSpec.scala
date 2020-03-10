@@ -9,7 +9,7 @@ import SinkUtils._
 import zio._
 import zio.clock.Clock
 import zio.duration._
-import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isSome, isTrue, succeeds }
+import zio.test.Assertion.{ anything, equalTo, fails, isFalse, isLeft, isSome, isSubtype, isTrue, succeeds }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1192,7 +1192,7 @@ object SinkSpec extends ZIOBaseSpec {
           } yield assert((result ++ leftover.flatten).toArray[String].toList)(equalTo(ys))
         }
       ),
-      suite("splitOn")(
+      suite("splitOn string")(
         testM("preserves data")(checkM(Gen.listOf(Gen.anyString).filter(_.nonEmpty)) { lines =>
           val data = lines.mkString("|")
           val sink = ZSink.splitOn("|")
@@ -1245,6 +1245,69 @@ object SinkSpec extends ZIOBaseSpec {
               .mapConcatChunk(identity)
               .runCollect
           )(equalTo(List("abc", "abc")))
+        }
+      ),
+      suite("splitOn chunk")(
+        testM("happy path") {
+          val sink = ZSink.splitOn(Chunk.single(0), 1000)
+          val in   = Stream(Chunk(1), Chunk(2, 0, 3), Chunk(4, 0, 5), Chunk(6))
+          assertM(in.aggregate(sink).runCollect)(
+            equalTo(List(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6)))
+          )
+        },
+        testM("split delimiter") {
+          val sink = ZSink.splitOn(Chunk(-1, -2, -3), 1000)
+          val in   = Stream(Chunk(0, 1, -1, -2), Chunk(-3, 2, 3))
+          assertM(in.aggregate(sink).runCollect)(
+            equalTo(List(Chunk(0, 1), Chunk(2, 3)))
+          )
+        },
+        testM("partial delimiter") {
+          val sink = ZSink.splitOn(Chunk(-1, -2), 1000)
+          val in   = Stream(Chunk(0, 1, -1, 2), Chunk(3, -2, 4))
+          assertM(in.aggregate(sink).runCollect)(
+            equalTo(List(Chunk(0, 1, -1, 2, 3, -2, 4)))
+          )
+        },
+        testM("deilimter last") {
+          val sink = ZSink.splitOn(Chunk(-1, -2), 1000)
+          val in   = Stream(Chunk(1, 2), Chunk(3, -1, -2))
+          assertM(in.aggregate(sink).runCollect)(
+            equalTo(List(Chunk(1, 2, 3), Chunk.empty))
+          )
+        },
+        testM("delimiter first") {
+          val sink = ZSink.splitOn(Chunk(-1, -2), 1000)
+          val in   = Stream(Chunk(-1, -2, 1, 2), Chunk(3, 4))
+          assertM(in.aggregate(sink).runCollect)(
+            equalTo(List(Chunk.empty, Chunk(1, 2, 3, 4)))
+          )
+        },
+        testM("no delimiter") {
+          val sink = ZSink.splitOn(Chunk(-1), 1000)
+          val in   = Stream(Chunk(1, 2), Chunk(3, 4))
+          assertM(in.aggregate(sink).runCollect)(
+            equalTo(List(Chunk(1, 2, 3, 4)))
+          )
+        },
+        testM("empty stream") {
+          val sink = ZSink.splitOn(Chunk(-1, -2), 1000)
+          val in   = Stream.empty
+          assertM(in.aggregate(sink).runCount)(equalTo(0L))
+        },
+        testM("fails if maximum frame length exceeded") {
+          val sink = ZSink.splitOn(Chunk(-1, -2), 3)
+          val in   = Stream(Chunk(1, 2), Chunk(3, 4, -1, -2, 5))
+          assertM(in.aggregate(sink).runCollect.run)(
+            fails(isSubtype[IllegalArgumentException](anything))
+          )
+        },
+        testM("succeeds if maximum frame length hit exactly") {
+          val sink = ZSink.splitOn(Chunk(-1, -2), 4)
+          val in   = Stream(Chunk(1, 2), Chunk(3, 4, -1, -2, 5))
+          assertM(in.aggregate(sink).runCollect)(
+            equalTo(List(Chunk(1, 2, 3, 4), Chunk(5)))
+          )
         }
       ),
       suite("sum")(
