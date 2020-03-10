@@ -2019,6 +2019,17 @@ object ZLayer {
   def succeedMany[A <: Has[_]](a: => A): Layer[Nothing, A] =
     ZLayer(ZManaged.succeed(a))
 
+  implicit final class ZLayerPassthroughOps[RIn <: Has[_], E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut])
+      extends AnyVal {
+
+    /**
+     * Returns a new layer that produces the outputs of this layer but also
+     * passes through the inputs to this layer.
+     */
+    def passthrough(implicit tag: Tagged[ROut]): ZLayer[RIn, E, RIn with ROut] =
+      ZLayer.identity ++ self
+  }
+
   /**
    * A `MemoMap` memoizes dependencies.
    */
