@@ -19,7 +19,7 @@ package zio.test.mock
 import com.github.ghik.silencer.silent
 
 import zio.test.Assertion
-import zio.{ =!=, Has, Tagged, ZLayer }
+import zio.{ =!=, Has, Tagged, URLayer }
 
 /**
  * A `Model[R, I, A]` represents a capability of environment `R` that
@@ -27,7 +27,7 @@ import zio.{ =!=, Has, Tagged, ZLayer }
  */
 abstract class Method[R <: Has[_]: Tagged, I, A] { self =>
 
-  def mock: ZLayer[MockRuntime, Nothing, R]
+  def envBuilder: URLayer[Has[Proxy], R]
 
   /**
    * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.

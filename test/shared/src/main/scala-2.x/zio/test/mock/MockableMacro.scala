@@ -89,9 +89,9 @@ private[mock] object MockableMacro {
         symbol.paramLists match {
           case argLists if argLists.flatten.nonEmpty =>
             val argNames = argLists.flatten.map(_.name)
-            q"mock($tag, ..$argNames)"
+            q"invoke($tag, ..$argNames)"
           case _ =>
-            q"mock($tag)"
+            q"invoke($tag)"
         }
 
       if (symbol.isVal || symbol.isVar) q"$mods val $name: $returnType = $returnValue"
@@ -146,17 +146,19 @@ private[mock] object MockableMacro {
         .toList
         .flatten
 
+    val envBuilderType = tq"_root_.zio.URLayer[_root_.zio.Has[_root_.zio.test.mock.Proxy], $envType]"
+
     val result =
       q"""
         object $mockName {
           sealed trait Tag[I, A] extends _root_.zio.test.mock.Method[$envType, I, A] {
-            val mock = $mockName.mock
+            def envBuilder: $envBuilderType = $mockName.envBuilder
           }
 
           ..$tags
 
-          private lazy val mock: _root_.zio.URLayer[_root_.zio.test.mock.MockRuntime, $envType] =
-            _root_.zio.ZLayer.fromService(mock =>
+          private lazy val envBuilder: $envBuilderType =
+            _root_.zio.ZLayer.fromService(invoke =>
               new $serviceType {
                 ..$mocks
               }

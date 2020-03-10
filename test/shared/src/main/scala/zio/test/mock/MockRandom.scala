@@ -17,12 +17,12 @@
 package zio.test.mock
 
 import zio.random.Random
-import zio.{ Chunk, UIO, URLayer, ZLayer }
+import zio.{ Chunk, Has, UIO, URLayer, ZLayer }
 
 object MockRandom {
 
   sealed trait Tag[I, A] extends Method[Random, I, A] {
-    val mock = MockRandom.mock
+    def envBuilder = MockRandom.envBuilder
   }
 
   object NextBoolean  extends Tag[Unit, Boolean]
@@ -42,21 +42,21 @@ object MockRandom {
   object NextString        extends Tag[Int, String]
   object Shuffle           extends Tag[List[Any], List[Any]]
 
-  private lazy val mock: URLayer[MockRuntime, Random] =
-    ZLayer.fromService(mock =>
+  private lazy val envBuilder: URLayer[Has[Proxy], Random] =
+    ZLayer.fromService(invoke =>
       new Random.Service {
-        val nextBoolean: UIO[Boolean]                = mock(NextBoolean)
-        def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(NextBytes, length)
-        val nextDouble: UIO[Double]                  = mock(NextDouble)
-        val nextFloat: UIO[Float]                    = mock(NextFloat)
-        val nextGaussian: UIO[Double]                = mock(NextGaussian)
-        def nextInt(n: Int): UIO[Int]                = mock(NextInt._0, n)
-        val nextInt: UIO[Int]                        = mock(NextInt._1)
-        val nextLong: UIO[Long]                      = mock(NextLong._0)
-        def nextLong(n: Long): UIO[Long]             = mock(NextLong._1, n)
-        val nextPrintableChar: UIO[Char]             = mock(NextPrintableChar)
-        def nextString(length: Int)                  = mock(NextString, length)
-        def shuffle[A](list: List[A]): UIO[List[A]]  = mock(Shuffle, list).asInstanceOf[UIO[List[A]]]
+        val nextBoolean: UIO[Boolean]                = invoke(NextBoolean)
+        def nextBytes(length: Int): UIO[Chunk[Byte]] = invoke(NextBytes, length)
+        val nextDouble: UIO[Double]                  = invoke(NextDouble)
+        val nextFloat: UIO[Float]                    = invoke(NextFloat)
+        val nextGaussian: UIO[Double]                = invoke(NextGaussian)
+        def nextInt(n: Int): UIO[Int]                = invoke(NextInt._0, n)
+        val nextInt: UIO[Int]                        = invoke(NextInt._1)
+        val nextLong: UIO[Long]                      = invoke(NextLong._0)
+        def nextLong(n: Long): UIO[Long]             = invoke(NextLong._1, n)
+        val nextPrintableChar: UIO[Char]             = invoke(NextPrintableChar)
+        def nextString(length: Int)                  = invoke(NextString, length)
+        def shuffle[A](list: List[A]): UIO[List[A]]  = invoke(Shuffle, list).asInstanceOf[UIO[List[A]]]
       }
     )
 }

@@ -16,7 +16,7 @@
 
 package zio.test.mock.module
 
-import zio.test.mock.{ Method, MockRuntime }
+import zio.test.mock.{ Method, Proxy }
 import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
 /**
@@ -25,7 +25,7 @@ import zio.{ Has, IO, UIO, URLayer, ZLayer }
 object ModuleMock {
 
   sealed trait Tag[I, A] extends Method[Module, I, A] {
-    val mock = ModuleMock.mock
+    def envBuilder: URLayer[Has[Proxy], Module] = ModuleMock.envBuilder
   }
 
   case object Static               extends Tag[Unit, String]
@@ -43,19 +43,19 @@ object ModuleMock {
 
   case object MaxParams extends Tag[T22[Int], String]
 
-  private[test] lazy val mock: URLayer[Has[MockRuntime.Service], Module] =
-    ZLayer.fromService(mock =>
+  private[test] lazy val envBuilder: URLayer[Has[Proxy], Module] =
+    ZLayer.fromService(proxy =>
       new Module.Service {
-        val static: IO[String, String]                                     = mock(ModuleMock.Static)
-        def zeroParams: IO[String, String]                                 = mock(ModuleMock.ZeroParams)
-        def zeroParamsWithParens(): IO[String, String]                     = mock(ModuleMock.ZeroParamsWithParens)
-        def singleParam(a: Int): IO[String, String]                        = mock(ModuleMock.SingleParam, a)
-        def manyParams(a: Int, b: String, c: Long): IO[String, String]     = mock(ModuleMock.ManyParams, (a, b, c))
-        def manyParamLists(a: Int)(b: String)(c: Long): IO[String, String] = mock(ModuleMock.ManyParamLists, a, b, c)
-        def command(a: Int): IO[Unit, Unit]                                = mock(ModuleMock.Command, a)
-        def looped(a: Int): UIO[Nothing]                                   = mock(ModuleMock.Looped, a)
-        def overloaded(n: Int): IO[String, String]                         = mock(ModuleMock.Overloaded._0, n)
-        def overloaded(n: Long): IO[String, String]                        = mock(ModuleMock.Overloaded._1, n)
+        val static: IO[String, String]                                     = proxy(Static)
+        def zeroParams: IO[String, String]                                 = proxy(ZeroParams)
+        def zeroParamsWithParens(): IO[String, String]                     = proxy(ZeroParamsWithParens)
+        def singleParam(a: Int): IO[String, String]                        = proxy(SingleParam, a)
+        def manyParams(a: Int, b: String, c: Long): IO[String, String]     = proxy(ManyParams, (a, b, c))
+        def manyParamLists(a: Int)(b: String)(c: Long): IO[String, String] = proxy(ManyParamLists, a, b, c)
+        def command(a: Int): IO[Unit, Unit]                                = proxy(Command, a)
+        def looped(a: Int): UIO[Nothing]                                   = proxy(Looped, a)
+        def overloaded(n: Int): IO[String, String]                         = proxy(Overloaded._0, n)
+        def overloaded(n: Long): IO[String, String]                        = proxy(Overloaded._1, n)
         def maxParams(
           a: Int,
           b: Int,
@@ -80,7 +80,7 @@ object ModuleMock {
           u: Int,
           v: Int
         ): IO[String, String] =
-          mock(ModuleMock.MaxParams, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+          proxy(MaxParams, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
       }
     )
 }

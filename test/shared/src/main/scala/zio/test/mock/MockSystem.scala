@@ -17,24 +17,24 @@
 package zio.test.mock
 
 import zio.system.System
-import zio.{ IO, UIO, URLayer, ZLayer }
+import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
 object MockSystem {
 
   sealed trait Tag[I, A] extends Method[System, I, A] {
-    val mock = MockSystem.mock
+    def envBuilder = MockSystem.envBuilder
   }
 
   object Env           extends Tag[String, Option[String]]
   object Property      extends Tag[String, Option[String]]
   object LineSeparator extends Tag[Unit, String]
 
-  private lazy val mock: URLayer[MockRuntime, System] =
-    ZLayer.fromService(mock =>
+  private lazy val envBuilder: URLayer[Has[Proxy], System] =
+    ZLayer.fromService(invoke =>
       new System.Service {
-        def env(variable: String): IO[SecurityException, Option[String]] = mock(Env, variable)
-        def property(prop: String): IO[Throwable, Option[String]]        = mock(Property, prop)
-        val lineSeparator: UIO[String]                                   = mock(LineSeparator)
+        def env(variable: String): IO[SecurityException, Option[String]] = invoke(Env, variable)
+        def property(prop: String): IO[Throwable, Option[String]]        = invoke(Property, prop)
+        val lineSeparator: UIO[String]                                   = invoke(LineSeparator)
       }
     )
 }

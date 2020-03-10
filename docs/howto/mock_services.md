@@ -104,7 +104,7 @@ object Example {
 object ExampleMock {
 
   sealed trait Tag[I, A] extends Method[Example, I, A] {
-    val mock: ZLayer[MockRuntime, Nothing, Example] = ???
+    def envBuilder: URLayer[Has[Proxy], Example] = ???
   }
 
   object Static             extends Tag[Unit, String]
@@ -139,18 +139,18 @@ We also need to define a _mock layer_ that defines how calls will be translated 
 ```scala mdoc:silent
 import ExampleMock._
 
-val mockable: ZLayer[MockRuntime, Nothing, Example] =
-  ZLayer.fromService(mock =>
+val EnvBuilder: URLayer[Has[Proxy], Example] =
+  ZLayer.fromService(invoke =>
     new Example.Service {
-      val static                                 = mock(Static)
-      def zeroArgs                               = mock(ZeroArgs)
-      def zeroArgsWithParens()                   = mock(ZeroArgsWithParens)
-      def singleArg(arg1: Int)                   = mock(SingleArg, arg1)
-      def multiArgs(arg1: Int, arg2: Long)       = mock(MultiArgs, arg1, arg2)
-      def multiParamLists(arg1: Int)(arg2: Long) = mock(MultiParamLists, arg1, arg2)
-      def command(arg1: Int)                     = mock(Command, arg1)
-      def overloaded(arg1: Int)                  = mock(Overloaded._0, arg1)
-      def overloaded(arg1: Long)                 = mock(Overloaded._1, arg1)
+      val static                                 = invoke(Static)
+      def zeroArgs                               = invoke(ZeroArgs)
+      def zeroArgsWithParens()                   = invoke(ZeroArgsWithParens)
+      def singleArg(arg1: Int)                   = invoke(SingleArg, arg1)
+      def multiArgs(arg1: Int, arg2: Long)       = invoke(MultiArgs, arg1, arg2)
+      def multiParamLists(arg1: Int)(arg2: Long) = invoke(MultiParamLists, arg1, arg2)
+      def command(arg1: Int)                     = invoke(Command, arg1)
+      def overloaded(arg1: Int)                  = invoke(Overloaded._0, arg1)
+      def overloaded(arg1: Long)                 = invoke(Overloaded._1, arg1)
     }
   )
 ```
@@ -160,7 +160,7 @@ by the mock framework as we define our expectations.
 
 ```scala mdoc:silent
 sealed trait Tag[I, A] extends Method[Example, I, A] {
-  val mock: ZLayer[MockRuntime, Nothing, Example] = mockable
+  val envBuilder: URLayer[Has[Proxy], Example] = EnvBuilder
 }
 ```
 
@@ -190,16 +190,16 @@ object AccountObserver {
 object AccountObserverMock {
 
   sealed trait Tag[I, A] extends Method[AccountObserver, I, A] {
-    val mock: ZLayer[MockRuntime, Nothing, AccountObserver] =
-      AccountObserverMock.Mock
+    def envBuilder: URLayer[Has[Proxy], AccountObserver] =
+      AccountObserverMock.envBuilder
   }
 
   object ProcessEvent extends Tag[AccountEvent, Unit]
 
-  private val Mock: ZLayer[MockRuntime, Nothing, AccountObserver] =
-    ZLayer.fromService(mock =>
+  private val envBuilder: URLayer[Has[Proxy], AccountObserver] =
+    ZLayer.fromService(invoke =>
       new AccountObserver.Service {
-        def processEvent(event: AccountEvent) = mock(ProcessEvent, event)
+        def processEvent(event: AccountEvent) = invoke(ProcessEvent, event)
       }
     )
 }
@@ -263,8 +263,8 @@ import zio.test.mock.MockConsole._
 import AccountObserverMock._
 
 val event = new AccountEvent {}
-val app: ZIO[AccountObserver, Nothing, Unit] = AccountObserver.processEvent(event)
-val mockEnv: Layer[Nothing, Console] = (
+val app: URIO[AccountObserver, Unit] = AccountObserver.processEvent(event)
+val mockEnv: ULayer[Console] = (
   (PutStrLn(equalTo(s"Got $event")) returns unit) andThen
   (GetStrLn returns value("42")) andThen
   (PutStrLn(equalTo("You entered: 42")) returns unit)
@@ -293,7 +293,7 @@ import zio.console.Console
 import zio.random.Random
 import zio.test.mock.MockRandom._
 
-val combinedEnv: Layer[Nothing, Console with Random] = (
+val combinedEnv: ULayer[Console with Random] = (
   (PutStrLn(equalTo("What is your name?")) returns unit) andThen
   (GetStrLn returns value("Mike")) andThen
   (NextInt._1 returns value(42)) andThen

@@ -21,12 +21,12 @@ import java.util.concurrent.TimeUnit
 
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.{ UIO, URLayer, ZLayer }
+import zio.{ Has, UIO, URLayer, ZLayer }
 
 object MockClock {
 
   sealed trait Tag[I, A] extends Method[Clock, I, A] {
-    val mock = MockClock.mock
+    def envBuilder = MockClock.envBuilder
   }
 
   object CurrentTime     extends Tag[TimeUnit, Long]
@@ -34,13 +34,13 @@ object MockClock {
   object NanoTime        extends Tag[Unit, Long]
   object Sleep           extends Tag[Duration, Unit]
 
-  private lazy val mock: URLayer[MockRuntime, Clock] =
-    ZLayer.fromService(mock =>
+  private lazy val envBuilder: URLayer[Has[Proxy], Clock] =
+    ZLayer.fromService(invoke =>
       new Clock.Service {
-        def currentTime(unit: TimeUnit): UIO[Long] = mock(CurrentTime, unit)
-        def currentDateTime: UIO[OffsetDateTime]   = mock(CurrentDateTime)
-        val nanoTime: UIO[Long]                    = mock(NanoTime)
-        def sleep(duration: Duration): UIO[Unit]   = mock(Sleep, duration)
+        def currentTime(unit: TimeUnit): UIO[Long] = invoke(CurrentTime, unit)
+        def currentDateTime: UIO[OffsetDateTime]   = invoke(CurrentDateTime)
+        val nanoTime: UIO[Long]                    = invoke(NanoTime)
+        def sleep(duration: Duration): UIO[Unit]   = invoke(Sleep, duration)
       }
     )
 }

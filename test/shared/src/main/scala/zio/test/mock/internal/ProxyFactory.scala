@@ -17,20 +17,20 @@
 package zio.test.mock.internal
 
 import zio.test.Assertion
-import zio.test.mock.{ Expectation, Method, MockRuntime }
-import zio.{ Has, IO, Promise, UIO, ZIO, ZLayer }
+import zio.test.mock.{ Expectation, Method, Proxy }
+import zio.{ Has, IO, Promise, Tagged, UIO, ULayer, ZIO, ZLayer }
 
-object MockFactory {
+object ProxyFactory {
 
   import Expectation._
   import InvalidCall._
   import MockException._
 
   /**
-   * Given initial `State[R]`, constructs a `MockRuntime` running that state.
+   * Given initial `State[R]`, constructs a `Proxy` running that state.
    */
-  def makeRuntime[R <: Has[_]](state: State[R]): ZLayer[Any, Nothing, MockRuntime] =
-    ZLayer.succeed(new MockRuntime.Service {
+  def mockProxy[R <: Has[_]: Tagged](state: State[R]): ULayer[Has[Proxy]] =
+    ZLayer.succeed(new Proxy {
       def invoke[RIn <: Has[_], ROut, I, E, A](invokedMethod: Method[RIn, I, A], args: I): ZIO[ROut, E, A] = {
 
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] =
@@ -78,7 +78,7 @@ object MockFactory {
                               satisfied = updatedChildren.forall(_.satisfied),
                               saturated = updatedChildren.forall(_.saturated),
                               invocations = id :: invocations
-                            )(self.mock)
+                            )
                           )
                         }
                       )
@@ -105,7 +105,7 @@ object MockFactory {
                               satisfied = updatedChildren.forall(_.satisfied),
                               saturated = updatedChildren.forall(_.saturated),
                               invocations = id :: invocations
-                            )(self.mock)
+                            )
                           )
                         }
                       )
@@ -132,7 +132,7 @@ object MockFactory {
                               satisfied = updatedChildren.exists(_.satisfied),
                               saturated = updatedChildren.exists(_.saturated),
                               invocations = id :: invocations
-                            )(self.mock)
+                            )
                           )
                         }
                       )
@@ -201,19 +201,19 @@ object MockFactory {
                 children = self.children.map(resetTree),
                 satisfied = false,
                 saturated = false
-              )(self.mock)
+              )
             case self: And[R] =>
               self.copy(
                 children = self.children.map(resetTree),
                 satisfied = false,
                 saturated = false
-              )(self.mock)
+              )
             case self: Or[R] =>
               self.copy(
                 children = self.children.map(resetTree),
                 satisfied = false,
                 saturated = false
-              )(self.mock)
+              )
             case self: Repeated[R] =>
               self.copy(
                 child = resetTree(self.child),

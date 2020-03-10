@@ -21,8 +21,8 @@ import scala.language.implicitConversions
 import zio.test.Assertion
 import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
 import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
-import zio.test.mock.internal.{ MockException, MockFactory, State }
-import zio.{ Has, IO, Layer, Managed, Tagged, ZLayer }
+import zio.test.mock.internal.{ MockException, ProxyFactory, State }
+import zio.{ Has, IO, Managed, Tagged, ULayer, URLayer, ZLayer }
 
 /**
  * An `Expectation[R]` is an immutable tree structure that represents
@@ -33,19 +33,19 @@ sealed trait Expectation[R <: Has[_]] { self =>
   /**
    * Operator alias for `and`.
    */
-  def &&[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
+  def &&[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
     and[R0](that)
 
   /**
    * Operator alias for `or`.
    */
-  def ||[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
+  def ||[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
     or[R0](that)
 
   /**
    * Operator alias for `andThen`.
    */
-  def ++[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
+  def ++[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
     andThen[R0](that)
 
   /**
@@ -55,12 +55,12 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) and (MockConsole.getStrLn returns value("foo"))
    * }}
    */
-  def and[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
+  def and[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
     (self, that) match {
-      case (And.Items(xs1), And.Items(xs2)) => And(cast(xs1 ++ xs2), self.mock ++ that.mock)
-      case (And.Items(xs), _)               => And(cast(xs :+ that), self.mock ++ that.mock)
-      case (_, And.Items(xs))               => And(cast(self :: xs), self.mock ++ that.mock)
-      case _                                => And(cast(self :: that :: Nil), self.mock ++ that.mock)
+      case (And.Items(xs1), And.Items(xs2)) => And(cast(xs1 ++ xs2))
+      case (And.Items(xs), _)               => And(cast(xs :+ that))
+      case (_, And.Items(xs))               => And(cast(self :: xs))
+      case _                                => And(cast(self :: that :: Nil))
     }
 
   /**
@@ -70,12 +70,12 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) andThen (MockConsole.getStrLn returns value("foo"))
    * }}
    */
-  def andThen[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
+  def andThen[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
     (self, that) match {
-      case (Chain.Items(xs1), Chain.Items(xs2)) => Chain(cast(xs1 ++ xs2), self.mock ++ that.mock)
-      case (Chain.Items(xs), _)                 => Chain(cast(xs :+ that), self.mock ++ that.mock)
-      case (_, Chain.Items(xs))                 => Chain(cast(self :: xs), self.mock ++ that.mock)
-      case _                                    => Chain(cast(self :: that :: Nil), self.mock ++ that.mock)
+      case (Chain.Items(xs1), Chain.Items(xs2)) => Chain(cast(xs1 ++ xs2))
+      case (Chain.Items(xs), _)                 => Chain(cast(xs :+ that))
+      case (_, Chain.Items(xs))                 => Chain(cast(self :: xs))
+      case _                                    => Chain(cast(self :: that :: Nil))
     }
 
   /**
@@ -99,12 +99,12 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) or (MockConsole.getStrLn returns value("foo"))
    * }}
    */
-  def or[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
+  def or[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
     (self, that) match {
-      case (Or.Items(xs1), Or.Items(xs2)) => Or(cast(xs1 ++ xs2), self.mock ++ that.mock)
-      case (Or.Items(xs), _)              => Or(cast(xs :+ that), self.mock ++ that.mock)
-      case (_, Or.Items(xs))              => Or(cast(self :: xs), self.mock ++ that.mock)
-      case _                              => Or(cast(self :: that :: Nil), self.mock ++ that.mock)
+      case (Or.Items(xs1), Or.Items(xs2)) => Or(cast(xs1 ++ xs2))
+      case (Or.Items(xs), _)              => Or(cast(xs :+ that))
+      case (_, Or.Items(xs))              => Or(cast(self :: xs))
+      case _                              => Or(cast(self :: that :: Nil))
     }
 
   /**
@@ -135,9 +135,9 @@ sealed trait Expectation[R <: Has[_]] { self =>
   private[test] val invocations: List[Int]
 
   /**
-   * Provided a `Mock` constructs a layer with environment `R`.
+   * Provided a `Proxy` constructs a layer with environment `R`.
    */
-  private[test] def mock: ZLayer[MockRuntime, Nothing, R]
+  private[test] def envBuilder: URLayer[Has[Proxy], R]
 
   /**
    * Mock execution flag.
@@ -157,18 +157,19 @@ object Expectation {
    * Models expectations conjunction on environment `R`. Expectations are checked in the order they are provided,
    * meaning that earlier expectations may shadow later ones.
    */
-  private[test] case class And[R <: Has[_]](
+  private[test] case class And[R <: Has[_]: Tagged](
     children: List[Expectation[R]],
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  )(val mock: ZLayer[MockRuntime, Nothing, R])
-      extends Expectation[R]
+  ) extends Expectation[R] {
+    def envBuilder: URLayer[Has[Proxy], R] = children.map(_.envBuilder).reduce(_ ++ _)
+  }
 
   private[test] object And {
 
-    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): And[R] =
-      And(children, false, false, List.empty)(mock)
+    def apply[R <: Has[_]: Tagged](children: List[Expectation[R]]): And[R] =
+      And(children, false, false, List.empty)
 
     private[test] object Items {
       def unapply[R <: Has[_]](and: And[R]): Option[List[Expectation[R]]] =
@@ -188,7 +189,7 @@ object Expectation {
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def mock: ZLayer[MockRuntime, Nothing, R] = method.mock
+    def envBuilder: URLayer[Has[Proxy], R] = method.envBuilder
   }
 
   private[test] object Call {
@@ -204,18 +205,19 @@ object Expectation {
   /**
    * Models sequential expectations on environment `R`.
    */
-  private[test] case class Chain[R <: Has[_]](
+  private[test] case class Chain[R <: Has[_]: Tagged](
     children: List[Expectation[R]],
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  )(val mock: ZLayer[MockRuntime, Nothing, R])
-      extends Expectation[R]
+  ) extends Expectation[R] {
+    def envBuilder: URLayer[Has[Proxy], R] = children.map(_.envBuilder).reduce(_ ++ _)
+  }
 
   private[test] object Chain {
 
-    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): Chain[R] =
-      Chain(children, false, false, List.empty)(mock)
+    def apply[R <: Has[_]: Tagged](children: List[Expectation[R]]): Chain[R] =
+      Chain(children, false, false, List.empty)
 
     private[test] object Items {
       def unapply[R <: Has[_]](chain: Chain[R]): Option[List[Expectation[R]]] =
@@ -227,18 +229,19 @@ object Expectation {
    * Models expectations disjunction on environment `R`. Expectations are checked in the order they are provided,
    * meaning that earlier expectations may shadow later ones.
    */
-  private[test] case class Or[R <: Has[_]](
+  private[test] case class Or[R <: Has[_]: Tagged](
     children: List[Expectation[R]],
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
-  )(val mock: ZLayer[MockRuntime, Nothing, R])
-      extends Expectation[R]
+  ) extends Expectation[R] {
+    def envBuilder: URLayer[Has[Proxy], R] = children.map(_.envBuilder).reduce(_ ++ _)
+  }
 
   private[test] object Or {
 
-    def apply[R <: Has[_]](children: List[Expectation[R]], mock: ZLayer[MockRuntime, Nothing, R]): Or[R] =
-      Or(children, false, false, List.empty)(mock)
+    def apply[R <: Has[_]: Tagged](children: List[Expectation[R]]): Or[R] =
+      Or(children, false, false, List.empty)
 
     private[test] object Items {
       def unapply[R <: Has[_]](or: Or[R]): Option[List[Expectation[R]]] =
@@ -258,7 +261,7 @@ object Expectation {
     started: Int,
     completed: Int
   ) extends Expectation[R] {
-    def mock: ZLayer[MockRuntime, Nothing, R] = child.mock
+    def envBuilder: URLayer[Has[Proxy], R] = child.envBuilder
   }
 
   private[test] object Repeated {
@@ -311,11 +314,11 @@ object Expectation {
   /**
    * Implicitly converts Expectation to ZLayer mock environment.
    */
-  implicit def toLayer[R <: Has[_]: Tagged](trunk: Expectation[R]): Layer[Nothing, R] =
+  implicit def toLayer[R <: Has[_]: Tagged](trunk: Expectation[R]): ULayer[R] =
     ZLayer.fromManagedMany(
       for {
         state <- Managed.make(State.make(trunk))(State.checkUnmetExpectations)
-        env   <- (MockFactory.makeRuntime(state) >>> trunk.mock).build
+        env   <- (ProxyFactory.mockProxy(state) >>> trunk.envBuilder).build
       } yield env
     )
 }
