@@ -410,7 +410,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       }
       .reverse
 
-  private def find[Z](f: PartialFunction[Cause[E], Z]): Option[Z] = {
+  final def find[Z](f: PartialFunction[Cause[E], Z]): Option[Z] = {
     @tailrec
     def loop(cause: Cause[E], stack: List[Cause[E]]): Option[Z] =
       f.lift(cause) match {
@@ -431,7 +431,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     loop(self, Nil)
   }
 
-  private def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
+  final def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
     @tailrec
     def loop(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
       (f.applyOrElse[(Z, Cause[E]), Z](z -> cause, _ => z), cause) match {
