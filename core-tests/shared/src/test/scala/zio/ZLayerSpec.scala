@@ -274,7 +274,8 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("passthrough") {
         val layer: ZLayer[Has[Int], Nothing, Has[String]] =
           ZLayer.fromService(_.toString)
-        val live = ZLayer.succeed(1) >>> layer.passthrough
+        val live: ZLayer[Any, Nothing, Has[Int] with Has[String]] =
+          ZLayer.succeed(1) >>> layer.passthrough
         val zio = for {
           i <- ZIO.environment[Has[Int]].map(_.get[Int])
           s <- ZIO.environment[Has[String]].map(_.get[String])
