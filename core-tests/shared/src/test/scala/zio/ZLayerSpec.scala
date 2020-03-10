@@ -270,6 +270,18 @@ object ZLayerSpec extends ZIOBaseSpec {
               }
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
+      } @@ nonFlaky,
+      testM("orElse") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          env    = ((layer1 >>> ZLayer.fail("fail")) orElse layer2).build
+          fiber  <- env.use_(ZIO.unit).fork
+          _      <- fiber.interrupt
+          actual <- ref.get
+        } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
+          (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
       } @@ nonFlaky
     )
 }
