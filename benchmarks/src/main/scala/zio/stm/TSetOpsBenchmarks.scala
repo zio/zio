@@ -12,7 +12,7 @@ import zio._
 class TSetOpsBenchmarks {
   import IOBenchmarks.unsafeRun
 
-  @Param(Array("100", "10000"))
+  @Param(Array("10", "100", "10000", "100000"))
   var size: Int = _
 
   private var set: TSet[Int] = _
