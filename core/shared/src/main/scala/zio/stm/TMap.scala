@@ -16,6 +16,8 @@
 
 package zio.stm
 
+import com.github.ghik.silencer.silent
+
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
@@ -183,6 +185,7 @@ final class TMap[K, V] private (
 
       val newBuckets = new TArray(newArr)
 
+      @silent("inferred to be `Any`")
       val overwrite =
         STM
           .foreach(original)(_.get.map(_.view.map(g)))
