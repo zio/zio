@@ -27,9 +27,9 @@ private[test] object Macros {
     import c.universe._
     try {
       c.typecheck(c.parse(c.eval(c.Expr[String](c.untypecheck(code.tree)))))
-      c.Expr(q"zio.UIO.succeedNow(Right(()))")
+      c.Expr(q"zio.UIO.succeed(Right(()))")
     } catch {
-      case e: TypecheckException => c.Expr(q"zio.UIO.succeedNow(Left(${e.getMessage}))")
+      case e: TypecheckException => c.Expr(q"zio.UIO.succeed(Left(${e.getMessage}))")
       case _: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed"))""")
     }
   }
