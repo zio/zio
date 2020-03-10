@@ -110,7 +110,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * set.
    */
   def union(other: TSet[A]): STM[Nothing, Unit] =
-    other.toList.flatMap[Any, Nothing, List[Unit]](vals => STM.collectAll(vals.map(put))).unit
+    other.toList.flatMap(vals => STM.foreach_(vals)(put))
 }
 
 object TSet {
