@@ -17,7 +17,7 @@
 package zio.test.mock
 
 import zio.system.System
-import zio.{ Has, IO, UIO, ZLayer }
+import zio.{ IO, UIO, URLayer, ZLayer }
 
 object MockSystem {
 
@@ -29,7 +29,7 @@ object MockSystem {
   object Property      extends Tag[String, Option[String]]
   object LineSeparator extends Tag[Unit, String]
 
-  private lazy val mock: ZLayer[Has[Mock], Nothing, System] =
+  private lazy val mock: URLayer[MockRuntime, System] =
     ZLayer.fromService(mock =>
       new System.Service {
         def env(variable: String): IO[SecurityException, Option[String]] = mock(Env, variable)

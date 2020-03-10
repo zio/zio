@@ -104,7 +104,7 @@ object Example {
 object ExampleMock {
 
   sealed trait Tag[I, A] extends Method[Example, I, A] {
-    val mock: ZLayer[Has[Mock], Nothing, Example] = ???
+    val mock: ZLayer[MockRuntime, Nothing, Example] = ???
   }
 
   object Static             extends Tag[Unit, String]
@@ -139,7 +139,7 @@ We also need to define a _mock layer_ that defines how calls will be translated 
 ```scala mdoc:silent
 import ExampleMock._
 
-val mockable: ZLayer[Has[Mock], Nothing, Example] =
+val mockable: ZLayer[MockRuntime, Nothing, Example] =
   ZLayer.fromService(mock =>
     new Example.Service {
       val static                                 = mock(Static)
@@ -160,7 +160,7 @@ by the mock framework as we define our expectations.
 
 ```scala mdoc:silent
 sealed trait Tag[I, A] extends Method[Example, I, A] {
-  val mock: ZLayer[Has[Mock], Nothing, Example] = mockable
+  val mock: ZLayer[MockRuntime, Nothing, Example] = mockable
 }
 ```
 
@@ -190,13 +190,13 @@ object AccountObserver {
 object AccountObserverMock {
 
   sealed trait Tag[I, A] extends Method[AccountObserver, I, A] {
-    val mock: ZLayer[Has[Mock], Nothing, AccountObserver] =
+    val mock: ZLayer[MockRuntime, Nothing, AccountObserver] =
       AccountObserverMock.Mock
   }
 
   object ProcessEvent extends Tag[AccountEvent, Unit]
 
-  private val Mock: ZLayer[Has[Mock], Nothing, AccountObserver] =
+  private val Mock: ZLayer[MockRuntime, Nothing, AccountObserver] =
     ZLayer.fromService(mock =>
       new AccountObserver.Service {
         def processEvent(event: AccountEvent) = mock(ProcessEvent, event)

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.mock.module
 
 import zio.{ IO, ZIO }
 

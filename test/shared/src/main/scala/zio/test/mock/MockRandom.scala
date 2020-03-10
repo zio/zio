@@ -17,7 +17,7 @@
 package zio.test.mock
 
 import zio.random.Random
-import zio.{ Chunk, Has, UIO, ZLayer }
+import zio.{ Chunk, UIO, URLayer, ZLayer }
 
 object MockRandom {
 
@@ -42,7 +42,7 @@ object MockRandom {
   object NextString        extends Tag[Int, String]
   object Shuffle           extends Tag[List[Any], List[Any]]
 
-  private lazy val mock: ZLayer[Has[Mock], Nothing, Random] =
+  private lazy val mock: URLayer[MockRuntime, Random] =
     ZLayer.fromService(mock =>
       new Random.Service {
         val nextBoolean: UIO[Boolean]                = mock(NextBoolean)

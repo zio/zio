@@ -17,7 +17,7 @@
 package zio.test.mock.internal
 
 import zio.test.Assertion
-import zio.test.mock.{ Expectation, Method, Mock }
+import zio.test.mock.{ Expectation, Method, MockRuntime }
 import zio.{ Has, IO, Promise, UIO, ZIO, ZLayer }
 
 object MockFactory {
@@ -29,8 +29,8 @@ object MockFactory {
   /**
    * Given initial `State[R]`, constructs a `MockRuntime` running that state.
    */
-  def make[R <: Has[_]](state: State[R]): ZLayer[Any, Nothing, Has[Mock]] =
-    ZLayer.succeed(new Mock {
+  def makeRuntime[R <: Has[_]](state: State[R]): ZLayer[Any, Nothing, MockRuntime] =
+    ZLayer.succeed(new MockRuntime.Service {
       def invoke[RIn <: Has[_], ROut, I, E, A](invokedMethod: Method[RIn, I, A], args: I): ZIO[ROut, E, A] = {
 
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] =

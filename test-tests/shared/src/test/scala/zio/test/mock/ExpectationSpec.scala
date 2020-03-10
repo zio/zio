@@ -1,9 +1,10 @@
 package zio.test.mock
 
 import zio.test.Assertion
+import zio.test.mock.module.ModuleMock
 import zio.test.{ assert, suite, test, ZIOBaseSpec }
 
-object ExpectationSpec extends ZIOBaseSpec {
+object ExpectationSpec extends ZIOBaseSpec with MockSpecUtils {
 
   import Assertion._
   import Expectation._

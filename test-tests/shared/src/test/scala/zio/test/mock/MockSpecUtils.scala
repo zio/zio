@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package zio.test
+package zio.test.mock
 
 import zio.duration._
 import zio.test.environment.Live
+import zio.test.mock.module.{ Module, T22 }
+import zio.test.{ assertM, testM, Assertion }
 import zio.{ Has, Layer, Tagged, ZIO }
 
-package object mock {
-
-  type Module = Has[Module.Service]
-
-  type T22[A] = (A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A)
+trait MockSpecUtils {
 
   lazy val intTuple22: T22[Int] =
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)

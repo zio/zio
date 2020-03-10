@@ -8,7 +8,7 @@ import zio.system.System
 import zio.test.{ suite, Assertion, TestAspect, ZIOBaseSpec }
 import zio.{ clock, console, random, system }
 
-object MockComposedEnvSpec extends ZIOBaseSpec {
+object MockComposedEnvSpec extends ZIOBaseSpec with MockSpecUtils {
 
   import Assertion._
   import Expectation._

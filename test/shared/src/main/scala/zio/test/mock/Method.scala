@@ -27,7 +27,7 @@ import zio.{ =!=, Has, Tagged, ZLayer }
  */
 abstract class Method[R <: Has[_]: Tagged, I, A] { self =>
 
-  def mock: ZLayer[Has[Mock], Nothing, R]
+  def mock: ZLayer[MockRuntime, Nothing, R]
 
   /**
    * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.

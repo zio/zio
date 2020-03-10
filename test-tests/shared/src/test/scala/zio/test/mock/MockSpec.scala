@@ -2,10 +2,11 @@ package zio.test.mock
 
 import zio.duration._
 import zio.test.mock.internal.{ InvalidCall, MockException }
+import zio.test.mock.module.{ Module, ModuleMock }
 import zio.test.{ suite, Assertion, ZIOBaseSpec }
 import zio.{ IO, UIO }
 
-object MockSpec extends ZIOBaseSpec {
+object MockSpec extends ZIOBaseSpec with MockSpecUtils {
 
   import Assertion._
   import Expectation._

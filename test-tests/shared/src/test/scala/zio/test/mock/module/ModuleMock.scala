@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.mock.module
 
-import zio.{ Has, IO, UIO, ZLayer }
+import zio.test.mock.{ Method, MockRuntime }
+import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
 /**
  * Example module used for testing ZIO Mock framework.
@@ -42,7 +43,7 @@ object ModuleMock {
 
   case object MaxParams extends Tag[T22[Int], String]
 
-  private[test] lazy val mock: ZLayer[Has[Mock], Nothing, Module] =
+  private[test] lazy val mock: URLayer[Has[MockRuntime.Service], Module] =
     ZLayer.fromService(mock =>
       new Module.Service {
         val static: IO[String, String]                                     = mock(ModuleMock.Static)

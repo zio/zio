@@ -19,7 +19,7 @@ package zio.test.mock
 import java.io.IOException
 
 import zio.console.Console
-import zio.{ Has, IO, UIO, ZLayer }
+import zio.{ IO, UIO, URLayer, ZLayer }
 
 object MockConsole {
 
@@ -31,7 +31,7 @@ object MockConsole {
   object PutStrLn extends Tag[String, Unit]
   object GetStrLn extends Tag[Unit, String]
 
-  private lazy val mock: ZLayer[Has[Mock], Nothing, Console] =
+  private lazy val mock: URLayer[MockRuntime, Console] =
     ZLayer.fromService(mock =>
       new Console.Service {
         def putStr(line: String): UIO[Unit]   = mock(PutStr, line)

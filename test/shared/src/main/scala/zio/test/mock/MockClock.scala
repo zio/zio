@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.{ Has, UIO, ZLayer }
+import zio.{ UIO, URLayer, ZLayer }
 
 object MockClock {
 
@@ -34,7 +34,7 @@ object MockClock {
   object NanoTime        extends Tag[Unit, Long]
   object Sleep           extends Tag[Duration, Unit]
 
-  private lazy val mock: ZLayer[Has[Mock], Nothing, Clock] =
+  private lazy val mock: URLayer[MockRuntime, Clock] =
     ZLayer.fromService(mock =>
       new Clock.Service {
         def currentTime(unit: TimeUnit): UIO[Long] = mock(CurrentTime, unit)
