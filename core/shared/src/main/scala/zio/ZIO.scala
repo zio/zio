@@ -1701,6 +1701,29 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def unit: ZIO[R, E, Unit] = as(())
 
   /**
+   * Takes some fiber failures and converts them into errors.
+   */
+  final def unrefine[E1 >: E](pf: PartialFunction[Throwable, E1]): ZIO[R, E1, A] =
+    unrefineWith(pf)(identity)
+
+  /**
+   * Takes some fiber failures and converts them into errors.
+   */
+  final def unrefineTo[E1 >: E: ClassTag]: ZIO[R, E1, A] =
+    unrefine { case e: E1 => e }
+
+  /**
+   * Takes some fiber failures and converts them into errors, using the
+   * specified function to convert the `E` into an `E1`.
+   */
+  final def unrefineWith[E1](pf: PartialFunction[Throwable, E1])(f: E => E1): ZIO[R, E1, A] =
+    catchAllCause { cause =>
+      cause.find {
+        case Cause.Die(t) if pf.isDefinedAt(t) => pf(t)
+      }.fold(ZIO.halt(cause.map(f)))(ZIO.fail(_))
+    }
+
+  /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[R1 <: R, E1, A1 >: A](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, Cause[E1], A1]): ZIO[R1, E1, A1] =
