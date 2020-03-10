@@ -16,24 +16,24 @@
 
 package zio
 
-import zio.internal.Sync
-
 import java.util.concurrent.atomic.AtomicLong
+
+import zio.internal.Sync
 
 /**
  * A scope is a value that allows adding finalizers up until the point where
  * the scope is closed.
  */
-final class Scope private (private val id: Long, @volatile private var finalizers: UIO[Any]) { self =>
+final class ZScope private (private val id: Long, @volatile private var finalizers: UIO[Any]) { self =>
 
   /**
    * Creates a child scope that is bound to this scope.
    */
-  def child: UIO[Option[Scope]] = UIO {
+  def child: UIO[Option[ZScope]] = UIO {
     Sync(self) {
       if (finalizers eq null) None
       else {
-        val child = Scope.unsafeMake()
+        val child = ZScope.unsafeMake()
 
         self.finalizers = self.finalizers *> child.close
 
@@ -78,7 +78,7 @@ final class Scope private (private val id: Long, @volatile private var finalizer
   /**
    * Attempts to migrate the finalizers of this scope to the specified scope.
    */
-  def migrateToWith(that: Scope)(f: (UIO[Any], UIO[Any]) => UIO[Any]): UIO[Boolean] = UIO {
+  def migrateToWith(that: ZScope)(f: (UIO[Any], UIO[Any]) => UIO[Any]): UIO[Boolean] = UIO {
     val (lock1, lock2) = if (self.id < that.id) (self, that) else (that, self)
 
     Sync(lock1) {
@@ -99,13 +99,13 @@ final class Scope private (private val id: Long, @volatile private var finalizer
    */
   def open: UIO[Boolean] = UIO(finalizers ne null)
 }
-object Scope {
+object ZScope {
   private val counter: AtomicLong = new AtomicLong()
 
   /**
    * A tuple that contains a scope, together with an effect that closes the scope.
    */
-  final case class Open(close: UIO[Boolean], scope: Scope)
+  final case class Open(close: UIO[Boolean], scope: ZScope)
 
   /**
    * An effect that makes a new scope, together with an effect that can close
@@ -114,7 +114,7 @@ object Scope {
   val make: UIO[Open] = UIO(unsafeMake())
 
   private def unsafeMake(): Open = {
-    val scope = new Scope(counter.getAndIncrement(), ZIO.unit)
+    val scope = new ZScope(counter.getAndIncrement(), ZIO.unit)
 
     val close = UIO.effectSuspendTotal {
       Sync(scope) {
