@@ -16,13 +16,22 @@
 
 package zio
 
-@annotation.implicitNotFound(
-  "The environment ${A} already contains service ${B}, are you sure you want to overwrite it? Use Has#update to update a service already inside the environment."
-)
-trait NotExtends[A, B] extends Serializable
+import scala.annotation.implicitNotFound
+import scala.implicits.Not
 
-object NotExtends {
-  implicit def notExtends0[A, B]: A NotExtends B      = new NotExtends[A, B] {}
-  implicit def notExtends1[A <: B, B]: A NotExtends B = ???
-  implicit def notExtends2[A <: B, B]: A NotExtends B = ???
+/**
+ * A value of type `NeedsEnv[R]` provides implicit evidence that an effect with
+ * environment type `R` needs an environment, that is, that `R` is not equal to
+ * `Any`.
+ */
+@implicitNotFound(
+  "This operation assumes that your effect requires an environment. " +
+    "However, your effect has Any for the environment type, which means it " +
+    "has no requirement, so there is no need to provide the environment."
+)
+sealed trait NeedsEnv[+R]
+
+object NeedsEnv extends NeedsEnv[Nothing] {
+
+  implicit def needsEnv[R](implicit ev: Not[R =:= Any]): NeedsEnv[R] = NeedsEnv
 }

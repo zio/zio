@@ -4,7 +4,7 @@ import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
 import zio.test.environment.TestEnvironment
-import zio.{ Has, Ref, ZIO, ZLayer }
+import zio.{ Has, NeedsEnv, Ref, ZIO, ZLayer }
 
 object SpecSpec extends ZIOBaseSpec {
 
@@ -19,7 +19,7 @@ object SpecSpec extends ZIOBaseSpec {
   def spec = suite("SpecSpec")(
     suite("provideLayerShared")(
       testM("gracefully handles fiber death") {
-        import zio.NeedsEnv.needsEnv
+        implicit val needsEnv = NeedsEnv
         val spec = suite("Suite1")(
           test("Test1") {
             assert(true)(isTrue)
