@@ -2769,6 +2769,53 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(isNone)
       }
     ),
+    suite("unrefine")(
+      testM("converts some fiber failures into errors") {
+        val s    = "division by zero"
+        val zio1 = ZIO.die(new IllegalArgumentException(s))
+        val zio2 = zio1.unrefine { case e: IllegalArgumentException => e.getMessage }
+        assertM(zio2.run)(fails(equalTo(s)))
+      },
+      testM("leaves the rest") {
+        val t    = new IllegalArgumentException("division by zero")
+        val zio1 = ZIO.die(t)
+        val zio2 = zio1.unrefine { case e: NumberFormatException => e.getMessage }
+        assertM(zio2.run)(dies(equalTo(t)))
+      }
+    ),
+    suite("unrefineTo")(
+      testM("converts some fiber failures into errors") {
+        val t    = new IllegalArgumentException("division by zero")
+        val zio1 = ZIO.die(t)
+        val zio2 = zio1.unrefineTo[IllegalArgumentException]
+        assertM(zio2.run)(fails(equalTo(t)))
+      },
+      testM("leaves the rest") {
+        val t    = new IllegalArgumentException("division by zero")
+        val zio1 = ZIO.die(t)
+        val zio2 = zio1.unrefineTo[NumberFormatException]
+        assertM(zio2.run)(dies(equalTo(t)))
+      }
+    ),
+    suite("unrefineWith")(
+      testM("converts some fiber failures into errors") {
+        val s    = "division by zero"
+        val zio1 = ZIO.die(new IllegalArgumentException(s))
+        val zio2 = zio1.unrefineWith { case e: IllegalArgumentException => Option(e.getMessage) }(_ => None)
+        assertM(zio2.run)(fails(isSome(equalTo(s))))
+      },
+      testM("leaves the rest") {
+        val t    = new IllegalArgumentException("division by zero")
+        val zio1 = ZIO.die(t)
+        val zio2 = zio1.unrefineWith { case e: NumberFormatException => Option(e.getMessage) }(_ => None)
+        assertM(zio2.run)(dies(equalTo(t)))
+      },
+      testM("uses the specified function to convert the `E` into an `E1`") {
+        val zio1 = ZIO.fail("fail")
+        val zio2 = zio1.unrefineWith { case e: IllegalArgumentException => Option(e.getMessage) }(_ => None)
+        assertM(zio2.run)(fails(isNone))
+      }
+    ),
     suite("unsandbox")(
       testM("unwraps exception") {
         val failure: IO[Cause[Exception], String] = IO.fail(fail(new Exception("fail")))
