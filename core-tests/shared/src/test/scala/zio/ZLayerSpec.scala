@@ -172,7 +172,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual(5))(equalTo(release1))
       } @@ nonFlaky,
       testM("mapError does not interfere with sharing") {
-        import zio.CanFail.canFail
+        implicit val canFail = CanFail
         for {
           ref    <- makeRef
           layer1 = makeLayer1(ref)
@@ -187,7 +187,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual(5))(equalTo(release1))
       } @@ nonFlaky,
       testM("orDie does not interfere with sharing") {
-        import zio.CanFail.canFail
+        implicit val canFail = CanFail
         for {
           ref    <- makeRef
           layer1 = makeLayer1(ref)
