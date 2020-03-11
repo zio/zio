@@ -35,7 +35,7 @@ import zio.internal.Platform
  * Because of their excellent composition properties, layers are the idiomatic
  * way in ZIO to create services that depend on other services.
  */
-final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
+final class ZLayer[-RIn, +E, +ROut] private (
   private val scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]]
 ) { self =>
 
@@ -44,22 +44,8 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * layer, resulting in a new layer with the inputs of this layer, and the
    * outputs of the specified layer.
    */
-  def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+  def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
     fold(ZLayer.fromFunctionManyM(ZIO.halt(_)), that)
-
-  /**
-   * Combines this layer with the specified layer, producing a new layer that
-   * has the inputs of both layers, and the outputs of both layers.
-   */
-  def ++[E1 >: E, RIn2, ROut1 >: ROut <: Has[_], ROut2 <: Has[_]](
-    that: ZLayer[RIn2, E1, ROut2]
-  )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-    zipWithPar(that)(_.union[ROut2](_))
-
-  def +!+[E1 >: E, RIn2, ROut2 <: Has[_]](
-    that: ZLayer[RIn2, E1, ROut2]
-  ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
-    zipWithPar(that)(_.unionAll[ROut2](_))
 
   /**
    * Builds a layer into a managed value.
@@ -76,7 +62,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * the specified `failure` or `success` layers, resulting in a new layer with
    * the inputs of this layer, and the error or outputs of the specified layer.
    */
-  def fold[E1, ROut2 <: Has[_]](
+  def fold[E1, ROut2](
     failure: ZLayer[Cause[E], E1, ROut2],
     success: ZLayer[ROut, E1, ROut2]
   )(implicit ev: CanFail[E]): ZLayer[RIn, E1, ROut2] =
@@ -100,7 +86,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
   /**
    * Returns a new layer whose output is mapped by the specified function.
    */
-  def map[ROut1 <: Has[_]](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
+  def map[ROut1](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
     self >>> ZLayer.fromFunctionMany(f)
 
   /**
@@ -128,7 +114,7 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
    * Executes this layer and returns its output, if it succeeds, but otherwise
    * executes the specified layer.
    */
-  def orElse[RIn1 <: RIn, E1, ROut1 >: ROut <: Has[_]](that: => ZLayer[RIn1, E1, ROut1])(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
+  def orElse[RIn1 <: RIn, E1, ROut1 >: ROut](that: => ZLayer[RIn1, E1, ROut1])(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
     new ZLayer(
       ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
         memoMap
@@ -145,17 +131,11 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     build.provide(ev).map(Runtime(_, p))
 
   /**
-   * Updates one of the services output by this layer.
-   */
-  def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
-    self >>> ZLayer.fromFunctionMany(_.update[A](f))
-
-  /**
    * Combines this layer with the specified layer, producing a new layer that
    * has the inputs of both layers, and the outputs of both layers combined
    * using the specified function.
    */
-  def zipWithPar[E1 >: E, RIn2, ROut1 >: ROut <: Has[_], ROut2 <: Has[_], ROut3 <: Has[_]](
+  def zipWithPar[E1 >: E, RIn2, ROut1 >: ROut, ROut2, ROut3](
     that: ZLayer[RIn2, E1, ROut2]
   )(f: (ROut, ROut2) => ROut3): ZLayer[RIn with RIn2, E1, ROut3] =
     new ZLayer(
@@ -167,12 +147,12 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
 
 object ZLayer {
   @deprecated("use Layer", "1.0.0")
-  type NoDeps[+E, +B <: Has[_]] = ZLayer[Any, E, B]
+  type NoDeps[+E, +B] = ZLayer[Any, E, B]
 
   /**
    * Constructs a layer from a managed resource.
    */
-  def apply[RIn, E, ROut <: Has[_]](managed: ZManaged[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
+  def apply[RIn, E, ROut](managed: ZManaged[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
     new ZLayer(Managed.succeed(_ => managed))
 
   /**
@@ -193,7 +173,7 @@ object ZLayer {
    * or more services. The acquire and release actions will be performed
    * uninterruptibly.
    */
-  def fromAcquireReleaseMany[R, E, A <: Has[_]](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, A] =
+  def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, A] =
     fromManagedMany(ZManaged.make(acquire)(release))
 
   /**
@@ -206,7 +186,7 @@ object ZLayer {
    * Constructs a layer from the specified effect, which must return one or
    * more services.
    */
-  def fromEffectMany[R, E, A <: Has[_]](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
+  def fromEffectMany[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
     ZLayer(ZManaged.fromEffect(zio))
 
   /**
@@ -233,21 +213,21 @@ object ZLayer {
    * Constructs a layer from the environment using the specified function,
    * which must return one or more services.
    */
-  def fromFunctionMany[A, B <: Has[_]](f: A => B): ZLayer[A, Nothing, B] =
+  def fromFunctionMany[A, B](f: A => B): ZLayer[A, Nothing, B] =
     fromFunctionManyM(a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * function, which must return one or more services.
    */
-  def fromFunctionManyM[A, E, B <: Has[_]](f: A => IO[E, B]): ZLayer[A, E, B] =
+  def fromFunctionManyM[A, E, B](f: A => IO[E, B]): ZLayer[A, E, B] =
     fromFunctionManyManaged(a => f(a).toManaged_)
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * resourceful function, which must return one or more services.
    */
-  def fromFunctionManyManaged[A, E, B <: Has[_]](f: A => Managed[E, B]): ZLayer[A, E, B] =
+  def fromFunctionManyManaged[A, E, B](f: A => Managed[E, B]): ZLayer[A, E, B] =
     ZLayer(ZManaged.fromFunctionM(f))
 
   /**
@@ -923,7 +903,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromService`.
    */
-  def fromServiceMany[A: Tagged, B <: Has[_]](f: A => B): ZLayer[Has[A], Nothing, B] =
+  def fromServiceMany[A: Tagged, B](f: A => B): ZLayer[Has[A], Nothing, B] =
     fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
   /**
@@ -931,7 +911,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, B](
     f: (A0, A1) => B
   ): ZLayer[Has[A0] with Has[A1], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -943,7 +923,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, B](
     f: (A0, A1, A2) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -955,7 +935,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, B](
     f: (A0, A1, A2, A3) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -967,7 +947,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, B](
     f: (A0, A1, A2, A3, A4) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -979,7 +959,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -991,7 +971,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1003,7 +983,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1015,7 +995,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1027,7 +1007,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1039,7 +1019,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1051,7 +1031,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1063,7 +1043,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1075,7 +1055,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1087,7 +1067,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1099,7 +1079,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1111,7 +1091,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1123,7 +1103,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1135,7 +1115,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1147,7 +1127,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1159,7 +1139,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1171,7 +1151,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, B <: Has[_]](
+  def fromServicesMany[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -1183,7 +1163,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServiceM`.
    */
-  def fromServiceManyM[A: Tagged, R, E, B <: Has[_]](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
+  def fromServiceManyM[A: Tagged, R, E, B](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
     fromServiceManyManaged(a => f(a).toManaged_)
 
   /**
@@ -1191,7 +1171,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, R, E, B](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1203,7 +1183,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, R, E, B](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1215,7 +1195,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R, E, B](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1227,7 +1207,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1239,7 +1219,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1251,7 +1231,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1263,7 +1243,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1275,7 +1255,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1287,7 +1267,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1299,7 +1279,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1311,7 +1291,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1323,7 +1303,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1335,7 +1315,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1347,7 +1327,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1359,7 +1339,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1371,7 +1351,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1383,7 +1363,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1395,7 +1375,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1407,7 +1387,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1419,7 +1399,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1431,7 +1411,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
@@ -1443,7 +1423,7 @@ object ZLayer {
    * specified service, which must return one or more services. For the more
    * common variant that returns a single service see `fromServiceManaged`.
    */
-  def fromServiceManyManaged[A: Tagged, R, E, B <: Has[_]](f: A => ZManaged[R, E, B]): ZLayer[R with Has[A], E, B] =
+  def fromServiceManyManaged[A: Tagged, R, E, B](f: A => ZManaged[R, E, B]): ZLayer[R with Has[A], E, B] =
     ZLayer(ZManaged.accessManaged[R with Has[A]](m => f(m.get[A])))
 
   /**
@@ -1451,7 +1431,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, R, E, B](
     f: (A0, A1) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] =
     ZLayer {
@@ -1467,7 +1447,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, R, E, B](
     f: (A0, A1, A2) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
     ZLayer {
@@ -1484,7 +1464,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R, E, B](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
     ZLayer {
@@ -1502,7 +1482,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
     ZLayer {
@@ -1521,7 +1501,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] =
     ZLayer {
@@ -1541,7 +1521,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] =
     ZLayer {
@@ -1562,7 +1542,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, B] =
     ZLayer {
@@ -1584,7 +1564,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, B] =
     ZLayer {
@@ -1607,7 +1587,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, B] =
     ZLayer {
@@ -1631,7 +1611,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, B] =
     ZLayer {
@@ -1656,7 +1636,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] =
     ZLayer {
@@ -1682,7 +1662,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] =
     ZLayer {
@@ -1709,7 +1689,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] =
     ZLayer {
@@ -1737,7 +1717,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] =
     ZLayer {
@@ -1766,7 +1746,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] =
     ZLayer {
@@ -1796,7 +1776,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] =
     ZLayer {
@@ -1827,7 +1807,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, B] =
     ZLayer {
@@ -1859,7 +1839,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, B] =
     ZLayer {
@@ -1892,7 +1872,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] =
     ZLayer {
@@ -1926,7 +1906,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] =
     ZLayer {
@@ -1961,7 +1941,7 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B <: Has[_]](
+  def fromServicesManyManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, A5: Tagged, A6: Tagged, A7: Tagged, A8: Tagged, A9: Tagged, A10: Tagged, A11: Tagged, A12: Tagged, A13: Tagged, A14: Tagged, A15: Tagged, A16: Tagged, A17: Tagged, A18: Tagged, A19: Tagged, A20: Tagged, A21: Tagged, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] =
     ZLayer {
@@ -2002,20 +1982,20 @@ object ZLayer {
    * Constructs a layer from a managed resource, which must return one or more
    * services.
    */
-  def fromManagedMany[R, E, A <: Has[_]](m: ZManaged[R, E, A]): ZLayer[R, E, A] =
+  def fromManagedMany[R, E, A](m: ZManaged[R, E, A]): ZLayer[R, E, A] =
     ZLayer(m)
 
   /**
    * An identity layer that passes along its inputs.
    */
-  def identity[A <: Has[_]]: ZLayer[A, Nothing, A] =
+  def identity[A]: ZLayer[A, Nothing, A] =
     ZLayer.requires[A]
 
   /**
    * Constructs a layer that passes along the specified environment as an
    * output.
    */
-  def requires[A <: Has[_]]: ZLayer[A, Nothing, A] =
+  def requires[A]: ZLayer[A, Nothing, A] =
     ZLayer(ZManaged.environment[A])
 
   /**
@@ -2035,10 +2015,33 @@ object ZLayer {
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
-  def succeedMany[A <: Has[_]](a: => A): Layer[Nothing, A] =
+  def succeedMany[A](a: => A): Layer[Nothing, A] =
     ZLayer(ZManaged.succeed(a))
 
-  implicit final class ZLayerPassthroughOps[RIn <: Has[_], E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut])
+  implicit final class ZLayerHasROutOps[RIn, E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
+
+    /**
+     * Combines this layer with the specified layer, producing a new layer that
+     * has the inputs of both layers, and the outputs of both layers.
+     */
+    def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+      self.zipWithPar(that)(_.union[ROut2](_))
+
+    def +!+[E1 >: E, RIn2, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
+      self.zipWithPar(that)(_.unionAll[ROut2](_))
+
+    /**
+     * Updates one of the services output by this layer.
+     */
+    def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
+      self >>> ZLayer.fromFunctionMany(_.update[A](f))
+  }
+
+  implicit final class ZLayerHasRInROutOps[RIn <: Has[_], E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut])
       extends AnyVal {
 
     /**
@@ -2046,7 +2049,7 @@ object ZLayer {
      * passes through the inputs to this layer.
      */
     def passthrough(implicit tag: Tagged[ROut]): ZLayer[RIn, E, RIn with ROut] =
-      ZLayer.identity ++ self
+      ZLayer.identity[RIn] ++ self
   }
 
   /**
@@ -2059,7 +2062,7 @@ object ZLayer {
      * returns it. Otherwise, obtains the dependency, stores it in the memo map,
      * and adds a finalizer to the outer `Managed`.
      */
-    def getOrElseMemoize[E, A, B <: Has[_]](
+    def getOrElseMemoize[E, A, B](
       layer: ZLayer[A, E, B],
       finalizerRef: ZManaged.FinalizerRef[Any]
     ): ZManaged[A, E, B]
@@ -2072,10 +2075,10 @@ object ZLayer {
      */
     def make: UIO[MemoMap] =
       RefM
-        .make[Map[ZLayer[Nothing, Any, Has[_]], Reservation[Any, Any, Any]]](Map.empty)
+        .make[Map[ZLayer[Nothing, Any, Any], Reservation[Any, Any, Any]]](Map.empty)
         .map { ref =>
           new MemoMap { self =>
-            final def getOrElseMemoize[E, A, B <: Has[_]](
+            final def getOrElseMemoize[E, A, B](
               layer: ZLayer[A, E, B],
               finalizers: ZManaged.FinalizerRef[Any]
             ): ZManaged[A, E, B] =

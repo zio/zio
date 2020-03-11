@@ -31,11 +31,11 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type UManaged[+A]      = ZManaged[Any, Nothing, A]
   type TaskManaged[+A]   = ZManaged[Any, Throwable, A]
 
-  type RLayer[-RIn, +ROut <: Has[_]]  = ZLayer[RIn, Throwable, ROut]
-  type URLayer[-RIn, +ROut <: Has[_]] = ZLayer[RIn, Nothing, ROut]
-  type Layer[+E, +ROut <: Has[_]]     = ZLayer[Any, E, ROut]
-  type ULayer[+ROut <: Has[_]]        = ZLayer[Any, Nothing, ROut]
-  type TaskLayer[+ROut <: Has[_]]     = ZLayer[Any, Throwable, ROut]
+  type RLayer[-RIn, +ROut]  = ZLayer[RIn, Throwable, ROut]
+  type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]
+  type Layer[+E, +ROut]     = ZLayer[Any, E, ROut]
+  type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
+  type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
   type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
 
