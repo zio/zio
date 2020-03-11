@@ -3,11 +3,10 @@ package zio.examples.test
 import zio.console.Console
 import zio.random.Random
 import zio.test.Assertion._
-import zio.test.environment.TestEnvironment
 import zio.test.mock.Expectation.{ unit, value, valueF }
 import zio.test.mock.{ MockClock, MockConsole, MockRandom }
 import zio.test.{ assertM, suite, testM, DefaultRunnableSpec }
-import zio.{ clock, console, random }
+import zio.{ clock, console, random, ZIO, ZLayer }
 
 object MockingExampleSpec extends DefaultRunnableSpec {
 
@@ -56,11 +55,14 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       import MockConsole._
       import MockRandom._
 
-      val app        = random.nextInt.map(_.toString).flatMap(line => console.putStrLn(line))
-      val randomEnv  = nextInt._1 returns value(42)
-      val consoleEnv = putStrLn(equalTo("42")) returns unit
+      val app: ZIO[Random with Console, Nothing, Unit] =
+        random.nextInt.map(_.toString).flatMap(line => console.putStrLn(line))
+      val randomEnv: ZLayer[Any, Nothing, Random] =
+        nextInt._1 returns value(42)
+      val consoleEnv: ZLayer[Any, Nothing, Console] =
+        putStrLn(equalTo("42")) returns unit
 
-      val result = app.provideLayer[Nothing, TestEnvironment, Random with Console](randomEnv ++ consoleEnv)
+      val result = app.provideCustomLayer(randomEnv ++ consoleEnv)
       assertM(result)(isUnit)
     },
     testM("failure if invalid method") {
