@@ -753,7 +753,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when(b: Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
+  def when(b: => Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
@@ -1265,7 +1265,7 @@ object ZSTM {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+  def when[R, E](b: => Boolean)(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     suspend(if (b) stm.unit else unit)
 
   /**
@@ -1283,7 +1283,7 @@ object ZSTM {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+  def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     b.flatMap(b => if (b) stm.unit else unit)
 
   private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
@@ -1300,7 +1300,7 @@ object ZSTM {
   }
 
   final class IfM[R, E](private val b: ZSTM[R, E, Boolean]) {
-    def apply[R1 <: R, E1 >: E, A](onTrue: ZSTM[R1, E1, A], onFalse: ZSTM[R1, E1, A]): ZSTM[R1, E1, A] =
+    def apply[R1 <: R, E1 >: E, A](onTrue: => ZSTM[R1, E1, A], onFalse: => ZSTM[R1, E1, A]): ZSTM[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 

@@ -588,7 +588,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  def whenM(b: UIO[Boolean])(uio: UIO[Any]): UIO[Unit] =
+  def whenM(b: UIO[Boolean])(uio: => UIO[Any]): UIO[Unit] =
     ZIO.whenM(b)(uio)
 
   /**

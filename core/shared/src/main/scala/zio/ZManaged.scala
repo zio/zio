@@ -919,7 +919,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when(b: Boolean): ZManaged[R, E, Unit] =
+  def when(b: => Boolean): ZManaged[R, E, Unit] =
     ZManaged.when(b)(self)
 
   /**
@@ -1193,7 +1193,7 @@ object ZManaged {
   }
 
   final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E, A](onTrue: ZManaged[R1, E1, A], onFalse: ZManaged[R1, E1, A]): ZManaged[R1, E1, A] =
+    def apply[R1 <: R, E1 >: E, A](onTrue: => ZManaged[R1, E1, A], onFalse: => ZManaged[R1, E1, A]): ZManaged[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
@@ -1980,8 +1980,8 @@ object ZManaged {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    if (b) zManaged.unit else unit
+  def when[R, E](b: => Boolean)(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+    ZManaged.suspend(if (b) zManaged.unit else unit)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
@@ -2000,7 +2000,7 @@ object ZManaged {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     b.flatMap(b => if (b) zManaged.unit else unit)
 
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
