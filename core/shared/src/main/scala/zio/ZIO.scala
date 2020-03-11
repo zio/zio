@@ -3192,7 +3192,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * The moral equivalent of `if (p) exp`
    */
   def when[R, E](b: => Boolean)(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    if (b) zio.unit else unit
+    effectSuspendTotal(if (b) zio.unit else unit)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
@@ -3209,7 +3209,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZIO[R, E, Boolean])(zio: ZIO[R, E, Any]): ZIO[R, E, Unit] =
+  def whenM[R, E](b: ZIO[R, E, Boolean])(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     b.flatMap(b => if (b) zio.unit else unit)
 
   /**
@@ -3292,7 +3292,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class IfM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E, A](onTrue: ZIO[R1, E1, A], onFalse: ZIO[R1, E1, A]): ZIO[R1, E1, A] =
+    def apply[R1 <: R, E1 >: E, A](onTrue: => ZIO[R1, E1, A], onFalse: => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 

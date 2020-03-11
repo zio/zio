@@ -469,7 +469,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   /**
    * Runs the spec only if the specified predicate is satisfied.
    */
-  final def when(b: Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Annotations, E, TestSuccess] =
+  final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Annotations, E, TestSuccess] =
     whenM(ZIO.succeedNow(b))
 
   /**
