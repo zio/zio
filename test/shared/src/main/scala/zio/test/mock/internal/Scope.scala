@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.mock.internal
 
-import zio.{ IO, UIO }
+import zio.Has
+import zio.test.mock.Expectation
 
 /**
- * A `ReturnExpectation[-I, E, +A]` represents an expectation on output that given input arguments `I`
- * returns an effect that may fail with an error `E` or produce a single `A`.
+ * A `Scope[R]` represents state of a branch of depth first search
+ * on `Expectation[R]` tree for a matching mock to given invocation.
  */
-sealed trait ReturnExpectation[-I, +E, +A] {
-  val io: I => IO[E, A]
-}
-
-object ReturnExpectation {
-
-  private[mock] final case class Succeed[-I, +A](io: I => UIO[A])      extends ReturnExpectation[I, Nothing, A]
-  private[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing]) extends ReturnExpectation[I, E, Nothing]
-}
+private[mock] final case class Scope[R <: Has[_]](
+  expectation: Expectation[R],
+  invocationId: Int,
+  update: Expectation[R] => Expectation[R]
+)

@@ -17,16 +17,17 @@
 package zio.test.mock
 
 import zio.test.Assertion
+import zio.{ Has, Tagged }
 
 /**
- * An `ArgumentExpectation[M, I, A]` represents an expectation on input `I` arguments
- * for capability of module `M` that returns an effect that may produce a single `A`.
+ * An `ArgumentExpectation[R, I, A]` represents an expectation on input `I` arguments
+ * for environment `R` that returns an effect that may produce a single `A`.
  */
-final case class ArgumentExpectation[-M, I, A](method: Method[M, I, A], assertion: Assertion[I]) {
+final case class ArgumentExpectation[R <: Has[_]: Tagged, I, A](method: Method[R, I, A], assertion: Assertion[I]) {
 
   /**
    * Provides the `ReturnExpectation` to produce the final `Expectation`.
    */
-  def returns[E](returns: ReturnExpectation[I, E, A]): Expectation[M, E, A] =
-    Expectation.Call[M, I, E, A](method, assertion, returns.io)
+  def returns[E](returns: ReturnExpectation[I, E, A]): Expectation[R] =
+    Expectation.Call[R, I, E, A](method, assertion, returns.io)
 }

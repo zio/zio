@@ -26,14 +26,9 @@ import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.test.mock.MockException.{
-  InvalidArgumentsException,
-  InvalidMethodException,
-  UnexpectedCallExpection,
-  UnmetExpectationsException
-}
-import zio.test.mock.{ Method, MockException }
-import zio.{ Cause, UIO, URIO }
+import zio.test.mock.Expectation
+import zio.test.mock.internal.{ InvalidCall, MockException }
+import zio.{ Cause, Has, UIO, URIO, ZIO }
 
 object DefaultTestReporter {
 
@@ -240,13 +235,17 @@ object FailureRenderer {
 
   object FailureMessage {
     case class Message(lines: Vector[Line] = Vector.empty) {
-      def :+(line: Line)       = Message(lines :+ line)
-      def ++(message: Message) = Message(lines ++ message.lines)
-      def map(f: Line => Line) = copy(lines = lines.map(f))
+      def +:(line: Line)          = Message(line +: lines)
+      def :+(line: Line)          = Message(lines :+ line)
+      def ++(message: Message)    = Message(lines ++ message.lines)
+      def drop(n: Int)            = Message(lines.drop(n))
+      def map(f: Line => Line)    = Message(lines = lines.map(f))
+      def withOffset(offset: Int) = Message(lines.map(_.withOffset(offset)))
     }
     object Message {
       def apply(lines: Seq[Line]): Message = Message(lines.toVector)
       def apply(lineText: String): Message = Fragment(lineText).toLine.toMessage
+      val empty: Message                   = Message()
     }
     case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
       def :+(fragment: Fragment)    = Line(fragments :+ fragment)
@@ -259,6 +258,7 @@ object FailureRenderer {
     }
     object Line {
       def fromString(text: String, offset: Int = 0): Line = Fragment(text).toLine.withOffset(offset)
+      val empty: Line                                     = Line()
     }
     case class Fragment(text: String, ansiColorCode: String = "") {
       def +:(line: Line)      = prepend(line)
@@ -288,7 +288,7 @@ object FailureRenderer {
       }
     for {
       fragment <- renderFragment(failureDetails.head, offset)
-      rest     <- loop(failureDetails, Message())
+      rest     <- loop(failureDetails, Message.empty)
     } yield fragment.toMessage ++ rest
   }
 
@@ -308,7 +308,7 @@ object FailureRenderer {
           renderShrinked + withOffset(offset + tabSize)(
             Fragment(s"Original input before shrinking was: ") + red(initial)
           )
-      case None => Message()
+      case None => Message.empty
     }
 
   private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int): UIO[Line] =
@@ -333,7 +333,7 @@ object FailureRenderer {
     val parts = fragment.text.split(Pattern.quote(substring))
     if (parts.size == 1) fragment.toLine
     else
-      parts.foldLeft(Line()) { (line, part) =>
+      parts.foldLeft(Line.empty) { (line, part) =>
         if (line.fragments.size < parts.size * 2 - 2)
           line + Fragment(part, fragment.ansiColorCode) + Fragment(substring, colorCode)
         else line + Fragment(part, fragment.ansiColorCode)
@@ -349,7 +349,7 @@ object FailureRenderer {
       case Some(exception: MockException) =>
         renderMockException(exception).map(_.map(withOffset(offset + tabSize)))
       case _ =>
-        UIO.succeedNow(
+        UIO.succeed(
           Message(
             cause.prettyPrint
               .split("\n")
@@ -361,20 +361,19 @@ object FailureRenderer {
 
   private def renderMockException(exception: MockException): UIO[Message] =
     exception match {
-      case InvalidArgumentsException(method, args, assertion) =>
-        renderTestFailure(s"$method called with invalid arguments", assert(args)(assertion))
+      case MockException.InvalidCallException(failures) =>
+        renderUnmatchedExpectations(failures).map { message =>
+          val header = red(s"- could not find a matching expectation").toLine
+          header +: message
+        }
 
-      case InvalidMethodException(method, expectedMethod, assertion) =>
-        UIO.succeedNow(
-          Message(Seq(red(s"- invalid call to $method").toLine, renderExpectation(expectedMethod, assertion, tabSize)))
-        )
+      case MockException.UnsatisfiedExpectationsException(expectation) =>
+        renderUnsatisfiedExpectations(expectation).map { message =>
+          val header = red(s"- unsatisfied expectations").toLine
+          header +: message
+        }
 
-      case UnmetExpectationsException(expectations) =>
-        UIO.succeedNow(Message(red(s"- unmet expectations").toLine +: expectations.map {
-          case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
-        }))
-
-      case UnexpectedCallExpection(method, args) =>
+      case MockException.UnexpectedCallExpection(method, args) =>
         UIO.succeedNow(
           Message(
             Seq(
@@ -383,14 +382,87 @@ object FailureRenderer {
             )
           )
         )
+
+      case MockException.InvalidRangeException(range) =>
+        UIO.succeedNow(
+          Message(
+            Seq(
+              red(s"- invalid repetition range ${range.start} to ${range.end} by ${range.step}").toLine
+            )
+          )
+        )
     }
 
-  private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[I], offset: Int): Line =
-    withOffset(offset)(Fragment(s"expected $method with arguments ") + cyan(assertion.toString))
+  private def renderUnmatchedExpectations(failedMatches: List[InvalidCall]): UIO[Message] =
+    ZIO
+      .foreach(failedMatches) {
+        case InvalidCall.InvalidArguments(method, args, assertion) =>
+          renderTestFailure("", assert(args)(assertion)).map { message =>
+            val header = red(s"- $method called with invalid arguments").toLine
+            (header +: message.drop(1)).withOffset(tabSize)
+          }
+
+        case InvalidCall.InvalidMethod(method, expectedMethod, assertion) =>
+          UIO.succeedNow(
+            Message(
+              Seq(
+                withOffset(tabSize)(red(s"- invalid call to $method").toLine),
+                withOffset(tabSize * 2)(
+                  Fragment(s"expected $expectedMethod with arguments ") + cyan(assertion.toString)
+                )
+              )
+            )
+          )
+      }
+      .map(_.reverse.foldLeft(Message.empty)(_ ++ _))
+
+  private def renderUnsatisfiedExpectations[R <: Has[_]](expectation: Expectation[R]): UIO[Message] = {
+
+    def loop(stack: List[(Int, Expectation[R])], lines: Vector[Line]): Vector[Line] =
+      stack match {
+        case Nil =>
+          lines
+
+        case (ident, Expectation.And(children, false, _, _)) :: tail =>
+          val title       = Line.fromString("in any order", ident)
+          val unsatisfied = children.filter(!_.satisfied).map(ident + tabSize -> _)
+          loop(unsatisfied ++ tail, lines :+ title)
+
+        case (ident, Expectation.Call(method, assertion, _, false, _, _)) :: tail =>
+          val rendered =
+            withOffset(ident)(Fragment(s"$method with arguments ") + cyan(assertion.toString))
+          loop(tail, lines :+ rendered)
+
+        case (ident, Expectation.Chain(children, false, _, _)) :: tail =>
+          val title       = Line.fromString("in sequential order", ident)
+          val unsatisfied = children.filter(!_.satisfied).map(ident + tabSize -> _)
+          loop(unsatisfied ++ tail, lines :+ title)
+
+        case (ident, Expectation.Or(children, false, _, _)) :: tail =>
+          val title       = Line.fromString("one of", ident)
+          val unsatisfied = children.map(ident + tabSize -> _)
+          loop(unsatisfied ++ tail, lines :+ title)
+
+        case (ident, Expectation.Repeated(child, range, false, _, _, _, completed)) :: tail =>
+          val title =
+            Line.fromString(
+              s"repeated $completed times not in range ${range.min} to ${range.max} by ${range.step}",
+              ident
+            )
+          val unsatisfied = (ident + tabSize -> child)
+          loop(unsatisfied :: tail, lines :+ title)
+
+        case _ :: tail =>
+          loop(tail, lines)
+      }
+
+    val lines = loop(List(tabSize -> expectation), Vector.empty)
+    UIO.succeedNow(Message(lines))
+  }
 
   def renderTestFailure(label: String, testResult: TestResult): UIO[Message] =
     testResult.run.flatMap(
-      _.failures.fold(UIO.succeedNow(Message()))(
+      _.failures.fold(UIO.succeedNow(Message.empty))(
         _.fold(details =>
           renderFailure(label, 0, details)
             .map(failures => rendered(Test, label, Failed, 0, failures.lines: _*))
