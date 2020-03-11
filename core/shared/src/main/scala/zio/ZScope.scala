@@ -26,6 +26,7 @@ import zio.internal.Sync
  */
 final class ZScope[-K, +A] private (
   @volatile private var isClosed: Boolean,
+  private val weakKeys: Boolean,
   private val finalizers: Map[Any, Any => UIO[Any]]
 ) { self =>
 
@@ -37,7 +38,7 @@ final class ZScope[-K, +A] private (
     Sync(finalizers) {
       if (isClosed) None
       else {
-        val child = ZScope.unsafeMake[K, A]()
+        val child = ZScope.unsafeMake[K, A](weakKeys)
 
         self.finalizers.put(k, coerce(child.close(_)))
 
@@ -140,8 +141,15 @@ object ZScope {
    * A tuple that contains a scope, together with an effect that closes the scope.
    */
   trait Open[K, A] {
+
+    /**
+     * Closes the scope by providing finalizers with the value they need.
+     */
     def close(a: A): UIO[Boolean]
 
+    /**
+     * The scope, which is initially open.
+     */
     def scope: ZScope[K, A]
 
     private[zio] def unsafeClose(a: A): UIO[Any]
@@ -149,12 +157,24 @@ object ZScope {
 
   /**
    * An effect that makes a new scope, together with an effect that can close
-   * the scope.
+   * the scope. The scope is backed by a weak map, meaning that if the keys are
+   * garbage collected, the finalizers will be garbage collected too.
    */
-  def make[K, A]: UIO[Open[K, A]] = UIO(unsafeMake())
+  def weakKeys[K, A]: UIO[Open[K, A]] = UIO(unsafeMake(true))
 
-  private def unsafeMake[K, A](): Open[K, A] = {
-    val scope0 = new ZScope[K, A](false, internal.Platform.newWeakHashMap[Any, Any => UIO[Any]]())
+  /**
+   * An effect that makes a new scope, together with an effect that can close
+   * the scope. The scope is backed by a strong map, and finalizers will never
+   * be garbage collected so long as a reference is held to the scope.
+   */
+  def strongKeys[K, A]: UIO[Open[K, A]] = UIO(unsafeMake(false))
+
+  private def unsafeMake[K, A](weakKeys: Boolean): Open[K, A] = {
+    val map =
+      if (weakKeys) internal.Platform.newWeakHashMap[Any, Any => UIO[Any]]()
+      else new java.util.HashMap[Any, Any => UIO[Any]]()
+
+    val scope0 = new ZScope[K, A](false, weakKeys, map)
 
     def unsafeClose0(a: A): UIO[Any] =
       Sync(scope0.finalizers) {
