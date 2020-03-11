@@ -3191,7 +3191,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(zio: ZIO[R, E, Any]): ZIO[R, E, Unit] =
+  def when[R, E](b: => Boolean)(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     if (b) zio.unit else unit
 
   /**

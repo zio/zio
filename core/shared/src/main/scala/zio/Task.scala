@@ -656,7 +656,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when(b: => Boolean)(task: Task[Any]): Task[Unit] =
+  def when(b: => Boolean)(task: => Task[Any]): Task[Unit] =
     ZIO.when(b)(task)
 
   /**
