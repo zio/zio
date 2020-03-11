@@ -87,7 +87,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * second part to that effect.
    */
   def ***[R1, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[(R, R1), E1, (A, B)] =
-    (ZSTM.first[E1, R, R1] >>> self) &&& (ZSTM.second[E1, R, R1] >>> that)
+    (ZSTM.first[R, R1] >>> self) &&& (ZSTM.second[R, R1] >>> that)
 
   /**
    * Sequentially zips this value with the specified one, discarding the
@@ -941,7 +941,7 @@ object ZSTM {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  def first[E, A, B]: ZSTM[(A, B), E, A] =
+  def first[A, B]: ZSTM[(A, B), Nothing, A] =
     fromFunction[(A, B), A](_._1)
 
   /**
@@ -1206,7 +1206,7 @@ object ZSTM {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def second[E, A, B]: ZSTM[(A, B), E, B] =
+  def second[A, B]: ZSTM[(A, B), Nothing, B] =
     fromFunction[(A, B), B](_._2)
 
   /**
@@ -1230,7 +1230,7 @@ object ZSTM {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  def swap[E, A, B]: ZSTM[(A, B), E, (B, A)] =
+  def swap[A, B]: ZSTM[(A, B), Nothing, (B, A)] =
     fromFunction[(A, B), (B, A)](_.swap)
 
   /**
