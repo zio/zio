@@ -77,6 +77,26 @@ abstract class ZStream[-R, +E, +O](
     ZStream(self.process.map(_.flatMap(_.collectM(pf).mapError(Some(_)))))
 
   /**
+   * Transforms all elements of the stream for as long as the specified partial function is defined.
+   */
+  def collectWhile[O2](p: PartialFunction[O, O2]): ZStream[R, E, O2] =
+    ZStream {
+      for {
+        chunks  <- self.process
+        doneRef <- Ref.make(false).toManaged_
+        pull = doneRef.get.flatMap { done =>
+          if (done) ZIO.fail(None)
+          else
+            for {
+              chunk     <- chunks
+              remaining = chunk.collectWhile(p)
+              _         <- doneRef.set(true).when(remaining.length < chunk.length)
+            } yield remaining
+        }
+      } yield pull
+    }
+
+  /**
    * Combines the chunks from this stream and the specified stream by repeatedly applying the
    * function `f0` to extract a chunk using both sides and conceptually "offer"
    * it to the destination stream. `f0` can maintain some internal state to control
@@ -198,6 +218,69 @@ abstract class ZStream[-R, +E, +O](
     ZStream(self.process.map(_.forever))
 
   /**
+   * Drops the specified number of elements from this stream.
+   */
+  def drop(n: Int): ZStream[R, E, O] =
+    ZStream {
+      for {
+        chunks     <- self.process
+        counterRef <- Ref.make(n).toManaged_
+        pull = {
+          def go: ZIO[R, Option[E], Chunk[O]] =
+            chunks.flatMap { chunk =>
+              counterRef.get.flatMap { cnt =>
+                if (cnt <= 0) ZIO.succeed(chunk)
+                else {
+                  val remaining = chunk.drop(cnt)
+                  val dropped   = chunk.length - remaining.length
+                  counterRef.set(cnt - dropped) *>
+                    (if (remaining.isEmpty) go else ZIO.succeed(remaining))
+                }
+              }
+            }
+
+          go
+        }
+      } yield pull
+    }
+
+  /**
+   * Drops all elements of the stream until the specified predicate evaluates
+   * to `true`.
+   */
+  final def dropUntil(pred: O => Boolean): ZStream[R, E, O] =
+    dropWhile(!pred(_)).drop(1)
+
+  /**
+   * Drops all elements of the stream for as long as the specified predicate
+   * evaluates to `true`.
+   */
+  def dropWhile(pred: O => Boolean): ZStream[R, E, O] =
+    ZStream {
+      for {
+        chunks          <- self.process
+        keepDroppingRef <- Ref.make(true).toManaged_
+        pull = {
+          def go: ZIO[R, Option[E], Chunk[O]] =
+            chunks.flatMap { chunk =>
+              keepDroppingRef.get.flatMap { keepDropping =>
+                if (!keepDropping) ZIO.succeed(chunk)
+                else {
+                  val remaining = chunk.dropWhile(pred)
+                  val empty     = remaining.length <= 0
+
+                  if (empty) go
+                  else keepDroppingRef.set(false).as(remaining)
+                }
+              }
+            }
+
+          go
+        }
+      } yield pull
+    }
+
+  /**
    * Executes the provided finalizer after this stream's finalizers run.
    */
   final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, O] =
@@ -208,6 +291,42 @@ abstract class ZStream[-R, +E, +O](
    */
   final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, O] =
     ZStream(self.process.ensuringFirst(fin))
+
+  /**
+   * Consumes all elements of the stream, passing them to the specified callback.
+   */
+  final def foreach[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
+    foreachWhile(f.andThen(_.as(true)))
+
+  /**
+   * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  final def foreachManaged[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Any]): ZManaged[R1, E1, Unit] =
+    foreachWhileManaged(f.andThen(_.as(true)))
+
+  /**
+   * Consumes elements of the stream, passing them to the specified callback,
+   * and terminating consumption when the callback returns `false`.
+   */
+  final def foreachWhile[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+    foreachWhileManaged(f).use_(ZIO.unit)
+
+  /**
+   * Like [[ZStream#foreachWhile]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  final def foreachWhileManaged[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
+    for {
+      as <- self.process
+      step = as.flatMap(_.foldWhileM(true)(identity)((_, a) => f(a)).mapError(Some(_))).flatMap {
+        if (_) UIO.unit else IO.fail(None)
+      }
+      _ <- step.forever.catchAll {
+            case Some(e) => IO.fail(e)
+            case None    => UIO.unit
+          }.toManaged_
+    } yield ()
 
   /**
    * Repeats this stream forever.
@@ -385,6 +504,97 @@ abstract class ZStream[-R, +E, +O](
     )
 
   /**
+   * Maps over elements of the stream with the specified effectful function.
+   */
+  def mapM[R1 <: R, E1 >: E, O2](f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
+    ZStream(self.process.map(_.flatMap(_.mapM(f).mapError(Some(_)))))
+
+  /**
+   * Runs the stream and collects all of its elements to a list.
+   */
+  def runCollect: ZIO[R, E, List[O]] =
+    // TODO: rewrite as a sink
+    Ref.make[List[O]](List()).flatMap { ref =>
+      foreach(a => ref.update(a :: _)) *>
+        ref.get.map(_.reverse)
+    }
+
+  /**
+   * Runs the stream only for its effects. The emitted elements are discarded.
+   */
+  def runDrain: ZIO[R, E, Unit] =
+    foreach(_ => ZIO.unit)
+
+  /**
+   * Takes the specified number of elements from this stream.
+   */
+  def take(n: Int): ZStream[R, E, O] =
+    ZStream {
+      for {
+        chunks     <- self.process
+        counterRef <- Ref.make(n).toManaged_
+        pull = counterRef.get.flatMap { cnt =>
+          if (cnt <= 0) ZIO.fail(None)
+          else
+            for {
+              chunk <- chunks
+              taken = chunk.take(cnt)
+              _     <- counterRef.set(cnt - taken.length)
+            } yield taken
+        }
+      } yield pull
+    }
+
+  /**
+   * Takes all elements of the stream until the specified predicate evaluates
+   * to `true`.
+   */
+  def takeUntil(pred: O => Boolean): ZStream[R, E, O] =
+    ZStream {
+      for {
+        chunks        <- self.process
+        keepTakingRef <- Ref.make(true).toManaged_
+        pull = keepTakingRef.get.flatMap { keepTaking =>
+          if (!keepTaking) ZIO.fail(None)
+          else
+            for {
+              chunk <- chunks
+              taken = chunk.takeWhile(!pred(_))
+              last  = chunk.drop(taken.length).take(1)
+              _     <- keepTakingRef.set(false).when(last.nonEmpty)
+            } yield taken ++ last
+        }
+      } yield pull
+    }
+
+  /**
+   * Takes all elements of the stream for as long as the specified predicate
+   * evaluates to `true`.
+   */
+  def takeWhile(pred: O => Boolean): ZStream[R, E, O] =
+    ZStream {
+      for {
+        chunks  <- self.process
+        doneRef <- Ref.make(false).toManaged_
+        pull = doneRef.get.flatMap { done =>
+          if (done) ZIO.fail(None)
+          else
+            for {
+              chunk <- chunks
+              taken = chunk.takeWhile(pred)
+              _     <- doneRef.set(true).when(taken.length < chunk.length)
+            } yield taken
+        }
+      } yield pull
+    }
+
+  /**
+   * Adds an effect to consumption of every element of the stream.
+   */
+  final def tap[R1 <: R, E1 >: E](f0: O => ZIO[R1, E1, Any]): ZStream[R1, E1, O] =
+    ZStream(self.process.map(_.tap(_.mapM_(f0).mapError(Some(_)))))
+
+  /**
    * Applies the transducer to the stream and emits its outputs.
    */
   def transduce[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]): ZStream[R1, E1, O3] =
@@ -431,22 +641,33 @@ abstract class ZStream[-R, +E, +O](
    * The new stream will end when one of the sides ends.
    */
   def zipWith[R1 <: R, E1 >: E, O2, O3](that: ZStream[R1, E1, O2])(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
+    sealed trait State
+    case class Running(excessL: Chunk[O], excessR: Chunk[O2]) extends State
+    case object End                                           extends State
+
     def zipSides(cl: Chunk[O], cr: Chunk[O2]) =
       if (cl.size > cr.size) (cl.take(cr.size).zipWith(cr)(f), cl.drop(cr.size), Chunk())
       else if (cl.size == cr.size) (cl.zipWith(cr)(f), Chunk(), Chunk())
       else (cl.zipWith(cr.take(cl.size))(f), Chunk(), cr.drop(cl.size))
 
-    combineChunks(that)((Chunk[O](), Chunk[O2]())) {
-      case (s @ (excessL, excessR), pullL, pullR) =>
+    combineChunks(that)(Running(Chunk[O](), Chunk[O2]()): State) {
+      case (s @ Running(excessL, excessR), pullL, pullR) =>
         pullL.optional
           .zipWithPar(pullR.optional) {
             case (Some(o), Some(o2)) =>
               val (emit, el, er) = zipSides(excessL ++ o, excessR ++ o2)
-              (el, er) -> Exit.succeed(emit)
-            case _ =>
-              s -> Exit.fail(None)
+              Running(el, er) -> Exit.succeed(emit)
+            case (Some(o), None) =>
+              val (emit, _, _) = zipSides(excessL ++ o, excessR)
+              End -> Exit.succeed(emit)
+            case (None, Some(o2)) =>
+              val (emit, _, _) = zipSides(excessL, excessR ++ o2)
+              End -> Exit.succeed(emit)
+            case (None, None) =>
+              End -> Exit.fail(None)
           }
           .catchAllCause(e => UIO.succeed(s -> Exit.halt(e.map(Some(_)))))
+      case (End, _, _) => UIO.succeed(End -> Exit.fail(None))
     }
   }
 
@@ -706,12 +927,15 @@ object ZStream {
     ZStream {
       for {
         doneRef <- Ref.make(false).toManaged_
-        pull = doneRef.modify {
-          if (_) ZIO.fail(None) -> true
-          else ZIO.succeed(c)   -> true
+        pull = doneRef.modify { done =>
+          if (done || c.isEmpty) ZIO.fail(None) -> true
+          else ZIO.succeed(c)                   -> true
         }.flatten
       } yield pull
     }
+
+  def fromChunks[O](cs: Chunk[O]*): ZStream[Any, Nothing, O] =
+    fromIterable(cs).flatMap(fromChunk(_))
 
   /**
    * Creates a stream from an effect producing a value of type `A`
@@ -812,9 +1036,9 @@ object ZStream {
             if (done) ZIO.fail(None)
             else
               (for {
-
                 reservation <- managed.reserve
                 _           <- finalizer.add(reservation.release)
+                _           <- doneRef.set(true)
                 a           <- restore(reservation.acquire)
               } yield Chunk(a)).mapError(Some(_))
           }
@@ -912,4 +1136,37 @@ object ZStream {
    */
   def unwrapManaged[R, E, A](fa: ZManaged[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     managed(fa).flatten
+
+  /**
+   * Zips the specified streams together with the specified function.
+   */
+  def zipN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
+    f: (A, B) => C
+  ): ZStream[R, E, C] =
+    zStream1.zipWith(zStream2)(f)
+
+  /**
+   * Zips with specified streams together with the specified function.
+   */
+  def zipN[R, E, A, B, C, D](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B], zStream3: ZStream[R, E, C])(
+    f: (A, B, C) => D
+  ): ZStream[R, E, D] =
+    (zStream1 <&> zStream2 <&> zStream3).map {
+      case ((a, b), c) => f(a, b, c)
+    }
+
+  /**
+   * Returns an effect that executes the specified effects in parallel,
+   * combining their results with the specified `f` function. If any effect
+   * fails, then the other effects will be interrupted.
+   */
+  def zipN[R, E, A, B, C, D, F](
+    zStream1: ZStream[R, E, A],
+    zStream2: ZStream[R, E, B],
+    zStream3: ZStream[R, E, C],
+    zStream4: ZStream[R, E, D]
+  )(f: (A, B, C, D) => F): ZStream[R, E, F] =
+    (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map {
+      case (((a, b), c), d) => f(a, b, c, d)
+    }
 }
