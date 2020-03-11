@@ -140,7 +140,7 @@ final class ZLayer[-RIn, +E, +ROut] private (
   )(f: (ROut, ROut2) => ROut3): ZLayer[RIn with RIn2, E1, ROut3] =
     new ZLayer(
       ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
-        memoMap.getOrElseMemoize(self, finalizers).zipWithPar(memoMap.getOrElseMemoize(that, finalizers))(f)
+        memoMap.getOrElseMemoize(self, finalizers).zipWith(memoMap.getOrElseMemoize(that, finalizers))(f)
       }
     )
 }
