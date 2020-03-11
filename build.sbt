@@ -112,7 +112,7 @@ lazy val coreJVM = core.jvm
   .settings(dottySettings)
   .settings(replSettings)
 
-lazy val coreJS = core.js
+lazy val coreJS = core.js.settings(jsSettings)
 
 lazy val coreNative = core.native
   .settings(scalaVersion := "2.11.12")
@@ -145,6 +145,7 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(replSettings)
 
 lazy val coreTestsJS = coreTests.js
+  .settings(jsSettings)
   .settings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test
   )
@@ -179,6 +180,7 @@ lazy val streamsTestsJVM = streamsTests.jvm
   .settings(dottySettings)
 
 lazy val streamsTestsJS = streamsTests.js
+  .settings(jsSettings)
   .settings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test
   )
@@ -217,9 +219,11 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS = testTests.js.settings(
-  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5"
-)
+lazy val testTestsJS = testTests.js
+  .settings(jsSettings)
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5"
+  )
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -246,9 +250,11 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
-lazy val testMagnoliaTestsJS = testMagnoliaTests.js.settings(
-  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5"
-)
+lazy val testMagnoliaTestsJS = testMagnoliaTests.js
+  .settings(jsSettings)
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5"
+  )
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -256,7 +262,7 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
 
-lazy val stacktracerJS = stacktracer.js
+lazy val stacktracerJS = stacktracer.js.settings(jsSettings)
 lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
@@ -290,6 +296,7 @@ lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
 
 lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
 lazy val testRunnerJS = testRunner.js
+  .settings(jsSettings)
   .settings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test
   )
@@ -308,7 +315,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .jsSettings(libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test)
   .dependsOn(testRunner)
 
-lazy val examplesJS = examples.js
+lazy val examplesJS = examples.js.settings(jsSettings)
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
   .dependsOn(testJunitRunnerJVM)

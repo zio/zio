@@ -2,6 +2,7 @@ import sbt._
 import Keys._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport._
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.jsEnv
 import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
@@ -338,5 +339,19 @@ object BuildHelper {
 
   implicit class ModuleHelper(p: Project) {
     def module: Project = p.in(file(p.id)).settings(stdSettings(p.id))
+  }
+
+  lazy val jsSettings = {
+      jsEnv := {
+      new org.scalajs.jsenv.nodejs.NodeJSEnv(
+        org.scalajs.jsenv.nodejs.NodeJSEnv.Config().withArgs(
+          List(
+            "--max_old_space_size=4096",
+            "--optimize_for_size",
+            "--stack_size=4096"
+          )
+        )
+      )
+    }
   }
 }
