@@ -2,6 +2,7 @@ import sbt._
 import Keys._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport._
+import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.jsEnv
 import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
 import sbtbuildinfo._
@@ -342,15 +343,17 @@ object BuildHelper {
   }
 
   lazy val jsSettings = {
-      jsEnv := {
-      new org.scalajs.jsenv.nodejs.NodeJSEnv(
-        org.scalajs.jsenv.nodejs.NodeJSEnv.Config().withArgs(
-          List(
-            "--max_old_space_size=4096",
-            "--optimize_for_size",
-            "--stack_size=4096"
+    jsEnv := {
+      new NodeJSEnv(
+        NodeJSEnv
+          .Config()
+          .withArgs(
+            List(
+              "--max_old_space_size=4096",
+              "--optimize_for_size",
+              "--stack_size=4096"
+            )
           )
-        )
       )
     }
   }
