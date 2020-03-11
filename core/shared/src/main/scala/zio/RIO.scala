@@ -719,7 +719,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when[R](b: => Boolean)(rio: RIO[R, Any]): RIO[R, Unit] =
+  def when[R](b: => Boolean)(rio: => RIO[R, Any]): RIO[R, Unit] =
     ZIO.when(b)(rio)
 
   /**
