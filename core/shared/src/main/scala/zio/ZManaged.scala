@@ -1193,7 +1193,10 @@ object ZManaged {
   }
 
   final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E, A](onTrue: => ZManaged[R1, E1, A], onFalse: => ZManaged[R1, E1, A]): ZManaged[R1, E1, A] =
+    def apply[R1 <: R, E1 >: E, A](
+      onTrue: => ZManaged[R1, E1, A],
+      onFalse: => ZManaged[R1, E1, A]
+    ): ZManaged[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
