@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package zio.test.mock
 
-package zio
+import scala.annotation.{ compileTimeOnly, StaticAnnotation }
+import scala.language.experimental.macros
 
-private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[A] => }
+@compileTimeOnly("enable macro paradise to expand macro annotations")
+class Mockable[A] extends StaticAnnotation {
+  def macroTransform(annottees: Any*): Any = macro MockableMacro.impl
+}

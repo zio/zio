@@ -188,12 +188,17 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
   .settings(crossProjectSettings)
+  .settings(macroSettings)
   .settings(
     scalacOptions += "-language:experimental.macros",
     libraryDependencies ++=
       Seq("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0") ++ {
         if (isDotty.value) Seq()
-        else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
+        else
+          Seq(
+            "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided",
+            "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
+          )
       }
   )
 
@@ -298,6 +303,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(crossProjectSettings)
+  .settings(macroSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .jsSettings(libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test)
   .dependsOn(testRunner)
@@ -374,8 +380,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC5",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
-      "dev.zio"             %% "zio-macros-core"             % "0.6.2",
-      "dev.zio"             %% "zio-macros-test"             % "0.6.0"
+      "dev.zio"             %% "zio-macros-core"             % "0.6.2"
     )
   )
   .settings(macroSettings)

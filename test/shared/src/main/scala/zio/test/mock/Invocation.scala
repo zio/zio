@@ -16,9 +16,11 @@
 
 package zio.test.mock
 
+import zio.Has
+
 /**
- * An `Invocation[M, I, A]` models a single invocation of a `Method[M, I, A]`,
+ * An `Invocation[R, I, A]` models a single invocation of a `Method[R, I, A]`,
  * including both the input to the method invocation `I` and the output from
  * the method invocation `A`.
  */
-final case class Invocation[-M, I, A](method: Method[M, I, A], input: I, output: A)
+final case class Invocation[R <: Has[_], I, A](method: Method[R, I, A], input: I, output: A)
