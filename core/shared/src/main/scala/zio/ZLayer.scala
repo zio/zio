@@ -27,7 +27,7 @@ import zio.internal.Platform
  * their dependencies (other services).
  *
  * Construction of layers can be effectful and utilize resources that must be
- * acquired and safetly released when the services are done being utilized.
+ * acquired and safely released when the services are done being utilized.
  *
  * By default layers are shared, meaning that if the same layer is used twice
  * the layer will only be allocated a single time.
@@ -125,6 +125,19 @@ final class ZLayer[-RIn, +E, +ROut <: Has[_]] private (
     fold(ZLayer.fromFunctionManyM(_.failureOrCause.fold(ZIO.die(_), ZIO.halt(_))), ZLayer.identity)
 
   /**
+   * Executes this layer and returns its output, if it succeeds, but otherwise
+   * executes the specified layer.
+   */
+  def orElse[RIn1 <: RIn, E1, ROut1 >: ROut <: Has[_]](that: => ZLayer[RIn1, E1, ROut1])(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
+    new ZLayer(
+      ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
+        memoMap
+          .getOrElseMemoize(self, finalizers)
+          .orElse(memoMap.getOrElseMemoize(that, finalizers))
+      }
+    )
+
+  /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
@@ -161,6 +174,12 @@ object ZLayer {
    */
   def apply[RIn, E, ROut <: Has[_]](managed: ZManaged[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
     new ZLayer(Managed.succeed(_ => managed))
+
+  /**
+   * Constructs a layer that fails with the specified value.
+   */
+  def fail[E](e: => E): Layer[E, Nothing] =
+    ZLayer(ZManaged.fail(e))
 
   /**
    * Constructs a layer from acquire and release actions. The acquire and
