@@ -186,7 +186,7 @@ final class TMap[K, V] private (
       val overwrite =
         STM
           .foreach(original)(_.get.map(_.view.map(g)))
-          .flatMap { xs =>
+          .flatMap[Any, Nothing, Unit] { xs =>
             STM.foreach_(xs.view.flatten.toMap)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
           }
 
