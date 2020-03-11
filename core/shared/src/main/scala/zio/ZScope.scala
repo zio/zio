@@ -16,30 +16,30 @@
 
 package zio
 
-import java.util.ArrayList
+import java.util.Map
 
 import zio.internal.Sync
 
 /**
- * A `ZScope[A]` is a value that allows adding finalizers up until the point where
- * the scope is closed by a value of type `A`.
+ * A `ZScope[K, A]` is a value that allows adding finalizers identified by `K`
+ * up until the point where the scope is closed by a value of type `A`.
  */
-final class ZScope[A] private (
+final class ZScope[-K, +A] private (
   @volatile private var isClosed: Boolean,
-  private val finalizers: ArrayList[A => UIO[Any]]
+  private val finalizers: Map[Any, Any => UIO[Any]]
 ) { self =>
 
   /**
    * Creates a child scope that will be automatically closed when this scope is
    * closed, but may also be closed independently.
    */
-  def child: UIO[Option[ZScope[A]]] = UIO {
+  def child(k: K): UIO[Option[ZScope[K, A]]] = UIO {
     Sync(finalizers) {
       if (isClosed) None
       else {
-        val child = ZScope.unsafeMake[A]()
+        val child = ZScope.unsafeMake[K, A]()
 
-        self.finalizers.add(child.close(_))
+        self.finalizers.put(k, coerce(child.close(_)))
 
         Some(child.scope)
       }
@@ -52,21 +52,43 @@ final class ZScope[A] private (
   def closed: UIO[Boolean] = UIO(isClosed)
 
   /**
+   * Unensures a finalizer runs when the scope is closed.
+   */
+  def deny(k: K): UIO[Boolean] = UIO {
+    Sync(finalizers) {
+      if (isClosed) false
+      else finalizers.remove(k) ne null
+    }
+  }
+
+  /**
    * Determines if the scope is empty at the instant the effect executes.
    */
   def empty: UIO[Boolean] = UIO(finalizers.size() == 0)
 
   /**
-   * Adds a finalizer to the scope. If successful, this ensures that when the
-   * scope exits, the finalizer will be run.
+   * Adds a finalizer to the scope, using the finalizer itself as the key for
+   * the finalizer. If successful, this ensures that when the scope exits, the
+   * finalizer will be run.
    */
-  def ensure(finalizer: A => UIO[Any]): UIO[Boolean] = UIO {
+  def ensure[A1 >: A](finalizer: A1 => UIO[Any])(implicit ev: (A1 => UIO[Any]) <:< K): UIO[Boolean] =
+    ensure(ev(finalizer), finalizer)
+
+  /**
+   * Adds a finalizer to the scope. If successful, this ensures that when the
+   * scope exits, the finalizer will be run, assuming the key has not been
+   * garbage collected.
+   */
+  def ensure(key: K, finalizer: A => UIO[Any]): UIO[Boolean] = UIO {
     Sync(finalizers) {
       if (isClosed) false
       else {
-        finalizers.add(finalizer)
+        if (finalizers.containsKey(key)) false
+        else {
+          finalizers.put(key, coerce(finalizer))
 
-        true
+          true
+        }
       }
     }
   }
@@ -74,7 +96,7 @@ final class ZScope[A] private (
   /**
    * Attempts to migrate the finalizers of the specified scope to this scope.
    */
-  def drainFrom(that: ZScope[A]): UIO[Boolean] = UIO {
+  def drainFrom[K1 <: K, A1 >: A](that: ZScope[K1, A1]): UIO[Boolean] = UIO {
     if (self eq that) true
     else {
       val (lock1, lock2) =
@@ -85,7 +107,7 @@ final class ZScope[A] private (
           if (self.isClosed) false
           else if (that.isClosed) true
           else {
-            self.finalizers.addAll(that.finalizers)
+            self.finalizers.putAll(that.finalizers)
             that.finalizers.clear()
             that.isClosed = true
 
@@ -95,11 +117,6 @@ final class ZScope[A] private (
       }
     }
   }
-
-  /**
-   * Attempts to migrate the finalizers of this scope to the specified scope.
-   */
-  def drainTo(that: ZScope[A]): UIO[Boolean] = that.drainFrom(self)
 
   /**
    * Determines if the scope is open at the moment the effect is executed.
@@ -112,18 +129,20 @@ final class ZScope[A] private (
 
   private[zio] def unsafeOpen(): Boolean = !isClosed
 
-  private def comesBefore(that: ZScope[A]): Boolean =
+  private def comesBefore(that: ZScope[_, _]): Boolean =
     self.finalizers.hashCode < that.finalizers.hashCode
+
+  private def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
 }
 object ZScope {
 
   /**
    * A tuple that contains a scope, together with an effect that closes the scope.
    */
-  trait Open[A] {
+  trait Open[K, A] {
     def close(a: A): UIO[Boolean]
 
-    def scope: ZScope[A]
+    def scope: ZScope[K, A]
 
     private[zio] def unsafeClose(a: A): UIO[Any]
   }
@@ -132,10 +151,10 @@ object ZScope {
    * An effect that makes a new scope, together with an effect that can close
    * the scope.
    */
-  def make[A]: UIO[Open[A]] = UIO(unsafeMake())
+  def make[K, A]: UIO[Open[K, A]] = UIO(unsafeMake())
 
-  private def unsafeMake[A](): Open[A] = {
-    val scope0 = new ZScope[A](false, new ArrayList[A => UIO[Any]]())
+  private def unsafeMake[K, A](): Open[K, A] = {
+    val scope0 = new ZScope[K, A](false, internal.Platform.newWeakHashMap[Any, Any => UIO[Any]]())
 
     def unsafeClose0(a: A): UIO[Any] =
       Sync(scope0.finalizers) {
@@ -143,13 +162,13 @@ object ZScope {
 
         if (scope0.isClosed) null
         else {
-          val iterator = finalizers.iterator()
+          val iterator = finalizers.entrySet.iterator()
 
           val effect = if (iterator.hasNext()) {
-            var effect = iterator.next()(a)
+            var effect = iterator.next().getValue()(a)
 
             while (iterator.hasNext()) {
-              val next = iterator.next()
+              val next = iterator.next().getValue()
 
               effect = effect *> next(a)
             }
@@ -165,7 +184,7 @@ object ZScope {
         }
       }
 
-    new Open[A] {
+    new Open[K, A] {
       def close(a: A) = UIO.effectSuspendTotal {
         val result = unsafeClose0(a)
 
