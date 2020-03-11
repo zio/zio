@@ -10,33 +10,40 @@ abstract class ZStream[-R, +E, +O](
     ) { self =>
 
   /**
-   * Composes this stream with the specified stream to create a cartesian product of elements.
-   * The `that` stream would be run multiple times, for every element in the `this` stream.
-   *
-   * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
+   * Symbolic alias for [[ZStream#cross]].
    */
   final def <*>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] =
-    (self crossWith that)((_, _))
+    self cross that
 
   /**
-   * Composes this stream with the specified stream to create a cartesian product of elements
-   * and keeps only the elements from the `this` stream. The `that` stream would be run multiple
-   * times, for every element in the `this` stream.
-   *
-   * See also [[ZStream#zipWith]] and [[ZStream#<&>]] for the more common point-wise variant.
+   * Symbolic alias for [[ZStream#crossLeft]].
    */
   final def <*[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O] =
-    (self crossWith that)((o, _) => o)
+    self crossLeft that
 
   /**
-   * Composes this stream with the specified stream to create a cartesian product of elements
-   * and keeps only the elements from the `that` stream. The `that` stream would be run multiple
-   * times, for every element in the `this` stream.
-   *
-   * See also [[ZStream#zipWith]] and [[ZStream#<&>]] for the more common point-wise variant.
+   * Symbolic alias for [[ZStream#crossRight]].
    */
   final def *>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O2] =
-    (self crossWith that)((_, o2) => o2)
+    self crossRight that
+
+  /**
+   * Symbolic alias for [[ZStream#zip]].
+   */
+  final def <&>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] =
+    self zip that
+
+  /**
+   * Symbolic alias for [[ZStream#zipLeft]].
+   */
+  final def <&[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O] =
+    self zipLeft that
+
+  /**
+   * Symbolic alias for [[ZStream#zipRight]].
+   */
+  final def &>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O2] =
+    self zipRight that
 
   /**
    * Symbolic alias for [[ZStream#concat]].
@@ -156,6 +163,26 @@ abstract class ZStream[-R, +E, +O](
    */
   final def cross[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] =
     (self crossWith that)((_, _))
+
+  /**
+   * Composes this stream with the specified stream to create a cartesian product of elements,
+   * but keeps only elements from this stream.
+   * The `that` stream would be run multiple times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
+   */
+  final def crossLeft[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O] =
+    (self crossWith that)((o, _) => o)
+
+  /**
+   * Composes this stream with the specified stream to create a cartesian product of elements,
+   * but keeps only elements from the other stream.
+   * The `that` stream would be run multiple times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
+   */
+  final def crossRight[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O2] =
+    (self crossWith that)((_, o2) => o2)
 
   /**
    * Converts this stream to a stream that executes its effects but emits no
