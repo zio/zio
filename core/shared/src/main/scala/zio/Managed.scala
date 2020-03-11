@@ -362,7 +362,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.when]]
    */
-  def when[E](b: => Boolean)(managed: Managed[E, Any]): Managed[E, Unit] =
+  def when[E](b: => Boolean)(managed: => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.when(b)(managed)
 
   /**
@@ -382,7 +382,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.whenM]]
    */
-  def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, Any]): Managed[E, Unit] =
+  def whenM[E](b: Managed[E, Boolean])(managed: => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.whenM(b)(managed)
 
   private[zio] def succeedNow[A](r: A): Managed[Nothing, A] =

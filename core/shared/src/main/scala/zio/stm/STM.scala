@@ -298,7 +298,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.when]]
    */
-  def when[E](b: => Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
+  def when[E](b: => Boolean)(stm: => STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
 
   /**
    * @see See [[zio.stm.ZSTM.whenCase]]
@@ -315,7 +315,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.whenM]]
    */
-  def whenM[E](b: STM[E, Boolean])(stm: STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
+  def whenM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
 
   private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
     ZSTM.succeedNow(a)
