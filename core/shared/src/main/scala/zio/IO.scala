@@ -685,7 +685,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when[E](b: => Boolean)(io: IO[E, Any]): IO[E, Unit] =
+  def when[E](b: => Boolean)(io: => IO[E, Any]): IO[E, Unit] =
     ZIO.when(b)(io)
 
   /**
