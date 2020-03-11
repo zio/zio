@@ -28,8 +28,8 @@ package zio
  * }}}
  */
 final class Has[A] private (
-  private val map: Map[Tagged[_], scala.Any],
-  private var cache: Map[Tagged[_], scala.Any] = Map()
+  private val map: Map[TagType, scala.Any],
+  private var cache: Map[TagType, scala.Any] = Map()
 ) extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case that: Has[_] => map == that.map
@@ -74,7 +74,7 @@ object Has {
      * Adds a service to the environment.
      */
     def add[B](b: B)(implicit tagged: Tagged[B]): Self with Has[B] =
-      new Has(self.map + (tagged -> b)).asInstanceOf[Self with Has[B]]
+      new Has(self.map + (taggedTagType(tagged) -> b)).asInstanceOf[Self with Has[B]]
 
     /**
      * Retrieves a service from the environment.
@@ -84,11 +84,11 @@ object Has {
 
       self.map
         .getOrElse(
-          tagged,
+          tag,
           self.cache.getOrElse(
-            tagged,
+            tag,
             self.map.collectFirst {
-              case (curTag, value) if taggedIsSubtype(taggedTagType(curTag), tag) =>
+              case (curTag, value) if taggedIsSubtype(curTag, tag) =>
                 self.cache = self.cache + (curTag -> value)
                 value
             }.getOrElse(throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}"))
@@ -106,7 +106,7 @@ object Has {
       val set = taggedGetHasServices(tag)
 
       if (set.isEmpty) self
-      else new Has(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(taggedTagType(tag), _)))).asInstanceOf[Self]
+      else new Has(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(tag, _)))).asInstanceOf[Self]
     }
 
     /**
@@ -133,7 +133,7 @@ object Has {
   /**
    * Constructs a new environment holding the single service.
    */
-  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(TaggedAnyRef -> (()))).add(a)
+  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(taggedTagType(TaggedAnyRef) -> (()))).add(a)
 
   /**
    * Constructs a new environment holding the specified services.
