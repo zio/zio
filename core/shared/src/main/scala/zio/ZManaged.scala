@@ -59,7 +59,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * second part to that effect.
    */
   def ***[R1, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[(R, R1), E1, (A, B)] =
-    (ZManaged.first[E1, R, R1] >>> self) &&& (ZManaged.second[E1, R, R1] >>> that)
+    (ZManaged.first[R, R1] >>> self) &&& (ZManaged.second[R, R1] >>> that)
 
   /**
    * Symbolic alias for zipRight
@@ -1348,7 +1348,7 @@ object ZManaged {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  def first[E, A, B]: ZManaged[(A, B), E, A] = fromFunction(_._1)
+  def first[A, B]: ZManaged[(A, B), Nothing, A] = fromFunction(_._1)
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
@@ -1892,7 +1892,7 @@ object ZManaged {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def second[E, A, B]: ZManaged[(A, B), E, B] = fromFunction(_._2)
+  def second[A, B]: ZManaged[(A, B), Nothing, B] = fromFunction(_._2)
 
   /**
    * Lifts a lazy, pure value into a Managed.
@@ -1909,7 +1909,7 @@ object ZManaged {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  def swap[E, A, B]: ZManaged[(A, B), E, (B, A)] = fromFunction(_.swap)
+  def swap[A, B]: ZManaged[(A, B), Nothing, (B, A)] = fromFunction(_.swap)
 
   /**
    * Returns a ZManaged value that represents a managed resource that can be safely

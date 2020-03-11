@@ -71,7 +71,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * second part to that effect.
    */
   final def ***[R1, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[(R, R1), E1, (A, B)] =
-    (ZIO.first[E1, R, R1] >>> self) &&& (ZIO.second[E1, R, R1] >>> that)
+    (ZIO.first[R, R1] >>> self) &&& (ZIO.second[R, R1] >>> that)
 
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
@@ -2316,7 +2316,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  def first[E, A, B]: ZIO[(A, B), E, A] = fromFunction[(A, B), A](_._1)
+  def first[A, B]: ZIO[(A, B), Nothing, A] = fromFunction[(A, B), A](_._1)
 
   /**
    * Returns an effect that races this effect with all the specified effects,
@@ -3064,7 +3064,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def second[E, A, B]: ZIO[(A, B), E, B] = fromFunction[(A, B), B](_._2)
+  def second[A, B]: ZIO[(A, B), Nothing, B] = fromFunction[(A, B), B](_._2)
 
   /**
    * Returns an effect that suspends for the specified duration. This method is
@@ -3088,7 +3088,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  def swap[E, A, B]: ZIO[(A, B), E, (B, A)] =
+  def swap[A, B]: ZIO[(A, B), Nothing, (B, A)] =
     fromFunction[(A, B), (B, A)](_.swap)
 
   /**
