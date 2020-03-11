@@ -26,7 +26,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 trait Event
 ```
 
-```scala mdoc
+```scala mdoc:silent
 import scala.concurrent.Future
 
 def processEvent(event: Event): Future[Unit] = Future(println(s"Got $event"))
@@ -44,7 +44,7 @@ Inside the future there may be happening any side effects. It may open a file, p
 trait Event
 ```
 
-```scala mdoc
+```scala mdoc:silent
 import zio._
 import zio.console.Console
 
