@@ -16,18 +16,19 @@
 
 package zio
 
-import java.time.{ Instant, OffsetDateTime, ZoneId }
+import java.time.{ DateTimeException, Instant, OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
 
 package object clock {
+
   type Clock = Has[Clock.Service]
 
   object Clock extends PlatformSpecific with Serializable {
     trait Service extends Serializable {
       def currentTime(unit: TimeUnit): UIO[Long]
-      def currentDateTime: UIO[OffsetDateTime]
+      def currentDateTime: IO[DateTimeException, OffsetDateTime]
       def nanoTime: UIO[Long]
       def sleep(duration: Duration): UIO[Unit]
     }
@@ -45,11 +46,16 @@ package object clock {
             Left(UIO.effectTotal(canceler()))
           }
 
-        def currentDateTime: ZIO[Any, Nothing, OffsetDateTime] =
-          for {
-            millis <- currentTime(TimeUnit.MILLISECONDS)
-            zone   <- ZIO.effectTotal(ZoneId.systemDefault)
-          } yield OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), zone)
+        def currentDateTime: IO[DateTimeException, OffsetDateTime] = {
+          val dateTime =
+            for {
+              millis         <- currentTime(TimeUnit.MILLISECONDS)
+              zone           <- ZIO(ZoneId.systemDefault)
+              instant        <- ZIO(Instant.ofEpochMilli(millis))
+              offsetDateTime <- ZIO(OffsetDateTime.ofInstant(instant, zone))
+            } yield offsetDateTime
+          dateTime.refineToOrDie[DateTimeException]
+        }
 
       }
     }
@@ -70,7 +76,7 @@ package object clock {
   /**
    * Get the current time, represented in the current timezone.
    */
-  val currentDateTime: ZIO[Clock, Nothing, OffsetDateTime] =
+  val currentDateTime: ZIO[Clock, DateTimeException, OffsetDateTime] =
     ZIO.accessM(_.get.currentDateTime)
 
   /**
