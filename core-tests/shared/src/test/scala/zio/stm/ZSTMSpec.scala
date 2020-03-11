@@ -654,19 +654,19 @@ object ZSTMSpec extends ZIOBaseSpec {
       ),
       suite("tupled environment")(
         testM("_1 should extract first") {
-          val tx  = ZSTM.first[Nothing, Int, String]
+          val tx  = ZSTM.first[Int, String]
           val env = (42, "test")
 
           assertM(tx.provide(env).commit)(equalTo(env._1))
         },
         testM("_2 should extract second") {
-          val tx  = ZSTM.second[Nothing, Int, String]
+          val tx  = ZSTM.second[Int, String]
           val env = (42, "test")
 
           assertM(tx.provide(env).commit)(equalTo(env._2))
         },
         testM("swap") {
-          val tx  = ZSTM.swap[Nothing, Int, String]
+          val tx  = ZSTM.swap[Int, String]
           val env = (42, "test")
 
           assertM(tx.provide(env).commit)(equalTo(env.swap))
