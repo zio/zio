@@ -12,6 +12,8 @@ import zio.{ IO, Promise, Ref, Task, UIO, ZIO }
 
 object StreamEffectAsyncSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("StreamEffectAsyncSpec")(
     suite("Stream.effectAsync")(
       testM("effectAsync")(checkM(Gen.listOf(Gen.anyInt)) { list =>
@@ -185,6 +187,6 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
         } yield assert(isDone)(isFalse) &&
           assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
       }
-    )
+    ) @@ zioTag(interruption)
   )
 }

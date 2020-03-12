@@ -7,6 +7,8 @@ import zio.test._
 
 object CauseSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("CauseSpec")(
     suite("Cause")(
       testM("`Cause#died` and `Cause#stripFailures` are consistent") {
@@ -126,7 +128,7 @@ object CauseSpec extends ZIOBaseSpec {
           }
           assert(result)(isTrue)
         }
-      },
+      } @@ zioTag(interruption),
       testM("Traced") {
         check(causes) { cause1 =>
           val trace1 = ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None)

@@ -12,17 +12,19 @@ import zio.test._
 
 object StreamChunkSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("StreamChunkSpec")(
     testM("StreamChunk.catchAllCauseErrors") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
       val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
       s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
-    },
+    } @@ zioTag(errors),
     testM("StreamChunk.catchAllCauseDefects") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.dieMessage("Boom"))
       val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
       s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
-    },
+    } @@ zioTag(errors),
     testM("StreamChunk.catchAllCauseHappyPath") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3)))
       val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
@@ -116,7 +118,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           .run(Sink.drain)
           .either
           .map(assert(_)(equalTo(Left("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     suite("StreamChunk.mapConcatM")(
       testM("mapConcatM happy path") {
@@ -135,7 +137,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           .run(Sink.drain)
           .either
           .map(assert(_)(equalTo(Left("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("StreamChunk.mapError") {
       StreamChunk(Stream.fail("123"))
@@ -143,14 +145,14 @@ object StreamChunkSpec extends ZIOBaseSpec {
         .run(Sink.drain)
         .either
         .map(assert(_)(isLeft(equalTo(123))))
-    },
+    } @@ zioTag(errors),
     testM("StreamChunk.mapErrorCause") {
       StreamChunk(Stream.halt(Cause.fail("123")))
         .mapErrorCause(_.map(_.toInt))
         .run(Sink.drain)
         .either
         .map(assert(_)(isLeft(equalTo(123))))
-    },
+    } @@ zioTag(errors),
     testM("StreamChunk.drop") {
       checkM(chunksOfInts, intGen) { (s, n) =>
         for {
@@ -223,7 +225,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           .run(Sink.drain)
           .either
           .map(assert(_)(isLeft(equalTo("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("StreamChunk.mapM") {
       checkM(chunksOfInts, Gen.function[Random, Int, Int](intGen)) { (s, f) =>
@@ -326,7 +328,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       testM("introduce error") {
         val s = StreamChunk.fromChunks(Chunk(1), Chunk.empty, Chunk(2, 3, 4), Chunk(5, 6))
         s.via(_ => StreamChunk(Stream.fail("Ouch"))).runCollect.either.map(assert(_)(equalTo(Left("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("StreamChunk.fold") {
       checkM(chunksOfInts, intGen, Gen.function2(intGen)) { (s, zero, f) =>

@@ -9,6 +9,8 @@ import zio.test._
 
 object StreamPullSafetySpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("StreamPullSafetySpec")(combinators, constructors)
 
   def combinators = suite("Combinators")(
@@ -815,7 +817,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3)))))
-      },
+      } @@ zioTag(errors),
       testM("is safe to pull again after end") {
         Stream
           .effectAsync[String, Int] { k =>
@@ -837,7 +839,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3)))))
-      },
+      } @@ zioTag(errors),
       testM("is safe to pull again after end") {
         Stream
           .effectAsyncM[String, Int] { k =>
@@ -870,7 +872,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Some("Ouch sync")), Left(None), Left(None)))))
-      },
+      } @@ zioTag(errors),
       testM("is safe to pull again after end async case") {
         Stream
           .effectAsyncMaybe[String, Int] { k =>
@@ -906,7 +908,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .use(nPulls(_, 3))
           fin <- ref.get
         } yield assert(fin)(isTrue) && assert(pulls)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3))))
-      },
+      } @@ zioTag(errors),
       testM("is safe to pull again after error sync case") {
         Stream
           .effectAsyncInterrupt[String, Int] { k =>
@@ -916,7 +918,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Some("Ouch sync")), Left(None), Left(None)))))
-      },
+      } @@ zioTag(errors),
       testM("is safe to pull again after end async case") {
         for {
           ref <- Ref.make(false)
@@ -941,7 +943,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(None), Left(None), Left(None)))))
       }
-    ),
+    ) @@ zioTag(interruption),
     testM("Stream.fail is safe to pull again") {
       Stream
         .fail("Ouch")
@@ -1120,7 +1122,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         .process
         .use(nPulls(_, 3))
         .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
-    },
+    } @@ zioTag(errors),
     suite("Stream.managed")(
       testM("is safe to pull again after success") {
         for {
@@ -1198,7 +1200,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         .process
         .use(nPulls(_, 3))
         .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(Some("Ouch")), Left(Some("Ouch"))))))
-    },
+    } @@ zioTag(errors),
     testM("Stream.repeatEffectWith is safe to pull again") {
       def effect(ref: Ref[Int]): IO[String, Int] =
         for {

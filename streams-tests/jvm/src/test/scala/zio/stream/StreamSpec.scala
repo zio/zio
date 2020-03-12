@@ -29,6 +29,8 @@ import zio.test.environment.{ Live, TestClock }
 
 object StreamSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("StreamSpec")(
     suite("Stream.absolve")(
       testM("happy path")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { xs =>
@@ -38,7 +40,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("failure")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { xs =>
         val stream = ZStream.fromIterable(xs.map(Right(_))) ++ ZStream.succeedNow(Left("Ouch"))
         assertM(stream.absolve.runCollect.run)(fails(equalTo("Ouch")))
-      }),
+      }) @@ zioTag(errors),
       testM("round-trip #1")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt)), Gen.anyString) { (xs, s) =>
         val xss    = ZStream.fromIterable(xs.map(Right(_)))
         val stream = xss ++ ZStream(Left(s)) ++ xss
@@ -71,7 +73,7 @@ object StreamSpec extends ZIOBaseSpec {
         for {
           result <- ZStream.accessM[Int](_ => ZIO.fail("fail")).provide(0).runHead.run
         } yield assert(result)(fails(equalTo("fail")))
-      }
+      } @@ zioTag(errors)
     ),
     suite("Stream.accessStream")(
       testM("accessStream") {
@@ -83,7 +85,7 @@ object StreamSpec extends ZIOBaseSpec {
         for {
           result <- ZStream.accessStream[Int](_ => ZStream.fail("fail")).provide(0).runHead.run
         } yield assert(result)(fails(equalTo("fail")))
-      }
+      } @@ zioTag(errors)
     ),
     suite("Stream.aggregateAsync")(
       testM("aggregateAsync") {
@@ -103,7 +105,7 @@ object StreamSpec extends ZIOBaseSpec {
             .runCollect
             .run
         )(dies(equalTo(e)))
-      },
+      } @@ zioTag(errors),
       testM("error propagation") {
         val e    = new RuntimeException("Boom")
         val sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e))
@@ -114,7 +116,7 @@ object StreamSpec extends ZIOBaseSpec {
             .runCollect
             .run
         )(dies(equalTo(e)))
-      },
+      } @@ zioTag(errors),
       testM("interruption propagation") {
         for {
           latch     <- Promise.make[Nothing, Unit]
@@ -130,7 +132,7 @@ object StreamSpec extends ZIOBaseSpec {
           _      <- fiber.interrupt
           result <- cancelled.get
         } yield assert(result)(isTrue)
-      },
+      } @@ zioTag(interruption),
       testM("interruption propagation") {
         for {
           latch     <- Promise.make[Nothing, Unit]
@@ -144,7 +146,7 @@ object StreamSpec extends ZIOBaseSpec {
           _      <- fiber.interrupt
           result <- cancelled.get
         } yield assert(result)(isTrue)
-      },
+      } @@ zioTag(interruption),
       testM("leftover handling") {
         val data = List(1, 2, 2, 3, 2, 3)
         assertM(
@@ -184,7 +186,7 @@ object StreamSpec extends ZIOBaseSpec {
             .runCollect
             .run
         )(dies(equalTo(e)))
-      },
+      } @@ zioTag(errors),
       testM("error propagation") {
         val e    = new RuntimeException("Boom")
         val sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e))
@@ -195,7 +197,7 @@ object StreamSpec extends ZIOBaseSpec {
             .runCollect
             .run
         )(dies(equalTo(e)))
-      },
+      } @@ zioTag(errors),
       testM("interruption propagation") {
         for {
           latch     <- Promise.make[Nothing, Unit]
@@ -215,7 +217,7 @@ object StreamSpec extends ZIOBaseSpec {
           _      <- fiber.interrupt
           result <- cancelled.get
         } yield assert(result)(isTrue)
-      },
+      } @@ zioTag(interruption),
       testM("interruption propagation") {
         for {
           latch     <- Promise.make[Nothing, Unit]
@@ -233,7 +235,7 @@ object StreamSpec extends ZIOBaseSpec {
           _      <- fiber.interrupt
           result <- cancelled.get
         } yield assert(result)(isTrue)
-      },
+      } @@ zioTag(interruption),
       testM("aggregateAsyncWithinEitherLeftoverHandling") {
         val data = List(1, 2, 2, 3, 2, 3)
         assertM(
@@ -350,7 +352,7 @@ object StreamSpec extends ZIOBaseSpec {
           case _ =>
             UIO(assert(())(Assertion.nothing))
         }
-      },
+      } @@ zioTag(errors),
       testM("BackPressure") {
         Stream
           .range(0, 5)
@@ -410,7 +412,7 @@ object StreamSpec extends ZIOBaseSpec {
           result <- fins.get
         } yield assert(result)(equalTo(List("s2", "s1")))
       }
-    ),
+    ) @@ zioTag(errors),
     suite("Stream.chunkN")(
       testM("empty stream") {
         assertM(Stream.empty.chunkN(1).runCollect)(equalTo(Nil))
@@ -433,7 +435,7 @@ object StreamSpec extends ZIOBaseSpec {
           .chunks
           .runCollect
           .map(assert(_)(equalTo(List(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6)))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("Stream.collect") {
       assertM(Stream(Left(1), Right(2), Left(3)).collect {
@@ -459,7 +461,7 @@ object StreamSpec extends ZIOBaseSpec {
             .runDrain
             .either
         )(isLeft(isNonEmptyString))
-      }
+      } @@ zioTag(errors)
     ),
     suite("Stream.collectWhile")(
       testM("collectWhile") {
@@ -502,7 +504,7 @@ object StreamSpec extends ZIOBaseSpec {
             .runDrain
             .either
         )(isLeft(isNonEmptyString))
-      }
+      } @@ zioTag(errors)
     ),
     suite("Stream.concat")(
       testM("concat")(checkM(streamOfBytes, streamOfBytes) { (s1, s2) =>
@@ -759,7 +761,7 @@ object StreamSpec extends ZIOBaseSpec {
           _         <- fiber.interrupt
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue)
-      },
+      } @@ zioTag(interruption),
       testM("inner errors interrupt all fibers") {
         for {
           substreamCancelled <- Ref.make[Boolean](false)
@@ -774,7 +776,7 @@ object StreamSpec extends ZIOBaseSpec {
                      .either
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-      },
+      } @@ zioTag(errors, interruption),
       testM("outer errors interrupt all fibers") {
         for {
           substreamCancelled <- Ref.make[Boolean](false)
@@ -789,7 +791,7 @@ object StreamSpec extends ZIOBaseSpec {
                      .either
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-      },
+      } @@ zioTag(errors, interruption),
       testM("inner defects interrupt all fibers") {
         val ex = new RuntimeException("Ouch")
 
@@ -806,7 +808,7 @@ object StreamSpec extends ZIOBaseSpec {
                      .run
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-      },
+      } @@ zioTag(errors, interruption),
       testM("outer defects interrupt all fibers") {
         val ex = new RuntimeException()
 
@@ -823,7 +825,7 @@ object StreamSpec extends ZIOBaseSpec {
                      .run
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-      },
+      } @@ zioTag(errors, interruption),
       testM("finalizer ordering") {
         for {
           execution <- Ref.make[List[String]](Nil)
@@ -889,7 +891,7 @@ object StreamSpec extends ZIOBaseSpec {
           _         <- fiber.interrupt
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue)
-      } @@ flaky,
+      } @@ zioTag(interruption) @@ flaky,
       testM("inner errors interrupt all fibers") {
         for {
           substreamCancelled <- Ref.make[Boolean](false)
@@ -902,7 +904,7 @@ object StreamSpec extends ZIOBaseSpec {
                    ).flatMapParSwitch(2)(identity).runDrain.either
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-      } @@ flaky,
+      } @@ zioTag(errors, interruption) @@ flaky,
       testM("outer errors interrupt all fibers") {
         for {
           substreamCancelled <- Ref.make[Boolean](false)
@@ -917,7 +919,7 @@ object StreamSpec extends ZIOBaseSpec {
                      .either
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-      },
+      } @@ zioTag(errors, interruption),
       testM("inner defects interrupt all fibers") {
         val ex = new RuntimeException("Ouch")
 
@@ -934,7 +936,7 @@ object StreamSpec extends ZIOBaseSpec {
                      .run
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-      },
+      } @@ zioTag(errors, interruption),
       testM("outer defects interrupt all fibers") {
         val ex = new RuntimeException()
 
@@ -951,7 +953,7 @@ object StreamSpec extends ZIOBaseSpec {
                      .run
           cancelled <- substreamCancelled.get
         } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-      },
+      } @@ zioTag(errors, interruption),
       testM("finalizer ordering") {
         for {
           execution <- Ref.make(List.empty[String])
@@ -1069,7 +1071,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("emit one element with failure") {
         val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(Some(5))
         assertM(Stream.fromEffectOption(fa).runCollect.either)(isLeft(equalTo(5)))
-      },
+      } @@ zioTag(errors),
       testM("do not emit any element") {
         val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
         assertM(Stream.fromEffectOption(fa).runCollect)(equalTo(List()))
@@ -1131,7 +1133,7 @@ object StreamSpec extends ZIOBaseSpec {
             .runCollect
             .either
         )(isLeft(equalTo("Boom")))
-      }
+      } @@ zioTag(errors)
     ),
     testM("Stream.grouped")(
       assertM(Stream(1, 2, 3, 4).grouped(2).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
@@ -1253,7 +1255,7 @@ object StreamSpec extends ZIOBaseSpec {
           .runCollect
           .either
           .map(assert(_)(isLeft(equalTo("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("Stream.mapConcat")(checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
       for {
@@ -1282,7 +1284,7 @@ object StreamSpec extends ZIOBaseSpec {
           .runCollect
           .either
           .map(assert(_)(equalTo(Left("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     suite("Stream.mapConcatM")(
       testM("mapConcatM happy path") {
@@ -1299,7 +1301,7 @@ object StreamSpec extends ZIOBaseSpec {
           .runCollect
           .either
           .map(assert(_)(equalTo(Left("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("Stream.mapError") {
       Stream
@@ -1308,7 +1310,7 @@ object StreamSpec extends ZIOBaseSpec {
         .runCollect
         .either
         .map(assert(_)(isLeft(equalTo(123))))
-    },
+    } @@ zioTag(errors),
     testM("Stream.mapErrorCause") {
       Stream
         .halt(Cause.fail("123"))
@@ -1316,7 +1318,7 @@ object StreamSpec extends ZIOBaseSpec {
         .runCollect
         .either
         .map(assert(_)(isLeft(equalTo(123))))
-    },
+    } @@ zioTag(errors),
     testM("Stream.mapM") {
       checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(successes(Gen.anyByte))) { (data, f) =>
         val s = Stream.fromIterable(data)
@@ -1398,7 +1400,7 @@ object StreamSpec extends ZIOBaseSpec {
           _      <- fib.interrupt
           result <- interrupted.get
         } yield assert(result)(isTrue)
-      },
+      } @@ zioTag(interruption),
       testM("guarantee ordering")(checkM(Gen.int(1, 4096), Gen.listOf(Gen.anyInt)) { (n: Int, m: List[Int]) =>
         for {
           mapM    <- Stream.fromIterable(m).mapM(UIO.succeedNow).runCollect
@@ -1448,7 +1450,7 @@ object StreamSpec extends ZIOBaseSpec {
         val s2 = Stream.fail("Ouch")
 
         assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
-      }
+      } @@ zioTag(errors)
     ),
     testM("Stream.orElse") {
       val s1 = Stream(1, 2, 3) ++ Stream.fail("Boom")
@@ -1513,7 +1515,7 @@ object StreamSpec extends ZIOBaseSpec {
               out2 <- s2.runCollect.either
             } yield assert(out1)(isLeft(equalTo("Boom"))) && assert(out2)(isLeft(equalTo("Boom")))
         }
-      },
+      } @@ zioTag(errors),
       testM("backpressure") {
         Stream
           .range(0, 6)
@@ -1741,7 +1743,7 @@ object StreamSpec extends ZIOBaseSpec {
             .ignore
             .map(_ => true)
         )(isTrue)
-      }
+      } @@ zioTag(interruption)
     ),
     suite("Stream.throttleEnforce")(
       testM("free elements") {
@@ -1839,7 +1841,7 @@ object StreamSpec extends ZIOBaseSpec {
         val fail = "I'm such a failure!"
         val sink = ZManaged.fail(fail)
         assertM(ZStream(1, 2, 3).aggregateManaged(sink).runCollect.either)(isLeft(equalTo(fail)))
-      }
+      } @@ zioTag(errors)
     ),
     testM("Stream.unfold") {
       assertM(
@@ -1884,7 +1886,7 @@ object StreamSpec extends ZIOBaseSpec {
             .use(q => Stream.fromQueue(q).unTake.run(Sink.collectAll[Int]))
             .run
         )(fails(equalTo(e)))
-      }
+      } @@ zioTag(errors)
     ),
     suite("Stream.via")(
       testM("happy path") {
@@ -1894,7 +1896,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("introduce error") {
         val s = Stream(1, 2, 3)
         s.via(_ => Stream.fail("Ouch")).runCollect.either.map(assert(_)(equalTo(Left("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     suite("Stream zipping")(
       testM("zipWith") {
@@ -1921,7 +1923,7 @@ object StreamSpec extends ZIOBaseSpec {
             .runCollect
             .either
         )(isLeft(equalTo("Ouch")))
-      },
+      } @@ zioTag(errors),
       testM("zipWithLatest") {
         import zio.test.environment.TestClock
 

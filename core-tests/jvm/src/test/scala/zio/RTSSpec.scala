@@ -12,6 +12,8 @@ import zio.test.environment.Live
 
 object RTSSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     testM("blocking caches threads") {
       import zio.blocking.Blocking
@@ -72,7 +74,7 @@ object RTSSpec extends ZIOBaseSpec {
         rez      <- producer.interrupt
         _        <- console.putStrLn(rez.fold(_.prettyPrint, _ => ""))
       } yield assert(rez)(anything)
-    } @@ silent,
+    } @@ zioTag(interruption) @@ silent,
     testM("interruption of unending bracket") {
       val io =
         for {
@@ -91,7 +93,7 @@ object RTSSpec extends ZIOBaseSpec {
         } yield (startValue + exitValue) == 42
 
       assertM(io)(isTrue)
-    } @@ jvm(nonFlaky),
+    } @@ zioTag(interruption) @@ jvm(nonFlaky),
     testM("deadlock regression 1") {
       import java.util.concurrent.Executors
 
@@ -108,7 +110,7 @@ object RTSSpec extends ZIOBaseSpec {
       }
 
       assertM(ZIO.effect(e.shutdown()))(isUnit)
-    },
+    } @@ zioTag(regression),
     testM("second callback call is ignored") {
       for {
         _ <- IO.effectAsync[Throwable, Int] { k =>
@@ -140,6 +142,6 @@ object RTSSpec extends ZIOBaseSpec {
         } yield c
 
       assertM(Live.live(zio))(isGreaterThanEqualTo(1))
-    }
+    } @@ zioTag(interruption, regression)
   )
 }
