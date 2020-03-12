@@ -38,12 +38,12 @@ addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
+  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
 )
 addCommandAlias("compileNative", ";coreNative/compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
@@ -55,15 +55,15 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosJVM/test"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;examplesJS/test:compile;macrosJS/test"
 )
 addCommandAlias(
   "testJS211",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test"
 )
 
 lazy val root = project
@@ -79,6 +79,8 @@ lazy val root = project
     coreJS,
     coreTestsJVM,
     coreTestsJS,
+    macrosJVM,
+    macrosJS,
     docs,
     streamsJVM,
     streamsJS,
@@ -149,6 +151,19 @@ lazy val coreTestsJS = coreTests.js
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test
   )
 
+lazy val macros = crossProject(JSPlatform, JVMPlatform)
+  .in(file("macros"))
+  .dependsOn(core)
+  .settings(stdSettings("zio-macros"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner)
+
+lazy val macrosJVM = macros.jvm
+lazy val macrosJS  = macros.js
+
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
   .dependsOn(core)
@@ -188,19 +203,8 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
   .settings(crossProjectSettings)
-  .settings(macroSettings)
-  .settings(
-    scalacOptions += "-language:experimental.macros",
-    libraryDependencies ++=
-      Seq("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0") ++ {
-        if (isDotty.value) Seq()
-        else
-          Seq(
-            "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided",
-            "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
-          )
-      }
-  )
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
 
 lazy val testJVM = test.jvm.settings(dottySettings)
 lazy val testJS  = test.js
@@ -305,10 +309,10 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(crossProjectSettings)
-  .settings(macroSettings)
+  .settings(macroExpansionSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .jsSettings(libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test)
-  .dependsOn(testRunner)
+  .dependsOn(macros, testRunner)
 
 lazy val examplesJS = examples.js
 lazy val examplesJVM = examples.jvm
@@ -381,11 +385,10 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC8",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC6",
-      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
-      "dev.zio"             %% "zio-macros-core"             % "0.6.2"
+      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2"
     )
   )
-  .settings(macroSettings)
+  .settings(macroExpansionSettings)
   .dependsOn(
     coreJVM,
     streamsJVM,

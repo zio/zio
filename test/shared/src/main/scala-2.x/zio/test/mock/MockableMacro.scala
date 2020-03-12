@@ -18,18 +18,14 @@ package zio.test.mock
 
 import scala.reflect.macros.whitebox.Context
 
-import com.github.ghik.silencer.silent
-
 /**
- * Generates method tags for a service into annotated trait/object.
+ * Generates method tags for a service into annotated object.
  */
 private[mock] object MockableMacro {
 
-  @silent
   def impl(c: Context)(annottees: c.Tree*): c.Expr[c.Tree] = {
     import c.universe._
 
-    def log(msg: String)   = c.info(c.enclosingPosition, msg, true)
     def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
     val mockName: TermName = annottees.head match {
@@ -37,8 +33,8 @@ private[mock] object MockableMacro {
       case _            => abort("Moclable macro should only be applied to objects.")
     }
 
-    val serviceType: Type = c.typeCheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
-    val envType: Type     = c.typeCheck(q"(??? : _root_.zio.Has[$serviceType])").tpe
+    val serviceType: Type = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
+    val envType: Type     = c.typecheck(q"(??? : _root_.zio.Has[$serviceType])").tpe
 
     object zio {
 
@@ -70,9 +66,9 @@ private[mock] object MockableMacro {
 
     def makeMock(name: TermName, symbol: MethodSymbol, overloadIndex: Option[TermName]): Tree = {
       val tagName = capitalize(name)
-      val (isZio, r: Type, e: Type, a: Type) = symbol.returnType match {
-        case zio(r, e, a) => (true, r, e, a)
-        case a            => (false, tq"Any", tq"Throwable", a)
+      val (r: Type, e: Type, a: Type) = symbol.returnType match {
+        case zio(r, e, a) => (r, e, a)
+        case a            => (tq"Any", tq"Throwable", a)
       }
 
       val tag = overloadIndex match {

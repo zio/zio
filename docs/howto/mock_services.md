@@ -113,7 +113,7 @@ object ExampleMock {
   object SingleArg          extends Tag[Int, String]
   object MultiArgs          extends Tag[(Int, Long), String]
   object MultiParamLists    extends Tag[(Int, Long), String]
-  object Command            extends Tag[ Int, Unit]
+  object Command            extends Tag[Int, Unit]
   object Overloaded {
     object _0 extends Tag[Int, String]
     object _1 extends Tag[Long, String]
@@ -155,13 +155,35 @@ val EnvBuilder: URLayer[Has[Proxy], Example] =
   )
 ```
 
-Finally we pass a reference to the layer in all _capability tags_ so it can be automatically picked up and combined
+Next we pass a reference to the layer in all _capability tags_ so it can be automatically picked up and combined
 by the mock framework as we define our expectations.
 
 ```scala mdoc:silent
 sealed trait Tag[I, A] extends Method[Example, I, A] {
   val envBuilder: URLayer[Has[Proxy], Example] = EnvBuilder
 }
+```
+
+Finally we create the live version of the service with the implementation of the capabilities:
+
+``` scala mdoc:silent
+import zio.console.Console
+import zio.random.Random
+
+val exampleLive: ZLayer[Console with Random, Nothing, Example] =
+  ZLayer.fromServices[Console.Service, Random.Service, Example.Service] { (console, random) =>
+    new Example.Service {
+      val static                                 = console.getStrLn.orDie
+      def zeroArgs                               = random.nextInt
+      def zeroArgsWithParens()                   = random.nextLong
+      def singleArg(arg1: Int)                   = UIO.succeed(s"got $arg1")
+      def multiArgs(arg1: Int, arg2: Long)       = UIO.succeed(s"got $arg1, $arg2")
+      def multiParamLists(arg1: Int)(arg2: Long) = UIO.succeed(s"got $arg1, $arg2")
+      def command(arg1: Int)                     = console.putStrLn(s"got $arg1")
+      def overloaded(arg1: Int)                  = UIO.succeed(s"got $arg1")
+      def overloaded(arg1: Long)                 = UIO.succeed(s"got $arg1")
+    }
+  }
 ```
 
 ## Complete example
@@ -172,6 +194,7 @@ trait AccountEvent
 
 ```scala mdoc:silent
 import zio._
+import zio.console.Console
 import zio.test.mock._
 
 // main sources
@@ -184,6 +207,18 @@ object AccountObserver {
 
   def processEvent(event: AccountEvent) =
     ZIO.accessM[AccountObserver](_.get.processEvent(event))
+
+  val live: ZLayer[Console, Nothing, AccountObserver] =
+    ZLayer.fromService[Console.Service, Service] { console =>
+      new Service {
+        def processEvent(event: AccountEvent): UIO[Unit] =
+          for {
+            _    <- console.putStrLn(s"Got $event")
+            line <- console.getStrLn.orDie
+            _    <- console.putStrLn(s"You entered: $line")
+          } yield ()
+      }
+    }
 }
 
 // test sources
@@ -205,43 +240,7 @@ object AccountObserverMock {
 }
 ```
 
-## Scrapping the boilerplate
-
-To reduce the amount of repetetive work ZIO provides a `@Mockable[A]` macro annotation which will generate _capability tags_ and _mock layer_ into annotated object:
-
-```scala
-type AccountObserver = Has[AccountObserver.Service]
-
-object AccountObserver {
-  trait Service {
-    def processEvent(event: AccountEvent): ZIO[Any, Nothing, Unit]
-  }
-
-  def processEvent(event: AccountEvent) =
-    ZIO.accessM[AccountObserver](_.get.processEvent(event))
-}
-
-@Mockable[AccountObserver.Service]
-object AccountObserverMock
-```
-
-Next we create the live version of the service with the implementation of the capabilities:
-
-``` scala mdoc:silent
-import zio.console.Console
-
-val accountObserverLive: ZLayer[Console, Nothing, AccountObserver] =
-  ZLayer.fromService { console =>
-    new AccountObserver.Service {
-      def processEvent(event: AccountEvent): UIO[Unit] =
-        for {
-          _    <- console.putStrLn(s"Got $event")
-          line <- console.getStrLn.orDie
-          _    <- console.putStrLn(s"You entered: $line")
-        } yield ()
-    }
-  }
-```
+> **Note:** ZIO provides some useful macros to help you generate repetitive code, see [Scrapping the boilerplate with macros][doc-macros].
 
 ## Provided ZIO services
 
@@ -277,7 +276,7 @@ val mockEnv: ULayer[Console] = (
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
-      val result = app.provideLayer(mockEnv >>> accountObserverLive)
+      val result = app.provideLayer(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
   )
@@ -313,6 +312,6 @@ assertM(result)(isUnit)
 ```
 
 [doc-use-modules-and-layers]: use_modules_and_layers.md
+[doc-macros]: howto_macros.md
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html
-[link-zio-macros]: https://github.com/zio/zio-macros
