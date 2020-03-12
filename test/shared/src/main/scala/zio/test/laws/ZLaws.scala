@@ -16,8 +16,8 @@
 
 package zio.test.laws
 
-import zio.test._
 import zio.ZIO
+import zio.test.{ check, checkM, Gen, TestResult }
 
 /**
  * `ZLaws[Caps, R]` represents a set of laws that values with capabilities
