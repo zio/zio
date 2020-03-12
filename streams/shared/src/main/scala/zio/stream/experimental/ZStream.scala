@@ -703,16 +703,16 @@ abstract class ZStream[-R, +E, +O](
    * The new stream will end when one of the sides ends.
    */
   def zipWith[R1 <: R, E1 >: E, O2, O3](that: ZStream[R1, E1, O2])(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
-    sealed trait State
-    case class Running(excessL: Chunk[O], excessR: Chunk[O2]) extends State
-    case object End                                           extends State
+    sealed trait State[+O, +O2]
+    case class Running[O, O2](excessL: Chunk[O], excessR: Chunk[O2]) extends State[O, O2]
+    case object End                                                  extends State[Nothing, Nothing]
 
     def zipSides(cl: Chunk[O], cr: Chunk[O2]) =
       if (cl.size > cr.size) (cl.take(cr.size).zipWith(cr)(f), cl.drop(cr.size), Chunk())
       else if (cl.size == cr.size) (cl.zipWith(cr)(f), Chunk(), Chunk())
       else (cl.zipWith(cr.take(cl.size))(f), Chunk(), cr.drop(cl.size))
 
-    combineChunks(that)(Running(Chunk[O](), Chunk[O2]()): State) {
+    combineChunks(that)(Running(Chunk[O](), Chunk[O2]()): State[O, O2]) {
       case (Running(excessL, excessR), pullL, pullR) =>
         pullL.optional
           .zipWithPar(pullR.optional) {
@@ -771,11 +771,11 @@ abstract class ZStream[-R, +E, +O](
   def zipAllWith[R1 <: R, E1 >: E, O2, O3](
     that: ZStream[R1, E1, O2]
   )(left: O => O3, right: O2 => O3)(both: (O, O2) => O3): ZStream[R1, E1, O3] = {
-    sealed trait State
-    case class Running(excessL: Chunk[O], excessR: Chunk[O2])   extends State
-    case class LeftDone(excessL: Chunk[O], excessR: Chunk[O2])  extends State
-    case class RightDone(excessL: Chunk[O], excessR: Chunk[O2]) extends State
-    case object End                                             extends State
+    sealed trait State[+O, +O2]
+    case class Running[O, O2](excessL: Chunk[O], excessR: Chunk[O2])   extends State[O, O2]
+    case class LeftDone[O, O2](excessL: Chunk[O], excessR: Chunk[O2])  extends State[O, O2]
+    case class RightDone[O, O2](excessL: Chunk[O], excessR: Chunk[O2]) extends State[O, O2]
+    case object End                                                    extends State[Nothing, Nothing]
 
     def zipSides(cl: Chunk[O], cr: Chunk[O2], bothDone: Boolean) =
       if (cl.size > cr.size) {
@@ -806,7 +806,7 @@ abstract class ZStream[-R, +E, +O](
           Exit.succeed(emit -> End)
       }
 
-    combineChunks(that)(Running(Chunk(), Chunk()): State) {
+    combineChunks(that)(Running(Chunk(), Chunk()): State[O, O2]) {
       case (Running(excessL, excessR), pullL, pullR) =>
         pullL.optional
           .zipWithPar(pullR.optional)(handleSuccess(_, _, excessL, excessR))
@@ -825,6 +825,12 @@ abstract class ZStream[-R, +E, +O](
       case (End, _, _) => UIO.succeed(Exit.fail(None))
     }
   }
+
+  /**
+   * Zips this stream together with the index of elements.
+   */
+  final def zipWithIndex: ZStream[R, E, (O, Long)] =
+    mapAccum(0L)((index, a) => (index + 1, (a, index)))
 }
 
 object ZStream {
