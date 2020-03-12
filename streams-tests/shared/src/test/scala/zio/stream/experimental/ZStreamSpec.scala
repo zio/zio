@@ -6,6 +6,7 @@ import zio._
 import zio.stream.ChunkUtils._
 import zio.test.Assertion._
 import zio.test._
+import zio.ZQueueSpecUtil.waitForSize
 
 object ZStreamSpec extends ZIOBaseSpec {
   def spec = suite("ZStreamSpec")(
@@ -64,6 +65,38 @@ object ZStreamSpec extends ZIOBaseSpec {
                            .map(_.head)
           } yield assert(leftAssoc -> rightAssoc)(equalTo(true -> true))
         )
+      ),
+      suite("buffer")(
+        testM("maintains elements and ordering")(checkM(Gen.listOf(smallChunks(Gen.anyInt))) { list =>
+          assertM(
+            ZStream.fromChunks(list: _*)
+              .buffer(2)
+              .runCollect
+          )(equalTo(Chunk.fromIterable(list).flatten.toList))
+        }),
+        testM("buffer the Stream with Error") {
+          val e = new RuntimeException("boom")
+          assertM(
+            (ZStream.range(0, 10) ++ ZStream.fail(e))
+              .buffer(2)
+              .runCollect
+              .run
+          )(fails(equalTo(e)))
+        },
+        testM("fast producer progress independently") {
+          for {
+            ref   <- Ref.make(List[Int]())
+            latch <- Promise.make[Nothing, Unit]
+            s     = ZStream.range(1, 5).tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4)).buffer(2)
+            l <- s.process.use { as =>
+                  for {
+                    _ <- as
+                    _ <- latch.await
+                    l <- ref.get
+                  } yield l
+                }
+          } yield assert(l.reverse)(equalTo((1 to 4).toList))
+        }
       ),
       suite("flatMap")(
         testM("deep flatMap stack safety") {
@@ -169,8 +202,42 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(fin)(isTrue)
         }
       ),
-      suite("zips")(
-        testM("zip") {
+      suite("mergeWith")(
+        testM("equivalence with set union")(checkM(streamOfInts, streamOfInts) {
+          (s1: ZStream[Any, String, Int], s2: ZStream[Any, String, Int]) =>
+            for {
+              mergedStream <- (s1 merge s2).runCollect.map(_.toSet).run
+              mergedLists <- s1.runCollect
+                              .zipWith(s2.runCollect)((left, right) => left ++ right)
+                              .map(_.toSet)
+                              .run
+            } yield assert(!mergedStream.succeeded && !mergedLists.succeeded)(isTrue) || assert(mergedStream)(
+              equalTo(mergedLists)
+            )
+        }),
+        testM("prioritizes failure") {
+          val s1 = ZStream.never
+          val s2 = ZStream.fail("Ouch")
+
+          assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
+        }
+      ),
+      suite("toQueue")(
+        testM("toQueue")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
+          val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
+          assertM(s.toQueue(1000).use(queue => waitForSize(queue, c.length + 1) *> queue.takeAll))(
+            equalTo(c.toSeq.toList.map(i => Exit.succeed(Chunk(i))) :+ Exit.fail(None))
+          )
+        }),
+        testM("toQueueUnbounded")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
+          val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
+          assertM(s.toQueueUnbounded.use(queue => waitForSize(queue, c.length + 1) *> queue.takeAll))(
+            equalTo(c.toSeq.toList.map(i => Exit.succeed(Chunk(i))) :+ Exit.fail(None))
+          )
+        })
+      ),
+      suite("zipWith")(
+        testM("zip equivalence with Chunk#zipWith") {
           checkM(
             // We're using ZStream.fromChunks in the test, and that discards empty
             // chunks; so we're only testing for non-empty chunks here.
@@ -188,17 +255,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               assertM(ZStream.fromChunks(l: _*).zip(ZStream.fromChunks(r: _*)).runCollect)(equalTo(expected.toList))
           }
         },
-        // testM("zipWithIndex")(checkM(pureStreamOfBytes) { s =>
-        //   for {
-        //     res1 <- (s.zipWithIndex.runCollect)
-        //     res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
-        //   } yield assert(res1)(equalTo(res2))
-        // }),
-        testM("zipAllLeft") {
-          val s1 = ZStream(1, 2, 3)
-          val s2 = ZStream(1, 2)
-          assertM((s1.zipAllLeft(s2)(0)).runCollect)(equalTo(List(1, 2, 3)))
-        },
         testM("zipWith prioritizes failure") {
           assertM(
             ZStream.never
@@ -207,26 +263,47 @@ object ZStreamSpec extends ZIOBaseSpec {
               .either
           )(isLeft(equalTo("Ouch")))
         }
-        // testM("zipWithLatest") {
-        //   import zio.test.environment.TestClock
+      ),
+      suite("zipAllWith")(
+        testM("zipAllWith") {
+          checkM(
+            // We're using ZStream.fromChunks in the test, and that discards empty
+            // chunks; so we're only testing for non-empty chunks here.
+            Gen.listOf(smallChunks(Gen.anyInt).filter(_.size > 0)),
+            Gen.listOf(smallChunks(Gen.anyInt).filter(_.size > 0))
+          ) { (l, r) =>
+            val expected =
+              Chunk
+                .fromIterable(l)
+                .flatten
+                .zipAllWith(Chunk.fromIterable(r).flatten)(Some(_) -> None, None -> Some(_))(
+                  Some(_) -> Some(_)
+                )
 
-        //   for {
-        //     q  <- Queue.unbounded[(Int, Int)]
-        //     s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
-        //     s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
-        //     s3 = s1.zipWithLatest(s2)((_, _))
-        //     _  <- s3.foreach(q.offer).fork
-        //     a  <- q.take
-        //     _  <- TestClock.setTime(70.millis)
-        //     b  <- q.take
-        //     _  <- TestClock.setTime(100.millis)
-        //     c  <- q.take
-        //     _  <- TestClock.setTime(140.millis)
-        //     d  <- q.take
-        //     _  <- TestClock.setTime(210.millis)
-        //   } yield assert(List(a, b, c, d))(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
-        // }
-      )
+            assertM(
+              ZStream
+                .fromChunks(l: _*)
+                .map(Option(_))
+                .zipAll(ZStream.fromChunks(r: _*).map(Option(_)))(None, None)
+                .runCollect
+            )(equalTo(expected.toList))
+          }
+        },
+        testM("zipAllWith prioritizes failure") {
+          assertM(
+            ZStream.never
+              .zipAll(ZStream.fail("Ouch"))(None, None)
+              .runCollect
+              .either
+          )(isLeft(equalTo("Ouch")))
+        }
+      ),
+      testM("zipWithIndex")(checkM(pureStreamOfBytes) { s =>
+        for {
+          res1 <- (s.zipWithIndex.runCollect)
+          res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
+        } yield assert(res1)(equalTo(res2))
+      })
     ),
     suite("Constructors")(
       testM("fromChunk") {
