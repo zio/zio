@@ -124,6 +124,12 @@ final class ZLayer[-RIn, +E, +ROut] private (
     )
 
   /**
+    * A named alias for `>>>`.
+    */
+  def to[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+    self >>> that
+
+  /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
@@ -2033,6 +2039,14 @@ object ZLayer {
       that: ZLayer[RIn2, E1, ROut2]
     ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
       self.zipWithPar(that)(_.unionAll[ROut2](_))
+
+    /**
+      * A named alias for `++`.
+      */
+    def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+      self ++ that
 
     /**
      * Updates one of the services output by this layer.
