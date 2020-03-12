@@ -706,16 +706,16 @@ object ZManagedSpec extends ZIOBaseSpec {
         for {
           releases <- Ref.make[Int](0)
           _ <- ZManaged
-                .reduceAllParN(2)(
-                  ZManaged.finalizer(ZIO.dieMessage("Boom")),
-                  List(
-                    ZManaged.finalizer(releases.update(_ + 1)),
-                    ZManaged.finalizer(ZIO.dieMessage("Boom")),
-                    ZManaged.finalizer(releases.update(_ + 1)),
-                    ZManaged.finalizer(ZIO.dieMessage("Boom")),
-                    ZManaged.finalizer(releases.update(_ + 1))
-                  )
-                )((_, _) => ())
+            .reduceAllParN(2)(
+              ZManaged.finalizer(ZIO.dieMessage("Boom")),
+              List(
+                ZManaged.finalizer(releases.update(_ + 1)),
+                ZManaged.finalizer(ZIO.dieMessage("Boom")),
+                ZManaged.finalizer(releases.update(_ + 1)),
+                ZManaged.finalizer(ZIO.dieMessage("Boom")),
+                ZManaged.finalizer(releases.update(_ + 1))
+              )
+            )((_, _) => ())
             .use_(ZIO.unit)
             .run
           count <- releases.get
