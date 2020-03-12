@@ -14,18 +14,28 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio.test.laws
 
 /**
- * `FailureDetails` keeps track of details relevant to failures.
+ * `ZLawful[Caps, R]` describes a capability that is expected to satisfy a set
+ * of laws. Lawful instances can be combined using `+` to describe a set of
+ * capabilities and all of the laws that those capabilities are expected to
+ * satisfy.
+ *
+ * {{{
+ * trait Equal[-A] {
+ *   def equal(a1: A, a2: A): Boolean
+ * }
+ *
+ * object Equal extends Lawful[Equal] {
+ *   val laws = ???
+ * }
+ * }}}
  */
-final case class FailureDetails(assertion: ::[AssertionValue], gen: Option[GenFailureDetails] = None) {
-
-  def label(string: String): FailureDetails =
-    FailureDetails(
-      assertion match {
-        case h :: t => ::(AssertionValue(h.assertion.label(string), h.value), t)
-      },
-      gen
-    )
+trait ZLawful[-Caps[_], -R] { self =>
+  def laws: ZLaws[Caps, R]
+  def +[Caps1[x] <: Caps[x], R1 <: R](that: ZLawful[Caps1, R1]): ZLawful[Caps1, R1] =
+    new ZLawful[Caps1, R1] {
+      val laws = self.laws + that.laws
+    }
 }
