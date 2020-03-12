@@ -65,6 +65,27 @@ abstract class ZStream[-R, +E, +O](
     mapError(f).map(g)
 
   /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` chunks in a queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def buffer(capacity: Int): ZStream[R, E, O] =
+    ZStream {
+      for {
+        done  <- Ref.make(false).toManaged_
+        queue <- self.toQueue(capacity)
+        pull = done.get.flatMap {
+          if (_) ZIO.fail(None)
+          else
+            queue.take.flatMap(ZIO.done(_)).catchSome {
+              case None => done.set(true) *> ZIO.fail(None)
+            }
+        }
+      } yield pull
+    }
+
+  /**
    * Performs a filter and map in a single step.
    */
   def collect[O1](pf: PartialFunction[O, O1]): ZStream[R, E, O1] =
@@ -509,6 +530,40 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Enqueues elements of this stream into a queue. Stream failure and ending will also be
+   * signalled.
+   */
+  final def into[R1 <: R, E1 >: E, O1 >: O](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], Chunk[O1]], Any]
+  ): ZIO[R1, E1, Unit] =
+    intoManaged(queue).use_(UIO.unit)
+
+  /**
+   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
+   * composition.
+   */
+  final def intoManaged[R1 <: R, E1 >: E, O1 >: O](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], Chunk[O1]], Any]
+  ): ZManaged[R1, E1, Unit] =
+    for {
+      as <- self.process
+      pull = {
+        def go: ZIO[R1, Nothing, Unit] =
+          as.foldCauseM(
+            Cause
+              .sequenceCauseOption(_)
+              .fold[ZIO[R1, Nothing, Unit]](queue.offer(Exit.fail(None)).unit)(c =>
+                queue.offer(Exit.halt(c.map(Some(_)))) *> go
+              ),
+            a => queue.offer(Exit.succeed(a)) *> go
+          )
+
+        go
+      }
+      _ <- pull.toManaged_
+    } yield ()
+
+  /**
    * Transforms the elements of this stream using the supplied function.
    */
   def map[O2](f: O => O2): ZStream[R, E, O2] =
@@ -570,6 +625,68 @@ abstract class ZStream[-R, +E, +O](
    */
   def mapM[R1 <: R, E1 >: E, O2](f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
     ZStream(self.process.map(_.flatMap(_.mapM(f).mapError(Some(_)))))
+
+  /**
+   * Merges this stream and the specified stream together.
+   */
+  final def merge[R1 <: R, E1 >: E, O1 >: O](that: ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+    self.mergeWith[R1, E1, O1, O1](that)(identity, identity) // TODO: Dotty doesn't infer this properly
+
+  /**
+   * Merges this stream and the specified stream together to produce a stream of
+   * eithers.
+   */
+  final def mergeEither[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, Either[O, O2]] =
+    self.mergeWith(that)(Left(_), Right(_))
+
+  /**
+   * Merges this stream and the specified stream together to a common element
+   * type with the specified mapping functions.
+   */
+  final def mergeWith[R1 <: R, E1 >: E, O2, O3](
+    that: ZStream[R1, E1, O2]
+  )(l: O => O3, r: O2 => O3): ZStream[R1, E1, O3] = {
+    type Loser = Either[Fiber[Nothing, Exit[Option[E], Chunk[O]]], Fiber[Nothing, Exit[Option[E1], Chunk[O2]]]]
+
+    def race(
+      left: ZIO[R, Nothing, Exit[Option[E], Chunk[O]]],
+      right: ZIO[R1, Nothing, Exit[Option[E1], Chunk[O2]]]
+    ): ZIO[R1, Nothing, (Exit[Option[E1], Chunk[O3]], Loser)] =
+      left.raceWith[R1, Nothing, Nothing, Exit[Option[E1], Chunk[O2]], (Exit[Option[E1], Chunk[O3]], Loser)](right)(
+        (exit, right) => ZIO.done(exit).map(a => (a.map(_.map(l)), Right(right))),
+        (exit, left) => ZIO.done(exit).map(b => (b.map(_.map(r)), Left(left)))
+      )
+
+    self.combineChunks(that)((false, false, Option.empty[Loser])) {
+      case ((leftDone, rightDone, loser), left, right) =>
+        if (leftDone) {
+          right.map(c => (c.map(r), (leftDone, rightDone, None))).run
+        } else if (rightDone) {
+          left.map(c => (c.map(l), (leftDone, rightDone, None))).run
+        } else {
+          val result = loser match {
+            case None               => race(left.run, right.run)
+            case Some(Left(loser))  => race(loser.join, right.run)
+            case Some(Right(loser)) => race(left.run, loser.join)
+          }
+          result.flatMap {
+            case (exit, loser) =>
+              exit.foldM(
+                Cause.sequenceCauseOption(_) match {
+                  case Some(e) =>
+                    loser.merge.interrupt.as(Exit.halt(e.map(Some(_))))
+                  case None =>
+                    loser.fold(
+                      _.join.map(_.map(_.map(l))).map(_.map((_, (leftDone, true, None)))),
+                      _.join.map(_.map(_.map(r))).map(_.map((_, (true, rightDone, None))))
+                    )
+                },
+                chunk => ZIO.succeedNow(Exit.succeed((chunk, (leftDone, rightDone, Some(loser)))))
+              )
+          }
+        }
+    }
+  }
 
   /**
    * Runs the stream and collects all of its elements to a list.
@@ -657,6 +774,26 @@ abstract class ZStream[-R, +E, +O](
     ZStream(self.process.map(_.tap(_.mapM_(f0).mapError(Some(_)))))
 
   /**
+   * Converts the stream to a managed queue of chunks. After the managed queue is used,
+   * the queue will never again produce values and should be discarded.
+   */
+  final def toQueue(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Exit[Option[E], Chunk[O]]]] =
+    for {
+      queue <- Queue.bounded[Exit[Option[E], Chunk[O]]](capacity).toManaged(_.shutdown)
+      _     <- self.intoManaged(queue).fork
+    } yield queue
+
+  /**
+   * Converts the stream into an unbounded managed queue. After the managed queue
+   * is used, the queue will never again produce values and should be discarded.
+   */
+  final def toQueueUnbounded: ZManaged[R, Nothing, Dequeue[Exit[Option[E], Chunk[O]]]] =
+    for {
+      queue <- Queue.unbounded[Exit[Option[E], Chunk[O]]].toManaged(_.shutdown)
+      _     <- self.intoManaged(queue).fork
+    } yield queue
+
+  /**
    * Applies the transducer to the stream and emits its outputs.
    */
   def transduce[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]): ZStream[R1, E1, O3] =
@@ -696,42 +833,6 @@ abstract class ZStream[-R, +E, +O](
    * The new stream will end when one of the sides ends.
    */
   def zip[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] = zipWith(that)((_, _))
-
-  /**
-   * Zips this stream with another point-wise and applies the function to the paired elements.
-   *
-   * The new stream will end when one of the sides ends.
-   */
-  def zipWith[R1 <: R, E1 >: E, O2, O3](that: ZStream[R1, E1, O2])(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
-    sealed trait State[+O, +O2]
-    case class Running[O, O2](excessL: Chunk[O], excessR: Chunk[O2]) extends State[O, O2]
-    case object End                                                  extends State[Nothing, Nothing]
-
-    def zipSides(cl: Chunk[O], cr: Chunk[O2]) =
-      if (cl.size > cr.size) (cl.take(cr.size).zipWith(cr)(f), cl.drop(cr.size), Chunk())
-      else if (cl.size == cr.size) (cl.zipWith(cr)(f), Chunk(), Chunk())
-      else (cl.zipWith(cr.take(cl.size))(f), Chunk(), cr.drop(cl.size))
-
-    combineChunks(that)(Running(Chunk[O](), Chunk[O2]()): State[O, O2]) {
-      case (Running(excessL, excessR), pullL, pullR) =>
-        pullL.optional
-          .zipWithPar(pullR.optional) {
-            case (Some(o), Some(o2)) =>
-              val (emit, el, er) = zipSides(excessL ++ o, excessR ++ o2)
-              Exit.succeed(emit -> Running(el, er))
-            case (Some(o), None) =>
-              val (emit, _, _) = zipSides(excessL ++ o, excessR)
-              Exit.succeed(emit -> End)
-            case (None, Some(o2)) =>
-              val (emit, _, _) = zipSides(excessL, excessR ++ o2)
-              Exit.succeed(emit -> End)
-            case (None, None) =>
-              Exit.fail(None)
-          }
-          .catchAllCause(e => UIO.succeed(Exit.halt(e.map(Some(_)))))
-      case (End, _, _) => UIO.succeed(Exit.fail(None))
-    }
-  }
 
   /**
    * Zips this stream with another point-wise, creating a new stream of pairs of elements
@@ -827,10 +928,99 @@ abstract class ZStream[-R, +E, +O](
   }
 
   /**
+   * Zips this stream with another point-wise and applies the function to the paired elements.
+   *
+   * The new stream will end when one of the sides ends.
+   */
+  def zipWith[R1 <: R, E1 >: E, O2, O3](that: ZStream[R1, E1, O2])(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
+    sealed trait State[+O, +O2]
+    case class Running[O, O2](excessL: Chunk[O], excessR: Chunk[O2]) extends State[O, O2]
+    case object End                                                  extends State[Nothing, Nothing]
+
+    def zipSides(cl: Chunk[O], cr: Chunk[O2]) =
+      if (cl.size > cr.size) (cl.take(cr.size).zipWith(cr)(f), cl.drop(cr.size), Chunk())
+      else if (cl.size == cr.size) (cl.zipWith(cr)(f), Chunk(), Chunk())
+      else (cl.zipWith(cr.take(cl.size))(f), Chunk(), cr.drop(cl.size))
+
+    combineChunks(that)(Running(Chunk[O](), Chunk[O2]()): State[O, O2]) {
+      case (Running(excessL, excessR), pullL, pullR) =>
+        pullL.optional
+          .zipWithPar(pullR.optional) {
+            case (Some(o), Some(o2)) =>
+              val (emit, el, er) = zipSides(excessL ++ o, excessR ++ o2)
+              Exit.succeed(emit -> Running(el, er))
+            case (Some(o), None) =>
+              val (emit, _, _) = zipSides(excessL ++ o, excessR)
+              Exit.succeed(emit -> End)
+            case (None, Some(o2)) =>
+              val (emit, _, _) = zipSides(excessL, excessR ++ o2)
+              Exit.succeed(emit -> End)
+            case (None, None) =>
+              Exit.fail(None)
+          }
+          .catchAllCause(e => UIO.succeed(Exit.halt(e.map(Some(_)))))
+      case (End, _, _) => UIO.succeed(Exit.fail(None))
+    }
+  }
+
+  /**
    * Zips this stream together with the index of elements.
    */
   final def zipWithIndex: ZStream[R, E, (O, Long)] =
     mapAccum(0L)((index, a) => (index + 1, (a, index)))
+
+  /**
+   * Zips the two streams so that when a value is emitted by either of the two streams,
+   * it is combined with the latest value from the other stream to produce a result.
+   *
+   * Note: tracking the latest value is done on a per-chunk basis. That means that
+   * emitted elements that are not the last value in chunks will never be used for zipping.
+   */
+  final def zipWithLatest[R1 <: R, E1 >: E, O2, O3](
+    that: ZStream[R1, E1, O2]
+  )(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
+    def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
+      pull.flatMap(chunk => if (chunk.isEmpty) pull else UIO.succeed(chunk))
+
+    ZStream {
+      for {
+        left  <- self.process.map(pullNonEmpty(_))
+        right <- that.process.map(pullNonEmpty(_))
+        pull <- (ZStream.fromEffectOption {
+                 left.raceWith(right)(
+                   (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
+                   (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
+                 )
+               }.flatMap {
+                 case (l, r, leftFirst) =>
+                   ZStream.fromEffect(Ref.make(l(l.size - 1)) <*> Ref.make(r(r.size - 1))).flatMap {
+                     case (latestLeft, latestRight) =>
+                       ZStream.fromChunk(
+                         if (leftFirst) r.map(f(l(l.size - 1), _))
+                         else l.map(f(_, r(r.size - 1)))
+                       ) ++
+                         ZStream
+                           .repeatEffectOption(
+                             left.tap(chunk => latestLeft.set(chunk(chunk.size - 1))) <*> latestRight.get
+                           )
+                           .mergeWith(
+                             ZStream.repeatEffectOption(
+                               right.tap(chunk => latestRight.set(chunk(chunk.size - 1))) <*> latestLeft.get
+                             )
+                           )(
+                             {
+                               case (leftChunk, rightLatest) => leftChunk.map(f(_, rightLatest))
+                             }, {
+                               case (rightChunk, leftLatest) => rightChunk.map(f(leftLatest, _))
+                             }
+                           )
+                           .flatMap(ZStream.fromChunk(_))
+                   }
+               }).process
+
+      } yield pull
+    }
+  }
 }
 
 object ZStream {
@@ -1134,6 +1324,12 @@ object ZStream {
         case None    => ZIO.fail(None)
       }
     }
+
+  /**
+   * Constructs a stream from a range of integers (lower bound included, upper bound not included)
+   */
+  def range(min: Int, max: Int): ZStream[Any, Nothing, Int] =
+    iterate(min)(_ + 1).takeWhile(_ < max)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever
