@@ -1290,7 +1290,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Fail with the returned value if the `PartialFunction` matches, otherwise
    * continue with our held value.
    */
-  final def reject[R1 <: R, E1 >: E](pf: PartialFunction[A, E1]): ZIO[R1, E1, A] =
+  final def reject[E1 >: E](pf: PartialFunction[A, E1]): ZIO[R, E1, A] =
     rejectM(pf.andThen(ZIO.fail(_)))
 
   /**

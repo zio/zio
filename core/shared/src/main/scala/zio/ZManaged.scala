@@ -715,7 +715,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Fail with the returned value if the `PartialFunction` matches, otherwise
    * continue with our held value.
    */
-  def reject[R1 <: R, E1 >: E](pf: PartialFunction[A, E1]): ZManaged[R1, E1, A] =
+  def reject[E1 >: E](pf: PartialFunction[A, E1]): ZManaged[R, E1, A] =
     rejectM(pf.andThen(ZManaged.fail(_)))
 
   /**
