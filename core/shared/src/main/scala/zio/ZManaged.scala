@@ -712,6 +712,24 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     catchAll(e => pf.lift(e).fold[ZManaged[R, E1, A]](ZManaged.die(f(e)))(ZManaged.fail(_)))
 
   /**
+   * Fail with the returned value if the `PartialFunction` matches, otherwise
+   * continue with our held value.
+   */
+  def reject[E1 >: E](pf: PartialFunction[A, E1]): ZManaged[R, E1, A] =
+    rejectM(pf.andThen(ZManaged.fail(_)))
+
+  /**
+   * Continue with the returned computation if the `PartialFunction` matches,
+   * translating the successful match into a failure, otherwise continue with
+   * our held value.
+   */
+  def rejectM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZManaged[R1, E1, E1]]): ZManaged[R1, E1, A] =
+    self.flatMap { v =>
+      pf.andThen[ZManaged[R1, E1, A]](_.flatMap(ZManaged.fail(_)))
+        .applyOrElse[A, ZManaged[R1, E1, A]](v, ZManaged.succeedNow)
+    }
+
+  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
