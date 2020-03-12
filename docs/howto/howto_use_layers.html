@@ -101,7 +101,7 @@ only on one topic at a time without juggling with too many concepts together in 
 <li>Within the module object define the different implementations of <code>ModuleName</code> through <code>ZLayer</code> (see below for details on <code>ZLayer</code>)</li>
 <li>Define a type alias like <code>type ModuleName = Has[Service]</code> (see below for details on <code>Has</code>)</li>
 </ol>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.{<span class="hljs-type">Has</span>, <span class="hljs-type">ZLayer</span>}
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.{ <span class="hljs-type">Has</span>, <span class="hljs-type">ZLayer</span> }
 
 <span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">UserRepo</span> </span>= <span class="hljs-type">Has</span>[<span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span>]
 
@@ -131,7 +131,7 @@ only on one topic at a time without juggling with too many concepts together in 
 Usually we don't create a <code>Has</code> directly, but we do that through <code>ZLayer</code>.</p>
 <h3><a class="anchor" aria-hidden="true" id="the-zlayer-data-type"></a><a href="#the-zlayer-data-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The <code>ZLayer</code> data type</h3>
 <p><code>ZLayer[-RIn, +E, +ROut &lt;: Has[_]]</code> is a recipe to build an environment of type <code>ROut</code>, starting from a value <code>RIn</code>, possibly producing an error <code>E</code> during creation.</p>
-<p>In adherence with environmental concepts, the absence of a required input is represented by <code>RIn = Any</code>, conveniently  used in the type alias <code>ZLayer#NoDeps</code>.</p>
+<p>In adherence with environmental concepts, the absence of a required input is represented by <code>RIn = Any</code>, conveniently  used in the type alias <code>Layer</code>.</p>
 <p>There are many ways to create a <code>ZLayer</code>, here's an incomplete list:</p>
 <ul>
 <li><code>ZLayer.succeed</code> or <code>ZIO.asService</code>  to create a layer from an existing service</li>
@@ -155,7 +155,7 @@ Usually we don't create a <code>Has</code> directly, but we do that through <cod
 
 
   <span class="hljs-comment">// This simple live version depends only on a DB Connection</span>
-  <span class="hljs-keyword">val</span> inMemory: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">ZLayer</span>.succeed(
+  <span class="hljs-keyword">val</span> inMemory: <span class="hljs-type">Layer</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">ZLayer</span>.succeed(
     <span class="hljs-keyword">new</span> <span class="hljs-type">Service</span> {
       <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] = <span class="hljs-type">UIO</span>(???)
       <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-type">UIO</span>(???)
@@ -187,7 +187,7 @@ Usually we don't create a <code>Has</code> directly, but we do that through <cod
       <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">error</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>] = console.get.putStrLn(<span class="hljs-string">s"error - <span class="hljs-subst">$s</span>"</span>)
     }
   )
-    
+
   <span class="hljs-comment">//accessor methods</span>
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">info</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Logging</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
     <span class="hljs-type">ZIO</span>.accessM(_.get.info(s))
@@ -209,21 +209,19 @@ Usually we don't create a <code>Has</code> directly, but we do that through <cod
 <span class="hljs-keyword">val</span> horizontal: <span class="hljs-type">ZLayer</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Logging</span> <span class="hljs-keyword">with</span> <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">Logging</span>.consoleLogger ++ <span class="hljs-type">UserRepo</span>.inMemory
 
 <span class="hljs-comment">// fulfill missing deps, composing vertically</span>
-<span class="hljs-keyword">val</span> fullLayer: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Logging</span> <span class="hljs-keyword">with</span> <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">Console</span>.live &gt;&gt;&gt; horizontal
+<span class="hljs-keyword">val</span> fullLayer: <span class="hljs-type">Layer</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Logging</span> <span class="hljs-keyword">with</span> <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">Console</span>.live &gt;&gt;&gt; horizontal
 
 <span class="hljs-comment">// provide the layer to the program</span>
 makeUser.provideLayer(fullLayer)
-  
-
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="providing-partial-environments"></a><a href="#providing-partial-environments" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Providing partial environments</h2>
 <p>Let's add some extra logic to our program that creates a user</p>
 <pre><code class="hljs css language-scala">
 <span class="hljs-keyword">val</span> makeUser2: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Logging</span> <span class="hljs-keyword">with</span> <span class="hljs-type">UserRepo</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Clock</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Random</span>, <span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-keyword">for</span> {
     uId       &lt;- zio.random.nextLong.map(<span class="hljs-type">UserId</span>)
-    createdAt &lt;- zio.clock.currentDateTime
-    _         &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"inserting user"</span>)        
-    _         &lt;- <span class="hljs-type">UserRepo</span>.createUser(<span class="hljs-type">User</span>(uId, <span class="hljs-string">"Chet"</span>))   
+    createdAt &lt;- zio.clock.currentDateTime.orDie
+    _         &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"inserting user"</span>)
+    _         &lt;- <span class="hljs-type">UserRepo</span>.createUser(<span class="hljs-type">User</span>(uId, <span class="hljs-string">"Chet"</span>))
     _         &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"user inserted, created at <span class="hljs-subst">$createdAt</span>"</span>)
   } <span class="hljs-keyword">yield</span> ()
 </code></pre>
@@ -240,7 +238,7 @@ makeUser.provideLayer(fullLayer)
   }
 </code></pre>
 <p>Another way is by composing horizontally with a layer that provides the updated service</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> dbLayer: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">ZLayer</span>.succeed(<span class="hljs-keyword">new</span> <span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span> {
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> dbLayer: <span class="hljs-type">Layer</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = <span class="hljs-type">ZLayer</span>.succeed(<span class="hljs-keyword">new</span> <span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span> {
     <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] = ???
     <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = ???
   })
@@ -252,9 +250,9 @@ makeUser.provideLayer(fullLayer)
 <p>For example, to build a postgres-based repository we need a <code>java.sql.Connection</code> to be opened at startup, and closed in the release phase.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.sql.<span class="hljs-type">Connection</span>
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">makeConnection</span></span>: <span class="hljs-type">UIO</span>[<span class="hljs-type">Connection</span>] = <span class="hljs-type">UIO</span>(???)
-<span class="hljs-keyword">val</span> connectionLayer: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Has</span>[<span class="hljs-type">Connection</span>]] = 
+<span class="hljs-keyword">val</span> connectionLayer: <span class="hljs-type">Layer</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Has</span>[<span class="hljs-type">Connection</span>]] =
     <span class="hljs-type">ZLayer</span>.fromAcquireRelease(makeConnection)(c =&gt; <span class="hljs-type">UIO</span>(c.close()))
-<span class="hljs-keyword">val</span> postgresLayer: <span class="hljs-type">ZLayer</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">Connection</span>], <span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = 
+<span class="hljs-keyword">val</span> postgresLayer: <span class="hljs-type">ZLayer</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">Connection</span>], <span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] =
   <span class="hljs-type">ZLayer</span>.fromFunction { hasC =&gt;
     <span class="hljs-keyword">new</span> <span class="hljs-type">UserRepo</span>.<span class="hljs-type">Service</span> {
       <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">DBError</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] = <span class="hljs-type">UIO</span>(???)
@@ -262,7 +260,7 @@ makeUser.provideLayer(fullLayer)
     }
   }
 
-<span class="hljs-keyword">val</span> fullRepo: <span class="hljs-type">ZLayer</span>.<span class="hljs-type">NoDeps</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = connectionLayer &gt;&gt;&gt; postgresLayer
+<span class="hljs-keyword">val</span> fullRepo: <span class="hljs-type">Layer</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">UserRepo</span>] = connectionLayer &gt;&gt;&gt; postgresLayer
 
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="layers-are-shared-in-the-dependency-graph"></a><a href="#layers-are-shared-in-the-dependency-graph" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Layers are shared in the dependency graph</h2>
