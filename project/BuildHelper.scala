@@ -349,7 +349,7 @@ object BuildHelper {
           .Config()
           .withArgs(
             List(
-              "--max_old_space_size=4096",
+              "--max_old_space_size=8000",
               "--optimize_for_size",
               "--stack_size=4096"
             )
