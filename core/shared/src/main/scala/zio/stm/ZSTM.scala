@@ -622,7 +622,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Fail with the returned value if the `PartialFunction` matches, otherwise
    * continue with our held value.
    */
-  def reject[R1 <: R, E1 >: E](pf: PartialFunction[A, E1]): ZSTM[R1, E1, A] =
+  def reject[E1 >: E](pf: PartialFunction[A, E1]): ZSTM[R, E1, A] =
     rejectM(pf.andThen(ZSTM.fail(_)))
 
   /**
