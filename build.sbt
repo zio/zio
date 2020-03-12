@@ -263,8 +263,10 @@ lazy val stacktracerJVM = stacktracer.jvm
 
 lazy val stacktracerNative = stacktracer.native
   .settings(scalaVersion := "2.11.12")
+  .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
   .settings(skip in Test := true)
   .settings(skip in doc := true)
+
 lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
