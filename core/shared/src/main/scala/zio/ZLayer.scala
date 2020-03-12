@@ -48,6 +48,12 @@ final class ZLayer[-RIn, +E, +ROut] private (
     fold(ZLayer.fromFunctionManyM(ZIO.halt(_)), that)
 
   /**
+    * A named alias for `>>>`.
+    */
+  def andThen[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+    self >>> that
+
+  /**
    * Builds a layer into a managed value.
    */
   def build: ZManaged[RIn, E, ROut] =
@@ -2039,6 +2045,14 @@ object ZLayer {
      */
     def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
       self >>> ZLayer.fromFunctionMany(_.update[A](f))
+
+    /**
+      * A named alias for `++`.
+      */
+    def zip[E1 >: E, RIn2, ROut1 >: ROut, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+      self ++ that
   }
 
   implicit final class ZLayerHasRInROutOps[RIn <: Has[_], E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut])
