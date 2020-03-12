@@ -716,10 +716,60 @@ object ZManagedSpec extends ZIOBaseSpec {
                     ZManaged.finalizer(releases.update(_ + 1))
                   )
                 )((_, _) => ())
-                .use_(ZIO.unit)
-                .run
+            .use_(ZIO.unit)
+            .run
           count <- releases.get
         } yield assert(count)(equalTo(3))
+      }
+    ),
+    suite("reject")(
+      testM("returns failure ignoring value") {
+        val goodCase =
+          ZManaged.succeedNow(0).reject({ case v if v != 0 => "Partial failed!" }).sandbox.either
+
+        val badCase = ZManaged
+          .succeedNow(1)
+          .reject({ case v if v != 0 => "Partial failed!" })
+          .sandbox
+          .either
+          .map(_.left.map(_.failureOrCause))
+
+        for {
+          goodCaseCheck <- goodCase.use(r => ZIO.succeedNow(assert(r)(isRight(equalTo(0)))))
+          badCaseCheck <- badCase.use(r => ZIO.succeedNow(assert(r)(isLeft(isLeft(equalTo("Partial failed!"))))))
+        } yield goodCaseCheck && badCaseCheck
+      }
+    ),
+    suite("rejectM")(
+      testM("returns failure ignoring value") {
+        val goodCase =
+          ZManaged
+            .succeedNow(0)
+            .rejectM[Any, String]({ case v if v != 0 => ZManaged.succeedNow("Partial failed!") })
+            .sandbox
+            .either
+
+        val partialBadCase =
+          ZManaged
+            .succeedNow(1)
+            .rejectM({ case v if v != 0 => ZManaged.fail("Partial failed!") })
+            .sandbox
+            .either
+            .map(_.left.map(_.failureOrCause))
+
+        val badCase =
+          ZManaged
+            .succeedNow(1)
+            .rejectM({ case v if v != 0 => ZManaged.fail("Partial failed!") })
+            .sandbox
+            .either
+            .map(_.left.map(_.failureOrCause))
+
+        for {
+          r1 <- goodCase.use(r => ZIO.succeedNow(assert(r)(isRight(equalTo(0)))))
+          r2 <- partialBadCase.use(r => ZIO.succeedNow(assert(r)(isLeft(isLeft(equalTo("Partial failed!"))))))
+          r3 <- badCase.use(r => ZIO.succeedNow(assert(r)(isLeft(isLeft(equalTo("Partial failed!"))))))
+        } yield r1 && r2 && r3
       }
     ),
     suite("retry")(
