@@ -97,36 +97,98 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
-   * Combines the chunks from this stream and the specified stream by repeatedly applying the
-   * function `f0` to extract a chunk using both sides and conceptually "offer"
-   * it to the destination stream. `f0` can maintain some internal state to control
-   * the combining process, with the initial state being specified by `s1`.
+   * Combines the elements from this stream and the specified stream by repeatedly applying the
+   * function `f` to extract an element using both sides and conceptually "offer"
+   * it to the destination stream. `f` can maintain some internal state to control
+   * the combining process, with the initial state being specified by `s`.
+   *
+   * Where possible, prefer the method [[ZStream#combineChunks]] for a more efficient implementation.
    */
-  final def combineChunks[R1 <: R, E1 >: E, S1, O2, O3](that: ZStream[R1, E1, O2])(s1: S1)(
-    f0: (
-      S1,
+  final def combine[R1 <: R, E1 >: E, S, O2, O3](that: ZStream[R1, E1, O2])(s: S)(
+    f: (S, ZIO[R, Option[E], O], ZIO[R1, Option[E1], O2]) => ZIO[R1, Nothing, Exit[Option[E1], (O3, S)]]
+  ): ZStream[R1, E1, O3] =
+    ZStream[R1, E1, O3] {
+      def pull[R0, E0, O0](
+        ref: Ref[(Chunk[O0], Int)],
+        upstream: ZIO[R0, Option[E0], Chunk[O0]],
+        done: Ref[Boolean]
+      ): ZIO[R0, Option[E0], O0] =
+        done.get.flatMap {
+          if (_) ZIO.fail(None)
+          else
+            ref.modify {
+              case (chunk, idx) =>
+                val pullUpstream =
+                  upstream.foldM(
+                    {
+                      case None    => done.set(true) *> ZIO.fail(None)
+                      case Some(e) => ZIO.fail(Some(e))
+                    },
+                    chunk => ref.set(chunk -> 0)
+                  )
+
+                if (idx >= chunk.size) (pullUpstream *> pull(ref, upstream, done), (Chunk.empty, 0))
+                else (UIO.succeed(chunk(idx)), (chunk, idx + 1))
+            }.flatten
+        }
+
+      for {
+        left           <- self.process
+        right          <- that.process
+        currChunkLeft  <- Ref.make[(Chunk[O], Int)]((Chunk.empty, 0)).toManaged_
+        currChunkRight <- Ref.make[(Chunk[O2], Int)]((Chunk.empty, 0)).toManaged_
+        doneLeft       <- Ref.make(false).toManaged_
+        doneRight      <- Ref.make(false).toManaged_
+        pull <- ZStream
+                 .unfoldM(s) { s =>
+                   f(s, pull(currChunkLeft, left, doneLeft), pull(currChunkRight, right, doneRight)).flatMap { exit =>
+                     ZIO.done(
+                       exit.fold(
+                         Cause
+                           .sequenceCauseOption(_) match {
+                           case None    => Exit.succeed(None)
+                           case Some(e) => Exit.halt(e)
+                         },
+                         result => Exit.succeed(Some(result))
+                       )
+                     )
+
+                   }
+                 }
+                 .process
+      } yield pull
+    }
+
+  /**
+   * Combines the chunks from this stream and the specified stream by repeatedly applying the
+   * function `f` to extract a chunk using both sides and conceptually "offer"
+   * it to the destination stream. `f` can maintain some internal state to control
+   * the combining process, with the initial state being specified by `s`.
+   */
+  final def combineChunks[R1 <: R, E1 >: E, S, O2, O3](that: ZStream[R1, E1, O2])(s: S)(
+    f: (
+      S,
       ZIO[R, Option[E], Chunk[O]],
       ZIO[R1, Option[E1], Chunk[O2]]
-    ) => ZIO[R1, Nothing, (S1, Exit[Option[E1], Chunk[O3]])]
+    ) => ZIO[R1, Nothing, Exit[Option[E1], (Chunk[O3], S)]]
   ): ZStream[R1, E1, O3] =
     ZStream[R1, E1, O3] {
       for {
         left  <- self.process
         right <- that.process
         pull <- ZStream
-                 .unfoldChunkM(s1) { s1 =>
-                   f0(s1, left, right).flatMap {
-                     case (s1, exit) =>
-                       ZIO.done(
-                         exit.fold(
-                           Cause
-                             .sequenceCauseOption(_) match {
-                             case None    => Exit.succeed(None)
-                             case Some(e) => Exit.halt(e)
-                           },
-                           chunk => Exit.succeed(Some(chunk -> s1))
-                         )
+                 .unfoldChunkM(s) { s =>
+                   f(s, left, right).flatMap { exit =>
+                     ZIO.done(
+                       exit.fold(
+                         Cause
+                           .sequenceCauseOption(_) match {
+                           case None    => Exit.succeed(None)
+                           case Some(e) => Exit.halt(e)
+                         },
+                         result => Exit.succeed(Some(result))
                        )
+                     )
                    }
                  }
                  .process
@@ -651,23 +713,23 @@ abstract class ZStream[-R, +E, +O](
       else (cl.zipWith(cr.take(cl.size))(f), Chunk(), cr.drop(cl.size))
 
     combineChunks(that)(Running(Chunk[O](), Chunk[O2]()): State) {
-      case (s @ Running(excessL, excessR), pullL, pullR) =>
+      case (Running(excessL, excessR), pullL, pullR) =>
         pullL.optional
           .zipWithPar(pullR.optional) {
             case (Some(o), Some(o2)) =>
               val (emit, el, er) = zipSides(excessL ++ o, excessR ++ o2)
-              Running(el, er) -> Exit.succeed(emit)
+              Exit.succeed(emit -> Running(el, er))
             case (Some(o), None) =>
               val (emit, _, _) = zipSides(excessL ++ o, excessR)
-              End -> Exit.succeed(emit)
+              Exit.succeed(emit -> End)
             case (None, Some(o2)) =>
               val (emit, _, _) = zipSides(excessL, excessR ++ o2)
-              End -> Exit.succeed(emit)
+              Exit.succeed(emit -> End)
             case (None, None) =>
-              End -> Exit.fail(None)
+              Exit.fail(None)
           }
-          .catchAllCause(e => UIO.succeed(s -> Exit.halt(e.map(Some(_)))))
-      case (End, _, _) => UIO.succeed(End -> Exit.fail(None))
+          .catchAllCause(e => UIO.succeed(Exit.halt(e.map(Some(_)))))
+      case (End, _, _) => UIO.succeed(Exit.fail(None))
     }
   }
 
@@ -729,38 +791,38 @@ abstract class ZStream[-R, +E, +O](
       (maybeO, maybeO2) match {
         case (Some(o), Some(o2)) =>
           val (emit, el, er) = zipSides(excessL ++ o, excessR ++ o2, bothDone = false)
-          Running(el, er) -> Exit.succeed(emit)
+          Exit.succeed(emit -> Running(el, er))
 
         case (None, Some(o2)) =>
           val (emit, el, er) = zipSides(excessL, excessR ++ o2, bothDone = false)
-          LeftDone(el, er) -> Exit.succeed(emit)
+          Exit.succeed(emit -> LeftDone(el, er))
 
         case (Some(o), None) =>
           val (emit, el, er) = zipSides(excessL ++ o, excessR, bothDone = false)
-          RightDone(el, er) -> Exit.succeed(emit)
+          Exit.succeed(emit -> RightDone(el, er))
 
         case (None, None) =>
           val (emit, _, _) = zipSides(excessL, excessR, bothDone = true)
-          End -> Exit.succeed(emit)
+          Exit.succeed(emit -> End)
       }
 
     combineChunks(that)(Running(Chunk(), Chunk()): State) {
       case (Running(excessL, excessR), pullL, pullR) =>
         pullL.optional
           .zipWithPar(pullR.optional)(handleSuccess(_, _, excessL, excessR))
-          .catchAllCause(e => UIO.succeed(End -> Exit.halt(e.map(Some(_)))))
+          .catchAllCause(e => UIO.succeed(Exit.halt(e.map(Some(_)))))
 
       case (LeftDone(excessL, excessR), _, pullR) =>
         pullR.optional
           .map(handleSuccess(None, _, excessL, excessR))
-          .catchAllCause(e => UIO.succeed(End -> Exit.halt(e.map(Some(_)))))
+          .catchAllCause(e => UIO.succeed(Exit.halt(e.map(Some(_)))))
 
       case (RightDone(excessL, excessR), pullL, _) =>
         pullL.optional
           .map(handleSuccess(_, None, excessL, excessR))
-          .catchAllCause(e => UIO.succeed(End -> Exit.halt(e.map(Some(_)))))
+          .catchAllCause(e => UIO.succeed(Exit.halt(e.map(Some(_)))))
 
-      case (End, _, _) => UIO.succeed(End -> Exit.fail(None))
+      case (End, _, _) => UIO.succeed(Exit.fail(None))
     }
   }
 }
