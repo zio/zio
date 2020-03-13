@@ -65,6 +65,68 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(leftAssoc -> rightAssoc)(equalTo(true -> true))
         )
       ),
+      suite("broadcast")(
+        testM("Values") {
+          ZStream
+            .range(0, 5)
+            .broadcast(2, 12)
+            .use {
+              case s1 :: s2 :: Nil =>
+                for {
+                  out1     <- s1.runCollect
+                  out2     <- s2.runCollect
+                  expected = Range(0, 5).toList
+                } yield assert(out1)(equalTo(expected)) && assert(out2)(equalTo(expected))
+              case _ =>
+                UIO(assert(())(Assertion.nothing))
+            }
+        },
+        testM("Errors") {
+          (ZStream.range(0, 1) ++ ZStream.fail("Boom")).broadcast(2, 12).use {
+            case s1 :: s2 :: Nil =>
+              for {
+                out1     <- s1.runCollect.either
+                out2     <- s2.runCollect.either
+                expected = Left("Boom")
+              } yield assert(out1)(equalTo(expected)) && assert(out2)(equalTo(expected))
+            case _ =>
+              UIO(assert(())(Assertion.nothing))
+          }
+        },
+        testM("BackPressure") {
+          ZStream
+            .range(0, 5)
+            .broadcast(2, 2)
+            .use {
+              case s1 :: s2 :: Nil =>
+                for {
+                  ref       <- Ref.make[List[Int]](Nil)
+                  latch1    <- Promise.make[Nothing, Unit]
+                  fib       <- s1.tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 2)).runDrain.fork
+                  _         <- latch1.await
+                  snapshot1 <- ref.get
+                  _         <- s2.runDrain
+                  _         <- fib.await
+                  snapshot2 <- ref.get
+                } yield assert(snapshot1)(equalTo(List(2, 1, 0))) && assert(snapshot2)(
+                  equalTo(Range(0, 5).toList.reverse)
+                )
+              case _ =>
+                UIO(assert(())(Assertion.nothing))
+            }
+        },
+        testM("Unsubscribe") {
+          ZStream.range(0, 5).broadcast(2, 2).use {
+            case s1 :: s2 :: Nil =>
+              for {
+                _    <- s1.process.use_(ZIO.unit).ignore
+                out2 <- s2.runCollect
+              } yield assert(out2)(equalTo(Range(0, 5).toList))
+            case _ =>
+              UIO(assert(())(Assertion.nothing))
+          }
+        }
+      ),
       suite("buffer")(
         testM("maintains elements and ordering")(checkM(Gen.listOf(smallChunks(Gen.anyInt))) { list =>
           assertM(
@@ -122,6 +184,23 @@ object ZStreamSpec extends ZIOBaseSpec {
             _      <- s1.catchAllCause(_ => s2).runCollect.run
             result <- fins.get
           } yield assert(result)(equalTo(List("s2", "s1")))
+        }
+      ),
+      suite("distributedWithDynamic")(
+        testM("ensures no race between subscription and stream end") {
+          val stream: ZStream[Any, Nothing, Either[Unit, Unit]] = ZStream.empty
+          stream.distributedWithDynamic(1, _ => UIO.succeedNow(_ => true)).use { add =>
+            val subscribe = ZStream.unwrap(add.map {
+              case (_, queue) =>
+                ZStream.fromQueue(queue).unExitChunk
+            })
+            Promise.make[Nothing, Unit].flatMap { onEnd =>
+              subscribe.ensuring(onEnd.succeed(())).runDrain.fork *>
+                onEnd.await *>
+                subscribe.runDrain *>
+                ZIO.succeedNow(assertCompletes)
+            }
+          }
         }
       ),
       suite("flatMap")(
