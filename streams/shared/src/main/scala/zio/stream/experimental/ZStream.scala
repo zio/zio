@@ -642,6 +642,42 @@ abstract class ZStream[-R, +E, +O](
     foreachWhile(f.andThen(_.as(true)))
 
   /**
+   * Consumes all elements of the stream, passing them to the specified callback.
+   */
+  final def foreachChunk[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
+    foreachChunkWhile(f.andThen(_.as(true)))
+
+  /**
+   * Like [[ZStream#foreachChunk]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  final def foreachChunkManaged[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Any]): ZManaged[R1, E1, Unit] =
+    foreachChunkWhileManaged(f.andThen(_.as(true)))
+
+  /**
+   * Consumes chunks of the stream, passing them to the specified callback,
+   * and terminating consumption when the callback returns `false`.
+   */
+  final def foreachChunkWhile[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+    foreachChunkWhileManaged(f).use_(ZIO.unit)
+
+  /**
+   * Like [[ZStream#foreachChunkWhile]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  final def foreachChunkWhileManaged[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
+    for {
+      chunks <- self.process
+      step = chunks.flatMap(f(_).mapError(Some(_))).flatMap {
+        if (_) UIO.unit else IO.fail(None)
+      }
+      _ <- step.forever.catchAll {
+            case Some(e) => IO.fail(e)
+            case None    => UIO.unit
+          }.toManaged_
+    } yield ()
+
+  /**
    * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
@@ -660,16 +696,7 @@ abstract class ZStream[-R, +E, +O](
    * can be controlled.
    */
   final def foreachWhileManaged[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
-    for {
-      as <- self.process
-      step = as.flatMap(_.foldWhileM(true)(identity)((_, a) => f(a)).mapError(Some(_))).flatMap {
-        if (_) UIO.unit else IO.fail(None)
-      }
-      _ <- step.forever.catchAll {
-            case Some(e) => IO.fail(e)
-            case None    => UIO.unit
-          }.toManaged_
-    } yield ()
+    foreachChunkWhileManaged(_.foldWhileM(true)(identity)((_, a) => f(a)))
 
   /**
    * Repeats this stream forever.
@@ -694,12 +721,6 @@ abstract class ZStream[-R, +E, +O](
    * which the predicate evaluates to true.
    */
   final def filterNot(pred: O => Boolean): ZStream[R, E, O] = filter(a => !pred(a))
-
-  /**
-   * Flattens this stream-of-streams into a stream made of the concatenation in
-   * strict order of all the streams.
-   */
-  def flatten[R1 <: R, E1 >: E, O1](implicit ev: O <:< ZStream[R1, E1, O1]) = flatMap(ev(_))
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
@@ -741,6 +762,143 @@ abstract class ZStream[-R, +E, +O](
       } yield go(outerStream, switchInner, currInnerStream)
     }
   }
+
+  /**
+   * Maps each element of this stream to another stream and returns the
+   * non-deterministic merge of those streams, executing up to `n` inner streams
+   * concurrently. Up to `outputBuffer` elements of the produced streams may be
+   * buffered in memory by this operator.
+   */
+  final def flatMapPar[R1 <: R, E1 >: E, O2](n: Int, outputBuffer: Int = 16)(
+    f: O => ZStream[R1, E1, O2]
+  ): ZStream[R1, E1, O2] =
+    ZStream[R1, E1, O2] {
+      for {
+        out          <- Queue.bounded[ZIO[R1, Option[E1], Chunk[O2]]](outputBuffer).toManaged(_.shutdown)
+        permits      <- Semaphore.make(n.toLong).toManaged_
+        innerFailure <- Promise.make[Cause[E1], Nothing].toManaged_
+
+        // - The driver stream forks an inner fiber for each stream created
+        //   by f, with an upper bound of n concurrent fibers, enforced by the semaphore.
+        //   - On completion, the driver stream tries to acquire all permits to verify
+        //     that all inner fibers have finished.
+        //     - If one of them failed (signalled by a promise), all other fibers are interrupted
+        //     - If they all succeeded, Take.End is enqueued
+        //   - On error, the driver stream interrupts all inner fibers and emits a
+        //     Take.Fail value
+        //   - Interruption is handled by running the finalizers which take care of cleanup
+        // - Inner fibers enqueue Take values from their streams to the output queue
+        //   - On error, an inner fiber enqueues a Take.Fail value and signals its failure
+        //     with a promise. The driver will pick that up and interrupt all other fibers.
+        //   - On interruption, an inner fiber does nothing
+        //   - On completion, an inner fiber does nothing
+        _ <- self.foreachManaged { a =>
+              for {
+                latch <- Promise.make[Nothing, Unit]
+                innerStream = ZStream
+                  .managed(permits.withPermitManaged)
+                  .tap(_ => latch.succeed(()))
+                  .flatMap(_ => f(a))
+                  .foreachChunk(b => out.offer(UIO.succeed(b)).unit)
+                  .foldCauseM(
+                    cause => out.offer(ZIO.halt(cause.map(Some(_)))) *> innerFailure.fail(cause).unit,
+                    _ => ZIO.unit
+                  )
+                _ <- innerStream.fork
+                // Make sure that the current inner stream has actually succeeded in acquiring
+                // a permit before continuing. Otherwise we could reach the end of the stream and
+                // acquire the permits ourselves before the inners had a chance to start.
+                _ <- latch.await
+              } yield ()
+            }.foldCauseM(
+                cause => (ZIO.interruptAllChildren *> out.offer(ZIO.halt(cause.map(Some(_)))).unit).toManaged_,
+                _ =>
+                  innerFailure.await.interruptible
+                  // Important to use `withPermits` here because the ZManaged#fork below may interrupt
+                  // the driver, and we want the permits to be released in that case
+                    .raceWith(permits.withPermits(n.toLong)(ZIO.unit).interruptible)(
+                      // One of the inner fibers failed. It already enqueued its failure, so we
+                      // interrupt the inner fibers. The finalizer below will make sure
+                      // that they actually end.
+                      leftDone = (_, permitAcquisition) => ZIO.interruptAllChildren *> permitAcquisition.interrupt.unit,
+                      // All fibers completed successfully, so we signal that we're done.
+                      rightDone = (_, failureAwait) => out.offer(ZIO.fail(None)) *> failureAwait.interrupt.unit
+                    )
+                    .toManaged_
+              )
+              .fork
+      } yield out.take.flatten
+    }
+
+  /**
+   * Maps each element of this stream to another stream and returns the non-deterministic merge
+   * of those streams, executing up to `n` inner streams concurrently. When a new stream is created
+   * from an element of the source stream, the oldest executing stream is cancelled. Up to `bufferSize`
+   * elements of the produced streams may be buffered in memory by this operator.
+   */
+  final def flatMapParSwitch[R1 <: R, E1 >: E, O2](n: Int, bufferSize: Int = 16)(
+    f: O => ZStream[R1, E1, O2]
+  ): ZStream[R1, E1, O2] =
+    ZStream[R1, E1, O2] {
+      for {
+        // Modeled after flatMapPar.
+        out          <- Queue.bounded[ZIO[R1, Option[E1], Chunk[O2]]](bufferSize).toManaged(_.shutdown)
+        permits      <- Semaphore.make(n.toLong).toManaged_
+        innerFailure <- Promise.make[Cause[E1], Nothing].toManaged_
+        cancelers    <- Queue.bounded[Promise[Nothing, Unit]](n).toManaged(_.shutdown)
+        _ <- self.foreachManaged { a =>
+              for {
+                canceler <- Promise.make[Nothing, Unit]
+                latch    <- Promise.make[Nothing, Unit]
+                size     <- cancelers.size
+                _ <- if (size < n) UIO.unit
+                    else cancelers.take.flatMap(_.succeed(())).unit
+                _ <- cancelers.offer(canceler)
+                innerStream = ZStream
+                  .managed(permits.withPermitManaged)
+                  .tap(_ => latch.succeed(()))
+                  .flatMap(_ => f(a))
+                  .foreachChunk(o2s => out.offer(UIO.succeed(o2s)).unit)
+                  .foldCauseM(
+                    cause => out.offer(ZIO.halt(cause.map(Some(_)))) *> innerFailure.fail(cause).unit,
+                    _ => UIO.unit
+                  )
+                _ <- (innerStream race canceler.await).fork
+                _ <- latch.await
+              } yield ()
+            }.foldCauseM(
+                cause => (ZIO.interruptAllChildren *> out.offer(ZIO.halt(cause.map(Some(_))))).unit.toManaged_,
+                _ =>
+                  innerFailure.await
+                    .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
+                      leftDone = (_, permitAcquisition) => ZIO.interruptAllChildren *> permitAcquisition.interrupt.unit,
+                      rightDone = (_, failureAwait) => out.offer(ZIO.fail(None)) *> failureAwait.interrupt.unit
+                    )
+                    .toManaged_
+              )
+              .fork
+      } yield out.take.flatten
+    }
+
+  /**
+   * Flattens this stream-of-streams into a stream made of the concatenation in
+   * strict order of all the streams.
+   */
+  def flatten[R1 <: R, E1 >: E, O1](implicit ev: O <:< ZStream[R1, E1, O1]) = flatMap(ev(_))
+
+  /**
+   * Flattens a stream of streams into a stream by executing a non-deterministic
+   * concurrent merge. Up to `n` streams may be consumed in parallel and up to
+   * `outputBuffer` elements may be buffered by this operator.
+   */
+  def flattenPar[R1 <: R, E1 >: E, O1](n: Int, outputBuffer: Int = 16)(implicit ev: O <:< ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+    flatMapPar[R1, E1, O1](n, outputBuffer)(ev(_))
+
+  /**
+   * Like [[flattenPar]], but executes all streams concurrently.
+   */
+  def flattenParUnbounded[R1 <: R, E1 >: E, O1](outputBuffer: Int = 16)(implicit ev: O <:< ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+    flattenPar[R1, E1, O1](Int.MaxValue, outputBuffer)
 
   /**
    * Halts the evaluation of this stream when the provided promise resolves.
@@ -1642,6 +1800,23 @@ object ZStream {
     }
 
   /**
+   * Merges a variable list of streams in a non-deterministic fashion.
+   * Up to `n` streams may be consumed in parallel and up to
+   * `outputBuffer` chunks may be buffered by this operator.
+   */
+  def mergeAll[R, E, O](n: Int, outputBuffer: Int = 16)(
+    streams: ZStream[R, E, O]*
+  ): ZStream[R, E, O] =
+    fromIterable(streams).flattenPar(n, outputBuffer)
+
+  /**
+   * Like [[mergeAll]], but runs all streams concurrently.
+   */
+  def mergeAllUnbounded[R, E, O](outputBuffer: Int = 16)(
+    streams: ZStream[R, E, O]*
+  ): ZStream[R, E, O] = mergeAll(Int.MaxValue, outputBuffer)(streams: _*)
+
+  /**
    * The stream that never produces any value or fails with any error.
    */
   val never: ZStream[Any, Nothing, Nothing] =
@@ -1770,4 +1945,49 @@ object ZStream {
     (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map {
       case (((a, b), c), d) => f(a, b, c, d)
     }
+
+  // /**
+  //  * Representation of a grouped stream.
+  //  * This allows to filter which groups will be processed.
+  //  * Once this is applied all groups will be processed in parallel and the results will
+  //  * be merged in arbitrary order.
+  //  */
+  // final class GroupBy[-R, +E, +K, +V](
+  //   private val grouped: ZStream[R, E, (K, Dequeue[Exit[Option[E], Chunk[V]]])],
+  //   private val buffer: Int
+  // ) {
+
+  //   /**
+  //    * Only consider the first n groups found in the stream.
+  //    */
+  //   def first(n: Int): GroupBy[R, E, K, V] = {
+  //     val g1 = grouped.zipWithIndex.filterM {
+  //       case elem @ ((_, q), i) =>
+  //         if (i < n) ZIO.succeedNow(elem).as(true)
+  //         else q.shutdown.as(false)
+  //     }.map(_._1)
+  //     new GroupBy(g1, buffer)
+  //   }
+
+  //   /**
+  //    * Filter the groups to be processed.
+  //    */
+  //   def filter(f: K => Boolean): GroupBy[R, E, K, V] = {
+  //     val g1 = grouped.filterM {
+  //       case elem @ (k, q) =>
+  //         if (f(k)) ZIO.succeedNow(elem).as(true)
+  //         else q.shutdown.as(false)
+  //     }
+  //     new GroupBy(g1, buffer)
+  //   }
+
+  //   /**
+  //    * Run the function across all groups, collecting the results in an arbitrary order.
+  //    */
+  //   def apply[R1 <: R, E1 >: E, A](f: (K, ZStream[Any, E, V]) => ZStream[R1, E1, A]): ZStream[R1, E1, A] =
+  //     grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) {
+  //       case (k, q) =>
+  //         f(k, ZStream.fromQueueWithShutdown(q).unExitChunk)
+  //     }
+  // }
 }
