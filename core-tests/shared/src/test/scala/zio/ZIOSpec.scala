@@ -2268,6 +2268,10 @@ object ZIOSpec extends ZIOBaseSpec {
         val io = IO.effectTotal(42).race(IO.never)
         assertM(io)(equalTo(42))
       },
+      testM("race in uninterruptible region") {
+        val effect = (ZIO.unit.race(ZIO.infinity)).uninterruptible
+        assertM(effect)(isUnit)
+      },
       testM("firstSuccessOf of values") {
         val io = IO.firstSuccessOf(IO.fail(0), List(IO.succeedNow(100))).either
         assertM(io)(isRight(equalTo(100)))
@@ -2681,6 +2685,24 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield test
 
         assertM(Live.live(io))(isTrue)
+      },
+      testM("does not make effect interruptible") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber  <- latch1.succeed(()).ensuring(latch2.succeed(()).disconnect).fork
+          _      <- latch1.await
+          _      <- fiber.interrupt
+          _      <- latch2.await
+        } yield assertCompletes
+      } @@ nonFlaky,
+      testM("allows interruption to return immediately even in an uninterruptible region") {
+        ZIO.uninterruptible {
+          for {
+            fiber <- ZIO.infinity.disconnect.fork
+            _     <- fiber.interrupt
+          } yield assertCompletes
+        }
       },
       testM("cause reflects interruption") {
         val io =
