@@ -359,9 +359,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
                        ),
                        ZStream.fromEffect(latch.await *> ZIO.fail("Ouch"))
-                     ).flatMapPar(2)(identity)
-                       .runDrain
-                       .either
+                     ).flatMapPar(2)(identity).runDrain.either
             cancelled <- substreamCancelled.get
           } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
         },
@@ -391,9 +389,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
                        ),
                        ZStream.fromEffect(latch.await *> ZIO.die(ex))
-                     ).flatMapPar(2)(identity)
-                       .runDrain
-                       .run
+                     ).flatMapPar(2)(identity).runDrain.run
             cancelled <- substreamCancelled.get
           } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
         },
@@ -519,9 +515,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
                        ),
                        ZStream.fromEffect(latch.await *> ZIO.die(ex))
-                     ).flatMapParSwitch(2)(identity)
-                       .runDrain
-                       .run
+                     ).flatMapParSwitch(2)(identity).runDrain.run
             cancelled <- substreamCancelled.get
           } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
         },
