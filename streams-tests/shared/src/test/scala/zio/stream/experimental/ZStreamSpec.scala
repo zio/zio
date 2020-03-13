@@ -11,7 +11,7 @@ import ZStreamGen._
 object ZStreamSpec extends ZIOBaseSpec {
   def spec = suite("ZStreamSpec")(
     suite("Combinators")(
-      suite("Stream.absolve")(
+      suite("absolve")(
         testM("happy path")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { xs =>
           val stream = ZStream.fromIterable(xs.map(Right(_)))
           assertM(stream.absolve.runCollect)(equalTo(xs))
@@ -760,6 +760,22 @@ object ZStreamSpec extends ZIOBaseSpec {
         val s2 = ZStream(4, 5, 6)
         s1.orElse(s2).runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
       },
+      suite("runHead")(
+        testM("nonempty stream")(
+          assertM(ZStream(1, 2, 3, 4).runHead)(equalTo(Some(1)))
+        ),
+        testM("empty stream")(
+          assertM(ZStream.empty.runHead)(equalTo(None))
+        )
+      ),
+      suite("runLast")(
+        testM("nonempty stream")(
+          assertM(ZStream(1, 2, 3, 4).runLast)(equalTo(Some(4)))
+        ),
+        testM("empty stream")(
+          assertM(ZStream.empty.runLast)(equalTo(None))
+        )
+      ),
       suite("toQueue")(
         testM("toQueue")(checkM(tinyChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
           val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
@@ -878,7 +894,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(result)(fails(equalTo("fail")))
         }
       ),
-      testM("Stream.environment") {
+      testM("environment") {
         for {
           result <- ZStream.environment[String].provide("test").runCollect.map(_.head)
         } yield assert(result)(equalTo("test"))
