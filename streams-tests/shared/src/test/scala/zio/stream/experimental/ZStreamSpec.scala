@@ -735,6 +735,44 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(l)(equalTo(r))
         }
       },
+      suite("Stream.mapMPar")(
+        testM("foreachParN equivalence") {
+          checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
+            val s = ZStream.fromIterable(data)
+
+            for {
+              l <- s.mapMPar(8)(f).runCollect
+              r <- IO.foreachParN(8)(data)(f)
+            } yield assert(l)(equalTo(r))
+          }
+        },
+        testM("order when n = 1") {
+          for {
+            queue  <- Queue.unbounded[Int]
+            _      <- ZStream.range(0, 9).mapMPar(1)(queue.offer).runDrain
+            result <- queue.takeAll
+          } yield assert(result)(equalTo(result.sorted))
+        },
+        testM("interruption propagation") {
+          for {
+            interrupted <- Ref.make(false)
+            latch       <- Promise.make[Nothing, Unit]
+            fib <- ZStream(())
+                    .mapMPar(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
+                    .runDrain
+                    .fork
+            _      <- latch.await
+            _      <- fib.interrupt
+            result <- interrupted.get
+          } yield assert(result)(isTrue)
+        },
+        testM("guarantee ordering")(checkM(Gen.int(1, 4096), Gen.listOf(Gen.anyInt)) { (n: Int, m: List[Int]) =>
+          for {
+            mapM    <- ZStream.fromIterable(m).mapM(UIO.succeedNow).runCollect
+            mapMPar <- ZStream.fromIterable(m).mapMPar(n)(UIO.succeedNow).runCollect
+          } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
+        })
+      ),
       suite("mergeWith")(
         testM("equivalence with set union")(checkM(streamOfInts, streamOfInts) {
           (s1: ZStream[Any, String, Int], s2: ZStream[Any, String, Int]) =>
