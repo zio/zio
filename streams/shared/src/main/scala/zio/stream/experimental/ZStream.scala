@@ -86,6 +86,76 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Switches over to the stream produced by the provided function in case this one
+   * fails with a typed error.
+   */
+  final def catchAll[R1 <: R, E2, O1 >: O](f: E => ZStream[R1, E2, O1])(implicit ev: CanFail[E]): ZStream[R1, E2, O1] =
+    catchAllCause(_.failureOrCause.fold(f, ZStream.halt(_)))
+
+  /**
+   * Switches over to the stream produced by the provided function in case this one
+   * fails. Allows recovery from all causes of failure, including interruption if the
+   * stream is uninterruptible.
+   */
+  final def catchAllCause[R1 <: R, E2, O1 >: O](f: Cause[E] => ZStream[R1, E2, O1]): ZStream[R1, E2, O1] = {
+    sealed abstract class State
+    object State {
+      case object NotStarted extends State
+      case object Self       extends State
+      case object Other      extends State
+    }
+
+    ZStream {
+      for {
+        finalizers <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+        selfPull   <- Ref.make[ZIO[R, Option[E], Chunk[O]]](ZIO.fail(None)).toManaged_
+        otherPull  <- Ref.make[ZIO[R1, Option[E2], Chunk[O1]]](ZIO.fail(None)).toManaged_
+        stateRef   <- Ref.make[State](State.NotStarted).toManaged_
+        pull = {
+          def switch(e: Cause[Option[E]]): ZIO[R1, Option[E2], Chunk[O1]] = {
+            def next(e: Cause[E]) = ZIO.uninterruptibleMask { restore =>
+              for {
+                _  <- finalizers.remove.flatMap(ZIO.foreach(_)(_(Exit.fail(e))))
+                r  <- f(e).process.reserve
+                _  <- finalizers.add(r.release)
+                as <- restore(r.acquire)
+                _  <- otherPull.set(as)
+                _  <- stateRef.set(State.Other)
+                a  <- as
+              } yield a
+            }
+
+            Cause.sequenceCauseOption(e) match {
+              case None    => ZIO.fail(None)
+              case Some(c) => next(c)
+            }
+          }
+
+          stateRef.get.flatMap {
+            case State.NotStarted =>
+              ZIO.uninterruptibleMask { restore =>
+                for {
+                  r  <- self.process.reserve
+                  _  <- finalizers.add(r.release)
+                  as <- restore(r.acquire)
+                  _  <- selfPull.set(as)
+                  _  <- stateRef.set(State.Self)
+                  a  <- as
+                } yield a
+              }.catchAllCause(switch)
+
+            case State.Self =>
+              selfPull.get.flatten.catchAllCause(switch)
+
+            case State.Other =>
+              otherPull.get.flatten
+          }
+        }
+      } yield pull
+    }
+  }
+
+  /**
    * Performs a filter and map in a single step.
    */
   def collect[O1](pf: PartialFunction[O, O1]): ZStream[R, E, O1] =
@@ -687,6 +757,14 @@ abstract class ZStream[-R, +E, +O](
         }
     }
   }
+
+  /**
+   * Switches to the provided stream in case this one fails with a typed error.
+   *
+   * See also [[ZStream#catchAll]].
+   */
+  def orElse[R1 <: R, E2, O1 >: O](that: => ZStream[R1, E2, O1])(implicit ev: CanFail[E]): ZStream[R1, E2, O1] =
+    catchAll(_ => that)
 
   /**
    * Runs the stream and collects all of its elements to a list.
