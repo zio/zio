@@ -1170,6 +1170,14 @@ abstract class ZStream[-R, +E, +O](
 
   /**
    * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. The element order
+   * is not enforced by this combinator, and elements may be reordered.
+   */
+  final def mapMParUnordered[R1 <: R, E1 >: E, O2](n: Int)(f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
+    flatMapPar[R1, E1, O2](n)(a => ZStream.fromEffect(f(a)))
+
+  /**
+   * Maps over elements of the stream with the specified effectful function,
    * partitioned by `p` executing invocations of `f` concurrently. The number
    * of concurrent invocations of `f` is determined by the number of different
    * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
