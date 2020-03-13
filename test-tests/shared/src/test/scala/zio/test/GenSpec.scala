@@ -230,6 +230,18 @@ object GenSpec extends ZIOBaseSpec {
         val gen = Gen.int(1, 6).mapM(n => ZIO.succeedNow(n + 6))
         checkSample(gen)(forall(Assertion.isGreaterThanEqualTo(7) && isLessThanEqualTo(12)))
       },
+      testM("mapOf generates sizes in range") {
+        checkSample(Gen.mapOf(smallInt, smallInt))(forall(hasSize(isGreaterThanEqualTo(0) && isLessThanEqualTo(100))))
+      },
+      testM("mapOf1 generates nonempty maps") {
+        checkSample(Gen.mapOf1(smallInt, smallInt), size = 0)(forall(isNonEmpty))
+      },
+      testM("mapOfBounded generates maps whose size is in bounds") {
+        checkSample(Gen.mapOfBounded(2, 10)(smallInt, smallInt))(forall(hasSize(isWithin(2, 10))))
+      },
+      testM("mapOfN generates maps of correct size") {
+        checkSample(Gen.mapOfN(10)(smallInt, smallInt))(forall(hasSize(equalTo(10))))
+      },
       testM("medium generates sizes in range") {
         val gen = Gen.medium(Gen.listOfN(_)(Gen.int(-10, 10)))
         checkSample(gen)(forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)), _.map(_.length))
@@ -257,6 +269,18 @@ object GenSpec extends ZIOBaseSpec {
           forall(isGreaterThanEqualTo(33) && isLessThanEqualTo(126)),
           _.map(_.toInt)
         )
+      },
+      testM("setOf generates sizes in range") {
+        checkSample(Gen.setOf(smallInt))(forall(hasSize(isGreaterThanEqualTo(0) && isLessThanEqualTo(100))))
+      },
+      testM("setOf1 generates nonempty sets") {
+        checkSample(Gen.setOf1(smallInt), size = 0)(forall(isNonEmpty))
+      },
+      testM("setOfBounded generates sets whose size is in bounds") {
+        checkSample(Gen.setOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
+      },
+      testM("setOfN generates sets of correct size") {
+        checkSample(Gen.setOfN(10)(smallInt))(forall(hasSize(equalTo(10))))
       },
       testM("short generates values in range") {
         checkSample(Gen.short(5, 10))(forall(isGreaterThanEqualTo(5) && isLessThanEqualTo(10)), _.map(_.toInt))
@@ -416,6 +440,18 @@ object GenSpec extends ZIOBaseSpec {
         val max = 7907688119669724678L
         checkShrink(Gen.long(min, max))(min)
       },
+      testM("mapOf shrinks to empty map") {
+        checkShrink(Gen.mapOf(smallInt, smallInt))(Map.empty)
+      },
+      testM("mapOf1 shrinks to singleton map") {
+        checkShrink(Gen.mapOf1(smallInt, smallInt))(Map(-10 -> -10))
+      },
+      testM("mapOfBounded shrinks to bottom of range") {
+        checkShrink(Gen.mapOfBounded(1, 10)(smallInt, smallInt))(Map(-10 -> -10))
+      },
+      testM("mapOfN shrinks elements") {
+        checkShrink(Gen.mapOfN(1)(smallInt, smallInt))(Map(-10 -> -10))
+      },
       testM("noShrink discards the shrinker for this generator") {
         assertM(shrinks(Gen.anyInt.noShrink))(hasSize(equalTo(1)))
       },
@@ -433,6 +469,18 @@ object GenSpec extends ZIOBaseSpec {
       testM("reshrink applies new shrinking logic") {
         val gen = Gen.int(0, 10).reshrink(Sample.shrinkIntegral(10))
         checkShrink(gen)(10)
+      },
+      testM("setOf shrinks to empty set") {
+        checkShrink(Gen.setOf(smallInt))(Set.empty)
+      },
+      testM("setOf1 shrinks to singleton set") {
+        checkShrink(Gen.setOf1(smallInt))(Set(-10))
+      },
+      testM("setOfBounded shrinks to bottom of range") {
+        checkShrink(Gen.setOfBounded(1, 10)(smallInt))(Set(-10))
+      },
+      testM("setOfN shrinks elements") {
+        checkShrink(Gen.setOfN(1)(smallInt))(Set(-10))
       },
       testM("short shrinks to bottom of range") {
         checkShrink(Gen.short(5, 10))(5)
