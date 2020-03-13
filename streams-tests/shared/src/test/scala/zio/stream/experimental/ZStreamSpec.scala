@@ -2,7 +2,6 @@ package zio.stream.experimental
 
 import ZStreamGen._
 
-import zio.ZQueueSpecUtil.waitForSize
 import zio._
 import zio.stream.ChunkUtils._
 import zio.test.Assertion._
@@ -97,6 +96,32 @@ object ZStreamSpec extends ZIOBaseSpec {
                   } yield l
                 }
           } yield assert(l.reverse)(equalTo((1 to 4).toList))
+        }
+      ),
+      suite("catchAllCause")(
+        testM("recovery from errors") {
+          val s1 = ZStream(1, 2) ++ ZStream.fail("Boom")
+          val s2 = ZStream(3, 4)
+          s1.catchAllCause(_ => s2).runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4))))
+        },
+        testM("recovery from defects") {
+          val s1 = ZStream(1, 2) ++ ZStream.dieMessage("Boom")
+          val s2 = ZStream(3, 4)
+          s1.catchAllCause(_ => s2).runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4))))
+        },
+        testM("happy path") {
+          val s1 = ZStream(1, 2)
+          val s2 = ZStream(3, 4)
+          s1.catchAllCause(_ => s2).runCollect.map(assert(_)(equalTo(List(1, 2))))
+        },
+        testM("executes finalizers") {
+          for {
+            fins   <- Ref.make(List[String]())
+            s1     = (ZStream(1, 2) ++ ZStream.fail("Boom")).ensuring(fins.update("s1" :: _))
+            s2     = (ZStream(3, 4) ++ ZStream.fail("Boom")).ensuring(fins.update("s2" :: _))
+            _      <- s1.catchAllCause(_ => s2).runCollect.run
+            result <- fins.get
+          } yield assert(result)(equalTo(List("s2", "s1")))
         }
       ),
       suite("flatMap")(
@@ -223,16 +248,26 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
         }
       ),
+      testM("orElse") {
+        val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Boom")
+        val s2 = ZStream(4, 5, 6)
+        s1.orElse(s2).runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
+      },
       suite("toQueue")(
-        testM("toQueue")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
+        testM("toQueue")(checkM(tinyChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
           val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
-          assertM(s.toQueue(1000).use(queue => waitForSize(queue, c.length + 1) *> queue.takeAll))(
+          assertM(
+            s.toQueue(1000)
+              .use(queue => queue.size.repeat(Schedule.doWhile(_ != c.size + 1)) *> queue.takeAll)
+          )(
             equalTo(c.toSeq.toList.map(i => Exit.succeed(Chunk(i))) :+ Exit.fail(None))
           )
         }),
-        testM("toQueueUnbounded")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
+        testM("toQueueUnbounded")(checkM(tinyChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
           val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
-          assertM(s.toQueueUnbounded.use(queue => waitForSize(queue, c.length + 1) *> queue.takeAll))(
+          assertM(
+            s.toQueueUnbounded.use(queue => queue.size.repeat(Schedule.doWhile(_ != c.size + 1)) *> queue.takeAll)
+          )(
             equalTo(c.toSeq.toList.map(i => Exit.succeed(Chunk(i))) :+ Exit.fail(None))
           )
         })
