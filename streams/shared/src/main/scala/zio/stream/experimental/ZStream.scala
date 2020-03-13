@@ -1218,6 +1218,70 @@ abstract class ZStream[-R, +E, +O](
   }
 
   /**
+   * Provides the stream with its required environment, which eliminates
+   * its dependency on `R`.
+   */
+  final def provide(r: R)(implicit ev: NeedsEnv[R]): ZStream[Any, E, O] =
+    ZStream(self.process.provide(r).map(_.provide(r)))
+
+  /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a stream that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+    layer: ZLayer[ZEnv, E1, R1]
+  )(implicit ev: ZEnv with R1 <:< R, tagged: Tagged[R1]): ZStream[ZEnv, E1, O] =
+    provideSomeLayer[ZEnv](layer)
+
+  /**
+   * Provides a layer to the stream, which translates it to another level.
+   */
+  final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
+    layer: ZLayer[R0, E1, R1]
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZStream[R0, E1, O] =
+    ZStream.managed {
+      for {
+        r  <- layer.build.map(ev1)
+        as <- self.process.provide(r)
+      } yield as.provide(r)
+    }.flatMap(ZStream.repeatEffectChunkOption)
+
+  /**
+   * Provides some of the environment required to run this effect,
+   * leaving the remainder `R0`.
+   */
+  final def provideSome[R0](env: R0 => R)(implicit ev: NeedsEnv[R]): ZStream[R0, E, O] =
+    ZStream {
+      for {
+        r0 <- ZManaged.environment[R0]
+        as <- self.process.provide(env(r0))
+      } yield as.provide(env(r0))
+    }
+
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayer[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, O] =
+    new ZStream.ProvideSomeLayer[R0, R, E, O](self)
+
+  /**
    * Switches to the provided stream in case this one fails with a typed error.
    *
    * See also [[ZStream#catchAll]].
@@ -1592,6 +1656,24 @@ object ZStream {
     xs.flatMap(_.fold(fail(_), succeed(_)))
 
   /**
+   * Accesses the environment of the stream.
+   */
+  def access[R]: AccessPartiallyApplied[R] =
+    new AccessPartiallyApplied[R]
+
+  /**
+   * Accesses the environment of the stream in the context of an effect.
+   */
+  def accessM[R]: AccessMPartiallyApplied[R] =
+    new AccessMPartiallyApplied[R]
+
+  /**
+   * Accesses the environment of the stream in the context of a stream.
+   */
+  def accessStream[R]: AccessStreamPartiallyApplied[R] =
+    new AccessStreamPartiallyApplied[R]
+
+  /**
    * Creates a new [[ZStream]] from a managed effect that yields chunks.
    * The effect will be evaluated repeatedly until it fails with a `None`
    * (to signify stream end) or a `Some(E)` (to signify stream failure).
@@ -1709,16 +1791,22 @@ object ZStream {
     }
 
   /**
-   * The stream that always dies with the `ex`.
+   * The stream that dies with the `ex`.
    */
   def die(ex: => Throwable): ZStream[Any, Nothing, Nothing] =
-    halt(Cause.die(ex))
+    fromEffect(ZIO.die(ex))
 
   /**
-   * The stream that always dies with an exception described by `msg`.
+   * The stream that dies with an exception described by `msg`.
    */
   def dieMessage(msg: => String): ZStream[Any, Nothing, Nothing] =
-    halt(Cause.die(new RuntimeException(msg)))
+    fromEffect(ZIO.dieMessage(msg))
+
+  /**
+   * The stream that ends with the [[zio.Exit]] value `exit`.
+   */
+  def done[E, A](exit: Exit[E, A]): ZStream[Any, E, A] =
+    fromEffect(ZIO.done(exit))
 
   /**
    * The empty stream
@@ -1736,7 +1824,7 @@ object ZStream {
    * The stream that always fails with the `error`
    */
   def fail[E](error: => E): ZStream[Any, E, Nothing] =
-    ZStream(ZManaged.succeedNow(ZIO.fail(Some(error))))
+    fromEffect(ZIO.fail(error))
 
   /**
    * Creates an empty stream that never fails and executes the finalizer when it ends.
@@ -1936,13 +2024,19 @@ object ZStream {
    * Creates a stream from an effect producing a value of type `A` which repeats forever
    */
   def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
-    fromEffect(fa).forever
+    repeatEffectOption(fa.mapError(Some(_)))
 
   /**
    * Creates a stream from an effect producing values of type `A` until it fails with None.
    */
   def repeatEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] =
-    ZStream(ZManaged.succeedNow(fa.map(Chunk.single(_))))
+    repeatEffectChunkOption(fa.map(Chunk.single(_)))
+
+  /**
+   * Creates a stream from an effect producing chunks of `A` values until it fails with None.
+   */
+  def repeatEffectChunkOption[R, E, A](fa: ZIO[R, Option[E], Chunk[A]]): ZStream[R, E, A] =
+    ZStream(ZManaged.succeedNow(fa))
 
   /**
    * Creates a single-valued pure stream
@@ -1954,7 +2048,7 @@ object ZStream {
    * A stream that contains a single `Unit` value.
    */
   val unit: ZStream[Any, Nothing, Unit] =
-    ZStream.succeed(())
+    succeed(())
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
@@ -2035,6 +2129,21 @@ object ZStream {
       case (((a, b), c), d) => f(a, b, c, d)
     }
 
+  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](f: R => A): ZStream[R, Nothing, A] =
+      ZStream.environment[R].map(f)
+  }
+
+  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
+      ZStream.environment[R].mapM(f)
+  }
+
+  final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
+      ZStream.environment[R].flatMap(f)
+  }
+
   /**
    * Representation of a grouped stream.
    * This allows to filter which groups will be processed.
@@ -2078,5 +2187,12 @@ object ZStream {
         case (k, q) =>
           f(k, ZStream.fromQueueWithShutdown(q).unExit)
       }
+  }
+
+  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1 <: Has[_]](
+      layer: ZLayer[R0, E1, R1]
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): ZStream[R0, E1, A] =
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 }
