@@ -1,6 +1,7 @@
 package zio.stream.experimental
 
 import zio._
+import zio.internal.UniqueKey
 import zio.stm.TQueue
 
 abstract class ZStream[-R, +E, +O](
@@ -71,6 +72,73 @@ abstract class ZStream[-R, +E, +O](
    */
   def bimap[E1, O1](f: E => E1, g: O => O1)(implicit ev: CanFail[E]): ZStream[R, E1, O1] =
     mapError(f).map(g)
+
+  /**
+   * Fan out the stream, producing a list of streams that have the same elements as this stream.
+   * The driver stream will only ever advance of the `maximumLag` chunks before the
+   * slowest downstream stream.
+   */
+  final def broadcast(n: Int, maximumLag: Int): ZManaged[R, Nothing, List[ZStream[Any, E, O]]] =
+    self
+      .broadcastedQueues(n, maximumLag)
+      .map(
+        _.map(
+          ZStream
+            .fromQueueWithShutdown(_)
+            .unExitChunk
+        )
+      )
+
+  /**
+   * Fan out the stream, producing a dynamic number of streams that have the same elements as this stream.
+   * The driver stream will only ever advance of the `maximumLag` chunks before the
+   * slowest downstream stream.
+   */
+  final def broadcastDynamic(
+    maximumLag: Int
+  ): ZManaged[R, Nothing, UIO[ZStream[Any, E, O]]] =
+    distributedWithDynamic(maximumLag, _ => ZIO.succeedNow(_ => true), _ => ZIO.unit)
+      .map(_.map(_._2))
+      .map(
+        _.map(
+          ZStream
+            .fromQueueWithShutdown(_)
+            .unExitChunk
+        )
+      )
+
+  /**
+   * Converts the stream to a managed list of queues. Every value will be replicated to every queue with the
+   * slowest queue being allowed to buffer `maximumLag` chunks before the driver is backpressured.
+   * The downstream queues will be provided with chunks in the same order they are returned, so
+   * the fastest queue might have seen up to (`maximumLag` + 1) chunks more than the slowest queue if it
+   * has a lower index than the slowest queue.
+   *
+   * Queues can unsubscribe from upstream by shutting down.
+   */
+  final def broadcastedQueues(
+    n: Int,
+    maximumLag: Int
+  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E], Chunk[O]]]]] = {
+    val decider = ZIO.succeedNow((_: Int) => true)
+    distributedWith(n, maximumLag, _ => decider)
+  }
+
+  /**
+   * Converts the stream to a managed dynamic amount of queues. Every chunk will be replicated to every queue with the
+   * slowest queue being allowed to buffer `maximumLag` chunks before the driver is backpressured.
+   * The downstream queues will be provided with chunks in the same order they are returned, so
+   * the fastest queue might have seen up to (`maximumLag` + 1) chunks more than the slowest queue if it
+   * has a lower index than the slowest queue.
+   *
+   * Queues can unsubscribe from upstream by shutting down.
+   */
+  final def broadcastedQueuesDynamic(
+    maximumLag: Int
+  ): ZManaged[R, Nothing, UIO[Dequeue[Exit[Option[E], Chunk[O]]]]] = {
+    val decider = ZIO.succeedNow((_: UniqueKey) => true)
+    distributedWithDynamic(maximumLag, _ => decider, _ => ZIO.unit).map(_.map(_._2))
+  }
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
@@ -364,6 +432,110 @@ abstract class ZStream[-R, +E, +O](
    */
   final def crossRight[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O2] =
     (self crossWith that)((_, o2) => o2)
+
+  /**
+   * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
+   * queues should receive which elements. The decide function will receive the indices of the queues
+   * in the resulting list.
+   */
+  final def distributedWith[E1 >: E](
+    n: Int,
+    maximumLag: Int,
+    decide: Chunk[O] => UIO[Int => Boolean]
+  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E1], Chunk[O]]]]] =
+    Promise.make[Nothing, Chunk[O] => UIO[UniqueKey => Boolean]].toManaged_.flatMap { prom =>
+      distributedWithDynamic(maximumLag, (os: Chunk[O]) => prom.await.flatMap(_(os)), _ => ZIO.unit).flatMap { next =>
+        ZIO.collectAll {
+          Range(0, n).map(id => next.map { case (key, queue) => ((key -> id), queue) })
+        }.flatMap { entries =>
+          val (mappings, queues) =
+            entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Dequeue[Exit[Option[E1], Chunk[O]]]])) {
+              case ((mapping, queue), (mappings, queues)) =>
+                (mappings + mapping, queue :: queues)
+            }
+          prom.succeed((os: Chunk[O]) => decide(os).map(f => (key: UniqueKey) => f(mappings(key)))).as(queues)
+        }.toManaged_
+      }
+    }
+
+  /**
+   * More powerful version of `ZStream#distributedWith`. This returns a function that will produce
+   * new queues and corresponding indices.
+   * You can also provide a function that will be executed after the final events are enqueued in all queues.
+   * Shutdown of the queues is handled by the driver.
+   * Downstream users can also shutdown queues manually. In this case the driver will
+   * continue but no longer backpressure on them.
+   */
+  final def distributedWithDynamic(
+    maximumLag: Int,
+    decide: Chunk[O] => UIO[UniqueKey => Boolean],
+    done: Exit[Option[E], Nothing] => UIO[Any] = (_: Any) => UIO.unit
+  ): ZManaged[R, Nothing, UIO[(UniqueKey, Dequeue[Exit[Option[E], Chunk[O]]])]] =
+    for {
+      queuesRef <- Ref
+                    .make[Map[UniqueKey, Queue[Exit[Option[E], Chunk[O]]]]](Map())
+                    .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
+      add <- {
+        val offer = (os: Chunk[O]) =>
+          for {
+            shouldProcess <- decide(os)
+            queues        <- queuesRef.get
+            _ <- ZIO
+                  .foldLeft(queues)(List[UniqueKey]()) {
+                    case (acc, (id, queue)) =>
+                      if (shouldProcess(id)) {
+                        queue
+                          .offer(Exit.succeed(os))
+                          .foldCauseM(
+                            {
+                              // we ignore all downstream queues that were shut down and remove them later
+                              case c if c.interrupted => ZIO.succeedNow(id :: acc)
+                              case c                  => ZIO.halt(c)
+                            },
+                            _ => ZIO.succeedNow(acc)
+                          )
+                      } else ZIO.succeedNow(acc)
+                  }
+                  .flatMap(ids => if (ids.nonEmpty) queuesRef.update(_ -- ids) else ZIO.unit)
+          } yield ()
+
+        for {
+          queuesLock <- Semaphore.make(1).toManaged_
+          newQueue <- Ref
+                       .make[UIO[(UniqueKey, Queue[Exit[Option[E], Chunk[O]]])]] {
+                         for {
+                           queue <- Queue.bounded[Exit[Option[E], Chunk[O]]](maximumLag)
+                           id    = UniqueKey()
+                           _     <- queuesRef.update(_ + (id -> queue))
+                         } yield (id, queue)
+                       }
+                       .toManaged_
+          finalize = (endTake: Exit[Option[E], Nothing]) =>
+            // we need to make sure that no queues are currently being added
+            queuesLock.withPermit {
+              for {
+                // all newly created queues should end immediately
+                _ <- newQueue.set {
+                      for {
+                        queue <- Queue.bounded[Exit[Option[E], Chunk[O]]](1)
+                        _     <- queue.offer(endTake)
+                        id    = UniqueKey()
+                        _     <- queuesRef.update(_ + (id -> queue))
+                      } yield (id, queue)
+                    }
+                queues <- queuesRef.get.map(_.values)
+                _ <- ZIO.foreach(queues) { queue =>
+                      queue.offer(endTake).catchSomeCause {
+                        case c if c.interrupted => ZIO.unit
+                      }
+                    }
+                _ <- done(endTake)
+              } yield ()
+            }
+          _ <- self.process.mapM(_.flatMap(offer).forever.run.tap(finalize)).fork
+        } yield queuesLock.withPermit(newQueue.get.flatten)
+      }
+    } yield add
 
   /**
    * Converts this stream to a stream that executes its effects but emits no
@@ -932,6 +1104,29 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Unwraps [[Exit]] values that also signify end-of-stream by failing with `None`.
+   *
+   * For `Exit[E, O]` values that do not signal end-of-stream, prefer:
+   * {{{
+   * stream.mapM(ZIO.done(_))
+   * }}}
+   */
+  def unExit[E1 >: E, O1](implicit ev: O <:< Exit[Option[E1], O1]): ZStream[R, E1, O1] =
+    ZStream(self.process.map(_.flatMap(_.mapM(o => ZIO.done(ev(o))))))
+
+  /**
+   * Unwraps [[Exit]] values that carry chunks and can signal end-of-stream
+   * by failing with `None`.
+   *
+   * For `Exit[E, O]` values that do not signal end-of-stream, prefer:
+   * {{{
+   * stream.mapM(ZIO.done(_))
+   * }}}
+   */
+  def unExitChunk[E1 >: E, O1](implicit ev: O <:< Exit[Option[E1], Chunk[O1]]): ZStream[R, E1, O1] =
+    ZStream(self.process.map(_.flatMap(_.mapM(o => ZIO.done(ev(o))).map(_.flatten))))
+
+  /**
    * Zips this stream with another point-wise, but keeps only the outputs of this stream.
    *
    * The new stream will end when one of the sides ends.
@@ -1332,22 +1527,20 @@ object ZStream {
    * Creates a stream from an effect producing a value of type `A`
    */
   def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
-    ZStream {
-      for {
-        doneRef <- Ref.make(false).toManaged_
-        pull = doneRef.modify {
-          if (_) ZIO.fail(None)                    -> true
-          else fa.bimap(Some(_), Chunk.succeed(_)) -> true
-        }.flatten
-      } yield pull
-    }
+    fromEffectOption(fa.mapError(Some(_)))
 
   /**
    * Creates a stream from an effect producing a value of type `A` or an empty Stream
    */
   def fromEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] =
-    ZStream.unwrap {
-      fa.fold(_.fold[ZStream[Any, E, Nothing]](ZStream.empty)(ZStream.fail(_)), ZStream.succeed(_))
+    ZStream {
+      for {
+        doneRef <- Ref.make(false).toManaged_
+        pull = doneRef.modify {
+          if (_) ZIO.fail(None)        -> true
+          else fa.map(Chunk.single(_)) -> true
+        }.flatten
+      } yield pull
     }
 
   /**
@@ -1365,11 +1558,10 @@ object ZStream {
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
    */
-  def fromQueue[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
+  def fromChunkQueue[R, E, O](queue: ZQueue[Nothing, Any, R, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     ZStream {
       ZManaged.succeedNow {
         queue.take
-          .map(Chunk.single)
           .catchAllCause(c =>
             queue.isShutdown.flatMap { down =>
               if (down && c.interrupted) ZIO.fail(None)
@@ -1382,7 +1574,19 @@ object ZStream {
   /**
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
    */
-  def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
+  def fromChunkQueueWithShutdown[R, E, O](queue: ZQueue[Nothing, Any, R, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
+    fromChunkQueue(queue).ensuringFirst(queue.shutdown)
+
+  /**
+   * Creates a stream from a [[zio.ZQueue]] of values
+   */
+  def fromQueue[R, E, O](queue: ZQueue[Nothing, Any, R, E, Nothing, O]): ZStream[R, E, O] =
+    fromChunkQueue(queue.map(Chunk(_)))
+
+  /**
+   * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
+   */
+  def fromQueueWithShutdown[R, E, O](queue: ZQueue[Nothing, Any, R, E, Nothing, O]): ZStream[R, E, O] =
     fromQueue(queue).ensuringFirst(queue.shutdown)
 
   /**
