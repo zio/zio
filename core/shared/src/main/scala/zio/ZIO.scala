@@ -430,7 +430,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       for {
         id    <- ZIO.fiberId
         fiber <- restore(self).forkDaemon
-        a     <- restore(fiber.join).onInterrupt(fiber.interruptAs(id).forkDaemon)
+        a     <- fiber.join.interruptible.onInterrupt(fiber.interruptAs(id).forkDaemon)
       } yield a
     )
 
@@ -1150,22 +1150,24 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * in the background.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
-    ZIO.fiberId
-      .flatMap(parentFiberId =>
-        (self raceWith that)(
-          (exit, right) =>
-            exit.foldM[Any, E1, A1](
-              cause => right.join mapErrorCause (cause && _),
-              a => (right interruptAs parentFiberId) as a
-            ),
-          (exit, left) =>
-            exit.foldM[Any, E1, A1](
-              cause => left.join mapErrorCause (_ && cause),
-              a => (left interruptAs parentFiberId) as a
-            )
-        )
+    ZIO.descriptorWith { descriptor =>
+      val parentFiberId   = descriptor.id
+      val uninterruptible = descriptor.interruptStatus.isUninterruptible
+      val left            = if (uninterruptible) self.disconnect else self
+      val right           = if (uninterruptible) that.disconnect else that
+      (left raceWith right)(
+        (exit, right) =>
+          exit.foldM[Any, E1, A1](
+            cause => right.join mapErrorCause (cause && _),
+            a => (right interruptAs parentFiberId) as a
+          ),
+        (exit, left) =>
+          exit.foldM[Any, E1, A1](
+            cause => left.join mapErrorCause (_ && cause),
+            a => (left interruptAs parentFiberId) as a
+          )
       )
-      .refailWithTrace
+    }.refailWithTrace
 
   /**
    * Returns an effect that races this effect with all the specified effects,
@@ -3298,7 +3300,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
-      (self map f) raceFirst (ZIO.sleep(duration).interruptible as b)
+      (self map f) raceFirst (ZIO.sleep(duration) as b)
   }
 
   final class BracketAcquire_[-R, +E](private val acquire: ZIO[R, E, Any]) extends AnyVal {
