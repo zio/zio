@@ -681,11 +681,33 @@ abstract class ZStream[-R, +E, +O](
       }
     }
 
+  /**
+   * Maps each element to an iterable, and flattens the iterables into the
+   * output of this stream.
+   */
   def mapConcat[O2](f: O => Iterable[O2]): ZStream[R, E, O2] =
     mapConcatChunk(o => Chunk.fromIterable(f(o)))
 
+  /**
+   * Maps each element to a chunk, and flattens the chunks into the output of
+   * this stream.
+   */
   def mapConcatChunk[O2](f: O => Chunk[O2]): ZStream[R, E, O2] =
     ZStream(self.process.map(_.map(_.flatMap(f))))
+
+  /**
+   * Effectfully maps each element to a chunk, and flattens the chunks into
+   * the output of this stream.
+   */
+  final def mapConcatChunkM[R1 <: R, E1 >: E, O2](f: O => ZIO[R1, E1, Chunk[O2]]): ZStream[R1, E1, O2] =
+    mapM(f).mapConcatChunk(identity)
+
+  /**
+   * Effectfully maps each element to an iterable, and flattens the iterables into
+   * the output of this stream.
+   */
+  final def mapConcatM[R1 <: R, E1 >: E, O2](f: O => ZIO[R1, E1, Iterable[O2]]): ZStream[R1, E1, O2] =
+    mapM(a => f(a).map(Chunk.fromIterable(_))).mapConcatChunk(identity)
 
   /**
    * Transforms the errors emitted by this stream using `f`.
