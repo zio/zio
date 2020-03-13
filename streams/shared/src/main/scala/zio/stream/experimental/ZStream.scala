@@ -891,13 +891,17 @@ abstract class ZStream[-R, +E, +O](
    * concurrent merge. Up to `n` streams may be consumed in parallel and up to
    * `outputBuffer` elements may be buffered by this operator.
    */
-  def flattenPar[R1 <: R, E1 >: E, O1](n: Int, outputBuffer: Int = 16)(implicit ev: O <:< ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+  def flattenPar[R1 <: R, E1 >: E, O1](n: Int, outputBuffer: Int = 16)(
+    implicit ev: O <:< ZStream[R1, E1, O1]
+  ): ZStream[R1, E1, O1] =
     flatMapPar[R1, E1, O1](n, outputBuffer)(ev(_))
 
   /**
    * Like [[flattenPar]], but executes all streams concurrently.
    */
-  def flattenParUnbounded[R1 <: R, E1 >: E, O1](outputBuffer: Int = 16)(implicit ev: O <:< ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+  def flattenParUnbounded[R1 <: R, E1 >: E, O1](
+    outputBuffer: Int = 16
+  )(implicit ev: O <:< ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
     flattenPar[R1, E1, O1](Int.MaxValue, outputBuffer)
 
   /**
