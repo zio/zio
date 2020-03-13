@@ -1144,6 +1144,32 @@ abstract class ZStream[-R, +E, +O](
 
   /**
    * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. Transformed elements
+   * will be emitted in the original order.
+   */
+  final def mapMPar[R1 <: R, E1 >: E, O2](n: Int)(f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
+    ZStream[R1, E1, O2] {
+      for {
+        out     <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
+        permits <- Semaphore.make(n.toLong).toManaged_
+        _ <- self.foreachManaged { a =>
+              for {
+                p     <- Promise.make[E1, O2]
+                latch <- Promise.make[Nothing, Unit]
+                _     <- out.offer(p.await.mapError(Some(_)))
+                _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork
+                _     <- latch.await
+              } yield ()
+            }.foldCauseM(
+                c => out.offer(ZIO.halt(c.map(Some(_)))).unit.toManaged_,
+                _ => (out.offer(ZIO.fail(None)) <* ZIO.awaitAllChildren).unit.toManaged_
+              )
+              .fork
+      } yield out.take.flatten.map(Chunk.single(_))
+    }
+
+  /**
+   * Maps over elements of the stream with the specified effectful function,
    * partitioned by `p` executing invocations of `f` concurrently. The number
    * of concurrent invocations of `f` is determined by the number of different
    * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
@@ -1921,16 +1947,14 @@ object ZStream {
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   def fromChunkQueue[R, E, O](queue: ZQueue[Nothing, Any, R, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
-    ZStream {
-      ZManaged.succeedNow {
-        queue.take
-          .catchAllCause(c =>
-            queue.isShutdown.flatMap { down =>
-              if (down && c.interrupted) ZIO.fail(None)
-              else ZIO.halt(c.map(Some(_)))
-            }
-          )
-      }
+    repeatEffectChunkOption {
+      queue.take
+        .catchAllCause(c =>
+          queue.isShutdown.flatMap { down =>
+            if (down && c.interrupted) ZIO.fail(None)
+            else ZIO.halt(c.map(Some(_)))
+          }
+        )
     }
 
   /**
@@ -1943,7 +1967,7 @@ object ZStream {
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   def fromQueue[R, E, O](queue: ZQueue[Nothing, Any, R, E, Nothing, O]): ZStream[R, E, O] =
-    fromChunkQueue(queue.map(Chunk(_)))
+    fromChunkQueue(queue.map(Chunk.single(_)))
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
@@ -1966,7 +1990,7 @@ object ZStream {
    * Creates a stream from a [[zio.stm.TQueue]] of values.
    */
   def fromTQueue[A](queue: TQueue[A]): ZStream[Any, Nothing, A] =
-    ZStream.repeatEffect(queue.take.commit)
+    repeatEffectChunk(queue.takeAll.map(Chunk.fromIterable(_)).commit)
 
   /**
    * The stream that always halts with `cause`.
@@ -2048,7 +2072,7 @@ object ZStream {
     iterate(min)(_ + 1).takeWhile(_ < max)
 
   /**
-   * Creates a stream from an effect producing a value of type `A` which repeats forever
+   * Creates a stream from an effect producing a value of type `A` which repeats forever.
    */
   def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
     repeatEffectOption(fa.mapError(Some(_)))
@@ -2058,6 +2082,12 @@ object ZStream {
    */
   def repeatEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] =
     repeatEffectChunkOption(fa.map(Chunk.single(_)))
+
+  /**
+   * Creates a stream from an effect producing chunks of `A` values which repeats forever.
+   */
+  def repeatEffectChunk[R, E, A](fa: ZIO[R, E, Chunk[A]]): ZStream[R, E, A] =
+    repeatEffectChunkOption(fa.mapError(Some(_)))
 
   /**
    * Creates a stream from an effect producing chunks of `A` values until it fails with None.
