@@ -52,12 +52,11 @@ abstract class ZStream[-R, +E, +O](
     self concat that
 
   /**
-   * Returns a stream that submerges the error case of an `Either` into the `ZStream`. Note that
-   * this combinator and [[either]] cancel each other, i.e. `xs.either.absolve == xs` and vice versa.
+   * Returns a stream that submerges the error case of an `Either` into the `ZStream`.
    */
-  final def absolve[R1 <: R, E1, B](
-    implicit ev: ZStream[R, E, A] <:< ZStream[R1, E1, Either[E1, B]]
-  ): ZStream[R1, E1, B] =
+  final def absolve[R1 <: R, E1, O1](
+    implicit ev: ZStream[R, E, O] <:< ZStream[R1, E1, Either[E1, O1]]
+  ): ZStream[R1, E1, O1] =
     ZStream.absolve(ev(self))
 
   /**
@@ -441,6 +440,16 @@ abstract class ZStream[-R, +E, +O](
         }
       } yield pull
     }
+
+  /**
+   * Returns a stream whose failures and successes have been lifted into an
+   * `Either`. The resulting stream cannot fail, because the failures have
+   * been exposed as part of the `Either` success case.
+   *
+   * @note the stream will end as soon as the first error occurs.
+   */
+  final def either(implicit ev: CanFail[E]): ZStream[R, Nothing, Either[E, O]] =
+    self.map(Right(_)).catchAll(e => ZStream(Left(e)))
 
   /**
    * Executes the provided finalizer after this stream's finalizers run.
@@ -1111,20 +1120,21 @@ abstract class ZStream[-R, +E, +O](
 }
 
 object ZStream {
+
   /**
    * Submerges the error case of an `Either` into the `ZStream`.
    */
-  def absolve[R, E, A](xs: ZStream[R, E, Either[E, A]]): ZStream[R, E, A] =
+  def absolve[R, E, O](xs: ZStream[R, E, Either[E, O]]): ZStream[R, E, O] =
     xs.flatMap(_.fold(fail(_), succeed(_)))
 
   /**
-    * Creates a new [[ZStream]] from a managed effect that yields chunks. 
-    * The effect will be evaluated repeatedly until it fails with a `None` 
-    * (to signify stream end) or a `Some(E)` (to signify stream failure).
-    * 
-    * The stream evaluation guarantees proper acquisition and release of the
-    * [[ZManaged]].
-    */
+   * Creates a new [[ZStream]] from a managed effect that yields chunks.
+   * The effect will be evaluated repeatedly until it fails with a `None`
+   * (to signify stream end) or a `Some(E)` (to signify stream failure).
+   *
+   * The stream evaluation guarantees proper acquisition and release of the
+   * [[ZManaged]].
+   */
   def apply[R, E, O](
     process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
   ): ZStream[R, E, O] =
