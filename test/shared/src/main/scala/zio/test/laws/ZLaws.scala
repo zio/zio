@@ -39,12 +39,12 @@ sealed trait ZLaws[-Caps[_], -R] { self =>
    * require both sets of laws to be satisfied.
    */
   def +[Caps1[x] <: Caps[x], R1 <: R](that: ZLaws[Caps1, R1]): ZLaws[Caps1, R1] =
-    Laws.Both(self, that)
+    ZLaws.Both(self, that)
 }
 
-object Laws {
+object ZLaws {
 
-  final case class Both[-Caps[_], -R](left: ZLaws[Caps, R], right: ZLaws[Caps, R]) extends ZLaws[Caps, R] {
+  private final case class Both[-Caps[_], -R](left: ZLaws[Caps, R], right: ZLaws[Caps, R]) extends ZLaws[Caps, R] {
     final def run[R1 <: R, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
       left.run(gen).zipWith(right.run(gen))(_ && _)
   }
