@@ -52,6 +52,15 @@ abstract class ZStream[-R, +E, +O](
     self concat that
 
   /**
+   * Returns a stream that submerges the error case of an `Either` into the `ZStream`. Note that
+   * this combinator and [[either]] cancel each other, i.e. `xs.either.absolve == xs` and vice versa.
+   */
+  final def absolve[R1 <: R, E1, B](
+    implicit ev: ZStream[R, E, A] <:< ZStream[R1, E1, Either[E1, B]]
+  ): ZStream[R1, E1, B] =
+    ZStream.absolve(ev(self))
+
+  /**
    * Maps the success values of this stream to the specified constant value.
    */
   def as[O2](o2: => O2): ZStream[R, E, O2] =
@@ -1102,6 +1111,20 @@ abstract class ZStream[-R, +E, +O](
 }
 
 object ZStream {
+  /**
+   * Submerges the error case of an `Either` into the `ZStream`.
+   */
+  def absolve[R, E, A](xs: ZStream[R, E, Either[E, A]]): ZStream[R, E, A] =
+    xs.flatMap(_.fold(fail(_), succeed(_)))
+
+  /**
+    * Creates a new [[ZStream]] from a managed effect that yields chunks. 
+    * The effect will be evaluated repeatedly until it fails with a `None` 
+    * (to signify stream end) or a `Some(E)` (to signify stream failure).
+    * 
+    * The stream evaluation guarantees proper acquisition and release of the
+    * [[ZManaged]].
+    */
   def apply[R, E, O](
     process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
   ): ZStream[R, E, O] =
