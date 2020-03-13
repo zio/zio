@@ -1306,6 +1306,33 @@ abstract class ZStream[-R, +E, +O](
     foreach(_ => ZIO.unit)
 
   /**
+   * Runs the stream to completion and yields the first value emitted by it,
+   * discarding the rest of the elements.
+   */
+  def runHead: ZIO[R, E, Option[O]] =
+    // TODO: rewrite as a sink
+    Ref.make[Option[O]](None).flatMap { ref =>
+      foreach(a =>
+        ref.update {
+          case None        => Some(a)
+          case s @ Some(_) => s
+        }
+      ) *>
+        ref.get
+    }
+
+  /**
+   * Runs the stream to completion and yields the last value emitted by it,
+   * discarding the rest of the elements.
+   */
+  def runLast: ZIO[R, E, Option[O]] =
+    // TODO: rewrite as a sink
+    Ref.make[Option[O]](None).flatMap { ref =>
+      foreach(o => ref.set(Some(o))) *>
+        ref.get
+    }
+
+  /**
    * Takes the specified number of elements from this stream.
    */
   def take(n: Int): ZStream[R, E, O] =
