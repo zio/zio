@@ -228,6 +228,78 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(fin)(isTrue)
         }
       ),
+      testM("mapConcat")(checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
+        for {
+          res1 <- s.mapConcat(f).runCollect
+          res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+        } yield assert(res1)(equalTo(res2))
+      }),
+      testM("mapConcatChunk")(checkM(pureStreamOfBytes, Gen.function(smallChunks(Gen.anyInt))) { (s, f) =>
+        for {
+          res1 <- s.mapConcatChunk(f).runCollect
+          res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+        } yield assert(res1)(equalTo(res2))
+      }),
+      suite("mapConcatChunkM")(
+        testM("mapConcatChunkM happy path") {
+          checkM(pureStreamOfBytes, Gen.function(smallChunks(Gen.anyInt))) { (s, f) =>
+            for {
+              res1 <- s.mapConcatChunkM(b => UIO.succeedNow(f(b))).runCollect
+              res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+            } yield assert(res1)(equalTo(res2))
+          }
+        },
+        testM("mapConcatChunkM error") {
+          ZStream(1, 2, 3)
+            .mapConcatChunkM(_ => IO.fail("Ouch"))
+            .runCollect
+            .either
+            .map(assert(_)(equalTo(Left("Ouch"))))
+        }
+      ),
+      suite("mapConcatM")(
+        testM("mapConcatM happy path") {
+          checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
+            for {
+              res1 <- s.mapConcatM(b => UIO.succeedNow(f(b))).runCollect
+              res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+            } yield assert(res1)(equalTo(res2))
+          }
+        },
+        testM("mapConcatM error") {
+          ZStream(1, 2, 3)
+            .mapConcatM(_ => IO.fail("Ouch"))
+            .runCollect
+            .either
+            .map(assert(_)(equalTo(Left("Ouch"))))
+        }
+      ),
+      testM("mapError") {
+        ZStream
+          .fail("123")
+          .mapError(_.toInt)
+          .runCollect
+          .either
+          .map(assert(_)(isLeft(equalTo(123))))
+      },
+      testM("mapErrorCause") {
+        ZStream
+          .halt(Cause.fail("123"))
+          .mapErrorCause(_.map(_.toInt))
+          .runCollect
+          .either
+          .map(assert(_)(isLeft(equalTo(123))))
+      },
+      testM("mapM") {
+        checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
+          val s = ZStream.fromIterable(data)
+
+          for {
+            l <- s.mapM(f).runCollect
+            r <- IO.foreach(data)(f)
+          } yield assert(l)(equalTo(r))
+        }
+      },
       suite("mergeWith")(
         testM("equivalence with set union")(checkM(streamOfInts, streamOfInts) {
           (s1: ZStream[Any, String, Int], s2: ZStream[Any, String, Int]) =>
