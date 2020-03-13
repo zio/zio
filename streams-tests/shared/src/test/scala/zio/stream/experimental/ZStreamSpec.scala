@@ -11,6 +11,32 @@ import ZStreamGen._
 object ZStreamSpec extends ZIOBaseSpec {
   def spec = suite("ZStreamSpec")(
     suite("Combinators")(
+      suite("Stream.absolve")(
+        testM("happy path")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { xs =>
+          val stream = ZStream.fromIterable(xs.map(Right(_)))
+          assertM(stream.absolve.runCollect)(equalTo(xs))
+        }),
+        testM("failure")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { xs =>
+          val stream = ZStream.fromIterable(xs.map(Right(_))) ++ ZStream.succeed(Left("Ouch"))
+          assertM(stream.absolve.runCollect.run)(fails(equalTo("Ouch")))
+        }),
+        testM("round-trip #1")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt)), Gen.anyString) { (xs, s) =>
+          val xss    = ZStream.fromIterable(xs.map(Right(_)))
+          val stream = xss ++ ZStream(Left(s)) ++ xss
+          for {
+            res1 <- stream.runCollect
+            res2 <- stream.absolve.either.runCollect
+          } yield assert(res1)(startsWith(res2))
+        }),
+        testM("round-trip #2")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt)), Gen.anyString) { (xs, s) =>
+          val xss    = ZStream.fromIterable(xs)
+          val stream = xss ++ ZStream.fail(s)
+          for {
+            res1 <- stream.runCollect.run
+            res2 <- stream.either.absolve.runCollect.run
+          } yield assert(res1)(fails(equalTo(s))) && assert(res2)(fails(equalTo(s)))
+        })
+      ),
       suite("bracket")(
         testM("bracket")(
           for {
@@ -823,6 +849,40 @@ object ZStreamSpec extends ZIOBaseSpec {
       })
     ),
     suite("Constructors")(
+      testM("access") {
+        for {
+          result <- ZStream.access[String](identity).provide("test").runCollect.map(_.head)
+        } yield assert(result)(equalTo("test"))
+      },
+      suite("accessM")(
+        testM("accessM") {
+          for {
+            result <- ZStream.accessM[String](ZIO.succeedNow).provide("test").runCollect.map(_.head)
+          } yield assert(result)(equalTo("test"))
+        },
+        testM("accessM fails") {
+          for {
+            result <- ZStream.accessM[Int](_ => ZIO.fail("fail")).provide(0).runCollect.run
+          } yield assert(result)(fails(equalTo("fail")))
+        }
+      ),
+      suite("accessStream")(
+        testM("accessStream") {
+          for {
+            result <- ZStream.accessStream[String](ZStream.succeed(_)).provide("test").runCollect.map(_.head)
+          } yield assert(result)(equalTo("test"))
+        },
+        testM("accessStream fails") {
+          for {
+            result <- ZStream.accessStream[Int](_ => ZStream.fail("fail")).provide(0).runCollect.run
+          } yield assert(result)(fails(equalTo("fail")))
+        }
+      ),
+      testM("Stream.environment") {
+        for {
+          result <- ZStream.environment[String].provide("test").runCollect.map(_.head)
+        } yield assert(result)(equalTo("test"))
+      },
       testM("fromChunk") {
         checkM(smallChunks(Gen.anyInt))(c => assertM(ZStream.fromChunk(c).runCollect)(equalTo(c.toList)))
       },
