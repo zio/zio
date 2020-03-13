@@ -193,7 +193,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           stream.distributedWithDynamic(1, _ => UIO.succeedNow(_ => true)).use { add =>
             val subscribe = ZStream.unwrap(add.map {
               case (_, queue) =>
-                ZStream.fromQueue(queue).unExitChunk
+                ZStream.fromQueue(queue).unExit
             })
             Promise.make[Nothing, Unit].flatMap { onEnd =>
               subscribe.ensuring(onEnd.succeed(())).runDrain.fork *>
@@ -423,7 +423,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(results)(equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")))
         }
       ),
-      suite("Stream.flatMapParSwitch")(
+      suite("flatMapParSwitch")(
         testM("guarantee ordering no parallelism") {
           for {
             lastExecuted <- Ref.make(false)
@@ -576,7 +576,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(skipped)(isTrue)
         }
       ),
-      testM("Stream.forever") {
+      testM("forever") {
         for {
           ref <- Ref.make(0)
           _ <- ZStream(1).forever.foreachWhile[Any, Nothing](_ =>
@@ -585,6 +585,58 @@ object ZStreamSpec extends ZIOBaseSpec {
           sum <- ref.get
         } yield assert(sum)(equalTo(10))
       },
+      suite("groupBy")(
+        testM("values") {
+          val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
+          assertM(
+            ZStream
+              .fromIterable(words)
+              .groupByKey(identity, 8192) {
+                case (k, s) =>
+                  ZStream.fromEffect(s.runCollect.map(l => k -> l.size))
+              }
+              .runCollect
+              .map(_.toMap)
+          )(equalTo((0 to 100).map((_.toString -> 1000)).toMap))
+        },
+        testM("first") {
+          val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
+          assertM(
+            ZStream
+              .fromIterable(words)
+              .groupByKey(identity, 1050)
+              .first(2) {
+                case (k, s) =>
+                  ZStream.fromEffect(s.runCollect.map(l => k -> l.size))
+              }
+              .runCollect
+              .map(_.toMap)
+          )(equalTo((0 to 1).map((_.toString -> 1000)).toMap))
+        },
+        testM("filter") {
+          val words = List.fill(1000)(0 to 100).flatten
+          assertM(
+            ZStream
+              .fromIterable(words)
+              .groupByKey(identity, 1050)
+              .filter(_ <= 5) {
+                case (k, s) =>
+                  ZStream.fromEffect(s.runCollect.map(l => k -> l.size))
+              }
+              .runCollect
+              .map(_.toMap)
+          )(equalTo((0 to 5).map((_ -> 1000)).toMap))
+        },
+        testM("outer errors") {
+          val words = List("abc", "test", "test", "foo")
+          assertM(
+            (ZStream.fromIterable(words) ++ ZStream.fail("Boom"))
+              .groupByKey(identity) { case (_, s) => s.drain }
+              .runCollect
+              .either
+          )(isLeft(equalTo("Boom")))
+        }
+      ),
       testM("mapConcat")(checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
         for {
           res1 <- s.mapConcat(f).runCollect

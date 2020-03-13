@@ -85,7 +85,7 @@ abstract class ZStream[-R, +E, +O](
         _.map(
           ZStream
             .fromQueueWithShutdown(_)
-            .unExitChunk
+            .unExit
         )
       )
 
@@ -103,7 +103,7 @@ abstract class ZStream[-R, +E, +O](
         _.map(
           ZStream
             .fromQueueWithShutdown(_)
-            .unExitChunk
+            .unExit
         )
       )
 
@@ -119,7 +119,7 @@ abstract class ZStream[-R, +E, +O](
   final def broadcastedQueues(
     n: Int,
     maximumLag: Int
-  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E], Chunk[O]]]]] = {
+  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E], O]]]] = {
     val decider = ZIO.succeedNow((_: Int) => true)
     distributedWith(n, maximumLag, _ => decider)
   }
@@ -135,7 +135,7 @@ abstract class ZStream[-R, +E, +O](
    */
   final def broadcastedQueuesDynamic(
     maximumLag: Int
-  ): ZManaged[R, Nothing, UIO[Dequeue[Exit[Option[E], Chunk[O]]]]] = {
+  ): ZManaged[R, Nothing, UIO[Dequeue[Exit[Option[E], O]]]] = {
     val decider = ZIO.succeedNow((_: UniqueKey) => true)
     distributedWithDynamic(maximumLag, _ => decider, _ => ZIO.unit).map(_.map(_._2))
   }
@@ -441,19 +441,19 @@ abstract class ZStream[-R, +E, +O](
   final def distributedWith[E1 >: E](
     n: Int,
     maximumLag: Int,
-    decide: Chunk[O] => UIO[Int => Boolean]
-  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E1], Chunk[O]]]]] =
-    Promise.make[Nothing, Chunk[O] => UIO[UniqueKey => Boolean]].toManaged_.flatMap { prom =>
-      distributedWithDynamic(maximumLag, (os: Chunk[O]) => prom.await.flatMap(_(os)), _ => ZIO.unit).flatMap { next =>
+    decide: O => UIO[Int => Boolean]
+  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E1], O]]]] =
+    Promise.make[Nothing, O => UIO[UniqueKey => Boolean]].toManaged_.flatMap { prom =>
+      distributedWithDynamic(maximumLag, (o: O) => prom.await.flatMap(_(o)), _ => ZIO.unit).flatMap { next =>
         ZIO.collectAll {
           Range(0, n).map(id => next.map { case (key, queue) => ((key -> id), queue) })
         }.flatMap { entries =>
           val (mappings, queues) =
-            entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Dequeue[Exit[Option[E1], Chunk[O]]]])) {
+            entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Dequeue[Exit[Option[E1], O]]])) {
               case ((mapping, queue), (mappings, queues)) =>
                 (mappings + mapping, queue :: queues)
             }
-          prom.succeed((os: Chunk[O]) => decide(os).map(f => (key: UniqueKey) => f(mappings(key)))).as(queues)
+          prom.succeed((o: O) => decide(o).map(f => (key: UniqueKey) => f(mappings(key)))).as(queues)
         }.toManaged_
       }
     }
@@ -468,24 +468,24 @@ abstract class ZStream[-R, +E, +O](
    */
   final def distributedWithDynamic(
     maximumLag: Int,
-    decide: Chunk[O] => UIO[UniqueKey => Boolean],
+    decide: O => UIO[UniqueKey => Boolean],
     done: Exit[Option[E], Nothing] => UIO[Any] = (_: Any) => UIO.unit
-  ): ZManaged[R, Nothing, UIO[(UniqueKey, Dequeue[Exit[Option[E], Chunk[O]]])]] =
+  ): ZManaged[R, Nothing, UIO[(UniqueKey, Dequeue[Exit[Option[E], O]])]] =
     for {
       queuesRef <- Ref
-                    .make[Map[UniqueKey, Queue[Exit[Option[E], Chunk[O]]]]](Map())
+                    .make[Map[UniqueKey, Queue[Exit[Option[E], O]]]](Map())
                     .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
       add <- {
-        val offer = (os: Chunk[O]) =>
+        val offer = (o: O) =>
           for {
-            shouldProcess <- decide(os)
+            shouldProcess <- decide(o)
             queues        <- queuesRef.get
             _ <- ZIO
                   .foldLeft(queues)(List[UniqueKey]()) {
                     case (acc, (id, queue)) =>
                       if (shouldProcess(id)) {
                         queue
-                          .offer(Exit.succeed(os))
+                          .offer(Exit.succeed(o))
                           .foldCauseM(
                             {
                               // we ignore all downstream queues that were shut down and remove them later
@@ -502,9 +502,9 @@ abstract class ZStream[-R, +E, +O](
         for {
           queuesLock <- Semaphore.make(1).toManaged_
           newQueue <- Ref
-                       .make[UIO[(UniqueKey, Queue[Exit[Option[E], Chunk[O]]])]] {
+                       .make[UIO[(UniqueKey, Queue[Exit[Option[E], O]])]] {
                          for {
-                           queue <- Queue.bounded[Exit[Option[E], Chunk[O]]](maximumLag)
+                           queue <- Queue.bounded[Exit[Option[E], O]](maximumLag)
                            id    = UniqueKey()
                            _     <- queuesRef.update(_ + (id -> queue))
                          } yield (id, queue)
@@ -517,7 +517,7 @@ abstract class ZStream[-R, +E, +O](
                 // all newly created queues should end immediately
                 _ <- newQueue.set {
                       for {
-                        queue <- Queue.bounded[Exit[Option[E], Chunk[O]]](1)
+                        queue <- Queue.bounded[Exit[Option[E], O]](1)
                         _     <- queue.offer(endTake)
                         id    = UniqueKey()
                         _     <- queuesRef.update(_ + (id -> queue))
@@ -532,7 +532,13 @@ abstract class ZStream[-R, +E, +O](
                 _ <- done(endTake)
               } yield ()
             }
-          _ <- self.process.mapM(_.flatMap(offer).forever.run.tap(finalize)).fork
+          _ <- self
+                .foreachManaged(offer)
+                .foldCauseM(
+                  cause => finalize(Exit.halt(cause.map(Some(_)))).toManaged_,
+                  _ => finalize(Exit.fail(None)).toManaged_
+                )
+                .fork
         } yield queuesLock.withPermit(newQueue.get.flatten)
       }
     } yield add
@@ -905,6 +911,72 @@ abstract class ZStream[-R, +E, +O](
     flattenPar[R1, E1, O1](Int.MaxValue, outputBuffer)
 
   /**
+   * More powerful version of [[ZStream.groupByKey]]
+   */
+  final def groupBy[R1 <: R, E1 >: E, K, V](
+    f: O => ZIO[R1, E1, (K, V)],
+    buffer: Int = 16
+  ): ZStream.GroupBy[R1, E1, K, V] = {
+    val qstream = ZStream.unwrapManaged {
+      for {
+        decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]].toManaged_
+        out <- Queue
+                .bounded[Exit[Option[E1], (K, Dequeue[Exit[Option[E1], V]])]](buffer)
+                .toManaged(_.shutdown)
+        ref <- Ref.make[Map[K, UniqueKey]](Map()).toManaged_
+        add <- self
+                .mapM(f)
+                .distributedWithDynamic(
+                  buffer,
+                  (kv: (K, V)) => decider.await.flatMap(_.tupled(kv)),
+                  out.offer
+                )
+        _ <- decider.succeed {
+              case (k, _) =>
+                ref.get.map(_.get(k)).flatMap {
+                  case Some(idx) => ZIO.succeedNow(_ == idx)
+                  case None =>
+                    add.flatMap {
+                      case (idx, q) =>
+                        (ref.update(_ + (k -> idx)) *>
+                          out.offer(Exit.succeed(k -> q.map(_.map(_._2))))).as(_ == idx)
+                    }
+                }
+            }.toManaged_
+      } yield ZStream.fromQueueWithShutdown(out).unExit
+    }
+    new ZStream.GroupBy(qstream, buffer)
+  }
+
+  /**
+   * Partition a stream using a function and process each stream individually.
+   * This returns a data structure that can be used
+   * to further filter down which groups shall be processed.
+   *
+   * After calling apply on the GroupBy object, the remaining groups will be processed
+   * in parallel and the resulting streams merged in a nondeterministic fashion.
+   *
+   * Up to `buffer` elements may be buffered in any group stream before the producer
+   * is backpressured. Take care to consume from all streams in order
+   * to prevent deadlocks.
+   *
+   * Example:
+   * Collect the first 2 words for every starting letter
+   * from a stream of words.
+   * {{{
+   * ZStream.fromIterable(List("hello", "world", "hi", "holla"))
+   *  .groupByKey(_.head) { case (k, s) => s.take(2).map((k, _)) }
+   *  .runCollect
+   *  .map(_ == List(('h', "hello"), ('h', "hi"), ('w', "world"))
+   * }}}
+   */
+  final def groupByKey[K](
+    f: O => K,
+    buffer: Int = 16
+  ): ZStream.GroupBy[R, E, K, O] =
+    self.groupBy(a => ZIO.succeedNow((f(a), a)), buffer)
+
+  /**
    * Halts the evaluation of this stream when the provided promise resolves.
    *
    * If the promise completes with a failure, the stream will emit that failure.
@@ -1069,6 +1141,19 @@ abstract class ZStream[-R, +E, +O](
    */
   def mapM[R1 <: R, E1 >: E, O2](f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
     ZStream(self.process.map(_.flatMap(_.mapM(f).mapError(Some(_)))))
+
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * partitioned by `p` executing invocations of `f` concurrently. The number
+   * of concurrent invocations of `f` is determined by the number of different
+   * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
+   * Transformed elements may be reordered but the order within a partition is maintained.
+   */
+  final def mapMPartitioned[R1 <: R, E1 >: E, O2, K](
+    keyBy: O => K,
+    buffer: Int = 16
+  )(f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
+    groupByKey(keyBy, buffer).apply { case (_, s) => s.mapM(f) }
 
   /**
    * Merges this stream and the specified stream together.
@@ -1950,48 +2035,48 @@ object ZStream {
       case (((a, b), c), d) => f(a, b, c, d)
     }
 
-  // /**
-  //  * Representation of a grouped stream.
-  //  * This allows to filter which groups will be processed.
-  //  * Once this is applied all groups will be processed in parallel and the results will
-  //  * be merged in arbitrary order.
-  //  */
-  // final class GroupBy[-R, +E, +K, +V](
-  //   private val grouped: ZStream[R, E, (K, Dequeue[Exit[Option[E], Chunk[V]]])],
-  //   private val buffer: Int
-  // ) {
+  /**
+   * Representation of a grouped stream.
+   * This allows to filter which groups will be processed.
+   * Once this is applied all groups will be processed in parallel and the results will
+   * be merged in arbitrary order.
+   */
+  final class GroupBy[-R, +E, +K, +V](
+    private val grouped: ZStream[R, E, (K, Dequeue[Exit[Option[E], V]])],
+    private val buffer: Int
+  ) {
 
-  //   /**
-  //    * Only consider the first n groups found in the stream.
-  //    */
-  //   def first(n: Int): GroupBy[R, E, K, V] = {
-  //     val g1 = grouped.zipWithIndex.filterM {
-  //       case elem @ ((_, q), i) =>
-  //         if (i < n) ZIO.succeedNow(elem).as(true)
-  //         else q.shutdown.as(false)
-  //     }.map(_._1)
-  //     new GroupBy(g1, buffer)
-  //   }
+    /**
+     * Only consider the first n groups found in the stream.
+     */
+    def first(n: Int): GroupBy[R, E, K, V] = {
+      val g1 = grouped.zipWithIndex.filterM {
+        case elem @ ((_, q), i) =>
+          if (i < n) ZIO.succeedNow(elem).as(true)
+          else q.shutdown.as(false)
+      }.map(_._1)
+      new GroupBy(g1, buffer)
+    }
 
-  //   /**
-  //    * Filter the groups to be processed.
-  //    */
-  //   def filter(f: K => Boolean): GroupBy[R, E, K, V] = {
-  //     val g1 = grouped.filterM {
-  //       case elem @ (k, q) =>
-  //         if (f(k)) ZIO.succeedNow(elem).as(true)
-  //         else q.shutdown.as(false)
-  //     }
-  //     new GroupBy(g1, buffer)
-  //   }
+    /**
+     * Filter the groups to be processed.
+     */
+    def filter(f: K => Boolean): GroupBy[R, E, K, V] = {
+      val g1 = grouped.filterM {
+        case elem @ (k, q) =>
+          if (f(k)) ZIO.succeedNow(elem).as(true)
+          else q.shutdown.as(false)
+      }
+      new GroupBy(g1, buffer)
+    }
 
-  //   /**
-  //    * Run the function across all groups, collecting the results in an arbitrary order.
-  //    */
-  //   def apply[R1 <: R, E1 >: E, A](f: (K, ZStream[Any, E, V]) => ZStream[R1, E1, A]): ZStream[R1, E1, A] =
-  //     grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) {
-  //       case (k, q) =>
-  //         f(k, ZStream.fromQueueWithShutdown(q).unExitChunk)
-  //     }
-  // }
+    /**
+     * Run the function across all groups, collecting the results in an arbitrary order.
+     */
+    def apply[R1 <: R, E1 >: E, A](f: (K, ZStream[Any, E, V]) => ZStream[R1, E1, A]): ZStream[R1, E1, A] =
+      grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) {
+        case (k, q) =>
+          f(k, ZStream.fromQueueWithShutdown(q).unExit)
+      }
+  }
 }
