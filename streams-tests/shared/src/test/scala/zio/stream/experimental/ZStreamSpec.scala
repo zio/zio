@@ -2,11 +2,11 @@ package zio.stream.experimental
 
 import ZStreamGen._
 
+import zio.ZQueueSpecUtil.waitForSize
 import zio._
 import zio.stream.ChunkUtils._
 import zio.test.Assertion._
 import zio.test._
-import zio.ZQueueSpecUtil.waitForSize
 
 object ZStreamSpec extends ZIOBaseSpec {
   def spec = suite("ZStreamSpec")(
@@ -69,7 +69,8 @@ object ZStreamSpec extends ZIOBaseSpec {
       suite("buffer")(
         testM("maintains elements and ordering")(checkM(Gen.listOf(smallChunks(Gen.anyInt))) { list =>
           assertM(
-            ZStream.fromChunks(list: _*)
+            ZStream
+              .fromChunks(list: _*)
               .buffer(2)
               .runCollect
           )(equalTo(Chunk.fromIterable(list).flatten.toList))
