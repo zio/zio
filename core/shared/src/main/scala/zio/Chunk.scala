@@ -118,6 +118,83 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
+   * Returns the first element that satisfies the predicate.
+   */
+  def find(f: A => Boolean): Option[A] = {
+    val len               = self.length
+    var result: Option[A] = None
+    var i                 = 0
+    while (i < len && result.isEmpty) {
+      val elem = self(i)
+      if (f(elem)) result = Some(elem)
+      i += 1
+    }
+    result
+  }
+
+  /**
+   * Returns the first element of this chunk if it exists.
+   */
+  def headOption: Option[A] =
+    if (isEmpty) None else Some(self(0))
+
+  /**
+   * Returns the last element of this chunk if it exists.
+   */
+  def lastOption: Option[A] =
+    if (isEmpty) None else Some(self(self.length - 1))
+
+  /**
+   * Returns the first index for which the given predicate is satisfied.
+   */
+  def indexWhere(f: A => Boolean): Option[Int] =
+    indexWhere(f, 0)
+
+  /**
+   * Returns the first index for which the given predicate is satisfied after or at some given index.
+   */
+  def indexWhere(f: A => Boolean, from: Int): Option[Int] = {
+    val len    = self.length
+    var i      = math.max(from, 0)
+    var result = -1
+
+    while (result < 0 && i < len) {
+      if (f(self(i))) result = i
+      else i += 1
+    }
+
+    if (result == -1) None else Some(result)
+  }
+
+  /**
+   * Determines whether a predicate is satisfied for at least one element of this chunk.
+   */
+  def exists(f: A => Boolean): Boolean = {
+    val len    = self.length
+    var exists = false
+    var i      = 0
+    while (!exists && i < len) {
+      if (f(self(i))) exists = true
+      i += 1
+    }
+    exists
+  }
+
+  /**
+   * Determines whether a predicate is satisfied for all elements of this chunk.
+   */
+  def forall(f: A => Boolean): Boolean = {
+    val len    = self.length
+    var exists = true
+    var i      = 0
+    while (exists && i < len) {
+      exists = f(self(i))
+      i += 1
+    }
+    exists
+  }
+
+  /**
    * Returns a filtered subset of this chunk.
    */
   def filter(f: A => Boolean): Chunk[A] = {
@@ -151,7 +228,7 @@ sealed trait Chunk[+A] { self =>
     implicit val A: ClassTag[A] = Chunk.classTagOf(this)
 
     val len                              = self.length
-    var dest: ZIO[R, E, (Array[A], Int)] = ZIO.succeed((Array.ofDim[A](len), 0))
+    var dest: ZIO[R, E, (Array[A], Int)] = ZIO.succeedNow((Array.ofDim[A](len), 0))
 
     var i = 0
     while (i < len) {
@@ -246,9 +323,7 @@ sealed trait Chunk[+A] { self =>
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    fold[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
-      s.flatMap(f(_, a))
-    }
+    fold[ZIO[R, E, S]](IO.succeedNow(s))((s, a) => s.flatMap(f(_, a)))
 
   /**
    * Folds over the elements in this chunk from the right.
@@ -287,10 +362,10 @@ sealed trait Chunk[+A] { self =>
     val len = length
 
     def loop(s: S, i: Int): ZIO[R, E, S] =
-      if (i >= len) IO.succeed(s)
+      if (i >= len) IO.succeedNow(s)
       else {
         if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
-        else IO.succeed(s)
+        else IO.succeedNow(s)
       }
 
     loop(z, 0)
@@ -508,7 +583,7 @@ sealed trait Chunk[+A] { self =>
    */
   final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] = {
     val len                             = self.length
-    var dest: ZIO[R, E, (S1, Array[B])] = UIO.succeed((s1, null.asInstanceOf[Array[B]]))
+    var dest: ZIO[R, E, (S1, Array[B])] = UIO.succeedNow((s1, null.asInstanceOf[Array[B]]))
 
     var i = 0
     while (i < len) {
@@ -542,7 +617,7 @@ sealed trait Chunk[+A] { self =>
    */
   final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
     val len                        = self.length
-    var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
+    var array: ZIO[R, E, Array[B]] = IO.succeedNow(null.asInstanceOf[Array[B]])
     var i                          = 0
 
     while (i < len) {
@@ -560,10 +635,38 @@ sealed trait Chunk[+A] { self =>
       i += 1
     }
 
-    array.map(
-      array =>
-        if (array == null) Chunk.empty
-        else Chunk.fromArray(array)
+    array.map(array =>
+      if (array == null) Chunk.empty
+      else Chunk.fromArray(array)
+    )
+  }
+
+  /**
+   * Effectfully maps the elements of this chunk in parallel.
+   */
+  final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
+    val len                        = self.length
+    var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
+    var i                          = 0
+
+    while (i < len) {
+      val j = i
+      array = array.zipWithPar(f(self(j))) { (array, b) =>
+        val array2 = if (array == null) {
+          implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+          Array.ofDim[B](len)
+        } else array
+
+        array2(j) = b
+        array2
+      }
+
+      i += 1
+    }
+
+    array.map(array =>
+      if (array == null) Chunk.empty
+      else Chunk.fromArray(array)
     )
   }
 
@@ -583,6 +686,12 @@ sealed trait Chunk[+A] { self =>
 
     zio.unit
   }
+
+  /**
+   * Effectfully maps the elements of this chunk in parallel purely for the effects.
+   */
+  final def mapMPar_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    fold[ZIO[R, E, Unit]](IO.unit)((io, a) => f(a).zipParRight(io))
 
   /**
    * Zips this chunk with the specified chunk using the specified combiner.
@@ -839,8 +948,8 @@ object Chunk {
 
     override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
       val len                       = array.length
-      val orElse                    = (_: A) => UIO.succeed(null.asInstanceOf[B])
-      var dest: ZIO[R, E, Array[B]] = UIO.succeed(null.asInstanceOf[Array[B]])
+      val orElse                    = (_: A) => UIO.succeedNow(null.asInstanceOf[B])
+      var dest: ZIO[R, E, Array[B]] = UIO.succeedNow(null.asInstanceOf[Array[B]])
 
       var i = 0
       var j = 0
@@ -865,10 +974,9 @@ object Chunk {
         i += 1
       }
 
-      dest.map(
-        array =>
-          if (array == null) Chunk.empty
-          else Chunk.Slice(Chunk.Arr(array), 0, j)
+      dest.map(array =>
+        if (array == null) Chunk.empty
+        else Chunk.Slice(Chunk.Arr(array), 0, j)
       )
     }
 
@@ -905,14 +1013,14 @@ object Chunk {
     override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
       val self                      = array
       val len                       = self.length
-      var dest: ZIO[R, E, Array[B]] = UIO.succeed(null.asInstanceOf[Array[B]])
+      var dest: ZIO[R, E, Array[B]] = UIO.succeedNow(null.asInstanceOf[Array[B]])
 
       var i    = 0
       var j    = 0
       var done = false
       val orElse = (_: A) => {
         done = true
-        UIO.succeed(null.asInstanceOf[B])
+        UIO.succeedNow(null.asInstanceOf[B])
       }
 
       while (!done && i < len) {
@@ -935,10 +1043,9 @@ object Chunk {
         i += 1
       }
 
-      dest.map(
-        array =>
-          if (array == null) Chunk.empty
-          else Chunk.Slice(Chunk.Arr(array), 0, j)
+      dest.map(array =>
+        if (array == null) Chunk.empty
+        else Chunk.Slice(Chunk.Arr(array), 0, j)
       )
     }
 
@@ -1127,12 +1234,13 @@ object Chunk {
 
     override def collect[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
 
-    override def collectM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = UIO.succeed(Empty)
+    override def collectM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
+      UIO.succeedNow(Empty)
 
     override def collectWhile[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
 
     override def collectWhileM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      UIO.succeed(Empty)
+      UIO.succeedNow(Empty)
 
     protected[zio] def foreach(f: Nothing => Unit): Unit = ()
 

@@ -19,8 +19,8 @@ package zio.test.mock
 import zio.{ IO, UIO }
 
 /**
- * A `ReturnExpectation[-I, E, +A]` represents an expectation on output for capability of module `M`
- * that given input arguments `I` returns an effect that may fail with an error `E` or produce a single `A`.
+ * A `ReturnExpectation[-I, E, +A]` represents an expectation on output that given input arguments `I`
+ * returns an effect that may fail with an error `E` or produce a single `A`.
  */
 sealed trait ReturnExpectation[-I, +E, +A] {
   val io: I => IO[E, A]

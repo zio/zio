@@ -69,9 +69,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * }}}
    */
   def filter(f: A => Boolean): Gen[R, A] = Gen {
-    sample.flatMap { sample =>
-      if (f(sample.value)) sample.filter(f) else ZStream.empty
-    }
+    sample.flatMap(sample => if (f(sample.value)) sample.filter(f) else ZStream.empty)
   }
 
   def withFilter(f: A => Boolean): Gen[R, A] = filter(f)
@@ -94,7 +92,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Maps an effectual function over a generator.
    */
   def mapM[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
-    Gen(sample.mapM(_.traverse(f)))
+    Gen(sample.mapM(_.foreach(f)))
 
   /**
    * Discards the shrinker for this generator.
@@ -197,7 +195,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * A generator of integers. Shrinks toward '0'.
+   * A generator of doubles. Shrinks toward '0'.
+   */
+  val anyDouble: Gen[Random, Double] =
+    fromEffectSample(nextDouble.map(Sample.shrinkFractional(0f)))
+
+  /**
+   * A generator of floats. Shrinks toward '0'.
    */
   val anyFloat: Gen[Random, Float] =
     fromEffectSample(nextFloat.map(Sample.shrinkFractional(0f)))
@@ -285,7 +289,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A constant generator of the specified sample.
    */
   def constSample[R, A](sample: => Sample[R, A]): Gen[R, A] =
-    fromEffectSample(ZIO.succeed(sample))
+    fromEffectSample(ZIO.succeedNow(sample))
 
   /**
    * Composes the specified generators to create a cartesian product of
@@ -377,15 +381,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Constructs a generator from a function that uses randomness. The returned
    * generator will not have any shrinking.
    */
-  def fromRandom[A](f: Random.Service[Any] => UIO[A]): Gen[Random, A] =
-    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random)).map(Sample.noShrink)))
+  final def fromRandom[A](f: Random.Service => UIO[A]): Gen[Random, A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get)).map(Sample.noShrink)))
 
   /**
    * Constructs a generator from a function that uses randomness to produce a
    * sample.
    */
-  def fromRandomSample[R <: Random, A](f: Random.Service[Any] => UIO[Sample[R, A]]): Gen[R, A] =
-    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random))))
+  final def fromRandomSample[R <: Random, A](f: Random.Service => UIO[Sample[R, A]]): Gen[R, A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get))))
 
   /**
    * A generator of integers inside the specified range: [start, end].

@@ -17,49 +17,46 @@
 package zio.test.mock
 
 import zio.random.Random
-import zio.{ Chunk, UIO }
-
-trait MockRandom extends Random {
-
-  def random: MockRandom.Service[Any]
-}
+import zio.{ Chunk, Has, UIO, URLayer, ZLayer }
 
 object MockRandom {
 
-  trait Service[R] extends Random.Service[R]
-
-  object nextBoolean  extends Method[MockRandom, Unit, Boolean]
-  object nextBytes    extends Method[MockRandom, Int, Chunk[Byte]]
-  object nextDouble   extends Method[MockRandom, Unit, Double]
-  object nextFloat    extends Method[MockRandom, Unit, Float]
-  object nextGaussian extends Method[MockRandom, Unit, Double]
-  object nextInt {
-    object _0 extends Method[MockRandom, Int, Int]
-    object _1 extends Method[MockRandom, Unit, Int]
+  sealed trait Tag[I, A] extends Method[Random, I, A] {
+    def envBuilder = MockRandom.envBuilder
   }
-  object nextLong {
-    object _0 extends Method[MockRandom, Unit, Long]
-    object _1 extends Method[MockRandom, Long, Long]
-  }
-  object nextPrintableChar extends Method[MockRandom, Unit, Char]
-  object nextString        extends Method[MockRandom, Int, String]
-  object shuffle           extends Method[MockRandom, List[Any], List[Any]]
 
-  implicit val mockable: Mockable[MockRandom] = (mock: Mock) =>
-    new MockRandom {
-      val random = new Service[Any] {
-        val nextBoolean: UIO[Boolean]                = mock(MockRandom.nextBoolean)
-        def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(MockRandom.nextBytes, length)
-        val nextDouble: UIO[Double]                  = mock(MockRandom.nextDouble)
-        val nextFloat: UIO[Float]                    = mock(MockRandom.nextFloat)
-        val nextGaussian: UIO[Double]                = mock(MockRandom.nextGaussian)
-        def nextInt(n: Int): UIO[Int]                = mock(MockRandom.nextInt._0, n)
-        val nextInt: UIO[Int]                        = mock(MockRandom.nextInt._1)
-        val nextLong: UIO[Long]                      = mock(MockRandom.nextLong._0)
-        def nextLong(n: Long): UIO[Long]             = mock(MockRandom.nextLong._1, n)
-        val nextPrintableChar: UIO[Char]             = mock(MockRandom.nextPrintableChar)
-        def nextString(length: Int)                  = mock(MockRandom.nextString, length)
-        def shuffle[A](list: List[A]): UIO[List[A]]  = mock(MockRandom.shuffle, list).asInstanceOf[UIO[List[A]]]
+  object NextBoolean  extends Tag[Unit, Boolean]
+  object NextBytes    extends Tag[Int, Chunk[Byte]]
+  object NextDouble   extends Tag[Unit, Double]
+  object NextFloat    extends Tag[Unit, Float]
+  object NextGaussian extends Tag[Unit, Double]
+  object NextInt {
+    object _0 extends Tag[Int, Int]
+    object _1 extends Tag[Unit, Int]
+  }
+  object NextLong {
+    object _0 extends Tag[Unit, Long]
+    object _1 extends Tag[Long, Long]
+  }
+  object NextPrintableChar extends Tag[Unit, Char]
+  object NextString        extends Tag[Int, String]
+  object Shuffle           extends Tag[List[Any], List[Any]]
+
+  private lazy val envBuilder: URLayer[Has[Proxy], Random] =
+    ZLayer.fromService(invoke =>
+      new Random.Service {
+        val nextBoolean: UIO[Boolean]                = invoke(NextBoolean)
+        def nextBytes(length: Int): UIO[Chunk[Byte]] = invoke(NextBytes, length)
+        val nextDouble: UIO[Double]                  = invoke(NextDouble)
+        val nextFloat: UIO[Float]                    = invoke(NextFloat)
+        val nextGaussian: UIO[Double]                = invoke(NextGaussian)
+        def nextInt(n: Int): UIO[Int]                = invoke(NextInt._0, n)
+        val nextInt: UIO[Int]                        = invoke(NextInt._1)
+        val nextLong: UIO[Long]                      = invoke(NextLong._0)
+        def nextLong(n: Long): UIO[Long]             = invoke(NextLong._1, n)
+        val nextPrintableChar: UIO[Char]             = invoke(NextPrintableChar)
+        def nextString(length: Int)                  = invoke(NextString, length)
+        def shuffle[A](list: List[A]): UIO[List[A]]  = invoke(Shuffle, list).asInstanceOf[UIO[List[A]]]
       }
-    }
+    )
 }

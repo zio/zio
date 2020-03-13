@@ -2,9 +2,10 @@ package zio.test.sbt
 
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 
+import zio.UIO
 import zio.clock.Clock
-import zio.test.{ AbstractRunnableSpec, SummaryBuilder, TestArgs, TestLogger }
-import zio.{ Runtime, ZIO }
+import zio.test.{ AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger }
+import zio.{ Layer, Runtime, ZIO, ZLayer }
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -13,7 +14,7 @@ abstract class BaseTestTask(
   val args: TestArgs
 ) extends Task {
 
-  protected lazy val spec: AbstractRunnableSpec = {
+  protected lazy val specInstance: AbstractRunnableSpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
     Reflect
@@ -23,35 +24,32 @@ abstract class BaseTestTask(
       .asInstanceOf[AbstractRunnableSpec]
   }
 
-  protected def run(eventHandler: EventHandler, loggers: Array[Logger]) =
+  protected def run(eventHandler: EventHandler) =
     for {
-      spec <- (args.testSearchTerms match {
-               case Nil => spec.run
-               case searchTerms =>
-                 spec.runner.run {
-                   spec.spec.filterLabels { label =>
-                     searchTerms.exists(term => label.toString.contains(term))
-                   }.getOrElse(spec.spec)
-                 }
-             }).provide(new SbtTestLogger(loggers) with Clock.Live)
+      spec    <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary <- SummaryBuilder.buildSummary(spec)
-      _       <- sendSummary.run(summary)
+      _       <- sendSummary.provide(summary)
       events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
       _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
+  protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, TestLogger with Clock] =
+    ZLayer.succeed[TestLogger.Service](new TestLogger.Service {
+      def logLine(line: String): UIO[Unit] =
+        ZIO
+          .effect(loggers.foreach(_.info(colored(line))))
+          .catchAll(_ => ZIO.unit)
+    }) ++ Clock.live
+
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    Runtime((), spec.platform).unsafeRun(run(eventHandler, loggers))
+    Runtime((), specInstance.platform).unsafeRun(
+      (sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_)
+        .use_(ZIO.unit)
+        .onError(e => UIO(println(e.prettyPrint)))
+    )
     Array()
   }
 
   override def tags(): Array[String] = Array.empty
-}
 
-class SbtTestLogger(loggers: Array[Logger]) extends TestLogger {
-  override def testLogger: TestLogger.Service = (line: String) => {
-    ZIO
-      .effect(loggers.foreach(_.info(colored(line))))
-      .catchAll(_ => ZIO.unit)
-  }
 }

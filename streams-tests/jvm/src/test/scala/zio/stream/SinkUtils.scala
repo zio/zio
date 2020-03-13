@@ -33,27 +33,32 @@ trait SinkUtils {
    * When met - accumulates next `accumulateAfterMet` elements and returns as `leftover`
    * If `target` is not met - returns `default` with empty `leftover`
    */
-  def sinkWithLeftover[A](target: A, accumulateAfterMet: Int, default: A) = new ZSink[Any, String, A, A, A] {
-    type State = (Option[List[A]], Chunk[A])
+  def sinkWithLeftover[A](target: A, accumulateAfterMet: Int, default: A): ZSink[Any, String, A, A, A] =
+    new ZSink[Any, String, A, A, A] {
+      type State = Option[List[A]]
 
-    def extract(state: State) = UIO.succeed((if (state._1.isEmpty) default else target, state._2))
+      def extract(state: State) =
+        UIO.succeedNow(state match {
+          case Some(elems) => (target, Chunk.fromIterable(elems))
+          case None        => (default, Chunk.empty)
+        })
 
-    def initial = UIO.succeed((None, Chunk.empty))
+      def initial = UIO.succeedNow(None)
 
-    def step(state: State, a: A) =
-      state match {
-        case (None, _) =>
-          val st = if (a == target) Some(Nil) else None
-          UIO.succeed((st, state._2))
-        case (Some(acc), _) =>
-          if (acc.length >= accumulateAfterMet)
-            UIO.succeed((state._1, Chunk.fromIterable(acc)))
-          else
-            UIO.succeed((Some(acc :+ a), state._2))
-      }
+      def step(state: State, a: A) =
+        state match {
+          case None =>
+            val st = if (a == target) Some(Nil) else None
+            UIO.succeedNow(st)
+          case Some(acc) =>
+            if (acc.length >= accumulateAfterMet)
+              UIO.succeedNow(state)
+            else
+              UIO.succeedNow(Some(acc :+ a))
+        }
 
-    def cont(state: State) = state._2.isEmpty
-  }
+      def cont(state: State) = state.map(_.length < accumulateAfterMet).getOrElse(true)
+    }
 
   def sinkIteration[R, E, A0, A, B](sink: ZSink[R, E, A0, A, B], a: A) =
     sink.initial >>= (sink.step(_, a)) >>= sink.extract
@@ -85,11 +90,11 @@ trait SinkUtils {
         rem2 <- s.run(sink2.zipRight(ZSink.collectAll[A]))
         rem  <- s.run(sink1.zipPar(sink2).zipRight(ZSink.collectAll[A]))
       } yield {
-        val (_, shorter) = if (rem1.length <= rem2.length) (rem2, rem1) else (rem1, rem2)
-        // assert(longer, equalTo(rem))
+        val (longer, shorter) = if (rem1.length <= rem2.length) (rem2, rem1) else (rem1, rem2)
+        assert(longer)(equalTo(rem))
         assert(rem.endsWith(shorter))(isTrue)
       }
-      maybeProp.catchAll(_ => UIO.succeed(assert(true)(isTrue)))
+      maybeProp.catchAll(_ => UIO.succeedNow(assert(true)(isTrue)))
     }
 
     def laws[A, B, C](

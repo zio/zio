@@ -18,132 +18,258 @@ package zio.test.mock
 
 import scala.language.implicitConversions
 
-import com.github.ghik.silencer.silent
-
 import zio.test.Assertion
-import zio.test.mock.Expectation.{ AnyCall, Call, Empty, FlatMap, Next, State }
-import zio.test.mock.MockException.UnmetExpectationsException
+import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
 import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
-import zio.{ IO, Managed, Ref, UIO, ZIO }
+import zio.test.mock.internal.{ MockException, ProxyFactory, State }
+import zio.{ Has, IO, Managed, Tagged, ULayer, URLayer, ZLayer }
 
 /**
- * An `Expectation[-M, +E, +A]` is an immutable data structure that represents
- * expectations on module `M` capabilities.
- *
- * This structure is a monad, because we need the sequential composability and
- * in Scala we get the convenient for-comprehension syntax for free.
- *
- *  - `Empty`   models expectation for no calls, the monadic `unit` value
- *  - `Call`    models a call on `M` modules capability that takes arguments `I`
- *              and returns an effect that may fail with an error `E` or produce
- *              a single `A`
- *  - `FlatMap` models sequential composition of expectations
- *
- * The whole structure is not supposed to be consumed directly by the end user,
- * instead it should be converted into a mocked environment (wrapped in Managed)
- * either explicitly via `managedEnv` method or via implicit conversion.
+ * An `Expectation[R]` is an immutable tree structure that represents
+ * expectations on environment `R`.
  */
-sealed trait Expectation[-M, +E, +A] { self =>
+sealed trait Expectation[R <: Has[_]] { self =>
 
   /**
-   * A variant of `flatMap` that ignores the value returned by this expectation.
+   * Operator alias for `and`.
    */
-  final def *>[M1 <: M, E1 >: E, B](that: Expectation[M1, E1, B]): Expectation[M1, E1, B] = flatMap(_ => that)
+  def &&[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+    and[R0](that)
 
   /**
-   * Returns an expectation that models the execution of this expectation,
-   * followed by passing of its value to the specified continuation function `k`,
-   * followed by the expectation that it returns.
+   * Operator alias for `or`.
+   */
+  def ||[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+    or[R0](that)
+
+  /**
+   * Operator alias for `andThen`.
+   */
+  def ++[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+    andThen[R0](that)
+
+  /**
+   * Compose two expectations, producing a new expectation to satisfy both.
    *
    * {{
-   * val mockClock = (MockClock.sleep(equalTo(1.second)) returns unit).flatMap(_ => MockClock.nanoTime returns value(5L))
+   * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) and (MockConsole.getStrLn returns value("foo"))
    * }}
    */
-  final def flatMap[M1 <: M, E1 >: E, B](k: A => Expectation[M1, E1, B]): Expectation[M1, E1, B] =
-    FlatMap(self, k)
-
-  /**
-   * Converts this Expectation to ZManaged mock environment.
-   */
-  final def managedEnv[M1 <: M](implicit mockable: Mockable[M1]): Managed[Nothing, M1] = {
-
-    def extract(
-      state: State[M, E],
-      expectation: Expectation[M, E, Any]
-    ): UIO[Either[Any, Any]] = {
-
-      def popNextExpectation: UIO[Option[Next[M, E]]] = state.nextRef.modify {
-        case (head :: tail) => Some(head) -> tail
-        case Nil            => None       -> Nil
-      }
-
-      UIO.succeed(expectation).flatMap {
-        case Empty =>
-          popNextExpectation.flatMap {
-            case Some(next) => extract(state, next(()))
-            case None       => UIO.succeed(Right(()))
-          }
-
-        case FlatMap(current, next) =>
-          for {
-            _   <- state.nextRef.update(next.asInstanceOf[Next[M, E]] :: _)
-            out <- extract(state, current)
-          } yield out
-
-        case call @ Call(_, _, _) =>
-          for {
-            _ <- state.callsRef.update(_ :+ call.asInstanceOf[AnyCall])
-            out <- popNextExpectation.flatMap {
-                    case Some(next) => extract(state, next(()))
-                    case None       => UIO.succeed(Right(()))
-                  }
-          } yield out
-      }
+  def and[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+    (self, that) match {
+      case (And.Items(xs1), And.Items(xs2)) => And(cast(xs1 ++ xs2))
+      case (And.Items(xs), _)               => And(cast(xs :+ that))
+      case (_, And.Items(xs))               => And(cast(self :: xs))
+      case _                                => And(cast(self :: that :: Nil))
     }
 
-    val makeState =
-      for {
-        callsRef <- Ref.make(List.empty[AnyCall])
-        nextRef  <- Ref.make(List.empty[Next[M, E]])
-      } yield State(callsRef, nextRef)
-
-    val checkUnmetExpectations =
-      (state: State[M, E]) =>
-        state.callsRef.get
-          .filterOrElse[Any, Nothing, Any](_.isEmpty) { calls =>
-            val expectations = calls.map(call => call.method -> call.assertion)
-            ZIO.die(UnmetExpectationsException(expectations))
-          }
-
-    val makeEnvironment =
-      (state: State[M, E]) =>
-        for {
-          _    <- extract(state, self)
-          mock = Mock.make(state.callsRef)
-        } yield mockable.environment(mock)
-
-    for {
-      state <- Managed.make(makeState)(checkUnmetExpectations)
-      env   <- Managed.fromEffect(makeEnvironment(state))
-    } yield env
-  }
-
   /**
-   * Returns empty expectation.
+   * Compose two expectations, producing a new expectation to satisfy both sequentially.
    *
-   * This is required for the for-comprehension syntax.
+   * {{
+   * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) andThen (MockConsole.getStrLn returns value("foo"))
+   * }}
    */
-  @silent("parameter value f in method map is never used")
-  final def map[B](f: A => B): Expectation[M, E, Nothing] =
-    flatMap(_ => Empty)
+  def andThen[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+    (self, that) match {
+      case (Chain.Items(xs1), Chain.Items(xs2)) => Chain(cast(xs1 ++ xs2))
+      case (Chain.Items(xs), _)                 => Chain(cast(xs :+ that))
+      case (_, Chain.Items(xs))                 => Chain(cast(self :: xs))
+      case _                                    => Chain(cast(self :: that :: Nil))
+    }
 
   /**
-   * A named alias for `*>`
+   * Repeated this expectation producing a new expectation to
+   * satisfy the itself sequentially at least given number of times.
    */
-  final def zipRight[M1 <: M, E1 >: E, B](that: Expectation[M1, E1, B]): Expectation[M1, E1, B] = self *> that
+  def atLeast(min: Int): Expectation[R] =
+    Repeated(self, min to -1)
+
+  /**
+   * Repeated this expectation producing a new expectation to
+   * satisfy the itself sequentially at most given number of times.
+   */
+  def atMost(max: Int): Expectation[R] =
+    Repeated(self, 1 to max)
+
+  /**
+   * Compose two expectations, producing a new expectation to satisfy one of them.
+   *
+   * {{
+   * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) or (MockConsole.getStrLn returns value("foo"))
+   * }}
+   */
+  def or[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+    (self, that) match {
+      case (Or.Items(xs1), Or.Items(xs2)) => Or(cast(xs1 ++ xs2))
+      case (Or.Items(xs), _)              => Or(cast(xs :+ that))
+      case (_, Or.Items(xs))              => Or(cast(self :: xs))
+      case _                              => Or(cast(self :: that :: Nil))
+    }
+
+  /**
+   * Repeates this expectation withing given bounds, producing a new expectation to
+   * satisfy the itself sequentially given number of times.
+   *
+   * {{
+   * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit).repeats(1, 5)
+   * }}
+   *
+   * NOTE: once another repetition starts executing, it must be completed in order to satisfy
+   * the composite expectation. For example (A ++ B).repeats(1, 2) will be satisfied by either
+   * A->B (one repetition) or A->B->A->B (two repetitions), but will fail on A->B->A
+   * (incomplete second repetition).
+   */
+  def repeats(range: Range): Expectation[R] =
+    Repeated(self, range)
+
+  /**
+   * Utility method to cast a list of expectations into desired `R` type.
+   */
+  private def cast[R1 <: Has[_]](children: List[Expectation[_]]): List[Expectation[R1]] =
+    children.asInstanceOf[List[Expectation[R1]]]
+
+  /**
+   * Invocations log.
+   */
+  private[test] val invocations: List[Int]
+
+  /**
+   * Provided a `Proxy` constructs a layer with environment `R`.
+   */
+  private[test] def envBuilder: URLayer[Has[Proxy], R]
+
+  /**
+   * Mock execution flag.
+   */
+  private[test] val satisfied: Boolean
+
+  /**
+   * Short-circuit flag. If an expectation has been saturated
+   * it's branch will be skipped in the invocation search.
+   */
+  private[test] val saturated: Boolean
 }
 
 object Expectation {
+
+  /**
+   * Models expectations conjunction on environment `R`. Expectations are checked in the order they are provided,
+   * meaning that earlier expectations may shadow later ones.
+   */
+  private[test] case class And[R <: Has[_]: Tagged](
+    children: List[Expectation[R]],
+    satisfied: Boolean,
+    saturated: Boolean,
+    invocations: List[Int]
+  ) extends Expectation[R] {
+    def envBuilder: URLayer[Has[Proxy], R] = children.map(_.envBuilder).reduce(_ ++ _)
+  }
+
+  private[test] object And {
+
+    def apply[R <: Has[_]: Tagged](children: List[Expectation[R]]): And[R] =
+      And(children, false, false, List.empty)
+
+    private[test] object Items {
+      def unapply[R <: Has[_]](and: And[R]): Option[List[Expectation[R]]] =
+        Some(and.children)
+    }
+  }
+
+  /**
+   * Models a call in environment `R` that takes input arguments `I` and returns an effect
+   * that may fail with an error `E` or produce a single `A`.
+   */
+  private[test] case class Call[R <: Has[_], I, +E, A](
+    method: Method[R, I, A],
+    assertion: Assertion[I],
+    returns: I => IO[E, A],
+    satisfied: Boolean,
+    saturated: Boolean,
+    invocations: List[Int]
+  ) extends Expectation[R] {
+    def envBuilder: URLayer[Has[Proxy], R] = method.envBuilder
+  }
+
+  private[test] object Call {
+
+    def apply[R <: Has[_], I, E, A](
+      method: Method[R, I, A],
+      assertion: Assertion[I],
+      returns: I => IO[E, A]
+    ): Call[R, I, E, A] =
+      Call(method, assertion, returns, false, false, List.empty)
+  }
+
+  /**
+   * Models sequential expectations on environment `R`.
+   */
+  private[test] case class Chain[R <: Has[_]: Tagged](
+    children: List[Expectation[R]],
+    satisfied: Boolean,
+    saturated: Boolean,
+    invocations: List[Int]
+  ) extends Expectation[R] {
+    def envBuilder: URLayer[Has[Proxy], R] = children.map(_.envBuilder).reduce(_ ++ _)
+  }
+
+  private[test] object Chain {
+
+    def apply[R <: Has[_]: Tagged](children: List[Expectation[R]]): Chain[R] =
+      Chain(children, false, false, List.empty)
+
+    private[test] object Items {
+      def unapply[R <: Has[_]](chain: Chain[R]): Option[List[Expectation[R]]] =
+        Some(chain.children)
+    }
+  }
+
+  /**
+   * Models expectations disjunction on environment `R`. Expectations are checked in the order they are provided,
+   * meaning that earlier expectations may shadow later ones.
+   */
+  private[test] case class Or[R <: Has[_]: Tagged](
+    children: List[Expectation[R]],
+    satisfied: Boolean,
+    saturated: Boolean,
+    invocations: List[Int]
+  ) extends Expectation[R] {
+    def envBuilder: URLayer[Has[Proxy], R] = children.map(_.envBuilder).reduce(_ ++ _)
+  }
+
+  private[test] object Or {
+
+    def apply[R <: Has[_]: Tagged](children: List[Expectation[R]]): Or[R] =
+      Or(children, false, false, List.empty)
+
+    private[test] object Items {
+      def unapply[R <: Has[_]](or: Or[R]): Option[List[Expectation[R]]] =
+        Some(or.children)
+    }
+  }
+
+  /**
+   * Models expectation repetition on environment `R`.
+   */
+  private[test] final case class Repeated[R <: Has[_]](
+    child: Expectation[R],
+    range: Range,
+    satisfied: Boolean,
+    saturated: Boolean,
+    invocations: List[Int],
+    started: Int,
+    completed: Int
+  ) extends Expectation[R] {
+    def envBuilder: URLayer[Has[Proxy], R] = child.envBuilder
+  }
+
+  private[test] object Repeated {
+
+    def apply[R <: Has[_]](child: Expectation[R], range: Range): Repeated[R] =
+      if (range.step <= 0) throw MockException.InvalidRangeException(range)
+      else Repeated(child, range, false, false, List.empty, 0, 0)
+  }
 
   /**
    * Returns a return expectation to fail with `E`.
@@ -166,11 +292,6 @@ object Expectation {
   def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
 
   /**
-   * Returns an expectation for no calls on module `M`.
-   */
-  def nothing[M]: Expectation[M, Nothing, Nothing] = Empty
-
-  /**
    * Returns a return expectation to succeed with `Unit`.
    */
   def unit: Succeed[Any, Unit] = value(())
@@ -191,46 +312,13 @@ object Expectation {
   def valueM[I, A](f: I => IO[Nothing, A]): Succeed[I, A] = Succeed(f)
 
   /**
-   * Implicitly converts Expectation to ZManaged mock environment.
+   * Implicitly converts Expectation to ZLayer mock environment.
    */
-  implicit def toManagedEnv[M, E, A](
-    expectation: Expectation[M, E, A]
-  )(implicit mockable: Mockable[M]): Managed[Nothing, M] =
-    expectation.managedEnv(mockable)
-
-  private[Expectation] type AnyCall      = Call[Any, Any, Any, Any]
-  private[Expectation] type Next[-M, +E] = Any => Expectation[M, E, Any]
-
-  private[Expectation] final case class State[M, E](
-    callsRef: Ref[List[AnyCall]],
-    nextRef: Ref[List[Next[M, E]]]
-  )
-
-  /**
-   * Models expectation for no calls on module `M`.
-   *
-   * The the `unit` value for Expectation monad.
-   */
-  private[mock] case object Empty extends Expectation[Any, Nothing, Nothing]
-
-  /**
-   * Models a call on module `M` capability that takes input arguments `I` and returns an effect
-   * that may fail with an error `E` or produce a single `A`.
-   */
-  private[mock] final case class Call[-M, I, +E, +A](
-    method: Method[M, I, A],
-    assertion: Assertion[I],
-    returns: I => IO[E, A]
-  ) extends Expectation[M, E, A]
-
-  /**
-   * Models sequential expectations on module `M`.
-   *
-   * The `A` value in `next` is not used, it's only required to fit the flatMap signature,
-   * which we want to be able to use the for-comprehension syntax.
-   */
-  private[mock] final case class FlatMap[-M, +E, A, +B](
-    current: Expectation[M, E, A],
-    next: A => Expectation[M, E, B]
-  ) extends Expectation[M, E, B]
+  implicit def toLayer[R <: Has[_]: Tagged](trunk: Expectation[R]): ULayer[R] =
+    ZLayer.fromManagedMany(
+      for {
+        state <- Managed.make(State.make(trunk))(State.checkUnmetExpectations)
+        env   <- (ProxyFactory.mockProxy(state) >>> trunk.envBuilder).build
+      } yield env
+    )
 }

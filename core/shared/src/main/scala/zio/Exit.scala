@@ -59,11 +59,6 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def as[B](b: B): Exit[E, B] = map(_ => b)
 
   /**
-   * Replaces the error value with the one provided.
-   */
-  final def asError[E1](e1: E1): Exit[E1, A] = mapError(_ => e1)
-
-  /**
    * Maps over both the error and value type.
    */
   final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
@@ -83,8 +78,11 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def flatMapM[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
     self match {
       case Success(a)     => f(a)
-      case e @ Failure(_) => ZIO.succeed(e)
+      case e @ Failure(_) => ZIO.succeedNow(e)
     }
+
+  final def flatten[E1 >: E, B](implicit ev: A <:< Exit[E1, B]): Exit[E1, B] =
+    Exit.flatten(self.map(ev))
 
   /**
    * Folds over the value or cause.
@@ -109,7 +107,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
    * returns the result in a new `Exit`.
    */
   final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
-    fold(c => ZIO.succeed(halt(c)), a => f(a).run)
+    fold(c => ZIO.succeedNow(halt(c)), a => f(a).run)
 
   /**
    * Retrieves the `A` if succeeded, or else returns the specified default `A`.
@@ -155,6 +153,12 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
     }
 
   /**
+   * Replaces the error value with the one provided.
+   */
+  final def orElseFail[E1](e1: E1): Exit[E1, A] =
+    mapError(_ => e1)
+
+  /**
    * Determines if the result is a success.
    */
   final def succeeded: Boolean = self match {
@@ -170,12 +174,6 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
     case Success(value) => Right(value)
     case Failure(cause) => Left(FiberFailure(cause))
   }
-
-  /**
-   * Alias for [[Exit.foreach]]
-   */
-  final def traverse[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
-    foreach(f)
 
   /**
    * Discards the value.
@@ -247,12 +245,6 @@ object Exit extends Serializable {
         .map(_.reverse)
     }
 
-  /**
-   *  Alias for [[Exit.collectAll]]
-   */
-  def sequence[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
-    collectAll[E, A](exits)
-
   def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
       exits
@@ -260,12 +252,6 @@ object Exit extends Serializable {
         .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
         .map(_.reverse)
     }
-
-  /**
-   *  Alias for [[Exit.collectAllPar]]
-   */
-  def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
-    collectAllPar[E, A](exits)
 
   def die(t: Throwable): Exit[Nothing, Nothing] = halt(Cause.die(t))
 
@@ -290,5 +276,5 @@ object Exit extends Serializable {
 
   def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
-  def unit: Exit[Nothing, Unit] = succeed(())
+  val unit: Exit[Nothing, Unit] = succeed(())
 }

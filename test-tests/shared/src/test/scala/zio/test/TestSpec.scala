@@ -15,13 +15,13 @@ object TestSpec extends ZIOBaseSpec {
     testM("testM error is test failure") {
       for {
         _      <- ZIO.fail("fail")
-        result <- ZIO.succeed("succeed")
+        result <- ZIO.succeedNow("succeed")
       } yield assert(result)(equalTo("succeed"))
     } @@ failure,
     testM("testM is polymorphic in error type") {
       for {
         _      <- ZIO.effect(())
-        result <- ZIO.succeed("succeed")
+        result <- ZIO.succeedNow("succeed")
       } yield assert(result)(equalTo("succeed"))
     },
     testM("testM suspends effects") {
@@ -29,11 +29,11 @@ object TestSpec extends ZIOBaseSpec {
       val spec = suite("suite")(
         testM("test1") {
           n += 1
-          ZIO.succeed(assertCompletes)
+          ZIO.succeedNow(assertCompletes)
         },
         testM("test2") {
           n += 1
-          ZIO.succeed(assertCompletes)
+          ZIO.succeedNow(assertCompletes)
         }
       ).filterLabels(_ == "test2").get
       for {

@@ -1,6 +1,6 @@
 package zio.test.environment
 
-import java.time._
+import java.time.{ OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
 import zio._
@@ -68,6 +68,7 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         time1 <- nanoTime
         _     <- adjust(1.millis)
+        _     <- sleep(1.millis)
         time2 <- nanoTime
       } yield assert(fromNanos(time2 - time1))(equalTo(1.millis))
     },
@@ -75,6 +76,7 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         time1 <- currentTime(TimeUnit.NANOSECONDS)
         _     <- adjust(1.millis)
+        _     <- sleep(1.millis)
         time2 <- currentTime(TimeUnit.NANOSECONDS)
       } yield assert(time2 - time1)(equalTo(1.millis.toNanos))
     },
@@ -82,6 +84,7 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         time1 <- currentDateTime
         _     <- adjust(1.millis)
+        _     <- sleep(1.millis)
         time2 <- currentDateTime
       } yield assert((time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli))(equalTo(1L))
     },
@@ -92,24 +95,28 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         expected <- UIO.effectTotal(OffsetDateTime.now(ZoneId.of("UTC+9")))
         _        <- setDateTime(expected)
+        _        <- sleep(Duration.fromInstant(expected.toInstant))
         actual   <- clock.currentDateTime
       } yield assert(actual.toInstant.toEpochMilli)(equalTo(expected.toInstant.toEpochMilli))
     },
     testM("setTime correctly sets nanotime") {
       for {
         _    <- setTime(1.millis)
+        _    <- sleep(1.millis)
         time <- clock.nanoTime
       } yield assert(time)(equalTo(1.millis.toNanos))
     },
     testM("setTime correctly sets currentTime") {
       for {
         _    <- setTime(1.millis)
+        _    <- sleep(1.millis)
         time <- currentTime(TimeUnit.NANOSECONDS)
       } yield assert(time)(equalTo(1.millis.toNanos))
     },
     testM("setTime correctly sets currentDateTime") {
       for {
         _    <- TestClock.setTime(1.millis)
+        _    <- sleep(1.millis)
         time <- currentDateTime
       } yield assert(time.toInstant.toEpochMilli)(equalTo(1.millis.toMillis))
     },
@@ -177,6 +184,22 @@ object ClockSpec extends ZIOBaseSpec {
         _      <- latch2.await
         result <- fiberTime
       } yield assert(result)(equalTo(0.nanos))
-    } @@ nonFlaky
+    } @@ nonFlaky,
+    testM("TestClock interacts correctly with Scheduled.fixed") {
+      for {
+        latch     <- Promise.make[Nothing, Unit]
+        ref       <- Ref.make(3)
+        countdown = ref.updateAndGet(_ - 1).flatMap(n => latch.succeed(()).when(n == 0))
+        _         <- countdown.repeat(Schedule.fixed(2.seconds)).delay(1.second).fork
+        _         <- TestClock.adjust(5.seconds)
+        _         <- latch.await
+      } yield assertCompletes
+    },
+    testM("runAll runs all scheduled effects") {
+      for {
+        _ <- TestClock.runAll
+        _ <- ZIO.sleep(Duration.Infinity)
+      } yield assertCompletes
+    }
   )
 }

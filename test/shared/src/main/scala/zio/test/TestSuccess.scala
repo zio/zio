@@ -16,9 +16,9 @@
 
 package zio.test
 
-sealed trait TestSuccess[+S]
+sealed trait TestSuccess
 
 object TestSuccess {
-  final case class Succeeded[+S](result: BoolAlgebra[S]) extends TestSuccess[S]
-  case object Ignored                                    extends TestSuccess[Nothing]
+  final case class Succeeded(result: BoolAlgebra[Unit]) extends TestSuccess
+  case object Ignored                                   extends TestSuccess
 }

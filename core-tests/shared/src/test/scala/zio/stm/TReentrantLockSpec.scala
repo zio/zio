@@ -31,13 +31,13 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
     testM("1 read lock") {
       for {
         lock  <- TReentrantLock.make.commit
-        count <- lock.readLock.use(count => ZIO.succeed(count))
+        count <- lock.readLock.use(count => ZIO.succeedNow(count))
       } yield assert(count)(equalTo(1))
     },
     testM("2 read locks from same fiber") {
       for {
         lock  <- TReentrantLock.make.commit
-        count <- lock.readLock.use(_ => lock.readLock.use(count => ZIO.succeed(count)))
+        count <- lock.readLock.use(_ => lock.readLock.use(count => ZIO.succeedNow(count)))
       } yield assert(count)(equalTo(2))
     },
     testM("2 read locks from different fibers") {
@@ -61,7 +61,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         mlatch <- Promise.make[Nothing, Unit]
         _      <- lock.writeLock.use(count => rlatch.succeed(()) *> wlatch.await as count).fork
         _      <- rlatch.await
-        reader <- (mlatch.succeed(()) *> lock.readLock.use(ZIO.succeed(_))).fork
+        reader <- (mlatch.succeed(()) *> lock.readLock.use(ZIO.succeedNow(_))).fork
         _      <- mlatch.await
         locks  <- (lock.readLocks zipWith lock.writeLocks)(_ + _).commit
         option <- reader.poll.repeat(pollSchedule)
@@ -79,7 +79,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         mlatch <- Promise.make[Nothing, Unit]
         _      <- lock.writeLock.use(count => rlatch.succeed(()) *> wlatch.await as count).fork
         _      <- rlatch.await
-        reader <- (mlatch.succeed(()) *> lock.writeLock.use(ZIO.succeed(_))).fork
+        reader <- (mlatch.succeed(()) *> lock.writeLock.use(ZIO.succeedNow(_))).fork
         _      <- mlatch.await
         locks  <- (lock.readLocks zipWith lock.writeLocks)(_ + _).commit
         option <- reader.poll.repeat(pollSchedule)
@@ -115,7 +115,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         wlatch <- Promise.make[Nothing, Unit]
         _      <- lock.readLock.use(count => mlatch.succeed(()) *> rlatch.await as count).fork
         _      <- mlatch.await
-        writer <- lock.readLock.use(_ => wlatch.succeed(()) *> lock.writeLock.use(count => ZIO.succeed(count))).fork
+        writer <- lock.readLock.use(_ => wlatch.succeed(()) *> lock.writeLock.use(count => ZIO.succeedNow(count))).fork
         _      <- wlatch.await
         option <- writer.poll.repeat(pollSchedule)
         _      <- rlatch.succeed(())

@@ -147,7 +147,7 @@ object TSetSpec extends ZIOBaseSpec {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
-            _    <- tset.transformM(a => STM.succeed(a * 2))
+            _    <- tset.transformM(a => STM.succeedNow(a * 2))
             res  <- tset.toList
           } yield res
 
@@ -157,7 +157,7 @@ object TSetSpec extends ZIOBaseSpec {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
-            _    <- tset.transformM(_ => STM.succeed(1))
+            _    <- tset.transformM(_ => STM.succeedNow(1))
             res  <- tset.toList
           } yield res
 
@@ -187,7 +187,7 @@ object TSetSpec extends ZIOBaseSpec {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
-            res  <- tset.foldM(0)((acc, a) => STM.succeed(acc + a))
+            res  <- tset.foldM(0)((acc, a) => STM.succeedNow(acc + a))
           } yield res
 
         assertM(tx.commit)(equalTo(6))
@@ -196,7 +196,7 @@ object TSetSpec extends ZIOBaseSpec {
         val tx =
           for {
             tset <- TSet.empty[Int]
-            res  <- tset.foldM(0)((acc, a) => STM.succeed(acc + a))
+            res  <- tset.foldM(0)((acc, a) => STM.succeedNow(acc + a))
           } yield res
 
         assertM(tx.commit)(equalTo(0))

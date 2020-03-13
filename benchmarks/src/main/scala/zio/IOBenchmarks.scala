@@ -9,11 +9,12 @@ import monix.eval.{ Task => MTask }
 
 import zio.internal._
 
-object IOBenchmarks extends DefaultRuntime {
-  override val platform: Platform = PlatformLive.Benchmark
+object IOBenchmarks extends BootstrapRuntime {
 
-  val TracedRuntime = new DefaultRuntime {
-    override val platform = PlatformLive.Benchmark.withTracing(Tracing.enabled)
+  override val platform: Platform = Platform.benchmark
+
+  val TracedRuntime = new BootstrapRuntime {
+    override val platform = Platform.benchmark.withTracing(Tracing.enabled)
   }
 
   import monix.execution.Scheduler
@@ -61,12 +62,12 @@ object IOBenchmarks extends DefaultRuntime {
     def flatMap[B](afb: A => Thunk[B]): Thunk[B] =
       new Thunk(() => afb(unsafeRun()).unsafeRun())
     def attempt: Thunk[Either[Throwable, A]] =
-      new Thunk(() => {
+      new Thunk(() =>
         try Right(unsafeRun())
         catch {
           case t: Throwable => Left(t)
         }
-      })
+      )
   }
   object Thunk {
     def apply[A](a: => A): Thunk[A] = new Thunk(() => a)

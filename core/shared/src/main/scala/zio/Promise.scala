@@ -173,16 +173,16 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    */
   def poll: UIO[Option[IO[E, A]]] =
     IO.effectTotal(state.get).flatMap {
-      case Pending(_) => IO.succeed(None)
-      case Done(io)   => IO.succeed(Some(io))
+      case Pending(_) => IO.succeedNow(None)
+      case Done(io)   => IO.succeedNow(Some(io))
     }
 
   /**
    * Completes the promise with the specified value.
    */
-  def succeed(a: A): UIO[Boolean] = completeWith(IO.succeed(a))
+  def succeed(a: A): UIO[Boolean] = completeWith(IO.succeedNow(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler[Any] = IO.effectTotal {
+  private def interruptJoiner(joiner: IO[E, A] => Any): Canceler[Any] = IO.effectTotal {
     var retry = true
 
     while (retry) {
@@ -201,8 +201,8 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
   }
 
   private[zio] def unsafeDone(io: IO[E, A]): Unit = {
-    var retry: Boolean                  = true
-    var joiners: List[IO[E, A] => Unit] = null
+    var retry: Boolean                 = true
+    var joiners: List[IO[E, A] => Any] = null
 
     while (retry) {
       val oldState = state.get
@@ -225,9 +225,9 @@ object Promise {
   private val ConstFalse: () => Boolean = () => false
 
   private[zio] object internal {
-    sealed trait State[E, A]                                        extends Serializable with Product
-    final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
-    final case class Done[E, A](value: IO[E, A])                    extends State[E, A]
+    sealed trait State[E, A]                                       extends Serializable with Product
+    final case class Pending[E, A](joiners: List[IO[E, A] => Any]) extends State[E, A]
+    final case class Done[E, A](value: IO[E, A])                   extends State[E, A]
   }
 
   /**

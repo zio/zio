@@ -4,13 +4,19 @@ import scala.concurrent.ExecutionContext
 
 import zio.internal.{ Executor, Platform }
 
-object Task {
+object Task extends TaskPlatformSpecific {
 
   /**
    * @see See [[zio.ZIO.absolve]]
    */
   def absolve[A](v: Task[Either[Throwable, A]]): Task[A] =
     ZIO.absolve(v)
+
+  /**
+   * @see See [[zio.ZIO.adopt]]
+   */
+  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
+    ZIO.adopt(fiber)
 
   /**
    * @see See [[zio.ZIO.allowInterrupt]]
@@ -22,6 +28,11 @@ object Task {
    * @see See [[zio.ZIO.apply]]
    */
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
+
+  /**
+   * @see [[zio.ZIO.awaitAllChildren]]
+   */
+  val awaitAllChildren: UIO[Unit] = ZIO.awaitAllChildren
 
   /**
    * @see See bracket [[zio.ZIO]]
@@ -50,40 +61,6 @@ object Task {
     use: A => Task[B]
   ): Task[B] =
     ZIO.bracketExit(acquire, release, use)
-
-  /**
-   * @see See bracketFork [[zio.ZIO]]
-   */
-  def bracketFork[A](acquire: Task[A]): ZIO.BracketForkAcquire[Any, Throwable, A] =
-    ZIO.bracketFork(acquire)
-
-  /**
-   * @see See bracketFork [[zio.ZIO]]
-   */
-  def bracketFork[A, B](acquire: Task[A], release: A => UIO[Any], use: A => Task[B]): Task[B] =
-    ZIO.bracketFork(acquire, release, use)
-
-  /**
-   * @see See bracketForkExit [[zio.ZIO]]
-   */
-  def bracketForkExit[A](acquire: Task[A]): ZIO.BracketForkExitAcquire[Any, Throwable, A] =
-    ZIO.bracketForkExit(acquire)
-
-  /**
-   * @see See bracketForkExit [[zio.ZIO]]
-   */
-  def bracketForkExit[A, B](
-    acquire: Task[A],
-    release: (A, Exit[Throwable, B]) => UIO[Any],
-    use: A => Task[B]
-  ): Task[B] =
-    ZIO.bracketForkExit(acquire, release, use)
-
-  /**
-   * @see See [[zio.ZIO.checkDaemon]]
-   */
-  def checkDaemon[A](f: DaemonStatus => Task[A]): Task[A] =
-    ZIO.checkDaemon(f)
 
   /**
    * @see See [[zio.ZIO.checkInterruptible]]
@@ -157,25 +134,24 @@ object Task {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
-   * @see See [[zio.ZIO.daemonMask]]
-   */
-  def daemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
-    ZIO.daemonMask(k)
-
-  /**
    * @see See [[zio.ZIO.die]]
    */
-  def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
+  def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
    */
-  def dieMessage(message: String): UIO[Nothing] = ZIO.dieMessage(message)
+  def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
+
+  /**
+   * @see See [[zio.ZIO.disown]]
+   */
+  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = ZIO.disown(fiber)
 
   /**
    * @see See [[zio.ZIO.done]]
    */
-  def done[A](r: Exit[Throwable, A]): Task[A] = ZIO.done(r)
+  def done[A](r: => Exit[Throwable, A]): Task[A] = ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -196,7 +172,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  def effectAsync[A](register: (Task[A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): Task[A] =
+  def effectAsync[A](register: (Task[A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): Task[A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -251,12 +227,18 @@ object Task {
   /**
    * @see See [[zio.ZIO.fail]]
    */
-  def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
+  def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
+
+  /**
+   * @see [[zio.ZIO.filter]]
+   */
+  def filter[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+    ZIO.filter(as)(f)
 
   /**
    * @see See [[zio.ZIO.firstSuccessOf]]
@@ -286,15 +268,33 @@ object Task {
     ZIO.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[zio.ZIO.foreach]]
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
   def foreach[A, B](in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
     ZIO.foreach(in)(f)
 
   /**
-   * @see See [[zio.ZIO.foreachPar]]
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
+   */
+  final def foreach[A, B](in: Option[A])(f: A => Task[B]): Task[Option[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.Chunk*]]]
+   */
+  final def foreach[A, B](in: Chunk[A])(f: A => Task[B]): Task[Chunk[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[A, B](as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.Chunk*]]]
+   */
+  final def foreachPar[A, B](as: Chunk[A])(fn: A => Task[B]): Task[Chunk[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -304,15 +304,27 @@ object Task {
     ZIO.foreachParN(n)(as)(fn)
 
   /**
-   * @see See [[zio.ZIO.foreach_]]
+   * @see See [[[zio.ZIO.foreach_[R,E,A](as:Iterable*]]]
    */
   def foreach_[A](as: Iterable[A])(f: A => Task[Any]): Task[Unit] =
     ZIO.foreach_(as)(f)
 
   /**
-   * @see See [[zio.ZIO.foreachPar_]]
+   * @see See [[[zio.ZIO.foreach_[R,E,A](as:zio\.Chunk*]]]
+   */
+  final def foreach_[A](as: Chunk[A])(f: A => Task[Any]): Task[Unit] =
+    ZIO.foreach_(as)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:Iterable*]]]
    */
   def foreachPar_[A, B](as: Iterable[A])(f: A => Task[Any]): Task[Unit] =
+    ZIO.foreachPar_(as)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:zio\.Chunk*]]]
+   */
+  final def foreachPar_[A, B](as: Chunk[A])(f: A => Task[Any]): Task[Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
@@ -386,9 +398,14 @@ object Task {
     ZIO.fromTry(value)
 
   /**
+   * @see See [[zio.ZIO.getOrFail]]
+   */
+  final def getOrFail[A](v: => Option[A]): Task[A] = ZIO.getOrFail(v)
+
+  /**
    * @see See [[zio.ZIO.halt]]
    */
-  def halt(cause: Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
+  def halt(cause: => Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -402,14 +419,25 @@ object Task {
   def identity: Task[Any] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifM]]
+   */
+  def ifM(b: Task[Boolean]): ZIO.IfM[Any, Throwable] =
+    new ZIO.IfM(b)
+
+  /**
    * @see See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
+   * @see See [zio.ZIO.interruptAllChildren]
+   */
+  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
+
+  /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
@@ -418,33 +446,39 @@ object Task {
     ZIO.interruptible(task)
 
   /**
-   * @see See [[zio.ZIO.interruptibleFork]]
-   */
-  def interruptibleFork[A](task: Task[A]): Task[A] =
-    ZIO.interruptibleFork(task)
-
-  /**
-   * @see See [[zio.ZIO.interruptibleForkMask]]
-   */
-  def interruptibleForkMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
-    ZIO.interruptibleForkMask(k)
-
-  /**
    * @see See [[zio.ZIO.interruptibleMask]]
    */
   def interruptibleMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
     ZIO.interruptibleMask(k)
 
   /**
+   * @see See [[zio.ZIO.iterate]]
+   */
+  def iterate[S](initial: S)(cont: S => Boolean)(body: S => Task[S]): Task[S] =
+    ZIO.iterate(initial)(cont)(body)
+
+  /**
    *  @see See [[zio.ZIO.left]]
    */
-  def left[A](a: A): Task[Either[A, Nothing]] = ZIO.left(a)
+  def left[A](a: => A): Task[Either[A, Nothing]] = ZIO.left(a)
 
   /**
    * @see See [[zio.ZIO.lock]]
    */
-  def lock[A](executor: Executor)(task: Task[A]): Task[A] =
+  def lock[A](executor: => Executor)(task: Task[A]): Task[A] =
     ZIO.lock(executor)(task)
+
+  /**
+   *  @see See [[zio.ZIO.loop]]
+   */
+  def loop[A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Task[A]): Task[List[A]] =
+    ZIO.loop(initial)(cont, inc)(body)
+
+  /**
+   *  @see See [[zio.ZIO.loop_]]
+   */
+  def loop_[S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Task[Any]): Task[Unit] =
+    ZIO.loop_(initial)(cont, inc)(body)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
@@ -504,33 +538,27 @@ object Task {
   val never: UIO[Nothing] = ZIO.never
 
   /**
-   * @see See [[zio.ZIO.nonDaemonMask]]
-   */
-  def nonDaemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
-    ZIO.nonDaemonMask(k)
-
-  /**
    * @see See [[zio.ZIO.none]]
    */
   val none: Task[Option[Nothing]] = ZIO.none
 
   /**
-   * @see See [[zio.ZIO.partitionM]]
+   * @see See [[zio.ZIO.partition]]
    */
-  def partitionM[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
-    ZIO.partitionM(in)(f)
+  def partition[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partition(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMPar]]
+   * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionMPar[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
-    ZIO.partitionMPar(in)(f)
+  def partitionPar[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionPar(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMParN]]
+   * @see See [[zio.ZIO.partitionParN]]
    */
-  def partitionMParN[A, B](n: Int)(in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
-    ZIO.partitionMParN(n)(in)(f)
+  def partitionParN[A, B](n: Int)(in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]
@@ -559,7 +587,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.require]]
    */
-  def require[A](error: Throwable): Task[Option[A]] => Task[A] =
+  def require[A](error: => Throwable): Task[Option[A]] => Task[A] =
     ZIO.require[Any, Throwable, A](error)
 
   /**
@@ -571,7 +599,7 @@ object Task {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[B](b: B): Task[Either[Nothing, B]] = ZIO.right(b)
+  def right[B](b: => B): Task[Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -581,30 +609,12 @@ object Task {
   /**
    * @see See [[zio.ZIO.succeed]]
    */
-  def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
-
-  /**
-   *  See [[zio.ZIO.sequence]]
-   */
-  def sequence[A](in: Iterable[Task[A]]): Task[List[A]] =
-    ZIO.sequence(in)
-
-  /**
-   *  See [[zio.ZIO.sequencePar]]
-   */
-  def sequencePar[A](as: Iterable[Task[A]]): Task[List[A]] =
-    ZIO.sequencePar(as)
-
-  /**
-   *  See [[zio.ZIO.sequenceParN]]
-   */
-  def sequenceParN[A](n: Int)(as: Iterable[Task[A]]): Task[List[A]] =
-    ZIO.sequenceParN(n)(as)
+  def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[A](a: A): Task[Option[A]] = ZIO.some(a)
+  def some[A](a: => A): Task[Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -615,46 +625,6 @@ object Task {
    * @see See [[zio.ZIO.traced]]
    */
   def traced[A](task: Task[A]): Task[A] = ZIO.traced(task)
-
-  /**
-   * @see See [[zio.ZIO.traverse]]
-   */
-  def traverse[A, B](in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
-    ZIO.traverse(in)(f)
-
-  /**
-   * @see See [[zio.ZIO.traversePar]]
-   */
-  def traversePar[A, B](as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
-    ZIO.traversePar(as)(fn)
-
-  /**
-   * Alias for [[ZIO.foreachParN]]
-   */
-  def traverseParN[A, B](
-    n: Int
-  )(as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
-    ZIO.traverseParN(n)(as)(fn)
-
-  /**
-   * @see See [[zio.ZIO.traverse_]]
-   */
-  def traverse_[A](as: Iterable[A])(f: A => Task[Any]): Task[Unit] =
-    ZIO.traverse_(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.traversePar_]]
-   */
-  def traversePar_[A](as: Iterable[A])(f: A => Task[Any]): Task[Unit] =
-    ZIO.traversePar_(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.traverseParN_]]
-   */
-  def traverseParN_[A](
-    n: Int
-  )(as: Iterable[A])(f: A => Task[Any]): Task[Unit] =
-    ZIO.traverseParN_(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.unit]]
@@ -686,13 +656,13 @@ object Task {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when(b: Boolean)(task: Task[Any]): Task[Unit] =
+  def when(b: => Boolean)(task: => Task[Any]): Task[Unit] =
     ZIO.when(b)(task)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**
@@ -704,11 +674,13 @@ object Task {
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  def whenM(b: Task[Boolean])(task: Task[Any]): Task[Unit] =
+  def whenM(b: Task[Boolean])(task: => Task[Any]): Task[Unit] =
     ZIO.whenM(b)(task)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]
    */
   val yieldNow: UIO[Unit] = ZIO.yieldNow
+
+  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

@@ -16,10 +16,8 @@ object FunSpec extends ZIOBaseSpec {
     },
     testM("fun does not have race conditions") {
       for {
-        f <- Fun.make((_: Int) => random.nextInt(6))
-        results <- ZIO.foreachPar(List.range(0, 1000))(
-                    n => ZIO.effectTotal((n % 6, f(n % 6)))
-                  )
+        f       <- Fun.make((_: Int) => random.nextInt(6))
+        results <- ZIO.foreachPar(List.range(0, 1000))(n => ZIO.effectTotal((n % 6, f(n % 6))))
       } yield assert(results.distinct.length)(equalTo(6))
     },
     testM("fun is showable") {
@@ -34,7 +32,7 @@ object FunSpec extends ZIOBaseSpec {
     },
     testM("fun is supported on Scala.js") {
       for {
-        f <- Fun.make((_: Int) => ZIO.foreach(List.range(0, 100000))(ZIO.succeed))
+        f <- Fun.make((_: Int) => ZIO.foreach(List.range(0, 100000))(ZIO.succeedNow))
       } yield assert(f(1))(anything)
     }
   )

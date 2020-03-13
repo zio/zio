@@ -14,6 +14,9 @@ final case class BoolAlgebraM[-R, +E, +A](run: ZIO[R, E, BoolAlgebra[A]]) { self
   def ==>[R1 <: R, E1 >: E, A1 >: A](that: BoolAlgebraM[R1, E1, A1]): BoolAlgebraM[R1, E1, A1] =
     BoolAlgebraM(run.zipWith(that.run)(_ ==> _))
 
+  def <==>[R1 <: R, E1 >: E, A1 >: A](that: BoolAlgebraM[R1, E1, A1]): BoolAlgebraM[R1, E1, A1] =
+    BoolAlgebraM(run.zipWith(that.run)(_ <==> _))
+
   def unary_! : BoolAlgebraM[R, E, A] =
     BoolAlgebraM(run.map(!_))
 
@@ -36,11 +39,11 @@ final case class BoolAlgebraM[-R, +E, +A](run: ZIO[R, E, BoolAlgebra[A]]) { self
 object BoolAlgebraM {
 
   def failure[A](a: A): BoolAlgebraM[Any, Nothing, A] =
-    BoolAlgebraM(ZIO.succeed(BoolAlgebra.failure(a)))
+    BoolAlgebraM(ZIO.succeedNow(BoolAlgebra.failure(a)))
 
   def fromEffect[R, E, A](effect: ZIO[R, E, A]): BoolAlgebraM[R, E, A] =
     BoolAlgebraM(effect.map(BoolAlgebra.success))
 
   def success[A](a: A): BoolAlgebraM[Any, Nothing, A] =
-    BoolAlgebraM(ZIO.succeed(BoolAlgebra.success(a)))
+    BoolAlgebraM(ZIO.succeedNow(BoolAlgebra.success(a)))
 }

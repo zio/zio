@@ -16,7 +16,7 @@
 
 package zio.duration
 
-import java.time.{ Duration => JavaDuration }
+import java.time.{ Duration => JavaDuration, Instant }
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
@@ -73,7 +73,7 @@ object Duration {
 
     def apply(nanos: Long): Finite =
       if (nanos >= 0) new Finite(nanos)
-      else Zero
+      else Finite(0)
 
   }
 
@@ -159,9 +159,12 @@ object Duration {
     override def render: String = "Infinity"
   }
 
-  def apply(amount: Long, unit: TimeUnit): Finite = fromNanos(unit.toNanos(amount))
+  def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
 
-  def fromNanos(nanos: Long): Finite = Finite(nanos)
+  def fromInstant(instant: Instant): Duration =
+    Duration(instant.toEpochMilli, TimeUnit.MILLISECONDS)
+
+  def fromNanos(nanos: Long): Duration = Finite(nanos)
 
   def fromScala(duration: ScalaDuration): Duration = duration match {
     case d: ScalaFiniteDuration => fromNanos(d.toNanos)
@@ -173,6 +176,6 @@ object Duration {
     else if (duration.compareTo(JavaDuration.ofNanos(Long.MaxValue)) >= 0) Infinity
     else fromNanos(duration.toNanos)
 
-  val Zero: Finite = Finite(0)
+  val Zero: Duration = Finite(0)
 
 }

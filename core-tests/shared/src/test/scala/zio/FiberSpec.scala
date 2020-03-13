@@ -10,10 +10,8 @@ object FiberSpec extends ZIOBaseSpec {
   def spec = suite("FiberSpec")(
     suite("Create a new Fiber and")(testM("lift it into Managed") {
       for {
-        ref <- Ref.make(false)
-        fiber <- withLatch { release =>
-                  (release *> IO.unit).bracket_(ref.set(true))(IO.never).fork
-                }
+        ref   <- Ref.make(false)
+        fiber <- withLatch(release => (release *> IO.unit).bracket_(ref.set(true))(IO.never).fork)
         _     <- fiber.toManaged.use(_ => IO.unit)
         _     <- fiber.await
         value <- ref.get
@@ -23,11 +21,9 @@ object FiberSpec extends ZIOBaseSpec {
       testM("`map`") {
         for {
           fiberRef <- FiberRef.make(initial)
-          child <- withLatch { release =>
-                    (fiberRef.set(update) *> release).fork
-                  }
-          _     <- child.map(_ => ()).inheritRefs
-          value <- fiberRef.get
+          child    <- withLatch(release => (fiberRef.set(update) *> release).fork)
+          _        <- child.map(_ => ()).inheritRefs
+          value    <- fiberRef.get
         } yield assert(value)(equalTo(update))
       },
       testM("`orElse`") {
@@ -104,15 +100,26 @@ object FiberSpec extends ZIOBaseSpec {
         latch1 <- Promise.make[Nothing, Unit]
         latch2 <- Promise.make[Nothing, Unit]
         c      = ZIO.never.interruptible.onInterrupt(latch2.succeed(()))
-        b      = c.fork
-        a      = (latch1.succeed(()) *> b.fork).uninterruptible *> ZIO.never
+        a      = (latch1.succeed(()) *> c.fork.fork).uninterruptible *> ZIO.never
         fiber  <- a.fork
         _      <- latch1.await
         _      <- fiber.interrupt
         _      <- latch2.await
       } yield assertCompletes
-    } @@ nonFlaky
+    } @@ nonFlaky,
+    suite("stack safety")(
+      testM("awaitAll") {
+        assertM(Fiber.awaitAll(fibers))(anything)
+      },
+      testM("joinAll") {
+        assertM(Fiber.joinAll(fibers))(anything)
+      },
+      testM("collectAll") {
+        assertM(Fiber.collectAll(fibers).join)(anything)
+      }
+    ) @@ sequential
   )
 
   val (initial, update) = ("initial", "update")
+  val fibers            = List.fill(100000)(Fiber.unit)
 }

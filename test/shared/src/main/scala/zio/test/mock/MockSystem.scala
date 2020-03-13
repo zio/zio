@@ -17,27 +17,24 @@
 package zio.test.mock
 
 import zio.system.System
-import zio.{ IO, UIO }
-
-trait MockSystem extends System {
-
-  def system: MockSystem.Service[Any]
-}
+import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
 object MockSystem {
 
-  trait Service[R] extends System.Service[R]
+  sealed trait Tag[I, A] extends Method[System, I, A] {
+    def envBuilder = MockSystem.envBuilder
+  }
 
-  object env           extends Method[MockSystem, String, Option[String]]
-  object property      extends Method[MockSystem, String, Option[String]]
-  object lineSeparator extends Method[MockSystem, Unit, String]
+  object Env           extends Tag[String, Option[String]]
+  object Property      extends Tag[String, Option[String]]
+  object LineSeparator extends Tag[Unit, String]
 
-  implicit val mockable: Mockable[MockSystem] = (mock: Mock) =>
-    new MockSystem {
-      val system = new Service[Any] {
-        def env(variable: String): IO[SecurityException, Option[String]] = mock(MockSystem.env, variable)
-        def property(prop: String): IO[Throwable, Option[String]]        = mock(MockSystem.property, prop)
-        val lineSeparator: UIO[String]                                   = mock(MockSystem.lineSeparator)
+  private lazy val envBuilder: URLayer[Has[Proxy], System] =
+    ZLayer.fromService(invoke =>
+      new System.Service {
+        def env(variable: String): IO[SecurityException, Option[String]] = invoke(Env, variable)
+        def property(prop: String): IO[Throwable, Option[String]]        = invoke(Property, prop)
+        val lineSeparator: UIO[String]                                   = invoke(LineSeparator)
       }
-    }
+    )
 }

@@ -47,6 +47,13 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
     implies(that)
 
   /**
+   * Returns a new result that is the logical double implication of this result and
+   * the specified result.
+   */
+  final def <==>[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
+    iff(that)
+
+  /**
    * Returns a new result that is the logical negation of this result.
    */
   final def unary_! : BoolAlgebra[A] =
@@ -87,9 +94,8 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
         case (Left(_), Right(r))  => Right(r)
         case (Right(l), Left(_))  => Right(l)
         case (Left(l), Left(r))   => Left(l || r)
-      }, {
-        _.swap
-      }
+      },
+      _.swap
     ).fold(Some(_), _ => None)
 
   /**
@@ -136,6 +142,12 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
    */
   final def implies[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
     !self || that
+
+  /**
+   * A named alias for "<==>".
+   */
+  final def iff[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
+    (self ==> that) && (that ==> self)
 
   /**
    * Determines whether the result is a failure, where values represent success

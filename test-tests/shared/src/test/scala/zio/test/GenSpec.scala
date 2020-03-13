@@ -1,13 +1,15 @@
 package zio.test
 
-import java.time.{ Instant, LocalDateTime, OffsetDateTime, ZoneOffset }
+import java.time._
+
+import scala.math.Numeric.DoubleIsFractional
 
 import zio.ZIO
-import zio.duration._
+import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestAspect.scala2Only
+import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test.{ check => Check, checkN => CheckN }
 
 object GenSpec extends ZIOBaseSpec {
@@ -23,13 +25,13 @@ object GenSpec extends ZIOBaseSpec {
           if (p) assert(())(Assertion.anything) else assert(n)(Assertion.nothing)
         }
 
-        assertM(CheckN(100)(gen)(test).flatMap(result => {
+        assertM(CheckN(100)(gen)(test).flatMap { result =>
           result.run.map(_.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "1"
             case _ => false
           })
-        }))(isTrue)
+        })(isTrue)
       },
       testM("with bogus reverse property") {
         val gen = for {
@@ -58,9 +60,7 @@ object GenSpec extends ZIOBaseSpec {
         val ints                                      = Gen.listOf(Gen.int(-10, 10))
         val intBooleanFn: Gen[Random, Int => Boolean] = Gen.function(Gen.boolean)
 
-        Check(ints, intBooleanFn) { (as, f) =>
-          assert(as.takeWhile(f).forall(f))(isTrue)
-        }
+        Check(ints, intBooleanFn)((as, f) => assert(as.takeWhile(f).forall(f))(isTrue))
       },
       testM("with multiple parameter function generator") {
         val ints                                  = Gen.anyInt
@@ -79,13 +79,13 @@ object GenSpec extends ZIOBaseSpec {
 
         def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
-        assertM(CheckN(100)(gen)(test).flatMap(result => {
+        assertM(CheckN(100)(gen)(test).flatMap { result =>
           result.run.map(_.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "List(0)"
             case _ => false
           })
-        }))(isTrue)
+        })(isTrue)
       }
     ),
     suite("monad laws")(
@@ -227,7 +227,7 @@ object GenSpec extends ZIOBaseSpec {
         checkSample(Gen.long(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
       testM("mapM maps an effectual function over a generator") {
-        val gen = Gen.int(1, 6).mapM(n => ZIO.succeed(n + 6))
+        val gen = Gen.int(1, 6).mapM(n => ZIO.succeedNow(n + 6))
         checkSample(gen)(forall(Assertion.isGreaterThanEqualTo(7) && isLessThanEqualTo(12)))
       },
       testM("medium generates sizes in range") {
@@ -263,7 +263,7 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("sized accesses size in environment") {
         checkSample(Gen.sized(Gen.const(_)), size = 50)(forall(equalTo(50)))
-      },
+      } @@ nonFlaky,
       testM("small generates sizes in range") {
         val gen = Gen.small(Gen.listOfN(_)(Gen.int(-10, 10)))
         checkSample(gen)(forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)), _.map(_.length))
@@ -523,9 +523,7 @@ object GenSpec extends ZIOBaseSpec {
       assertM(provideSize(result)(100))(isTrue)
     },
     testM("suspend lazily constructs a generator") {
-      check(genIntList) { as =>
-        assert(as.reverse.reverse)(equalTo(as))
-      }
+      check(genIntList)(as => assert(as.reverse.reverse)(equalTo(as)))
     },
     testM("runCollect") {
       val domain = List.range(-10, 10)

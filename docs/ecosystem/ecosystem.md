@@ -23,7 +23,7 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 
 If you know a useful library that has direct support for ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
 
-- [cakeless](https://github.com/itkpi/cakeless): Better reader monad for deeply-nested cakes
+- [cakeless](https://github.com/itkpi/cakeless): Wire your cakes automatically into zio environment
 - [caliban](https://github.com/ghostdogpr/caliban): Functional GraphQL backend in Scala
 - [distage](https://github.com/7mind/izumi): Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
 - [elastic4s](https://github.com/sksamuel/elastic4s): Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client
@@ -36,6 +36,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
 - [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client
+- [zio-event-sourcing](https://github.com/holinov/zio-event-sourcing): Purely functional concurent and scalable persistance layer
 - [zio-interop-log4j2](https://github.com/mlangc/zio-interop-log4j2): Fiber aware MDC logging for Log4j 2
 - [zio-kinesis](https://github.com/svroonland/zio-kinesis): ZIO Streams based AWS Kinesis client
 - [zio-saga](https://github.com/VladKopanev/zio-saga): Purely functional transaction management with Saga pattern

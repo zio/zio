@@ -16,8 +16,7 @@
 
 package zio.test
 
-import scala.reflect.ClassTag
-
+import zio.Tagged
 import zio.duration._
 
 /**
@@ -27,21 +26,21 @@ final class TestAnnotation[V] private (
   val identifier: String,
   val initial: V,
   val combine: (V, V) => V,
-  private val classTag: ClassTag[V]
+  private val tag: Tagged[V]
 ) extends Serializable {
   override def equals(that: Any): Boolean = that match {
-    case that: TestAnnotation[_] => (identifier, classTag) == ((that.identifier, that.classTag))
+    case that: TestAnnotation[_] => (identifier, tag) == ((that.identifier, that.tag))
   }
 
   override lazy val hashCode =
-    (identifier, classTag).hashCode
+    (identifier, tag).hashCode
 }
 object TestAnnotation {
 
   def apply[V](identifier: String, initial: V, combine: (V, V) => V)(
-    implicit classTag: ClassTag[V]
+    implicit tag: Tagged[V]
   ): TestAnnotation[V] =
-    new TestAnnotation(identifier, initial, combine, classTag)
+    new TestAnnotation(identifier, initial, combine, tag)
 
   /**
    * An annotation which counts ignored tests.
@@ -60,6 +59,12 @@ object TestAnnotation {
    */
   val retried: TestAnnotation[Int] =
     TestAnnotation("retried", 0, _ + _)
+
+  /**
+   * An annotation which tags tests with strings.
+   */
+  val tagged: TestAnnotation[Set[String]] =
+    TestAnnotation("tagged", Set.empty, _ union _)
 
   /**
    * An annotation for timing.

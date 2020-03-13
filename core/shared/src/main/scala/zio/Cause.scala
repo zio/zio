@@ -17,6 +17,9 @@
 package zio
 
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
+
+import zio.internal.Platform
 
 sealed trait Cause[+E] extends Product with Serializable { self =>
   import Cause.Internal._
@@ -240,9 +243,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     }
 
     def renderTrace(maybeTrace: Option[ZTrace]): List[String] =
-      maybeTrace.fold("No ZIO Trace available." :: Nil) { trace =>
-        "" :: lines(trace.prettyPrint)
-      }
+      maybeTrace.fold("No ZIO Trace available." :: Nil)(trace => "" :: lines(trace.prettyPrint))
 
     def renderFail(error: List[String], maybeTrace: Option[ZTrace]): Sequential =
       Sequential(
@@ -341,8 +342,32 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
-      (if (interrupted) Some(new InterruptedException) else None) orElse
+      (if (interrupted)
+         Some(
+           new InterruptedException(
+             "Interrupted by fibers: " + interruptors.map(_.seqNumber.toString()).map("#" + _).mkString(", ")
+           )
+         )
+       else None) orElse
       defects.headOption getOrElse (new InterruptedException)
+
+  /**
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+   * "most important" `Throwable`.
+   * In addition, appends a new element the to `Throwable`s "caused by" chain,
+   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   */
+  final def squashTrace(implicit ev: E <:< Throwable): Throwable =
+    squashTraceWith(ev)
+
+  /**
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+   * "most important" `Throwable`.
+   * In addition, appends a new element the to `Throwable`s "caused by" chain,
+   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   */
+  final def squashTraceWith(f: E => Throwable): Throwable =
+    attachTrace(squashWith(f))
 
   /**
    * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
@@ -385,7 +410,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       }
       .reverse
 
-  private def find[Z](f: PartialFunction[Cause[E], Z]): Option[Z] = {
+  final def find[Z](f: PartialFunction[Cause[E], Z]): Option[Z] = {
     @tailrec
     def loop(cause: Cause[E], stack: List[Cause[E]]): Option[Z] =
       f.lift(cause) match {
@@ -406,7 +431,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     loop(self, Nil)
   }
 
-  private def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
+  final def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
     @tailrec
     def loop(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
       (f.applyOrElse[(Z, Cause[E]), Z](z -> cause, _ => z), cause) match {
@@ -421,6 +446,25 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
           }
       }
     loop(z, self, Nil)
+  }
+
+  private def attachTrace(e: Throwable): Throwable = {
+    val rootCause = rootCauseOf(e)
+    val trace     = Cause.FiberTrace(Cause.stackless(this).prettyPrint)
+    try {
+      // this may fail on JVM (if cause was null and not this), but shouldn't fail on JS/Native
+      rootCause.initCause(trace)
+    } catch {
+      case NonFatal(_) => Platform.forceThrowableCause(rootCause, trace)
+    }
+    e
+  }
+
+  @tailrec
+  private def rootCauseOf(e: Throwable): Throwable = {
+    val cause = e.getCause
+    if (cause == null || cause.eq(e)) e
+    else rootCauseOf(cause)
   }
 }
 
@@ -776,5 +820,9 @@ object Cause extends Serializable {
 
       loop(c, List.empty, Set.empty, List.empty)
     }
+  }
+
+  private case class FiberTrace(trace: String) extends Throwable(null, null, true, false) {
+    override final def getMessage: String = trace
   }
 }

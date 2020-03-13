@@ -12,7 +12,7 @@ import zio.IOBenchmarks._
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class IOShallowAttemptBenchmark {
-  case class ScalazError(message: String)
+  case class ZIOError(message: String)
 
   @Param(Array("1000"))
   var depth: Int = _
@@ -33,7 +33,8 @@ class IOShallowAttemptBenchmark {
     import scala.concurrent.duration.Duration.Inf
 
     def throwup(n: Int): Future[BigInt] =
-      if (n == 0) throwup(n + 1) recover { case _ => 0 } else if (n == depth) Future(1)
+      if (n == 0) throwup(n + 1) recover { case _ => 0 }
+      else if (n == depth) Future(1)
       else
         throwup(n + 1).recover { case _ => 0 }
           .flatMap(_ => Future.failed(new Exception("Oh noes!")))
@@ -51,11 +52,11 @@ class IOShallowAttemptBenchmark {
       else
         throwup(n + 1)
           .exceptionally(_ => 0)
-          .thenCompose(_ => {
+          .thenCompose { _ =>
             val f = new CompletableFuture[BigInt]()
             f.completeExceptionally(new Exception("Oh noes!"))
             f
-          })
+          }
 
     throwup(0)
       .get()
@@ -101,7 +102,8 @@ class IOShallowAttemptBenchmark {
     def throwup(n: Int): Future[BigInt] =
       if (n == 0) throwup(n + 1).rescue {
         case _ => Future.value(0)
-      } else if (n == depth) Future(1)
+      }
+      else if (n == depth) Future(1)
       else
         throwup(n + 1).transform {
           case Throw(_)  => Future.value[BigInt](0)
@@ -128,21 +130,21 @@ class IOShallowAttemptBenchmark {
   }
 
   @Benchmark
-  def scalazShallowAttempt(): BigInt = {
-    def throwup(n: Int): IO[ScalazError, BigInt] =
+  def zioShallowAttempt(): BigInt = {
+    def throwup(n: Int): IO[ZIOError, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) IO.effectTotal(1)
-      else throwup(n + 1).foldM[Any, ScalazError, BigInt](_ => IO.succeed(0), _ => IO.fail(ScalazError("Oh noes!")))
+      else throwup(n + 1).foldM[Any, ZIOError, BigInt](_ => IO.succeedNow(0), _ => IO.fail(ZIOError("Oh noes!")))
 
     unsafeRun(throwup(0))
   }
 
   @Benchmark
-  def scalazShallowAttemptBaseline(): BigInt = {
+  def zioShallowAttemptBaseline(): BigInt = {
     def throwup(n: Int): IO[Error, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) IO.effectTotal(1)
-      else throwup(n + 1).foldM[Any, Error, BigInt](_ => IO.succeed(0), _ => IO.fail(new Error("Oh noes!")))
+      else throwup(n + 1).foldM[Any, Error, BigInt](_ => IO.succeedNow(0), _ => IO.fail(new Error("Oh noes!")))
 
     unsafeRun(throwup(0))
   }

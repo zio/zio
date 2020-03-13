@@ -51,19 +51,19 @@ object Managed {
   /**
    * See [[zio.ZManaged.die]]
    */
-  def die(t: Throwable): Managed[Nothing, Nothing] =
+  def die(t: => Throwable): Managed[Nothing, Nothing] =
     ZManaged.die(t)
 
   /**
    * See [[zio.ZManaged.dieMessage]]
    */
-  def dieMessage(message: String): Managed[Throwable, Nothing] =
+  def dieMessage(message: => String): Managed[Throwable, Nothing] =
     ZManaged.dieMessage(message)
 
   /**
    * See [[zio.ZManaged.done]]
    */
-  def done[E, A](r: Exit[E, A]): Managed[E, A] =
+  def done[E, A](r: => Exit[E, A]): Managed[E, A] =
     ZManaged.done(r)
 
   /**
@@ -75,7 +75,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.fail]]
    */
-  def fail[E](error: E): Managed[E, Nothing] =
+  def fail[E](error: => E): Managed[E, Nothing] =
     ZManaged.fail(error)
 
   /**
@@ -85,16 +85,28 @@ object Managed {
     ZManaged.finalizer(f)
 
   /**
+   * See [[zio.ZManaged.finalizerRef]]
+   */
+  def finalizerRef(initial: Exit[Any, Any] => UIO[Any]): Managed[Nothing, ZManaged.FinalizerRef[Any]] =
+    ZManaged.finalizerRef(initial)
+
+  /**
    * See [[zio.ZManaged.flatten]]
    */
   def flatten[E, A](m: Managed[E, Managed[E, A]]): Managed[E, A] =
     ZManaged.flatten(m)
 
   /**
-   * See [[zio.ZManaged.foreach]]
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
    */
   def foreach[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.foreach(as)(f)
+
+  /**
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](in:Option*]]]
+   */
+  final def foreach[E, A1, A2](in: Option[A1])(f: A1 => Managed[E, A2]): Managed[E, Option[A2]] =
+    ZManaged.foreach(in)(f)
 
   /**
    * See [[zio.ZManaged.foreach_]]
@@ -147,13 +159,37 @@ object Managed {
   /**
    * See [[zio.ZManaged.halt]]
    */
-  def halt[E](cause: Cause[E]): Managed[E, Nothing] =
+  def halt[E](cause: => Cause[E]): Managed[E, Nothing] =
     ZManaged.halt(cause)
+
+  /**
+   * See [[zio.ZManaged.ifM]]
+   */
+  def ifM[E](b: Managed[E, Boolean]): ZManaged.IfM[Any, E] =
+    new ZManaged.IfM(b)
 
   /**
    * See [[zio.ZManaged.interrupt]]
    */
   val interrupt: Managed[Nothing, Nothing] = ZManaged.interrupt
+
+  /**
+   * See [[zio.ZManaged.iterate]]
+   */
+  def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => Managed[E, S]): Managed[E, S] =
+    ZManaged.iterate(initial)(cont)(body)
+
+  /**
+   * See [[zio.ZManaged.loop]]
+   */
+  def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Managed[E, A]): Managed[E, List[A]] =
+    ZManaged.loop(initial)(cont, inc)(body)
+
+  /**
+   * See [[zio.ZManaged.loop_]]
+   */
+  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.loop_(initial)(cont, inc)(body)
 
   /**
    * See [[zio.ZManaged.make]]
@@ -279,7 +315,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.require]]
    */
-  def require[E, A](error: E): Managed[E, Option[A]] => Managed[E, A] =
+  def require[E, A](error: => E): Managed[E, Option[A]] => Managed[E, A] =
     ZManaged.require[Any, E, A](error)
 
   /**
@@ -295,27 +331,9 @@ object Managed {
     ZManaged.sandbox(v)
 
   /**
-   * See [[zio.ZManaged.sequence]]
-   */
-  def sequence[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
-    ZManaged.sequence(ms)
-
-  /**
-   * See [[zio.ZManaged.sequencePar]]
-   */
-  def sequencePar[E, A](as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
-    ZManaged.sequencePar(as)
-
-  /**
-   * See [[zio.ZManaged.sequenceParN]]
-   */
-  def sequenceParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
-    ZManaged.sequenceParN(n)(as)
-
-  /**
    * See [[zio.ZManaged.succeed]]
    */
-  def succeed[A](r: A): Managed[Nothing, A] =
+  def succeed[A](r: => A): Managed[Nothing, A] =
     ZManaged.succeed(r)
 
   /**
@@ -323,42 +341,6 @@ object Managed {
    */
   def suspend[E, A](managed: => Managed[E, A]): Managed[E, A] =
     ZManaged.suspend(managed)
-
-  /**
-   * See [[zio.ZManaged.traverse]]
-   */
-  def traverse[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
-    ZManaged.traverse(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverse_]]
-   */
-  def traverse_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
-    ZManaged.traverse_(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traversePar]]
-   */
-  def traversePar[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
-    ZManaged.traversePar(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traversePar_]]
-   */
-  def traversePar_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
-    ZManaged.traversePar_(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverseParN]]
-   */
-  def traverseParN[E, A1, A2](n: Int)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
-    ZManaged.traverseParN(n)(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverseParN_]]
-   */
-  def traverseParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
-    ZManaged.traverseParN_(n)(as)(f)
 
   /**
    * See [[zio.ZManaged.unit]]
@@ -380,13 +362,13 @@ object Managed {
   /**
    * See [[zio.ZManaged.when]]
    */
-  def when[E](b: Boolean)(managed: Managed[E, Any]): Managed[E, Unit] =
+  def when[E](b: => Boolean)(managed: => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.when(b)(managed)
 
   /**
    * See [[zio.ZManaged.whenCase]]
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
     ZManaged.whenCase(a)(pf)
 
   /**
@@ -400,7 +382,9 @@ object Managed {
   /**
    * See [[zio.ZManaged.whenM]]
    */
-  def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, Any]): Managed[E, Unit] =
+  def whenM[E](b: Managed[E, Boolean])(managed: => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.whenM(b)(managed)
 
+  private[zio] def succeedNow[A](r: A): Managed[Nothing, A] =
+    ZManaged.succeedNow(r)
 }

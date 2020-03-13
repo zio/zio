@@ -5,17 +5,17 @@ import zio.{ UIO, ZIO }
 
 object TestUtils {
 
-  def execute[E, L, S](spec: ZSpec[TestEnvironment, E, L, S]): UIO[ExecutedSpec[E, L, S]] =
-    TestExecutor.managed(environment.testEnvironmentManaged)(spec, ExecutionStrategy.Sequential)
+  def execute[E](spec: ZSpec[TestEnvironment, E]): UIO[ExecutedSpec[E]] =
+    TestExecutor.default(environment.testEnvironment).run(spec, ExecutionStrategy.Sequential)
 
-  def forAllTests[E, L, S](
-    execSpec: UIO[ExecutedSpec[E, L, S]]
-  )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
+  def forAllTests[E](
+    execSpec: UIO[ExecutedSpec[E]]
+  )(f: Either[TestFailure[E], TestSuccess] => Boolean): ZIO[Any, Nothing, Boolean] =
     execSpec.flatMap { results =>
-      results.forall { case Spec.TestCase(_, test) => test.map(r => f(r._1)); case _ => ZIO.succeed(true) }
+      results.forall { case Spec.TestCase(_, test, _) => test.map(r => f(r)); case _ => ZIO.succeedNow(true) }
     }
 
-  def isIgnored[E, L, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+  def isIgnored[E](spec: ZSpec[environment.TestEnvironment, E]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
     forAllTests(execSpec) {
       case Right(TestSuccess.Ignored) => true
@@ -23,7 +23,7 @@ object TestUtils {
     }
   }
 
-  def isSuccess[E, L, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+  def isSuccess[E](spec: ZSpec[environment.TestEnvironment, E]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
     forAllTests(execSpec) {
       case Right(TestSuccess.Succeeded(_)) => true

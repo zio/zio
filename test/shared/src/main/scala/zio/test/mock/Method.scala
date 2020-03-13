@@ -18,14 +18,16 @@ package zio.test.mock
 
 import com.github.ghik.silencer.silent
 
-import zio.=!=
 import zio.test.Assertion
+import zio.{ =!=, Has, Tagged, URLayer }
 
 /**
- * A `Model[M, I, A]` represents a capability of module `M` that takes an
- * input `I` and returns an effect that may produce a single `A`.
+ * A `Model[R, I, A]` represents a capability of environment `R` that
+ * takes an input `I` and returns an effect that may produce a single `A`.
  */
-trait Method[-M, I, +A] { self =>
+abstract class Method[R <: Has[_]: Tagged, I, A] { self =>
+
+  def envBuilder: URLayer[Has[Proxy], R]
 
   /**
    * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.
@@ -33,7 +35,7 @@ trait Method[-M, I, +A] { self =>
    * Available only for methods that do take arguments.
    */
   @silent("parameter value ev in method apply is never used")
-  def apply(assertion: Assertion[I])(implicit ev: I =!= Unit): ArgumentExpectation[M, I, A] =
+  def apply(assertion: Assertion[I])(implicit ev: I =!= Unit): ArgumentExpectation[R, I, A] =
     ArgumentExpectation(self, assertion)
 
   /**
@@ -42,10 +44,8 @@ trait Method[-M, I, +A] { self =>
    * Available only for methods that don't take arguments.
    */
   @silent("parameter value ev in method returns is never used")
-  def returns[A1 >: A, E](
-    returns: ReturnExpectation[I, E, A1]
-  )(implicit ev: I <:< Unit): Expectation[M, E, A1] =
-    Expectation.Call[M, I, E, A1](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
+  def returns[E](returns: ReturnExpectation[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
+    Expectation.Call[R, I, E, A](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
 
   /**
    * Render method fully qualified name.
@@ -54,8 +54,7 @@ trait Method[-M, I, +A] { self =>
     val fragments = getClass.getName.replaceAll("\\$", ".").split("\\.")
     fragments.toList.splitAt(fragments.size - 3) match {
       case (namespace, module :: service :: method :: Nil) =>
-        val capability = s"${method.head.toLower}${method.tail}"
-        s"""${namespace.mkString(".")}.$module.$service.${capability}"""
+        s"""${namespace.mkString(".")}.$module.$service.$method"""
       case _ => fragments.mkString(".")
     }
   }

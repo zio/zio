@@ -5,7 +5,7 @@ import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion.{ equalTo, forall }
 import zio.test.environment.TestRandom
-import zio.{ Exit, Managed, UIO, ZIO }
+import zio.{ Exit, UIO, ZIO }
 
 object GenUtils {
 
@@ -35,18 +35,18 @@ object GenUtils {
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
 
   def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = Managed.fromEffect(TestRandom.make(TestRandom.DefaultData))
+    val testRandom = TestRandom.deterministic
     for {
-      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(testRandom)
-      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(testRandom)
+      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideLayer(testRandom)
+      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideLayer(testRandom)
     } yield leftShrinks == rightShrinks
   }
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = Managed.fromEffect(TestRandom.make(TestRandom.DefaultData))
+    val testRandom = TestRandom.deterministic
     for {
-      leftSample  <- sample100(left).provideManaged(testRandom)
-      rightSample <- sample100(right).provideManaged(testRandom)
+      leftSample  <- sample100(left).provideLayer(testRandom)
+      rightSample <- sample100(right).provideLayer(testRandom)
     } yield leftSample == rightSample
   }
 
@@ -67,14 +67,7 @@ object GenUtils {
     }
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    Sized.makeService(n).flatMap { service =>
-      zio.provideSome[Random] { r =>
-        new Random with Sized {
-          val random = r.random
-          val sized  = service
-        }
-      }
-    }
+    zio.provideLayer[Nothing, Random, Random with Sized](Random.any ++ Sized.live(n))
 
   val random: Gen[Any, Gen[Random, Int]] =
     Gen.const(Gen.int(-10, 10))

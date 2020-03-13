@@ -5,40 +5,46 @@ import zio.test.Assertion.equalTo
 
 object ManagedSpec extends ZIOBaseSpec {
 
+  type Counter = Has[Counter.Service]
+
+  object Counter {
+
+    trait Service {
+      def incrementAndGet: UIO[Int]
+    }
+
+    val live: Layer[Nothing, Counter] =
+      ZLayer.fromManaged {
+        Ref.make(1).toManaged(_.set(-10)).map { ref =>
+          new Counter.Service {
+            val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
+          }
+        }
+      }
+
+    val incrementAndGet: ZIO[Counter, Nothing, Int] =
+      ZIO.accessM[Counter](_.get[Counter.Service].incrementAndGet)
+  }
+
   def spec = suite("ManagedSpec")(
     suite("managed shared")(
       testM("first test") {
-        for {
-          _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
-          result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result)(equalTo(2))
+        assertM(Counter.incrementAndGet)(equalTo(2))
       },
       testM("second test") {
-        for {
-          _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
-          result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result)(equalTo(3))
+        assertM(Counter.incrementAndGet)(equalTo(3))
       },
       testM("third test") {
-        for {
-          _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
-          result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result)(equalTo(4))
+        assertM(Counter.incrementAndGet)(equalTo(4))
       }
-    ).provideManagedShared(Ref.make(1).toManaged(_.set(-10))),
+    ).provideLayerShared(Counter.live),
     suite("managed per test")(
       testM("first test") {
-        for {
-          _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
-          result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result)(equalTo(2))
+        assertM(Counter.incrementAndGet)(equalTo(2))
       },
       testM("second test") {
-        for {
-          _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
-          result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result)(equalTo(2))
+        assertM(Counter.incrementAndGet)(equalTo(2))
       }
-    ).provideManaged(Ref.make(1).toManaged(_.set(-10)))
+    ).provideLayer(Counter.live)
   )
 }

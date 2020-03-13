@@ -4,7 +4,6 @@ import scala.{ Stream => _ }
 
 import zio._
 import zio.test.Assertion.{ equalTo, fails }
-import zio.test.TestAspect.flaky
 import zio.test._
 
 object StreamBufferSpec extends ZIOBaseSpec {
@@ -82,7 +81,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
                       }
         } yield assert(snapshots._1)(equalTo(0)) && assert(snapshots._2)(equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
           assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1)))
-      } @@ flaky
+      }
     ),
     suite("Stream.bufferSliding")(
       testM("buffer the Stream with Error") {
@@ -124,7 +123,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
         } yield assert(snapshots._1)(equalTo(0)) && assert(snapshots._2)(equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))) &&
           assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9)))
       }
-    ) @@ flaky,
+    ),
     suite("Stream.bufferUnbounded")(
       testM("buffer the Stream")(checkM(Gen.listOf(Gen.anyInt)) { list =>
         assertM(
@@ -143,7 +142,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
           ref   <- Ref.make(List[Int]())
           latch <- Promise.make[Nothing, Unit]
           s = Stream
-            .fromEffect(UIO.succeed(()))
+            .fromEffect(UIO.succeedNow(()))
             .flatMap(_ => Stream.range(1, 1000).tap(i => ref.update(i :: _)).ensuring(latch.succeed(())))
             .bufferUnbounded
           l <- s.process.use { as =>

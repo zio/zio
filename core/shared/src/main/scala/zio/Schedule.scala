@@ -170,20 +170,19 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule with the given delay added to every update.
    */
   final def addDelay(f: B => Duration): Schedule[R with Clock, A, B] =
-    addDelayM(b => ZIO.succeed(f(b)))
+    addDelayM(b => ZIO.succeedNow(f(b)))
 
   /**
    * Returns a new schedule with the effectfully calculated delay added to every update.
    */
   final def addDelayM[R1 <: R](f: B => ZIO[R1, Nothing, Duration]): Schedule[R1 with Clock, A, B] =
-    updated(
-      update =>
-        (a, s) =>
-          for {
-            delay <- f(extract(a, s))
-            s1    <- update(a, s)
-            _     <- ZIO.sleep(delay)
-          } yield s1
+    updated(update =>
+      (a, s) =>
+        for {
+          delay <- f(extract(a, s))
+          s1    <- update(a, s)
+          _     <- ZIO.sleep(delay)
+        } yield s1
     )
 
   /**
@@ -233,13 +232,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * then continues the schedule or not based on the specified state predicate.
    */
   final def check[A1 <: A](test: (A1, B) => UIO[Boolean]): Schedule[R, A1, B] =
-    updated(
-      update =>
-        (a, s) =>
-          test(a, self.extract(a, s)).flatMap {
-            case false => ZIO.fail(())
-            case true  => update(a, s)
-          }
+    updated(update =>
+      (a, s) =>
+        test(a, self.extract(a, s)).flatMap {
+          case false => ZIO.fail(())
+          case true  => update(a, s)
+        }
     )
 
   /**
@@ -269,59 +267,29 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule with the specified pure modification
    * applied to each delay produced by this schedule.
    */
-  final def delayed(
+  final def delayed[R1 <: R](
     f: Duration => Duration
-  )(
-    implicit ev: ZEnv <:< R
-  ): Schedule[ZEnv, A, B] = delayedEnv(f)(env => ZEnv.mapClock(env) andThen ev.apply)
-
-  /**
-   * Returns a new schedule with the specified pure modification
-   * applied to each delay produced by this schedule.
-   *
-   * This version supports arbitrary environments.
-   */
-  final def delayedEnv[R1 <: Clock](
-    f: Duration => Duration
-  )(
-    g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
-  ): Schedule[R1, A, B] =
-    delayedMEnv[R1](d => ZIO.succeed(f(d)))(g)
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = delayedM[R1](d => ZIO.succeedNow(f(d)))
 
   /**
    * Returns a new schedule with the specified effectful modification
    * applied to each delay produced by this schedule.
    */
-  final def delayedM(
-    f: Duration => ZIO[ZEnv, Nothing, Duration]
-  )(
-    implicit ev: ZEnv <:< R
-  ): Schedule[ZEnv, A, B] =
-    delayedMEnv(f)(env => ZEnv.mapClock(env) andThen ev.apply)
-
-  /**
-   * Returns a new schedule with the specified effectful modification
-   * applied to each delay produced by this schedule.
-   *
-   * This version supports arbitrary environments.
-   */
-  final def delayedMEnv[R1 <: Clock](
+  final def delayedM[R1 <: R](
     f: Duration => ZIO[R1, Nothing, Duration]
-  )(
-    g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
-  ): Schedule[R1, A, B] = {
-    def proxy(clock0: Clock.Service[Any], env: R1): Clock.Service[Any] = new Clock.Service[Any] {
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = {
+    def proxy(clock0: Clock.Service, r1: R1): Clock.Service = new Clock.Service {
       def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
       def currentDateTime             = clock0.currentDateTime
       val nanoTime                    = clock0.nanoTime
-      def sleep(duration: Duration)   = f(duration).flatMap(clock0.sleep).provide(env)
+      def sleep(duration: Duration)   = f(duration).flatMap(clock0.sleep).provide(r1)
     }
     new Schedule[R1, A, B] {
       type State = (self.State, R)
       val initial =
         for {
           oldEnv <- ZIO.environment[R1]
-          env    = g(proxy(_, oldEnv))(oldEnv)
+          env    = ev1.update[R1, Clock.Service](oldEnv, proxy(_, oldEnv))
           init   <- self.initial.provide(env)
         } yield (init, env)
       val extract = (a: A, s: State) => self.extract(a, s._1)
@@ -372,7 +340,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule that folds over the outputs of this one.
    */
   final def fold[Z](z: Z)(f: (Z, B) => Z): Schedule[R, A, Z] =
-    foldM(z)((z, b) => ZIO.succeed(f(z, b)))
+    foldM(z)((z, b) => ZIO.succeedNow(f(z, b)))
 
   /**
    * Returns a new schedule that effectfully folds over the outputs of this one.
@@ -413,26 +381,23 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       val update  = self.update
     }
 
-  /**
-   * Applies random jitter to all sleeps executed by the schedule.
-   */
-  final def jittered(min: Double = 0.0, max: Double = 1.0)(implicit ev: ZEnv <:< R): Schedule[ZEnv, A, B] =
-    jitteredEnv(min, max)(f => ZEnv.mapClock(f) andThen ev.apply)
+  def jittered[R1 <: R](implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1 with Random, A, B] =
+    jittered(0.0, 1.0)
 
   /**
    * Applies random jitter to all sleeps executed by the schedule.
-   * This version supports arbitrary environments.
    */
-  final def jitteredEnv[R1](min: Double, max: Double)(
-    f: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
-  ): Schedule[R1 with Clock with Random, A, B] =
-    delayedMEnv[R1 with Clock with Random] { duration =>
+  final def jittered[R1 <: R](
+    min: Double,
+    max: Double
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1 with Random, A, B] =
+    delayedM[R1 with Random] { duration =>
       random.nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random
         Duration.fromNanos(jittered.toLong)
       }
-    }(f)
+    }
 
   /**
    * Puts this schedule into the first element of a either, and passes along
@@ -459,39 +424,21 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * All effects executed while calculating the modified duration will run with the old
    * environment.
    */
-  final def modifyDelay(
-    f: (B, Duration) => ZIO[ZEnv, Nothing, Duration]
-  )(
-    implicit ev: ZEnv <:< R
-  ): Schedule[ZEnv, A, B] = modifyDelayEnv(f)(g => ZEnv.mapClock(g) andThen ev.apply)
-
-  /**
-   * Returns a new schedule with the specified effectful modification
-   * applied to each sleep performed by this schedule.
-   *
-   * This version supports arbitrary environments.
-   *
-   * Note that this does not apply to sleeps performed in Schedule#initial.
-   * All effects executed while calculating the modified duration will run with the old
-   * environment.
-   */
-  final def modifyDelayEnv[R1](
+  final def modifyDelay[R1 <: R](
     f: (B, Duration) => ZIO[R1, Nothing, Duration]
-  )(
-    g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
-  ): Schedule[R1 with Clock, A, B] = {
-    def proxy(clock0: Clock.Service[Any], env: R1, current: B): Clock.Service[Any] = new Clock.Service[Any] {
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = {
+    def proxy(clock0: Clock.Service, env: R1, current: B): Clock.Service = new Clock.Service {
       def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
       def currentDateTime             = clock0.currentDateTime
       val nanoTime                    = clock0.nanoTime
       def sleep(duration: Duration)   = f(current, duration).provide(env).flatMap(clock0.sleep)
     }
-    new Schedule[R1 with Clock, A, B] {
+    new Schedule[R1, A, B] {
       type State = self.State
-      val initial = self.initial.provideSome[R1](g(identity))
+      val initial = self.initial
       val extract = (a: A, s: self.State) => self.extract(a, s)
       val update = (a: A, s: self.State) =>
-        self.update(a, s).provideSome[R1](env => g(proxy(_, env, self.extract(a, s)))(env))
+        self.update(a, s).provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy(_, env, self.extract(a, s))))
     }
   }
 
@@ -501,13 +448,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * that log failures, decisions, or computed values.
    */
   final def onDecision[A1 <: A, R1 <: R](f: (A1, Option[self.State]) => URIO[R1, Any]): Schedule[R1, A1, B] =
-    updated(
-      update =>
-        (a, s) =>
-          update(a, s).tapBoth(
-            _ => f(a, None),
-            state => f(a, Some(state))
-          )
+    updated(update =>
+      (a, s) =>
+        update(a, s).tapBoth(
+          _ => f(a, None),
+          state => f(a, Some(state))
+        )
     )
 
   /**
@@ -536,13 +482,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   final def reconsider[R1 <: R, A1 <: A](
     f: (A1, Either[State, State]) => ZIO[R1, Unit, State]
   ): Schedule[R1, A1, B] =
-    updated(
-      update =>
-        (a: A1, s: State) =>
-          update(a, s).foldM(
-            _ => f(a, Left(s)),
-            s1 => f(a, Right(s1))
-          )
+    updated(update =>
+      (a: A1, s: State) =>
+        update(a, s).foldM(
+          _ => f(a, Left(s)),
+          s1 => f(a, Right(s1))
+        )
     )
 
   /**
@@ -598,40 +543,38 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule that continues the schedule only until the predicate
    * is satisfied on the input of the schedule.
    */
-  final def untilInput[A1 <: A](f: A1 => Boolean): Schedule[R, A1, B] = untilInputM(a => ZIO.succeed(f(a)))
+  final def untilInput[A1 <: A](f: A1 => Boolean): Schedule[R, A1, B] = untilInputM(a => ZIO.succeedNow(f(a)))
 
   /**
    * Returns a new schedule that continues the schedule only until the effectful predicate
    * is satisfied on the input of the schedule.
    */
   final def untilInputM[A1 <: A](f: A1 => UIO[Boolean]): Schedule[R, A1, B] =
-    updated(
-      update =>
-        (a, s) =>
-          f(a).flatMap {
-            case true  => ZIO.fail(())
-            case false => update(a, s)
-          }
+    updated(update =>
+      (a, s) =>
+        f(a).flatMap {
+          case true  => ZIO.fail(())
+          case false => update(a, s)
+        }
     )
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
    * is satisfied on the output value of the schedule.
    */
-  final def untilOutput(f: B => Boolean): Schedule[R, A, B] = untilOutputM(b => ZIO.succeed(f(b)))
+  final def untilOutput(f: B => Boolean): Schedule[R, A, B] = untilOutputM(b => ZIO.succeedNow(f(b)))
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
    * is satisfied on the output value of the schedule.
    */
   final def untilOutputM(f: B => UIO[Boolean]): Schedule[R, A, B] =
-    updated(
-      update =>
-        (a, s) =>
-          f(self.extract(a, s)).flatMap {
-            case true  => ZIO.fail(())
-            case false => update(a, s)
-          }
+    updated(update =>
+      (a, s) =>
+        f(self.extract(a, s)).flatMap {
+          case true  => ZIO.fail(())
+          case false => update(a, s)
+        }
     )
 
   /**
@@ -639,7 +582,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * predicate is satisfied on the input of the schedule.
    */
   final def whileInput[A1 <: A](f: A1 => Boolean): Schedule[R, A1, B] =
-    whileInputM(a => IO.succeed(f(a)))
+    whileInputM(a => IO.succeedNow(f(a)))
 
   /**
    * Returns a new schedule that continues this schedule so long as the
@@ -653,7 +596,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * is satisfied on the output value of the schedule.
    */
   final def whileOutput(f: B => Boolean): Schedule[R, A, B] =
-    whileOutputM(b => IO.succeed(f(b)))
+    whileOutputM(b => IO.succeedNow(f(b)))
 
   /**
    * Returns a new schedule that continues this schedule so long as the effectful predicate
@@ -734,7 +677,7 @@ object Schedule {
    * A schedule that recurs for as long as the predicate evaluates to true.
    */
   def doWhile[A](f: A => Boolean): Schedule[Any, A, A] =
-    doWhileM(a => ZIO.succeed(f(a)))
+    doWhileM(a => ZIO.succeedNow(f(a)))
 
   /**
    * A schedule that recurs for as long as the effectful predicate evaluates to true.
@@ -745,14 +688,14 @@ object Schedule {
   /**
    * A schedule that recurs for as long as the predicate is equal.
    */
-  def doWhileEquals[A](a: A): Schedule[Any, A, A] =
+  def doWhileEquals[A](a: => A): Schedule[Any, A, A] =
     identity[A].whileInput(_ == a)
 
   /**
    * A schedule that recurs for until the predicate evaluates to true.
    */
   def doUntil[A](f: A => Boolean): Schedule[Any, A, A] =
-    doUntilM(a => ZIO.succeed(f(a)))
+    doUntilM(a => ZIO.succeedNow(f(a)))
 
   /**
    * A schedule that recurs for until the predicate evaluates to true.
@@ -763,7 +706,7 @@ object Schedule {
   /**
    * A schedule that recurs for until the predicate is equal.
    */
-  def doUntilEquals[A](a: A): Schedule[Any, A, A] =
+  def doUntilEquals[A](a: => A): Schedule[Any, A, A] =
     identity[A].untilInput(_ == a)
 
   /**
@@ -775,7 +718,7 @@ object Schedule {
       type State = Unit
       val initial = ZIO.unit
       val extract = (a: A, _: Unit) => pf.lift(a)
-      val update  = (a: A, _: Unit) => pf.lift(a).fold[IO[Unit, Unit]](ZIO.succeed(()))(_ => ZIO.fail(()))
+      val update  = (a: A, _: Unit) => pf.lift(a).fold[IO[Unit, Unit]](ZIO.succeedNow(()))(_ => ZIO.fail(()))
     }
 
   /**
@@ -802,7 +745,7 @@ object Schedule {
    * repetitions so far. Returns the current duration between recurrences.
    */
   def exponential(base: Duration, factor: Double = 2.0): Schedule[Clock, Any, Duration] =
-    delayed(forever.map(i => base * math.pow(factor, (i + 1).doubleValue)))
+    delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
 
   /**
    * A schedule that always recurs, increasing delays by summing the
@@ -893,7 +836,7 @@ object Schedule {
     val minNanos = min.toNanos
     val maxNanos = max.toNanos
     Schedule[Clock with Random, Duration, Any, Duration](
-      ZIO.succeed(Duration.Zero), {
+      ZIO.succeedNow(Duration.Zero), {
         case _ =>
           random.nextLong(maxNanos - minNanos + 1).flatMap { n =>
             val duration = Duration.fromNanos(n - minNanos)
@@ -910,7 +853,7 @@ object Schedule {
    */
   def randomDelayNormal(mean: Duration, std: Duration): Schedule[Random with Clock, Any, Duration] =
     Schedule[Clock with Random, Duration, Any, Duration](
-      ZIO.succeed(Duration.Zero), {
+      ZIO.succeedNow(Duration.Zero), {
         case _ =>
           random.nextGaussian.flatMap { n =>
             val duration = mean + std * n
@@ -972,7 +915,7 @@ object Schedule {
    * through recured application of a function to a base value.
    */
   def unfold[A](a: => A)(f: A => A): Schedule[Any, Any, A] =
-    unfoldM(IO.succeed(a))(f.andThen(IO.succeed[A](_)))
+    unfoldM(IO.succeedNow(a))(f.andThen(IO.succeedNow[A](_)))
 
   /**
    * A schedule that always recurs without delay, and computes the output

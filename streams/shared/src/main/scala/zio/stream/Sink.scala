@@ -68,7 +68,7 @@ object Sink extends Serializable {
    * see [[ZSink.collectAllWhile]]
    */
   def collectAllWhile[A](p: A => Boolean): Sink[Nothing, A, A, List[A]] =
-    collectAllWhileM(a => IO.succeed(p(a)))
+    collectAllWhileM(a => IO.succeedNow(p(a)))
 
   /**
    * see [[ZSink.collectAllWhileM]]
@@ -77,15 +77,20 @@ object Sink extends Serializable {
     ZSink.collectAllWhileM(p)
 
   /**
+   * see [[ZSink.count]]
+   */
+  def count[A]: Sink[Nothing, Nothing, A, Long] = ZSink.count[A]
+
+  /**
    * see [[ZSink.die]]
    */
-  def die(e: Throwable): Sink[Nothing, Nothing, Any, Nothing] =
+  def die(e: => Throwable): Sink[Nothing, Nothing, Any, Nothing] =
     ZSink.die(e)
 
   /**
    * see [[ZSink.dieMessage]]
    */
-  def dieMessage(m: String): Sink[Nothing, Nothing, Any, Nothing] =
+  def dieMessage(m: => String): Sink[Nothing, Nothing, Any, Nothing] =
     ZSink.dieMessage(m)
 
   /**
@@ -109,7 +114,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.fail]]
    */
-  def fail[E](e: E): Sink[E, Nothing, Any, Nothing] =
+  def fail[E](e: => E): Sink[E, Nothing, Any, Nothing] =
     ZSink.fail(e)
 
   /**
@@ -212,7 +217,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.halt]]
    */
-  def halt[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
+  def halt[E](e: => Cause[E]): Sink[E, Nothing, Any, Nothing] =
     ZSink.halt(e)
 
   /**
@@ -260,8 +265,13 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.succeed]]
    */
-  def succeed[A, B](b: B): Sink[Nothing, A, A, B] =
+  def succeed[A, B](b: => B): Sink[Nothing, A, A, B] =
     ZSink.succeed(b)
+
+  /**
+   * see [[ZSink.sum]]
+   */
+  def sum[A: Numeric]: Sink[Nothing, Nothing, A, A] = ZSink.sum[A]
 
   /**
    * see [[ZSink.throttleEnforce]]
@@ -300,4 +310,7 @@ object Sink extends Serializable {
    */
   val utf8DecodeChunk: Sink[Nothing, Chunk[Byte], Chunk[Byte], String] =
     ZSink.utf8DecodeChunk
+
+  private[zio] def succeedNow[A, B](b: B): Sink[Nothing, A, A, B] =
+    ZSink.succeedNow(b)
 }
