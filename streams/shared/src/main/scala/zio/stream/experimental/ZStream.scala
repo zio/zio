@@ -269,46 +269,18 @@ abstract class ZStream[-R, +E, +O](
    * it to the destination stream. `f` can maintain some internal state to control
    * the combining process, with the initial state being specified by `s`.
    *
-   * Where possible, prefer the method [[ZStream#combineChunks]] for a more efficient implementation.
+   * Where possible, prefer [[ZStream#combineChunks]] for a more efficient implementation.
    */
   final def combine[R1 <: R, E1 >: E, S, O2, O3](that: ZStream[R1, E1, O2])(s: S)(
     f: (S, ZIO[R, Option[E], O], ZIO[R1, Option[E1], O2]) => ZIO[R1, Nothing, Exit[Option[E1], (O3, S)]]
   ): ZStream[R1, E1, O3] =
     ZStream[R1, E1, O3] {
-      def pull[R0, E0, O0](
-        ref: Ref[(Chunk[O0], Int)],
-        upstream: ZIO[R0, Option[E0], Chunk[O0]],
-        done: Ref[Boolean]
-      ): ZIO[R0, Option[E0], O0] =
-        done.get.flatMap {
-          if (_) ZIO.fail(None)
-          else
-            ref.modify {
-              case (chunk, idx) =>
-                val pullUpstream =
-                  upstream.foldM(
-                    {
-                      case None    => done.set(true) *> ZIO.fail(None)
-                      case Some(e) => ZIO.fail(Some(e))
-                    },
-                    chunk => ref.set(chunk -> 0)
-                  )
-
-                if (idx >= chunk.size) (pullUpstream *> pull(ref, upstream, done), (Chunk.empty, 0))
-                else (UIO.succeed(chunk(idx)), (chunk, idx + 1))
-            }.flatten
-        }
-
       for {
-        left           <- self.process
-        right          <- that.process
-        currChunkLeft  <- Ref.make[(Chunk[O], Int)]((Chunk.empty, 0)).toManaged_
-        currChunkRight <- Ref.make[(Chunk[O2], Int)]((Chunk.empty, 0)).toManaged_
-        doneLeft       <- Ref.make(false).toManaged_
-        doneRight      <- Ref.make(false).toManaged_
+        left  <- self.process.mapM(ZStream.BufferedPull.make(_))
+        right <- that.process.mapM(ZStream.BufferedPull.make(_))
         pull <- ZStream
                  .unfoldM(s) { s =>
-                   f(s, pull(currChunkLeft, left, doneLeft), pull(currChunkRight, right, doneRight)).flatMap { exit =>
+                   f(s, left.pullElement, right.pullElement).flatMap { exit =>
                      ZIO.done(
                        exit.fold(
                          Cause
@@ -1455,6 +1427,63 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
+   */
+  final def scheduleElements[R1 <: R, O1 >: O](schedule: Schedule[R1, O, Any]): ZStream[R1, E, O1] =
+    scheduleElementsEither(schedule).collect { case Right(a) => a }
+
+  /**
+   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
+   */
+  final def scheduleElementsEither[R1 <: R, E1 >: E, B](
+    schedule: Schedule[R1, O, B]
+  ): ZStream[R1, E1, Either[B, O]] =
+    scheduleElementsWith(schedule)(Right.apply, Left.apply)
+
+  /**
+   * Repeats each element of the stream using the provided schedule, additionally emitting the schedule's output
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
+   * Uses the provided functions to align the stream and schedule outputs on a common type.
+   */
+  final def scheduleElementsWith[R1 <: R, E1 >: E, B, C](
+    schedule: Schedule[R1, O, B]
+  )(f: O => C, g: B => C): ZStream[R1, E1, C] =
+    ZStream {
+      for {
+        as    <- self.process.mapM(ZStream.BufferedPull.make(_))
+        state <- Ref.make[Option[(O, schedule.State)]](None).toManaged_
+        pull = {
+          def go: ZIO[R1, Option[E1], Chunk[C]] = state.get.flatMap {
+            case None =>
+              for {
+                a    <- as.pullElement
+                init <- schedule.initial
+                _    <- state.set(Some(a -> init))
+              } yield Chunk.single(f(a))
+
+            case Some((a, scheduleState)) =>
+              schedule
+                .update(a, scheduleState)
+                .foldM(
+                  _ => state.set(None).as(Chunk.single(g(schedule.extract(a, scheduleState)))),
+                  s => state.set(Some(a -> s)).as(Chunk.single(f(a)))
+                )
+          }
+
+          go
+        }
+      } yield pull
+    }
+
+  /**
    * Takes the specified number of elements from this stream.
    */
   def take(n: Int): ZStream[R, E, O] =
@@ -2356,5 +2385,57 @@ object ZStream {
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): ZStream[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+  }
+
+  case class BufferedPull[R, E, A](
+    upstream: ZIO[R, Option[E], Chunk[A]],
+    done: Ref[Boolean],
+    cursor: Ref[(Chunk[A], Int)]
+  ) {
+    def ifNotDone[R1, E1, A1](fa: ZIO[R1, Option[E1], A1]): ZIO[R1, Option[E1], A1] =
+      done.get.flatMap(
+        if (_) ZIO.fail(None)
+        else fa
+      )
+
+    def update: ZIO[R, Option[E], Unit] =
+      ifNotDone {
+        upstream.foldM(
+          {
+            case None    => done.set(true) *> ZIO.fail(None)
+            case Some(e) => ZIO.fail(Some(e))
+          },
+          chunk => cursor.set(chunk -> 0)
+        )
+      }
+
+    def pullElement: ZIO[R, Option[E], A] =
+      ifNotDone {
+        cursor.modify {
+          case (chunk, idx) =>
+            if (idx >= chunk.size) (update *> pullElement, (Chunk.empty, 0))
+            else (UIO.succeed(chunk(idx)), (chunk, idx + 1))
+        }.flatten
+      }
+
+    def pullChunk: ZIO[R, Option[E], Chunk[A]] =
+      ifNotDone {
+        cursor.modify {
+          case (chunk, idx) =>
+            if (idx >= chunk.size) (update *> pullChunk, (Chunk.empty, 0))
+            else (update.as(chunk.drop(idx)), (Chunk.empty, 0))
+        }.flatten
+      }
+
+  }
+
+  object BufferedPull {
+    def make[R, E, A](
+      pull: ZIO[R, Option[E], Chunk[A]]
+    ): ZIO[R, Nothing, BufferedPull[R, E, A]] =
+      for {
+        done   <- Ref.make(false)
+        cursor <- Ref.make[(Chunk[A], Int)](Chunk.empty -> 0)
+      } yield BufferedPull(pull, done, cursor)
   }
 }
