@@ -940,22 +940,22 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertM(ZStream.empty.runLast)(equalTo(None))
         )
       ),
-      // suite("schedule")(
-      //   testM("scheduleWith")(
-      //     assertM(
-      //       Stream("A", "B", "C", "A", "B", "C")
-      //         .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(_.toLowerCase, identity)
-      //         .run(Sink.collectAll[String])
-      //     )(equalTo(List("a", "b", "c", "Done", "a", "b", "c", "Done")))
-      //   ),
-      //   testM("scheduleEither")(
-      //     assertM(
-      //       Stream("A", "B", "C")
-      //         .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
-      //         .run(Sink.collectAll[Either[String, String]])
-      //     )(equalTo(List(Right("A"), Right("B"), Right("C"), Left("!"))))
-      //   ),
-      // ),
+      suite("schedule")(
+        testM("scheduleWith")(
+          assertM(
+            ZStream("A", "B", "C", "A", "B", "C")
+              .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(_.toLowerCase, identity)
+              .runCollect
+          )(equalTo(List("a", "b", "c", "Done", "a", "b", "c", "Done")))
+        ),
+        testM("scheduleEither")(
+          assertM(
+            ZStream("A", "B", "C")
+              .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
+              .runCollect
+          )(equalTo(List(Right("A"), Right("B"), Right("C"), Left("!"))))
+        )
+      ),
       suite("scheduleElements")(
         testM("scheduleElementsWith")(
           assertM(

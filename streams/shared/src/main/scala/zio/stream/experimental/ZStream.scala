@@ -1432,12 +1432,27 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Schedules the output of the stream using the provided `schedule`.
+   */
+  final def schedule[R1 <: R](schedule: Schedule[R1, O, Any]): ZStream[R1, E, O] =
+    scheduleEither(schedule).collect { case Right(a) => a }
+
+  /**
+   * Schedules the output of the stream using the provided `schedule` and emits its output at
+   * the end (if `schedule` is finite).
+   */
+  final def scheduleEither[R1 <: R, E1 >: E, B](
+    schedule: Schedule[R1, O, B]
+  ): ZStream[R1, E1, Either[B, O]] =
+    scheduleWith(schedule)(Right.apply, Left.apply)
+
+  /**
    * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
    * each time a schedule is completed.
    * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
    * and if not short circuited, repeat element once".
    */
-  final def scheduleElements[R1 <: R, O1 >: O](schedule: Schedule[R1, O, Any]): ZStream[R1, E, O1] =
+  final def scheduleElements[R1 <: R](schedule: Schedule[R1, O, Any]): ZStream[R1, E, O] =
     scheduleElementsEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -1484,6 +1499,53 @@ abstract class ZStream[-R, +E, +O](
           }
 
           go
+        }
+      } yield pull
+    }
+
+  /**
+   * Schedules the output of the stream using the provided `schedule` and emits its output at
+   * the end (if `schedule` is finite).
+   * Uses the provided function to align the stream and schedule outputs on the same type.
+   */
+  final def scheduleWith[R1 <: R, E1 >: E, B, C](
+    schedule: Schedule[R1, O, B]
+  )(f: O => C, g: B => C): ZStream[R1, E1, C] =
+    ZStream[R1, E1, C] {
+      for {
+        as    <- self.process.mapM(BufferedPull.make(_))
+        init  <- schedule.initial.toManaged_
+        state <- Ref.make[(schedule.State, Option[() => B])]((init, None)).toManaged_
+        pull = state.get.flatMap {
+          case (sched0, finish0) =>
+            // Before pulling from the stream, we need to check whether the previous
+            // action ended the schedule, in which case we must emit its final output
+            finish0 match {
+              case None =>
+                for {
+                  a <- as.pullElement.optional.mapError(Some(_))
+                  c <- a match {
+                        // There's a value emitted by the underlying stream, we emit it
+                        // and check whether the schedule ends; in that case, we record
+                        // its final state, to be emitted during the next pull
+                        case Some(a) =>
+                          schedule
+                            .update(a, sched0)
+                            .foldM(
+                              _ =>
+                                schedule.initial
+                                  .flatMap(s1 => state.set((s1, Some(() => schedule.extract(a, sched0))))),
+                              s => state.set((s, None))
+                            )
+                            .as(f(a))
+
+                        // The stream ends when both the underlying stream ends and the final
+                        // schedule value has been emitted
+                        case None => Pull.end
+                      }
+                } yield Chunk.single(c)
+              case Some(b) => state.set((sched0, None)) *> Pull.emit(g(b()))
+            }
         }
       } yield pull
     }
