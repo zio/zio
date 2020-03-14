@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ jvm, nonFlaky }
+import zio.test.TestAspect.{ jvm, nonFlaky, silent }
 import zio.test._
 import zio.test.environment.Live
 
@@ -62,17 +62,17 @@ object RTSSpec extends ZIOBaseSpec {
         fiber   <- promise.await.fork
         dump    <- fiber.dump
         dumpStr <- dump.prettyPrintM
-        _       <- UIO(println(dumpStr))
+        _       <- console.putStrLn(dumpStr)
       } yield assert(dumpStr)(anything)
-    },
+    } @@ silent,
     testM("interruption causes") {
       for {
         queue    <- Queue.bounded[Int](100)
         producer <- queue.offer(42).forever.fork
         rez      <- producer.interrupt
-        _        <- UIO(println(rez.fold(_.prettyPrint, _ => "")))
+        _        <- console.putStrLn(rez.fold(_.prettyPrint, _ => ""))
       } yield assert(rez)(anything)
-    },
+    } @@ silent,
     testM("interruption of unending bracket") {
       val io =
         for {
