@@ -3064,7 +3064,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def second[A, B]: ZIO[(A, B), Nothing, B] = fromFunction[(A, B), B](_._2)
+  def second[A, B]: URIO[(A, B), B] = fromFunction[(A, B), B](_._2)
 
   /**
    * Returns an effect that suspends for the specified duration. This method is
@@ -3088,7 +3088,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  def swap[A, B]: ZIO[(A, B), Nothing, (B, A)] =
+  def swap[A, B]: URIO[(A, B), (B, A)] =
     fromFunction[(A, B), (B, A)](_.swap)
 
   /**
