@@ -1,6 +1,6 @@
 package zio.stream.experimental
 
-import java.io.{ InputStream, IOException }
+import java.io.{ IOException, InputStream }
 
 import zio._
 import zio.blocking.Blocking
@@ -26,7 +26,8 @@ trait ZStreamPlatformSpecificConstructors {
             else
               for {
                 bufArray <- buf.get
-                bytesRead <- blocking.effectBlocking(capturedIs.read(bufArray))
+                bytesRead <- blocking
+                              .effectBlocking(capturedIs.read(bufArray))
                               .refineToOrDie[IOException]
                               .mapError(Some(_))
                 bytes <- if (bytesRead < 0)
@@ -44,6 +45,5 @@ trait ZStreamPlatformSpecificConstructors {
         }
       } yield pull
     }
-
 
 }

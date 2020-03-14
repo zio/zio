@@ -1389,14 +1389,30 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Runs the sink on the stream to produce either the sink's result or an error.
+   */
+  def run[R1 <: R, E1 >: E, O1 >: O, B](sink: ZSink[R1, E1, O1, B]): ZIO[R1, E1, B] =
+    (process <*> sink.push).use {
+      case (pull, push) =>
+        def go: ZIO[R1, E1, B] = pull.foldCauseM(
+          Cause
+            .sequenceCauseOption(_)
+            .fold(
+              push(None).foldCauseM(
+                Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow),
+                _ => IO.dieMessage("empty stream / empty sinks")
+              )
+            )(IO.halt(_)),
+          os => push(Some(os)).foldCauseM(Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow), _ => go)
+        )
+
+        go
+    }
+
+  /**
    * Runs the stream and collects all of its elements to a list.
    */
-  def runCollect: ZIO[R, E, List[O]] =
-    // TODO: rewrite as a sink
-    Ref.make[List[O]](List()).flatMap { ref =>
-      foreach(a => ref.update(a :: _)) *>
-        ref.get.map(_.reverse)
-    }
+  def runCollect: ZIO[R, E, List[O]] = run(ZSink.collectAll[O])
 
   /**
    * Runs the stream only for its effects. The emitted elements are discarded.
@@ -1997,6 +2013,128 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromEffect(ZIO.done(exit))
 
   /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
+   */
+  def effectAsync[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Unit,
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    effectAsyncMaybe(callback => {
+      register(callback)
+      None
+    }, outputBuffer)
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback returns either a canceler or synchronously returns a stream.
+   * The optionality of the error type `E` can be used to signal the end of the stream, by
+   * setting it to `None`.
+   */
+  def effectAsyncInterrupt[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    ZStream {
+      for {
+        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged_
+        eitherStream <- ZManaged.effectTotal {
+                         register(k =>
+                           try {
+                             runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+                             ()
+                           } catch {
+                             case FiberFailure(Cause.Interrupt(_)) =>
+                           }
+                         )
+                       }
+        pull <- eitherStream match {
+                 case Left(canceler) =>
+                   (for {
+                     done <- ZRef.makeManaged(false)
+                   } yield done.get.flatMap {
+                     if (_) Pull.end
+                     else
+                       output.take.flatMap(_.toPull).onError(_ => done.set(true) *> output.shutdown)
+                   }).ensuring(canceler)
+                 case Right(stream) => output.shutdown.toManaged_ *> stream.process
+               }
+      } yield pull
+    }
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times
+   * The registration of the callback itself returns an effect. The optionality of the
+   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
+   */
+  // def effectAsyncM[R, E, A](
+  //   register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[R, E, Any],
+  //   outputBuffer: Int = 16
+  // ): ZStream[R, E, A] =
+  //   ZStream {
+  //     for {
+  //       output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+  //       runtime <- ZIO.runtime[R].toManaged_
+  //       _ <- register(k =>
+  //             try {
+  //               runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+  //               ()
+  //             } catch {
+  //               case FiberFailure(Cause.Interrupt(_)) =>
+  //             }
+  //           ).toManaged_
+  //       done <- ZRef.makeManaged(false)
+  //       pull = done.get.flatMap {
+  //         if (_)
+  //           Pull.end
+  //         else
+  //           output.take.flatMap(_.toPull).onError(_ => done.set(true) *> output.shutdown)
+  //       }
+  //     } yield pull
+  //   }
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback can possibly return the stream synchronously.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
+   */
+  def effectAsyncMaybe[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Option[ZStream[R, E, A]],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    ZStream {
+      for {
+        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged_
+        maybeStream <- ZManaged.effectTotal {
+                        register { k =>
+                          try {
+                            runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+                            ()
+                          } catch {
+                            case FiberFailure(Cause.Interrupt(_)) =>
+                          }
+                        }
+                      }
+        pull <- maybeStream match {
+                 case Some(stream) => output.shutdown.toManaged_ *> stream.process
+                 case None =>
+                   for {
+                     done <- ZRef.makeManaged(false)
+                   } yield done.get.flatMap {
+                     if (_)
+                       Pull.end
+                     else
+                       output.take.flatMap(_.toPull).onError(_ => done.set(true) *> output.shutdown)
+                   }
+               }
+      } yield pull
+    }
+
+  /**
    * The empty stream
    */
   val empty: ZStream[Any, Nothing, Nothing] =
@@ -2229,6 +2367,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
+  def paginate[R, E, A, S](s: S)(f: S => (A, Option[S])): ZStream[Any, Nothing, A] =
+    paginateM(s)(s => ZIO.succeedNow(f(s)))
+
+  /**
+   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
   def paginateM[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
     ZStream {
       for {
@@ -2289,6 +2435,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   val unit: ZStream[Any, Nothing, Unit] =
     succeed(())
+
+  /**
+   * Creates a stream by peeling off the "layers" of a value of type `S`
+   */
+  def unfold[S, A](s: S)(f0: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
+    ZStream.unfold(s)(f0)
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`

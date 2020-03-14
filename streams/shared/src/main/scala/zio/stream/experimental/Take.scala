@@ -16,61 +16,104 @@
 
 package zio.stream.experimental
 
-import zio.{ Cause, IO, ZIO }
+import zio.{ Cause, Chunk, ZIO }
 
 /**
- * A `Take[E, B, A]` represents a single `take` from a queue modeling a stream of
+ * A `Take[E, A]` represents a single `take` from a queue modeling a stream of
  * values. A `Take` may be a failure cause `Cause[E]`, an element value `A`
- * or an end-of-stream marker `B`.
+ * or an end-of-stream marker.
  */
-sealed trait Take[+E, +B, +A] extends Product with Serializable { self =>
-  final def flatMap[E1 >: E, B1 >: B, C](f: A => Take[E1, B1, C]): Take[E1, B1, C] = self match {
+sealed trait Take[+E, +A] extends Product with Serializable { self =>
+
+  /**
+   * Creates a `take` with element value `B` obtained by transforming value of type `A`
+   * by applying function `f`. If `take` is a failure `Take.Fail` or an end-of-stream marker
+   * `Take.End` original `take` instance is returned.
+   */
+  final def flatMap[E1 >: E, B](f: A => Take[E1, B]): Take[E1, B] = self match {
     case t @ Take.Fail(_) => t
-    case Take.Value(a)    => f(a)
-    case e @ Take.End(_)  => e
+    case Take.Value(as) =>
+      as.map(f).fold[Take[E1, B]](Take.Value[B](Chunk.empty)) {
+        case (Take.Value(bs1), Take.Value(bs2)) => Take.Value(bs1 ++ bs2)
+        case (t @ Take.Fail(_), _)              => t
+        case (Take.End, _)                      => Take.End
+        case (_, t @ Take.Fail(_))              => t
+        case (_, Take.End)                      => Take.End
+      }
+    case Take.End => Take.End
   }
 
+  /**
+   * Checks if this `take` is a failure (`Take.Fail`).
+   */
   final def isFailure: Boolean = self match {
     case Take.Fail(_) => true
     case _            => false
   }
 
-  final def map[B1 >: B, C](f: A => C): Take[E, B1, C] = self match {
+  /**
+   * Transforms `Take[E, A]` to `Take[E, B]` by applying function `f`
+   * to an element value if `take` is not failure or end-of-stream marker.
+   */
+  final def map[B](f: A => B): Take[E, B] = self match {
     case t @ Take.Fail(_) => t
-    case Take.Value(a)    => Take.Value(f(a))
-    case e @ Take.End(_)  => e
+    case Take.Value(as)   => Take.Value(as.map(f))
+    case Take.End         => Take.End
   }
 
-  final def zip[E1 >: E, B1 >: B, C](that: Take[E1, B1, C]): Take[E1, B1, (A, C)] =
+  final def toPull: ZIO[Any, Option[E], Chunk[A]] = self match {
+    case Take.Fail(c)   => ZStream.Pull.halt(c)
+    case Take.Value(as) => ZStream.Pull.emit(as)
+    case Take.End       => ZStream.Pull.end
+  }
+
+  /**
+   * Zips this `take` and the specified one together, producing a `take` with tuple of
+   * their values.
+   */
+  final def zip[E1 >: E, B](that: Take[E1, B]): Take[E1, (A, B)] =
     self.zipWith(that)(_ -> _)
 
-  final def zipWith[E1 >: E, B1 >: B, C, D](that: Take[E1, B1, C])(f: (A, C) => D): Take[E1, B1, D] =
-    (self, that) match {
-      case (Take.Value(a), Take.Value(b)) => Take.Value(f(a, b))
-      case (Take.Fail(a), Take.Fail(b))   => Take.Fail(a && b)
-      case (e @ Take.End(_), _)           => e
-      case (t @ Take.Fail(_), _)          => t
-      case (_, e @ Take.End(_))           => e
-      case (_, t @ Take.Fail(_))          => t
-    }
+  /**
+   * Zips this `take` and the specified one together, producing `take` with a value `C` by applying
+   * provided function `f` to values from both `takes`. In case both `takes` are `Take.Fail`,
+   * `take` with combined cause will be produced.
+   * Otherwise, if one of this or that `take` is `Take.Fail` or `Take.End` that one will be returned.
+   */
+  final def zipWith[E1 >: E, B, C](that: Take[E1, B])(f: (A, B) => C): Take[E1, C] = (self, that) match {
+    case (Take.Value(as), Take.Value(bs)) => Take.Value(as.zipWith(bs)(f))
+    case (Take.Fail(a), Take.Fail(b))     => Take.Fail(a && b)
+    case (Take.End, _)                    => Take.End
+    case (t @ Take.Fail(_), _)            => t
+    case (_, Take.End)                    => Take.End
+    case (_, t @ Take.Fail(_))            => t
+  }
 }
 
 object Take {
-  final case class Fail[+E](value: Cause[E]) extends Take[E, Nothing, Nothing]
-  final case class Value[+A](value: A)       extends Take[Nothing, Nothing, A]
-  final case class End[+B](marker: B)        extends Take[Nothing, B, Nothing]
 
-  def fromPull[R, E, B, A](pull: ZIO[R, Either[E, B], A]): ZIO[R, Nothing, Take[E, B, A]] =
+  /**
+   * Represents a failure `take` with a `Cause[E]`.
+   */
+  final case class Fail[+E](value: Cause[E]) extends Take[E, Nothing]
+
+  /**
+   * Represents `take` with value of type `A` retrieved from queue modeling stream.
+   */
+  final case class Value[+A](values: Chunk[A]) extends Take[Nothing, A]
+
+  /**
+   * Represents end of stream marker.
+   */
+  case object End extends Take[Nothing, Nothing]
+
+  /**
+   * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with the `Take[E, A]`.
+   * Error from stream when pulling is converted to `Take.Fail`, end of stream to `Take.End`.
+   */
+  def fromPull[R, E, A](pull: ZIO[R, Option[E], Chunk[A]]): ZIO[R, Nothing, Take[E, A]] =
     pull.foldCause(
-      cause =>
-        cause.failureOrCause.fold(_.fold[Take[E, B, A]](e => Take.Fail(Cause.fail(e)), Take.End(_)), Take.Fail(_)),
+      Cause.sequenceCauseOption(_).fold[Take[E, A]](Take.End)(Take.Fail(_)),
       Take.Value(_)
     )
-
-  def either[E, B, A](io: IO[E, Take[E, B, A]]): IO[E, Either[B, A]] =
-    io.flatMap {
-      case Take.End(b)   => IO.succeedNow(Left(b))
-      case Take.Value(a) => IO.succeedNow(Right(a))
-      case Take.Fail(e)  => IO.halt(e)
-    }
 }
