@@ -1081,7 +1081,26 @@ object ZStreamSpec extends ZIOBaseSpec {
           res1 <- (s.zipWithIndex.runCollect)
           res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
         } yield assert(res1)(equalTo(res2))
-      })
+      }),
+      testM("zipWithLatest") {
+        import zio.test.environment.TestClock
+
+        for {
+          q  <- Queue.unbounded[(Int, Int)]
+          s1 = ZStream.iterate(0)(_ + 1).fixed(100.millis)
+          s2 = ZStream.iterate(0)(_ + 1).fixed(70.millis)
+          s3 = s1.zipWithLatest(s2)((_, _))
+          _  <- s3.foreach(q.offer).fork
+          a  <- q.take
+          _  <- TestClock.setTime(70.millis)
+          b  <- q.take
+          _  <- TestClock.setTime(100.millis)
+          c  <- q.take
+          _  <- TestClock.setTime(140.millis)
+          d  <- q.take
+          _  <- TestClock.setTime(210.millis)
+        } yield assert(List(a, b, c, d))(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
+      }
     ),
     suite("Constructors")(
       testM("access") {
