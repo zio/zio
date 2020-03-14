@@ -91,4 +91,14 @@ object ZSink {
         }
       } yield push
     }
+
+  /**
+   * Creates a single-value sink produced from an effect
+   */
+  def fromEffect[R, E, Z](b: => ZIO[R, E, Z]): ZSink[R, E, Any, Z] =
+    ZSink(Managed.succeedNow {
+      case None => b.foldM(Push.fail, Push.emit)
+      case _    => b.foldM(Push.fail, _ => Push.next)
+    })
+
 }
