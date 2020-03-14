@@ -10,8 +10,30 @@ abstract class ZSink[-R, +E, -I, +Z] private (
 }
 
 object ZSink {
+  object Push {
+    def emit[Z](z: Z): IO[Either[Nothing, Z], Nothing] = IO.fail(Right(z))
+    def fail[E](e: E): IO[Either[E, Nothing], Nothing] = IO.fail(Left(e))
+    def halt[E](c: Cause[E]): IO[Either[E, Nothing], Nothing] = IO.halt(c).mapError(Left(_))
+    val next: UIO[Unit] = IO.unit
+  }
+
   def apply[R, E, I, Z](push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, Either[E, Z], Unit]]) =
     new ZSink(push) {}
+
+  def collectAll[A]: ZSink[Any, Nothing, A, Chunk[A]] =
+    ZSink {
+      for {
+        as <- ZRef.makeManaged[Chunk[A]](Chunk.empty)
+        done <- ZRef.makeManaged(false)
+        push = (xs: Option[Chunk[A]]) => done.get.flatMap {
+          if (_) as.get.flatMap(Push.emit)
+          else xs match {
+            case Some(xs) => as.update(_ ++ xs) *> Push.next
+            case None => done.set(true) *> as.get.flatMap(Push.emit)
+          }
+        }
+      } yield push
+    }
 
   /**
    * A sink that counts the number of elements fed to it.

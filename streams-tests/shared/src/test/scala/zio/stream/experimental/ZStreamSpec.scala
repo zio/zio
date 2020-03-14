@@ -1078,6 +1078,15 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         }
       ),
+      testM("Stream.fromInputStream") {
+        import java.io.ByteArrayInputStream
+        val chunkSize = ZStream.DefaultChunkSize
+        val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+        def is        = new ByteArrayInputStream(data)
+        ZStream.fromInputStream(is, chunkSize).run(Sink.collectAll[Chunk[Byte]]) map { chunks =>
+          assert(chunks.flatMap(_.toArray[Byte]).toArray)(equalTo(data))
+        }
+      },
       suite("fromIteratorManaged")(
         testM("is safe to pull again after success") {
           for {
