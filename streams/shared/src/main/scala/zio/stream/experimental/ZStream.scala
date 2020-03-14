@@ -2069,31 +2069,31 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * The registration of the callback itself returns an effect. The optionality of the
    * error type `E` can be used to signal the end of the stream, by setting it to `None`.
    */
-  // def effectAsyncM[R, E, A](
-  //   register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[R, E, Any],
-  //   outputBuffer: Int = 16
-  // ): ZStream[R, E, A] =
-  //   ZStream {
-  //     for {
-  //       output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
-  //       runtime <- ZIO.runtime[R].toManaged_
-  //       _ <- register(k =>
-  //             try {
-  //               runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
-  //               ()
-  //             } catch {
-  //               case FiberFailure(Cause.Interrupt(_)) =>
-  //             }
-  //           ).toManaged_
-  //       done <- ZRef.makeManaged(false)
-  //       pull = done.get.flatMap {
-  //         if (_)
-  //           Pull.end
-  //         else
-  //           output.take.flatMap(_.toPull).onError(_ => done.set(true) *> output.shutdown)
-  //       }
-  //     } yield pull
-  //   }
+  def effectAsyncM[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[R, Nothing, Any],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    ZStream {
+      for {
+        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged_
+        _ <- register { k =>
+              try {
+                runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+                ()
+              } catch {
+                case FiberFailure(Cause.Interrupt(_)) =>
+              }
+            }.toManaged_
+        done <- ZRef.makeManaged(false)
+        pull = done.get.flatMap {
+          if (_)
+            Pull.end
+          else
+            output.take.flatMap(_.toPull).onError(_ => done.set(true) *> output.shutdown)
+        }
+      } yield pull
+    }
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.

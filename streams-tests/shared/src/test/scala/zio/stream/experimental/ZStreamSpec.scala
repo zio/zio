@@ -1176,59 +1176,59 @@ object ZStreamSpec extends ZIOBaseSpec {
         //   } yield assert(isDone)(isFalse)
         // }
       ),
-      // suite("effectAsyncM")(
-      //   testM("effectAsyncM")(checkM(Gen.listOf(Gen.anyInt).filter(_.nonEmpty)) { list =>
-      //     for {
-      //       latch <- Promise.make[Nothing, Unit]
-      //       fiber <- ZStream
-      //                 .effectAsyncM[Any, Throwable, Int] { k =>
-      //                   inParallel {
-      //                     list.foreach(a => k(Task.succeed(a)))
-      //                   }(global)
-      //                   latch.succeed(()) *>
-      //                     Task.unit
-      //                 }
-      //                 .take(list.size.toLong)
-      //                 .run(Sink.collectAll[Int])
-      //                 .fork
-      //       _ <- latch.await
-      //       s <- fiber.join
-      //     } yield assert(s)(equalTo(list))
-      //   }),
-      //   testM("effectAsyncM signal end stream") {
-      //     for {
-      //       result <- ZStream
-      //                  .effectAsyncM[Any, Nothing, Int] { k =>
-      //                    inParallel {
-      //                      k(IO.fail(None))
-      //                    }(global)
-      //                    UIO.unit
-      //                  }
-      //                  .runCollect
-      //     } yield assert(result)(equalTo(Nil))
-      //   },
-      //   testM("effectAsyncM back pressure") {
-      //     for {
-      //       refCnt  <- Ref.make(0)
-      //       refDone <- Ref.make[Boolean](false)
-      //       stream = ZStream.effectAsyncM[Any, Throwable, Int](
-      //         cb => {
-      //           inParallel {
-      //             // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
-      //             (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(1)))
-      //             cb(refDone.set(true) *> ZIO.fail(None))
-      //           }(global)
-      //           UIO.unit
-      //         },
-      //         5
-      //       )
-      //       run    <- stream.run(ZSink.fromEffect(ZIO.never)).fork
-      //       _      <- waitForValue(refCnt.get, 7)
-      //       isDone <- refDone.get
-      //       _      <- run.interrupt
-      //     } yield assert(isDone)(isFalse)
-      //   }
-      // ),
+      suite("effectAsyncM")(
+        testM("effectAsyncM")(checkM(Gen.listOf(Gen.anyInt).filter(_.nonEmpty)) { list =>
+          for {
+            latch <- Promise.make[Nothing, Unit]
+            fiber <- ZStream
+                      .effectAsyncM[Any, Throwable, Int] { k =>
+                        inParallel {
+                          list.foreach(a => k(Task.succeed(Chunk.single(a))))
+                        }(global)
+                        latch.succeed(()) *>
+                          Task.unit
+                      }
+                      .take(list.size)
+                      .run(ZSink.collectAll[Int])
+                      .fork
+            _ <- latch.await
+            s <- fiber.join
+          } yield assert(s)(equalTo(list))
+        }),
+        testM("effectAsyncM signal end stream") {
+          for {
+            result <- ZStream
+                       .effectAsyncM[Any, Nothing, Int] { k =>
+                         inParallel {
+                           k(IO.fail(None))
+                         }(global)
+                         UIO.unit
+                       }
+                       .runCollect
+          } yield assert(result)(equalTo(Nil))
+        },
+        // testM("effectAsyncM back pressure") {
+        //   for {
+        //     refCnt  <- Ref.make(0)
+        //     refDone <- Ref.make[Boolean](false)
+        //     stream = ZStream.effectAsyncM[Any, Throwable, Int](
+        //       cb => {
+        //         inParallel {
+        //           // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
+        //           (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
+        //           cb(refDone.set(true) *> ZIO.fail(None))
+        //         }(global)
+        //         UIO.unit
+        //       },
+        //       5
+        //     )
+        //     run    <- stream.run(ZSink.fromEffect(ZIO.never)).fork
+        //     _      <- waitForValue(refCnt.get, 7)
+        //     isDone <- refDone.get
+        //     _      <- run.interrupt
+        //   } yield assert(isDone)(isFalse)
+        // }
+      ),
       suite("effectAsyncInterrupt")(
         testM("effectAsyncInterrupt Left") {
           for {
