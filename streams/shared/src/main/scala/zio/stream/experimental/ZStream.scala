@@ -1356,6 +1356,62 @@ abstract class ZStream[-R, +E, +O](
     catchAll(_ => that)
 
   /**
+   * Repeats the entire stream using the specified schedule. The stream will execute normally,
+   * and then repeat again according to the provided schedule.
+   */
+  final def repeat[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1, E, O] =
+    repeatEither(schedule) collect { case Right(a) => a }
+
+  /**
+   * Repeats the entire stream using the specified schedule. The stream will execute normally,
+   * and then repeat again according to the provided schedule. The schedule output will be emitted at
+   * the end of each repetition.
+   */
+  final def repeatEither[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1, E, Either[B, O]] =
+    repeatWith(schedule)(Right(_), Left(_))
+
+  /**
+   * Repeats the entire stream using the specified schedule. The stream will execute normally,
+   * and then repeat again according to the provided schedule. The schedule output will be emitted at
+   * the end of each repetition and can be unified with the stream elements using the provided functions.
+   */
+  final def repeatWith[R1 <: R, B, C](
+    schedule: Schedule[R1, Any, B]
+  )(f: O => C, g: B => C): ZStream[R1, E, C] =
+    ZStream[R1, E, C] {
+      for {
+        scheduleInit  <- schedule.initial.toManaged_
+        schedStateRef <- Ref.make(scheduleInit).toManaged_
+        switchPull    <- ZManaged.switchable[R1, Nothing, ZIO[R1, Option[E], Chunk[C]]]
+        currPull      <- switchPull(self.map(f).process).flatMap(as => Ref.make(as)).toManaged_
+        doneRef       <- Ref.make(false).toManaged_
+        pull = {
+          def go: ZIO[R1, Option[E], Chunk[C]] =
+            doneRef.get.flatMap { done =>
+              if (done) ZIO.fail(None)
+              else
+                currPull.get.flatten.foldM(
+                  {
+                    case e @ Some(_) => ZIO.fail(e)
+                    case None =>
+                      schedStateRef.get
+                        .flatMap(schedule.update((), _))
+                        .foldM(
+                          _ => doneRef.set(true) *> ZIO.fail(None),
+                          state =>
+                            switchPull((self.map(f) ++ ZStream.succeed(g(schedule.extract((), state)))).process)
+                              .tap(currPull.set(_)) *> schedStateRef.set(state) *> go
+                        )
+                  },
+                  ZIO.succeedNow
+                )
+            }
+          go
+        }
+      } yield pull
+    }
+
+  /**
    * Runs the stream and collects all of its elements to a list.
    */
   def runCollect: ZIO[R, E, List[O]] =
@@ -2134,6 +2190,15 @@ object ZStream {
    */
   def repeatEffectChunkOption[R, E, A](fa: ZIO[R, Option[E], Chunk[A]]): ZStream[R, E, A] =
     ZStream(ZManaged.succeedNow(fa))
+
+  /**
+   * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
+   */
+  def repeatEffectWith[R, E, A](
+    fa: ZIO[R, E, A],
+    schedule: Schedule[R, Any, _]
+  ): ZStream[R, E, A] =
+    fromEffect(fa).repeat(schedule)
 
   /**
    * Creates a single-valued pure stream
