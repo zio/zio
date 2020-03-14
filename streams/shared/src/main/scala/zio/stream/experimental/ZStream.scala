@@ -271,6 +271,26 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Effectfully transforms all elements of the stream for as long as the specified partial function is defined.
+   */
+  final def collectWhileM[R1 <: R, E1 >: E, O2](pf: PartialFunction[O, ZIO[R1, E1, O2]]): ZStream[R1, E1, O2] =
+    ZStream {
+      for {
+        chunks   <- self.process
+        done <- Ref.make(false).toManaged_
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else
+            for {
+              chunk     <- chunks
+              remaining <- chunk.collectWhileM(pf).mapError(Some(_))
+              _         <- done.set(true).when(remaining.length < chunk.length)
+            } yield remaining
+        }
+      } yield pull
+    }
+
+  /**
    * Combines the elements from this stream and the specified stream by repeatedly applying the
    * function `f` to extract an element using both sides and conceptually "offer"
    * it to the destination stream. `f` can maintain some internal state to control

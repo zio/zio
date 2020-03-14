@@ -215,10 +215,68 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(result)(equalTo(List("s2", "s1")))
         }
       ),
+      testM("Stream.collect") {
+        assertM(ZStream(Left(1), Right(2), Left(3)).collect {
+          case Right(n) => n
+        }.runCollect)(equalTo(List(2)))
+      },
+      suite("Stream.collectM")(
+        testM("collectM") {
+          assertM(
+            ZStream(Left(1), Right(2), Left(3)).collectM {
+              case Right(n) => ZIO(n * 2)
+            }.runCollect
+          )(equalTo(List(4)))
+        },
+        testM("collectM fails") {
+          assertM(
+            ZStream(Left(1), Right(2), Left(3)).collectM {
+              case Right(_) => ZIO.fail("Ouch")
+            }.runDrain.either
+          )(isLeft(isNonEmptyString))
+        }
+      ),
+      suite("Stream.collectWhile")(
+        testM("collectWhile") {
+          assertM(ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile {
+            case Some(v) => v
+          }.runCollect)(equalTo(List(1, 2, 3)))
+        },
+        testM("collectWhile short circuits") {
+          assertM((ZStream(Option(1)) ++ ZStream.fail("Ouch")).collectWhile {
+            case None => 1
+          }.runDrain.either)(isRight(isUnit))
+        }
+      ),
+      suite("Stream.collectWhileM")(
+        testM("collectWhileM") {
+          assertM(
+            ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileM {
+              case Some(v) => ZIO(v * 2)
+            }.runCollect
+          )(equalTo(List(2, 4, 6)))
+        },
+        testM("collectWhileM short circuits") {
+          assertM(
+            (ZStream(Option(1)) ++ ZStream.fail("Ouch"))
+              .collectWhileM[Any, String, Int] {
+                case None => ZIO.succeedNow(1)
+              }
+              .runDrain
+              .either
+          )(isRight(isUnit))
+        },
+        testM("collectWhileM fails") {
+          assertM(
+            ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileM {
+              case Some(_) => ZIO.fail("Ouch")
+            }.runDrain.either
+          )(isLeft(isNonEmptyString))
+        }
+      ),
       suite("distributedWithDynamic")(
         testM("ensures no race between subscription and stream end") {
-          val stream: ZStream[Any, Nothing, Either[Unit, Unit]] = ZStream.empty
-          stream.distributedWithDynamic(1, _ => UIO.succeedNow(_ => true)).use { add =>
+          ZStream.empty.distributedWithDynamic(1, _ => UIO.succeedNow(_ => true)).use { add =>
             val subscribe = ZStream.unwrap(add.map {
               case (_, queue) =>
                 ZStream.fromQueue(queue).unExit
