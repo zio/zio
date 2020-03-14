@@ -5,6 +5,7 @@ import java.io.InputStream
 import java.{ util => ju }
 
 import zio._
+import zio.blocking.Blocking
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 
@@ -2074,19 +2075,22 @@ object ZStream {
   def fromInputStream(
     is: => InputStream,
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Any, IOException, Byte] =
+  ): ZStream[Blocking, IOException, Byte] =
     ZStream {
       for {
         done       <- Ref.make(false).toManaged_
         buf        <- Ref.make(Array.ofDim[Byte](chunkSize)).toManaged_
         capturedIs <- Managed.effectTotal(is)
         pull = {
-          def go: IO[Option[IOException], Chunk[Byte]] = done.get.flatMap {
+          def go: ZIO[Blocking, Option[IOException], Chunk[Byte]] = done.get.flatMap {
             if (_) Pull.end
             else
               for {
-                bufArray  <- buf.get
-                bytesRead <- IO.effect(capturedIs.read(bufArray)).refineToOrDie[IOException].mapError(Some(_))
+                bufArray <- buf.get
+                bytesRead <- blocking
+                              .effectBlockingInterrupt(capturedIs.read(bufArray))
+                              .refineToOrDie[IOException]
+                              .mapError(Some(_))
                 bytes <- if (bytesRead < 0)
                           done.set(true) *> Pull.end
                         else if (bytesRead == 0)
@@ -2231,7 +2235,7 @@ object ZStream {
                 reservation <- managed.reserve.onError(_ => doneRef.set(true))
                 _           <- finalizer.add(reservation.release)
                 _           <- doneRef.set(true)
-                a           <- restore(reservation.acquire)
+                a           <- restore(reservation.acquire).onError(_ => doneRef.set(true))
               } yield Chunk(a)).mapError(Some(_))
           }
         }
