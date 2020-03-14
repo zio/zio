@@ -2686,24 +2686,6 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertM(Live.live(io))(isTrue)
       },
-      testM("does not make effect interruptible") {
-        for {
-          latch1 <- Promise.make[Nothing, Unit]
-          latch2 <- Promise.make[Nothing, Unit]
-          fiber  <- latch1.succeed(()).ensuring(latch2.succeed(()).disconnect).fork
-          _      <- latch1.await
-          _      <- fiber.interrupt
-          _      <- latch2.await
-        } yield assertCompletes
-      } @@ nonFlaky,
-      testM("allows interruption to return immediately even in an uninterruptible region") {
-        ZIO.uninterruptible {
-          for {
-            fiber <- ZIO.infinity.disconnect.fork
-            _     <- fiber.interrupt
-          } yield assertCompletes
-        }
-      },
       testM("cause reflects interruption") {
         val io =
           for {

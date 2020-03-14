@@ -430,7 +430,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       for {
         id    <- ZIO.fiberId
         fiber <- restore(self).forkDaemon
-        a     <- fiber.join.interruptible.onInterrupt(fiber.interruptAs(id).forkDaemon)
+        a     <- restore(fiber.join).onInterrupt(fiber.interruptAs(id).forkDaemon)
       } yield a
     )
 
@@ -1153,8 +1153,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.descriptorWith { descriptor =>
       val parentFiberId   = descriptor.id
       val uninterruptible = descriptor.interruptStatus.isUninterruptible
-      val left            = if (uninterruptible) self.disconnect else self
-      val right           = if (uninterruptible) that.disconnect else that
+      val left =
+        if (uninterruptible) self.uninterruptible.disconnect.interruptible
+        else self
+      val right =
+        if (uninterruptible) that.uninterruptible.disconnect.interruptible
+        else that
       (left raceWith right)(
         (exit, right) =>
           exit.foldM[Any, E1, A1](
