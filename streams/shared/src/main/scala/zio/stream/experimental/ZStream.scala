@@ -1418,14 +1418,30 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Runs the sink on the stream to produce either the sink's result or an error.
+   */
+  def run[R1 <: R, E1 >: E, O1 >: O, B](sink: ZSink[R1, E1, O1, B]): ZIO[R1, E1, B] =
+    (process <*> sink.push).use {
+      case (pull, push) =>
+        def go: ZIO[R1, E1, B] = pull.foldCauseM(
+          Cause
+            .sequenceCauseOption(_)
+            .fold(
+              push(None).foldCauseM(
+                Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow),
+                _ => IO.dieMessage("empty stream / empty sinks")
+              )
+            )(IO.halt(_)),
+          os => push(Some(os)).foldCauseM(Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow), _ => go)
+        )
+
+        go
+    }
+
+  /**
    * Runs the stream and collects all of its elements to a list.
    */
-  def runCollect: ZIO[R, E, List[O]] =
-    // TODO: rewrite as a sink
-    Ref.make[List[O]](List()).flatMap { ref =>
-      foreach(a => ref.update(a :: _)) *>
-        ref.get.map(_.reverse)
-    }
+  def runCollect: ZIO[R, E, List[O]] = run(ZSink.collectAll[O])
 
   /**
    * Runs the stream only for its effects. The emitted elements are discarded.
