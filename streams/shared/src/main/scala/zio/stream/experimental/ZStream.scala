@@ -536,6 +536,18 @@ abstract class ZStream[-R, +E, +O](
     ZStream(self.process.map(_.forever))
 
   /**
+   * Drains the provided stream in the background for as long as this stream is running.
+   * If this stream ends before `other`, `other` will be interrupted. If `other` fails,
+   * this stream will fail with that error.
+   */
+  final def drainFork[R1 <: R, E1 >: E](other: ZStream[R1, E1, Any]): ZStream[R1, E1, O] =
+    ZStream.fromEffect(Promise.make[E1, Nothing]).flatMap { bgDied =>
+      ZStream
+        .managed(other.foreachManaged(_ => ZIO.unit).catchAllCause(bgDied.halt(_).toManaged_).fork) *>
+        self.interruptWhen(bgDied)
+    }
+
+  /**
    * Drops the specified number of elements from this stream.
    */
   def drop(n: Int): ZStream[R, E, O] =
