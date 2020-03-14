@@ -1133,6 +1133,65 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         }
       ),
+      suite("fromIteratorManaged")(
+        testM("is safe to pull again after success") {
+          for {
+            ref <- Ref.make(false)
+            pulls <- ZStream
+                      .fromIteratorManaged(Managed.make(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true)))
+                      .process
+                      .use(nPulls(_, 4))
+            fin <- ref.get
+          } yield assert(fin)(isTrue) && assert(pulls)(
+            equalTo(List(Right(Chunk(1)), Right(Chunk(2)), Left(None), Left(None)))
+          )
+        },
+        testM("is safe to pull again after failed acquisition") {
+          for {
+            ref <- Ref.make(false)
+            pulls <- ZStream
+                      .fromIteratorManaged(Managed.make(IO.fail("Ouch"))(_ => ref.set(true)))
+                      .process
+                      .use(nPulls(_, 3))
+            fin <- ref.get
+          } yield assert(fin)(isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+        },
+        testM("is safe to pull again after inner failure") {
+          for {
+            ref <- Ref.make(false)
+            pulls <- ZStream
+                      .fromIteratorManaged(Managed.make(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true)))
+                      .flatMap(n =>
+                        ZStream.succeed((n * 2).toString) ++ ZStream.fail("Ouch") ++ ZStream.succeed(
+                          (n * 3).toString
+                        )
+                      )
+                      .process
+                      .use(nPulls(_, 8))
+            fin <- ref.get
+          } yield assert(fin)(isTrue) && assert(pulls)(
+            equalTo(
+              List(
+                Right(Chunk("2")),
+                Left(Some("Ouch")),
+                Right(Chunk("3")),
+                Right(Chunk("4")),
+                Left(Some("Ouch")),
+                Right(Chunk("6")),
+                Left(None),
+                Left(None)
+              )
+            )
+          )
+        },
+        testM("is safe to pull again from a failed Managed") {
+          ZStream
+            .fromIteratorManaged(Managed.fail("Ouch"))
+            .process
+            .use(nPulls(_, 3))
+            .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+        }
+      ),
       testM("concatAll") {
         checkM(Gen.listOf(smallChunks(Gen.anyInt))) { chunks =>
           assertM(ZStream.concatAll(Chunk.fromIterable(chunks.map(ZStream.fromChunk(_)))).runCollect)(

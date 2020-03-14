@@ -1,5 +1,9 @@
 package zio.stream.experimental
 
+import java.io.IOException
+import java.io.InputStream
+import java.{ util => ju }
+
 import zio._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
@@ -45,6 +49,8 @@ abstract class ZStream[-R, +E, +O](
    */
   final def &>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O2] =
     self zipRight that
+
+  def >>=[R1 <: R, E1 >: E, O2](f0: O => ZStream[R1, E1, O2]): ZStream[R1, E1, O2] = flatMap(f0)
 
   /**
    * Symbolic alias for [[ZStream#concat]].
@@ -1828,6 +1834,19 @@ abstract class ZStream[-R, +E, +O](
 object ZStream {
 
   /**
+   * The default chunk size used by the various combinators and constructors of [[ZStreamChunk]].
+   */
+  final val DefaultChunkSize = 4096
+
+  private[zio] object Pull {
+    def emit[A](a: A): IO[Nothing, Chunk[A]]         = UIO(Chunk.single(a))
+    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]] = UIO(as)
+    def fail[E](e: E): IO[Option[E], Nothing]        = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): IO[Option[E], Nothing] = IO.halt(c).mapError(Some(_))
+    val end: IO[Option[Nothing], Nothing]            = IO.fail(None)
+  }
+
+  /**
    * Submerges the error case of an `Either` into the `ZStream`.
    */
   def absolve[R, E, O](xs: ZStream[R, E, Either[E, O]]): ZStream[R, E, O] =
@@ -2057,6 +2076,41 @@ object ZStream {
     }
 
   /**
+   * Creates a stream from a [[java.io.InputStream]]
+   */
+  def fromInputStream(
+    is: => InputStream,
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[Any, IOException, Byte] =
+    ZStream {
+      for {
+        done       <- Ref.make(false).toManaged_
+        buf        <- Ref.make(Array.ofDim[Byte](chunkSize)).toManaged_
+        capturedIs <- Managed.effectTotal(is)
+        pull = {
+          def go: IO[Option[IOException], Chunk[Byte]] = done.get.flatMap {
+            if (_) Pull.end
+            else
+              for {
+                bufArray  <- buf.get
+                bytesRead <- IO.effect(capturedIs.read(bufArray)).refineToOrDie[IOException].mapError(Some(_))
+                bytes <- if (bytesRead < 0)
+                          done.set(true) *> Pull.end
+                        else if (bytesRead == 0)
+                          go
+                        else if (bytesRead < bufArray.length)
+                          Pull.emit(Chunk.fromArray(bufArray).take(bytesRead))
+                        else
+                          Pull.emit(Chunk.fromArray(bufArray))
+              } yield bytes
+          }
+
+          go
+        }
+      } yield pull
+    }
+
+  /**
    * Creates a stream from an iterable collection of values
    */
   def fromIterable[O](as: => Iterable[O]): ZStream[Any, Nothing, O] =
@@ -2067,6 +2121,45 @@ object ZStream {
    */
   def fromIterableM[R, E, O](iterable: ZIO[R, E, Iterable[O]]): ZStream[R, E, O] =
     fromEffect(iterable).mapConcat(identity)
+
+  /**
+   * Creates a stream from an iterator
+   */
+  def fromIterator[A](iterator: => Iterator[A]): ZStream[Any, Nothing, A] =
+    ZStream {
+      Managed.effectTotal(iterator).map { it =>
+        IO.effectTotal {
+          if (it.hasNext)
+            Pull.emit(it.next)
+          else
+            Pull.end
+        }.flatten
+      }
+    }
+
+  /**
+   * Creates a stream from a Java iterator
+   */
+  def fromJavaIterator[A](iterator: => ju.Iterator[A]): ZStream[Any, Nothing, A] =
+    fromIterator {
+      val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
+      new Iterator[A] {
+        def next(): A        = it.next
+        def hasNext: Boolean = it.hasNext
+      }
+    }
+
+  /**
+   * Creates a stream from a managed iterator
+   */
+  def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
+    managed(iterator).flatMap(fromIterator(_))
+
+  /**
+   * Creates a stream from a managed iterator
+   */
+  def fromJavaIteratorManaged[R, E, A](iterator: ZManaged[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
+    managed(iterator).flatMap(fromJavaIterator(_))
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
@@ -2142,7 +2235,7 @@ object ZStream {
             if (done) ZIO.fail(None)
             else
               (for {
-                reservation <- managed.reserve
+                reservation <- managed.reserve.onError(_ => doneRef.set(true))
                 _           <- finalizer.add(reservation.release)
                 _           <- doneRef.set(true)
                 a           <- restore(reservation.acquire)
