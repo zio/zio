@@ -33,7 +33,7 @@ final class TRef[A] private (
   /**
    * Retrieves the value of the `TRef`.
    */
-  val get: STM[Nothing, A] =
+  val get: USTM[A] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
@@ -43,7 +43,7 @@ final class TRef[A] private (
   /**
    * Sets the value of the `TRef` and returns the old value.
    */
-  def getAndSet(a: A): STM[Nothing, A] =
+  def getAndSet(a: A): USTM[A] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
@@ -57,7 +57,7 @@ final class TRef[A] private (
   /**
    * Updates the value of the variable and returns the old value.
    */
-  def getAndUpdate(f: A => A): STM[Nothing, A] =
+  def getAndUpdate(f: A => A): USTM[A] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
@@ -72,14 +72,14 @@ final class TRef[A] private (
    * Updates some values of the variable but leaves others alone, returning the
    * old value.
    */
-  def getAndUpdateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
+  def getAndUpdateSome(f: PartialFunction[A, A]): USTM[A] =
     getAndUpdate(f orElse { case a => a })
 
   /**
    * Updates the value of the variable, returning a function of the specified
    * value.
    */
-  def modify[B](f: A => (B, A)): STM[Nothing, B] =
+  def modify[B](f: A => (B, A)): USTM[B] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
@@ -94,13 +94,13 @@ final class TRef[A] private (
    * Updates some values of the variable, returning a function of the specified
    * value or the default.
    */
-  def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
+  def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): USTM[B] =
     modify(a => f.lift(a).getOrElse((default, a)))
 
   /**
    * Sets the value of the `TRef`.
    */
-  def set(newValue: A): STM[Nothing, Unit] =
+  def set(newValue: A): USTM[Unit] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
@@ -115,7 +115,7 @@ final class TRef[A] private (
   /**
    * Updates the value of the variable.
    */
-  def update(f: A => A): STM[Nothing, Unit] =
+  def update(f: A => A): USTM[Unit] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
@@ -129,7 +129,7 @@ final class TRef[A] private (
   /**
    * Updates the value of the variable and returns the new value.
    */
-  def updateAndGet(f: A => A): STM[Nothing, A] =
+  def updateAndGet(f: A => A): USTM[A] =
     new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
@@ -143,14 +143,14 @@ final class TRef[A] private (
   /**
    * Updates some values of the variable but leaves others alone.
    */
-  def updateSome(f: PartialFunction[A, A]): STM[Nothing, Unit] =
+  def updateSome(f: PartialFunction[A, A]): USTM[Unit] =
     update(f orElse { case a => a })
 
   /**
    * Updates some values of the variable but leaves others alone, returning the
    * new value.
    */
-  def updateSomeAndGet(f: PartialFunction[A, A]): STM[Nothing, A] =
+  def updateSomeAndGet(f: PartialFunction[A, A]): USTM[A] =
     updateAndGet(f orElse { case a => a })
 
   private def getOrMakeEntry(journal: Journal): Entry =
@@ -167,7 +167,7 @@ object TRef {
   /**
    * Makes a new `TRef` that is initialized to the specified value.
    */
-  def make[A](a: => A): STM[Nothing, TRef[A]] =
+  def make[A](a: => A): USTM[TRef[A]] =
     new ZSTM((journal, _, _, _) => {
       val value     = a
       val versioned = new Versioned(value)
