@@ -2,9 +2,9 @@ package zio.examples.macros
 
 import zio.{ Has, UIO, URIO, ZLayer }
 import zio.console.Console
-import zio.macros.Accessible
+import zio.macros.accessible
 
-@Accessible
+@accessible
 object AccessibleMacroExample {
 
   type AccessibleMacroExample = Has[AccessibleMacroExample.Service]

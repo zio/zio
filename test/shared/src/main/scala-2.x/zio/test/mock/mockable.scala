@@ -18,6 +18,6 @@ package zio.test.mock
 import scala.annotation.{ compileTimeOnly, StaticAnnotation }
 
 @compileTimeOnly("enable macro paradise to expand macro annotations")
-class Mockable[A] extends StaticAnnotation {
+class mockable[A] extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro MockableMacro.impl
 }

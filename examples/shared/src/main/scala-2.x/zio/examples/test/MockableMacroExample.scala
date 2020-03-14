@@ -1,6 +1,6 @@
 package zio.examples.test
 
-import zio.test.mock.Mockable
+import zio.test.mock.mockable
 import zio.ZIO
 
 object DiffrentScopeExample {
@@ -12,5 +12,5 @@ object DiffrentScopeExample {
   }
 }
 
-@Mockable[DiffrentScopeExample.Service]
+@mockable[DiffrentScopeExample.Service]
 object MockableMacroExample
