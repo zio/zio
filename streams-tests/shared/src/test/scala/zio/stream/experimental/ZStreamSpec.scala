@@ -1,14 +1,14 @@
 package zio.stream.experimental
 
+import ZStreamGen._
+
 import zio._
 import zio.duration._
 import zio.stream.ChunkUtils._
 import zio.test.Assertion._
-import zio.test.environment.Live
+import zio.test.TestAspect.flaky
 import zio.test._
-
-import TestAspect.flaky
-import ZStreamGen._
+import zio.test.environment.Live
 
 object ZStreamSpec extends ZIOBaseSpec {
   def spec = suite("ZStreamSpec")(
