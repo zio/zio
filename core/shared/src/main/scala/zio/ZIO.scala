@@ -685,6 +685,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self)
 
   /**
+   * Forks the effect into a new independent fiber, with the specified name.
+   */
+  final def forkAs(name: String): URIO[R, Fiber.Runtime[E, A]] =
+    ZIO.uninterruptibleMask(restore => (Fiber.fiberName.set(Some(name)) *> restore(self)).fork)
+
+  /**
    * Forks the effect into a new fiber, but immediately disowns the fiber, so
    * that when the fiber executing this effect exits, the forked fiber will not
    * automatically be terminated. Disowned fibers become new root fibers.

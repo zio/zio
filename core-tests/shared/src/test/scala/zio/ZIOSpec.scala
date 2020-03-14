@@ -826,6 +826,27 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("forkAs")(
+      testM("child has specified name") {
+        for {
+          fiber <- Fiber.fiberName.get.forkAs("child")
+          name  <- fiber.join
+        } yield assert(name)(isSome(equalTo("child")))
+      },
+      testM("parent name is unchanged") {
+        for {
+          _    <- ZIO.unit.forkAs("child")
+          name <- Fiber.fiberName.get
+        } yield assert(name)(isNone)
+      },
+      testM("parent does not inherit child name on join") {
+        for {
+          fiber <- ZIO.unit.forkAs("child")
+          _     <- fiber.join
+          name  <- Fiber.fiberName.get
+        } yield assert(name)(isNone)
+      }
+    ),
     suite("forkDaemon")(
       testM("child is unsupervised by parent") {
         for {
