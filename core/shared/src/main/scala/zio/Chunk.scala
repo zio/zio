@@ -909,7 +909,6 @@ object Chunk {
    */
   val unit: Chunk[Unit] = single(())
 
-
   /**
    * Returns the `ClassTag` for the element type of the chunk.
    */
