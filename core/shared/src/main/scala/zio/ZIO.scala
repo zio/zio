@@ -1151,15 +1151,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     ZIO.descriptorWith { descriptor =>
-      val parentFiberId   = descriptor.id
-      val uninterruptible = descriptor.interruptStatus.isUninterruptible
-      val left =
-        if (uninterruptible) self.uninterruptible.disconnect.interruptible
-        else self
-      val right =
-        if (uninterruptible) that.uninterruptible.disconnect.interruptible
-        else that
-      (left raceWith right)(
+      val parentFiberId = descriptor.id
+      def maybeDisconnect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        if (descriptor.interruptStatus.isInterruptible) zio
+        else zio.uninterruptible.disconnect.interruptible
+      (maybeDisconnect(self) raceWith maybeDisconnect(that))(
         (exit, right) =>
           exit.foldM[Any, E1, A1](
             cause => right.join mapErrorCause (cause && _),
