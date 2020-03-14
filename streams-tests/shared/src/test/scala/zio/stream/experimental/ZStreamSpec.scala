@@ -1206,7 +1206,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                        }
                        .runCollect
           } yield assert(result)(equalTo(Nil))
-        },
+        }
         // testM("effectAsyncM back pressure") {
         //   for {
         //     refCnt  <- Ref.make(0)
