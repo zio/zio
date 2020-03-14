@@ -1,11 +1,12 @@
 package zio.stream.experimental
 
-import zio._
-import zio.internal.UniqueKey
-import zio.stm.TQueue
 import java.io.IOException
 import java.io.InputStream
 import java.{ util => ju }
+
+import zio._
+import zio.internal.UniqueKey
+import zio.stm.TQueue
 
 abstract class ZStream[-R, +E, +O](
   val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
