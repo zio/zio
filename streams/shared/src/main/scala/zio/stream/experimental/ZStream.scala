@@ -986,6 +986,76 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Interleaves this stream and the specified stream deterministically by
+   * alternating pulling values from this stream and the specified stream.
+   * When one stream is exhausted all remaining values in the other stream
+   * will be pulled.
+   */
+  final def interleave[R1 <: R, E1 >: E, O1 >: O](that: ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+    self.interleaveWith(that)(ZStream(true, false).forever)
+
+  /**
+   * Combines this stream and the specified stream deterministically using the
+   * stream of boolean values `b` to control which stream to pull from next.
+   * `true` indicates to pull from this stream and `false` indicates to pull
+   * from the specified stream. Only consumes as many elements as requested by
+   * `b`. If either this stream or the specified stream are exhausted further
+   * requests for values from that stream will be ignored.
+   */
+  final def interleaveWith[R1 <: R, E1 >: E, O1 >: O](
+    that: ZStream[R1, E1, O1]
+  )(b: ZStream[R1, E1, Boolean]): ZStream[R1, E1, O1] = {
+
+    def loop(
+      leftDone: Boolean,
+      rightDone: Boolean,
+      s: ZIO[R1, Option[E1], Boolean],
+      left: ZIO[R, Option[E], O],
+      right: ZIO[R1, Option[E1], O1]
+    ): ZIO[R1, Nothing, Exit[Option[E1], (O1, (Boolean, Boolean, ZIO[R1, Option[E1], Boolean]))]] =
+      s.foldCauseM(
+        Cause.sequenceCauseOption(_) match {
+          case None    => ZIO.succeedNow(Exit.fail(None))
+          case Some(e) => ZIO.succeedNow(Exit.halt(e.map(Some(_))))
+        },
+        b =>
+          if (b && !leftDone) {
+            left.foldCauseM(
+              Cause.sequenceCauseOption(_) match {
+                case None =>
+                  if (rightDone) ZIO.succeedNow(Exit.fail(None))
+                  else loop(true, rightDone, s, left, right)
+                case Some(e) => ZIO.succeedNow(Exit.halt(e.map(Some(_))))
+              },
+              a => ZIO.succeedNow(Exit.succeed((a, (leftDone, rightDone, s))))
+            )
+          } else if (!b && !rightDone)
+            right.foldCauseM(
+              Cause.sequenceCauseOption(_) match {
+                case Some(e) => ZIO.succeedNow(Exit.halt(e.map(Some(_))))
+                case None =>
+                  if (leftDone) ZIO.succeedNow(Exit.fail(None))
+                  else loop(leftDone, true, s, left, right)
+              },
+              a => ZIO.succeedNow(Exit.succeed((a, (leftDone, rightDone, s))))
+            )
+          else loop(leftDone, rightDone, s, left, right)
+      )
+
+    ZStream {
+      for {
+        sides <- b.process.mapM(BufferedPull.make(_))
+        result <- self
+                   .combine(that)((false, false, sides.pullElement)) {
+                     case ((leftDone, rightDone, sides), left, right) =>
+                       loop(leftDone, rightDone, sides, left, right)
+                   }
+                   .process
+      } yield result
+    }
+  }
+
+  /**
    * Interrupts the evaluation of this stream when the provided promise resolves. This
    * combinator will also interrupt any in-progress element being pulled from upstream.
    *
