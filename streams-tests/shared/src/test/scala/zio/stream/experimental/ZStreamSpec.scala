@@ -793,6 +793,76 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
         }
       ),
+      suite("partitionEither")(
+        testM("allows repeated runs without hanging") {
+          val stream = ZStream
+            .fromIterable[Int](Seq.empty)
+            .partitionEither(i => ZIO.succeedNow(if (i % 2 == 0) Left(i) else Right(i)))
+            .map { case (evens, odds) => evens.mergeEither(odds) }
+            .use(_.runCollect)
+          assertM(ZIO.collectAll(Range(0, 100).toList.map(_ => stream)).map(_ => 0))(equalTo(0))
+        },
+        testM("values") {
+          ZStream
+            .range(0, 6)
+            .partitionEither { i =>
+              if (i % 2 == 0) ZIO.succeedNow(Left(i))
+              else ZIO.succeedNow(Right(i))
+            }
+            .use {
+              case (s1, s2) =>
+                for {
+                  out1 <- s1.runCollect
+                  out2 <- s2.runCollect
+                } yield assert(out1)(equalTo(List(0, 2, 4))) && assert(out2)(equalTo(List(1, 3, 5)))
+            }
+        },
+        testM("errors") {
+          (ZStream.range(0, 1) ++ ZStream.fail("Boom")).partitionEither { i =>
+            if (i % 2 == 0) ZIO.succeedNow(Left(i))
+            else ZIO.succeedNow(Right(i))
+          }.use {
+            case (s1, s2) =>
+              for {
+                out1 <- s1.runCollect.either
+                out2 <- s2.runCollect.either
+              } yield assert(out1)(isLeft(equalTo("Boom"))) && assert(out2)(isLeft(equalTo("Boom")))
+          }
+        },
+        testM("backpressure") {
+          ZStream
+            .range(0, 6)
+            .partitionEither(
+              i =>
+                if (i % 2 == 0) ZIO.succeedNow(Left(i))
+                else ZIO.succeedNow(Right(i)),
+              1
+            )
+            .use {
+              case (s1, s2) =>
+                for {
+                  ref       <- Ref.make[List[Int]](Nil)
+                  latch1    <- Promise.make[Nothing, Unit]
+                  fib       <- s1.tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 2)).runDrain.fork
+                  _         <- latch1.await
+                  snapshot1 <- ref.get
+                  other     <- s2.runCollect
+                  _         <- fib.await
+                  snapshot2 <- ref.get
+                } yield assert(snapshot1)(equalTo(List(2, 0))) && assert(snapshot2)(equalTo(List(4, 2, 0))) && assert(
+                  other
+                )(
+                  equalTo(
+                    List(
+                      1,
+                      3,
+                      5
+                    )
+                  )
+                )
+            }
+        }
+      ),
       testM("orElse") {
         val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Boom")
         val s2 = ZStream(4, 5, 6)
