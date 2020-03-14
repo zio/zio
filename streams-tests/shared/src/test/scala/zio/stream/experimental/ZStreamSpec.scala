@@ -1,8 +1,10 @@
 package zio.stream.experimental
 
 import zio._
+import zio.duration._
 import zio.stream.ChunkUtils._
 import zio.test.Assertion._
+import zio.test.environment.Live
 import zio.test._
 
 import TestAspect.flaky
@@ -868,6 +870,60 @@ object ZStreamSpec extends ZIOBaseSpec {
         val s2 = ZStream(4, 5, 6)
         s1.orElse(s2).runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
       },
+      suite("Stream.repeat")(
+        testM("repeat")(
+          assertM(
+            ZStream(1)
+              .repeat(Schedule.recurs(4))
+              .runCollect
+          )(equalTo(List(1, 1, 1, 1, 1)))
+        ),
+        testM("short circuits")(
+          Live.live(for {
+            ref <- Ref.make[List[Int]](Nil)
+            _ <- ZStream
+                  .fromEffect(ref.update(1 :: _))
+                  .repeat(Schedule.spaced(10.millis))
+                  .take(2)
+                  .runDrain
+            result <- ref.get
+          } yield assert(result)(equalTo(List(1, 1))))
+        )
+      ),
+      suite("Stream.repeatEither")(
+        testM("emits schedule output")(
+          assertM(
+            ZStream(1)
+              .repeatEither(Schedule.recurs(4))
+              .runCollect
+          )(
+            equalTo(
+              List(
+                Right(1),
+                Right(1),
+                Left(1),
+                Right(1),
+                Left(2),
+                Right(1),
+                Left(3),
+                Right(1),
+                Left(4)
+              )
+            )
+          )
+        ),
+        testM("short circuits") {
+          Live.live(for {
+            ref <- Ref.make[List[Int]](Nil)
+            _ <- ZStream
+                  .fromEffect(ref.update(1 :: _))
+                  .repeatEither(Schedule.spaced(10.millis))
+                  .take(3) // take one schedule output
+                  .runDrain
+            result <- ref.get
+          } yield assert(result)(equalTo(List(1, 1))))
+        }
+      ),
       suite("runHead")(
         testM("nonempty stream")(
           assertM(ZStream(1, 2, 3, 4).runHead)(equalTo(Some(1)))
@@ -1028,7 +1084,17 @@ object ZStreamSpec extends ZIOBaseSpec {
             equalTo(Chunk.fromIterable(chunks).flatten.toList)
           )
         }
-      }
+      },
+      testM("repeatEffectWith")(
+        Live.live(for {
+          ref <- Ref.make[List[Int]](Nil)
+          _ <- ZStream
+                .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
+                .take(2)
+                .runDrain
+          result <- ref.get
+        } yield assert(result)(equalTo(List(1, 1))))
+      )
     )
   )
 }
