@@ -1252,6 +1252,38 @@ abstract class ZStream[-R, +E, +O](
   }
 
   /**
+   * Partition a stream using a predicate. The first stream will contain all element evaluated to true
+   * and the second one will contain all element evaluated to false.
+   * The faster stream may advance by up to buffer elements further than the slower one.
+   */
+  def partition(p: O => Boolean, buffer: Int = 16): ZManaged[R, E, (ZStream[Any, E, O], ZStream[Any, E, O])] =
+    self.partitionEither(a => if (p(a)) ZIO.succeedNow(Left(a)) else ZIO.succeedNow(Right(a)), buffer)
+
+  /**
+   * Split a stream by a predicate. The faster stream may advance by up to buffer elements further than the slower one.
+   */
+  final def partitionEither[R1 <: R, E1 >: E, O2, O3](
+    p: O => ZIO[R1, E1, Either[O2, O3]],
+    buffer: Int = 16
+  ): ZManaged[R1, E1, (ZStream[Any, E1, O2], ZStream[Any, E1, O3])] =
+    self
+      .mapM(p)
+      .distributedWith(2, buffer, {
+        case Left(_)  => ZIO.succeedNow(_ == 0)
+        case Right(_) => ZIO.succeedNow(_ == 1)
+      })
+      .flatMap {
+        case q1 :: q2 :: Nil =>
+          ZManaged.succeedNow {
+            (
+              ZStream.fromQueueWithShutdown(q1).unExit.collect { case Left(x)  => x },
+              ZStream.fromQueueWithShutdown(q2).unExit.collect { case Right(x) => x }
+            )
+          }
+        case otherwise => ZManaged.dieMessage(s"partitionEither: expected two streams but got ${otherwise}")
+      }
+
+  /**
    * Provides the stream with its required environment, which eliminates
    * its dependency on `R`.
    */
