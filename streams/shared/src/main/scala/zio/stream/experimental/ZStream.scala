@@ -276,8 +276,8 @@ abstract class ZStream[-R, +E, +O](
   final def collectWhileM[R1 <: R, E1 >: E, O2](pf: PartialFunction[O, ZIO[R1, E1, O2]]): ZStream[R1, E1, O2] =
     ZStream {
       for {
-        chunks   <- self.process
-        done <- Ref.make(false).toManaged_
+        chunks <- self.process
+        done   <- Ref.make(false).toManaged_
         pull = done.get.flatMap {
           if (_) Pull.end
           else
