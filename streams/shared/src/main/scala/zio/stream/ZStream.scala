@@ -3436,7 +3436,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * Creates a stream by peeling off the "layers" of a value of type `S`
    */
   def unfold[S, A](s: S)(f0: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
-    unfoldM(s)(s => ZIO.succeedNow(f0(s)))
+    StreamEffect.unfold(s)(f0)
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
