@@ -19,7 +19,7 @@ import zio.duration._
 import zio.test.environment.Live
 import zio.test.mock.module.{ Module, T22 }
 import zio.test.{ assertM, testM, Assertion }
-import zio.{ Has, Layer, Tagged, ZIO }
+import zio.{ Has, Tagged, ULayer, ZIO }
 
 trait MockSpecUtils {
 
@@ -27,7 +27,7 @@ trait MockSpecUtils {
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
 
   private[mock] def testSpec[E, A](name: String)(
-    mock: Layer[Nothing, Module],
+    mock: ULayer[Module],
     app: ZIO[Module, E, A],
     check: Assertion[A]
   ) = testM(name) {
@@ -36,7 +36,7 @@ trait MockSpecUtils {
   }
 
   private[mock] def testSpecTimeboxed[E, A](name: String)(duration: Duration)(
-    mock: Layer[Nothing, Module],
+    mock: ULayer[Module],
     app: ZIO[Module, E, A],
     check: Assertion[Option[A]]
   ) = testM(name) {
@@ -51,7 +51,7 @@ trait MockSpecUtils {
   }
 
   private[mock] def testSpecDied[E, A](name: String)(
-    mock: Layer[Nothing, Module],
+    mock: ULayer[Module],
     app: ZIO[Module, E, A],
     check: Assertion[Throwable]
   ) = testM(name) {
@@ -66,7 +66,7 @@ trait MockSpecUtils {
   }
 
   private[mock] def testSpecComposed[R <: Has[_]: Tagged, E, A](name: String)(
-    mock: Layer[Nothing, R],
+    mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[A]
   ) = testM(name) {

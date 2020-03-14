@@ -18,14 +18,18 @@ package zio.test.mock
 
 import scala.reflect.macros.whitebox.Context
 
+import com.github.ghik.silencer.silent
+
 /**
  * Generates method tags for a service into annotated object.
  */
 private[mock] object MockableMacro {
 
+  @silent
   def impl(c: Context)(annottees: c.Tree*): c.Expr[c.Tree] = {
     import c.universe._
 
+    def log(msg: String)   = c.info(c.enclosingPosition, msg, true)
     def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
     val mockName: TermName = annottees.head match {
@@ -33,137 +37,216 @@ private[mock] object MockableMacro {
       case _            => abort("@mockable macro should only be applied to objects.")
     }
 
-    val serviceType: Type = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
-    val envType: Type     = c.typecheck(q"(??? : _root_.zio.Has[$serviceType])").tpe
+    val service: Type    = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
+    val env: Type        = c.typecheck(tq"_root_.zio.Has[$service]", c.TYPEmode).tpe
+    val any: Type        = tq"_root_.scala.Any".tpe
+    val throwable: Type  = tq"_root_.java.lang.Throwable".tpe
+    val unit: Type       = tq"_root_.scala.Unit".tpe
+    val composeAsc: Tree = tq"_root_.zio.URLayer[_root_.zio.Has[_root_.zio.test.mock.Proxy], $env]"
 
-    object zio {
-
-      def unapply(tpe: Type): Option[(Type, Type, Type)] = {
-        val dealiased = tpe.dealias
-        dealiased.typeArgs match {
-          case r :: e :: a :: Nil if dealiased.typeSymbol.fullName == "zio.ZIO" => Some((r, e, a))
-          case _                                                                => None
-        }
+    def bound(tpe: Type): Tree =
+      tq"$tpe" match {
+        case TypeTree() => EmptyTree
+        case nonEmpty   => nonEmpty
       }
-    }
 
     def capitalize(name: TermName): TermName = TermName(name.toString.capitalize)
 
-    def makeTag(name: TermName, symbol: MethodSymbol): Tree = {
-      val tagName = capitalize(name)
-      val inputType =
-        if (symbol.isVal || symbol.isVar) tq"Unit"
-        else {
-          val typeList = symbol.paramLists.flatten.map(_.typeSignature)
-          if (typeList.size > 22) abort(s"Unable to generate tag for method $name with more than 22 arguments.")
-          tq"(..$typeList)"
-        }
-      val outputType = symbol.returnType match {
-        case zio(_, _, a) => a
-        case a            => a
+    def isTagged(s: Symbol): Boolean =
+      s.typeSignature <:< typeOf[zio.Tagged[_]]
+
+    def toTypeDef(symbol: Symbol): TypeDef = {
+      val tpe = symbol.asType
+
+      val (lo, hi) = symbol.typeSignature match {
+        case TypeBounds(lo, hi) => bound(lo) -> bound(hi)
+        case _                  => EmptyTree -> EmptyTree
       }
 
-      q"case object $tagName extends Tag[$inputType, $outputType]"
+      val tpeParams: List[TypeDef] = tpe.typeParams.map(s => toTypeDef(s))
+      TypeDef(Modifiers(Flag.PARAM), tpe.name, tpeParams, TypeBoundsTree(lo, hi))
     }
 
-    def makeMock(name: TermName, symbol: MethodSymbol, overloadIndex: Option[TermName]): Tree = {
-      val tagName = capitalize(name)
-      val (r: Type, e: Type, a: Type) = symbol.returnType match {
-        case zio(r, e, a) => (r, e, a)
-        case a            => (tq"Any", tq"Throwable", a)
-      }
+    case class MethodInfo(
+      symbol: MethodSymbol,
+      isZio: Boolean,
+      params: List[Symbol],
+      typeParams: List[TypeSymbol],
+      i: Type,
+      r: Type,
+      e: Type,
+      a: Type,
+      polyI: Boolean,
+      polyE: Boolean,
+      polyA: Boolean
+    )
 
-      val tag = overloadIndex match {
-        case Some(index) => q"$mockName.$tagName.$index"
-        case None        => q"$mockName.$tagName"
+    object MethodInfo {
+
+      def apply(symbol: MethodSymbol): MethodInfo = {
+        val name = symbol.name
+        val params =
+          symbol.paramLists.flatten
+            .filterNot(isTagged)
+
+        if (symbol.isVar) abort(s"Error generating tag for $name. Variables are not supported by @mockable macro.")
+        if (params.size > 22) abort(s"Unable to generate tag for method $name with more than 22 arguments.")
+
+        val i =
+          if (symbol.isVal) unit
+          else c.typecheck(tq"(..${params.map(_.typeSignature)})", c.TYPEmode).tpe
+
+        val dealiased = symbol.returnType.dealias
+        val (isZio, r, e, a) =
+          dealiased.typeArgs match {
+            case r :: e :: a :: Nil if dealiased.typeSymbol.fullName == "zio.ZIO" => (true, r, e, a)
+            case _                                                                => (false, any, throwable, symbol.returnType)
+          }
+
+        val typeParams = symbol.typeParams.map(_.asType)
+        val polyI      = typeParams.exists(ts => i.contains(ts))
+        val polyE      = typeParams.exists(ts => e.contains(ts))
+        val polyA      = typeParams.exists(ts => a.contains(ts))
+
+        MethodInfo(symbol, isZio, params, typeParams, i, r, e, a, polyI, polyE, polyA)
+      }
+    }
+
+    def makeTag(name: TermName, info: MethodInfo): Tree = {
+      val tagName   = capitalize(name)
+      val (i, e, a) = (info.i, info.e, info.a)
+
+      (info.polyI, info.polyE, info.polyA) match {
+        case (false, false, false) =>
+          q"case object $tagName extends _root_.zio.test.mock.Method[$env, $i, $e, $a](compose)"
+        case (true, false, false) =>
+          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.Input[$env, $e, $a](compose)"
+        case (false, true, false) =>
+          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.Error[$env, $i, $a](compose)"
+        case (false, false, true) =>
+          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.Output[$env, $i, $e](compose)"
+        case (true, true, false) =>
+          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.InputError[$env, $a](compose)"
+        case (true, false, true) =>
+          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.InputOutput[$env, $e](compose)"
+        case (false, true, true) =>
+          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.ErrorOutput[$env, $i](compose)"
+        case (true, true, true) =>
+          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.InputErrorOutput[$env](compose)"
+      }
+    }
+
+    def makeMock(name: TermName, info: MethodInfo, overloadIndex: Option[TermName]): Tree = {
+      val tagName      = capitalize(name)
+      val (r, i, e, a) = (info.r, info.i, info.e, info.a)
+
+      val typeParamArgs = info.symbol.typeParams.map(s => toTypeDef(s))
+      val tag = (info.polyI, info.polyE, info.polyA, overloadIndex) match {
+        case (false, false, false, None)        => q"$mockName.$tagName"
+        case (true, false, false, None)         => q"$mockName.$tagName.of[$i]"
+        case (false, true, false, None)         => q"$mockName.$tagName.of[$e]"
+        case (false, false, true, None)         => q"$mockName.$tagName.of[$a]"
+        case (true, true, false, None)          => q"$mockName.$tagName.of[$i, $e]"
+        case (true, false, true, None)          => q"$mockName.$tagName.of[$i, $a]"
+        case (false, true, true, None)          => q"$mockName.$tagName.of[$e, $a]"
+        case (true, true, true, None)           => q"$mockName.$tagName.of[$i, $e, $a]"
+        case (false, false, false, Some(index)) => q"$mockName.$tagName.$index"
+        case (true, false, false, Some(index))  => q"$mockName.$tagName.$index.of[$i]"
+        case (false, true, false, Some(index))  => q"$mockName.$tagName.$index.of[$e]"
+        case (false, false, true, Some(index))  => q"$mockName.$tagName.$index.of[$a]"
+        case (true, true, false, Some(index))   => q"$mockName.$tagName.$index.of[$i, $e]"
+        case (true, false, true, Some(index))   => q"$mockName.$tagName.$index.of[$i, $a]"
+        case (false, true, true, Some(index))   => q"$mockName.$tagName.$index.of[$e, $a]"
+        case (true, true, true, Some(index))    => q"$mockName.$tagName.$index.of[$i, $e, $a]"
       }
 
       val mods =
-        if (symbol.isAbstract) Modifiers(Flag.FINAL)
+        if (info.symbol.isAbstract) Modifiers(Flag.FINAL)
         else Modifiers(Flag.FINAL | Flag.OVERRIDE)
 
       val returnType = tq"_root_.zio.ZIO[$r, $e, $a]"
       val returnValue =
-        symbol.paramLists match {
-          case argLists if argLists.flatten.nonEmpty =>
-            val argNames = argLists.flatten.map(_.name)
-            q"invoke($tag, ..$argNames)"
-          case _ =>
-            q"invoke($tag)"
+        info.params.map(_.name) match {
+          case Nil        => q"invoke($tag)"
+          case paramNames => q"invoke($tag, ..$paramNames)"
         }
 
-      if (symbol.isVal || symbol.isVar) q"$mods val $name: $returnType = $returnValue"
-      else
-        symbol.paramLists match {
-          case Nil       => q"$mods def $name: $returnType = $returnValue"
-          case List(Nil) => q"$mods def $name(): $returnType = $returnValue"
-          case argLists =>
-            val paramLists = argLists.map(_.map { param =>
-              val paramType = param.typeSignature
-              q"$param: $paramType"
-            })
-            q"$mods def $name(...$paramLists): $returnType = $returnValue"
+      if (info.symbol.isVal) q"$mods val $name: $returnType = $returnValue"
+      else {
+        info.symbol.paramLists.map(_.map { ts =>
+          val name = ts.asTerm.name
+          val mods =
+            if (ts.isImplicit) Modifiers(Flag.PARAM | Flag.IMPLICIT)
+            else Modifiers(Flag.PARAM)
+
+          ValDef(mods, name, tq"${ts.info}", EmptyTree)
+        }) match {
+          case Nil       => q"$mods def $name[..$typeParamArgs]: $returnType = $returnValue"
+          case List(Nil) => q"$mods def $name[..$typeParamArgs](): $returnType = $returnValue"
+          case params =>
+            q"$mods def $name[..$typeParamArgs](...$params): $returnType = $returnValue"
         }
+      }
     }
 
-    val symbols = serviceType.members
-      .filter(_.owner == serviceType.typeSymbol)
-      .map(_.asMethod)
+    val methods = service.members
+      .filter(_.owner == service.typeSymbol)
+      .map(symbol => MethodInfo(symbol.asMethod))
       .toList
+      .groupBy(_.symbol.name)
 
     val tags =
-      symbols
-        .groupBy(_.name)
-        .collect {
-          case (name, symbol :: Nil) =>
-            makeTag(name.toTermName, symbol)
-          case (name, symbols) =>
-            val tagName = capitalize(name.toTermName)
-            val overloadedTags = symbols.zipWithIndex.map {
-              case (symbol, idx) =>
-                val idxName = TermName(s"_$idx")
-                makeTag(idxName, symbol)
-            }
+      methods.collect {
+        case (name, info :: Nil) =>
+          makeTag(name.toTermName, info)
+        case (name, infos) =>
+          val tagName = capitalize(name.toTermName)
+          val overloadedTags = infos.zipWithIndex.map {
+            case (info, idx) =>
+              val idxName = TermName(s"_$idx")
+              makeTag(idxName, info)
+          }
 
-            q"object $tagName { ..$overloadedTags }"
-        }
+          q"object $tagName { ..$overloadedTags }"
+      }
 
     val mocks =
-      symbols
-        .groupBy(_.name)
-        .collect {
-          case (name, symbol :: Nil) =>
-            List(makeMock(name.toTermName, symbol, None))
-          case (name, symbols) =>
-            symbols.zipWithIndex.map {
-              case (symbol, idx) =>
-                val idxName = TermName(s"_$idx")
-                makeMock(name.toTermName, symbol, Some(idxName))
-            }
-        }
-        .toList
-        .flatten
+      methods.collect {
+        case (name, info :: Nil) =>
+          List(makeMock(name.toTermName, info, None))
+        case (name, infos) =>
+          infos.zipWithIndex.map {
+            case (info, idx) =>
+              val idxName = TermName(s"_$idx")
+              makeMock(name.toTermName, info, Some(idxName))
+          }
+      }.toList.flatten
 
-    val envBuilderType = tq"_root_.zio.URLayer[_root_.zio.Has[_root_.zio.test.mock.Proxy], $envType]"
-
-    val result =
+    val structure =
       q"""
         object $mockName {
-          sealed trait Tag[I, A] extends _root_.zio.test.mock.Method[$envType, I, A] {
-            def envBuilder: $envBuilderType = $mockName.envBuilder
-          }
 
           ..$tags
 
-          private lazy val envBuilder: $envBuilderType =
+          private lazy val compose: $composeAsc =
             _root_.zio.ZLayer.fromService(invoke =>
-              new $serviceType {
+              new $service {
                 ..$mocks
               }
             )
         }
       """
 
-    c.Expr[c.Tree](result)
+    c.Expr[c.Tree](
+      c.parse(
+        s"$structure"
+          .replaceAll("\\n\\s+def \\<init\\>\\(\\) = \\{\\n\\s+super\\.\\<init\\>\\(\\);\\n\\s+\\(\\)\\n\\s+\\};?", "")
+          .replaceAll("\\{[\\n\\s]*\\};?", "")
+          .replaceAll("final class \\$anon extends", "new")
+          .replaceAll("\\};\\n\\s+new \\$anon\\(\\)", "\\}")
+          .replaceAll("(object .+) extends scala.AnyRef", "$1")
+          .replaceAll("(object .+) with scala.Product with scala.Serializable", "$1")
+      )
+    )
   }
 }

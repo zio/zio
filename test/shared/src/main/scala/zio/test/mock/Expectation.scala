@@ -20,7 +20,7 @@ import scala.language.implicitConversions
 
 import zio.test.Assertion
 import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
-import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
+import zio.test.mock.Result.{ Fail, Succeed }
 import zio.test.mock.internal.{ MockException, ProxyFactory, State }
 import zio.{ Has, IO, Managed, Tagged, ULayer, URLayer, ZLayer }
 
@@ -79,18 +79,24 @@ sealed trait Expectation[R <: Has[_]] { self =>
     }
 
   /**
-   * Repeated this expectation producing a new expectation to
-   * satisfy the itself sequentially at least given number of times.
+   * Lower-bounded variant of `repeated`, produces a new expectation to satisfy
+   * itself sequentially at least given number of times.
    */
   def atLeast(min: Int): Expectation[R] =
     Repeated(self, min to -1)
 
   /**
-   * Repeated this expectation producing a new expectation to
-   * satisfy the itself sequentially at most given number of times.
+   * Upper-bounded variant of `repeated`, produces a new expectation to satisfy
+   * itself sequentially at most given number of times.
    */
   def atMost(max: Int): Expectation[R] =
-    Repeated(self, 1 to max)
+    Repeated(self, 0 to max)
+
+  /**
+   * Alias for `atMost(1)`, produces a new expectation to satisfy itself at most once.
+   */
+  def optional(): Expectation[R] =
+    Repeated(self, 0 to 1)
 
   /**
    * Compose two expectations, producing a new expectation to satisfy one of them.
@@ -109,7 +115,7 @@ sealed trait Expectation[R <: Has[_]] { self =>
 
   /**
    * Repeates this expectation withing given bounds, producing a new expectation to
-   * satisfy the itself sequentially given number of times.
+   * satisfy itself sequentially given number of times.
    *
    * {{
    * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit).repeats(1, 5)
@@ -137,7 +143,7 @@ sealed trait Expectation[R <: Has[_]] { self =>
   /**
    * Provided a `Proxy` constructs a layer with environment `R`.
    */
-  private[test] def envBuilder: URLayer[Has[Proxy], R]
+  private[test] def compose: URLayer[Has[Proxy], R]
 
   /**
    * Mock execution flag.
@@ -163,7 +169,7 @@ object Expectation {
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def envBuilder: URLayer[Has[Proxy], R] = children.map(_.envBuilder).reduce(_ ++ _)
+    def compose: URLayer[Has[Proxy], R] = children.map(_.compose).reduce(_ ++ _)
   }
 
   private[test] object And {
@@ -181,21 +187,21 @@ object Expectation {
    * Models a call in environment `R` that takes input arguments `I` and returns an effect
    * that may fail with an error `E` or produce a single `A`.
    */
-  private[test] case class Call[R <: Has[_], I, +E, A](
-    method: Method[R, I, A],
+  private[test] case class Call[R <: Has[_], I, E, A](
+    method: Method[R, I, E, A],
     assertion: Assertion[I],
     returns: I => IO[E, A],
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def envBuilder: URLayer[Has[Proxy], R] = method.envBuilder
+    def compose: URLayer[Has[Proxy], R] = method.compose
   }
 
   private[test] object Call {
 
     def apply[R <: Has[_], I, E, A](
-      method: Method[R, I, A],
+      method: Method[R, I, E, A],
       assertion: Assertion[I],
       returns: I => IO[E, A]
     ): Call[R, I, E, A] =
@@ -211,7 +217,7 @@ object Expectation {
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def envBuilder: URLayer[Has[Proxy], R] = children.map(_.envBuilder).reduce(_ ++ _)
+    def compose: URLayer[Has[Proxy], R] = children.map(_.compose).reduce(_ ++ _)
   }
 
   private[test] object Chain {
@@ -235,7 +241,7 @@ object Expectation {
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def envBuilder: URLayer[Has[Proxy], R] = children.map(_.envBuilder).reduce(_ ++ _)
+    def compose: URLayer[Has[Proxy], R] = children.map(_.compose).reduce(_ ++ _)
   }
 
   private[test] object Or {
@@ -261,53 +267,53 @@ object Expectation {
     started: Int,
     completed: Int
   ) extends Expectation[R] {
-    def envBuilder: URLayer[Has[Proxy], R] = child.envBuilder
+    def compose: URLayer[Has[Proxy], R] = child.compose
   }
 
   private[test] object Repeated {
 
     def apply[R <: Has[_]](child: Expectation[R], range: Range): Repeated[R] =
       if (range.step <= 0) throw MockException.InvalidRangeException(range)
-      else Repeated(child, range, false, false, List.empty, 0, 0)
+      else Repeated(child, range, range.start == 0, false, List.empty, 0, 0)
   }
 
   /**
-   * Returns a return expectation to fail with `E`.
+   * Expectation result failing with `E`.
    */
   def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
 
   /**
-   * Maps the input arguments `I` to a return expectation to fail with `E`.
+   * Maps the input arguments `I` to expectation result failing with `E`.
    */
   def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
 
   /**
-   * Effectfully maps the input arguments `I` to a return expectation to fail with `E`.
+   * Effectfully maps the input arguments `I` to expectation result failing with `E`.
    */
   def failureM[I, E](f: I => IO[E, Nothing]): Fail[I, E] = Fail(f)
 
   /**
-   * Returns a return expectation to compute forever.
+   * Expectation result computing forever.
    */
   def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
 
   /**
-   * Returns a return expectation to succeed with `Unit`.
+   * Expectation result succeeding with `Unit`.
    */
   def unit: Succeed[Any, Unit] = value(())
 
   /**
-   * Returns a return expectation to succeed with `A`.
+   * Expectation result succeeding with `A`.
    */
   def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
 
   /**
-   * Maps the input arguments `I` to a return expectation to succeed with `A`.
+   * Maps the input arguments `I` to expectation result succeeding with `A`.
    */
   def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
 
   /**
-   * Effectfully maps the input arguments `I` to a return expectation to succeed with `A`.
+   * Effectfully maps the input arguments `I` expectation result succeeding with `A`.
    */
   def valueM[I, A](f: I => IO[Nothing, A]): Succeed[I, A] = Succeed(f)
 
@@ -318,7 +324,7 @@ object Expectation {
     ZLayer.fromManagedMany(
       for {
         state <- Managed.make(State.make(trunk))(State.checkUnmetExpectations)
-        env   <- (ProxyFactory.mockProxy(state) >>> trunk.envBuilder).build
+        env   <- (ProxyFactory.mockProxy(state) >>> trunk.compose).build
       } yield env
     )
 }

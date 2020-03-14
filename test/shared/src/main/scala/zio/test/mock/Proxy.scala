@@ -25,28 +25,30 @@ import zio.{ Has, ZIO }
 trait Proxy {
 
   def invoke[RIn <: Has[_], ROut, Input, Error, Value](
-    method: Method[RIn, Input, Value],
+    method: Method[RIn, Input, Error, Value],
     input: Input
   ): ZIO[ROut, Error, Value]
 
-  final def apply[RIn <: Has[_], ROut, Error, Value](method: Method[RIn, Unit, Value]): ZIO[ROut, Error, Value] =
+  final def apply[RIn <: Has[_], ROut, Error, Value](
+    method: Method[RIn, Unit, Error, Value]
+  ): ZIO[ROut, Error, Value] =
     invoke(method, ())
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A](
-    method: Method[RIn, A, Value],
+    method: Method[RIn, A, Error, Value],
     a: A
   ): ZIO[ROut, Error, Value] =
     invoke(method, a)
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B](
-    method: Method[RIn, (A, B), Value],
+    method: Method[RIn, (A, B), Error, Value],
     a: A,
     b: B
   ): ZIO[ROut, Error, Value] =
     invoke(method, (a, b))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C](
-    method: Method[RIn, (A, B, C), Value],
+    method: Method[RIn, (A, B, C), Error, Value],
     a: A,
     b: B,
     c: C
@@ -54,7 +56,7 @@ trait Proxy {
     invoke(method, (a, b, c))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D](
-    method: Method[RIn, (A, B, C, D), Value],
+    method: Method[RIn, (A, B, C, D), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -63,7 +65,7 @@ trait Proxy {
     invoke(method, (a, b, c, d))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E](
-    method: Method[RIn, (A, B, C, D, E), Value],
+    method: Method[RIn, (A, B, C, D, E), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -73,7 +75,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F](
-    method: Method[RIn, (A, B, C, D, E, F), Value],
+    method: Method[RIn, (A, B, C, D, E, F), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -84,7 +86,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G](
-    method: Method[RIn, (A, B, C, D, E, F, G), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -96,7 +98,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H](
-    method: Method[RIn, (A, B, C, D, E, F, G, H), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -109,7 +111,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -123,7 +125,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -138,7 +140,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -154,7 +156,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -171,7 +173,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -189,7 +191,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -208,7 +210,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -228,7 +230,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -249,7 +251,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -271,7 +273,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -294,7 +296,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -318,7 +320,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -343,7 +345,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -369,7 +371,7 @@ trait Proxy {
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V), Value],
+    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V), Error, Value],
     a: A,
     b: B,
     c: C,
