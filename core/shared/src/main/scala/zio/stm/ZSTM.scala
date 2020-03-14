@@ -1153,11 +1153,6 @@ object ZSTM {
   val none: USTM[Option[Nothing]] = succeedNow(None)
 
   /**
-   * Creates an `STM` value from a partial (but pure) function.
-   */
-  def partial[A](a: => A): TaskSTM[A] = fromTry(Try(a))
-
-  /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
    * Collects all successes and failures in a tupled fashion.
    */

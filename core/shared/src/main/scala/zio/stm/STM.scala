@@ -211,12 +211,6 @@ object STM {
   val none: USTM[Option[Nothing]] = ZSTM.none
 
   /**
-   * @see See [[zio.stm.ZSTM.partial]]
-   */
-  def partial[A](a: => A): TaskSTM[A] =
-    ZSTM.partial(a)
-
-  /**
    * @see See [[zio.stm.ZSTM.partition]]
    */
   def partition[E, A, B](

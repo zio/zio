@@ -1,6 +1,8 @@
 package zio
 package stm
 
+import scala.util.Try
+
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
@@ -1019,7 +1021,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           result <- STM.atomically(for {
                      _       <- ref.set(2)
                      newVal1 <- ref.get
-                     _       <- STM.partial(throw new RuntimeException).orElse(STM.unit)
+                     _       <- STM.fromTry(Try(throw new RuntimeException)).orElse(STM.unit)
                      newVal2 <- ref.get
                    } yield (newVal1, newVal2))
         } yield assert(result)(equalTo(2 -> 2))
