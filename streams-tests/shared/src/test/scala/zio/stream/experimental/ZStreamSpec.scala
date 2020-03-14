@@ -665,6 +665,48 @@ object ZStreamSpec extends ZIOBaseSpec {
           )(isLeft(equalTo("Boom")))
         }
       ),
+      testM("interleave") {
+        val s1 = ZStream(2, 3)
+        val s2 = ZStream(5, 6, 7)
+
+        assertM(s1.interleave(s2).runCollect)(equalTo(List(2, 5, 3, 6, 7)))
+      },
+      testM("interleaveWith") {
+        def interleave(b: List[Boolean], s1: => List[Int], s2: => List[Int]): List[Int] =
+          b.headOption.map { hd =>
+            if (hd) s1 match {
+              case h :: t =>
+                h :: interleave(b.tail, t, s2)
+              case _ =>
+                if (s2.isEmpty) List.empty
+                else interleave(b.tail, List.empty, s2)
+            }
+            else
+              s2 match {
+                case h :: t =>
+                  h :: interleave(b.tail, s1, t)
+                case _ =>
+                  if (s1.isEmpty) List.empty
+                  else interleave(b.tail, s1, List.empty)
+              }
+          }.getOrElse(List.empty)
+
+        val int = Gen.int(0, 5)
+
+        checkM(
+          int.flatMap(pureStreamGen(Gen.boolean, _)),
+          int.flatMap(pureStreamGen(Gen.anyInt, _)),
+          int.flatMap(pureStreamGen(Gen.anyInt, _))
+        ) { (b, s1, s2) =>
+          for {
+            interleavedStream <- s1.interleaveWith(s2)(b).runCollect
+            b                 <- b.runCollect
+            s1                <- s1.runCollect
+            s2                <- s2.runCollect
+            interleavedLists  = interleave(b, s1, s2)
+          } yield assert(interleavedStream)(equalTo(interleavedLists))
+        }
+      },
       testM("mapConcat")(checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
         for {
           res1 <- s.mapConcat(f).runCollect
