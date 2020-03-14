@@ -3,6 +3,8 @@ package zio.stream.experimental
 import java.{ util => ju }
 
 import zio._
+import zio.clock.Clock
+import zio.duration.Duration
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 
@@ -704,6 +706,15 @@ abstract class ZStream[-R, +E, +O](
    * which the predicate evaluates to true.
    */
   final def filterNot(pred: O => Boolean): ZStream[R, E, O] = filter(a => !pred(a))
+
+  /**
+   * Emits elements of this stream with a fixed delay in between, regardless of how long it
+   * takes to produce a value.
+   */
+  final def fixed[R1 <: R](duration: Duration): ZStream[R1 with Clock, E, O] =
+    scheduleElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
+      case Right(x) => x
+    }
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
