@@ -1,6 +1,6 @@
 package zio.stream.experimental
 
-import java.io.{ InputStream, IOException }
+import java.io.{ IOException, InputStream }
 
 import zio._
 
@@ -43,6 +43,5 @@ trait ZStreamPlatformSpecificConstructors {
         }
       } yield pull
     }
-
 
 }

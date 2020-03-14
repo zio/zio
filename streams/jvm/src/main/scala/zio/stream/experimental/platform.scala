@@ -1,12 +1,13 @@
 package zio.stream.experimental
 
-import java.io.{ InputStream, IOException }
-import java.{ util => ju}
+import java.io.{ IOException, InputStream }
+import java.{ util => ju }
 
 import zio._
 import zio.blocking.Blocking
 
 trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
+
   /**
    * Creates a stream from a [[java.io.InputStream]]
    */
@@ -25,7 +26,8 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
             else
               for {
                 bufArray <- buf.get
-                bytesRead <- blocking.effectBlocking(capturedIs.read(bufArray))
+                bytesRead <- blocking
+                              .effectBlocking(capturedIs.read(bufArray))
                               .refineToOrDie[IOException]
                               .mapError(Some(_))
                 bytes <- if (bytesRead < 0)
