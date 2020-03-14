@@ -870,7 +870,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         val s2 = ZStream(4, 5, 6)
         s1.orElse(s2).runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
       },
-      suite("Stream.repeat")(
+      suite("repeat")(
         testM("repeat")(
           assertM(
             ZStream(1)
@@ -890,7 +890,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(result)(equalTo(List(1, 1))))
         )
       ),
-      suite("Stream.repeatEither")(
+      suite("repeatEither")(
         testM("emits schedule output")(
           assertM(
             ZStream(1)
@@ -938,6 +938,61 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         testM("empty stream")(
           assertM(ZStream.empty.runLast)(equalTo(None))
+        )
+      ),
+      // suite("schedule")(
+      //   testM("scheduleWith")(
+      //     assertM(
+      //       Stream("A", "B", "C", "A", "B", "C")
+      //         .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(_.toLowerCase, identity)
+      //         .run(Sink.collectAll[String])
+      //     )(equalTo(List("a", "b", "c", "Done", "a", "b", "c", "Done")))
+      //   ),
+      //   testM("scheduleEither")(
+      //     assertM(
+      //       Stream("A", "B", "C")
+      //         .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
+      //         .run(Sink.collectAll[Either[String, String]])
+      //     )(equalTo(List(Right("A"), Right("B"), Right("C"), Left("!"))))
+      //   ),
+      // ),
+      suite("scheduleElements")(
+        testM("scheduleElementsWith")(
+          assertM(
+            ZStream("A", "B", "C")
+              .scheduleElementsWith(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))(identity, _.toString)
+              .runCollect
+          )(equalTo(List("A", "123", "B", "123", "C", "123")))
+        ),
+        testM("scheduleElementsEither")(
+          assertM(
+            ZStream("A", "B", "C")
+              .scheduleElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
+              .runCollect
+          )(equalTo(List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123))))
+        ),
+        testM("repeated && assertspaced")(
+          assertM(
+            ZStream("A", "B", "C")
+              .scheduleElements(Schedule.once)
+              .runCollect
+          )(equalTo(List("A", "A", "B", "B", "C", "C")))
+        ),
+        testM("short circuits in schedule")(
+          assertM(
+            ZStream("A", "B", "C")
+              .scheduleElements(Schedule.once)
+              .take(4)
+              .runCollect
+          )(equalTo(List("A", "A", "B", "B")))
+        ),
+        testM("short circuits after schedule")(
+          assertM(
+            ZStream("A", "B", "C")
+              .scheduleElements(Schedule.once)
+              .take(3)
+              .runCollect
+          )(equalTo(List("A", "A", "B")))
         )
       ),
       suite("toQueue")(
