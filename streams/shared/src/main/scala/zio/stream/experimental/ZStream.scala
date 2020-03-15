@@ -2043,7 +2043,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         eitherStream <- ZManaged.effectTotal {
                          register(k =>
                            try {
-                             runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+                             runtime.unsafeRun(k.run.flatMap(output.offer))
                              ()
                            } catch {
                              case FiberFailure(Cause.Interrupt(_)) =>
@@ -2057,7 +2057,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                    } yield done.get.flatMap {
                      if (_) Pull.end
                      else
-                       output.take.flatMap(_.toPull).onError(_ => done.set(true) *> output.shutdown)
+                       output.take.flatMap(Pull.fromTake).onError(_ => done.set(true) *> output.shutdown)
                    }).ensuring(canceler)
                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
                }
@@ -2079,7 +2079,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register { k =>
               try {
-                runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+                runtime.unsafeRun(k.run.flatMap(output.offer))
                 ()
               } catch {
                 case FiberFailure(Cause.Interrupt(_)) =>
@@ -2090,7 +2090,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           if (_)
             Pull.end
           else
-            output.take.flatMap(_.toPull).onError(_ => done.set(true) *> output.shutdown)
+            output.take.flatMap(Pull.fromTake).onError(_ => done.set(true) *> output.shutdown)
         }
       } yield pull
     }
@@ -2112,7 +2112,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         maybeStream <- ZManaged.effectTotal {
                         register { k =>
                           try {
-                            runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+                            runtime.unsafeRun(k.run.flatMap(output.offer))
                             ()
                           } catch {
                             case FiberFailure(Cause.Interrupt(_)) =>
@@ -2128,7 +2128,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                      if (_)
                        Pull.end
                      else
-                       output.take.flatMap(_.toPull).onError(_ => done.set(true) *> output.shutdown)
+                       output.take.flatMap(Pull.fromTake).onError(_ => done.set(true) *> output.shutdown)
                    }
                }
       } yield pull
@@ -2589,12 +2589,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   private[zio] object Pull {
-    def emit[A](a: A): IO[Nothing, Chunk[A]]         = UIO(Chunk.single(a))
-    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]] = UIO(as)
-    def fail[E](e: E): IO[Option[E], Nothing]        = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): IO[Option[E], Nothing] = IO.halt(c).mapError(Some(_))
-    val end: IO[Option[Nothing], Nothing]            = IO.fail(None)
+    def emit[A](a: A): IO[Nothing, Chunk[A]]                   = UIO(Chunk.single(a))
+    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]           = UIO(as)
+    def fromTake[E, A](t: Take[E, A]): IO[Option[E], Chunk[A]] = IO.done(t)
+    def fail[E](e: E): IO[Option[E], Nothing]                  = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): IO[Option[E], Nothing]           = IO.halt(c).mapError(Some(_))
+    val end: IO[Option[Nothing], Nothing]                      = IO.fail(None)
   }
+
+  type Take[+E, +A] = Exit[Option[E], Chunk[A]]
 
   case class BufferedPull[R, E, A](
     upstream: ZIO[R, Option[E], Chunk[A]],
