@@ -71,7 +71,8 @@
       "howto/howto_mock_services",
       "howto/howto_handle_errors",
       "howto/howto_access_system_information",
-      "howto/howto_macros"
+      "howto/howto_macros",
+      "howto/howto_fiber_dump"
     ]
   },
   "resources-sidebar": {
