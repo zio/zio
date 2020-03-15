@@ -840,6 +840,34 @@ package object environment extends PlatformSpecific {
         with TestRandom.Service {
 
       /**
+       * Takes a long from the buffer if one exists or else generates a
+       * pseudo-random long in the specified range.
+       */
+      def between(minInclusive: Long, maxExclusive: Long): UIO[Long] =
+        getOrElse(bufferedLong)(randomBetween(minInclusive, maxExclusive))
+
+      /**
+       * Takes an integer from the buffer if one exists or else generates a
+       * pseudo-random integer in the specified range.
+       */
+      def between(minInclusive: Int, maxExclusive: Int): UIO[Int] =
+        getOrElse(bufferedInt)(randomBetween(minInclusive, maxExclusive))
+
+      /**
+       * Takes a float from the buffer if one exists or else generates a
+       * pseudo-random float in the specified range.
+       */
+      def between(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+        getOrElse(bufferedFloat)(randomBetween(minInclusive, maxExclusive))
+
+      /**
+       * Takes a double from the buffer if one exists or else generates a
+       * pseudo-random double in the specified range.
+       */
+      def between(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+        getOrElse(bufferedDouble)(randomBetween(minInclusive, maxExclusive))
+
+      /**
        * Clears the buffer of booleans.
        */
       val clearBooleans: UIO[Unit] =
@@ -1125,6 +1153,34 @@ package object environment extends PlatformSpecific {
       @inline
       private def mostSignificantBits(x: Double): Int =
         toInt((x / (1 << 24).toDouble))
+
+      /**
+       * Takes a long from the buffer if one exists or else generates a
+       * pseudo-random long in the specified range.
+       */
+      private def randomBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
+        Random.betweenWith(nextLong, nextLong, minInclusive, maxExclusive)
+
+      /**
+       * Takes an integer from the buffer if one exists or else generates a
+       * pseudo-random integer in the specified range.
+       */
+      private def randomBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
+        Random.betweenWith(nextInt, nextInt, minInclusive, maxExclusive)
+
+      /**
+       * Takes a float from the buffer if one exists or else generates a
+       * pseudo-random float in the specified range.
+       */
+      private def randomBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+        Random.betweenWith(nextFloat, minInclusive, maxExclusive)
+
+      /**
+       * Takes a double from the buffer if one exists or else generates a
+       * pseudo-random double in the specified range.
+       */
+      private def randomBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+        Random.betweenWith(nextDouble, minInclusive, maxExclusive)
 
       private def randomBits(bits: Int): UIO[Int] =
         randomState.modify { data =>
