@@ -92,13 +92,13 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAll(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll_[R,E,A](as:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:Iterable*]]]
    */
   def collectAll_[A](in: Iterable[Task[A]]): Task[Unit] =
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll_[R,E,A](as:zio\.Chunk*]]]
+   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:zio\.Chunk*]]]
    */
   def collectAll_[A](in: Chunk[Task[A]]): Task[Unit] =
     ZIO.collectAll_(in)

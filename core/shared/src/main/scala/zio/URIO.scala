@@ -103,13 +103,13 @@ object URIO {
     ZIO.collectAll(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll_[R,E,A](as:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:Iterable*]]]
    */
   def collectAll_[R, A](in: Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll_[R,E,A](as:zio\.Chunk*]]]
+   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:zio\.Chunk*]]]
    */
   def collectAll_[R, A](in: Chunk[URIO[R, A]]): URIO[R, Unit] =
     ZIO.collectAll_(in)
