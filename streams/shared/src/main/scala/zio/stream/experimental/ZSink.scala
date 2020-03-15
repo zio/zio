@@ -23,16 +23,11 @@ object ZSink {
   def collectAll[A]: ZSink[Any, Nothing, A, List[A]] =
     ZSink {
       for {
-        as   <- ZRef.makeManaged[Chunk[A]](Chunk.empty)
-        done <- ZRef.makeManaged(false)
+        as <- ZRef.makeManaged[Chunk[A]](Chunk.empty)
         push = (xs: Option[Chunk[A]]) =>
-          done.get.flatMap {
-            if (_) as.get.flatMap(as => Push.emit(as.toList))
-            else
-              xs match {
-                case Some(xs) => as.update(_ ++ xs) *> Push.next
-                case None     => done.set(true) *> as.get.flatMap(as => Push.emit(as.toList))
-              }
+          xs match {
+            case Some(xs) => as.update(_ ++ xs) *> Push.next
+            case None     => as.get.flatMap(as => Push.emit(as.toList))
           }
       } yield push
     }
