@@ -2046,7 +2046,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                              runtime.unsafeRun(k.run.flatMap(output.offer))
                              ()
                            } catch {
-                             case FiberFailure(Cause.Interrupt(_)) =>
+                             case FiberFailure(c) if c.interrupted =>
                            }
                          )
                        }
@@ -2082,7 +2082,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                 runtime.unsafeRun(k.run.flatMap(output.offer))
                 ()
               } catch {
-                case FiberFailure(Cause.Interrupt(_)) =>
+                case FiberFailure(c) if c.interrupted =>
               }
             }.toManaged_
         done <- ZRef.makeManaged(false)
@@ -2115,7 +2115,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                             runtime.unsafeRun(k.run.flatMap(output.offer))
                             ()
                           } catch {
-                            case FiberFailure(Cause.Interrupt(_)) =>
+                            case FiberFailure(c) if c.interrupted =>
                           }
                         }
                       }
