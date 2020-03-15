@@ -80,13 +80,13 @@ object Task extends TaskPlatformSpecific {
   def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
-   * @see See [[[zio.ZIO.collectAll[R,E,A,B](in:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[A](in: Iterable[Task[A]]): Task[List[A]] =
     ZIO.collectAll(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll[R,E,A,B](in:zio\.Chunk*]]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.Chunk*]]]
    */
   def collectAll[A](in: Chunk[Task[A]]): Task[Chunk[A]] =
     ZIO.collectAll(in)
@@ -104,13 +104,13 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A,B](as:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Iterable*]]]
    */
   def collectAllPar[A](as: Iterable[Task[A]]): Task[List[A]] =
     ZIO.collectAllPar(as)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A,B](as:zio\.Chunk*]]]
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.Chunk*]]]
    */
   def collectAllPar[A](as: Chunk[Task[A]]): Task[Chunk[A]] =
     ZIO.collectAllPar(as)

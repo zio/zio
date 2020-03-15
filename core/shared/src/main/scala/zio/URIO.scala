@@ -91,13 +91,13 @@ object URIO {
   def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
-   * @see See [[[zio.ZIO.collectAll[R,E,A,B](in:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[R, A](in: Iterable[URIO[R, A]]): URIO[R, List[A]] =
     ZIO.collectAll(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll[R,E,A,B](in:zio\.Chunk*]]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.Chunk*]]]
    */
   def collectAll[R, A](in: Chunk[URIO[R, A]]): URIO[R, Chunk[A]] =
     ZIO.collectAll(in)
@@ -115,13 +115,13 @@ object URIO {
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A,B](as:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Iterable*]]]
    */
   def collectAllPar[R, A](as: Iterable[URIO[R, A]]): URIO[R, List[A]] =
     ZIO.collectAllPar(as)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A,B](as:zio\.Chunk*]]]
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.Chunk*]]]
    */
   def collectAllPar[R, A](as: Chunk[URIO[R, A]]): URIO[R, Chunk[A]] =
     ZIO.collectAllPar(as)
