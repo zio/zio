@@ -24,11 +24,89 @@ object AssertionSpec extends ZIOBaseSpec {
     test("approximatelyEquals must fail when number is not within range") {
       assert(50.0)(approximatelyEquals(5.0, 3.0))
     } @@ failure,
+    test("isPositive must succeed when number is positive") {
+      assert(10)(isPositive)
+    },
+    test("isPositive must fail when number is zero") {
+      assert(0)(isPositive)
+    } @@ failure,
+    test("isPositive must fail when number is negative") {
+      assert(-10)(isPositive)
+    } @@ failure,
+    test("nonNegative must succeed when number is positive") {
+      assert(10)(nonNegative)
+    },
+    test("nonNegative must succeed when number is zero") {
+      assert(0)(nonNegative)
+    },
+    test("nonNegative must fail when number is negative") {
+      assert(-10)(nonNegative)
+    } @@ failure,
+    test("isNegative must succeed when number is negative") {
+      assert(-10)(isNegative)
+    },
+    test("isNegative must fail when number is zero") {
+      assert(0)(isNegative)
+    } @@ failure,
+    test("isNegative must fail when number is positive") {
+      assert(10)(isNegative)
+    } @@ failure,
+    test("nonPositive must succeed when number is negative") {
+      assert(-10)(nonPositive)
+    },
+    test("nonPositive must succeed when number is zero") {
+      assert(0)(nonPositive)
+    },
+    test("nonPositive must fail when number is positive") {
+      assert(10)(nonPositive)
+    } @@ failure,
+    test("isZero must succeed when number is zero") {
+      assert(0)(isZero)
+    },
+    test("isZero must fail when number is not zero") {
+      assert(10)(isZero)
+    } @@ failure,
+    test("equalToOneOf must succeed when value is equal to one of the specified values") {
+      assert('a')(equalToOneOf('a', 'b', 'c'))
+    },
+    test("equalToOneOf must fail when value is not equal to one of the specified values") {
+      assert('z')(equalToOneOf('a', 'b', 'c'))
+    } @@ failure,
+    test("equalToOneOf must succeed when array is equal to one of the specified arrays") {
+      assert(Array("zio"))(equalToOneOf(Array("zio"), Array("scala")))
+    },
     test("contains must succeed when iterable contains specified element") {
       assert(Seq("zio", "scala"))(contains("zio"))
     },
     test("contains must fail when iterable does not contain specified element") {
       assert(Seq("zio", "scala"))(contains("java"))
+    } @@ failure,
+    test("containsNoneOf must succeed when iterable does not contain one of the specified elements") {
+      assert(Seq("zio", "scala"))(containsNoneOf("python", "rust"))
+    },
+    test("containsNoneOf must fail when iterable contains one of the specified elements") {
+      assert(Seq("zio", "scala"))(containsNoneOf("zio", "test", "java"))
+    } @@ failure,
+    test("containsNoneOf must fail when iterable contains more than one of the specified elements") {
+      assert(Seq("zio", "scala"))(containsNoneOf("zio", "test", "scala"))
+    } @@ failure,
+    test("containsOneOf must succeed when iterable contains exactly one of the specified elements") {
+      assert(Seq("zio", "scala"))(containsOneOf("zio", "test", "java"))
+    },
+    test("containsOneOf must fail when iterable contains more than one of the specified elements") {
+      assert(Seq("zio", "scala"))(containsOneOf("zio", "test", "scala"))
+    } @@ failure,
+    test("containsOneOf must fail when iterable does not contain at least one of the specified elements") {
+      assert(Seq("zio", "scala"))(containsOneOf("python", "rust"))
+    } @@ failure,
+    test("containsAtLeastOneOf must succeed when iterable contains more than one of the specified elements") {
+      assert(Seq("zio", "scala"))(containsAtLeastOneOf("zio", "test", "java"))
+    },
+    test("containsAtLeastOneOf must succeed when iterable does not contain specified element") {
+      assert(Seq("zio", "scala"))(containsAtLeastOneOf("zio", "test", "scala"))
+    },
+    test("containsAtLeastOneOf must fail when iterable does not contain at least one of the specified elements") {
+      assert(Seq("zio", "scala"))(containsAtLeastOneOf("python", "rust"))
     } @@ failure,
     test("containsString must succeed when string is found") {
       assert("this is a value")(containsString("is a"))
@@ -160,6 +238,18 @@ object AssertionSpec extends ZIOBaseSpec {
         hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
       )
     } @@ failure,
+    test("hasAllElements must succeed when both iterables contain the same elements") {
+      assert(Seq(1, 2, 3))(hasAllElements(Seq(1, 2, 3)))
+    },
+    test("hasAllElements must succeed when the other iterable is a subset of the iterable") {
+      assert(Seq(1, 2, 3, 4))(hasAllElements(Seq(1, 2, 3)))
+    },
+    test("hasAllElements must succeed when both iterables contain the same elements in different order") {
+      assert(Seq(4, 3, 1, 2))(hasAllElements(Seq(1, 2, 3, 4)))
+    },
+    test("hasAllElements must succeed when the other iterable is empty") {
+      assert(Seq(4, 3, 1, 2))(hasAllElements(Seq.empty[Int]))
+    },
     test("hasSize must succeed when iterable size is equal to specified assertion") {
       assert(Seq(1, 2, 3))(hasSize(equalTo(3)))
     },
@@ -248,6 +338,9 @@ object AssertionSpec extends ZIOBaseSpec {
     },
     test("isSome must succeed when supplied value is Some and satisfy specified assertion") {
       assert(Some("zio"))(isSome(equalTo("zio")))
+    },
+    test("isSome with equalToOneOf must succeed assertion is satisfied") {
+      assert(Some("zio"))(isSome(equalToOneOf("zio", "test")))
     },
     test("isSome must fail when supplied value is None") {
       assert(None)(isSome(equalTo("zio")))
