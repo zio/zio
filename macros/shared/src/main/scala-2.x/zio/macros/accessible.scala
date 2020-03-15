@@ -18,6 +18,6 @@ package zio.macros
 import scala.annotation.{ compileTimeOnly, StaticAnnotation }
 
 @compileTimeOnly("enable macro paradise to expand macro annotations")
-class Accessible[A] extends StaticAnnotation {
+class accessible[A] extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro AccessibleMacro.apply
 }

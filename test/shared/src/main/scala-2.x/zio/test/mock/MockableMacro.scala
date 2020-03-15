@@ -30,7 +30,7 @@ private[mock] object MockableMacro {
 
     val mockName: TermName = annottees.head match {
       case m: ModuleDef => m.name
-      case _            => abort("Moclable macro should only be applied to objects.")
+      case _            => abort("@mockable macro should only be applied to objects.")
     }
 
     val serviceType: Type = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
