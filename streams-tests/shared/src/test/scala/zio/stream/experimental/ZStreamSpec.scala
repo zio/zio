@@ -226,7 +226,9 @@ object ZStreamSpec extends ZIOBaseSpec {
                             snapshot2 <- ref.get
                           } yield (zero, snapshot1, snapshot2)
                         }
-          } yield assert(snapshots._1)(equalTo(Chunk.single(0))) && assert(snapshots._2)(equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
+          } yield assert(snapshots._1)(equalTo(Chunk.single(0))) && assert(snapshots._2)(
+            equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))
+          ) &&
             assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1)))
         }
       ),
@@ -267,7 +269,9 @@ object ZStreamSpec extends ZIOBaseSpec {
                             snapshot2 <- ref.get
                           } yield (zero, snapshot1, snapshot2)
                         }
-          } yield assert(snapshots._1)(equalTo(Chunk.single(0))) && assert(snapshots._2)(equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))) &&
+          } yield assert(snapshots._1)(equalTo(Chunk.single(0))) && assert(snapshots._2)(
+            equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))
+          ) &&
             assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9)))
         }
       ),
