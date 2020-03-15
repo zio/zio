@@ -43,7 +43,7 @@ private[macros] class AccessibleMacro(val c: Context) {
             ModuleInfo(module, service)
         }
       case _ => None
-    }).getOrElse(abort("Accessible macro can only be applied to objects containing `Service` trait."))
+    }).getOrElse(abort("@accessible macro can only be applied to objects containing `Service` trait."))
 
     val anyType: Type       = c.typecheck(q"(??? : _root_.scala.Any)").tpe
     val throwableType: Type = c.typecheck(q"(??? : _root_.java.lang.Throwable)").tpe
@@ -110,7 +110,7 @@ private[macros] class AccessibleMacro(val c: Context) {
              ..$accessors
            }
          """
-      case _ => abort("Accesible macro failure - could not unquote annotated object.")
+      case _ => abort("@accesible macro failure - could not unquote annotated object.")
     }
   }
 }

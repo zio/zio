@@ -11,10 +11,9 @@ object AccessibleSpec extends DefaultRunnableSpec {
       testM("compiles when applied to object with empty Service") {
         assertM(typeCheck {
           """
-            @Accessible
+            @accessible
             object Module {
-              trait Service {
-              }
+              trait Service
             }
           """
         })(isRight(anything))
@@ -22,7 +21,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
       testM("fails when applied to object without a Service") {
         assertM(typeCheck {
           """
-            @Accessible
+            @accessible
             object Module
           """
         })(isLeft(anything))
@@ -30,7 +29,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
       testM("fails when applied to trait") {
         assertM(typeCheck {
           """
-            @Accessible
+            @accessible
             trait Module
           """
         })(isLeft(anything))
@@ -38,7 +37,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
       testM("fails when applied to class") {
         assertM(typeCheck {
           """
-            @Accessible
+            @accessible
             class Module
           """
         })(isLeft(anything))
@@ -46,7 +45,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
       testM("generates accessor for values") {
         assertM(typeCheck {
           """
-            @Accessible
+            @accessible
             object Module {
               trait Service {
                 val foo: ZIO[Any, Nothing, Unit]
@@ -63,7 +62,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
       testM("generates accessor for functions") {
         assertM(typeCheck {
           """
-            @Accessible
+            @accessible
             object Module {
               trait Service {
                 def foo(i: Int): ZIO[Any, Nothing, Unit]
@@ -80,7 +79,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
       testM("generates accessors for all capabilities") {
         assertM(typeCheck {
           """
-            @Accessible
+            @accessible
             object Module {
               trait Service {
                 val static                                 : ZIO[Any, Nothing, String]
