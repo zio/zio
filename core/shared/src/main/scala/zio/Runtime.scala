@@ -38,27 +38,27 @@ trait Runtime[+R] {
   val platform: Platform
 
   /**
-    * Add generic signal handler
-    *
-    * @param signal to listen for
-    * @param handler to run on receiving signal
-    */
-  def addSignalHandler(signal: String)(handler: URIO[R, Unit]): Unit = 
+   * Add generic signal handler
+   *
+   * @param signal to listen for
+   * @param handler to run on receiving signal
+   */
+  def addSignalHandler(signal: String)(handler: URIO[R, Unit]): Unit =
     Platform.addSignalHandler(signal)(() => unsafeRun(handler))
 
   /**
-    * Use SIGUSR2 signal to interrupt runtime
-    *
-    * @param handler to run when SIGUSR2 is received
-    */
-  def addInterruptHandler(handler: URIO[R, Unit]): Unit = 
+   * Use SIGUSR2 signal to interrupt runtime
+   *
+   * @param handler to run when SIGUSR2 is received
+   */
+  def addInterruptHandler(handler: URIO[R, Unit]): Unit =
     addSignalHandler("USR2")(handler)
 
   /**
-    * Print Fiber Dump of all fibers when interrupt signal received
-    *
-    * @param ev is the console environment
-    */
+   * Print Fiber Dump of all fibers when interrupt signal received
+   *
+   * @param ev is the console environment
+   */
   def printFiberDumpOnInterrupt(implicit ev: R <:< Console): Unit =
     addInterruptHandler(Fiber.dumpAllStr.flatMap(console.putStrLn(_)).provideSome(ev))
 
