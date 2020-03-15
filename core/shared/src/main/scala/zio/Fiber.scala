@@ -609,6 +609,13 @@ object Fiber extends FiberPlatformSpecific {
     FiberRenderer.dumpStr(fibers, true)
 
   /**
+   * Collects a complete dump of all fibers and all children of the
+   * fibers and renders it as a string.
+   */
+  lazy val dumpAllStr: UIO[String] =
+    dumpStr(internal.Sync(rootFibers)(rootFibers.asScala.toList): _*)
+
+  /**
    * A fiber that has already failed with the specified value.
    *
    * @param e failure value

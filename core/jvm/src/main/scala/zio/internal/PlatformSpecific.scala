@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
 
 import scala.concurrent.ExecutionContext
+import sun.misc.Signal
 
 import zio.Cause
 import zio.internal.stacktracer.Tracer
@@ -37,6 +38,13 @@ private[internal] trait PlatformSpecific {
         override def run() = action()
       }
     }
+
+  /**
+   * Adds a signal handler that executes the specified action on receiving a signal.
+   */
+  def addSignalHandler(signal: String)(handler: () => Unit): Unit = {
+    val _ = Signal.handle(new Signal(signal), _ => handler())
+  }
 
   /**
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
