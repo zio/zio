@@ -1159,14 +1159,14 @@ package object environment extends PlatformSpecific {
        * pseudo-random long in the specified range.
        */
       private def randomBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
-        Random.betweenWith(nextLong, nextLong, minInclusive, maxExclusive)
+        Random.betweenWith(nextLong, nextLong(_), minInclusive, maxExclusive)
 
       /**
        * Takes an integer from the buffer if one exists or else generates a
        * pseudo-random integer in the specified range.
        */
       private def randomBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
-        Random.betweenWith(nextInt, nextInt, minInclusive, maxExclusive)
+        Random.betweenWith(nextInt, nextInt(_), minInclusive, maxExclusive)
 
       /**
        * Takes a float from the buffer if one exists or else generates a

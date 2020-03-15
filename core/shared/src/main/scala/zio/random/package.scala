@@ -28,9 +28,9 @@ package object random {
         import scala.util.{ Random => SRandom }
 
         def between(minInclusive: Long, maxExclusive: Long): UIO[Long] =
-          betweenWith(nextLong, nextLong, minInclusive, maxExclusive)
+          betweenWith(nextLong, nextLong(_), minInclusive, maxExclusive)
         def between(minInclusive: Int, maxExclusive: Int): UIO[Int] =
-          betweenWith(nextInt, nextInt, minInclusive, maxExclusive)
+          betweenWith(nextInt, nextInt(_), minInclusive, maxExclusive)
         def between(minInclusive: Float, maxExclusive: Float): UIO[Float] =
           betweenWith(nextFloat, minInclusive, maxExclusive)
         def between(minInclusive: Double, maxExclusive: Double): UIO[Double] =
@@ -64,8 +64,8 @@ package object random {
       ZLayer.succeed(Service.live)
 
     protected[zio] def betweenWith(
-      nextLongWith: Long => UIO[Long],
       nextLong: UIO[Long],
+      nextLongWith: Long => UIO[Long],
       minInclusive: Long,
       maxExclusive: Long
     ): UIO[Long] =
@@ -78,8 +78,8 @@ package object random {
       }
 
     protected[zio] def betweenWith(
-      nextIntWith: Int => UIO[Int],
       nextInt: UIO[Int],
+      nextIntWith: Int => UIO[Int],
       minInclusive: Int,
       maxExclusive: Int
     ): UIO[Int] =
