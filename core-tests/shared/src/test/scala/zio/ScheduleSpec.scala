@@ -164,6 +164,12 @@ object ScheduleSpec extends ZIOBaseSpec {
         val expected  = List(0, 1500, 3000, 5000, 7000).map(_.millis)
         assertM(TestRandom.feedDoubles(0.5, 0.5, 1, 1, 0.5) *> scheduled)(equalTo(expected))
       },
+      testM("for a given number of times with random delay in custom interval") {
+        val schedule  = Schedule.randomDelay(2.nanos, 4.nanos)
+        val scheduled = TestClock.runAll *> run(schedule >>> testElapsed)((List.fill(5)(())))
+        val expected  = List(0, 3, 6, 10, 14).map(_.nanos)
+        assertM(TestRandom.feedLongs(1, 1, 2, 2, 1) *> scheduled)(equalTo(expected))
+      },
       testM("fixed delay with error predicate") {
         var i = 0
         val io = IO.effectTotal(i += 1).flatMap[Any, String, Unit] { _ =>
