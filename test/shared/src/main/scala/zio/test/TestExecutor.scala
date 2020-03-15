@@ -45,7 +45,7 @@ object TestExecutor {
         )
         .flatMap(_.fold[UIO[ExecutedSpec[E]]] {
           case Spec.SuiteCase(label, specs, exec) =>
-            UIO.succeedNow(Spec.suite(label, specs.flatMap(UIO.collectAll).map(_.toVector), exec))
+            UIO.succeedNow(Spec.suite(label, specs.flatMap(UIO.collectAll(_)).map(_.toVector), exec))
           case Spec.TestCase(label, test, annotations) =>
             test.map {
               case (result, annotations1) =>

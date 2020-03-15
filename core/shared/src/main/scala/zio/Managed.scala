@@ -33,8 +33,14 @@ object Managed {
   /**
    * See [[zio.ZManaged.collectAll]]
    */
-  def collectAll[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
+  def collectAll[E, A](ms: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAll(ms)
+
+  /**
+   * See [[zio.ZManaged.collectAll_]]
+   */
+  def collectAll_[E, A](ms: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAll_(ms)
 
   /**
    * See [[zio.ZManaged.collectAllPar]]
@@ -43,10 +49,22 @@ object Managed {
     ZManaged.collectAllPar(as)
 
   /**
+   * See [[zio.ZManaged.collectAllPar_]]
+   */
+  def collectAllPar_[E, A](as: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAllPar_(as)
+
+  /**
    * See [[zio.ZManaged.collectAllParN]]
    */
   def collectAllParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAllParN(n)(as)
+
+  /**
+   * See [[zio.ZManaged.collectAllParN_]]
+   */
+  def collectAllParN_[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAllParN_(n)(as)
 
   /**
    * See [[zio.ZManaged.die]]
