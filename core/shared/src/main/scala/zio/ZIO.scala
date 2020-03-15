@@ -308,6 +308,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldM[R1, E2, A1](h, new ZIO.SucceedFn(h))
 
   /**
+   * A version of `catchAll` that gives you the (optional) trace of the error.
+   */
+  final def catchAllWithTrace[R1 <: R, E2, A1 >: A](
+    h: ((E, Option[ZTrace])) => ZIO[R1, E2, A1]
+  )(implicit ev: CanFail[E]): ZIO[R1, E2, A1] =
+    self.foldWithTraceM[R1, E2, A1](h, new ZIO.SucceedFn(h))
+
+  /**
    * Recovers from all errors with provided Cause.
    *
    * {{{
@@ -348,6 +356,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   )(implicit ev: CanFail[E]): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
       c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => ZIO.halt(c)), ZIO.halt(_))
+
+    self.foldCauseM[R1, E1, A1](ZIOFn(pf)(tryRescue), new ZIO.SucceedFn(pf))
+  }
+
+  /**
+   * A version of `catchSome` that gives you the (optional) trace of the error.
+   */
+  final def catchSomeWithTrace[R1 <: R, E1 >: E, A1 >: A](
+    pf: PartialFunction[(E, Option[ZTrace]), ZIO[R1, E1, A1]]
+  )(implicit ev: CanFail[E]): ZIO[R1, E1, A1] = {
+    def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
+      c.failureWithTraceOrCause.fold(t => pf.applyOrElse(t, (_: (E, Option[ZTrace])) => ZIO.halt(c)), ZIO.halt(_))
 
     self.foldCauseM[R1, E1, A1](ZIOFn(pf)(tryRescue), new ZIO.SucceedFn(pf))
   }
@@ -656,6 +676,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     implicit ev: CanFail[E]
   ): ZIO[R1, E2, B] =
     foldCauseM(new ZIO.FoldCauseMFailureFn(failure), success)
+
+  /**
+   * A version of `foldM` that gives you the (optional) trace of the error.
+   */
+  final def foldWithTraceM[R1 <: R, E2, B](
+    failure: ((E, Option[ZTrace])) => ZIO[R1, E2, B],
+    success: A => ZIO[R1, E2, B]
+  )(
+    implicit ev: CanFail[E]
+  ): ZIO[R1, E2, B] =
+    foldCauseM(new ZIO.FoldCauseMFailureWithTraceFn(failure), success)
 
   /**
    * Repeats this effect forever (until the first error). For more sophisticated
@@ -1588,6 +1619,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any])(implicit ev: CanFail[E]): ZIO[R1, E1, A] =
     self.foldCauseM(new ZIO.TapErrorRefailFn(f), ZIO.succeedNow)
+
+  /**
+   * A version of `tapError` that gives you the (optional) trace of the error.
+   */
+  final def tapErrorWithTrace[R1 <: R, E1 >: E](
+    f: ((E, Option[ZTrace])) => ZIO[R1, E1, Any]
+  )(implicit ev: CanFail[E]): ZIO[R1, E1, A] =
+    self.foldCauseM(new ZIO.TapErrorWithTraceRefailFn(f), ZIO.succeedNow)
 
   /**
    * Returns a new effect that executes this one and times the execution.
@@ -3422,6 +3461,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       c.failureOrCause.fold(underlying, ZIO.halt(_))
   }
 
+  final class FoldCauseMFailureWithTraceFn[R, E, E2, A](override val underlying: ((E, Option[ZTrace])) => ZIO[R, E2, A])
+      extends ZIOFn1[Cause[E], ZIO[R, E2, A]] {
+    def apply(c: Cause[E]): ZIO[R, E2, A] =
+      c.failureWithTraceOrCause.fold(underlying, ZIO.halt(_))
+  }
+
   final class TapCauseRefailFn[R, E, E1 >: E, A](override val underlying: Cause[E] => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
     def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
@@ -3432,6 +3477,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
     def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
       c.failureOrCause.fold(underlying(_) *> ZIO.halt(c), _ => ZIO.halt(c))
+  }
+
+  final class TapErrorWithTraceRefailFn[R, E, E1 >: E, A](
+    override val underlying: ((E, Option[ZTrace])) => ZIO[R, E1, Any]
+  ) extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
+    def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
+      c.failureWithTraceOrCause.fold(underlying(_) *> ZIO.halt(c), _ => ZIO.halt(c))
   }
 
   private[zio] object Tags {
