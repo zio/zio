@@ -285,33 +285,25 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires a numeric value is positive.
    */
   def isPositive[A](implicit num: Numeric[A]): Assertion[A] =
-    Assertion.assertion("isPositive")() { actual =>
-      num.gt(actual, num.zero)
-    }
+    Assertion.assertion("isPositive")()(actual => num.gt(actual, num.zero))
 
   /**
    * Makes a new assertion that requires a numeric value is non negative.
    */
   def nonNegative[A](implicit num: Numeric[A]): Assertion[A] =
-    Assertion.assertion("nonNegative")() { actual =>
-      num.gteq(actual, num.zero)
-    }
+    Assertion.assertion("nonNegative")()(actual => num.gteq(actual, num.zero))
 
   /**
    * Makes a new assertion that requires a numeric value is negative.
    */
   def isNegative[A](implicit num: Numeric[A]): Assertion[A] =
-    Assertion.assertion("isNegative")() { actual =>
-      num.lt(actual, num.zero)
-    }
+    Assertion.assertion("isNegative")()(actual => num.lt(actual, num.zero))
 
   /**
    * Makes a new assertion that requires a numeric value is non positive.
    */
   def nonPositive[A](implicit num: Numeric[A]): Assertion[A] =
-    Assertion.assertion("nonPositive")() { actual =>
-      num.lteq(actual, num.zero)
-    }
+    Assertion.assertion("nonPositive")()(actual => num.lteq(actual, num.zero))
 
   /**
    * Makes a new assertion that requires a numeric value is zero.
@@ -325,9 +317,7 @@ object Assertion extends AssertionVariants {
   def equalToOneOf[A, B](value: A, other: A, remaining: A*)(implicit eql: Eql[A, B]): Assertion[B] = {
     val allValues = value +: other +: remaining
 
-    Assertion.assertion("equalToOneOf")(param(allValues)) { actual =>
-      allValues.exists(equals( _, actual) )
-    }
+    Assertion.assertion("equalToOneOf")(param(allValues))(actual => allValues.exists(equals(_, actual)))
   }
 
   /**
@@ -345,7 +335,7 @@ object Assertion extends AssertionVariants {
   def containsNoneOf[A](value: A, other: A, remaining: A*): Assertion[Iterable[A]] = {
     val allValues = value +: other +: remaining
 
-    Assertion.assertion("containsNoneOf")(param(allValues)){ actual =>
+    Assertion.assertion("containsNoneOf")(param(allValues)) { actual =>
       val actualSet = actual.toSet
 
       actualSet.intersect(allValues.toSet).isEmpty
@@ -359,7 +349,7 @@ object Assertion extends AssertionVariants {
   def containsOneOf[A](value: A, other: A, remaining: A*): Assertion[Iterable[A]] = {
     val allValues = value +: other +: remaining
 
-    Assertion.assertion("containsOneOf")(param(allValues)){ actual =>
+    Assertion.assertion("containsOneOf")(param(allValues)) { actual =>
       val actualSet = actual.toSet
 
       actualSet.intersect(allValues.toSet).size == 1
@@ -373,7 +363,7 @@ object Assertion extends AssertionVariants {
   def containsAtLeastOneOf[A](value: A, other: A, remaining: A*): Assertion[Iterable[A]] = {
     val allValues = value +: other +: remaining
 
-    Assertion.assertion("containsAtLeastOneOf")(param(allValues)){ actual =>
+    Assertion.assertion("containsAtLeastOneOf")(param(allValues)) { actual =>
       val actualSet = actual.toSet
 
       actualSet.intersect(allValues.toSet).nonEmpty

@@ -30,7 +30,5 @@ trait AssertionVariants {
    * Makes a new assertion that requires a value equal the specified value.
    */
   final def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
-    Assertion.assertion("equalTo")(param(expected)) { actual =>
-      equals(expected, actual)
-    }
+    Assertion.assertion("equalTo")(param(expected))(actual => equals(expected, actual))
 }
