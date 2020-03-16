@@ -894,6 +894,16 @@ object ZSTM {
     i.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil))(_.zipWith(_)(_ :: _))
 
   /**
+   * Collects all the transactional effects, returning a single transactional
+   * effect that produces `Unit`.
+   *
+   * Equivalent to `collectAll(i).unit`, but without the cost of building the
+   * list of results.
+   */
+  def collectAll_[R, E, A](i: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
+    foreach_(i)(ZIO.identityFn)
+
+  /**
    * Kills the fiber running the effect.
    */
   def die(t: => Throwable): USTM[Nothing] =
