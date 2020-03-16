@@ -1,10 +1,10 @@
 package zio.stream.experimental
 
-import zio._
-import zio.test._
-import zio.test.Assertion._
-
 import scala.concurrent.ExecutionContext.global
+
+import zio._
+import zio.test.Assertion._
+import zio.test._
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
   def spec = suite("ZStream JVM")(
