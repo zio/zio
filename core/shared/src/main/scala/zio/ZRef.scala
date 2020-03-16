@@ -583,4 +583,10 @@ object ZRef extends Serializable {
    */
   def make[A](a: A): UIO[Ref[A]] =
     UIO.effectTotal(Atomic(new AtomicReference(a)))
+
+  /**
+   * Creates a new managed `ZRef` with the specified value
+   */
+  def makeManaged[A](a: A): Managed[Nothing, Ref[A]] =
+    make(a).toManaged_
 }
