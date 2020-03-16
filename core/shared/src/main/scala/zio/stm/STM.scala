@@ -46,6 +46,12 @@ object STM {
     ZSTM.collectAll(i)
 
   /**
+   * @see See [[zio.stm.ZSTM.collectAll_]]
+   */
+  def collectAll_[E, A](i: Iterable[STM[E, A]]): STM[E, Unit] =
+    ZSTM.collectAll_(i)
+
+  /**
    * @see See [[zio.stm.ZSTM.die]]
    */
   def die(t: => Throwable): USTM[Nothing] =
