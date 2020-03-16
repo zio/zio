@@ -1,5 +1,7 @@
 package zio.stream.experimental
 
+import scala.concurrent.ExecutionContext
+
 import ZStreamGen._
 
 import zio._
@@ -11,6 +13,9 @@ import zio.test._
 import zio.test.environment.Live
 
 object ZStreamSpec extends ZIOBaseSpec {
+  def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
+    ec.execute(() => action)
+
   def spec = suite("ZStreamSpec")(
     suite("Combinators")(
       suite("absolve")(
@@ -1252,7 +1257,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         }
       ),
-      testM("Stream.fromInputStream") {
+      testM("fromInputStream") {
         import java.io.ByteArrayInputStream
         val chunkSize = ZStream.DefaultChunkSize
         val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)

@@ -303,8 +303,8 @@ abstract class ZStream[-R, +E, +O](
   ): ZStream[R1, E1, O3] =
     ZStream[R1, E1, O3] {
       for {
-        left  <- self.process.mapM(BufferedPull.make(_))
-        right <- that.process.mapM(BufferedPull.make(_))
+        left  <- self.process.mapM(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
+        right <- that.process.mapM(BufferedPull.make[R1, E1, O2](_))
         pull <- ZStream
                  .unfoldM(s) { s =>
                    f(s, left.pullElement, right.pullElement).flatMap { exit =>
@@ -1502,14 +1502,30 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Runs the sink on the stream to produce either the sink's result or an error.
+   */
+  def run[R1 <: R, E1 >: E, O1 >: O, B](sink: ZSink[R1, E1, O1, B]): ZIO[R1, E1, B] =
+    (process <*> sink.push).use {
+      case (pull, push) =>
+        def go: ZIO[R1, E1, B] = pull.foldCauseM(
+          Cause
+            .sequenceCauseOption(_)
+            .fold(
+              push(None).foldCauseM(
+                Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow),
+                _ => IO.dieMessage("empty stream / empty sinks")
+              )
+            )(IO.halt(_)),
+          os => push(Some(os)).foldCauseM(Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow), _ => go)
+        )
+
+        go
+    }
+
+  /**
    * Runs the stream and collects all of its elements to a list.
    */
-  def runCollect: ZIO[R, E, List[O]] =
-    // TODO: rewrite as a sink
-    Ref.make[List[O]](List()).flatMap { ref =>
-      foreach(a => ref.update(a :: _)) *>
-        ref.get.map(_.reverse)
-    }
+  def runCollect: ZIO[R, E, List[O]] = run(ZSink.collectAll[O])
 
   /**
    * Runs the stream only for its effects. The emitted elements are discarded.
@@ -2404,6 +2420,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
+  def paginate[R, E, A, S](s: S)(f: S => (A, Option[S])): ZStream[Any, Nothing, A] =
+    paginateM(s)(s => ZIO.succeedNow(f(s)))
+
+  /**
+   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
   def paginateM[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
     ZStream {
       for {
@@ -2464,6 +2488,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   val unit: ZStream[Any, Nothing, Unit] =
     succeed(())
+
+  /**
+   * Creates a stream by peeling off the "layers" of a value of type `S`
+   */
+  def unfold[S, A](s: S)(f0: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
+    unfoldM(s)(s => ZIO.succeedNow(f0(s)))
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
@@ -2612,12 +2642,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   private[zio] object Pull {
-    def emit[A](a: A): IO[Nothing, Chunk[A]]         = UIO(Chunk.single(a))
-    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]] = UIO(as)
-    def fail[E](e: E): IO[Option[E], Nothing]        = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): IO[Option[E], Nothing] = IO.halt(c).mapError(Some(_))
-    val end: IO[Option[Nothing], Nothing]            = IO.fail(None)
+    def emit[A](a: A): IO[Nothing, Chunk[A]]                   = UIO(Chunk.single(a))
+    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]           = UIO(as)
+    def fromTake[E, A](t: Take[E, A]): IO[Option[E], Chunk[A]] = IO.done(t)
+    def fail[E](e: E): IO[Option[E], Nothing]                  = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): IO[Option[E], Nothing]           = IO.halt(c).mapError(Some(_))
+    val end: IO[Option[Nothing], Nothing]                      = IO.fail(None)
   }
+
+  type Take[+E, +A] = Exit[Option[E], Chunk[A]]
 
   case class BufferedPull[R, E, A](
     upstream: ZIO[R, Option[E], Chunk[A]],
