@@ -78,7 +78,8 @@ Here the expression `Right(Some(2))` is of type `Either[Any, Option[Int]]`and ou
 is of type `Assertion[Either[Any, Option[Int]]]`
 
 
-```scala mdoc
+```scala mdoc:reset-object
+import zio.test._
 import zio.test.Assertion.{isRight, isSome,equalTo, isGreaterThanEqualTo, not, hasField}
 
 final case class Address(country:String, city:String)

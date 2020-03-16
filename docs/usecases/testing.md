@@ -63,7 +63,7 @@ If a property fails, the failure will be automatically shrunk to the smallest fa
 
 ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 import zio.random.Random
 import zio.test.magnolia._
 
