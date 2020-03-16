@@ -25,6 +25,12 @@ object MockRandom {
     def envBuilder = MockRandom.envBuilder
   }
 
+  object Between {
+    object _0 extends Tag[(Long, Long), Long]
+    object _1 extends Tag[(Int, Int), Int]
+    object _2 extends Tag[(Float, Float), Float]
+    object _3 extends Tag[(Double, Double), Double]
+  }
   object NextBoolean  extends Tag[Unit, Boolean]
   object NextBytes    extends Tag[Int, Chunk[Byte]]
   object NextDouble   extends Tag[Unit, Double]
@@ -45,6 +51,14 @@ object MockRandom {
   private lazy val envBuilder: URLayer[Has[Proxy], Random] =
     ZLayer.fromService(invoke =>
       new Random.Service {
+        def between(minInclusive: Long, maxExclusive: Long): UIO[Long] =
+          invoke(Between._0, minInclusive, maxExclusive)
+        def between(minInclusive: Int, maxExclusive: Int): UIO[Int] =
+          invoke(Between._1, minInclusive, maxExclusive)
+        def between(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+          invoke(Between._2, minInclusive, maxExclusive)
+        def between(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+          invoke(Between._3, minInclusive, maxExclusive)
         val nextBoolean: UIO[Boolean]                = invoke(NextBoolean)
         def nextBytes(length: Int): UIO[Chunk[Byte]] = invoke(NextBytes, length)
         val nextDouble: UIO[Double]                  = invoke(NextDouble)

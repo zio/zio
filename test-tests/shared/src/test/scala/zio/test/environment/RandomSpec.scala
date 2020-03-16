@@ -40,6 +40,10 @@ object RandomSpec extends ZIOBaseSpec {
     testM("bounded nextInt")(forAllEqualN(_.nextInt(_))(_.nextInt(_))),
     testM("bounded nextInt generates values within the bounds")(forAllBounded(Gen.anyInt)(_.nextInt(_))),
     testM("bounded nextLong generates values within the bounds")(forAllBounded(Gen.anyLong)(_.nextLong(_))),
+    testM("between generates doubles within the bounds")(forAllBetween(Gen.anyDouble)(_.between(_, _))),
+    testM("between generates floats within the bounds")(forAllBetween(Gen.anyFloat)(_.between(_, _))),
+    testM("between generates integers within the bounds")(forAllBetween(Gen.anyInt)(_.between(_, _))),
+    testM("between generates longs within the bounds")(forAllBetween(Gen.anyLong)(_.between(_, _))),
     testM("shuffle")(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_))),
     testM("referential transparency") {
       val test = TestRandom.makeTest(DefaultData)
@@ -188,6 +192,25 @@ object RandomSpec extends ZIOBaseSpec {
         testRandom <- ZIO.environment[Random].map(_.get[Random.Service])
         nextRandom <- next(testRandom, upper)
       } yield assert(nextRandom)(isWithin(zero, upper))
+    }
+  }
+
+  def forAllBetween[A: Numeric](gen: Gen[Random, A])(
+    between: (Random.Service, A, A) => UIO[A]
+  ): ZIO[Random, Nothing, TestResult] = {
+    val num = implicitly[Numeric[A]]
+    import num._
+    val genMinMax = for {
+      value1 <- gen
+      value2 <- gen if (value1 != value2)
+    } yield if (value2 > value1) (value1, value2) else (value2, value1)
+    checkM(genMinMax) {
+      case (min, max) =>
+        for {
+          testRandom <- ZIO.environment[Random].map(_.get[Random.Service])
+          nextRandom <- between(testRandom, min, max)
+        } yield assert(nextRandom)(isGreaterThanEqualTo(min)) &&
+          assert(nextRandom)(isLessThan(max))
     }
   }
 }
