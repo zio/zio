@@ -317,7 +317,7 @@ object Assertion extends AssertionVariants {
   def equalToOneOf[A, B](value: A, other: A, remaining: A*)(implicit eql: Eql[A, B]): Assertion[B] = {
     val allValues = value +: other +: remaining
 
-    Assertion.assertion("equalToOneOf")(param(allValues))(actual => allValues.exists(equals(_, actual)))
+    Assertion.assertion("equalToOneOf")(param(allValues))(actual => allValues.exists(equals(actual, _)))
   }
 
   /**

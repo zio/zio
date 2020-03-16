@@ -20,8 +20,8 @@ import zio.test.Assertion.Render._
 
 trait AssertionVariants {
 
-  final def equals[A, B](a: A, b: B)(implicit eql: Eql[A, B]): Boolean =
-    (a, b) match {
+  final def equals[A, B](b: B, a: A)(implicit eql: Eql[A, B]): Boolean =
+    (b, a) match {
       case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
       case (left, right)                     => left == right
     }
@@ -30,5 +30,5 @@ trait AssertionVariants {
    * Makes a new assertion that requires a value equal the specified value.
    */
   final def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
-    Assertion.assertion("equalTo")(param(expected))(actual => equals(expected, actual))
+    Assertion.assertion("equalTo")(param(expected))(actual => equals(actual, expected))
 }
