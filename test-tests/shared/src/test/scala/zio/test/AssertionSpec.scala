@@ -250,6 +250,24 @@ object AssertionSpec extends ZIOBaseSpec {
     test("hasAllElements must succeed when the other iterable is empty") {
       assert(Seq(4, 3, 1, 2))(hasAllElements(Seq.empty[Int]))
     },
+    test("isSorted must succeed when seq is sorted") {
+      assert(Seq(1, 2, 3, 4))(isSorted)
+    },
+    test("isSorted must succeed for empty seq") {
+      assert(Seq.empty[Int])(isSorted)
+    },
+    test("isSorted must succeed for singleton seq") {
+      assert(Seq(1))(isSorted)
+    },
+    test("isSorted must fail when seq is not sorted") {
+      assert(Seq(4, 3, 1, 2))(isSorted)
+    } @@ failure,
+    test("containsKey must succeed when map contains the specified key") {
+      assert(Map("scala" -> 1))(containsKey("scala"))
+    },
+    test("containsKey must fail when map does not contain the specified key") {
+      assert(Map("scala" -> 1))(containsKey("java"))
+    } @@ failure,
     test("hasSize must succeed when iterable size is equal to specified assertion") {
       assert(Seq(1, 2, 3))(hasSize(equalTo(3)))
     },

@@ -530,6 +530,22 @@ object Assertion extends AssertionVariants {
     }
 
   /**
+   * Makes a new assertion that requires a Seq is sorted.
+   */
+  def isSorted[A](implicit ord: Ordering[A]): Assertion[Seq[A]] =
+    Assertion.assertion("isSorted")() {
+      case Seq()  => true
+      case Seq(_) => true
+      case seq    => seq.sliding(2).forall { case Seq(x, y) => ord.lteq(x, y) }
+    }
+
+  /**
+   * Makes a new assertion that requires a Map to contain the specified key.
+   */
+  def containsKey[K, V](key: K): Assertion[Map[K, V]] =
+    Assertion.assertion("containsKey")()(_.exists { case (k, _) => k == key })
+
+  /**
    * Makes a new assertion that requires the size of an Iterable be satisfied
    * by the specified assertion.
    */
