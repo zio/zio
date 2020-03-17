@@ -293,6 +293,10 @@ object ZLayerSpec extends ZIOBaseSpec {
           s <- ZIO.environment[Has[String]].map(_.get[String])
         } yield (i, s)
         assertM(zio.provideLayer(live))(equalTo((1, "1")))
+      },
+      testM("mapDependency") {
+        val layer = ZLayer.succeed(200).mapDependency(_.toString)
+        assertM(ZIO.environment[Has[String]].provideLayer(layer).map(_.get))(equalTo("200"))
       }
     )
 }

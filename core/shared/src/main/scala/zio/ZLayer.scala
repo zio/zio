@@ -1031,7 +1031,7 @@ object ZLayer {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
- 
+
   /**
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
@@ -2053,6 +2053,14 @@ object ZLayer {
      */
     def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
       self >>> ZLayer.fromFunctionMany(_.update[A](f))
+  }
+
+  implicit final class ZLayerHasROutOps1[RIn, E, A](private val self: ZLayer[RIn, E, Has[A]]) extends AnyVal {
+    /**
+     * Maps layer output which is wrapped in `Has`
+     */
+    def mapDependency[B: Tagged](f: A => B)(implicit A: Tagged[A]): ZLayer[RIn, E, Has[B]] =
+      self.map(x => Has(f(x.get)))
   }
 
   implicit final class ZLayerHasRInROutOps[RIn <: Has[_], E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut])
