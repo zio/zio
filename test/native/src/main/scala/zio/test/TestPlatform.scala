@@ -30,10 +30,10 @@ object TestPlatform {
   /**
    * Returns whether the currently platform is the JVM.
    */
-  final val isJVM = true
+  final val isJVM = false
 
   /**
    * Returns whether the current platform is Scala Native.
    */
-  final val isNative = false
+  final val isNative = true
 }
