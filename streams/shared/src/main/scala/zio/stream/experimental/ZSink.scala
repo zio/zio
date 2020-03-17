@@ -5,8 +5,14 @@ import zio._
 abstract class ZSink[-R, +E, -I, +Z] private (
   val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, Either[E, Z], Unit]]
 ) extends ZConduit[R, E, I, Unit, Z](push.map(push => input => push(input).as(Chunk.empty))) { self =>
-  def map[Z2](f: Z => Z2): ZSink[R, E, I, Z2] =
-    new ZSink[R, E, I, Z2](self.push.map(push => input => push(input).mapError(_.right.map(f)))) {}
+
+  override def mapResult[Z2](f: Z => Z2): ZSink[R, E, I, Z2] =
+    ZSink[R, E, I, Z2](self.push.map(push => input => push(input).mapError(_.right.map(f))))
+
+  /**
+    * Transforms this sink's result.
+    */
+  def map[Z2](f: Z => Z2): ZSink[R, E, I, Z2] = mapResult(f)
 }
 
 object ZSink {
