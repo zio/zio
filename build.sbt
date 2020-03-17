@@ -5,6 +5,8 @@ import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 name := "zio"
 
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
 inThisBuild(
   List(
     organization := "dev.zio",
