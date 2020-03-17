@@ -73,6 +73,9 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("exceptJVM runs tests on all platforms except the JVM") {
       assert(TestPlatform.isJVM)(isFalse)
     } @@ exceptJVM,
+    test("exceptNative runs tests on all platforms except ScalaNative") {
+      assert(TestPlatform.isNative)(isFalse)
+    } @@ exceptNative,
     test("exceptScala2 runs tests on all versions except Scala 2") {
       assert(TestVersion.isScala2)(isFalse)
     } @@ exceptScala2,
@@ -185,6 +188,19 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("jvmOnly runs tests only on the JVM") {
       val spec   = test("JVM-only")(assert(TestPlatform.isJVM)(isTrue)) @@ jvmOnly
       val result = if (TestPlatform.isJVM) isSuccess(spec) else isIgnored(spec)
+      assertM(result)(isTrue)
+    },
+    testM("native applies test aspect only on ScalaNative") {
+      for {
+        ref    <- Ref.make(false)
+        spec   = test("test")(assert(true)(isTrue)) @@ native(after(ref.set(true)))
+        _      <- execute(spec)
+        result <- ref.get
+      } yield if (TestPlatform.isNative) assert(result)(isTrue) else assert(result)(isFalse)
+    },
+    testM("nativeOnly runs tests only on ScalaNative") {
+      val spec   = test("Javascript-only")(assert(TestPlatform.isNative)(isTrue)) @@ jsOnly
+      val result = if (TestPlatform.isNative) isSuccess(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("noDelay causes sleep effects to be executed immediately") {
