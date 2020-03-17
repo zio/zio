@@ -199,7 +199,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       } yield if (TestPlatform.isNative) assert(result)(isTrue) else assert(result)(isFalse)
     },
     testM("nativeOnly runs tests only on ScalaNative") {
-      val spec   = test("Javascript-only")(assert(TestPlatform.isNative)(isTrue)) @@ jsOnly
+      val spec   = test("Native-only")(assert(TestPlatform.isNative)(isTrue)) @@ nativeOnly
       val result = if (TestPlatform.isNative) isSuccess(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
