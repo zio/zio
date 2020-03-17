@@ -10,6 +10,8 @@ import zio.test.{ assert, assertM, suite, testM, TestResult }
 
 object ScheduleSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("ScheduleSpec")(
     /**
      * Retry `once` means that we try to exec `io`, get and error,
@@ -92,7 +94,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         _ => IO.succeedNow("it should not be a success at all")
       )
       assertM(failed)(equalTo("Error: 1"))
-    },
+    } @@ zioTag(errors),
     testM("Repeat a scheduled repeat repeats the whole number") {
       val n = 42
       for {
@@ -210,7 +212,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           )
         )(equalTo(List(0, 1, 4, 13, 40).map(i => (i * 100).millis)))
       }
-    ),
+    ) @@ zioTag(errors),
     suite("Retry according to a provided strategy")(
       testM("for up to 10 times") {
         var i        = 0
@@ -218,7 +220,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val io       = IO.effectTotal(i += 1).flatMap(_ => if (i < 5) IO.fail("KeepTryingError") else IO.succeedNow(i))
         assertM(io.retry(strategy))(equalTo(5))
       }
-    ),
+    ) @@ zioTag(errors),
     suite("Return the result of the fallback after failing and no more retries left")(
       testM("if fallback succeed - retryOrElse") {
         for {
@@ -255,7 +257,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           )
         assertM(failed)(equalTo("OrElseFailed"))
       }
-    ),
+    ) @@ zioTag(errors),
     suite("Return the result after successful retry")(
       testM("retry exactly one time for `once` when second time succeeds - retryOrElse") {
         for {
@@ -270,7 +272,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           expected = Right(2)
         } yield assert(o)(equalTo(expected))
       }
-    ),
+    ) @@ zioTag(errors),
     suite("Retry a failed action 2 times and call `ensuring` should")(
       testM("run the specified finalizer as soon as the schedule is complete") {
         for {
@@ -279,7 +281,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           finalizerV <- p.poll
         } yield assert(v.isEmpty)(equalTo(true)) && assert(finalizerV.isDefined)(equalTo(true))
       }
-    ),
+    ) @@ zioTag(errors),
     testM("`ensuring` should only call finalizer once.") {
       for {
         ref    <- Ref.make(0)

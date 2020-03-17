@@ -7,6 +7,8 @@ import zio.test._
 
 object FiberSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("FiberSpec")(
     suite("Create a new Fiber and")(testM("lift it into Managed") {
       for {
@@ -59,7 +61,7 @@ object FiberSpec extends ZIOBaseSpec {
           exit <- Fiber.interruptAs(fiberId).join.run
         } yield assert(exit)(equalTo(Exit.interrupt(fiberId)))
       }
-    ),
+    ) @@ zioTag(interruption),
     suite("if one composed fiber fails then all must fail")(
       testM("`await`") {
         for {
@@ -94,7 +96,7 @@ object FiberSpec extends ZIOBaseSpec {
           _      <- queue.shutdown
         } yield assert(exit)(fails(equalTo("fail")))
       }
-    ),
+    ) @@ zioTag(errors),
     testM("grandparent interruption is propagated to grandchild despite parent termination") {
       for {
         latch1 <- Promise.make[Nothing, Unit]
@@ -106,7 +108,7 @@ object FiberSpec extends ZIOBaseSpec {
         _      <- fiber.interrupt
         _      <- latch2.await
       } yield assertCompletes
-    } @@ nonFlaky,
+    } @@ zioTag(interruption) @@ nonFlaky,
     suite("stack safety")(
       testM("awaitAll") {
         assertM(Fiber.awaitAll(fibers))(anything)
