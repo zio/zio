@@ -8,6 +8,8 @@ import zio.test._
 
 object SemaphoreSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("SemaphoreSpec")(
     suite("Make a Semaphore and verify that")(
       testM("`acquire` permits sequentially") {
@@ -45,7 +47,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
           _       <- s.withPermit(IO.fail("fail")).either
           permits <- s.available
         } yield assert(permits)(equalTo(1L))
-      },
+      } @@ zioTag(errors),
       testM("`withPermit` does not leak fibers or permits upon cancellation") {
         val n = 1L
         for {
@@ -54,7 +56,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           permits <- s.available
         } yield assert(permits)(equalTo(1L))
-      },
+      } @@ zioTag(interruption),
       testM("`withPermitManaged` does not leak fibers or permits upon cancellation") {
         for {
           s       <- Semaphore.make(1L)

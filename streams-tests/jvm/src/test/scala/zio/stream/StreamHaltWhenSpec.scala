@@ -5,6 +5,9 @@ import zio.test.Assertion.{ equalTo, isFalse, isLeft }
 import zio.test._
 
 object StreamHaltWhenSpec extends ZIOBaseSpec {
+
+  import ZIOTag._
+
   def spec = suite("ZStream.haltWhen")(
     testM("halts after the current element") {
       for {
@@ -30,6 +33,6 @@ object StreamHaltWhenSpec extends ZIOBaseSpec {
                    .runDrain
                    .either
       } yield assert(result)(isLeft(equalTo("Fail")))
-    }
+    } @@ zioTag(errors)
   )
 }
