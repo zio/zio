@@ -307,7 +307,9 @@ object ZLayerSpec extends ZIOBaseSpec {
            ).singleService.map(_.toString)
           """
         }
-        assertM(result)(isLeft(containsString("could not find implicit value for parameter ev: zio.ZLayer.HasSingleService")))
+        assertM(result)(
+          isLeft(containsString("could not find implicit value for parameter ev: zio.ZLayer.HasSingleService"))
+        )
       }
     )
 }
