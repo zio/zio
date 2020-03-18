@@ -244,8 +244,8 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
 
             () => {
               counter += 1
-              if (counter >= 6) StreamEffect.end[Int]
-              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              if (counter >= 6) StreamEffect.end
+              else if (counter % 2 == 0) StreamEffect.failure(s"Ouch $counter")
               else counter
             }
           }
@@ -329,8 +329,8 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
 
             () => {
               counter += 1
-              if (counter >= 6) StreamEffect.end[Int]
-              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              if (counter >= 6) StreamEffect.end
+              else if (counter % 2 == 0) StreamEffect.failure(s"Ouch $counter")
               else counter
             }
           }
@@ -419,8 +419,8 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
 
             () => {
               counter += 1
-              if (counter >= 6) StreamEffect.end[Int]
-              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              if (counter >= 6) StreamEffect.end
+              else if (counter % 2 == 0) StreamEffect.failure(s"Ouch $counter")
               else counter
             }
           }
@@ -494,8 +494,8 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
 
             () => {
               counter += 1
-              if (counter >= 7) StreamEffect.end[Int]
-              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              if (counter >= 7) StreamEffect.end
+              else if (counter % 2 == 0) StreamEffect.failure(s"Ouch $counter")
               else counter
             }
           }
@@ -572,8 +572,8 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
 
             () => {
               counter += 1
-              if (counter >= 6) StreamEffect.end[Int]
-              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              if (counter >= 6) StreamEffect.end
+              else if (counter % 2 == 0) StreamEffect.failure(s"Ouch $counter")
               else counter
             }
           }
@@ -625,8 +625,8 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
 
             () => {
               counter += 1
-              if (counter >= 6) StreamEffect.end[Int]
-              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              if (counter >= 6) StreamEffect.end
+              else if (counter % 2 == 0) StreamEffect.failure(s"Ouch $counter")
               else counter
             }
           }
@@ -678,8 +678,8 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
 
             () => {
               counter += 1
-              if (counter >= 6) StreamEffect.end[Int]
-              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              if (counter >= 6) StreamEffect.end
+              else if (counter % 2 == 0) StreamEffect.failure(s"Ouch $counter")
               else counter
             }
           }
