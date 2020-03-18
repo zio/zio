@@ -295,7 +295,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         assertM(zio.provideLayer(live))(equalTo((1, "1")))
       },
       testM("singleService.map for single output layer") {
-        val layer = ZLayer.succeed(200).singleService[Int].map(_.toString)
+        val layer = ZLayer.succeed(200).singleService.map(_.toString)
         assertM(ZIO.environment[Has[String]].provideLayer(layer).map(_.get))(equalTo("200"))
       },
       testM("singleService.map doesn't compile for multi-output layer") {
@@ -304,10 +304,10 @@ object ZLayerSpec extends ZIOBaseSpec {
            (
              ZLayer.succeed(200) ++
              ZLayer.succeed(true)
-           ).singleService[Int].map(_.toString)
+           ).singleService.map(_.toString)
           """
         }
-        assertM(result)(isLeft(containsString("Cannot prove that") && containsString("=:= zio.Has[Int]")))
+        assertM(result)(isLeft(containsString("could not find implicit value for parameter ev: zio.ZLayer.HasSingleService")))
       }
     )
 }

@@ -155,6 +155,24 @@ object ZLayer {
   @deprecated("use Layer", "1.0.0")
   type NoDeps[+E, +B] = ZLayer[Any, E, B]
 
+  trait HasSingleService[A] {
+    type Out
+  }
+
+  object HasSingleService {
+    type Aux[A, Out1] = HasSingleService[A] {
+      type Out = Out1
+    }
+
+    implicit def proof[A]: Aux[Has[A], A] = new HasSingleService[Has[A]] {
+      type Out = A
+    }
+
+    implicit def multipleAmbig[A, B]: Aux[Has[A] with B, A] = new HasSingleService[Has[A] with B] {
+      type Out = A
+    }
+  }
+
   /**
    * Constructs a layer from a managed resource.
    */
@@ -2058,14 +2076,14 @@ object ZLayer {
      * Proves that this layer has a single `Has[_]` output,
      * which allows more operations to be done lawfully, for example map a value inside `Has[_]`.
      */
-    def singleService[A](implicit ev: ROut =:= Has[A]): SingleServiceOutputLayerOps[RIn, E, A] =
-      new SingleServiceOutputLayerOps[RIn, E, A](self.asInstanceOf[ZLayer[RIn, E, Has[A]]])
+    def singleService(implicit ev: HasSingleService[ROut]): SingleServiceOutputLayerOps[RIn, E, ev.Out] =
+      new SingleServiceOutputLayerOps[RIn, E, ev.Out](self.asInstanceOf[ZLayer[RIn, E, Has[ev.Out]]])
   }
 
   final class SingleServiceOutputLayerOps[RIn, E, A](private val self: ZLayer[RIn, E, Has[A]]) extends AnyVal {
 
     /**
-     * Maps this layer's single Has[A] output into a single Has[B] output.
+     * Maps this layer's single Has[A] output into a single Has[B] outpuцетаt.
      */
     def map[B: Tagged](f: A => B)(implicit A: Tagged[A]): ZLayer[RIn, E, Has[B]] =
       self.map(x => Has(f(x.get)))
