@@ -38,11 +38,13 @@ private[mock] object MockableMacro {
 
     object zio {
 
-      def unapply(tpe: Type): Option[(Type, Type, Type)] =
-        tpe.typeArgs match {
-          case r :: e :: a :: Nil if tpe.typeSymbol.fullName == "zio.ZIO" => Some((r, e, a))
-          case _                                                          => None
+      def unapply(tpe: Type): Option[(Type, Type, Type)] = {
+        val dealiased = tpe.dealias
+        dealiased.typeArgs match {
+          case r :: e :: a :: Nil if dealiased.typeSymbol.fullName == "zio.ZIO" => Some((r, e, a))
+          case _                                                                => None
         }
+      }
     }
 
     def capitalize(name: TermName): TermName = TermName(name.toString.capitalize)
