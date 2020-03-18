@@ -18,7 +18,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("test") {
           assertM(ref.get)(equalTo(1))
         } @@ around_(ref.set(1), ref.set(-1))
-        result <- isSuccess(spec)
+        result <- isSucceeded(spec)
         after  <- ref.get
       } yield {
         assert(result)(isTrue) &&
@@ -31,7 +31,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("test") {
           ZIO.fail("error")
         } @@ after(ref.set(-1))
-        result <- isSuccess(spec)
+        result <- isSucceeded(spec)
         after  <- ref.get
       } yield {
         assert(result)(isFalse) &&
@@ -44,7 +44,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("test") {
           ZIO.dieMessage("death")
         } @@ after(ref.set(-1))
-        result <- isSuccess(spec)
+        result <- isSucceeded(spec)
         after  <- ref.get
       } yield {
         assert(result)(isFalse) &&
@@ -61,7 +61,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     testM("dottyOnly runs tests only on Dotty") {
       val spec   = test("Dotty-only")(assert(TestVersion.isDotty)(isTrue)) @@ dottyOnly
-      val result = if (TestVersion.isDotty) isSuccess(spec) else isIgnored(spec)
+      val result = if (TestVersion.isDotty) isSucceeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     test("exceptDotty runs tests on all versions except Dotty") {
@@ -108,7 +108,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("flaky test") {
           assertM(ref.updateAndGet(_ + 1))(equalTo(100))
         } @@ flaky
-        result <- isSuccess(spec)
+        result <- isSucceeded(spec)
         n      <- ref.get
       } yield assert(result)(isTrue) && assert(n)(equalTo(100))
     },
@@ -118,7 +118,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("flaky test that dies") {
           assertM(ref.updateAndGet(_ + 1).filterOrDieMessage(_ >= 100)("die"))(equalTo(100))
         } @@ flaky
-        result <- isSuccess(spec)
+        result <- isSucceeded(spec)
         n      <- ref.get
       } yield assert(result)(isTrue) && assert(n)(equalTo(100))
     },
@@ -171,7 +171,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     testM("jsOnly runs tests only on ScalaJS") {
       val spec   = test("Javascript-only")(assert(TestPlatform.isJS)(isTrue)) @@ jsOnly
-      val result = if (TestPlatform.isJS) isSuccess(spec) else isIgnored(spec)
+      val result = if (TestPlatform.isJS) isSucceeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("jvm applies test aspect only on jvm") {
@@ -184,7 +184,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     testM("jvmOnly runs tests only on the JVM") {
       val spec   = test("JVM-only")(assert(TestPlatform.isJVM)(isTrue)) @@ jvmOnly
-      val result = if (TestPlatform.isJVM) isSuccess(spec) else isIgnored(spec)
+      val result = if (TestPlatform.isJVM) isSucceeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("noDelay causes sleep effects to be executed immediately") {
@@ -207,7 +207,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("retry") {
           assertM(ref.updateAndGet(_ + 1))(equalTo(2))
         } @@ retry(Schedule.recurs(1))
-        result <- isSuccess(spec)
+        result <- isSucceeded(spec)
       } yield assert(result)(isTrue)
     },
     testM("scala2 applies test aspect only on Scala 2") {
@@ -220,7 +220,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     testM("scala2Only runs tests only on Scala 2") {
       val spec   = test("Scala2-only")(assert(TestVersion.isScala2)(isTrue)) @@ scala2Only
-      val result = if (TestVersion.isScala2) isSuccess(spec) else isIgnored(spec)
+      val result = if (TestVersion.isScala2) isSucceeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("setSeed sets the random seed to the specified value before each test") {
@@ -237,7 +237,7 @@ object TestAspectSpec extends ZIOBaseSpec {
           testM("first test")(ZIO.succeedNow(assertCompletes)),
           testM("second test")(ref.set(true).as(assertCompletes))
         ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
-        result <- isSuccess(spec)
+        result <- isSucceeded(spec)
       } yield assert(result)(isFalse)
     }
   )

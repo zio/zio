@@ -17,6 +17,7 @@
 package zio.test
 
 import scala.reflect.ClassTag
+import scala.util.{ Failure, Success, Try }
 
 import zio.{ Cause, Exit, ZIO }
 
@@ -282,45 +283,6 @@ object Assertion extends AssertionVariants {
     }
 
   /**
-   * Makes a new assertion that requires a numeric value is positive.
-   */
-  def isPositive[A](implicit num: Numeric[A]): Assertion[A] =
-    Assertion.assertion("isPositive")()(actual => num.gt(actual, num.zero))
-
-  /**
-   * Makes a new assertion that requires a numeric value is non negative.
-   */
-  def nonNegative[A](implicit num: Numeric[A]): Assertion[A] =
-    Assertion.assertion("nonNegative")()(actual => num.gteq(actual, num.zero))
-
-  /**
-   * Makes a new assertion that requires a numeric value is negative.
-   */
-  def isNegative[A](implicit num: Numeric[A]): Assertion[A] =
-    Assertion.assertion("isNegative")()(actual => num.lt(actual, num.zero))
-
-  /**
-   * Makes a new assertion that requires a numeric value is non positive.
-   */
-  def nonPositive[A](implicit num: Numeric[A]): Assertion[A] =
-    Assertion.assertion("nonPositive")()(actual => num.lteq(actual, num.zero))
-
-  /**
-   * Makes a new assertion that requires a numeric value is zero.
-   */
-  def isZero[A](implicit num: Numeric[A]): Assertion[A] =
-    Assertion.assertion("isZero")()(_ == num.zero)
-
-  /**
-   * Makes a new assertion that requires a value to be equal to one of the specified values.
-   */
-  def equalToOneOf[A, B](value: A, other: A, remaining: A*)(implicit eql: Eql[A, B]): Assertion[B] = {
-    val allValues = value +: other +: remaining
-
-    Assertion.assertion("equalToOneOf")(param(allValues))(actual => allValues.exists(equals(actual, _)))
-  }
-
-  /**
    * Makes a new assertion that requires an Iterable contain the specified
    * element. See [[Assertion.exists]] if you want to require an Iterable to contain an element
    * satisfying an assertion.
@@ -329,53 +291,17 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("contains")(param(element))(_.exists(_ == element))
 
   /**
-   * Makes a new assertion that requires an Iterable contain none of the
-   * specified elements.
-   */
-  def containsNoneOf[A](value: A, other: A, remaining: A*): Assertion[Iterable[A]] = {
-    val allValues = value +: other +: remaining
-
-    Assertion.assertion("containsNoneOf")(param(allValues)) { actual =>
-      val actualSet = actual.toSet
-
-      actualSet.intersect(allValues.toSet).isEmpty
-    }
-  }
-
-  /**
-   * Makes a new assertion that requires an Iterable contain exactly one of the
-   * specified elements.
-   */
-  def containsOneOf[A](value: A, other: A, remaining: A*): Assertion[Iterable[A]] = {
-    val allValues = value +: other +: remaining
-
-    Assertion.assertion("containsOneOf")(param(allValues)) { actual =>
-      val actualSet = actual.toSet
-
-      actualSet.intersect(allValues.toSet).size == 1
-    }
-  }
-
-  /**
-   * Makes a new assertion that requires an Iterable contain at least one of the
-   * specified elements.
-   */
-  def containsAtLeastOneOf[A](value: A, other: A, remaining: A*): Assertion[Iterable[A]] = {
-    val allValues = value +: other +: remaining
-
-    Assertion.assertion("containsAtLeastOneOf")(param(allValues)) { actual =>
-      val actualSet = actual.toSet
-
-      actualSet.intersect(allValues.toSet).nonEmpty
-    }
-  }
-
-  /**
    * Makes a new assertion that requires a `Cause` contain the specified
    * cause.
    */
   def containsCause[E](cause: Cause[E]): Assertion[Cause[E]] =
     Assertion.assertion("containsCause")(param(cause))(_.contains(cause))
+
+  /**
+   * Makes a new assertion that requires a Map to contain the specified key.
+   */
+  def containsKey[K, V](key: K): Assertion[Map[K, V]] =
+    Assertion.assertion("containsKey")()(_.exists { case (k, _) => k == key })
 
   /**
    * Makes a new assertion that requires a substring to be present.
@@ -480,6 +406,20 @@ object Assertion extends AssertionVariants {
     }
 
   /**
+   * Makes a new assertion that requires an Iterable contain at least one of the
+   * specified elements.
+   */
+  def hasAtLeastOneOf[A](values: Set[A]): Assertion[Iterable[A]] =
+    hasIntersection(values, hasSize(isGreaterThanEqualTo(1)))
+
+  /**
+   * Makes a new assertion that requires an Iterable contain at most one of the
+   * specified elements.
+   */
+  def hasAtMostOneOf[A](values: Set[A]): Assertion[Iterable[A]] =
+    hasIntersection(values, hasSize(isLessThanEqualTo(1)))
+
+  /**
    * Makes a new assertion that focuses in on a field in a case class.
    *
    * {{{
@@ -499,11 +439,37 @@ object Assertion extends AssertionVariants {
     Assertion.assertionRec("hasFirst")(param(assertion))(assertion)(actual => actual.headOption)
 
   /**
+   * Makes a new assertion that requires the intersection of two Iterables
+   * satisfy the given assertion
+   */
+  def hasIntersection[A](other: Iterable[A], assertion: Assertion[Seq[A]]): Assertion[Iterable[A]] =
+    Assertion.assertionRec("hasIntersection")(param(other))(assertion) { actual =>
+      val actualSeq = actual.toSeq
+      val otherSeq  = other.toSeq
+
+      Some(actualSeq.intersect(otherSeq))
+    }
+
+  /**
    * Makes a new assertion that requires an Iterable to contain the last
    * element satisfying the given assertion
    */
   def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRec("hasLast")(param(assertion))(assertion)(actual => actual.lastOption)
+
+  /**
+   * Makes a new assertion that requires an Iterable contain none of the
+   * specified elements.
+   */
+  def hasNoneOf[A](values: Set[A]): Assertion[Iterable[A]] =
+    hasIntersection(values, isEmpty)
+
+  /**
+   * Makes a new assertion that requires an Iterable contain exactly one of the
+   * specified elements.
+   */
+  def hasOneOf[A](values: Set[A]): Assertion[Iterable[A]] =
+    hasIntersection(values, hasSize(equalTo(1)))
 
   /**
    * Makes a new assertion that requires an Iterable to have the same elements
@@ -518,32 +484,11 @@ object Assertion extends AssertionVariants {
     }
 
   /**
-   * Makes a new assertion that requires an Iterable to have all the elements
+   * Makes a new assertion that requires an Iterable to have the same unique elements
    * as the specified Iterable, though not necessarily in the same order
    */
-  def hasAllElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    Assertion.assertion("hasAllElements")(param(other)) { actual =>
-      val actualSeq = actual.toSeq
-      val otherSeq  = other.toSeq
-
-      otherSeq.diff(actualSeq).isEmpty
-    }
-
-  /**
-   * Makes a new assertion that requires a Seq is sorted.
-   */
-  def isSorted[A](implicit ord: Ordering[A]): Assertion[Seq[A]] =
-    Assertion.assertion("isSorted")() {
-      case Seq()  => true
-      case Seq(_) => true
-      case seq    => seq.sliding(2).forall { case Seq(x, y) => ord.lteq(x, y) }
-    }
-
-  /**
-   * Makes a new assertion that requires a Map to contain the specified key.
-   */
-  def containsKey[K, V](key: K): Assertion[Map[K, V]] =
-    Assertion.assertion("containsKey")()(_.exists { case (k, _) => k == key })
+  def hasSameUniqueElements[A](values: Set[A]): Assertion[Iterable[A]] =
+    Assertion.assertion("hasSameElements")(param(values))(actual => actual.toSet == values)
 
   /**
    * Makes a new assertion that requires the size of an Iterable be satisfied
@@ -560,6 +505,13 @@ object Assertion extends AssertionVariants {
     Assertion.assertionM("hasSizeString")(param(assertion))(actual => assertion.test(actual.size))
 
   /**
+   * Makes a new assertion that requires the specified Iterable to be a subset of the
+   * Iterable
+   */
+  def hasSubset[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    hasIntersection(other, hasSameElements(other))
+
+  /**
    * Makes a new assertion that requires the sum type be a specified term.
    *
    * {{{
@@ -572,6 +524,20 @@ object Assertion extends AssertionVariants {
     assertion: Assertion[Proj]
   ): Assertion[Sum] =
     Assertion.assertionRec("isCase")(param(termName), param(unapply(termName)), param(assertion))(assertion)(term(_))
+
+  /**
+   * Makes a new assertion that requires a Seq is distinct.
+   */
+  val isDistinct: Assertion[Seq[Any]] = {
+    @scala.annotation.tailrec
+    def loop(seq: Seq[Any], seen: Set[Any]): Boolean = seq match {
+      case Seq()   => true
+      case Seq(_)  => true
+      case x +: xs => if (seen.contains(x)) false else loop(xs, seen + x)
+    }
+
+    Assertion.assertion("isDistinct")()(actual => loop(actual, Set.empty))
+  }
 
   /**
    * Makes a new assertion that requires an Iterable to be empty.
@@ -590,6 +556,22 @@ object Assertion extends AssertionVariants {
    */
   def isFalse: Assertion[Boolean] =
     Assertion.assertion("isFalse")()(!_)
+
+  /**
+   * Makes a new assertion that requires a Failure value satisfying a specified
+   * assertion.
+   */
+  def isFailure(assertion: Assertion[Throwable]): Assertion[Try[Any]] =
+    Assertion.assertionRec("isSuccess")(param(assertion))(assertion) {
+      case Failure(a) => Some(a)
+      case Success(_) => None
+    }
+
+  /**
+   * Makes a new assertion that requires a Try value is Failure.
+   */
+  val isFailure: Assertion[Try[Any]] =
+    isFailure(anything)
 
   /**
    * Makes a new assertion that requires the value be greater than the
@@ -625,6 +607,12 @@ object Assertion extends AssertionVariants {
     }
 
   /**
+   * Makes a new assertion that requires an Either is Left.
+   */
+  val isLeft: Assertion[Either[Any, Any]] =
+    isLeft(anything)
+
+  /**
    * Makes a new assertion that requires the value be less than the specified
    * reference value.
    */
@@ -639,6 +627,18 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isLessThanEqualTo")(param(reference))(actual => ord.lteq(actual, reference))
 
   /**
+   * Makes a new assertion that requires a numeric value is negative.
+   */
+  def isNegative[A](implicit num: Numeric[A]): Assertion[A] =
+    isLessThan(num.zero)
+
+  /**
+   * Makes a new assertion that requires a None value.
+   */
+  val isNone: Assertion[Option[Any]] =
+    Assertion.assertion("isNone")()(_.isEmpty)
+
+  /**
    * Makes a new assertion that requires an Iterable to be non empty.
    */
   val isNonEmpty: Assertion[Iterable[Any]] =
@@ -651,16 +651,22 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isNonEmptyString")()(_.nonEmpty)
 
   /**
-   * Makes a new assertion that requires a None value.
-   */
-  val isNone: Assertion[Option[Any]] =
-    Assertion.assertion("isNone")()(_.isEmpty)
-
-  /**
    * Makes a new assertion that requires a null value.
    */
   val isNull: Assertion[Any] =
     Assertion.assertion("isNull")()(_ == null)
+
+  /**
+   * Makes a new assertion that requires a value to be equal to one of the specified values.
+   */
+  def isOneOf[A, B](values: Set[A])(implicit eql: Eql[A, B]): Assertion[B] =
+    Assertion.assertion("isOneOf")(param(values))(actual => values.exists(_ == actual))
+
+  /**
+   * Makes a new assertion that requires a numeric value is positive.
+   */
+  def isPositive[A](implicit num: Numeric[A]): Assertion[A] =
+    isGreaterThan(num.zero)
 
   /**
    * Makes a new assertion that requires a Right value satisfying a specified
@@ -673,11 +679,43 @@ object Assertion extends AssertionVariants {
     }
 
   /**
+   * Makes a new assertion that requires an Either is Right.
+   */
+  val isRight: Assertion[Either[Any, Any]] =
+    isRight(anything)
+
+  /**
    * Makes a new assertion that requires a Some value satisfying the specified
    * assertion.
    */
   def isSome[A](assertion: Assertion[A]): Assertion[Option[A]] =
     Assertion.assertionRec("isSome")(param(assertion))(assertion)(identity(_))
+
+  /**
+   * Makes a new assertion that requires an Option is Some.
+   */
+  val isSome: Assertion[Option[Any]] =
+    isSome(anything)
+
+  /**
+   * Makes a new assertion that requires a Seq is sorted.
+   */
+  def isSorted[A](implicit ord: Ordering[A]): Assertion[Seq[A]] = {
+    @scala.annotation.tailrec
+    def loop(seq: Seq[A]): Boolean = seq match {
+      case Seq()               => true
+      case Seq(_)              => true
+      case x +: y +: remaining => if (ord.lteq(x, y)) loop(y +: remaining) else false
+    }
+
+    Assertion.assertion("isSorted")()(loop(_))
+  }
+
+  /**
+   * Makes a new assertion that requires a Seq is sorted in reverse order.
+   */
+  def isSortedReverse[A](implicit ord: Ordering[A]): Assertion[Seq[A]] =
+    isSorted(ord.reverse)
 
   /**
    * Makes an assertion that requires a value have the specified type.
@@ -689,6 +727,22 @@ object Assertion extends AssertionVariants {
    */
   def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
     Assertion.assertionRec("isSubtype")(param(className(C)))(assertion)(C.unapply(_))
+
+  /**
+   * Makes a new assertion that requires a Success value satisfying a specified
+   * assertion.
+   */
+  def isSuccess[A](assertion: Assertion[A]): Assertion[Try[A]] =
+    Assertion.assertionRec("isSuccess")(param(assertion))(assertion) {
+      case Success(a) => Some(a)
+      case Failure(_) => None
+    }
+
+  /**
+   * Makes a new assertion that requires a Try value is Success.
+   */
+  val isSuccess: Assertion[Try[Any]] =
+    isSuccess(anything)
 
   /**
    * Makes a new assertion that requires a value be true.
@@ -710,10 +764,28 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isWithin")(param(min), param(max))(actual => ord.gteq(actual, min) && ord.lteq(actual, max))
 
   /**
+   * Makes a new assertion that requires a numeric value is zero.
+   */
+  def isZero[A](implicit num: Numeric[A]): Assertion[A] =
+    equalTo(num.zero)
+
+  /**
    * Makes a new assertion that requires a given string to match the specified regular expression.
    */
   def matchesRegex(regex: String): Assertion[String] =
     Assertion.assertion("matchesRegex")(param(regex))(_.matches(regex))
+
+  /**
+   * Makes a new assertion that requires a numeric value is non negative.
+   */
+  def nonNegative[A](implicit num: Numeric[A]): Assertion[A] =
+    Assertion.assertion("nonNegative")()(actual => num.gteq(actual, num.zero))
+
+  /**
+   * Makes a new assertion that requires a numeric value is non positive.
+   */
+  def nonPositive[A](implicit num: Numeric[A]): Assertion[A] =
+    isLessThanEqualTo(num.zero)
 
   /**
    * Makes a new assertion that negates the specified assertion.
