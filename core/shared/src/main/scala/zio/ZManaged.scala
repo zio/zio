@@ -1335,7 +1335,7 @@ object ZManaged {
   /**
    * Lifts a by-name, pure value into a Managed.
    */
-  def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
+  def effectTotal[A](r: => A): ZManaged[Any, Nothing, A] =
     ZManaged.fromEffect(ZIO.effectTotal(r))
 
   /**
@@ -1631,7 +1631,7 @@ object ZManaged {
    * Lifts a synchronous effect into `ZManaged[R, Throwable, A]` with a release action.
    * The acquire and release actions will be performed uninterruptibly.
    */
-  def makeEffect[R, A](acquire: => A)(release: A => Any): ZManaged[R, Throwable, A] =
+  def makeEffect[A](acquire: => A)(release: A => Any): ZManaged[Any, Throwable, A] =
     make(Task(acquire))(a => Task(release(a)).orDie)
 
   /**
