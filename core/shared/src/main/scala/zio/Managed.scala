@@ -87,7 +87,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.effectTotal]]
    */
-  def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
+  def effectTotal[A](r: => A): Managed[Nothing, A] =
     ZManaged.effectTotal(r)
 
   /**
@@ -386,15 +386,13 @@ object Managed {
   /**
    * See [[zio.ZManaged.whenCase]]
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCase[E, A](a: => A)(pf: PartialFunction[A, Managed[E, Any]]): Managed[E, Unit] =
     ZManaged.whenCase(a)(pf)
 
   /**
    * See [[zio.ZManaged.whenCaseM]]
    */
-  def whenCaseM[R, E, A](
-    a: ZManaged[R, E, A]
-  )(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCaseM[E, A](a: Managed[E, A])(pf: PartialFunction[A, Managed[E, Any]]): Managed[E, Unit] =
     ZManaged.whenCaseM(a)(pf)
 
   /**
