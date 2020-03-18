@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.{ ignore, nonFlaky }
+import zio.test.TestAspect.{ ignore, nonFlaky, scala2Only }
 import zio.test._
 import zio.test.environment._
 
@@ -310,6 +310,6 @@ object ZLayerSpec extends ZIOBaseSpec {
         assertM(result)(
           isLeft(containsString("could not find implicit value for parameter ev: zio.ZLayer.HasSingleService"))
         )
-      }
+      } @@ scala2Only
     )
 }
