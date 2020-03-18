@@ -391,9 +391,11 @@ private[stream] object StreamEffect extends Serializable {
 
   def fromIterator[A](iterator: => Iterator[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
-      Managed.effectTotal(() => if (iterator.hasNext) iterator.next() else end)
-      val it = iterator
-      Managed.effectTotal(() => if (it.hasNext) it.next() else end)
+      Managed.effectTotal {
+        val it = iterator
+
+        () => if (it.hasNext) it.next() else end
+      }
     }
 
   def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
