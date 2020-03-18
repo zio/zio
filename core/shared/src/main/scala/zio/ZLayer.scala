@@ -2053,13 +2053,21 @@ object ZLayer {
      */
     def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
       self >>> ZLayer.fromFunctionMany(_.update[A](f))
+
+    /**
+     * Proves that this layer has a single `Has[_]` output,
+     * which allows more operations to be done lawfully, for example map a value inside `Has[_]`.
+     */
+    def singleService[A](implicit ev: ROut =:= Has[A]): SingleServiceOutputLayerOps[RIn, E, A] =
+      new SingleServiceOutputLayerOps[RIn, E, A](self.asInstanceOf[ZLayer[RIn, E, Has[A]]])
   }
 
-  implicit final class ZLayerHasROutOps1[RIn, E, A](private val self: ZLayer[RIn, E, Has[A]]) extends AnyVal {
+  final class SingleServiceOutputLayerOps[RIn, E, A](private val self: ZLayer[RIn, E, Has[A]]) extends AnyVal {
+
     /**
-     * Maps layer output which is wrapped in `Has`
+     * Maps this layer's single Has[A] output into a single Has[B] output.
      */
-    def mapDependency[B: Tagged](f: A => B)(implicit A: Tagged[A]): ZLayer[RIn, E, Has[B]] =
+    def map[B: Tagged](f: A => B)(implicit A: Tagged[A]): ZLayer[RIn, E, Has[B]] =
       self.map(x => Has(f(x.get)))
   }
 
