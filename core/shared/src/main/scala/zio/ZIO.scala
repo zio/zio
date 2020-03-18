@@ -1789,7 +1789,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   final def whenM[R1 <: R, E1 >: E](
-    b: URIO[R1, Boolean]
+    b: ZIO[R1, E1, Boolean]
   ): ZIO[R1, E1, Unit] =
     ZIO.whenM(b)(self)
 

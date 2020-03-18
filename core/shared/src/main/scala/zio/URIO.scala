@@ -682,7 +682,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, A](a: => A)(pf: PartialFunction[A, ZIO[R, Nothing, Any]]): URIO[R, Unit] = ZIO.whenCase(a)(pf)
+  def whenCase[R, A](a: => A)(pf: PartialFunction[A, URIO[R, Any]]): URIO[R, Unit] =
+    ZIO.whenCase(a)(pf)
 
   /**
    * @see [[zio.ZIO.whenCaseM]]
