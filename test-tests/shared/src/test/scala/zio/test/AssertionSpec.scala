@@ -116,7 +116,7 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(Seq(1, 2, 3))(hasAllOf(Set(1, 2, 3)))
     },
     test(
-      "hasAllOf must succeed when iterable contains duplicates of the specified element"
+      "hasAllOf must succeed when iterable contains duplicates of the specified elements"
     ) {
       assert(Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"))(
         hasAllOf(Set("a", "b", "c"))
@@ -278,16 +278,16 @@ object AssertionSpec extends ZIOBaseSpec {
         )
       )
     ),
-    test("isDistinct must succeed when seq is distinct") {
+    test("isDistinct must succeed when iterable is distinct") {
       assert(Seq(1, 2, 3, 4, 0))(isDistinct)
     },
-    test("isDistinct must succeed for empty seq") {
+    test("isDistinct must succeed for empty iterable") {
       assert(Seq.empty[Int])(isDistinct)
     },
-    test("isDistinct must succeed for singleton seq") {
+    test("isDistinct must succeed for singleton iterable") {
       assert(Seq(1))(isDistinct)
     },
-    test("isDistinct must fail when seq is not distinct") {
+    test("isDistinct must fail when iterable is not distinct") {
       assert(Seq(1, 2, 3, 3, 4))(isDistinct)
     } @@ failure,
     test("isEmpty must succeed when the traversable is empty") {
@@ -407,22 +407,22 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isSome must fail when supplied value is None") {
       assert(None)(isSome)
     } @@ failure,
-    test("isSorted must succeed when seq is sorted") {
+    test("isSorted must succeed when iterable is sorted") {
       assert(Seq(1, 2, 2, 3, 4))(isSorted)
     },
-    test("isSorted must succeed for empty seq") {
+    test("isSorted must succeed for empty iterable") {
       assert(Seq.empty[Int])(isSorted)
     },
-    test("isSorted must succeed for singleton seq") {
+    test("isSorted must succeed for singleton iterable") {
       assert(Seq(1))(isSorted)
     },
-    test("isSorted must fail when seq is not sorted") {
+    test("isSorted must fail when iterable is not sorted") {
       assert(Seq(1, 2, 0, 3, 4))(isSorted)
     } @@ failure,
-    test("isSortedReverse must succeed when seq is reverse sorted") {
+    test("isSortedReverse must succeed when iterable is reverse sorted") {
       assert(Seq(4, 3, 3, 2, 1))(isSortedReverse)
     },
-    test("isSortedReverse must fail when seq is not reverse sorted") {
+    test("isSortedReverse must fail when iterable is not reverse sorted") {
       assert(Seq(1, 2, 0, 3, 4))(isSortedReverse)
     } @@ failure,
     test("isSubtype must succeed when value is subtype of specified type") {

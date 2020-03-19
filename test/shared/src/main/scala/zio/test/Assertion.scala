@@ -388,10 +388,10 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires an Iterable to have all of the elements
-   * as the specified Iterable, though not necessarily in the same order
+   * as the other Iterable, though not necessarily in the same order
    */
-  def hasAllOf[A](values: Iterable[A]): Assertion[Iterable[A]] =
-    Assertion.assertion("hasAllOf")(param(values))(actual => actual.toSet == values)
+  def hasAllOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    Assertion.assertion("hasAllOf")(param(other))(actual => actual.toSet == other)
 
   /**
    * Makes a new assertion that requires a sequence to contain an element
@@ -410,15 +410,15 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an Iterable contain at least one of the
    * specified elements.
    */
-  def hasAtLeastOneOf[A](values: Iterable[A]): Assertion[Iterable[A]] =
-    hasIntersection(values)(hasSize(isGreaterThanEqualTo(1)))
+  def hasAtLeastOneOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    hasIntersection(other)(hasSize(isGreaterThanEqualTo(1)))
 
   /**
    * Makes a new assertion that requires an Iterable contain at most one of the
    * specified elements.
    */
-  def hasAtMostOneOf[A](values: Iterable[A]): Assertion[Iterable[A]] =
-    hasIntersection(values)(hasSize(isLessThanEqualTo(1)))
+  def hasAtMostOneOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    hasIntersection(other)(hasSize(isLessThanEqualTo(1)))
 
   /**
    * Makes a new assertion that focuses in on a field in a case class.
@@ -482,15 +482,15 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an Iterable contain none of the
    * specified elements.
    */
-  def hasNoneOf[A](values: Iterable[A]): Assertion[Iterable[A]] =
-    hasIntersection(values)(isEmpty)
+  def hasNoneOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    hasIntersection(other)(isEmpty)
 
   /**
    * Makes a new assertion that requires an Iterable contain exactly one of the
    * specified elements.
    */
-  def hasOneOf[A](values: Iterable[A]): Assertion[Iterable[A]] =
-    hasIntersection(values)(hasSize(equalTo(1)))
+  def hasOneOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    hasIntersection(other)(hasSize(equalTo(1)))
 
   /**
    * Makes a new assertion that requires an Iterable to have the same elements
@@ -681,8 +681,8 @@ object Assertion extends AssertionVariants {
   /**
    * Makes a new assertion that requires a value to be equal to one of the specified values.
    */
-  def isOneOf[A, B](values: Iterable[A]): Assertion[A] =
-    Assertion.assertion("isOneOf")(param(values))(actual => values.exists(_ == actual))
+  def isOneOf[A](other: Iterable[A]): Assertion[A] =
+    Assertion.assertion("isOneOf")(param(other))(actual => other.exists(_ == actual))
 
   /**
    * Makes a new assertion that requires a numeric value is positive.
