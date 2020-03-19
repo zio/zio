@@ -268,7 +268,7 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
                     .extractPure(s)
                     .fold(e => {
                       state = AggregateState.Initial(chunk)
-                      StreamEffect.fail[E1, B](e)
+                      StreamEffect.failure(e)
                     }, {
                       case (b, leftovers) =>
                         state = AggregateState.Initial(chunk ++ leftovers)
@@ -291,7 +291,7 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
                 case AggregateState.DirtyDone(s) =>
                   sink
                     .extractPure(s)
-                    .fold(StreamEffect.fail[E1, B], {
+                    .fold(StreamEffect.failure, {
                       case (b, _) =>
                         state = AggregateState.Done
                         b
@@ -338,9 +338,9 @@ private[stream] object StreamEffect extends Serializable {
     override def fillInStackTrace() = this
   }
 
-  def end[A]: A = throw End
+  def end: Nothing = throw End
 
-  def fail[E, A](e: E): A = throw Failure(e)
+  def failure[E](e: E): Nothing = throw Failure(e)
 
   val empty: StreamEffect[Any, Nothing, Nothing] =
     StreamEffect {
@@ -358,7 +358,7 @@ private[stream] object StreamEffect extends Serializable {
           if (done) end
           else {
             done = true
-            fail(e)
+            failure(e)
           }
       }
     }
@@ -428,7 +428,7 @@ private[stream] object StreamEffect extends Serializable {
               } else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
               else Chunk.fromArray(buf)
             } catch {
-              case e: IOException => fail(e)
+              case e: IOException => failure(e)
             }
           }
 
