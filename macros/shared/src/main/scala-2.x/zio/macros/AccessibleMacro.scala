@@ -45,26 +45,33 @@ private[macros] class AccessibleMacro(val c: Context) {
       case _ => None
     }).getOrElse(abort("@accessible macro can only be applied to objects containing `Service` trait."))
 
-    val anyType: Type       = c.typecheck(q"(??? : _root_.scala.Any)").tpe
-    val throwableType: Type = c.typecheck(q"(??? : _root_.java.lang.Throwable)").tpe
+    val anyTree: Tree       = q"_root_.scala.Any"
+    val throwableTree: Tree = q"_root_.java.lang.Throwable"
 
-    object typeInfo {
-      def unapply(tree: AppliedTypeTree): Option[(Boolean, Type, Type, Type)] = {
-        val typeName = TypeName(c.freshName())
-        val tpe      = c.typecheck(tq"({ type $typeName = $tree })#$typeName", c.TYPEmode).tpe.dealias
-        tpe.typeArgs match {
-          case r :: e :: a :: Nil if tpe.typeSymbol.fullName == "zio.ZIO" => Some((true, r, e, a))
-          case _                                                          => Some((false, anyType, throwableType, tpe))
-        }
+    def typeInfo(tree: AppliedTypeTree): (Boolean, Tree, Tree, Tree) =
+      tree match {
+        case tq"$typeName[..$typeParams]" =>
+          val typeArgs: List[Type] = typeParams.map(t => c.typecheck(tq"$t", c.TYPEmode, silent = true).tpe)
+          val tpe                  = c.typecheck(tq"$typeName[..$typeArgs]", c.TYPEmode).tpe.dealias
+          val isZio                = tpe.typeSymbol.fullName == "zio.ZIO"
+          val (tpeArgs, _) = tpe.typeArgs.foldLeft(List.empty[Tree] -> typeParams) {
+            case ((acc, x :: xs), NoType) => (acc :+ x)     -> xs
+            case ((acc, xs), t)           => (acc :+ q"$t") -> xs
+          }
+
+          (isZio, tpeArgs) match {
+            case (true, r :: e :: a :: Nil) => (true, r, e, a)
+            case _                          => (false, anyTree, throwableTree, tree)
+          }
       }
-    }
 
     def makeAccessor(
       name: TermName,
       impl: Tree,
-      r: Type,
-      e: Type,
-      a: Type,
+      typeParams: List[TypeDef],
+      r: Tree,
+      e: Tree,
+      a: Tree,
       paramLists: List[List[ValDef]],
       isVal: Boolean
     ): Tree = {
@@ -73,13 +80,15 @@ private[macros] class AccessibleMacro(val c: Context) {
         else Modifiers(Flag.OVERRIDE)
 
       val returnType =
-        if (r == anyType) tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $a]"
+        if (r == anyTree) tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $a]"
         else tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $a]"
+
+      val typeArgs = typeParams.map(_.name)
 
       val returnValue = paramLists match {
         case argLists if argLists.flatten.nonEmpty =>
           val argNames = argLists.map(_.map(_.name))
-          q"_root_.zio.ZIO.accessM(_.get[Service].$name(...$argNames))"
+          q"_root_.zio.ZIO.accessM(_.get[Service].$name[..$typeArgs](...$argNames))"
         case _ =>
           q"_root_.zio.ZIO.accessM(_.get[Service].$name)"
       }
@@ -87,20 +96,24 @@ private[macros] class AccessibleMacro(val c: Context) {
       if (isVal) q"$mods val $name: $returnType = $returnValue"
       else
         paramLists match {
-          case Nil       => q"$mods def $name: $returnType = $returnValue"
-          case List(Nil) => q"$mods def $name(): $returnType = $returnValue"
-          case _         => q"$mods def $name(...$paramLists): $returnType = $returnValue"
+          case Nil       => q"$mods def $name[..$typeParams]: $returnType = $returnValue"
+          case List(Nil) => q"$mods def $name[..$typeParams](): $returnType = $returnValue"
+          case _         => q"$mods def $name[..$typeParams](...$paramLists): $returnType = $returnValue"
         }
     }
 
     val accessors =
       moduleInfo.service.impl.body.collect {
-        case DefDef(_, termName, _, argLists, typeInfo(isZio, r, e, a), impl) if isZio =>
-          makeAccessor(termName, impl, r, e, a, argLists, false)
+        case DefDef(_, termName, tparams, argLists, tree: AppliedTypeTree, impl) =>
+          val (isZio, r, e, a) = typeInfo(tree)
+          if (isZio) Some(makeAccessor(termName, impl, tparams, r, e, a, argLists, false))
+          else None
 
-        case ValDef(_, termName, typeInfo(isZio, r, e, a), impl) if isZio =>
-          makeAccessor(termName, impl, r, e, a, Nil, true)
-      }
+        case ValDef(_, termName, tree: AppliedTypeTree, impl) =>
+          val (isZio, r, e, a) = typeInfo(tree)
+          if (isZio) Some(makeAccessor(termName, impl, Nil, r, e, a, Nil, true))
+          else None
+      }.flatten
 
     moduleInfo.module match {
       case q"$mods object $tname extends { ..$earlydefns } with ..$parents { $self => ..$body }" =>
