@@ -452,8 +452,8 @@ object Assertion extends AssertionVariants {
     }
 
   /**
-   * Makes a new assertion that requires a Map to has the specified key
-   * With value matching the specified assertion.
+   * Makes a new assertion that requires a Map to have the specified key
+   * with value satisfying the specified assertion.
    */
   def hasKey[K, V](key: K, assertion: Assertion[V]): Assertion[Map[K, V]] =
     Assertion.assertionRec("hasKey")(param(key))(assertion)(_.get(key))
@@ -520,7 +520,7 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires the specified Iterable to be a subset of the
-   * Iterable
+   * other Iterable
    */
   def hasSubset[A](other: Iterable[A]): Assertion[Iterable[A]] =
     hasIntersection(other)(hasSameElements(other))
@@ -580,7 +580,7 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isFalse")()(!_)
 
   /**
-   * Makes a new assertion that requires a Failure value satisfying a specified
+   * Makes a new assertion that requires a Failure value satisfying the specified
    * assertion.
    */
   def isFailure(assertion: Assertion[Throwable]): Assertion[Try[Any]] =
@@ -740,9 +740,9 @@ object Assertion extends AssertionVariants {
   }
 
   /**
-   * Makes a new assertion that requires a Seq is sorted in reverse order.
+   * Makes a new assertion that requires an Iterable is sorted in reverse order.
    */
-  def isSortedReverse[A](implicit ord: Ordering[A]): Assertion[Seq[A]] =
+  def isSortedReverse[A](implicit ord: Ordering[A]): Assertion[Iterable[A]] =
     isSorted(ord.reverse)
 
   /**
@@ -757,7 +757,7 @@ object Assertion extends AssertionVariants {
     Assertion.assertionRec("isSubtype")(param(className(C)))(assertion)(C.unapply(_))
 
   /**
-   * Makes a new assertion that requires a Success value satisfying a specified
+   * Makes a new assertion that requires a Success value satisfying the specified
    * assertion.
    */
   def isSuccess[A](assertion: Assertion[A]): Assertion[Try[A]] =

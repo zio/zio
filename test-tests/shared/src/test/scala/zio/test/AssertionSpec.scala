@@ -188,7 +188,7 @@ object AssertionSpec extends ZIOBaseSpec {
     test("hasKey must succeed when map has the specified key") {
       assert(Map("scala" -> 1))(hasKey("scala"))
     },
-    test("hasKeys must succeed when has keys satisfying the specified assertion") {
+    test("hasKeys must succeed when map has keys satisfying the specified assertion") {
       assert(Map("scala" -> 1, "java" -> 1))(hasKeys(hasAtLeastOneOf(Set("scala", "java"))))
     },
     test("hasKeys must fail when map has keys not satisfying the specified assertion") {
@@ -395,7 +395,7 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isSome must succeed when supplied value is Some and satisfy specified assertion") {
       assert(Some("zio"))(isSome(equalTo("zio")))
     },
-    test("isSome with equalToOneOf must succeed assertion is satisfied") {
+    test("isSome with isOneOf must succeed when assertion is satisfied") {
       assert(Some("zio"))(isSome(isOneOf(Set("zio", "test"))))
     },
     test("isSome must fail when supplied value is None") {
