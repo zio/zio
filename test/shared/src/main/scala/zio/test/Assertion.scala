@@ -470,6 +470,7 @@ object Assertion extends AssertionVariants {
    */
   def hasKeys[K, V](assertion: Assertion[Iterable[K]]): Assertion[Map[K, V]] =
     Assertion.assertionRec("hasKeys")()(assertion)(actual => Some(actual.keys))
+
   /**
    * Makes a new assertion that requires an Iterable to contain the last
    * element satisfying the given assertion
@@ -530,6 +531,7 @@ object Assertion extends AssertionVariants {
    */
   def hasValues[K, V](assertion: Assertion[Iterable[V]]): Assertion[Map[K, V]] =
     Assertion.assertionRec("hasValues")()(assertion)(actual => Some(actual.values))
+
   /**
    * Makes a new assertion that requires the sum type be a specified term.
    *
@@ -558,7 +560,6 @@ object Assertion extends AssertionVariants {
 
     Assertion.assertion("isDistinct")()(actual => loop(actual.iterator, Set.empty))
   }
-
 
   /**
    * Makes a new assertion that requires an Iterable to be empty.
