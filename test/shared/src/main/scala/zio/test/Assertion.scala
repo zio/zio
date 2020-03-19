@@ -681,8 +681,8 @@ object Assertion extends AssertionVariants {
   /**
    * Makes a new assertion that requires a value to be equal to one of the specified values.
    */
-  def isOneOf[A](other: Iterable[A]): Assertion[A] =
-    Assertion.assertion("isOneOf")(param(other))(actual => other.exists(_ == actual))
+  def isOneOf[A](values: Iterable[A]): Assertion[A] =
+    Assertion.assertion("isOneOf")(param(values))(actual => values.exists(_ == actual))
 
   /**
    * Makes a new assertion that requires a numeric value is positive.
