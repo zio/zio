@@ -1,6 +1,6 @@
 package zio.examples.macros
 
-import zio.{ Has, UIO, URIO, ZLayer }
+import zio.{ Has, UIO, URIO, ZIO, ZLayer }
 import zio.console.Console
 import zio.macros.accessible
 
@@ -41,6 +41,13 @@ object AccessibleMacroExample {
       v3 <- AccessibleMacroExample.poly(4L)
       v4 <- AccessibleMacroExample.poly2(Wrapped(Bar("bar")))
     } yield (v1, v2, v3, v4)
+
+  // sanity check
+  val _foo                            : ZIO[AccessibleMacroExample, Nothing, Unit]    = AccessibleMacroExample.foo
+  def _bar(n: Int)                    : ZIO[AccessibleMacroExample, Nothing, Unit]    = AccessibleMacroExample.bar(n)
+  def _baz(x: Int, y: Int)            : ZIO[AccessibleMacroExample, Nothing, Int]     = AccessibleMacroExample.baz(x, y)
+  def _poly[A](a: A)                  : ZIO[AccessibleMacroExample, Nothing, A]       = AccessibleMacroExample.poly(a)
+  def _poly2[A <: Foo](a: Wrapped[A]) : ZIO[AccessibleMacroExample, Nothing, List[A]] = AccessibleMacroExample.poly2(a)
 
   // macro autogenerates accessors for `foo`, `bar`, `baz` and `poly` below
 }
