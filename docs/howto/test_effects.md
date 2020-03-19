@@ -292,7 +292,7 @@ resume.
 
 **Example 1**
 
-Thanks to the call to `TestClock.adjust(1.minute)` the `ZIO.sleep(1.minute)` effect will return immediately, incrementing the fiber time by one minute. We then return the updated fiber time ith `currentTime`.
+Thanks to the call to `TestClock.adjust(1.minute)` the `ZIO.sleep(1.minute)` effect will return immediately, incrementing the fiber time by one minute. We then return the updated fiber time with `currentTime`.
 
 ```scala mdoc
 import java.util.concurrent.TimeUnit
