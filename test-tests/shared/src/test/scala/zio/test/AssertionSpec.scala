@@ -446,7 +446,7 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(exception)(isSubtype[Exception.MyException](anything))
     },
     test("isSuccess must succeed when Success value satisfies the specified assertion") {
-      assert(Success(1))(isSuccess(isPositive))
+      assert(Success(1))(isSuccess(isPositive[Int]))
     },
     test("isSuccess must succeed when Try value is Success") {
       assert(Success(1))(isSuccess)
