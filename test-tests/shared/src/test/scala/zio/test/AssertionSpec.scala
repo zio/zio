@@ -31,12 +31,6 @@ object AssertionSpec extends ZIOBaseSpec {
     test("contains must fail when iterable does not contain specified element") {
       assert(Seq("zio", "scala"))(contains("java"))
     } @@ failure,
-    test("containsKey must succeed when map contains the specified key") {
-      assert(Map("scala" -> 1))(containsKey("scala"))
-    },
-    test("containsKey must fail when map does not contain the specified key") {
-      assert(Map("scala" -> 1))(containsKey("java"))
-    } @@ failure,
     test("containsString must succeed when string is found") {
       assert("this is a value")(containsString("is a"))
     },
@@ -118,6 +112,19 @@ object AssertionSpec extends ZIOBaseSpec {
     test("forall must work with iterables that are not lists") {
       assert(SortedSet(1, 2, 3))(forall(isGreaterThan(0)))
     },
+    test("hasAllOf must succeed when iterable contains the specified elements") {
+      assert(Seq(1, 2, 3))(hasAllOf(Set(1, 2, 3)))
+    },
+    test(
+      "hasAllOf must succeed when iterable contains duplicates of the specified element"
+    ) {
+      assert(Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"))(
+        hasAllOf(Set("a", "b", "c"))
+      )
+    },
+    test("hasAllOf must fail when iterable does not have all specified elements") {
+      assert(Seq(1, 2, 3, 4))(hasAllOf(Set(1, 2, 3)) && hasAllOf(Set(1, 2, 3, 4, 5)))
+    } @@ failure,
     test("hasAt must fail when an index is outside of a sequence range") {
       assert(Seq(1, 2, 3))(hasAt(-1)(anything))
     } @@ failure,
@@ -161,13 +168,31 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(Seq(1, 2, 3))(hasFirst(equalTo(100)))
     } @@ failure,
     test("hasIntersection must succeed when intersection satisfies specified assertion") {
-      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5), hasSize(equalTo(1))))
+      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(hasSize(equalTo(1))))
     },
     test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
-      assert(Seq(1, 2, 3))(hasIntersection(Seq(4, 5, 6), isEmpty))
+      assert(Seq(1, 2, 3))(hasIntersection(Seq(4, 5, 6))(isEmpty))
     },
     test("hasIntersection must fail when intersection does not satisfy specified assertion") {
-      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5), isEmpty))
+      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(isEmpty))
+    } @@ failure,
+    test("hasKey must succeed when map has key with value satisfying specified assertion") {
+      assert(Map("scala" -> 1))(hasKey("scala", equalTo(1)))
+    },
+    test("hasKey must fail when map does not have the specified key") {
+      assert(Map("scala" -> 1))(hasKey("java", equalTo(1)))
+    } @@ failure,
+    test("hasKey must fail when map has key with value not satisfying specified assertion") {
+      assert(Map("scala" -> 1))(hasKey("scala", equalTo(-10)))
+    } @@ failure,
+    test("hasKey must succeed when map has the specified key") {
+      assert(Map("scala" -> 1))(hasKey("scala"))
+    },
+    test("hasKeys must succeed when has keys satisfying the specified assertion") {
+      assert(Map("scala" -> 1, "java" -> 1))(hasKeys(hasAtLeastOneOf(Set("scala", "java"))))
+    },
+    test("hasKeys must fail when map has keys not satisfying the specified assertion") {
+      assert(Map("scala" -> 1, "java" -> 1))(hasKeys(contains("bash")))
     } @@ failure,
     test("hasLast must fail when an iterable is empty") {
       assert(Seq())(hasLast(anything))
@@ -212,19 +237,6 @@ object AssertionSpec extends ZIOBaseSpec {
         hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
       )
     } @@ failure,
-    test("hasSameUniqueElements must succeed when iterable contains the specified elements") {
-      assert(Seq(1, 2, 3))(hasSameUniqueElements(Set(1, 2, 3)))
-    },
-    test(
-      "hasSameUniqueElements must succeed when iterable contains duplicates of the specified element"
-    ) {
-      assert(Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"))(
-        hasSameUniqueElements(Set("a", "b", "c"))
-      )
-    },
-    test("hasSameUniqueElements must fail when iterable does all elements specified in set") {
-      assert(Seq(1, 2, 3, 4))(hasSameUniqueElements(Set(1, 2, 3)) && hasSameUniqueElements(Set(1, 2, 3, 4, 5)))
-    } @@ failure,
     test("hasSize must succeed when iterable size is equal to specified assertion") {
       assert(Seq(1, 2, 3))(hasSize(equalTo(3)))
     },
@@ -248,6 +260,12 @@ object AssertionSpec extends ZIOBaseSpec {
     },
     test("hasSubset must fail when iterable does not contain elements specified in set") {
       assert(Seq(4, 3, 1, 2))(hasSubset(Set(1, 2, 10)))
+    } @@ failure,
+    test("hasValues must succeed when map has values satisfying the specified assertion") {
+      assert(Map("scala" -> 10, "java" -> 20))(hasValues(hasAtLeastOneOf(Set(0, 10))))
+    },
+    test("hasValues must fail when map has values not satisfying the specified assertion") {
+      assert(Map("scala" -> 10, "java" -> 20))(hasValues(contains(0)))
     } @@ failure,
     test("isCase must fail when unapply fails (returns None)") {
       assert(42)(isCase[Int, String](termName = "term", _ => None, equalTo("number: 42")))

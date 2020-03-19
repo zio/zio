@@ -23,7 +23,7 @@ object TestUtils {
     }
   }
 
-  def isSucceeded[E](spec: ZSpec[environment.TestEnvironment, E]): ZIO[Any, Nothing, Boolean] = {
+  def succeeded[E](spec: ZSpec[environment.TestEnvironment, E]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
     forAllTests(execSpec) {
       case Right(TestSuccess.Succeeded(_)) => true
