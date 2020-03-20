@@ -51,15 +51,20 @@ private[macros] class AccessibleMacro(val c: Context) {
     def typeInfo(tree: AppliedTypeTree): (Boolean, Tree, Tree, Tree) =
       tree match {
         case tq"$typeName[..$typeParams]" =>
-          val typeArgs: List[Type] = typeParams.map(t => c.typecheck(tq"$t", c.TYPEmode, silent = true).tpe)
-          val tpe                  = c.typecheck(tq"$typeName[..$typeArgs]", c.TYPEmode).tpe.dealias
-          val isZio                = tpe.typeSymbol.fullName == "zio.ZIO"
-          val (tpeArgs, _) = tpe.typeArgs.foldLeft(List.empty[Tree] -> typeParams) {
+          val typeArgs  = typeParams.map(t => c.typecheck(tq"$t", c.TYPEmode, silent = true).tpe)
+          val tpe       = c.typecheck(tq"$typeName[..$typeArgs]", c.TYPEmode).tpe
+          val dealiased = tpe.dealias
+          val isZio     = dealiased.typeSymbol.fullName == "zio.ZIO"
+          val replacements: List[Tree] = (tpe.typeArgs zip typeParams).collect {
+            case (NoType, t) => q"$t"
+          }
+
+          val (typeArgTrees, _) = dealiased.typeArgs.foldLeft(List.empty[Tree] -> replacements) {
             case ((acc, x :: xs), NoType) => (acc :+ x)     -> xs
             case ((acc, xs), t)           => (acc :+ q"$t") -> xs
           }
 
-          (isZio, tpeArgs) match {
+          (isZio, typeArgTrees) match {
             case (true, r :: e :: a :: Nil) => (true, r, e, a)
             case _                          => (false, anyTree, throwableTree, tree)
           }
