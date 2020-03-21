@@ -506,6 +506,15 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     self.foldM(e => ZManaged.succeedNow(ev1(e)), ZManaged.succeedNow)
 
   /**
+   * Requires the option produced by this value to be `None`.
+   */
+  final def none[B](implicit ev: A <:< Option[B]): ZManaged[R, Option[E], Unit] =
+    self.foldM(
+      e => ZManaged.fail(Some(e)),
+      a => a.fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
+    )
+
+  /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
    * the existing finalizers.
    */
@@ -542,6 +551,15 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def option(implicit ev: CanFail[E]): ZManaged[R, Nothing, Option[A]] =
     fold(_ => None, Some(_))
+
+  /**
+   * Converts an option on errors into an option on values.
+   */
+  final def optional[E1](implicit ev: E <:< Option[E1]): ZManaged[R, E1, Option[A]] =
+    self.foldM(
+      e => e.fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
+      a => ZManaged.succeedNow(Some(a))
+    )
 
   /**
    * Translates effect failure into death of the fiber, making all failures unchecked and
@@ -791,6 +809,36 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Zips this effect with its environment
    */
   def second[R1 <: R, A1 >: A]: ZManaged[R1, E, (R1, A1)] = ZManaged.identity[R1] &&& self
+
+  /**
+   * Converts an option on values into an option on errors.
+   */
+  final def some[B](implicit ev: A <:< Option[B]): ZManaged[R, Option[E], B] =
+    self.foldM(
+      e => ZManaged.fail(Some(e)),
+      a => a.fold[ZManaged[R, Option[E], B]](ZManaged.fail(Option.empty[E]))(ZManaged.succeedNow)
+    )
+
+  /**
+   * Extracts the optional value, or fails with the given error 'e'.
+   */
+  final def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZManaged[R, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZManaged.succeedNow(value)
+      case None        => ZManaged.fail(e)
+    })
+
+  /**
+   * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
+   */
+  final def someOrFailException[B, E1 >: E](
+    implicit ev: A <:< Option[B],
+    ev2: NoSuchElementException <:< E1
+  ): ZManaged[R, E1, B] =
+    self.foldM(e => ZManaged.fail(e), ev(_) match {
+      case Some(value) => ZManaged.succeedNow(value)
+      case None        => ZManaged.fail(ev2(new NoSuchElementException("None.get")))
+    })
 
   /**
    * Returns an effect that effectfully peeks at the acquired resource.
@@ -1937,6 +1985,12 @@ object ZManaged {
    * tuple.
    */
   def second[A, B]: ZManaged[(A, B), Nothing, B] = fromFunction(_._2)
+
+  /**
+   *  Returns an effect with the optional value.
+   */
+  def some[A](a: => A): UManaged[Option[A]] =
+    succeed(Some(a))
 
   /**
    * Lifts a lazy, pure value into a Managed.
