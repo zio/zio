@@ -110,6 +110,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     }
 
   /**
+   * Operator alias for `andThenEither`.
+   */
+  final def <||>[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, Either[B, C]] =
+    andThenEither(that)
+
+  /**
    * The same as `&&`, but ignores the right output.
    */
   final def <*[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, B] =
