@@ -391,7 +391,7 @@ object Assertion extends AssertionVariants {
    * as the other Iterable, though not necessarily in the same order
    */
   def hasAllOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    Assertion.assertion("hasAllOf")(param(other))(actual => actual.toSet == other)
+    Assertion.assertion("hasAllOf")(param(other))(actual => actual.toSet == other.toSet)
 
   /**
    * Makes a new assertion that requires a sequence to contain an element

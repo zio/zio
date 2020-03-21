@@ -122,8 +122,14 @@ object AssertionSpec extends ZIOBaseSpec {
         hasAllOf(Set("a", "b", "c"))
       )
     },
+    test("hasAllOf must succeed when specified elements contain duplicates") {
+      assert(Seq(1, 2, 3))(hasAllOf(Seq(1, 2, 3, 3)))
+    },
     test("hasAllOf must fail when iterable does not have all specified elements") {
-      assert(Seq(1, 2, 3, 4))(hasAllOf(Set(1, 2, 3)) && hasAllOf(Set(1, 2, 3, 4, 5)))
+      assert(Seq(1, 2, 3, 4))(hasAllOf(Set(1, 2, 3, 4, 5)))
+    } @@ failure,
+    test("hasAllOf must fail when iterable contains unspecified elements") {
+      assert(Seq(1, 2, 3, 4))(hasAllOf(Set(1, 2, 3)))
     } @@ failure,
     test("hasAt must fail when an index is outside of a sequence range") {
       assert(Seq(1, 2, 3))(hasAt(-1)(anything))
