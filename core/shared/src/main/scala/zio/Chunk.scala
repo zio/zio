@@ -905,6 +905,11 @@ object Chunk {
   def succeed[A](a: A): Chunk[A] = single(a)
 
   /**
+   * The unit chunk
+   */
+  val unit: Chunk[Unit] = single(())
+
+  /**
    * Returns the `ClassTag` for the element type of the chunk.
    */
   private def classTagOf[A](chunk: Chunk[A]): ClassTag[A] = chunk match {

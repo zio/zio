@@ -10,8 +10,8 @@ import zio.stm.TQueue
 
 abstract class ZStream[-R, +E, +O](
   val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
-) extends ZConduit[R, E, Unit, O, Unit](
-      process.map(pull => _ => pull.mapError(_.fold[Either[E, Unit]](Right(()))(Left(_))))
+) extends ZConduit[R, E, Any, O, Any](
+      process.map(pull => _ => pull.mapError(_.fold[Either[E, Any]](Right(()))(Left(_))))
     ) { self =>
   import ZStream.{ BufferedPull, Pull, Take }
 
@@ -51,7 +51,22 @@ abstract class ZStream[-R, +E, +O](
   final def &>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, O2] =
     self zipRight that
 
+  /**
+   * Symbolic alias for [[ZStream#flatMap]].
+   */
   def >>=[R1 <: R, E1 >: E, O2](f0: O => ZStream[R1, E1, O2]): ZStream[R1, E1, O2] = flatMap(f0)
+
+  /**
+   * Symbolic alias for [[ZStream#transduce]].
+   */
+  def >>>[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]) =
+    transduce(transducer)
+
+  /**
+   * Symbolic alias for [[ZStream#run]].
+   */
+  def >>>[R1 <: R, E1 >: E, O2 >: O, Z](sink: ZSink[R1, E1, O2, Z]): ZIO[R1, E1, Z] =
+    self.run(sink)
 
   /**
    * Symbolic alias for [[ZStream#concat]].
@@ -334,7 +349,7 @@ abstract class ZStream[-R, +E, +O](
    * Performs a filter and map in a single step.
    */
   def collect[O1](pf: PartialFunction[O, O1]): ZStream[R, E, O1] =
-    ZStream(self.process.map(_.map(_.collect(pf))))
+    mapChunks(_.collect(pf))
 
   /**
    * Performs an effectful filter and map in a single step.
@@ -395,8 +410,8 @@ abstract class ZStream[-R, +E, +O](
   ): ZStream[R1, E1, O3] =
     ZStream[R1, E1, O3] {
       for {
-        left  <- self.process.mapM(BufferedPull.make(_))
-        right <- that.process.mapM(BufferedPull.make(_))
+        left  <- self.process.mapM(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
+        right <- that.process.mapM(BufferedPull.make[R1, E1, O2](_))
         pull <- ZStream
                  .unfoldM(s) { s =>
                    f(s, left.pullElement, right.pullElement).flatMap { exit =>
@@ -817,7 +832,7 @@ abstract class ZStream[-R, +E, +O](
    * Filters the elements emitted by this stream using the provided function.
    */
   def filter(f: O => Boolean): ZStream[R, E, O] =
-    ZStream(self.process.map(_.map(_.filter(f))))
+    mapChunks(_.filter(f))
 
   /**
    * Effectfully filters the elements emitted by this stream.
@@ -1243,7 +1258,7 @@ abstract class ZStream[-R, +E, +O](
    * Transforms the elements of this stream using the supplied function.
    */
   def map[O2](f: O => O2): ZStream[R, E, O2] =
-    ZStream(self.process.map(_.map(_.map(f))))
+    mapChunks(_.map(f))
 
   /**
    * Statefully maps over the elements of this stream to produce new elements.
@@ -1270,6 +1285,22 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Transforms the chunks emitted by this stream.
+   */
+  def mapChunks[O2](f: Chunk[O] => Chunk[O2]): ZStream[R, E, O2] =
+    ZStream(self.process.map { pull =>
+      def go: ZIO[R, Option[E], Chunk[O2]] =
+        pull.flatMap { os =>
+          val o2s = f(os)
+
+          if (o2s.isEmpty) go
+          else UIO.succeed(o2s)
+        }
+
+      go
+    })
+
+  /**
    * Maps each element to an iterable, and flattens the iterables into the
    * output of this stream.
    */
@@ -1281,7 +1312,7 @@ abstract class ZStream[-R, +E, +O](
    * this stream.
    */
   def mapConcatChunk[O2](f: O => Chunk[O2]): ZStream[R, E, O2] =
-    ZStream(self.process.map(_.map(_.flatMap(f))))
+    mapChunks(_.flatMap(f))
 
   /**
    * Effectfully maps each element to a chunk, and flattens the chunks into
@@ -1594,14 +1625,30 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Runs the sink on the stream to produce either the sink's result or an error.
+   */
+  def run[R1 <: R, E1 >: E, O1 >: O, B](sink: ZSink[R1, E1, O1, B]): ZIO[R1, E1, B] =
+    (process <*> sink.push).use {
+      case (pull, push) =>
+        def go: ZIO[R1, E1, B] = pull.foldCauseM(
+          Cause
+            .sequenceCauseOption(_)
+            .fold(
+              push(None).foldCauseM(
+                Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow),
+                _ => IO.dieMessage("empty stream / empty sinks")
+              )
+            )(IO.halt(_)),
+          os => push(Some(os)).foldCauseM(Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow), _ => go)
+        )
+
+        go
+    }
+
+  /**
    * Runs the stream and collects all of its elements to a list.
    */
-  def runCollect: ZIO[R, E, List[O]] =
-    // TODO: rewrite as a sink
-    Ref.make[List[O]](List()).flatMap { ref =>
-      foreach(a => ref.update(a :: _)) *>
-        ref.get.map(_.reverse)
-    }
+  def runCollect: ZIO[R, E, List[O]] = run(ZSink.collectAll[O])
 
   /**
    * Runs the stream only for its effects. The emitted elements are discarded.
@@ -2496,6 +2543,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
+  def paginate[R, E, A, S](s: S)(f: S => (A, Option[S])): ZStream[Any, Nothing, A] =
+    paginateM(s)(s => ZIO.succeedNow(f(s)))
+
+  /**
+   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
   def paginateM[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
     ZStream {
       for {
@@ -2556,6 +2611,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   val unit: ZStream[Any, Nothing, Unit] =
     succeed(())
+
+  /**
+   * Creates a stream by peeling off the "layers" of a value of type `S`
+   */
+  def unfold[S, A](s: S)(f0: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
+    unfoldM(s)(s => ZIO.succeedNow(f0(s)))
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
@@ -2718,6 +2779,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   object Take {
     val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
   }
+
+  type Take[+E, +A] = Exit[Option[E], Chunk[A]]
 
   case class BufferedPull[R, E, A](
     upstream: ZIO[R, Option[E], Chunk[A]],
