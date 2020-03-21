@@ -534,7 +534,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("option")(
       testM("return success in Some") {
         implicit val canFail = CanFail
-        val managed = ZManaged.succeedNow(11).option
+        val managed          = ZManaged.succeedNow(11).option
         managed.use(res => ZIO.succeedNow(assert(res)(equalTo(Some(11)))))
       },
       testM("return failure as None") {
@@ -542,7 +542,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         managed.use(res => ZIO.succeedNow(assert(res)(equalTo(None))))
       } @@ zioTag(errors),
       testM("not catch throwable") {
-        implicit val canFail = CanFail
+        implicit val canFail                                          = CanFail
         val managed: Managed[Nothing, Exit[Nothing, Option[Nothing]]] = ZManaged.die(ExampleError).option.run
         managed.use(res => ZIO.succeedNow(assert(res)(dies(equalTo(ExampleError)))))
       } @@ zioTag(errors),
@@ -551,7 +551,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         managed.use(res => ZIO.succeedNow(assert(res)(equalTo(None))))
       } @@ zioTag(errors)
     ),
-    suite("optional")(      
+    suite("optional")(
       testM("fails when given Some error") {
         val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).optional.run
         managed.use(res => ZIO.succeedNow(assert(res)(fails(equalTo("Error")))))
@@ -768,7 +768,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         managed.run.use(res => ZIO.succeedNow(assert(res)(fails(isNone))))
       } @@ zioTag(errors),
       testM("fails when given an exception") {
-        val ex                               = new RuntimeException("Failed Task")
+        val ex                                       = new RuntimeException("Failed Task")
         val managed: Managed[Option[Throwable], Int] = Managed.fail(ex).some
         managed.run.use(res => ZIO.succeedNow(assert(res)(fails(isSome(equalTo(ex))))))
       } @@ zioTag(errors)
@@ -800,7 +800,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       ),
       suite("with exception as base error type")(
         testM("return something") {
-          val managed = (Managed.succeedNow(Option(3)): Managed[Exception, Option[Int]]).someOrFailException 
+          val managed = (Managed.succeedNow(Option(3)): Managed[Exception, Option[Int]]).someOrFailException
           managed.use(res => ZIO.succeedNow(assert(res)(equalTo(3))))
         }
       )
