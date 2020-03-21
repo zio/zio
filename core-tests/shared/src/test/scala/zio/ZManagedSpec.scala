@@ -531,6 +531,40 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(finalizers)(equalTo(List("Second", "First"))) && assert(result)(isSome(succeeds(equalTo("42"))))
       }
     ),
+    suite("option")(
+      testM("return success in Some") {
+        implicit val canFail = CanFail
+        val managed = ZManaged.succeedNow(11).option
+        managed.use(res => ZIO.succeedNow(assert(res)(equalTo(Some(11)))))
+      },
+      testM("return failure as None") {
+        val managed = ZManaged.fail(123).option
+        managed.use(res => ZIO.succeedNow(assert(res)(equalTo(None))))
+      } @@ zioTag(errors),
+      testM("not catch throwable") {
+        implicit val canFail = CanFail
+        val managed: Managed[Nothing, Exit[Nothing, Option[Nothing]]] = ZManaged.die(ExampleError).option.run
+        managed.use(res => ZIO.succeedNow(assert(res)(dies(equalTo(ExampleError)))))
+      } @@ zioTag(errors),
+      testM("catch throwable after sandboxing") {
+        val managed: Managed[Nothing, Option[Nothing]] = ZManaged.die(ExampleError).sandbox.option
+        managed.use(res => ZIO.succeedNow(assert(res)(equalTo(None))))
+      } @@ zioTag(errors)
+    ),
+    suite("optional")(      
+      testM("fails when given Some error") {
+        val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).optional.run
+        managed.use(res => ZIO.succeedNow(assert(res)(fails(equalTo("Error")))))
+      } @@ zioTag(errors),
+      testM("succeeds with None given None error") {
+        val managed: Managed[String, Option[Int]] = Managed.fail(None).optional
+        managed.use(res => ZIO.succeedNow(assert(res)(isNone)))
+      } @@ zioTag(errors),
+      testM("succeeds with Some given a value") {
+        val managed: Managed[String, Option[Int]] = Managed.succeedNow(1).optional
+        managed.use(res => ZIO.succeedNow(assert(res)(isSome(equalTo(1)))))
+      }
+    ),
     suite("onExitFirst")(
       testM("Calls the cleanup") {
         for {
@@ -723,6 +757,53 @@ object ZManagedSpec extends ZIOBaseSpec {
           count <- releases.get
         } yield assert(count)(equalTo(3))
       }
+    ),
+    suite("some")(
+      testM("extracts the value from Some") {
+        val managed: Managed[Option[Throwable], Int] = Managed.succeed(Some(1)).some
+        managed.use(res => ZIO.succeedNow(assert(res)(equalTo(1))))
+      },
+      testM("fails on None") {
+        val managed: Managed[Option[Throwable], Int] = Managed.succeed(None).some
+        managed.run.use(res => ZIO.succeedNow(assert(res)(fails(isNone))))
+      } @@ zioTag(errors),
+      testM("fails when given an exception") {
+        val ex                               = new RuntimeException("Failed Task")
+        val managed: Managed[Option[Throwable], Int] = Managed.fail(ex).some
+        managed.run.use(res => ZIO.succeedNow(assert(res)(fails(isSome(equalTo(ex))))))
+      } @@ zioTag(errors)
+    ),
+    suite("someOrFailException")(
+      testM("extracts the optional value") {
+        val managed = Managed.succeedNow(Some(42)).someOrFailException
+        managed.use(res => ZIO.succeedNow(assert(res)(equalTo(42))))
+      },
+      testM("fails when given a None") {
+        val managed = Managed.succeedNow(Option.empty[Int]).someOrFailException
+        managed.run.use(res => ZIO.succeedNow(assert(res)(fails(isSubtype[NoSuchElementException](anything)))))
+      } @@ zioTag(errors),
+      suite("without another error type")(
+        testM("succeed something") {
+          val managed = Managed.succeedNow(Option(3)).someOrFailException
+          managed.use(res => ZIO.succeedNow(assert(res)(equalTo(3))))
+        },
+        testM("succeed nothing") {
+          val managed = Managed.succeedNow(None: Option[Int]).someOrFailException.run
+          managed.use(res => ZIO.succeedNow(assert(res)(fails(anything))))
+        } @@ zioTag(errors)
+      ),
+      suite("with throwable as base error type")(
+        testM("return something") {
+          val managed = Managed.succeed(Option(3)).someOrFailException
+          managed.use(res => ZIO.succeedNow(assert(res)(equalTo(3))))
+        }
+      ),
+      suite("with exception as base error type")(
+        testM("return something") {
+          val managed = (Managed.succeedNow(Option(3)): Managed[Exception, Option[Int]]).someOrFailException 
+          managed.use(res => ZIO.succeedNow(assert(res)(equalTo(3))))
+        }
+      )
     ),
     suite("reject")(
       testM("returns failure ignoring value") {
