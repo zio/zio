@@ -404,34 +404,38 @@ private[stream] object StreamEffect extends Serializable {
         for {
           rt <- ZIO.runtime[Any]
           it <- IO.effectTotal {
-            var it: Iterator[A] = null
-            var ex: Throwable = null
+                 var it: Iterator[A] = null
+                 var ex: Throwable   = null
 
-            try { it = iterator } catch {
-              case e: Throwable if !rt.platform.fatal(e) =>
-                ex = e
-            }
+                 try { it = iterator }
+                 catch {
+                   case e: Throwable if !rt.platform.fatal(e) =>
+                     ex = e
+                 }
 
-            () => {
-              if (it != null) {
-                val hasNext: Boolean = try it.hasNext catch {
-                  case e: Throwable if !rt.platform.fatal(e) =>
-                    StreamEffect.failure(e)
-                }
+                 () => {
+                   if (it != null) {
+                     val hasNext: Boolean =
+                       try it.hasNext
+                       catch {
+                         case e: Throwable if !rt.platform.fatal(e) =>
+                           StreamEffect.failure(e)
+                       }
 
-                if (hasNext) {
-                  try it.next() catch {
-                    case e: Throwable if !rt.platform.fatal(e) =>
-                      StreamEffect.failure(e)
-                  }
-                } else StreamEffect.end
-              } else if (ex != null) {
-                val ex0 = ex
-                ex = null
-                StreamEffect.failure(ex0)
-              } else StreamEffect.end
-            }
-          }
+                     if (hasNext) {
+                       try it.next()
+                       catch {
+                         case e: Throwable if !rt.platform.fatal(e) =>
+                           StreamEffect.failure(e)
+                       }
+                     } else StreamEffect.end
+                   } else if (ex != null) {
+                     val ex0 = ex
+                     ex = null
+                     StreamEffect.failure(ex0)
+                   } else StreamEffect.end
+                 }
+               }
         } yield it
       }
     }
