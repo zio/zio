@@ -1861,8 +1861,8 @@ abstract class ZStream[-R, +E, +O](
             for {
               chunk <- chunks
               taken = chunk.takeWhile(pred)
-              _     <- doneRef.set(true).when(taken.length < chunk.length)
-              _     <- IO.fail(None).when(taken.length == 0)
+              _     <- doneRef.set(true).when(taken.length < chunk.length || chunk.length == 0)
+              _     <- Pull.end.when(taken.length == 0)
             } yield taken
         }
       } yield pull
