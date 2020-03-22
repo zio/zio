@@ -737,7 +737,7 @@ private[zio] final class FiberContext[E, A](
 
     oldState match {
       case Executing(status, observers, interrupt) =>
-        val asyncTrace = if (traceStack && inTracingRegion) traceLocation(register) :: Nil else Nil
+        val asyncTrace = if (traceStack && inTracingRegion) Some(traceLocation(register)) else None
 
         val newState =
           Executing(
