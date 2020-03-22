@@ -16,13 +16,14 @@
 
 package zio
 
+import scala.collection.JavaConverters._
+import scala.concurrent.Future
+
 import com.github.ghik.silencer.silent
+
 import zio.console.Console
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.{ Executor, FiberRenderer }
-
-import scala.collection.JavaConverters._
-import scala.concurrent.Future
 
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a
