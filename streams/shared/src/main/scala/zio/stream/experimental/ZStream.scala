@@ -268,9 +268,9 @@ abstract class ZStream[-R, +E, +O](
         pull = done.get.flatMap {
           if (_) Pull.end
           else
-            queue.take.flatMap(Pull.fromTake(_)).onError(_ => done.set(true)).catchSome {
-              case None => Pull.end
-            }
+            queue.take
+              .flatMap(Pull.fromTake(_))
+              .catchAllCause(Cause.sequenceCauseOption(_).fold[ZIO[R, Option[E], Chunk[O]]](done.set(true) *> Pull.end)(Pull.halt(_)))
         }
       } yield pull
     }
@@ -1853,13 +1853,14 @@ abstract class ZStream[-R, +E, +O](
       for {
         chunks  <- self.process
         doneRef <- Ref.make(false).toManaged_
-        pull = doneRef.get.flatMap { done =>
-          if (done) Pull.end
+        pull = doneRef.get.flatMap {
+          if (_) Pull.end
           else
             for {
               chunk <- chunks
               taken = chunk.takeWhile(pred)
               _     <- doneRef.set(true).when(taken.length < chunk.length)
+              _ <- IO.fail(None).when(taken.length == 0)
             } yield taken
         }
       } yield pull
@@ -2779,8 +2780,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   object Take {
     val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
   }
-
-  type Take[+E, +A] = Exit[Option[E], Chunk[A]]
 
   case class BufferedPull[R, E, A](
     upstream: ZIO[R, Option[E], Chunk[A]],
