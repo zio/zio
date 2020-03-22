@@ -46,6 +46,7 @@ private[zio] object FiberRenderer {
     }
 
   def renderHierarchy(fiber: Fiber.Runtime[_, _]): UIO[String] = {
+
     def go(f: Fiber.Runtime[_, _], prefix: String): UIO[String] =
       for {
         id              <- f.id
