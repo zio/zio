@@ -10,8 +10,8 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     ZSink[R, E, I, Z2](self.push.map(push => input => push(input).mapError(_.right.map(f))))
 
   /**
-    * Transforms this sink's result.
-    */
+   * Transforms this sink's result.
+   */
   def map[Z2](f: Z => Z2): ZSink[R, E, I, Z2] = mapResult(f)
 }
 
