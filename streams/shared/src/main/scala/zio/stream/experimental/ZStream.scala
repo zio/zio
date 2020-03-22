@@ -270,7 +270,9 @@ abstract class ZStream[-R, +E, +O](
           else
             queue.take
               .flatMap(Pull.fromTake(_))
-              .catchAllCause(Cause.sequenceCauseOption(_).fold[ZIO[R, Option[E], Chunk[O]]](done.set(true) *> Pull.end)(Pull.halt(_)))
+              .catchAllCause(
+                Cause.sequenceCauseOption(_).fold[ZIO[R, Option[E], Chunk[O]]](done.set(true) *> Pull.end)(Pull.halt(_))
+              )
         }
       } yield pull
     }
@@ -1860,7 +1862,7 @@ abstract class ZStream[-R, +E, +O](
               chunk <- chunks
               taken = chunk.takeWhile(pred)
               _     <- doneRef.set(true).when(taken.length < chunk.length)
-              _ <- IO.fail(None).when(taken.length == 0)
+              _     <- IO.fail(None).when(taken.length == 0)
             } yield taken
         }
       } yield pull
