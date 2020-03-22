@@ -1022,9 +1022,13 @@ object StreamSpec extends ZIOBaseSpec {
     testM("Stream.fromIterableM")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
       assertM(Stream.fromIterableM(UIO.effectTotal(l)).runCollect)(equalTo(l))
     }),
+    testM("Stream.fromIteratorTotal")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
+      def lazyIt = l.iterator
+      assertM(Stream.fromIteratorTotal(lazyIt).runCollect)(equalTo(l))
+    }),
     testM("Stream.fromIterator")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
       def lazyIt = l.iterator
-      assertM(Stream.fromIterator(UIO.effectTotal(lazyIt)).runCollect)(equalTo(l))
+      assertM(Stream.fromIterator(lazyIt).runCollect)(equalTo(l))
     }),
     testM("Stream.fromQueue")(checkM(smallChunks(Gen.anyInt)) { c =>
       for {
@@ -1965,7 +1969,7 @@ object StreamSpec extends ZIOBaseSpec {
       iterator <- Stream.repeatEffect(effect).toIterator
       n        = 2000
       out <- ZStream
-              .fromIterator(UIO(iterator.map(_.merge)))
+              .fromIteratorTotal(iterator.map(_.merge))
               .mapConcatM(element => effect.map(newElement => List(element, newElement)))
               .take(n.toLong)
               .runCollect

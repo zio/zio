@@ -389,7 +389,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromIterator[A](iterator: => Iterator[A]): StreamEffect[Any, Nothing, A] =
+  def fromIteratorTotal[A](iterator: => Iterator[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         val it = iterator
@@ -398,7 +398,55 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
+  def fromIterator[A](iterator: => Iterator[A]): StreamEffect[Any, Throwable, A] =
+    StreamEffect {
+      Managed.fromEffect {
+        for {
+          rt <- ZIO.runtime[Any]
+          it <- IO.effectTotal {
+            var it: Iterator[A] = null
+            var ex: Throwable = null
+
+            try { it = iterator } catch {
+              case e: Throwable if !rt.platform.fatal(e) =>
+                ex = e
+            }
+
+            () => {
+              if (it != null) {
+                val hasNext: Boolean = try it.hasNext catch {
+                  case e: Throwable if !rt.platform.fatal(e) =>
+                    StreamEffect.failure(e)
+                }
+
+                if (hasNext) {
+                  try it.next() catch {
+                    case e: Throwable if !rt.platform.fatal(e) =>
+                      StreamEffect.failure(e)
+                  }
+                } else StreamEffect.end
+              } else if (ex != null) {
+                val ex0 = ex
+                ex = null
+                StreamEffect.failure(ex0)
+              } else StreamEffect.end
+            }
+          }
+        } yield it
+      }
+    }
+
+  def fromJavaIteratorTotal[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
+    val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
+    fromIteratorTotal(
+      new Iterator[A] {
+        def next(): A        = it.next()
+        def hasNext: Boolean = it.hasNext
+      }
+    )
+  }
+
+  def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Throwable, A] = {
     val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
     fromIterator(
       new Iterator[A] {
