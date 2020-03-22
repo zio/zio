@@ -83,6 +83,46 @@ abstract class ZStream[-R, +E, +O](
     ZStream.absolve(ev(self))
 
   /**
+   * Applies an aggregator to the stream, which converts one or more elements
+   * of type `A` into elements of type `B`.
+   */
+  def aggregate[R1 <: R, E1 >: E, O1 >: O, P](sink: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] =
+    aggregateManaged(ZManaged.succeedNow(sink))
+
+  /**
+   * Applies a managed transducer to the stream, converting elements of type `A` into elements of type `B`.
+   */
+  final def aggregateManaged[R1 <: R, E1 >: E, O1 >: O, P](
+    managedSink: ZManaged[R1, E1, ZTransducer[R1, E1, O1, P]]
+  ): ZStream[R1, E1, P] =
+    ZStream
+      .managed(managedSink)
+      .flatMap { sink =>
+        ZStream {
+          for {
+            pull <- self.process
+            push <- sink.push
+            done <- ZRef.makeManaged(false)
+            run = {
+              def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
+                if (_)
+                  Pull.end
+                else
+                  pull
+                    .foldCauseM(
+                      Cause.sequenceCauseOption(_).fold(push(None))(c => IO.halt(c.map(Left(_)))),
+                      os => push(Some(os))
+                    )
+                    .catchAllCause(Cause.sequenceCauseEither(_).fold(Pull.halt(_), _ => go))
+              }
+
+              go
+            }
+          } yield run
+        }
+      }
+
+  /**
    * Maps the success values of this stream to the specified constant value.
    */
   def as[O2](o2: => O2): ZStream[R, E, O2] =
