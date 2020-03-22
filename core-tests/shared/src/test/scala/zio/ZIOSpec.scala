@@ -2291,6 +2291,10 @@ object ZIOSpec extends ZIOBaseSpec {
         val io = IO.effectTotal(42).race(IO.never)
         assertM(io)(equalTo(42))
       },
+      testM("race in uninterruptible region") {
+        val effect = (ZIO.unit.race(ZIO.infinity)).uninterruptible
+        assertM(effect)(isUnit)
+      },
       testM("firstSuccessOf of values") {
         val io = IO.firstSuccessOf(IO.fail(0), List(IO.succeedNow(100))).either
         assertM(io)(isRight(equalTo(100)))

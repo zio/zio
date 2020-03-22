@@ -1156,22 +1156,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * in the background.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
-    ZIO.fiberId
-      .flatMap(parentFiberId =>
-        (self raceWith that)(
-          (exit, right) =>
-            exit.foldM[Any, E1, A1](
-              cause => right.join mapErrorCause (cause && _),
-              a => (right interruptAs parentFiberId) as a
-            ),
-          (exit, left) =>
-            exit.foldM[Any, E1, A1](
-              cause => left.join mapErrorCause (_ && cause),
-              a => (left interruptAs parentFiberId) as a
-            )
-        )
+    ZIO.descriptorWith { descriptor =>
+      val parentFiberId = descriptor.id
+      def maybeDisconnect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        ZIO.uninterruptibleMask(interruptible => interruptible.force(zio))
+      (maybeDisconnect(self) raceWith maybeDisconnect(that))(
+        (exit, right) =>
+          exit.foldM[Any, E1, A1](
+            cause => right.join mapErrorCause (cause && _),
+            a => (right interruptAs parentFiberId) as a
+          ),
+        (exit, left) =>
+          exit.foldM[Any, E1, A1](
+            cause => left.join mapErrorCause (_ && cause),
+            a => (left interruptAs parentFiberId) as a
+          )
       )
-      .refailWithTrace
+    }.refailWithTrace
 
   /**
    * Returns an effect that races this effect with all the specified effects,
@@ -3346,6 +3347,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class InterruptStatusRestore(private val flag: zio.InterruptStatus) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       zio.interruptStatus(flag)
+
+    /**
+     * Returns a new effect that, if the parent region is uninterruptible, can
+     * be interrupted in the background instantaneously. If the parent region
+     * is interruptible, then the effect can be interrupted normally, in the
+     * foreground.
+     */
+    def force[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      if (flag == InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
+      else zio.interruptStatus(flag)
   }
 
   final class IfM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
