@@ -3291,6 +3291,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       zio.interruptStatus(flag)
 
+    /**
+     * Returns a new effect that, if the parent region is uninterruptible, can
+     * be interrupted in the background instantaneously. If the parent region
+     * is interruptible, then the effect can be interrupted normally, in the
+     * foreground.
+     */
     def force[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       if (flag == InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
       else zio.interruptStatus(flag)
