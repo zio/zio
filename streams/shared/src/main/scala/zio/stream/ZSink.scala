@@ -1906,13 +1906,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a single-value sink from a value.
    */
-  def succeed[A, B](b: => B): ZSink[Any, Nothing, A, A, B] =
-    new SinkPure[Nothing, A, A, B] {
-      type State = Chunk[A]
-      val initialPure                  = Chunk.empty
-      def stepPure(state: State, a: A) = state ++ Chunk(a)
-      def extractPure(state: State)    = Right((b, state))
-      def cont(state: State)           = false
+  def succeed[B](b: => B): ZSink[Any, Nothing, Nothing, Any, B] =
+    new SinkPure[Nothing, Nothing, Any, B] {
+      type State = Unit
+      val initialPure                    = ()
+      def stepPure(state: State, a: Any) = ()
+      def extractPure(state: State)      = Right((b, Chunk.empty))
+      def cont(state: State)             = false
     }
 
   /**
@@ -2119,6 +2119,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       def cont(state: State) = state._3
     }
 
-  private[zio] def succeedNow[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+  private[zio] def succeedNow[B](b: B): ZSink[Any, Nothing, Nothing, Any, B] =
     succeed(b)
 }

@@ -94,7 +94,7 @@ object SinkSpec extends ZIOBaseSpec {
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("interaction with succeed") {
-          val sink = ZSink.succeed[Int, Int](5).collectAll
+          val sink = ZSink.succeed(5).collectAll
           for {
             init <- sink.initial
             s <- sink
@@ -311,19 +311,19 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("flatMap")(
         testM("happy path") {
-          val sink = ZSink.identity[Int].flatMap(n => ZSink.succeed[Int, String](n.toString))
+          val sink = ZSink.identity[Int].flatMap(n => ZSink.succeed(n.toString))
           assertM(sinkIteration(sink, 1))(equalTo(("1", Chunk.empty)))
         },
         testM("init error") {
-          val sink = initErrorSink.flatMap(n => ZSink.succeed[Int, String](n.toString))
+          val sink = initErrorSink.flatMap(n => ZSink.succeed(n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("step error") {
-          val sink = stepErrorSink.flatMap(n => ZSink.succeed[Int, String](n.toString))
+          val sink = stepErrorSink.flatMap(n => ZSink.succeed(n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("extract error") {
-          val sink = extractErrorSink.flatMap(n => ZSink.succeed[Int, String](n.toString))
+          val sink = extractErrorSink.flatMap(n => ZSink.succeed(n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("self done") {
@@ -339,7 +339,7 @@ object SinkSpec extends ZIOBaseSpec {
           } yield assert(result)(equalTo((List(1, 2, 3), Chunk(4, 5))))
         },
         testM("self more") {
-          val sink = ZSink.collectAll[Int].flatMap(list => ZSink.succeed[Int, Int](list.headOption.getOrElse(0)))
+          val sink = ZSink.collectAll[Int].flatMap(list => ZSink.succeed(list.headOption.getOrElse(0)))
           for {
             init   <- sink.initial
             step1  <- sink.step(init, 1)
@@ -620,7 +620,7 @@ object SinkSpec extends ZIOBaseSpec {
       ) @@ zioTag(errors),
       suite("raceBoth")(
         testM("left") {
-          val sink = ZSink.identity[Int] raceBoth ZSink.succeed[Int, String]("Hello")
+          val sink = ZSink.identity[Int] raceBoth ZSink.succeed("Hello")
           assertM(sinkIteration(sink, 1))(equalTo((Left(1), Chunk.empty)))
         },
         testM("init error left") {
@@ -766,7 +766,7 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("zip (<*>)")(
         testM("happy path") {
-          val sink = ZSink.identity[Int] <*> ZSink.succeed[Int, String]("Hello")
+          val sink = ZSink.identity[Int] <*> ZSink.succeed("Hello")
           assertM(sinkIteration(sink, 1))(equalTo(((1, "Hello"), Chunk.empty)))
         },
         testM("init error left") {
@@ -808,7 +808,7 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("zipLeft (<*)")(
         testM("happy path") {
-          val sink = ZSink.identity[Int].zipLeft(ZSink.succeed[Int, String]("Hello"))
+          val sink = ZSink.identity[Int].zipLeft(ZSink.succeed("Hello"))
           assertM(sinkIteration(sink, 1))(equalTo((1, Chunk.empty)))
         }
       ),
@@ -871,13 +871,13 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("zipRight (*>)")(
         testM("happy path") {
-          val sink = ZSink.identity[Int].zipRight(ZSink.succeed[Int, String]("Hello"))
+          val sink = ZSink.identity[Int].zipRight(ZSink.succeed("Hello"))
           assertM(sinkIteration(sink, 1))(equalTo(("Hello", Chunk.empty)))
         }
       ),
       suite("zipWith")(testM("happy path") {
         val sink =
-          ZSink.identity[Int].zipWith(ZSink.succeed[Int, String]("Hello"))((x, y) => x.toString + y.toString)
+          ZSink.identity[Int].zipWith(ZSink.succeed("Hello"))((x, y) => x.toString + y.toString)
         assertM(sinkIteration(sink, 1))(equalTo(("1Hello", Chunk.empty)))
       })
     ),
