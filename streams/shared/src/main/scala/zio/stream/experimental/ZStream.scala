@@ -184,14 +184,36 @@ abstract class ZStream[-R, +E, +O](
     }
 
   private final def bufferSignal[E1 >: E, O1 >: O](
-    queue: Queue[Take[E1, O1]]
+    queue: Queue[(Take[E1, O1], Promise[Nothing, Unit])]
   ): ZManaged[R, Nothing, ZIO[R, Option[E1], Chunk[O1]]] =
     for {
-      as   <- self.process
-      done <- ZRef.makeManaged(false)
+      as    <- self.process
+      start <- Promise.make[Nothing, Unit].toManaged_
+      _     <- start.succeed(()).toManaged_
+      ref   <- Ref.make(start).toManaged_
+      done  <- Ref.make(false).toManaged_
       upstream = {
+        def offer(take: Take[E1, O1]): UIO[Unit] =
+          take.fold(
+            _ =>
+              for {
+                latch <- ref.get
+                _     <- latch.await
+                p     <- Promise.make[Nothing, Unit]
+                _     <- queue.offer((take, p))
+                _     <- ref.set(p)
+                _     <- p.await
+              } yield (),
+            _ =>
+              for {
+                p     <- Promise.make[Nothing, Unit]
+                added <- queue.offer((take, p))
+                _     <- ref.set(p).when(added)
+              } yield ()
+          )
+
         def go: URIO[R, Unit] =
-          as.run.flatMap(take => queue.offer(take) *> go.when(take != Take.End))
+          as.run.flatMap(take => offer(take) *> go.when(take != Take.End))
 
         go
       }
@@ -199,7 +221,10 @@ abstract class ZStream[-R, +E, +O](
       pull = done.get.flatMap {
         if (_) Pull.end
         else
-          queue.take.flatMap(Pull.fromTake(_)).onError(_ => done.set(true))
+          queue.take.flatMap {
+            case (take, p) =>
+              p.succeed(()) *> done.set(true).when(take == Take.End) *> Pull.fromTake(take)
+          }
       }
     } yield pull
 
@@ -212,7 +237,7 @@ abstract class ZStream[-R, +E, +O](
   final def bufferDropping(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.dropping[Take[E, O]](capacity).toManaged(_.shutdown)
+        queue <- Queue.dropping[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
         pull  <- bufferSignal(queue)
       } yield pull
     }
@@ -226,7 +251,7 @@ abstract class ZStream[-R, +E, +O](
   final def bufferSliding(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.sliding[Take[E, O]](capacity).toManaged(_.shutdown)
+        queue <- Queue.sliding[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
         pull  <- bufferSignal(queue)
       } yield pull
     }
@@ -2754,6 +2779,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   object Take {
     val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
   }
+
+  type Take[+E, +A] = Exit[Option[E], Chunk[A]]
 
   case class BufferedPull[R, E, A](
     upstream: ZIO[R, Option[E], Chunk[A]],
