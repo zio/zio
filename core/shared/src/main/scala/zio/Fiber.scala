@@ -16,14 +16,13 @@
 
 package zio
 
+import com.github.ghik.silencer.silent
+import zio.console.Console
+import zio.internal.stacktracer.ZTraceElement
+import zio.internal.{ Executor, FiberRenderer }
+
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
-
-import com.github.ghik.silencer.silent
-
-import zio.console.Console
-import zio.internal.Executor
-import zio.internal.stacktracer.ZTraceElement
 
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a
@@ -460,7 +459,6 @@ object Fiber extends FiberPlatformSpecific {
 
   final case class Dump(fiberId: Fiber.Id, fiberName: Option[String], status: Status, trace: ZTrace)
       extends Serializable {
-    import zio.Fiber.Status._
 
     /**
      * {{{
@@ -472,43 +470,7 @@ object Fiber extends FiberPlatformSpecific {
      *     at ...
      * }}}
      */
-    def prettyPrintM: UIO[String] = UIO {
-      val time = System.currentTimeMillis()
-
-      val millis  = (time - fiberId.startTimeMillis)
-      val seconds = millis / 1000L
-      val minutes = seconds / 60L
-      val hours   = minutes / 60L
-
-      val name = fiberName.fold("")(name => "\"" + name + "\" ")
-      val lifeMsg = (if (hours == 0) "" else s"${hours}h") +
-        (if (hours == 0 && minutes == 0) "" else s"${minutes}m") +
-        (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
-        (s"${millis}ms")
-      val waitMsg = status match {
-        case Suspended(_, _, _, blockingOn, _) =>
-          if (blockingOn.nonEmpty)
-            "waiting on " + blockingOn.map(id => s"#${id.seqNumber}").mkString(", ")
-          else ""
-        case _ => ""
-      }
-      val statMsg = status match {
-        case Done         => "Done"
-        case Finishing(b) => "Finishing(" + (if (b) "interrupting" else "") + ")"
-        case Running(b)   => "Running(" + (if (b) "interrupting" else "") + ")"
-        case Suspended(_, interruptible, epoch, _, asyncTrace) =>
-          val in = if (interruptible) "interruptible" else "uninterruptible"
-          val ep = s"${epoch} asyncs"
-          val as = asyncTrace.map(_.prettyPrint).mkString(" ")
-          s"Suspended(${in}, ${ep}, ${as})"
-      }
-
-      s"""
-         |${name}#${fiberId.seqNumber} (${lifeMsg}) ${waitMsg}
-         |   Status: ${statMsg}
-         |${trace.prettyPrint}
-         |""".stripMargin
-    }
+    def prettyPrintM: UIO[String] = FiberRenderer.prettyPrintM(this)
   }
 
   /**
@@ -649,11 +611,7 @@ object Fiber extends FiberPlatformSpecific {
    * fibers and renders it as a string.
    */
   def dumpStr(fibers: Fiber.Runtime[_, _]*): UIO[String] =
-    for {
-      dumps    <- Fiber.dump(fibers: _*)
-      dumpStrs <- ZIO.foreach(dumps)(_.prettyPrintM)
-      dumpStr  = dumpStrs.mkString("\n")
-    } yield dumpStr
+    FiberRenderer.dumpStr(fibers)
 
   /**
    * A fiber that has already failed with the specified value.
