@@ -440,24 +440,26 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromJavaIteratorTotal[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
-    val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
-    fromIteratorTotal(
+  def fromJavaIteratorTotal[A](iterator: => ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
+    val make = () => {
+      val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
       new Iterator[A] {
         def next(): A        = it.next()
         def hasNext: Boolean = it.hasNext
       }
-    )
+    }
+    fromIteratorTotal(make())
   }
 
-  def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Throwable, A] = {
-    val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
-    fromIterator(
+  def fromJavaIterator[A](iterator: => ju.Iterator[A]): StreamEffect[Any, Throwable, A] = {
+    val make = () => {
+      val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
       new Iterator[A] {
         def next(): A        = it.next()
         def hasNext: Boolean = it.hasNext
       }
-    )
+    }
+    fromIterator(make())
   }
 
   def fromInputStream(
