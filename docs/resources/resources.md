@@ -7,6 +7,7 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Example of ZLayers being used in combination](https://timpigden.github.io/_pages/zlayer/Examples.html) by Tim Pigden (March 2020)
 - [From idea to product with ZLayer](https://scala.monster/welcome-zio/) by Pavels Sisojevs (March 2020)
 - [Spring to ZIO 101 - ZIO CRUD](https://adrianfilip.com/2020/03/15/spring-to-zio-101/) by Adrian Filip (March 2020)
 - [What are the benefits of the ZIO modules with ZLayers](https://medium.com/@pascal.mengelt/what-are-the-benefits-of-the-zio-modules-with-zlayers-3bf6cc064a9b) by Pascal Mengelt (March 2020)
