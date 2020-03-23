@@ -735,6 +735,13 @@ object Schedule {
     elapsed.untilOutput(_ >= duration)
 
   /**
+   * A schedule that will recur with the specified durations, and then stop.
+   * Returns the total elapsed time.
+   */
+  def durations(durations: Duration*): Schedule[Clock, Any, Duration] =
+    unfold(0)(_ + 1).whileOutput(_ < durations.size).map(i => durations(i)).addDelay(d => d).fold(Duration.Zero)(_ + _)
+
+  /**
    * A schedule that recurs forever without delay. Returns the elapsed time
    * since the schedule began.
    */
