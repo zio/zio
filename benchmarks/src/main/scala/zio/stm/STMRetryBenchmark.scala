@@ -27,7 +27,7 @@ class STMRetryBenchmark {
     val ref      = TRef.unsafeMake(data.toMap)
     val schedule = Schedule.recurs(1000).unit
 
-    val update = ref.update(map => map.transform((_, v) => v + 1)).commit.repeat(schedule)
+    val update = ref.update(_.transform((_, v) => v + 1)).commit.repeat(schedule)
 
     updates = List.fill(Parallelism)(update)
   }
