@@ -3327,26 +3327,58 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * Creates a stream from an iterator
    */
-  def fromIterator[R, E, A](iterator: ZIO[R, E, Iterator[A]]): ZStream[R, E, A] =
-    fromEffect(iterator).flatMap(StreamEffect.fromIterator(_))
+  def fromIteratorTotal[A](iterator: => Iterator[A]): ZStream[Any, Nothing, A] =
+    StreamEffect.fromIteratorTotal(iterator)
 
   /**
    * Creates a stream from a Java iterator
    */
-  def fromJavaIterator[R, E, A](iterator: ZIO[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
-    fromEffect(iterator).flatMap(StreamEffect.fromJavaIterator)
+  def fromJavaIteratorTotal[A](iterator: => ju.Iterator[A]): ZStream[Any, Nothing, A] =
+    StreamEffect.fromJavaIteratorTotal(iterator)
+
+  /**
+   * Creates a stream from an iterator that may potentially throw exceptions
+   */
+  def fromIterator[A](iterator: => Iterator[A]): ZStream[Any, Throwable, A] =
+    StreamEffect.fromIterator(iterator)
+
+  /**
+   * Creates a stream from a Java iterator that may potentially throw exceptions
+   */
+  def fromJavaIterator[A](iterator: => ju.Iterator[A]): ZStream[Any, Throwable, A] =
+    StreamEffect.fromJavaIterator(iterator)
+
+  /**
+   * Creates a stream from an iterator that may potentially throw exceptions
+   */
+  def fromIteratorEffect[R, A](
+    iterator: ZIO[R, Throwable, Iterator[A]]
+  ): ZStream[R, Throwable, A] =
+    fromEffect(iterator).flatMap(StreamEffect.fromIterator(_))
+
+  /**
+   * Creates a stream from a Java iterator that may potentially throw exceptions
+   */
+  def fromJavaIteratorEffect[R, A](
+    iterator: ZIO[R, Throwable, ju.Iterator[A]]
+  ): ZStream[R, Throwable, A] =
+    fromEffect(iterator).flatMap(StreamEffect.fromJavaIterator(_))
 
   /**
    * Creates a stream from a managed iterator
    */
-  def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
+  def fromIteratorManaged[R, A](
+    iterator: ZManaged[R, Throwable, Iterator[A]]
+  ): ZStream[R, Throwable, A] =
     managed(iterator).flatMap(StreamEffect.fromIterator(_))
 
   /**
    * Creates a stream from a managed iterator
    */
-  def fromJavaIteratorManaged[R, E, A](iterator: ZManaged[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
-    managed(iterator).flatMap(StreamEffect.fromJavaIterator)
+  def fromJavaIteratorManaged[R, A](
+    iterator: ZManaged[R, Throwable, ju.Iterator[A]]
+  ): ZStream[R, Throwable, A] =
+    managed(iterator).flatMap(StreamEffect.fromJavaIterator(_))
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values

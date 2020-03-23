@@ -1007,20 +1007,38 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         .use(nPulls(_, 3))
         .map(assert(_)(equalTo(List(Right(1), Left(None), Left(None)))))
     },
+    suite("Stream.fromIteratorTotal")(
+      testM("is safe to pull again after success") {
+        Stream
+          .fromIteratorTotal(List(1, 2).iterator)
+          .process
+          .use(nPulls(_, 4))
+          .map(assert(_)(equalTo(List(Right(1), Right(2), Left(None), Left(None)))))
+      }
+    ),
     suite("Stream.fromIterator")(
       testM("is safe to pull again after success") {
         Stream
-          .fromIterator(UIO.succeedNow(List(1, 2).iterator))
+          .fromIterator(List(1, 2).iterator)
           .process
           .use(nPulls(_, 4))
           .map(assert(_)(equalTo(List(Right(1), Right(2), Left(None), Left(None)))))
       },
       testM("is safe to pull again after failure") {
+        val ex = new NoSuchElementException
         Stream
-          .fromIterator(IO.fail("Ouch"))
+          .fromIterator(List(1, 2).iterator ++ Iterator(()).map(_ => throw ex))
+          .process
+          .use(nPulls(_, 4))
+          .map(assert(_)(equalTo(List(Right(1), Right(2), Left(Some(ex)), Left(None)))))
+      },
+      testM("is safe to pull again after failure") {
+        val ex = new NoSuchElementException
+        Stream
+          .fromIterator(throw ex)
           .process
           .use(nPulls(_, 3))
-          .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+          .map(assert(_)(equalTo(List(Left(Some(ex)), Left(None), Left(None)))))
       }
     ),
     suite("Stream.fromIteratorManaged")(
@@ -1035,22 +1053,24 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         } yield assert(fin)(isTrue) && assert(pulls)(equalTo(List(Right(1), Right(2), Left(None), Left(None))))
       },
       testM("is safe to pull again after failed acquisition") {
+        val ex = new NoSuchElementException
         for {
           ref <- Ref.make(false)
           pulls <- Stream
-                    .fromIteratorManaged(Managed.make(IO.fail("Ouch"))(_ => ref.set(true)))
+                    .fromIteratorManaged(Managed.make(IO.fail(ex))(_ => ref.set(true)))
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
-        } yield assert(fin)(isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+        } yield assert(fin)(isFalse) && assert(pulls)(equalTo(List(Left(Some(ex)), Left(None), Left(None))))
       },
       testM("is safe to pull again after inner failure") {
+        val ex = new NoSuchElementException
         for {
           ref <- Ref.make(false)
           pulls <- Stream
                     .fromIteratorManaged(Managed.make(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true)))
                     .flatMap(n =>
-                      Stream.succeedNow((n * 2).toString) ++ Stream.fail("Ouch") ++ Stream.succeedNow(
+                      Stream.succeedNow((n * 2).toString) ++ Stream.fail(ex) ++ Stream.succeedNow(
                         (n * 3).toString
                       )
                     )
@@ -1061,10 +1081,10 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           equalTo(
             List(
               Right("2"),
-              Left(Some("Ouch")),
+              Left(Some(ex)),
               Right("3"),
               Right("4"),
-              Left(Some("Ouch")),
+              Left(Some(ex)),
               Right("6"),
               Left(None),
               Left(None)
@@ -1073,11 +1093,12 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )
       },
       testM("is safe to pull again from a failed Managed") {
+        val ex = new NoSuchElementException
         Stream
-          .fromIteratorManaged(Managed.fail("Ouch"))
+          .fromIteratorManaged(Managed.fail(ex))
           .process
           .use(nPulls(_, 3))
-          .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+          .map(assert(_)(equalTo(List(Left(Some(ex)), Left(None), Left(None)))))
       }
     ),
     testM("Stream.fromQueue is safe to pull again") {
