@@ -120,7 +120,6 @@ object FiberSpec extends ZIOBaseSpec {
         assertM(Fiber.collectAll(fibers).join)(anything)
       }
     ) @@ sequential,
-
     suite("prettyPrint improvements")(
       testM("fiber with one child") {
         for {
@@ -135,16 +134,16 @@ object FiberSpec extends ZIOBaseSpec {
       },
       testM("fiber with multiple children") {
         for {
-          parent    <- (ZIO.infinity.forkAs("child2") *> ZIO.infinity).forkAs("child1")
-          childId   <- parent.id
-          childSeq  = childId.seqNumber
-          children  <- parent.children
-          dumpStr   <- Fiber.dumpStr(parent)
+          parent   <- (ZIO.infinity.forkAs("child2") *> ZIO.infinity).forkAs("child1")
+          childId  <- parent.id
+          childSeq = childId.seqNumber
+          children <- parent.children
+          dumpStr  <- Fiber.dumpStr(parent)
         } yield {
           assert(dumpStr.contains(s"#${childSeq} Status"))(equalTo(true))
           assert(children.size)(equalTo(1))
         }
-      },
+      }
     )
   )
 
