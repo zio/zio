@@ -19,6 +19,8 @@ package zio.stream
 import java.io.{ IOException, InputStream }
 import java.{ util => ju }
 
+import scala.reflect.ClassTag
+
 import com.github.ghik.silencer.silent
 
 import zio._
@@ -1884,6 +1886,30 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     ZStream[R1, E1, B](self.process.map(_.flatMap(f(_).mapError(Some(_)))))
 
   /**
+   * Keeps some of the errors, and terminates the fiber with the rest
+   */
+  final def refineOrDie[E1](
+    pf: PartialFunction[E, E1]
+  )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZStream[R, E1, A] =
+    ZStream(self.process.map(_.mapError {
+      case None                         => None
+      case Some(e) if pf.isDefinedAt(e) => Some(pf.apply(e))
+    }))
+
+  /**
+   * Keeps some of the errors, and terminates the fiber with the rest, using
+   * the specified function to convert the `E` into a `Throwable`.
+   */
+  final def refineOrDieWith[E1](
+    pf: PartialFunction[E, E1]
+  )(f: E => Throwable)(implicit ev: CanFail[E]): ZStream[R, E1, A] =
+    ZStream(self.process.map(_.mapError {
+      case None                         => None
+      case Some(e) if pf.isDefinedAt(e) => Some(pf.apply(e))
+      case Some(e)                      => throw f(e)
+    }))
+
+  /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
@@ -2740,6 +2766,16 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 }
 
 object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
+
+  implicit final class ZioStreamRefineToOrDieOps[R, E <: Throwable, A](private val self: ZStream[R, E, A])
+      extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZStream[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
+  }
 
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes
