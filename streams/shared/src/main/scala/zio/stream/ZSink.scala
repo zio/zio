@@ -1329,6 +1329,32 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     foldLeft(())((s, _) => s)
 
   /**
+   * Creates a sink that drops the first `n` values. Does not fail if there
+   * are fewer than `n` input values.
+   */
+  def drop[A](n: Long): ZSink[Any, Nothing, A, A, Unit] =
+    new SinkPure[Nothing, A, A, Unit] {
+      type State = Long
+      val initialPure                  = 0L
+      def stepPure(state: State, a: A) = state + 1
+      def extractPure(state: State)    = Right(((), Chunk.empty))
+      def cont(state: State)           = state < n
+    }
+
+  /**
+   * Creates a sink that drops the first `n` values and fails if there are
+   * fewer than `n` input values.
+   */
+  def skip[A](n: Long): ZSink[Any, Unit, A, A, Unit] =
+    new SinkPure[Unit, A, A, Unit] {
+      type State = Long
+      val initialPure                  = 0L
+      def stepPure(state: State, a: A) = state + 1
+      def extractPure(state: State)    = if (state < n) Left(()) else Right(((), Chunk.empty))
+      def cont(state: State)           = state < n
+    }
+
+  /**
    * Creates a sink containing the first value.
    */
   def head[A]: ZSink[Any, Nothing, A, A, Option[A]] =

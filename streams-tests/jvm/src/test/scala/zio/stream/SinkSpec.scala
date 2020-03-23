@@ -247,6 +247,73 @@ object SinkSpec extends ZIOBaseSpec {
           assertM(sinkIteration(sink, "123").either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
+      suite("drop constructor")(
+        testM("happy path - drops zero elements") {
+          val sink = ZSink.drop(0) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            result <- sink.extract(step3)
+          } yield assert(result)(equalTo((List(1, 2, 3), Chunk.empty)))
+        },
+        testM("happy path - drops more than one element") {
+          val sink = ZSink.drop(3) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            step4  <- sink.step(step3, 4)
+            step5  <- sink.step(step4, 5)
+            result <- sink.extract(step5)
+          } yield assert(result)(equalTo((List(4, 5), Chunk.empty)))
+        },
+        testM("happy path - does not fail when there is not enough input") {
+          val sink = ZSink.drop(3) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            result <- sink.extract(step1)
+          } yield assert(result)(equalTo((List(), Chunk.empty)))
+        }
+      ),
+      suite("skip constructor")(
+        testM("happy path - drops zero elements") {
+          val sink = ZSink.skip(0) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            result <- sink.extract(step3)
+          } yield assert(result)(equalTo((List(1, 2, 3), Chunk.empty)))
+        },
+        testM("happy path - drops more than one element") {
+          val sink = ZSink.skip(3) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            step4  <- sink.step(step3, 4)
+            step5  <- sink.step(step4, 5)
+            result <- sink.extract(step5)
+          } yield assert(result)(equalTo((List(4, 5), Chunk.empty)))
+        },
+        testM("fail when there is not enough input") {
+          val sink = ZSink.skip(4) *> ZSink.collectAll[Int]
+          val io = for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            result <- sink.extract(step3)
+          } yield result
+          assertM(io.either)(isLeft(equalTo(())))
+        } @@ zioTag(errors)
+      ),
       suite("drop")(
         testM("happy path - drops zero elements") {
           val sink = ZSink.collectAll[Int].drop(0)
