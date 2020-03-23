@@ -387,11 +387,11 @@ object Assertion extends AssertionVariants {
     )
 
   /**
-   * Makes a new assertion that requires an Iterable to have all of the elements
+   * Makes a new assertion that requires an Iterable to have the same distinct elements
    * as the other Iterable, though not necessarily in the same order
    */
-  def hasAllOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    Assertion.assertion("hasAllOf")(param(other))(actual => actual.toSet == other.toSet)
+  def hasSameElementsDistinct[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    Assertion.assertion("hasSameElementsDistinct")(param(other))(actual => actual.toSet == other.toSet)
 
   /**
    * Makes a new assertion that requires a sequence to contain an element

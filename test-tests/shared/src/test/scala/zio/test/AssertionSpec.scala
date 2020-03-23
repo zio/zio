@@ -112,24 +112,24 @@ object AssertionSpec extends ZIOBaseSpec {
     test("forall must work with iterables that are not lists") {
       assert(SortedSet(1, 2, 3))(forall(isGreaterThan(0)))
     },
-    test("hasAllOf must succeed when iterable contains the specified elements") {
-      assert(Seq(1, 2, 3))(hasAllOf(Set(1, 2, 3)))
+    test("hasSameElementsDistinct must succeed when iterable contains the specified elements") {
+      assert(Seq(1, 2, 3))(hasSameElementsDistinct(Set(1, 2, 3)))
     },
     test(
-      "hasAllOf must succeed when iterable contains duplicates of the specified elements"
+      "hasSameElementsDistinct must succeed when iterable contains duplicates of the specified elements"
     ) {
       assert(Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"))(
-        hasAllOf(Set("a", "b", "c"))
+        hasSameElementsDistinct(Set("a", "b", "c"))
       )
     },
-    test("hasAllOf must succeed when specified elements contain duplicates") {
-      assert(Seq(1, 2, 3))(hasAllOf(Seq(1, 2, 3, 3)))
+    test("hasSameElementsDistinct must succeed when specified elements contain duplicates") {
+      assert(Seq(1, 2, 3))(hasSameElementsDistinct(Seq(1, 2, 3, 3)))
     },
-    test("hasAllOf must fail when iterable does not have all specified elements") {
-      assert(Seq(1, 2, 3, 4))(hasAllOf(Set(1, 2, 3, 4, 5)))
+    test("hasSameElementsDistinct must fail when iterable does not have all specified elements") {
+      assert(Seq(1, 2, 3, 4))(hasSameElementsDistinct(Set(1, 2, 3, 4, 5)))
     } @@ failure,
-    test("hasAllOf must fail when iterable contains unspecified elements") {
-      assert(Seq(1, 2, 3, 4))(hasAllOf(Set(1, 2, 3)))
+    test("hasSameElementsDistinct must fail when iterable contains unspecified elements") {
+      assert(Seq(1, 2, 3, 4))(hasSameElementsDistinct(Set(1, 2, 3)))
     } @@ failure,
     test("hasAt must fail when an index is outside of a sequence range") {
       assert(Seq(1, 2, 3))(hasAt(-1)(anything))
