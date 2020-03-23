@@ -46,7 +46,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a Java stream
    */
   final def fromJavaStreamEffect[R, A](stream: ZIO[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorEffect(stream.flatMap(s => UIO.succeedNow(s.iterator())))
+    ZStream.fromJavaIteratorEffect(stream.flatMap(s => UIO(s.iterator())))
 
   /**
    * Creates a stream from a managed Java stream
