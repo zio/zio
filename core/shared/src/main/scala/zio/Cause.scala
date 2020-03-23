@@ -370,6 +370,35 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     attachTrace(squashWith(f))
 
   /**
+   * Remove all `Die` causes satisfying the specified predicate, returning
+   * `Some` with the remaining causes or `None` if there are no remaining
+   * causes.
+   */
+  final def stripDefects(f: Throwable => Boolean): Option[Cause[E]] =
+    self match {
+      case Empty              => None
+      case Interrupt(fiberId) => Some(Interrupt(fiberId))
+      case Fail(e)            => Some(Fail(e))
+      case Die(t)             => if (f(t)) None else Some(Die(t))
+      case Both(l, r) =>
+        (l.stripDefects(f), r.stripDefects(f)) match {
+          case (Some(l), Some(r)) => Some(Both(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+      case Then(l, r) =>
+        (l.stripDefects(f), r.stripDefects(f)) match {
+          case (Some(l), Some(r)) => Some(Then(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+      case Traced(c, trace) => c.stripDefects(f).map(Traced(_, trace))
+      case Meta(c, data)    => c.stripDefects(f).map(Meta(_, data))
+    }
+
+  /**
    * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
    * return only `Die` cause/finalizer defects.
    */
