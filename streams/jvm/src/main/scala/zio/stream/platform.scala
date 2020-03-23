@@ -33,27 +33,51 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStream[R, E, A](stream: ZIO[R, E, ju.stream.Stream[A]]): ZStream[R, E, A] =
-    ZStream.fromJavaIterator(stream.flatMap(s => UIO(s.iterator())))
+  final def fromJavaStreamTotal[A](stream: => ju.stream.Stream[A]): ZStream[Any, Nothing, A] =
+    ZStream.fromJavaIteratorTotal(stream.iterator())
+
+  /**
+   * Creates a stream from a Java stream
+   */
+  final def fromJavaStream[A](stream: => ju.stream.Stream[A]): ZStream[Any, Throwable, A] =
+    ZStream.fromJavaIterator(stream.iterator())
+
+  /**
+   * Creates a stream from a Java stream
+   */
+  final def fromJavaStreamEffect[R, A](stream: ZIO[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
+    ZStream.fromJavaIteratorEffect(stream.flatMap(s => UIO(s.iterator())))
 
   /**
    * Creates a stream from a managed Java stream
    */
-  final def fromJavaStreamManaged[R, E, A](stream: ZManaged[R, E, ju.stream.Stream[A]]): ZStream[R, E, A] =
+  final def fromJavaStreamManaged[R, A](stream: ZManaged[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
     ZStream.fromJavaIteratorManaged(stream.mapM(s => UIO(s.iterator())))
 }
 
 trait StreamPlatformSpecificConstructors {
 
   /**
-   * See [[ZStream.fromJavaIterator]]
+   * See [[ZStream.fromJavaStreamTotal]]
    */
-  final def fromJavaStream[E, A](stream: IO[E, ju.stream.Stream[A]]): Stream[E, A] =
+  final def fromJavaStreamTotal[A](stream: => ju.stream.Stream[A]): Stream[Nothing, A] =
+    ZStream.fromJavaStreamTotal(stream)
+
+  /**
+   * See [[ZStream.fromJavaStream]]
+   */
+  final def fromJavaStream[A](stream: => ju.stream.Stream[A]): Stream[Throwable, A] =
     ZStream.fromJavaStream(stream)
 
   /**
-   * See [[ZStream.fromJavaIteratorManaged]]
+   * See [[ZStream.fromJavaStreamEffect]]
    */
-  final def fromJavaStreamManaged[E, A](stream: Managed[E, ju.stream.Stream[A]]): Stream[E, A] =
+  final def fromJavaStreamEffect[A](stream: IO[Throwable, ju.stream.Stream[A]]): Stream[Throwable, A] =
+    ZStream.fromJavaStreamEffect(stream)
+
+  /**
+   * See [[ZStream.fromJavaStreamManaged]]
+   */
+  final def fromJavaStreamManaged[A](stream: Managed[Throwable, ju.stream.Stream[A]]): Stream[Throwable, A] =
     ZStream.fromJavaStreamManaged(stream)
 }
