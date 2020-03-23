@@ -31,7 +31,6 @@ class STMRetryBenchmark {
     updates = List.fill(Parallelism)(update)
   }
 
-  // ~43 ops/sec
   @Benchmark
   def concurrentLongTransactions(): Unit =
     unsafeRun(UIO.collectAllParN_(Parallelism)(updates))
