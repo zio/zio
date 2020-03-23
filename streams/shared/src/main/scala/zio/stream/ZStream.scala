@@ -3308,7 +3308,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   def fromIteratorManaged[R, A](
     iterator: ZManaged[R, Throwable, Iterator[A]]
   ): ZStream[R, Throwable, A] =
-    managed(iterator).flatMap(StreamEffect.fromIteratorTotal(_))
+    managed(iterator).flatMap(StreamEffect.fromIterator(_))
 
   /**
    * Creates a stream from a managed iterator
@@ -3316,7 +3316,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   def fromJavaIteratorManaged[R, A](
     iterator: ZManaged[R, Throwable, ju.Iterator[A]]
   ): ZStream[R, Throwable, A] =
-    managed(iterator).flatMap(StreamEffect.fromJavaIteratorTotal)
+    managed(iterator).flatMap(StreamEffect.fromJavaIterator(_))
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
