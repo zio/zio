@@ -1,5 +1,6 @@
 package zio.stm
 
+import java.lang.{ Runtime => JRuntime }
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
@@ -18,7 +19,7 @@ class STMRetryBenchmark {
   private var updates: List[UIO[Unit]] = _
 
   private val Size        = 10000
-  private val Parallelism = 8
+  private val Parallelism = JRuntime.getRuntime().availableProcessors()
 
   @Setup(Level.Trial)
   def setup(): Unit = {
