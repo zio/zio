@@ -3222,13 +3222,39 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     flattenPar(Int.MaxValue, outputBuffer)(fa)
 
   /**
-   * Creates a stream from a [[java.io.InputStream]]
+   * Creates a stream from a [[java.io.InputStream]].
+   * Note: the input stream will not be explicitly closed after
+   * it is exhausted.
    */
   def fromInputStream(
     is: => InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
-  ): StreamEffectChunk[Any, IOException, Byte] =
+  ): ZStreamChunk[Any, IOException, Byte] =
     StreamEffect.fromInputStream(is, chunkSize)
+
+  /**
+   * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
+   * stream is closed after it is exhausted.
+   */
+  def fromInputStreamEffect[R](
+    is: ZIO[R, IOException, InputStream],
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): ZStreamChunk[R, IOException, Byte] =
+    ZStreamChunk {
+      bracket(is)(is => ZIO.effectTotal(is.close()))
+        .flatMap(StreamEffect.fromInputStream(_, chunkSize).chunks)
+    }
+
+  /**
+   * Creates a stream from a managed [[java.io.InputStream]] value.
+   */
+  def fromInputStreamManaged[R](
+    is: ZManaged[R, IOException, InputStream],
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): ZStreamChunk[R, IOException, Byte] =
+    ZStreamChunk {
+      managed(is).flatMap(StreamEffect.fromInputStream(_, chunkSize).chunks)
+    }
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values

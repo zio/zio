@@ -168,7 +168,7 @@ object Stream extends Serializable {
   def fromInputStream(
     is: => InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
-  ): StreamEffectChunk[Any, IOException, Byte] =
+  ): ZStreamChunk[Any, IOException, Byte] =
     ZStream.fromInputStream(is, chunkSize)
 
   /**
