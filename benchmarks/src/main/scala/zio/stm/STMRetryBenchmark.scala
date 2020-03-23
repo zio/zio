@@ -15,21 +15,22 @@ import zio._
 class STMRetryBenchmark {
   import IOBenchmarks.unsafeRun
 
-  private var longUpdates: List[UIO[Unit]] = _
+  private var updates: List[UIO[Unit]] = _
 
   private val Size = 10000
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    val data       = (1 to Size).toList.zipWithIndex
-    val map        = unsafeRun(TMap.fromIterable(data).commit)
-    val schedule   = Schedule.recurs(1000).unit
-    val longUpdate = map.transformValues(_ + 1).commit.repeat(schedule)
+    val data     = (1 to Size).toList.zipWithIndex
+    val ref      = TRef.unsafeMake(data.toMap)
+    val schedule = Schedule.recurs(1000).unit
 
-    longUpdates = List(longUpdate, longUpdate, longUpdate)
+    val update = ref.update(map => map.transform((_, v) => v + 1)).commit.repeat(schedule)
+
+    updates = List(update, update, update)
   }
 
   @Benchmark
   def concurrentLongTransactions(): Unit =
-    unsafeRun(UIO.forkAll_(longUpdates))
+    unsafeRun(UIO.forkAll_(updates))
 }
