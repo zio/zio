@@ -17,7 +17,8 @@ class STMRetryBenchmark {
 
   private var updates: List[UIO[Unit]] = _
 
-  private val Size = 10000
+  private val Size        = 10000
+  private val Parallelism = 8
 
   @Setup(Level.Trial)
   def setup(): Unit = {
@@ -27,10 +28,11 @@ class STMRetryBenchmark {
 
     val update = ref.update(map => map.transform((_, v) => v + 1)).commit.repeat(schedule)
 
-    updates = List(update, update, update)
+    updates = List.fill(Parallelism)(update)
   }
 
+  // ~43 ops/sec
   @Benchmark
   def concurrentLongTransactions(): Unit =
-    unsafeRun(UIO.forkAll_(updates))
+    unsafeRun(UIO.collectAllParN_(Parallelism)(updates))
 }
