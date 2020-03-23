@@ -40,7 +40,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a Java stream
    */
   final def fromJavaStream[A](stream: => ju.stream.Stream[A]): ZStream[Any, Throwable, A] =
-    ZStream.fromJavaIteratorTotal(stream.iterator())
+    ZStream.fromJavaIterator(stream.iterator())
 
   /**
    * Creates a stream from a Java stream
