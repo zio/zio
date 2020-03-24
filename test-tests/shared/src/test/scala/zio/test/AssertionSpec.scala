@@ -1,6 +1,7 @@
 package zio.test
 
 import scala.collection.immutable.SortedSet
+import scala.util.{ Failure, Success }
 
 import zio.Exit
 import zio.test.Assertion._
@@ -111,6 +112,25 @@ object AssertionSpec extends ZIOBaseSpec {
     test("forall must work with iterables that are not lists") {
       assert(SortedSet(1, 2, 3))(forall(isGreaterThan(0)))
     },
+    test("hasSameElementsDistinct must succeed when iterable contains the specified elements") {
+      assert(Seq(1, 2, 3))(hasSameElementsDistinct(Set(1, 2, 3)))
+    },
+    test(
+      "hasSameElementsDistinct must succeed when iterable contains duplicates of the specified elements"
+    ) {
+      assert(Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"))(
+        hasSameElementsDistinct(Set("a", "b", "c"))
+      )
+    },
+    test("hasSameElementsDistinct must succeed when specified elements contain duplicates") {
+      assert(Seq(1, 2, 3))(hasSameElementsDistinct(Seq(1, 2, 3, 3)))
+    },
+    test("hasSameElementsDistinct must fail when iterable does not have all specified elements") {
+      assert(Seq(1, 2, 3, 4))(hasSameElementsDistinct(Set(1, 2, 3, 4, 5)))
+    } @@ failure,
+    test("hasSameElementsDistinct must fail when iterable contains unspecified elements") {
+      assert(Seq(1, 2, 3, 4))(hasSameElementsDistinct(Set(1, 2, 3)))
+    } @@ failure,
     test("hasAt must fail when an index is outside of a sequence range") {
       assert(Seq(1, 2, 3))(hasAt(-1)(anything))
     } @@ failure,
@@ -123,6 +143,24 @@ object AssertionSpec extends ZIOBaseSpec {
     test("hasAt must succeed when a value is equal to a specific assertion") {
       assert(Seq(1, 2, 3))(hasAt(1)(equalTo(2)))
     },
+    test("hasAtLeastOneOf must succeed when iterable contains one of the specified elements") {
+      assert(Seq("zio", "scala"))(hasAtLeastOneOf(Set("zio", "test", "java")))
+    },
+    test("hasAtLeastOneOf must succeed when iterable contains more than one of the specified elements") {
+      assert(Seq("zio", "scala"))(hasAtLeastOneOf(Set("zio", "test", "scala")))
+    },
+    test("hasAtLeastOneOf must fail when iterable does not contain a specified element") {
+      assert(Seq("zio", "scala"))(hasAtLeastOneOf(Set("python", "rust")))
+    } @@ failure,
+    test("hasAtMostOneOf must succeed when iterable contains one of the specified elements") {
+      assert(Seq("zio", "scala"))(hasAtMostOneOf(Set("zio", "test", "java")))
+    },
+    test("hasAtMostOneOf must succeed when iterable does not contain a specified element") {
+      assert(Seq("zio", "scala"))(hasAtMostOneOf(Set("python", "rust")))
+    },
+    test("hasAtMostOneOf must fail when iterable contains more than one of the specified elements") {
+      assert(Seq("zio", "scala"))(hasAtMostOneOf(Set("zio", "test", "scala")))
+    } @@ failure,
     test("hasField must succeed when field value satisfy specified assertion") {
       assert(SampleUser("User", 23))(hasField[SampleUser, Int]("age", _.age, isWithin(0, 99)))
     },
@@ -135,6 +173,33 @@ object AssertionSpec extends ZIOBaseSpec {
     test("hasFirst must fail when a head is not equal to a specific assertion") {
       assert(Seq(1, 2, 3))(hasFirst(equalTo(100)))
     } @@ failure,
+    test("hasIntersection must succeed when intersection satisfies specified assertion") {
+      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(hasSize(equalTo(1))))
+    },
+    test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
+      assert(Seq(1, 2, 3))(hasIntersection(Seq(4, 5, 6))(isEmpty))
+    },
+    test("hasIntersection must fail when intersection does not satisfy specified assertion") {
+      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(isEmpty))
+    } @@ failure,
+    test("hasKey must succeed when map has key with value satisfying specified assertion") {
+      assert(Map("scala" -> 1))(hasKey("scala", equalTo(1)))
+    },
+    test("hasKey must fail when map does not have the specified key") {
+      assert(Map("scala" -> 1))(hasKey("java", equalTo(1)))
+    } @@ failure,
+    test("hasKey must fail when map has key with value not satisfying specified assertion") {
+      assert(Map("scala" -> 1))(hasKey("scala", equalTo(-10)))
+    } @@ failure,
+    test("hasKey must succeed when map has the specified key") {
+      assert(Map("scala" -> 1))(hasKey("scala"))
+    },
+    test("hasKeys must succeed when map has keys satisfying the specified assertion") {
+      assert(Map("scala" -> 1, "java" -> 1))(hasKeys(hasAtLeastOneOf(Set("scala", "java"))))
+    },
+    test("hasKeys must fail when map has keys not satisfying the specified assertion") {
+      assert(Map("scala" -> 1, "java" -> 1))(hasKeys(contains("bash")))
+    } @@ failure,
     test("hasLast must fail when an iterable is empty") {
       assert(Seq())(hasLast(anything))
     } @@ failure,
@@ -144,11 +209,29 @@ object AssertionSpec extends ZIOBaseSpec {
     test("hasLast must fail when a last is not equal to specific assertion") {
       assert(Seq(1, 2, 3))(hasLast(equalTo(100)))
     } @@ failure,
+    test("hasNoneOf must succeed when iterable does not contain one of the specified elements") {
+      assert(Seq("zio", "scala"))(hasNoneOf(Set("python", "rust")))
+    },
+    test("hasNoneOf must succeed when iterable is empty") {
+      assert(Seq.empty[String])(hasNoneOf(Set("zio", "test", "java")))
+    },
+    test("hasNoneOf must fail when iterable contains a specified element") {
+      assert(Seq("zio", "scala"))(hasNoneOf(Set("zio", "test", "scala")))
+    } @@ failure,
+    test("hasOneOf must succeed when iterable contains exactly one of the specified elements") {
+      assert(Seq("zio", "scala"))(hasOneOf(Set("zio", "test", "java")))
+    },
+    test("hasOneOf must fail when iterable contains more than one of the specified elements") {
+      assert(Seq("zio", "scala"))(hasOneOf(Set("zio", "test", "scala")))
+    } @@ failure,
+    test("hasOneOf must fail when iterable does not contain at least one of the specified elements") {
+      assert(Seq("zio", "scala"))(hasOneOf(Set("python", "rust")))
+    } @@ failure,
     test("hasSameElements must succeed when both iterables contain the same elements") {
       assert(Seq(1, 2, 3))(hasSameElements(Seq(1, 2, 3)))
     },
     test("hasSameElements must fail when the iterables do not contain the same elements") {
-      assert(Seq(1, 2, 3, 4))(hasSameElements(Seq(1, 2, 3)))
+      assert(Seq(1, 2, 3, 4))(hasSameElements(Seq(1, 2, 3)) && hasSameElements(Seq(1, 2, 3, 4, 5)))
     } @@ failure,
     test("hasSameElements must succeed when both iterables contain the same elements in different order") {
       assert(Seq(4, 3, 1, 2))(hasSameElements(Seq(1, 2, 3, 4)))
@@ -172,6 +255,24 @@ object AssertionSpec extends ZIOBaseSpec {
     test("hasSizeString must fail when string size is not equal to specified assertion") {
       assert("aaa")(hasSizeString(equalTo(2)))
     } @@ failure,
+    test("hasSubset must succeed when both iterables contain the same elements") {
+      assert(Seq(1, 2, 3))(hasSubset(Set(1, 2, 3)))
+    },
+    test("hasSubset must succeed when the other iterable is a subset of the iterable") {
+      assert(Seq(1, 2, 3, 4))(hasSubset(Set(1, 2, 3)))
+    },
+    test("hasSubset must succeed when the other iterable is empty") {
+      assert(Seq(4, 3, 1, 2))(hasSubset(Set.empty[Int]))
+    },
+    test("hasSubset must fail when iterable does not contain elements specified in set") {
+      assert(Seq(4, 3, 1, 2))(hasSubset(Set(1, 2, 10)))
+    } @@ failure,
+    test("hasValues must succeed when map has values satisfying the specified assertion") {
+      assert(Map("scala" -> 10, "java" -> 20))(hasValues(hasAtLeastOneOf(Set(0, 10))))
+    },
+    test("hasValues must fail when map has values not satisfying the specified assertion") {
+      assert(Map("scala" -> 10, "java" -> 20))(hasValues(contains(0)))
+    } @@ failure,
     test("isCase must fail when unapply fails (returns None)") {
       assert(42)(isCase[Int, String](termName = "term", _ => None, equalTo("number: 42")))
     } @@ failure,
@@ -183,6 +284,18 @@ object AssertionSpec extends ZIOBaseSpec {
         )
       )
     ),
+    test("isDistinct must succeed when iterable is distinct") {
+      assert(Seq(1, 2, 3, 4, 0))(isDistinct)
+    },
+    test("isDistinct must succeed for empty iterable") {
+      assert(Seq.empty[Int])(isDistinct)
+    },
+    test("isDistinct must succeed for singleton iterable") {
+      assert(Seq(1))(isDistinct)
+    },
+    test("isDistinct must fail when iterable is not distinct") {
+      assert(Seq(1, 2, 3, 3, 4))(isDistinct)
+    } @@ failure,
     test("isEmpty must succeed when the traversable is empty") {
       assert(Seq())(isEmpty)
     },
@@ -198,6 +311,12 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isFalse must succeed when supplied value is false") {
       assert(false)(isFalse)
     },
+    test("isFailure must succeed when Failure value satisfies the specified assertion") {
+      assert(Failure(new Exception("oh no!")))(isFailure(hasMessage(equalTo("oh no!"))))
+    },
+    test("isFailure must succeed when Try value is Failure") {
+      assert(Failure(new Exception("oh no!")))(isFailure)
+    },
     test("isGreaterThan must succeed when specified value is greater than supplied value") {
       assert(42)(isGreaterThan(0))
     },
@@ -210,6 +329,12 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isLeft must succeed when supplied value is Left and satisfy specified assertion") {
       assert(Left(42))(isLeft(equalTo(42)))
     },
+    test("isLeft must succeed when supplied value is Left") {
+      assert(Left(42))(isLeft)
+    },
+    test("isLeft must fail when supplied value is Right") {
+      assert(Right(-42))(isLeft)
+    } @@ failure,
     test("isLessThan must succeed when specified value is less than supplied value") {
       assert(0)(isLessThan(42))
     },
@@ -219,6 +344,15 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isLessThanEqualTo must succeed when specified value is less than or equal supplied value") {
       assert(42)(isLessThanEqualTo(42))
     },
+    test("isNegative must succeed when number is negative") {
+      assert(-10)(isNegative)
+    },
+    test("isNegative must fail when number is zero") {
+      assert(0)(isNegative)
+    } @@ failure,
+    test("isNegative must fail when number is positive") {
+      assert(10)(isNegative)
+    } @@ failure,
     test("isNone must succeed when specified value is None") {
       assert(None)(isNone)
     },
@@ -243,14 +377,59 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isNull must fail when specified value is not null") {
       assert("not null")(isNull)
     } @@ failure,
+    test("isOneOf must succeed when value is equal to one of the specified values") {
+      assert('a')(isOneOf(Set('a', 'b', 'c')))
+    },
+    test("isOneOf must fail when value is not equal to one of the specified values") {
+      assert('z')(isOneOf(Set('a', 'b', 'c')))
+    } @@ failure,
+    test("isPositive must succeed when number is positive") {
+      assert(10)(isPositive)
+    },
+    test("isPositive must fail when number is zero") {
+      assert(0)(isPositive)
+    } @@ failure,
+    test("isPositive must fail when number is negative") {
+      assert(-10)(isPositive)
+    } @@ failure,
     test("isRight must succeed when supplied value is Right and satisfy specified assertion") {
       assert(Right(42))(isRight(equalTo(42)))
+    },
+    test("isRight must succeed when supplied value is Right") {
+      assert(Right(42))(isRight)
     },
     test("isSome must succeed when supplied value is Some and satisfy specified assertion") {
       assert(Some("zio"))(isSome(equalTo("zio")))
     },
+    test("isSome with isOneOf must succeed when assertion is satisfied") {
+      assert(Some("zio"))(isSome(isOneOf(Set("zio", "test"))))
+    },
     test("isSome must fail when supplied value is None") {
       assert(None)(isSome(equalTo("zio")))
+    } @@ failure,
+    test("isSome must succeed when supplied value is Some") {
+      assert(Some("zio"))(isSome)
+    },
+    test("isSome must fail when supplied value is None") {
+      assert(None)(isSome)
+    } @@ failure,
+    test("isSorted must succeed when iterable is sorted") {
+      assert(Seq(1, 2, 2, 3, 4))(isSorted)
+    },
+    test("isSorted must succeed for empty iterable") {
+      assert(Seq.empty[Int])(isSorted)
+    },
+    test("isSorted must succeed for singleton iterable") {
+      assert(Seq(1))(isSorted)
+    },
+    test("isSorted must fail when iterable is not sorted") {
+      assert(Seq(1, 2, 0, 3, 4))(isSorted)
+    } @@ failure,
+    test("isSortedReverse must succeed when iterable is reverse sorted") {
+      assert(Seq(4, 3, 3, 2, 1))(isSortedReverse)
+    },
+    test("isSortedReverse must fail when iterable is not reverse sorted") {
+      assert(Seq(1, 2, 0, 3, 4))(isSortedReverse)
     } @@ failure,
     test("isSubtype must succeed when value is subtype of specified type") {
       assert(dog)(isSubtype[Animal](anything))
@@ -272,6 +451,12 @@ object AssertionSpec extends ZIOBaseSpec {
       val exception = new Exception.MyException
       assert(exception)(isSubtype[Exception.MyException](anything))
     },
+    test("isSuccess must succeed when Success value satisfies the specified assertion") {
+      assert(Success(1))(isSuccess(isPositive[Int]))
+    },
+    test("isSuccess must succeed when Try value is Success") {
+      assert(Success(1))(isSuccess)
+    },
     test("isTrue must succeed when supplied value is true") {
       assert(true)(isTrue)
     },
@@ -288,6 +473,12 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isWithin must fail when supplied value is out of range") {
       assert(42)(isWithin(0, 10))
     } @@ failure,
+    test("isZero must succeed when number is zero") {
+      assert(0)(isZero)
+    },
+    test("isZero must fail when number is not zero") {
+      assert(10)(isZero)
+    } @@ failure,
     test("matches must succeed when the string matches the regex") {
       assert("(123) 456-7890")(matchesRegex("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$"))
     },
@@ -297,6 +488,24 @@ object AssertionSpec extends ZIOBaseSpec {
     test("negate must succeed when negation of assertion is true") {
       assert(sampleUser)(nameStartsWithA.negate)
     },
+    test("nonNegative must succeed when number is positive") {
+      assert(10)(nonNegative)
+    },
+    test("nonNegative must succeed when number is zero") {
+      assert(0)(nonNegative)
+    },
+    test("nonNegative must fail when number is negative") {
+      assert(-10)(nonNegative)
+    } @@ failure,
+    test("nonPositive must succeed when number is negative") {
+      assert(-10)(nonPositive)
+    },
+    test("nonPositive must succeed when number is zero") {
+      assert(0)(nonPositive)
+    },
+    test("nonPositive must fail when number is positive") {
+      assert(10)(nonPositive)
+    } @@ failure,
     test("not must succeed when negation of specified assertion is true") {
       assert(0)(not(equalTo(42)))
     },
