@@ -1318,6 +1318,7 @@ object ZSTM {
 
   private[stm] object internal {
     val DefaultJournalSize = 4
+    val MaxRetries         = 10
 
     class Versioned[A](val value: A)
 
@@ -1549,32 +1550,44 @@ object ZSTM {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
-      var loop = true
+      var loop    = true
+      var retries = 0
 
       while (loop) {
         journal = allocJournal(journal)
-        value = stm.run(journal, fiberId, r)
 
-        val analysis = analyzeJournal(journal)
+        if (retries > MaxRetries) {
+          Sync(globalLock) {
+            value = stm.run(journal, fiberId, r)
+            commitJournal(journal)
+            loop = false
+          }
+        } else {
+          value = stm.run(journal, fiberId, r)
 
-        if (analysis ne JournalAnalysis.Invalid) {
-          loop = false
+          val analysis = analyzeJournal(journal)
 
-          value match {
-            case _: TExit.Succeed[_] =>
-              if (analysis eq JournalAnalysis.ReadWrite) {
-                Sync(globalLock) {
-                  if (isValid(journal)) commitJournal(journal) else loop = true
+          if (analysis ne JournalAnalysis.Invalid) {
+            loop = false
+
+            value match {
+              case _: TExit.Succeed[_] =>
+                if (analysis eq JournalAnalysis.ReadWrite) {
+                  Sync(globalLock) {
+                    if (isValid(journal)) commitJournal(journal) else loop = true
+                  }
+                } else {
+                  Sync(globalLock) {
+                    if (isInvalid(journal)) loop = true
+                  }
                 }
-              } else {
-                Sync(globalLock) {
-                  if (isInvalid(journal)) loop = true
-                }
-              }
 
-            case _ =>
+              case _ =>
+            }
           }
         }
+
+        retries += 1
       }
 
       value match {
