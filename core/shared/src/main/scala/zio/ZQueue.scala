@@ -484,7 +484,30 @@ object ZQueue {
 
       val capacity: Int = queue.capacity
 
-      def offer(a: A): UIO[Boolean] = offerAll(List(a))
+      def offer(a: A): UIO[Boolean] =
+        UIO.effectSuspendTotal {
+          if (shutdownFlag.get) ZIO.interrupt
+          else {
+            val noRemaining =
+              unsafePollN(takers, 1) match {
+                case taker :: _ =>
+                  unsafeCompletePromise(taker, a)
+                  true
+                case Nil => false
+              }
+
+            if (noRemaining) IO.succeedNow(true)
+            else {
+              // not enough takers, offer to the queue
+              val surplus = unsafeOfferAll(queue, List(a))
+              unsafeCompleteTakers()
+
+              if (surplus.isEmpty) IO.succeedNow(true)
+              else
+                strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(unsafeCompleteTakers())
+            }
+          }
+        }
 
       def offerAll(as: Iterable[A]): UIO[Boolean] =
         UIO.effectSuspendTotal {
@@ -505,7 +528,6 @@ object ZQueue {
               if (surplus.isEmpty) IO.succeedNow(true)
               else
                 strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(unsafeCompleteTakers())
-
             }
           }
         }
