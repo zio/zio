@@ -67,19 +67,19 @@ object SpecSpec extends ZIOBaseSpec {
     suite("only")(
       testM("ignores all tests except one matching the given label") {
         for {
-          passed1 <- isSuccess(mixedSpec.only(passingTest))
-          passed2 <- isSuccess(mixedSpec.only(failingTest))
+          passed1 <- succeeded(mixedSpec.only(passingTest))
+          passed2 <- succeeded(mixedSpec.only(failingTest))
         } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
       },
       testM("ignores all tests except ones in the suite matching the given label") {
         for {
-          passed1 <- isSuccess(mixedSpec.only(passingSuite))
-          passed2 <- isSuccess(mixedSpec.only(failingSuite))
+          passed1 <- succeeded(mixedSpec.only(passingSuite))
+          passed2 <- succeeded(mixedSpec.only(failingSuite))
         } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
       },
       testM("runs everything if root suite label given") {
         for {
-          passed <- isSuccess(mixedSpec.only(rootSuite))
+          passed <- succeeded(mixedSpec.only(rootSuite))
         } yield assert(passed)(isFalse)
       }
     ),
