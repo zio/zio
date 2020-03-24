@@ -23,11 +23,11 @@ class STMRetryBenchmark {
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    val data     = (1 to Size).toList.zipWithIndex
-    val ref      = TRef.unsafeMake(data.toMap)
+    val data     = (1 to Size).toList
+    val ref      = TRef.unsafeMake(data)
     val schedule = Schedule.recurs(1000).unit
 
-    val update = ref.update(_.transform((_, v) => v + 1)).commit.repeat(schedule)
+    val update = ref.update(_.map(_ + 1)).commit.repeat(schedule)
 
     updates = List.fill(Parallelism)(update)
   }
