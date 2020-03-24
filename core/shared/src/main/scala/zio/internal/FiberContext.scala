@@ -225,27 +225,34 @@ private[zio] final class FiberContext[E, A](
     val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]])
     val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]])
 
-    ZIO
-      .effectAsync[R, E, C] { cb =>
-        val leftRegister = left.register0 {
-          case exit0: Exit.Success[Exit[EL, A]] =>
-            complete[EL, ER, A, B](left, right, race.leftWins, exit0.value, raceIndicator, cb)
-          case exit: Exit.Failure[_] => complete(left, right, race.leftWins, exit, raceIndicator, cb)
-        }
+    for {
+      lid <- left.id
+      rid <- right.id
+      r <- ZIO
+            .effectAsync[R, E, C](
+              { cb =>
+                val leftRegister = left.register0 {
+                  case exit0: Exit.Success[Exit[EL, A]] =>
+                    complete[EL, ER, A, B](left, right, race.leftWins, exit0.value, raceIndicator, cb)
+                  case exit: Exit.Failure[_] => complete(left, right, race.leftWins, exit, raceIndicator, cb)
+                }
 
-        if (leftRegister ne null)
-          complete(left, right, race.leftWins, leftRegister, raceIndicator, cb)
-        else {
-          val rightRegister = right.register0 {
-            case exit0: Exit.Success[Exit[_, _]] =>
-              complete(right, left, race.rightWins, exit0.value, raceIndicator, cb)
-            case exit: Exit.Failure[_] => complete(right, left, race.rightWins, exit, raceIndicator, cb)
-          }
+                if (leftRegister ne null)
+                  complete(left, right, race.leftWins, leftRegister, raceIndicator, cb)
+                else {
+                  val rightRegister = right.register0 {
+                    case exit0: Exit.Success[Exit[_, _]] =>
+                      complete(right, left, race.rightWins, exit0.value, raceIndicator, cb)
+                    case exit: Exit.Failure[_] => complete(right, left, race.rightWins, exit, raceIndicator, cb)
+                  }
 
-          if (rightRegister ne null)
-            complete(right, left, race.rightWins, rightRegister, raceIndicator, cb)
-        }
-      }
+                  if (rightRegister ne null)
+                    complete(right, left, race.rightWins, rightRegister, raceIndicator, cb)
+                }
+              },
+              List(lid, rid)
+            )
+    } yield r
   }
 
   /**
@@ -704,7 +711,11 @@ private[zio] final class FiberContext[E, A](
   private def childrenToScala(): Iterable[FiberContext[Any, Any]] =
     Sync(_children)(_children.asScala.toArray.filter(_ ne null))
 
-  def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]](k => observe0(x => k(ZIO.done(x))))
+  def await: UIO[Exit[E, A]] =
+    ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]](
+      k => observe0(x => k(ZIO.done(x))),
+      fiberId :: Nil
+    )
 
   def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
     val oldValue = Option(fiberRefLocals.get(ref))
