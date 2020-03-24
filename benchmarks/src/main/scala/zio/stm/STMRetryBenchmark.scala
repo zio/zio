@@ -16,23 +16,23 @@ import zio._
 class STMRetryBenchmark {
   import IOBenchmarks.unsafeRun
 
-  private var updates: List[UIO[Unit]] = _
+  private var long: UIO[Unit]  = _
+  private var short: UIO[Unit] = _
 
-  private val Size        = 10000
-  private val Parallelism = JRuntime.getRuntime().availableProcessors()
+  private val Size = 10000
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    val data     = (1 to Size).toList
-    val ref      = TRef.unsafeMake(data)
-    val schedule = Schedule.recurs(1000).unit
+    val data       = (1 to Size).toList
+    val ref        = TRef.unsafeMake(data)
+    val n          = JRuntime.getRuntime().availableProcessors() - 1
+    val updateHead = ref.update(list => 0 :: list.tail).commit.forever
 
-    val update = ref.update(_.map(_ + 1)).commit.repeat(schedule)
-
-    updates = List.fill(Parallelism)(update)
+    short = UIO.collectAllParN_(n)(List.fill(n)(updateHead))
+    long = ref.update(_.map(_ + 1)).commit
   }
 
   @Benchmark
-  def concurrentLongTransactions(): Unit =
-    unsafeRun(UIO.collectAllParN_(Parallelism)(updates))
+  def mixedTransactions(): Unit =
+    unsafeRun(long.race(short))
 }
