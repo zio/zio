@@ -172,43 +172,45 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
    * Transforms elements enqueued into this queue with a pure function.
    */
   final def contramap[C](f: C => A): ZQueue[RA, EA, RB, EB, C, B] =
-    new ZQueue[RA, EA, RB, EB, C, B] {
-      def capacity: Int = self.capacity
-
-      def offer(c: C): ZIO[RA, EA, Boolean] =
-        self.offer(f(c))
-
-      def offerAll(as: Iterable[C]): ZIO[RA, EA, Boolean] = self.offerAll(as.map(f))
-
-      def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
-      def size: UIO[Int]                           = self.size
-      def shutdown: UIO[Unit]                      = self.shutdown
-      def isShutdown: UIO[Boolean]                 = self.isShutdown
-      def take: ZIO[RB, EB, B]                     = self.take
-      def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
-      def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
-    }
+    contramapM(f andThen ZIO.succeedNow)
 
   /**
    * Transforms elements enqueued into this queue with an effectful function.
    */
   final def contramapM[RA2 <: RA, EA2 >: EA, C](f: C => ZIO[RA2, EA2, A]): ZQueue[RA2, EA2, RB, EB, C, B] =
-    new ZQueue[RA2, EA2, RB, EB, C, B] {
+    dimapM(f, ZIO.succeedNow)
+
+  /**
+   * Transforms elements enqueued into and dequeued from this queue with the
+   * specified effectual functions.
+   */
+  final def dimap[C, D](f: C => A, g: B => D): ZQueue[RA, EA, RB, EB, C, D] =
+    dimapM(f andThen ZIO.succeedNow, g andThen ZIO.succeedNow)
+
+  /**
+   * Transforms elements enqueued into and dequeued from this queue with the
+   * specified effectual functions.
+   */
+  final def dimapM[RC <: RA, EC >: EA, RD <: RB, ED >: EB, C, D](
+    f: C => ZIO[RC, EC, A],
+    g: B => ZIO[RD, ED, D]
+  ): ZQueue[RC, EC, RD, ED, C, D] =
+    new ZQueue[RC, EC, RD, ED, C, D] {
       def capacity: Int = self.capacity
 
-      def offer(c: C): ZIO[RA2, EA2, Boolean] =
+      def offer(c: C): ZIO[RC, EC, Boolean] =
         f(c).flatMap(self.offer)
 
-      def offerAll(as: Iterable[C]): ZIO[RA2, EA2, Boolean] =
-        ZIO.foreach(as)(f).flatMap(self.offerAll)
+      def offerAll(cs: Iterable[C]): ZIO[RC, EC, Boolean] =
+        ZIO.foreach(cs)(f).flatMap(self.offerAll)
 
       def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
       def size: UIO[Int]                           = self.size
       def shutdown: UIO[Unit]                      = self.shutdown
       def isShutdown: UIO[Boolean]                 = self.isShutdown
-      def take: ZIO[RB, EB, B]                     = self.take
-      def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
-      def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
+      def take: ZIO[RD, ED, D]                     = self.take.flatMap(g)
+      def takeAll: ZIO[RD, ED, List[D]]            = self.takeAll.flatMap(ZIO.foreach(_)(g))
+      def takeUpTo(max: Int): ZIO[RD, ED, List[D]] = self.takeUpTo(max).flatMap(ZIO.foreach(_)(g))
     }
 
   /**
@@ -216,28 +218,7 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
    * pass the filter will be immediately dropped.
    */
   final def filterInput[A1 <: A](f: A1 => Boolean): ZQueue[RA, EA, RB, EB, A1, B] =
-    new ZQueue[RA, EA, RB, EB, A1, B] {
-      def capacity: Int = self.capacity
-
-      def offer(a: A1): ZIO[RA, EA, Boolean] =
-        if (f(a)) self.offer(a)
-        else IO.succeedNow(false)
-
-      def offerAll(as: Iterable[A1]): ZIO[RA, EA, Boolean] = {
-        val filtered = as filter f
-
-        if (filtered.isEmpty) ZIO.succeedNow(false)
-        else self.offerAll(filtered)
-      }
-
-      def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
-      def size: UIO[Int]                           = self.size
-      def shutdown: UIO[Unit]                      = self.shutdown
-      def isShutdown: UIO[Boolean]                 = self.isShutdown
-      def take: ZIO[RB, EB, B]                     = self.take
-      def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
-      def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
-    }
+    filterInputM(f andThen ZIO.succeedNow)
 
   /**
    * Like `filterInput`, but uses an effectful function to filter the elements.
@@ -272,42 +253,19 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
    * Transforms elements dequeued from this queue with a function.
    */
   final def map[C](f: B => C): ZQueue[RA, EA, RB, EB, A, C] =
-    new ZQueue[RA, EA, RB, EB, A, C] {
-      def capacity: Int                                   = self.capacity
-      def offer(a: A): ZIO[RA, EA, Boolean]               = self.offer(a)
-      def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] = self.offerAll(as)
-      def awaitShutdown: UIO[Unit]                        = self.awaitShutdown
-      def size: UIO[Int]                                  = self.size
-      def shutdown: UIO[Unit]                             = self.shutdown
-      def isShutdown: UIO[Boolean]                        = self.isShutdown
-      def take: ZIO[RB, EB, C]                            = self.take.map(f)
-      def takeAll: ZIO[RB, EB, List[C]]                   = self.takeAll.map(_.map(f))
-      def takeUpTo(max: Int): ZIO[RB, EB, List[C]]        = self.takeUpTo(max).map(_.map(f))
-    }
+    mapM(f andThen ZIO.succeedNow)
 
   /**
    * Transforms elements dequeued from this queue with an effectful function.
    */
   final def mapM[R2 <: RB, E2 >: EB, C](f: B => ZIO[R2, E2, C]): ZQueue[RA, EA, R2, E2, A, C] =
-    new ZQueue[RA, EA, R2, E2, A, C] {
-      def capacity: Int                                   = self.capacity
-      def offer(a: A): ZIO[RA, EA, Boolean]               = self.offer(a)
-      def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] = self.offerAll(as)
-      def awaitShutdown: UIO[Unit]                        = self.awaitShutdown
-      def size: UIO[Int]                                  = self.size
-      def shutdown: UIO[Unit]                             = self.shutdown
-      def isShutdown: UIO[Boolean]                        = self.isShutdown
-      def take: ZIO[R2, E2, C]                            = self.take.flatMap(f)
-      def takeAll: ZIO[R2, E2, List[C]]                   = self.takeAll.flatMap(ZIO.foreach(_)(f))
-      def takeUpTo(max: Int): ZIO[R2, E2, List[C]]        = self.takeUpTo(max).flatMap(ZIO.foreach(_)(f))
-    }
+    dimapM(ZIO.succeedNow, f)
 
   /**
    * Take the head option of values in the queue.
    */
   final def poll: ZIO[RB, EB, Option[B]] =
     takeUpTo(1).map(_.headOption)
-
 }
 
 object ZQueue {
