@@ -1318,7 +1318,7 @@ object ZSTM {
 
   private[stm] object internal {
     val DefaultJournalSize = 4
-    val MaxRetries         = 100
+    val MaxRetries         = 10
 
     class Versioned[A](val value: A)
 
