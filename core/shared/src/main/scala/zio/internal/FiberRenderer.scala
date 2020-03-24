@@ -4,6 +4,13 @@ import zio.Fiber.Status.{ Done, Finishing, Running, Suspended }
 import zio.{ Fiber, UIO, ZIO }
 
 private[zio] object FiberRenderer {
+  private def zipWithHasNext[A](it: Iterable[A]): Iterable[(A, Boolean)] =
+    if (it.isEmpty)
+      Seq.empty
+    else {
+      Iterable.concat(it.dropRight(1).map((_, true)), Seq((it.last, false)))
+    }
+
   def prettyPrintM(dump: Fiber.Dump): UIO[String] = UIO {
     val time = System.currentTimeMillis()
 
@@ -45,32 +52,42 @@ private[zio] object FiberRenderer {
         s"Suspended(${in}, ${ep}, ${as})"
     }
 
-  def renderHierarchy(fiber: Fiber.Runtime[_, _]): UIO[String] = {
+  def renderHierarchy(fibers: Iterable[Fiber.Runtime[_, _]]): UIO[String] =
+    ZIO
+      .foreach(zipWithHasNext(fibers)) {
+        case (fiber, hasNext) => renderOne(fiber, hasNext)
+      }
+      .map(_.mkString("\n"))
 
-    def go(f: Fiber.Runtime[_, _], prefix: String): UIO[String] =
+  def renderOne(fiber: Fiber.Runtime[_, _], hasNexSibling: Boolean): UIO[String] = {
+
+    def go(f: Fiber.Runtime[_, _], prefix: String, hasNext: Boolean): UIO[String] =
       for {
-        id              <- f.id
-        name            <- f.getRef(Fiber.fiberName)
-        status          <- f.status
-        children        <- f.children
-        newPrefix       = prefix + "|   "
-        childrenResults <- ZIO.foreach(children)(c => go(c.asInstanceOf[Fiber.Runtime[_, _]], newPrefix))
+        id           <- f.id
+        name         <- f.getRef(Fiber.fiberName)
+        status       <- f.status
+        children     <- f.children
+        prefixUpdate = if (hasNext) "|   " else "    "
+        newPrefix    = prefix + prefixUpdate
+        childrenResults <- ZIO.foreach(zipWithHasNext(children)) {
+                            case (c, nxt) => go(c.asInstanceOf[Fiber.Runtime[_, _]], newPrefix, nxt)
+                          }
       } yield {
         val nameStr   = name.fold("")(n => "\"" + n + "\" ")
         val statusMsg = renderStatus(status)
         s"${prefix}+---${nameStr}#${id.seqNumber} Status: $statusMsg\n" + childrenResults.mkString
       }
 
-    go(fiber, "")
+    go(fiber, "", hasNexSibling)
   }
 
   def dumpStr(fibers: Seq[Fiber.Runtime[_, _]]): UIO[String] =
     for {
-      trees    <- ZIO.foreach(fibers)(FiberRenderer.renderHierarchy)
+      trees    <- FiberRenderer.renderHierarchy(fibers)
       dumps    <- Fiber.dump(fibers: _*)
       dumpStrs <- ZIO.foreach(dumps)(_.prettyPrintM)
     } yield {
-      Seq.concat(trees, Seq("\n"), dumpStrs).mkString
+      trees + "\n" + dumpStrs.mkString
     }
 
 }
