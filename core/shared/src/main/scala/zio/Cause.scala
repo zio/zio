@@ -370,32 +370,32 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     attachTrace(squashWith(f))
 
   /**
-   * Remove all `Die` causes satisfying the specified predicate, returning
-   * `Some` with the remaining causes or `None` if there are no remaining
-   * causes.
+   * Remove all `Die` causes that the specified partial function is defined at,
+   * returning `Some` with the remaining causes or `None` if there are no
+   * remaining causes.
    */
-  final def stripDefects(f: Throwable => Boolean): Option[Cause[E]] =
+  final def stripSomeDefects(pf: PartialFunction[Throwable, Any]): Option[Cause[E]] =
     self match {
       case Empty              => None
       case Interrupt(fiberId) => Some(Interrupt(fiberId))
       case Fail(e)            => Some(Fail(e))
-      case Die(t)             => if (f(t)) None else Some(Die(t))
+      case Die(t)             => if (pf.isDefinedAt(t)) None else Some(Die(t))
       case Both(l, r) =>
-        (l.stripDefects(f), r.stripDefects(f)) match {
+        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
           case (Some(l), Some(r)) => Some(Both(l, r))
           case (Some(l), None)    => Some(l)
           case (None, Some(r))    => Some(r)
           case (None, None)       => None
         }
       case Then(l, r) =>
-        (l.stripDefects(f), r.stripDefects(f)) match {
+        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
           case (Some(l), Some(r)) => Some(Then(l, r))
           case (Some(l), None)    => Some(l)
           case (None, Some(r))    => Some(r)
           case (None, None)       => None
         }
-      case Traced(c, trace) => c.stripDefects(f).map(Traced(_, trace))
-      case Meta(c, data)    => c.stripDefects(f).map(Meta(_, data))
+      case Traced(c, trace) => c.stripSomeDefects(pf).map(Traced(_, trace))
+      case Meta(c, data)    => c.stripSomeDefects(pf).map(Meta(_, data))
     }
 
   /**
