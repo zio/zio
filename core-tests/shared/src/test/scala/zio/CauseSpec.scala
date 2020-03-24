@@ -211,6 +211,20 @@ object CauseSpec extends ZIOBaseSpec {
           )
         }
       }
+    ),
+    suite("stripSomeDefects")(
+      zio.test.test("returns `Some` with remaining causes") {
+        val c1       = Cause.die(new NumberFormatException("can't parse to int"))
+        val c2       = Cause.die(new ArithmeticException("division by zero"))
+        val cause    = Cause.Both(c1, c2)
+        val stripped = cause.stripSomeDefects { case _: NumberFormatException => }
+        assert(stripped)(isSome(equalTo(c2)))
+      },
+      zio.test.test("returns `None` if there are no remaining causes") {
+        val cause    = Cause.die(new NumberFormatException("can't parse to int"))
+        val stripped = cause.stripSomeDefects { case _: NumberFormatException => }
+        assert(stripped)(isNone)
+      }
     )
   )
 
