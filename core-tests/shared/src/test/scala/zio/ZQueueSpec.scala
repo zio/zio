@@ -699,6 +699,13 @@ object ZQueueSpec extends ZIOBaseSpec {
         v <- q.take
       } yield assert(v)(equalTo("10"))
     },
+    testM("queue dimap") {
+      for {
+        q <- Queue.bounded[String](100).map(_.dimap[Int, Int](_.toString, _.toInt))
+        _ <- q.offer(10)
+        v <- q.take
+      } yield assert(v)(equalTo(10))
+    },
     testM("queue filterInput") {
       for {
         q  <- Queue.bounded[Int](100).map(_.filterInput[Int](_ % 2 == 0))
