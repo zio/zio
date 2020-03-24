@@ -17,6 +17,7 @@
 package zio
 
 import java.util.concurrent.atomic.AtomicBoolean
+
 import scala.annotation.tailrec
 
 import zio.ZQueue.internal._
