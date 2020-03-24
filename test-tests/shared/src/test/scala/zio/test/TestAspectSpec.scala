@@ -200,7 +200,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     testM("nativeOnly runs tests only on ScalaNative") {
       val spec   = test("Native-only")(assert(TestPlatform.isNative)(isTrue)) @@ nativeOnly
-      val result = if (TestPlatform.isNative) isSuccess(spec) else isIgnored(spec)
+      val result = if (TestPlatform.isNative) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("noDelay causes sleep effects to be executed immediately") {
