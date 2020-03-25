@@ -488,12 +488,14 @@ object ZQueue {
         if (shutdownFlag.get) ZIO.interrupt
         else {
           val noRemaining =
-            unsafePollN(takers, 1) match {
-              case taker :: _ =>
-                unsafeCompletePromise(taker, a)
-                true
-              case Nil => false
-            }
+            if (queue.isEmpty())
+              unsafePollN(takers, 1) match {
+                case taker :: _ =>
+                  unsafeCompletePromise(taker, a)
+                  true
+                case Nil => false
+              }
+            else false
 
           if (noRemaining) IO.succeedNow(true)
           else {
