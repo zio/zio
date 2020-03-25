@@ -804,6 +804,20 @@ object Schedule {
   val forever: Schedule[Any, Any, Int] = unfold(0)(_ + 1)
 
   /**
+   * A schedule that recurs once with the specified delay.
+   */
+  def fromDuration(duration: Duration): Schedule[Clock, Any, Duration] =
+    delayed(recurs(1).as(duration))
+
+  /**
+   * A schedule that recurs once for each of the specified durations, delaying
+   * each time for the length of the specified duration. Returns the length of
+   * the current duration between recurrences.
+   */
+  def fromDurations(duration: Duration, durations: Duration*): Schedule[Clock, Any, Duration] =
+    durations.foldLeft(fromDuration(duration))((schedule, duration) => schedule.andThen(fromDuration(duration)))
+
+  /**
    * A schedule that recurs forever, mapping input values through the
    * specified function.
    */

@@ -211,6 +211,12 @@ object ScheduleSpec extends ZIOBaseSpec {
             List.fill(5)(())
           )
         )(equalTo(List(0, 1, 4, 13, 40).map(i => (i * 100).millis)))
+      },
+      testM("fromDurations") {
+        val schedule = Schedule.fromDurations(4.seconds, 7.seconds, 12.seconds, 19.seconds)
+        val expected = List(0.seconds, 4.seconds, 11.seconds, 23.seconds, 42.seconds)
+        val actual   = TestClock.runAll *> run(schedule >>> testElapsed)(List.fill(5)(()))
+        assertM(actual)(equalTo(expected))
       }
     ) @@ zioTag(errors),
     suite("Retry according to a provided strategy")(
