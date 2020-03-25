@@ -88,7 +88,7 @@ object moduleB {
     ZIO.accessM(_.get.letsGoB(v))
 }
 
-object ZLayersApp extends zio.App {
+object ZLayerApp0 extends zio.App {
 
   import moduleB._
 
@@ -110,4 +110,70 @@ object ZLayersApp extends zio.App {
 // [info] running ZLayersApp 
 // Welcome to ZIO!
 // done: v = 10 
+```
+
+### ZLayer example with complex dependencies
+```scala mdoc:silent
+import zio._
+import zio.clock._
+
+object ZLayerApp1 extends scala.App {
+  val rt = Runtime.default
+
+  type ModuleA = Has[ModuleA.Service]
+
+  object ModuleA {
+
+    trait Service {}
+
+    val any: ZLayer[ModuleA, Nothing, ModuleA] =
+      ZLayer.requires[ModuleA]
+
+    val live: ZLayer[Any, Nothing, ModuleA] =
+      ZLayer.succeed(new Service {})
+  }
+
+  type ModuleB = Has[ModuleB.Service]
+
+  object ModuleB {
+
+    trait Service {}
+
+    val any: ZLayer[ModuleB, Nothing, ModuleB] =
+      ZLayer.requires[ModuleB]
+
+    val live: ZLayer[Any, Nothing, ModuleB] =
+      ZLayer.succeed(new Service {})
+  }
+
+  type ModuleC = Has[ModuleC.Service]
+
+  object ModuleC {
+
+    trait Service {
+      def foo: UIO[Int]
+    }
+
+    val any: ZLayer[ModuleC, Nothing, ModuleC] =
+      ZLayer.requires[ModuleC]
+
+    val live: ZLayer[ModuleA with ModuleB with Clock, Nothing, ModuleC] =
+      ZLayer.succeed {
+        new Service {
+          val foo: UIO[Int] = UIO.succeed(42)
+        }
+      }
+
+    val foo: ZIO[ModuleC, Nothing, Int] =
+      ZIO.accessM(_.get.foo)
+  }
+
+  val env = (ModuleA.live ++ ModuleB.live ++ ZLayer.identity[Clock]) >>> ModuleC.live
+
+  val res = ModuleC.foo.provideCustomLayer(env)
+
+  val out = rt.unsafeRun(res)
+  println(out)
+  // 42
+}
 ```
