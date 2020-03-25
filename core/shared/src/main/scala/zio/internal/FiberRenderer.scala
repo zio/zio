@@ -57,7 +57,7 @@ private[zio] object FiberRenderer {
       .foreach(zipWithHasNext(fibers)) {
         case (fiber, hasNext) => renderOne(fiber, hasNext)
       }
-      .map(_.mkString("\n"))
+      .map(_.mkString)
 
   def renderOne(fiber: Fiber.Runtime[_, _], hasNexSibling: Boolean): UIO[String] = {
 
