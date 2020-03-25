@@ -33,7 +33,9 @@
       "datatypes/datatypes_tpromise",
       "datatypes/datatypes_tqueue",
       "datatypes/datatypes_tref",
-      "datatypes/datatypes_tset"
+      "datatypes/datatypes_tset",
+      "datatypes/datatypes_has",
+      "datatypes/datatypes_zlayer"
     ]
   },
   "interop-sidebar": {
@@ -84,10 +86,10 @@
     ]
   },
   "about-sidebar": {
-      "About": [
-          "about/about_index",
-          "about/about_contributing",
-          "about/about_coc"
-      ]
+    "About": [
+      "about/about_index",
+      "about/about_contributing",
+      "about/about_coc"
+    ]
   }
 }
