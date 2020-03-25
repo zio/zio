@@ -76,6 +76,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [GitHub Release Pager with ZIO](https://github.com/psisoyev/release-pager) by [Pavels Sisojevs](https://github.com/psisoyev)
 - [Full Scala Stack, a sample project that uses akka-http, slick, zio, scalajs, react, ScalablyTyped and semantic ui](https://github.com/rleibman/full-scala-stack) by Roberto Leibman
 - [A minimal ZIO giter8 template](https://github.com/jchoffmann/zio-seed.g8) by [jchoffmann](https://github.com/jchoffmann)
+- [Lagom CQRS/ES microservices with ZIO, Caliban, zio-grpc and logstage](https://github.com/sigurdthor/book-shelf) by [Yaroslav Yaremenko](https://github.com/sigurdthor)
 
 ## Projects using ZIO
 
