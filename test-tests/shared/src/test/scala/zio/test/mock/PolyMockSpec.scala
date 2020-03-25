@@ -398,6 +398,92 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
           )
         }
       )
+    ),
+    suite("polymorphic mixed output")(
+      suite("expectations met")(
+        testSpec("String")(
+          ModuleMock.PolyMixed.of[(String, String)](value("bar" -> "baz")),
+          Module.polyMixed[String],
+          equalTo("bar" -> "baz")
+        ),
+        testSpec("Int")(
+          ModuleMock.PolyMixed.of[(Int, String)](value(42 -> "bar")),
+          Module.polyMixed[Int],
+          equalTo(42 -> "bar")
+        ),
+        testSpec("Long")(
+          ModuleMock.PolyMixed.of[(Long, String)](value(42L -> "bar")),
+          Module.polyMixed[Long],
+          equalTo(42L -> "bar")
+        )
+      ),
+      suite("expectations failed")(
+        {
+          type E  = InvalidPolyType[Module, Module, Unit, Unit, String, String, (Int, String), (Long, String)]
+          type M1 = Method[Module, Unit, String, (Int, String)]
+          type M2 = Method[Module, Unit, String, (Long, String)]
+
+          testSpecDied("invalid polymorphic type")(
+            ModuleMock.PolyMixed.of[(Long, String)](value(42L -> "bar")),
+            Module.polyMixed[Int],
+            isSubtype[InvalidCallException](
+              hasField[InvalidCallException, List[InvalidCall]](
+                "failedMatches",
+                _.failedMatches,
+                hasFirst(
+                  isSubtype[E](
+                    hasField[E, M1]("method", _.method, anything) &&
+                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                  )
+                )
+              )
+            )
+          )
+        }
+      )
+    ),
+    suite("polymorphic bounded output <: AnyVal")(
+      suite("expectations met")(
+        testSpec("Double")(
+          ModuleMock.PolyBounded.of[Double](value(42d)),
+          Module.polyBounded[Double],
+          equalTo(42d)
+        ),
+        testSpec("Int")(
+          ModuleMock.PolyBounded.of[Int](value(42)),
+          Module.polyBounded[Int],
+          equalTo(42)
+        ),
+        testSpec("Long")(
+          ModuleMock.PolyBounded.of[Long](value(42L)),
+          Module.polyBounded[Long],
+          equalTo(42L)
+        )
+      ),
+      suite("expectations failed")(
+        {
+          type E  = InvalidPolyType[Module, Module, Unit, Unit, String, String, Int, Long]
+          type M1 = Method[Module, Unit, String, Int]
+          type M2 = Method[Module, Unit, String, Long]
+
+          testSpecDied("invalid polymorphic type")(
+            ModuleMock.PolyBounded.of[Long](value(42L)),
+            Module.polyBounded[Int],
+            isSubtype[InvalidCallException](
+              hasField[InvalidCallException, List[InvalidCall]](
+                "failedMatches",
+                _.failedMatches,
+                hasFirst(
+                  isSubtype[E](
+                    hasField[E, M1]("method", _.method, anything) &&
+                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                  )
+                )
+              )
+            )
+          )
+        }
+      )
     )
   )
 }

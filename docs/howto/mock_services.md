@@ -320,7 +320,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 - `repeated` Repeat expectation within given bounds, produces a new expectation to **satisfy itself sequentially given number of times**.
 - `atLeast` Lower-bounded variant of `repeated`, produces a new expectation to satisfy **itself sequentially at least given number of times**.
 - `atMost` Upper-bounded variant of `repeated`, produces a new expectation to satisfy **itself sequentially at most given number of times**.
-- `optional` Aliast for `atMost(1)`, produces a new expectation to satisfy **itself at most once**.
+- `optional` Alias for `atMost(1)`, produces a new expectation to satisfy **itself at most once**.
 
 ## Providing mocked environment
 
@@ -424,9 +424,9 @@ val exp10 = PolyAll.of[Int, Throwable, String](equalTo(42), failure(new Exceptio
 You can find more examples in the `examples` and `test-tests` subproject:
 
 - [MockExampleSpec][link-gh-mock-example-spec]
-- [MockSpec][link-gh-mock-spec]
-- [MockAdvancedSpec][link-gh-mock-advanced-spec]
-- [MockComposedEnvSpec][link-gh-mock-composed-env-spec]
+- [BasicMockSpec][link-gh-basic-mock-spec]
+- [AdvancedMockSpec][link-gh-advanced-mock-spec]
+- [ComposedMockSpec][link-gh-composed-mock-spec]
 - [PolyMockSpec][link-gh-poly-mock-spec]
 
 [doc-use-modules-and-layers]: use_modules_and_layers.md
@@ -434,7 +434,7 @@ You can find more examples in the `examples` and `test-tests` subproject:
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html
 [link-gh-mock-example-spec]: https://github.com/zio/zio/blob/master/examples/shared/src/test/scala/zio/examples/test/MockExampleSpec.scala
-[link-gh-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/MockSpec.scala
-[link-gh-mock-advanced-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/MockAdvancedSpec.scala
-[link-gh-mock-composed-env-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/MockComposedEnvSpec.scala
+[link-gh-basic-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/BasicMockSpec.scala
+[link-gh-advanced-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/AdvancedMockSpec.scala
+[link-gh-composed-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/ComposedMockSpec.scala
 [link-gh-poly-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/PolyMockSpec.scala

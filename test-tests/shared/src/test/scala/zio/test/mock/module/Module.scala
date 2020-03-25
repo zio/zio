@@ -43,6 +43,8 @@ object Module {
     def polyInputOutput[I: Tagged, A: Tagged](v: I): IO[String, A]
     def polyErrorOutput[E: Tagged, A: Tagged](v: String): IO[E, A]
     def polyInputErrorOutput[I: Tagged, E: Tagged, A: Tagged](v: I): IO[E, A]
+    def polyMixed[A: Tagged]: IO[String, (A, String)]
+    def polyBounded[A <: AnyVal: Tagged]: IO[String, A]
     def maxParams(
       a: Int,
       b: Int,
@@ -88,6 +90,8 @@ object Module {
   def polyErrorOutput[E: Tagged, A: Tagged](v: String) = ZIO.accessM[Module](_.get.polyErrorOutput[E, A](v))
   def polyInputErrorOutput[I: Tagged, E: Tagged, A: Tagged](v: I) =
     ZIO.accessM[Module](_.get.polyInputErrorOutput[I, E, A](v))
+  def polyMixed[A: Tagged]             = ZIO.accessM[Module](_.get.polyMixed[A])
+  def polyBounded[A <: AnyVal: Tagged] = ZIO.accessM[Module](_.get.polyBounded[A])
   def maxParams(
     a: Int,
     b: Int,

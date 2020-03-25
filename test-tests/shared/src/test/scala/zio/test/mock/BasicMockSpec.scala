@@ -6,14 +6,14 @@ import zio.test.mock.module.{ Module, ModuleMock }
 import zio.test.{ suite, Assertion, ZIOBaseSpec }
 import zio.{ IO, UIO }
 
-object MockSpec extends ZIOBaseSpec with MockSpecUtils {
+object BasicMockSpec extends ZIOBaseSpec with MockSpecUtils {
 
   import Assertion._
   import Expectation._
   import InvalidCall._
   import MockException._
 
-  def spec = suite("MockSpec")(
+  def spec = suite("BasicMockSpec")(
     suite("methods")(
       suite("static")(
         testSpec("returns value")(

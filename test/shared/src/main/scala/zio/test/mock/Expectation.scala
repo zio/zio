@@ -52,7 +52,7 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * Compose two expectations, producing a new expectation to satisfy both.
    *
    * {{
-   * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) and (MockConsole.getStrLn returns value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.getStrLn(value("foo"))
    * }}
    */
   def and[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
@@ -67,7 +67,7 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * Compose two expectations, producing a new expectation to satisfy both sequentially.
    *
    * {{
-   * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) andThen (MockConsole.getStrLn returns value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.getStrLn(value("foo"))
    * }}
    */
   def andThen[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
@@ -102,7 +102,7 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * Compose two expectations, producing a new expectation to satisfy one of them.
    *
    * {{
-   * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit) or (MockConsole.getStrLn returns value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.getStrLn(value("foo"))
    * }}
    */
   def or[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
@@ -118,7 +118,7 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * satisfy itself sequentially given number of times.
    *
    * {{
-   * val mockEnv = (MockClock.sleep(equalTo(1.second)) returns unit).repeats(1, 5)
+   * val mockEnv = MockClock.sleep(equalTo(1.second)).repeats(1, 5)
    * }}
    *
    * NOTE: once another repetition starts executing, it must be completed in order to satisfy

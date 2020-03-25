@@ -40,6 +40,8 @@ object ModuleMock {
   case object PolyInputOutput      extends Method.Poly.InputOutput[Module, String](compose)
   case object PolyErrorOutput      extends Method.Poly.ErrorOutput[Module, String](compose)
   case object PolyInputErrorOutput extends Method.Poly.InputErrorOutput[Module](compose)
+  case object PolyMixed            extends Method.Poly.Output[Module, Unit, String](compose)
+  case object PolyBounded          extends Method.Poly.Output[Module, Unit, String](compose)
 
   object Overloaded {
     case object _0 extends Method[Module, Int, String, String](compose)
@@ -70,6 +72,8 @@ object ModuleMock {
         def polyErrorOutput[E: Tagged, A: Tagged](v: String): IO[E, A]     = proxy(PolyErrorOutput.of[E, A], v)
         def polyInputErrorOutput[I: Tagged, E: Tagged, A: Tagged](v: I): IO[E, A] =
           proxy(PolyInputErrorOutput.of[I, E, A], v)
+        def polyMixed[A: Tagged]: IO[String, (A, String)]   = proxy(PolyMixed.of[(A, String)])
+        def polyBounded[A <: AnyVal: Tagged]: IO[String, A] = proxy(PolyBounded.of[A])
         def maxParams(
           a: Int,
           b: Int,

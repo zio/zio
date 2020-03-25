@@ -28,11 +28,6 @@ sealed trait Result[-I, +E, +A] {
 
 object Result {
 
-  protected[mock] final case class Succeed[-I, +A](io: I => UIO[A]) extends Result[I, Nothing, A] { self =>
-    def of[E]: Result[I, E, A] = self.asInstanceOf[Result[I, E, A]]
-  }
-
-  protected[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing]) extends Result[I, E, Nothing] { self =>
-    def of[A]: Result[I, E, A] = self.asInstanceOf[Result[I, E, A]]
-  }
+  protected[mock] final case class Succeed[-I, +A](io: I => UIO[A])      extends Result[I, Nothing, A]
+  protected[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing]) extends Result[I, E, Nothing]
 }

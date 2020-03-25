@@ -5,7 +5,7 @@ import zio.test.mock.internal.{ InvalidCall, MockException }
 import zio.test.mock.module.{ Module, ModuleMock }
 import zio.test.{ suite, Assertion, ZIOBaseSpec }
 
-object MockAdvancedSpec extends ZIOBaseSpec with MockSpecUtils {
+object AdvancedMockSpec extends ZIOBaseSpec with MockSpecUtils {
 
   import Assertion._
   import Expectation._
@@ -45,7 +45,7 @@ object MockAdvancedSpec extends ZIOBaseSpec with MockSpecUtils {
   def hasUnsatisfiedExpectations: Assertion[Throwable] =
     isSubtype[UnsatisfiedExpectationsException[Module]](anything)
 
-  def spec = suite("MockAdvancedSpec")(
+  def spec = suite("AdvancedMockSpec")(
     suite("expectations composition")(
       suite("A and B")(
         testSpec("A->B passes")(A && B, a *> b, equalTo("B")),
