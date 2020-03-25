@@ -43,6 +43,7 @@ private[mock] object MockableMacro {
     val throwable: Type  = tq"_root_.java.lang.Throwable".tpe
     val unit: Type       = tq"_root_.scala.Unit".tpe
     val composeAsc: Tree = tq"_root_.zio.URLayer[_root_.zio.Has[_root_.zio.test.mock.Proxy], $env]"
+    val taggedFcqns      = List("izumi.reflect.Tags.Tag", "scala.reflect.ClassTag")
 
     def bound(tpe: Type): Tree =
       tq"$tpe" match {
@@ -53,7 +54,7 @@ private[mock] object MockableMacro {
     def capitalize(name: TermName): TermName = TermName(name.toString.capitalize)
 
     def isTagged(s: Symbol): Boolean =
-      s.typeSignature <:< typeOf[zio.Tagged[_]]
+      s.typeSignature.baseClasses.exists(ts => taggedFcqns.contains(ts.fullName.toString))
 
     def toTypeDef(symbol: Symbol): TypeDef = {
       val tpe = symbol.asType
