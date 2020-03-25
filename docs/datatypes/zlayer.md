@@ -19,7 +19,7 @@ title:  "ZLayer"
 ```scala mdoc:silent
 import zio._
 
-object Example extends App {
+object Example extends zio.App {
 
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
     zio.provideLayer(nameLayer).as(0)
@@ -39,7 +39,6 @@ import zio._
 import zio.console._
 import zio.clock._
 import java.io.IOException
-import zio.duration.Duration
 import zio.duration.Duration._
 
 object moduleA {
@@ -53,15 +52,15 @@ object moduleA {
     val any: ZLayer[ModuleA, Nothing, ModuleA] =
       ZLayer.requires[ModuleA]
 
-     val live: ZLayer.NoDeps[Nothing, ModuleA] = ZLayer.succeed {
-       new Service {
-         def letsGoA(v: Int): UIO[String] = UIO(s"done: v = $v ")
-       }
-     }
+    val live: Layer[Nothing, Has[Service]] = ZLayer.succeed {
+      new Service {
+        def letsGoA(v: Int): UIO[String] = UIO(s"done: v = $v ")
+      }
+    }
   }
 
-   def letsGoA(v: Int): ZIO[ModuleA, Nothing, String] =
-     ZIO.accessM(_.get.letsGoA(v))
+  def letsGoA(v: Int): ZIO[ModuleA, Nothing, String] =
+    ZIO.accessM(_.get.letsGoA(v))
 }
 
 import moduleA._
@@ -77,25 +76,24 @@ object moduleB {
     val any: ZLayer[ModuleB, Nothing, ModuleB] =
       ZLayer.requires[ModuleB]
 
-     val live: ZLayer[ModuleA, Nothing, ModuleB] = ZLayer.fromService { (moduleA: ModuleA.Service) =>
-       Has(new Service {
-         def letsGoB(v: Int): UIO[String] =
-           moduleA.letsGoA(v)
-       })
-     }
+    val live: ZLayer[ModuleA, Nothing, ModuleB] = ZLayer.fromService { (moduleA: ModuleA.Service) =>
+      new Service {
+        def letsGoB(v: Int): UIO[String] =
+          moduleA.letsGoA(v)
+      }
+    }
   }
 
-   def letsGoB(v: Int): ZIO[ModuleB, Nothing, String] =
-     ZIO.accessM(_.get.letsGoB(v))
+  def letsGoB(v: Int): ZIO[ModuleB, Nothing, String] =
+    ZIO.accessM(_.get.letsGoB(v))
 }
-
 
 object ZLayersApp extends zio.App {
 
   import moduleB._
 
   val env = Console.live ++ Clock.live ++ (ModuleA.live >>> ModuleB.live)
-  val program: ZIO[Console with Clock with Service, IOException, Unit]  =
+  val program: ZIO[Console with Clock with moduleB.ModuleB, IOException, Unit] =
     for {
       _ <- putStrLn(s"Welcome to ZIO!")
       _ <- sleep(Finite(1000))
@@ -107,6 +105,7 @@ object ZLayersApp extends zio.App {
     program.provideLayer(env).fold(_ => 1, _ => 0)
 
 }
+
 // output: 
 // [info] running ZLayersApp 
 // Welcome to ZIO!
