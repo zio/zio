@@ -5,25 +5,36 @@ import scala.reflect.ClassTag
 private[zio] trait VersionSpecific {
 
   // Workaround for disabled summon for ClassTag[Nothing]
-  // due to https://github.com/lampepfl/dotty/issues/1730
-  final class ClassTagBox[A](val cls: ClassTag[A])
+  // see discussion in https://github.com/zio/zio/pull/3136
+  sealed trait Tagged[A]
+  case object TaggedNothingType extends Tagged[Nothing]
+  final case class TaggedInstantiableType[A](cls: ClassTag[A]) extends Tagged[A]
 
-  object ClassTagBox extends LowPrio {
-    implicit def fromClassTag[T](implicit tag: ClassTag[T]): ClassTagBox[T] = new ClassTagBox(tag)
+  object Tagged extends TaggedLowPrio {
+    implicit def taggedInstantiable[T](implicit tag: ClassTag[T]): Tagged[T] = TaggedInstantiableType(tag)
   }
 
-  abstract class LowPrio {
-    implicit val classTagNothing: ClassTagBox[Nothing] = new ClassTagBox(ClassTag(classOf[Nothing]))
+  abstract class TaggedLowPrio {
+    implicit val taggedNothing: Tagged[Nothing] = TaggedNothingType
   }
 
-  type Tagged[A] = ClassTagBox[A]
-  type TagType   = Class[_]
+  sealed trait TagType
+  case object TagNothingType                    extends TagType
+  case class TagInstantiableType(cls: Class[_]) extends TagType
 
   private[zio] def taggedIsSubtype[A, B](left: TagType, right: TagType): Boolean =
-    right.isAssignableFrom(left)
+    (left, right) match {
+      case (TagNothingType, _) => true
+      case (_, TagNothingType) => false
+      case (TagInstantiableType(leftClass), TagInstantiableType(rightClass)) =>
+        rightClass.isAssignableFrom(leftClass)
+    }
 
   private[zio] def taggedTagType[A](tagged: Tagged[A]): TagType =
-    tagged.cls.runtimeClass
+    tagged match {
+      case TaggedNothingType           => TagNothingType
+      case TaggedInstantiableType(cls) => TagInstantiableType(cls.runtimeClass)
+    }
 
   private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] = {
     val _ = t
