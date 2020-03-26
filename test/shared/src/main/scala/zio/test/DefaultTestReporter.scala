@@ -415,11 +415,11 @@ object FailureRenderer {
             )
           )
 
-        case InvalidCall.InvalidPolyType(method, expectedMethod, assertion) =>
+        case InvalidCall.InvalidPolyType(method, args, expectedMethod, assertion) =>
           UIO.succeedNow(
             Message(
               Seq(
-                withOffset(tabSize)(red(s"- $method called with invalid polymorphic type").toLine),
+                withOffset(tabSize)(red(s"- $method called with arguments $args and invalid polymorphic type").toLine),
                 withOffset(tabSize * 2)(
                   Fragment(s"expected $expectedMethod with arguments ") + cyan(assertion.toString)
                 )

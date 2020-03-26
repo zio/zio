@@ -31,7 +31,7 @@ object Module {
     def singleParam(a: Int): IO[String, String]
     def manyParams(a: Int, b: String, c: Long): IO[String, String]
     def manyParamLists(a: Int)(b: String)(c: Long): IO[String, String]
-    def command(): IO[Unit, Unit]
+    def command: IO[Unit, Unit]
     def parameterizedCommand(a: Int): IO[Unit, Unit]
     def looped(a: Int): IO[Nothing, Nothing]
     def overloaded(n: Int): IO[String, String]
@@ -77,7 +77,7 @@ object Module {
   def singleParam(a: Int)                              = ZIO.accessM[Module](_.get.singleParam(a))
   def manyParams(a: Int, b: String, c: Long)           = ZIO.accessM[Module](_.get.manyParams(a, b, c))
   def manyParamLists(a: Int)(b: String)(c: Long)       = ZIO.accessM[Module](_.get.manyParamLists(a)(b)(c))
-  def command()                                        = ZIO.accessM[Module](_.get.command())
+  def command                                          = ZIO.accessM[Module](_.get.command)
   def parameterizedCommand(a: Int)                     = ZIO.accessM[Module](_.get.parameterizedCommand(a))
   def looped(a: Int)                                   = ZIO.accessM[Module](_.get.looped(a))
   def overloaded(n: Int)                               = ZIO.accessM[Module](_.get.overloaded(n))

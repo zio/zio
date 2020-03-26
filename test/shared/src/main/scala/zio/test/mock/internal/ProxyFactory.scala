@@ -66,7 +66,7 @@ object ProxyFactory {
 
                 case Call(method, assertion, _, _, _, _) =>
                   val invalidCall =
-                    if (invokedMethod.id == method.id) InvalidPolyType(invokedMethod, method, assertion)
+                    if (invokedMethod.id == method.id) InvalidPolyType(invokedMethod, args, method, assertion)
                     else InvalidMethod(invokedMethod, method, assertion)
 
                   handleLeafFailure(invalidCall, nextScopes)

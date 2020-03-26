@@ -41,6 +41,7 @@ object InvalidCall {
 
   final case class InvalidPolyType[R0 <: Has[_], R1 <: Has[_], In0, In1, E0, E1, A0, A1](
     method: Method[R0, In0, E0, A0],
+    args: Any,
     expectedMethod: Method[R1, In1, E1, A1],
     assertion: Assertion[In1]
   ) extends InvalidCall

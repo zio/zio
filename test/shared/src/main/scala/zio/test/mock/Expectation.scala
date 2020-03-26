@@ -95,7 +95,7 @@ sealed trait Expectation[R <: Has[_]] { self =>
   /**
    * Alias for `atMost(1)`, produces a new expectation to satisfy itself at most once.
    */
-  def optional(): Expectation[R] =
+  def optional: Expectation[R] =
     Repeated(self, 0 to 1)
 
   /**
