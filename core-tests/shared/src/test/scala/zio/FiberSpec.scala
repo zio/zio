@@ -120,28 +120,42 @@ object FiberSpec extends ZIOBaseSpec {
         assertM(Fiber.collectAll(fibers).join)(anything)
       }
     ) @@ sequential,
-    suite("prettyPrint improvements")(
-      testM("fiber with one child") {
+    suite("fiber dump tree")(
+      testM("fiber dump tree shape sanity check") {
+        val expectedLinePrefixes =
+          """#+---"parent"
+            #    +---"parent"
+            #    |   +---"parent"
+            #    |   |   +---"child"
+            #    |   |       +---"grand"
+            #    |   +---"parent"
+            #    |   |   +---"child"
+            #    |   |       +---"grand"
+            #    |   +---"parent"
+            #    |   |   +---"child"
+            #    |   |       +---"grand""""
+            .stripMargin('#')
+            .split("\n")
+            .map(_.replace('|', ' '))
         for {
-          fiberRef <- FiberRef.make(0, math.max)
-          child    <- fiberRef.update(_ + 1).fork
-          dump     <- Fiber.dumpStr(child)
-          childId  <- child.id
-          _        <- child.join
+          blocker <- Promise.make[Nothing, Unit]
+          branchyFiber <- ZIO
+                           .foreachPar(1 to 3) { _ =>
+                             ZIO.foreachPar(1 to 3)(_ =>
+                               blocker.await
+                                 .forkAs(s"grand")
+                                 .flatMap(_.join)
+                                 .forkAs("child")
+                                 .flatMap(_.join)
+                             )
+                           }
+                           .forkAs("parent")
+          dumpStr <- Fiber.dumpStr(branchyFiber)
         } yield {
-          assert(dump.contains(s"+---#${childId.seqNumber} Status: Done"))(equalTo(true))
-        }
-      },
-      testM("fiber with multiple children") {
-        for {
-          parent   <- (ZIO.infinity.forkAs("child2") *> ZIO.infinity).forkAs("child1")
-          childId  <- parent.id
-          childSeq = childId.seqNumber
-          children <- parent.children
-          dumpStr  <- Fiber.dumpStr(parent)
-        } yield {
-          assert(dumpStr.contains(s"#${childSeq} Status"))(equalTo(true))
-          assert(children.size)(equalTo(1))
+          val linePrefixes = dumpStr.split("\n").toSeq.take(200).map(_.replace('|', ' '))
+          expectedLinePrefixes.toSeq
+            .map(exp => assert(linePrefixes)(exists(containsString(exp))))
+            .reduce(_ && _)
         }
       }
     )
