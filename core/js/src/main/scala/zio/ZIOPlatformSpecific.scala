@@ -32,7 +32,7 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * error type with `f`.
    */
   def toPromiseJSWith(f: E => Throwable): URIO[R, JSPromise[A]] =
-    self.mapError(f).fold(JSPromise.reject, JSPromise.resolve[A](_))
+    self.foldCause(c => JSPromise.reject(c.squashWith(f)), JSPromise.resolve[A](_))
 }
 
 private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
