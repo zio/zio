@@ -445,6 +445,18 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged.absolve(mapError(ev1)(CanFail).map(ev2(_).toRight(())))
 
   /**
+   * Returns whether this managed effect is a failure.
+   */
+  def isFailure: ZManaged[R, Nothing, Boolean] =
+    fold(_ => true, _ => false)
+
+  /**
+   * Returns whether this managed effect is a success.
+   */
+  def isSuccess: ZManaged[R, Nothing, Boolean] =
+    fold(_ => false, _ => true)
+
+  /**
    * Depending on the environment execute this or the other effect
    */
   def join[R1, E1 >: E, A1 >: A](that: ZManaged[R1, E1, A1]): ZManaged[Either[R, R1], E1, A1] = self ||| that

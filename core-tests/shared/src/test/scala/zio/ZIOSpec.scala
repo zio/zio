@@ -946,6 +946,22 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.die(ExampleError).ignore.run)(dies(equalTo(ExampleError)))
       } @@ zioTag(errors)
     ),
+    suite("isFailure")(
+      testM("returns true when the effect is a failure") {
+        assertM(ZIO.fail("fail").isFailure)(isTrue)
+      },
+      testM("returns false when the effect is a success") {
+        assertM(ZIO.succeed("succeed").isFailure)(isFalse)
+      }
+    ),
+    suite("isSuccess")(
+      testM("returns false when the effect is a failure") {
+        assertM(ZIO.fail("fail").isSuccess)(isFalse)
+      },
+      testM("returns true when the effect is a success") {
+        assertM(ZIO.succeed("succeed").isSuccess)(isTrue)
+      }
+    ),
     suite("iterate")(
       testM("iterates with the specified effectual function") {
         for {
