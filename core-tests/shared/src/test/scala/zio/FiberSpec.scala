@@ -158,7 +158,7 @@ object FiberSpec extends ZIOBaseSpec {
             .reduce(_ && _)
         }
       }
-    )
+    ) @@ jvmOnly
   )
 
   val (initial, update) = ("initial", "update")
