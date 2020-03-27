@@ -394,6 +394,18 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def ignore: URSTM[R, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
 
   /**
+   * Returns whether this transactional effect is a failure.
+   */
+  def isFailure: ZSTM[R, Nothing, Boolean] =
+    fold(_ => true, _ => false)
+
+  /**
+   * Returns whether this transactional effect is a success.
+   */
+  def isSuccess: ZSTM[R, Nothing, Boolean] =
+    fold(_ => false, _ => true)
+
+  /**
    * Returns a successful effect if the value is `Left`, or fails with the error `None`.
    */
   def left[B, C](implicit ev: A <:< Either[B, C]): ZSTM[R, Option[E], B] =
