@@ -1,10 +1,10 @@
 package zio
 package interop
 
-import _root_.java.net.InetSocketAddress
-import _root_.java.nio.ByteBuffer
-import _root_.java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel }
-import _root_.java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
+import java.net.InetSocketAddress
+import java.nio.ByteBuffer
+import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel }
+import java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
 
 import zio.interop.javaz._
 import zio.test.Assertion._
