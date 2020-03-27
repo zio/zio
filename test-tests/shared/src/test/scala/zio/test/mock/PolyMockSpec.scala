@@ -2,7 +2,7 @@ package zio.test.mock
 
 import zio.test.mock.internal.{ InvalidCall, MockException }
 import zio.test.mock.module.{ Module, ModuleMock }
-import zio.test.{ suite, Assertion, ZIOBaseSpec }
+import zio.test.{ suite, Assertion, TestAspect, ZIOBaseSpec }
 
 object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
 
@@ -10,6 +10,7 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
   import Expectation._
   import InvalidCall._
   import MockException._
+  import TestAspect.exceptDotty
 
   def spec = suite("PolyMockSpec")(
     suite("polymorphic input")(
@@ -32,13 +33,13 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, Long, String, String, String, String, String]
+          type E  = InvalidPolyType[Module, Module, Long, Int, String, String, String, String]
           type M1 = Method[Module, Long, String, String]
-          type M2 = Method[Module, String, String, String]
+          type M2 = Method[Module, Int, String, String]
 
           testSpecDied("invalid polymorphic type")(
             ModuleMock.PolyInput.of[Long](equalTo(42L), value("bar")),
-            Module.polyInput("foo"),
+            Module.polyInput(42),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
@@ -75,13 +76,13 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, String, String, Long, String, String, String]
+          type E  = InvalidPolyType[Module, Module, String, String, Long, Int, String, String]
           type M1 = Method[Module, String, Long, String]
-          type M2 = Method[Module, String, String, String]
+          type M2 = Method[Module, String, Int, String]
 
           testSpecDied("invalid polymorphic type")(
             ModuleMock.PolyError.of[Long](equalTo("foo"), failure(42L)),
-            Module.polyError[String]("foo"),
+            Module.polyError[Int]("foo"),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
@@ -118,13 +119,13 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, String, String, String, String, Long, String]
+          type E  = InvalidPolyType[Module, Module, String, String, String, String, Long, Int]
           type M1 = Method[Module, String, String, Long]
-          type M2 = Method[Module, String, String, String]
+          type M2 = Method[Module, String, String, Int]
 
           testSpecDied("invalid polymorphic type")(
             ModuleMock.PolyOutput.of[Long](equalTo("foo"), value(42L)),
-            Module.polyOutput[String]("foo"),
+            Module.polyOutput[Int]("foo"),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
@@ -399,6 +400,11 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
         }
       )
     ),
+    // assignability and subclassing are not the same concepts
+    // and so the `ClassTag` based implementation for Tagged is broken
+    // on dotty for some cases (like Tuples, Lists, etc)
+    // see https://github.com/zio/zio/pull/3136
+    // will be fixed when izumi-reflect is supported on dotty
     suite("polymorphic mixed output")(
       suite("expectations met")(
         testSpec("String")(
@@ -422,7 +428,6 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
           type E  = InvalidPolyType[Module, Module, Unit, Unit, String, String, (Int, String), (Long, String)]
           type M1 = Method[Module, Unit, String, (Int, String)]
           type M2 = Method[Module, Unit, String, (Long, String)]
-
           testSpecDied("invalid polymorphic type")(
             ModuleMock.PolyMixed.of[(Long, String)](value(42L -> "bar")),
             Module.polyMixed[Int],
@@ -441,7 +446,7 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
           )
         }
       )
-    ),
+    ) @@ exceptDotty,
     suite("polymorphic bounded output <: AnyVal")(
       suite("expectations met")(
         testSpec("Double")(

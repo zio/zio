@@ -27,6 +27,9 @@ private[zio] trait VersionSpecific {
       case (TagNothingType, _) => true
       case (_, TagNothingType) => false
       case (TagInstantiableType(leftClass), TagInstantiableType(rightClass)) =>
+        // assignability and subtyping are diffrent concepts and so this implementation
+        // is broken for some cases like Tuples, Lists, etc
+        // TODO: add dotty support for izumi-reflect and replace ClassTag
         rightClass.isAssignableFrom(leftClass)
     }
 
