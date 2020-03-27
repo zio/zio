@@ -79,7 +79,7 @@ object Has {
     /**
      * Retrieves a service from the environment.
      */
-    def get[B](implicit ev: Self <:< Has[_ <: B], tagged: Tagged[B]): B = {
+    def get[B](implicit ev: Self <:< Has[B], tagged: Tagged[B]): B = {
       val tag = taggedTagType(tagged)
 
       self.map
