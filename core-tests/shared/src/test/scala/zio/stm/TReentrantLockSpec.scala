@@ -51,7 +51,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         reader2 <- lock.readLock.use(count => wlatch.succeed(()) as count).fork
         _       <- wlatch.await
         count   <- reader2.join
-      } yield assert(count)(equalTo(2))
+      } yield assert(count)(equalTo(1))
     } @@ timeout(10.seconds),
     testM("1 write lock then 1 read lock, different fibers") {
       for {
@@ -61,7 +61,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         mlatch <- Promise.make[Nothing, Unit]
         _      <- lock.writeLock.use(count => rlatch.succeed(()) *> wlatch.await as count).fork
         _      <- rlatch.await
-        reader <- (mlatch.succeed(()) *> lock.readLock.use(ZIO.succeed(_))).fork
+        reader <- (mlatch.succeed(()) *> lock.readLock.use(ZIO.succeedNow(_))).fork
         _      <- mlatch.await
         locks  <- (lock.readLocks zipWith lock.writeLocks)(_ + _).commit
         option <- reader.poll.repeat(pollSchedule)
