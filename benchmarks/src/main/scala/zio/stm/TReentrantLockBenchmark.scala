@@ -1,7 +1,7 @@
 package zio.stm
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.locks.StampedLock
+import java.util.concurrent.locks.{ ReentrantLock, StampedLock }
 
 import org.openjdk.jmh.annotations.{ Benchmark, Group, GroupThreads, _ }
 import org.openjdk.jmh.infra.Blackhole
@@ -12,12 +12,14 @@ import zio._
 @State(Scope.Group)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Measurement(iterations = 10, timeUnit = TimeUnit.SECONDS, time = 10)
-@Warmup(iterations = 10, timeUnit = TimeUnit.SECONDS, time = 10)
+@Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
+@Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(2)
 class TReentrantLockBenchmark {
 
-  val javaLock = new StampedLock()
+  val stampedLock = new StampedLock()
+
+  val reentrantLock = new ReentrantLock()
 
   val zioLock: ZIO[Any, Nothing, TReentrantLock] = TReentrantLock.make.commit
 
@@ -62,44 +64,84 @@ class TReentrantLockBenchmark {
   def zioLockWriteGroup3(): Unit = zioLockWrite()
 
   @Benchmark
-  @Group("JavaLockBasic")
+  @Group("StampedLockBasic")
   @GroupThreads(1)
-  def javaLockReadGroup(): Unit = javaLockRead()
+  def javaLockReadGroup(): Unit = stampedLockRead()
 
   @Benchmark
-  @Group("JavaLockBasic")
+  @Group("StampedLockBasic")
   @GroupThreads(1)
-  def javaLockWriteGroup(): Unit = javaLockWrite()
+  def javaLockWriteGroup(): Unit = stampedLockWrite()
 
   @Benchmark
-  @Group("JavaLockLowContention")
+  @Group("StampedLockLowContention")
   @GroupThreads(20)
-  def javaLockReadGroup1(): Unit = javaLockRead()
+  def javaLockReadGroup1(): Unit = stampedLockRead()
 
   @Benchmark
-  @Group("JavaLockLowContention")
+  @Group("StampedLockLowContention")
   @GroupThreads(5)
-  def javaLockWriteGroup1(): Unit = javaLockWrite()
+  def javaLockWriteGroup1(): Unit = stampedLockWrite()
 
   @Benchmark
-  @Group("JavaLockMediumContention")
+  @Group("StampedLockMediumContention")
   @GroupThreads(20)
-  def javaLockReadGroup2(): Unit = javaLockRead()
+  def javaLockReadGroup2(): Unit = stampedLockRead()
 
   @Benchmark
-  @Group("JavaLockMediumContention")
+  @Group("StampedLockMediumContention")
   @GroupThreads(10)
-  def javaLockWriteGroup2(): Unit = javaLockWrite()
+  def javaLockWriteGroup2(): Unit = stampedLockWrite()
 
   @Benchmark
-  @Group("JavaLockHighContention")
+  @Group("StampedLockHighContention")
   @GroupThreads(20)
-  def javaLockReadGroup3(): Unit = javaLockRead()
+  def javaLockReadGroup3(): Unit = stampedLockRead()
 
   @Benchmark
-  @Group("JavaLockHighContention")
+  @Group("StampedLockHighContention")
   @GroupThreads(20)
-  def javaLockWriteGroup3(): Unit = javaLockWrite()
+  def javaLockWriteGroup3(): Unit = stampedLockWrite()
+
+  @Benchmark
+  @Group("ReentrantLockBasic")
+  @GroupThreads(1)
+  def reentrantLockReadGroup(): Unit = reentrantLockRead()
+
+  @Benchmark
+  @Group("ReentrantLockBasic")
+  @GroupThreads(1)
+  def reentrantLockWriteGroup(): Unit = reentrantLockWrite()
+
+  @Benchmark
+  @Group("ReentrantLockLowContention")
+  @GroupThreads(20)
+  def reentrantLockReadGroup1(): Unit = reentrantLockRead()
+
+  @Benchmark
+  @Group("ReentrantLockLowContention")
+  @GroupThreads(5)
+  def reentrantLockWriteGroup1(): Unit = reentrantLockWrite()
+
+  @Benchmark
+  @Group("ReentrantLockMediumContention")
+  @GroupThreads(20)
+  def reentrantLockReadGroup2(): Unit = reentrantLockRead()
+
+  @Benchmark
+  @Group("ReentrantLockMediumContention")
+  @GroupThreads(10)
+  def reentrantLockWriteGroup2(): Unit = reentrantLockWrite()
+
+  @Benchmark
+  @Group("ReentrantLockHighContention")
+  @GroupThreads(20)
+  def reentrantLockReadGroup3(): Unit = reentrantLockRead()
+
+  @Benchmark
+  @Group("ReentrantLockHighContention")
+  @GroupThreads(20)
+  def reentrantLockWriteGroup3(): Unit = reentrantLockWrite()
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def zioLockRead(): Unit = {
@@ -122,23 +164,37 @@ class TReentrantLockBenchmark {
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def javaLockRead(): Unit = {
-    val stamp = javaLock.tryOptimisticRead
+  def stampedLockRead(): Unit = {
+    val stamp = stampedLock.tryOptimisticRead
 
-    if (javaLock.validate(stamp)) {
+    if (stampedLock.validate(stamp)) {
       doWork()
     } else {
-      val stamp = javaLock.readLock()
+      val stamp = stampedLock.readLock()
       doWork()
-      javaLock.unlockRead(stamp)
+      stampedLock.unlockRead(stamp)
     }
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def javaLockWrite(): Unit = {
-    val stamp = javaLock.writeLock()
+  def reentrantLockWrite(): Unit = {
+    reentrantLock.lock()
     doWork()
-    javaLock.unlockWrite(stamp)
+    reentrantLock.unlock()
+  }
+
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  def reentrantLockRead(): Unit = {
+    reentrantLock.lock()
+    doWork()
+    reentrantLock.unlock()
+  }
+
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  def stampedLockWrite(): Unit = {
+    val stamp = stampedLock.writeLock()
+    doWork()
+    stampedLock.unlockWrite(stamp)
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
