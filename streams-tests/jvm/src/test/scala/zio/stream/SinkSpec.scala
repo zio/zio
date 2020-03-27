@@ -15,6 +15,8 @@ import zio.test.environment.TestClock
 
 object SinkSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("SinkSpec")(
     suite("Combinators")(
       suite("as")(
@@ -25,15 +27,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.as("const")
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.as("const")
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.as("const")
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("chunked")(
         testM("happy path") {
@@ -47,15 +49,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.chunked
           assertM(sinkIteration(sink, Chunk.single(1)).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.chunked
           assertM(sinkIteration(sink, Chunk.single(1)).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.chunked
           assertM(sinkIteration(sink, Chunk.single(1)).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("leftover") {
           val sink = ZSink.collectAllN[Int](2).chunked
           for {
@@ -82,15 +84,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.collectAll
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.collectAll
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.collectAll
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("interaction with succeed") {
           val sink = ZSink.succeed[Int, Int](5).collectAll
           for {
@@ -137,15 +139,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.collectAllN(1)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.collectAllN(1)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.collectAllN(1)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("collectAllWhile")(
         testM("happy path") {
@@ -166,15 +168,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.collectAllWhile(_ < 4)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.collectAllWhile(_ < 4)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.collectAllWhile(_ < 4)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("contramap")(
         testM("happy path") {
@@ -184,15 +186,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.contramap[String](_.toInt)
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.contramap[String](_.toInt)
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.contramap[String](_.toInt)
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("contramapM")(
         testM("happy path") {
@@ -202,15 +204,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.contramapM[Any, String, String](s => UIO.succeedNow(s.toInt))
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.contramapM[Any, String, String](s => UIO.succeedNow(s.toInt))
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.contramapM[Any, String, String](s => UIO.succeedNow(s.toInt))
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("count")(
         testM("ints") {
@@ -235,15 +237,82 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
           assertM(sinkIteration(sink, "123").either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
           assertM(sinkIteration(sink, "123").either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
           assertM(sinkIteration(sink, "123").either)(isLeft(equalTo("Ouch")))
+        } @@ zioTag(errors)
+      ),
+      suite("drop constructor")(
+        testM("happy path - drops zero elements") {
+          val sink = ZSink.drop(0) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            result <- sink.extract(step3)
+          } yield assert(result)(equalTo((List(1, 2, 3), Chunk.empty)))
+        },
+        testM("happy path - drops more than one element") {
+          val sink = ZSink.drop(3) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            step4  <- sink.step(step3, 4)
+            step5  <- sink.step(step4, 5)
+            result <- sink.extract(step5)
+          } yield assert(result)(equalTo((List(4, 5), Chunk.empty)))
+        },
+        testM("happy path - does not fail when there is not enough input") {
+          val sink = ZSink.drop(3) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            result <- sink.extract(step1)
+          } yield assert(result)(equalTo((List(), Chunk.empty)))
         }
+      ),
+      suite("skip constructor")(
+        testM("happy path - drops zero elements") {
+          val sink = ZSink.skip(0) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            result <- sink.extract(step3)
+          } yield assert(result)(equalTo((List(1, 2, 3), Chunk.empty)))
+        },
+        testM("happy path - drops more than one element") {
+          val sink = ZSink.skip(3) *> ZSink.collectAll[Int]
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            step4  <- sink.step(step3, 4)
+            step5  <- sink.step(step4, 5)
+            result <- sink.extract(step5)
+          } yield assert(result)(equalTo((List(4, 5), Chunk.empty)))
+        },
+        testM("fail when there is not enough input") {
+          val sink = ZSink.skip(4) *> ZSink.collectAll[Int]
+          val io = for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            result <- sink.extract(step3)
+          } yield result
+          assertM(io.either)(isLeft(equalTo(())))
+        } @@ zioTag(errors)
       ),
       suite("drop")(
         testM("happy path - drops zero elements") {
@@ -275,15 +344,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.drop(1)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.drop(1)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.drop(1)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("dropWhile")(
         testM("happy path") {
@@ -297,15 +366,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.dropWhile(_ < 5)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.dropWhile(_ < 5)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.dropWhile(_ < 5)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("flatMap")(
         testM("happy path") {
@@ -315,15 +384,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.flatMap(n => ZSink.succeed[Int, String](n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.flatMap(n => ZSink.succeed[Int, String](n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.flatMap(n => ZSink.succeed[Int, String](n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("self done") {
           val sink = ZSink.succeed(3).flatMap(n => ZSink.collectAllN[Int](n.toLong))
           for {
@@ -379,15 +448,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.filter(_ < 5)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.filter(_ < 5)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extractError") {
           val sink = extractErrorSink.filter(_ < 5)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("filterM")(
         testM("happy path") {
@@ -401,15 +470,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.filterM[Any, String](n => UIO.succeedNow(n < 5))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.filterM[Any, String](n => UIO.succeedNow(n < 5))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extractError") {
           val sink = extractErrorSink.filterM[Any, String](n => UIO.succeedNow(n < 5))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("keyed")(
         testM("happy path") {
@@ -419,15 +488,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.keyed(_ + 1)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.keyed(_ + 1)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.keyed(_ + 1)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("map")(
         testM("happy path") {
@@ -437,15 +506,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.map(_.toString)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.map(_.toString)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.map(_.toString)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("mapError")(
         testM("init error") {
@@ -460,7 +529,7 @@ object SinkSpec extends ZIOBaseSpec {
           val sink = extractErrorSink.mapError(_ => "Error")
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Error")))
         }
-      ),
+      ) @@ zioTag(errors),
       suite("mapM")(
         testM("happy path") {
           val sink = ZSink.identity[Int].mapM[Any, Unit, String](n => UIO.succeedNow(n.toString))
@@ -469,15 +538,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.mapM[Any, String, String](n => UIO.succeedNow(n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.mapM[Any, String, String](n => UIO.succeedNow(n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.mapM[Any, String, String](n => UIO.succeedNow(n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("mapRemainder")(
         testM("init error") {
@@ -492,7 +561,7 @@ object SinkSpec extends ZIOBaseSpec {
           val sink = extractErrorSink.mapRemainder(_.toLong)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         }
-      ),
+      ) @@ zioTag(errors),
       suite("optional")(
         testM("happy path") {
           val sink = ZSink.identity[Int].optional
@@ -504,7 +573,7 @@ object SinkSpec extends ZIOBaseSpec {
             init   <- sink.initial
             result <- sink.extract(init)
           } yield assert(result)(equalTo((None, Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val s = new ZSink[Any, String, Nothing, Any, Nothing] {
             type State = Unit
@@ -514,11 +583,11 @@ object SinkSpec extends ZIOBaseSpec {
             def cont(state: State)         = true
           }
           assertM(sinkIteration(s.optional, 1))(equalTo((None, Chunk.single(1))))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.optional
           assertM(sinkIteration(sink, 1))(equalTo((None, Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("with leftover") {
           val sink = Sink.ignoreWhile[Int](_ < 0).optional
           assertM(sinkIteration(sink, 1))(equalTo((Some(()), Chunk.single(1))))
@@ -536,39 +605,39 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error left") {
           val sink = initErrorSink orElse ZSink.identity[Int]
           assertM(sinkIteration(sink, 1))(equalTo((Right(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("init error right") {
           val sink = ZSink.identity[Int] orElse initErrorSink
           assertM(sinkIteration(sink, 1))(equalTo((Left(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("init error both") {
           val sink = initErrorSink orElse initErrorSink
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error left") {
           val sink = stepErrorSink orElse ZSink.identity[Int]
           assertM(sinkIteration(sink, 1))(equalTo((Right(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("step error right") {
           val sink = ZSink.identity[Int] orElse stepErrorSink
           assertM(sinkIteration(sink, 1))(equalTo((Left(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("step error both") {
           val sink = stepErrorSink orElse stepErrorSink
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error left") {
           val sink = extractErrorSink orElse ZSink.identity[Int]
           assertM(sinkIteration(sink, 1))(equalTo((Right(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("extract error right") {
           val sink = ZSink.identity[Int] orElse extractErrorSink
           assertM(sinkIteration(sink, 1))(equalTo((Left(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("extract error both") {
           val sink = extractErrorSink orElse extractErrorSink
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("left short right long") {
           val sink = ZSink.collectAllN[Int](2) orElse ZSink.collectAll[Int]
           for {
@@ -615,7 +684,7 @@ object SinkSpec extends ZIOBaseSpec {
           val sink = extractErrorSink.orElseFail("Error")
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Error")))
         }
-      ),
+      ) @@ zioTag(errors),
       suite("raceBoth")(
         testM("left") {
           val sink = ZSink.identity[Int] raceBoth ZSink.succeed[Int, String]("Hello")
@@ -624,39 +693,39 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error left") {
           val sink = initErrorSink raceBoth ZSink.identity[Int]
           assertM(sinkIteration(sink, 1))(equalTo((Right(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("init error right") {
           val sink = ZSink.identity[Int] raceBoth initErrorSink
           assertM(sinkIteration(sink, 1))(equalTo((Left(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("init error both") {
           val sink = initErrorSink raceBoth initErrorSink
           assertM(sinkIteration(sink, 1).foldCause(_.failures, _ => List.empty[String]))(equalTo(List("Ouch", "Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error left") {
           val sink = stepErrorSink raceBoth ZSink.identity[Int]
           assertM(sinkIteration(sink, 1))(equalTo((Right(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("step error right") {
           val sink = ZSink.identity[Int] raceBoth stepErrorSink
           assertM(sinkIteration(sink, 1))(equalTo((Left(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("step error both") {
           val sink = stepErrorSink raceBoth stepErrorSink
           assertM(sinkIteration(sink, 1).foldCause(_.failures, _ => List.empty[String]))(equalTo(List("Ouch", "Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error left") {
           val sink = extractErrorSink raceBoth ZSink.identity[Int]
           assertM(sinkIteration(sink, 1))(equalTo((Right(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("extract error right") {
           val sink = ZSink.identity[Int] raceBoth extractErrorSink
           assertM(sinkIteration(sink, 1))(equalTo((Left(1), Chunk.empty)))
-        },
+        } @@ zioTag(errors),
         testM("extract error both") {
           val sink = extractErrorSink raceBoth extractErrorSink
           assertM(sinkIteration(sink, 1).foldCause(_.failures, _ => List.empty[String]))(equalTo(List("Ouch", "Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("left wins") {
           val sink = ZSink.collectAllN[Int](2) raceBoth ZSink.collectAll[Int]
           for {
@@ -697,15 +766,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.takeWhile(_ < 5)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.takeWhile(_ < 5)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.takeWhile(_ < 5)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       testM("tapInput") {
         for {
@@ -752,15 +821,15 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error") {
           val sink = initErrorSink.untilOutput(_ == 0)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink = stepErrorSink.untilOutput(_ == 0)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error") {
           val sink = extractErrorSink.untilOutput(_ == 0)
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("zip (<*>)")(
         testM("happy path") {
@@ -770,39 +839,39 @@ object SinkSpec extends ZIOBaseSpec {
         testM("init error left") {
           val sink = initErrorSink <*> ZSink.identity[Int]
           assertM(sinkIteration(sink, 1).either)(isLeft[Any](equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("init error right") {
           val sink = ZSink.identity[Int] <*> initErrorSink
           assertM(sinkIteration(sink, 1).either)(isLeft[Any](equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("init error both") {
           val sink = initErrorSink <*> initErrorSink
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error left") {
           val sink = stepErrorSink <*> ZSink.identity[Int]
           assertM(sinkIteration(sink, 1).either)(isLeft[Any](equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error right") {
           val sink = ZSink.identity[Int] <*> stepErrorSink
           assertM(sinkIteration(sink, 1).either)(isLeft[Any](equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("step error both") {
           val sink = stepErrorSink <*> stepErrorSink
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error left") {
           val sink = extractErrorSink <*> ZSink.identity[Int]
           assertM(sinkIteration(sink, 1).either)(isLeft[Any](equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error right") {
           val sink = ZSink.identity[Int] <*> extractErrorSink
           assertM(sinkIteration(sink, 1).either)(isLeft[Any](equalTo("Ouch")))
-        },
+        } @@ zioTag(errors),
         testM("extract error both") {
           val sink = extractErrorSink <*> extractErrorSink
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
-        }
+        } @@ zioTag(errors)
       ),
       suite("zipLeft (<*)")(
         testM("happy path") {
@@ -829,16 +898,18 @@ object SinkSpec extends ZIOBaseSpec {
         testM("extract error") {
           val sink1 = ZSink.collectAllWhile[Int](_ < 5)
           ZipParLaws.laws(zipParLawsStream, sink1, extractErrorSink)
-        },
+        } @@ zioTag(errors),
         testM("step error") {
           val sink1 = ZSink.collectAllWhile[Int](_ < 5)
           ZipParLaws.laws(zipParLawsStream, sink1, stepErrorSink)
-        },
+        } @@ zioTag(errors),
         testM("init error") {
           val sink1 = ZSink.collectAllWhile[Int](_ < 5)
           ZipParLaws.laws(zipParLawsStream, sink1, initErrorSink)
-        },
-        testM("both error")(ZipParLaws.laws(zipParLawsStream, stepErrorSink, initErrorSink)),
+        } @@ zioTag(errors),
+        testM("both error") {
+          ZipParLaws.laws(zipParLawsStream, stepErrorSink, initErrorSink)
+        } @@ zioTag(errors),
         testM("remainder corner case 1") {
           val sink1 = sinkWithLeftover(2, 3, -42)
           val sink2 = sinkWithLeftover(2, 4, -42)

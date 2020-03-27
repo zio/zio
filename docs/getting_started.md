@@ -28,10 +28,9 @@ println(s"""```""")
 Your application can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
 ```scala mdoc:silent
-import zio.App
 import zio.console._
 
-object MyApp extends App {
+object MyApp extends zio.App {
 
   def run(args: List[String]) =
     myAppLogic.fold(_ => 1, _ => 0)

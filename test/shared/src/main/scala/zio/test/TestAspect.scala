@@ -243,6 +243,12 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) ignore else identity
 
   /**
+   * An aspect that runs tests on all platforms except ScalaNative.
+   */
+  val exceptNative: TestAspectAtLeastR[Annotations] =
+    if (TestPlatform.isNative) ignore else identity
+
+  /**
    * An aspect that runs tests on all versions except Scala 2.
    */
   val exceptScala2: TestAspectAtLeastR[Annotations] =
@@ -391,6 +397,20 @@ object TestAspect extends TimeoutVariants {
    */
   val jvmOnly: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJVM) identity else ignore
+
+  /**
+   * An aspect that applies the specified aspect on ScalaNative.
+   */
+  def native[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (TestPlatform.isNative) that else identity
+
+  /**
+   * An aspect that only runs tests on ScalaNative.
+   */
+  val nativeOnly: TestAspectAtLeastR[Annotations] =
+    if (TestPlatform.isNative) identity else ignore
 
   /**
    * An aspect that causes calls to `sleep` and methods implemented in terms

@@ -16,8 +16,8 @@
 
 package zio
 
-import _root_.java.nio.channels.CompletionHandler
-import _root_.java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
+import java.nio.channels.CompletionHandler
+import java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
 
 import zio.blocking.Blocking
 import zio.interop.javaz

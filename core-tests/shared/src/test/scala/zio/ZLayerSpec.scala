@@ -1,11 +1,14 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{ ignore, nonFlaky }
 import zio.test._
 import zio.test.environment._
 
 object ZLayerSpec extends ZIOBaseSpec {
+
+  import ZIOTag._
+
   trait Animal
   trait Dog extends Animal
   trait Cat extends Animal
@@ -212,7 +215,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      } @@ nonFlaky,
+      } @@ zioTag(interruption) @@ nonFlaky,
       testM("interruption with >>>") {
         for {
           ref    <- makeRef
@@ -224,7 +227,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      } @@ nonFlaky,
+      } @@ zioTag(interruption) @@ nonFlaky,
       testM("interruption with multiple layers") {
         for {
           ref    <- makeRef
@@ -238,17 +241,17 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2))) &&
           (assert(actual)(contains(acquire3)) ==> assert(actual)(contains(release3)))
-      } @@ nonFlaky,
+      } @@ zioTag(interruption) @@ nonFlaky,
       testM("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]
-          layer1  = ZLayer.fromManagedMany(Managed.make(ZIO.never)(_ => ZIO.unit))
+          layer1  = ZLayer.fromManagedMany(ZManaged.never)
           layer2  = ZLayer.fromManagedMany(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env     = (layer1 ++ layer2).build
           _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
         } yield assertCompletes
-      } @@ nonFlaky,
+      } @@ ignore,
       testM("map can map the output of a layer to an unrelated type") {
         case class A(name: String, value: Int)
         case class B(name: String)
@@ -270,6 +273,29 @@ object ZLayerSpec extends ZIOBaseSpec {
               }
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      } @@ nonFlaky
+      } @@ nonFlaky,
+      testM("orElse") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          env    = ((layer1 >>> ZLayer.fail("fail")) orElse layer2).build
+          fiber  <- env.use_(ZIO.unit).fork
+          _      <- fiber.interrupt
+          actual <- ref.get
+        } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
+          (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
+      } @@ nonFlaky,
+      testM("passthrough") {
+        val layer: ZLayer[Has[Int], Nothing, Has[String]] =
+          ZLayer.fromService(_.toString)
+        val live: ZLayer[Any, Nothing, Has[Int] with Has[String]] =
+          ZLayer.succeed(1) >>> layer.passthrough
+        val zio = for {
+          i <- ZIO.environment[Has[Int]].map(_.get[Int])
+          s <- ZIO.environment[Has[String]].map(_.get[String])
+        } yield (i, s)
+        assertM(zio.provideLayer(live))(equalTo((1, "1")))
+      }
     )
 }

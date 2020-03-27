@@ -168,7 +168,7 @@ object Stream extends Serializable {
   def fromInputStream(
     is: => InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
-  ): StreamEffectChunk[Any, IOException, Byte] =
+  ): ZStreamChunk[Any, IOException, Byte] =
     ZStream.fromInputStream(is, chunkSize)
 
   /**
@@ -234,27 +234,51 @@ object Stream extends Serializable {
     ZStream.fromIterableM(iterable)
 
   /**
+   * See [[ZStream.fromIteratorTotal]]
+   */
+  def fromIteratorTotal[A](iterator: => Iterator[A]): Stream[Nothing, A] =
+    ZStream.fromIteratorTotal(iterator)
+
+  /**
    * See [[ZStream.fromIterator]]
    */
-  def fromIterator[E, A](iterator: IO[E, Iterator[A]]): Stream[E, A] =
+  def fromIterator[A](iterator: => Iterator[A]): Stream[Throwable, A] =
     ZStream.fromIterator(iterator)
+
+  /**
+   * See [[ZStream.fromIteratorEffect]]
+   */
+  def fromIteratorEffect[A](iterator: IO[Throwable, Iterator[A]]): Stream[Throwable, A] =
+    ZStream.fromIteratorEffect(iterator)
 
   /**
    * See [[ZStream.fromIteratorManaged]]
    */
-  def fromIteratorManaged[E, A](iterator: Managed[E, Iterator[A]]): Stream[E, A] =
+  def fromIteratorManaged[A](iterator: Managed[Throwable, Iterator[A]]): Stream[Throwable, A] =
     ZStream.fromIteratorManaged(iterator)
+
+  /**
+   * See [[ZStream.fromJavaIteratorTotal]]
+   */
+  def fromJavaIteratorTotal[A](iterator: => ju.Iterator[A]): Stream[Nothing, A] =
+    ZStream.fromJavaIteratorTotal(iterator)
 
   /**
    * See [[ZStream.fromJavaIterator]]
    */
-  def fromJavaIterator[E, A](iterator: IO[E, ju.Iterator[A]]): Stream[E, A] =
+  def fromJavaIterator[A](iterator: => ju.Iterator[A]): Stream[Throwable, A] =
     ZStream.fromJavaIterator(iterator)
+
+  /**
+   * See [[ZStream.fromJavaIteratorEffect]]
+   */
+  def fromJavaIteratorEffect[A](iterator: IO[Throwable, ju.Iterator[A]]): Stream[Throwable, A] =
+    ZStream.fromJavaIteratorEffect(iterator)
 
   /**
    * See [[ZStream.fromJavaIteratorManaged]]
    */
-  def fromJavaIteratorManaged[E, A](iterator: Managed[E, ju.Iterator[A]]): Stream[E, A] =
+  def fromJavaIteratorManaged[A](iterator: Managed[Throwable, ju.Iterator[A]]): Stream[Throwable, A] =
     ZStream.fromJavaIteratorManaged(iterator)
 
   /**

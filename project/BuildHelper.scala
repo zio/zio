@@ -53,7 +53,7 @@ object BuildHelper {
       buildInfoObject := "BuildInfo"
     )
 
-  val dottyVersion = "0.22.0-RC1"
+  val dottyVersion = "0.23.0-RC1"
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
@@ -292,7 +292,7 @@ object BuildHelper {
     }
   )
 
-  def macroSettings = Seq(
+  def macroExpansionSettings = Seq(
     scalacOptions ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, 13)) => Seq("-Ymacro-annotations")
@@ -306,6 +306,23 @@ object BuildHelper {
         case _ => Seq.empty
       }
     }
+  )
+
+  def macroDefinitionSettings = Seq(
+    scalacOptions += "-language:experimental.macros",
+    libraryDependencies ++=
+      Seq("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0") ++ {
+        if (isDotty.value) Seq()
+        else
+          Seq(
+            "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided",
+            "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
+          )
+      }
+  )
+
+  def testJsSettings = Seq(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test
   )
 
   def welcomeMessage = onLoadMessage := {

@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-package zio
+package zio.test.mock
 
-final case class Tagged[A](tag: TaggedType[A]) {
-  override def equals(that: Any): Boolean = that match {
-    case Tagged(that) => tag.toString == that.toString
-    case _            => false
-  }
-  override def hashCode: Int    = tag.toString.hashCode
-  override def toString: String = tag.toString
-}
+import zio.Has
 
-object Tagged {
-  implicit def tagged[A](implicit tag: TaggedType[A]): Tagged[A] =
-    Tagged(tag)
+/**
+ * Example module used for testing _ZIO Mock_ library.
+ */
+package object module {
+
+  type Module = Has[Module.Service]
+
+  type T22[A] = (A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A)
 }

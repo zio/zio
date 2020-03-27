@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,19 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package zio.macros
 
-package zio
+import scala.annotation.{ compileTimeOnly, StaticAnnotation }
 
-final case class Tagged[A](tag: TaggedType[A]) {
-  override def equals(that: Any): Boolean = that match {
-    case Tagged(that) => tag.tag == that.tag
-    case _            => false
-  }
-  override def hashCode: Int    = tag.tag.hashCode
-  override def toString: String = tag.tag.toString
-}
-
-object Tagged {
-  implicit def tagged[A](implicit tag: TaggedType[A]): Tagged[A] =
-    Tagged(tag)
+@compileTimeOnly("enable macro paradise to expand macro annotations")
+class accessible[A] extends StaticAnnotation {
+  def macroTransform(annottees: Any*): Any = macro AccessibleMacro.apply
 }

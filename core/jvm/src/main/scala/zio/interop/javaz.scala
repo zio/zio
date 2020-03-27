@@ -61,7 +61,8 @@ private[zio] object javaz {
       Task.succeedNow(f.get())
     } catch catchFromGet(isFatal)
 
-  def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] =
+  def fromCompletionStage[A](thunk: => CompletionStage[A]): Task[A] = {
+    lazy val cs: CompletionStage[A] = thunk
     Task.effectSuspendTotalWith { (p, _) =>
       val cf = cs.toCompletableFuture
       if (cf.isDone) {
@@ -77,6 +78,7 @@ private[zio] object javaz {
         }
       }
     }
+  }
 
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
   def fromFutureJava[A](future: => Future[A]): RIO[Blocking, A] =

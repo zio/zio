@@ -33,8 +33,14 @@ object Managed {
   /**
    * See [[zio.ZManaged.collectAll]]
    */
-  def collectAll[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
+  def collectAll[E, A](ms: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAll(ms)
+
+  /**
+   * See [[zio.ZManaged.collectAll_]]
+   */
+  def collectAll_[E, A](ms: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAll_(ms)
 
   /**
    * See [[zio.ZManaged.collectAllPar]]
@@ -43,10 +49,22 @@ object Managed {
     ZManaged.collectAllPar(as)
 
   /**
+   * See [[zio.ZManaged.collectAllPar_]]
+   */
+  def collectAllPar_[E, A](as: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAllPar_(as)
+
+  /**
    * See [[zio.ZManaged.collectAllParN]]
    */
   def collectAllParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAllParN(n)(as)
+
+  /**
+   * See [[zio.ZManaged.collectAllParN_]]
+   */
+  def collectAllParN_[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAllParN_(n)(as)
 
   /**
    * See [[zio.ZManaged.die]]
@@ -69,7 +87,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.effectTotal]]
    */
-  def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
+  def effectTotal[A](r: => A): Managed[Nothing, A] =
     ZManaged.effectTotal(r)
 
   /**
@@ -362,27 +380,25 @@ object Managed {
   /**
    * See [[zio.ZManaged.when]]
    */
-  def when[E](b: => Boolean)(managed: Managed[E, Any]): Managed[E, Unit] =
+  def when[E](b: => Boolean)(managed: => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.when(b)(managed)
 
   /**
    * See [[zio.ZManaged.whenCase]]
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCase[E, A](a: => A)(pf: PartialFunction[A, Managed[E, Any]]): Managed[E, Unit] =
     ZManaged.whenCase(a)(pf)
 
   /**
    * See [[zio.ZManaged.whenCaseM]]
    */
-  def whenCaseM[R, E, A](
-    a: ZManaged[R, E, A]
-  )(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCaseM[E, A](a: Managed[E, A])(pf: PartialFunction[A, Managed[E, Any]]): Managed[E, Unit] =
     ZManaged.whenCaseM(a)(pf)
 
   /**
    * See [[zio.ZManaged.whenM]]
    */
-  def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, Any]): Managed[E, Unit] =
+  def whenM[E](b: Managed[E, Boolean])(managed: => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.whenM(b)(managed)
 
   private[zio] def succeedNow[A](r: A): Managed[Nothing, A] =

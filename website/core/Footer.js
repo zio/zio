@@ -54,6 +54,9 @@ class Footer extends React.Component {
               Scaladoc of zio
             </a>
           </div>
+          <div>
+              <a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a>
+          </div>
         </section>
         <section className="copyright">{this.props.config.copyright}</section>
       </footer>

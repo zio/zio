@@ -13,6 +13,9 @@ import zio._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
+@Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
+@Fork(1)
 class SemaphoreBenchmark {
   @Param(Array("10"))
   var fibers: Int = _

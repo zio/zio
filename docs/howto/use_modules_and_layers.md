@@ -14,19 +14,18 @@ To access the DB we need a `DBConnection`, and each step in our program represen
 
 The result is a program that, in turn, depends on the `DBConnection`.
 
-
 ```scala mdoc:invisible
-import zio. { Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }
+import zio.{ Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
 
-trait DBError                  
+trait DBError
 trait Product
 trait ProductId
 trait DBConnection
 case class UserId(value: Long)
-``` 
+```
 
 ```scala mdoc:silent
 case class User(id: UserId, name: String)
@@ -58,13 +57,13 @@ In general we need more than just a DB connection though. We need components tha
 
 ## Our first ZIO module
 We will see now how to define modules and use them to create different application layers relying on each other. The core idea is that a layer depends on the layers imediately below but it is completely agnostic about their internal implementation.
- 
-This formulation of module pattern is _the way_ ZIO manages dependencies between application components, giving extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during the testing/mocking phase. 
+
+This formulation of module pattern is _the way_ ZIO manages dependencies between application components, giving extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during the testing/mocking phase.
 
 ### What is a module?
 A module is a group of functions that deals with only one concern. Keeping the scope of a module limited improves our ability to understand code, in that we need to focus
  only on one topic at a time without juggling with too many concepts together in our head.
- 
+
 `ZIO` iself provides the basic capabilities through modules, e.g. see how `ZEnv` is defined.
 
 ### The module recipe
@@ -91,12 +90,12 @@ object UserRepo {
 ```
 
 ```scala mdoc:reset:invisible
-import zio. { Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }          
+import zio.{ Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
 
-trait DBError                  
+trait DBError
 trait Product
 trait ProductId
 
@@ -127,10 +126,10 @@ val repo: Has[Repo.Service] = Has(new Repo.Service{})
 val logger: Has[Logger.Service] = Has(new Logger.Service{})
 
 val mix: Has[Repo.Service] with Has[Logger.Service] = repo ++ logger
-``` 
+```
 
 At this point you might ask: what's the use of `Has` if the resulting type is just a mix of two traits? Why aren't we just relying on trait mixins?
- 
+
 The extra power given by `Has` is that the resulting data structure is backed by an _heterogeneous map_ from service type to service implementation, that collects each instance that is mixed in so that the instances can be accessed/extracted/modified individually, still guaranteeing supreme type safety.
 
 ```scala mdoc:silent
@@ -143,22 +142,22 @@ Usually we don't create a `Has` directly, but we do that through `ZLayer`.
 
 ### The `ZLayer` data type
 
-`ZLayer[-RIn, +E, +ROut <: Has[_]]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, possibly producing an error `E` during creation. 
+`ZLayer[-RIn, +E, +ROut <: Has[_]]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, possibly producing an error `E` during creation.
 
 In adherence with environmental concepts, the absence of a required input is represented by `RIn = Any`, conveniently  used in the type alias `Layer`.
 
 There are many ways to create a `ZLayer`, here's an incomplete list:
  - `ZLayer.succeed` or `ZIO.asService`  to create a layer from an existing service
- - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service 
+ - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
  - `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
  - `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `ZManaged`
  - `ZLayer.fromServices` to build a layer from a number of required services
 
-Where it makes sense, these methods have also variants to build a service effecfully (suffixed by `M`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).  
+Where it makes sense, these methods have also variants to build a service effecfully (suffixed by `M`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
 
 We can compose `layerA` and `layerB`  _horizontally_ to build a layer that has the requirements of both layers, to provide the capabilities of both layers, through `layerA ++ layerB`
- 
-We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first and the output of the second layer: `layerA >>> layerB` 
+
+We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first and the output of the second layer: `layerA >>> layerB`
 
 ## Wiring modules together
 Here we define a module to cope with CRUD operations for the `User` domain object. We provide also an in memory implementation of the module
@@ -209,7 +208,7 @@ object Logging {
       def error(s: String): UIO[Unit] = console.get.putStrLn(s"error - $s")
     }
   )
-    
+
   //accessor methods
   def info(s: String): ZIO[Logging, Nothing, Unit] =
     ZIO.accessM(_.get.info(s))
@@ -240,8 +239,6 @@ val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizont
 
 // provide the layer to the program
 makeUser.provideLayer(fullLayer)
-  
-
 ```
 
 ## Providing partial environments
@@ -251,9 +248,9 @@ Let's add some extra logic to our program that creates a user
 
 val makeUser2: ZIO[Logging with UserRepo with Clock with Random, DBError, Unit] = for {
     uId       <- zio.random.nextLong.map(UserId)
-    createdAt <- zio.clock.currentDateTime
-    _         <- Logging.info(s"inserting user")        
-    _         <- UserRepo.createUser(User(uId, "Chet"))   
+    createdAt <- zio.clock.currentDateTime.orDie
+    _         <- Logging.info(s"inserting user")
+    _         <- UserRepo.createUser(User(uId, "Chet"))
     _         <- Logging.info(s"user inserted, created at $createdAt")
   } yield ()
 ```
@@ -296,9 +293,9 @@ For example, to build a postgres-based repository we need a `java.sql.Connection
 ```scala mdoc:silent
 import java.sql.Connection
 def makeConnection: UIO[Connection] = UIO(???)
-val connectionLayer: Layer[Nothing, Has[Connection]] = 
+val connectionLayer: Layer[Nothing, Has[Connection]] =
     ZLayer.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
-val postgresLayer: ZLayer[Has[Connection], Nothing, UserRepo] = 
+val postgresLayer: ZLayer[Has[Connection], Nothing, UserRepo] =
   ZLayer.fromFunction { hasC =>
     new UserRepo.Service {
       override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
@@ -311,6 +308,6 @@ val fullRepo: Layer[Nothing, UserRepo] = connectionLayer >>> postgresLayer
 ```
 
 ## Layers are shared in the dependency graph
-One important feature of `ZIO` layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. If you don't want to share a module, create a fresh, non-shared version of it through `ZLayer.fresh`. 
+One important feature of `ZIO` layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. If you don't want to share a module, create a fresh, non-shared version of it through `ZLayer.fresh`.
 
-Notice also that the `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction. 
+Notice also that the `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.

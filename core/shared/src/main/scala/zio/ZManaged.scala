@@ -59,7 +59,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * second part to that effect.
    */
   def ***[R1, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[(R, R1), E1, (A, B)] =
-    (ZManaged.first[E1, R, R1] >>> self) &&& (ZManaged.second[E1, R, R1] >>> that)
+    (ZManaged.first[R, R1] >>> self) &&& (ZManaged.second[R, R1] >>> that)
 
   /**
    * Symbolic alias for zipRight
@@ -445,6 +445,18 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged.absolve(mapError(ev1)(CanFail).map(ev2(_).toRight(())))
 
   /**
+   * Returns whether this managed effect is a failure.
+   */
+  def isFailure: ZManaged[R, Nothing, Boolean] =
+    fold(_ => true, _ => false)
+
+  /**
+   * Returns whether this managed effect is a success.
+   */
+  def isSuccess: ZManaged[R, Nothing, Boolean] =
+    fold(_ => false, _ => true)
+
+  /**
    * Depending on the environment execute this or the other effect
    */
   def join[R1, E1 >: E, A1 >: A](that: ZManaged[R1, E1, A1]): ZManaged[Either[R, R1], E1, A1] = self ||| that
@@ -506,6 +518,15 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     self.foldM(e => ZManaged.succeedNow(ev1(e)), ZManaged.succeedNow)
 
   /**
+   * Requires the option produced by this value to be `None`.
+   */
+  final def none[B](implicit ev: A <:< Option[B]): ZManaged[R, Option[E], Unit] =
+    self.foldM(
+      e => ZManaged.fail(Some(e)),
+      a => a.fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
+    )
+
+  /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
    * the existing finalizers.
    */
@@ -542,6 +563,15 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def option(implicit ev: CanFail[E]): ZManaged[R, Nothing, Option[A]] =
     fold(_ => None, Some(_))
+
+  /**
+   * Converts an option on errors into an option on values.
+   */
+  final def optional[E1](implicit ev: E <:< Option[E1]): ZManaged[R, E1, Option[A]] =
+    self.foldM(
+      e => e.fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
+      a => ZManaged.succeedNow(Some(a))
+    )
 
   /**
    * Translates effect failure into death of the fiber, making all failures unchecked and
@@ -712,6 +742,24 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     catchAll(e => pf.lift(e).fold[ZManaged[R, E1, A]](ZManaged.die(f(e)))(ZManaged.fail(_)))
 
   /**
+   * Fail with the returned value if the `PartialFunction` matches, otherwise
+   * continue with our held value.
+   */
+  def reject[E1 >: E](pf: PartialFunction[A, E1]): ZManaged[R, E1, A] =
+    rejectM(pf.andThen(ZManaged.fail(_)))
+
+  /**
+   * Continue with the returned computation if the `PartialFunction` matches,
+   * translating the successful match into a failure, otherwise continue with
+   * our held value.
+   */
+  def rejectM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZManaged[R1, E1, E1]]): ZManaged[R1, E1, A] =
+    self.flatMap { v =>
+      pf.andThen[ZManaged[R1, E1, A]](_.flatMap(ZManaged.fail(_)))
+        .applyOrElse[A, ZManaged[R1, E1, A]](v, ZManaged.succeedNow)
+    }
+
+  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
@@ -773,6 +821,36 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Zips this effect with its environment
    */
   def second[R1 <: R, A1 >: A]: ZManaged[R1, E, (R1, A1)] = ZManaged.identity[R1] &&& self
+
+  /**
+   * Converts an option on values into an option on errors.
+   */
+  final def some[B](implicit ev: A <:< Option[B]): ZManaged[R, Option[E], B] =
+    self.foldM(
+      e => ZManaged.fail(Some(e)),
+      a => a.fold[ZManaged[R, Option[E], B]](ZManaged.fail(Option.empty[E]))(ZManaged.succeedNow)
+    )
+
+  /**
+   * Extracts the optional value, or fails with the given error 'e'.
+   */
+  final def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZManaged[R, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZManaged.succeedNow(value)
+      case None        => ZManaged.fail(e)
+    })
+
+  /**
+   * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
+   */
+  final def someOrFailException[B, E1 >: E](
+    implicit ev: A <:< Option[B],
+    ev2: NoSuchElementException <:< E1
+  ): ZManaged[R, E1, B] =
+    self.foldM(e => ZManaged.fail(e), ev(_) match {
+      case Some(value) => ZManaged.succeedNow(value)
+      case None        => ZManaged.fail(ev2(new NoSuchElementException("None.get")))
+    })
 
   /**
    * Returns an effect that effectfully peeks at the acquired resource.
@@ -919,7 +997,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when(b: Boolean): ZManaged[R, E, Unit] =
+  def when(b: => Boolean): ZManaged[R, E, Unit] =
     ZManaged.when(b)(self)
 
   /**
@@ -1193,7 +1271,10 @@ object ZManaged {
   }
 
   final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E, A](onTrue: ZManaged[R1, E1, A], onFalse: ZManaged[R1, E1, A]): ZManaged[R1, E1, A] =
+    def apply[R1 <: R, E1 >: E, A](
+      onTrue: => ZManaged[R1, E1, A],
+      onFalse: => ZManaged[R1, E1, A]
+    ): ZManaged[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
@@ -1244,27 +1325,50 @@ object ZManaged {
     new ZManaged(reservation)
 
   /**
-   * Evaluate each effect in the structure from left to right, and collect
-   * the results. For a parallel version, see `collectAllPar`.
+   * Evaluate each effect in the structure from left to right, and collect the
+   * results. For a parallel version, see `collectAllPar`.
    */
-  def collectAll[R, E, A1, A2](ms: Iterable[ZManaged[R, E, A2]]): ZManaged[R, E, List[A2]] =
-    foreach(ms)(scala.Predef.identity)
+  def collectAll[R, E, A](ms: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
+    foreach(ms)(ZIO.identityFn)
 
   /**
-   * Evaluate each effect in the structure in parallel, and collect
-   * the results. For a sequential version, see `collectAll`.
+   * Evaluate each effect in the structure from left to right, and discard the
+   * results. For a parallel version, see `collectAllPar_`.
+   */
+  def collectAll_[R, E, A](ms: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
+    foreach_(ms)(ZIO.identityFn)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and collect the
+   * results. For a sequential version, see `collectAll`.
    */
   def collectAllPar[R, E, A](as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
-    foreachPar(as)(scala.Predef.identity)
+    foreachPar(as)(ZIO.identityFn)
 
   /**
-   * Evaluate each effect in the structure in parallel, and collect
-   * the results. For a sequential version, see `collectAll`.
+   * Evaluate each effect in the structure in parallel, and discard the
+   * results. For a sequential version, see `collectAll_`.
+   */
+  def collectAllPar_[R, E, A](as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
+    foreachPar_(as)(ZIO.identityFn)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and collect the
+   * results. For a sequential version, see `collectAll`.
    *
    * Unlike `CollectAllPar`, this method will use at most `n` fibers.
    */
   def collectAllParN[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
-    foreachParN(n)(as)(scala.Predef.identity)
+    foreachParN(n)(as)(ZIO.identityFn)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and discard the
+   * results. For a sequential version, see `collectAll_`.
+   *
+   * Unlike `CollectAllPar_`, this method will use at most `n` fibers.
+   */
+  def collectAllParN_[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
+    foreachParN_(n)(as)(ZIO.identityFn)
 
   /**
    * Returns an effect that dies with the specified `Throwable`.
@@ -1291,7 +1395,7 @@ object ZManaged {
   /**
    * Lifts a by-name, pure value into a Managed.
    */
-  def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
+  def effectTotal[A](r: => A): ZManaged[Any, Nothing, A] =
     ZManaged.fromEffect(ZIO.effectTotal(r))
 
   /**
@@ -1348,7 +1452,7 @@ object ZManaged {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  def first[E, A, B]: ZManaged[(A, B), E, A] = fromFunction(_._1)
+  def first[A, B]: ZManaged[(A, B), Nothing, A] = fromFunction(_._1)
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
@@ -1587,7 +1691,7 @@ object ZManaged {
    * Lifts a synchronous effect into `ZManaged[R, Throwable, A]` with a release action.
    * The acquire and release actions will be performed uninterruptibly.
    */
-  def makeEffect[R, A](acquire: => A)(release: A => Any): ZManaged[R, Throwable, A] =
+  def makeEffect[A](acquire: => A)(release: A => Any): ZManaged[Any, Throwable, A] =
     make(Task(acquire))(a => Task(release(a)).orDie)
 
   /**
@@ -1892,7 +1996,13 @@ object ZManaged {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def second[E, A, B]: ZManaged[(A, B), E, B] = fromFunction(_._2)
+  def second[A, B]: ZManaged[(A, B), Nothing, B] = fromFunction(_._2)
+
+  /**
+   *  Returns an effect with the optional value.
+   */
+  def some[A](a: => A): UManaged[Option[A]] =
+    succeed(Some(a))
 
   /**
    * Lifts a lazy, pure value into a Managed.
@@ -1909,7 +2019,7 @@ object ZManaged {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  def swap[E, A, B]: ZManaged[(A, B), E, (B, A)] = fromFunction(_.swap)
+  def swap[A, B]: ZManaged[(A, B), Nothing, (B, A)] = fromFunction(_.swap)
 
   /**
    * Returns a ZManaged value that represents a managed resource that can be safely
@@ -1980,8 +2090,8 @@ object ZManaged {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    if (b) zManaged.unit else unit
+  def when[R, E](b: => Boolean)(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+    ZManaged.suspend(if (b) zManaged.unit else unit)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
@@ -2000,7 +2110,7 @@ object ZManaged {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     b.flatMap(b => if (b) zManaged.unit else unit)
 
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =

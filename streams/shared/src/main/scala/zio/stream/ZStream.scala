@@ -19,6 +19,8 @@ package zio.stream
 import java.io.{ IOException, InputStream }
 import java.{ util => ju }
 
+import scala.reflect.ClassTag
+
 import com.github.ghik.silencer.silent
 
 import zio._
@@ -1884,6 +1886,30 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     ZStream[R1, E1, B](self.process.map(_.flatMap(f(_).mapError(Some(_)))))
 
   /**
+   * Keeps some of the errors, and terminates the fiber with the rest
+   */
+  final def refineOrDie[E1](
+    pf: PartialFunction[E, E1]
+  )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZStream[R, E1, A] =
+    ZStream(self.process.map(_.mapError {
+      case None                         => None
+      case Some(e) if pf.isDefinedAt(e) => Some(pf.apply(e))
+    }))
+
+  /**
+   * Keeps some of the errors, and terminates the fiber with the rest, using
+   * the specified function to convert the `E` into a `Throwable`.
+   */
+  final def refineOrDieWith[E1](
+    pf: PartialFunction[E, E1]
+  )(f: E => Throwable)(implicit ev: CanFail[E]): ZStream[R, E1, A] =
+    ZStream(self.process.map(_.mapError {
+      case None                         => None
+      case Some(e) if pf.isDefinedAt(e) => Some(pf.apply(e))
+      case Some(e)                      => throw f(e)
+    }))
+
+  /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
@@ -1998,7 +2024,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * and the second one will contain all element evaluated to false.
    * The faster stream may advance by up to buffer elements further than the slower one.
    */
-  def partition(p: A => Boolean, buffer: Int = 16): ZManaged[R, E, (ZStream[R, E, A], ZStream[Any, E, A])] =
+  def partition(p: A => Boolean, buffer: Int = 16): ZManaged[R, E, (ZStream[Any, E, A], ZStream[Any, E, A])] =
     self.partitionEither(a => if (p(a)) ZIO.succeedNow(Left(a)) else ZIO.succeedNow(Right(a)), buffer)
 
   /**
@@ -2125,7 +2151,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  final def repeat[R1 <: R, B, C](schedule: Schedule[R1, Unit, B]): ZStream[R1, E, A] =
+  final def repeat[R1 <: R](schedule: Schedule[R1, Unit, Any]): ZStream[R1, E, A] =
     repeatEither(schedule) collect { case Right(a) => a }
 
   /**
@@ -2741,6 +2767,16 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
 object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
 
+  implicit final class ZioStreamRefineToOrDieOps[R, E <: Throwable, A](private val self: ZStream[R, E, A])
+      extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZStream[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
+  }
+
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes
    * normal termination of the stream when `None` and an error when `Some(e: E)`.
@@ -3222,13 +3258,39 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     flattenPar(Int.MaxValue, outputBuffer)(fa)
 
   /**
-   * Creates a stream from a [[java.io.InputStream]]
+   * Creates a stream from a [[java.io.InputStream]].
+   * Note: the input stream will not be explicitly closed after
+   * it is exhausted.
    */
   def fromInputStream(
     is: => InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
-  ): StreamEffectChunk[Any, IOException, Byte] =
+  ): ZStreamChunk[Any, IOException, Byte] =
     StreamEffect.fromInputStream(is, chunkSize)
+
+  /**
+   * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
+   * stream is closed after it is exhausted.
+   */
+  def fromInputStreamEffect[R](
+    is: ZIO[R, IOException, InputStream],
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): ZStreamChunk[R, IOException, Byte] =
+    ZStreamChunk {
+      bracket(is)(is => ZIO.effectTotal(is.close()))
+        .flatMap(StreamEffect.fromInputStream(_, chunkSize).chunks)
+    }
+
+  /**
+   * Creates a stream from a managed [[java.io.InputStream]] value.
+   */
+  def fromInputStreamManaged[R](
+    is: ZManaged[R, IOException, InputStream],
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): ZStreamChunk[R, IOException, Byte] =
+    ZStreamChunk {
+      managed(is).flatMap(StreamEffect.fromInputStream(_, chunkSize).chunks)
+    }
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values
@@ -3265,26 +3327,58 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * Creates a stream from an iterator
    */
-  def fromIterator[R, E, A](iterator: ZIO[R, E, Iterator[A]]): ZStream[R, E, A] =
-    fromEffect(iterator).flatMap(StreamEffect.fromIterator(_))
+  def fromIteratorTotal[A](iterator: => Iterator[A]): ZStream[Any, Nothing, A] =
+    StreamEffect.fromIteratorTotal(iterator)
 
   /**
    * Creates a stream from a Java iterator
    */
-  def fromJavaIterator[R, E, A](iterator: ZIO[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
-    fromEffect(iterator).flatMap(StreamEffect.fromJavaIterator)
+  def fromJavaIteratorTotal[A](iterator: => ju.Iterator[A]): ZStream[Any, Nothing, A] =
+    StreamEffect.fromJavaIteratorTotal(iterator)
+
+  /**
+   * Creates a stream from an iterator that may potentially throw exceptions
+   */
+  def fromIterator[A](iterator: => Iterator[A]): ZStream[Any, Throwable, A] =
+    StreamEffect.fromIterator(iterator)
+
+  /**
+   * Creates a stream from a Java iterator that may potentially throw exceptions
+   */
+  def fromJavaIterator[A](iterator: => ju.Iterator[A]): ZStream[Any, Throwable, A] =
+    StreamEffect.fromJavaIterator(iterator)
+
+  /**
+   * Creates a stream from an iterator that may potentially throw exceptions
+   */
+  def fromIteratorEffect[R, A](
+    iterator: ZIO[R, Throwable, Iterator[A]]
+  ): ZStream[R, Throwable, A] =
+    fromEffect(iterator).flatMap(StreamEffect.fromIterator(_))
+
+  /**
+   * Creates a stream from a Java iterator that may potentially throw exceptions
+   */
+  def fromJavaIteratorEffect[R, A](
+    iterator: ZIO[R, Throwable, ju.Iterator[A]]
+  ): ZStream[R, Throwable, A] =
+    fromEffect(iterator).flatMap(StreamEffect.fromJavaIterator(_))
 
   /**
    * Creates a stream from a managed iterator
    */
-  def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
+  def fromIteratorManaged[R, A](
+    iterator: ZManaged[R, Throwable, Iterator[A]]
+  ): ZStream[R, Throwable, A] =
     managed(iterator).flatMap(StreamEffect.fromIterator(_))
 
   /**
    * Creates a stream from a managed iterator
    */
-  def fromJavaIteratorManaged[R, E, A](iterator: ZManaged[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
-    managed(iterator).flatMap(StreamEffect.fromJavaIterator)
+  def fromJavaIteratorManaged[R, A](
+    iterator: ZManaged[R, Throwable, ju.Iterator[A]]
+  ): ZStream[R, Throwable, A] =
+    managed(iterator).flatMap(StreamEffect.fromJavaIterator(_))
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values

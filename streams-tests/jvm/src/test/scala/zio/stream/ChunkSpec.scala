@@ -12,6 +12,8 @@ case class Value(i: Int) extends AnyVal
 
 object ChunkSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("ChunkSpec")(
     testM("apply") {
       check(chunkWithIndex(Gen.unit)) {
@@ -47,7 +49,7 @@ object ChunkSpec extends ZIOBaseSpec {
       },
       testM("mapAccumM error") {
         Chunk(1, 1, 1).mapAccumM(0)((_, _) => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("map") {
       val fn = Gen.function[Random with Sized, Int, Int](intGen)
@@ -59,7 +61,7 @@ object ChunkSpec extends ZIOBaseSpec {
       }),
       testM("mapM error") {
         Chunk(1, 2, 3).mapM(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("flatMap") {
       val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
@@ -101,7 +103,7 @@ object ChunkSpec extends ZIOBaseSpec {
       }),
       testM("filterM error") {
         Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("drop chunk") {
       check(largeChunks(intGen), intGen)((chunk, n) => assert(chunk.drop(n).toSeq)(equalTo(chunk.toSeq.drop(n))))
@@ -173,7 +175,7 @@ object ChunkSpec extends ZIOBaseSpec {
       },
       testM("collectM chunk that fails") {
         Chunk(1, 2).collectM { case 2 => IO.fail("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     suite("collectWhile")(
       test("collectWhile empty Chunk") {
@@ -201,7 +203,7 @@ object ChunkSpec extends ZIOBaseSpec {
       },
       testM("collectWhileM chunk that fails") {
         Chunk(1, 2).collectWhileM { case _ => IO.fail("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
-      }
+      } @@ zioTag(errors)
     ),
     testM("foreach") {
       check(mediumChunks(intGen)) { c =>

@@ -14,36 +14,33 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.mock.internal
 
-import zio.test.Assertion
+import zio.Has
+import zio.test.mock.{ Expectation, Method }
 
 /**
- * A `MockException` is used internally by the mock framework to
- * signal failed expectations to the test framework.
+ * A `MockException` is used internally by the mock framework to signal
+ * failed expectations to the test framework.
  */
 sealed trait MockException extends Throwable
 
 object MockException {
 
-  final case class InvalidArgumentsException[M, I, A](
-    method: Method[M, I, A],
-    args: Any,
-    assertion: Assertion[Any]
+  final case class UnsatisfiedExpectationsException[R <: Has[_]](
+    expectation: Expectation[R]
   ) extends MockException
 
-  final case class InvalidMethodException[M0, I0, A0, M1, I1, A1](
-    method: Method[M0, I0, A0],
-    expectedMethod: Method[M1, I1, A1],
-    assertion: Assertion[I1]
-  ) extends MockException
-
-  final case class UnmetExpectationsException[M, I >: Nothing, A >: Nothing](
-    expectations: List[(Method[M, I, A], Assertion[I])]
-  ) extends MockException
-
-  final case class UnexpectedCallExpection[M, I >: Nothing, A >: Nothing](
-    method: Method[M, I, A],
+  final case class UnexpectedCallExpection[R <: Has[_], I >: Nothing, A >: Nothing](
+    method: Method[R, I, A],
     args: Any
+  ) extends MockException
+
+  final case class InvalidRangeException(
+    range: Range
+  ) extends MockException
+
+  final case class InvalidCallException(
+    failedMatches: List[InvalidCall]
   ) extends MockException
 }

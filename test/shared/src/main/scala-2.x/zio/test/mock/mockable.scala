@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,19 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package zio.test.mock
 
-import zio.Has
+import scala.annotation.{ compileTimeOnly, StaticAnnotation }
 
-/**
- * The `Mockable[A]` represents a mock service builder used by the mock
- * framework to construct a mock implementation from a mock.
- */
-trait Mockable[A] {
-
-  /**
-   * Provided a mock constructs a mock implementation of service `A`.
-   */
-  def environment(mock: Mock): Has[A]
+@compileTimeOnly("enable macro paradise to expand macro annotations")
+class mockable[A] extends StaticAnnotation {
+  def macroTransform(annottees: Any*): Any = macro MockableMacro.impl
 }

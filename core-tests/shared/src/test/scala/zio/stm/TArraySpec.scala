@@ -21,6 +21,8 @@ import zio.test._
 
 object TArraySpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("TArraySpec")(
     suite("apply")(
       testM("happy-path") {
@@ -61,7 +63,7 @@ object TArraySpec extends ZIOBaseSpec {
                      case Some(i) if i > n => i.toString
                    }.commit
         } yield assert(result)(isNone)
-      },
+      } @@ zioTag(errors),
       testM("is atomic") {
         for {
           tArray <- makeStairWithHoles(N).commit
@@ -97,7 +99,7 @@ object TArraySpec extends ZIOBaseSpec {
                      case Some(i) if i > n => STM.succeedNow(i.toString)
                    }.commit
         } yield assert(result)(isNone)
-      },
+      } @@ zioTag(errors),
       testM("is atomic") {
         for {
           tArray <- makeStairWithHoles(N).commit
@@ -116,7 +118,7 @@ object TArraySpec extends ZIOBaseSpec {
                      case _                => STM.fail(boom)
                    }.commit.flip
         } yield assert(result)(equalTo(boom))
-      },
+      } @@ zioTag(errors),
       testM("succeeds on errors after result found") {
         for {
           tArray <- makeStairWithHoles(n).commit
@@ -125,7 +127,7 @@ object TArraySpec extends ZIOBaseSpec {
                      case Some(7)          => STM.fail(boom)
                    }.commit
         } yield assert(result)(isSome(equalTo("4")))
-      }
+      } @@ zioTag(errors)
     ),
     suite("contains")(
       testM("true when in the array") {
@@ -231,13 +233,13 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.existsM(i => if (i == 4) STM.fail(boom) else STM.succeedNow(i == 5)).commit.flip
         } yield assert(result)(equalTo(boom))
-      },
+      } @@ zioTag(errors),
       testM("fails for errors after witness") {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.existsM(i => if (i == 6) STM.fail(boom) else STM.succeedNow(i == 5)).commit.flip
         } yield assert(result)(equalTo(boom))
-      }
+      } @@ zioTag(errors)
     ),
     suite("find")(
       testM("finds correctly") {
@@ -257,7 +259,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.find(_ > n).commit
         } yield assert(result)(isNone)
-      },
+      } @@ zioTag(errors),
       testM("is atomic") {
         for {
           tArray    <- makeStair(N).commit
@@ -285,7 +287,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.findLast(_ > n).commit
         } yield assert(result)(isNone)
-      },
+      } @@ zioTag(errors),
       testM("is atomic") {
         for {
           tArray    <- makeStair(N).commit
@@ -313,7 +315,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.findLastM(i => STM.succeedNow(i > n)).commit
         } yield assert(result)(isNone)
-      },
+      } @@ zioTag(errors),
       testM("is atomic") {
         for {
           tArray    <- makeStair(N).commit
@@ -333,7 +335,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.findLastM(i => if (i == 8) STM.fail(boom) else STM.succeedNow(i % 7 == 0)).commit.flip
         } yield assert(result)(equalTo(boom))
-      }
+      } @@ zioTag(errors)
     ),
     suite("findM")(
       testM("finds correctly") {
@@ -353,7 +355,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.findM(i => STM.succeedNow(i > n)).commit
         } yield assert(result)(isNone)
-      },
+      } @@ zioTag(errors),
       testM("is atomic") {
         for {
           tArray    <- makeStair(N).commit
@@ -367,7 +369,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.findM(i => if (i == 4) STM.fail(boom) else STM.succeedNow(i % 5 == 0)).commit.flip
         } yield assert(result)(equalTo(boom))
-      },
+      } @@ zioTag(errors),
       testM("succeeds on errors after result found") {
         for {
           tArray <- makeStair(n).commit
@@ -416,7 +418,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeTArray(N)(1).commit
           res    <- tArray.foldM(0)(failInTheMiddle).commit.either
         } yield assert(res)(isLeft(equalTo(boom)))
-      }
+      } @@ zioTag(errors)
     ),
     suite("forall")(
       testM("detects satisfaction") {
@@ -462,13 +464,13 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.forallM(i => if (i == 4) STM.fail(boom) else STM.succeedNow(i != 5)).commit.flip
         } yield assert(result)(equalTo(boom))
-      },
+      } @@ zioTag(errors),
       testM("fails for errors after counterexample") {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.forallM(i => if (i == 6) STM.fail(boom) else STM.succeedNow(i == 5)).commit.flip
         } yield assert(result)(equalTo(boom))
-      }
+      } @@ zioTag(errors)
     ),
     suite("foreach")(
       testM("side-effect is transactional") {
@@ -632,7 +634,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.indexWhereM(i => if (i == 4) STM.fail(boom) else STM.succeedNow(i % 5 == 0)).commit.flip
         } yield assert(result)(equalTo(boom))
-      },
+      } @@ zioTag(errors),
       testM("succeeds on errors after result found") {
         for {
           tArray <- makeStair(n).commit
@@ -768,7 +770,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeTArray(n)(0).commit
           result <- tArray.updateM(0, _ => STM.fail(boom)).commit.either
         } yield assert(result)(isLeft(equalTo(boom)))
-      }
+      } @@ zioTag(errors)
     ),
     suite("maxOption")(
       testM("computes correct maximum") {
@@ -858,7 +860,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.reduceOptionM((a, b) => if (b == 4) STM.fail(boom) else STM.succeedNow(a + b)).commit.flip
         } yield assert(result)(equalTo(boom))
-      }
+      } @@ zioTag(errors)
     )
   )
 

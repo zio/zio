@@ -11,6 +11,8 @@ import zio.test.environment.Live
 
 object ZQueueSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("ZQueueSpec")(
     testM("sequential offer and take") {
       for {
@@ -84,7 +86,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         _     <- f.interrupt
         size  <- queue.size
       } yield assert(size)(equalTo(0))
-    },
+    } @@ zioTag(interruption),
     testM("offer interruption") {
       for {
         queue <- Queue.bounded[Int](2)
@@ -95,7 +97,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         _     <- f.interrupt
         size  <- queue.size
       } yield assert(size)(equalTo(2))
-    },
+    } @@ zioTag(interruption),
     testM("queue is ordered") {
       for {
         queue <- Queue.unbounded[Int]
@@ -265,7 +267,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         l2      <- queue.takeAll
       } yield assert(l1)(equalTo(orders1)) &&
         assert(l2)(equalTo(List.empty[Int]))
-    },
+    } @@ zioTag(interruption),
     testM("offerAll with takeAll and back pressure, check ordering") {
       for {
         queue  <- Queue.bounded[Int](64)
@@ -680,7 +682,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         _ <- q.offer(IO.fail("Ouch"))
         v <- q.take.run
       } yield assert(v)(fails(equalTo("Ouch")))
-    },
+    } @@ zioTag(errors),
     testM("queue both") {
       for {
         q1 <- Queue.bounded[Int](100)
@@ -696,6 +698,13 @@ object ZQueueSpec extends ZIOBaseSpec {
         _ <- q.offer(10)
         v <- q.take
       } yield assert(v)(equalTo("10"))
+    },
+    testM("queue dimap") {
+      for {
+        q <- Queue.bounded[String](100).map(_.dimap[Int, Int](_.toString, _.toInt))
+        _ <- q.offer(10)
+        v <- q.take
+      } yield assert(v)(equalTo(10))
     },
     testM("queue filterInput") {
       for {

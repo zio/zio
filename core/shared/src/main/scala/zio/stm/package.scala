@@ -18,6 +18,10 @@ package zio
 
 package object stm {
 
-  type STM[+E, +A] = ZSTM[Any, E, A]
+  type RSTM[-R, +A]  = ZSTM[R, Throwable, A]
+  type URSTM[-R, +A] = ZSTM[R, Nothing, A]
+  type STM[+E, +A]   = ZSTM[Any, E, A]
+  type USTM[+A]      = ZSTM[Any, Nothing, A]
+  type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
 
 }
