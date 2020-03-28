@@ -21,34 +21,30 @@ import zio.{ Chunk, Has, UIO, URLayer, ZLayer }
 
 object MockRandom {
 
-  sealed trait Tag[I, A] extends Method[Random, I, A] {
-    def envBuilder = MockRandom.envBuilder
-  }
-
   object Between {
-    object _0 extends Tag[(Long, Long), Long]
-    object _1 extends Tag[(Int, Int), Int]
-    object _2 extends Tag[(Float, Float), Float]
-    object _3 extends Tag[(Double, Double), Double]
+    object _0 extends Method[Random, (Long, Long), Nothing, Long](compose)
+    object _1 extends Method[Random, (Int, Int), Nothing, Int](compose)
+    object _2 extends Method[Random, (Float, Float), Nothing, Float](compose)
+    object _3 extends Method[Random, (Double, Double), Nothing, Double](compose)
   }
-  object NextBoolean  extends Tag[Unit, Boolean]
-  object NextBytes    extends Tag[Int, Chunk[Byte]]
-  object NextDouble   extends Tag[Unit, Double]
-  object NextFloat    extends Tag[Unit, Float]
-  object NextGaussian extends Tag[Unit, Double]
+  object NextBoolean  extends Method[Random, Unit, Nothing, Boolean](compose)
+  object NextBytes    extends Method[Random, Int, Nothing, Chunk[Byte]](compose)
+  object NextDouble   extends Method[Random, Unit, Nothing, Double](compose)
+  object NextFloat    extends Method[Random, Unit, Nothing, Float](compose)
+  object NextGaussian extends Method[Random, Unit, Nothing, Double](compose)
   object NextInt {
-    object _0 extends Tag[Int, Int]
-    object _1 extends Tag[Unit, Int]
+    object _0 extends Method[Random, Int, Nothing, Int](compose)
+    object _1 extends Method[Random, Unit, Nothing, Int](compose)
   }
   object NextLong {
-    object _0 extends Tag[Unit, Long]
-    object _1 extends Tag[Long, Long]
+    object _0 extends Method[Random, Unit, Nothing, Long](compose)
+    object _1 extends Method[Random, Long, Nothing, Long](compose)
   }
-  object NextPrintableChar extends Tag[Unit, Char]
-  object NextString        extends Tag[Int, String]
-  object Shuffle           extends Tag[List[Any], List[Any]]
+  object NextPrintableChar extends Method[Random, Unit, Nothing, Char](compose)
+  object NextString        extends Method[Random, Int, Nothing, String](compose)
+  object Shuffle           extends Method[Random, List[Any], Nothing, List[Any]](compose)
 
-  private lazy val envBuilder: URLayer[Has[Proxy], Random] =
+  private lazy val compose: URLayer[Has[Proxy], Random] =
     ZLayer.fromService(invoke =>
       new Random.Service {
         def between(minInclusive: Long, maxExclusive: Long): UIO[Long] =

@@ -31,8 +31,8 @@ object MockException {
     expectation: Expectation[R]
   ) extends MockException
 
-  final case class UnexpectedCallExpection[R <: Has[_], I >: Nothing, A >: Nothing](
-    method: Method[R, I, A],
+  final case class UnexpectedCallExpection[R <: Has[_], I >: Nothing, E >: Nothing, A >: Nothing](
+    method: Method[R, I, E, A],
     args: Any
   ) extends MockException
 

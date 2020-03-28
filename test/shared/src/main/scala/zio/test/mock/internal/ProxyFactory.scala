@@ -16,6 +16,8 @@
 
 package zio.test.mock.internal
 
+import scala.util.Try
+
 import zio.test.Assertion
 import zio.test.mock.{ Expectation, Method, Proxy }
 import zio.{ Has, IO, Promise, Tagged, UIO, ULayer, ZIO, ZLayer }
@@ -31,7 +33,7 @@ object ProxyFactory {
    */
   def mockProxy[R <: Has[_]: Tagged](state: State[R]): ULayer[Has[Proxy]] =
     ZLayer.succeed(new Proxy {
-      def invoke[RIn <: Has[_], ROut, I, E, A](invokedMethod: Method[RIn, I, A], args: I): ZIO[ROut, E, A] = {
+      def invoke[RIn <: Has[_], ROut, I, E, A](invokedMethod: Method[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
 
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] =
           scopes match {
@@ -41,18 +43,17 @@ object ProxyFactory {
                 case anyExpectation if anyExpectation.saturated =>
                   findMatching(nextScopes)
 
-                case Call(method, assertion, _, _, _, _) if invokedMethod != method =>
-                  handleLeafFailure(InvalidMethod(invokedMethod, method, assertion), nextScopes)
-
-                case self @ Call(_, assertion, returns, _, _, invocations) =>
+                case call @ Call(method, assertion, returns, _, _, invocations) if invokedMethod isEqual method =>
                   assertion.asInstanceOf[Assertion[I]].test(args).flatMap {
                     case true =>
                       val result = returns.asInstanceOf[I => IO[E, A]](args)
-                      val updated = self.copy(
-                        satisfied = true,
-                        saturated = true,
-                        invocations = id :: invocations
-                      )
+                      val updated = call
+                        .asInstanceOf[Call[R, I, E, A]]
+                        .copy(
+                          satisfied = true,
+                          saturated = true,
+                          invocations = id :: invocations
+                        )
 
                       UIO.succeed(Matched[R, E, A](update(updated), result))
 
@@ -62,6 +63,13 @@ object ProxyFactory {
                         nextScopes
                       )
                   }
+
+                case Call(method, assertion, _, _, _, _) =>
+                  val invalidCall =
+                    if (invokedMethod.id == method.id) InvalidPolyType(invokedMethod, args, method, assertion)
+                    else InvalidMethod(invokedMethod, method, assertion)
+
+                  handleLeafFailure(invalidCall, nextScopes)
 
                 case self @ Chain(children, _, _, invocations) =>
                   children.zipWithIndex.collectFirst {
@@ -164,11 +172,18 @@ object ProxyFactory {
                         if (updatedChild.saturated) resetTree(updatedChild)
                         else updatedChild
 
+                      def inRange(value: Int): Boolean =
+                        if (range.end != -1) range contains value
+                        else {
+                          val fakeUnboundedRange = range.start to Int.MaxValue by range.step
+                          fakeUnboundedRange contains value
+                        }
+
                       update(
                         self.copy(
                           child = subtree,
-                          satisfied = (range contains updatedStarted) && updatedChild.satisfied,
-                          saturated = range.max == updatedCompleted,
+                          satisfied = inRange(updatedStarted) && updatedChild.satisfied,
+                          saturated = Try(range.max == updatedCompleted).getOrElse(false),
                           invocations = id :: invocations,
                           started = updatedStarted,
                           completed = updatedCompleted

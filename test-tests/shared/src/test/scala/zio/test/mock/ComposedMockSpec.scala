@@ -8,17 +8,17 @@ import zio.system.System
 import zio.test.{ suite, Assertion, TestAspect, ZIOBaseSpec }
 import zio.{ clock, console, random, system }
 
-object MockComposedEnvSpec extends ZIOBaseSpec with MockSpecUtils {
+object ComposedMockSpec extends ZIOBaseSpec with MockSpecUtils {
 
   import Assertion._
   import Expectation._
   import TestAspect._
 
-  def spec = suite("MockComposedEnvSpec")(
+  def spec = suite("ComposedMockSpec")(
     suite("mocking composed environments")(
       {
-        val cmd1     = MockClock.NanoTime returns value(42L)
-        val cmd2     = MockConsole.PutStrLn(equalTo("42")) returns unit
+        val cmd1     = MockClock.NanoTime(value(42L))
+        val cmd2     = MockConsole.PutStrLn(equalTo("42"))
         val composed = (cmd1 ++ cmd2)
 
         val program =
@@ -29,10 +29,10 @@ object MockComposedEnvSpec extends ZIOBaseSpec with MockSpecUtils {
 
         testSpecComposed[Clock with Console, Nothing, Unit]("Console with Clock")(composed, program, isUnit)
       }, {
-        val cmd1 = MockRandom.NextInt._1 returns value(42)
-        val cmd2 = MockClock.Sleep(equalTo(42.seconds)) returns unit
-        val cmd3 = MockSystem.Property(equalTo("foo")) returns value(None)
-        val cmd4 = MockConsole.PutStrLn(equalTo("None")) returns unit
+        val cmd1 = MockRandom.NextInt._1(value(42))
+        val cmd2 = MockClock.Sleep(equalTo(42.seconds))
+        val cmd3 = MockSystem.Property(equalTo("foo"), value(None))
+        val cmd4 = MockConsole.PutStrLn(equalTo("None"))
 
         val composed = (cmd1 ++ cmd2 ++ cmd3 ++ cmd4)
 

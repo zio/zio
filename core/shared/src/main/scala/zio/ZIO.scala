@@ -780,6 +780,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def interruptStatus(flag: InterruptStatus): ZIO[R, E, A] = new ZIO.InterruptStatus(self, flag)
 
   /**
+   * Returns whether this effect is a failure.
+   */
+  final def isFailure: ZIO[R, Nothing, Boolean] =
+    fold(_ => true, _ => false)
+
+  /**
+   * Returns whether this effect is a success.
+   */
+  final def isSuccess: ZIO[R, Nothing, Boolean] =
+    fold(_ => false, _ => true)
+
+  /**
    * Joins this effect with the specified effect.
    */
   final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that

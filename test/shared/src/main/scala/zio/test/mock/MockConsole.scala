@@ -23,15 +23,11 @@ import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
 object MockConsole {
 
-  sealed trait Tag[I, A] extends Method[Console, I, A] {
-    def envBuilder = MockConsole.envBuilder
-  }
+  object PutStr   extends Method[Console, String, Nothing, Unit](compose)
+  object PutStrLn extends Method[Console, String, Nothing, Unit](compose)
+  object GetStrLn extends Method[Console, Unit, IOException, String](compose)
 
-  object PutStr   extends Tag[String, Unit]
-  object PutStrLn extends Tag[String, Unit]
-  object GetStrLn extends Tag[Unit, String]
-
-  private lazy val envBuilder: URLayer[Has[Proxy], Console] =
+  private lazy val compose: URLayer[Has[Proxy], Console] =
     ZLayer.fromService(invoke =>
       new Console.Service {
         def putStr(line: String): UIO[Unit]   = invoke(PutStr, line)

@@ -10,9 +10,9 @@ object ExpectationSpec extends ZIOBaseSpec with MockSpecUtils {
   import Expectation._
   import ModuleMock._
 
-  lazy val A = SingleParam(equalTo(1)) returns value("foo")
-  lazy val B = Static returns value("bar")
-  lazy val C = Looped(equalTo(1)) returns never
+  lazy val A = SingleParam(equalTo(1), value("foo"))
+  lazy val B = Static(value("bar"))
+  lazy val C = Looped(equalTo(1), never)
 
   def spec = suite("ExpectationSpec")(
     suite("and")(
