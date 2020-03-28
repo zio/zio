@@ -289,15 +289,15 @@ object TestAspect extends TimeoutVariants {
    * An aspect that makes a test that failed for any reason pass. Note that if
    * the test passes this aspect will make it fail.
    */
-  val failure: TestAspectPoly =
-    failure(Assertion.anything)
+  val failing: TestAspectPoly =
+    failing(Assertion.anything)
 
   /**
    * An aspect that makes a test that failed for the specified failure pass.
    * Note that the test will fail for other failures and also if it passes
    * correctly.
    */
-  def failure[E0](p: Assertion[TestFailure[E0]]): TestAspect[Nothing, Any, Nothing, E0] =
+  def failing[E0](p: Assertion[TestFailure[E0]]): TestAspect[Nothing, Any, Nothing, E0] =
     new TestAspect.PerTest[Nothing, Any, Nothing, E0] {
       def perTest[R, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] = {
         lazy val succeed = ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
@@ -440,7 +440,7 @@ object TestAspect extends TimeoutVariants {
    */
   def nonTermination(duration: Duration): TestAspectAtLeastR[Live] =
     timeout(duration) >>>
-      failure(
+      failing(
         isCase[TestFailure[Any], Throwable](
           "Runtime", {
             case TestFailure.Runtime(cause) => cause.dieOption

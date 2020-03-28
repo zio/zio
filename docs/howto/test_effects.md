@@ -477,7 +477,7 @@ object MySpec extends DefaultRunnableSpec {
     } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
     test("A failing test... that passes") {
       assert(true)(isFalse)
-    } @@ failure, //@@ failure turns a failing test into a passing test
+    } @@ failing, //@@ failing turns a failing test into a passing test
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
       assert(false)(isTrue)
     } @@ jvmOnly           // only run on the JVM
@@ -485,4 +485,4 @@ object MySpec extends DefaultRunnableSpec {
       @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
   ) @@ timeout(60.seconds)   //apply a timeout to the whole suite
 }
-``` 
+```
