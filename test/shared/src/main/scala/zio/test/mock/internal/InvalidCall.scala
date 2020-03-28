@@ -21,21 +21,28 @@ import zio.test.Assertion
 import zio.test.mock.Method
 
 /**
- * An `InvalidCall` describes failed expectation.
+ * An `InvalidCall` represents failed expectation.
  */
 sealed trait InvalidCall
 
 object InvalidCall {
 
-  final case class InvalidArguments[R <: Has[_], I, A](
-    method: Method[R, I, A],
+  final case class InvalidArguments[R <: Has[_], I, E, A](
+    method: Method[R, I, E, A],
     args: Any,
     assertion: Assertion[Any]
   ) extends InvalidCall
 
-  final case class InvalidMethod[R0 <: Has[_], R1 <: Has[_], In0, In1, A0, A1](
-    method: Method[R0, In0, A0],
-    expectedMethod: Method[R1, In1, A1],
+  final case class InvalidMethod[R0 <: Has[_], R1 <: Has[_], In0, In1, E0, E1, A0, A1](
+    method: Method[R0, In0, E0, A0],
+    expectedMethod: Method[R1, In1, E1, A1],
+    assertion: Assertion[In1]
+  ) extends InvalidCall
+
+  final case class InvalidPolyType[R0 <: Has[_], R1 <: Has[_], In0, In1, E0, E1, A0, A1](
+    method: Method[R0, In0, E0, A0],
+    args: Any,
+    expectedMethod: Method[R1, In1, E1, A1],
     assertion: Assertion[In1]
   ) extends InvalidCall
 }
