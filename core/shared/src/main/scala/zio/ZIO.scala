@@ -1063,6 +1063,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    *
+   * If your environment has the type `Has[_]`,
+   * please see [[zio.ZIO.provideSomeLayer]]
+   *
    * {{{
    * val effect: ZIO[Console with Logging, Nothing, Unit] = ???
    *
