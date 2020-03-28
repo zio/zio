@@ -148,6 +148,7 @@ In adherence with environmental concepts, the absence of a required input is rep
 
 There are many ways to create a `ZLayer`, here's an incomplete list:
  - `ZLayer.succeed` or `ZIO.asService`  to create a layer from an existing service
+ - `ZLayer.succeedMany` to create a layer from a value that's one or more services
  - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
  - `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
  - `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `ZManaged`
