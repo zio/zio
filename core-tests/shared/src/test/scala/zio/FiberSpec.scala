@@ -119,7 +119,29 @@ object FiberSpec extends ZIOBaseSpec {
       testM("collectAll") {
         assertM(Fiber.collectAll(fibers).join)(anything)
       }
-    ) @@ sequential
+    ) @@ sequential,
+    suite("track blockingOn")(
+      testM("in await") {
+        for {
+          p    <- Promise.make[Nothing, Unit]
+          f1   <- p.await.fork
+          f1id <- f1.id
+          f2   <- f1.await.fork
+          dump <- f2.dump
+        } yield assert(dump.status)(
+          isSubtype[Fiber.Status.Suspended](hasField("blockingOn", _.blockingOn, equalTo(List(f1id))))
+        )
+      } @@ eventually,
+      testM("in race") {
+        for {
+          p    <- Promise.make[Nothing, Unit]
+          f    <- p.await.race(p.await).fork
+          dump <- f.dump
+        } yield assert(dump.status)(
+          isSubtype[Fiber.Status.Suspended](hasField("blockingOn", _.blockingOn, hasSize(equalTo(2))))
+        )
+      } @@ eventually
+    )
   )
 
   val (initial, update) = ("initial", "update")
