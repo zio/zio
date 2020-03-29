@@ -84,11 +84,12 @@ trait Platform { self =>
    */
   def withFiberDumpOnInterrupt: Platform =
     new Platform.Proxy(self) {
-      withInterruptHandler{
+      withInterruptHandler {
         Fiber.dumpAllStr.map(fibs => println(fibs))
         ()
       }
     }
+
   /**
    * Use SIGUSR2 signal to interrupt runtime
    *
@@ -114,11 +115,11 @@ trait Platform { self =>
 }
 object Platform extends PlatformSpecific {
   abstract class Proxy(self: Platform) extends Platform {
-    def executor: Executor                     = self.executor
-    def tracing: Tracing                       = self.tracing
-    def fatal(t: Throwable): Boolean           = self.fatal(t)
-    def reportFatal(t: Throwable): Nothing     = self.reportFatal(t)
-    def reportFailure(cause: Cause[Any]): Unit = self.reportFailure(cause)
+    def executor: Executor                           = self.executor
+    def tracing: Tracing                             = self.tracing
+    def fatal(t: Throwable): Boolean                 = self.fatal(t)
+    def reportFatal(t: Throwable): Nothing           = self.reportFatal(t)
+    def reportFailure(cause: Cause[Any]): Unit       = self.reportFailure(cause)
     def fiberDumpOnInterrupt(handler: Unit): Boolean = self.withInterruptHandler(handler)
   }
 }

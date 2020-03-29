@@ -198,7 +198,7 @@ object Runtime {
     override final def withFatal(f: Throwable => Boolean): Runtime.Managed[R] =
       mapPlatform(_.withFatal(f))
 
-    override def withFiberDumpOnInterrupt: Runtime.Managed[R] = 
+    override def withFiberDumpOnInterrupt: Runtime.Managed[R] =
       mapPlatform(_.withFiberDumpOnInterrupt)
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
