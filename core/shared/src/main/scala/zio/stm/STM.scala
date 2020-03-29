@@ -155,8 +155,14 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.ifM]]
    */
+  def ifM[E](b: => Boolean): ZSTM.IfM[Any, E] =
+    ZSTM.ifM(b)
+
+  /**
+   * @see See [[zio.stm.ZSTM.ifM]]
+   */
   def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
-    new ZSTM.IfM(b)
+    ZSTM.ifM(b)
 
   /**
    * @see See [[zio.stm.ZSTM.iterate]]

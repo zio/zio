@@ -1271,6 +1271,8 @@ object ZManaged {
   }
 
   final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, A](onTrue: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
+      b.flatMap(b => if (b) onTrue.unit else unit)
     def apply[R1 <: R, E1 >: E, A](
       onTrue: => ZManaged[R1, E1, A],
       onFalse: => ZManaged[R1, E1, A]
@@ -1600,6 +1602,12 @@ object ZManaged {
    * Returns the identity effectful function, which performs no effects
    */
   def identity[R]: ZManaged[R, Nothing, R] = fromFunction(scala.Predef.identity)
+
+  /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
+  def ifM[R, E](b: => Boolean): ZManaged.IfM[R, E] =
+    ZManaged.ifM(succeed(b))
 
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.

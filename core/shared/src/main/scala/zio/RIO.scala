@@ -494,8 +494,14 @@ object RIO {
   /**
    * @see [[zio.ZIO.ifM]]
    */
+  def ifM[R](b: => Boolean): ZIO.IfM[R, Throwable] =
+    ZIO.ifM(b)
+
+  /**
+   * @see [[zio.ZIO.ifM]]
+   */
   def ifM[R](b: RIO[R, Boolean]): ZIO.IfM[R, Throwable] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see [[zio.ZIO.infinity]]

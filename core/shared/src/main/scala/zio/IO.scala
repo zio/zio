@@ -463,8 +463,14 @@ object IO {
   /**
    * @see [[zio.ZIO.ifM]]
    */
+  def ifM[E](b: => Boolean): ZIO.IfM[Any, E] =
+    ZIO.ifM(b)
+
+  /**
+   * @see [[zio.ZIO.ifM]]
+   */
   def ifM[E](b: IO[E, Boolean]): ZIO.IfM[Any, E] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see See [[zio.ZIO.interrupt]]

@@ -463,8 +463,14 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see [[zio.ZIO.ifM]]
    */
+  def ifM(b: => Boolean): ZIO.IfM[Any, Throwable] =
+    ZIO.ifM(b)
+
+  /**
+   * @see [[zio.ZIO.ifM]]
+   */
   def ifM(b: Task[Boolean]): ZIO.IfM[Any, Throwable] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see See [[zio.ZIO.interrupt]]

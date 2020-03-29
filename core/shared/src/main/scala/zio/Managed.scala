@@ -183,8 +183,14 @@ object Managed {
   /**
    * See [[zio.ZManaged.ifM]]
    */
+  def ifM[E](b: => Boolean): ZManaged.IfM[Any, E] =
+    ZManaged.ifM(b)
+
+  /**
+   * See [[zio.ZManaged.ifM]]
+   */
   def ifM[E](b: Managed[E, Boolean]): ZManaged.IfM[Any, E] =
-    new ZManaged.IfM(b)
+    ZManaged.ifM(b)
 
   /**
    * See [[zio.ZManaged.interrupt]]

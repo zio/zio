@@ -437,8 +437,14 @@ object URIO {
   /**
    * @see [[zio.ZIO.ifM]]
    */
+  def ifM[R](b: => Boolean): ZIO.IfM[R, Nothing] =
+    ZIO.ifM(b)
+
+  /**
+   * @see [[zio.ZIO.ifM]]
+   */
   def ifM[R](b: URIO[R, Boolean]): ZIO.IfM[R, Nothing] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see [[zio.ZIO.infinity]]

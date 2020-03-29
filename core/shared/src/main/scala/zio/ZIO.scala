@@ -2794,6 +2794,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
+  def ifM[R, E](b: => Boolean): ZIO.IfM[R, E] =
+    ifM(succeed(b))
+
+  /**
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   */
   def ifM[R, E](b: ZIO[R, E, Boolean]): ZIO.IfM[R, E] =
     new ZIO.IfM(b)
 
@@ -3375,6 +3381,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class IfM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, A](onTrue: => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
+      b.flatMap(b => if (b) onTrue.unit else unit)
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZIO[R1, E1, A], onFalse: => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
   }
