@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.console.Console
 import zio.internal.Tracing
 import zio.internal.tracing.{ TracingConfig, ZIOFn }
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
@@ -36,31 +35,6 @@ trait Runtime[+R] {
    * necessary to bootstrap execution of tasks.
    */
   val platform: Platform
-
-  /**
-   * Add generic signal handler
-   *
-   * @param signal to listen for
-   * @param handler to run on receiving signal
-   */
-  def addSignalHandler(signal: String)(handler: URIO[R, Unit]): Boolean =
-    Platform.addSignalHandler(signal)(() => unsafeRun(handler))
-
-  /**
-   * Use SIGUSR2 signal to interrupt runtime
-   *
-   * @param handler to run when SIGUSR2 is received
-   */
-  def addInterruptHandler(handler: URIO[R, Unit]): Boolean =
-    addSignalHandler("USR2")(handler)
-
-  /**
-   * Print Fiber Dump of all fibers when interrupt signal received
-   *
-   * @param ev is the console environment
-   */
-  def printFiberDumpOnInterrupt(implicit ev: R <:< Console): Boolean =
-    addInterruptHandler(Fiber.dumpAllStr.flatMap(console.putStrLn(_)).provideSome(ev))
 
   /**
    * Constructs a new `Runtime` by mapping the environment.
@@ -170,6 +144,11 @@ trait Runtime[+R] {
   def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withFatal(f))
 
   /**
+   * Constructs a new `Runtime` with the specified signal handler.
+   */
+  def withFiberDumpOnInterrupt: Runtime[R] = mapPlatform(_.withFiberDumpOnInterrupt)
+
+  /**
    * Constructs a new `Runtime` with the fatal error reporter.
    */
   def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapPlatform(_.withReportFatal(f))
@@ -218,6 +197,9 @@ object Runtime {
 
     override final def withFatal(f: Throwable => Boolean): Runtime.Managed[R] =
       mapPlatform(_.withFatal(f))
+
+    override def withFiberDumpOnInterrupt: Runtime.Managed[R] = 
+      mapPlatform(_.withFiberDumpOnInterrupt)
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
       mapPlatform(_.withReportFatal(f))

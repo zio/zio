@@ -17,6 +17,7 @@
 package zio.internal
 
 import zio.Cause
+import zio.Fiber
 import zio.internal.tracing.TracingConfig
 
 /**
@@ -77,10 +78,39 @@ trait Platform { self =>
    */
   def reportFailure(cause: Cause[Any]): Unit
 
+  /**
+   * Print Fiber Dump of all fibers when interrupt signal received
+   *
+   */
+  def withFiberDumpOnInterrupt: Platform =
+    new Platform.Proxy(self) {
+      withInterruptHandler{
+        Fiber.dumpAllStr.map(fibs => println(fibs))
+        ()
+      }
+    }
+  /**
+   * Use SIGUSR2 signal to interrupt runtime
+   *
+   * @param handler to run when SIGUSR2 is received
+   */
+  def withInterruptHandler(handler: Unit): Boolean =
+    withSignalHandler("USR2")(handler)
+
   def withReportFailure(f: Cause[Any] => Unit): Platform =
     new Platform.Proxy(self) {
       override def reportFailure(cause: Cause[Any]): Unit = f(cause)
     }
+
+  /**
+   * Add generic signal handler
+   *
+   * @param signal to listen for
+   * @param handler to run on receiving signal
+   */
+  def withSignalHandler(signal: String)(handler: Unit): Boolean =
+    Platform.addSignalHandler(signal)(() => handler)
+
 }
 object Platform extends PlatformSpecific {
   abstract class Proxy(self: Platform) extends Platform {
@@ -89,5 +119,6 @@ object Platform extends PlatformSpecific {
     def fatal(t: Throwable): Boolean           = self.fatal(t)
     def reportFatal(t: Throwable): Nothing     = self.reportFatal(t)
     def reportFailure(cause: Cause[Any]): Unit = self.reportFailure(cause)
+    def fiberDumpOnInterrupt(handler: Unit): Boolean = self.withInterruptHandler(handler)
   }
 }

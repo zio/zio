@@ -36,7 +36,7 @@ private[internal] trait PlatformSpecific {
   /**
    * Adds a signal handler that executes the specified action on receiving a signal.
    */
-  def addSignalHandler(signal: String)(handler: () => Unit): Unit = ()
+  def addSignalHandler(signal: String)(handler: () => Unit): Boolean = true
 
   /**
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
