@@ -32,7 +32,7 @@ private[zio] trait VersionSpecific {
   type TaggedF22[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = Tag.auto.T[F]
 
   private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
-    left <:< right
+     left <:< right
 
   private[zio] def taggedTagType[A](tagged: Tagged[A]): TagType =
     tagged.tag

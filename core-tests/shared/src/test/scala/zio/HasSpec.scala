@@ -35,17 +35,6 @@ object HasSpec extends ZIOBaseSpec {
 
   def spec = suite("HasSpec")(
     suite("monomorphic types")(
-      zio.test.test("Access topmost supertype") {
-        val hasDog: Has[Dog] = Has(dog1)
-
-        assert(hasDog.get[Any])(anything) &&
-        assert(hasDog.get[AnyRef])(anything)
-      },
-      zio.test.test("Access any supertype") {
-        val hasDog: Has[Dog] = Has(dog1)
-
-        assert(hasDog.get[Animal])(equalTo(dog1))
-      },
       zio.test.test("Modules sharing common parent are independent") {
         val hasBoth = Has(dog1).add[Cat](cat1)
 
@@ -78,17 +67,6 @@ object HasSpec extends ZIOBaseSpec {
       } @@ exceptDotty
     ),
     suite("covariant types")(
-      zio.test.test("Access topmost supertype") {
-        val hasDogs: Has[IList[Dog]] = Has(dogs1)
-
-        assert(hasDogs.get[IList[Any]])(anything) &&
-        assert(hasDogs.get[IList[AnyRef]])(anything)
-      },
-      zio.test.test("Access any supertype") {
-        val hasDogs: Has[IList[Dog]] = Has(dogs1)
-
-        assert(hasDogs.get[IList[Animal]])(equalTo(dogs1))
-      },
       zio.test.test("Modules sharing common parent are independent") {
         val hasBoth = Has(dogs1).add[IList[Cat]](cats1)
 
@@ -122,16 +100,6 @@ object HasSpec extends ZIOBaseSpec {
       }
     ) @@ exceptDotty,
     suite("contravariant types")(
-      zio.test.test("Access topmost supertype") {
-        val hasDogHotel: Has[PetHotel[Dog]] = Has(dogHotel1)
-
-        assert(hasDogHotel.get[PetHotel[Nothing]])(anything)
-      },
-      zio.test.test("Access any supertype") {
-        val hasAnimalHotel: Has[PetHotel[Animal]] = Has(animalHotel1)
-
-        assert(hasAnimalHotel.get[PetHotel[Dog]])(equalTo(animalHotel1))
-      },
       zio.test.test("Modules sharing common parent are independent") {
         val hasBoth = Has(dogHotel1).add[PetHotel[Cat]](catHotel1)
 
