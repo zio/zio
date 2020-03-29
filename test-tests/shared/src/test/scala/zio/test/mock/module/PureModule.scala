@@ -21,7 +21,7 @@ import zio.{ IO, Tagged, ZIO }
 /**
  * Example module used for testing ZIO Mock framework.
  */
-object Module {
+object PureModule {
 
   trait Service {
 
@@ -71,27 +71,27 @@ object Module {
     ): IO[String, String]
   }
 
-  val static                                           = ZIO.accessM[Module](_.get.static)
-  def zeroParams                                       = ZIO.accessM[Module](_.get.zeroParams)
-  def zeroParamsWithParens()                           = ZIO.accessM[Module](_.get.zeroParamsWithParens())
-  def singleParam(a: Int)                              = ZIO.accessM[Module](_.get.singleParam(a))
-  def manyParams(a: Int, b: String, c: Long)           = ZIO.accessM[Module](_.get.manyParams(a, b, c))
-  def manyParamLists(a: Int)(b: String)(c: Long)       = ZIO.accessM[Module](_.get.manyParamLists(a)(b)(c))
-  def command                                          = ZIO.accessM[Module](_.get.command)
-  def parameterizedCommand(a: Int)                     = ZIO.accessM[Module](_.get.parameterizedCommand(a))
-  def looped(a: Int)                                   = ZIO.accessM[Module](_.get.looped(a))
-  def overloaded(n: Int)                               = ZIO.accessM[Module](_.get.overloaded(n))
-  def overloaded(n: Long)                              = ZIO.accessM[Module](_.get.overloaded(n))
-  def polyInput[I: Tagged](v: I)                       = ZIO.accessM[Module](_.get.polyInput(v))
-  def polyError[E: Tagged](v: String)                  = ZIO.accessM[Module](_.get.polyError(v))
-  def polyOutput[A: Tagged](v: String)                 = ZIO.accessM[Module](_.get.polyOutput(v))
-  def polyInputError[I: Tagged, E: Tagged](v: I)       = ZIO.accessM[Module](_.get.polyInputError[I, E](v))
-  def polyInputOutput[I: Tagged, A: Tagged](v: I)      = ZIO.accessM[Module](_.get.polyInputOutput[I, A](v))
-  def polyErrorOutput[E: Tagged, A: Tagged](v: String) = ZIO.accessM[Module](_.get.polyErrorOutput[E, A](v))
+  val static                                           = ZIO.accessM[PureModule](_.get.static)
+  def zeroParams                                       = ZIO.accessM[PureModule](_.get.zeroParams)
+  def zeroParamsWithParens()                           = ZIO.accessM[PureModule](_.get.zeroParamsWithParens())
+  def singleParam(a: Int)                              = ZIO.accessM[PureModule](_.get.singleParam(a))
+  def manyParams(a: Int, b: String, c: Long)           = ZIO.accessM[PureModule](_.get.manyParams(a, b, c))
+  def manyParamLists(a: Int)(b: String)(c: Long)       = ZIO.accessM[PureModule](_.get.manyParamLists(a)(b)(c))
+  def command                                          = ZIO.accessM[PureModule](_.get.command)
+  def parameterizedCommand(a: Int)                     = ZIO.accessM[PureModule](_.get.parameterizedCommand(a))
+  def looped(a: Int)                                   = ZIO.accessM[PureModule](_.get.looped(a))
+  def overloaded(n: Int)                               = ZIO.accessM[PureModule](_.get.overloaded(n))
+  def overloaded(n: Long)                              = ZIO.accessM[PureModule](_.get.overloaded(n))
+  def polyInput[I: Tagged](v: I)                       = ZIO.accessM[PureModule](_.get.polyInput(v))
+  def polyError[E: Tagged](v: String)                  = ZIO.accessM[PureModule](_.get.polyError(v))
+  def polyOutput[A: Tagged](v: String)                 = ZIO.accessM[PureModule](_.get.polyOutput(v))
+  def polyInputError[I: Tagged, E: Tagged](v: I)       = ZIO.accessM[PureModule](_.get.polyInputError[I, E](v))
+  def polyInputOutput[I: Tagged, A: Tagged](v: I)      = ZIO.accessM[PureModule](_.get.polyInputOutput[I, A](v))
+  def polyErrorOutput[E: Tagged, A: Tagged](v: String) = ZIO.accessM[PureModule](_.get.polyErrorOutput[E, A](v))
   def polyInputErrorOutput[I: Tagged, E: Tagged, A: Tagged](v: I) =
-    ZIO.accessM[Module](_.get.polyInputErrorOutput[I, E, A](v))
-  def polyMixed[A: Tagged]             = ZIO.accessM[Module](_.get.polyMixed[A])
-  def polyBounded[A <: AnyVal: Tagged] = ZIO.accessM[Module](_.get.polyBounded[A])
+    ZIO.accessM[PureModule](_.get.polyInputErrorOutput[I, E, A](v))
+  def polyMixed[A: Tagged]             = ZIO.accessM[PureModule](_.get.polyMixed[A])
+  def polyBounded[A <: AnyVal: Tagged] = ZIO.accessM[PureModule](_.get.polyBounded[A])
   def maxParams(
     a: Int,
     b: Int,
@@ -115,5 +115,5 @@ object Module {
     t: Int,
     u: Int,
     v: Int
-  ) = ZIO.accessM[Module](_.get.maxParams(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+  ) = ZIO.accessM[PureModule](_.get.maxParams(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
 }

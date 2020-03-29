@@ -78,9 +78,10 @@ ZIO Test provides a framework for mocking your modules.
 
 ## Creating a mock service
 
-We'll be assuming you've read [How to use modules and layers][doc-use-modules-and-layers] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which will hold _capability tags_ and mock layer machinery.
+We'll be assuming you've read [How to use modules and layers][doc-use-modules-and-layers] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose layer_.
 
 ```scala mdoc:silent
+import zio.stream.{ ZSink, ZStream }
 import zio.test.mock._
 
 // main sources
@@ -97,33 +98,40 @@ object Example {
     def command(arg1: Int)                     : UIO[Unit]
     def overloaded(arg1: Int)                  : UIO[String]
     def overloaded(arg1: Long)                 : UIO[String]
+    def function(arg1: Int)                    : String
+    def sink(a: Int)                           : ZSink[Any, String, Nothing, Int, List[Int]]
+    def stream(a: Int)                         : ZStream[Any, String, Int]
   }
 }
 
 // test sources
-object ExampleMock {
-
-  object Static             extends Method[Example, Unit, Nothing, String](compose)
-  object ZeroArgs           extends Method[Example, Unit, Nothing, Int](compose)
-  object ZeroArgsWithParens extends Method[Example, Unit, Nothing, Long](compose)
-  object SingleArg          extends Method[Example, Int, Nothing, String](compose)
-  object MultiArgs          extends Method[Example, (Int, Long), Nothing, String](compose)
-  object MultiParamLists    extends Method[Example, (Int, Long), Nothing, String](compose)
-  object Command            extends Method[Example, Int, Nothing, Unit](compose)
+object ExampleMock extends Mock[Example] {
+  object Static             extends Effect[Unit, Nothing, String]
+  object ZeroArgs           extends Effect[Unit, Nothing, Int]
+  object ZeroArgsWithParens extends Effect[Unit, Nothing, Long]
+  object SingleArg          extends Effect[Int, Nothing, String]
+  object MultiArgs          extends Effect[(Int, Long), Nothing, String]
+  object MultiParamLists    extends Effect[(Int, Long), Nothing, String]
+  object Command            extends Effect[Int, Nothing, Unit]
   object Overloaded {
-    object _0 extends Method[Example, Int, Nothing, String](compose)
-    object _1 extends Method[Example, Long, Nothing, String](compose)
+    object _0 extends Effect[Int, Nothing, String]
+    object _1 extends Effect[Long, Nothing, String]
   }
+  object Function extends Method[Int, Throwable, String]
+  object Sink     extends Sink[Any, String, Nothing, Int, List[Int]]
+  object Stream   extends Stream[Any, String, Int]
 
-  private lazy val compose: URLayer[Has[Proxy], Example] = ???
+  lazy val compose: URLayer[Has[Proxy], Example] = ???
 }
 ```
 
-A _capability tag_ is just a value which extends the `zio.test.mock.Method[R <: Has[_], I, E, A]` type constructor, where:
+A _capability tag_ is just a value which extends the `zio.test.mock.Capability[R <: Has[_], I, E, A]` type constructor, where:
 - `R` is the type of environment the method belongs to
 - `I` is the type of methods input arguments
 - `E` is the type of error it can fail with
 - `A` is the type of return value it can produce
+
+The `Capability` type is not publicly available, instead you have to extend `Mock` dependent types `Effect`, `Method`, `Sink` or `Stream`.
 
 We model input arguments according to following scheme:
 - for zero arguments the type is `Unit`
@@ -136,24 +144,28 @@ For overloaded methods we nest a list of numbered objects, each representing sub
 Finally we need to define a _compose layer_ that can create our environment from a `Proxy`.
 A `Proxy` holds the mock state and serves predefined responses to calls.
 
-
 ```scala mdoc:silent
 import ExampleMock._
 
 lazy val Compose: URLayer[Has[Proxy], Example] =
-  ZLayer.fromService(invoke =>
-    new Example.Service {
-      val static                                 = invoke(Static)
-      def zeroArgs                               = invoke(ZeroArgs)
-      def zeroArgsWithParens()                   = invoke(ZeroArgsWithParens)
-      def singleArg(arg1: Int)                   = invoke(SingleArg, arg1)
-      def multiArgs(arg1: Int, arg2: Long)       = invoke(MultiArgs, arg1, arg2)
-      def multiParamLists(arg1: Int)(arg2: Long) = invoke(MultiParamLists, arg1, arg2)
-      def command(arg1: Int)                     = invoke(Command, arg1)
-      def overloaded(arg1: Int)                  = invoke(Overloaded._0, arg1)
-      def overloaded(arg1: Long)                 = invoke(Overloaded._1, arg1)
+  ZLayer.fromServiceM { proxy =>
+    ZIO.runtime.map { rts =>
+      new Example.Service {
+        val static                                 = proxy(Static)
+        def zeroArgs                               = proxy(ZeroArgs)
+        def zeroArgsWithParens()                   = proxy(ZeroArgsWithParens)
+        def singleArg(arg1: Int)                   = proxy(SingleArg, arg1)
+        def multiArgs(arg1: Int, arg2: Long)       = proxy(MultiArgs, arg1, arg2)
+        def multiParamLists(arg1: Int)(arg2: Long) = proxy(MultiParamLists, arg1, arg2)
+        def command(arg1: Int)                     = proxy(Command, arg1)
+        def overloaded(arg1: Int)                  = proxy(Overloaded._0, arg1)
+        def overloaded(arg1: Long)                 = proxy(Overloaded._1, arg1)
+        def function(arg1: Int)                    = rts.unsafeRunTask(proxy(Function, arg1))
+        def sink(a: Int)                           = rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail(error))))
+        def stream(a: Int)                         = rts.unsafeRun(proxy(Stream, a))
+      }
     }
-  )
+  }
 ```
 
 A reference to this layer is passed to _capability tags_ so it can be used to automatically build environment for composed expectations on
@@ -177,6 +189,9 @@ val exampleLive: ZLayer[Console with Random, Nothing, Example] =
       def command(arg1: Int)                     = console.putStrLn(s"got $arg1")
       def overloaded(arg1: Int)                  = UIO.succeed(s"got $arg1")
       def overloaded(arg1: Long)                 = UIO.succeed(s"got $arg1")
+      def function(arg1: Int)                    = s"got $arg1"
+      def sink(a: Int)                           = ZSink.collectAll
+      def stream(a: Int)                         = ZStream.succeed(a)
     }
   }
 ```
@@ -224,18 +239,20 @@ object AccountObserver {
 }
 
 // test sources
-object AccountObserverMock {
+object AccountObserverMock extends Mock[AccountObserver] {
 
-  object ProcessEvent extends Method[AccountObserver, AccountEvent, Nothing, Unit](compose)
-  object RunCommand extends Method[AccountObserver, Unit, Nothing, Unit](compose)
+  object ProcessEvent extends Effect[AccountEvent, Nothing, Unit]
+  object RunCommand   extends Effect[Unit, Nothing, Unit]
 
-  private val compose: URLayer[Has[Proxy], AccountObserver] =
-    ZLayer.fromService(invoke =>
-      new AccountObserver.Service {
-        def processEvent(event: AccountEvent) = invoke(ProcessEvent, event)
-        def runCommand(): UIO[Unit]           = invoke(RunCommand)
+  lazy val compose: URLayer[Has[Proxy], AccountObserver] =
+    ZLayer.fromServiceM { proxy =>
+      ZIO.runtime.map { rts =>
+        new AccountObserver.Service {
+          def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
+          def runCommand(): UIO[Unit]           = proxy(RunCommand)
+        }
       }
-    )
+    }
 }
 ```
 
@@ -387,22 +404,24 @@ missing types.
 
 ```scala mdoc:silent
 // test sources
-object PolyExampleMock {
+object PolyExampleMock extends Mock[PolyExample] {
 
-  object PolyInput  extends Method.Poly.Input[PolyExample, Throwable, String](compose)
-  object PolyError  extends Method.Poly.Error[PolyExample, Int, String](compose)
-  object PolyOutput extends Method.Poly.Output[PolyExample, Int, Throwable](compose)
-  object PolyAll    extends Method.Poly.InputErrorOutput[PolyExample](compose)
+  object PolyInput  extends Poly.Effect.Input[Throwable, String]
+  object PolyError  extends Poly.Effect.Error[Int, String]
+  object PolyOutput extends Poly.Effect.Output[Int, Throwable]
+  object PolyAll    extends Poly.Effect.InputErrorOutput
 
-  private val compose: URLayer[Has[Proxy], PolyExample] =
-    ZLayer.fromService(invoke =>
-      new PolyExample.Service {
-        def polyInput[I: Tagged](input: I)                     = invoke(PolyInput.of[I], input)
-        def polyError[E: Tagged](input: Int)                   = invoke(PolyError.of[E], input)
-        def polyOutput[A: Tagged](input: Int)                  = invoke(PolyOutput.of[A], input)
-        def polyAll[I: Tagged, E: Tagged, A: Tagged](input: I) = invoke(PolyAll.of[I, E, A], input)
+  lazy val compose: URLayer[Has[Proxy], PolyExample] =
+    ZLayer.fromServiceM { proxy =>
+      ZIO.runtime.map { rts =>
+        new PolyExample.Service {
+          def polyInput[I: Tagged](input: I)                     = proxy(PolyInput.of[I], input)
+          def polyError[E: Tagged](input: Int)                   = proxy(PolyError.of[E], input)
+          def polyOutput[A: Tagged](input: Int)                  = proxy(PolyOutput.of[A], input)
+          def polyAll[I: Tagged, E: Tagged, A: Tagged](input: I) = proxy(PolyAll.of[I, E, A], input)
+        }
       }
-    )
+    }
 }
 ```
 
