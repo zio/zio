@@ -461,13 +461,13 @@ object Task extends TaskPlatformSpecific {
   def identity: Task[Any] = ZIO.identity
 
   /**
-   * @see [[zio.ZIO.ifM]]
+   * @see [[zio.ZIO.ifM(b:=>Boolean)*]]
    */
-  def ifM(b: => Boolean): ZIO.IfM[Any, Throwable] =
+  def ifM(b: => Boolean): ZIO.IfM[Any, Nothing] =
     ZIO.ifM(b)
 
   /**
-   * @see [[zio.ZIO.ifM]]
+   * @see [[zio.ZIO.ifM[R,E]*]]
    */
   def ifM(b: Task[Boolean]): ZIO.IfM[Any, Throwable] =
     ZIO.ifM(b)

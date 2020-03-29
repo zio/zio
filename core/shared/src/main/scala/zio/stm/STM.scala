@@ -153,13 +153,13 @@ object STM {
   def identity: USTM[Any] = ZSTM.identity
 
   /**
-   * @see See [[zio.stm.ZSTM.ifM]]
+   * @see See [[zio.stm.ZSTM.ifM(b:=>Boolean)*]]
    */
-  def ifM[E](b: => Boolean): ZSTM.IfM[Any, E] =
+  def ifM(b: => Boolean): ZSTM.IfM[Any, Nothing] =
     ZSTM.ifM(b)
 
   /**
-   * @see See [[zio.stm.ZSTM.ifM]]
+   * @see See [[zio.stm.ZSTM.ifM[R,E]*]]
    */
   def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
     ZSTM.ifM(b)

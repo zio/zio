@@ -181,13 +181,13 @@ object Managed {
     ZManaged.halt(cause)
 
   /**
-   * See [[zio.ZManaged.ifM]]
+   * See [[zio.ZManaged.ifM(b:=>Boolean)*]]
    */
-  def ifM[E](b: => Boolean): ZManaged.IfM[Any, E] =
+  def ifM(b: => Boolean): ZManaged.IfM[Any, Nothing] =
     ZManaged.ifM(b)
 
   /**
-   * See [[zio.ZManaged.ifM]]
+   * See [[zio.ZManaged.ifM[R,E]*]]
    */
   def ifM[E](b: Managed[E, Boolean]): ZManaged.IfM[Any, E] =
     ZManaged.ifM(b)

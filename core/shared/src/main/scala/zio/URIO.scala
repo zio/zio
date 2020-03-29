@@ -435,13 +435,13 @@ object URIO {
   def identity[R]: URIO[R, R] = ZIO.identity
 
   /**
-   * @see [[zio.ZIO.ifM]]
+   * @see [[zio.ZIO.ifM(b:=>Boolean)*]]
    */
-  def ifM[R](b: => Boolean): ZIO.IfM[R, Nothing] =
+  def ifM(b: => Boolean): ZIO.IfM[Any, Nothing] =
     ZIO.ifM(b)
 
   /**
-   * @see [[zio.ZIO.ifM]]
+   * @see [[zio.ZIO.ifM[R,E]*]]
    */
   def ifM[R](b: URIO[R, Boolean]): ZIO.IfM[R, Nothing] =
     ZIO.ifM(b)

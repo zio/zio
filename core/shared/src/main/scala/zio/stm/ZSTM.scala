@@ -1061,7 +1061,7 @@ object ZSTM {
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
-  def ifM[R, E](b: => Boolean): ZSTM.IfM[R, E] =
+  def ifM(b: => Boolean): ZSTM.IfM[Any, Nothing] =
     ifM(succeed(b))
 
   /**

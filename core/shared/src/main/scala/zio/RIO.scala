@@ -492,13 +492,13 @@ object RIO {
   def identity[R]: RIO[R, R] = ZIO.identity
 
   /**
-   * @see [[zio.ZIO.ifM]]
+   * @see [[zio.ZIO.ifM(b:=>Boolean)*]]
    */
-  def ifM[R](b: => Boolean): ZIO.IfM[R, Throwable] =
+  def ifM(b: => Boolean): ZIO.IfM[Any, Nothing] =
     ZIO.ifM(b)
 
   /**
-   * @see [[zio.ZIO.ifM]]
+   * @see [[zio.ZIO.ifM[R,E]*]]
    */
   def ifM[R](b: RIO[R, Boolean]): ZIO.IfM[R, Throwable] =
     ZIO.ifM(b)

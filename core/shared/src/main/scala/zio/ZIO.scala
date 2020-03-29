@@ -2794,7 +2794,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
-  def ifM[R, E](b: => Boolean): ZIO.IfM[R, E] =
+  def ifM(b: => Boolean): ZIO.IfM[Any, Nothing] =
     ifM(succeed(b))
 
   /**

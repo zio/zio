@@ -461,13 +461,13 @@ object IO {
   def identity: IO[Nothing, Any] = ZIO.identity
 
   /**
-   * @see [[zio.ZIO.ifM]]
+   * @see [[zio.ZIO.ifM(b:=>Boolean)*]]
    */
-  def ifM[E](b: => Boolean): ZIO.IfM[Any, E] =
+  def ifM(b: => Boolean): ZIO.IfM[Any, Nothing] =
     ZIO.ifM(b)
 
   /**
-   * @see [[zio.ZIO.ifM]]
+   * @see [[zio.ZIO.ifM[R,E]*]]
    */
   def ifM[E](b: IO[E, Boolean]): ZIO.IfM[Any, E] =
     ZIO.ifM(b)

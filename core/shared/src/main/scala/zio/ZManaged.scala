@@ -1606,7 +1606,7 @@ object ZManaged {
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
-  def ifM[R, E](b: => Boolean): ZManaged.IfM[R, E] =
+  def ifM(b: => Boolean): ZManaged.IfM[Any, Nothing] =
     ZManaged.ifM(succeed(b))
 
   /**
