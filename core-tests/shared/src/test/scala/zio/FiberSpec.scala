@@ -1,6 +1,7 @@
 package zio
 
 import zio.LatchOps._
+import zio.internal.FiberRenderer
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -121,6 +122,31 @@ object FiberSpec extends ZIOBaseSpec {
       }
     ) @@ sequential,
     suite("fiber dump tree")(
+      zio.test.test("render fiber hierarchy tree") {
+        def node(n: Long, children: Seq[Fiber.Tree]): Fiber.Tree =
+          Fiber.Tree(Fiber.Id(n, n), Some(n.toString), Fiber.Status.Done, children)
+
+        val tree1 =
+          node(1, Seq(node(11, Seq(node(111, Nil), node(112, Nil))), node(12, Seq(node(121, Nil), node(122, Nil)))))
+        val tree2 =
+          node(2, Seq(node(21, Seq(node(211, Nil), node(212, Nil))), node(12, Seq(node(221, Nil), node(222, Nil)))))
+        val expected = """#+---"1" #1 Status: Done
+                         #|   +---"11" #11 Status: Done
+                         #|   |   +---"111" #111 Status: Done
+                         #|   |   +---"112" #112 Status: Done
+                         #|   +---"12" #12 Status: Done
+                         #|       +---"121" #121 Status: Done
+                         #|       +---"122" #122 Status: Done
+                         #+---"2" #2 Status: Done
+                         #    +---"21" #21 Status: Done
+                         #    |   +---"211" #211 Status: Done
+                         #    |   +---"212" #212 Status: Done
+                         #    +---"12" #12 Status: Done
+                         #        +---"221" #221 Status: Done
+                         #        +---"222" #222 Status: Done
+                         #""".stripMargin('#')
+        assert(FiberRenderer.renderHierarchy(Seq(tree1, tree2)))(equalTo(expected))
+      },
       testM("fiber dump tree shape sanity check") {
         val expectedLinePrefixes =
           """#+---"parent"

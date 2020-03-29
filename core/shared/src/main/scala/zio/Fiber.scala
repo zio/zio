@@ -422,6 +422,12 @@ object Fiber extends FiberPlatformSpecific {
     def status: UIO[Fiber.Status]
 
     /**
+     * Collects a hierarchy tree starting from this this fiber
+     */
+    def tree(): UIO[Tree] =
+      FiberRenderer.collectTree(self)
+
+    /**
      * The trace of the fiber.
      */
     def trace: UIO[ZTrace]
@@ -472,6 +478,15 @@ object Fiber extends FiberPlatformSpecific {
      * }}}
      */
     def prettyPrintM: UIO[String] = FiberRenderer.prettyPrintM(this)
+  }
+
+  final case class Tree(
+    fiberId: Fiber.Id,
+    fiberName: Option[String],
+    status: Status,
+    children: Iterable[Tree]
+  ) { self =>
+    def render(): String = FiberRenderer.renderOne(self, false)
   }
 
   /**
