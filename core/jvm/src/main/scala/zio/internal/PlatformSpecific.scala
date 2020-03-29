@@ -43,8 +43,14 @@ private[internal] trait PlatformSpecific {
   /**
    * Adds a signal handler that executes the specified action on receiving a signal.
    */
-  def addSignalHandler(signal: String)(handler: () => Unit): Unit = {
-    val _ = Signal.handle(new Signal(signal), _ => handler())
+  def addSignalHandler(signal: String)(handler: () => Unit): Boolean = {
+    try {
+      val _ = Signal.handle(new Signal(signal), _ => handler())
+      true
+    } catch {
+      case e: IllegalArgumentException => println(s"Failed to install signal: $e")
+                                          false
+    }
   }
 
   /**

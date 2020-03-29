@@ -9,7 +9,7 @@ You need to add the hook by including `printFiberDumpOnInterrupt` method in your
 
 ## Example application 
 
-```scala
+```scala mdoc
 package zio
 
 import zio.console._

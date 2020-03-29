@@ -95,4 +95,3 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 ## Support
 
 - [Offical Discord Server](https://discord.gg/2ccFBr4)
-- [Official Gitter Channel](https://gitter.im/ZIO/Core)

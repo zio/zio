@@ -43,7 +43,7 @@ trait Runtime[+R] {
    * @param signal to listen for
    * @param handler to run on receiving signal
    */
-  def addSignalHandler(signal: String)(handler: URIO[R, Unit]): Unit =
+  def addSignalHandler(signal: String)(handler: URIO[R, Unit]): Boolean =
     Platform.addSignalHandler(signal)(() => unsafeRun(handler))
 
   /**
@@ -51,7 +51,7 @@ trait Runtime[+R] {
    *
    * @param handler to run when SIGUSR2 is received
    */
-  def addInterruptHandler(handler: URIO[R, Unit]): Unit =
+  def addInterruptHandler(handler: URIO[R, Unit]): Boolean =
     addSignalHandler("USR2")(handler)
 
   /**
@@ -59,7 +59,7 @@ trait Runtime[+R] {
    *
    * @param ev is the console environment
    */
-  def printFiberDumpOnInterrupt(implicit ev: R <:< Console): Unit =
+  def printFiberDumpOnInterrupt(implicit ev: R <:< Console): Boolean =
     addInterruptHandler(Fiber.dumpAllStr.flatMap(console.putStrLn(_)).provideSome(ev))
 
   /**
