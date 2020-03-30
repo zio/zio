@@ -128,21 +128,28 @@ object FiberSpec extends ZIOBaseSpec {
           f1   <- p.await.fork
           f1id <- f1.id
           f2   <- f1.await.fork
-          dump <- f2.dump
-                   .repeat(Schedule.doWhile[Fiber.Dump](_.status == Fiber.Status.Running) <* Schedule.fixed(1.milli))
-        } yield assert(dump.status)(
-          isSubtype[Fiber.Status.Suspended](hasField("blockingOn", _.blockingOn, equalTo(List(f1id))))
-        )
+          blockingOn <- f2.dump
+                         .map(_.status)
+                         .repeat(
+                           Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           } <* Schedule.fixed(1.milli)
+                         )
+        } yield assert(blockingOn)(isSome(equalTo(List(f1id))))
+
       },
       testM("in race") {
         for {
           p <- Promise.make[Nothing, Unit]
           f <- p.await.race(p.await).fork
-          dump <- f.dump
-                   .repeat(Schedule.doWhile[Fiber.Dump](_.status == Fiber.Status.Running) <* Schedule.fixed(1.milli))
-        } yield assert(dump.status)(
-          isSubtype[Fiber.Status.Suspended](hasField("blockingOn", _.blockingOn, hasSize(equalTo(2))))
-        )
+          blockingOn <- f.dump
+                         .map(_.status)
+                         .repeat(
+                           Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           } <* Schedule.fixed(1.milli)
+                         )
+        } yield assert(blockingOn)(isSome(hasSize(equalTo(2))))
       }
     )
   )
