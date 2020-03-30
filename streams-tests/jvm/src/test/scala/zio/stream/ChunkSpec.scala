@@ -6,7 +6,7 @@ import zio.random.Random
 import zio.test.Assertion.{ equalTo, isLeft }
 import zio.test.TestAspect.exceptScala211
 import zio.test._
-import zio.{ Chunk, IO, UIO, ZIOBaseSpec }
+import zio.{ Chunk, IO, NonEmptyChunk, UIO, ZIOBaseSpec }
 
 case class Value(i: Int) extends AnyVal
 
@@ -276,6 +276,26 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
       assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
+    },
+    test("concat slice") {
+      val in = Chunk(1, 2, 3) ++ Chunk(4, 5, 6)
+      assert(in.slice(0, 3))(equalTo(Chunk(1, 2, 3))) &&
+      assert(in.slice(1, 3))(equalTo(Chunk(2, 3, 4))) &&
+      assert(in.slice(-1, 6))(equalTo(in)) &&
+      assert(in.slice(0, 10))(equalTo(in)) &&
+      assert(in.slice(0, -1))(equalTo(Chunk.empty))
+    },
+    testM("flatMap Non Empty") {
+      val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
+      check(smallChunks(intGen), fn) { (c_, f_) =>
+        val c: NonEmptyChunk[Int]        = c_ + 0
+        val f: Int => NonEmptyChunk[Int] = f_.andThen(_ + 0)
+
+        val in: NonEmptyChunk[Int] = c.flatMap(f)
+        val expected: Seq[Int]     = c.toSeq.flatMap(f.andThen(_.toSeq))
+
+        assert(in.toSeq)(equalTo(expected))
+      }
     }
   )
 }
