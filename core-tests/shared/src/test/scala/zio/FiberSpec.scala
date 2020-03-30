@@ -128,7 +128,7 @@ object FiberSpec extends ZIOBaseSpec {
           f1   <- p.await.fork
           f1id <- f1.id
           f2   <- f1.await.fork
-          blockingOn <- f2.dump
+          blockingOn <- (ZIO.yieldNow *> f2.dump)
                          .map(_.status)
                          .repeat(
                            Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
@@ -136,13 +136,12 @@ object FiberSpec extends ZIOBaseSpec {
                            } <* Schedule.fixed(1.milli)
                          )
         } yield assert(blockingOn)(isSome(equalTo(List(f1id))))
-
       },
       testM("in race") {
         for {
           p <- Promise.make[Nothing, Unit]
           f <- p.await.race(p.await).fork
-          blockingOn <- f.dump
+          blockingOn <- (ZIO.yieldNow *> f.dump)
                          .map(_.status)
                          .repeat(
                            Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
