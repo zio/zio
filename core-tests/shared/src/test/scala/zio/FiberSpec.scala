@@ -1,11 +1,7 @@
 package zio
 
-import java.util.concurrent.Executors
-
-import scala.concurrent.ExecutionContext
-
 import zio.LatchOps._
-import zio.internal.Executor
+import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -127,52 +123,29 @@ object FiberSpec extends ZIOBaseSpec {
     ) @@ sequential,
     suite("track blockingOn")(
       testM("in await") {
-        val tst =
-          for {
-            p     <- Promise.make[Nothing, Unit]
-            latch <- Promise.make[Nothing, Unit]
-            f1    <- (latch.succeed(()) *> p.await).fork
-            _     <- ZIO.yieldNow
-            _     <- latch.await
-            f1id  <- f1.id
-            f2    <- f1.await.fork
-            dump  <- f2.dump
-          } yield assert(dump.status)(
-            isSubtype[Fiber.Status.Suspended](hasField("blockingOn", _.blockingOn, equalTo(List(f1id))))
-          )
-        singleThreadRuntime.map(_.unsafeRun(tst))
+        for {
+          p    <- Promise.make[Nothing, Unit]
+          f1   <- p.await.fork
+          f1id <- f1.id
+          f2   <- f1.await.fork
+          dump <- f2.dump
+                   .repeat(Schedule.doWhile[Fiber.Dump](_.status == Fiber.Status.Running) <* Schedule.fixed(1.milli))
+        } yield assert(dump.status)(
+          isSubtype[Fiber.Status.Suspended](hasField("blockingOn", _.blockingOn, equalTo(List(f1id))))
+        )
       },
       testM("in race") {
-        val tst =
-          for {
-            p      <- Promise.make[Nothing, Unit]
-            llatch <- Promise.make[Nothing, Unit]
-            rlatch <- Promise.make[Nothing, Unit]
-            f      <- (llatch.succeed(()) *> p.await).race(rlatch.succeed(()) *> p.await).fork
-            _      <- ZIO.yieldNow
-            _      <- llatch.await
-            _      <- rlatch.await
-            dump   <- f.dump
-          } yield assert(dump.status)(
-            isSubtype[Fiber.Status.Suspended](hasField("blockingOn", _.blockingOn, hasSize(equalTo(2))))
-          )
-        singleThreadRuntime.map(_.unsafeRun(tst))
+        for {
+          p <- Promise.make[Nothing, Unit]
+          f <- p.await.race(p.await).fork
+          dump <- f.dump
+                   .repeat(Schedule.doWhile[Fiber.Dump](_.status == Fiber.Status.Running) <* Schedule.fixed(1.milli))
+        } yield assert(dump.status)(
+          isSubtype[Fiber.Status.Suspended](hasField("blockingOn", _.blockingOn, hasSize(equalTo(2))))
+        )
       }
     )
   )
-
-  val singleThreadRuntime =
-    ZIO
-      .runtime[Any]
-      .map(
-        _.mapPlatform(
-          _.withExecutor(
-            Executor.fromExecutionContext(yieldOpCount0 = 10)(
-              ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
-            )
-          )
-        )
-      )
 
   val (initial, update) = ("initial", "update")
   val fibers            = List.fill(100000)(Fiber.unit)
