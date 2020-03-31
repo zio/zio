@@ -49,7 +49,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("IO is serializable") {
       val list = List("1", "2", "3")
-      val io   = IO.succeedNow(list)
+      val io   = IO.succeed(list)
       for {
         returnIO <- serializeAndBack(io)
         result   <- returnIO
@@ -64,7 +64,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("FiberStatus is serializable") {
       val list = List("1", "2", "3")
-      val io   = IO.succeedNow(list)
+      val io   = IO.succeed(list)
       for {
         fiber          <- io.fork
         status         <- fiber.await
