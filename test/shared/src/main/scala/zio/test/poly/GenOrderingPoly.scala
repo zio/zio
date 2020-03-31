@@ -168,7 +168,7 @@ object GenOrderingPoly {
           if (compare == 0) loop(t1, t2) else compare
       }
 
-    loop
+    (l, r) => loop(l, r)
   }
 
   /**
