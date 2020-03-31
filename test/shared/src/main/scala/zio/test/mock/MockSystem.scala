@@ -21,18 +21,18 @@ import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
 object MockSystem {
 
-  sealed trait Tag[I, A] extends Method[System, I, A] {
-    def envBuilder = MockSystem.envBuilder
-  }
+  object Env           extends Method[System, String, SecurityException, Option[String]](compose)
+  object Envs          extends Method[System, Unit, SecurityException, Map[String, String]](compose)
+  object Properties    extends Method[System, Unit, Throwable, Map[String, String]](compose)
+  object Property      extends Method[System, String, Throwable, Option[String]](compose)
+  object LineSeparator extends Method[System, Unit, Nothing, String](compose)
 
-  object Env           extends Tag[String, Option[String]]
-  object Property      extends Tag[String, Option[String]]
-  object LineSeparator extends Tag[Unit, String]
-
-  private lazy val envBuilder: URLayer[Has[Proxy], System] =
+  private lazy val compose: URLayer[Has[Proxy], System] =
     ZLayer.fromService(invoke =>
       new System.Service {
         def env(variable: String): IO[SecurityException, Option[String]] = invoke(Env, variable)
+        val envs: IO[SecurityException, Map[String, String]]             = invoke(Envs)
+        val properties: IO[Throwable, Map[String, String]]               = invoke(Properties)
         def property(prop: String): IO[Throwable, Option[String]]        = invoke(Property, prop)
         val lineSeparator: UIO[String]                                   = invoke(LineSeparator)
       }

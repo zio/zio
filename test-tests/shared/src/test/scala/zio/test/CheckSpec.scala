@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.Assertion._
-import zio.test.TestAspect.failure
+import zio.test.TestAspect.failing
 import zio.{ random, Chunk, Ref, ZIO }
 
 object CheckSpec extends ZIOBaseSpec {
@@ -29,7 +29,7 @@ object CheckSpec extends ZIOBaseSpec {
           r <- random.nextInt(n)
         } yield assert(r)(isLessThan(n))
       }
-    } @@ failure,
+    } @@ failing,
     testM("overloaded check methods work") {
       check(Gen.anyInt, Gen.anyInt, Gen.anyInt)((x, y, z) => assert((x + y) + z)(equalTo(x + (y + z))))
     },
@@ -60,7 +60,7 @@ object CheckSpec extends ZIOBaseSpec {
     },
     testM("tests with filtered generators terminate") {
       check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0))((a, b) => assert(a)(equalTo(b)))
-    } @@ failure,
+    } @@ failing,
     testM("failing tests contain gen failure details") {
       check(Gen.anyInt)(a => assert(a)(isGreaterThan(0))).flatMap {
         _.run.map(_.failures match {

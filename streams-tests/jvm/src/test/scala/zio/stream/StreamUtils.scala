@@ -34,7 +34,7 @@ trait StreamUtils extends ChunkUtils with GenZIO {
               it <- Gen.listOfN(n)(a)
             } yield ZStream.unfoldM((i, it)) {
               case (_, Nil) | (0, _) => IO.fail("fail-case")
-              case (n, head :: rest) => IO.succeedNow(Some((head, (n - 1, rest))))
+              case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
             }
           )
     }
