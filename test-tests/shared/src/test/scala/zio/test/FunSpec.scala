@@ -32,7 +32,7 @@ object FunSpec extends ZIOBaseSpec {
     },
     testM("fun is supported on Scala.js") {
       for {
-        f <- Fun.make((_: Int) => ZIO.foreach(List.range(0, 100000))(ZIO.succeedNow))
+        f <- Fun.make((_: Int) => ZIO.foreach(List.range(0, 100000))(ZIO.succeed(_)))
       } yield assert(f(1))(anything)
     }
   )
