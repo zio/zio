@@ -133,7 +133,7 @@ object FiberSpec extends ZIOBaseSpec {
                          .repeat(
                            Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
                              case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                           } <* Schedule.fixed(1.milli)
+                           } <* Schedule.fixed(10.milli)
                          )
         } yield assert(blockingOn)(isSome(equalTo(List(f1id))))
       },
@@ -146,7 +146,7 @@ object FiberSpec extends ZIOBaseSpec {
                          .repeat(
                            Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
                              case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                           } <* Schedule.fixed(1.milli)
+                           } <* Schedule.fixed(10.milli)
                          )
         } yield assert(blockingOn)(isSome(hasSize(equalTo(2))))
       }
