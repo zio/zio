@@ -77,7 +77,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Returns the `E` associated with the first `Fail` in this `Cause` if one
    * exists, along with its (optional) trace.
    */
-  def failureWithTraceOption: Option[(E, Option[ZTrace])] =
+  def failureTraceOption: Option[(E, Option[ZTrace])] =
     find {
       case Traced(Fail(e), trace) => (e, Some(trace))
       case Fail(e)                => (e, None)
@@ -98,7 +98,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * if there are no checked errors return the rest of the `Cause`
    * that is known to contain only `Die` or `Interrupt` causes.
    * */
-  final def failureWithTraceOrCause: Either[(E, Option[ZTrace]), Cause[Nothing]] = failureWithTraceOption match {
+  final def failureTraceOrCause: Either[(E, Option[ZTrace]), Cause[Nothing]] = failureTraceOption match {
     case Some(errorAndTrace) => Left(errorAndTrace)
     case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
   }
