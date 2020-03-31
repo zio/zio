@@ -20,6 +20,8 @@ import java.lang.{ System => JSystem }
 
 import scala.collection.JavaConverters._
 
+import com.github.ghik.silencer.silent
+
 package object system {
 
   type System = Has[System.Service]
@@ -43,9 +45,11 @@ package object system {
         def env(variable: String): IO[SecurityException, Option[String]] =
           IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
 
+        @silent("JavaConverters")
         val envs: IO[SecurityException, Map[String, String]] =
           IO.effect(JSystem.getenv.asScala.toMap).refineToOrDie[SecurityException]
 
+        @silent("JavaConverters")
         val properties: IO[Throwable, Map[String, String]] =
           IO.effect(JSystem.getProperties.asScala.toMap)
 
