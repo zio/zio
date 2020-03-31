@@ -295,6 +295,44 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
+   * Returns a new suite with only those suites and tests tagged to be the only
+   * ones evaluated. If no tests are tagged to be the only ones evaluated then
+   * returns the spec unmodified.
+   */
+  final def only: Spec[R, E, T] = {
+    def loop(spec: Spec[R, E, T]): URIO[R, Either[Spec[R, E, T], Spec[R, E, T]]] =
+      spec.caseValue match {
+        case SuiteCase(label, specs, exec) =>
+          specs.foldCauseM(
+            c => ZIO.succeedNow(Left(Spec.suite(label, ZIO.halt(c), exec))),
+            ZIO.foreach(_)(loop).map { specs =>
+              val (left, right) = ZIO.partitionMap(specs)(identity)
+              if (right.nonEmpty)
+                Right(Spec.suite(label, ZIO.succeedNow(right.toVector), exec))
+              else
+                Left(Spec.suite(label, ZIO.succeedNow(left.toVector), exec))
+            }
+          )
+        case t @ TestCase(_, _, annotations) =>
+          if (annotations.get(TestAnnotation.only)) ZIO.succeedNow(Right(Spec(t)))
+          else ZIO.succeedNow(Left(Spec(t)))
+      }
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        Spec.suite(
+          label,
+          specs.flatMap(ZIO.foreach(_)(loop)).map { specs =>
+            val (left, right) = ZIO.partitionMap(specs)(identity)
+            if (right.nonEmpty) right.toVector else left.toVector
+          },
+          exec
+        )
+      case TestCase(label, specs, annotations) =>
+        Spec.test(label, specs, annotations)
+    }
+  }
+
+  /**
    * Provides each test in this spec with its required environment
    */
   final def provide(r: R)(implicit ev: NeedsEnv[R]): Spec[Any, E, T] =
@@ -455,16 +493,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
         val (z, caseValue) = f(z0, t)
         ZIO.succeedNow(z -> Spec(caseValue))
     }
-
-  /**
-   * Runs only tests whose labels (which must be strings) contain the given substring.
-   * If a suite label contains the specified string all specs in that suite will be included in the resulting spec.
-   */
-  final def only(s: String)(implicit ev: T <:< TestSuccess): Spec[R, E, TestSuccess] =
-    self
-      .asInstanceOf[Spec[R, E, TestSuccess]]
-      .filterLabels(_.contains(s))
-      .getOrElse(Spec.test("only", ignored, TestAnnotationMap.empty))
 
   /**
    * Runs the spec only if the specified predicate is satisfied.
