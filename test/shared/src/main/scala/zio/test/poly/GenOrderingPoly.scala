@@ -16,6 +16,8 @@
 
 package zio.test.poly
 
+import scala.annotation.tailrec
+
 import zio.random.Random
 import zio.test.{ Gen, Sized }
 
@@ -106,7 +108,7 @@ object GenOrderingPoly {
    * `Ordering[T]` exist.
    */
   def list(poly: GenOrderingPoly): GenOrderingPoly =
-    GenOrderingPoly(Gen.listOf(poly.genT), Ordering.Iterable(poly.ordT))
+    GenOrderingPoly(Gen.listOf(poly.genT), ListOrdering(poly.ordT))
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for longs.
@@ -148,5 +150,44 @@ object GenOrderingPoly {
    * `Ordering[T]` exist.
    */
   def vector(poly: GenOrderingPoly): GenOrderingPoly =
-    GenOrderingPoly(Gen.vectorOf(poly.genT), Ordering.Iterable(poly.ordT))
+    GenOrderingPoly(Gen.vectorOf(poly.genT), VectorOrdering(poly.ordT))
+
+  /**
+   * Derives an `Ordering[List[A]]` given an `Ordering[A]`.
+   */
+  private implicit def ListOrdering[A: Ordering]: Ordering[List[A]] = {
+
+    @tailrec
+    def loop[A: Ordering](left: List[A], right: List[A]): Int =
+      (left, right) match {
+        case (Nil, Nil) => 0
+        case (Nil, _)   => -1
+        case (_, Nil)   => +1
+        case ((h1 :: t1), (h2 :: t2)) =>
+          val compare = Ordering[A].compare(h1, h2)
+          if (compare == 0) loop(t1, t2) else compare
+      }
+
+    (l, r) => loop(l, r)
+  }
+
+  /**
+   * Derives an `Ordering[Vector[A]]` given an `Ordering[A]`.
+   */
+  private implicit def VectorOrdering[A: Ordering]: Ordering[Vector[A]] =
+    (l, r) => {
+      val j = l.length
+      val k = r.length
+
+      def loop(i: Int): Int =
+        if (i == j && i == k) 0
+        else if (i == j) -1
+        else if (i == k) +1
+        else {
+          val compare = Ordering[A].compare(l(i), r(i))
+          if (compare == 0) loop(i + 1) else compare
+        }
+
+      loop(0)
+    }
 }
