@@ -29,19 +29,20 @@ abstract class ZTransducer[-R, +E, -I, +O](
    * Compose this transducer with a sink, resulting in a sink that processes elements by piping
    * them through this transducer and piping the results into the sink.
    */
-  def >>>[R1 <: R, E1 >: E, O2 >: O, Z](that: ZSink[R1, E1, O2, Z]): ZSink[R1, E1, I, Z] =
+  def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, Z](that: ZSink[R1, E1, O2, Z]): ZSink[R1, E1, I1, Z] =
     ZSink {
       for {
         pushSelf <- self.push
-        pushThat <- that.push
-        push = (input: Option[Chunk[I]]) =>
-          pushSelf(input).foldM(
-            {
-              case Left(e)  => ZIO.fail(Left(e))
-              case Right(_) => pushThat(None)
-            },
-            chunk => pushThat(Some(chunk))
-          )
+        pushThat <- that.push.flatMap(_.push)
+        push <- ZSink.Push.fromSinkFunction[I1] { is =>
+                 pushSelf(is).foldM(
+                   {
+                     case Left(e)  => ZIO.fail(Left(e))
+                     case Right(_) => pushThat(None)
+                   },
+                   chunk => pushThat(Some(chunk))
+                 )
+               }
       } yield push
     }
 }

@@ -1723,18 +1723,18 @@ abstract class ZStream[-R, +E, +O](
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
   def run[R1 <: R, E1 >: E, O1 >: O, B](sink: ZSink[R1, E1, O1, B]): ZIO[R1, E1, B] =
-    (process <*> sink.push).use {
+    (process <*> sink.push.flatMap(_.push)).use {
       case (pull, push) =>
         def go: ZIO[R1, E1, B] = pull.foldCauseM(
           Cause
             .sequenceCauseOption(_)
             .fold(
               push(None).foldCauseM(
-                Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow),
+                Cause.sequenceCauseEither(_).fold(IO.halt(_), ZIO.succeedNow),
                 _ => IO.dieMessage("empty stream / empty sinks")
               )
             )(IO.halt(_)),
-          os => push(Some(os)).foldCauseM(Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow), _ => go)
+          os => push(Some(os)).foldCauseM(Cause.sequenceCauseEither(_).fold(IO.halt(_), ZIO.succeedNow), _ => go)
         )
 
         go
