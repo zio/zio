@@ -80,6 +80,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
+   * Returns an effect that models execution of this spec.
+   */
+  final def execute(defExec: ExecutionStrategy): URIO[R, Spec[Any, E, T]] =
+    ZIO.accessM(provide(_).foreachExec(defExec)(ZIO.halt(_), ZIO.succeedNow))
+
+  /**
    * Determines if any node in the spec is satisfied by the given predicate.
    */
   final def exists[R1 <: R, E1 >: E](f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Boolean] =
@@ -181,30 +187,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   )(f: SpecCase[R, E, T, Z] => ZIO[R1, E1, Z]): ZIO[R1, E1, Z] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        exec.getOrElse(defExec) match {
-          case ExecutionStrategy.Parallel =>
-            specs.foldCauseM(
-              c => f(SuiteCase(label, ZIO.halt(c), exec)),
-              ZIO
-                .foreachPar(_)(_.foldM(defExec)(f))
-                .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
-            )
-          case ExecutionStrategy.ParallelN(n) =>
-            specs.foldCauseM(
-              c => f(SuiteCase(label, ZIO.halt(c), exec)),
-              ZIO
-                .foreachParN(n)(_)(_.foldM(defExec)(f))
-                .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
-            )
-          case ExecutionStrategy.Sequential =>
-            specs.foldCauseM(
-              c => f(SuiteCase(label, ZIO.halt(c), exec)),
-              ZIO
-                .foreach(_)(_.foldM(defExec)(f))
-                .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
-            )
-        }
-
+        specs.foldCauseM(
+          c => f(SuiteCase(label, ZIO.halt(c), exec)),
+          Spec
+            .foreachExec(_)(exec.getOrElse(defExec))(_.foldM(defExec)(f))
+            .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
+        )
       case t @ TestCase(_, _, _) => f(t)
     }
 
@@ -370,9 +358,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * }}}
    */
   def provideCustomLayerShared[E1 >: E, R1 <: Has[_]](
-    layer: ZLayer[TestEnvironment, E1, R1]
+    layer: ZLayer[TestEnvironment, E1, R1],
+    defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4)
   )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tagged[R1]): Spec[TestEnvironment, E1, T] =
-    provideSomeLayerShared[TestEnvironment](layer)
+    provideSomeLayerShared[TestEnvironment](layer, defExec)
 
   /**
    * Provides a layer to the spec, translating it up a level.
@@ -389,27 +378,23 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Provides a layer to the spec, sharing services between all tests.
    */
   final def provideLayerShared[E1 >: E, R0, R1 <: Has[_]](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] = {
-    def loop(r: R)(spec: Spec[R, E, T]): UIO[Spec[Any, E, T]] =
-      spec.caseValue match {
-        case SuiteCase(label, specs, exec) =>
-          specs
-            .provide(r)
-            .foldCauseM(
-              c => ZIO.succeedNow(Spec.suite(label, ZIO.halt(c), exec)),
-              ZIO.foreach(_)(loop(r)).map(z => Spec.suite(label, ZIO.succeedNow(z.toVector), exec))
-            )
-        case TestCase(label, test, annotations) =>
-          test.provide(r).run.map(result => Spec.test(label, ZIO.done(result), annotations))
-      }
+    layer: ZLayer[R0, E1, R1],
+    defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4)
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        Spec.suite(label, layer.build.use(r => specs.flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector).provide(r)), exec)
+        Spec.suite(
+          label,
+          layer.build.use { r =>
+            specs.flatMap { specs =>
+              Spec.foreachExec(specs)(exec.getOrElse(defExec))(_.execute(defExec)).map(_.toVector)
+            }.provide(r)
+          },
+          exec
+        )
       case TestCase(label, test, annotations) =>
         Spec.test(label, test.provideLayer(layer), annotations)
     }
-  }
 
   /**
    * Uses the specified function to provide each test in this spec with part of
@@ -562,8 +547,22 @@ object Spec {
 
   final class ProvideSomeLayerShared[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
-      layer: ZLayer[R0, E1, R1]
+      layer: ZLayer[R0, E1, R1],
+      defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4)
     )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): Spec[R0, E1, T] =
-      self.provideLayerShared[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayerShared[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer, defExec)
   }
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and returns
+   * the result in a new `List[B]` using the specified execution strategy.
+   */
+  private def foreachExec[R, E, A, B](
+    as: Iterable[A]
+  )(exec: ExecutionStrategy)(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
+    exec match {
+      case ExecutionStrategy.Parallel     => ZIO.foreachPar(as)(f)
+      case ExecutionStrategy.ParallelN(n) => ZIO.foreachParN(n)(as)(f)
+      case ExecutionStrategy.Sequential   => ZIO.foreach(as)(f)
+    }
 }
