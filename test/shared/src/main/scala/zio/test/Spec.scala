@@ -394,9 +394,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     def loop(r: R)(spec: Spec[R, E, T]): UIO[Spec[Any, E, T]] =
       spec.caseValue match {
         case SuiteCase(label, specs, exec) =>
-          specs.provide(r).run.map { result =>
-            Spec.suite(label, ZIO.done(result).flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector), exec)
-          }
+          specs
+            .provide(r)
+            .foldCauseM(
+              c => ZIO.succeedNow(Spec.suite(label, ZIO.halt(c), exec)),
+              ZIO.foreach(_)(loop(r)).map(z => Spec.suite(label, ZIO.succeedNow(z.toVector), exec))
+            )
         case TestCase(label, test, annotations) =>
           test.provide(r).run.map(result => Spec.test(label, ZIO.done(result), annotations))
       }

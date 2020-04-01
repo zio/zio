@@ -28,23 +28,40 @@ object ManagedSpec extends ZIOBaseSpec {
 
   def spec = suite("ManagedSpec")(
     suite("managed shared")(
-      testM("first test") {
-        assertM(Counter.incrementAndGet)(equalTo(2))
-      },
-      testM("second test") {
-        assertM(Counter.incrementAndGet)(equalTo(3))
-      },
-      testM("third test") {
-        assertM(Counter.incrementAndGet)(equalTo(4))
-      }
+      suite("first suite")(
+        testM("first test") {
+          assertM(Counter.incrementAndGet)(equalTo(2))
+        },
+        testM("second test") {
+          assertM(Counter.incrementAndGet)(equalTo(3))
+        }
+      ),
+      suite("second suite")(
+        testM("third test") {
+          assertM(Counter.incrementAndGet)(equalTo(4))
+        },
+        testM("fourth test") {
+          assertM(Counter.incrementAndGet)(equalTo(5))
+        }
+      )
     ).provideLayerShared(Counter.live),
     suite("managed per test")(
-      testM("first test") {
-        assertM(Counter.incrementAndGet)(equalTo(2))
-      },
-      testM("second test") {
-        assertM(Counter.incrementAndGet)(equalTo(2))
-      }
+      suite("first suite")(
+        testM("first test") {
+          assertM(Counter.incrementAndGet)(equalTo(2))
+        },
+        testM("second test") {
+          assertM(Counter.incrementAndGet)(equalTo(2))
+        }
+      ),
+      suite("second suite")(
+        testM("third test") {
+          assertM(Counter.incrementAndGet)(equalTo(2))
+        },
+        testM("fourth test") {
+          assertM(Counter.incrementAndGet)(equalTo(2))
+        }
+      )
     ).provideLayer(Counter.live)
   )
 }
