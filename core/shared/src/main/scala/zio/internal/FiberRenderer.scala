@@ -1,7 +1,10 @@
 package zio.internal
 
+import zio.Fiber.Dump
 import zio.Fiber.Status.{ Done, Finishing, Running, Suspended }
 import zio.{ Fiber, UIO, ZIO }
+
+import scala.annotation.tailrec
 
 private[zio] object FiberRenderer {
   private def zipWithHasNext[A](it: Iterable[A]): Iterable[(A, Boolean)] =
@@ -11,10 +14,10 @@ private[zio] object FiberRenderer {
       Iterable.concat(it.dropRight(1).map((_, true)), Seq((it.last, false)))
     }
 
-  def prettyPrintM(dump: Fiber.Dump): UIO[String] = UIO {
-    val time = System.currentTimeMillis()
+  def prettyPrintM(dump: Fiber.Dump): UIO[String] = UIO(prettyPrint(dump, System.currentTimeMillis()))
 
-    val millis  = (time - dump.fiberId.startTimeMillis)
+  def prettyPrint(dump: Fiber.Dump, now: Long): String = {
+    val millis  = (now - dump.fiberId.startTimeMillis)
     val seconds = millis / 1000L
     val minutes = seconds / 60L
     val hours   = minutes / 60L
@@ -36,7 +39,7 @@ private[zio] object FiberRenderer {
     s"""
        |${name}#${dump.fiberId.seqNumber} (${lifeMsg}) ${waitMsg}
        |   Status: ${statMsg}
-       |${dump.trace.prettyPrint}
+       |${dump.trace.fold("")(_.prettyPrint)}
        |""".stripMargin
   }
 
@@ -52,13 +55,13 @@ private[zio] object FiberRenderer {
         s"Suspended(${in}, ${ep}, ${as})"
     }
 
-  def renderHierarchy(trees: Iterable[Fiber.Tree]): String =
+  def renderHierarchy(trees: Iterable[Dump]): String =
     zipWithHasNext(trees).map {
       case (tree, hasNext) => renderOne(tree, hasNext)
     }.mkString
 
-  def renderOne(tree: Fiber.Tree, hasNextSibling: Boolean): String = {
-    def go(t: Fiber.Tree, prefix: String, hasNext: Boolean): String = {
+  def renderOne(tree: Dump, hasNextSibling: Boolean): String = {
+    def go(t: Dump, prefix: String, hasNext: Boolean): String = {
       val childrenResults = {
         val prefixUpdate = if (hasNext) "|   " else "    "
         val newPrefix    = prefix + prefixUpdate
@@ -79,25 +82,25 @@ private[zio] object FiberRenderer {
     go(tree, "", hasNextSibling)
   }
 
-  def collectTree(f: Fiber.Runtime[_, _]): UIO[Fiber.Tree] =
-    for {
-      id              <- f.id
-      name            <- f.getRef(Fiber.fiberName)
-      status          <- f.status
-      children        <- f.children
-      childrenResults <- ZIO.foreach(children)(c => collectTree(c.asInstanceOf[Fiber.Runtime[_, _]]))
-    } yield {
-      Fiber.Tree(id, name, status, childrenResults)
+  @tailrec
+  private def collectTraces(dumps: Iterable[Dump], acc: Vector[String], now: Long): Vector[String] = {
+    val rootTraces = dumps.map(prettyPrint(_, now))
+    val children   = dumps.flatMap(_.children)
+    if (children.isEmpty) {
+      acc
+    } else {
+      collectTraces(children, Vector.concat(rootTraces, acc), now)
     }
+  }
 
-  def dumpStr(fibers: Seq[Fiber.Runtime[_, _]]): UIO[String] =
+  def dumpStr(fibers: Seq[Fiber.Runtime[_, _]], withTrace: Boolean): UIO[String] =
     for {
-      trees      <- ZIO.foreach(fibers)(collectTree)
-      treeString = renderHierarchy(trees)
-      dumps      <- Fiber.dump(fibers: _*)
-      dumpStrs   <- ZIO.foreach(dumps)(_.prettyPrintM)
+      dumps <- ZIO.foreach(fibers)(f => f.dump(withTrace))
+      now   <- UIO(System.currentTimeMillis())
     } yield {
-      treeString + "\n" + dumpStrs.mkString
+      val treeString  = renderHierarchy(dumps)
+      val dumpStrings = if (withTrace) collectTraces(dumps, Vector.empty, now) else Seq.empty
+      (treeString +: dumpStrings).mkString("\n")
     }
 
 }

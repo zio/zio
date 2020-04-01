@@ -403,13 +403,15 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * Generates a fiber dump.
      */
-    final def dump: UIO[Fiber.Dump] =
+    final def dump(withTrace: Boolean): UIO[Fiber.Dump] =
       for {
-        name   <- self.getRef(Fiber.fiberName)
-        id     <- self.id
-        status <- self.status
-        trace  <- self.trace
-      } yield Fiber.Dump(id, name, status, trace)
+        name       <- self.getRef(Fiber.fiberName)
+        id         <- self.id
+        status     <- self.status
+        trace      <- if (withTrace) self.trace.map(Some(_)) else UIO(None)
+        ch         <- self.children
+        childDumps <- ZIO.foreach(ch)(c => c.asInstanceOf[Fiber.Runtime[_, _]].dump(withTrace))
+      } yield Fiber.Dump(id, name, status, childDumps, trace)
 
     /**
      * The identity of the fiber.
@@ -420,12 +422,6 @@ object Fiber extends FiberPlatformSpecific {
      * The status of the fiber.
      */
     def status: UIO[Fiber.Status]
-
-    /**
-     * Collects a hierarchy tree starting from this this fiber
-     */
-    def tree(): UIO[Tree] =
-      FiberRenderer.collectTree(self)
 
     /**
      * The trace of the fiber.
@@ -464,8 +460,13 @@ object Fiber extends FiberPlatformSpecific {
     executor: Executor
   )
 
-  final case class Dump(fiberId: Fiber.Id, fiberName: Option[String], status: Status, trace: ZTrace)
-      extends Serializable {
+  final case class Dump(
+    fiberId: Fiber.Id,
+    fiberName: Option[String],
+    status: Status,
+    children: Iterable[Dump],
+    trace: Option[ZTrace]
+  ) extends Serializable {
 
     /**
      * {{{
@@ -478,15 +479,6 @@ object Fiber extends FiberPlatformSpecific {
      * }}}
      */
     def prettyPrintM: UIO[String] = FiberRenderer.prettyPrintM(this)
-  }
-
-  final case class Tree(
-    fiberId: Fiber.Id,
-    fiberName: Option[String],
-    status: Status,
-    children: Iterable[Tree]
-  ) { self =>
-    def render(): String = FiberRenderer.renderOne(self, false)
   }
 
   /**
@@ -592,42 +584,24 @@ object Fiber extends FiberPlatformSpecific {
    * TODO: Switch to "streaming lazy" version.
    */
   @silent("JavaConverters")
-  val dumpAll: UIO[Iterable[Dump]] =
+  def dumpAll(withTrace: Boolean): UIO[Iterable[Dump]] =
     UIO.effectSuspendTotal {
-      dump(internal.Sync(rootFibers)(rootFibers.asScala.toList): _*)
+      dump(internal.Sync(rootFibers)(rootFibers.asScala.toList): _*)(withTrace)
     }
 
   /**
    * Collects a complete dump of the specified fibers and all children of the
    * fibers.
    */
-  def dump(fibers: Fiber.Runtime[_, _]*): UIO[Iterable[Dump]] = {
-    import internal.FiberContext
-
-    def loop(fibers: Iterable[Fiber.Runtime[_, _]], acc: UIO[Vector[Dump]]): UIO[Vector[Dump]] =
-      ZIO
-        .collectAll(fibers.toIterable.map { context =>
-          (context.children zip context.dump).map {
-            case (children, dump) => (children, dump)
-          }
-        })
-        .flatMap { (collected: List[(Iterable[Fiber[Any, Any]], Dump)]) =>
-          val children = collected.map(_._1).flatten
-          val dumps    = collected.map(_._2)
-          val acc2     = acc.map(_ ++ dumps.toVector)
-
-          if (children.isEmpty) acc2 else loop(children.asInstanceOf[Iterable[FiberContext[Any, Any]]], acc2)
-        }
-
-    loop(fibers, UIO(Vector()))
-  }
+  def dump(fibers: Fiber.Runtime[_, _]*)(withTrace: Boolean): UIO[Iterable[Dump]] =
+    ZIO.foreach(fibers)(f => f.dump(withTrace))
 
   /**
    * Collects a complete dump of the specified fibers and all children of the
    * fibers and renders it as a string.
    */
-  def dumpStr(fibers: Fiber.Runtime[_, _]*): UIO[String] =
-    FiberRenderer.dumpStr(fibers)
+  def dumpStr(fibers: Fiber.Runtime[_, _]*)(withTrace: Boolean): UIO[String] =
+    FiberRenderer.dumpStr(fibers, withTrace)
 
   /**
    * A fiber that has already failed with the specified value.
@@ -745,7 +719,7 @@ object Fiber extends FiberPlatformSpecific {
    * fibers and renders it to the console.
    */
   def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*): URIO[Console, Unit] =
-    dumpStr(fibers: _*).flatMap(str => console.putStrLn(s"$label: ${str}"))
+    dumpStr(fibers: _*)(true).flatMap(str => console.putStrLn(s"$label: ${str}"))
 
   /**
    * The root fibers.

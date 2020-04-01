@@ -123,8 +123,8 @@ object FiberSpec extends ZIOBaseSpec {
     ) @@ sequential,
     suite("fiber dump tree")(
       zio.test.test("render fiber hierarchy tree") {
-        def node(n: Long, children: Seq[Fiber.Tree]): Fiber.Tree =
-          Fiber.Tree(Fiber.Id(n, n), Some(n.toString), Fiber.Status.Done, children)
+        def node(n: Long, children: Seq[Fiber.Dump]): Fiber.Dump =
+          Fiber.Dump(Fiber.Id(n, n), Some(n.toString), Fiber.Status.Done, children, None)
 
         val tree1 =
           node(1, Seq(node(11, Seq(node(111, Nil), node(112, Nil))), node(12, Seq(node(121, Nil), node(122, Nil)))))
@@ -146,45 +146,8 @@ object FiberSpec extends ZIOBaseSpec {
                          #        +---"222" #222 Status: Done
                          #""".stripMargin('#')
         assert(FiberRenderer.renderHierarchy(Seq(tree1, tree2)))(equalTo(expected))
-      },
-      testM("fiber dump tree shape sanity check") {
-        val expectedLinePrefixes =
-          """#+---"parent"
-            #    +---"parent"
-            #    |   +---"parent"
-            #    |   |   +---"child"
-            #    |   |       +---"grand"
-            #    |   +---"parent"
-            #    |   |   +---"child"
-            #    |   |       +---"grand"
-            #    |   +---"parent"
-            #    |   |   +---"child"
-            #    |   |       +---"grand""""
-            .stripMargin('#')
-            .split("\n")
-            .map(_.replace('|', ' '))
-        for {
-          blocker <- Promise.make[Nothing, Unit]
-          branchyFiber <- ZIO
-                           .foreachPar(1 to 3) { _ =>
-                             ZIO.foreachPar(1 to 3)(_ =>
-                               blocker.await
-                                 .forkAs(s"grand")
-                                 .flatMap(_.join)
-                                 .forkAs("child")
-                                 .flatMap(_.join)
-                             )
-                           }
-                           .forkAs("parent")
-          dumpStr <- Fiber.dumpStr(branchyFiber)
-        } yield {
-          val linePrefixes = dumpStr.split("\n").toSeq.take(200).map(_.replace('|', ' '))
-          expectedLinePrefixes.toSeq
-            .map(exp => assert(linePrefixes)(exists(containsString(exp))))
-            .reduce(_ && _)
-        }
       }
-    ) @@ jvmOnly
+    )
   )
 
   val (initial, update) = ("initial", "update")
