@@ -7,6 +7,12 @@ import zio.test.environment.Live
 
 object RandomSpec extends ZIOBaseSpec {
 
+  implicit val DoubleOrdering: Ordering[Double] =
+    (l, r) => java.lang.Double.compare(l, r)
+
+  implicit val FloatOrdering: Ordering[Float] =
+    (l, r) => java.lang.Float.compare(l, r)
+
   def spec = suite("RandomSpec")(
     testM("between generates doubles in specified range") {
       checkM(genDoubles) {
