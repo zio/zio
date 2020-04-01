@@ -1,10 +1,10 @@
 package zio.internal
 
+import scala.annotation.tailrec
+
 import zio.Fiber.Dump
 import zio.Fiber.Status.{ Done, Finishing, Running, Suspended }
 import zio.{ Fiber, UIO, ZIO }
-
-import scala.annotation.tailrec
 
 private[zio] object FiberRenderer {
   private def zipWithHasNext[A](it: Iterable[A]): Iterable[(A, Boolean)] =
