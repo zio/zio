@@ -141,10 +141,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Submerges the error case of an `Either` into the `ZManaged`. The inverse
    * operation of `ZManaged.either`.
    */
-  def absolve[R1 <: R, E1, B](
-    implicit ev: ZManaged[R, E, A] <:< ZManaged[R1, E1, Either[E1, B]]
-  ): ZManaged[R1, E1, B] =
-    ZManaged.absolve(ev(self))
+  def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZManaged[R, E1, B] =
+    ZManaged.absolve(self.map(ev))
 
   /**
    * Attempts to convert defects into a failure, throwing away all information

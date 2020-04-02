@@ -151,8 +151,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Returns an effect that submerges the error case of an `Either` into the
    * `STM`. The inverse operation of `STM.either`.
    */
-  def absolve[R1 <: R, E1, B](implicit ev1: ZSTM[R, E, A] <:< ZSTM[R1, E1, Either[E1, B]]): ZSTM[R1, E1, B] =
-    ZSTM.absolve[R1, E1, B](ev1(self))
+  def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZSTM[R, E1, B] =
+    ZSTM.absolve(self.map(ev))
 
   /**
    * Named alias for `>>>`.
