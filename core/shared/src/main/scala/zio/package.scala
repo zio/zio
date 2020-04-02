@@ -42,18 +42,39 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type Ref[A]      = ZRef[Nothing, Nothing, A, A]
   type ERef[+E, A] = ZRef[E, E, A, A]
 
-  type ZLens[-S, +T, +A, -B]      = (S => A, B => S => T)
-  type ZOptional[-S, +T, +A, -B]  = (S => Option[A], B => S => T)
-  type ZPrism[-S, +T, +A, -B]     = (S => Option[A], B => T)
-  type ZTraversal[-S, +T, +A, -B] = (S => List[A], List[B] => S => Option[T])
+  type ZOptic[-SG, -SS, -B, +EG, +ES, +A, +T] = (SG => Either[EG, A], B => SS => Either[ES, T])
 
-  type Lens[S, A]      = ZLens[S, S, A, A]
-  type Optional[S, A]  = ZOptional[S, S, A, A]
-  type Prism[S, A]     = ZPrism[S, S, A, A]
-  type Traversal[S, A] = ZTraversal[S, S, A, A]
+  type ZLens[+EA, +EB, -S, +T, +A, -B]      = ZOptic[S, S, B, EA, EB, A, T]
+  type ZPrism[+EA, +EB, -S, +T, +A, -B]     = ZOptic[S, Any, B, EA, EB, A, T]
+  type ZTraversal[+EA, +EB, -S, +T, +A, -B] = ZOptic[S, S, List[B], EA, EB, List[A], T]
+
+  type Lens[S, A]      = ZLens[Nothing, Nothing, S, S, A, A]
+  type Optional[S, A]  = ZLens[Unit, Nothing, S, S, A, A]
+  type Prism[S, A]     = ZPrism[Unit, Nothing, S, S, A, A]
+  type Traversal[S, A] = ZTraversal[Nothing, Unit, S, S, A, A]
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
       Some((ab._1, ab._2))
+  }
+
+  object Lens {
+    def apply[S, A](get: S => A, set: A => S => S): Lens[S, A] =
+      (s => Right(get(s)), a => s => Right(set(a)(s)))
+  }
+
+  object Optional {
+    def apply[S, A](get: S => Option[A], set: A => S => S): Optional[S, A] =
+      (s => get(s).fold[Either[Unit, A]](Left(()))(Right(_)), a => s => Right(set(a)(s)))
+  }
+
+  object Prism {
+    def apply[S, A](get: S => Option[A], set: A => S): Prism[S, A] =
+      (s => get(s).fold[Either[Unit, A]](Left(()))(Right(_)), a => _ => Right(set(a)))
+  }
+
+  object Traversal {
+    def apply[S, A](get: S => List[A], set: List[A] => S => Option[S]): Traversal[S, A] =
+      (s => Right(get(s)), a => s => set(a)(s).fold[Either[Unit, S]](Left(()))(Right(_)))
   }
 }

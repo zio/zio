@@ -59,9 +59,8 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Folds over the error and value types of the `ZRef`, allowing access to
-   * the old output in computing the input. This is a more powerful version of
-   * `fold` but requires that the new set error type be a supertype of the
-   * original get error type.
+   * the state in transforming the `set` value. This is a more powerful version
+   * of `fold` but requires unifying the error types.
    */
   def foldS[EC >: EB, ED, C, D](
     ea: EA => EC,
@@ -81,6 +80,12 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * immediate consistency.
    */
   def setAsync(a: A): IO[EA, Unit]
+
+  /**
+   * Accesses a term of a sum type.
+   */
+  def accessCase[EC >: EA, ED >: EB, C, D](prism: ZPrism[ED, EC, B, A, D, C]): ZRef[EC, ED, C, D] =
+    self.fold(identity, identity, prism._2(_)(()), prism._1)
 
   /**
    * Maps and filters the `get` value of the `ZRef` with the specified partial
@@ -359,13 +364,13 @@ object ZRef extends Serializable {
           self.value
       }
 
-    def get: IO[EB, B] =
+    final def get: IO[EB, B] =
       value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
 
-    def set(a: A): IO[EA, Unit] =
+    final def set(a: A): IO[EA, Unit] =
       setEither(a).fold(ZIO.fail(_), value.set)
 
-    def setAsync(a: A): IO[EA, Unit] =
+    final def setAsync(a: A): IO[EA, Unit] =
       setEither(a).fold(ZIO.fail(_), value.setAsync)
   }
 
@@ -410,10 +415,10 @@ object ZRef extends Serializable {
           self.value
       }
 
-    def get: IO[EB, B] =
+    final def get: IO[EB, B] =
       value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
 
-    def set(a: A): IO[EA, Unit] =
+    final def set(a: A): IO[EA, Unit] =
       value.modify { s =>
         setEither(a)(s) match {
           case Left(e)  => (Left(e), s)
@@ -421,7 +426,7 @@ object ZRef extends Serializable {
         }
       }.absolve
 
-    def setAsync(a: A): IO[EA, Unit] =
+    final def setAsync(a: A): IO[EA, Unit] =
       value.modify { s =>
         setEither(a)(s) match {
           case Left(e)  => (Left(e), s)
@@ -430,34 +435,21 @@ object ZRef extends Serializable {
       }.absolve
   }
 
-  implicit class LensSnytax[E, A, B](private val self: ZRef[E, E, A, B]) extends AnyVal {
-    def accessField[C, D](lens: ZLens[B, A, D, C]): ZRef[E, E, C, D] =
-      self.foldS(identity, identity, c => b => Right(lens._2(c)(b)), b => Right(lens._1(b)))
-  }
+  implicit class UnifiedErrorSyntax[E, A, B](private val self: ZRef[E, E, A, B]) extends AnyVal {
 
-  implicit class OptionalSyntax[A, B](private val self: ZRef[Unit, Unit, A, B]) extends AnyVal {
-    def accessElement[C, D](optional: ZOptional[B, A, D, C]): ZRef[Unit, Unit, C, D] =
-      self.foldS(
-        identity,
-        identity,
-        c => b => Right(optional._2(c)(b)),
-        b => optional._1(b).fold[Either[Unit, D]](Left(()))(Right(_))
-      )
-  }
+    /**
+     * Accesses some of the elements of a collection.
+     */
+    def accessElements[EC >: E, ED >: E, C, D](
+      traversal: ZTraversal[ED, EC, B, A, D, C]
+    ): ZRef[EC, ED, List[C], List[D]] =
+      self.foldS(identity, identity, traversal._2, traversal._1)
 
-  implicit class PrismSyntax[E, A, B](private val self: ZRef[E, Unit, A, B]) extends AnyVal {
-    def accessCase[C, D](prism: ZPrism[B, A, D, C]): ZRef[E, Unit, C, D] =
-      self.fold(identity, identity, c => Right(prism._2(c)), b => prism._1(b).fold[Either[Unit, D]](Left(()))(Right(_)))
-  }
-
-  implicit class TraversalSyntax[A, B](private val self: ZRef[Unit, Unit, A, B]) extends AnyVal {
-    def accessElements[C, D](traversal: ZTraversal[B, A, D, C]): ZRef[Unit, Unit, List[C], List[D]] =
-      self.foldS(
-        identity,
-        identity,
-        c => b => traversal._2(c)(b).fold[Either[Unit, A]](Left(()))(Right(_)),
-        b => Right(traversal._1(b))
-      )
+    /**
+     * Accesses a field of a product type.
+     */
+    def accessField[EC >: E, ED >: E, C, D](lens: ZLens[ED, EC, B, A, D, C]): ZRef[EC, ED, C, D] =
+      self.foldS(identity, identity, lens._2, lens._1)
   }
 
   implicit class UnifiedSyntax[E, A](private val self: ERef[E, A]) extends AnyVal {

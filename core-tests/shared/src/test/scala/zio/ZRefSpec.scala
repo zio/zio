@@ -196,14 +196,6 @@ object ZRefSpec extends ZIOBaseSpec {
                    }
         } yield assert(value1)(equalTo("changed")) && assert(value2)(equalTo("closed"))
       },
-      testM("readOnly") {
-        for {
-          ref      <- Derived.make(current)
-          readOnly = ref.readOnly
-          _        <- ref.set(update)
-          value    <- readOnly.get
-        } yield assert(value)(equalTo(update))
-      },
       testM("set") {
         for {
           ref   <- Derived.make(current)
@@ -258,10 +250,145 @@ object ZRefSpec extends ZIOBaseSpec {
                      case Changed => Closed
                    }
         } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
+      }
+    ),
+    suite("DerivedS")(
+      testM("atomicity") {
+        for {
+          ref   <- DerivedS.make(0)
+          _     <- ZIO.collectAllPar(ZIO.replicate(100)(ref.update(_ + 1)))
+          value <- ref.get
+        } yield assert(value)(equalTo(100))
+      },
+      testM("get") {
+        for {
+          ref   <- DerivedS.make(current)
+          value <- ref.get
+        } yield assert(value)(equalTo(current))
+      },
+      testM("getAndSet") {
+        for {
+          ref    <- DerivedS.make(current)
+          value1 <- ref.getAndSet(update)
+          value2 <- ref.get
+        } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
+      },
+      testM("getAndUpdate") {
+        for {
+          ref    <- DerivedS.make(current)
+          value1 <- ref.getAndUpdate(_ => update)
+          value2 <- ref.get
+        } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
+      },
+      testM("getAndUpdateSome") {
+        for {
+          ref    <- DerivedS.make[State](Active)
+          value1 <- ref.getAndUpdateSome { case Closed => Changed }
+          value2 <- ref.get
+        } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Active))
+      },
+      testM("getAndUpdateSome twice") {
+        for {
+          ref    <- DerivedS.make[State](Active)
+          value1 <- ref.getAndUpdateSome { case Active => Changed }
+          value2 <- ref.getAndUpdateSome {
+                     case Active  => Changed
+                     case Changed => Closed
+                   }
+          value3 <- ref.get
+        } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Changed)) && assert(value3)(equalTo(Closed))
+      },
+      testM("modify") {
+        for {
+          ref   <- DerivedS.make(current)
+          r     <- ref.modify(_ => ("hello", update))
+          value <- ref.get
+        } yield assert(r)(equalTo("hello")) && assert(value)(equalTo(update))
+      },
+      testM("modifySome") {
+        for {
+          ref   <- DerivedS.make[State](Active)
+          value <- ref.modifySome("State doesn't change") { case Closed => ("active", Active) }
+        } yield assert(value)(equalTo("State doesn't change"))
+      },
+      testM("modifySome twice") {
+        for {
+          ref    <- DerivedS.make[State](Active)
+          value1 <- ref.modifySome("doesn't change the state") { case Active => ("changed", Changed) }
+          value2 <- ref.modifySome("doesn't change the state") {
+                     case Active  => ("changed", Changed)
+                     case Changed => ("closed", Closed)
+                   }
+        } yield assert(value1)(equalTo("changed")) && assert(value2)(equalTo("closed"))
+      },
+      testM("set") {
+        for {
+          ref   <- DerivedS.make(current)
+          _     <- ref.set(update)
+          value <- ref.get
+        } yield assert(value)(equalTo(update))
+      },
+      testM("update") {
+        for {
+          ref   <- DerivedS.make(current)
+          _     <- ref.update(_ => update)
+          value <- ref.get
+        } yield assert(value)(equalTo(update))
+      },
+      testM("updateAndGet") {
+        for {
+          ref   <- DerivedS.make(current)
+          value <- ref.updateAndGet(_ => update)
+        } yield assert(value)(equalTo(update))
+      },
+      testM("updateSome") {
+        for {
+          ref   <- DerivedS.make[State](Active)
+          _     <- ref.updateSome { case Closed => Changed }
+          value <- ref.get
+        } yield assert(value)(equalTo(Active))
+      },
+      testM("updateSome twice") {
+        for {
+          ref    <- DerivedS.make[State](Active)
+          _      <- ref.updateSome { case Active => Changed }
+          value1 <- ref.get
+          _ <- ref.updateSomeAndGet {
+                case Active  => Changed
+                case Changed => Closed
+              }
+          value2 <- ref.get
+        } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
+      },
+      testM("updateSomeAndGet") {
+        for {
+          ref   <- DerivedS.make[State](Active)
+          value <- ref.updateSomeAndGet { case Closed => Changed }
+        } yield assert(value)(equalTo(Active))
+      },
+      testM("updateSomeAndGet twice") {
+        for {
+          ref    <- DerivedS.make[State](Active)
+          value1 <- ref.updateSomeAndGet { case Active => Changed }
+          value2 <- ref.updateSomeAndGet {
+                     case Active  => Changed
+                     case Changed => Closed
+                   }
+        } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
+      }
+    ),
+    suite("combinators")(
+      testM("readOnly") {
+        for {
+          ref      <- Ref.make(current)
+          readOnly = ref.readOnly
+          _        <- ref.set(update)
+          value    <- readOnly.get
+        } yield assert(value)(equalTo(update))
       },
       testM("writeOnly") {
         for {
-          ref       <- Derived.make(current)
+          ref       <- Ref.make(current)
           writeOnly = ref.writeOnly
           _         <- writeOnly.set(update)
           value     <- ref.get
@@ -304,6 +431,16 @@ object ZRefSpec extends ZIOBaseSpec {
           }
         }
       ),
+      suite("optional")(
+        testM("modifies matching field") {
+          for {
+            ref     <- Ref.make(Vector(1, 2, 3, 4, 5))
+            derived = ref.accessField(index(1))
+            _       <- derived.update(_ * 10)
+            value   <- ref.get
+          } yield assert(value)(equalTo(Vector(1, 20, 3, 4, 5)))
+        }
+      ),
       suite("prism")(
         testM("set and get") {
           checkM(Gen.either(Gen.anyInt, Gen.anyInt), Gen.anyInt) { (s, a) =>
@@ -327,7 +464,7 @@ object ZRefSpec extends ZIOBaseSpec {
         }
       ),
       suite("traversal")(
-        testM("basic example") {
+        testM("modifies matching fields") {
           for {
             ref     <- Ref.make(List(1, 2, 3, 4, 5))
             derived = ref.accessElements(filter(_ % 2 == 0))
@@ -348,16 +485,19 @@ object ZRefSpec extends ZIOBaseSpec {
 
   object Derived {
     def make[A](a: A): UIO[Ref[A]] =
-      Ref.make(a).map(ref => ref.dimap(identity, identity))
+      Ref.make(a).map(ref => ref.fold(identity, identity, Right(_), Right(_)))
+  }
+
+  object DerivedS {
+    def make[A](a: A): UIO[Ref[A]] =
+      Ref.make(a).map(ref => ref.foldS(identity, identity, a => _ => Right(a), Right(_)))
   }
 
   def filter[A](f: A => Boolean): Traversal[List[A], A] =
-    (
+    Traversal(
       s => s.filter(f),
       a =>
         s => {
-          println(a)
-          println(s)
           def loop(a: List[A], s: List[A], acc: List[A]): Option[List[A]] =
             (a, s) match {
               case (h1 :: t1, h2 :: t2) if (f(h2)) => loop(t1, t2, h1 :: acc)
@@ -371,8 +511,14 @@ object ZRefSpec extends ZIOBaseSpec {
     )
 
   def first[A, B]: Lens[(A, B), A] =
-    (s => s._1, a => s => (a, s._2))
+    Lens(s => s._1, a => s => (a, s._2))
+
+  def index[A](n: Int): Optional[Vector[A], A] =
+    Optional(
+      s => if (0 <= n && n < s.length) Some(s(n)) else None,
+      a => s => if (0 <= n && n < s.length) s.updated(n, a) else s
+    )
 
   def left[A, B]: Prism[Either[A, B], A] =
-    (s => s match { case Left(a) => Some(a); case _ => None }, a => Left(a))
+    Prism(s => s match { case Left(a) => Some(a); case _ => None }, a => Left(a))
 }
