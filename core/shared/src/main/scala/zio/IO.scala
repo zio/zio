@@ -691,6 +691,18 @@ object IO {
     ZIO.uninterruptibleMask(k)
 
   /**
+   * @see See [[zio.ZIO.unless]]
+   */
+  def unless[E](b: => Boolean)(zio: => IO[E, Any]): IO[E, Unit] =
+    ZIO.unless(b)(zio)
+
+  /**
+   * @see See [[zio.ZIO.unlessM]]
+   */
+  def unlessM[E](b: IO[E, Boolean])(zio: => IO[E, Any]): IO[E, Unit] =
+    ZIO.unlessM(b)(zio)
+
+  /**
    * @see See [[zio.ZIO.unsandbox]]
    */
   def unsandbox[E, A](v: IO[Cause[E], A]): IO[E, A] = ZIO.unsandbox(v)

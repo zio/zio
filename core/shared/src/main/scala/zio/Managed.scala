@@ -366,6 +366,18 @@ object Managed {
   val unit: Managed[Nothing, Unit] = ZManaged.unit
 
   /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  def unless[E](b: => Boolean)(managed: => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.unless(b)(managed)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessM[E](b: Managed[E, Boolean])(managed: => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.unlessM(b)(managed)
+
+  /**
    * See [[zio.ZManaged.unsandbox]]
    */
   def unsandbox[E, A](v: Managed[Cause[E], A]): Managed[E, A] =
