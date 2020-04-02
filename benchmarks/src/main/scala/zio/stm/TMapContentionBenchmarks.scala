@@ -25,7 +25,7 @@ class TMapContentionBenchmarks {
   def setup(): Unit = {
     val data     = (1 to size).toList.zipWithIndex
     val map      = unsafeRun(TMap.fromIterable(data).commit)
-    val ref      = TRef.unsafeMake(data.toMap)
+    val ref      = ZTRef.unsafeMake(data.toMap)
     val schedule = Schedule.recurs(1000)
     val updates  = (1 to 100).toList
 
