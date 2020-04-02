@@ -456,11 +456,7 @@ sealed trait Chunk[+A] { self =>
       case _ if l == 1                  => Chunk.Singleton(self(offset))
       case Chunk.Empty                  => Chunk.Empty
       case Chunk.Slice(ne, offset_0, _) => Chunk.Slice(ne, offset_0 + offset, l)
-      case Chunk.Concat(nel, ner) =>
-        if (offset >= nel.length) ner.slice(offset - nel.length, l)
-        else if (offset + l <= nel.length) nel.slice(offset, l)
-        else Chunk.concat(nel.slice(offset, l), ner.slice(offset - nel.length, l - nel.length + offset))
-      case ne: NonEmptyChunk[A] => Chunk.Slice(ne, offset, l)
+      case ne: NonEmptyChunk[A]         => Chunk.Slice(ne, offset, l)
     }
   }
 
@@ -469,7 +465,7 @@ sealed trait Chunk[+A] { self =>
    */
   final def take(n: Int): Chunk[A] =
     if (n <= 0) Chunk.Empty
-    else if (n >= length) this
+    else if (n >= length) self
     else self.slice(0, n)
 
   /**
