@@ -267,6 +267,75 @@ object ZRefSpec extends ZIOBaseSpec {
           value     <- ref.get
         } yield assert(value)(equalTo(update))
       }
+    ),
+    suite("optics")(
+      suite("lens")(
+        testM("set and get") {
+          checkM(Gen.anyInt.zip(Gen.anyInt), Gen.anyInt) { (s, a) =>
+            for {
+              ref     <- Ref.make(s)
+              derived = ref.accessField(first)
+              _       <- derived.set(a)
+              value   <- derived.get
+            } yield assert(value)(equalTo(a))
+          }
+        },
+        testM("get and set") {
+          checkM(Gen.anyInt.zip(Gen.anyInt)) { s =>
+            for {
+              ref     <- Ref.make(s)
+              derived = ref.accessField(first)
+              value1  <- derived.get
+              _       <- derived.set(value1)
+              value2  <- ref.get
+            } yield assert(value2)(equalTo(s))
+          }
+        },
+        testM("double set") {
+          checkM(Gen.anyInt.zip(Gen.anyInt), Gen.anyInt) { (s, a) =>
+            for {
+              ref     <- Ref.make(s)
+              derived = ref.accessField(first)
+              _       <- derived.set(a)
+              value1  <- ref.get
+              _       <- derived.set(a)
+              value2  <- ref.get
+            } yield assert(value1)(equalTo(value2))
+          }
+        }
+      ),
+      suite("prism")(
+        testM("set and get") {
+          checkM(Gen.either(Gen.anyInt, Gen.anyInt), Gen.anyInt) { (s, a) =>
+            for {
+              ref     <- Ref.make(s)
+              derived = ref.accessCase(left)
+              _       <- derived.set(a)
+              value   <- derived.get
+            } yield assert(value)(equalTo(a))
+          }
+        },
+        testM("get and set") {
+          checkM(Gen.either(Gen.anyInt, Gen.anyInt)) { s =>
+            for {
+              ref     <- Ref.make(s)
+              derived = ref.accessCase(left)
+              _       <- derived.get.foldM(_ => ZIO.unit, derived.set)
+              value   <- ref.get
+            } yield assert(value)(equalTo(s))
+          }
+        }
+      ),
+      suite("traversal")(
+        testM("basic example") {
+          for {
+            ref  <- Ref.make(List(1, 2, 3, 4, 5))
+            derived = ref.accessElements(filter(_ % 2 == 0))
+            _ <- derived.update(_.map(_ * 10))
+            value <- ref.get
+          } yield assert(value)(equalTo(List(1, 20, 3, 40, 5)))
+        }
+      )
     )
   )
 
@@ -279,7 +348,30 @@ object ZRefSpec extends ZIOBaseSpec {
 
   object Derived {
     def make[A](a: A): UIO[Ref[A]] =
-      Ref.make(a).map(ref => ref.unifyError(identity, identity).unifyValue(identity, identity))
+      Ref.make(a).map(ref => ref.dimap(identity, identity))
   }
 
+  def filter[A](f: A => Boolean): Traversal[List[A], A] =
+    (
+      s => s.filter(f),
+      a => s => {
+        println(a)
+        println(s)
+        def loop(a: List[A], s: List[A], acc: List[A]): Option[List[A]] =
+          (a, s) match {
+            case (h1 :: t1, h2 :: t2) if (f(h2)) => loop(t1, t2, h1 :: acc)
+            case (_, h2 :: _) if (f(h2)) => None
+            case (a, h2 :: t2)            => loop(a, t2, h2 :: acc)
+            case (_, _) => Some(acc.reverse)
+            case  _ => None
+          }
+          loop(a, s, List.empty)
+      }
+    )
+
+  def first[A, B]: Lens[(A, B), A] =
+    (s => s._1, a => s => (a, s._2))
+
+  def left[A, B]: Prism[Either[A, B], A] =
+    (s => s match { case Left(a) => Some(a); case _ => None }, a => Left(a))
 }

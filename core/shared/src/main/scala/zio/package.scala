@@ -42,6 +42,16 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type Ref[A]      = ZRef[Nothing, Nothing, A, A]
   type ERef[+E, A] = ZRef[E, E, A, A]
 
+  type ZLens[-S, +T, +A, -B]      = (S => A, B => S => T)
+  type ZOptional[-S, +T, +A, -B]  = (S => Option[A], B => S => T)
+  type ZPrism[-S, +T, +A, -B]     = (S => Option[A], B => T)
+  type ZTraversal[-S, +T, +A, -B] = (S => List[A], List[B] => S => Option[T])
+
+  type Lens[S, A]      = ZLens[S, S, A, A]
+  type Optional[S, A]  = ZOptional[S, S, A, A]
+  type Prism[S, A]     = ZPrism[S, S, A, A]
+  type Traversal[S, A] = ZTraversal[S, S, A, A]
+
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
       Some((ab._1, ab._2))
