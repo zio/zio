@@ -2,7 +2,7 @@ package zio.stream.experimental
 
 import zio._
 
-abstract class ZSink[-R, +E, I, +Z] private (
+abstract class ZSink[-R, +E, -I, +Z] private (
   val push: ZManaged[R, Nothing, ZSink.Push[R, E, I, Z]]
 ) { self =>
   import ZSink.Push
@@ -12,38 +12,6 @@ abstract class ZSink[-R, +E, I, +Z] private (
    */
   def map[Z2](f: Z => Z2): ZSink[R, E, I, Z2] =
     ZSink[R, E, I, Z2](self.push.map(_.mapResult(_.mapError(_.right.map(f)))))
-
-  /**
-   * Repeatedly runs the sink on the incoming elements for as long as they satisfy
-   * the predicate `p`. The sink's results will be accumulated using the stepping
-   * function `f`.
-   */
-  def collectAllWhileWith[S](z: S)(p: I => Boolean)(f: (S, Z) => S): ZSink[R, E, I, S] =
-    ZSink {
-      for {
-        push                <- self.push
-        sinkFuncAndRestart  <- ZSink.restartableSinkFunction(push.push)
-        (sinkFunc, restart) = sinkFuncAndRestart
-        state               <- Ref.make(z).toManaged_
-        foldingPush <- Push.fromSinkFunction[I] { input =>
-                        val (step, done) = input match {
-                          case None => sinkFunc(None) -> true
-                          case Some(is) =>
-                            val filtered = is.takeWhile(p)
-
-                            if (filtered.size < is.size) sinkFunc(Some(filtered)) -> true
-                            else sinkFunc(Some(filtered))                         -> false
-                        }
-
-                        step.catchAll {
-                          case Left(e)  => ZIO.fail(Left(e))
-                          case Right(z) => state.update(f(_, z)) *> restart
-                        } *> (if (done) state.get.flatMap(s => ZIO.fail(Right(s)))
-                              else ZIO.unit)
-
-                      }
-      } yield foldingPush
-    }
 
   /**
    * Converts this sink to a transducer that feeds incoming elements to the sink
@@ -93,11 +61,46 @@ abstract class ZSink[-R, +E, I, +Z] private (
 }
 
 object ZSink {
-  type SinkFunction[-R, +E, I, +Z] = Option[Chunk[I]] => ZIO[R, Either[E, Z], Unit]
+  type SinkFunction[-R, +E, -I, +Z] = Option[Chunk[I]] => ZIO[R, Either[E, Z], Unit]
 
-  case class Push[-R, +E, I, +Z](
-    remainders: Ref[Chunk[I]],
-    push: ZManaged[R, Nothing, SinkFunction[R, E, I, Z]]
+  implicit class ZSinkOps[R, E, I, Z](private val self: ZSink[R, E, I, Z]) extends AnyVal {
+
+    /**
+     * Repeatedly runs the sink on the incoming elements for as long as they satisfy
+     * the predicate `p`. The sink's results will be accumulated using the stepping
+     * function `f`.
+     */
+    def collectAllWhileWith[S](z: S)(p: I => Boolean)(f: (S, Z) => S): ZSink[R, E, I, S] =
+      ZSink {
+        for {
+          push                <- self.push
+          sinkFuncAndRestart  <- ZSink.restartableSinkFunction(push.push)
+          (sinkFunc, restart) = sinkFuncAndRestart
+          state               <- Ref.make(z).toManaged_
+          foldingPush <- Push.fromSinkFunction[I] { input =>
+                          val (step, done) = input match {
+                            case None => sinkFunc(None) -> true
+                            case Some(is) =>
+                              val filtered = is.takeWhile(p)
+
+                              if (filtered.size < is.size) sinkFunc(Some(filtered)) -> true
+                              else sinkFunc(Some(filtered))                         -> false
+                          }
+
+                          step.catchAll {
+                            case Left(e)  => ZIO.fail(Left(e))
+                            case Right(z) => state.update(f(_, z)) *> restart
+                          } *> (if (done) state.get.flatMap(s => ZIO.fail(Right(s)))
+                                else ZIO.unit)
+
+                        }
+        } yield foldingPush
+      }
+  }
+
+  abstract class Push[-R, +E, -I, +Z] private (
+    private[this] val remainders: Ref[Chunk[I]],
+    val push: ZManaged[R, Nothing, SinkFunction[R, E, I, Z]]
   ) { self =>
     def mapResult[R2 <: R, E2, Z2](
       f: ZIO[R, Either[E, Z], Unit] => ZIO[R2, Either[E2, Z2], Unit]
@@ -106,6 +109,8 @@ object ZSink {
   }
 
   object Push {
+    def apply[R, E, I, Z](remainders: Ref[Chunk[I]], push: ZManaged[R, Nothing, SinkFunction[R, E, I, Z]]) =
+      new Push(remainders, push) {}
     def emit[Z](z: Z): IO[Either[Nothing, Z], Nothing]        = IO.fail(Right(z))
     def fail[E](e: E): IO[Either[E, Nothing], Nothing]        = IO.fail(Left(e))
     def halt[E](c: Cause[E]): IO[Either[E, Nothing], Nothing] = IO.halt(c).mapError(Left(_))
@@ -125,7 +130,7 @@ object ZSink {
 
             Push(
               ref,
-              f(pop, log).map { outer => inputs =>
+              f(pop, log).map { outer => (inputs: Option[Chunk[I]]) =>
                 inputs match {
                   case Some(is) => pop.flatMap(remainders => outer(Some(remainders ++ is)))
                   case None =>
