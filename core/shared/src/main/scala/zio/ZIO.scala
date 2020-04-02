@@ -1796,6 +1796,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def unit: ZIO[R, E, Unit] = as(())
 
   /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  final def unless(b: => Boolean): ZIO[R, E, Unit] = ZIO.unless(b)(self)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  final def unlessM[R1 <: R, E1 >: E](b: ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] = ZIO.unlessM(b)(self)
+
+  /**
    * Takes some fiber failures and converts them into errors.
    */
   final def unrefine[E1 >: E](pf: PartialFunction[Throwable, E1]): ZIO[R, E1, A] =
@@ -3234,6 +3244,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
   ): ZIO[R, E, A] =
     checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).uninterruptible)
+
+  /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  def unless[R, E](b: => Boolean)(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    effectSuspendTotal(if (b) unit else zio.unit)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessM[R, E](b: ZIO[R, E, Boolean])(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    b.flatMap(b => if (b) unit else zio.unit)
 
   /**
    * The inverse operation `IO.sandboxed`
