@@ -2873,6 +2873,49 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(isNone)
       }
     ),
+    suite("unless")(
+      testM("executes correct branch only") {
+        for {
+          effectRef <- Ref.make(0)
+          _         <- effectRef.set(1).unless(true)
+          val1      <- effectRef.get
+          _         <- effectRef.set(2).unless(false)
+          val2      <- effectRef.get
+          failure   = new Exception("expected")
+          _         <- IO.fail(failure).unless(true)
+          failed    <- IO.fail(failure).unless(false).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      }
+    ),
+    suite("unlessM")(
+      testM("executes condition effect and correct branch") {
+        for {
+          effectRef      <- Ref.make(0)
+          conditionRef   <- Ref.make(0)
+          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
+          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          _              <- effectRef.set(1).unlessM(conditionTrue)
+          val1           <- effectRef.get
+          conditionVal1  <- conditionRef.get
+          _              <- effectRef.set(2).unlessM(conditionFalse)
+          val2           <- effectRef.get
+          conditionVal2  <- conditionRef.get
+          failure        = new Exception("expected")
+          _              <- IO.fail(failure).unlessM(conditionTrue)
+          failed         <- IO.fail(failure).unlessM(conditionFalse).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(conditionVal1)(equalTo(1)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(conditionVal2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      }
+    ),
     suite("unrefine")(
       testM("converts some fiber failures into errors") {
         val s    = "division by zero"
