@@ -970,6 +970,18 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   lazy val unit: ZManaged[R, E, Unit] = as(())
 
   /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  final def unless(b: => Boolean): ZManaged[R, E, Unit] =
+    ZManaged.unless(b)(self)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  final def unlessM[R1 <: R, E1 >: E](b: ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
+    ZManaged.unlessM(b)(self)
+
+  /**
    * The inverse operation `ZManaged.sandboxed`
    */
   def unsandbox[E1](implicit ev: E <:< Cause[E1]): ZManaged[R, E1, A] =
@@ -2074,6 +2086,18 @@ object ZManaged {
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
   val unit: ZManaged[Any, Nothing, Unit] = ZManaged.succeedNow(())
+
+  /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  def unless[R, E](b: => Boolean)(zio: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+    suspend(if (b) unit else zio.unit)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessM[R, E](b: ZManaged[R, E, Boolean])(zio: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+    b.flatMap(b => if (b) unit else zio.unit)
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
