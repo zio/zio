@@ -922,6 +922,21 @@ object Chunk {
       drop(i)
     }
 
+    /**
+     * Returns the first element that satisfies the predicate.
+     */
+    override def find(f: A => Boolean): Option[A] = {
+      val len               = array.length
+      var result: Option[A] = None
+      var i                 = 0
+      while (i < len && result.isEmpty) {
+        val elem = array(i)
+        if (f(elem)) result = Some(elem)
+        i += 1
+      }
+      result
+    }
+
     override def filter(f: A => Boolean): Chunk[A] = {
       val self = array
       val len  = self.length
