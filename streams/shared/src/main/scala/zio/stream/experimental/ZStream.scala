@@ -748,16 +748,13 @@ abstract class ZStream[-R, +E, +O](
   )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
     process.flatMap { is: ZIO[R, Option[E], Chunk[O]] =>
       def loop(s1: S): ZIO[R1, E1, S] =
-        //   println("--22 " + s1)
         if (!cont(s1)) UIO.succeedNow(s1)
         else
           is.foldM({
-            case Some(e) => {
+            case Some(e) =>
               IO.fail(e)
-            }
-            case None => {
+            case None =>
               IO.succeedNow(s1)
-            }
           }, (ch: Chunk[O]) => ch.foldM(s1)(f).flatMap(loop))
 
       ZManaged.fromEffect(loop(s))
