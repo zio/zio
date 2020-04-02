@@ -78,10 +78,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Returns a stream that submerges the error case of an `Either` into the `ZStream`. Note that
    * this combinator and [[either]] cancel each other, i.e. `xs.either.absolve == xs` and vice versa.
    */
-  final def absolve[R1 <: R, E1, B](
-    implicit ev: ZStream[R, E, A] <:< ZStream[R1, E1, Either[E1, B]]
-  ): ZStream[R1, E1, B] =
-    ZStream.absolve(ev(self))
+  final def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZStream[R, E1, B] =
+    ZStream.absolve(self.map(ev))
 
   /**
    * Applies an aggregator to the stream, which converts one or more elements

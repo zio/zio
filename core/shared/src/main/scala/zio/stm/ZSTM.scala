@@ -151,8 +151,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Returns an effect that submerges the error case of an `Either` into the
    * `STM`. The inverse operation of `STM.either`.
    */
-  def absolve[R1 <: R, E1, B](implicit ev1: ZSTM[R, E, A] <:< ZSTM[R1, E1, Either[E1, B]]): ZSTM[R1, E1, B] =
-    ZSTM.absolve[R1, E1, B](ev1(self))
+  def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZSTM[R, E1, B] =
+    ZSTM.absolve(self.map(ev))
 
   /**
    * Named alias for `>>>`.
@@ -763,6 +763,18 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def unit: ZSTM[R, E, Unit] = as(())
 
   /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  final def unless(b: => Boolean): ZSTM[R, E, Unit] =
+    ZSTM.unless(b)(self)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  final def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+    ZSTM.unlessM(b)(self)
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
   def when(b: => Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
@@ -1254,6 +1266,18 @@ object ZSTM {
    * Returns an `STM` effect that succeeds with `Unit`.
    */
   val unit: USTM[Unit] = succeedNow(())
+
+  /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  def unless[R, E](b: => Boolean)(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    suspend(if (b) unit else stm.unit)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessM[R, E](b: ZSTM[R, E, Boolean])(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    b.flatMap(b => if (b) unit else stm.unit)
 
   /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error

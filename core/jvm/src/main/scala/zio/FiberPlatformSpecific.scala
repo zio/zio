@@ -42,7 +42,7 @@ private[zio] trait FiberPlatformSpecific {
           }
         }
 
-      final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
+      final def children: UIO[Iterable[Fiber.Runtime[Any, Any]]] = UIO(Nil)
 
       final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 
@@ -72,7 +72,7 @@ private[zio] trait FiberPlatformSpecific {
           }
         }
 
-      def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
+      def children: UIO[Iterable[Fiber.Runtime[Any, Any]]] = UIO(Nil)
 
       def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 
