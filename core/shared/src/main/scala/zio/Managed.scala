@@ -133,7 +133,7 @@ object Managed {
     ZManaged.foreach_(as)(f)
 
   /**
-   * See [[zio.ZManaged.foreachExac]]
+   * See [[zio.ZManaged.foreachExec]]
    */
   final def foreachExec[E, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => Managed[E, B]): Managed[E, List[B]] =
     ZManaged.foreachExec(as)(exec)(f)
