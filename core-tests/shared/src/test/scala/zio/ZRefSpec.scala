@@ -329,10 +329,10 @@ object ZRefSpec extends ZIOBaseSpec {
       suite("traversal")(
         testM("basic example") {
           for {
-            ref  <- Ref.make(List(1, 2, 3, 4, 5))
+            ref     <- Ref.make(List(1, 2, 3, 4, 5))
             derived = ref.accessElements(filter(_ % 2 == 0))
-            _ <- derived.update(_.map(_ * 10))
-            value <- ref.get
+            _       <- derived.update(_.map(_ * 10))
+            value   <- ref.get
           } yield assert(value)(equalTo(List(1, 20, 3, 40, 5)))
         }
       )
@@ -354,19 +354,20 @@ object ZRefSpec extends ZIOBaseSpec {
   def filter[A](f: A => Boolean): Traversal[List[A], A] =
     (
       s => s.filter(f),
-      a => s => {
-        println(a)
-        println(s)
-        def loop(a: List[A], s: List[A], acc: List[A]): Option[List[A]] =
-          (a, s) match {
-            case (h1 :: t1, h2 :: t2) if (f(h2)) => loop(t1, t2, h1 :: acc)
-            case (_, h2 :: _) if (f(h2)) => None
-            case (a, h2 :: t2)            => loop(a, t2, h2 :: acc)
-            case (_, _) => Some(acc.reverse)
-            case  _ => None
-          }
+      a =>
+        s => {
+          println(a)
+          println(s)
+          def loop(a: List[A], s: List[A], acc: List[A]): Option[List[A]] =
+            (a, s) match {
+              case (h1 :: t1, h2 :: t2) if (f(h2)) => loop(t1, t2, h1 :: acc)
+              case (_, h2 :: _) if (f(h2))         => None
+              case (a, h2 :: t2)                   => loop(a, t2, h2 :: acc)
+              case (_, _)                          => Some(acc.reverse)
+              case _                               => None
+            }
           loop(a, s, List.empty)
-      }
+        }
     )
 
   def first[A, B]: Lens[(A, B), A] =

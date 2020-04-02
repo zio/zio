@@ -401,7 +401,12 @@ object ZRef extends Serializable {
 
   implicit class TraversalSyntax[A, B](private val self: ZRef[Unit, Unit, A, B]) extends AnyVal {
     def accessElements[C, D](traversal: ZTraversal[B, A, D, C]): ZRef[Unit, Unit, List[C], List[D]] =
-      self.foldS(identity, identity, c => b => traversal._2(c)(b).fold[Either[Unit, A]](Left(()))(Right(_)), b => Right(traversal._1(b)))
+      self.foldS(
+        identity,
+        identity,
+        c => b => traversal._2(c)(b).fold[Either[Unit, A]](Left(()))(Right(_)),
+        b => Right(traversal._1(b))
+      )
   }
 
   implicit class UnifiedSyntax[E, A](private val self: ERef[E, A]) extends AnyVal {
