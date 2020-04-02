@@ -1798,12 +1798,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  final def unless(b: => Boolean): ZIO[R, E, Unit] = ZIO.unless(b)(self)
+  final def unless(b: => Boolean): ZIO[R, E, Unit] =
+    ZIO.unless(b)(self)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  final def unlessM[R1 <: R, E1 >: E](b: ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] = ZIO.unlessM(b)(self)
+  final def unlessM[R1 <: R, E1 >: E](b: ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+    ZIO.unlessM(b)(self)
 
   /**
    * Takes some fiber failures and converts them into errors.
