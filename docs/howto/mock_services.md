@@ -121,7 +121,7 @@ object ExampleMock extends Mock[Example] {
   object Sink     extends Sink[Any, String, Nothing, Int, List[Int]]
   object Stream   extends Stream[Any, String, Int]
 
-  lazy val compose: URLayer[Has[Proxy], Example] = ???
+  val compose: URLayer[Has[Proxy], Example] = ???
 }
 ```
 
@@ -144,12 +144,16 @@ For overloaded methods we nest a list of numbered objects, each representing sub
 Finally we need to define a _compose layer_ that can create our environment from a `Proxy`.
 A `Proxy` holds the mock state and serves predefined responses to calls.
 
+```scala mdoc:invisible
+def withRuntime[R]: URIO[R, Runtime[R]] = ???
+```
+
 ```scala mdoc:silent
 import ExampleMock._
 
-lazy val Compose: URLayer[Has[Proxy], Example] =
+val compose: URLayer[Has[Proxy], Example] =
   ZLayer.fromServiceM { proxy =>
-    ZIO.runtime.map { rts =>
+    withRuntime.map { rts =>
       new Example.Service {
         val static                                 = proxy(Static)
         def zeroArgs                               = proxy(ZeroArgs)
@@ -170,6 +174,8 @@ lazy val Compose: URLayer[Has[Proxy], Example] =
 
 A reference to this layer is passed to _capability tags_ so it can be used to automatically build environment for composed expectations on
 multiple services.
+
+> **Note:** for non-effectful capabilities you need to unsafely run the final effect to satisfy the required interface. For `ZSink` you also need to map the error into a failed sink as demonstrated above.
 
 Finally we create the live version of the service with the implementation of the capabilities:
 
@@ -244,9 +250,9 @@ object AccountObserverMock extends Mock[AccountObserver] {
   object ProcessEvent extends Effect[AccountEvent, Nothing, Unit]
   object RunCommand   extends Effect[Unit, Nothing, Unit]
 
-  lazy val compose: URLayer[Has[Proxy], AccountObserver] =
+  val compose: URLayer[Has[Proxy], AccountObserver] =
     ZLayer.fromServiceM { proxy =>
-      ZIO.runtime.map { rts =>
+      withRuntime.map { rts =>
         new AccountObserver.Service {
           def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
           def runCommand(): UIO[Unit]           = proxy(RunCommand)
@@ -411,9 +417,9 @@ object PolyExampleMock extends Mock[PolyExample] {
   object PolyOutput extends Poly.Effect.Output[Int, Throwable]
   object PolyAll    extends Poly.Effect.InputErrorOutput
 
-  lazy val compose: URLayer[Has[Proxy], PolyExample] =
+  val compose: URLayer[Has[Proxy], PolyExample] =
     ZLayer.fromServiceM { proxy =>
-      ZIO.runtime.map { rts =>
+      withRuntime.map { rts =>
         new PolyExample.Service {
           def polyInput[I: Tagged](input: I)                     = proxy(PolyInput.of[I], input)
           def polyError[E: Tagged](input: Int)                   = proxy(PolyError.of[E], input)

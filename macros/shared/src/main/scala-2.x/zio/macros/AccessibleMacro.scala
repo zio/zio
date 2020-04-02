@@ -36,6 +36,9 @@ private[macros] class AccessibleMacro(val c: Context) {
   @silent("pattern var [^\\s]+ in method unapply is never used")
   def apply(annottees: c.Tree*): c.Tree = {
 
+    val any: Tree       = tq"_root_.scala.Any"
+    val throwable: Tree = tq"_root_.java.lang.Throwable"
+
     val moduleInfo = (annottees match {
       case (module: ModuleDef) :: Nil =>
         module.impl.body.collectFirst {
@@ -45,10 +48,37 @@ private[macros] class AccessibleMacro(val c: Context) {
       case _ => None
     }).getOrElse(abort("@accessible macro can only be applied to objects containing `Service` trait."))
 
-    val anyTree: Tree       = q"_root_.scala.Any"
-    val throwableTree: Tree = tq"_root_.java.lang.Throwable"
+    sealed trait Capability
+    object Capability {
+      case class Effect(r: Tree, e: Tree, a: Tree)                  extends Capability
+      case class Method(a: Tree)                                    extends Capability
+      case class Sink(r: Tree, e: Tree, a0: Tree, a: Tree, b: Tree) extends Capability
+      case class Stream(r: Tree, e: Tree, a: Tree)                  extends Capability
+    }
 
-    case class TypeInfo(isZio: Boolean, r: Tree, e: Tree, a: Tree)
+    case class TypeInfo(capability: Capability) {
+
+      val r: Tree = capability match {
+        case Capability.Effect(r, _, _)     => r
+        case Capability.Sink(r, _, _, _, _) => r
+        case Capability.Stream(r, _, _)     => r
+        case Capability.Method(_)           => any
+      }
+
+      val e: Tree = capability match {
+        case Capability.Effect(_, e, _)     => e
+        case Capability.Sink(_, e, _, _, _) => e
+        case Capability.Stream(_, e, _)     => e
+        case Capability.Method(_)           => throwable
+      }
+
+      val a: Tree = capability match {
+        case Capability.Effect(_, _, a)      => a
+        case Capability.Sink(_, e, a0, a, b) => tq"_root_.zio.stream.ZSink[$any, $e, $a0, $a, $b]"
+        case Capability.Stream(_, e, a)      => tq"_root_.zio.stream.ZStream[$any, $e, $a]"
+        case Capability.Method(a)            => a
+      }
+    }
 
     def typeInfo(tree: Tree): TypeInfo =
       tree match {
@@ -56,7 +86,6 @@ private[macros] class AccessibleMacro(val c: Context) {
           val typeArgs  = typeParams.map(t => c.typecheck(tq"$t", c.TYPEmode, silent = true).tpe)
           val tpe       = c.typecheck(tq"$typeName[..$typeArgs]", c.TYPEmode).tpe
           val dealiased = tpe.dealias
-          val isZio     = dealiased.typeSymbol.fullName == "zio.ZIO"
           val replacements: List[Tree] = (tpe.typeArgs zip typeParams).collect {
             case (NoType, t) => q"$t"
           }
@@ -66,9 +95,11 @@ private[macros] class AccessibleMacro(val c: Context) {
             case ((acc, xs), t)           => (acc :+ q"$t") -> xs
           }
 
-          (isZio, typeArgTrees) match {
-            case (true, r :: e :: a :: Nil) => TypeInfo(true, r, e, a)
-            case _                          => TypeInfo(false, anyTree, throwableTree, tree)
+          (dealiased.typeSymbol.fullName, typeArgTrees) match {
+            case ("zio.ZIO", r :: e :: a :: Nil)                     => TypeInfo(Capability.Effect(r, e, a))
+            case ("zio.stream.ZSink", r :: e :: a0 :: a :: b :: Nil) => TypeInfo(Capability.Sink(r, e, a0, a, b))
+            case ("zio.stream.ZStream", r :: e :: a :: Nil)          => TypeInfo(Capability.Stream(r, e, a))
+            case _                                                   => TypeInfo(Capability.Method(tree))
           }
       }
 
@@ -86,22 +117,23 @@ private[macros] class AccessibleMacro(val c: Context) {
 
       val (r, e, a) = (info.r, info.e, info.a)
 
-      val returnType =
-        if (info.isZio && r != anyTree) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $a]"
-        else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $a]"
+      val returnType = info.capability match {
+        case _: Capability.Effect if r != any => tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $a]"
+        case _                                => tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $a]"
+      }
 
       val typeArgs = typeParams.map(_.name)
 
-      val returnValue = (info.isZio, paramLists) match {
-        case (true, argLists) if argLists.flatten.nonEmpty =>
+      val returnValue = (info.capability, paramLists) match {
+        case (_: Capability.Effect, argLists) if argLists.flatten.nonEmpty =>
           val argNames = argLists.map(_.map(_.name))
           q"_root_.zio.ZIO.accessM(_.get[Service].$name[..$typeArgs](...$argNames))"
-        case (true, _) =>
+        case (_: Capability.Effect, _) =>
           q"_root_.zio.ZIO.accessM(_.get[Service].$name)"
-        case (false, argLists) if argLists.flatten.nonEmpty =>
+        case (_, argLists) if argLists.flatten.nonEmpty =>
           val argNames = argLists.map(_.map(_.name))
           q"_root_.zio.ZIO.access(_.get[Service].$name[..$typeArgs](...$argNames))"
-        case (false, _) =>
+        case (_, _) =>
           q"_root_.zio.ZIO.access(_.get[Service].$name)"
       }
 
