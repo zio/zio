@@ -178,9 +178,9 @@ object ZRef extends Serializable {
     ): ZRef[EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
         type S = A
-        def getEither(s: S): Either[ED, D]       = bc(s)
-        def setEither(c: C)(s: S): Either[EC, S] = ca(c)
-        val value: Atomic[S]                     = self
+        def getEither(s: S): Either[ED, D] = bc(s)
+        def setEither(c: C): Either[EC, S] = ca(c)
+        val value: Atomic[S]               = self
       }
 
     def foldS[EC, ED, C, D](
@@ -189,7 +189,7 @@ object ZRef extends Serializable {
       ca: C => A => Either[EC, A],
       bc: A => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
-      new Derived[EC, ED, C, D] {
+      new DerivedS[EC, ED, C, D] {
         type S = A
         def getEither(s: S): Either[ED, D]       = bc(s)
         def setEither(c: C)(s: S): Either[EC, S] = ca(c)(s)
@@ -323,12 +323,9 @@ object ZRef extends Serializable {
 
     def getEither(s: S): Either[EB, B]
 
-    def setEither(a: A)(s: S): Either[EA, S]
+    def setEither(a: A): Either[EA, S]
 
     val value: Atomic[S]
-
-    final def get: IO[EB, B] =
-      value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
 
     final def fold[EC, ED, C, D](
       ea: EA => EC,
@@ -337,6 +334,57 @@ object ZRef extends Serializable {
       bc: B => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): Either[ED, D] =
+          self.getEither(s).fold(e => Left(eb(e)), bc)
+        def setEither(c: C): Either[EC, S] =
+          ca(c).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
+        val value: Atomic[S] =
+          self.value
+      }
+
+    final def foldS[EC >: EB, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => B => Either[EC, A],
+      bc: B => Either[ED, D]
+    ): ZRef[EC, ED, C, D] =
+      new DerivedS[EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): Either[ED, D] =
+          self.getEither(s).fold(e => Left(eb(e)), bc)
+        def setEither(c: C)(s: S): Either[EC, S] =
+          self.getEither(s).flatMap(ca(c)).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
+        val value: Atomic[S] =
+          self.value
+      }
+
+    def get: IO[EB, B] =
+      value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
+
+    def set(a: A): IO[EA, Unit] =
+      setEither(a).fold(ZIO.fail(_), value.set)
+
+    def setAsync(a: A): IO[EA, Unit] =
+      setEither(a).fold(ZIO.fail(_), value.setAsync)
+  }
+
+  private trait DerivedS[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
+    type S
+
+    def getEither(s: S): Either[EB, B]
+
+    def setEither(a: A)(s: S): Either[EA, S]
+
+    val value: Atomic[S]
+
+    final def fold[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => Either[EC, A],
+      bc: B => Either[ED, D]
+    ): ZRef[EC, ED, C, D] =
+      new DerivedS[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
           self.getEither(s).fold(e => Left(eb(e)), bc)
@@ -352,7 +400,7 @@ object ZRef extends Serializable {
       ca: C => B => Either[EC, A],
       bc: B => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
-      new Derived[EC, ED, C, D] {
+      new DerivedS[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
           self.getEither(s).fold(e => Left(eb(e)), bc)
@@ -362,7 +410,10 @@ object ZRef extends Serializable {
           self.value
       }
 
-    final def set(a: A): IO[EA, Unit] =
+    def get: IO[EB, B] =
+      value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
+
+    def set(a: A): IO[EA, Unit] =
       value.modify { s =>
         setEither(a)(s) match {
           case Left(e)  => (Left(e), s)
@@ -370,7 +421,7 @@ object ZRef extends Serializable {
         }
       }.absolve
 
-    final def setAsync(a: A): IO[EA, Unit] =
+    def setAsync(a: A): IO[EA, Unit] =
       value.modify { s =>
         setEither(a)(s) match {
           case Left(e)  => (Left(e), s)
@@ -417,8 +468,8 @@ object ZRef extends Serializable {
      */
     def getAndSet(a: A): IO[E, A] =
       self match {
-        case atomic: Atomic[A]            => atomic.getAndSet(a)
-        case derived: Derived[E, E, A, A] => derived.modify(v => (v, a))
+        case atomic: Atomic[A] => atomic.getAndSet(a)
+        case derived           => derived.modify(v => (v, a))
       }
 
     /**
@@ -427,8 +478,8 @@ object ZRef extends Serializable {
      */
     def getAndUpdate(f: A => A): IO[E, A] =
       self match {
-        case atomic: Atomic[A]            => atomic.getAndUpdate(f)
-        case derived: Derived[E, E, A, A] => derived.modify(v => (v, f(v)))
+        case atomic: Atomic[A] => atomic.getAndUpdate(f)
+        case derived           => derived.modify(v => (v, f(v)))
       }
 
     /**
@@ -439,7 +490,7 @@ object ZRef extends Serializable {
     def getAndUpdateSome(pf: PartialFunction[A, A]): IO[E, A] =
       self match {
         case atomic: Atomic[A] => atomic.getAndUpdateSome(pf)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify { v =>
             val result = pf.applyOrElse[A, A](v, identity)
             (v, result)
@@ -460,7 +511,20 @@ object ZRef extends Serializable {
               case Left(e) => (Left(e), s)
               case Right(a1) => {
                 val (b, a2) = f(a1)
-                derived.setEither(a2)(s) match {
+                derived.setEither(a2) match {
+                  case Left(e)  => (Left(e), s)
+                  case Right(s) => (Right(b), s)
+                }
+              }
+            }
+          }.absolve
+        case derivedS: DerivedS[E, E, A, A] =>
+          derivedS.value.modify { s =>
+            derivedS.getEither(s) match {
+              case Left(e) => (Left(e), s)
+              case Right(a1) => {
+                val (b, a2) = f(a1)
+                derivedS.setEither(a2)(s) match {
                   case Left(e)  => (Left(e), s)
                   case Right(s) => (Right(b), s)
                 }
@@ -478,7 +542,7 @@ object ZRef extends Serializable {
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): IO[E, B] =
       self match {
         case atomic: Atomic[A] => atomic.modifySome(default)(pf)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
       }
 
@@ -487,8 +551,8 @@ object ZRef extends Serializable {
      */
     def update(f: A => A): IO[E, Unit] =
       self match {
-        case atomic: Atomic[A]            => atomic.update(f)
-        case derived: Derived[E, E, A, A] => derived.modify(v => ((), f(v)))
+        case atomic: Atomic[A] => atomic.update(f)
+        case derived           => derived.modify(v => ((), f(v)))
       }
 
     /**
@@ -498,7 +562,7 @@ object ZRef extends Serializable {
     def updateAndGet(f: A => A): IO[E, A] =
       self match {
         case atomic: Atomic[A] => atomic.updateAndGet(f)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify { v =>
             val result = f(v)
             (result, result)
@@ -512,7 +576,7 @@ object ZRef extends Serializable {
     def updateSome(pf: PartialFunction[A, A]): IO[E, Unit] =
       self match {
         case atomic: Atomic[A] => atomic.updateSome(pf)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify { v =>
             val result = pf.applyOrElse[A, A](v, identity)
             ((), result)
@@ -527,7 +591,7 @@ object ZRef extends Serializable {
     def updateSomeAndGet(pf: PartialFunction[A, A]): IO[E, A] =
       self match {
         case atomic: Atomic[A] => atomic.updateSomeAndGet(pf)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify { v =>
             val result = pf.applyOrElse[A, A](v, identity)
             (result, result)
