@@ -95,7 +95,7 @@ private[zio] object FiberRenderer {
 
   def dumpStr(fibers: Seq[Fiber.Runtime[_, _]], withTrace: Boolean): UIO[String] =
     for {
-      dumps <- ZIO.foreach(fibers)(f => f.dump(withTrace))
+      dumps <- ZIO.foreach(fibers)(f => f.dumpWith(withTrace))
       now   <- UIO(System.currentTimeMillis())
     } yield {
       val treeString  = renderHierarchy(dumps)

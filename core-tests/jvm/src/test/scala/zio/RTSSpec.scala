@@ -62,7 +62,7 @@ object RTSSpec extends ZIOBaseSpec {
       for {
         promise <- Promise.make[Nothing, Int]
         fiber   <- promise.await.fork
-        dump    <- fiber.dump(true)
+        dump    <- fiber.dump
         dumpStr <- dump.prettyPrintM
         _       <- console.putStrLn(dumpStr)
       } yield assert(dumpStr)(anything)
