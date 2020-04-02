@@ -328,6 +328,12 @@ object IO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[[zio.ZIO.foreachExec]]
+   */
+  final def foreachExec[E, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => IO[E, B]): IO[E, List[B]] =
+    ZIO.foreachExec(as)(exec)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =

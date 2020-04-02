@@ -189,7 +189,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       case SuiteCase(label, specs, exec) =>
         specs.foldCauseM(
           c => f(SuiteCase(label, ZIO.halt(c), exec)),
-          Spec
+          ZIO
             .foreachExec(_)(exec.getOrElse(defExec))(_.foldM(defExec)(f))
             .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
         )
@@ -387,7 +387,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
           label,
           layer.build.use { r =>
             specs.flatMap { specs =>
-              Spec.foreachExec(specs)(exec.getOrElse(defExec))(_.execute(defExec)).map(_.toVector)
+              ZIO.foreachExec(specs)(exec.getOrElse(defExec))(_.execute(defExec)).map(_.toVector)
             }.provide(r)
           },
           exec
@@ -552,17 +552,4 @@ object Spec {
     )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): Spec[R0, E1, T] =
       self.provideLayerShared[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer, defExec)
   }
-
-  /**
-   * Applies the function `f` to each element of the `Iterable[A]` and returns
-   * the result in a new `List[B]` using the specified execution strategy.
-   */
-  private def foreachExec[R, E, A, B](
-    as: Iterable[A]
-  )(exec: ExecutionStrategy)(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    exec match {
-      case ExecutionStrategy.Parallel     => ZIO.foreachPar(as)(f)
-      case ExecutionStrategy.ParallelN(n) => ZIO.foreachParN(n)(as)(f)
-      case ExecutionStrategy.Sequential   => ZIO.foreach(as)(f)
-    }
 }
