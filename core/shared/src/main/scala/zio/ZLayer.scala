@@ -2063,7 +2063,7 @@ object ZLayer {
      */
     def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2 <: Has[_]](
       that: ZLayer[RIn2, E1, ROut2]
-    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut with ROut2] =
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
       self >+> that
 
     /**
