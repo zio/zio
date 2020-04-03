@@ -39,11 +39,6 @@ import java.util.concurrent.atomic.AtomicReference
 sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
-   * Reads the value from the `ZRef`.
-   */
-  def get: IO[EB, B]
-
-  /**
    * Folds over the error and value types of the `ZRef`. This is a highly
    * polymorphic method that is capable of arbitrarily transforming the error
    * and value types of the `ZRef`. For most use cases one of the more specific
@@ -70,6 +65,11 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
   ): ZRef[EC, ED, C, D]
 
   /**
+   * Reads the value from the `ZRef`.
+   */
+  def get: IO[EB, B]
+
+  /**
    * Writes a new value to the `ZRef`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
@@ -84,7 +84,7 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Accesses a term of a sum type.
    */
-  def accessCase[EC >: EA, ED >: EB, C, D](prism: ZPrism[ED, EC, B, A, D, C]): ZRef[EC, ED, C, D] =
+  final def accessCase[EC >: EA, ED >: EB, C, D](prism: ZPrism[ED, EC, B, A, D, C]): ZRef[EC, ED, C, D] =
     self.fold(identity, identity, prism._2(_)(()), prism._1)
 
   /**
