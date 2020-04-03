@@ -340,7 +340,7 @@ However, if an upstream dependency is used by many other services it can be conv
 val layer: ZLayer[Any, Nothing, Connection with UserRepo] = connection >+> userRepo
 ```
 
-Here, the `Connection` dependency has been passed through and is available to all downstream services. This allows a style of composition where the `>+>` is used build a progressively larger set of services, with each new service able to depend on all the services before it.
+Here, the `Connection` dependency has been passed through and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
 
 ```scala mdoc:invisible
 type Baker = Has[Baker.Service]
