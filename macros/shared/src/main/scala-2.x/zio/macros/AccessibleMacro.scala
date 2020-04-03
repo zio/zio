@@ -37,6 +37,7 @@ private[macros] class AccessibleMacro(val c: Context) {
   def apply(annottees: c.Tree*): c.Tree = {
 
     val any: Tree       = tq"_root_.scala.Any"
+    val nothing: Tree   = tq"_root_.scala.Nothing"
     val throwable: Tree = tq"_root_.java.lang.Throwable"
 
     val moduleInfo = (annottees match {
@@ -115,11 +116,20 @@ private[macros] class AccessibleMacro(val c: Context) {
         if (impl == EmptyTree) Modifiers()
         else Modifiers(Flag.OVERRIDE)
 
-      val (r, e, a) = (info.r, info.e, info.a)
-
       val returnType = info.capability match {
-        case _: Capability.Effect if r != any => tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $a]"
-        case _                                => tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $a]"
+        case Capability.Effect(r, e, a) =>
+          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $a]"
+          else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $a]"
+        case Capability.Stream(r, e, a) =>
+          val value = tq"_root_.zio.stream.ZStream[$r, $e, $a]"
+          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $nothing, $value]"
+          else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $nothing, $value]"
+        case Capability.Sink(r, e, a0, a, b) =>
+          val value = tq"_root_.zio.stream.ZSink[$r, $e, $a0, $a, $b]"
+          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $value]"
+          else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $value]"
+        case Capability.Method(a) =>
+          tq"_root_.zio.ZIO[_root_.zio.Has[Service], $throwable, $a]"
       }
 
       val typeArgs = typeParams.map(_.name)
