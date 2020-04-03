@@ -122,6 +122,9 @@ lazy val coreNative = core.native
   .settings(scalaVersion := "2.11.12")
   .settings(skip in Test := true)
   .settings(skip in doc := true)
+  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
+    SettingKey[Boolean]("ide-skip-project") := true
+  )
   .settings(sources in (Compile, doc) := Seq.empty)
   .settings(
     libraryDependencies ++= Seq(
