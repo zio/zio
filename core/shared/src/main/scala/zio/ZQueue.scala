@@ -277,12 +277,15 @@ object ZQueue {
      * Poll all items from the queue
      */
     def unsafePollAll[A](q: MutableConcurrentQueue[A]): List[A] = {
+      val empty = null.asInstanceOf[A]
+
       @tailrec
       def poll(as: List[A]): List[A] =
-        q.poll(null.asInstanceOf[A]) match {
+        q.poll(empty) match {
           case null => as
           case a    => poll(a :: as)
         }
+
       poll(List.empty[A]).reverse
     }
 
@@ -290,14 +293,17 @@ object ZQueue {
      * Poll n items from the queue
      */
     def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): List[A] = {
+      val empty = null.asInstanceOf[A]
+
       @tailrec
       def poll(as: List[A], n: Int): List[A] =
         if (n < 1) as
         else
-          q.poll(null.asInstanceOf[A]) match {
+          q.poll(empty) match {
             case null => as
             case a    => poll(a :: as, n - 1)
           }
+
       poll(List.empty[A], max).reverse
     }
 
@@ -311,6 +317,7 @@ object ZQueue {
           case Nil          => as
           case head :: tail => if (q.offer(head)) offerAll(tail) else as
         }
+
       offerAll(as)
     }
 
@@ -460,10 +467,12 @@ object ZQueue {
         }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = {
+        val empty = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
+
         @tailrec
         def unsafeMovePutters(): Unit =
           if (!queue.isFull()) {
-            putters.poll(null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]) match {
+            putters.poll(empty) match {
               case null =>
               case putter @ (a, p, lastItem) =>
                 if (queue.offer(a)) {
