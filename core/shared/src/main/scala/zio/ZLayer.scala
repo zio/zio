@@ -2041,12 +2041,30 @@ object ZLayer {
       self.zipWithPar(that)(_.unionAll[ROut2](_))
 
     /**
-      * A named alias for `++`.
-      */
+     * Feeds the output services of this layer into the input of the specified
+     * layer, resulting in a new layer with the inputs of this layer, and the
+     * outputs of both this layer and the specified layer.
+     */
+    def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+      self ++ (self >>> that)
+
+    /**
+     * A named alias for `++`.
+     */
     def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2 <: Has[_]](
       that: ZLayer[RIn2, E1, ROut2]
     )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
       self ++ that
+
+    /**
+     * A named alias for `>+>`.
+     */
+    def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut with ROut2] =
+      self >+> that
 
     /**
      * Updates one of the services output by this layer.
