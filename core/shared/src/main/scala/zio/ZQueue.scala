@@ -348,9 +348,8 @@ object ZQueue {
       if (!queue.isEmpty()) {
         val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
         val taker     = takers.poll(nullTaker)
-        if (taker eq nullTaker) {
-          None
-        } else {
+        if (taker eq nullTaker) None
+        else {
           queue.poll(null.asInstanceOf[A]) match {
             case null =>
               unsafeOfferAll(takers, taker :: unsafePollAll(takers))
@@ -515,7 +514,9 @@ object ZQueue {
 
             if (surplus.isEmpty) IO.succeedNow(true)
             else
-              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(unsafeCompleteTakers(strategy, queue, takers))
+              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(
+                unsafeCompleteTakers(strategy, queue, takers)
+              )
           }
         }
       }
@@ -538,7 +539,9 @@ object ZQueue {
 
             if (surplus.isEmpty) IO.succeedNow(true)
             else
-              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(unsafeCompleteTakers(strategy, queue, takers))
+              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(
+                unsafeCompleteTakers(strategy, queue, takers)
+              )
           }
         }
       }
