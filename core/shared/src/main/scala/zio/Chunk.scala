@@ -991,7 +991,7 @@ object Chunk {
       s
     }
 
-    override def map[B](f: A => B): NonEmpty[B] = {
+    override def map[B](f: A => B): NonEmptyChunk[B] = {
       val self = array
       val len  = self.length
 
@@ -1084,11 +1084,11 @@ object Chunk {
       else n
 
     self match {
-      case _ if l == 0                  => Chunk.Empty
-      case _ if l == 1                  => Chunk.Singleton(self(offset))
-      case Chunk.Empty                  => Chunk.Empty
-      case Chunk.Slice(ne, offset_0, _) => Chunk.Slice(ne, offset_0 + offset, l)
-      case ne: NonEmptyChunk[A]         => Chunk.Slice(ne, offset, l)
+      case _ if l == 0            => Empty
+      case _ if l == 1            => Singleton(self(offset))
+      case Empty                  => Empty
+      case Slice(ne, offset_0, _) => Slice(ne, offset_0 + offset, l)
+      case ne: NonEmpty[A]        => Slice(ne, offset, l)
     }
   }
 
@@ -1430,7 +1430,7 @@ object Chunk {
           Chunk.Arr(dest)
       }
 
-    final override def zipWithIndex: NonEmpty[(A, Int)] = zipWithIndexFrom(0)
+    final override def zipWithIndex: NonEmptyChunk[(A, Int)] = zipWithIndexFrom(0)
 
     /**
      * Zips this chunk with the index of every element, starting from the initial
@@ -1453,7 +1453,7 @@ object Chunk {
 
     override final def zipAllWith[B, C](
       that: Chunk[B]
-    )(left: A => C, right: B => C)(both: (A, B) => C): NonEmpty[C] =
+    )(left: A => C, right: B => C)(both: (A, B) => C): NonEmptyChunk[C] =
       that match {
         case Empty => self.map(left)
         case ne: NonEmpty[B] =>
