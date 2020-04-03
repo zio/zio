@@ -2024,6 +2024,20 @@ object ZLayer {
   def succeedMany[A](a: => A): Layer[Nothing, A] =
     ZLayer(ZManaged.succeed(a))
 
+  /**
+   * Unwraps a `ZLayer` that is inside a `ZIO`.
+   */
+  def unwrap[R, E, A](fa: ZIO[R, E, ZLayer[R, E, A]]): ZLayer[R, E, A] =
+    new ZLayer(
+      Managed.succeed { memoMap =>
+        for {
+          layer <- ZManaged.fromEffect(fa)
+          scope <- layer.scope
+          a     <- scope(memoMap)
+        } yield a
+      }
+    )
+
   implicit final class ZLayerHasROutOps[RIn, E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
     /**
