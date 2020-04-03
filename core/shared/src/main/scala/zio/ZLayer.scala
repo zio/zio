@@ -2053,6 +2053,38 @@ object ZLayer {
      */
     def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
       self >>> ZLayer.fromFunctionMany(_.update[A](f))
+
+    /**
+     * Returns a new layer that keeps the output of this layer and also adds the output of the other layer,
+     * given that this layer produces everything the other layer requires.
+     * This allows for the linear accumulation of layers:
+     * {{{
+     * def baker       : URLayer[Any                       , Baker]       = ???
+     * def ingredients : URLayer[Any                       , Ingredients] = ???
+     * def oven        : URLayer[Any                       , Oven]        = ???
+     * def dough       : URLayer[Baker with Ingredients    , Dough]       = ???
+     * def cake        : URLayer[Baker with Oven with Dough, Cake]        = ???
+     *
+     * def all =
+     *   baker >+>       // provides: Baker
+     *   ingredients >+> // provides: Baker & Ingredients
+     *   oven >+>        // provides: Baker & Ingredients & Oven
+     *   dough >+>       // provides: Baker & Ingredients & Oven & Dough
+     *   cake            // provides: Baker & Ingredients & Oven & Dough & Cake
+     * }}}
+     */
+    def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+      self ++ (self >>> that)
+
+    /**
+     * A named alias for `>+>`.
+     */
+    def andTo[E1 >: E, RIn2 >: ROut, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut with ROut2] =
+      self >+> that
   }
 
   implicit final class ZLayerHasRInROutOps[RIn <: Has[_], E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut])
