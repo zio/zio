@@ -23,20 +23,20 @@ import zio.clock.Clock
 import zio.duration.Duration
 import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
-object MockClock {
+object MockClock extends Mock[Clock] {
 
-  object CurrentTime     extends Method[Clock, TimeUnit, Nothing, Long](compose)
-  object CurrentDateTime extends Method[Clock, Unit, DateTimeException, OffsetDateTime](compose)
-  object NanoTime        extends Method[Clock, Unit, Nothing, Long](compose)
-  object Sleep           extends Method[Clock, Duration, Nothing, Unit](compose)
+  object CurrentTime     extends Effect[TimeUnit, Nothing, Long]
+  object CurrentDateTime extends Effect[Unit, DateTimeException, OffsetDateTime]
+  object NanoTime        extends Effect[Unit, Nothing, Long]
+  object Sleep           extends Effect[Duration, Nothing, Unit]
 
-  private lazy val compose: URLayer[Has[Proxy], Clock] =
-    ZLayer.fromService(invoke =>
+  val compose: URLayer[Has[Proxy], Clock] =
+    ZLayer.fromService(proxy =>
       new Clock.Service {
-        def currentTime(unit: TimeUnit): UIO[Long]                 = invoke(CurrentTime, unit)
-        def currentDateTime: IO[DateTimeException, OffsetDateTime] = invoke(CurrentDateTime)
-        val nanoTime: UIO[Long]                                    = invoke(NanoTime)
-        def sleep(duration: Duration): UIO[Unit]                   = invoke(Sleep, duration)
+        def currentTime(unit: TimeUnit): UIO[Long]                 = proxy(CurrentTime, unit)
+        def currentDateTime: IO[DateTimeException, OffsetDateTime] = proxy(CurrentDateTime)
+        val nanoTime: UIO[Long]                                    = proxy(NanoTime)
+        def sleep(duration: Duration): UIO[Unit]                   = proxy(Sleep, duration)
       }
     )
 }

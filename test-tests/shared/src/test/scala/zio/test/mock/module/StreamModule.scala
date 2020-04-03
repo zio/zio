@@ -14,18 +14,21 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.mock.module
 
-import zio.Has
+import zio.ZIO
+import zio.stream.{ Sink, Stream }
 
 /**
- * Example modules used for testing _ZIO Mock_ library.
+ * Example of ZIO Data Types module used for testing ZIO Mock framework.
  */
-package object module {
+object StreamModule {
 
-  type PureModule   = Has[PureModule.Service]
-  type ImpureModule = Has[ImpureModule.Service]
-  type StreamModule = Has[StreamModule.Service]
+  trait Service {
+    def sink(a: Int): Sink[String, Nothing, Int, List[Int]]
+    def stream(a: Int): Stream[String, Int]
+  }
 
-  type T22[A] = (A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A)
+  def sink(a: Int)   = ZIO.access[StreamModule](_.get.sink(a))
+  def stream(a: Int) = ZIO.access[StreamModule](_.get.stream(a))
 }

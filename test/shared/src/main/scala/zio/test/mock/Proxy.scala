@@ -25,57 +25,57 @@ import zio.{ Has, ZIO }
 trait Proxy {
 
   def invoke[RIn <: Has[_], ROut, Input, Error, Value](
-    method: Method[RIn, Input, Error, Value],
+    capability: Capability[RIn, Input, Error, Value],
     input: Input
   ): ZIO[ROut, Error, Value]
 
   final def apply[RIn <: Has[_], ROut, Error, Value](
-    method: Method[RIn, Unit, Error, Value]
+    capability: Capability[RIn, Unit, Error, Value]
   ): ZIO[ROut, Error, Value] =
-    invoke(method, ())
+    invoke(capability, ())
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A](
-    method: Method[RIn, A, Error, Value],
+    capability: Capability[RIn, A, Error, Value],
     a: A
   ): ZIO[ROut, Error, Value] =
-    invoke(method, a)
+    invoke(capability, a)
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B](
-    method: Method[RIn, (A, B), Error, Value],
+    capability: Capability[RIn, (A, B), Error, Value],
     a: A,
     b: B
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b))
+    invoke(capability, (a, b))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C](
-    method: Method[RIn, (A, B, C), Error, Value],
+    capability: Capability[RIn, (A, B, C), Error, Value],
     a: A,
     b: B,
     c: C
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c))
+    invoke(capability, (a, b, c))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D](
-    method: Method[RIn, (A, B, C, D), Error, Value],
+    capability: Capability[RIn, (A, B, C, D), Error, Value],
     a: A,
     b: B,
     c: C,
     d: D
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d))
+    invoke(capability, (a, b, c, d))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E](
-    method: Method[RIn, (A, B, C, D, E), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E), Error, Value],
     a: A,
     b: B,
     c: C,
     d: D,
     e: E
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e))
+    invoke(capability, (a, b, c, d, e))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F](
-    method: Method[RIn, (A, B, C, D, E, F), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -83,10 +83,10 @@ trait Proxy {
     e: E,
     f: F
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f))
+    invoke(capability, (a, b, c, d, e, f))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G](
-    method: Method[RIn, (A, B, C, D, E, F, G), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -95,10 +95,10 @@ trait Proxy {
     f: F,
     g: G
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g))
+    invoke(capability, (a, b, c, d, e, f, g))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H](
-    method: Method[RIn, (A, B, C, D, E, F, G, H), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -108,10 +108,10 @@ trait Proxy {
     g: G,
     h: H
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h))
+    invoke(capability, (a, b, c, d, e, f, g, h))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -122,10 +122,10 @@ trait Proxy {
     h: H,
     i: I
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i))
+    invoke(capability, (a, b, c, d, e, f, g, h, i))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -137,10 +137,10 @@ trait Proxy {
     i: I,
     j: J
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -153,10 +153,10 @@ trait Proxy {
     j: J,
     k: K
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -170,10 +170,10 @@ trait Proxy {
     k: K,
     l: L
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -188,10 +188,10 @@ trait Proxy {
     l: L,
     m: M
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -207,10 +207,10 @@ trait Proxy {
     m: M,
     n: N
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -227,10 +227,10 @@ trait Proxy {
     n: N,
     o: O
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -248,10 +248,10 @@ trait Proxy {
     o: O,
     p: P
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -270,10 +270,10 @@ trait Proxy {
     p: P,
     q: Q
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -293,10 +293,10 @@ trait Proxy {
     q: Q,
     r: R
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -317,10 +317,10 @@ trait Proxy {
     r: R,
     s: S
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -342,10 +342,10 @@ trait Proxy {
     s: S,
     t: T
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -368,10 +368,10 @@ trait Proxy {
     t: T,
     u: U
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
 
   final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V](
-    method: Method[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V), Error, Value],
+    capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V), Error, Value],
     a: A,
     b: B,
     c: C,
@@ -395,5 +395,5 @@ trait Proxy {
     u: U,
     v: V
   ): ZIO[ROut, Error, Value] =
-    invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+    invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
 }

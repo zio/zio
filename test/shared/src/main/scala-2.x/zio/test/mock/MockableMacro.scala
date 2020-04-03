@@ -68,19 +68,47 @@ private[mock] object MockableMacro {
       TypeDef(Modifiers(Flag.PARAM), tpe.name, tpeParams, TypeBoundsTree(lo, hi))
     }
 
+    sealed trait Capability
+    object Capability {
+      case class Method(a: Type)                                    extends Capability
+      case class Effect(r: Type, e: Type, a: Type)                  extends Capability
+      case class Stream(r: Type, e: Type, a: Type)                  extends Capability
+      case class Sink(r: Type, e: Type, a0: Type, a: Type, b: Type) extends Capability
+    }
+
     case class MethodInfo(
       symbol: MethodSymbol,
-      isZio: Boolean,
+      capability: Capability,
       params: List[Symbol],
       typeParams: List[TypeSymbol],
-      i: Type,
-      r: Type,
-      e: Type,
-      a: Type,
-      polyI: Boolean,
-      polyE: Boolean,
-      polyA: Boolean
-    )
+      i: Type
+    ) {
+
+      val r: Type = capability match {
+        case Capability.Effect(r, _, _)     => r
+        case Capability.Sink(r, _, _, _, _) => r
+        case Capability.Stream(r, _, _)     => r
+        case Capability.Method(_)           => any
+      }
+
+      val e: Type = capability match {
+        case Capability.Effect(_, e, _)     => e
+        case Capability.Sink(_, e, _, _, _) => e
+        case Capability.Stream(_, e, _)     => e
+        case Capability.Method(_)           => throwable
+      }
+
+      val a: Type = capability match {
+        case Capability.Effect(_, _, a)      => a
+        case Capability.Sink(_, e, a0, a, b) => tq"_root_.zio.stream.ZSink[$any, $e, $a0, $a, $b]".tpe
+        case Capability.Stream(_, e, a)      => tq"_root_.zio.stream.ZStream[$any, $e, $a]".tpe
+        case Capability.Method(a)            => a
+      }
+
+      val polyI: Boolean = typeParams.exists(ts => i.contains(ts))
+      val polyE: Boolean = typeParams.exists(ts => e.contains(ts))
+      val polyA: Boolean = typeParams.exists(ts => a.contains(ts))
+    }
 
     object MethodInfo {
 
@@ -98,18 +126,17 @@ private[mock] object MockableMacro {
           else c.typecheck(tq"(..${params.map(_.typeSignature)})", c.TYPEmode).tpe
 
         val dealiased = symbol.returnType.dealias
-        val (isZio, r, e, a) =
-          dealiased.typeArgs match {
-            case r :: e :: a :: Nil if dealiased.typeSymbol.fullName == "zio.ZIO" => (true, r, e, a)
-            case _                                                                => (false, any, throwable, symbol.returnType)
+        val capability =
+          (dealiased.typeArgs, dealiased.typeSymbol.fullName) match {
+            case (r :: e :: a :: Nil, "zio.ZIO")                     => Capability.Effect(r, e, a)
+            case (r :: e :: a0 :: a :: b :: Nil, "zio.stream.ZSink") => Capability.Sink(r, e, a0, a, b)
+            case (r :: e :: a :: Nil, "zio.stream.ZStream")          => Capability.Stream(r, e, a)
+            case _                                                   => Capability.Method(symbol.returnType)
           }
 
         val typeParams = symbol.typeParams.map(_.asType)
-        val polyI      = typeParams.exists(ts => i.contains(ts))
-        val polyE      = typeParams.exists(ts => e.contains(ts))
-        val polyA      = typeParams.exists(ts => a.contains(ts))
 
-        MethodInfo(symbol, isZio, params, typeParams, i, r, e, a, polyI, polyE, polyA)
+        MethodInfo(symbol, capability, params, typeParams, i)
       }
     }
 
@@ -117,23 +144,39 @@ private[mock] object MockableMacro {
       val tagName   = capitalize(name)
       val (i, e, a) = (info.i, info.e, info.a)
 
-      (info.polyI, info.polyE, info.polyA) match {
-        case (false, false, false) =>
-          q"case object $tagName extends _root_.zio.test.mock.Method[$env, $i, $e, $a](compose)"
-        case (true, false, false) =>
-          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.Input[$env, $e, $a](compose)"
-        case (false, true, false) =>
-          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.Error[$env, $i, $a](compose)"
-        case (false, false, true) =>
-          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.Output[$env, $i, $e](compose)"
-        case (true, true, false) =>
-          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.InputError[$env, $a](compose)"
-        case (true, false, true) =>
-          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.InputOutput[$env, $e](compose)"
-        case (false, true, true) =>
-          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.ErrorOutput[$env, $i](compose)"
-        case (true, true, true) =>
-          q"case object $tagName extends _root_.zio.test.mock.Method.Poly.InputErrorOutput[$env](compose)"
+      (info.capability, info.polyI, info.polyE, info.polyA) match {
+        case (_: Capability.Method, false, false, false) =>
+          q"case object $tagName extends Method[$i, $e, $a]"
+        case (_: Capability.Method, true, false, false) =>
+          q"case object $tagName extends Poly.Method.Input[$e, $a]"
+        case (_: Capability.Method, false, true, false) =>
+          q"case object $tagName extends Poly.Method.Error[$i, $a]"
+        case (_: Capability.Method, false, false, true) =>
+          q"case object $tagName extends Poly.Method.Output[$i, $e]"
+        case (_: Capability.Method, true, true, false) =>
+          q"case object $tagName extends Poly.Method.InputError[$a]"
+        case (_: Capability.Method, true, false, true) =>
+          q"case object $tagName extends Poly.Method.InputOutput[$e]"
+        case (_: Capability.Method, false, true, true) =>
+          q"case object $tagName extends Poly.Method.ErrorOutput[$i]"
+        case (_: Capability.Method, true, true, true) =>
+          q"case object $tagName extends Poly.Method.InputErrorOutput"
+        case (_: Capability.Effect, false, false, false) =>
+          q"case object $tagName extends Effect[$i, $e, $a]"
+        case (_: Capability.Effect, true, false, false) =>
+          q"case object $tagName extends Poly.Effect.Input[$e, $a]"
+        case (_: Capability.Effect, false, true, false) =>
+          q"case object $tagName extends Poly.Effect.Error[$i, $a]"
+        case (_: Capability.Effect, false, false, true) =>
+          q"case object $tagName extends Poly.Effect.Output[$i, $e]"
+        case (_: Capability.Effect, true, true, false) =>
+          q"case object $tagName extends Poly.Effect.InputError[$a]"
+        case (_: Capability.Effect, true, false, true) =>
+          q"case object $tagName extends Poly.Effect.InputOutput[$e]"
+        case (_: Capability.Effect, false, true, true) =>
+          q"case object $tagName extends Poly.Effect.ErrorOutput[$i]"
+        case (_: Capability.Effect, true, true, true) =>
+          q"case object $tagName extends Poly.Effect.InputErrorOutput"
       }
     }
 
@@ -167,9 +210,17 @@ private[mock] object MockableMacro {
 
       val returnType = tq"_root_.zio.ZIO[$r, $e, $a]"
       val returnValue =
-        info.params.map(_.name) match {
-          case Nil        => q"invoke($tag)"
-          case paramNames => q"invoke($tag, ..$paramNames)"
+        (info.capability, info.params.map(_.name)) match {
+          case (_: Capability.Effect, Nil)        => q"proxy($tag)"
+          case (_: Capability.Effect, paramNames) => q"proxy($tag, ..$paramNames)"
+          case (_: Capability.Method, Nil)        => q"rts.unsafeRunTask(proxy($tag))"
+          case (_: Capability.Method, paramNames) => q"rts.unsafeRunTask(proxy($tag, ..$paramNames))"
+          case (_: Capability.Sink, Nil) =>
+            q"rts.unsafeRun(proxy($tag).catchAll(error => _root_.zio.UIO(_root_.zio.stream.ZSink.fail(error))))"
+          case (_: Capability.Sink, paramNames) =>
+            q"rts.unsafeRun(proxy($tag, ..$paramNames).catchAll(error => _root_.zio.UIO(_root_.zio.stream.ZSink.fail(error))))"
+          case (_: Capability.Stream, Nil)        => q"rts.unsafeRun(proxy($tag))"
+          case (_: Capability.Stream, paramNames) => q"rts.unsafeRun(proxy($tag, ..$paramNames))"
         }
 
       if (info.symbol.isVal) q"$mods val $name: $returnType = $returnValue"
@@ -225,16 +276,18 @@ private[mock] object MockableMacro {
 
     val structure =
       q"""
-        object $mockName {
+        object $mockName extends _root_.zio.test.mock.Mock[$env] {
 
           ..$tags
 
-          private lazy val compose: $composeAsc =
-            _root_.zio.ZLayer.fromService(invoke =>
-              new $service {
-                ..$mocks
+          val compose: $composeAsc =
+            _root_.zio.ZLayer.fromServiceM { proxy =>
+              withRuntime.map { rts =>
+                new $service {
+                  ..$mocks
+                }
               }
-            )
+            }
         }
       """
 

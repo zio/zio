@@ -1031,7 +1031,7 @@ object ZLayer {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
- 
+
   /**
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns

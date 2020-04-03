@@ -1,14 +1,14 @@
 package zio.test.mock
 
 import zio.test.Assertion
-import zio.test.mock.module.ModuleMock
+import zio.test.mock.module.PureModuleMock
 import zio.test.{ assert, suite, test, ZIOBaseSpec }
 
-object ExpectationSpec extends ZIOBaseSpec with MockSpecUtils {
+object ExpectationSpec extends ZIOBaseSpec {
 
   import Assertion._
   import Expectation._
-  import ModuleMock._
+  import PureModuleMock._
 
   lazy val A = SingleParam(equalTo(1), value("foo"))
   lazy val B = Static(value("bar"))

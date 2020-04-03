@@ -1,10 +1,10 @@
 package zio.test.mock
 
 import zio.test.mock.internal.{ InvalidCall, MockException }
-import zio.test.mock.module.{ Module, ModuleMock }
+import zio.test.mock.module.{ PureModule, PureModuleMock }
 import zio.test.{ suite, Assertion, TestAspect, ZIOBaseSpec }
 
-object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
+object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
 
   import Assertion._
   import Expectation._
@@ -15,39 +15,39 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
   def spec = suite("PolyMockSpec")(
     suite("polymorphic input")(
       suite("expectations met")(
-        testSpec("String")(
-          ModuleMock.PolyInput.of[String](equalTo("foo"), value("bar")),
-          Module.polyInput("foo"),
+        testValue("String")(
+          PureModuleMock.PolyInput.of[String](equalTo("foo"), value("bar")),
+          PureModule.polyInput("foo"),
           equalTo("bar")
         ),
-        testSpec("Int")(
-          ModuleMock.PolyInput.of[Int](equalTo(42), value("bar")),
-          Module.polyInput(42),
+        testValue("Int")(
+          PureModuleMock.PolyInput.of[Int](equalTo(42), value("bar")),
+          PureModule.polyInput(42),
           equalTo("bar")
         ),
-        testSpec("Long")(
-          ModuleMock.PolyInput.of[Long](equalTo(42L), value("bar")),
-          Module.polyInput(42L),
+        testValue("Long")(
+          PureModuleMock.PolyInput.of[Long](equalTo(42L), value("bar")),
+          PureModule.polyInput(42L),
           equalTo("bar")
         )
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, Long, Int, String, String, String, String]
-          type M1 = Method[Module, Long, String, String]
-          type M2 = Method[Module, Int, String, String]
+          type E  = InvalidPolyType[PureModule, PureModule, Long, Int, String, String, String, String]
+          type M1 = Capability[PureModule, Long, String, String]
+          type M2 = Capability[PureModule, Int, String, String]
 
-          testSpecDied("invalid polymorphic type")(
-            ModuleMock.PolyInput.of[Long](equalTo(42L), value("bar")),
-            Module.polyInput(42),
+          testDied("invalid polymorphic type")(
+            PureModuleMock.PolyInput.of[Long](equalTo(42L), value("bar")),
+            PureModule.polyInput(42),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
                 _.failedMatches,
                 hasFirst(
                   isSubtype[E](
-                    hasField[E, M1]("method", _.method, anything) &&
-                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                    hasField[E, M1]("invoked", _.invoked, anything) &&
+                      hasField[E, M2]("expected", _.expected, anything)
                   )
                 )
               )
@@ -58,39 +58,39 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
     ),
     suite("polymorphic error")(
       suite("expectations met")(
-        testSpec("String")(
-          ModuleMock.PolyError.of[String](equalTo("foo"), failure("bar")),
-          Module.polyError("foo").flip,
+        testError("String")(
+          PureModuleMock.PolyError.of[String](equalTo("foo"), failure("bar")),
+          PureModule.polyError("foo"),
           equalTo("bar")
         ),
-        testSpec("Int")(
-          ModuleMock.PolyError.of[Int](equalTo("foo"), failure(42)),
-          Module.polyError("foo").flip,
+        testError("Int")(
+          PureModuleMock.PolyError.of[Int](equalTo("foo"), failure(42)),
+          PureModule.polyError("foo"),
           equalTo(42)
         ),
-        testSpec("Long")(
-          ModuleMock.PolyError.of[Long](equalTo("foo"), failure(42L)),
-          Module.polyError("foo").flip,
+        testError("Long")(
+          PureModuleMock.PolyError.of[Long](equalTo("foo"), failure(42L)),
+          PureModule.polyError("foo"),
           equalTo(42L)
         )
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, String, String, Long, Int, String, String]
-          type M1 = Method[Module, String, Long, String]
-          type M2 = Method[Module, String, Int, String]
+          type E  = InvalidPolyType[PureModule, PureModule, String, String, Long, Int, String, String]
+          type M1 = Capability[PureModule, String, Long, String]
+          type M2 = Capability[PureModule, String, Int, String]
 
-          testSpecDied("invalid polymorphic type")(
-            ModuleMock.PolyError.of[Long](equalTo("foo"), failure(42L)),
-            Module.polyError[Int]("foo"),
+          testDied("invalid polymorphic type")(
+            PureModuleMock.PolyError.of[Long](equalTo("foo"), failure(42L)),
+            PureModule.polyError[Int]("foo"),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
                 _.failedMatches,
                 hasFirst(
                   isSubtype[E](
-                    hasField[E, M1]("method", _.method, anything) &&
-                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                    hasField[E, M1]("invoked", _.invoked, anything) &&
+                      hasField[E, M2]("expected", _.expected, anything)
                   )
                 )
               )
@@ -101,39 +101,39 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
     ),
     suite("polymorphic value")(
       suite("expectations met")(
-        testSpec("String")(
-          ModuleMock.PolyOutput.of[String](equalTo("foo"), value("bar")),
-          Module.polyOutput("foo"),
+        testValue("String")(
+          PureModuleMock.PolyOutput.of[String](equalTo("foo"), value("bar")),
+          PureModule.polyOutput("foo"),
           equalTo("bar")
         ),
-        testSpec("Int")(
-          ModuleMock.PolyOutput.of[Int](equalTo("foo"), value(42)),
-          Module.polyOutput("foo"),
+        testValue("Int")(
+          PureModuleMock.PolyOutput.of[Int](equalTo("foo"), value(42)),
+          PureModule.polyOutput("foo"),
           equalTo(42)
         ),
-        testSpec("Long")(
-          ModuleMock.PolyOutput.of[Long](equalTo("foo"), value(42L)),
-          Module.polyOutput("foo"),
+        testValue("Long")(
+          PureModuleMock.PolyOutput.of[Long](equalTo("foo"), value(42L)),
+          PureModule.polyOutput("foo"),
           equalTo(42L)
         )
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, String, String, String, String, Long, Int]
-          type M1 = Method[Module, String, String, Long]
-          type M2 = Method[Module, String, String, Int]
+          type E  = InvalidPolyType[PureModule, PureModule, String, String, String, String, Long, Int]
+          type M1 = Capability[PureModule, String, String, Long]
+          type M2 = Capability[PureModule, String, String, Int]
 
-          testSpecDied("invalid polymorphic type")(
-            ModuleMock.PolyOutput.of[Long](equalTo("foo"), value(42L)),
-            Module.polyOutput[Int]("foo"),
+          testDied("invalid polymorphic type")(
+            PureModuleMock.PolyOutput.of[Long](equalTo("foo"), value(42L)),
+            PureModule.polyOutput[Int]("foo"),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
                 _.failedMatches,
                 hasFirst(
                   isSubtype[E](
-                    hasField[E, M1]("method", _.method, anything) &&
-                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                    hasField[E, M1]("invoked", _.invoked, anything) &&
+                      hasField[E, M2]("expected", _.expected, anything)
                   )
                 )
               )
@@ -145,56 +145,56 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
     suite("polymorphic input and error")(
       suite("expectations met")(
         suite("Long, Int")(
-          testSpec("success")(
-            ModuleMock.PolyInputError.of[Long, Int](equalTo(42L), value("foo")),
-            Module.polyInputError(42L),
+          testValue("success")(
+            PureModuleMock.PolyInputError.of[Long, Int](equalTo(42L), value("foo")),
+            PureModule.polyInputError(42L),
             equalTo("foo")
           ),
-          testSpec("failure")(
-            ModuleMock.PolyInputError.of[Long, Int](equalTo(42L), failure(42)),
-            Module.polyInputError(42L).flip,
+          testError("failure")(
+            PureModuleMock.PolyInputError.of[Long, Int](equalTo(42L), failure(42)),
+            PureModule.polyInputError(42L),
             equalTo(42)
           )
         ),
         suite("Int, Long")(
-          testSpec("success")(
-            ModuleMock.PolyInputError.of[Int, Long](equalTo(42), value("foo")),
-            Module.polyInputError(42),
+          testValue("success")(
+            PureModuleMock.PolyInputError.of[Int, Long](equalTo(42), value("foo")),
+            PureModule.polyInputError(42),
             equalTo("foo")
           ),
-          testSpec("failure")(
-            ModuleMock.PolyInputError.of[Int, Long](equalTo(42), failure(42L)),
-            Module.polyInputError(42).flip,
+          testError("failure")(
+            PureModuleMock.PolyInputError.of[Int, Long](equalTo(42), failure(42L)),
+            PureModule.polyInputError(42),
             equalTo(42L)
           )
         ),
-        testSpec("combined")(
-          ModuleMock.PolyInputError.of[Long, Int](equalTo(42L), value("foo")) andThen
-            ModuleMock.PolyInputError.of[Int, Long](equalTo(42), value("bar")),
+        testValue("combined")(
+          PureModuleMock.PolyInputError.of[Long, Int](equalTo(42L), value("foo")) andThen
+            PureModuleMock.PolyInputError.of[Int, Long](equalTo(42), value("bar")),
           for {
-            v1 <- Module.polyInputError[Long, Int](42L)
-            v2 <- Module.polyInputError[Int, Long](42)
+            v1 <- PureModule.polyInputError[Long, Int](42L)
+            v2 <- PureModule.polyInputError[Int, Long](42)
           } yield (v1, v2),
           equalTo(("foo", "bar"))
         )
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, Long, Int, Int, Long, String, String]
-          type M1 = Method[Module, Long, Int, String]
-          type M2 = Method[Module, Int, Long, String]
+          type E  = InvalidPolyType[PureModule, PureModule, Long, Int, Int, Long, String, String]
+          type M1 = Capability[PureModule, Long, Int, String]
+          type M2 = Capability[PureModule, Int, Long, String]
 
-          testSpecDied("invalid polymorphic type")(
-            ModuleMock.PolyInputError.of[Long, Int](equalTo(42L), value("foo")),
-            Module.polyInputError[Int, Long](42),
+          testDied("invalid polymorphic type")(
+            PureModuleMock.PolyInputError.of[Long, Int](equalTo(42L), value("foo")),
+            PureModule.polyInputError[Int, Long](42),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
                 _.failedMatches,
                 hasFirst(
                   isSubtype[E](
-                    hasField[E, M1]("method", _.method, anything) &&
-                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                    hasField[E, M1]("invoked", _.invoked, anything) &&
+                      hasField[E, M2]("expected", _.expected, anything)
                   )
                 )
               )
@@ -206,56 +206,56 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
     suite("polymorphic input and output")(
       suite("expectations met")(
         suite("Long, Int")(
-          testSpec("success")(
-            ModuleMock.PolyInputOutput.of[Long, Int](equalTo(42L), value(42)),
-            Module.polyInputOutput(42L),
+          testValue("success")(
+            PureModuleMock.PolyInputOutput.of[Long, Int](equalTo(42L), value(42)),
+            PureModule.polyInputOutput(42L),
             equalTo(42)
           ),
-          testSpec("failure")(
-            ModuleMock.PolyInputOutput.of[Long, Int](equalTo(42L), failure("foo")),
-            Module.polyInputOutput(42L).flip,
+          testError("failure")(
+            PureModuleMock.PolyInputOutput.of[Long, Int](equalTo(42L), failure("foo")),
+            PureModule.polyInputOutput(42L),
             equalTo("foo")
           )
         ),
         suite("Int, Long")(
-          testSpec("success")(
-            ModuleMock.PolyInputOutput.of[Int, Long](equalTo(42), value(42L)),
-            Module.polyInputOutput(42),
+          testValue("success")(
+            PureModuleMock.PolyInputOutput.of[Int, Long](equalTo(42), value(42L)),
+            PureModule.polyInputOutput(42),
             equalTo(42L)
           ),
-          testSpec("failure")(
-            ModuleMock.PolyInputOutput.of[Int, Long](equalTo(42), failure("foo")),
-            Module.polyInputOutput(42).flip,
+          testError("failure")(
+            PureModuleMock.PolyInputOutput.of[Int, Long](equalTo(42), failure("foo")),
+            PureModule.polyInputOutput(42),
             equalTo("foo")
           )
         ),
-        testSpec("combined")(
-          ModuleMock.PolyInputOutput.of[Long, Int](equalTo(42L), value(42)) andThen
-            ModuleMock.PolyInputOutput.of[Int, Long](equalTo(42), value(42L)),
+        testValue("combined")(
+          PureModuleMock.PolyInputOutput.of[Long, Int](equalTo(42L), value(42)) andThen
+            PureModuleMock.PolyInputOutput.of[Int, Long](equalTo(42), value(42L)),
           for {
-            v1 <- Module.polyInputOutput[Long, Int](42L)
-            v2 <- Module.polyInputOutput[Int, Long](42)
+            v1 <- PureModule.polyInputOutput[Long, Int](42L)
+            v2 <- PureModule.polyInputOutput[Int, Long](42)
           } yield (v1, v2),
           equalTo((42, 42L))
         )
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, Long, Int, String, String, Int, Long]
-          type M1 = Method[Module, Long, String, Int]
-          type M2 = Method[Module, Int, String, Long]
+          type E  = InvalidPolyType[PureModule, PureModule, Long, Int, String, String, Int, Long]
+          type M1 = Capability[PureModule, Long, String, Int]
+          type M2 = Capability[PureModule, Int, String, Long]
 
-          testSpecDied("invalid polymorphic type")(
-            ModuleMock.PolyInputOutput.of[Long, Int](equalTo(42L), value(42)),
-            Module.polyInputOutput[Int, Long](42),
+          testDied("invalid polymorphic type")(
+            PureModuleMock.PolyInputOutput.of[Long, Int](equalTo(42L), value(42)),
+            PureModule.polyInputOutput[Int, Long](42),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
                 _.failedMatches,
                 hasFirst(
                   isSubtype[E](
-                    hasField[E, M1]("method", _.method, anything) &&
-                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                    hasField[E, M1]("invoked", _.invoked, anything) &&
+                      hasField[E, M2]("expected", _.expected, anything)
                   )
                 )
               )
@@ -267,56 +267,56 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
     suite("polymorphic error and output")(
       suite("expectations met")(
         suite("Long, Int")(
-          testSpec("success")(
-            ModuleMock.PolyErrorOutput.of[Long, Int](equalTo("foo"), value(42)),
-            Module.polyErrorOutput("foo"),
+          testValue("success")(
+            PureModuleMock.PolyErrorOutput.of[Long, Int](equalTo("foo"), value(42)),
+            PureModule.polyErrorOutput("foo"),
             equalTo(42)
           ),
-          testSpec("failure")(
-            ModuleMock.PolyErrorOutput.of[Long, Int](equalTo("foo"), failure(42L)),
-            Module.polyErrorOutput("foo").flip,
+          testError("failure")(
+            PureModuleMock.PolyErrorOutput.of[Long, Int](equalTo("foo"), failure(42L)),
+            PureModule.polyErrorOutput("foo"),
             equalTo(42L)
           )
         ),
         suite("Int, Long")(
-          testSpec("success")(
-            ModuleMock.PolyErrorOutput.of[Int, Long](equalTo("foo"), value(42L)),
-            Module.polyErrorOutput("foo"),
+          testValue("success")(
+            PureModuleMock.PolyErrorOutput.of[Int, Long](equalTo("foo"), value(42L)),
+            PureModule.polyErrorOutput("foo"),
             equalTo(42L)
           ),
-          testSpec("failure")(
-            ModuleMock.PolyErrorOutput.of[Int, Long](equalTo("foo"), failure(42)),
-            Module.polyErrorOutput("foo").flip,
+          testError("failure")(
+            PureModuleMock.PolyErrorOutput.of[Int, Long](equalTo("foo"), failure(42)),
+            PureModule.polyErrorOutput("foo"),
             equalTo(42)
           )
         ),
-        testSpec("combined")(
-          ModuleMock.PolyErrorOutput.of[Long, Int](equalTo("foo"), value(42)) andThen
-            ModuleMock.PolyErrorOutput.of[Int, Long](equalTo("bar"), value(42L)),
+        testValue("combined")(
+          PureModuleMock.PolyErrorOutput.of[Long, Int](equalTo("foo"), value(42)) andThen
+            PureModuleMock.PolyErrorOutput.of[Int, Long](equalTo("bar"), value(42L)),
           for {
-            v1 <- Module.polyErrorOutput[Long, Int]("foo")
-            v2 <- Module.polyErrorOutput[Int, Long]("bar")
+            v1 <- PureModule.polyErrorOutput[Long, Int]("foo")
+            v2 <- PureModule.polyErrorOutput[Int, Long]("bar")
           } yield (v1, v2),
           equalTo((42, 42L))
         )
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, String, String, Long, Int, Int, Long]
-          type M1 = Method[Module, String, Long, Int]
-          type M2 = Method[Module, String, Int, Long]
+          type E  = InvalidPolyType[PureModule, PureModule, String, String, Long, Int, Int, Long]
+          type M1 = Capability[PureModule, String, Long, Int]
+          type M2 = Capability[PureModule, String, Int, Long]
 
-          testSpecDied("invalid polymorphic type")(
-            ModuleMock.PolyErrorOutput.of[Long, Int](equalTo("foo"), value(42)),
-            Module.polyErrorOutput[Int, Long]("foo"),
+          testDied("invalid polymorphic type")(
+            PureModuleMock.PolyErrorOutput.of[Long, Int](equalTo("foo"), value(42)),
+            PureModule.polyErrorOutput[Int, Long]("foo"),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
                 _.failedMatches,
                 hasFirst(
                   isSubtype[E](
-                    hasField[E, M1]("method", _.method, anything) &&
-                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                    hasField[E, M1]("invoked", _.invoked, anything) &&
+                      hasField[E, M2]("expected", _.expected, anything)
                   )
                 )
               )
@@ -328,70 +328,70 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
     suite("polymorphic input, error and value")(
       suite("expectations met")(
         suite("String, Int, Long")(
-          testSpec("success")(
-            ModuleMock.PolyInputErrorOutput.of[String, Int, Long](equalTo("foo"), value(42L)),
-            Module.polyInputErrorOutput("foo"),
+          testValue("success")(
+            PureModuleMock.PolyInputErrorOutput.of[String, Int, Long](equalTo("foo"), value(42L)),
+            PureModule.polyInputErrorOutput("foo"),
             equalTo(42L)
           ),
-          testSpec("failure")(
-            ModuleMock.PolyInputErrorOutput.of[String, Int, Long](equalTo("foo"), failure(42)),
-            Module.polyInputErrorOutput("foo").flip,
+          testError("failure")(
+            PureModuleMock.PolyInputErrorOutput.of[String, Int, Long](equalTo("foo"), failure(42)),
+            PureModule.polyInputErrorOutput("foo"),
             equalTo(42L)
           )
         ),
         suite("Int, Long, String")(
-          testSpec("success")(
-            ModuleMock.PolyInputErrorOutput.of[Int, Long, String](equalTo(42), value("foo")),
-            Module.polyInputErrorOutput(42),
+          testValue("success")(
+            PureModuleMock.PolyInputErrorOutput.of[Int, Long, String](equalTo(42), value("foo")),
+            PureModule.polyInputErrorOutput(42),
             equalTo("foo")
           ),
-          testSpec("failure")(
-            ModuleMock.PolyInputErrorOutput.of[Int, Long, String](equalTo(42), failure(42L)),
-            Module.polyInputErrorOutput(42).flip,
+          testError("failure")(
+            PureModuleMock.PolyInputErrorOutput.of[Int, Long, String](equalTo(42), failure(42L)),
+            PureModule.polyInputErrorOutput(42),
             equalTo(42L)
           )
         ),
         suite("Long, String, Int")(
-          testSpec("success")(
-            ModuleMock.PolyInputErrorOutput.of[Long, String, Int](equalTo(42L), value(42)),
-            Module.polyInputErrorOutput(42L),
+          testValue("success")(
+            PureModuleMock.PolyInputErrorOutput.of[Long, String, Int](equalTo(42L), value(42)),
+            PureModule.polyInputErrorOutput(42L),
             equalTo(42)
           ),
-          testSpec("failure")(
-            ModuleMock.PolyInputErrorOutput.of[Long, String, Int](equalTo(42L), failure("foo")),
-            Module.polyInputErrorOutput(42L).flip,
+          testError("failure")(
+            PureModuleMock.PolyInputErrorOutput.of[Long, String, Int](equalTo(42L), failure("foo")),
+            PureModule.polyInputErrorOutput(42L),
             equalTo("foo")
           )
         ),
-        testSpec("combined")(
-          ModuleMock.PolyInputErrorOutput.of[String, Int, Long](equalTo("foo"), value(42L)) andThen
-            ModuleMock.PolyInputErrorOutput.of[Int, Long, String](equalTo(42), value("foo")) andThen
-            ModuleMock.PolyInputErrorOutput.of[Long, String, Int](equalTo(42L), value(42)),
+        testValue("combined")(
+          PureModuleMock.PolyInputErrorOutput.of[String, Int, Long](equalTo("foo"), value(42L)) andThen
+            PureModuleMock.PolyInputErrorOutput.of[Int, Long, String](equalTo(42), value("foo")) andThen
+            PureModuleMock.PolyInputErrorOutput.of[Long, String, Int](equalTo(42L), value(42)),
           for {
-            v1 <- Module.polyInputErrorOutput[String, Int, Long]("foo")
-            v2 <- Module.polyInputErrorOutput[Int, Long, String](42)
-            v3 <- Module.polyInputErrorOutput[Long, String, Int](42L)
+            v1 <- PureModule.polyInputErrorOutput[String, Int, Long]("foo")
+            v2 <- PureModule.polyInputErrorOutput[Int, Long, String](42)
+            v3 <- PureModule.polyInputErrorOutput[Long, String, Int](42L)
           } yield (v1, v2, v3),
           equalTo((42L, "foo", 42))
         )
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, Int, String, Long, Int, String, Long]
-          type M1 = Method[Module, Int, Long, String]
-          type M2 = Method[Module, String, Int, Long]
+          type E  = InvalidPolyType[PureModule, PureModule, Int, String, Long, Int, String, Long]
+          type M1 = Capability[PureModule, Int, Long, String]
+          type M2 = Capability[PureModule, String, Int, Long]
 
-          testSpecDied("invalid polymorphic type")(
-            ModuleMock.PolyInputErrorOutput.of[String, Int, Long](equalTo("foo"), value(42L)),
-            Module.polyInputErrorOutput[Int, Long, String](42),
+          testDied("invalid polymorphic type")(
+            PureModuleMock.PolyInputErrorOutput.of[String, Int, Long](equalTo("foo"), value(42L)),
+            PureModule.polyInputErrorOutput[Int, Long, String](42),
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
                 _.failedMatches,
                 hasFirst(
                   isSubtype[E](
-                    hasField[E, M1]("method", _.method, anything) &&
-                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                    hasField[E, M1]("invoked", _.invoked, anything) &&
+                      hasField[E, M2]("expected", _.expected, anything)
                   )
                 )
               )
@@ -407,38 +407,38 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
     // will be fixed when izumi-reflect is supported on dotty
     suite("polymorphic mixed output")(
       suite("expectations met")(
-        testSpec("String")(
-          ModuleMock.PolyMixed.of[(String, String)](value("bar" -> "baz")),
-          Module.polyMixed[String],
+        testValue("String")(
+          PureModuleMock.PolyMixed.of[(String, String)](value("bar" -> "baz")),
+          PureModule.polyMixed[String],
           equalTo("bar" -> "baz")
         ),
-        testSpec("Int")(
-          ModuleMock.PolyMixed.of[(Int, String)](value(42 -> "bar")),
-          Module.polyMixed[Int],
+        testValue("Int")(
+          PureModuleMock.PolyMixed.of[(Int, String)](value(42 -> "bar")),
+          PureModule.polyMixed[Int],
           equalTo(42 -> "bar")
         ),
-        testSpec("Long")(
-          ModuleMock.PolyMixed.of[(Long, String)](value(42L -> "bar")),
-          Module.polyMixed[Long],
+        testValue("Long")(
+          PureModuleMock.PolyMixed.of[(Long, String)](value(42L -> "bar")),
+          PureModule.polyMixed[Long],
           equalTo(42L -> "bar")
         )
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, Unit, Unit, String, String, (Int, String), (Long, String)]
-          type M1 = Method[Module, Unit, String, (Int, String)]
-          type M2 = Method[Module, Unit, String, (Long, String)]
-          testSpecDied("invalid polymorphic type")(
-            ModuleMock.PolyMixed.of[(Long, String)](value(42L -> "bar")),
-            Module.polyMixed[Int],
+          type E  = InvalidPolyType[PureModule, PureModule, Unit, Unit, String, String, (Int, String), (Long, String)]
+          type M1 = Capability[PureModule, Unit, String, (Int, String)]
+          type M2 = Capability[PureModule, Unit, String, (Long, String)]
+          testDied("invalid polymorphic type")(
+            PureModuleMock.PolyMixed.of[(Long, String)](value(42L -> "bar")),
+            PureModule.polyMixed[Int],
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
                 _.failedMatches,
                 hasFirst(
                   isSubtype[E](
-                    hasField[E, M1]("method", _.method, anything) &&
-                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                    hasField[E, M1]("invoked", _.invoked, anything) &&
+                      hasField[E, M2]("expected", _.expected, anything)
                   )
                 )
               )
@@ -449,39 +449,39 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils {
     ) @@ exceptDotty,
     suite("polymorphic bounded output <: AnyVal")(
       suite("expectations met")(
-        testSpec("Double")(
-          ModuleMock.PolyBounded.of[Double](value(42d)),
-          Module.polyBounded[Double],
+        testValue("Double")(
+          PureModuleMock.PolyBounded.of[Double](value(42d)),
+          PureModule.polyBounded[Double],
           equalTo(42d)
         ),
-        testSpec("Int")(
-          ModuleMock.PolyBounded.of[Int](value(42)),
-          Module.polyBounded[Int],
+        testValue("Int")(
+          PureModuleMock.PolyBounded.of[Int](value(42)),
+          PureModule.polyBounded[Int],
           equalTo(42)
         ),
-        testSpec("Long")(
-          ModuleMock.PolyBounded.of[Long](value(42L)),
-          Module.polyBounded[Long],
+        testValue("Long")(
+          PureModuleMock.PolyBounded.of[Long](value(42L)),
+          PureModule.polyBounded[Long],
           equalTo(42L)
         )
       ),
       suite("expectations failed")(
         {
-          type E  = InvalidPolyType[Module, Module, Unit, Unit, String, String, Int, Long]
-          type M1 = Method[Module, Unit, String, Int]
-          type M2 = Method[Module, Unit, String, Long]
+          type E  = InvalidPolyType[PureModule, PureModule, Unit, Unit, String, String, Int, Long]
+          type M1 = Capability[PureModule, Unit, String, Int]
+          type M2 = Capability[PureModule, Unit, String, Long]
 
-          testSpecDied("invalid polymorphic type")(
-            ModuleMock.PolyBounded.of[Long](value(42L)),
-            Module.polyBounded[Int],
+          testDied("invalid polymorphic type")(
+            PureModuleMock.PolyBounded.of[Long](value(42L)),
+            PureModule.polyBounded[Int],
             isSubtype[InvalidCallException](
               hasField[InvalidCallException, List[InvalidCall]](
                 "failedMatches",
                 _.failedMatches,
                 hasFirst(
                   isSubtype[E](
-                    hasField[E, M1]("method", _.method, anything) &&
-                      hasField[E, M2]("expectedMethod", _.expectedMethod, anything)
+                    hasField[E, M1]("invoked", _.invoked, anything) &&
+                      hasField[E, M2]("expected", _.expected, anything)
                   )
                 )
               )
