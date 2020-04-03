@@ -524,9 +524,9 @@ object ZQueue {
             val succeeded = queue.offer(a)
             strategy.unsafeCompleteTakers(queue, takers)
 
-            if (succeeded) 
+            if (succeeded)
               IO.succeedNow(true)
-            else 
+            else
               strategy.handleSurplus(List(a), queue, takers, shutdownFlag)
           }
         }
@@ -548,7 +548,8 @@ object ZQueue {
             val surplus = unsafeOfferAll(queue, remaining.toList)
             strategy.unsafeCompleteTakers(queue, takers)
 
-            if (surplus.isEmpty) IO.succeedNow(true)
+            if (surplus.isEmpty)
+              IO.succeedNow(true)
             else
               strategy.handleSurplus(surplus, queue, takers, shutdownFlag)
           }
@@ -559,7 +560,8 @@ object ZQueue {
 
     val size: UIO[Int] =
       UIO.effectSuspendTotal {
-        if (shutdownFlag.get) ZIO.interrupt
+        if (shutdownFlag.get)
+          ZIO.interrupt
         else
           UIO.succeedNow(queue.size() - takers.size() + strategy.surplusSize)
       }
@@ -601,7 +603,8 @@ object ZQueue {
 
     val takeAll: UIO[List[A]] =
       UIO.effectSuspendTotal {
-        if (shutdownFlag.get) ZIO.interrupt
+        if (shutdownFlag.get)
+          ZIO.interrupt
         else
           IO.effectTotal {
             val as = unsafePollAll(queue)
@@ -612,7 +615,8 @@ object ZQueue {
 
     def takeUpTo(max: Int): UIO[List[A]] =
       UIO.effectSuspendTotal {
-        if (shutdownFlag.get) ZIO.interrupt
+        if (shutdownFlag.get)
+          ZIO.interrupt
         else
           IO.effectTotal {
             val as = unsafePollN(queue, max)
