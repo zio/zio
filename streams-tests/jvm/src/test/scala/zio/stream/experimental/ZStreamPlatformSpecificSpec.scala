@@ -2,9 +2,11 @@ package zio.stream.experimental
 
 import scala.concurrent.ExecutionContext.global
 
-import zio._
+import zio.ZQueueSpecUtil.waitForSize
+import zio.stream.StreamUtils.smallChunks
 import zio.test.Assertion._
-import zio.test._
+import zio.test.{ testM, _ }
+import zio.{ Chunk, _ }
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
   def spec = suite("ZStream JVM")(
@@ -172,7 +174,23 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           } yield assert(isDone)(isFalse) &&
             assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
         }
-      )
+      ),
+      testM("Stream.fromQueue")(checkM(smallChunks(Gen.anyInt)) { c =>
+        for {
+          queue <- Queue.unbounded[Int]
+          _     <- queue.offerAll(c.toSeq)
+          fiber <- ZStream
+                    .fromQueue(queue)
+                    .foldWhileM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) =>
+                      IO.succeedNow(el :: acc)
+                    )
+                    .map(_.reverse)
+                    .fork
+          _     <- waitForSize(queue, -1)
+          _     <- queue.shutdown
+          items <- fiber.join
+        } yield assert(items)(equalTo(c.toSeq.toList))
+      })
     )
   )
 }
