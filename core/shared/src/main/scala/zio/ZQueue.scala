@@ -340,37 +340,37 @@ object ZQueue {
       def shutdown: UIO[Unit]
 
       @tailrec
-    final def unsafeCompleteTakers(
-      queue: MutableConcurrentQueue[A],
-      takers: MutableConcurrentQueue[Promise[Nothing, A]]
-    ): Unit =
-      pollTakersThenQueue(queue, takers) match {
-        case None =>
-        case Some((p, a)) =>
-          unsafeCompletePromise(p, a)
-          unsafeOnQueueEmptySpace(queue)
-          unsafeCompleteTakers(queue, takers)
-      }
-
-    @tailrec
-    private def pollTakersThenQueue(
-      queue: MutableConcurrentQueue[A],
-      takers: MutableConcurrentQueue[Promise[Nothing, A]]
-    ): Option[(Promise[Nothing, A], A)] =
-      // check if there is both a taker and an item in the queue, starting by the taker
-      if (!queue.isEmpty()) {
-        val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
-        val taker     = takers.poll(nullTaker)
-        if (taker eq nullTaker) None
-        else {
-          queue.poll(null.asInstanceOf[A]) match {
-            case null =>
-              unsafeOfferAll(takers, taker :: unsafePollAll(takers))
-              pollTakersThenQueue(queue, takers)
-            case a => Some((taker, a))
-          }
+      final def unsafeCompleteTakers(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit =
+        pollTakersThenQueue(queue, takers) match {
+          case None =>
+          case Some((p, a)) =>
+            unsafeCompletePromise(p, a)
+            unsafeOnQueueEmptySpace(queue)
+            unsafeCompleteTakers(queue, takers)
         }
-      } else None
+
+      @tailrec
+      private def pollTakersThenQueue(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Option[(Promise[Nothing, A], A)] =
+        // check if there is both a taker and an item in the queue, starting by the taker
+        if (!queue.isEmpty()) {
+          val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
+          val taker     = takers.poll(nullTaker)
+          if (taker eq nullTaker) None
+          else {
+            queue.poll(null.asInstanceOf[A]) match {
+              case null =>
+                unsafeOfferAll(takers, taker :: unsafePollAll(takers))
+                pollTakersThenQueue(queue, takers)
+              case a => Some((taker, a))
+            }
+          }
+        } else None
     }
 
     final case class Sliding[A]() extends Strategy[A] {
