@@ -1360,8 +1360,7 @@ object ZSTM {
 
     type TxnId = Long
 
-    type Journal =
-      MutableMap[TRef[_], ZSTM.internal.Entry]
+    type Journal = MutableMap[ZTRef.Atomic[_], Entry]
 
     type Todo = () => Any
 
@@ -1369,7 +1368,7 @@ object ZSTM {
      * Creates a function that can reset the journal.
      */
     def prepareResetJournal(journal: Journal): () => Any = {
-      val saved = new MutableMap[TRef[_], Entry](journal.size)
+      val saved = new MutableMap[ZTRef.Atomic[_], Entry](journal.size)
 
       val it = journal.entrySet.iterator
       while (it.hasNext) {
@@ -1392,7 +1391,7 @@ object ZSTM {
      * Allocates memory for the journal, if it is null, otherwise just clears it.
      */
     def allocJournal(journal: Journal): Journal =
-      if (journal eq null) new MutableMap[TRef[_], Entry](DefaultJournalSize)
+      if (journal eq null) new MutableMap[ZTRef.Atomic[_], Entry](DefaultJournalSize)
       else {
         journal.clear()
         journal
@@ -1516,7 +1515,7 @@ object ZSTM {
      * Finds all the new todo targets that are not already tracked in the `oldJournal`.
      */
     def untrackedTodoTargets(oldJournal: Journal, newJournal: Journal): Journal = {
-      val untracked = new MutableMap[TRef[_], Entry](newJournal.size)
+      val untracked = new MutableMap[ZTRef.Atomic[_], Entry](newJournal.size)
 
       untracked.putAll(newJournal)
 
@@ -1583,7 +1582,7 @@ object ZSTM {
     }
 
     def tryCommit[R, E, A](platform: Platform, fiberId: Fiber.Id, stm: ZSTM[R, E, A], r: R): TryCommit[E, A] = {
-      var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
+      var journal = null.asInstanceOf[MutableMap[ZTRef.Atomic[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
       var loop    = true
@@ -1647,12 +1646,12 @@ object ZSTM {
     }
 
     abstract class Entry { self =>
-      type A
+      type S
 
-      val tref: TRef[A]
+      val tref: ZTRef.Atomic[S]
 
-      protected[this] val expected: Versioned[A]
-      protected[this] var newValue: A
+      protected[this] val expected: Versioned[S]
+      protected[this] var newValue: S
 
       val isNew: Boolean
 
@@ -1660,7 +1659,7 @@ object ZSTM {
 
       def unsafeSet(value: Any): Unit = {
         _isChanged = true
-        newValue = value.asInstanceOf[A]
+        newValue = value.asInstanceOf[S]
       }
 
       def unsafeGet[B]: B = newValue.asInstanceOf[B]
@@ -1674,7 +1673,7 @@ object ZSTM {
        * Creates a copy of the Entry.
        */
       def copy(): Entry = new Entry {
-        type A = self.A
+        type S = self.S
         val tref     = self.tref
         val expected = self.expected
         val isNew    = self.isNew
@@ -1709,11 +1708,11 @@ object ZSTM {
        * Creates an entry for the journal, given the `TRef` being untracked, the
        * new value of the `TRef`, and the expected version of the `TRef`.
        */
-      def apply[A0](tref0: TRef[A0], isNew0: Boolean): Entry = {
+      private[stm] def apply[A0](tref0: ZTRef.Atomic[A0], isNew0: Boolean): Entry = {
         val versioned = tref0.versioned
 
         new Entry {
-          type A = A0
+          type S = A0
           val tref     = tref0
           val isNew    = isNew0
           val expected = versioned
