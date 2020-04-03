@@ -478,6 +478,7 @@ object ZQueue {
         } yield ()
     }
   }
+
   private def unsafeCreate[A](
     queue: MutableConcurrentQueue[A],
     takers: MutableConcurrentQueue[Promise[Nothing, A]],
