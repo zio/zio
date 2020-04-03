@@ -74,7 +74,7 @@ sealed trait Chunk[+A] { self =>
 
     if (n <= 0) self
     else if (n >= len) Chunk.empty
-    else self.slice(n, len - n)
+    else Chunk.slice(self, n, len - n)
   }
 
   /**
@@ -440,33 +440,12 @@ sealed trait Chunk[+A] { self =>
     (take(n), drop(n))
 
   /**
-   * Takes `n` elements of the chunk, starting from the specified index `start`.
-   * in.slice(start,n) == in.drop(start).take(n)
-   */
-  final def slice(start: Int, n: Int): Chunk[A] = {
-    val len    = self.length
-    val offset = if (start <= 0) 0 else if (start > len) len else start
-    val l =
-      if (n <= 0) 0
-      else if (offset + n >= len) len - offset
-      else n
-
-    self match {
-      case _ if l == 0                  => Chunk.Empty
-      case _ if l == 1                  => Chunk.Singleton(self(offset))
-      case Chunk.Empty                  => Chunk.Empty
-      case Chunk.Slice(ne, offset_0, _) => Chunk.Slice(ne, offset_0 + offset, l)
-      case ne: NonEmptyChunk[A]         => Chunk.Slice(ne, offset, l)
-    }
-  }
-
-  /**
    * Takes the first `n` elements of the chunk.
    */
   final def take(n: Int): Chunk[A] =
     if (n <= 0) Chunk.Empty
     else if (n >= length) self
-    else self.slice(0, n)
+    else Chunk.slice(self, 0, n)
 
   /**
    * Takes all elements so long as the predicate returns true.
@@ -609,7 +588,7 @@ object Chunk {
   /**
    * Returns a chunk from a number of values.
    */
-  def apply[A](a: A, as: A*): NonEmpty[A] =
+  def apply[A](a: A, as: A*): NonEmptyChunk[A] =
     if (as.isEmpty) Singleton(a)
     else {
       implicit val A: ClassTag[A] = Tags.fromValue(a)
@@ -724,12 +703,12 @@ object Chunk {
   /**
    * Returns a singleton chunk, eagerly evaluated.
    */
-  def single[A](a: A): NonEmpty[A] = Singleton(a)
+  def single[A](a: A): NonEmptyChunk[A] = Singleton(a)
 
   /**
    * Alias for [[Chunk.single]].
    */
-  def succeed[A](a: A): NonEmpty[A] = single(a)
+  def succeed[A](a: A): NonEmptyChunk[A] = single(a)
 
   /**
    * Returns the concatenation of this chunk with the specified chunk.
@@ -747,7 +726,7 @@ object Chunk {
   /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
-  final def concat[A](l: Chunk[A], r: NonEmpty[A]): NonEmpty[A] = l match {
+  final def concat[A](l: Chunk[A], r: NonEmpty[A]): NonEmptyChunk[A] = l match {
     case Empty           => r
     case ne: NonEmpty[A] => concat(ne, r)
   }
@@ -755,12 +734,12 @@ object Chunk {
   /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
-  final def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmpty[A] = Concat(l, r)
+  final def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmptyChunk[A] = Concat(l, r)
 
   /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
-  final def concat[A](l: NonEmpty[A], r: Chunk[A]): NonEmpty[A] = r match {
+  final def concat[A](l: NonEmpty[A], r: Chunk[A]): NonEmptyChunk[A] = r match {
     case Empty           => l
     case ne: NonEmpty[A] => concat(l, ne)
   }
@@ -920,21 +899,6 @@ object Chunk {
       }
 
       drop(i)
-    }
-
-    /**
-     * Returns the first element that satisfies the predicate.
-     */
-    override def find(f: A => Boolean): Option[A] = {
-      val len               = array.length
-      var result: Option[A] = None
-      var i                 = 0
-      while (i < len && result.isEmpty) {
-        val elem = array(i)
-        if (f(elem)) result = Some(elem)
-        i += 1
-      }
-      result
     }
 
     override def filter(f: A => Boolean): Chunk[A] = {
@@ -1108,6 +1072,26 @@ object Chunk {
       dest(n) = a
   }
 
+  /**
+   * Create slice(in,start,n)
+   */
+  private def slice[A](self: Chunk[A], start: Int, n: Int): Chunk[A] = {
+    val len    = self.length
+    val offset = if (start <= 0) 0 else if (start > len) len else start
+    val l =
+      if (n <= 0) 0
+      else if (offset + n >= len) len - offset
+      else n
+
+    self match {
+      case _ if l == 0                  => Chunk.Empty
+      case _ if l == 1                  => Chunk.Singleton(self(offset))
+      case Chunk.Empty                  => Chunk.Empty
+      case Chunk.Slice(ne, offset_0, _) => Chunk.Slice(ne, offset_0 + offset, l)
+      case ne: NonEmptyChunk[A]         => Chunk.Slice(ne, offset, l)
+    }
+  }
+
   private final case class Slice[A](private val chunk: NonEmpty[A], offset: Int, l: Int) extends NonEmpty[A] {
     implicit val classTag: ClassTag[A] = classTagOf(chunk)
 
@@ -1242,19 +1226,19 @@ object Chunk {
     /**
      * Returns the concatenation of this chunk with the specified chunk.
      */
-    final override def ++[A1 >: A](that: Chunk[A1]): NonEmpty[A1] = Chunk.concat(self, that)
+    final override def ++[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] = Chunk.concat(self, that)
 
     /**
      * Materializes a chunk into a chunk backed by an array. This method can
      * improve the performance of bulk operations.
      */
-    final override def materialize[A1 >: A]: NonEmpty[A1] =
+    final override def materialize[A1 >: A]: NonEmptyChunk[A1] =
       self match {
         case arr: Arr[A] => arr
         case _           => Arr(self.toArray(Chunk.classTagOf(self)))
       }
 
-    override def map[B](f: A => B): NonEmpty[B] = {
+    override def map[B](f: A => B): NonEmptyChunk[B] = {
       val len                     = self.length
       val init: B                 = f(first)
       implicit val B: ClassTag[B] = Chunk.Tags.fromValue(init)

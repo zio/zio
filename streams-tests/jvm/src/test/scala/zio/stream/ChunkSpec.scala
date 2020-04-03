@@ -277,14 +277,6 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
       assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
     },
-    test("concat slice") {
-      val in = Chunk(1, 2, 3) ++ Chunk(4, 5, 6)
-      assert(in.slice(0, 3))(equalTo(Chunk(1, 2, 3))) &&
-      assert(in.slice(1, 3))(equalTo(Chunk(2, 3, 4))) &&
-      assert(in.slice(-1, 6))(equalTo(in)) &&
-      assert(in.slice(0, 10))(equalTo(in)) &&
-      assert(in.slice(0, -1))(equalTo(Chunk.empty))
-    },
     testM("flatMap Non Empty") {
       val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
       check(smallChunks(intGen), fn) { (c_, f_) =>
@@ -296,6 +288,21 @@ object ChunkSpec extends ZIOBaseSpec {
 
         assert(in.toSeq)(equalTo(expected))
       }
+    },
+    test("NonEmptyChunk subtype") {
+      val c0: NonEmptyChunk[Int] = Chunk(1)
+
+      val c1: NonEmptyChunk[Int] = Chunk.empty + 1
+      val c2: NonEmptyChunk[Int] = c0 ++ Chunk.empty
+      val c3: NonEmptyChunk[Int] = c0.map(identity)
+      val c4: NonEmptyChunk[Int] = c0.flatMap(i => Chunk(i))
+      val c5: NonEmptyChunk[Int] = Chunk(c0).flatten
+      val c6: NonEmptyChunk[Int] = Chunk.single(1)
+      val c7: NonEmptyChunk[Int] = Chunk.succeed(1)
+      val c8: NonEmptyChunk[Int] = Chunk.concat(c0, Chunk.empty)
+      val c9: NonEmptyChunk[Int] = Chunk.concat(Chunk.empty, c0)
+
+      assert(Seq(c1, c2, c3, c4, c5, c6, c7, c8, c9))(equalTo(Seq.fill(9)(c0)))
     }
   )
 }
