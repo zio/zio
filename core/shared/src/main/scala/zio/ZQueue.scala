@@ -325,6 +325,41 @@ object ZQueue {
     def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Unit =
       p.unsafeDone(IO.succeedNow(a))
 
+    @tailrec
+    def unsafeCompleteTakers[A](
+      strategy: Strategy[A],
+      queue: MutableConcurrentQueue[A],
+      takers: MutableConcurrentQueue[Promise[Nothing, A]]
+    ): Unit =
+      pollTakersThenQueue(queue, takers) match {
+        case None =>
+        case Some((p, a)) =>
+          unsafeCompletePromise(p, a)
+          strategy.unsafeOnQueueEmptySpace(queue)
+          unsafeCompleteTakers(strategy, queue, takers)
+      }
+
+    @tailrec
+    private def pollTakersThenQueue[A](
+      queue: MutableConcurrentQueue[A],
+      takers: MutableConcurrentQueue[Promise[Nothing, A]]
+    ): Option[(Promise[Nothing, A], A)] =
+      // check if there is both a taker and an item in the queue, starting by the taker
+      if (!queue.isEmpty()) {
+        val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
+        val taker     = takers.poll(nullTaker)
+        if (taker eq nullTaker) {
+          None
+        } else {
+          queue.poll(null.asInstanceOf[A]) match {
+            case null =>
+              unsafeOfferAll(takers, taker :: unsafePollAll(takers))
+              pollTakersThenQueue(queue, takers)
+            case a => Some((taker, a))
+          }
+        }
+      } else None
+
     sealed trait Strategy[A] {
       def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A], isShutdown: AtomicBoolean): UIO[Boolean]
 
@@ -451,34 +486,6 @@ object ZQueue {
     strategy: Strategy[A]
   ): Queue[A] = new ZQueue[Any, Nothing, Any, Nothing, A, A] {
 
-    @tailrec
-    private def pollTakersThenQueue(): Option[(Promise[Nothing, A], A)] =
-      // check if there is both a taker and an item in the queue, starting by the taker
-      if (!queue.isEmpty()) {
-        val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
-        val taker     = takers.poll(nullTaker)
-        if (taker == nullTaker) {
-          None
-        } else {
-          queue.poll(null.asInstanceOf[A]) match {
-            case null =>
-              unsafeOfferAll(takers, taker :: unsafePollAll(takers))
-              pollTakersThenQueue()
-            case a => Some((taker, a))
-          }
-        }
-      } else None
-
-    @tailrec
-    private def unsafeCompleteTakers(): Unit =
-      pollTakersThenQueue() match {
-        case None =>
-        case Some((p, a)) =>
-          unsafeCompletePromise(p, a)
-          strategy.unsafeOnQueueEmptySpace(queue)
-          unsafeCompleteTakers()
-      }
-
     private def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.effectTotal(unsafeRemove(takers, taker))
 
     val capacity: Int = queue.capacity
@@ -492,7 +499,7 @@ object ZQueue {
               val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
               val taker     = takers.poll(nullTaker)
 
-              if (taker == nullTaker) false
+              if (taker eq nullTaker) false
               else {
                 unsafeCompletePromise(taker, a)
                 true
@@ -503,11 +510,11 @@ object ZQueue {
           else {
             // not enough takers, offer to the queue
             val surplus = unsafeOfferAll(queue, List(a))
-            unsafeCompleteTakers()
+            unsafeCompleteTakers(strategy, queue, takers)
 
             if (surplus.isEmpty) IO.succeedNow(true)
             else
-              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(unsafeCompleteTakers())
+              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(unsafeCompleteTakers(strategy, queue, takers))
           }
         }
       }
@@ -526,11 +533,11 @@ object ZQueue {
           else {
             // not enough takers, offer to the queue
             val surplus = unsafeOfferAll(queue, remaining.toList)
-            unsafeCompleteTakers()
+            unsafeCompleteTakers(strategy, queue, takers)
 
             if (surplus.isEmpty) IO.succeedNow(true)
             else
-              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(unsafeCompleteTakers())
+              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(unsafeCompleteTakers(strategy, queue, takers))
           }
         }
       }
@@ -572,7 +579,7 @@ object ZQueue {
             Promise.make[Nothing, A].flatMap { p =>
               (IO.effectTotal {
                 takers.offer(p)
-                unsafeCompleteTakers()
+                unsafeCompleteTakers(strategy, queue, takers)
               } *> (if (shutdownFlag.get) ZIO.interrupt else p.await)).onInterrupt(removeTaker(p))
             }
           }
