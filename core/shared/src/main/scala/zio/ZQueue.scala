@@ -360,7 +360,12 @@ object ZQueue {
       } else None
 
     sealed trait Strategy[A] {
-      def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A], isShutdown: AtomicBoolean): UIO[Boolean]
+      def handleSurplus(
+        as: List[A],
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]],
+        isShutdown: AtomicBoolean
+      ): UIO[Boolean]
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit
 
@@ -373,6 +378,7 @@ object ZQueue {
       def handleSurplus(
         as: List[A],
         queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
       ): UIO[Boolean] = {
         @tailrec
@@ -385,7 +391,11 @@ object ZQueue {
               queue.poll(null.asInstanceOf[A])
               if (queue.offer(head)) unsafeSlidingOffer(tail) else unsafeSlidingOffer(as)
           }
-        IO.effectTotal(unsafeSlidingOffer(as)).as(true)
+
+        IO.effectTotal {
+          unsafeSlidingOffer(as)
+          unsafeCompleteTakers(this, queue, takers)
+        }.as(true)
       }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
@@ -400,6 +410,7 @@ object ZQueue {
       def handleSurplus(
         as: List[A],
         queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
       ): UIO[Boolean] = IO.succeedNow(false)
 
@@ -424,6 +435,7 @@ object ZQueue {
       def handleSurplus(
         as: List[A],
         queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
       ): UIO[Boolean] =
         UIO.effectSuspendTotal {
@@ -443,6 +455,7 @@ object ZQueue {
             (IO.effectTotal {
               unsafeOffer(as, p)
               unsafeOnQueueEmptySpace(queue)
+              unsafeCompleteTakers(this, queue, takers)
             } *> (if (isShutdown.get) ZIO.interrupt else p.await)).onInterrupt(IO.effectTotal(unsafeRemove(p)))
           }
         }
@@ -514,9 +527,7 @@ object ZQueue {
 
             if (surplus.isEmpty) IO.succeedNow(true)
             else
-              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(
-                unsafeCompleteTakers(strategy, queue, takers)
-              )
+              strategy.handleSurplus(surplus, queue, takers, shutdownFlag)
           }
         }
       }
@@ -539,9 +550,7 @@ object ZQueue {
 
             if (surplus.isEmpty) IO.succeedNow(true)
             else
-              strategy.handleSurplus(surplus, queue, shutdownFlag) <* IO.effectTotal(
-                unsafeCompleteTakers(strategy, queue, takers)
-              )
+              strategy.handleSurplus(surplus, queue, takers, shutdownFlag)
           }
         }
       }
