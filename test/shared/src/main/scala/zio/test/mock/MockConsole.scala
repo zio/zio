@@ -21,18 +21,18 @@ import java.io.IOException
 import zio.console.Console
 import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
-object MockConsole {
+object MockConsole extends Mock[Console] {
 
-  object PutStr   extends Method[Console, String, Nothing, Unit](compose)
-  object PutStrLn extends Method[Console, String, Nothing, Unit](compose)
-  object GetStrLn extends Method[Console, Unit, IOException, String](compose)
+  object PutStr   extends Effect[String, Nothing, Unit]
+  object PutStrLn extends Effect[String, Nothing, Unit]
+  object GetStrLn extends Effect[Unit, IOException, String]
 
-  private lazy val compose: URLayer[Has[Proxy], Console] =
-    ZLayer.fromService(invoke =>
+  val compose: URLayer[Has[Proxy], Console] =
+    ZLayer.fromService(proxy =>
       new Console.Service {
-        def putStr(line: String): UIO[Unit]   = invoke(PutStr, line)
-        def putStrLn(line: String): UIO[Unit] = invoke(PutStrLn, line)
-        val getStrLn: IO[IOException, String] = invoke(GetStrLn)
+        def putStr(line: String): UIO[Unit]   = proxy(PutStr, line)
+        def putStrLn(line: String): UIO[Unit] = proxy(PutStrLn, line)
+        val getStrLn: IO[IOException, String] = proxy(GetStrLn)
       }
     )
 }

@@ -397,31 +397,31 @@ object FailureRenderer {
   private def renderUnmatchedExpectations(failedMatches: List[InvalidCall]): UIO[Message] =
     ZIO
       .foreach(failedMatches) {
-        case InvalidCall.InvalidArguments(method, args, assertion) =>
+        case InvalidCall.InvalidArguments(invoked, args, assertion) =>
           renderTestFailure("", assert(args)(assertion)).map { message =>
-            val header = red(s"- $method called with invalid arguments").toLine
+            val header = red(s"- $invoked called with invalid arguments").toLine
             (header +: message.drop(1)).withOffset(tabSize)
           }
 
-        case InvalidCall.InvalidMethod(method, expectedMethod, assertion) =>
+        case InvalidCall.InvalidCapability(invoked, expected, assertion) =>
           UIO.succeedNow(
             Message(
               Seq(
-                withOffset(tabSize)(red(s"- invalid call to $method").toLine),
+                withOffset(tabSize)(red(s"- invalid call to $invoked").toLine),
                 withOffset(tabSize * 2)(
-                  Fragment(s"expected $expectedMethod with arguments ") + cyan(assertion.toString)
+                  Fragment(s"expected $expected with arguments ") + cyan(assertion.toString)
                 )
               )
             )
           )
 
-        case InvalidCall.InvalidPolyType(method, args, expectedMethod, assertion) =>
+        case InvalidCall.InvalidPolyType(invoked, args, expected, assertion) =>
           UIO.succeedNow(
             Message(
               Seq(
-                withOffset(tabSize)(red(s"- $method called with arguments $args and invalid polymorphic type").toLine),
+                withOffset(tabSize)(red(s"- $invoked called with arguments $args and invalid polymorphic type").toLine),
                 withOffset(tabSize * 2)(
-                  Fragment(s"expected $expectedMethod with arguments ") + cyan(assertion.toString)
+                  Fragment(s"expected $expected with arguments ") + cyan(assertion.toString)
                 )
               )
             )
