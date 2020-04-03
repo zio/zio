@@ -290,18 +290,15 @@ object ChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("nonEmptyChunk subtype") {
+      def assertEqualTo[A](expected: A)(value: A*): TestResult =
+        assert(value)(Assertion.forall(equalTo(expected)))
+
       check(Gen.int(-1, 1)) {
         x =>
           val cx: NonEmptyChunk[Int]         = Chunk(x)
           val cx0: NonEmptyChunk[(Int, Int)] = Chunk((x, 0))
 
-          def assertCX(nonEmptyChunk: NonEmptyChunk[Int]*): TestResult =
-            assert(nonEmptyChunk)(Assertion.forall(equalTo(cx)))
-
-          def assertCX0(nonEmptyChunk: NonEmptyChunk[(Int, Int)]*): TestResult =
-            assert(nonEmptyChunk)(Assertion.forall(equalTo(cx0)))
-
-          val a1 = assertCX(
+          val a1 = assertEqualTo(expected = cx)(
             Chunk.empty + x,
             cx ++ Chunk.empty,
             cx.map(identity),
@@ -313,7 +310,7 @@ object ChunkSpec extends ZIOBaseSpec {
             Chunk.concat(Chunk.empty, cx)
           )
 
-          val a2 = assertCX0(
+          val a2 = assertEqualTo(expected = cx0)(
             cx.zipWithIndex,
             cx.zipWithIndexFrom(0),
             cx.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r))
