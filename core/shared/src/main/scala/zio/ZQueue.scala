@@ -521,12 +521,13 @@ object ZQueue {
           if (noRemaining) IO.succeedNow(true)
           else {
             // not enough takers, offer to the queue
-            val surplus = unsafeOfferAll(queue, List(a))
+            val succeeded = queue.offer(a)
             strategy.unsafeCompleteTakers(queue, takers)
 
-            if (surplus.isEmpty) IO.succeedNow(true)
-            else
-              strategy.handleSurplus(surplus, queue, takers, shutdownFlag)
+            if (succeeded) 
+              IO.succeedNow(true)
+            else 
+              strategy.handleSurplus(List(a), queue, takers, shutdownFlag)
           }
         }
       }
