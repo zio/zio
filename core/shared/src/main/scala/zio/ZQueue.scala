@@ -346,16 +346,15 @@ object ZQueue {
     ): Option[(Promise[Nothing, A], A)] =
       // check if there is both a taker and an item in the queue, starting by the taker
       if (!queue.isEmpty()) {
-        val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
-        val taker     = takers.poll(nullTaker)
-        if (taker eq nullTaker) None
-        else {
-          queue.poll(null.asInstanceOf[A]) match {
-            case null =>
-              unsafeOfferAll(takers, taker :: unsafePollAll(takers))
-              pollTakersThenQueue(queue, takers)
-            case a => Some((taker, a))
-          }
+        takers.poll(null.asInstanceOf[Promise[Nothing, A]]) match {
+          case null => None
+          case taker =>
+            queue.poll(null.asInstanceOf[A]) match {
+              case null =>
+                unsafeOfferAll(takers, taker :: unsafePollAll(takers))
+                pollTakersThenQueue(queue, takers)
+              case a => Some((taker, a))
+            }
         }
       } else None
 
@@ -509,13 +508,11 @@ object ZQueue {
         else {
           val noRemaining =
             if (queue.isEmpty()) {
-              val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
-              val taker     = takers.poll(nullTaker)
-
-              if (taker eq nullTaker) false
-              else {
-                unsafeCompletePromise(taker, a)
-                true
+              takers.poll(null.asInstanceOf[Promise[Nothing, A]]) match {
+                case null => false
+                case taker =>
+                  unsafeCompletePromise(taker, a)
+                  true
               }
             } else false
 
