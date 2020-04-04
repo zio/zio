@@ -449,7 +449,7 @@ object ZQueue {
       private def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit = {
         val it = as.iterator
         while (it.hasNext)
-          putters.offer((it.next, p, it.hasNext))
+          putters.offer((it.next, p, !it.hasNext))
       }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = {
