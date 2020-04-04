@@ -42,7 +42,16 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type Ref[A]      = ZRef[Nothing, Nothing, A, A]
   type ERef[+E, A] = ZRef[E, E, A, A]
 
-  type ZOptic[-SG, -SS, -B, +EG, +ES, +A, +T] = (SG => Either[EG, A], B => SS => Either[ES, T])
+  /**
+   * A `ZOptic` is able to get and set a piece of a whole, possibly failing. In
+   * the most general possible case, the set / get types are distinct, and
+   * setting may fail with a different error than getting.
+   *
+   * See more specific type aliases for concrete examples of what optics can be
+   * used to do.
+   */
+  type ZOptic[-GetWhole, -SetWholeBefore, -SetPiece, +GetError, +SetError, +GetPiece, +SetWholeAfter] =
+    (GetWhole => Either[GetError, GetPiece], SetPiece => SetWholeBefore => Either[SetError, SetWholeAfter])
 
   type ZLens[+EA, +EB, -S, +T, +A, -B]      = ZOptic[S, S, B, EA, EB, A, T]
   type ZPrism[+EA, +EB, -S, +T, +A, -B]     = ZOptic[S, Any, B, EA, EB, A, T]
