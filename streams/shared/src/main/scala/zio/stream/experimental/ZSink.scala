@@ -261,6 +261,25 @@ object ZSink {
   val count: ZSink[Any, Nothing, Any, Long] =
     fold(0L)((s, _) => s + 1)
 
+  /**
+   * Creates a sink halting with a specified cause.
+   */
+  def halt[E](e: => Cause[E]): ZSink[Any, E, Any, Nothing] =
+    ZSink.fromPush(_ => Push.halt(e))
+
+  /**
+   * Creates a sink halting with the specified `Throwable`.
+   */
+  def die(e: => Throwable): ZSink[Any, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(e))
+
+  /**
+   * Creates a sink halting with the specified message, wrapped in a
+   * `RuntimeException`.
+   */
+  def dieMessage(m: => String): ZSink[Any, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(new RuntimeException(m)))
+
   def fromPush[R, E, I, Z](push: Option[Chunk[I]] => ZIO[R, Either[E, Z], Unit]): ZSink[R, E, I, Z] =
     ZSink(Managed.succeed(push))
 
