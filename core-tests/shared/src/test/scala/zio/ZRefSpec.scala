@@ -473,6 +473,61 @@ object ZRefSpec extends ZIOBaseSpec {
           } yield assert(value)(equalTo(List(1, 20, 3, 40, 5)))
         }
       )
+    ),
+    suite("examples from documentation")(
+      testM("lens") {
+        case class Person(name: String, age: Int)
+        def age: Lens[Person, Int] =
+          Lens(person => person.age, age => person => person.copy(age = age))
+        for {
+          ref   <- Ref.make(Person("User", 42))
+          view  = ref.accessField(age)
+          _     <- view.update(_ + 1)
+          value <- ref.get
+        } yield assert(value)(equalTo(Person("User", 43)))
+      },
+      testM("prism") {
+        def left[A, B]: Prism[Either[A, B], A] =
+          Prism(s => s match { case Left(a) => Some(a); case _ => None }, a => Left(a))
+        for {
+          ref   <- Ref.make[Either[List[String], Int]](Left(Nil))
+          view  = ref.accessCase(left)
+          _     <- view.update("fail" :: _)
+          value <- ref.get
+        } yield assert(value)(isLeft(equalTo(List("fail"))))
+      },
+      testM("optional") {
+        def index[A](n: Int): Optional[Vector[A], A] =
+          Optional(
+            s => if (s.isDefinedAt(n)) Some(s(n)) else None,
+            a => s => if (s.isDefinedAt(n)) s.updated(n, a) else s
+          )
+        for {
+          ref   <- Ref.make(Vector(1, 2, 3))
+          view  = ref.accessField(index(2))
+          _     <- view.set(4)
+          value <- ref.get
+        } yield assert(value)(equalTo(Vector(1, 2, 4)))
+      },
+      testM("traversal") {
+        def slice[A](from: Int, until: Int): Traversal[Vector[A], A] =
+          Traversal(
+            s => s.slice(from, until).toList,
+            as =>
+              s => {
+                val n = ((until min s.length) - from) max 0
+                if (as.length < n) None else Some(s.patch(from, as.take(n), n))
+              }
+          )
+        def negate(as: List[Int]): List[Int] =
+          for (a <- as) yield -a
+        for {
+          ref   <- Ref.make(Vector(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+          view  = ref.accessElements(slice(3, 6))
+          _     <- view.update(negate)
+          value <- ref.get
+        } yield assert(value)(equalTo(Vector(0, 1, 2, -3, -4, -5, 6, 7, 8, 9)))
+      }
     )
   )
 
