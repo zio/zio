@@ -133,6 +133,12 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyOffsetDateTime generates OffsetDateTime values") {
         checkSample(Gen.anyOffsetDateTime)(isNonEmpty)
       },
+      testM("bigInt generates values in range") {
+        val min    = BigInt("1")
+        val max    = BigInt("265252859812191058636308480000000")
+        val bigInt = Gen.bigInt(min, max)
+        checkSample(bigInt)(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
       testM("boolean generates true and false") {
         checkSample(Gen.boolean)(contains(true) && contains(false))
       },
