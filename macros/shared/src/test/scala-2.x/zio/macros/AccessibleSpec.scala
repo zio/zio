@@ -77,6 +77,23 @@ object AccessibleSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
+      testM("generates accessor for varargs functions") {
+        assertM(typeCheck {
+          """
+            @accessible
+            object Module {
+              trait Service {
+                def varargsFoo(a: Int, b: Int*): ZIO[Any, Nothing, Unit]
+              }
+            }
+
+            object Check {
+              def varargsFoo(a: Int, b: Int*): ZIO[Has[Module.Service], Nothing, Unit] =
+                Module.varargsFoo(a, b: _*)
+            }
+          """
+        })(isRight(anything))
+      },
       testM("generates accessors for all capabilities") {
         assertM(typeCheck {
           """
@@ -89,6 +106,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
                 def singleArg(arg1: Int)                   : ZIO[Any, Nothing, String]
                 def multiArgs(arg1: Int, arg2: Long)       : ZIO[Any, Nothing, String]
                 def multiParamLists(arg1: Int)(arg2: Long) : ZIO[Any, Nothing, String]
+                def typedVarargs[T](arg1: Int, arg2: T*)   : ZIO[Any, Nothing, T]
                 def command(arg1: Int)                     : ZIO[Any, Nothing, Unit]
                 def overloaded(arg1: Int)                  : ZIO[Any, Nothing, String]
                 def overloaded(arg1: Long)                 : ZIO[Any, Nothing, String]
@@ -105,6 +123,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
               def singleArg(arg1: Int)                   : ZIO[Has[Module.Service], Nothing, String] = Module.singleArg(arg1)
               def multiArgs(arg1: Int, arg2: Long)       : ZIO[Has[Module.Service], Nothing, String] = Module.multiArgs(arg1, arg2)
               def multiParamLists(arg1: Int)(arg2: Long) : ZIO[Has[Module.Service], Nothing, String] = Module.multiParamLists(arg1)(arg2)
+              def typedVarargs[T](arg1: Int, arg2: T*)   : ZIO[Has[Module.Service], Nothing, T]      = Module.typedVarargs[T](arg1, arg2: _*)
               def command(arg1: Int)                     : ZIO[Has[Module.Service], Nothing, Unit]   = Module.command(arg1)
               def overloaded(arg1: Int)                  : ZIO[Has[Module.Service], Nothing, String] = Module.overloaded(arg1)
               def overloaded(arg1: Long)                 : ZIO[Has[Module.Service], Nothing, String] = Module.overloaded(arg1)
