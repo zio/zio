@@ -87,40 +87,28 @@ abstract class ZStream[-R, +E, +O](
    * of type `A` into elements of type `B`.
    */
   def aggregate[R1 <: R, E1 >: E, O1 >: O, P](sink: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] =
-    aggregateManaged(ZManaged.succeedNow(sink))
+    ZStream {
+      for {
+        pull <- self.process
+        push <- sink.push
+        done <- ZRef.makeManaged(false)
+        run = {
+          def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
+            if (_)
+              push(None)
+            else
+              pull
+                .foldM(
+                  _.fold(done.set(true) *> push(None))(Pull.fail(_)),
+                  os => push(Some(os))
+                )
+                .catchAllCause(Cause.sequenceCauseOption(_).fold(go)(Pull.halt(_)))
+          }
 
-  /**
-   * Applies a managed transducer to the stream, converting elements of type `A` into elements of type `B`.
-   */
-  final def aggregateManaged[R1 <: R, E1 >: E, O1 >: O, P](
-    managedSink: ZManaged[R1, E1, ZTransducer[R1, E1, O1, P]]
-  ): ZStream[R1, E1, P] =
-    ZStream
-      .managed(managedSink)
-      .flatMap { sink =>
-        ZStream {
-          for {
-            pull <- self.process
-            push <- sink.push
-            done <- ZRef.makeManaged(false)
-            run = {
-              def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
-                if (_)
-                  Pull.end
-                else
-                  pull
-                    .foldCauseM(
-                      Cause.sequenceCauseOption(_).fold(push(None))(Pull.halt(_)),
-                      os => push(Some(os))
-                    )
-                    .catchAllCause(Cause.sequenceCauseOption(_).fold(go)(Pull.halt(_)))
-              }
-
-              go
-            }
-          } yield run
+          go
         }
-      }
+      } yield run
+    }
 
   /**
    * Maps the success values of this stream to the specified constant value.
