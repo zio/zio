@@ -570,14 +570,15 @@ object ZQueue {
       }
 
     val shutdown: UIO[Unit] =
-      ZIO.fiberId.flatMap(fiberId =>
-        UIO.effectTotal(shutdownFlag.set(true)) *>
-          IO.whenM(shutdownHook.succeed(()))(
-              IO.effectTotal(unsafePollAll(takers)) >>= (IO
-                .foreachPar(_)(_.interruptAs(fiberId)) *> strategy.shutdown)
-            )
-            .uninterruptible
-      )
+      UIO.effectSuspendTotalWith { (_, fiberId) =>
+        shutdownFlag.set(true)
+
+        UIO
+          .whenM(shutdownHook.succeed(()))(
+            UIO.foreachPar(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
+          )
+          .uninterruptible
+      }
 
     val isShutdown: UIO[Boolean] = UIO(shutdownFlag.get)
 
@@ -592,6 +593,7 @@ object ZQueue {
               // - wait for the promise to be completed
               // - clean up resources in case of interruption
               val p = Promise.unsafeMake[Nothing, A](fiberId)
+
               UIO.effectSuspendTotal {
                 takers.offer(p)
                 strategy.unsafeCompleteTakers(queue, takers)
