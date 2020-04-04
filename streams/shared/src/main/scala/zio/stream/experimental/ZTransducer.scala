@@ -80,7 +80,7 @@ object ZTransducer {
       } yield push
     }
 
-  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, I] =
+  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
     ZTransducer {
       for {
         buffered <- ZRef.makeManaged[Chunk[I]](Chunk.empty)
@@ -88,7 +88,7 @@ object ZTransducer {
           buffered.modify { buf0 =>
             val buf = in.foldLeft(buf0)(_ ++ _)
             val out = buf.takeWhile(p)
-            (if (out.isEmpty) Push.next else Push.emit(out)) -> buf.drop(out.length + 1)
+            (if (out.isEmpty) Push.next else Push.emit(out.toList)) -> buf.drop(out.length + 1)
           }.flatten
         }
       } yield push
