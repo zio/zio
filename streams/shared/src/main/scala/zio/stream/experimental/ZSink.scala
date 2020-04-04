@@ -252,6 +252,7 @@ object ZSink {
     def emit[Z](z: Z): IO[Either[Nothing, Z], Nothing]        = IO.fail(Right(z))
     def fail[E](e: E): IO[Either[E, Nothing], Nothing]        = IO.fail(Left(e))
     def halt[E](c: Cause[E]): IO[Either[E, Nothing], Nothing] = IO.halt(c).mapError(Left(_))
+    val more: UIO[Unit]                                       = UIO.unit
 
     /**
      * Decorates a Push with a ZIO value that re-initializes it with a fresh state.
@@ -313,6 +314,42 @@ object ZSink {
 
   def fromPush[R, E, I, Z](sink: Push[R, E, I, Z]): ZSink[R, E, I, Z] =
     ZSink(Managed.succeed(sink))
+
+  /**
+   * Creates a sink containing the first value.
+   */
+  def head[I]: ZSink[Any, Unit, I, I] =
+    ZSink(ZManaged.succeed({
+      case Some(ch) =>
+        ch.headOption match {
+          case Some(h) => Push.emit(h)
+          case None    => Push.more
+        }
+      case None => Push.fail(())
+    }))
+
+  /**
+   * Creates a sink containing the last value.
+   */
+  def last[I]: ZSink[Any, Nothing, I, Option[I]] =
+    ZSink {
+      for {
+        state <- Ref.make[Option[I]](None).toManaged_
+        push = (is: Option[Chunk[I]]) =>
+          state.get.flatMap { last =>
+            is match {
+              case Some(ch) =>
+                ch.lastOption match {
+                  case l: Some[_] => state.set(l) *> Push.more
+                  case None       => Push.more
+                }
+              case None => Push.emit(last)
+            }
+          }
+      } yield {
+        push
+      }
+    }
 
   /**
    * A sink that immediately ends with the specified value.
