@@ -1723,7 +1723,7 @@ abstract class ZStream[-R, +E, +O](
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
   def run[R1 <: R, E1 >: E, O1 >: O, B](sink: ZSink[R1, E1, O1, B]): ZIO[R1, E1, B] =
-    (process <*> sink.push.flatMap(_.push)).use {
+    (process <*> sink.push).use {
       case (pull, push) =>
         def go: ZIO[R1, E1, B] = pull.foldCauseM(
           Cause
@@ -1993,10 +1993,8 @@ abstract class ZStream[-R, +E, +O](
   def transduce[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]): ZStream[R1, E1, O3] =
     ZStream {
       for {
-        pushTransducer <- transducer.push.map(push =>
-                           (input: Option[Chunk[O2]]) => push(input).mapError(_.fold(Some(_), _ => None))
-                         )
-        pullSelf <- self.process
+        pushTransducer <- transducer.push
+        pullSelf       <- self.process
         pull = pullSelf.foldM(
           {
             case l @ Some(_) => ZIO.fail(l)
