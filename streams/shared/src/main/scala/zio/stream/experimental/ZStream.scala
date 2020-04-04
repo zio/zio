@@ -1730,11 +1730,11 @@ abstract class ZStream[-R, +E, +O](
             .sequenceCauseOption(_)
             .fold(
               push(None).foldCauseM(
-                Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow),
+                Cause.sequenceCauseEither(_).fold(IO.halt(_), ZIO.succeedNow),
                 _ => IO.dieMessage("empty stream / empty sinks")
               )
             )(IO.halt(_)),
-          os => push(Some(os)).foldCauseM(Cause.sequenceCauseEither(_).fold(IO.halt(_), IO.succeedNow), _ => go)
+          os => push(Some(os)).foldCauseM(Cause.sequenceCauseEither(_).fold(IO.halt(_), ZIO.succeedNow), _ => go)
         )
 
         go
@@ -1993,10 +1993,8 @@ abstract class ZStream[-R, +E, +O](
   def transduce[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]): ZStream[R1, E1, O3] =
     ZStream {
       for {
-        pushTransducer <- transducer.push.map(push =>
-                           (input: Option[Chunk[O2]]) => push(input).mapError(_.fold(Some(_), _ => None))
-                         )
-        pullSelf <- self.process
+        pushTransducer <- transducer.push
+        pullSelf       <- self.process
         pull = pullSelf.foldM(
           {
             case l @ Some(_) => ZIO.fail(l)
