@@ -214,20 +214,28 @@ abstract class ZSink[-R, +E, -I, +Z] private (
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
-  def untilOutputM[R1 <: R, E1 >: E](f: Z => ZIO[R1, E1, Boolean]): ZSink[R1, E1, I, Z] =
+  def untilOutputM[R1 <: R, E1 >: E](f: Z => ZIO[R1, E1, Boolean]): ZSink[R1, E1, I, Option[Z]] =
     ZSink {
       Push.restartable(push).map {
         case (push, restart) =>
-          (is: Option[Chunk[I]]) =>
+          (is: Option[Chunk[I]]) => {
+            val shouldRestart =
+              is match {
+                case None    => false
+                case Some(_) => true
+              }
+
             push(is).catchAll {
               case Left(e) => ZIO.fail(Left(e))
               case Right(z) =>
-                f(z).mapError(Left(_)) flatMap {
-                  if (_) ZIO.fail(Right(z))
-                  else restart
+                f(z).mapError(Left(_)) flatMap { predicateSatisfied =>
+                  if (predicateSatisfied) ZIO.fail(Right(Some(z)))
+                  else if (shouldRestart) restart
+                  else ZIO.fail(Right(None))
                 }
 
             }
+          }
       }
     }
 }
@@ -305,10 +313,7 @@ object ZSink {
    * A sink that immediately ends with the specified value.
    */
   def succeed[Z](z: Z): ZSink[Any, Nothing, Any, Z] =
-    fromPush {
-      case Some(_) => UIO.unit
-      case None    => ZIO.fail(Right(z))
-    }
+    fromPush(_ => Push.emit(z))
 
   /**
    * A sink that effectfully folds its inputs with the provided function and initial state.
@@ -339,8 +344,5 @@ object ZSink {
    * Creates a single-value sink produced from an effect
    */
   def fromEffect[R, E, Z](b: => ZIO[R, E, Z]): ZSink[R, E, Any, Z] =
-    fromPush {
-      case None => b.foldM(Push.fail, Push.emit)
-      case _    => b.foldM(Push.fail, _ => UIO.unit)
-    }
+    fromPush(_ => b.foldM(Push.fail, Push.emit))
 }
