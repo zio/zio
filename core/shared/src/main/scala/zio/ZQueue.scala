@@ -460,24 +460,22 @@ object ZQueue {
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = {
         val empty = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
+        var loop  = true
 
-        @tailrec
-        def unsafeMovePutters(): Unit =
-          if (!queue.isFull()) {
-            putters.poll(empty) match {
-              case null =>
-              case putter @ (a, p, lastItem) =>
-                if (queue.offer(a)) {
-                  if (lastItem) unsafeCompletePromise(p, true)
-                  unsafeMovePutters()
-                } else {
-                  unsafeOfferAll(putters, putter :: unsafePollAll(putters))
-                  unsafeMovePutters()
-                }
-            }
+        while (loop) {
+          loop = !queue.isFull()
+
+          putters.poll(empty) match {
+            case null =>
+              loop = false
+            case putter @ (a, p, lastItem) =>
+              val offered = queue.offer(a)
+              if (offered && lastItem)
+                unsafeCompletePromise(p, true)
+              else if (!offered)
+                unsafeOfferAll(putters, putter :: unsafePollAll(putters))
           }
-
-        unsafeMovePutters()
+        }
       }
 
       def surplusSize: Int = putters.size()
