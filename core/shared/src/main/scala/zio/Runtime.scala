@@ -146,7 +146,7 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified signal handler.
    */
-  def withFiberDumpOnInterrupt: Runtime[R] = mapPlatform(_.withFiberDumpOnInterrupt)
+  def onInterruptSignal: Runtime[R] = mapPlatform(_.onInterruptSignal)
 
   /**
    * Constructs a new `Runtime` with the fatal error reporter.
@@ -198,8 +198,8 @@ object Runtime {
     override final def withFatal(f: Throwable => Boolean): Runtime.Managed[R] =
       mapPlatform(_.withFatal(f))
 
-    override def withFiberDumpOnInterrupt: Runtime.Managed[R] =
-      mapPlatform(_.withFiberDumpOnInterrupt)
+    override def onInterruptSignal: Runtime.Managed[R] =
+      mapPlatform(_.onInterruptSignal)
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
       mapPlatform(_.withReportFatal(f))

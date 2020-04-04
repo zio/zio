@@ -82,7 +82,7 @@ trait Platform { self =>
    * Print Fiber Dump of all fibers when interrupt signal received
    *
    */
-  def withFiberDumpOnInterrupt: Platform =
+  def onInterruptSignal: Platform =
     new Platform.Proxy(self) {
       withInterruptHandler {
         Fiber.dumpAllStr.map(fibs => println(fibs))

@@ -5,7 +5,7 @@ title:  "Sending Interrupt Signal to get fiber dump"
 
 You can send a `SIGUSR2` signal from your os to interrupt your app and a get a fiber dump of all fibers.
 
-You need to add the hook by including `printFiberDumpOnInterrupt` method in your runtime environment.
+You need to add the hook by including `onInterruptSignal` method in your runtime environment.
 
 ## Example application 
 
@@ -22,7 +22,7 @@ object Example extends App {
   val effect = for {
     _ <- putStrLn("Starting program")
     runtime <- ZIO.runtime[Console]
-    _ <- ZIO.effectTotal(runtime.printFiberDumpOnInterrupt)
+    _ <- ZIO.effectTotal(runtime.onInterruptSignal)
         _ <- putStrLn("hook added")
     _ <- ZIO.infinity
   } yield ()
