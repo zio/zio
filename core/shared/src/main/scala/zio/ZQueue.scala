@@ -437,7 +437,7 @@ object ZQueue {
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
       ): UIO[Boolean] =
-        UIO.effectSuspendTotal {
+        UIO.effectSuspendTotalWith { (_, fiberId) =>
           @tailrec
           def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit =
             as match {
@@ -450,14 +450,14 @@ object ZQueue {
                 unsafeOffer(tail, p)
             }
 
-          Promise.make[Nothing, Boolean].flatMap { p =>
-            UIO.effectSuspendTotal {
-              unsafeOffer(as, p)
-              unsafeOnQueueEmptySpace(queue)
-              unsafeCompleteTakers(queue, takers)
-              if (isShutdown.get) ZIO.interrupt else p.await
-            }.onInterrupt(IO.effectTotal(unsafeRemove(p)))
-          }
+          val p = Promise.unsafeMake[Nothing, Boolean](fiberId)
+
+          UIO.effectSuspendTotal {
+            unsafeOffer(as, p)
+            unsafeOnQueueEmptySpace(queue)
+            unsafeCompleteTakers(queue, takers)
+            if (isShutdown.get) ZIO.interrupt else p.await
+          }.onInterrupt(IO.effectTotal(unsafeRemove(p)))
         }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = {
@@ -582,7 +582,7 @@ object ZQueue {
     val isShutdown: UIO[Boolean] = UIO(shutdownFlag.get)
 
     val take: UIO[A] =
-      UIO.effectSuspendTotal {
+      UIO.effectSuspendTotalWith { (_, fiberId) =>
         if (shutdownFlag.get) ZIO.interrupt
         else {
           queue.poll(null.asInstanceOf[A]) match {
@@ -591,13 +591,12 @@ object ZQueue {
               // - try take again in case a value was added since
               // - wait for the promise to be completed
               // - clean up resources in case of interruption
-              Promise.make[Nothing, A].flatMap { p =>
-                UIO.effectSuspendTotal {
-                  takers.offer(p)
-                  strategy.unsafeCompleteTakers(queue, takers)
-                  if (shutdownFlag.get) ZIO.interrupt else p.await
-                }.onInterrupt(removeTaker(p))
-              }
+              val p = Promise.unsafeMake[Nothing, A](fiberId)
+              UIO.effectSuspendTotal {
+                takers.offer(p)
+                strategy.unsafeCompleteTakers(queue, takers)
+                if (shutdownFlag.get) ZIO.interrupt else p.await
+              }.onInterrupt(removeTaker(p))
 
             case item =>
               strategy.unsafeOnQueueEmptySpace(queue)
