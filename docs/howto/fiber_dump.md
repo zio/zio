@@ -9,9 +9,9 @@ You need to add the hook by including `onInterruptSignal` method in your runtime
 
 ## Example application 
 
-```scala mdoc
-package zio
-
+```scala mdoc:reset
+import zio.ZIO
+import zio.ZEnv
 import zio.console._
 
 object Example extends App {
