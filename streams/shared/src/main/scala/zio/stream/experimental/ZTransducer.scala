@@ -3,8 +3,11 @@ package zio.stream.experimental
 import zio._
 
 abstract class ZTransducer[-R, +E, -I, +O](
-  val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, Either[E, Unit], Chunk[O]]]
-) extends ZConduit[R, E, I, O, Unit](push) { self =>
+  val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, Option[E], Chunk[O]]]
+) extends ZConduit[R, E, I, O, Unit](push.map(_.andThen(_.mapError {
+      case Some(e) => Left(e)
+      case None    => Right(())
+    }))) { self =>
 
   /**
    * Compose this transducer with another transducer, resulting in a composite transducer.
@@ -17,8 +20,8 @@ abstract class ZTransducer[-R, +E, -I, +O](
         push = (input: Option[Chunk[I]]) =>
           pushLeft(input).foldM(
             {
-              case Left(e)  => ZIO.fail(Left(e))
-              case Right(_) => pushRight(None)
+              case Some(e) => ZIO.fail(Some(e))
+              case None    => pushRight(None)
             },
             chunk => pushRight(Some(chunk))
           )
@@ -29,16 +32,16 @@ abstract class ZTransducer[-R, +E, -I, +O](
    * Compose this transducer with a sink, resulting in a sink that processes elements by piping
    * them through this transducer and piping the results into the sink.
    */
-  def >>>[R1 <: R, E1 >: E, O2 >: O, Z](that: ZSink[R1, E1, O2, Z]): ZSink[R1, E1, I, Z] =
+  def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, Z](that: ZSink[R1, E1, O2, Z]): ZSink[R1, E1, I1, Z] =
     ZSink {
       for {
         pushSelf <- self.push
         pushThat <- that.push
-        push = (input: Option[Chunk[I]]) =>
-          pushSelf(input).foldM(
+        push = (is: Option[Chunk[I]]) =>
+          pushSelf(is).foldM(
             {
-              case Left(e)  => ZIO.fail(Left(e))
-              case Right(_) => pushThat(None)
+              case Some(e) => ZIO.fail(Left(e))
+              case None    => pushThat(None)
             },
             chunk => pushThat(Some(chunk))
           )
@@ -48,12 +51,9 @@ abstract class ZTransducer[-R, +E, -I, +O](
 
 object ZTransducer {
   def apply[R, E, I, O](
-    push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, Either[E, Unit], Chunk[O]]]
+    push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, Option[E], Chunk[O]]]
   ): ZTransducer[R, E, I, O] =
     new ZTransducer(push) {}
-
-  def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, Either[E, Unit], Chunk[O]]): ZTransducer[R, E, I, O] =
-    ZTransducer(Managed.succeed(push))
 
   /**
    * A transducer that re-chunks the elements fed to it into chunks of up to
@@ -93,6 +93,9 @@ object ZTransducer {
         }
       } yield push
     }
+
+  def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, Option[E], Chunk[O]]): ZTransducer[R, E, I, O] =
+    ZTransducer(Managed.succeed(push))
 
   object Push {
     def emit[A](a: A): UIO[Chunk[A]]                          = IO.succeedNow(Chunk.single(a))
