@@ -346,38 +346,30 @@ object ZQueue {
 
       def shutdown: UIO[Unit]
 
-      @tailrec
       final def unsafeCompleteTakers(
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      ): Unit =
-        pollTakersThenQueue(queue, takers) match {
-          case None =>
-          case Some((p, a)) =>
-            unsafeCompletePromise(p, a)
-            unsafeOnQueueEmptySpace(queue)
-            unsafeCompleteTakers(queue, takers)
-        }
-
-      @tailrec
-      private def pollTakersThenQueue(
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      ): Option[(Promise[Nothing, A], A)] =
+      ): Unit = {
         // check if there is both a taker and an item in the queue, starting by the taker
-        if (!queue.isEmpty()) {
-          val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
-          val taker     = takers.poll(nullTaker)
-          if (taker eq nullTaker) None
+        var loop      = true
+        val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
+        val empty     = null.asInstanceOf[A]
+
+        while (loop && !queue.isEmpty()) {
+          val taker = takers.poll(nullTaker)
+
+          if (taker eq nullTaker) loop = false
           else {
-            queue.poll(null.asInstanceOf[A]) match {
+            queue.poll(empty) match {
               case null =>
                 unsafeOfferAll(takers, taker :: unsafePollAll(takers))
-                pollTakersThenQueue(queue, takers)
-              case a => Some((taker, a))
+              case a =>
+                unsafeCompletePromise(taker, a)
+                unsafeOnQueueEmptySpace(queue)
             }
           }
-        } else None
+        }
+      }
     }
 
     final case class Sliding[A]() extends Strategy[A] {
@@ -401,8 +393,8 @@ object ZQueue {
         IO.effectTotal {
           unsafeSlidingOffer(as)
           unsafeCompleteTakers(queue, takers)
-                  true
-                }
+          true
+        }
       }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
