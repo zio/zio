@@ -62,19 +62,43 @@ object ZTransducer {
   def chunkN[I](n: Int): ZTransducer[Any, Nothing, I, I] =
     ZTransducer {
       for {
-        buffered <- Ref.make[Chunk[I]](Chunk.empty).toManaged_
-        done     <- Ref.make(false).toManaged_
+        buffered <- ZRef.makeManaged[Chunk[I]](Chunk.empty)
         push = { (input: Option[Chunk[I]]) =>
           input match {
-            case None => done.set(true) *> buffered.getAndSet(Chunk.empty)
+            case None => buffered.getAndSet(Chunk.empty)
             case Some(is) =>
-              buffered.modify { buffered =>
-                val concat = buffered ++ is
-                if (concat.size >= n) (concat.take(n), concat.drop(n))
-                else (concat, Chunk.empty)
-              }
+              buffered.modify { buf0 =>
+                val buf = buf0 ++ is
+                if (buf.length >= n) {
+                  val (out, buf1) = buf.splitAt(n)
+                  Push.emit(out) -> buf1
+                } else
+                  Push.next -> buf
+              }.flatten
           }
         }
       } yield push
     }
+
+  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, I] =
+    ZTransducer {
+      for {
+        buffered <- ZRef.makeManaged[Chunk[I]](Chunk.empty)
+        push = { (in: Option[Chunk[I]]) =>
+          buffered.modify { buf0 =>
+            val buf = in.foldLeft(buf0)(_ ++ _)
+            val out = buf.takeWhile(p)
+            (if (out.isEmpty) Push.next else Push.emit(out)) -> buf.drop(out.length + 1)
+          }.flatten
+        }
+      } yield push
+    }
+
+  object Push {
+    def emit[A](a: A): UIO[Chunk[A]]                          = IO.succeedNow(Chunk.single(a))
+    def emit[A](as: Chunk[A]): UIO[Chunk[A]]                  = IO.succeedNow(as)
+    def fail[E](e: E): IO[Either[E, Nothing], Nothing]        = IO.fail(Left(e))
+    def halt[E](c: Cause[E]): IO[Either[E, Nothing], Nothing] = IO.halt(c).mapError(Left(_))
+    val next: IO[Either[Nothing, Unit], Nothing]              = IO.fail(Right(()))
+  }
 }
