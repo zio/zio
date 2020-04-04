@@ -110,10 +110,10 @@ abstract class ZStream[-R, +E, +O](
                 else
                   pull
                     .foldCauseM(
-                      Cause.sequenceCauseOption(_).fold(push(None))(c => IO.halt(c.map(Left(_)))),
+                      Cause.sequenceCauseOption(_).fold(push(None))(Pull.halt(_)),
                       os => push(Some(os))
                     )
-                    .catchAllCause(Cause.sequenceCauseEither(_).fold(Pull.halt(_), _ => go))
+                    .catchAllCause(Cause.sequenceCauseOption(_).fold(go)(Pull.halt(_)))
               }
 
               go

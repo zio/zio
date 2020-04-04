@@ -98,10 +98,10 @@ object ZTransducer {
     ZTransducer(Managed.succeed(push))
 
   object Push {
-    def emit[A](a: A): UIO[Chunk[A]]                          = IO.succeedNow(Chunk.single(a))
-    def emit[A](as: Chunk[A]): UIO[Chunk[A]]                  = IO.succeedNow(as)
-    def fail[E](e: E): IO[Either[E, Nothing], Nothing]        = IO.fail(Left(e))
-    def halt[E](c: Cause[E]): IO[Either[E, Nothing], Nothing] = IO.halt(c).mapError(Left(_))
-    val next: IO[Either[Nothing, Unit], Nothing]              = IO.fail(Right(()))
+    def emit[A](a: A): UIO[Chunk[A]]                 = IO.succeedNow(Chunk.single(a))
+    def emit[A](as: Chunk[A]): UIO[Chunk[A]]         = IO.succeedNow(as)
+    def fail[E](e: E): IO[Option[E], Nothing]        = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): IO[Option[E], Nothing] = IO.halt(c).mapError(Some(_))
+    val next: IO[Option[Nothing], Nothing]           = IO.fail(None)
   }
 }
