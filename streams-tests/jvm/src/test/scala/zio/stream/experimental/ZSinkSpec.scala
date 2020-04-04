@@ -1,9 +1,9 @@
 package zio.stream.experimental
 
-import zio._
 import zio.stream.ChunkUtils
 import zio.test.Assertion.equalTo
 import zio.test._
+import zio.{Chunk, ZIOBaseSpec}
 
 object ZSinkSpec extends ZIOBaseSpec {
   def spec = suite("ZSinkSpec")(
