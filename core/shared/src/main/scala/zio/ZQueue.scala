@@ -401,7 +401,8 @@ object ZQueue {
         IO.effectTotal {
           unsafeSlidingOffer(as)
           unsafeCompleteTakers(queue, takers)
-        }.as(true)
+                  true
+                }
       }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
