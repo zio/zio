@@ -23,7 +23,9 @@ object ZTransducerSpec extends ZIOBaseSpec {
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = parser.push.use(f =>
           ZIO
-            .foldLeft(input)(List.empty[List[Int]])((xs, x) => f(Some(x)).map(_.fold(xs)(_ :+ _)).catchAll(_ => ZIO.succeed(xs)))
+            .foldLeft(input)(List.empty[List[Int]])((xs, x) =>
+              f(Some(x)).map(_.fold(xs)(_ :+ _)).catchAll(_ => ZIO.succeed(xs))
+            )
             .flatMap(xs => f(None).retry(Schedule.forever).map(_.fold(xs)(_ :+ _)))
         )
         assertM(result)(equalTo(List(List(3, 4), List(2, 3, 4), List(4, 3, 2))))
