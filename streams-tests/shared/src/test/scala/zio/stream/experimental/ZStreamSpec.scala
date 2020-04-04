@@ -102,8 +102,8 @@ object ZStreamSpec extends ZIOBaseSpec {
         // },
         testM("propagate managed error") {
           val fail = "I'm such a failure!"
-          val t    = ZManaged.fail(fail)
-          assertM(ZStream(1, 2, 3).aggregateManaged(t).runCollect.either)(isLeft(equalTo(fail)))
+          val t    = ZTransducer.fail(fail)
+          assertM(ZStream(1, 2, 3).aggregate(t).runCollect.either)(isLeft(equalTo(fail)))
         }
       ),
       suite("bracket")(

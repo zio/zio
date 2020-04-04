@@ -94,6 +94,9 @@ object ZTransducer {
       } yield push
     }
 
+  def fail[E](e: => E): ZTransducer[Any, E, Any, Nothing] =
+    ZTransducer(ZManaged.succeed((_: Option[Any]) => Push.fail(e)))
+
   def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, Option[E], Chunk[O]]): ZTransducer[R, E, I, O] =
     ZTransducer(Managed.succeed(push))
 
