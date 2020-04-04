@@ -3,10 +3,15 @@ package zio.stream.experimental
 import zio._
 
 // Important notes while writing sinks and combinators:
+// - What return values for sinks mean:
+//   ZIO.unit - "need more values"
+//   ZIO.fail(Right(z)) - "ended with z"
+//   ZIO.fail(Left(e)) - "failed with e"
 // - Always consume entire chunks. If a sink consumes part of a chunk and drops the rest,
 //   it should probably be a transducer.
 // - Sinks should always end when receiving a `None`. It is a defect to not end with some
 //   sort of result (even a failure) when receiving a `None`.
+// - Sinks can assume they will not be pushed again after emitting a value.
 abstract class ZSink[-R, +E, -I, +Z] private (
   val push: ZManaged[R, Nothing, ZSink.Push[R, E, I, Z]]
 ) { self =>
