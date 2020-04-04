@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.environment.TestEnvironment
-import zio.{ UIO, ZIO }
+import zio.{ ExecutionStrategy, UIO, ZIO }
 
 object TestUtils {
 
