@@ -451,11 +451,12 @@ object ZQueue {
             }
 
           Promise.make[Nothing, Boolean].flatMap { p =>
-            (IO.effectTotal {
+            UIO.effectSuspendTotal {
               unsafeOffer(as, p)
               unsafeOnQueueEmptySpace(queue)
               unsafeCompleteTakers(queue, takers)
-            } *> (if (isShutdown.get) ZIO.interrupt else p.await)).onInterrupt(IO.effectTotal(unsafeRemove(p)))
+              if (isShutdown.get) ZIO.interrupt else p.await
+            }.onInterrupt(IO.effectTotal(unsafeRemove(p)))
           }
         }
 
@@ -584,21 +585,23 @@ object ZQueue {
       UIO.effectSuspendTotal {
         if (shutdownFlag.get) ZIO.interrupt
         else {
-          val item = queue.poll(null.asInstanceOf[A])
-          if (item != null) {
-            strategy.unsafeOnQueueEmptySpace(queue)
-            IO.succeedNow(item)
-          } else {
-            // add the promise to takers, then:
-            // - try take again in case a value was added since
-            // - wait for the promise to be completed
-            // - clean up resources in case of interruption
-            Promise.make[Nothing, A].flatMap { p =>
-              (IO.effectTotal {
-                takers.offer(p)
-                strategy.unsafeCompleteTakers(queue, takers)
-              } *> (if (shutdownFlag.get) ZIO.interrupt else p.await)).onInterrupt(removeTaker(p))
-            }
+          queue.poll(null.asInstanceOf[A]) match {
+            case null =>
+              // add the promise to takers, then:
+              // - try take again in case a value was added since
+              // - wait for the promise to be completed
+              // - clean up resources in case of interruption
+              Promise.make[Nothing, A].flatMap { p =>
+                UIO.effectSuspendTotal {
+                  takers.offer(p)
+                  strategy.unsafeCompleteTakers(queue, takers)
+                  if (shutdownFlag.get) ZIO.interrupt else p.await
+                }.onInterrupt(removeTaker(p))
+              }
+
+            case item =>
+              strategy.unsafeOnQueueEmptySpace(queue)
+              IO.succeedNow(item)
           }
         }
       }
