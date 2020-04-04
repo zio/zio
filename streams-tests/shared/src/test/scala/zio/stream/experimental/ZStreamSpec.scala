@@ -46,9 +46,8 @@ object ZStreamSpec extends ZIOBaseSpec {
       ),
       suite("aggregate")(
         // testM("aggregate") {
-        //   val s = Stream('1', '2', ',', '3', '4')
-        //   val parser = ZTransducer.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink
-        //     .collectAllWhile[Char](_ == ',')
+        //   val s = ZStream('1', '2', ',', '3', '4')
+        //   val parser = ZTransducer.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZTransducer.collectAllWhile[Char](_ == ',')
 
         //   assertM(s.aggregate(parser).runCollect)(equalTo(List(12, 34)))
         // },
@@ -103,7 +102,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         // },
         testM("propagate managed error") {
           val fail = "I'm such a failure!"
-          val t = ZManaged.fail(fail)
+          val t    = ZManaged.fail(fail)
           assertM(ZStream(1, 2, 3).aggregateManaged(t).runCollect.either)(isLeft(equalTo(fail)))
         }
       ),
