@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,30 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio
 
+/**
+ * Describes a strategy for evaluating multiple effects, potentially in
+ * parallel. There are three possible execution strategies: `Sequential`,
+ * `Parallel`, and `ParallelN`.
+ */
 sealed trait ExecutionStrategy
+
 object ExecutionStrategy {
-  case object Sequential             extends ExecutionStrategy
-  case object Parallel               extends ExecutionStrategy
+
+  /**
+   * Execute effects sequentially.
+   */
+  case object Sequential extends ExecutionStrategy
+
+  /**
+   * Execute effects in parallel.
+   */
+  case object Parallel extends ExecutionStrategy
+
+  /**
+   * Execute effects in parallel, up to the specified number of concurrent
+   * fibers.
+   */
   final case class ParallelN(n: Int) extends ExecutionStrategy
 }

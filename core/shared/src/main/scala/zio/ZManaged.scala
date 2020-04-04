@@ -1491,6 +1491,19 @@ object ZManaged {
     in.fold[ZManaged[R, E, Option[A2]]](succeed(None))(f(_).map(Some(_)))
 
   /**
+   * Applies the function `f` to each element of the `Iterable[A]` and returns
+   * the result in a new `List[B]` using the specified execution strategy.
+   */
+  final def foreachExec[R, E, A, B](
+    as: Iterable[A]
+  )(exec: ExecutionStrategy)(f: A => ZManaged[R, E, B]): ZManaged[R, E, List[B]] =
+    exec match {
+      case ExecutionStrategy.Parallel     => ZManaged.foreachPar(as)(f)
+      case ExecutionStrategy.ParallelN(n) => ZManaged.foreachParN(n)(as)(f)
+      case ExecutionStrategy.Sequential   => ZManaged.foreach(as)(f)
+    }
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
    * and returns the results in a new `List[B]`.
    *

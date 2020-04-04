@@ -328,6 +328,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[zio.ZIO.foreachExec]]
+   */
+  final def foreachExec[A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => Task[B]): Task[List[B]] =
+    ZIO.foreachExec(as)(exec)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[A, B](as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =

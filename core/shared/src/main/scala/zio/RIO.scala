@@ -357,6 +357,12 @@ object RIO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[zio.ZIO.foreachExec]]
+   */
+  final def foreachExec[R, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => RIO[R, B]): RIO[R, List[B]] =
+    ZIO.foreachExec(as)(exec)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[R, A, B](as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
