@@ -198,7 +198,7 @@ object ZSink {
   /**
    * Creates a sink containing the first value.
    */
-  def head[A]: ZSink[Any, Unit, A, A] =
+  def head[I]: ZSink[Any, Unit, I, I] =
     ZSink(ZManaged.succeed({
       case Some(ch) =>
         ch.headOption match {
@@ -207,6 +207,29 @@ object ZSink {
         }
       case None => Push.fail(())
     }))
+
+  /**
+   * Creates a sink containing the last value.
+   */
+  def last[I]: ZSink[Any, Nothing, I, Option[I]] =
+    ZSink {
+      for {
+        state <- Ref.make[Option[I]](None).toManaged_
+        push = (is: Option[Chunk[I]]) =>
+          state.get.flatMap { last =>
+            is match {
+              case Some(ch) =>
+                ch.lastOption match {
+                  case l: Some[_] => state.set(l) *> Push.more
+                  case None       => Push.more
+                }
+              case None => Push.emit(last)
+            }
+          }
+      } yield {
+        push
+      }
+    }
 
   /**
    * A sink that immediately ends with the specified value.
