@@ -74,7 +74,14 @@ sealed trait Chunk[+A] { self =>
 
     if (n <= 0) self
     else if (n >= len) Chunk.empty
-    else Chunk.slice(self, n, len - n)
+    else
+      self match {
+        case Chunk.Slice(c, o, l)        => Chunk.Slice(c, o + n, l - n)
+        case Chunk.Singleton(_) if n > 0 => Chunk.empty
+        case c @ Chunk.Singleton(_)      => c
+        case Chunk.Empty                 => Chunk.empty
+        case ne: NonEmptyChunk[A]        => Chunk.Slice(ne, n, len - n)
+      }
   }
 
   /**
@@ -444,8 +451,16 @@ sealed trait Chunk[+A] { self =>
    */
   final def take(n: Int): Chunk[A] =
     if (n <= 0) Chunk.Empty
-    else if (n >= length) self
-    else Chunk.slice(self, 0, n)
+    else if (n >= length) this
+    else
+      self match {
+        case Chunk.Empty => Chunk.Empty
+        case Chunk.Slice(c, o, l) =>
+          if (n >= l) this
+          else Chunk.Slice(c, o, n)
+        case c @ Chunk.Singleton(_) => c
+        case ne: NonEmptyChunk[A]   => Chunk.Slice(ne, 0, n)
+      }
 
   /**
    * Takes all elements so long as the predicate returns true.
@@ -603,7 +618,8 @@ object Chunk {
   /**
    * Returns a chunk backed by an array.
    */
-  def fromArray[A](array: Array[A]): Chunk[A] = Arr(array)
+  def fromArray[A](array: Array[A]): Chunk[A] =
+    if (array.isEmpty) Empty else Arr(array)
 
   /**
    * Returns a chunk backed by a [[java.nio.ByteBuffer]].
@@ -1070,26 +1086,6 @@ object Chunk {
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       dest(n) = a
-  }
-
-  /**
-   * Create slice(in,start,n)
-   */
-  private def slice[A](self: Chunk[A], start: Int, n: Int): Chunk[A] = {
-    val len    = self.length
-    val offset = if (start <= 0) 0 else if (start > len) len else start
-    val l =
-      if (n <= 0) 0
-      else if (offset + n >= len) len - offset
-      else n
-
-    self match {
-      case _ if l == 0            => Empty
-      case _ if l == 1            => Singleton(self(offset))
-      case Empty                  => Empty
-      case Slice(ne, offset_0, _) => Slice(ne, offset_0 + offset, l)
-      case ne: NonEmpty[A]        => Slice(ne, offset, l)
-    }
   }
 
   private final case class Slice[A](private val chunk: NonEmpty[A], offset: Int, l: Int) extends NonEmpty[A] {

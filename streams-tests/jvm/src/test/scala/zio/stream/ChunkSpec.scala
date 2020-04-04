@@ -6,7 +6,7 @@ import zio.random.Random
 import zio.test.Assertion.{ equalTo, isLeft }
 import zio.test.TestAspect.exceptScala211
 import zio.test._
-import zio.{ Chunk, IO, NonEmptyChunk, UIO, ZIOBaseSpec }
+import zio.{ Chunk, IO, NonEmptyChunk, UIO, ZIO, ZIOBaseSpec }
 
 case class Value(i: Int) extends AnyVal
 
@@ -289,35 +289,41 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(in.toSeq)(equalTo(expected))
       }
     },
-    testM("nonEmptyChunk subtype") {
-      def assertEqualTo[A](expected: A)(value: A*): TestResult =
-        assert(value)(Assertion.forall(equalTo(expected)))
+    test("nonEmptyChunk subtype preservation") {
+      //checks at compile tim
 
-      check(Gen.int(-1, 1)) {
-        x =>
-          val cx: NonEmptyChunk[Int]         = Chunk(x)
-          val cx0: NonEmptyChunk[(Int, Int)] = Chunk((x, 0))
+      def cx: NonEmptyChunk[Int] = ???
+      def x: Int                 = ???
 
-          val a1 = assertEqualTo(expected = cx)(
-            Chunk.empty + x,
-            cx ++ Chunk.empty,
-            cx.map(identity),
-            cx.flatMap(i => Chunk(i)),
-            Chunk(cx).flatten,
-            Chunk.single(x),
-            Chunk.succeed(x),
-            Chunk.concat(cx, Chunk.empty),
-            Chunk.concat(Chunk.empty, cx)
-          )
+      def checkIsSubtypeOf[A](value: A*): Unit = ???
 
-          val a2 = assertEqualTo(expected = cx0)(
-            cx.zipWithIndex,
-            cx.zipWithIndexFrom(0),
-            cx.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r))
-          )
-
-          a1 && a2
+      {
+        lazy val _ = checkIsSubtypeOf[NonEmptyChunk[_]](
+          Chunk(cx).flatten,
+          Chunk(x),
+          Chunk.concat(Chunk.empty, cx),
+          Chunk.concat(cx, Chunk.empty),
+          Chunk.empty + x,
+          Chunk.single(x),
+          Chunk.succeed(x),
+          cx ++ Chunk.empty,
+          cx.flatMap(i => Chunk(i)),
+          cx.map(identity),
+          cx.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
+          cx.zipWithIndex,
+          cx.zipWithIndexFrom(0)
+        )
       }
+
+      {
+        lazy val _ = checkIsSubtypeOf[ZIO[_, _, NonEmptyChunk[_]]](
+          cx.mapM(x => ZIO.succeed(x)),
+          cx.mapMPar(x => ZIO.succeed(x)),
+          cx.mapAccumM("")((s, i) => ZIO.succeed(s + i -> i)).map(_._2)
+        )
+      }
+
+      assertCompletes
     }
   )
 }
