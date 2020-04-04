@@ -438,18 +438,6 @@ object ZQueue {
         isShutdown: AtomicBoolean
       ): UIO[Boolean] =
         UIO.effectSuspendTotalWith { (_, fiberId) =>
-          @tailrec
-          def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit =
-            as match {
-              case Nil =>
-              case head :: tail if tail.isEmpty =>
-                putters.offer((head, p, true))
-                ()
-              case head :: tail =>
-                putters.offer((head, p, false))
-                unsafeOffer(tail, p)
-            }
-
           val p = Promise.unsafeMake[Nothing, Boolean](fiberId)
 
           unsafeOffer(as, p)
@@ -457,6 +445,12 @@ object ZQueue {
           unsafeCompleteTakers(queue, takers)
           (if (isShutdown.get) ZIO.interrupt else p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
         }
+
+      private def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit = {
+        val it = as.iterator
+        while (it.hasNext)
+          putters.offer((it.next, p, it.hasNext))
+      }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = {
         val empty = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
