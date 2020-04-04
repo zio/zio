@@ -2,10 +2,49 @@ package zio.stream.experimental
 
 import zio._
 
+// Important notes while writing sinks and combinators:
+// - Always consume entire chunks. If a sink consumes part of a chunk and drops the rest,
+//   it should probably be a transducer.
+// - Sinks should always end when receiving a `None`. It is a defect to not end with some
+//   sort of result (even a failure) when receiving a `None`.
 abstract class ZSink[-R, +E, -I, +Z] private (
   val push: ZManaged[R, Nothing, ZSink.Push[R, E, I, Z]]
 ) { self =>
   import ZSink.Push
+
+  /**
+   * Replaces this sink's result with the provided value.
+   */
+  def as[Z2](z: => Z2): ZSink[R, E, I, Z2] =
+    map(_ => z)
+
+  /**
+   * Repeatedly runs the sink for as long as its results satisfy
+   * the predicate `p`. The sink's results will be accumulated
+   * using the stepping function `f`.
+   */
+  def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S): ZSink[R, E, I, S] =
+    ZSink {
+      Push.restartable(push).flatMap {
+        case (push, restart) =>
+          Ref.make(z).toManaged_.map { state => (input: Option[Chunk[I]]) =>
+            input match {
+              case None => state.get.map(Right(_)).flip
+              case is @ Some(_) =>
+                push(is).catchAll {
+                  case Left(e) => ZIO.fail(Left(e))
+                  case Right(z) =>
+                    state
+                      .updateAndGet(f(_, z))
+                      .flatMap(s =>
+                        if (p(z)) restart
+                        else ZIO.fail(Right(s))
+                      )
+                }
+            }
+          }
+      }
+    }
 
   /**
    * Transforms this sink's input elements.
@@ -40,27 +79,95 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     )
 
   /**
-   * Repeatedly runs the sink for as long as its results satisfy
-   * the predicate `p`. The sink's results will be accumulated
-   * using the stepping function `f`.
+   * Transforms both inputs and result of this sink using the provided functions.
    */
-  def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S): ZSink[R, E, I, S] =
+  def dimap[I2, Z2](f: I2 => I, g: Z => Z2): ZSink[R, E, I2, Z2] =
+    contramap(f).map(g)
+
+  /**
+   * Effectfully transforms both inputs and result of this sink using the provided functions.
+   */
+  def dimapM[R1 <: R, E1 >: E, I2, Z2](
+    f: I2 => ZIO[R1, E1, I],
+    g: Z => ZIO[R1, E1, Z2]
+  ): ZSink[R1, E1, I2, Z2] =
+    contramapM(f).mapM(g)
+
+  /**
+   * Transforms both input chunks and result of this sink using the provided functions.
+   */
+  def dimapChunks[I2, Z2](f: Chunk[I2] => Chunk[I], g: Z => Z2): ZSink[R, E, I2, Z2] =
+    contramapChunks(f).map(g)
+
+  /**
+   * Effectfully transforms both input chunks and result of this sink using the provided functions.
+   */
+  def dimapChunksM[R1 <: R, E1 >: E, I2, Z2](
+    f: Chunk[I2] => ZIO[R1, E1, Chunk[I]],
+    g: Z => ZIO[R1, E1, Z2]
+  ): ZSink[R1, E1, I2, Z2] =
+    contramapChunksM(f).mapM(g)
+
+  /**
+   * Runs this sink until it yields a result, then uses that result to create another
+   * sink from the provided function which will continue to run until it yields a result.
+   *
+   * This function essentially runs sinks in sequence.
+   */
+  def flatMap[R1 <: R, E1 >: E, I2 <: I, Z2](f: Z => ZSink[R1, E1, I2, Z2]): ZSink[R1, E1, I2, Z2] =
+    foldCauseM(ZSink.halt(_), f)
+
+  def foldM[R1 <: R, E2, I2 <: I, Z2](
+    failure: E => ZSink[R1, E2, I2, Z2],
+    success: Z => ZSink[R1, E2, I2, Z2]
+  ): ZSink[R1, E2, I2, Z2] =
+    foldCauseM(
+      _.failureOrCause match {
+        case Left(e)      => failure(e)
+        case Right(cause) => ZSink.halt(cause)
+      },
+      success
+    )
+
+  def foldCauseM[R1 <: R, E2, I2 <: I, Z2](
+    failure: Cause[E] => ZSink[R1, E2, I2, Z2],
+    success: Z => ZSink[R1, E2, I2, Z2]
+  ): ZSink[R1, E2, I2, Z2] =
     ZSink {
-      Push.restartable(push).flatMap {
-        case (push, restart) =>
-          Ref.make(z).toManaged_.map { state => (input: Option[Chunk[I]]) =>
-            push(input).catchAll {
-              case Left(e) => ZIO.fail(Left(e))
-              case Right(z) =>
-                state
-                  .updateAndGet(f(_, z))
-                  .flatMap(s =>
-                    if (p(z)) restart
-                    else ZIO.fail(Right(s))
-                  )
-            }
+      for {
+        switched     <- Ref.make(false).toManaged_
+        thisPush     <- self.push
+        thatPush     <- Ref.make[Push[R1, E2, I2, Z2]](_ => ZIO.unit).toManaged_
+        openThatPush <- ZManaged.switchable[R1, Nothing, Push[R1, E2, I2, Z2]]
+        push = (inputs: Option[Chunk[I2]]) =>
+          switched.get.flatMap { alreadySwitched =>
+            if (alreadySwitched)
+              inputs match {
+                case None =>
+                  // If upstream has ended, we want to make sure that we propagate the `None`
+                  // signal to the sink resulting from `f`. This will make sure that expressions like
+                  // `sink1 *> ZSink.succeed("a")` work properly and do not require another push
+                  // to terminate.
+                  thisPush(None).catchAllCause { cause =>
+                    val switchToNextPush = Cause.sequenceCauseEither(cause) match {
+                      case Left(e)  => openThatPush(failure(e).push).tap(thatPush.set) <* switched.set(true)
+                      case Right(z) => openThatPush(success(z).push).tap(thatPush.set) <* switched.set(true)
+                    }
+
+                    switchToNextPush.flatMap(_.apply(None))
+                  }
+
+                case is @ Some(_) =>
+                  thisPush(is).catchAllCause {
+                    Cause.sequenceCauseEither(_) match {
+                      case Left(e)  => openThatPush(failure(e).push).flatMap(thatPush.set) *> switched.set(true)
+                      case Right(z) => openThatPush(success(z).push).flatMap(thatPush.set) *> switched.set(true)
+                    }
+                  }
+              }
+            else thatPush.get.flatMap(_.apply(inputs))
           }
-      }
+      } yield push
     }
 
   /**
