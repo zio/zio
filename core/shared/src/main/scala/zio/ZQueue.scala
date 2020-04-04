@@ -452,12 +452,10 @@ object ZQueue {
 
           val p = Promise.unsafeMake[Nothing, Boolean](fiberId)
 
-          UIO.effectSuspendTotal {
-            unsafeOffer(as, p)
-            unsafeOnQueueEmptySpace(queue)
-            unsafeCompleteTakers(queue, takers)
-            if (isShutdown.get) ZIO.interrupt else p.await
-          }.onInterrupt(IO.effectTotal(unsafeRemove(p)))
+          unsafeOffer(as, p)
+          unsafeOnQueueEmptySpace(queue)
+          unsafeCompleteTakers(queue, takers)
+          (if (isShutdown.get) ZIO.interrupt else p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
         }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = {
@@ -594,11 +592,9 @@ object ZQueue {
               // - clean up resources in case of interruption
               val p = Promise.unsafeMake[Nothing, A](fiberId)
 
-              UIO.effectSuspendTotal {
-                takers.offer(p)
-                strategy.unsafeCompleteTakers(queue, takers)
-                if (shutdownFlag.get) ZIO.interrupt else p.await
-              }.onInterrupt(removeTaker(p))
+              takers.offer(p)
+              strategy.unsafeCompleteTakers(queue, takers)
+              (if (shutdownFlag.get) ZIO.interrupt else p.await).onInterrupt(removeTaker(p))
 
             case item =>
               strategy.unsafeOnQueueEmptySpace(queue)
