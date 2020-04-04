@@ -70,8 +70,8 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     ZSink(self.push.map(sink => (inputs: Option[Chunk[I]]) => sink(inputs).mapError(_.right.map(f))))
 
   /**
-    * Effectfully transforms this sink's result.
-    */
+   * Effectfully transforms this sink's result.
+   */
   def mapM[R1 <: R, E1 >: E, Z2](f: Z => ZIO[R1, E1, Z2]): ZSink[R1, E1, I, Z2] =
     ZSink(
       self.push.map(push =>
@@ -133,19 +133,19 @@ object ZSink {
     def fail[E](e: E): IO[Either[E, Nothing], Nothing]        = IO.fail(Left(e))
     def halt[E](c: Cause[E]): IO[Either[E, Nothing], Nothing] = IO.halt(c).mapError(Left(_))
 
-  /**
-   * Decorates a Push with a ZIO value that re-initializes it with a fresh state.
-   */
-  def restartable[R, E, I, Z](
-    sink: ZManaged[R, Nothing, Push[R, E, I, Z]]
-  ): ZManaged[R, Nothing, (Push[R, E, I, Z], ZIO[R, Nothing, Unit])] =
-    for {
-      switchSink  <- ZManaged.switchable[R, Nothing, Push[R, E, I, Z]]
-      initialSink <- switchSink(sink).toManaged_
-      currSink    <- Ref.make(initialSink).toManaged_
-      restart     = switchSink(sink).flatMap(currSink.set)
-      newPush     = (input: Option[Chunk[I]]) => currSink.get.flatMap(_.apply(input))
-    } yield (newPush, restart)
+    /**
+     * Decorates a Push with a ZIO value that re-initializes it with a fresh state.
+     */
+    def restartable[R, E, I, Z](
+      sink: ZManaged[R, Nothing, Push[R, E, I, Z]]
+    ): ZManaged[R, Nothing, (Push[R, E, I, Z], ZIO[R, Nothing, Unit])] =
+      for {
+        switchSink  <- ZManaged.switchable[R, Nothing, Push[R, E, I, Z]]
+        initialSink <- switchSink(sink).toManaged_
+        currSink    <- Ref.make(initialSink).toManaged_
+        restart     = switchSink(sink).flatMap(currSink.set)
+        newPush     = (input: Option[Chunk[I]]) => currSink.get.flatMap(_.apply(input))
+      } yield (newPush, restart)
   }
 
   def apply[R, E, I, Z](push: ZManaged[R, Nothing, Push[R, E, I, Z]]) =
@@ -171,6 +171,25 @@ object ZSink {
    */
   val count: ZSink[Any, Nothing, Any, Long] =
     fold(0L)((s, _) => s + 1)
+
+  /**
+   * Creates a sink halting with a specified cause.
+   */
+  def halt[E](e: => Cause[E]): ZSink[Any, E, Any, Nothing] =
+    ZSink.fromPush(_ => Push.halt(e))
+
+  /**
+   * Creates a sink halting with the specified `Throwable`.
+   */
+  def die(e: => Throwable): ZSink[Any, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(e))
+
+  /**
+   * Creates a sink halting with the specified message, wrapped in a
+   * `RuntimeException`.
+   */
+  def dieMessage(m: => String): ZSink[Any, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(new RuntimeException(m)))
 
   def fromPush[R, E, I, Z](sink: Push[R, E, I, Z]): ZSink[R, E, I, Z] =
     ZSink(Managed.succeed(sink))

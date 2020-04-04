@@ -465,8 +465,8 @@ sealed trait Chunk[+A] { self =>
     (take(n), drop(n))
 
   /**
-    * Splits this chunk on the first element that matches this predicate.
-    */
+   * Splits this chunk on the first element that matches this predicate.
+   */
   final def splitWhere(f: A => Boolean): (Chunk[A], Chunk[A]) = {
     var i = 0
     while (i < length && f(self(i)))
