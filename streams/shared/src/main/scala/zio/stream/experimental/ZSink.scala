@@ -318,14 +318,14 @@ object ZSink {
   /**
    * Creates a sink containing the first value.
    */
-  def head[I]: ZSink[Any, Unit, I, I] =
+  def head[I]: ZSink[Any, Nothing, I, Option[I]] =
     ZSink(ZManaged.succeed({
       case Some(ch) =>
         ch.headOption match {
-          case Some(h) => Push.emit(h)
-          case None    => Push.more
+          case h: Some[_] => Push.emit(h)
+          case None       => Push.more
         }
-      case None => Push.fail(())
+      case None => Push.emit(None)
     }))
 
   /**

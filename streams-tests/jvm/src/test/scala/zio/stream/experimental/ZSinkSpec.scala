@@ -10,7 +10,7 @@ object ZSinkSpec extends ZIOBaseSpec {
     suite("Constructors")(
       testM("head")(
         checkM(Gen.listOf(ChunkUtils.smallChunks(Gen.anyInt))) { chunks: Seq[Chunk[Int]] =>
-          val headOpt = ZStream.fromChunks(chunks: _*).run(ZSink.head[Int]).option
+          val headOpt = ZStream.fromChunks(chunks: _*).run(ZSink.head[Int])
           assertM(headOpt)(equalTo(chunks.flatMap(_.toSeq).headOption))
         }
       ),
