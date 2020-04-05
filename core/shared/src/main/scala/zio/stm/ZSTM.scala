@@ -138,7 +138,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Propagates the given environment to self.
    */
-  def >>>[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
+  def >>>[E1 >: E, B](that: ZSTM[A, E1, B]): ZSTM[R, E1, B] =
     flatMap(that.provide)
 
   /**
@@ -157,7 +157,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Named alias for `>>>`.
    */
-  def andThen[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
+  def andThen[E1 >: E, B](that: ZSTM[A, E1, B]): ZSTM[R, E1, B] =
     self >>> that
 
   /**
