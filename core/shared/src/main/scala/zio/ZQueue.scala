@@ -355,7 +355,7 @@ object ZQueue {
         val nullTaker   = null.asInstanceOf[Promise[Nothing, A]]
         val empty       = null.asInstanceOf[A]
 
-        while (keepPolling && !queue.isEmpty) {
+        while (keepPolling && !queue.isEmpty()) {
           val taker = takers.poll(nullTaker)
           if (taker eq nullTaker) keepPolling = false
           else {
@@ -440,10 +440,12 @@ object ZQueue {
         UIO.effectSuspendTotalWith { (_, fiberId) =>
           val p = Promise.unsafeMake[Nothing, Boolean](fiberId)
 
-          unsafeOffer(as, p)
-          unsafeOnQueueEmptySpace(queue)
-          unsafeCompleteTakers(queue, takers)
-          (if (isShutdown.get) ZIO.interrupt else p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
+          UIO.effectSuspendTotal {
+            unsafeOffer(as, p)
+            unsafeOnQueueEmptySpace(queue)
+            unsafeCompleteTakers(queue, takers)
+            if (isShutdown.get) ZIO.interrupt else p.await
+          }.onInterrupt(IO.effectTotal(unsafeRemove(p)))
         }
 
       private def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit = {
@@ -456,7 +458,7 @@ object ZQueue {
         val empty       = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
         var keepPolling = true
 
-        while (keepPolling && !queue.isFull) {
+        while (keepPolling && !queue.isFull()) {
           putters.poll(empty) match {
             case null =>
               keepPolling = false
@@ -582,9 +584,11 @@ object ZQueue {
               // - clean up resources in case of interruption
               val p = Promise.unsafeMake[Nothing, A](fiberId)
 
-              takers.offer(p)
-              strategy.unsafeCompleteTakers(queue, takers)
-              (if (shutdownFlag.get) ZIO.interrupt else p.await).onInterrupt(removeTaker(p))
+              UIO.effectSuspendTotal {
+                takers.offer(p)
+                strategy.unsafeCompleteTakers(queue, takers)
+                if (shutdownFlag.get) ZIO.interrupt else p.await
+              }.onInterrupt(removeTaker(p))
 
             case item =>
               strategy.unsafeOnQueueEmptySpace(queue)
