@@ -95,7 +95,7 @@ abstract class ZStream[-R, +E, +O](
         run = {
           def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
             if (_)
-              push(None)
+              push(None).repeat(Schedule.doWhile(_.isEmpty))
             else
               pull
                 .foldM(
