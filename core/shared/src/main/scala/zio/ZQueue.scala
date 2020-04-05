@@ -452,7 +452,7 @@ object ZQueue {
       private def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit =
         as match {
           case Nil =>
-          case head :: tail if tail.isEmpty =>
+          case head :: Nil =>
             putters.offer((head, p, true))
             ()
           case head :: tail =>
