@@ -45,12 +45,12 @@ object ZStreamSpec extends ZIOBaseSpec {
         })
       ),
       suite("aggregate")(
-        // testM("aggregate") {
-        //   val s = ZStream('1', '2', ',', '3', '4')
-        //   val parser = ZTransducer.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZTransducer.collectAllWhile[Char](_ == ',')
+        testM("aggregate") {
+          val s = ZStream('1', '2', ',', '3', '4')
+          val parser = ZTransducer.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt)
 
-        //   assertM(s.aggregate(parser).runCollect)(equalTo(List(12, 34)))
-        // },
+          assertM(s.aggregate(parser).runCollect)(equalTo(List(12, 34)))
+        },
         // testM("no remainder") {
         //   val t = ZTransducer.fold(100)(_ % 2 == 0)((s, a: Int) => (s + a, Chunk[Int]()))
         //   assertM(ZStream(1, 2, 3, 4).aggregate(t).runCollect)(equalTo(List(101, 105, 104)))

@@ -47,6 +47,9 @@ abstract class ZTransducer[-R, +E, -I, +O](
           )
       } yield push
     }
+
+  final def map[R1 <: R, E1 >: E, I1 <: I, P](f: O => P): ZTransducer[R1, E1, I1, P] =
+    ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
 }
 
 object ZTransducer {
