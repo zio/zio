@@ -346,9 +346,7 @@ object ZSink {
               case None => Push.emit(last)
             }
           }
-      } yield {
-        push
-      }
+      } yield push
     }
 
   /**
