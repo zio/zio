@@ -19,8 +19,8 @@ package zio.test.mock.internal
 import scala.util.Try
 
 import zio.test.Assertion
-import zio.test.mock.{ Expectation, Method, Proxy }
-import zio.{ Has, IO, Promise, Tagged, UIO, ULayer, ZIO, ZLayer }
+import zio.test.mock.{ Capability, Expectation, Proxy }
+import zio.{ Has, IO, Tagged, UIO, ULayer, ZIO, ZLayer }
 
 object ProxyFactory {
 
@@ -33,17 +33,16 @@ object ProxyFactory {
    */
   def mockProxy[R <: Has[_]: Tagged](state: State[R]): ULayer[Has[Proxy]] =
     ZLayer.succeed(new Proxy {
-      def invoke[RIn <: Has[_], ROut, I, E, A](invokedMethod: Method[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
-
+      def invoke[RIn <: Has[_], ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] =
           scopes match {
-            case Nil => ZIO.die(UnexpectedCallExpection(invokedMethod, args))
+            case Nil => ZIO.die(UnexpectedCallExpection(invoked, args))
             case Scope(expectation, id, update) :: nextScopes =>
               expectation match {
                 case anyExpectation if anyExpectation.saturated =>
                   findMatching(nextScopes)
 
-                case call @ Call(method, assertion, returns, _, _, invocations) if invokedMethod isEqual method =>
+                case call @ Call(capability, assertion, returns, _, _, invocations) if invoked isEqual capability =>
                   assertion.asInstanceOf[Assertion[I]].test(args).flatMap {
                     case true =>
                       val result = returns.asInstanceOf[I => IO[E, A]](args)
@@ -59,15 +58,15 @@ object ProxyFactory {
 
                     case false =>
                       handleLeafFailure(
-                        InvalidArguments(invokedMethod, args, assertion.asInstanceOf[Assertion[Any]]),
+                        InvalidArguments(invoked, args, assertion.asInstanceOf[Assertion[Any]]),
                         nextScopes
                       )
                   }
 
-                case Call(method, assertion, _, _, _, _) =>
+                case Call(capability, assertion, _, _, _, _) =>
                   val invalidCall =
-                    if (invokedMethod.id == method.id) InvalidPolyType(invokedMethod, args, method, assertion)
-                    else InvalidMethod(invokedMethod, method, assertion)
+                    if (invoked.id == capability.id) InvalidPolyType(invoked, args, capability, assertion)
+                    else InvalidCapability(invoked, capability, assertion)
 
                   handleLeafFailure(invalidCall, nextScopes)
 
@@ -239,17 +238,13 @@ object ProxyFactory {
           }
 
         for {
-          promise <- Promise.make[E, A]
           id      <- state.callsCountRef.updateAndGet(_ + 1)
           _       <- state.failedMatchesRef.set(List.empty)
-          _ <- state.expectationRef.update { root =>
-                val rootScope = Scope[R](root, id, identity)
-                findMatching(rootScope :: Nil).flatMap {
-                  case Matched(expectation, result) =>
-                    promise.complete(result) as (expectation)
-                }
-              }
-          output <- promise.await
+          root    <- state.expectationRef.get
+          scope   = Scope[R](root, id, identity)
+          matched <- findMatching(scope :: Nil)
+          _       <- state.expectationRef.set(matched.expectation)
+          output  <- matched.result
         } yield output
       }
     })

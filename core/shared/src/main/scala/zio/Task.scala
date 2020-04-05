@@ -346,6 +346,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[zio.ZIO.foreachExec]]
+   */
+  final def foreachExec[A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => Task[B]): Task[List[B]] =
+    ZIO.foreachExec(as)(exec)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[A, B](as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
@@ -708,6 +714,18 @@ object Task extends TaskPlatformSpecific {
    */
   def uninterruptibleMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
     ZIO.uninterruptibleMask(k)
+
+  /**
+   * @see See [[zio.ZIO.unless]]
+   */
+  def unless(b: => Boolean)(zio: => Task[Any]): Task[Unit] =
+    ZIO.unless(b)(zio)
+
+  /**
+   * @see See [[zio.ZIO.unlessM]]
+   */
+  def unlessM(b: Task[Boolean])(zio: => Task[Any]): Task[Unit] =
+    ZIO.unlessM(b)(zio)
 
   /**
    * @see [[zio.ZIO.unsandbox]]

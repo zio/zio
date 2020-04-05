@@ -250,7 +250,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(false)
         spec = suite("verify")(
-          testM("first test")(ZIO.succeedNow(assertCompletes)),
+          testM("first test")(ZIO.succeed(assertCompletes)),
           testM("second test")(ref.set(true).as(assertCompletes))
         ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
         result <- succeeded(spec)

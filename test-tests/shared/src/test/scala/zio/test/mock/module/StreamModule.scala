@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,21 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio.test.mock.module
 
-sealed trait ExecutionStrategy
-object ExecutionStrategy {
-  case object Sequential             extends ExecutionStrategy
-  case object Parallel               extends ExecutionStrategy
-  final case class ParallelN(n: Int) extends ExecutionStrategy
+import zio.ZIO
+import zio.stream.{ Sink, Stream }
+
+/**
+ * Example of ZIO Data Types module used for testing ZIO Mock framework.
+ */
+object StreamModule {
+
+  trait Service {
+    def sink(a: Int): Sink[String, Nothing, Int, List[Int]]
+    def stream(a: Int): Stream[String, Int]
+  }
+
+  def sink(a: Int)   = ZIO.access[StreamModule](_.get.sink(a))
+  def stream(a: Int) = ZIO.access[StreamModule](_.get.stream(a))
 }

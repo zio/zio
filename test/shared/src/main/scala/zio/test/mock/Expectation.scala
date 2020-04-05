@@ -22,7 +22,7 @@ import zio.test.Assertion
 import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
 import zio.test.mock.Result.{ Fail, Succeed }
 import zio.test.mock.internal.{ MockException, ProxyFactory, State }
-import zio.{ Has, IO, Managed, Tagged, ULayer, URLayer, ZLayer }
+import zio.{ Has, IO, Managed, Tagged, ULayer, ZLayer }
 
 /**
  * An `Expectation[R]` is an immutable tree structure that represents
@@ -141,9 +141,9 @@ sealed trait Expectation[R <: Has[_]] { self =>
   private[test] val invocations: List[Int]
 
   /**
-   * Provided a `Proxy` constructs a layer with environment `R`.
+   * Environment to which expectation belongs.
    */
-  private[test] def compose: URLayer[Has[Proxy], R]
+  private[test] def mock: Mock[R]
 
   /**
    * Mock execution flag.
@@ -169,7 +169,7 @@ object Expectation {
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def compose: URLayer[Has[Proxy], R] = children.map(_.compose).reduce(_ ++ _)
+    def mock: Mock[R] = Mock.Composed(children.map(_.mock.compose).reduce(_ ++ _))
   }
 
   private[test] object And {
@@ -188,24 +188,24 @@ object Expectation {
    * that may fail with an error `E` or produce a single `A`.
    */
   private[test] case class Call[R <: Has[_], I, E, A](
-    method: Method[R, I, E, A],
+    capability: Capability[R, I, E, A],
     assertion: Assertion[I],
     returns: I => IO[E, A],
     satisfied: Boolean,
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def compose: URLayer[Has[Proxy], R] = method.compose
+    def mock: Mock[R] = capability.mock
   }
 
   private[test] object Call {
 
     def apply[R <: Has[_], I, E, A](
-      method: Method[R, I, E, A],
+      capability: Capability[R, I, E, A],
       assertion: Assertion[I],
       returns: I => IO[E, A]
     ): Call[R, I, E, A] =
-      Call(method, assertion, returns, false, false, List.empty)
+      Call(capability, assertion, returns, false, false, List.empty)
   }
 
   /**
@@ -217,7 +217,7 @@ object Expectation {
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def compose: URLayer[Has[Proxy], R] = children.map(_.compose).reduce(_ ++ _)
+    def mock: Mock[R] = Mock.Composed(children.map(_.mock.compose).reduce(_ ++ _))
   }
 
   private[test] object Chain {
@@ -241,7 +241,7 @@ object Expectation {
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def compose: URLayer[Has[Proxy], R] = children.map(_.compose).reduce(_ ++ _)
+    def mock: Mock[R] = Mock.Composed(children.map(_.mock.compose).reduce(_ ++ _))
   }
 
   private[test] object Or {
@@ -267,7 +267,7 @@ object Expectation {
     started: Int,
     completed: Int
   ) extends Expectation[R] {
-    def compose: URLayer[Has[Proxy], R] = child.compose
+    def mock: Mock[R] = child.mock
   }
 
   private[test] object Repeated {
@@ -324,7 +324,7 @@ object Expectation {
     ZLayer.fromManagedMany(
       for {
         state <- Managed.make(State.make(trunk))(State.checkUnmetExpectations)
-        env   <- (ProxyFactory.mockProxy(state) >>> trunk.compose).build
+        env   <- (ProxyFactory.mockProxy(state) >>> trunk.mock.compose).build
       } yield env
     )
 }

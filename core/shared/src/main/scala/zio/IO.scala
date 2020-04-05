@@ -346,6 +346,12 @@ object IO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[zio.ZIO.foreachExec]]
+   */
+  final def foreachExec[E, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => IO[E, B]): IO[E, List[B]] =
+    ZIO.foreachExec(as)(exec)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
@@ -713,6 +719,18 @@ object IO {
    */
   def uninterruptibleMask[E, A](k: ZIO.InterruptStatusRestore => IO[E, A]): IO[E, A] =
     ZIO.uninterruptibleMask(k)
+
+  /**
+   * @see See [[zio.ZIO.unless]]
+   */
+  def unless[E](b: => Boolean)(zio: => IO[E, Any]): IO[E, Unit] =
+    ZIO.unless(b)(zio)
+
+  /**
+   * @see See [[zio.ZIO.unlessM]]
+   */
+  def unlessM[E](b: IO[E, Boolean])(zio: => IO[E, Any]): IO[E, Unit] =
+    ZIO.unlessM(b)(zio)
 
   /**
    * @see See [[zio.ZIO.unsandbox]]

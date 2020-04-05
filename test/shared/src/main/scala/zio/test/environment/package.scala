@@ -1530,6 +1530,12 @@ package object environment extends PlatformSpecific {
       override def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
         systemState.get.map(_.envs.get(variable))
 
+      override val envs: ZIO[Any, SecurityException, Map[String, String]] =
+        systemState.get.map(_.envs)
+
+      override val properties: ZIO[Any, Throwable, Map[String, String]] =
+        systemState.get.map(_.properties)
+
       /**
        * Returns the specified system property if it exists.
        */

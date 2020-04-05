@@ -19,11 +19,13 @@ package zio.test.mock
 import zio.Has
 
 /**
- * Example module used for testing _ZIO Mock_ library.
+ * Example modules used for testing _ZIO Mock_ library.
  */
 package object module {
 
-  type Module = Has[Module.Service]
+  type PureModule   = Has[PureModule.Service]
+  type ImpureModule = Has[ImpureModule.Service]
+  type StreamModule = Has[StreamModule.Service]
 
   type T22[A] = (A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A)
 }
