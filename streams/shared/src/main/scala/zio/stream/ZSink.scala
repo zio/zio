@@ -1267,6 +1267,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Key of each element is determined by supplied function.
    *
    * Combines elements with same key with supplied function f.
+   * Stops consuming the stream once sees a value belonging to `n+1`-th key.
    */
   def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): Sink[Nothing, A, A, Map[K, A]] = {
     type State = (Map[K, A], Boolean)
