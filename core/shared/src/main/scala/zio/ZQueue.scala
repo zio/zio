@@ -465,15 +465,14 @@ object ZQueue {
         var keepPolling = true
 
         while (keepPolling && !queue.isFull()) {
-          putters.poll(empty) match {
-            case null =>
-              keepPolling = false
-            case putter @ (a, p, lastItem) =>
-              val offered = queue.offer(a)
-              if (offered && lastItem)
-                unsafeCompletePromise(p, true)
-              else if (!offered)
-                unsafeOfferAll(putters, putter :: unsafePollAll(putters))
+          val putter = putters.poll(empty)
+          if (putter eq null) keepPolling = false
+          else {
+            val offered = queue.offer(putter._1)
+            if (offered && putter._3)
+              unsafeCompletePromise(putter._2, true)
+            else if (!offered)
+              unsafeOfferAll(putters, putter :: unsafePollAll(putters))
           }
         }
       }
