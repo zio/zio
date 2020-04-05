@@ -290,40 +290,39 @@ object ChunkSpec extends ZIOBaseSpec {
       }
     },
     test("nonEmptyChunk subtype preservation") {
-      //checks at compile tim
+      //checks at compile time
 
-      def cx: NonEmptyChunk[Int] = ???
-      def x: Int                 = ???
+      def nonEmptyChunk: NonEmptyChunk[Int] = ???
+      def chunk: Chunk[Int]                 = ???
+      def x: Int                            = ???
 
       def checkIsSubtypeOf[A](value: A*): Unit = ???
 
-      {
-        lazy val _ = checkIsSubtypeOf[NonEmptyChunk[_]](
-          Chunk(cx).flatten,
-          Chunk(x),
-          Chunk.concat(Chunk.empty, cx),
-          Chunk.concat(cx, Chunk.empty),
-          Chunk.empty + x,
-          Chunk.single(x),
-          Chunk.succeed(x),
-          cx ++ Chunk.empty,
-          cx.flatMap(i => Chunk(i)),
-          cx.map(identity),
-          cx.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
-          cx.zipWithIndex,
-          cx.zipWithIndexFrom(0)
-        )
-      }
+      checkIsSubtypeOf[NonEmptyChunk[_]](
+        Chunk(nonEmptyChunk).flatten,
+        Chunk(x),
+        Chunk.concat(chunk, nonEmptyChunk),
+        Chunk.concat(nonEmptyChunk, chunk),
+        chunk + x,
+        Chunk.single(x),
+        Chunk.succeed(x),
+        nonEmptyChunk ++ chunk,
+        //chunk ++ nonEmptyChunk, //won't work
+        nonEmptyChunk.flatMap(i => Chunk(i)),
+        nonEmptyChunk.map(identity),
+        nonEmptyChunk.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
+        nonEmptyChunk.zipWithIndex,
+        nonEmptyChunk.zipWithIndexFrom(0)
+      )
 
-      {
-        lazy val _ = checkIsSubtypeOf[ZIO[_, _, NonEmptyChunk[_]]](
-          cx.mapM(x => ZIO.succeed(x)),
-          cx.mapMPar(x => ZIO.succeed(x)),
-          cx.mapAccumM("")((s, i) => ZIO.succeed(s + i -> i)).map(_._2)
-        )
-      }
+      checkIsSubtypeOf[ZIO[_, _, NonEmptyChunk[_]]](
+        nonEmptyChunk.mapM(x => ZIO.succeed(x)),
+        nonEmptyChunk.mapMPar(x => ZIO.succeed(x)),
+        nonEmptyChunk.mapAccumM("")((s, i) => ZIO.succeed(s + i -> i)).map(_._2)
+      )
 
       assertCompletes
-    }
+      //checks at compile time
+    } @@ TestAspect.ignore
   )
 }
