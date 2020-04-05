@@ -121,12 +121,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Symbolic alias for andThen
    */
-  def >>>[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] =
-    for {
-      r  <- ZManaged.environment[R]
-      r1 <- provide(r)
-      a  <- that.provide(r1)
-    } yield a
+  def >>>[E1 >: E, B](that: ZManaged[A, E1, B]): ZManaged[R, E1, B] =
+    self.flatMap(that.provide)
 
   /**
    * Symbolic alias for join
@@ -190,7 +186,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Executes the this effect and then provides its output as an environment to the second effect
    */
-  def andThen[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] = self >>> that
+  def andThen[E1 >: E, B](that: ZManaged[A, E1, B]): ZManaged[R, E1, B] = self >>> that
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
@@ -763,8 +759,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  def retry[R1 <: R, E1 >: E, S](policy: Schedule[R1, E1, S])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] = {
-    def loop[B](zio: ZIO[R, E1, B], state: policy.State): ZIO[R1, E1, (policy.State, B)] =
+  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1, E, A] = {
+    def loop[B](zio: ZIO[R, E, B], state: policy.State): ZIO[R1, E, (policy.State, B)] =
       zio.foldM(
         err =>
           policy

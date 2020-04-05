@@ -139,7 +139,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Operator alias for `andThen`.
    */
-  final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+  final def >>>[E1 >: E, B](that: ZIO[A, E1, B]): ZIO[R, E1, B] =
     self.flatMap(that.provide)
 
   /**
@@ -173,7 +173,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         ZIO.succeedNow
       )
 
-  final def andThen[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+  final def andThen[E1 >: E, B](that: ZIO[A, E1, B]): ZIO[R, E1, B] =
     self >>> that
 
   /**
@@ -254,7 +254,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Shorthand for the curried version of `ZIO.bracketExit`.
    */
-  final def bracketExit[R1 <: R, E1 >: E, A1 >: A]: ZIO.BracketExitAcquire[R1, E1, A1] = ZIO.bracketExit(self)
+  final def bracketExit: ZIO.BracketExitAcquire[R, E, A] = ZIO.bracketExit(self)
 
   /**
    * Executes the release effect only if there was an error.
@@ -765,7 +765,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns a new effect that, on exit of this effect, invokes the specified
    * handler with all forked (non-daemon) children of this effect.
    */
-  final def handleChildrenWith[R1 <: R, E1 >: E](f: Iterable[Fiber[Any, Any]] => URIO[R1, Any]): ZIO[R1, E1, A] =
+  final def handleChildrenWith[R1 <: R](f: Iterable[Fiber[Any, Any]] => URIO[R1, Any]): ZIO[R1, E, A] =
     self.ensuring(ZIO.children.flatMap(f))
 
   /**
@@ -1418,7 +1418,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, E1 >: E, S](policy: Schedule[R1, E1, S])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
+  final def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
     retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
 
   /**
@@ -1426,10 +1426,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  final def retryOrElse[R1 <: R, A2 >: A, E1 >: E, S, E2](
-    policy: Schedule[R1, E1, S],
-    orElse: (E, S) => ZIO[R1, E2, A2]
-  )(implicit ev: CanFail[E]): ZIO[R1, E2, A2] =
+  final def retryOrElse[R1 <: R, A1 >: A, S, E1](
+    policy: Schedule[R1, E, S],
+    orElse: (E, S) => ZIO[R1, E1, A1]
+  )(implicit ev: CanFail[E]): ZIO[R1, E1, A1] =
     retryOrElseEither(policy, orElse).map(_.merge)
 
   /**
@@ -1437,11 +1437,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  final def retryOrElseEither[R1 <: R, E1 >: E, S, E2, B](
-    policy: Schedule[R1, E1, S],
-    orElse: (E, S) => ZIO[R1, E2, B]
-  )(implicit ev: CanFail[E]): ZIO[R1, E2, Either[B, A]] = {
-    def loop(state: policy.State): ZIO[R1, E2, Either[B, A]] =
+  final def retryOrElseEither[R1 <: R, S, E1, B](
+    policy: Schedule[R1, E, S],
+    orElse: (E, S) => ZIO[R1, E1, B]
+  )(implicit ev: CanFail[E]): ZIO[R1, E1, Either[B, A]] = {
+    def loop(state: policy.State): ZIO[R1, E1, Either[B, A]] =
       self.foldM(
         err =>
           policy
@@ -1699,7 +1699,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * IO.succeed(1).timeoutTo(None)(Some(_))(1.second)
    * }}}
    */
-  final def timeoutTo[R1 <: R, E1 >: E, A1 >: A, B](b: B): ZIO.TimeoutTo[R1, E1, A1, B] =
+  final def timeoutTo[B](b: B): ZIO.TimeoutTo[R, E, A, B] =
     new ZIO.TimeoutTo(self, b)
 
   /**
@@ -1833,8 +1833,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
-  final def unsandbox[R1 <: R, E1, A1 >: A](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, Cause[E1], A1]): ZIO[R1, E1, A1] =
-    ZIO.unsandbox(ev1(self))
+  final def unsandbox[E1](implicit ev: E <:< Cause[E1]): ZIO[R, E1, A] =
+    ZIO.unsandbox(self.mapError(ev))
 
   /**
    * Disables ZIO tracing facilities for the duration of the effect.
@@ -3455,7 +3455,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
-  final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
+  final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: B) {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
       (self map f) raceFirst (ZIO.sleep(duration).interruptible as b)
   }
