@@ -1081,7 +1081,7 @@ object SinkSpec extends ZIOBaseSpec {
                 .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 3)(_ + _))
             )(equalTo(Map[Int, Int](0 -> 0, 1 -> 1)))
           ),
-          testM("collects entire stream is the number of keys doesn't exceed `n`")(
+          testM("collects entire stream if the number of keys doesn't exceed `n`")(
             assertM(
               Stream
                 .range(0, 10)
