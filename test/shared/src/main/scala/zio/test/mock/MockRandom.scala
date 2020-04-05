@@ -19,58 +19,54 @@ package zio.test.mock
 import zio.random.Random
 import zio.{ Chunk, Has, UIO, URLayer, ZLayer }
 
-object MockRandom {
-
-  sealed trait Tag[I, A] extends Method[Random, I, A] {
-    def envBuilder = MockRandom.envBuilder
-  }
+object MockRandom extends Mock[Random] {
 
   object Between {
-    object _0 extends Tag[(Long, Long), Long]
-    object _1 extends Tag[(Int, Int), Int]
-    object _2 extends Tag[(Float, Float), Float]
-    object _3 extends Tag[(Double, Double), Double]
+    object _0 extends Effect[(Long, Long), Nothing, Long]
+    object _1 extends Effect[(Int, Int), Nothing, Int]
+    object _2 extends Effect[(Float, Float), Nothing, Float]
+    object _3 extends Effect[(Double, Double), Nothing, Double]
   }
-  object NextBoolean  extends Tag[Unit, Boolean]
-  object NextBytes    extends Tag[Int, Chunk[Byte]]
-  object NextDouble   extends Tag[Unit, Double]
-  object NextFloat    extends Tag[Unit, Float]
-  object NextGaussian extends Tag[Unit, Double]
+  object NextBoolean  extends Effect[Unit, Nothing, Boolean]
+  object NextBytes    extends Effect[Int, Nothing, Chunk[Byte]]
+  object NextDouble   extends Effect[Unit, Nothing, Double]
+  object NextFloat    extends Effect[Unit, Nothing, Float]
+  object NextGaussian extends Effect[Unit, Nothing, Double]
   object NextInt {
-    object _0 extends Tag[Int, Int]
-    object _1 extends Tag[Unit, Int]
+    object _0 extends Effect[Int, Nothing, Int]
+    object _1 extends Effect[Unit, Nothing, Int]
   }
   object NextLong {
-    object _0 extends Tag[Unit, Long]
-    object _1 extends Tag[Long, Long]
+    object _0 extends Effect[Unit, Nothing, Long]
+    object _1 extends Effect[Long, Nothing, Long]
   }
-  object NextPrintableChar extends Tag[Unit, Char]
-  object NextString        extends Tag[Int, String]
-  object Shuffle           extends Tag[List[Any], List[Any]]
+  object NextPrintableChar extends Effect[Unit, Nothing, Char]
+  object NextString        extends Effect[Int, Nothing, String]
+  object Shuffle           extends Effect[List[Any], Nothing, List[Any]]
 
-  private lazy val envBuilder: URLayer[Has[Proxy], Random] =
-    ZLayer.fromService(invoke =>
+  val compose: URLayer[Has[Proxy], Random] =
+    ZLayer.fromService(proxy =>
       new Random.Service {
         def between(minInclusive: Long, maxExclusive: Long): UIO[Long] =
-          invoke(Between._0, minInclusive, maxExclusive)
+          proxy(Between._0, minInclusive, maxExclusive)
         def between(minInclusive: Int, maxExclusive: Int): UIO[Int] =
-          invoke(Between._1, minInclusive, maxExclusive)
+          proxy(Between._1, minInclusive, maxExclusive)
         def between(minInclusive: Float, maxExclusive: Float): UIO[Float] =
-          invoke(Between._2, minInclusive, maxExclusive)
+          proxy(Between._2, minInclusive, maxExclusive)
         def between(minInclusive: Double, maxExclusive: Double): UIO[Double] =
-          invoke(Between._3, minInclusive, maxExclusive)
-        val nextBoolean: UIO[Boolean]                = invoke(NextBoolean)
-        def nextBytes(length: Int): UIO[Chunk[Byte]] = invoke(NextBytes, length)
-        val nextDouble: UIO[Double]                  = invoke(NextDouble)
-        val nextFloat: UIO[Float]                    = invoke(NextFloat)
-        val nextGaussian: UIO[Double]                = invoke(NextGaussian)
-        def nextInt(n: Int): UIO[Int]                = invoke(NextInt._0, n)
-        val nextInt: UIO[Int]                        = invoke(NextInt._1)
-        val nextLong: UIO[Long]                      = invoke(NextLong._0)
-        def nextLong(n: Long): UIO[Long]             = invoke(NextLong._1, n)
-        val nextPrintableChar: UIO[Char]             = invoke(NextPrintableChar)
-        def nextString(length: Int)                  = invoke(NextString, length)
-        def shuffle[A](list: List[A]): UIO[List[A]]  = invoke(Shuffle, list).asInstanceOf[UIO[List[A]]]
+          proxy(Between._3, minInclusive, maxExclusive)
+        val nextBoolean: UIO[Boolean]                = proxy(NextBoolean)
+        def nextBytes(length: Int): UIO[Chunk[Byte]] = proxy(NextBytes, length)
+        val nextDouble: UIO[Double]                  = proxy(NextDouble)
+        val nextFloat: UIO[Float]                    = proxy(NextFloat)
+        val nextGaussian: UIO[Double]                = proxy(NextGaussian)
+        def nextInt(n: Int): UIO[Int]                = proxy(NextInt._0, n)
+        val nextInt: UIO[Int]                        = proxy(NextInt._1)
+        val nextLong: UIO[Long]                      = proxy(NextLong._0)
+        def nextLong(n: Long): UIO[Long]             = proxy(NextLong._1, n)
+        val nextPrintableChar: UIO[Char]             = proxy(NextPrintableChar)
+        def nextString(length: Int)                  = proxy(NextString, length)
+        def shuffle[A](list: List[A]): UIO[List[A]]  = proxy(Shuffle, list).asInstanceOf[UIO[List[A]]]
       }
     )
 }

@@ -3,7 +3,7 @@ package zio.test
 import zio.ZIO
 import zio.clock._
 import zio.test.Assertion._
-import zio.test.TestAspect.failure
+import zio.test.TestAspect.failing
 import zio.test.TestUtils.execute
 
 object TestSpec extends ZIOBaseSpec {
@@ -15,13 +15,13 @@ object TestSpec extends ZIOBaseSpec {
     testM("testM error is test failure") {
       for {
         _      <- ZIO.fail("fail")
-        result <- ZIO.succeedNow("succeed")
+        result <- ZIO.succeed("succeed")
       } yield assert(result)(equalTo("succeed"))
-    } @@ failure,
+    } @@ failing,
     testM("testM is polymorphic in error type") {
       for {
         _      <- ZIO.effect(())
-        result <- ZIO.succeedNow("succeed")
+        result <- ZIO.succeed("succeed")
       } yield assert(result)(equalTo("succeed"))
     },
     testM("testM suspends effects") {
@@ -29,11 +29,11 @@ object TestSpec extends ZIOBaseSpec {
       val spec = suite("suite")(
         testM("test1") {
           n += 1
-          ZIO.succeedNow(assertCompletes)
+          ZIO.succeed(assertCompletes)
         },
         testM("test2") {
           n += 1
-          ZIO.succeedNow(assertCompletes)
+          ZIO.succeed(assertCompletes)
         }
       ).filterLabels(_ == "test2").get
       for {

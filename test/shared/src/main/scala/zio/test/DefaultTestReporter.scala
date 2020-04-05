@@ -19,6 +19,7 @@ package zio.test
 import java.util.regex.Pattern
 
 import scala.io.AnsiColor
+import scala.util.Try
 
 import zio.duration.Duration
 import zio.test.ConsoleUtils.{ cyan, red, _ }
@@ -396,19 +397,31 @@ object FailureRenderer {
   private def renderUnmatchedExpectations(failedMatches: List[InvalidCall]): UIO[Message] =
     ZIO
       .foreach(failedMatches) {
-        case InvalidCall.InvalidArguments(method, args, assertion) =>
+        case InvalidCall.InvalidArguments(invoked, args, assertion) =>
           renderTestFailure("", assert(args)(assertion)).map { message =>
-            val header = red(s"- $method called with invalid arguments").toLine
+            val header = red(s"- $invoked called with invalid arguments").toLine
             (header +: message.drop(1)).withOffset(tabSize)
           }
 
-        case InvalidCall.InvalidMethod(method, expectedMethod, assertion) =>
+        case InvalidCall.InvalidCapability(invoked, expected, assertion) =>
           UIO.succeedNow(
             Message(
               Seq(
-                withOffset(tabSize)(red(s"- invalid call to $method").toLine),
+                withOffset(tabSize)(red(s"- invalid call to $invoked").toLine),
                 withOffset(tabSize * 2)(
-                  Fragment(s"expected $expectedMethod with arguments ") + cyan(assertion.toString)
+                  Fragment(s"expected $expected with arguments ") + cyan(assertion.toString)
+                )
+              )
+            )
+          )
+
+        case InvalidCall.InvalidPolyType(invoked, args, expected, assertion) =>
+          UIO.succeedNow(
+            Message(
+              Seq(
+                withOffset(tabSize)(red(s"- $invoked called with arguments $args and invalid polymorphic type").toLine),
+                withOffset(tabSize * 2)(
+                  Fragment(s"expected $expected with arguments ") + cyan(assertion.toString)
                 )
               )
             )
@@ -444,9 +457,11 @@ object FailureRenderer {
           loop(unsatisfied ++ tail, lines :+ title)
 
         case (ident, Expectation.Repeated(child, range, false, _, _, _, completed)) :: tail =>
+          val min = Try(range.min.toString).getOrElse("0")
+          val max = Try(range.max.toString).getOrElse("∞")
           val title =
             Line.fromString(
-              s"repeated $completed times not in range ${range.min} to ${range.max} by ${range.step}",
+              s"repeated $completed times not in range $min to $max by ${range.step}",
               ident
             )
           val unsatisfied = (ident + tabSize -> child)

@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.mock.module
 
-import zio.test.Assertion
-import zio.{ Has, Tagged }
+import zio.ZIO
+import zio.stream.{ Sink, Stream }
 
 /**
- * An `ArgumentExpectation[R, I, A]` represents an expectation on input `I` arguments
- * for environment `R` that returns an effect that may produce a single `A`.
+ * Example of ZIO Data Types module used for testing ZIO Mock framework.
  */
-final case class ArgumentExpectation[R <: Has[_]: Tagged, I, A](method: Method[R, I, A], assertion: Assertion[I]) {
+object StreamModule {
 
-  /**
-   * Provides the `ReturnExpectation` to produce the final `Expectation`.
-   */
-  def returns[E](returns: ReturnExpectation[I, E, A]): Expectation[R] =
-    Expectation.Call[R, I, E, A](method, assertion, returns.io)
+  trait Service {
+    def sink(a: Int): Sink[String, Nothing, Int, List[Int]]
+    def stream(a: Int): Stream[String, Int]
+  }
+
+  def sink(a: Int)   = ZIO.access[StreamModule](_.get.sink(a))
+  def stream(a: Int) = ZIO.access[StreamModule](_.get.stream(a))
 }

@@ -92,6 +92,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
+   */
+  def collectAll[A](in: NonEmptyChunk[Task[A]]): Task[NonEmptyChunk[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll_[R,E,A](in:Iterable*]]]
    */
   def collectAll_[A](in: Iterable[Task[A]]): Task[Unit] =
@@ -113,6 +119,12 @@ object Task extends TaskPlatformSpecific {
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.Chunk*]]]
    */
   def collectAllPar[A](as: Chunk[Task[A]]): Task[Chunk[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.NonEmptyChunk*]]]
+   */
+  def collectAllPar[A](as: NonEmptyChunk[Task[A]]): Task[NonEmptyChunk[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -328,6 +340,18 @@ object Task extends TaskPlatformSpecific {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.NonEmptyChunk*]]]
+   */
+  def foreach[A, B](in: NonEmptyChunk[A])(f: A => Task[B]): Task[NonEmptyChunk[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.foreachExec]]
+   */
+  final def foreachExec[A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => Task[B]): Task[List[B]] =
+    ZIO.foreachExec(as)(exec)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
   def foreachPar[A, B](as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
@@ -337,6 +361,12 @@ object Task extends TaskPlatformSpecific {
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.Chunk*]]]
    */
   def foreachPar[A, B](as: Chunk[A])(fn: A => Task[B]): Task[Chunk[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.NonEmptyChunk*]]]
+   */
+  def foreachPar[A, B](as: NonEmptyChunk[A])(fn: A => Task[B]): Task[NonEmptyChunk[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -684,6 +714,18 @@ object Task extends TaskPlatformSpecific {
    */
   def uninterruptibleMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
     ZIO.uninterruptibleMask(k)
+
+  /**
+   * @see See [[zio.ZIO.unless]]
+   */
+  def unless(b: => Boolean)(zio: => Task[Any]): Task[Unit] =
+    ZIO.unless(b)(zio)
+
+  /**
+   * @see See [[zio.ZIO.unlessM]]
+   */
+  def unlessM(b: Task[Boolean])(zio: => Task[Any]): Task[Unit] =
+    ZIO.unlessM(b)(zio)
 
   /**
    * @see [[zio.ZIO.unsandbox]]

@@ -261,6 +261,38 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     )
 
   /**
+   * A generator of big decimals inside the specified range: [start, end].
+   * The shrinker will shrink toward the lower end of the range ("smallest").
+   *
+   * The values generated will have a precision equal to the precision of the
+   * difference between `max` and `min`.
+   */
+  def bigDecimal(min: BigDecimal, max: BigDecimal): Gen[Random, BigDecimal] = {
+    val difference = max - min
+    val decimals   = difference.scale max 0
+    val bigInt     = (difference * BigDecimal(10).pow(decimals)).toBigInt
+    Gen.bigInt(0, bigInt).map(bigInt => min + BigDecimal(bigInt) / BigDecimal(10).pow(decimals))
+  }
+
+  /**
+   * A generator of big integers inside the specified range: [start, end].
+   * The shrinker will shrink toward the lower end of the range ("smallest").
+   */
+  def bigInt(min: BigInt, max: BigInt): Gen[Random, BigInt] =
+    Gen.fromEffectSample {
+      val bitLength  = (max - min).bitLength
+      val byteLength = ((bitLength.toLong + 7) / 8).toInt
+      val excessBits = byteLength * 8 - bitLength
+      val mask       = (1 << (8 - excessBits)) - 1
+      val effect = nextBytes(byteLength).map { bytes =>
+        val arr = bytes.toArray
+        arr(0) = (arr(0) & mask).toByte
+        min + BigInt(arr)
+      }.doUntil(n => min <= n && n <= max)
+      effect.map(Sample.shrinkIntegral(min))
+    }
+
+  /**
    * A generator of booleans. Shrinks toward 'false'.
    */
   val boolean: Gen[Random, Boolean] =

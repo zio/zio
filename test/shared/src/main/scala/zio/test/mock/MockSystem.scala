@@ -19,22 +19,22 @@ package zio.test.mock
 import zio.system.System
 import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
-object MockSystem {
+object MockSystem extends Mock[System] {
 
-  sealed trait Tag[I, A] extends Method[System, I, A] {
-    def envBuilder = MockSystem.envBuilder
-  }
+  object Env           extends Effect[String, SecurityException, Option[String]]
+  object Envs          extends Effect[Unit, SecurityException, Map[String, String]]
+  object Properties    extends Effect[Unit, Throwable, Map[String, String]]
+  object Property      extends Effect[String, Throwable, Option[String]]
+  object LineSeparator extends Effect[Unit, Nothing, String]
 
-  object Env           extends Tag[String, Option[String]]
-  object Property      extends Tag[String, Option[String]]
-  object LineSeparator extends Tag[Unit, String]
-
-  private lazy val envBuilder: URLayer[Has[Proxy], System] =
-    ZLayer.fromService(invoke =>
+  val compose: URLayer[Has[Proxy], System] =
+    ZLayer.fromService(proxy =>
       new System.Service {
-        def env(variable: String): IO[SecurityException, Option[String]] = invoke(Env, variable)
-        def property(prop: String): IO[Throwable, Option[String]]        = invoke(Property, prop)
-        val lineSeparator: UIO[String]                                   = invoke(LineSeparator)
+        def env(variable: String): IO[SecurityException, Option[String]] = proxy(Env, variable)
+        val envs: IO[SecurityException, Map[String, String]]             = proxy(Envs)
+        val properties: IO[Throwable, Map[String, String]]               = proxy(Properties)
+        def property(prop: String): IO[Throwable, Option[String]]        = proxy(Property, prop)
+        val lineSeparator: UIO[String]                                   = proxy(LineSeparator)
       }
     )
 }

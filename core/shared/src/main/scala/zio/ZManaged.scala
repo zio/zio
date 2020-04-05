@@ -121,12 +121,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Symbolic alias for andThen
    */
-  def >>>[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] =
-    for {
-      r  <- ZManaged.environment[R]
-      r1 <- provide(r)
-      a  <- that.provide(r1)
-    } yield a
+  def >>>[E1 >: E, B](that: ZManaged[A, E1, B]): ZManaged[R, E1, B] =
+    self.flatMap(that.provide)
 
   /**
    * Symbolic alias for join
@@ -141,10 +137,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Submerges the error case of an `Either` into the `ZManaged`. The inverse
    * operation of `ZManaged.either`.
    */
-  def absolve[R1 <: R, E1, B](
-    implicit ev: ZManaged[R, E, A] <:< ZManaged[R1, E1, Either[E1, B]]
-  ): ZManaged[R1, E1, B] =
-    ZManaged.absolve(ev(self))
+  def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZManaged[R, E1, B] =
+    ZManaged.absolve(self.map(ev))
 
   /**
    * Attempts to convert defects into a failure, throwing away all information
@@ -192,7 +186,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Executes the this effect and then provides its output as an environment to the second effect
    */
-  def andThen[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] = self >>> that
+  def andThen[E1 >: E, B](that: ZManaged[A, E1, B]): ZManaged[R, E1, B] = self >>> that
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
@@ -443,6 +437,18 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZManaged[R, Unit, B] =
     ZManaged.absolve(mapError(ev1)(CanFail).map(ev2(_).toRight(())))
+
+  /**
+   * Returns whether this managed effect is a failure.
+   */
+  def isFailure: ZManaged[R, Nothing, Boolean] =
+    fold(_ => true, _ => false)
+
+  /**
+   * Returns whether this managed effect is a success.
+   */
+  def isSuccess: ZManaged[R, Nothing, Boolean] =
+    fold(_ => false, _ => true)
 
   /**
    * Depending on the environment execute this or the other effect
@@ -753,8 +759,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  def retry[R1 <: R, E1 >: E, S](policy: Schedule[R1, E1, S])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] = {
-    def loop[B](zio: ZIO[R, E1, B], state: policy.State): ZIO[R1, E1, (policy.State, B)] =
+  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1, E, A] = {
+    def loop[B](zio: ZIO[R, E, B], state: policy.State): ZIO[R1, E, (policy.State, B)] =
       zio.foldM(
         err =>
           policy
@@ -956,6 +962,18 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Return unit while running the effect
    */
   lazy val unit: ZManaged[R, E, Unit] = as(())
+
+  /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  final def unless(b: => Boolean): ZManaged[R, E, Unit] =
+    ZManaged.unless(b)(self)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  final def unlessM[R1 <: R, E1 >: E](b: ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
+    ZManaged.unlessM(b)(self)
 
   /**
    * The inverse operation `ZManaged.sandboxed`
@@ -1467,6 +1485,19 @@ object ZManaged {
    */
   final def foreach[R, E, A1, A2](in: Option[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, Option[A2]] =
     in.fold[ZManaged[R, E, Option[A2]]](succeed(None))(f(_).map(Some(_)))
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and returns
+   * the result in a new `List[B]` using the specified execution strategy.
+   */
+  final def foreachExec[R, E, A, B](
+    as: Iterable[A]
+  )(exec: ExecutionStrategy)(f: A => ZManaged[R, E, B]): ZManaged[R, E, List[B]] =
+    exec match {
+      case ExecutionStrategy.Parallel     => ZManaged.foreachPar(as)(f)
+      case ExecutionStrategy.ParallelN(n) => ZManaged.foreachParN(n)(as)(f)
+      case ExecutionStrategy.Sequential   => ZManaged.foreach(as)(f)
+    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
@@ -2062,6 +2093,18 @@ object ZManaged {
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
   val unit: ZManaged[Any, Nothing, Unit] = ZManaged.succeedNow(())
+
+  /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  def unless[R, E](b: => Boolean)(zio: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+    suspend(if (b) unit else zio.unit)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessM[R, E](b: ZManaged[R, E, Boolean])(zio: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+    b.flatMap(b => if (b) unit else zio.unit)
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.

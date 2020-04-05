@@ -701,7 +701,7 @@ private[zio] final class FiberContext[E, A](
 
   final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
 
-  final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(childrenToScala())
+  final def children: UIO[Iterable[Fiber.Runtime[Any, Any]]] = UIO(childrenToScala())
 
   @silent("JavaConverters")
   private def childrenToScala(): Iterable[FiberContext[Any, Any]] =
