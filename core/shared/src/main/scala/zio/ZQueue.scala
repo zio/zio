@@ -351,14 +351,13 @@ object ZQueue {
         takers: MutableConcurrentQueue[Promise[Nothing, A]]
       ): Unit = {
         // check if there is both a taker and an item in the queue, starting by the taker
-        var loop      = true
-        val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
-        val empty     = null.asInstanceOf[A]
+        var keepPolling = true
+        val nullTaker   = null.asInstanceOf[Promise[Nothing, A]]
+        val empty       = null.asInstanceOf[A]
 
-        while (loop && !queue.isEmpty()) {
+        while (keepPolling && !queue.isEmpty) {
           val taker = takers.poll(nullTaker)
-
-          if (taker eq nullTaker) loop = false
+          if (taker eq nullTaker) keepPolling = false
           else {
             queue.poll(empty) match {
               case null =>
@@ -367,6 +366,7 @@ object ZQueue {
                 unsafeCompletePromise(taker, a)
                 unsafeOnQueueEmptySpace(queue)
             }
+            keepPolling = true
           }
         }
       }
