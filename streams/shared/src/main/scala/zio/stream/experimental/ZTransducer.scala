@@ -65,7 +65,8 @@ object ZTransducer {
         buffered <- ZRef.makeManaged[Chunk[I]](Chunk.empty)
         push = { (input: Option[Chunk[I]]) =>
           input match {
-            case None => buffered.getAndSet(Chunk.empty)
+            case None =>
+              buffered.modify(buf => (if (buf.isEmpty) Push.done else Push.emit(buf)) -> Chunk.empty).flatten
             case Some(is) =>
               buffered.modify { buf0 =>
                 val buf = buf0 ++ is
@@ -87,8 +88,12 @@ object ZTransducer {
         push = { (in: Option[Chunk[I]]) =>
           buffered.modify { buf0 =>
             val buf = in.foldLeft(buf0)(_ ++ _)
-            val out = buf.takeWhile(p)
-            (if (out.isEmpty) Push.next else Push.emit(out.toList)) -> buf.drop(out.length + 1)
+            if (buf.isEmpty)
+              Push.done -> Chunk.empty
+            else {
+              val out = buf.takeWhile(p)
+              (if (out.isEmpty) Push.next else Push.emit(out.toList)) -> buf.drop(out.length + 1)
+            }
           }.flatten
         }
       } yield push
@@ -105,6 +110,7 @@ object ZTransducer {
     def emit[A](as: Chunk[A]): UIO[Chunk[A]]         = IO.succeedNow(as)
     def fail[E](e: E): IO[Option[E], Nothing]        = IO.fail(Some(e))
     def halt[E](c: Cause[E]): IO[Option[E], Nothing] = IO.halt(c).mapError(Some(_))
-    val next: IO[Option[Nothing], Nothing]           = IO.fail(None)
+    val done: IO[Option[Nothing], Nothing]           = IO.fail(None)
+    val next: UIO[Chunk[Nothing]]                    = IO.succeedNow(Chunk.empty)
   }
 }

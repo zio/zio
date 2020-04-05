@@ -102,7 +102,10 @@ abstract class ZStream[-R, +E, +O](
                   _.fold(done.set(true) *> push(None))(Pull.fail(_)),
                   os => push(Some(os))
                 )
-                .catchAllCause(Cause.sequenceCauseOption(_).fold(go)(Pull.halt(_)))
+                .foldCauseM(
+                  Cause.sequenceCauseOption(_).fold(go)(Pull.halt(_)),
+                  ps => if (ps.isEmpty) go else IO.succeedNow(ps)
+                )
           }
 
           go
@@ -2019,19 +2022,7 @@ abstract class ZStream[-R, +E, +O](
    * Applies the transducer to the stream and emits its outputs.
    */
   def transduce[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]): ZStream[R1, E1, O3] =
-    ZStream {
-      for {
-        pushTransducer <- transducer.push
-        pullSelf       <- self.process
-        pull = pullSelf.foldM(
-          {
-            case l @ Some(_) => ZIO.fail(l)
-            case None        => pushTransducer(None)
-          },
-          os => pushTransducer(Some(os))
-        )
-      } yield pull
-    }
+    aggregate(transducer)
 
   /**
    * Unwraps [[Exit]] values that also signify end-of-stream by failing with `None`.
