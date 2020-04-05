@@ -46,7 +46,7 @@ object ZStreamSpec extends ZIOBaseSpec {
       ),
       suite("aggregate")(
         testM("aggregate") {
-          val s = ZStream('1', '2', ',', '3', '4')
+          val s      = ZStream('1', '2', ',', '3', '4')
           val parser = ZTransducer.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt)
 
           assertM(s.aggregate(parser).runCollect)(equalTo(List(12, 34)))
