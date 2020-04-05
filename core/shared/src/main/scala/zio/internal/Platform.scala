@@ -80,7 +80,6 @@ trait Platform { self =>
 
   /**
    * Print Fiber Dump of all fibers when interrupt signal received
-   *
    */
   def onInterruptSignal: Platform =
     new Platform.Proxy(self) {
