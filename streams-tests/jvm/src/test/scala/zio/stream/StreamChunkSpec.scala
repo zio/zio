@@ -346,7 +346,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         Gen.function2(intGen)
       ) { (s, zero, cont, f) =>
         for {
-          res1 <- s.foldWhileM[Any, Nothing, Int, Int](zero)(cont)((acc, a) => IO.succeed(f(acc, a)))
+          res1 <- s.foldWhileM(zero)(cont)((acc, a) => IO.succeed(f(acc, a)))
           res2 <- slurp(s).map(l => foldLazyList(l.toList, zero)(cont)(f))
         } yield assert(res1)(equalTo(res2))
       }
@@ -354,7 +354,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
     testM("StreamChunk.flattenChunks") {
       checkM(chunksOfInts) { s =>
         for {
-          res1 <- s.flattenChunks.fold[Int, List[Int]](Nil)((acc, a) => a :: acc).map(_.reverse)
+          res1 <- s.flattenChunks.fold[List[Int]](Nil)((acc, a) => a :: acc).map(_.reverse)
           res2 <- slurp(s)
         } yield assert(res1)(equalTo(res2))
       }

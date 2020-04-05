@@ -1036,7 +1036,7 @@ object StreamSpec extends ZIOBaseSpec {
         _     <- queue.offerAll(c.toSeq)
         fiber <- Stream
                   .fromQueue(queue)
-                  .foldWhileM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
+                  .foldWhileM(List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
                   .map(_.reverse)
                   .fork
         _     <- waitForSize(queue, -1)
