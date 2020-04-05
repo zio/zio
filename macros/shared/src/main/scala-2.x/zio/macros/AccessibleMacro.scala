@@ -134,9 +134,17 @@ private[macros] class AccessibleMacro(val c: Context) {
 
       val typeArgs = typeParams.map(_.name)
 
+      def isRepeatedParamType(vd: ValDef) = vd.tpt match {
+        case AppliedTypeTree(Select(_, nme), _) if nme == definitions.RepeatedParamClass.name => true
+        case _                                                                                => false
+      }
+
       val returnValue = (info.capability, paramLists) match {
         case (_: Capability.Effect, argLists) if argLists.flatten.nonEmpty =>
-          val argNames = argLists.map(_.map(_.name))
+          val argNames = argLists.map(_.map { arg =>
+            if (isRepeatedParamType(arg)) q"${arg.name}: _*"
+            else q"${arg.name}"
+          })
           q"_root_.zio.ZIO.accessM(_.get[Service].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Effect, _) =>
           q"_root_.zio.ZIO.accessM(_.get[Service].$name)"
