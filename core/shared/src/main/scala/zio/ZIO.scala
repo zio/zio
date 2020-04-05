@@ -2097,6 +2097,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     foreach(in)(ZIO.identityFn)
 
   /**
+   * Evaluate each effect in the structure from left to right, and collect the
+   * results. For a parallel version, see `collectAllPar`.
+   */
+  def collectAll[R, E, A](in: NonEmptyChunk[ZIO[R, E, A]]): ZIO[R, E, NonEmptyChunk[A]] =
+    foreach(in)(ZIO.identityFn)
+
+  /**
    * Evaluate each effect in the structure from left to right, and discard the
    * results. For a parallel version, see `collectAllPar_`.
    */
@@ -2122,6 +2129,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * results. For a sequential version, see `collectAll`.
    */
   def collectAllPar[R, E, A](as: Chunk[ZIO[R, E, A]]): ZIO[R, E, Chunk[A]] =
+    foreachPar(as)(ZIO.identityFn)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and collect the
+   * results. For a sequential version, see `collectAll`.
+   */
+  def collectAllPar[R, E, A](as: NonEmptyChunk[ZIO[R, E, A]]): ZIO[R, E, NonEmptyChunk[A]] =
     foreachPar(as)(ZIO.identityFn)
 
   /**
@@ -2505,6 +2519,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     in.mapM(f)
 
   /**
+   * Applies the function `f` to each element of the `NonEmptyChunk[A]` and
+   * returns the results in a new `NonEmptyChunk[B]`.
+   *
+   * For a parallel version of this method, see `foreachPar`.
+   * If you do not need the results, see `foreach_` for a more efficient implementation.
+   */
+  final def foreach[R, E, A, B](in: NonEmptyChunk[A])(f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
+    in.mapM(f)
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
    * produced effects sequentially.
    *
@@ -2567,6 +2591,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * For a sequential version of this method, see `foreach`.
    */
   final def foreachPar[R, E, A, B](as: Chunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
+    as.mapMPar(fn)
+
+  /**
+   * Applies the function `f` to each element of the `NonEmptyChunk[A]` in parallel,
+   * and returns the results in a new `NonEmptyChunk[B]`.
+   *
+   * For a sequential version of this method, see `foreach`.
+   */
+  final def foreachPar[R, E, A, B](as: NonEmptyChunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
     as.mapMPar(fn)
 
   /**
