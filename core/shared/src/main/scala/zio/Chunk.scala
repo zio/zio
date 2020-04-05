@@ -612,17 +612,25 @@ object Chunk {
       case Nil =>
         Singleton(a)
       case wa: scala.collection.mutable.WrappedArray[A] =>
-        val len  = wa.size + 1
-        val in   = wa.array
-        val ct   = wa.elemTag
-        val dest = Array.ofDim[A](len)(wa.elemTag)
+        val len: Int        = wa.size + 1
+        val in: Array[A]    = wa.array.asInstanceOf[Array[A]]
+        val ct: ClassTag[A] = wa.elemTag.asInstanceOf[ClassTag[A]]
+        val dest: Array[A]  = Array.ofDim[A](len)(ct)
+
         dest(0) = a
-        var i = 1
+        var i: Int = 1
         while (i < len) {
           dest(i) = in(i - 1)
           i += 1
         }
         Arr(dest, ct)
+
+      case _ =>
+        val ct: ClassTag[A] = Tags.fromValue(a)
+        val des: Array[A]   = Array.ofDim[A](as.length + 1)(ct)
+        des(0) = a
+        as.copyToArray(des, 1)
+        arr(des)
     }
 
   //TO REMOVE
@@ -1155,7 +1163,7 @@ object Chunk {
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
   }
 
-  private final case object Empty extends Chunk[Nothing] { self =>
+  private case object Empty extends Chunk[Nothing] { self =>
     override val length: Int = 0
 
     override def collect[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
