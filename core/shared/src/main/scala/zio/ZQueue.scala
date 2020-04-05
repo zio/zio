@@ -453,15 +453,13 @@ object ZQueue {
       }
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = {
-        val empty = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
-        var loop  = true
+        val empty       = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
+        var keepPolling = true
 
-        while (loop) {
-          loop = !queue.isFull()
-
+        while (keepPolling && !queue.isFull) {
           putters.poll(empty) match {
             case null =>
-              loop = false
+              keepPolling = false
             case putter @ (a, p, lastItem) =>
               val offered = queue.offer(a)
               if (offered && lastItem)
