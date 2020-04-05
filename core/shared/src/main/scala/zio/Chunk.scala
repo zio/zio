@@ -220,7 +220,7 @@ sealed trait Chunk[+A] { self =>
     }
 
     if (j == 0) Chunk.Empty
-    else Chunk.Slice(Chunk.Arr(dest), 0, j)
+    else Chunk.Slice(Chunk.arr(dest), 0, j)
   }
 
   /**
@@ -253,7 +253,7 @@ sealed trait Chunk[+A] { self =>
     dest.map {
       case (array, arrLen) =>
         if (arrLen == 0) Chunk.empty
-        else Chunk.Slice(Chunk.Arr(array), 0, arrLen)
+        else Chunk.Slice(Chunk.arr(array), 0, arrLen)
     }
   }
 
@@ -302,7 +302,7 @@ sealed trait Chunk[+A] { self =>
         chunk.toArray(n, dest)
       }
 
-      Chunk.Arr(dest)
+      Chunk.arr(dest)
     }
   }
 
@@ -608,6 +608,25 @@ object Chunk {
    * Returns a chunk from a number of values.
    */
   def apply[A](a: A, as: A*): NonEmptyChunk[A] =
+    as match {
+      case Nil =>
+        Singleton(a)
+      case wa: scala.collection.mutable.WrappedArray[A] =>
+        val len  = wa.size + 1
+        val in   = wa.array
+        val ct   = wa.elemTag
+        val dest = Array.ofDim[A](len)(wa.elemTag)
+        dest(0) = a
+        var i = 1
+        while (i < len) {
+          dest(i) = in(i - 1)
+          i += 1
+        }
+        Arr(dest, ct)
+    }
+
+  //TO REMOVE
+  def applyOld[A](a: A, as: A*): NonEmptyChunk[A] =
     if (as.isEmpty) Singleton(a)
     else {
       implicit val A: ClassTag[A] = Tags.fromValue(a)
@@ -616,14 +635,14 @@ object Chunk {
       des(0) = a
       as.copyToArray(des, 1)
 
-      Arr(des)
+      arr(des)
     }
 
   /**
    * Returns a chunk backed by an array.
    */
   def fromArray[A](array: Array[A]): Chunk[A] =
-    if (array.isEmpty) Empty else Arr(array)
+    if (array.isEmpty) Empty else arr(array)
 
   /**
    * Returns a chunk backed by a [[java.nio.ByteBuffer]].
@@ -776,8 +795,12 @@ object Chunk {
     case x: VectorChunk[A] => x.classTag
   }
 
-  private final case class Arr[A](private val array: Array[A]) extends NonEmpty[A] {
-    implicit val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
+  private def arr[A](array: Array[A]): Arr[A] =
+    Arr(array, ClassTag(array.getClass.getComponentType))
+
+  private final case class Arr[A](private val array: Array[A], ct: ClassTag[A]) extends NonEmpty[A] {
+
+    implicit val classTag: ClassTag[A] = ct
 
     override def collect[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val self = array
@@ -803,7 +826,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.Arr(dest), 0, j)
+      else Chunk.Slice(Chunk.arr(dest), 0, j)
     }
 
     override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
@@ -836,7 +859,7 @@ object Chunk {
 
       dest.map(array =>
         if (array == null) Chunk.empty
-        else Chunk.Slice(Chunk.Arr(array), 0, j)
+        else Chunk.Slice(Chunk.arr(array), 0, j)
       )
     }
 
@@ -867,7 +890,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.Arr(dest), 0, j)
+      else Chunk.Slice(Chunk.arr(dest), 0, j)
     }
 
     override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
@@ -905,7 +928,7 @@ object Chunk {
 
       dest.map(array =>
         if (array == null) Chunk.empty
-        else Chunk.Slice(Chunk.Arr(array), 0, j)
+        else Chunk.Slice(Chunk.arr(array), 0, j)
       )
     }
 
@@ -940,7 +963,7 @@ object Chunk {
       }
 
       if (j == 0) Chunk.Empty
-      else Chunk.Slice(Chunk.Arr(dest), 0, j)
+      else Chunk.Slice(Chunk.arr(dest), 0, j)
     }
 
     override def flatMap[B](f: A => Chunk[B]): Chunk[B] = {
@@ -979,7 +1002,7 @@ object Chunk {
           chunk.toArray(n, dest)
         }
 
-        Arr(dest)
+        arr(dest)
       }
     }
 
@@ -1027,7 +1050,7 @@ object Chunk {
         i += 1
       }
 
-      Chunk.Arr(dest)
+      Chunk.arr(dest)
     }
 
     /**
@@ -1235,7 +1258,7 @@ object Chunk {
     final override def materialize[A1 >: A]: NonEmptyChunk[A1] =
       self match {
         case arr: Arr[A] => arr
-        case _           => Arr(self.toArray(Chunk.classTagOf(self)))
+        case _           => arr(self.toArray(Chunk.classTagOf(self)))
       }
 
     override def map[B](f: A => B): NonEmptyChunk[B] = {
@@ -1251,7 +1274,7 @@ object Chunk {
         dest(i) = f(self(i))
         i += 1
       }
-      Chunk.Arr(dest)
+      Chunk.arr(dest)
     }
 
     final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, NonEmpty[B]) = {
@@ -1273,7 +1296,7 @@ object Chunk {
         i += 1
       }
 
-      (s, Chunk.Arr(dest))
+      (s, Chunk.arr(dest))
     }
 
     final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmpty[B]] = {
@@ -1300,7 +1323,7 @@ object Chunk {
         i += 1
       }
 
-      array.map(array => Chunk.Arr(array))
+      array.map(array => Chunk.arr(array))
     }
 
     override final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmpty[B]] = {
@@ -1327,7 +1350,7 @@ object Chunk {
         i += 1
       }
 
-      array.map(array => Chunk.Arr(array))
+      array.map(array => Chunk.arr(array))
     }
 
     /**
@@ -1365,7 +1388,7 @@ object Chunk {
       }
 
       dest.map {
-        case (state, array) => (state, Chunk.Arr(array))
+        case (state, array) => (state, Chunk.arr(array))
       }
     }
 
@@ -1401,7 +1424,7 @@ object Chunk {
         chunk.toArray(n, dest)
       }
 
-      Chunk.Arr(dest)
+      Chunk.arr(dest)
     }
 
     /**
@@ -1427,7 +1450,7 @@ object Chunk {
             i += 1
           }
 
-          Chunk.Arr(dest)
+          Chunk.arr(dest)
       }
 
     final override def zipWithIndex: NonEmptyChunk[(A, Int)] = zipWithIndexFrom(0)
@@ -1448,7 +1471,7 @@ object Chunk {
         i += 1
       }
 
-      Chunk.Arr(dest)
+      Chunk.arr(dest)
     }
 
     override final def zipAllWith[B, C](
@@ -1477,7 +1500,7 @@ object Chunk {
             j += 1
           }
 
-          Chunk.Arr(dest)
+          Chunk.arr(dest)
       }
   }
 
