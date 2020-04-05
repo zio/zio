@@ -45,6 +45,8 @@ object PureModule {
     def polyInputErrorOutput[I: Tagged, E: Tagged, A: Tagged](v: I): IO[E, A]
     def polyMixed[A: Tagged]: IO[String, (A, String)]
     def polyBounded[A <: AnyVal: Tagged]: IO[String, A]
+    def varargs(a: Int, b: String*): IO[String, String]
+    def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): IO[String, String]
     def maxParams(
       a: Int,
       b: Int,
@@ -92,6 +94,9 @@ object PureModule {
     ZIO.accessM[PureModule](_.get.polyInputErrorOutput[I, E, A](v))
   def polyMixed[A: Tagged]             = ZIO.accessM[PureModule](_.get.polyMixed[A])
   def polyBounded[A <: AnyVal: Tagged] = ZIO.accessM[PureModule](_.get.polyBounded[A])
+  def varargs(a: Int, b: String*)      = ZIO.accessM[PureModule](_.get.varargs(a, b: _*))
+  def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*) =
+    ZIO.accessM[PureModule](_.get.curriedVarargs(a, b: _*)(c, d: _*))
   def maxParams(
     a: Int,
     b: Int,

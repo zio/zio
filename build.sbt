@@ -219,6 +219,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
   .settings(skip in publish := true)
+  .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
