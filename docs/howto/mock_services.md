@@ -370,7 +370,7 @@ import zio.test.mock.MockRandom._
 val combinedEnv: ULayer[Console with Random] = (
   PutStrLn(equalTo("What is your name?")) ++
   GetStrLn(value("Mike")) ++
-  NextInt._1(value(42)) ++
+  NextInt(value(42)) ++
   PutStrLn(equalTo("Mike, your lucky number today is 42!"))
 )
 

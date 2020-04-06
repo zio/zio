@@ -11,14 +11,14 @@ object CheckSpec extends ZIOBaseSpec {
       checkM(Gen.int(1, 100)) { n =>
         for {
           _ <- ZIO.effect(())
-          r <- random.nextInt(n)
+          r <- random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
     },
     testM("effectual properties can be tested") {
       checkM(Gen.int(1, 100)) { n =>
         for {
-          r <- random.nextInt(n)
+          r <- random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
     },
@@ -26,7 +26,7 @@ object CheckSpec extends ZIOBaseSpec {
       checkM(Gen.int(1, 100)) { n =>
         for {
           _ <- ZIO.fail("fail")
-          r <- random.nextInt(n)
+          r <- random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
     } @@ failing,
@@ -40,7 +40,7 @@ object CheckSpec extends ZIOBaseSpec {
         _ <- checkM(gen <*> gen) { _ =>
               for {
                 _ <- ref.update(_ + 1)
-                p <- random.nextInt(10).map(_ != 0)
+                p <- random.nextIntBounded(10).map(_ != 0)
               } yield assert(p)(isTrue)
             }
         result <- ref.get
