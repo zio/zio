@@ -359,31 +359,28 @@ object ZSink {
    * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
    */
   def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
-    ZSink {
-      ZManaged.succeed(contFn(z)).flatMap { shouldStart =>
-        if (shouldStart) {
-          for {
-            state <- Ref.make(z).toManaged_
-            push = (is: Option[Chunk[I]]) =>
-              is match {
-                case None => state.get.flatMap(Push.emit)
-                case Some(is) => {
-                  state.get
-                    .flatMap(is.foldM(_)(f).mapError(Left(_)))
-                    .flatMap { s =>
-                      if (contFn(s))
-                        state.set(s) *> Push.more
-                      else
-                        Push.emit(s)
-                    }
-                }
+    if (contFn(z))
+      ZSink {
+        for {
+          state <- Ref.make(z).toManaged_
+          push = (is: Option[Chunk[I]]) =>
+            is match {
+              case None => state.get.flatMap(Push.emit)
+              case Some(is) => {
+                state.get
+                  .flatMap(is.foldM(_)(f).mapError(Left(_)))
+                  .flatMap { s =>
+                    if (contFn(s))
+                      state.set(s) *> Push.more
+                    else
+                      Push.emit(s)
+                  }
               }
-          } yield push
-        } else {
-          ZManaged.succeed(_ => Push.emit(z))
-        }
+            }
+        } yield push
       }
-    }
+    else
+      ZSink(ZManaged.succeed(_ => Push.emit(z)))
 
   /**
    * A sink that effectfully folds its inputs with the provided function and initial state.
