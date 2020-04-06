@@ -246,6 +246,7 @@ package object environment extends PlatformSpecific {
   object TestClock extends Serializable {
 
     trait Service extends Restorable {
+      def advance(duration: Duration): UIO[Unit]
       def adjust(duration: Duration): UIO[Unit]
       def fiberTime: UIO[Duration]
       def runAll: UIO[Unit]
@@ -276,6 +277,13 @@ package object environment extends PlatformSpecific {
           val updated         = data.copy(duration = end, sleeps = sleeps)
           (wakes, updated)
         }.flatMap(run)
+
+      /**
+       * Advances both the wall clock time and the current fiber time by the
+       * specified duration.
+       */
+      def advance(duration: Duration): UIO[Unit] =
+        adjust(duration) *> sleep(duration)
 
       /**
        * Returns the current fiber time as an `OffsetDateTime`.
@@ -421,6 +429,13 @@ package object environment extends PlatformSpecific {
      */
     def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
+
+    /**
+     * Access a `TestClock` instance in the environment and advances both the
+     * wall clock time and the current fiber time by the specified duration.
+     */
+    def advance(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
+      ZIO.accessM(_.get.advance(duration))
 
     /**
      * Accesses a `TestClock` instance in the environment and returns the current
