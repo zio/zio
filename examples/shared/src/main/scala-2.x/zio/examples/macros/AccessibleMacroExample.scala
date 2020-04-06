@@ -36,7 +36,7 @@ object AccessibleMacroExample {
       def baz(x: Int, y: Int): IO[String, Int]                       = UIO.succeed(x + y)
       def poly[A](a: A): IO[Long, A]                                 = UIO.succeed(a)
       def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]        = UIO.succeed(List(a.value))
-      def dependent(n: Int): ZIO[Random, Long, Int]                  = random.nextInt(n)
+      def dependent(n: Int): ZIO[Random, Long, Int]                  = random.nextIntBounded(n)
       val value: String                                              = "foo"
       def function(n: Int): String                                   = s"foo $n"
       def stream(n: Int): ZStream[Any, String, Int]                  = ZStream.fromIterable(List(1, 2, 3))

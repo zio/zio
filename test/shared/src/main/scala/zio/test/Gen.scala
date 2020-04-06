@@ -186,7 +186,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyByte: Gen[Random, Byte] =
     fromEffectSample {
-      nextInt(Byte.MaxValue - Byte.MinValue + 1)
+      nextIntBounded(Byte.MaxValue - Byte.MinValue + 1)
         .map(r => (Byte.MinValue + r).toByte)
         .map(Sample.shrinkIntegral(0))
     }
@@ -196,7 +196,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyChar: Gen[Random, Char] =
     fromEffectSample {
-      nextInt(Char.MaxValue - Char.MinValue + 1)
+      nextIntBounded(Char.MaxValue - Char.MinValue + 1)
         .map(r => (Char.MinValue + r).toChar)
         .map(Sample.shrinkIntegral(0))
     }
@@ -230,7 +230,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyShort: Gen[Random, Short] =
     fromEffectSample {
-      nextInt(Short.MaxValue - Short.MinValue + 1)
+      nextIntBounded(Short.MaxValue - Short.MinValue + 1)
         .map(r => (Short.MinValue + r).toShort)
         .map(Sample.shrinkIntegral(0))
     }
@@ -438,7 +438,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.fromEffectSample {
       val difference = max - min + 1
       val effect =
-        if (difference > 0) nextInt(difference).map(min + _)
+        if (difference > 0) nextIntBounded(difference).map(min + _)
         else nextInt.doUntil(n => min <= n && n <= max)
       effect.map(Sample.shrinkIntegral(min))
     }
@@ -473,7 +473,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.fromEffectSample {
       val difference = max - min + 1
       val effect =
-        if (difference > 0) nextLong(difference).map(min + _)
+        if (difference > 0) nextLongBounded(difference).map(min + _)
         else nextLong.doUntil(n => min <= n && n <= max)
       effect.map(Sample.shrinkIntegral(min))
     }
