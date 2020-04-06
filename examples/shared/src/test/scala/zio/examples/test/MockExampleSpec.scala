@@ -23,19 +23,19 @@ object MockExampleSpec extends DefaultRunnableSpec {
     },
     testM("expect call with input satisfying assertion and transforming it into output") {
       val app = random.nextIntBounded(1)
-      val env = MockRandom.NextInt(equalTo(1), valueF(_ + 41))
+      val env = MockRandom.NextIntBounded(equalTo(1), valueF(_ + 41))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42))
     },
     testM("expect call with input satisfying assertion and returning output") {
       val app = random.nextIntBounded(1)
-      val env = MockRandom.NextInt(equalTo(1), value(42))
+      val env = MockRandom.NextIntBounded(equalTo(1), value(42))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42))
     },
     testM("expect call for overloaded method") {
       val app = random.nextInt
-      val env = MockRandom.NextInt._1(value(42))
+      val env = MockRandom.NextInt(value(42))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42))
     },
@@ -46,37 +46,37 @@ object MockExampleSpec extends DefaultRunnableSpec {
           _ <- console.putStrLn(n.toString)
         } yield ()
 
-      val env = MockRandom.NextInt._1(value(42)) andThen MockConsole.PutStrLn(equalTo("42"))
+      val env = MockRandom.NextInt(value(42)) andThen MockConsole.PutStrLn(equalTo("42"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },
     testM("expect repeated calls") {
       val app = random.nextInt *> random.nextInt
-      val env = MockRandom.NextInt._1(value(42)).repeats(1 to 3)
+      val env = MockRandom.NextInt(value(42)).repeats(1 to 3)
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42))
     },
     testM("expect all of calls, in sequential order") {
       val app = random.nextInt *> random.nextLong
-      val env = MockRandom.NextInt._1(value(42)) andThen MockRandom.NextLong._0(value(42L))
+      val env = MockRandom.NextInt(value(42)) andThen MockRandom.NextLong(value(42L))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42L))
     },
     testM("expect all of calls, in any order") {
       val app = random.nextLong *> random.nextInt
-      val env = MockRandom.NextInt._1(value(42)) and MockRandom.NextLong._0(value(42L))
+      val env = MockRandom.NextInt(value(42)) and MockRandom.NextLong(value(42L))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42))
     },
     testM("expect one of calls") {
       val app = random.nextLong
-      val env = MockRandom.NextInt._1(value(42)) or MockRandom.NextLong._0(value(42L))
+      val env = MockRandom.NextInt(value(42)) or MockRandom.NextLong(value(42L))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42L))
     },
     testM("failure if invalid method") {
       val app = random.nextInt
-      val env = MockRandom.NextLong._0(value(42L))
+      val env = MockRandom.NextLong(value(42L))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42))
     },
@@ -88,13 +88,13 @@ object MockExampleSpec extends DefaultRunnableSpec {
     },
     testM("failure if unmet expectations") {
       val app = random.nextInt
-      val env = MockRandom.NextInt._1(value(42)) andThen MockRandom.NextInt._1(value(42))
+      val env = MockRandom.NextInt(value(42)) andThen MockRandom.NextInt(value(42))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42))
     },
     testM("failure if unexpected calls") {
       val app = random.nextInt *> random.nextLong
-      val env = MockRandom.NextInt._1(value(42))
+      val env = MockRandom.NextInt(value(42))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42L))
     }
