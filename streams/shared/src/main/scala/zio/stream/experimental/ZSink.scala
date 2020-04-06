@@ -291,7 +291,7 @@ object ZSink {
    * A sink that counts the number of elements fed to it.
    */
   val count: ZSink[Any, Nothing, Any, Long] =
-    fold(0L)((s, _) => s + 1)
+    foldLeft(0L)((s, _) => s + 1)
 
   /**
    * Creates a sink halting with a specified cause.
@@ -356,29 +356,52 @@ object ZSink {
     fromPush(_ => Push.emit(z))
 
   /**
+   * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
+   */
+  def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
+    ZSink {
+      ZManaged.succeed(contFn(z)).flatMap { shouldStart =>
+        if (shouldStart) {
+          for {
+            state <- Ref.make(z).toManaged_
+            push: zio.stream.experimental.ZSink.Push[R, E, I, S] = (is: Option[Chunk[I]]) =>
+              is match {
+                case None => state.get.flatMap(Push.emit)
+                case Some(is) => {
+                  state.get
+                    .flatMap(is.foldM(_)(f).mapError(Left(_)))
+                    .flatMap { s =>
+                      if (contFn(s))
+                        state.set(s) *> Push.more
+                      else
+                        Push.emit(s)
+                    }
+                }
+              }
+          } yield push
+        } else {
+          ZManaged.succeed(_ => Push.emit(z))
+        }
+      }
+    }
+
+  /**
    * A sink that effectfully folds its inputs with the provided function and initial state.
    */
-  def foldM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
-    ZSink {
-      for {
-        state <- Ref.make(z).toManaged_
-        push = (is: Option[Chunk[I]]) =>
-          is match {
-            case None => state.get.flatMap(s => ZIO.fail(Right(s)))
-            case Some(is) =>
-              state.get
-                .flatMap(is.foldM(_)(f))
-                .flatMap(state.set)
-                .mapError(Left(_))
-          }
-      } yield push
-    }
+  def foldLeftM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
+    foldM[R, E, I, S](z: S)(_ => true)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S]
+
+  /**
+   * A sink that folds its inputs with the provided function, termination predicate and initial state.
+   */
+  def fold[I, S](z: S)(contFn: S => Boolean)(f: (S, I) => S): ZSink[Any, Nothing, I, S] =
+    foldM(z)(contFn)((s, i) => UIO.succeedNow(f(s, i)))
 
   /**
    * A sink that folds its inputs with the provided function and initial state.
    */
-  def fold[I, S](z: S)(f: (S, I) => S): ZSink[Any, Nothing, I, S] =
-    foldM(z)((s, i) => UIO.succeedNow(f(s, i)))
+  def foldLeft[I, S](z: S)(f: (S, I) => S): ZSink[Any, Nothing, I, S] =
+    fold(z)(_ => true)(f)
 
   /**
    * Creates a single-value sink produced from an effect
