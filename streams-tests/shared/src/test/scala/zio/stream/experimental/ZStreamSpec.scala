@@ -44,6 +44,82 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(res1)(fails(equalTo(s))) && assert(res2)(fails(equalTo(s)))
         })
       ),
+      suite("aggregateAsync")(
+        // testM("aggregateAsync") {
+        //   ZStream(1, 1, 1, 1)
+        //     .aggregateAsync(ZTransducer.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc).map(_.reverse))
+        //     .runCollect
+        //     .map { result =>
+        //       assert(result.flatten)(equalTo(List(1, 1, 1, 1))) &&
+        //       assert(result.forall(_.length <= 3))(isTrue)
+        //     }
+        // },
+        testM("error propagation") {
+          val e = new RuntimeException("Boom")
+          assertM(
+            ZStream(1, 1, 1, 1)
+              .aggregateAsync(ZTransducer.die(e))
+              .runCollect
+              .run
+          )(dies(equalTo(e)))
+        },
+        // testM("error propagation") {
+        //   val e    = new RuntimeException("Boom")
+        //   val sink = ZTransducer.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e))
+
+        //   assertM(
+        //     ZStream(1, 1)
+        //       .aggregateAsync(sink)
+        //       .runCollect
+        //       .run
+        //   )(dies(equalTo(e)))
+        // },
+        // testM("interruption propagation") {
+        //   for {
+        //     latch     <- Promise.make[Nothing, Unit]
+        //     cancelled <- Ref.make(false)
+        //     sink = ZTransducer.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+        //       if (el == 1) UIO.succeedNow((el :: acc, Chunk[Int]()))
+        //       else
+        //         (latch.succeed(()) *> ZIO.infinity)
+        //           .onInterrupt(cancelled.set(true))
+        //     }
+        //     fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.untraced.fork
+        //     _      <- latch.await
+        //     _      <- fiber.interrupt
+        //     result <- cancelled.get
+        //   } yield assert(result)(isTrue)
+        // },
+        testM("interruption propagation") {
+          for {
+            latch     <- Promise.make[Nothing, Unit]
+            cancelled <- Ref.make(false)
+            sink = ZTransducer.fromEffect {
+              (latch.succeed(()) *> ZIO.infinity)
+                .onInterrupt(cancelled.set(true))
+            }
+            fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.untraced.fork
+            _      <- latch.await
+            _ <- console.putStrLn("Interrupting")
+            _      <- fiber.interrupt
+            _ <- console.putStrLn("Interrupted")
+            result <- cancelled.get
+          } yield assert(result)(isTrue)
+        }
+        // testM("leftover handling") {
+        //   val data = List(1, 2, 2, 3, 2, 3)
+        //   assertM(
+        //     ZStream(data: _*)
+        //       .aggregateAsync(
+        //         ZTransducer
+        //           .foldWeighted(List[Int]())((i: Int) => i.toLong, 4)((acc, el) => el :: acc)
+        //           .map(_.reverse)
+        //       )
+        //       .runCollect
+        //       .map(_.flatten)
+        //   )(equalTo(data))
+        // }
+      ),
       suite("bracket")(
         testM("bracket")(
           for {
