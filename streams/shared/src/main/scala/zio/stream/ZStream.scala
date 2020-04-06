@@ -1678,6 +1678,17 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   /**
+   * Halts the evaluation of this stream when the provided IO completes. The given IO
+   * will be evaluated as part of this stream, and its success will be discarded.
+   *
+   * If the IO completes with a failure, the stream will emit that failure.
+   */
+  final def haltWhen[E1 >: E](io: IO[E1, Unit]): ZStream[R, E1, A] =
+    ZStream.fromEffect(Promise.make[E1, Unit]).flatMap {
+      promise => haltWhen(promise).drainFork(Stream.fromEffect(io.to(promise)))
+    }
+
+  /**
    * Interleaves this stream and the specified stream deterministically by
    * alternating pulling values from this stream and the specified stream.
    * When one stream is exhausted all remaining values in the other stream
@@ -1742,12 +1753,14 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   }
 
   /**
-   * Interrupts the evaluation of this stream when the provided promise resolves. This
-   * combinator will also interrupt any in-progress element being pulled from upstream.
+   * Interrupts the evaluation of this stream when the provided IO completes. The given
+   * IO will be evaluated as part of this stream, and its success will be discarded.
+   * This combinator will also interrupt any in-progress element being pulled from
+   * upstream.
    *
-   * If the promise completes with a failure, the stream will emit that failure.
+   * If the IO completes with a failure, the stream will emit that failure.
    */
-  final def interruptWhen[E1 >: E](p: Promise[E1, _]): ZStream[R, E1, A] =
+  final def interruptWhen[E1 >: E](io: IO[E1, _]): ZStream[R, E1, A] =
     ZStream {
       for {
         as   <- self.process
@@ -1756,7 +1769,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           if (_) Pull.end
           else
             as.raceFirst(
-              p.await
+              io
                 .mapError(Some(_))
                 .foldCauseM(
                   c => done.set(true) *> ZIO.halt(c),
@@ -1766,6 +1779,15 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         }
       } yield pull
     }
+
+  /**
+   * Interrupts the evaluation of this stream when the provided promise resolves. This
+   * combinator will also interrupt any in-progress element being pulled from upstream.
+   *
+   * If the promise completes with a failure, the stream will emit that failure.
+   */
+  final def interruptWhen[E1 >: E](p: Promise[E1, _]): ZStream[R, E1, A] =
+    interruptWhen(p.await)
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
