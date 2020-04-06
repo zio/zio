@@ -38,7 +38,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
 
         testValueComposed[Clock with Console, Nothing, Unit]("Console with Clock")(composed, program, isUnit)
       }, {
-        val cmd1 = MockRandom.NextInt._1(value(42))
+        val cmd1 = MockRandom.NextInt(value(42))
         val cmd2 = MockClock.Sleep(equalTo(42.seconds))
         val cmd3 = MockSystem.Property(equalTo("foo"), value(None))
         val cmd4 = MockConsole.PutStrLn(equalTo("None"))

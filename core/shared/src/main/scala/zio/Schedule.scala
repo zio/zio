@@ -864,7 +864,7 @@ object Schedule {
     Schedule[Clock with Random, Duration, Any, Duration](
       ZIO.succeedNow(Duration.Zero), {
         case _ =>
-          random.nextLong(maxNanos - minNanos + 1).flatMap { n =>
+          random.nextLongBounded(maxNanos - minNanos + 1).flatMap { n =>
             val duration = Duration.fromNanos(n + minNanos)
             clock.sleep(duration).as(duration)
           }

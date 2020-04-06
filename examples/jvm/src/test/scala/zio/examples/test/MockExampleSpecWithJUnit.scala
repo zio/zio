@@ -23,14 +23,14 @@ class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
       assertM(out)(isUnit)
     },
     testM("expect call with input satisfying assertion and transforming it into output") {
-      val app = random.nextInt(1)
-      val env = MockRandom.NextInt._0(equalTo(1), valueF(_ + 41))
+      val app = random.nextIntBounded(1)
+      val env = MockRandom.NextInt(equalTo(1), valueF(_ + 41))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42))
     },
     testM("expect call with input satisfying assertion and returning output") {
-      val app = random.nextInt(1)
-      val env = MockRandom.NextInt._0(equalTo(1), value(42))
+      val app = random.nextIntBounded(1)
+      val env = MockRandom.NextInt(equalTo(1), value(42))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(42))
     },
