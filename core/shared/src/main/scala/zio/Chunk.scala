@@ -615,15 +615,20 @@ object Chunk {
         val len: Int        = wa.size + 1
         val in: Array[A]    = wa.array.asInstanceOf[Array[A]]
         val ct: ClassTag[A] = wa.elemTag.asInstanceOf[ClassTag[A]]
-        val dest: Array[A]  = Array.ofDim[A](len)(ct)
 
-        dest(0) = a
-        var i: Int = 1
-        while (i < len) {
-          dest(i) = in(i - 1)
-          i += 1
-        }
-        Arr(dest, ct)
+        if (len <= 16) {
+
+          val dest: Array[A] = Array.ofDim[A](len)(ct)
+          dest(0) = a
+          var i: Int = 1
+          while (i < len) {
+            dest(i) = in(i - 1)
+            i += 1
+          }
+
+          Arr(dest, ct)
+
+        } else Concat(Singleton(a), Arr(in, ct))
 
       case _ =>
         val ct: ClassTag[A] = Tags.fromValue(a)
