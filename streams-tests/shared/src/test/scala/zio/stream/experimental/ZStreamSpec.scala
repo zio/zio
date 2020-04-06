@@ -100,9 +100,9 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
             fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.untraced.fork
             _      <- latch.await
-            _ <- console.putStrLn("Interrupting")
+            _      <- console.putStrLn("Interrupting")
             _      <- fiber.interrupt
-            _ <- console.putStrLn("Interrupted")
+            _      <- console.putStrLn("Interrupted")
             result <- cancelled.get
           } yield assert(result)(isTrue)
         }

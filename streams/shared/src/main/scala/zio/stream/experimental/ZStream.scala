@@ -99,16 +99,18 @@ abstract class ZStream[-R, +E, +O](
 
     ZStream {
       for {
-        pull <- self.process
-        push <- transducer.push
-        lock <- TReentrantLock.makeCommit.toManaged_
+        pull   <- self.process
+        push   <- transducer.push
+        lock   <- TReentrantLock.makeCommit.toManaged_
         bucket <- ZRef.makeManaged[Option[Take[E1, P]]](None)
         produce = {
           def finish: ZIO[R1, Nothing, Boolean] =
             push(None)
               .repeat(Schedule.doWhile(_.isEmpty))
               .foldCauseM(
-                Cause.sequenceCauseOption(_).fold(bucket.set(Some(Take.End)))(c => bucket.set(Some(Exit.halt(c.map(Some(_)))))),
+                Cause
+                  .sequenceCauseOption(_)
+                  .fold(bucket.set(Some(Take.End)))(c => bucket.set(Some(Exit.halt(c.map(Some(_)))))),
                 ps => bucket.set(Some(Exit.succeed(ps)))
               )
               .as(false)
@@ -121,7 +123,7 @@ abstract class ZStream[-R, +E, +O](
               )
               .as(true)
 
-          def go: ZIO[R1, Nothing, Boolean] =
+          val go: ZIO[R1, Nothing, Boolean] =
             bucket.get.flatMap { ps =>
               if (ps.nonEmpty)
                 ZIO.succeedNow(true)
@@ -136,8 +138,10 @@ abstract class ZStream[-R, +E, +O](
         }
 
         consume = {
-          lazy val go: ZIO[R1, Option[E1], Chunk[P]] = 
-            lock.acquireRead.commit *> bucket.get.flatMap(_.fold(go)(Pull.fromTake(_))).ensuring(lock.releaseRead.commit)
+          lazy val go: ZIO[R1, Option[E1], Chunk[P]] =
+            lock.acquireRead.commit *> bucket.get
+              .flatMap(_.fold(go)(Pull.fromTake(_)))
+              .ensuring(lock.releaseRead.commit)
 
           go.forever
         }
