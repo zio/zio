@@ -364,7 +364,7 @@ object ZSink {
         if (shouldStart) {
           for {
             state <- Ref.make(z).toManaged_
-            push: zio.stream.experimental.ZSink.Push[R, E, I, S] = (is: Option[Chunk[I]]) =>
+            push = (is: Option[Chunk[I]]) =>
               is match {
                 case None => state.get.flatMap(Push.emit)
                 case Some(is) => {
