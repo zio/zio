@@ -79,6 +79,9 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [Full Scala Stack, a sample project that uses akka-http, slick, zio, scalajs, react, ScalablyTyped and semantic ui](https://github.com/rleibman/full-scala-stack) by Roberto Leibman
 - [A minimal ZIO giter8 template](https://github.com/jchoffmann/zio-seed.g8) by [jchoffmann](https://github.com/jchoffmann)
 - [Lagom CQRS/ES microservices with ZIO, Caliban, zio-grpc, elastic4s and Logstage](https://github.com/sigurdthor/book-shelf) by [Yaroslav Yaremenko](https://github.com/sigurdthor)
+- [ZIO Advanced Template](https://github.com/Neurodyne/zio-top.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
+- [ZIO Quill, H2 Database with FlyWay migrations Explained](https://github.com/Neurodyne/h2db-quill-demo) by [Boris V.Kuznetsov](https://github.com/tampler)
+- [ZIO Tapir Http4s Integration](https://github.com/Neurodyne/zio-tapir) by [Boris V.Kuznetsov](https://github.com/tampler)
 
 ## Projects using ZIO
 
