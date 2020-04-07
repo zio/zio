@@ -16,7 +16,7 @@
 
 package zio
 
-package object optics {
+package object optics extends EitherCompat {
 
   type ZIso[-S, +T, +A, -B]       = ZOptic[S, Any, B, Nothing, Nothing, A, T]
   type ZLens[-S, +T, +A, -B]      = ZOptic[S, S, B, Nothing, Nothing, A, T]
