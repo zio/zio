@@ -626,9 +626,9 @@ object Chunk {
             i += 1
           }
 
-          Arr(dest, ct)
+          new Arr(dest, ct)
 
-        } else Concat(Singleton(a), Arr(in, ct))
+        } else Concat(Singleton(a), new Arr(in, ct))
 
       case _ =>
         val ct: ClassTag[A] = Tags.fromValue(a)
@@ -809,11 +809,10 @@ object Chunk {
   }
 
   private def arr[A](array: Array[A]): Arr[A] =
-    Arr(array, ClassTag(array.getClass.getComponentType))
+    new Arr(array, ClassTag(array.getClass.getComponentType))
 
-  private final case class Arr[A](private val array: Array[A], ct: ClassTag[A]) extends NonEmpty[A] {
-
-    implicit val classTag: ClassTag[A] = ct
+  private final class Arr[A](private val array: Array[A],
+                             implicit val classTag: ClassTag[A]) extends NonEmpty[A] {
 
     override def collect[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val self = array
