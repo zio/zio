@@ -754,15 +754,19 @@ object Chunk {
   /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
-  final def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmptyChunk[A] = Concat(l, r)
-
-  /**
-   * Returns the concatenation of this chunk with the specified chunk.
-   */
   final def concat[A](l: NonEmpty[A], r: Chunk[A]): NonEmptyChunk[A] = r match {
     case Empty           => l
     case ne: NonEmpty[A] => concat(l, ne)
   }
+
+  /**
+   * Returns the concatenation of this chunk with the specified chunk.
+   */
+  final def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmptyChunk[A] =
+    l match {
+      case Concat(ll, lr) if lr.size < ll.size => Concat(ll, concat(lr, r))
+      case _                                   => Concat(l, r)
+    }
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
