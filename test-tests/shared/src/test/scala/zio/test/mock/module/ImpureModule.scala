@@ -48,6 +48,7 @@ object ImpureModule {
     def polyBounded[A <: AnyVal: Tagged]: A
     def varargs(a: Int, b: String*): String
     def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): String
+    def byName(a: => Int): String
     def maxParams(
       a: Int,
       b: Int,
@@ -97,6 +98,7 @@ object ImpureModule {
   def varargs(a: Int, b: String*)      = ZIO.access[ImpureModule](_.get.varargs(a, b: _*))
   def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*) =
     ZIO.access[ImpureModule](_.get.curriedVarargs(a, b: _*)(c, d: _*))
+  def byName(a: => Int) = ZIO.access[ImpureModule](_.get.byName(a))
   def maxParams(
     a: Int,
     b: Int,

@@ -46,6 +46,7 @@ object PureModuleMock extends Mock[PureModule] {
   object PolyBounded          extends Poly.Effect.Output[Unit, String]
   object Varargs              extends Effect[(Int, Seq[String]), String, String]
   object CurriedVarargs       extends Effect[(Int, Seq[String], Long, Seq[Char]), String, String]
+  object ByName               extends Effect[Int, String, String]
 
   object Overloaded {
     object _0 extends Effect[Int, String, String]
@@ -83,6 +84,7 @@ object PureModuleMock extends Mock[PureModule] {
           def varargs(a: Int, b: String*): IO[String, String] = proxy(Varargs, (a, b))
           def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): IO[String, String] =
             proxy(CurriedVarargs, (a, b, c, d))
+          def byName(a: => Int): IO[String, String] = proxy(ByName, a)
           def maxParams(
             a: Int,
             b: Int,

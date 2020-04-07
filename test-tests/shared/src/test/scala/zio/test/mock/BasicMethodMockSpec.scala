@@ -298,6 +298,38 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
             isSubtype[Exception](hasField("message", _.getMessage, equalTo("foo 1, [2, 3], 4, [5, 6]")))
           )
         ),
+        suite("byName")(
+          testValue("returns value")(
+            ImpureModuleMock.ByName(equalTo(1), value("foo")),
+            ImpureModule.byName(1),
+            equalTo("foo")
+          ),
+          testValue("returns valueF")(
+            ImpureModuleMock.ByName(equalTo(1), valueF(i => s"foo $i")),
+            ImpureModule.byName(1),
+            equalTo("foo 1")
+          ),
+          testValue("returns valueM")(
+            ImpureModuleMock.ByName(equalTo(1), valueM(i => UIO.succeed(s"foo $i"))),
+            ImpureModule.byName(1),
+            equalTo("foo 1")
+          ),
+          testDied("returns failure")(
+            ImpureModuleMock.ByName(equalTo(1), failure(new Exception("foo"))),
+            ImpureModule.byName(1),
+            isSubtype[Exception](hasField("message", _.getMessage, equalTo("foo")))
+          ),
+          testDied("returns failureF")(
+            ImpureModuleMock.ByName(equalTo(1), failureF(i => new Exception(s"foo $i"))),
+            ImpureModule.byName(1),
+            isSubtype[Exception](hasField("message", _.getMessage, equalTo("foo 1")))
+          ),
+          testDied("returns failureM")(
+            ImpureModuleMock.ByName(equalTo(1), failureM(i => IO.fail(new Exception(s"foo $i")))),
+            ImpureModule.byName(1),
+            isSubtype[Exception](hasField("message", _.getMessage, equalTo("foo 1")))
+          )
+        ),
         suite("maxParams")(
           testValue("returns value")(
             ImpureModuleMock.MaxParams(equalTo(intTuple22), value("foo")),
