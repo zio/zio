@@ -308,6 +308,7 @@ object ChunkSpec extends ZIOBaseSpec {
         Chunk.succeed(x),
         nonEmptyChunk ++ chunk,
         chunk ++ nonEmptyChunk,
+        chunk appendNonEmpty nonEmptyChunk,
         nonEmptyChunk.flatMap(i => Chunk(i)),
         nonEmptyChunk.map(identity),
         nonEmptyChunk.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
