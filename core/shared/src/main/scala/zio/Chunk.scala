@@ -811,8 +811,7 @@ object Chunk {
   private def arr[A](array: Array[A]): Arr[A] =
     new Arr(array, ClassTag(array.getClass.getComponentType))
 
-  private final class Arr[A](private val array: Array[A],
-                             implicit val classTag: ClassTag[A]) extends NonEmpty[A] {
+  private final class Arr[A](private val array: Array[A], implicit val classTag: ClassTag[A]) extends NonEmpty[A] {
 
     override def collect[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val self = array
