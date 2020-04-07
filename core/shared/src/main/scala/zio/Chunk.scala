@@ -764,8 +764,8 @@ object Chunk {
    */
   final def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmptyChunk[A] =
     l match {
-      case Concat(ll, lr) if lr.size < ll.size => Concat(ll, concat(lr, r))
-      case _                                   => Concat(l, r)
+      case Concat(ll, lr) if ll.size >= lr.size + r.size => Concat(ll, concat(lr, r))
+      case _                                             => Concat(l, r)
     }
 
   /**
