@@ -30,13 +30,21 @@ package object system {
     trait Service extends Serializable {
       def env(variable: String): IO[SecurityException, Option[String]]
 
-      val envs: IO[SecurityException, Map[String, String]]
+      def envOrElse(variable: String, alt: => String): IO[SecurityException, String]
 
-      val properties: IO[Throwable, Map[String, String]]
+      def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]]
+
+      def envs: IO[SecurityException, Map[String, String]]
+
+      def lineSeparator: UIO[String]
+
+      def properties: IO[Throwable, Map[String, String]]
 
       def property(prop: String): IO[Throwable, Option[String]]
 
-      def lineSeparator: UIO[String]
+      def propertyOrElse(prop: String, alt: => String): IO[Throwable, String]
+
+      def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]]
     }
 
     object Service {
@@ -45,9 +53,17 @@ package object system {
         def env(variable: String): IO[SecurityException, Option[String]] =
           IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
 
+        def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
+          envOrElseWith(variable, alt)(env)
+
+        def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
+          envOrOptionWith(variable, alt)(env)
+
         @silent("JavaConverters")
         val envs: IO[SecurityException, Map[String, String]] =
           IO.effect(JSystem.getenv.asScala.toMap).refineToOrDie[SecurityException]
+
+        val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
 
         @silent("JavaConverters")
         val properties: IO[Throwable, Map[String, String]] =
@@ -56,7 +72,11 @@ package object system {
         def property(prop: String): IO[Throwable, Option[String]] =
           IO.effect(Option(JSystem.getProperty(prop)))
 
-        val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
+        def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
+          propertyOrElseWith(prop, alt)(property)
+
+        def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
+          propertyOrOptionWith(prop, alt)(property)
       }
     }
 
@@ -65,29 +85,83 @@ package object system {
 
     val live: Layer[Nothing, System] =
       ZLayer.succeed(Service.live)
+
+    private[zio] def envOrElseWith(variable: String, alt: => String)(
+      env: String => IO[SecurityException, Option[String]]
+    ): IO[SecurityException, String] =
+      env(variable).map(_.getOrElse(alt))
+
+    private[zio] def envOrOptionWith(variable: String, alt: => Option[String])(
+      env: String => IO[SecurityException, Option[String]]
+    ): IO[SecurityException, Option[String]] =
+      env(variable).map(_.orElse(alt))
+
+    private[zio] def propertyOrElseWith(prop: String, alt: => String)(
+      property: String => IO[Throwable, Option[String]]
+    ): IO[Throwable, String] =
+      property(prop).map(_.getOrElse(alt))
+
+    private[zio] def propertyOrOptionWith(prop: String, alt: => Option[String])(
+      property: String => IO[Throwable, Option[String]]
+    ): IO[Throwable, Option[String]] =
+      property(prop).map(_.orElse(alt))
   }
 
-  /** Retrieve the value of an environment variable **/
+  /**
+   * Retrieves the value of an environment variable.
+   **/
   def env(variable: => String): ZIO[System, SecurityException, Option[String]] =
-    ZIO.accessM(_.get env variable)
+    ZIO.accessM(_.get.env(variable))
 
   /**
-   * Retrieve the values of all environment variables.
+   * Retrieves the value of an environment variable or else returns the
+   * specified fallback value.
+   **/
+  def envOrElse(variable: String, alt: => String): ZIO[System, SecurityException, String] =
+    ZIO.accessM(_.get.envOrElse(variable, alt))
+
+  /**
+   * Retrieves the value of an environment variable or else returns the
+   * specified optional fallback value.
+   **/
+  def envOrOption(variable: String, alt: => Option[String]): ZIO[System, SecurityException, Option[String]] =
+    ZIO.accessM(_.get.envOrOption(variable, alt))
+
+  /**
+   * Retrieves the values of all environment variables.
    */
   val envs: ZIO[System, SecurityException, Map[String, String]] =
     ZIO.accessM(_.get.envs)
 
   /**
-   * Retrieve the values of all system properties.
+   * Retrieves the values of all system properties.
    */
   val properties: ZIO[System, Throwable, Map[String, String]] =
     ZIO.accessM(_.get.properties)
 
-  /** Retrieve the value of a system property **/
+  /**
+   * Retrieves the value of a system property.
+   **/
   def property(prop: => String): ZIO[System, Throwable, Option[String]] =
-    ZIO.accessM(_.get property prop)
+    ZIO.accessM(_.get.property(prop))
 
-  /** System-specific line separator **/
+  /**
+   * Retrieves the value of a system property or else return the specified
+   * fallback value.
+   **/
+  def propertyOrElse(prop: String, alt: => String): ZIO[System, Throwable, String] =
+    ZIO.accessM(_.get.propertyOrElse(prop, alt))
+
+  /**
+   * Retrieves the value of a system property or else return the specified
+   * optional fallback value.
+   **/
+  def propertyOrOption(prop: String, alt: => Option[String]): ZIO[System, Throwable, Option[String]] =
+    ZIO.accessM(_.get.propertyOrOption(prop, alt))
+
+  /**
+   * Retrieves the value of the system-specific line separator.
+   **/
   val lineSeparator: ZIO[System, Nothing, String] =
     ZIO.accessM(_.get.lineSeparator)
 }

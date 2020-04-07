@@ -1511,26 +1511,54 @@ package object environment extends PlatformSpecific {
       /**
        * Returns the specified environment variable if it exists.
        */
-      override def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
+      def env(variable: String): IO[SecurityException, Option[String]] =
         systemState.get.map(_.envs.get(variable))
 
-      override val envs: ZIO[Any, SecurityException, Map[String, String]] =
+      /**
+       * Returns the specified environment variable if it exists or else the
+       * specified fallback value.
+        **/
+      def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
+        System.envOrElseWith(variable, alt)(env)
+
+      /**
+       * Returns the specified environment variable if it exists or else the
+       * specified optional fallback value.
+        **/
+      def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
+        System.envOrOptionWith(variable, alt)(env)
+
+      val envs: ZIO[Any, SecurityException, Map[String, String]] =
         systemState.get.map(_.envs)
 
-      override val properties: ZIO[Any, Throwable, Map[String, String]] =
+      /**
+       * Returns the system line separator.
+       */
+      val lineSeparator: ZIO[Any, Nothing, String] =
+        systemState.get.map(_.lineSeparator)
+
+      val properties: ZIO[Any, Throwable, Map[String, String]] =
         systemState.get.map(_.properties)
 
       /**
        * Returns the specified system property if it exists.
        */
-      override def property(prop: String): ZIO[Any, Throwable, Option[String]] =
+      def property(prop: String): IO[Throwable, Option[String]] =
         systemState.get.map(_.properties.get(prop))
 
       /**
-       * Returns the system line separator.
-       */
-      override val lineSeparator: ZIO[Any, Nothing, String] =
-        systemState.get.map(_.lineSeparator)
+       * Returns the specified system property if it exists or else the
+       * specified fallback value.
+        **/
+      def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
+        System.propertyOrElseWith(prop, alt)(property)
+
+      /**
+       * Returns the specified system property if it exists or else the
+       * specified optional fallback value.
+        **/
+      def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
+        System.propertyOrOptionWith(prop, alt)(property)
 
       /**
        * Adds the specified name and value to the mapping of environment
