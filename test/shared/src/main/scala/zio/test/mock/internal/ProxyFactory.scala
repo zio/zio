@@ -43,7 +43,7 @@ object ProxyFactory {
                   findMatching(nextScopes)
 
                 case call @ Call(capability, assertion, returns, _, _, invocations) if invoked isEqual capability =>
-                  assertion.asInstanceOf[Assertion[I]].test(args).flatMap {
+                  assertion.asInstanceOf[Assertion[I]].test(args) match {
                     case true =>
                       val result = returns.asInstanceOf[I => IO[E, A]](args)
                       val updated = call
