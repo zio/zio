@@ -18,8 +18,9 @@ package zio.stm
 
 import java.util.concurrent.atomic.AtomicReference
 
+import zio.UIO
+import zio.optics._
 import zio.stm.ZSTM.internal._
-import zio.{ UIO, ZLens, ZPrism, ZTraversal }
 
 /**
  * A `ZTRef[EA, EB, A, B]` is a polymorphic, purely functional description of a

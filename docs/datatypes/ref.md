@@ -144,6 +144,10 @@ for {
 
 A `ZRef` can be used as a concurrent optic. Transformations of the `ZRef` access different parts of the underlying data, supporting "zooming in" to fields in product types, cases in sum types, and elements in collections. Optics allow modifying parts of immutable data structures in an ergonomic, composable way. Operations on `ZRef` are guaranteed to be atomic, even if the `ZRef` is composed from multiple optics.
 
+```scala mdoc:invisible
+import zio.optics._
+```
+
 ## Accessing Fields of a Product Type
 
 A `Lens[S, A]` allows accessing an element `A` in a product type `S`, such as a case class. A lens is defined in terms of a `get` and a `set` function.

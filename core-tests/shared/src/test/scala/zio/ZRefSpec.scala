@@ -1,5 +1,6 @@
 package zio
 
+import zio.optics._
 import zio.test.Assertion._
 import zio.test._
 
@@ -446,7 +447,7 @@ object ZRefSpec extends ZIOBaseSpec {
           checkM(Gen.either(Gen.anyInt, Gen.anyInt), Gen.anyInt) { (s, a) =>
             for {
               ref     <- Ref.make(s)
-              derived = ref.accessCase(left)
+              derived = ref.accessCase(Prism.left)
               _       <- derived.set(a)
               value   <- derived.get
             } yield assert(value)(equalTo(a))
@@ -456,7 +457,7 @@ object ZRefSpec extends ZIOBaseSpec {
           checkM(Gen.either(Gen.anyInt, Gen.anyInt)) { s =>
             for {
               ref     <- Ref.make(s)
-              derived = ref.accessCase(left)
+              derived = ref.accessCase(Prism.left)
               _       <- derived.get.foldM(_ => ZIO.unit, derived.set)
               value   <- ref.get
             } yield assert(value)(equalTo(s))
@@ -573,7 +574,4 @@ object ZRefSpec extends ZIOBaseSpec {
       s => if (0 <= n && n < s.length) Some(s(n)) else None,
       a => s => if (0 <= n && n < s.length) s.updated(n, a) else s
     )
-
-  def left[A, B]: Prism[Either[A, B], A] =
-    Prism(s => s match { case Left(a) => Some(a); case _ => None }, a => Left(a))
 }

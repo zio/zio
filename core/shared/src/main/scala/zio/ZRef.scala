@@ -18,6 +18,8 @@ package zio
 
 import java.util.concurrent.atomic.AtomicReference
 
+import zio.optics._
+
 /**
  * A `ZRef[EA, EB, A, B]` is a polymorphic, purely functional description of a
  * mutable reference. The fundamental operations of a `ZRef` are `set` and
