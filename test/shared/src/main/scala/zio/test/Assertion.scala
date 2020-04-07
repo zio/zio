@@ -19,7 +19,7 @@ package zio.test
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success, Try }
 
-import zio.{ Cause, Exit, ZIO }
+import zio.{ Cause, Exit }
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
@@ -78,7 +78,7 @@ final class Assertion[-A] private (
   /**
    * Tests the assertion to see if it would succeed on the given element.
    */
-  def test(a: A): ZIO[Any, Nothing, Boolean] =
+  def test(a: A): Boolean =
     run(a).isSuccess
 
   /**
@@ -186,23 +186,8 @@ object Assertion extends AssertionVariants {
    */
   def assertion[A](name: String)(params: RenderParam*)(run: (=> A) => Boolean): Assertion[A] = {
     lazy val assertion: Assertion[A] = assertionDirect(name)(params: _*) { actual =>
-      if (run(actual)) BoolAlgebraM.success(AssertionValue(assertion, actual))
-      else BoolAlgebraM.failure(AssertionValue(assertion, actual))
-    }
-    assertion
-  }
-
-  /**
-   * Makes a new `Assertion` from a pretty-printing and a function.
-   */
-  def assertionM[R, E, A](
-    name: String
-  )(params: RenderParam*)(run: (=> A) => ZIO[Any, Nothing, Boolean]): Assertion[A] = {
-    lazy val assertion: Assertion[A] = assertionDirect(name)(params: _*) { actual =>
-      BoolAlgebraM.fromEffect(run(actual)).flatMap { p =>
-        if (p) BoolAlgebraM.success(AssertionValue(assertion, actual))
-        else BoolAlgebraM.failure(AssertionValue(assertion, actual))
-      }
+      if (run(actual)) BoolAlgebra.success(AssertionValue(assertion, actual))
+      else BoolAlgebra.failure(AssertionValue(assertion, actual))
     }
     assertion
   }
@@ -229,40 +214,12 @@ object Assertion extends AssertionVariants {
     name: String
   )(params: RenderParam*)(
     assertion: Assertion[B]
-  )(get: (=> A) => Option[B], orElse: AssertionValue => AssertResult = BoolAlgebraM.failure): Assertion[A] = {
+  )(get: (=> A) => Option[B], orElse: AssertionValue => AssertResult = BoolAlgebra.failure): Assertion[A] = {
     lazy val result: Assertion[A] = assertionDirect(name)(params: _*) { a =>
       get(a) match {
         case Some(b) =>
-          BoolAlgebraM {
-            assertion.run(b).run.map { p =>
-              if (p.isSuccess) BoolAlgebra.success(AssertionValue(result, a))
-              else BoolAlgebra.failure(AssertionValue(assertion, b))
-            }
-          }
-        case None =>
-          orElse(AssertionValue(result, a))
-      }
-    }
-    result
-  }
-
-  def assertionRecM[R, E, A, B](
-    name: String
-  )(params: RenderParam*)(
-    assertion: Assertion[B]
-  )(
-    get: (=> A) => ZIO[Any, Nothing, Option[B]],
-    orElse: AssertionValue => AssertResult = BoolAlgebraM.failure
-  ): Assertion[A] = {
-    lazy val result: Assertion[A] = assertionDirect(name)(params: _*) { a =>
-      BoolAlgebraM.fromEffect(get(a)).flatMap {
-        case Some(b) =>
-          BoolAlgebraM {
-            assertion.run(b).run.map { p =>
-              if (p.isSuccess) BoolAlgebra.success(AssertionValue(result, a))
-              else BoolAlgebra.failure(AssertionValue(assertion, b))
-            }
-          }
+          if (assertion.test(b)) BoolAlgebra.success(AssertionValue(result, a))
+          else BoolAlgebra.failure(AssertionValue(assertion, b))
         case None =>
           orElse(AssertionValue(result, a))
       }
@@ -348,11 +305,7 @@ object Assertion extends AssertionVariants {
    * to contain a given element.
    */
   def exists[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRecM("exists")(param(assertion))(assertion) { actual =>
-      ZIO
-        .foreach(actual)(a => assertion.test(a).map(p => if (p) Some(a) else None))
-        .map(_.find(_.isDefined).flatten)
-    }
+    Assertion.assertionRec("exists")(param(assertion))(assertion)(_.find(assertion.test))
 
   /**
    * Makes a new assertion that requires an exit value to fail.
@@ -378,12 +331,9 @@ object Assertion extends AssertionVariants {
    * satisfying the given assertion.
    */
   def forall[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRecM("forall")(param(assertion))(assertion)(
-      actual =>
-        ZIO
-          .foreach(actual)(a => assertion.test(a).map(p => if (p) None else Some(a)))
-          .map(_.find(_.isDefined).flatten),
-      BoolAlgebraM.success
+    Assertion.assertionRec("forall")(param(assertion))(assertion)(
+      _.find(!assertion.test(_)),
+      BoolAlgebra.success
     )
 
   /**
@@ -509,14 +459,14 @@ object Assertion extends AssertionVariants {
    * by the specified assertion.
    */
   def hasSize[A](assertion: Assertion[Int]): Assertion[Iterable[A]] =
-    Assertion.assertionM("hasSize")(param(assertion))(actual => assertion.test(actual.size))
+    Assertion.assertionRec("hasSize")(param(assertion))(assertion)(actual => Some(actual.size))
 
   /**
    * Makes a new assertion that requires the size of a string be satisfied by
    * the specified assertion.
    */
   def hasSizeString(assertion: Assertion[Int]): Assertion[String] =
-    Assertion.assertionM("hasSizeString")(param(assertion))(actual => assertion.test(actual.size))
+    Assertion.assertionRec("hasSizeString")(param(assertion))(assertion)(actual => Some(actual.size))
 
   /**
    * Makes a new assertion that requires the specified Iterable to be a subset of the

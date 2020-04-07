@@ -25,12 +25,12 @@ object GenSpec extends ZIOBaseSpec {
           if (p) assert(())(Assertion.anything) else assert(n)(Assertion.nothing)
         }
 
-        assertM(CheckN(100)(gen)(test).flatMap { result =>
-          result.run.map(_.failures.fold(false) {
+        assertM(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "1"
             case _ => false
-          })
+          }
         })(isTrue)
       },
       testM("with bogus reverse property") {
@@ -44,16 +44,15 @@ object GenSpec extends ZIOBaseSpec {
             val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
             if (p) assert(())(Assertion.anything) else assert((as, bs))(Assertion.nothing)
         }
-        assertM(CheckN(100)(gen)(test).flatMap {
-          result =>
-            result.run.map(_.failures.fold(false) {
-              case BoolAlgebra.Value(failureDetails) =>
-                failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
-                  failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
-                  failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
-                  failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
-              case _ => false
-            })
+        assertM(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) {
+            case BoolAlgebra.Value(failureDetails) =>
+              failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
+                failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
+                failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
+                failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
+            case _ => false
+          }
         })(isTrue)
       },
       testM("with randomly generated functions") {
@@ -79,12 +78,12 @@ object GenSpec extends ZIOBaseSpec {
 
         def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
-        assertM(CheckN(100)(gen)(test).flatMap { result =>
-          result.run.map(_.failures.fold(false) {
+        assertM(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "List(0)"
             case _ => false
-          })
+          }
         })(isTrue)
       }
     ),
