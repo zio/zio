@@ -41,7 +41,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
-  def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] = Chunk.concat(self, that)
+  def appendNonEmpty[A1 >: A](nonEmptyChunk: NonEmptyChunk[A1]): NonEmptyChunk[A1] = Chunk.concat(self, nonEmptyChunk)
 
   /**
    * Appends an element to the chunk
@@ -596,6 +596,11 @@ sealed trait Chunk[+A] { self =>
 }
 
 object Chunk {
+
+  implicit class ChunkOps[A](private val self: Chunk[A]) extends AnyVal {
+    def ++[A1 >: A](chunk: Chunk[A1]): Chunk[A1]                         = concat(self, chunk)
+    def ++[A1 >: A](nonEmptyChunk: NonEmptyChunk[A1]): NonEmptyChunk[A1] = concat(self, nonEmptyChunk)
+  }
 
   /**
    * Returns the empty chunk.
@@ -1205,6 +1210,13 @@ object Chunk {
      * Zips this chunk with the specified chunk using the specified combiner.
      */
     override def zipWith[B, C](that: Chunk[B])(f: (Nothing, B) => C): Chunk[C] = Empty
+
+    //override type Concat[A1] = Chunk[A1]
+
+    /**
+     * Returns the concatenation of this chunk with the specified chunk.
+     */
+    def ++[A1](that: Chunk[A1]): Chunk[A1] = that
   }
 
   sealed trait NonEmpty[+A] extends Chunk[A] { self =>
@@ -1226,7 +1238,7 @@ object Chunk {
     /**
      * Returns the concatenation of this chunk with the specified chunk.
      */
-    final override def ++[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] = Chunk.concat(self, that)
+    final def ++[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] = Chunk.concat(self, that)
 
     /**
      * Materializes a chunk into a chunk backed by an array. This method can
