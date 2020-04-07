@@ -592,7 +592,7 @@ sealed trait Chunk[+A] { self =>
 
 object Chunk {
 
-  implicit class ChunkOps[A](private val self: Chunk[A]) extends AnyVal {
+  implicit class ChunkOps[+A](private val self: Chunk[A]) extends AnyVal {
 
     /**
      * Returns the concatenation of this chunk with the specified chunk.
