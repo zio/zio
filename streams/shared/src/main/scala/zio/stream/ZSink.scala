@@ -658,7 +658,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 if (self.cont(s2)) UIO.succeedNow(Left(s2))
                 else self.extract(s2).map(Right(_))
               },
-            { case (b, leftover) => UIO.succeedNow(Right((b, leftover ++ Chunk.single(a)))) }
+            { case (b, leftover) => UIO.succeedNow(Right((b, leftover ++ Chunk.single(ev(a))))) }
           )
 
         val rightStep: ZIO[R1, E1, Either[that.State, (C, Chunk[A00])]] =
@@ -668,7 +668,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 if (that.cont(s2)) UIO.succeedNow(Left(s2))
                 else that.extract(s2).map(Right(_))
               },
-            { case (c, leftover) => UIO.succeedNow(Right((c, leftover ++ Chunk.single(a)))) }
+            { case (c, leftover) => UIO.succeedNow(Right((c, (leftover ++ Chunk.single(ev(a)))))) }
           )
 
         leftStep.zipPar(rightStep)
