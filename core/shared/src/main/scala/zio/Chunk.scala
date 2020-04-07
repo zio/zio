@@ -1213,11 +1213,6 @@ object Chunk {
      * Zips this chunk with the specified chunk using the specified combiner.
      */
     override def zipWith[B, C](that: Chunk[B])(f: (Nothing, B) => C): Chunk[C] = Empty
-
-    /**
-     * Returns the concatenation of this chunk with the specified chunk.
-     */
-    def ++[A1](that: Chunk[A1]): Chunk[A1] = that
   }
 
   sealed trait NonEmpty[+A] extends Chunk[A] { self =>
