@@ -307,7 +307,7 @@ object ChunkSpec extends ZIOBaseSpec {
         Chunk.single(x),
         Chunk.succeed(x),
         nonEmptyChunk ++ chunk,
-        //chunk ++ nonEmptyChunk, //won't work
+        chunk ++ nonEmptyChunk,
         nonEmptyChunk.flatMap(i => Chunk(i)),
         nonEmptyChunk.map(identity),
         nonEmptyChunk.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
@@ -323,6 +323,17 @@ object ChunkSpec extends ZIOBaseSpec {
 
       assertCompletes
       //checks at compile time
+    } @@ TestAspect.ignore,
+    test("++ should work with subtyping") {
+
+      trait A
+      trait B extends A
+
+      val empty: Chunk[B] = Chunk.empty
+
+      val _: NonEmptyChunk[A] = empty ++ Chunk(new A {})
+
+      assertCompletes
     } @@ TestAspect.ignore
   )
 }

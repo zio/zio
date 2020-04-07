@@ -39,11 +39,6 @@ sealed trait Chunk[+A] { self =>
   val length: Int
 
   /**
-   * Returns the concatenation of this chunk with the specified chunk.
-   */
-  def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] = Chunk.concat(self, that)
-
-  /**
    * Appends an element to the chunk
    */
   final def +[A1 >: A](a: A1): NonEmptyChunk[A1] =
@@ -596,6 +591,19 @@ sealed trait Chunk[+A] { self =>
 }
 
 object Chunk {
+
+  implicit class ChunkOps[+A](private val self: Chunk[A]) extends AnyVal {
+
+    /**
+     * Returns the concatenation of this chunk with the specified chunk.
+     */
+    def ++[A1 >: A](chunk: Chunk[A1]): Chunk[A1] = concat(self, chunk)
+
+    /**
+     * Returns the concatenation of this chunk with the specified chunk.
+     */
+    def ++[A1 >: A](nonEmptyChunk: NonEmptyChunk[A1]): NonEmptyChunk[A1] = concat(self, nonEmptyChunk)
+  }
 
   /**
    * Returns the empty chunk.
@@ -1226,7 +1234,7 @@ object Chunk {
     /**
      * Returns the concatenation of this chunk with the specified chunk.
      */
-    final override def ++[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] = Chunk.concat(self, that)
+    final def ++[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] = Chunk.concat(self, that)
 
     /**
      * Materializes a chunk into a chunk backed by an array. This method can
