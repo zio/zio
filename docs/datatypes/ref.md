@@ -212,17 +212,17 @@ An `Optional[S, A]` allows accessing a single element of type `A` in a collectio
 
 ```scala mdoc:silent
 object Optional {
-  def apply[S, A](get: S => Option[A], set: A => S => S): Optional[S, A] = ???
+  def apply[S, A](get: S => Option[A], set: A => S => Option[S]): Optional[S, A] = ???
 }
 ```
 
-Given a collection of type `S`, we can `get` a value of type `A`, but the value may not exist if the collection does not contain the field we are accessing. The `set` operation requires both an `A` value and an original collection `S` and allows setting the `A` value in the collection, or returning the original collection unchanged if the position we are accessing does not exist. An example of this would be accessing an element at a given index in a `Vector`.
+Given a collection of type `S`, we can `get` a value of type `A`, but the value may not exist if the collection does not contain the field we are accessing. The `set` operation requires both an `A` value and an original collection `S` and allows setting the `A` value in the collection, but may fail if the field does not exist in the collection. An example of this would be accessing an element at a given index in a `Vector`.
 
 ```scala mdoc:silent
 def index[A](n: Int): Optional[Vector[A], A] =
   Optional(
     s => if (s.isDefinedAt(n)) Some(s(n)) else None,
-    a => s => if (s.isDefinedAt(n)) s.updated(n, a) else s
+    a => s => if (s.isDefinedAt(n)) Some(s.updated(n, a)) else None
   )
 ```
 

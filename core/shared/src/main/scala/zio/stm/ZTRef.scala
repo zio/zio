@@ -81,8 +81,8 @@ sealed trait ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Accesses a term of a sum type.
    */
-  final def accessCase[EC >: EA, ED >: EB, C, D](prism: ZPrism[ED, EC, B, A, D, C]): ZTRef[EC, ED, C, D] =
-    self.fold(identity, identity, prism._2(_)(()), prism._1)
+  final def accessCase[EC >: EA, ED >: EB, C, D](optic: ZOptic[B, Any, C, ED, EC, D, A]): ZTRef[EC, ED, C, D] =
+    self.fold(identity, identity, optic.setEither(_)(()), optic.getEither)
 
   /**
    * Maps and filters the `get` value of the `ZTRef` with the specified partial
@@ -90,7 +90,7 @@ sealed trait ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * result of the partial function if it is defined or else fails with `None`.
    */
   final def collect[C](pf: PartialFunction[B, C]): ZTRef[EA, Option[EB], A, C] =
-    fold(identity, Some(_), Right(_), pf.lift(_).fold[Either[Option[EB], C]](Left(None))(Right(_)))
+    fold(identity, Some(_), Right(_), pf.lift(_).toRight(None))
 
   /**
    * Transforms the `set` value of the `ZTRef` with the specified function.
@@ -416,15 +416,15 @@ object ZTRef {
      * Accesses some of the elements of a collection.
      */
     def accessElements[EC >: E, ED >: E, C, D](
-      traversal: ZTraversal[ED, EC, B, A, D, C]
+      optic: ZOptic[B, B, List[C], ED, EC, List[D], A]
     ): ZTRef[EC, ED, List[C], List[D]] =
-      self.foldS(identity, identity, traversal._2, traversal._1)
+      self.foldS(identity, identity, optic.setEither, optic.getEither)
 
     /**
      * Accesses a field of a product type.
      */
-    def accessField[EC >: E, ED >: E, C, D](lens: ZLens[ED, EC, B, A, D, C]): ZTRef[EC, ED, C, D] =
-      self.foldS(identity, identity, lens._2, lens._1)
+    def accessField[EC >: E, ED >: E, C, D](optic: ZOptic[B, B, C, ED, EC, D, A]): ZTRef[EC, ED, C, D] =
+      self.foldS(identity, identity, optic.setEither, optic.getEither)
   }
 
   implicit class UnifiedSyntax[E, A](private val self: ETRef[E, A]) extends AnyVal {

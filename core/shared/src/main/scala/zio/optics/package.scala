@@ -1,44 +1,32 @@
+/*
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio
 
 package object optics {
 
-  /**
-   * A `ZOptic` is able to get and set a piece of a whole, possibly failing. In
-   * the most general possible case, the set / get types are distinct, and
-   * setting may fail with a different error than getting.
-   *
-   * See more specific type aliases for concrete examples of what optics can be
-   * used to do.
-   */
-  type ZOptic[-GetWhole, -SetWholeBefore, -SetPiece, +GetError, +SetError, +GetPiece, +SetWholeAfter] =
-    (GetWhole => Either[GetError, GetPiece], SetPiece => SetWholeBefore => Either[SetError, SetWholeAfter])
+  type ZIso[-S, +T, +A, -B]       = ZOptic[S, Any, B, Nothing, Nothing, A, T]
+  type ZLens[-S, +T, +A, -B]      = ZOptic[S, S, B, Nothing, Nothing, A, T]
+  type ZOptional[-S, +T, +A, -B]  = ZOptic[S, S, B, Unit, Unit, A, T]
+  type ZPrism[-S, +T, +A, -B]     = ZOptic[S, Any, B, Unit, Nothing, A, T]
+  type ZTraversal[-S, +T, +A, -B] = ZOptic[S, S, List[B], Nothing, Unit, List[A], T]
 
-  type ZLens[+EA, +EB, -S, +T, +A, -B]      = ZOptic[S, S, B, EA, EB, A, T]
-  type ZPrism[+EA, +EB, -S, +T, +A, -B]     = ZOptic[S, Any, B, EA, EB, A, T]
-  type ZTraversal[+EA, +EB, -S, +T, +A, -B] = ZOptic[S, S, List[B], EA, EB, List[A], T]
-
-  type Lens[S, A]      = ZLens[Nothing, Nothing, S, S, A, A]
-  type Optional[S, A]  = ZLens[Unit, Nothing, S, S, A, A]
-  type Prism[S, A]     = ZPrism[Unit, Nothing, S, S, A, A]
-  type Traversal[S, A] = ZTraversal[Nothing, Unit, S, S, A, A]
-
-  object Lens {
-    def apply[S, A](get: S => A, set: A => S => S): Lens[S, A] =
-      (s => Right(get(s)), a => s => Right(set(a)(s)))
-  }
-
-  object Optional {
-    def apply[S, A](get: S => Option[A], set: A => S => S): Optional[S, A] =
-      (s => get(s).fold[Either[Unit, A]](Left(()))(Right(_)), a => s => Right(set(a)(s)))
-  }
-
-  object Prism {
-    def apply[S, A](get: S => Option[A], set: A => S): Prism[S, A] =
-      (s => get(s).fold[Either[Unit, A]](Left(()))(Right(_)), a => _ => Right(set(a)))
-  }
-
-  object Traversal {
-    def apply[S, A](get: S => List[A], set: List[A] => S => Option[S]): Traversal[S, A] =
-      (s => Right(get(s)), a => s => set(a)(s).fold[Either[Unit, S]](Left(()))(Right(_)))
-  }
+  type Iso[S, A]       = ZIso[S, S, A, A]
+  type Lens[S, A]      = ZLens[S, S, A, A]
+  type Optional[S, A]  = ZOptional[S, S, A, A]
+  type Prism[S, A]     = ZPrism[S, S, A, A]
+  type Traversal[S, A] = ZTraversal[S, S, A, A]
 }

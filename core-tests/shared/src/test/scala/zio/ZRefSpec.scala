@@ -402,7 +402,7 @@ object ZRefSpec extends ZIOBaseSpec {
           checkM(Gen.anyInt.zip(Gen.anyInt), Gen.anyInt) { (s, a) =>
             for {
               ref     <- Ref.make(s)
-              derived = ref.accessField(first)
+              derived = ref.accessField(Lens.first)
               _       <- derived.set(a)
               value   <- derived.get
             } yield assert(value)(equalTo(a))
@@ -412,7 +412,7 @@ object ZRefSpec extends ZIOBaseSpec {
           checkM(Gen.anyInt.zip(Gen.anyInt)) { s =>
             for {
               ref     <- Ref.make(s)
-              derived = ref.accessField(first)
+              derived = ref.accessField(Lens.first)
               value1  <- derived.get
               _       <- derived.set(value1)
               value2  <- ref.get
@@ -423,7 +423,7 @@ object ZRefSpec extends ZIOBaseSpec {
           checkM(Gen.anyInt.zip(Gen.anyInt), Gen.anyInt) { (s, a) =>
             for {
               ref     <- Ref.make(s)
-              derived = ref.accessField(first)
+              derived = ref.accessField(Lens.first)
               _       <- derived.set(a)
               value1  <- ref.get
               _       <- derived.set(a)
@@ -436,7 +436,7 @@ object ZRefSpec extends ZIOBaseSpec {
         testM("modifies matching field") {
           for {
             ref     <- Ref.make(Vector(1, 2, 3, 4, 5))
-            derived = ref.accessField(index(1))
+            derived = ref.accessField(Optional.index(1))
             _       <- derived.update(_ * 10)
             value   <- ref.get
           } yield assert(value)(equalTo(Vector(1, 20, 3, 4, 5)))
@@ -447,7 +447,7 @@ object ZRefSpec extends ZIOBaseSpec {
           checkM(Gen.either(Gen.anyInt, Gen.anyInt), Gen.anyInt) { (s, a) =>
             for {
               ref     <- Ref.make(s)
-              derived = ref.accessCase(left)
+              derived = ref.accessCase(Prism.left)
               _       <- derived.set(a)
               value   <- derived.get
             } yield assert(value)(equalTo(a))
@@ -457,7 +457,7 @@ object ZRefSpec extends ZIOBaseSpec {
           checkM(Gen.either(Gen.anyInt, Gen.anyInt)) { s =>
             for {
               ref     <- Ref.make(s)
-              derived = ref.accessCase(left)
+              derived = ref.accessCase(Prism.left)
               _       <- derived.get.foldM(_ => ZIO.unit, derived.set)
               value   <- ref.get
             } yield assert(value)(equalTo(s))
@@ -468,7 +468,7 @@ object ZRefSpec extends ZIOBaseSpec {
         testM("modifies matching fields") {
           for {
             ref     <- Ref.make(List(1, 2, 3, 4, 5))
-            derived = ref.accessElements(filter(_ % 2 == 0))
+            derived = ref.accessElements(Traversal.filter(_ % 2 == 0))
             _       <- derived.update(_.map(_ * 10))
             value   <- ref.get
           } yield assert(value)(equalTo(List(1, 20, 3, 40, 5)))
@@ -501,7 +501,7 @@ object ZRefSpec extends ZIOBaseSpec {
         def index[A](n: Int): Optional[Vector[A], A] =
           Optional(
             s => if (s.isDefinedAt(n)) Some(s(n)) else None,
-            a => s => if (s.isDefinedAt(n)) s.updated(n, a) else s
+            a => s => if (s.isDefinedAt(n)) Some(s.updated(n, a)) else None
           )
         for {
           ref   <- Ref.make(Vector(1, 2, 3))
@@ -548,33 +548,4 @@ object ZRefSpec extends ZIOBaseSpec {
     def make[A](a: A): UIO[Ref[A]] =
       Ref.make(a).map(ref => ref.foldS(identity, identity, a => _ => Right(a), Right(_)))
   }
-
-  def filter[A](f: A => Boolean): Traversal[List[A], A] =
-    Traversal(
-      s => s.filter(f),
-      a =>
-        s => {
-          def loop(a: List[A], s: List[A], acc: List[A]): Option[List[A]] =
-            (a, s) match {
-              case (h1 :: t1, h2 :: t2) if (f(h2)) => loop(t1, t2, h1 :: acc)
-              case (_, h2 :: _) if (f(h2))         => None
-              case (a, h2 :: t2)                   => loop(a, t2, h2 :: acc)
-              case (_, _)                          => Some(acc.reverse)
-              case _                               => None
-            }
-          loop(a, s, List.empty)
-        }
-    )
-
-  def first[A, B]: Lens[(A, B), A] =
-    Lens(s => s._1, a => s => (a, s._2))
-
-  def index[A](n: Int): Optional[Vector[A], A] =
-    Optional(
-      s => if (0 <= n && n < s.length) Some(s(n)) else None,
-      a => s => if (0 <= n && n < s.length) s.updated(n, a) else s
-    )
-
-  def left[A, B]: Prism[Either[A, B], A] =
-    Prism(s => s match { case Left(a) => Some(a); case _ => None }, a => Left(a))
 }
