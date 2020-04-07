@@ -280,6 +280,18 @@ object STM {
     ZSTM.unit
 
   /**
+   * @see See [[zio.stm.ZSTM.unless]]
+   */
+  def unless[E](b: => Boolean)(stm: => STM[E, Any]): STM[E, Unit] =
+    ZSTM.unless(b)(stm)
+
+  /**
+   * @see See [[zio.stm.ZSTM.unlessM]]
+   */
+  def unlessM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] =
+    ZSTM.unlessM(b)(stm)
+
+  /**
    * @see See [[zio.stm.ZSTM.validate]]
    */
   def validate[E, A, B](

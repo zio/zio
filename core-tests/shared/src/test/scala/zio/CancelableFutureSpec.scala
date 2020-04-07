@@ -81,7 +81,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         for {
           p1 <- Promise.make[Nothing, Unit]
           p2 <- Promise.make[Nothing, Unit]
-          f1 <- (ZIO.succeedNow(42) <* p1.succeed(())).toFuture
+          f1 <- (ZIO.succeed(42) <* p1.succeed(())).toFuture
           f2 <- ZIO.fail(t).onError(_ => p2.succeed(())).toFuture
           _  <- p1.await *> p2.await
           e1 <- ZIO.fromFuture(_ => f1.cancel())

@@ -14,7 +14,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   trait Cat extends Animal
 
   def testSize[R <: Has[_]](layer: Layer[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
-    layer.build.use(env => ZIO.succeedNow(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
+    layer.build.use(env => ZIO.succeed(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
 
   val acquire1 = "Acquiring Module 1"
   val acquire2 = "Acquiring Module 2"

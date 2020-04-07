@@ -81,24 +81,24 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ exceptScala2,
     test("failure makes a test pass if the result was a failure") {
       assert(throw new java.lang.Exception("boom"))(isFalse)
-    } @@ failure,
+    } @@ failing,
     test("failure makes a test pass if it died with a specified failure") {
       assert(throw new NullPointerException())(isFalse)
-    } @@ failure(diesWithSubtypeOf[NullPointerException]),
+    } @@ failing(diesWithSubtypeOf[NullPointerException]),
     test("failure does not make a test pass if it failed with an unexpected exception") {
       assert(throw new NullPointerException())(isFalse)
-    } @@ failure(diesWithSubtypeOf[IllegalArgumentException])
-      @@ failure,
+    } @@ failing(diesWithSubtypeOf[IllegalArgumentException])
+      @@ failing,
     test("failure does not make a test pass if the specified failure does not match") {
       assert(throw new RuntimeException())(isFalse)
-    } @@ failure(diesWith(hasMessage(equalTo("boom"))))
-      @@ failure,
+    } @@ failing(diesWith(hasMessage(equalTo("boom"))))
+      @@ failing,
     test("failure makes tests pass on any assertion failure") {
       assert(true)(equalTo(false))
-    } @@ failure,
+    } @@ failing,
     test("failure makes tests pass on an expected assertion failure") {
       assert(true)(equalTo(false))
-    } @@ failure(
+    } @@ failing(
       isCase[TestFailure[Any], Any](
         "Assertion",
         { case TestFailure.Assertion(result) => Some(result); case _ => None },
@@ -127,7 +127,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     test("flaky retries a test with a limit") {
       assert(true)(isFalse)
-    } @@ flaky @@ failure,
+    } @@ flaky @@ failing,
     testM("forked runs each test on its own separate fiber") {
       for {
         _        <- ZIO.infinity.fork
@@ -212,10 +212,10 @@ object TestAspectSpec extends ZIOBaseSpec {
       } @@ nonTermination(10.milliseconds),
       testM("makes a test fail if it succeeds within the specified time") {
         assertM(ZIO.unit)(anything)
-      } @@ nonTermination(1.minute) @@ failure,
+      } @@ nonTermination(1.minute) @@ failing,
       testM("makes a test fail if it fails within the specified time") {
         assertM(ZIO.fail("fail"))(anything)
-      } @@ nonTermination(1.minute) @@ failure
+      } @@ nonTermination(1.minute) @@ failing
     ),
     testM("retry retries failed tests according to a schedule") {
       for {
@@ -245,12 +245,12 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("timeout makes tests fail after given duration") {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
-      @@ failure(diesWithSubtypeOf[TestTimeoutException]),
+      @@ failing(diesWithSubtypeOf[TestTimeoutException]),
     testM("verify verifies the specified post-condition after each test is run") {
       for {
         ref <- Ref.make(false)
         spec = suite("verify")(
-          testM("first test")(ZIO.succeedNow(assertCompletes)),
+          testM("first test")(ZIO.succeed(assertCompletes)),
           testM("second test")(ref.set(true).as(assertCompletes))
         ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
         result <- succeeded(spec)

@@ -138,7 +138,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Propagates the given environment to self.
    */
-  def >>>[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
+  def >>>[E1 >: E, B](that: ZSTM[A, E1, B]): ZSTM[R, E1, B] =
     flatMap(that.provide)
 
   /**
@@ -151,13 +151,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Returns an effect that submerges the error case of an `Either` into the
    * `STM`. The inverse operation of `STM.either`.
    */
-  def absolve[R1 <: R, E1, B](implicit ev1: ZSTM[R, E, A] <:< ZSTM[R1, E1, Either[E1, B]]): ZSTM[R1, E1, B] =
-    ZSTM.absolve[R1, E1, B](ev1(self))
+  def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZSTM[R, E1, B] =
+    ZSTM.absolve(self.map(ev))
 
   /**
    * Named alias for `>>>`.
    */
-  def andThen[R1 >: A, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R, E1, B] =
+  def andThen[E1 >: E, B](that: ZSTM[A, E1, B]): ZSTM[R, E1, B] =
     self >>> that
 
   /**
@@ -763,6 +763,18 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def unit: ZSTM[R, E, Unit] = as(())
 
   /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  final def unless(b: => Boolean): ZSTM[R, E, Unit] =
+    ZSTM.unless(b)(self)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  final def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+    ZSTM.unlessM(b)(self)
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
   def when(b: => Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
@@ -1256,6 +1268,18 @@ object ZSTM {
   val unit: USTM[Unit] = succeedNow(())
 
   /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  def unless[R, E](b: => Boolean)(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    suspend(if (b) unit else stm.unit)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessM[R, E](b: ZSTM[R, E, Boolean])(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    b.flatMap(b => if (b) unit else stm.unit)
+
+  /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error
    * channel or successes in success channel.
    *
@@ -1336,8 +1360,7 @@ object ZSTM {
 
     type TxnId = Long
 
-    type Journal =
-      MutableMap[TRef[_], ZSTM.internal.Entry]
+    type Journal = MutableMap[ZTRef.Atomic[_], Entry]
 
     type Todo = () => Any
 
@@ -1345,7 +1368,7 @@ object ZSTM {
      * Creates a function that can reset the journal.
      */
     def prepareResetJournal(journal: Journal): () => Any = {
-      val saved = new MutableMap[TRef[_], Entry](journal.size)
+      val saved = new MutableMap[ZTRef.Atomic[_], Entry](journal.size)
 
       val it = journal.entrySet.iterator
       while (it.hasNext) {
@@ -1368,7 +1391,7 @@ object ZSTM {
      * Allocates memory for the journal, if it is null, otherwise just clears it.
      */
     def allocJournal(journal: Journal): Journal =
-      if (journal eq null) new MutableMap[TRef[_], Entry](DefaultJournalSize)
+      if (journal eq null) new MutableMap[ZTRef.Atomic[_], Entry](DefaultJournalSize)
       else {
         journal.clear()
         journal
@@ -1492,7 +1515,7 @@ object ZSTM {
      * Finds all the new todo targets that are not already tracked in the `oldJournal`.
      */
     def untrackedTodoTargets(oldJournal: Journal, newJournal: Journal): Journal = {
-      val untracked = new MutableMap[TRef[_], Entry](newJournal.size)
+      val untracked = new MutableMap[ZTRef.Atomic[_], Entry](newJournal.size)
 
       untracked.putAll(newJournal)
 
@@ -1559,7 +1582,7 @@ object ZSTM {
     }
 
     def tryCommit[R, E, A](platform: Platform, fiberId: Fiber.Id, stm: ZSTM[R, E, A], r: R): TryCommit[E, A] = {
-      var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
+      var journal = null.asInstanceOf[MutableMap[ZTRef.Atomic[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
       var loop    = true
@@ -1623,12 +1646,12 @@ object ZSTM {
     }
 
     abstract class Entry { self =>
-      type A
+      type S
 
-      val tref: TRef[A]
+      val tref: ZTRef.Atomic[S]
 
-      protected[this] val expected: Versioned[A]
-      protected[this] var newValue: A
+      protected[this] val expected: Versioned[S]
+      protected[this] var newValue: S
 
       val isNew: Boolean
 
@@ -1636,7 +1659,7 @@ object ZSTM {
 
       def unsafeSet(value: Any): Unit = {
         _isChanged = true
-        newValue = value.asInstanceOf[A]
+        newValue = value.asInstanceOf[S]
       }
 
       def unsafeGet[B]: B = newValue.asInstanceOf[B]
@@ -1650,7 +1673,7 @@ object ZSTM {
        * Creates a copy of the Entry.
        */
       def copy(): Entry = new Entry {
-        type A = self.A
+        type S = self.S
         val tref     = self.tref
         val expected = self.expected
         val isNew    = self.isNew
@@ -1685,11 +1708,11 @@ object ZSTM {
        * Creates an entry for the journal, given the `TRef` being untracked, the
        * new value of the `TRef`, and the expected version of the `TRef`.
        */
-      def apply[A0](tref0: TRef[A0], isNew0: Boolean): Entry = {
+      private[stm] def apply[A0](tref0: ZTRef.Atomic[A0], isNew0: Boolean): Entry = {
         val versioned = tref0.versioned
 
         new Entry {
-          type A = A0
+          type S = A0
           val tref     = tref0
           val isNew    = isNew0
           val expected = versioned

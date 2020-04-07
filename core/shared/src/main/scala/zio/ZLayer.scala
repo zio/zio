@@ -1031,7 +1031,7 @@ object ZLayer {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
- 
+
   /**
    * Constructs a layer that purely depends on the specified services, which
    * must return one or more services. For the more common variant that returns
@@ -2024,6 +2024,20 @@ object ZLayer {
   def succeedMany[A](a: => A): Layer[Nothing, A] =
     ZLayer(ZManaged.succeed(a))
 
+  /**
+   * Unwraps a `ZLayer` that is inside a `ZIO`.
+   */
+  def unwrap[R, E, A](fa: ZIO[R, E, ZLayer[R, E, A]]): ZLayer[R, E, A] =
+    new ZLayer(
+      Managed.succeed { memoMap =>
+        for {
+          layer <- ZManaged.fromEffect(fa)
+          scope <- layer.scope
+          a     <- scope(memoMap)
+        } yield a
+      }
+    )
+
   implicit final class ZLayerHasROutOps[RIn, E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
     /**
@@ -2041,12 +2055,30 @@ object ZLayer {
       self.zipWithPar(that)(_.unionAll[ROut2](_))
 
     /**
-      * A named alias for `++`.
-      */
+     * Feeds the output services of this layer into the input of the specified
+     * layer, resulting in a new layer with the inputs of this layer, and the
+     * outputs of both this layer and the specified layer.
+     */
+    def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+      self ++ (self >>> that)
+
+    /**
+     * A named alias for `++`.
+     */
     def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2 <: Has[_]](
       that: ZLayer[RIn2, E1, ROut2]
     )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
       self ++ that
+
+    /**
+     * A named alias for `>+>`.
+     */
+    def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2 <: Has[_]](
+      that: ZLayer[RIn2, E1, ROut2]
+    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+      self >+> that
 
     /**
      * Updates one of the services output by this layer.

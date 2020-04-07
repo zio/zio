@@ -18,6 +18,10 @@ package zio
 
 import java.lang.{ System => JSystem }
 
+import scala.collection.JavaConverters._
+
+import com.github.ghik.silencer.silent
+
 package object system {
 
   type System = Has[System.Service]
@@ -25,6 +29,10 @@ package object system {
   object System extends Serializable {
     trait Service extends Serializable {
       def env(variable: String): IO[SecurityException, Option[String]]
+
+      val envs: IO[SecurityException, Map[String, String]]
+
+      val properties: IO[Throwable, Map[String, String]]
 
       def property(prop: String): IO[Throwable, Option[String]]
 
@@ -36,6 +44,14 @@ package object system {
 
         def env(variable: String): IO[SecurityException, Option[String]] =
           IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
+
+        @silent("JavaConverters")
+        val envs: IO[SecurityException, Map[String, String]] =
+          IO.effect(JSystem.getenv.asScala.toMap).refineToOrDie[SecurityException]
+
+        @silent("JavaConverters")
+        val properties: IO[Throwable, Map[String, String]] =
+          IO.effect(JSystem.getProperties.asScala.toMap)
 
         def property(prop: String): IO[Throwable, Option[String]] =
           IO.effect(Option(JSystem.getProperty(prop)))
@@ -54,6 +70,18 @@ package object system {
   /** Retrieve the value of an environment variable **/
   def env(variable: => String): ZIO[System, SecurityException, Option[String]] =
     ZIO.accessM(_.get env variable)
+
+  /**
+   * Retrieve the values of all environment variables.
+   */
+  val envs: ZIO[System, SecurityException, Map[String, String]] =
+    ZIO.accessM(_.get.envs)
+
+  /**
+   * Retrieve the values of all system properties.
+   */
+  val properties: ZIO[System, Throwable, Map[String, String]] =
+    ZIO.accessM(_.get.properties)
 
   /** Retrieve the value of a system property **/
   def property(prop: => String): ZIO[System, Throwable, Option[String]] =

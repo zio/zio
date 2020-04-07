@@ -7,39 +7,45 @@ import zio.test.environment.Live
 
 object RandomSpec extends ZIOBaseSpec {
 
+  implicit val DoubleOrdering: Ordering[Double] =
+    (l, r) => java.lang.Double.compare(l, r)
+
+  implicit val FloatOrdering: Ordering[Float] =
+    (l, r) => java.lang.Float.compare(l, r)
+
   def spec = suite("RandomSpec")(
-    testM("between generates doubles in specified range") {
+    testM("nextDoubleBetween generates doubles in specified range") {
       checkM(genDoubles) {
         case (min, max) =>
           for {
-            n <- Live.live(random.between(min, max))
+            n <- Live.live(random.nextDoubleBetween(min, max))
           } yield assert(n)(isGreaterThanEqualTo(min)) &&
             assert(n)(isLessThan(max))
       }
     },
-    testM("between generates floats in specified range") {
+    testM("nextFloatBetween generates floats in specified range") {
       checkM(genFloats) {
         case (min, max) =>
           for {
-            n <- Live.live(random.between(min, max))
+            n <- Live.live(random.nextFloatBetween(min, max))
           } yield assert(n)(isGreaterThanEqualTo(min)) &&
             assert(n)(isLessThan(max))
       }
     },
-    testM("between generates integers in specified range") {
+    testM("nextIntBetween generates integers in specified range") {
       checkM(genInts) {
         case (min, max) =>
           for {
-            n <- Live.live(random.between(min, max))
+            n <- Live.live(random.nextIntBetween(min, max))
           } yield assert(n)(isGreaterThanEqualTo(min)) &&
             assert(n)(isLessThan(max))
       }
     },
-    testM("between generates longs in specified range") {
+    testM("nextLongBetween generates longs in specified range") {
       checkM(genLongs) {
         case (min, max) =>
           for {
-            n <- Live.live(random.between(min, max))
+            n <- Live.live(random.nextLongBetween(min, max))
           } yield assert(n)(isGreaterThanEqualTo(min)) &&
             assert(n)(isLessThan(max))
       }

@@ -85,13 +85,13 @@ object DeriveGen {
     instance(Gen.function(ev.derive))
 
   implicit def genIterable[A](implicit ev: DeriveGen[A]): DeriveGen[Iterable[A]] =
-    instance(Gen.oneOf(Gen.listOf(ev.derive), Gen.vectorOf(ev.derive), Gen.listOf(ev.derive).map(_.toSet)))
+    instance(Gen.oneOf(Gen.listOf(ev.derive), Gen.vectorOf(ev.derive), Gen.setOf(ev.derive)))
 
   implicit def genList[A](implicit ev: DeriveGen[A]): DeriveGen[List[A]] =
     instance(Gen.listOf(ev.derive))
 
   implicit def genMap[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[Map[A, B]] =
-    instance(Gen.listOf(ev1.derive <&> ev2.derive).map(_.toMap))
+    instance(Gen.mapOf(ev1.derive, ev2.derive))
 
   implicit def genOption[A](implicit ev: DeriveGen[A]): DeriveGen[Option[A]] =
     instance(Gen.option(ev.derive))
@@ -103,7 +103,7 @@ object DeriveGen {
     instance(Gen.partialFunction(ev.derive))
 
   implicit def genSet[A](implicit ev: DeriveGen[A]): DeriveGen[Set[A]] =
-    instance(Gen.listOf(ev.derive).map(_.toSet))
+    instance(Gen.setOf(ev.derive))
 
   implicit def genTuple2[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[(A, B)] =
     instance(Gen.zipN(ev1.derive, ev2.derive)((_, _)))
@@ -129,10 +129,10 @@ object DeriveGen {
   type Typeclass[T] = DeriveGen[T]
 
   def combine[T](caseClass: CaseClass[Typeclass, T]): Typeclass[T] =
-    instance(Gen.zipAll(caseClass.parameters.map(_.typeclass.derive)).map(caseClass.rawConstruct))
+    instance(Gen.suspend(Gen.zipAll(caseClass.parameters.map(_.typeclass.derive)).map(caseClass.rawConstruct)))
 
   def dispatch[T](sealedTrait: SealedTrait[Typeclass, T]): Typeclass[T] =
-    instance(Gen.oneOf(sealedTrait.subtypes.map(_.typeclass.derive): _*))
+    instance(Gen.suspend(Gen.oneOf(sealedTrait.subtypes.map(_.typeclass.derive): _*)))
 
   implicit def gen[T]: Typeclass[T] = macro Magnolia.gen[T]
 }

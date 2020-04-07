@@ -186,7 +186,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyByte: Gen[Random, Byte] =
     fromEffectSample {
-      nextInt(Byte.MaxValue - Byte.MinValue + 1)
+      nextIntBounded(Byte.MaxValue - Byte.MinValue + 1)
         .map(r => (Byte.MinValue + r).toByte)
         .map(Sample.shrinkIntegral(0))
     }
@@ -196,7 +196,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyChar: Gen[Random, Char] =
     fromEffectSample {
-      nextInt(Char.MaxValue - Char.MinValue + 1)
+      nextIntBounded(Char.MaxValue - Char.MinValue + 1)
         .map(r => (Char.MinValue + r).toChar)
         .map(Sample.shrinkIntegral(0))
     }
@@ -230,7 +230,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyShort: Gen[Random, Short] =
     fromEffectSample {
-      nextInt(Short.MaxValue - Short.MinValue + 1)
+      nextIntBounded(Short.MaxValue - Short.MinValue + 1)
         .map(r => (Short.MinValue + r).toShort)
         .map(Sample.shrinkIntegral(0))
     }
@@ -259,6 +259,38 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
       (mostSigBits & ~0x0000F000) | 0x00004000,
       (leastSigBits & ~(0xC0000000L << 32)) | (0x80000000L << 32)
     )
+
+  /**
+   * A generator of big decimals inside the specified range: [start, end].
+   * The shrinker will shrink toward the lower end of the range ("smallest").
+   *
+   * The values generated will have a precision equal to the precision of the
+   * difference between `max` and `min`.
+   */
+  def bigDecimal(min: BigDecimal, max: BigDecimal): Gen[Random, BigDecimal] = {
+    val difference = max - min
+    val decimals   = difference.scale max 0
+    val bigInt     = (difference * BigDecimal(10).pow(decimals)).toBigInt
+    Gen.bigInt(0, bigInt).map(bigInt => min + BigDecimal(bigInt) / BigDecimal(10).pow(decimals))
+  }
+
+  /**
+   * A generator of big integers inside the specified range: [start, end].
+   * The shrinker will shrink toward the lower end of the range ("smallest").
+   */
+  def bigInt(min: BigInt, max: BigInt): Gen[Random, BigInt] =
+    Gen.fromEffectSample {
+      val bitLength  = (max - min).bitLength
+      val byteLength = ((bitLength.toLong + 7) / 8).toInt
+      val excessBits = byteLength * 8 - bitLength
+      val mask       = (1 << (8 - excessBits)) - 1
+      val effect = nextBytes(byteLength).map { bytes =>
+        val arr = bytes.toArray
+        arr(0) = (arr(0) & mask).toByte
+        min + BigInt(arr)
+      }.doUntil(n => min <= n && n <= max)
+      effect.map(Sample.shrinkIntegral(min))
+    }
 
   /**
    * A generator of booleans. Shrinks toward 'false'.
@@ -406,7 +438,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.fromEffectSample {
       val difference = max - min + 1
       val effect =
-        if (difference > 0) nextInt(difference).map(min + _)
+        if (difference > 0) nextIntBounded(difference).map(min + _)
         else nextInt.doUntil(n => min <= n && n <= max)
       effect.map(Sample.shrinkIntegral(min))
     }
@@ -441,7 +473,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.fromEffectSample {
       val difference = max - min + 1
       val effect =
-        if (difference > 0) nextLong(difference).map(min + _)
+        if (difference > 0) nextLongBounded(difference).map(min + _)
         else nextLong.doUntil(n => min <= n && n <= max)
       effect.map(Sample.shrinkIntegral(min))
     }

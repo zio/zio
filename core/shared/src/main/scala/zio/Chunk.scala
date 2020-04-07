@@ -26,6 +26,10 @@ import scala.reflect.{ classTag, ClassTag }
  * are usually backed by arrays, but expose a purely functional, safe interface
  * to the underlying elements, and they become lazy on operations that would be
  * costly with arrays, such as repeated concatenation.
+ *
+ * NOTE: For performance reasons `Chunk` does not box primitive types. As a
+ * result, it is not safe to construct chunks from heteregenous primitive
+ * types.
  */
 sealed trait Chunk[+A] { self =>
 
@@ -35,19 +39,13 @@ sealed trait Chunk[+A] { self =>
   val length: Int
 
   /**
-   * Returns the concatenation of this chunk with the specified chunk.
-   */
-  final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
-    if (self.length == 0) that
-    else if (that.length == 0) self
-    else Chunk.Concat(self, that)
-
-  /**
    * Appends an element to the chunk
    */
-  final def +[A1 >: A](a: A1): Chunk[A1] =
-    if (self.length == 0) Chunk.single(a)
-    else Chunk.Concat(self, Chunk.single(a))
+  final def +[A1 >: A](a: A1): NonEmptyChunk[A1] =
+    self match {
+      case Chunk.Empty          => Chunk.single(a)
+      case ne: NonEmptyChunk[A] => Chunk.concat(ne, Chunk.single(a))
+    }
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
@@ -81,7 +79,7 @@ sealed trait Chunk[+A] { self =>
         case Chunk.Singleton(_) if n > 0 => Chunk.empty
         case c @ Chunk.Singleton(_)      => c
         case Chunk.Empty                 => Chunk.empty
-        case _                           => Chunk.Slice(self, n, len - n)
+        case ne: NonEmptyChunk[A]        => Chunk.Slice(ne, n, len - n)
       }
   }
 
@@ -384,69 +382,18 @@ sealed trait Chunk[+A] { self =>
   /**
    * Returns a chunk with the elements mapped by the specified function.
    */
-  def map[B](f: A => B): Chunk[B] = {
-    val len  = self.length
-    var dest = null.asInstanceOf[Array[B]]
-
-    var i = 0
-    while (i < len) {
-      val b = f(self(i))
-
-      if (dest == null) {
-        implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-
-        dest = Array.ofDim[B](len)
-      }
-
-      dest(i) = b
-
-      i = i + 1
-    }
-
-    if (dest != null) Chunk.Arr(dest)
-    else Chunk.Empty
-  }
+  def map[B](f: A => B): Chunk[B]
 
   /**
    * Statefully maps over the chunk, producing new elements of type `B`.
    */
-  final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, Chunk[B]) = {
-    var s: S1          = s1
-    var i              = 0
-    var dest: Array[B] = null.asInstanceOf[Array[B]]
-    val len            = self.length
-
-    while (i < len) {
-      val a = self(i)
-      val t = f1(s, a)
-
-      s = t._1
-      val b = t._2
-
-      if (dest == null) {
-        implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-
-        dest = Array.ofDim(len)
-      }
-
-      dest(i) = b
-
-      i += 1
-    }
-
-    s ->
-      (if (dest == null) Chunk.empty
-       else Chunk.Arr(dest))
-  }
+  def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, Chunk[B])
 
   /**
    * Materializes a chunk into a chunk backed by an array. This method can
    * improve the performance of bulk operations.
    */
-  def materialize[A1 >: A]: Chunk[A1] = self.toArrayOption[A1] match {
-    case None        => Chunk.Empty
-    case Some(array) => Chunk.Arr(array)
-  }
+  def materialize[A1 >: A]: Chunk[A1]
 
   /**
    * Generates a readable string representation of this chunk using the
@@ -511,7 +458,7 @@ sealed trait Chunk[+A] { self =>
           if (n >= l) this
           else Chunk.Slice(c, o, n)
         case c @ Chunk.Singleton(_) => c
-        case _                      => Chunk.Slice(self, 0, n)
+        case ne: NonEmptyChunk[A]   => Chunk.Slice(ne, 0, n)
       }
 
   /**
@@ -581,94 +528,17 @@ sealed trait Chunk[+A] { self =>
    * Statefully and effectfully maps over the elements of this chunk to produce
    * new elements.
    */
-  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] = {
-    val len                             = self.length
-    var dest: ZIO[R, E, (S1, Array[B])] = UIO.succeedNow((s1, null.asInstanceOf[Array[B]]))
-
-    var i = 0
-    while (i < len) {
-      val j = i
-      dest = dest.flatMap {
-        case (state, array) =>
-          f1(state, self(j)).map {
-            case (state2, b) =>
-              val array2 = if (array == null) {
-                implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-                Array.ofDim[B](len)
-              } else array
-
-              array2(j) = b
-              (state2, array2)
-          }
-      }
-
-      i += 1
-    }
-
-    dest.map {
-      case (state, array) =>
-        if (array == null) (state, Chunk.empty)
-        else (state, Chunk.fromArray(array))
-    }
-  }
+  def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])]
 
   /**
    * Effectfully maps the elements of this chunk.
    */
-  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
-    val len                        = self.length
-    var array: ZIO[R, E, Array[B]] = IO.succeedNow(null.asInstanceOf[Array[B]])
-    var i                          = 0
-
-    while (i < len) {
-      val j = i
-      array = array.zipWith(f(self(j))) { (array, b) =>
-        val array2 = if (array == null) {
-          implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-          Array.ofDim[B](len)
-        } else array
-
-        array2(j) = b
-        array2
-      }
-
-      i += 1
-    }
-
-    array.map(array =>
-      if (array == null) Chunk.empty
-      else Chunk.fromArray(array)
-    )
-  }
+  def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]]
 
   /**
    * Effectfully maps the elements of this chunk in parallel.
    */
-  final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
-    val len                        = self.length
-    var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
-    var i                          = 0
-
-    while (i < len) {
-      val j = i
-      array = array.zipWithPar(f(self(j))) { (array, b) =>
-        val array2 = if (array == null) {
-          implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-          Array.ofDim[B](len)
-        } else array
-
-        array2(j) = b
-        array2
-      }
-
-      i += 1
-    }
-
-    array.map(array =>
-      if (array == null) Chunk.empty
-      else Chunk.fromArray(array)
-    )
-  }
+  def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]]
 
   /**
    * Effectfully maps the elements of this chunk purely for the effects.
@@ -696,84 +566,22 @@ sealed trait Chunk[+A] { self =>
   /**
    * Zips this chunk with the specified chunk using the specified combiner.
    */
-  final def zipWith[B, C](that: Chunk[B])(f: (A, B) => C): Chunk[C] = {
-    val size = self.length.min(that.length)
-
-    if (size == 0) Chunk.empty
-    else {
-      var dest = null.asInstanceOf[Array[C]]
-
-      var i = 0
-      while (i < size) {
-        val c = f(self(i), that(i))
-        if (dest == null) {
-          implicit val C: ClassTag[C] = Chunk.Tags.fromValue(c)
-
-          dest = Array.ofDim[C](size)
-        }
-
-        dest(i) = c
-
-        i = i + 1
-      }
-
-      Chunk.Arr(dest)
-    }
-  }
+  def zipWith[B, C](that: Chunk[B])(f: (A, B) => C): Chunk[C]
 
   def zipAllWith[B, C](
     that: Chunk[B]
-  )(left: A => C, right: B => C)(both: (A, B) => C): Chunk[C] = {
-
-    val size = self.length.max(that.length)
-
-    if (size == 0) Chunk.empty
-    else {
-      var j                       = 0
-      implicit val C: ClassTag[C] = Chunk.Tags.fromValue(if (self.length > 0) left(self(0)) else right(that(0)))
-      val dest                    = Array.ofDim[C](size)
-
-      while (j < size) {
-        val c =
-          if (j < self.length) {
-            if (j < that.length) both(self(j), that(j))
-            else (left(self(j)))
-          } else right(that(j))
-
-        dest(j) = c
-
-        j = j + 1
-
-      }
-
-      Chunk.Arr(dest)
-
-    }
-  }
+  )(left: A => C, right: B => C)(both: (A, B) => C): Chunk[C]
 
   /**
    * Zips this chunk with the index of every element.
    */
-  final def zipWithIndex: Chunk[(A, Int)] = zipWithIndexFrom(0)
+  def zipWithIndex: Chunk[(A, Int)]
 
   /**
    * Zips this chunk with the index of every element, starting from the initial
    * index value.
    */
-  final def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)] = {
-    val len  = self.length
-    val dest = Array.ofDim[(A, Int)](len)
-
-    var i = 0
-
-    while (i < len) {
-      dest(i) = (self(i), i + indexOffset)
-
-      i += 1
-    }
-
-    Chunk.Arr(dest)
-  }
+  def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)]
 
   protected[zio] def apply(n: Int): A
   protected[zio] def foreach(f: A => Unit): Unit
@@ -784,20 +592,46 @@ sealed trait Chunk[+A] { self =>
 
 object Chunk {
 
+  implicit class ChunkOps[+A](private val self: Chunk[A]) extends AnyVal {
+
+    /**
+     * Returns the concatenation of this chunk with the specified chunk.
+     */
+    def ++[A1 >: A](chunk: Chunk[A1]): Chunk[A1] = concat(self, chunk)
+
+    /**
+     * Returns the concatenation of this chunk with the specified chunk.
+     */
+    def ++[A1 >: A](nonEmptyChunk: NonEmptyChunk[A1]): NonEmptyChunk[A1] = concat(self, nonEmptyChunk)
+  }
+
   /**
    * Returns the empty chunk.
    */
   val empty: Chunk[Nothing] = Empty
 
+  def apply[A](): Chunk[A] = Empty
+
   /**
    * Returns a chunk from a number of values.
    */
-  def apply[A](as: A*): Chunk[A] = fromIterable(as)
+  def apply[A](a: A, as: A*): NonEmptyChunk[A] =
+    if (as.isEmpty) Singleton(a)
+    else {
+      implicit val A: ClassTag[A] = Tags.fromValue(a)
+      val des: Array[A]           = Array.ofDim[A](as.length + 1)
+
+      des(0) = a
+      as.copyToArray(des, 1)
+
+      Arr(des)
+    }
 
   /**
    * Returns a chunk backed by an array.
    */
-  def fromArray[A](array: Array[A]): Chunk[A] = Arr(array)
+  def fromArray[A](array: Array[A]): Chunk[A] =
+    if (array.isEmpty) Empty else Arr(array)
 
   /**
    * Returns a chunk backed by a [[java.nio.ByteBuffer]].
@@ -897,12 +731,46 @@ object Chunk {
   /**
    * Returns a singleton chunk, eagerly evaluated.
    */
-  def single[A](a: A): Chunk[A] = Singleton(a)
+  def single[A](a: A): NonEmptyChunk[A] = Singleton(a)
 
   /**
    * Alias for [[Chunk.single]].
    */
-  def succeed[A](a: A): Chunk[A] = single(a)
+  def succeed[A](a: A): NonEmptyChunk[A] = single(a)
+
+  /**
+   * Returns the concatenation of this chunk with the specified chunk.
+   */
+  final def concat[A](l: Chunk[A], r: Chunk[A]): Chunk[A] =
+    l match {
+      case Empty => r
+      case neL: NonEmpty[A] =>
+        r match {
+          case Empty            => neL
+          case neR: NonEmpty[A] => concat(neL, neR)
+        }
+    }
+
+  /**
+   * Returns the concatenation of this chunk with the specified chunk.
+   */
+  final def concat[A](l: Chunk[A], r: NonEmpty[A]): NonEmptyChunk[A] = l match {
+    case Empty           => r
+    case ne: NonEmpty[A] => concat(ne, r)
+  }
+
+  /**
+   * Returns the concatenation of this chunk with the specified chunk.
+   */
+  final def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmptyChunk[A] = Concat(l, r)
+
+  /**
+   * Returns the concatenation of this chunk with the specified chunk.
+   */
+  final def concat[A](l: NonEmpty[A], r: Chunk[A]): NonEmptyChunk[A] = r match {
+    case Empty           => l
+    case ne: NonEmpty[A] => concat(l, ne)
+  }
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
@@ -916,7 +784,7 @@ object Chunk {
     case x: VectorChunk[A] => x.classTag
   }
 
-  private case class Arr[A](private val array: Array[A]) extends Chunk[A] {
+  private final case class Arr[A](private val array: Array[A]) extends NonEmpty[A] {
     implicit val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
 
     override def collect[B](pf: PartialFunction[A, B]): Chunk[B] = {
@@ -1079,7 +947,7 @@ object Chunk {
         i += 1
       }
 
-      if (dest == null) Chunk.Empty
+      if (j == 0) Chunk.Empty
       else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
@@ -1151,31 +1019,24 @@ object Chunk {
       s
     }
 
-    override def map[B](f: A => B): Chunk[B] = {
+    override def map[B](f: A => B): NonEmptyChunk[B] = {
       val self = array
       val len  = self.length
-      var dest = null.asInstanceOf[Array[B]]
 
-      var i = 0
+      val b                       = f(first)
+      implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+      val dest                    = Array.ofDim[B](len)
+
+      dest(0) = b
+
+      var i = 1
       while (i < len) {
-        val b = f(self(i))
-
-        if (dest == null) {
-          implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-
-          dest = Array.ofDim[B](len)
-        }
-
-        dest(i) = b
-
-        i = i + 1
+        dest(i) = f(self(i))
+        i += 1
       }
 
-      if (dest != null) Chunk.Arr(dest)
-      else Chunk.Empty
+      Chunk.Arr(dest)
     }
-
-    override def materialize[A1 >: A]: Chunk[A1] = this
 
     /**
      * Takes all elements so long as the predicate returns true.
@@ -1204,13 +1065,10 @@ object Chunk {
       Array.copy(array, 0, dest, n, length)
   }
 
-  private case class Concat[A](l: Chunk[A], r: Chunk[A]) extends Chunk[A] {
+  private final case class Concat[A](l: NonEmpty[A], r: NonEmpty[A]) extends NonEmpty[A] {
     self =>
-    implicit val classTag: ClassTag[A] =
-      l match {
-        case Empty => classTagOf(r)
-        case _     => classTagOf(l)
-      }
+
+    implicit val classTag: ClassTag[A] = classTagOf(l)
 
     override val length: Int = l.length + r.length
 
@@ -1227,29 +1085,7 @@ object Chunk {
     }
   }
 
-  private case object Empty extends Chunk[Nothing] { self =>
-    override val length: Int = 0
-
-    protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
-
-    override def collect[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
-
-    override def collectM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      UIO.succeedNow(Empty)
-
-    override def collectWhile[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
-
-    override def collectWhileM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      UIO.succeedNow(Empty)
-
-    protected[zio] def foreach(f: Nothing => Unit): Unit = ()
-
-    protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit = ()
-
-    override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] = Array.empty
-  }
-
-  private case class Singleton[A](a: A) extends Chunk[A] {
+  private final case class Singleton[A](a: A) extends NonEmpty[A] {
     implicit val classTag: ClassTag[A] = Tags.fromValue(a)
 
     override val length = 1
@@ -1264,7 +1100,7 @@ object Chunk {
       dest(n) = a
   }
 
-  private case class Slice[A](private val chunk: Chunk[A], offset: Int, l: Int) extends Chunk[A] {
+  private final case class Slice[A](private val chunk: NonEmpty[A], offset: Int, l: Int) extends NonEmpty[A] {
     implicit val classTag: ClassTag[A] = classTagOf(chunk)
 
     override def apply(n: Int): A = chunk.apply(offset + n)
@@ -1292,7 +1128,7 @@ object Chunk {
     }
   }
 
-  private case class VectorChunk[A](private val vector: Vector[A]) extends Chunk[A] {
+  private final case class VectorChunk[A](private val vector: Vector[A]) extends NonEmpty[A] {
     implicit val classTag: ClassTag[A] = Tags.fromValue(vector(0))
 
     override val length: Int = vector.length
@@ -1302,6 +1138,355 @@ object Chunk {
     override def foreach(f: A => Unit): Unit = vector.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
+  }
+
+  private final case object Empty extends Chunk[Nothing] { self =>
+    override val length: Int = 0
+
+    override def collect[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
+
+    override def collectM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
+      UIO.succeedNow(Empty)
+
+    override def collectWhile[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
+
+    override def collectWhileM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
+      UIO.succeedNow(Empty)
+
+    override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] = Array.empty
+
+    /**
+     * Statefully maps over the chunk, producing new elements of type `B`.
+     */
+    override def mapAccum[S1, B](s1: S1)(f1: (S1, Nothing) => (S1, B)): (S1, Chunk[B]) = (s1, Empty)
+
+    /**
+     * Effectfully maps the elements of this chunk.
+     */
+    override def mapM[R, E, B](f: Nothing => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = ZIO.succeedNow(Empty)
+
+    /**
+     * Effectfully maps the elements of this chunk in parallel.
+     */
+    override def mapMPar[R, E, B](f: Nothing => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = ZIO.succeedNow(Empty)
+
+    /**
+     * Statefully and effectfully maps over the elements of this chunk to produce
+     * new elements.
+     */
+    override def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, Nothing) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] =
+      ZIO.succeedNow(s1 -> Empty)
+
+    /**
+     * Zips this chunk with the index of every element.
+     */
+    override def zipWithIndex: Chunk[(Nothing, Int)] = Empty
+
+    /**
+     * Zips this chunk with the index of every element, starting from the initial
+     * index value.
+     */
+    override def zipWithIndexFrom(indexOffset: Int): Chunk[(Nothing, Int)] = Empty
+
+    /**
+     * Materializes a chunk into a chunk backed by an array. This method can
+     * improve the performance of bulk operations.
+     */
+    override def materialize[A1]: Chunk[A1] = Empty
+
+    override def zipAllWith[B, C](that: Chunk[B])(left: Nothing => C, right: B => C)(
+      both: (Nothing, B) => C
+    ): Chunk[C] = that.map(right)
+
+    protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
+
+    protected[zio] def foreach(f: Nothing => Unit): Unit = ()
+
+    protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit = ()
+
+    /**
+     * Returns a chunk with the elements mapped by the specified function.
+     */
+    override def map[B](f: Nothing => B): Chunk[B] = Empty
+
+    /**
+     * Zips this chunk with the specified chunk using the specified combiner.
+     */
+    override def zipWith[B, C](that: Chunk[B])(f: (Nothing, B) => C): Chunk[C] = Empty
+  }
+
+  sealed trait NonEmpty[+A] extends Chunk[A] { self =>
+
+    final def first: A = self(0)
+    final def last: A  = self(length - 1)
+
+    final def reduce[A1 >: A](f: (A1, A1) => A1): A1 = {
+      val len     = length
+      var res: A1 = first
+      var i       = 1
+      while (i < len) {
+        res = f(res, self(i))
+        i += 1
+      }
+      res
+    }
+
+    /**
+     * Returns the concatenation of this chunk with the specified chunk.
+     */
+    final def ++[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] = Chunk.concat(self, that)
+
+    /**
+     * Materializes a chunk into a chunk backed by an array. This method can
+     * improve the performance of bulk operations.
+     */
+    final override def materialize[A1 >: A]: NonEmptyChunk[A1] =
+      self match {
+        case arr: Arr[A] => arr
+        case _           => Arr(self.toArray(Chunk.classTagOf(self)))
+      }
+
+    override def map[B](f: A => B): NonEmptyChunk[B] = {
+      val len                     = self.length
+      val init: B                 = f(first)
+      implicit val B: ClassTag[B] = Chunk.Tags.fromValue(init)
+      val dest                    = Array.ofDim[B](len)
+
+      dest(0) = init
+      var i = 1
+
+      while (i < len) {
+        dest(i) = f(self(i))
+        i += 1
+      }
+      Chunk.Arr(dest)
+    }
+
+    final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, NonEmpty[B]) = {
+      val len                     = self.length
+      val init                    = f1(s1, first)
+      implicit val B: ClassTag[B] = Chunk.Tags.fromValue(init._2)
+      val dest: Array[B]          = Array.ofDim(len)
+
+      dest(0) = init._2
+      var i     = 1
+      var s: S1 = init._1
+
+      while (i < len) {
+        val t = f1(s, self(i))
+
+        s = t._1
+        dest(i) = t._2
+
+        i += 1
+      }
+
+      (s, Chunk.Arr(dest))
+    }
+
+    final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmpty[B]] = {
+      val len = self.length
+
+      val init: ZIO[R, E, B] = f(first)
+
+      var array: ZIO[R, E, Array[B]] = init.map { b =>
+        implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+        val array                   = Array.ofDim[B](len)
+        array(0) = b
+        array
+      }
+
+      var i = 1
+
+      while (i < len) {
+        val j = i
+        array = array.zipWith(f(self(j))) { (array, b) =>
+          array(j) = b
+          array
+        }
+
+        i += 1
+      }
+
+      array.map(array => Chunk.Arr(array))
+    }
+
+    override final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmpty[B]] = {
+      val len = self.length
+
+      val init: ZIO[R, E, B] = f(first)
+
+      var array: ZIO[R, E, Array[B]] = init.map { b =>
+        implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+        val array                   = Array.ofDim[B](len)
+        array(0) = b
+        array
+      }
+
+      var i = 1
+
+      while (i < len) {
+        val j = i
+        array = array.zipWithPar(f(self(j))) { (array, b) =>
+          array(j) = b
+          array
+        }
+
+        i += 1
+      }
+
+      array.map(array => Chunk.Arr(array))
+    }
+
+    /**
+     * Statefully and effectfully maps over the elements of this chunk to produce
+     * new elements.
+     */
+    final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, NonEmpty[B])] = {
+
+      val len = self.length
+
+      val init: ZIO[R, E, (S1, B)] = f1(s1, first)
+
+      var dest: ZIO[R, E, (S1, Array[B])] = init.map {
+        case (s, b) =>
+          implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+          val array                   = Array.ofDim[B](len)
+          array(0) = b
+          (s, array)
+      }
+
+      var i = 1
+
+      while (i < len) {
+        val j = i
+        dest = dest.flatMap {
+          case (state, array) =>
+            f1(state, self(j)).map {
+              case (state2, b) =>
+                array(j) = b
+                (state2, array)
+            }
+        }
+
+        i += 1
+      }
+
+      dest.map {
+        case (state, array) => (state, Chunk.Arr(array))
+      }
+    }
+
+    /**
+     * Flattens a nechunk of nechunks into a single nechunk by concatenating all nechunks.
+     */
+    final def flatten[B](implicit ev: A <:< NonEmpty[B]): NonEmptyChunk[B] =
+      flatMap(ev(_))
+
+    final def flatMap[B](f: A => NonEmpty[B]): NonEmptyChunk[B] = {
+      val len = self.length
+
+      val init: NonEmpty[B]      = f(first)
+      var chunks: List[Chunk[B]] = List(init)
+      var i                      = 1
+      var total                  = init.length
+      val B: ClassTag[B]         = classTagOf(init)
+
+      while (i < len) {
+        val chunk = f(self(i))
+        chunks ::= chunk
+        total += chunk.length
+        i += 1
+      }
+
+      val dest: Array[B] = Array.ofDim(total)(B)
+
+      val it = chunks.iterator
+      var n  = total
+      while (it.hasNext) {
+        val chunk = it.next
+        n -= chunk.length
+        chunk.toArray(n, dest)
+      }
+
+      Chunk.Arr(dest)
+    }
+
+    /**
+     * Zips this chunk with the specified chunk using the specified combiner.
+     */
+    final def zipWith[B, C](that: Chunk[B])(f: (A, B) => C): Chunk[C] =
+      that match {
+        case Empty => Empty
+        case ne: NonEmpty[B] =>
+          val that: NonEmpty[B] = ne
+
+          val size     = self.length.min(that.length)
+          val first: C = f(self.first, that.first)
+
+          implicit val C: ClassTag[C] = Chunk.Tags.fromValue(first)
+          val dest                    = Array.ofDim[C](size)
+
+          var i = 1
+          dest(0) = first
+
+          while (i < size) {
+            dest(i) = f(self(i), that(i))
+            i += 1
+          }
+
+          Chunk.Arr(dest)
+      }
+
+    final override def zipWithIndex: NonEmptyChunk[(A, Int)] = zipWithIndexFrom(0)
+
+    /**
+     * Zips this chunk with the index of every element, starting from the initial
+     * index value.
+     */
+    final def zipWithIndexFrom(indexOffset: Int): NonEmptyChunk[(A, Int)] = {
+      val len = self.length
+
+      val dest = Array.ofDim[(A, Int)](len)
+
+      var i = 0
+
+      while (i < len) {
+        dest(i) = (self(i), i + indexOffset)
+        i += 1
+      }
+
+      Chunk.Arr(dest)
+    }
+
+    override final def zipAllWith[B, C](
+      that: Chunk[B]
+    )(left: A => C, right: B => C)(both: (A, B) => C): NonEmptyChunk[C] =
+      that match {
+        case Empty => self.map(left)
+        case ne: NonEmpty[B] =>
+          val that: NonEmpty[B] = ne
+          val size              = self.length.max(that.length)
+          val first_out         = both(self.first, that.first)
+
+          implicit val C: ClassTag[C] = Chunk.Tags.fromValue(first_out)
+          val dest                    = Array.ofDim[C](size)
+
+          dest(0) = first_out
+          var j = 1
+
+          while (j < size) {
+            val c =
+              if (j >= self.length) right(that(j))
+              else if (j >= that.length) left(self(j))
+              else both(self(j), that(j))
+
+            dest(j) = c
+            j += 1
+          }
+
+          Chunk.Arr(dest)
+      }
   }
 
   private[zio] object Tags {

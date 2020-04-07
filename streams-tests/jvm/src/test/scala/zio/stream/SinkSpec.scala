@@ -198,19 +198,19 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("contramapM")(
         testM("happy path") {
-          val sink = ZSink.identity[Int].contramapM[Any, Unit, String](s => UIO.succeedNow(s.toInt))
+          val sink = ZSink.identity[Int].contramapM[Any, Unit, String](s => UIO.succeed(s.toInt))
           assertM(sinkIteration(sink, "1"))(equalTo((1, Chunk.empty)))
         },
         testM("init error") {
-          val sink = initErrorSink.contramapM[Any, String, String](s => UIO.succeedNow(s.toInt))
+          val sink = initErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("step error") {
-          val sink = stepErrorSink.contramapM[Any, String, String](s => UIO.succeedNow(s.toInt))
+          val sink = stepErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("extract error") {
-          val sink = extractErrorSink.contramapM[Any, String, String](s => UIO.succeedNow(s.toInt))
+          val sink = extractErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
           assertM(sinkIteration(sink, "1").either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
@@ -460,23 +460,23 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("filterM")(
         testM("happy path") {
-          val sink = ZSink.identity[Int].filterM[Any, Unit](n => UIO.succeedNow(n < 5))
+          val sink = ZSink.identity[Int].filterM[Any, Unit](n => UIO.succeed(n < 5))
           assertM(sinkIteration(sink, 1))(equalTo((1, Chunk.empty)))
         },
         testM("false predicate") {
-          val sink = ZSink.identity[Int].filterM[Any, Unit](n => UIO.succeedNow(n > 5))
+          val sink = ZSink.identity[Int].filterM[Any, Unit](n => UIO.succeed(n > 5))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo(())))
         },
         testM("init error") {
-          val sink = initErrorSink.filterM[Any, String](n => UIO.succeedNow(n < 5))
+          val sink = initErrorSink.filterM[Any, String](n => UIO.succeed(n < 5))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("step error") {
-          val sink = stepErrorSink.filterM[Any, String](n => UIO.succeedNow(n < 5))
+          val sink = stepErrorSink.filterM[Any, String](n => UIO.succeed(n < 5))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("extractError") {
-          val sink = extractErrorSink.filterM[Any, String](n => UIO.succeedNow(n < 5))
+          val sink = extractErrorSink.filterM[Any, String](n => UIO.succeed(n < 5))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
@@ -532,19 +532,19 @@ object SinkSpec extends ZIOBaseSpec {
       ) @@ zioTag(errors),
       suite("mapM")(
         testM("happy path") {
-          val sink = ZSink.identity[Int].mapM[Any, Unit, String](n => UIO.succeedNow(n.toString))
+          val sink = ZSink.identity[Int].mapM[Any, Unit, String](n => UIO.succeed(n.toString))
           assertM(sinkIteration(sink, 1))(equalTo(("1", Chunk.empty)))
         },
         testM("init error") {
-          val sink = initErrorSink.mapM[Any, String, String](n => UIO.succeedNow(n.toString))
+          val sink = initErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("step error") {
-          val sink = stepErrorSink.mapM[Any, String, String](n => UIO.succeedNow(n.toString))
+          val sink = stepErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("extract error") {
-          val sink = extractErrorSink.mapM[Any, String, String](n => UIO.succeedNow(n.toString))
+          val sink = extractErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
           assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
@@ -983,7 +983,7 @@ object SinkSpec extends ZIOBaseSpec {
         }),
         testM("short circuits") {
           val empty: Stream[Nothing, Int]     = ZStream.empty
-          val single: Stream[Nothing, Int]    = ZStream.succeedNow(1)
+          val single: Stream[Nothing, Int]    = ZStream.succeed(1)
           val double: Stream[Nothing, Int]    = ZStream(1, 2)
           val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
 
@@ -991,7 +991,7 @@ object SinkSpec extends ZIOBaseSpec {
             for {
               effects <- Ref.make[List[Int]](Nil)
               sink = ZSink.foldM[Any, Nothing, Int, Int, Int](0)(_ => true) { (_, a) =>
-                effects.update(a :: _) *> UIO.succeedNow((30, Chunk.empty))
+                effects.update(a :: _) *> UIO.succeed((30, Chunk.empty))
               }
               exit   <- stream.run(sink).run
               result <- effects.get
@@ -1025,7 +1025,7 @@ object SinkSpec extends ZIOBaseSpec {
         },
         testM("short circuits") {
           val empty: Stream[Nothing, Int]     = ZStream.empty
-          val single: Stream[Nothing, Int]    = ZStream.succeedNow(1)
+          val single: Stream[Nothing, Int]    = ZStream.succeed(1)
           val double: Stream[Nothing, Int]    = ZStream(1, 2)
           val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
 
@@ -1033,7 +1033,7 @@ object SinkSpec extends ZIOBaseSpec {
             (for {
               effects <- Ref.make[List[Int]](Nil)
               sink = ZSink.foldM[Any, E, Int, Int, Int](0)(_ => true) { (_, a) =>
-                effects.update(a :: _) *> UIO.succeedNow((30, Chunk.empty))
+                effects.update(a :: _) *> UIO.succeed((30, Chunk.empty))
               }
               exit   <- stream.run(sink)
               result <- effects.get
@@ -1081,12 +1081,18 @@ object SinkSpec extends ZIOBaseSpec {
                 .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 3)(_ + _))
             )(equalTo(Map[Int, Int](0 -> 0, 1 -> 1)))
           ),
-          testM("keep collecting as long as map size does not exceed the limit")(
+          testM("collects entire stream if the number of keys doesn't exceed `n`")(
             assertM(
               Stream
                 .range(0, 10)
                 .run(Sink.collectAllToMapN[Int, Int](3)(value => value % 3)(_ + _))
             )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
+          ),
+          testM("keep collecting as long as map size does not exceed the limit")(
+            assertM(
+              Stream(0, 1, 3, 4, 2)
+                .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 3)(_ + _))
+            )(equalTo(Map[Int, Int](0 -> 3, 1 -> 5)))
           )
         ),
         testM("collectAllWhile")(
@@ -1126,9 +1132,7 @@ object SinkSpec extends ZIOBaseSpec {
             Stream[Long](1, 5, 2, 3)
               .aggregate(
                 Sink
-                  .foldWeightedM(List[Long]())((a: Long) => UIO.succeedNow(a * 2), 12)((acc, el) =>
-                    UIO.succeedNow(el :: acc)
-                  )
+                  .foldWeightedM(List[Long]())((a: Long) => UIO.succeed(a * 2), 12)((acc, el) => UIO.succeed(el :: acc))
                   .map(_.reverse)
               )
               .runCollect
@@ -1140,10 +1144,10 @@ object SinkSpec extends ZIOBaseSpec {
               .aggregate(
                 Sink
                   .foldWeightedDecomposeM(List[Int]())(
-                    (i: Int) => UIO.succeedNow(i.toLong),
+                    (i: Int) => UIO.succeed(i.toLong),
                     4,
-                    (i: Int) => UIO.succeedNow(Chunk(i - 1, 1))
-                  )((acc, el) => UIO.succeedNow(el :: acc))
+                    (i: Int) => UIO.succeed(Chunk(i - 1, 1))
+                  )((acc, el) => UIO.succeed(el :: acc))
                   .map(_.reverse)
               )
               .runCollect
@@ -1159,7 +1163,7 @@ object SinkSpec extends ZIOBaseSpec {
         testM("foldUntilM")(
           assertM(
             Stream[Long](1, 1, 1, 1, 1, 1)
-              .aggregate(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeedNow(s + a)))
+              .aggregate(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
               .runCollect
           )(equalTo(List(3L, 3L)))
         ),
@@ -1191,7 +1195,7 @@ object SinkSpec extends ZIOBaseSpec {
       },
       testM("pull1") {
         val stream = Stream.fromIterable(List(1))
-        val sink   = Sink.pull1(IO.succeedNow(Option.empty[Int]))((i: Int) => Sink.succeedNow[Int, Option[Int]](Some(i)))
+        val sink   = Sink.pull1(IO.succeed(Option.empty[Int]))((i: Int) => Sink.succeed[Int, Option[Int]](Some(i)))
 
         assertM(stream.run(sink))(isSome(equalTo(1)))
       },
@@ -1598,29 +1602,29 @@ object SinkSpec extends ZIOBaseSpec {
                 s match {
                   case (ParserState.Start, acc, _) =>
                     a match {
-                      case a if a.isWhitespace => UIO.succeedNow(((ParserState.Start, acc, true), Chunk.empty))
-                      case '['                 => UIO.succeedNow(((ParserState.Element(""), acc, true), Chunk.empty))
+                      case a if a.isWhitespace => UIO.succeed(((ParserState.Start, acc, true), Chunk.empty))
+                      case '['                 => UIO.succeed(((ParserState.Element(""), acc, true), Chunk.empty))
                       case _                   => IO.fail("Expected '['")
                     }
 
                   case (ParserState.Element(el), acc, _) =>
                     a match {
                       case a if a.isDigit =>
-                        UIO.succeedNow(((ParserState.Element(el + a), acc, true), Chunk.empty))
-                      case ',' => UIO.succeedNow(((ParserState.Element(""), acc :+ el.toInt, true), Chunk.empty))
-                      case ']' => UIO.succeedNow(((ParserState.Done, acc :+ el.toInt, false), Chunk.empty))
+                        UIO.succeed(((ParserState.Element(el + a), acc, true), Chunk.empty))
+                      case ',' => UIO.succeed(((ParserState.Element(""), acc :+ el.toInt, true), Chunk.empty))
+                      case ']' => UIO.succeed(((ParserState.Done, acc :+ el.toInt, false), Chunk.empty))
                       case _   => IO.fail("Expected a digit or ,")
                     }
 
                   case (ParserState.Done, acc, _) =>
-                    UIO.succeedNow(((ParserState.Done, acc, false), Chunk.empty))
+                    UIO.succeed(((ParserState.Done, acc, false), Chunk.empty))
                 }
             }
             .map(_._2)
             .chunked
 
-        val src1         = ZStreamChunk.succeedNow(Chunk.fromArray(Array('[', '1', '2')))
-        val src2         = ZStreamChunk.succeedNow(Chunk.fromArray(Array('3', ',', '4', ']')))
+        val src1         = ZStreamChunk.succeed(Chunk.fromArray(Array('[', '1', '2')))
+        val src2         = ZStreamChunk.succeed(Chunk.fromArray(Array('3', ',', '4', ']')))
         val partialParse = src1.run(numArrayParser).run
         val fullParse    = (src1 ++ src2).run(numArrayParser).run
 
@@ -1645,8 +1649,8 @@ object SinkSpec extends ZIOBaseSpec {
             case _                   => ZSink.fail("Expected '['")
           }
 
-        val src1         = ZStreamChunk.succeedNow(Chunk.fromArray(Array('[', '1', '2')))
-        val src2         = ZStreamChunk.succeedNow(Chunk.fromArray(Array('3', ',', '4', ']')))
+        val src1         = ZStreamChunk.succeed(Chunk.fromArray(Array('[', '1', '2')))
+        val src2         = ZStreamChunk.succeed(Chunk.fromArray(Array('3', ',', '4', ']')))
         val partialParse = src1.run(start.chunked).run
         val fullParse    = (src1 ++ src2).run(start.chunked).run
 

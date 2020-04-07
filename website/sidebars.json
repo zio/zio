@@ -10,7 +10,8 @@
       "overview/overview_testing_effects",
       "overview/overview_running_effects",
       "overview/overview_background",
-      "overview/overview_performance"
+      "overview/overview_performance",
+      "overview/overview_platforms"
     ]
   },
   "datatypes-sidebar": {

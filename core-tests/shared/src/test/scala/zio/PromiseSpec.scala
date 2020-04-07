@@ -70,7 +70,7 @@ object PromiseSpec extends ZIOBaseSpec {
       for {
         p <- Promise.make[Nothing, Int]
         _ <- p.succeed(1)
-        s <- p.complete(IO.succeedNow(9))
+        s <- p.complete(IO.succeed(9))
         v <- p.await
       } yield assert(s)(isFalse) && assert(v)(equalTo(1))
     },

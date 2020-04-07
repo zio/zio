@@ -63,7 +63,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   def offerAll(as: Iterable[A]): USTM[Iterable[A]] = {
     val (forQueue, remaining) = as.splitAt(capacity)
     ref.get.flatMap { q =>
-      if (forQueue.size <= capacity - q.length) ref.update(_.enqueue(forQueue.toList))
+      if (forQueue.size <= capacity - q.length) ref.update(_ ++ forQueue)
       else STM.retry
     } *> STM.succeedNow(remaining)
   }

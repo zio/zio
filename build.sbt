@@ -122,6 +122,9 @@ lazy val coreNative = core.native
   .settings(scalaVersion := "2.11.12")
   .settings(skip in Test := true)
   .settings(skip in doc := true)
+  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
+    SettingKey[Boolean]("ide-skip-project") := true
+  )
   .settings(sources in (Compile, doc) := Seq.empty)
   .settings(
     libraryDependencies ++= Seq(
@@ -216,6 +219,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
   .settings(skip in publish := true)
+  .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
@@ -322,12 +326,12 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"      % "2.3.0",
         "com.google.code.findbugs"  % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"     % "20.3.0",
+        "com.twitter"               %% "util-core"     % "20.4.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.6.4",
         "io.monix"                  %% "monix"         % "3.1.0",
         "io.projectreactor"         % "reactor-core"   % "3.3.4.RELEASE",
         "io.reactivex.rxjava2"      % "rxjava"         % "2.2.19",
-        "org.ow2.asm"               % "asm"            % "7.3.1",
+        "org.ow2.asm"               % "asm"            % "8.0.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"            % "scala-reflect"  % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"   % "2.1.2",

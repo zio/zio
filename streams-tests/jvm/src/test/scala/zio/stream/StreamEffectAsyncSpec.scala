@@ -60,7 +60,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
             cb => {
               inParallel {
                 // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
-                (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(1)))
+                (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeed(1)))
                 cb(refDone.set(true) *> ZIO.fail(None))
               }(global)
               None
@@ -113,7 +113,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
             cb => {
               inParallel {
                 // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
-                (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(1)))
+                (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeed(1)))
                 cb(refDone.set(true) *> ZIO.fail(None))
               }(global)
               UIO.unit
@@ -135,7 +135,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           fiber <- Stream
                     .effectAsyncInterrupt[Nothing, Unit] { offer =>
                       inParallel {
-                        offer(ZIO.succeedNow(()))
+                        offer(ZIO.succeed(()))
                       }(global)
                       Left(cancelled.set(true))
                     }
@@ -159,7 +159,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
                        inParallel {
                          k(IO.fail(None))
                        }(global)
-                       Left(UIO.succeedNow(()))
+                       Left(UIO.succeed(()))
                      }
                      .runCollect
         } yield assert(result)(equalTo(Nil))
@@ -173,7 +173,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
             cb => {
               inParallel {
                 // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
-                (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(1)))
+                (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeed(1)))
                 cb(refDone.set(true) *> ZIO.fail(None))
               }(global)
               Left(UIO.unit)

@@ -133,6 +133,12 @@ object Managed {
     ZManaged.foreach_(as)(f)
 
   /**
+   * See [[zio.ZManaged.foreachExec]]
+   */
+  final def foreachExec[E, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => Managed[E, B]): Managed[E, List[B]] =
+    ZManaged.foreachExec(as)(exec)(f)
+
+  /**
    * See [[zio.ZManaged.foreachPar]]
    */
   def foreachPar[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
@@ -364,6 +370,18 @@ object Managed {
    * See [[zio.ZManaged.unit]]
    */
   val unit: Managed[Nothing, Unit] = ZManaged.unit
+
+  /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  def unless[E](b: => Boolean)(managed: => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.unless(b)(managed)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessM[E](b: Managed[E, Boolean])(managed: => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.unlessM(b)(managed)
 
   /**
    * See [[zio.ZManaged.unsandbox]]

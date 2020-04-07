@@ -19,15 +19,15 @@ package zio.test.mock
 import zio.{ IO, UIO }
 
 /**
- * A `ReturnExpectation[-I, E, +A]` represents an expectation on output that given input arguments `I`
- * returns an effect that may fail with an error `E` or produce a single `A`.
+ * A `Result[-I, +E, +A]` represents the value or failure that will be returned
+ * by mock expectation when invoked.
  */
-sealed trait ReturnExpectation[-I, +E, +A] {
+sealed trait Result[-I, +E, +A] {
   val io: I => IO[E, A]
 }
 
-object ReturnExpectation {
+object Result {
 
-  private[mock] final case class Succeed[-I, +A](io: I => UIO[A])      extends ReturnExpectation[I, Nothing, A]
-  private[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing]) extends ReturnExpectation[I, E, Nothing]
+  protected[mock] final case class Succeed[-I, +A](io: I => UIO[A])      extends Result[I, Nothing, A]
+  protected[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing]) extends Result[I, E, Nothing]
 }

@@ -25,12 +25,12 @@ object GenSpec extends ZIOBaseSpec {
           if (p) assert(())(Assertion.anything) else assert(n)(Assertion.nothing)
         }
 
-        assertM(CheckN(100)(gen)(test).flatMap { result =>
-          result.run.map(_.failures.fold(false) {
+        assertM(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "1"
             case _ => false
-          })
+          }
         })(isTrue)
       },
       testM("with bogus reverse property") {
@@ -44,16 +44,15 @@ object GenSpec extends ZIOBaseSpec {
             val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
             if (p) assert(())(Assertion.anything) else assert((as, bs))(Assertion.nothing)
         }
-        assertM(CheckN(100)(gen)(test).flatMap {
-          result =>
-            result.run.map(_.failures.fold(false) {
-              case BoolAlgebra.Value(failureDetails) =>
-                failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
-                  failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
-                  failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
-                  failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
-              case _ => false
-            })
+        assertM(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) {
+            case BoolAlgebra.Value(failureDetails) =>
+              failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
+                failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
+                failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
+                failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
+            case _ => false
+          }
         })(isTrue)
       },
       testM("with randomly generated functions") {
@@ -79,12 +78,12 @@ object GenSpec extends ZIOBaseSpec {
 
         def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
-        assertM(CheckN(100)(gen)(test).flatMap { result =>
-          result.run.map(_.failures.fold(false) {
+        assertM(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "List(0)"
             case _ => false
-          })
+          }
         })(isTrue)
       }
     ),
@@ -132,6 +131,18 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("anyOffsetDateTime generates OffsetDateTime values") {
         checkSample(Gen.anyOffsetDateTime)(isNonEmpty)
+      },
+      testM("bigDecimal generates values in range") {
+        val min        = BigDecimal("1.414213562373095048801688724209698")
+        val max        = BigDecimal("2.0")
+        val bigDecimal = Gen.bigDecimal(min, max)
+        checkSample(bigDecimal)(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
+      testM("bigInt generates values in range") {
+        val min    = BigInt("1")
+        val max    = BigInt("265252859812191058636308480000000")
+        val bigInt = Gen.bigInt(min, max)
+        checkSample(bigInt)(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
       testM("boolean generates true and false") {
         checkSample(Gen.boolean)(contains(true) && contains(false))
@@ -227,7 +238,7 @@ object GenSpec extends ZIOBaseSpec {
         checkSample(Gen.long(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
       testM("mapM maps an effectual function over a generator") {
-        val gen = Gen.int(1, 6).mapM(n => ZIO.succeedNow(n + 6))
+        val gen = Gen.int(1, 6).mapM(n => ZIO.succeed(n + 6))
         checkSample(gen)(forall(Assertion.isGreaterThanEqualTo(7) && isLessThanEqualTo(12)))
       },
       testM("mapOf generates sizes in range") {

@@ -79,7 +79,7 @@ object Has {
     /**
      * Retrieves a service from the environment.
      */
-    def get[B](implicit ev: Self <:< Has[_ <: B], tagged: Tagged[B]): B = {
+    def get[B](implicit ev: Self <:< Has[B], tagged: Tagged[B]): B = {
       val tag = taggedTagType(tagged)
 
       self.map
@@ -87,11 +87,7 @@ object Has {
           tag,
           self.cache.getOrElse(
             tag,
-            self.map.collectFirst {
-              case (curTag, value) if taggedIsSubtype(curTag, tag) =>
-                self.cache = self.cache + (curTag -> value)
-                value
-            }.getOrElse(throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}"))
+            throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}")
           )
         )
         .asInstanceOf[B]
@@ -106,7 +102,7 @@ object Has {
       val set = taggedGetHasServices(tag)
 
       if (set.isEmpty) self
-      else new Has(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(tag, _)))).asInstanceOf[Self]
+      else new Has(filterKeys(self.map)(set)).asInstanceOf[Self]
     }
 
     /**

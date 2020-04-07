@@ -289,29 +289,23 @@ object TestAspect extends TimeoutVariants {
    * An aspect that makes a test that failed for any reason pass. Note that if
    * the test passes this aspect will make it fail.
    */
-  val failure: TestAspectPoly =
-    failure(Assertion.anything)
+  val failing: TestAspectPoly =
+    failing(Assertion.anything)
 
   /**
    * An aspect that makes a test that failed for the specified failure pass.
    * Note that the test will fail for other failures and also if it passes
    * correctly.
    */
-  def failure[E0](p: Assertion[TestFailure[E0]]): TestAspect[Nothing, Any, Nothing, E0] =
+  def failing[E0](assertion: Assertion[TestFailure[E0]]): TestAspect[Nothing, Any, Nothing, E0] =
     new TestAspect.PerTest[Nothing, Any, Nothing, E0] {
-      def perTest[R, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] = {
-        lazy val succeed = ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
+      def perTest[R, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
         test.foldM(
-          {
-            case testFailure =>
-              p.run(testFailure).run.flatMap { p1 =>
-                if (p1.isSuccess) succeed
-                else ZIO.fail(TestFailure.Assertion(assert(testFailure)(p)))
-              }
-          },
-          _ => ZIO.fail(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))
+          failure =>
+            if (assertion.test(failure)) ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
+            else ZIO.fail(TestFailure.assertion(assert(failure)(assertion))),
+          _ => ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected")))
         )
-      }
     }
 
   /**
@@ -344,7 +338,7 @@ object TestAspect extends TimeoutVariants {
   def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live with Annotations] =
     new TestAspectAtLeastR[Live with Annotations] {
       def some[R <: Live with Annotations, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.whenM(Live.live(system.env(env)).orDie.flatMap(_.fold(ZIO.succeedNow(false))(assertion.test)))
+        spec.whenM(Live.live(system.env(env)).orDie.map(_.fold(false)(assertion.test)))
     }
 
   /**
@@ -361,7 +355,7 @@ object TestAspect extends TimeoutVariants {
   def ifProp(prop: String, assertion: Assertion[String]): TestAspectAtLeastR[Live with Annotations] =
     new TestAspectAtLeastR[Live with Annotations] {
       def some[R <: Live with Annotations, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.whenM(Live.live(system.property(prop)).orDie.flatMap(_.fold(ZIO.succeedNow(false))(assertion.test)))
+        spec.whenM(Live.live(system.property(prop)).orDie.map(_.fold(false)(assertion.test)))
     }
 
   /**
@@ -440,7 +434,7 @@ object TestAspect extends TimeoutVariants {
    */
   def nonTermination(duration: Duration): TestAspectAtLeastR[Live] =
     timeout(duration) >>>
-      failure(
+      failing(
         isCase[TestFailure[Any], Throwable](
           "Runtime", {
             case TestFailure.Runtime(cause) => cause.dieOption
@@ -456,6 +450,12 @@ object TestAspect extends TimeoutVariants {
    */
   val nondeterministic: TestAspectAtLeastR[Live with TestRandom] =
     before(Live.live(clock.nanoTime).flatMap(TestRandom.setSeed(_)))
+
+  /**
+   * Annotates tests to be the only ones evaluated.
+   */
+  val only: TestAspectPoly =
+    annotate(TestAnnotation.only, true)
 
   /**
    * An aspect that executes the members of a suite in parallel.

@@ -177,7 +177,7 @@ final class TMap[K, V] private (
       val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
 
       while (idx < capacity) {
-        newArr(idx) = TRef.unsafeMake(Nil)
+        newArr(idx) = ZTRef.unsafeMake(Nil)
         idx = idx + 1
       }
 
@@ -206,7 +206,7 @@ final class TMap[K, V] private (
       val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
 
       while (idx < capacity) {
-        newArr(idx) = TRef.unsafeMake(Nil)
+        newArr(idx) = ZTRef.unsafeMake(Nil)
         idx = idx + 1
       }
 

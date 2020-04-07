@@ -101,7 +101,7 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
       }
     }
 
-  final override def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
+  final override def foldWhileManaged[S](s: S)(cont: S => Boolean)(f: (S, A) => S): ZManaged[R, E, S] =
     processEffect.flatMap { thunk =>
       def fold(): Either[E, S] = {
         var state = s

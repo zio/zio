@@ -17,27 +17,36 @@ package zio.test.mock
 
 import zio.duration._
 import zio.test.environment.Live
-import zio.test.mock.module.{ Module, T22 }
+import zio.test.mock.module.T22
 import zio.test.{ assertM, testM, Assertion }
-import zio.{ Has, Layer, Tagged, ZIO }
+import zio.{ ULayer, ZIO }
 
-trait MockSpecUtils {
+trait MockSpecUtils[R] {
 
   lazy val intTuple22: T22[Int] =
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
 
-  private[mock] def testSpec[E, A](name: String)(
-    mock: Layer[Nothing, Module],
-    app: ZIO[Module, E, A],
+  private[mock] def testValue[E, A](name: String)(
+    mock: ULayer[R],
+    app: ZIO[R, E, A],
     check: Assertion[A]
   ) = testM(name) {
     val result = mock.build.use[Any, E, A](app.provide _)
     assertM(result)(check)
   }
 
-  private[mock] def testSpecTimeboxed[E, A](name: String)(duration: Duration)(
-    mock: Layer[Nothing, Module],
-    app: ZIO[Module, E, A],
+  private[mock] def testError[E, A](name: String)(
+    mock: ULayer[R],
+    app: ZIO[R, E, A],
+    check: Assertion[E]
+  ) = testM(name) {
+    val result = mock.build.use[Any, A, E](app.flip.provide _)
+    assertM(result)(check)
+  }
+
+  private[mock] def testValueTimeboxed[E, A](name: String)(duration: Duration)(
+    mock: ULayer[R],
+    app: ZIO[R, E, A],
     check: Assertion[Option[A]]
   ) = testM(name) {
     val result =
@@ -50,9 +59,9 @@ trait MockSpecUtils {
     assertM(result)(check)
   }
 
-  private[mock] def testSpecDied[E, A](name: String)(
-    mock: Layer[Nothing, Module],
-    app: ZIO[Module, E, A],
+  private[mock] def testDied[E, A](name: String)(
+    mock: ULayer[R],
+    app: ZIO[R, E, A],
     check: Assertion[Throwable]
   ) = testM(name) {
     val result =
@@ -62,15 +71,6 @@ trait MockSpecUtils {
         .absorb
         .flip
 
-    assertM(result)(check)
-  }
-
-  private[mock] def testSpecComposed[R <: Has[_]: Tagged, E, A](name: String)(
-    mock: Layer[Nothing, R],
-    app: ZIO[R, E, A],
-    check: Assertion[A]
-  ) = testM(name) {
-    val result = mock.build.use[R, E, A](app.provide _)
     assertM(result)(check)
   }
 }
