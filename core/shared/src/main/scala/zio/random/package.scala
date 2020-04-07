@@ -72,7 +72,7 @@ package object random {
     val live: Layer[Nothing, Random] =
       ZLayer.succeed(Service.live)
 
-    protected[zio] def nextDoubleBetweenWith(minInclusive: Double, maxExclusive: Double)(
+    private[zio] def nextDoubleBetweenWith(minInclusive: Double, maxExclusive: Double)(
       nextDouble: UIO[Double]
     ): UIO[Double] =
       if (minInclusive >= maxExclusive)
@@ -84,7 +84,7 @@ package object random {
           else Math.nextAfter(maxExclusive, Float.NegativeInfinity)
         }
 
-    protected[zio] def nextFloatBetweenWith(minInclusive: Float, maxExclusive: Float)(
+    private[zio] def nextFloatBetweenWith(minInclusive: Float, maxExclusive: Float)(
       nextFloat: UIO[Float]
     ): UIO[Float] =
       if (minInclusive >= maxExclusive)
@@ -96,7 +96,7 @@ package object random {
           else Math.nextAfter(maxExclusive, Float.NegativeInfinity)
         }
 
-    protected[zio] def nextIntBetweenWith(
+    private[zio] def nextIntBetweenWith(
       minInclusive: Int,
       maxExclusive: Int
     )(nextInt: UIO[Int], nextIntBounded: Int => UIO[Int]): UIO[Int] =
@@ -108,7 +108,7 @@ package object random {
         else nextInt.doUntil(n => minInclusive <= n && n < maxExclusive)
       }
 
-    protected[zio] def nextLongBetweenWith(
+    private[zio] def nextLongBetweenWith(
       minInclusive: Long,
       maxExclusive: Long
     )(nextLong: UIO[Long], nextLongBounded: Long => UIO[Long]): UIO[Long] =
@@ -120,7 +120,7 @@ package object random {
         else nextLong.doUntil(n => minInclusive <= n && n < maxExclusive)
       }
 
-    protected[zio] def nextLongBoundedWith(n: Long)(nextLong: UIO[Long]): UIO[Long] =
+    private[zio] def nextLongBoundedWith(n: Long)(nextLong: UIO[Long]): UIO[Long] =
       if (n <= 0)
         UIO.die(new IllegalArgumentException("n must be positive"))
       else {
@@ -137,7 +137,7 @@ package object random {
         }
       }
 
-    protected[zio] def shuffleWith[A](nextIntBounded: Int => UIO[Int], list: List[A]): UIO[List[A]] =
+    private[zio] def shuffleWith[A](nextIntBounded: Int => UIO[Int], list: List[A]): UIO[List[A]] =
       for {
         bufferRef <- Ref.make(new scala.collection.mutable.ArrayBuffer[A])
         _         <- bufferRef.update(_ ++= list)
