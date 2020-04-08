@@ -66,6 +66,25 @@ sealed trait Chunk[+A] { self =>
     self.materialize.collectWhileM(pf)
 
   /**
+   * Determines whether this chunk and the specified chunk have the same length
+   * and every pair of corresponding elements of this chunk and the specified
+   * chunk satisfy the specified predicate.
+   */
+  final def corresponds[B](that: Chunk[B])(f: (A, B) => Boolean): Boolean =
+    if (self.length != that.length) false
+    else {
+      var i           = 0
+      var corresponds = true
+      while (corresponds && i < length) {
+        if (!f(self(i), that(i))) {
+          corresponds = false
+        }
+        i += 1
+      }
+      corresponds
+    }
+
+  /**
    * Drops the first `n` elements of the chunk.
    */
   final def drop(n: Int): Chunk[A] = {
