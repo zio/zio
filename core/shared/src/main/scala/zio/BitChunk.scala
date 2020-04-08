@@ -18,6 +18,9 @@ package zio
 
 final class BitChunk private (private val bytes: Chunk[Byte]) { self =>
 
+  def apply(n: Int): Boolean =
+    (bytes(n >> 3) & (1 << (7 - (n & 7)))) != 0
+
   val length: Int =
     bytes.length << 3
 
@@ -47,9 +50,6 @@ final class BitChunk private (private val bytes: Chunk[Byte]) { self =>
 
   override def toString: String =
     mkString
-
-  private def apply(n: Int): Boolean =
-    (bytes(n >> 3) & (1 << (7 - (n & 7)))) != 0
 }
 
 object BitChunk {
