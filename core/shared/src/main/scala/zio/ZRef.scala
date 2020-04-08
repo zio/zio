@@ -437,12 +437,12 @@ object ZRef extends Serializable {
       }.absolve
   }
 
-  implicit class UnifiedErrorSyntax[E, A, B](private val self: ZRef[E, E, A, B]) extends AnyVal {
+  implicit class UnifiedErrorSyntax[+EA, +EB <: EA, -A, +B](private val self: ZRef[EA, EB, A, B]) extends AnyVal {
 
     /**
      * Accesses some of the elements of a collection.
      */
-    def accessElements[EC >: E, ED >: E, C, D](
+    def accessElements[EC >: EA, ED >: EB, C, D](
       optic: ZOptic[B, B, List[C], ED, EC, List[D], A]
     ): ZRef[EC, ED, List[C], List[D]] =
       self.foldS(identity, identity, optic.setEither, optic.getEither)
@@ -450,7 +450,7 @@ object ZRef extends Serializable {
     /**
      * Accesses a field of a product type.
      */
-    def accessField[EC >: E, ED >: E, C, D](optic: ZOptic[B, B, C, ED, EC, D, A]): ZRef[EC, ED, C, D] =
+    def accessField[EC >: EA, ED >: EB, C, D](optic: ZOptic[B, B, C, ED, EC, D, A]): ZRef[EC, ED, C, D] =
       self.foldS(identity, identity, optic.setEither, optic.getEither)
   }
 
