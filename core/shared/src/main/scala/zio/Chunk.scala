@@ -665,6 +665,21 @@ object Chunk {
         arr(des)
     }
 
+  def fill[A](n: Int)(elem: => A): Chunk[A] =
+    if (n <= 0) Chunk.empty
+    else {
+      val first                     = elem
+      implicit val tag: ClassTag[A] = Tags.fromValue(first)
+      val array                     = Array.ofDim[A](n)
+      array(0) = first
+      var i = 1
+      while (i < n) {
+        array(i) = elem
+        i += 1
+      }
+      arr(array)
+    }
+
   /**
    * Returns a chunk backed by an array.
    */

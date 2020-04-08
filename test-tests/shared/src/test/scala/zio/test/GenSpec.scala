@@ -4,13 +4,13 @@ import java.time._
 
 import scala.math.Numeric.DoubleIsFractional
 
-import zio.ZIO
 import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test.{ check => Check, checkN => CheckN }
+import zio.{ Chunk, ZIO }
 
 object GenSpec extends ZIOBaseSpec {
   implicit val localDateTimeOrdering: Ordering[LocalDateTime] = _ compareTo _
@@ -155,6 +155,21 @@ object GenSpec extends ZIOBaseSpec {
           forall(isGreaterThanEqualTo(33) && isLessThanEqualTo(123)),
           _.map(_.toInt)
         )
+      },
+      testM("chunkOf generates sizes in range") {
+        checkSample(Gen.chunkOf(smallInt))(
+          forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)),
+          _.map(_.length)
+        )
+      },
+      testM("chunkOfBounded generates chunks whose size is in bounds") {
+        checkSample(Gen.chunkOfBounded(2, 10)(smallInt))(forall(hasSizeChunk(isWithin(2, 10))))
+      },
+      testM("chunkOf1 generates nonempty chunks") {
+        checkSample(Gen.chunkOf1(smallInt), size = 0)(forall(isNonEmptyChunk))
+      },
+      testM("chunkOfN generates chunks of correct size") {
+        checkSample(Gen.chunkOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
       },
       testM("const generates constant value") {
         checkSample(Gen.const("constant"))(forall(equalTo("constant")))
@@ -404,6 +419,18 @@ object GenSpec extends ZIOBaseSpec {
       testM("char shrinks to bottom of range") {
         checkShrink(Gen.char(33, 123))(33)
       },
+      testM("chunkOf shrinks to empty vector") {
+        checkShrink(Gen.chunkOf(smallInt))(Chunk.empty)
+      },
+      testM("chunkOf1 shrinks to singleton vector") {
+        checkShrink(Gen.chunkOf1(smallInt))(Chunk(-10))
+      },
+      testM("chunkOfBounded shrinks to bottom of range") {
+        checkShrink(Gen.chunkOfBounded(2, 10)(smallInt))(Chunk(-10, -10))
+      },
+      testM("chunkOfN shrinks elements") {
+        checkShrink(Gen.chunkOfN(10)(smallInt))(Chunk.fill(10)(-10))
+      },
       testM("double shrinks to bottom of range") {
         checkShrink(Gen.double(5.0, 9.0))(5.0)
       },
@@ -433,7 +460,7 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.listOf(smallInt))(Nil)
       },
       testM("listOf1 shrinks to singleton list") {
-        checkShrink(Gen.listOf1(smallInt))(List(-10))
+        checkShrink(Gen.listOf1(smallInt))(::(-10, Nil))
       },
       testM("listOfBounded shrinks to bottom of range") {
         checkShrink(Gen.listOfBounded(2, 10)(smallInt))(List(-10, -10))
