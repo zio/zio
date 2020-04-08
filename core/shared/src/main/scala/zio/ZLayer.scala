@@ -160,13 +160,6 @@ final class ZLayer[-RIn, +E, +ROut] private (
     )
 
   /**
-   * Returns a new layer that produces the outputs of this layer but also
-   * passes through the inputs to this layer.
-   */
-  def passthrough[RIn1 <: RIn, ROut1 >: ROut](implicit ev: Has.AreHas[RIn1, ROut1], tag: Tagged[ROut1]): ZLayer[RIn1, E, RIn1 with ROut1] =
-    ZLayer.identity[RIn1] ++ (self: ZLayer[RIn1, E, ROut1])
-
-  /**
     * A named alias for `>>>`.
     */
   def to[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
@@ -2086,6 +2079,16 @@ object ZLayer {
         } yield a
       }
     )
+
+  implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
+
+    /**
+     * Returns a new layer that produces the outputs of this layer but also
+     * passes through the inputs to this layer.
+     */
+    def passthrough(implicit ev: Has.AreHas[RIn, ROut], tag: Tagged[ROut]): ZLayer[RIn, E, RIn with ROut] =
+      ZLayer.identity[RIn] ++ self
+  }
 
   /**
    * A `MemoMap` memoizes dependencies.

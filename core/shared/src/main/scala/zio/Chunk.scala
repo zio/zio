@@ -1140,7 +1140,7 @@ object Chunk {
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
   }
 
-  private final case object Empty extends Chunk[Nothing] { self =>
+  private case object Empty extends Chunk[Nothing] { self =>
     override val length: Int = 0
 
     override def collect[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
