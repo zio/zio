@@ -1414,8 +1414,7 @@ object SinkSpec extends ZIOBaseSpec {
               step1 <- sink.step(init1, 1)
               res1  <- sink.extract(step1).map(_._1)
               init2 <- sink.initial
-              _     <- TestClock.adjust(23.milliseconds)
-              _     <- clock.sleep(23.milliseconds)
+              _     <- TestClock.advance(23.milliseconds)
               step2 <- sink.step(init2, 2)
               res2  <- sink.extract(step2).map(_._1)
               init3 <- sink.initial
@@ -1424,8 +1423,7 @@ object SinkSpec extends ZIOBaseSpec {
               init4 <- sink.initial
               step4 <- sink.step(init4, 4)
               res4  <- sink.extract(step4).map(_._1)
-              _     <- TestClock.adjust(11.milliseconds)
-              _     <- clock.sleep(11.milliseconds)
+              _     <- TestClock.advance(11.milliseconds)
               init5 <- sink.initial
               step5 <- sink.step(init5, 5)
               res5  <- sink.extract(step5).map(_._1)
@@ -1441,8 +1439,7 @@ object SinkSpec extends ZIOBaseSpec {
               step1 <- sink.step(init1, 1)
               res1  <- sink.extract(step1).map(_._1)
               init2 <- sink.initial
-              _     <- TestClock.adjust(23.milliseconds)
-              _     <- clock.sleep(23.milliseconds)
+              _     <- TestClock.advance(23.milliseconds)
               step2 <- sink.step(init2, 2)
               res2  <- sink.extract(step2).map(_._1)
               init3 <- sink.initial
@@ -1451,8 +1448,7 @@ object SinkSpec extends ZIOBaseSpec {
               init4 <- sink.initial
               step4 <- sink.step(init4, 4)
               res4  <- sink.extract(step4).map(_._1)
-              _     <- TestClock.adjust(11.milliseconds)
-              _     <- clock.sleep(11.milliseconds)
+              _     <- TestClock.advance(11.milliseconds)
               init5 <- sink.initial
               step5 <- sink.step(init5, 5)
               res5  <- sink.extract(step5).map(_._1)
