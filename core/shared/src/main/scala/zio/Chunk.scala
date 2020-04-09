@@ -541,7 +541,7 @@ sealed trait Chunk[+A] { self =>
   }
 
   override final def toString: String =
-    mkString("Chunk(", ", ", ")")
+    toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
 
   /**
    * Statefully and effectfully maps over the elements of this chunk to produce
