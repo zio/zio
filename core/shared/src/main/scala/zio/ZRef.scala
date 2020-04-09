@@ -18,8 +18,6 @@ package zio
 
 import java.util.concurrent.atomic.AtomicReference
 
-import zio.optics._
-
 /**
  * A `ZRef[EA, EB, A, B]` is a polymorphic, purely functional description of a
  * mutable reference. The fundamental operations of a `ZRef` are `set` and
@@ -83,12 +81,6 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * immediate consistency.
    */
   def setAsync(a: A): IO[EA, Unit]
-
-  /**
-   * Accesses a term of a sum type.
-   */
-  final def accessCase[EC >: EA, ED >: EB, C, D](optic: ZOptic[B, Any, C, ED, EC, D, A]): ZRef[EC, ED, C, D] =
-    self.fold(identity, identity, optic.setEither(_)(()), optic.getEither)
 
   /**
    * Maps and filters the `get` value of the `ZRef` with the specified partial
@@ -198,7 +190,7 @@ object ZRef extends Serializable {
       ca: C => A => Either[EC, A],
       bd: A => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
-      new DerivedS[EC, ED, C, D] {
+      new DerivedAll[EC, ED, C, D] {
         type S = A
         def getEither(s: S): Either[ED, D]       = bd(s)
         def setEither(c: C)(s: S): Either[EC, S] = ca(c)(s)
@@ -359,7 +351,7 @@ object ZRef extends Serializable {
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
-      new DerivedS[EC, ED, C, D] {
+      new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
           self.getEither(s).fold(e => Left(eb(e)), bd)
@@ -382,7 +374,7 @@ object ZRef extends Serializable {
       setEither(a).fold(ZIO.fail(_), value.setAsync)
   }
 
-  private trait DerivedS[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
+  private trait DerivedAll[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
     type S
 
     def getEither(s: S): Either[EB, B]
@@ -397,7 +389,7 @@ object ZRef extends Serializable {
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
-      new DerivedS[EC, ED, C, D] {
+      new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
           self.getEither(s).fold(e => Left(eb(e)), bd)
@@ -414,7 +406,7 @@ object ZRef extends Serializable {
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
-      new DerivedS[EC, ED, C, D] {
+      new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
           self.getEither(s).fold(e => Left(eb(e)), bd)
@@ -445,23 +437,6 @@ object ZRef extends Serializable {
           case Right(s) => (Right(()), s)
         }
       }.absolve
-  }
-
-  implicit class UnifiedErrorSyntax[+EA, +EB <: EA, -A, +B](private val self: ZRef[EA, EB, A, B]) extends AnyVal {
-
-    /**
-     * Accesses some of the elements of a collection.
-     */
-    def accessElements[EC >: EA, ED >: EB, C, D](
-      optic: ZOptic[B, B, List[C], ED, EC, List[D], A]
-    ): ZRef[EC, ED, List[C], List[D]] =
-      self.foldAll(identity, identity, identity, optic.setEither, optic.getEither)
-
-    /**
-     * Accesses a field of a product type.
-     */
-    def accessField[EC >: EA, ED >: EB, C, D](optic: ZOptic[B, B, C, ED, EC, D, A]): ZRef[EC, ED, C, D] =
-      self.foldAll(identity, identity, identity, optic.setEither, optic.getEither)
   }
 
   implicit class UnifiedSyntax[E, A](private val self: ERef[E, A]) extends AnyVal {
@@ -522,13 +497,13 @@ object ZRef extends Serializable {
               }
             }
           }.absolve
-        case derivedS: DerivedS[E, E, A, A] =>
-          derivedS.value.modify { s =>
-            derivedS.getEither(s) match {
+        case derivedAll: DerivedAll[E, E, A, A] =>
+          derivedAll.value.modify { s =>
+            derivedAll.getEither(s) match {
               case Left(e) => (Left(e), s)
               case Right(a1) => {
                 val (b, a2) = f(a1)
-                derivedS.setEither(a2)(s) match {
+                derivedAll.setEither(a2)(s) match {
                   case Left(e)  => (Left(e), s)
                   case Right(s) => (Right(b), s)
                 }

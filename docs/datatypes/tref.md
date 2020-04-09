@@ -175,4 +175,4 @@ On the running fiber, we suspend until the sender balance suffers changes, in th
 
 ## ZTRef
 
-Like `Ref[A]`, `TRef[A]` is actually a type alias for `ZTRef[+EA, +EB, -A, +B]`, a polymorphic, transactional reference and supports all the transformations that `ZRef` does. For more discussion regarding polymorphic references and their use as concurrent optics see the documentation on [`ZRef`](../datatypes/ref.md).
+Like `Ref[A]`, `TRef[A]` is actually a type alias for `ZTRef[+EA, +EB, -A, +B]`, a polymorphic, transactional reference and supports all the transformations that `ZRef` does. For more discussion regarding polymorphic references see the documentation on [`ZRef`](../datatypes/ref.md).

@@ -19,7 +19,6 @@ package zio.stm
 import java.util.concurrent.atomic.AtomicReference
 
 import zio.UIO
-import zio.optics._
 import zio.stm.ZSTM.internal._
 
 /**
@@ -78,12 +77,6 @@ sealed trait ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * Sets the value of the `ZTRef`.
    */
   def set(a: A): STM[EA, Unit]
-
-  /**
-   * Accesses a term of a sum type.
-   */
-  final def accessCase[EC >: EA, ED >: EB, C, D](optic: ZOptic[B, Any, C, ED, EC, D, A]): ZTRef[EC, ED, C, D] =
-    self.fold(identity, identity, optic.setEither(_)(()), optic.getEither)
 
   /**
    * Maps and filters the `get` value of the `ZTRef` with the specified partial
@@ -196,7 +189,7 @@ object ZTRef {
       ca: C => A => Either[EC, A],
       bd: A => Either[ED, D]
     ): ZTRef[EC, ED, C, D] =
-      new DerivedS[EC, ED, C, D] {
+      new DerivedAll[EC, ED, C, D] {
         type S = A
         def getEither(s: S): Either[ED, D]       = bd(s)
         def setEither(c: C)(s: S): Either[EC, S] = ca(c)(s)
@@ -343,7 +336,7 @@ object ZTRef {
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
     ): ZTRef[EC, ED, C, D] =
-      new DerivedS[EC, ED, C, D] {
+      new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
           self.getEither(s).fold(e => Left(eb(e)), bd)
@@ -363,7 +356,7 @@ object ZTRef {
       setEither(a).fold(STM.fail(_), value.set)
   }
 
-  private trait DerivedS[+EA, +EB, -A, +B] extends ZTRef[EA, EB, A, B] { self =>
+  private trait DerivedAll[+EA, +EB, -A, +B] extends ZTRef[EA, EB, A, B] { self =>
     type S
 
     def getEither(s: S): Either[EB, B]
@@ -378,7 +371,7 @@ object ZTRef {
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
     ): ZTRef[EC, ED, C, D] =
-      new DerivedS[EC, ED, C, D] {
+      new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
           self.getEither(s).fold(e => Left(eb(e)), bd)
@@ -395,7 +388,7 @@ object ZTRef {
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
     ): ZTRef[EC, ED, C, D] =
-      new DerivedS[EC, ED, C, D] {
+      new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
           self.getEither(s).fold(e => Left(eb(e)), bd)
@@ -418,23 +411,6 @@ object ZTRef {
           case Right(s) => (Right(()), s)
         }
       }.absolve
-  }
-
-  implicit class UnifiedErrorSyntax[+EA, +EB <: EA, -A, +B](private val self: ZTRef[EA, EB, A, B]) extends AnyVal {
-
-    /**
-     * Accesses some of the elements of a collection.
-     */
-    def accessElements[EC >: EA, ED >: EB, C, D](
-      optic: ZOptic[B, B, List[C], ED, EC, List[D], A]
-    ): ZTRef[EC, ED, List[C], List[D]] =
-      self.foldAll(identity, identity, identity, optic.setEither, optic.getEither)
-
-    /**
-     * Accesses a field of a product type.
-     */
-    def accessField[EC >: EA, ED >: EB, C, D](optic: ZOptic[B, B, C, ED, EC, D, A]): ZTRef[EC, ED, C, D] =
-      self.foldAll(identity, identity, identity, optic.setEither, optic.getEither)
   }
 
   implicit class UnifiedSyntax[E, A](private val self: ETRef[E, A]) extends AnyVal {
@@ -475,13 +451,13 @@ object ZTRef {
                 }
             }
           }.absolve
-        case derivedS: DerivedS[E, E, A, A] =>
-          derivedS.value.modify { s =>
-            derivedS.getEither(s) match {
+        case derivedAll: DerivedAll[E, E, A, A] =>
+          derivedAll.value.modify { s =>
+            derivedAll.getEither(s) match {
               case Left(e) => (Left(e), s)
               case Right(a1) => {
                 val (b, a2) = f(a1)
-                derivedS.setEither(a2)(s) match {
+                derivedAll.setEither(a2)(s) match {
                   case Left(e)  => (Left(e), s)
                   case Right(s) => (Right(b), s)
                 }
