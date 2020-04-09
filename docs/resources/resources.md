@@ -82,6 +82,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [ZIO Advanced Template](https://github.com/Neurodyne/zio-top.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [ZIO Quill, H2 Database with FlyWay migrations Explained](https://github.com/Neurodyne/h2db-quill-demo) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [ZIO Tapir Http4s Integration](https://github.com/Neurodyne/zio-tapir) by [Boris V.Kuznetsov](https://github.com/tampler)
+- [Akka Microservice using DDD with ZIO Streams Tapir AkkaHTTP Integration](https://github.com/mvillafuertem/scalcite) by [Miguel Villafuerte](https://github.com/mvillafuertem)
 
 ## Projects using ZIO
 
