@@ -51,7 +51,7 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
     ea: EA => EC,
     eb: EB => ED,
     ca: C => Either[EC, A],
-    bc: B => Either[ED, D]
+    bd: B => Either[ED, D]
   ): ZRef[EC, ED, C, D]
 
   /**
@@ -59,11 +59,12 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * the state in transforming the `set` value. This is a more powerful version
    * of `fold` but requires unifying the error types.
    */
-  def foldS[EC >: EB, ED, C, D](
+  def foldAll[EC, ED, C, D](
     ea: EA => EC,
     eb: EB => ED,
+    ec: EB => EC,
     ca: C => B => Either[EC, A],
-    bc: B => Either[ED, D]
+    bd: B => Either[ED, D]
   ): ZRef[EC, ED, C, D]
 
   /**
@@ -181,24 +182,25 @@ object ZRef extends Serializable {
       ea: Nothing => EC,
       eb: Nothing => ED,
       ca: C => Either[EC, A],
-      bc: A => Either[ED, D]
+      bd: A => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
         type S = A
-        def getEither(s: S): Either[ED, D] = bc(s)
+        def getEither(s: S): Either[ED, D] = bd(s)
         def setEither(c: C): Either[EC, S] = ca(c)
         val value: Atomic[S]               = self
       }
 
-    def foldS[EC, ED, C, D](
+    def foldAll[EC, ED, C, D](
       ea: Nothing => EC,
       eb: Nothing => ED,
+      ec: Nothing => EC,
       ca: C => A => Either[EC, A],
-      bc: A => Either[ED, D]
+      bd: A => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
       new DerivedS[EC, ED, C, D] {
         type S = A
-        def getEither(s: S): Either[ED, D]       = bc(s)
+        def getEither(s: S): Either[ED, D]       = bd(s)
         def setEither(c: C)(s: S): Either[EC, S] = ca(c)(s)
         val value: Atomic[S]                     = self
       }
@@ -338,30 +340,34 @@ object ZRef extends Serializable {
       ea: EA => EC,
       eb: EB => ED,
       ca: C => Either[EC, A],
-      bc: B => Either[ED, D]
+      bd: B => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
-          self.getEither(s).fold(e => Left(eb(e)), bc)
+          self.getEither(s).fold(e => Left(eb(e)), bd)
         def setEither(c: C): Either[EC, S] =
           ca(c).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
       }
 
-    final def foldS[EC >: EB, ED, C, D](
+    final def foldAll[EC, ED, C, D](
       ea: EA => EC,
       eb: EB => ED,
+      ec: EB => EC,
       ca: C => B => Either[EC, A],
-      bc: B => Either[ED, D]
+      bd: B => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
       new DerivedS[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
-          self.getEither(s).fold(e => Left(eb(e)), bc)
+          self.getEither(s).fold(e => Left(eb(e)), bd)
         def setEither(c: C)(s: S): Either[EC, S] =
-          self.getEither(s).flatMap(ca(c)).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
+          self
+            .getEither(s)
+            .fold(e => Left(ec(e)), ca(c))
+            .flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
       }
@@ -389,30 +395,34 @@ object ZRef extends Serializable {
       ea: EA => EC,
       eb: EB => ED,
       ca: C => Either[EC, A],
-      bc: B => Either[ED, D]
+      bd: B => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
       new DerivedS[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
-          self.getEither(s).fold(e => Left(eb(e)), bc)
+          self.getEither(s).fold(e => Left(eb(e)), bd)
         def setEither(c: C)(s: S): Either[EC, S] =
           ca(c).flatMap(a => self.setEither(a)(s).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
       }
 
-    final def foldS[EC >: EB, ED, C, D](
+    final def foldAll[EC, ED, C, D](
       ea: EA => EC,
       eb: EB => ED,
+      ec: EB => EC,
       ca: C => B => Either[EC, A],
-      bc: B => Either[ED, D]
+      bd: B => Either[ED, D]
     ): ZRef[EC, ED, C, D] =
       new DerivedS[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
-          self.getEither(s).fold(e => Left(eb(e)), bc)
+          self.getEither(s).fold(e => Left(eb(e)), bd)
         def setEither(c: C)(s: S): Either[EC, S] =
-          self.getEither(s).flatMap(ca(c)).flatMap(a => self.setEither(a)(s).fold(e => Left(ea(e)), Right(_)))
+          self
+            .getEither(s)
+            .fold(e => Left(ec(e)), ca(c))
+            .flatMap(a => self.setEither(a)(s).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
       }
@@ -445,13 +455,13 @@ object ZRef extends Serializable {
     def accessElements[EC >: EA, ED >: EB, C, D](
       optic: ZOptic[B, B, List[C], ED, EC, List[D], A]
     ): ZRef[EC, ED, List[C], List[D]] =
-      self.foldS(identity, identity, optic.setEither, optic.getEither)
+      self.foldAll(identity, identity, identity, optic.setEither, optic.getEither)
 
     /**
      * Accesses a field of a product type.
      */
     def accessField[EC >: EA, ED >: EB, C, D](optic: ZOptic[B, B, C, ED, EC, D, A]): ZRef[EC, ED, C, D] =
-      self.foldS(identity, identity, optic.setEither, optic.getEither)
+      self.foldAll(identity, identity, identity, optic.setEither, optic.getEither)
   }
 
   implicit class UnifiedSyntax[E, A](private val self: ERef[E, A]) extends AnyVal {

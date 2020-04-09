@@ -546,6 +546,6 @@ object ZRefSpec extends ZIOBaseSpec {
 
   object DerivedS {
     def make[A](a: A): UIO[Ref[A]] =
-      Ref.make(a).map(ref => ref.foldS(identity, identity, a => _ => Right(a), Right(_)))
+      Ref.make(a).map(ref => ref.foldAll(identity, identity, identity, a => _ => Right(a), Right(_)))
   }
 }
