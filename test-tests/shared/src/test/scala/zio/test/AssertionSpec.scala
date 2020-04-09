@@ -3,9 +3,9 @@ package zio.test
 import scala.collection.immutable.SortedSet
 import scala.util.{ Failure, Success }
 
-import zio.Exit
 import zio.test.Assertion._
 import zio.test.TestAspect._
+import zio.{ Chunk, Exit }
 
 object AssertionSpec extends ZIOBaseSpec {
 
@@ -249,6 +249,12 @@ object AssertionSpec extends ZIOBaseSpec {
     test("hasSize must fail when iterable size is not equal to specified assertion") {
       assert(Seq(1, 2, 3))(hasSize(equalTo(1)))
     } @@ failing,
+    test("hasSizeChunk must succeed when iterable size is equal to specified assertion") {
+      assert(Chunk(1, 2, 3))(hasSizeChunk(equalTo(3)))
+    },
+    test("hasSizeChunk must fail when iterable size is not equal to specified assertion") {
+      assert(Chunk(1, 2, 3))(hasSizeChunk(equalTo(1)))
+    } @@ failing,
     test("hasSizeString must succeed when string size is equal to specified assertion") {
       assert("aaa")(hasSizeString(equalTo(3)))
     },
@@ -361,6 +367,12 @@ object AssertionSpec extends ZIOBaseSpec {
     } @@ failing,
     test("isNonEmpty must succeed when the traversable is not empty") {
       assert(Seq(1, 2, 3))(isNonEmpty)
+    },
+    test("isNonEmptyChunk must fail when the chunk is empty") {
+      assert(Chunk.empty)(isNonEmptyChunk)
+    } @@ failing,
+    test("isNonEmptyChunk must succeed when the chunk is not empty") {
+      assert(Chunk(1, 2, 3))(isNonEmptyChunk)
     },
     test("isNonEmpty must fail when the traversable is empty") {
       assert(Seq())(isNonEmpty)
