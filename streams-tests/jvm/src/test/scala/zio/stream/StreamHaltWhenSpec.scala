@@ -43,10 +43,10 @@ object StreamHaltWhenSpec extends ZIOBaseSpec {
           latch       <- Promise.make[Nothing, Unit]
           halt        <- Promise.make[Nothing, Unit]
           _ <- ZStream
-            .fromEffect(latch.await.onInterrupt(interrupted.set(true)))
-            .haltWhen(halt.await)
-            .runDrain
-            .fork
+                .fromEffect(latch.await.onInterrupt(interrupted.set(true)))
+                .haltWhen(halt.await)
+                .runDrain
+                .fork
           _      <- halt.succeed(())
           _      <- latch.succeed(())
           result <- interrupted.get
@@ -57,9 +57,9 @@ object StreamHaltWhenSpec extends ZIOBaseSpec {
           halt <- Promise.make[String, Nothing]
           _    <- halt.fail("Fail")
           result <- ZStream(1)
-            .haltWhen(halt.await)
-            .runDrain
-            .either
+                     .haltWhen(halt.await)
+                     .runDrain
+                     .either
         } yield assert(result)(isLeft(equalTo("Fail")))
       } @@ zioTag(errors)
     )

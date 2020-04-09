@@ -1760,7 +1760,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    *
    * If the IO completes with a failure, the stream will emit that failure.
    */
-  final def interruptWhen[E1 >: E](io: IO[E1, _]): ZStream[R, E1, A] =
+  final def interruptWhen[E1 >: E](io: IO[E1, Unit]): ZStream[R, E1, A] =
     ZStream {
       for {
         as   <- self.process
@@ -1786,7 +1786,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * If the promise completes with a failure, the stream will emit that failure.
    */
   final def interruptWhen[E1 >: E](p: Promise[E1, _]): ZStream[R, E1, A] =
-    interruptWhen(p.await)
+    interruptWhen(p.await.unit)
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
