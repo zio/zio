@@ -1684,8 +1684,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * If the IO completes with a failure, the stream will emit that failure.
    */
   final def haltWhen[E1 >: E](io: IO[E1, Unit]): ZStream[R, E1, A] =
-    ZStream.fromEffect(Promise.make[E1, Unit]).flatMap {
-      promise => haltWhen(promise).drainFork(Stream.fromEffect(io.to(promise)))
+    ZStream.fromEffect(Promise.make[E1, Unit]).flatMap { promise =>
+      haltWhen(promise).drainFork(Stream.fromEffect(io.to(promise)))
     }
 
   /**
@@ -1769,8 +1769,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           if (_) Pull.end
           else
             as.raceFirst(
-              io
-                .mapError(Some(_))
+              io.mapError(Some(_))
                 .foldCauseM(
                   c => done.set(true) *> ZIO.halt(c),
                   _ => done.set(true) *> Pull.end
