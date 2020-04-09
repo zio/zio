@@ -540,8 +540,8 @@ sealed trait Chunk[+A] { self =>
     fromBuilder(vectorBuilder)
   }
 
-  override def toString: String =
-    toArrayOption.fold(s"${self.getClass.getSimpleName}()")(_.mkString(s"${self.getClass.getSimpleName}(", ",", ")"))
+  override final def toString: String =
+    toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
 
   /**
    * Statefully and effectfully maps over the elements of this chunk to produce
