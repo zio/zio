@@ -103,7 +103,7 @@ abstract class ZStream[-R, +E, +O](
         push   <- transducer.push
         lock   <- Semaphore.make(1).toManaged_
         bucket <- ZRef.makeManaged[Take[E1, P]](Take.End)
-        start <- Promise.make[Nothing, Unit].toManaged_
+        start  <- Promise.make[Nothing, Unit].toManaged_
         done   <- ZRef.makeManaged(false)
         produce = {
           def finish: ZIO[R1, Nothing, Boolean] =
