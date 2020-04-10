@@ -91,7 +91,7 @@ object AccountObserverMock extends Mock[Has[AccountObserver.Service]] {
       withRuntime.map { rts =>
         new AccountObserver.Service {
           def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
-          def runCommand(): UIO[Unit]           = proxy(RunCommand)
+          def runCommand: UIO[Unit]           = proxy(RunCommand)
         }
       }
     }

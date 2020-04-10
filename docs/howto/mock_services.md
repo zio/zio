@@ -225,7 +225,6 @@ object AccountObserver {
       }
     }
 }
-
 ```
 
 ```scala mdoc:silent
@@ -260,14 +259,31 @@ For each built-in ZIO service you will find their mockable counterparts in `zio.
 
 To create expectations we use the previously defined _capability tags_:
 
+```scala mdoc:invisible
+object Example {
+  trait Service {
+    def zeroArgs: UIO[Int]
+    def singleArg(arg1: Int): UIO[String]
+  }
+}
+object ExampleMock extends Mock[Has[Example.Service]] {
+  object ZeroArgs  extends Effect[Unit, Nothing, Int]
+  object SingleArg extends Effect[Int, Nothing, String]
+  val compose: URLayer[Has[Proxy], Has[Example.Service]] = ZLayer.fromService(proxy => new Example.Service {
+    def zeroArgs             = proxy(ZeroArgs)
+    def singleArg(arg1: Int) = proxy(SingleArg, arg1)
+  })
+}
+```
+
 ```scala mdoc:silent
 import zio.test.Assertion._
 import zio.test.mock.Expectation._
 import zio.test.mock.MockSystem
 
-val exp01 = MockSystem.Property( // capability to build an expectation for
-  equalTo("foo"), // assertion of the expected input argument
-  value(Some("bar")) // result, that will be returned
+val exp01 = ExampleMock.SingleArg( // capability to build an expectation for
+  equalTo(42), // assertion of the expected input argument
+  value("bar") // result, that will be returned
 )
 ```
 
@@ -288,7 +304,7 @@ one of following combinators from `zio.test.mock.Expectation` companion object:
 For methods that take no input, we only define the expected output.
 
 ```scala mdoc:silent
-val exp02 = MockSystem.LineSeparator(value("baz"))
+val exp02 = ExampleMock.ZeroArgs(value(42))
 ```
 
 For methods that may return `Unit`, we may skip the predefined result (it will default to successful value) or use `unit` helper.
