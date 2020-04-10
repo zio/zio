@@ -59,7 +59,8 @@ object StreamInterruptWhenSpec extends ZIOBaseSpec {
           for {
             halt <- Promise.make[String, Nothing]
             _    <- halt.fail("Fail")
-            result <- ZStream(1)
+            result <- ZStream
+                       .fromIterable(Range(0, Int.MaxValue))
                        .haltWhen(halt.await)
                        .runDrain
                        .either

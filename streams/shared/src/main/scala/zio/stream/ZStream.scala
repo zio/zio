@@ -1766,14 +1766,15 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * IO will be forked as part of this stream, and its success will be discarded. This
    * combinator will also interrupt any in-progress element being pulled from upstream.
    *
-   * If the IO completes with a failure, the stream will emit that failure.
+   * If the IO completes with a failure before the stream completes, the returned stream
+   * will emit that failure.
    */
   final def interruptWhen[R1 <: R, E1 >: E](io: ZIO[R1, E1, Any]): ZStream[R1, E1, A] =
     ZStream {
       for {
         as    <- self.process
         runIO <- (io.asSomeError *> Pull.end).forkManaged
-      } yield as.raceFirst(runIO.join)
+      } yield runIO.join.disconnect.raceFirst(as)
     }
 
   /**
