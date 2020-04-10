@@ -281,7 +281,7 @@ import zio.test.Assertion._
 import zio.test.mock.Expectation._
 import zio.test.mock.MockSystem._
 
-val exp01 = SomeCapability(
+val exp01 = Property( // capability to build an expectation for
   equalTo("foo"), // assertion of the expected input argument
   value(Some("bar")) // result, that will be returned
 )
