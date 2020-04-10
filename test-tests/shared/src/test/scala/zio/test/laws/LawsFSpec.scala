@@ -38,17 +38,19 @@ object LawsFSpec extends ZIOBaseSpec {
     def deriveEqual[A](equal: Equal[A]): Equal[F[A]]
   }
 
-  object EqualF extends CovariantEqualF {
+  object EqualF {
 
     def apply[F[_]](implicit equalF: EqualF[F]): EqualF[F] =
       equalF
 
     implicit val OptionEqualF: EqualF[Option] =
       new EqualF[Option] {
-        def deriveEqual[A](A: Equal[A]): Equal[Option[A]] = {
-          case (None, None)       => true
-          case (Some(l), Some(r)) => A.equal(l, r)
-          case _                  => false
+        def deriveEqual[A](A: Equal[A]): Equal[Option[A]] = { (l, r) =>
+          (l, r) match {
+            case (None, None)       => true
+            case (Some(l), Some(r)) => A.equal(l, r)
+            case _                  => false
+          }
         }
       }
   }
@@ -63,19 +65,18 @@ object LawsFSpec extends ZIOBaseSpec {
     def map[A, B](f: A => B): F[A] => F[B]
   }
 
-  object Covariant extends LawfulF.Covariant[Covariant with EqualF, Equal] {
+  object Covariant extends LawfulF.Covariant[CovariantEqualF, Equal] {
 
-    val identityLaw = new LawsF.Covariant.Law1[Covariant with EqualF, Equal]("identityLaw") {
-      def apply[F[+_], A](fa: F[A])(implicit F: Covariant[F] with EqualF[F], A: Equal[A]): TestResult =
+    def apply[F[+_]](implicit covariant: Covariant[F]): Covariant[F] =
+      covariant
+
+    val identityLaw = new LawsF.Covariant.Law1[CovariantEqualF, Equal]("identityLaw") {
+      def apply[F[+_]: CovariantEqualF, A: Equal](fa: F[A]): TestResult =
         fa.map(identity) <-> fa
     }
 
-    val compositionLaw = new ZLawsF.Covariant.Law3Function[Covariant with EqualF, Equal]("compositionLaw") {
-      def apply[F[+_], A, B, C](
-        fa: F[A],
-        f: A => B,
-        g: B => C
-      )(implicit F: Covariant[F] with EqualF[F], A: Equal[A], B: Equal[B], C: Equal[C]): TestResult =
+    val compositionLaw = new ZLawsF.Covariant.Law3Function[CovariantEqualF, Equal]("compositionLaw") {
+      def apply[F[+_]: CovariantEqualF, A: Equal, B: Equal, C: Equal](fa: F[A], f: A => B, g: B => C): TestResult =
         fa.map(f).map(g) <-> fa.map(f andThen g)
     }
 
@@ -95,12 +96,12 @@ object LawsFSpec extends ZIOBaseSpec {
     }
   }
 
-  trait CovariantEqualF {
-    implicit def CovariantEqualF[F[+_]](
-      implicit covariant: Covariant[F],
-      equalF: EqualF[F]
-    ): Covariant[F] with EqualF[F] =
-      new Covariant[F] with EqualF[F] {
+  trait CovariantEqualF[F[+_]] extends Covariant[F] with EqualF[F]
+
+  object CovariantEqualF {
+
+    implicit def derive[F[+_]](implicit covariant: Covariant[F], equalF: EqualF[F]): CovariantEqualF[F] =
+      new CovariantEqualF[F] {
         def deriveEqual[A](equal: Equal[A]): Equal[F[A]] =
           equalF.deriveEqual(equal)
         def map[A, B](f: A => B): F[A] => F[B] =
