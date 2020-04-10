@@ -56,7 +56,7 @@ object StreamHaltWhenSpec extends ZIOBaseSpec {
         for {
           halt <- Promise.make[String, Nothing]
           _    <- halt.fail("Fail")
-          result <- ZStream(1)
+          result <- ZStream(1, 2, 3)
                      .haltWhen(halt.await)
                      .runDrain
                      .either

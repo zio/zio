@@ -1679,13 +1679,22 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
   /**
    * Halts the evaluation of this stream when the provided IO completes. The given IO
-   * will be evaluated as part of this stream, and its success will be discarded.
+   * will be forked as part of the returned stream, and its success will be discarded.
+   *
+   * An element in the process of being pulled will not be interrupted when the IO
+   * completes. See `interruptWhen` for this behavior.
    *
    * If the IO completes with a failure, the stream will emit that failure.
    */
-  final def haltWhen[E1 >: E](io: IO[E1, Unit]): ZStream[R, E1, A] =
-    ZStream.fromEffect(Promise.make[E1, Unit]).flatMap { promise =>
-      haltWhen(promise).drainFork(Stream.fromEffect(io.to(promise)))
+  final def haltWhen[R1 <: R, E1 >: E](io: ZIO[R1, E1, Any]): ZStream[R1, E1, A] =
+    ZStream {
+      for {
+        as    <- self.process
+        runIO <- io.forkManaged
+      } yield runIO.poll.flatMap {
+        case None       => as
+        case Some(exit) => exit.fold(cause => Pull.halt(cause), _ => Pull.end)
+      }
     }
 
   /**
@@ -1754,29 +1763,17 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
   /**
    * Interrupts the evaluation of this stream when the provided IO completes. The given
-   * IO will be evaluated as part of this stream, and its success will be discarded.
-   * This combinator will also interrupt any in-progress element being pulled from
-   * upstream.
+   * IO will be forked as part of this stream, and its success will be discarded. This
+   * combinator will also interrupt any in-progress element being pulled from upstream.
    *
    * If the IO completes with a failure, the stream will emit that failure.
    */
-  final def interruptWhen[E1 >: E](io: IO[E1, Unit]): ZStream[R, E1, A] =
+  final def interruptWhen[R1 <: R, E1 >: E](io: ZIO[R1, E1, Any]): ZStream[R1, E1, A] =
     ZStream {
       for {
-        as   <- self.process
-        done <- Ref.make(false).toManaged_
-        pull = done.get flatMap {
-          if (_) Pull.end
-          else
-            as.raceFirst(
-              io.mapError(Some(_))
-                .foldCauseM(
-                  c => done.set(true) *> ZIO.halt(c),
-                  _ => done.set(true) *> Pull.end
-                )
-            )
-        }
-      } yield pull
+        as    <- self.process
+        runIO <- (io.asSomeError *> Pull.end).forkManaged
+      } yield as.raceFirst(runIO.join)
     }
 
   /**
@@ -1786,7 +1783,24 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * If the promise completes with a failure, the stream will emit that failure.
    */
   final def interruptWhen[E1 >: E](p: Promise[E1, _]): ZStream[R, E1, A] =
-    interruptWhen(p.await.unit)
+    ZStream {
+      for {
+        as   <- self.process
+        done <- Ref.make(false).toManaged_
+        pull = done.get flatMap {
+          if (_) Pull.end
+          else
+            as.raceFirst(
+              p.await
+                .mapError(Some(_))
+                .foldCauseM(
+                  c => done.set(true) *> ZIO.halt(c),
+                  _ => done.set(true) *> Pull.end
+                )
+            )
+        }
+      } yield pull
+    }
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
