@@ -41,59 +41,123 @@ import zio.stm.ZSTM.internal._
  */
 sealed trait ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
+  /**
+   * Folds over the error and value types of the `ZTRef`. This is a highly
+   * polymorphic method that is capable of arbitrarily transforming the error
+   * and value types of the `ZTRef`. For most use cases one of the more
+   * specific combinators implemented in terms of `fold` will be more ergonomic
+   * but this method is extremely useful for implementing new combinators.
+   */
   def fold[EC, ED, C, D](
     ea: EA => EC,
     eb: EB => ED,
     ca: C => Either[EC, A],
-    bc: B => Either[ED, D]
+    bd: B => Either[ED, D]
   ): ZTRef[EC, ED, C, D]
 
   /**
-   * Retrieves the value of the `TRef`.
+   * Folds over the error and value types of the `ZTRef`, allowing access to
+   * the state in transforming the `set` value. This is a more powerful version
+   * of `fold` but requires unifying the error types.
    */
-  val get: STM[EB, B]
+  def foldAll[EC, ED, C, D](
+    ea: EA => EC,
+    eb: EB => ED,
+    ec: EB => EC,
+    ca: C => B => Either[EC, A],
+    bd: B => Either[ED, D]
+  ): ZTRef[EC, ED, C, D]
 
   /**
-   * Sets the value of the `TRef`.
+   * Retrieves the value of the `ZTRef`.
+   */
+  def get: STM[EB, B]
+
+  /**
+   * Sets the value of the `ZTRef`.
    */
   def set(a: A): STM[EA, Unit]
 
+  /**
+   * Maps and filters the `get` value of the `ZTRef` with the specified partial
+   * function, returning a `ZTRef` with a `get` value that succeeds with the
+   * result of the partial function if it is defined or else fails with `None`.
+   */
   final def collect[C](pf: PartialFunction[B, C]): ZTRef[EA, Option[EB], A, C] =
-    fold(identity, Some(_), Right(_), pf.lift(_).fold[Either[Option[EB], C]](Left(None))(Right(_)))
+    fold(identity, Some(_), Right(_), pf.lift(_).toRight(None))
 
+  /**
+   * Transforms the `set` value of the `ZTRef` with the specified function.
+   */
   final def contramap[C](f: C => A): ZTRef[EA, EB, C, B] =
     contramapEither(c => Right(f(c)))
 
+  /**
+   * Transforms the `set` value of the `ZTRef` with the specified fallible
+   * function.
+   */
   final def contramapEither[EC >: EA, C](f: C => Either[EC, A]): ZTRef[EC, EB, C, B] =
     dimapEither(f, Right(_))
 
+  /**
+   * Transforms both the `set` and `get` values of the `ZTRef` with the
+   * specified functions.
+   */
   final def dimap[C, D](f: C => A, g: B => D): ZTRef[EA, EB, C, D] =
     dimapEither(c => Right(f(c)), b => Right(g(b)))
 
+  /**
+   * Transforms both the `set` and `get` values of the `ZTRef` with the
+   * specified fallible functions.
+   */
   final def dimapEither[EC >: EA, ED >: EB, C, D](f: C => Either[EC, A], g: B => Either[ED, D]): ZTRef[EC, ED, C, D] =
     fold(identity, identity, f, g)
 
+  /**
+   * Transforms both the `set` and `get` errors of the `ZTRef` with the
+   * specified functions.
+   */
   final def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZTRef[EC, ED, A, B] =
     fold(f, g, Right(_), Right(_))
 
-  final def filter(f: B => Boolean): ZTRef[EA, Option[EB], A, B] =
+  /**
+   * Filters the `set` value of the `ZTRef` with the specified predicate,
+   * returning a `ZTRef` with a `set` value that succeeds if the predicate is
+   * satisfied or else fails with `None`.
+   */
+  final def filterInput[A1 <: A](f: A1 => Boolean): ZTRef[Option[EA], EB, A1, B] =
+    fold(Some(_), identity, a => if (f(a)) Right(a) else Left(None), Right(_))
+
+  /**
+   * Filters the `get` value of the `ZTRef` with the specified predicate,
+   * returning a `ZTRef` with a `get` value that succeeds if the predicate is
+   * satisfied or else fails with `None`.
+   */
+  final def filterOutput(f: B => Boolean): ZTRef[EA, Option[EB], A, B] =
     fold(identity, Some(_), Right(_), b => if (f(b)) Right(b) else Left(None))
 
+  /**
+   * Transforms the `get` value of the `ZTRef` with the specified function.
+   */
   final def map[C](f: B => C): ZTRef[EA, EB, A, C] =
     mapEither(b => Right(f(b)))
 
+  /**
+   * Transforms the `get` value of the `ZTRef` with the specified fallible
+   * function.
+   */
   final def mapEither[EC >: EB, C](f: B => Either[EC, C]): ZTRef[EA, EC, A, C] =
     dimapEither(Right(_), f)
 
+  /**
+   * Returns a read only view of the `ZTRef`.
+   */
   final def readOnly: ZTRef[EA, EB, Nothing, B] =
     self
 
-  final def unifyError[E](ea: EA => E, eb: EB => E): ZTRef[E, E, A, B] =
-    dimapError(ea, eb)
-
-  final def unifyValue[C](ca: C => A, bc: B => C): ZTRef[EA, EB, C, C] =
-    dimap(ca, bc)
-
+  /**
+   * Returns a write only view of the `ZTRef`.
+   */
   final def writeOnly: ZTRef[EA, Unit, A, Nothing] =
     fold(identity, _ => (), Right(_), _ => Left(()))
 }
@@ -105,26 +169,40 @@ object ZTRef {
     private[stm] val todo: AtomicReference[Map[TxnId, Todo]]
   ) extends ZTRef[Nothing, Nothing, A, A] { self =>
 
-    final def fold[EC, ED, C, D](
+    def fold[EC, ED, C, D](
       ea: Nothing => EC,
       eb: Nothing => ED,
       ca: C => Either[EC, A],
-      bc: A => Either[ED, D]
+      bd: A => Either[ED, D]
     ): ZTRef[EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
         type S = A
-        def getEither(s: S): Either[ED, D] = bc(s)
+        def getEither(s: S): Either[ED, D] = bd(s)
         def setEither(c: C): Either[EC, S] = ca(c)
         val value: Atomic[S]               = self
       }
 
-    final val get: USTM[A] =
+    def foldAll[EC, ED, C, D](
+      ea: Nothing => EC,
+      eb: Nothing => ED,
+      ec: Nothing => EC,
+      ca: C => A => Either[EC, A],
+      bd: A => Either[ED, D]
+    ): ZTRef[EC, ED, C, D] =
+      new DerivedAll[EC, ED, C, D] {
+        type S = A
+        def getEither(s: S): Either[ED, D]       = bd(s)
+        def setEither(c: C)(s: S): Either[EC, S] = ca(c)(s)
+        val value: Atomic[S]                     = self
+      }
+
+    def get: USTM[A] =
       new ZSTM((journal, _, _, _) => {
         val entry = getOrMakeEntry(journal)
         TExit.Succeed(entry.unsafeGet[A])
       })
 
-    final def set(a: A): USTM[Unit] =
+    def set(a: A): USTM[Unit] =
       new ZSTM((journal, _, _, _) => {
         val entry = getOrMakeEntry(journal)
         entry.unsafeSet(a)
@@ -132,7 +210,7 @@ object ZTRef {
       })
 
     /**
-     * Sets the value of the `TRef` and returns the old value.
+     * Sets the value of the `ZTRef` and returns the old value.
      */
     def getAndSet(a: A): USTM[A] =
       new ZSTM((journal, _, _, _) => {
@@ -239,49 +317,126 @@ object ZTRef {
       ea: EA => EC,
       eb: EB => ED,
       ca: C => Either[EC, A],
-      bc: B => Either[ED, D]
+      bd: B => Either[ED, D]
     ): ZTRef[EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
-          self.getEither(s).fold(e => Left(eb(e)), bc)
+          self.getEither(s).fold(e => Left(eb(e)), bd)
         def setEither(c: C): Either[EC, S] =
           ca(c).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
       }
 
-    final val get: STM[EB, B] =
+    final def foldAll[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ec: EB => EC,
+      ca: C => B => Either[EC, A],
+      bd: B => Either[ED, D]
+    ): ZTRef[EC, ED, C, D] =
+      new DerivedAll[EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): Either[ED, D] =
+          self.getEither(s).fold(e => Left(eb(e)), bd)
+        def setEither(c: C)(s: S): Either[EC, S] =
+          self
+            .getEither(s)
+            .fold(e => Left(ec(e)), ca(c))
+            .flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
+        val value: Atomic[S] =
+          self.value
+      }
+
+    final def get: STM[EB, B] =
       value.get.flatMap(getEither(_).fold(STM.fail(_), STM.succeedNow))
 
     final def set(a: A): STM[EA, Unit] =
       setEither(a).fold(STM.fail(_), value.set)
   }
 
+  private trait DerivedAll[+EA, +EB, -A, +B] extends ZTRef[EA, EB, A, B] { self =>
+    type S
+
+    def getEither(s: S): Either[EB, B]
+
+    def setEither(a: A)(s: S): Either[EA, S]
+
+    val value: Atomic[S]
+
+    final def fold[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => Either[EC, A],
+      bd: B => Either[ED, D]
+    ): ZTRef[EC, ED, C, D] =
+      new DerivedAll[EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): Either[ED, D] =
+          self.getEither(s).fold(e => Left(eb(e)), bd)
+        def setEither(c: C)(s: S): Either[EC, S] =
+          ca(c).flatMap(a => self.setEither(a)(s).fold(e => Left(ea(e)), Right(_)))
+        val value: Atomic[S] =
+          self.value
+      }
+
+    final def foldAll[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ec: EB => EC,
+      ca: C => B => Either[EC, A],
+      bd: B => Either[ED, D]
+    ): ZTRef[EC, ED, C, D] =
+      new DerivedAll[EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): Either[ED, D] =
+          self.getEither(s).fold(e => Left(eb(e)), bd)
+        def setEither(c: C)(s: S): Either[EC, S] =
+          self
+            .getEither(s)
+            .fold(e => Left(ec(e)), ca(c))
+            .flatMap(a => self.setEither(a)(s).fold(e => Left(ea(e)), Right(_)))
+        val value: Atomic[S] =
+          self.value
+      }
+
+    final def get: STM[EB, B] =
+      value.get.flatMap(getEither(_).fold(STM.fail(_), STM.succeedNow))
+
+    final def set(a: A): STM[EA, Unit] =
+      value.modify { s =>
+        setEither(a)(s) match {
+          case Left(e)  => (Left(e), s)
+          case Right(s) => (Right(()), s)
+        }
+      }.absolve
+  }
+
   implicit class UnifiedSyntax[E, A](private val self: ETRef[E, A]) extends AnyVal {
-    final def getAndSet(a: A): STM[E, A] =
+    def getAndSet(a: A): STM[E, A] =
       self match {
-        case atomic: Atomic[A]            => atomic.getAndSet(a)
-        case derived: Derived[E, E, A, A] => derived.modify((_, a))
+        case atomic: Atomic[A] => atomic.getAndSet(a)
+        case derived           => derived.modify((_, a))
       }
 
-    final def getAndUpdate(f: A => A): STM[E, A] =
+    def getAndUpdate(f: A => A): STM[E, A] =
       self match {
-        case atomic: Atomic[A]            => atomic.getAndUpdate(f)
-        case derived: Derived[E, E, A, A] => derived.modify(v => (v, f(v)))
+        case atomic: Atomic[A] => atomic.getAndUpdate(f)
+        case derived           => derived.modify(v => (v, f(v)))
       }
 
-    final def getAndUpdateSome(pf: PartialFunction[A, A]): STM[E, A] =
+    def getAndUpdateSome(pf: PartialFunction[A, A]): STM[E, A] =
       self match {
         case atomic: Atomic[A] => atomic.getAndUpdateSome(pf)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify { v =>
             val result = pf.applyOrElse[A, A](v, identity)
             (v, result)
           }
       }
 
-    final def modify[B](f: A => (B, A)): STM[E, B] =
+    def modify[B](f: A => (B, A)): STM[E, B] =
       self match {
         case atomic: Atomic[A] => atomic.modify(f)
         case derived: Derived[E, E, A, A] =>
@@ -296,25 +451,38 @@ object ZTRef {
                 }
             }
           }.absolve
+        case derivedAll: DerivedAll[E, E, A, A] =>
+          derivedAll.value.modify { s =>
+            derivedAll.getEither(s) match {
+              case Left(e) => (Left(e), s)
+              case Right(a1) => {
+                val (b, a2) = f(a1)
+                derivedAll.setEither(a2)(s) match {
+                  case Left(e)  => (Left(e), s)
+                  case Right(s) => (Right(b), s)
+                }
+              }
+            }
+          }.absolve
       }
 
-    final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): STM[E, B] =
+    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): STM[E, B] =
       self match {
         case atomic: Atomic[A] => atomic.modifySome(default)(pf)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
       }
 
     def update(f: A => A): STM[E, Unit] =
       self match {
-        case atomic: Atomic[A]            => atomic.update(f)
-        case derived: Derived[E, E, A, A] => derived.modify(v => ((), f(v)))
+        case atomic: Atomic[A] => atomic.update(f)
+        case derived           => derived.modify(v => ((), f(v)))
       }
 
     def updateAndGet(f: A => A): STM[E, A] =
       self match {
         case atomic: Atomic[A] => atomic.updateAndGet(f)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify { v =>
             val result = f(v)
             (result, result)
@@ -324,7 +492,7 @@ object ZTRef {
     def updateSome(pf: PartialFunction[A, A]): STM[E, Unit] =
       self match {
         case atomic: Atomic[A] => atomic.updateSome(pf)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify { v =>
             val result = pf.applyOrElse[A, A](v, identity)
             ((), result)
@@ -334,7 +502,7 @@ object ZTRef {
     def updateSomeAndGet(pf: PartialFunction[A, A]): STM[E, A] =
       self match {
         case atomic: Atomic[A] => atomic.updateSomeAndGet(pf)
-        case derived: Derived[E, E, A, A] =>
+        case derived =>
           derived.modify { v =>
             val result = pf.applyOrElse[A, A](v, identity)
             (result, result)
@@ -343,7 +511,7 @@ object ZTRef {
   }
 
   /**
-   * Makes a new `TRef` that is initialized to the specified value.
+   * Makes a new `ZTRef` that is initialized to the specified value.
    */
   def make[A](a: => A): USTM[TRef[A]] =
     new ZSTM((journal, _, _, _) => {
@@ -356,7 +524,7 @@ object ZTRef {
     })
 
   /**
-   * A convenience method that makes a `TRef` and immediately commits the
+   * A convenience method that makes a `ZTRef` and immediately commits the
    * transaction to extract the value out.
    */
   def makeCommit[A](a: => A): UIO[TRef[A]] =
