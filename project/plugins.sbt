@@ -8,7 +8,7 @@ addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"               
 addSbtPlugin("com.eed3si9n"                      % "sbt-buildinfo"                 % "0.9.0")
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings"              % "3.0.0")
 addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies"     % "0.2.13")
-addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                    % "5.4.0")
+addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                    % "5.5.0")
 addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                     % "0.4.1")
 addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                      % "2.1.5")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                     % "1.3.5")
