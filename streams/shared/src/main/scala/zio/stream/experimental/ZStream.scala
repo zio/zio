@@ -95,14 +95,15 @@ abstract class ZStream[-R, +E, +O](
    * sinks that cover the common usecases.
    */
   final def aggregateAsync[R1 <: R, E1 >: E, O1 >: O, P](transducer: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] = {
-    import zio.stm.TReentrantLock
+    import zio.Semaphore
 
     ZStream {
       for {
         pull   <- self.process
         push   <- transducer.push
-        lock   <- TReentrantLock.makeCommit.toManaged_
-        bucket <- ZRef.makeManaged[Option[Take[E1, P]]](None)
+        lock   <- Semaphore.make(1).toManaged_
+        bucket <- ZRef.makeManaged[Take[E1, P]](Take.End)
+        start <- Promise.make[Nothing, Unit].toManaged_
         done   <- ZRef.makeManaged(false)
         produce = {
           def finish: ZIO[R1, Nothing, Boolean] =
@@ -111,40 +112,33 @@ abstract class ZStream[-R, +E, +O](
               .foldCauseM(
                 Cause
                   .sequenceCauseOption(_)
-                  .fold(bucket.set(Some(Take.End)))(c => bucket.set(Some(Exit.halt(c.map(Some(_)))))),
-                ps => bucket.set(Some(Exit.succeed(ps)))
+                  .fold(bucket.set(Take.End))(c => bucket.set(Exit.halt(c.map(Some(_))))),
+                ps => bucket.set(Exit.succeed(ps))
               )
               .as(false)
 
           def maybeDrain(os: Chunk[O]): ZIO[R1, Nothing, Boolean] =
             push(Some(os))
               .foldCauseM(
-                Cause.sequenceCauseOption(_).fold(IO.unit)(c => bucket.set(Some(Exit.halt(c.map(Some(_)))))),
-                ps => bucket.set(Some(Exit.succeed(ps)))
+                Cause.sequenceCauseOption(_).fold(IO.unit)(c => bucket.set(Exit.halt(c.map(Some(_))))),
+                ps => bucket.set(Exit.succeed(ps))
               )
               .as(true)
 
           val go: ZIO[R1, Nothing, Boolean] =
-            bucket.get.flatMap { ps =>
-              if (ps.nonEmpty)
-                ZIO.succeedNow(true)
-              else
-                pull.foldCauseM(
-                  Cause.sequenceCauseOption(_).fold(finish)(c => bucket.set(Some(Exit.halt(c.map(Some(_))))).as(true)),
-                  maybeDrain
-                )
-            }
+            pull.foldCauseM(
+              Cause.sequenceCauseOption(_).fold(finish)(c => bucket.set(Exit.halt(c.map(Some(_)))).as(true)),
+              maybeDrain
+            )
 
-          lock.writeLock.use(_ => go).repeat(Schedule.doWhile(identity))
+          lock.withPermit(start.succeed(()) *> go).repeat(Schedule.doWhile(identity))
         }
 
         consume = {
           lazy val go: ZIO[R1, Option[E1], Chunk[P]] =
-            lock.acquireRead.commit *> bucket.get
-              .flatMap(_.fold(go)(take => done.set(true).when(take == Take.End) *> Pull.fromTake(take)))
-              .ensuring(lock.releaseRead.commit)
+            lock.withPermit(bucket.get.flatMap(take => done.set(true).when(take == Take.End) *> Pull.fromTake(take)))
 
-          done.get.flatMap {
+          start.await *> done.get.flatMap {
             if (_)
               Pull.end
             else
