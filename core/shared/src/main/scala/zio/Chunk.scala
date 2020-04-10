@@ -418,7 +418,7 @@ sealed trait Chunk[+A] { self =>
    * Generates a readable string representation of this chunk using the
    * specified start, separator, and end strings.
    */
-  final def mkString(start: String, sep: String, end: String): String = {
+  def mkString(start: String, sep: String, end: String): String = {
     val builder = new scala.collection.mutable.StringBuilder()
 
     builder.append(start)
@@ -441,12 +441,12 @@ sealed trait Chunk[+A] { self =>
    * Generates a readable string representation of this chunk using the
    * specified separator string.
    */
-  final def mkString(sep: String): String = mkString("", sep, "")
+  def mkString(sep: String): String = mkString("", sep, "")
 
   /**
    * Generates a readable string representation of this chunk.
    */
-  final def mkString: String = mkString("")
+  def mkString: String = mkString("")
 
   /**
    * Determines if the chunk is not empty.
@@ -540,7 +540,7 @@ sealed trait Chunk[+A] { self =>
     fromBuilder(vectorBuilder)
   }
 
-  override final def toString: String =
+  override def toString: String =
     toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
 
   /**
@@ -603,7 +603,7 @@ sealed trait Chunk[+A] { self =>
   def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)]
 
   protected[zio] def apply(n: Int): A
-  protected[zio] def foreach(f: A => Unit): Unit
+  protected[zio] def foreach(f: A => Any): Unit
 
   //noinspection AccessorLikeMethodIsUnit
   protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit
@@ -835,6 +835,7 @@ object Chunk {
     case x: Singleton[A]   => x.classTag
     case x: Slice[A]       => x.classTag
     case x: VectorChunk[A] => x.classTag
+    case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
   }
 
   private def arr[A](array: Array[A]): Arr[A] =
@@ -1116,7 +1117,7 @@ object Chunk {
 
     override def apply(n: Int): A = array(n)
 
-    override def foreach(f: A => Unit): Unit = array.foreach(f)
+    override def foreach(f: A => Any): Unit = array.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       Array.copy(array, 0, dest, n, length)
@@ -1131,7 +1132,7 @@ object Chunk {
 
     override def apply(n: Int): A = if (n < l.length) l(n) else r(n - l.length)
 
-    override def foreach(f: A => Unit): Unit = {
+    override def foreach(f: A => Any): Unit = {
       l.foreach(f)
       r.foreach(f)
     }
@@ -1151,7 +1152,9 @@ object Chunk {
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
 
-    override def foreach(f: A => Unit): Unit = f(a)
+    override def foreach(f: A => Any): Unit = {
+      val _ = f(a)
+    }
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       dest(n) = a
@@ -1164,7 +1167,7 @@ object Chunk {
 
     override val length: Int = l
 
-    override def foreach(f: A => Unit): Unit = {
+    override def foreach(f: A => Any): Unit = {
       var i = 0
       while (i < length) {
         f(apply(i))
@@ -1192,9 +1195,67 @@ object Chunk {
 
     override def apply(n: Int): A = vector(n)
 
-    override def foreach(f: A => Unit): Unit = vector.foreach(f)
+    override def foreach(f: A => Any): Unit = vector.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
+  }
+
+  final class BitChunk private (private val bytes: Chunk[Byte]) extends NonEmpty[Boolean] { self =>
+
+    def apply(n: Int): Boolean =
+      (bytes(n >> 3) & (1 << (7 - (n & 7)))) != 0
+
+    def foreach(f: Boolean => Any): Unit = {
+      var i = 0
+      while (i < length) {
+        f(apply(i))
+        i += 1
+      }
+    }
+
+    val length: Int =
+      bytes.length << 3
+
+    override def mkString: String =
+      mkString(", ")
+
+    override def mkString(sep: String): String =
+      mkString("BitChunk(", sep, ")")
+
+    override def mkString(start: String, sep: String, end: String): String = {
+      val builder = new scala.collection.mutable.StringBuilder
+      builder.append(start)
+      var i = 0
+      while (i < length) {
+        if (i != 0) {
+          builder.append(sep)
+        }
+        if (apply(i)) builder.append("1") else builder.append("0")
+        i += 1
+      }
+      builder.append(end)
+      builder.toString
+    }
+
+    def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
+      var i = n
+      while (i < length) {
+        dest(i + n) = apply(i)
+        i += 1
+      }
+    }
+
+    def toBinaryString: String =
+      mkString("", "", "")
+
+    override def toString: String =
+      mkString
+  }
+
+  object BitChunk {
+
+    def fromByteChunk(bytes: Chunk[Byte]): BitChunk =
+      new BitChunk(bytes)
   }
 
   private case object Empty extends Chunk[Nothing] { self =>
@@ -1257,7 +1318,7 @@ object Chunk {
 
     protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
-    protected[zio] def foreach(f: Nothing => Unit): Unit = ()
+    protected[zio] def foreach(f: Nothing => Any): Unit = ()
 
     protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit = ()
 
