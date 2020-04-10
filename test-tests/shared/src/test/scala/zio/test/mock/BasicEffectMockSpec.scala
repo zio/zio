@@ -306,6 +306,38 @@ object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
           equalTo("foo 1, [2, 3], 4, [5, 6]")
         )
       ),
+      suite("byName")(
+        testValue("returns value")(
+          PureModuleMock.ByName(equalTo(1), value("foo")),
+          PureModule.byName(1),
+          equalTo("foo")
+        ),
+        testValue("returns valueF")(
+          PureModuleMock.ByName(equalTo(1), valueF(i => s"foo $i")),
+          PureModule.byName(1),
+          equalTo("foo 1")
+        ),
+        testValue("returns valueM")(
+          PureModuleMock.ByName(equalTo(1), valueM(i => UIO.succeed(s"foo $i"))),
+          PureModule.byName(1),
+          equalTo("foo 1")
+        ),
+        testError("returns failure")(
+          PureModuleMock.ByName(equalTo(1), failure("foo")),
+          PureModule.byName(1),
+          equalTo("foo")
+        ),
+        testError("returns failureF")(
+          PureModuleMock.ByName(equalTo(1), failureF(i => s"foo $i")),
+          PureModule.byName(1),
+          equalTo("foo 1")
+        ),
+        testError("returns failureM")(
+          PureModuleMock.ByName(equalTo(1), failureM(i => IO.fail(s"foo $i"))),
+          PureModule.byName(1),
+          equalTo("foo 1")
+        )
+      ),
       suite("maxParams")(
         testValue("returns value")(
           PureModuleMock.MaxParams(equalTo(intTuple22), value("foo")),

@@ -49,7 +49,7 @@ package object test extends CompileVariants {
   type Sized       = Has[Sized.Service]
   type TestLogger  = Has[TestLogger.Service]
 
-  type AssertResult = BoolAlgebraM[Any, Nothing, AssertionValue]
+  type AssertResult = BoolAlgebra[AssertionValue]
 
   /**
    * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
@@ -62,7 +62,7 @@ package object test extends CompileVariants {
    */
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
-  type TestResult = BoolAlgebraM[Any, Nothing, FailureDetails]
+  type TestResult = BoolAlgebra[FailureDetails]
 
   /**
    * A `TestReporter[E]` is capable of reporting test results with error type
@@ -101,10 +101,10 @@ package object test extends CompileVariants {
         .foldCauseM(
           cause => ZIO.fail(TestFailure.Runtime(cause)),
           result =>
-            result.run.flatMap(_.failures match {
+            result.failures match {
               case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-              case Some(failures) => ZIO.fail(TestFailure.Assertion(BoolAlgebraM(ZIO.succeedNow(failures))))
-            })
+              case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+            }
         )
   }
 
@@ -137,15 +137,13 @@ package object test extends CompileVariants {
     assertion.run(value).flatMap { fragment =>
       def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
         if (whole.assertion == failureDetails.assertion.head.assertion)
-          BoolAlgebraM.success(failureDetails)
+          BoolAlgebra.success(failureDetails)
         else {
-          val satisfied = BoolAlgebraM(whole.assertion.test(whole.value).map(BoolAlgebra.success))
+          val satisfied = whole.assertion.test(whole.value)
           val fragment  = whole.assertion.run(whole.value)
-          satisfied.flatMap { p =>
-            val result = if (p) fragment else !fragment
-            result.flatMap { fragment =>
-              loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
-            }
+          val result    = if (satisfied) fragment else !fragment
+          result.flatMap { fragment =>
+            loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
           }
         }
       loop(fragment, FailureDetails(::(AssertionValue(assertion, value), Nil)))
@@ -635,11 +633,10 @@ package object test extends CompileVariants {
             .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
             .either
         )
-    }.mapM(_.foreach(_.fold(e => ZIO.succeedNow(Left(e)), a => a.run.map(Right(_)))))
-      .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
+    }.dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
       .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks.toLong))
-      .run(ZSink.collectAll[Either[E, BoolAlgebra[FailureDetails]]]) // Collect all the shrunken values
+      .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken values
       .flatMap { shrinks =>
         // Get the "last" failure, the smallest according to the shrinker:
         shrinks
@@ -647,13 +644,13 @@ package object test extends CompileVariants {
           .lastOption
           .fold[ZIO[R, E, TestResult]](
             ZIO.succeedNow {
-              BoolAlgebraM.success {
+              BoolAlgebra.success {
                 FailureDetails(
                   ::(AssertionValue(Assertion.anything, ()), Nil)
                 )
               }
             }
-          )(_.fold(e => ZIO.fail(e), a => ZIO.succeedNow(BoolAlgebraM(ZIO.succeedNow(a)))))
+          )(ZIO.fromEither(_))
       }
       .untraced
 

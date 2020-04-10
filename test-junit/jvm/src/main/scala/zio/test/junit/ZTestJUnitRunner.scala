@@ -66,21 +66,25 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       spec.runner.run(instrumented).unit.provideLayer(spec.runner.bootstrap)
     }
 
-  private def reportRuntimeFailure[E](notifier: JUnitNotifier, path: Vector[String], label: String, cause: Cause[E]) =
-    for {
-      rendered <- FailureRenderer.renderCause(cause, 0).map(renderToString)
-      _        <- notifier.fireTestFailure(label, path, rendered, cause.dieOption.orNull)
-    } yield ()
+  private def reportRuntimeFailure[E](
+    notifier: JUnitNotifier,
+    path: Vector[String],
+    label: String,
+    cause: Cause[E]
+  ): UIO[Unit] = {
+    val rendered = renderToString(FailureRenderer.renderCause(cause, 0))
+    notifier.fireTestFailure(label, path, rendered, cause.dieOption.orNull)
+  }
 
   private def reportAssertionFailure(
     notifier: JUnitNotifier,
     path: Vector[String],
     label: String,
     result: TestResult
-  ): ZIO[Any, Nothing, Unit] =
-    FailureRenderer
-      .renderTestFailure("", result)
-      .flatMap(rendered => notifier.fireTestFailure(label, path, renderToString(rendered)))
+  ): UIO[Unit] = {
+    val rendered = FailureRenderer.renderTestFailure("", result)
+    notifier.fireTestFailure(label, path, renderToString(rendered))
+  }
 
   private def testDescription(label: String, path: Vector[String]) = {
     val uniqueId = path.mkString(":") + ":" + label

@@ -38,5 +38,4 @@ class ChunkArrayBenchmarks {
 
   @Benchmark
   def foldM(): UIO[Int] = chunk.foldM(0)((s, a) => ZIO.succeed(s + a))
-
 }

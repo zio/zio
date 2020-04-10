@@ -172,3 +172,7 @@ val transferredMoney: UIO[String] = for {
 In this example, we create and commit two transactional references for the sender and receiver to be able to extract their value. 
 On the following step, we create an atomic transactional that updates both accounts only when there is sufficient balance available in the sender account. In the end, we fork to run asynchronously.
 On the running fiber, we suspend until the sender balance suffers changes, in this case, to reach `zero`. Finally, we extract the new values out of the accounts and combine them in one result. 
+
+## ZTRef
+
+Like `Ref[A]`, `TRef[A]` is actually a type alias for `ZTRef[+EA, +EB, -A, +B]`, a polymorphic, transactional reference and supports all the transformations that `ZRef` does. For more discussion regarding polymorphic references see the documentation on [`ZRef`](../datatypes/ref.md).
