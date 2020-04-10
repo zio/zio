@@ -17,7 +17,6 @@
 package zio
 
 import scala.concurrent.Future
-import scala.jdk.CollectionConverters._
 
 import com.github.ghik.silencer.silent
 
