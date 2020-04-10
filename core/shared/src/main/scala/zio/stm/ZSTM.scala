@@ -17,7 +17,7 @@
 package zio.stm
 
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
-import java.util.{ HashMap => MutableMap }
+import java.util.{ Arrays, HashMap => MutableMap }
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success, Try }
@@ -1468,8 +1468,18 @@ object ZSTM {
      * Executes the todos in the current thread, sequentially.
      */
     def execTodos(todos: MutableMap[TxnId, Todo]): Unit = {
-      val it = todos.entrySet.iterator
-      while (it.hasNext) it.next.getValue.apply()
+      val keys = todos.keySet.toArray
+      var i    = 0
+
+      Arrays.sort(keys)
+
+      while (i < keys.length) {
+        val id   = keys(i)
+        val todo = todos.get(id)
+
+        todo.apply()
+        i += 1
+      }
     }
 
     /**
