@@ -17,270 +17,268 @@
 package zio.test.laws
 
 import zio.ZIO
-import zio.random.Random
 import zio.test.{ check, checkM, Gen, TestResult }
 
 object ZLawsF {
 
-  sealed trait Covariant[-Caps[_[+_]], -R] { self =>
+  sealed trait Covariant[-CapsF[_[+_]], -Caps[_], -R] { self =>
 
     /**
      * Test that values of type `F[+_]` satisfy the laws using the specified
      * function to construct a generator of `F[A]` values given a generator of
      * `A` values.
      */
-    def run[R1 <: R with Random, F[+_]: Caps](genF: GenF[R1, F]): ZIO[R1, Nothing, TestResult]
+    def run[R1 <: R, F[+_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult]
 
     /**
      * Combine these laws with the specified laws to produce a set of laws that
      * require both sets of laws to be satisfied.
      */
-    def +[Caps1[x[+_]] <: Caps[x], R1 <: R](that: Covariant[Caps1, R1]): Covariant[Caps1, R1] =
+    def +[CapsF1[x[+_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
+      that: Covariant[CapsF1, Caps1, R1]
+    ): Covariant[CapsF1, Caps1, R1] =
       Covariant.Both(self, that)
   }
 
   object Covariant {
 
-    private final case class Both[-Caps[_[+_]], -R](left: Covariant[Caps, R], right: Covariant[Caps, R])
-        extends Covariant[Caps, R] {
-      final def run[R1 <: R with Random, F[+_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        left.run(gen).zipWith(right.run(gen))(_ && _)
+    private final case class Both[-CapsF[_[+_]], -Caps[_], -R](
+      left: Covariant[CapsF, Caps, R],
+      right: Covariant[CapsF, Caps, R]
+    ) extends Covariant[CapsF, Caps, R] {
+      final def run[R1 <: R, F[+_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        left.run(genF, gen).zipWith(right.run(genF, gen))(_ && _)
     }
 
     /**
      * Constructs a law from a pure function taking a single parameter.
      */
-    abstract class Law1[-Caps[_[+_]]](label: String) extends Covariant[Caps, Any] { self =>
-      def apply[F[+_]: Caps, A](fa: F[A]): TestResult
-      final def run[R <: Random, F[+_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt))(apply(_).map(_.label(label)))
+    abstract class Law1[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
+      def apply[F[+_]: CapsF, A: Caps](fa: F[A]): TestResult
+      final def run[R, F[+_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen))(apply(_).map(_.label(label)))
     }
 
     /**
      * Constructs a law from an effectual function taking a single parameter.
      */
-    abstract class Law1M[-Caps[_[+_]], -R](label: String) extends Covariant[Caps, R] { self =>
-      def apply[F[+_]: Caps, A](fa: F[A]): ZIO[R, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[+_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        checkM(gen(Gen.anyInt))(apply(_).map(_.map(_.label(label))))
+    abstract class Law1M[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
+      def apply[F[+_]: CapsF, A: Caps](fa: F[A]): ZIO[R, Nothing, TestResult]
+      final def run[R1 <: R, F[+_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        checkM(genF(gen))(apply(_).map(_.map(_.label(label))))
     }
 
     /**
      * Constructs a law from a pure function taking two parameters.
      */
-    abstract class Law2[-Caps[_[+_]]](label: String) extends Covariant[Caps, Any] { self =>
-      def apply[F[+_]: Caps, A, B](fa: F[A], fb: F[B]): TestResult
-      final def run[R <: Random, F[+_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _).map(_.label(label)))
+    abstract class Law2[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
+      def apply[F[+_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): TestResult
+      final def run[R, F[+_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
     }
 
     /**
      * Constructs a law from an effectual function taking two parameters.
      */
-    abstract class Law2M[-Caps[_[+_]], -R](label: String) extends Covariant[Caps, R] { self =>
-      def apply[F[+_]: Caps, A, B](fa: F[A], fb: F[B]): ZIO[R, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[+_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        checkM(gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _).map(_.map(_.label(label))))
+    abstract class Law2M[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
+      def apply[F[+_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): ZIO[R, Nothing, TestResult]
+      final def run[R1 <: R, F[+_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        checkM(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
     }
 
     /**
      * Constructs a law from a pure function taking three parameters.
      */
-    abstract class Law3[-Caps[_[+_]]](label: String) extends Covariant[Caps, Any] { self =>
-      def apply[F[+_]: Caps, A, B, C](fa: F[A], fb: F[B], fc: F[C]): TestResult
-      final def run[R <: Random, F[+_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt), gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _, _).map(_.label(label)))
+    abstract class Law3[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
+      def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): TestResult
+      final def run[R, F[+_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
     }
 
     /**
      * Constructs a law from an effectual function taking three parameters.
      */
-    abstract class Law3M[-Caps[_[+_]], -R](label: String) extends Covariant[Caps, R] { self =>
-      def apply[F[+_]: Caps, A, B, C](fa: F[A], fb: F[B], fc: F[C]): ZIO[R, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[+_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        checkM(gen(Gen.anyInt), gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _, _).map(_.map(_.label(label))))
+    abstract class Law3M[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
+      def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): ZIO[R, Nothing, TestResult]
+      final def run[R1 <: R, F[+_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        checkM(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
     }
 
     /**
-     * Constructs a law from a function from generators of arbitrary values to
-     * a test result.
+     * Constructs a law from a pure function taking three parameters.
      */
-    abstract class Law3Gen[-Caps[_[+_]], -R](label: String) extends Covariant[Caps, R] { self =>
-      def apply[F[+_]: Caps, R1 <: R, A, B, C](a: Gen[R1, A], b: Gen[R1, B], c: Gen[R1, C])(
-        gen: GenF[R1, F]
-      ): ZIO[R1, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[+_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        apply(gen(Gen.anyInt), gen(Gen.anyInt), gen(Gen.anyInt))(gen).map(_.map(_.label(label)))
-    }
-
-    /**
-     * Constructs a law from a function that takes an arbitrary initial `F[A]`
-     * and two arbitrary functions `f` and `g`.
-     */
-    abstract class Law3Specialized[-Caps[_[+_]]](label: String) extends Covariant[Caps, Any] { self =>
-      def apply[F[+_]: Caps, A, B, C](fa: F[A], f: A => B, g: B => C): TestResult
-      final def run[R <: Random, F[+_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt), Gen.function(Gen.anyInt), Gen.function(Gen.anyInt))(apply(_, _, _).map(_.label(label)))
+    abstract class Law3Function[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
+      def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], f: A => B, g: B => C): TestResult
+      final def run[R, F[+_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen), Gen.function(gen), Gen.function(gen))(apply(_, _, _).map(_.label(label)))
     }
   }
 
-  sealed trait Contravariant[-Caps[_[-_]], -R] { self =>
+  sealed trait Contravariant[-CapsF[_[-_]], -Caps[_], -R] { self =>
 
     /**
-     * Test that values of type `F[-_]` satisfy the laws using the specified
+     * Test that values of type `F[+_]` satisfy the laws using the specified
      * function to construct a generator of `F[A]` values given a generator of
      * `A` values.
      */
-    def run[R1 <: R with Random, F[-_]: Caps](genF: GenF[R1, F]): ZIO[R1, Nothing, TestResult]
+    def run[R1 <: R, F[-_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult]
 
     /**
      * Combine these laws with the specified laws to produce a set of laws that
      * require both sets of laws to be satisfied.
      */
-    def +[Caps1[x[-_]] <: Caps[x], R1 <: R](that: Contravariant[Caps1, R1]): Contravariant[Caps1, R1] =
+    def +[CapsF1[x[-_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
+      that: Contravariant[CapsF1, Caps1, R1]
+    ): Contravariant[CapsF1, Caps1, R1] =
       Contravariant.Both(self, that)
   }
 
   object Contravariant {
 
-    private final case class Both[-Caps[_[-_]], -R](left: Contravariant[Caps, R], right: Contravariant[Caps, R])
-        extends Contravariant[Caps, R] {
-      final def run[R1 <: R with Random, F[-_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        left.run(gen).zipWith(right.run(gen))(_ && _)
+    private final case class Both[-CapsF[_[-_]], -Caps[_], -R](
+      left: Contravariant[CapsF, Caps, R],
+      right: Contravariant[CapsF, Caps, R]
+    ) extends Contravariant[CapsF, Caps, R] {
+      final def run[R1 <: R, F[-_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        left.run(genF, gen).zipWith(right.run(genF, gen))(_ && _)
     }
 
     /**
      * Constructs a law from a pure function taking a single parameter.
      */
-    abstract class Law1[-Caps[_[-_]]](label: String) extends Contravariant[Caps, Any] { self =>
-      def apply[F[-_]: Caps, A](fa: F[A]): TestResult
-      final def run[R <: Random, F[-_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt))(apply(_).map(_.label(label)))
+    abstract class Law1[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] { self =>
+      def apply[F[-_]: CapsF, A: Caps](fa: F[A]): TestResult
+      final def run[R, F[-_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen))(apply(_).map(_.label(label)))
     }
 
     /**
      * Constructs a law from an effectual function taking a single parameter.
      */
-    abstract class Law1M[-Caps[_[-_]], -R](label: String) extends Contravariant[Caps, R] { self =>
-      def apply[F[-_]: Caps, A](fa: F[A]): ZIO[R, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[-_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        checkM(gen(Gen.anyInt))(apply(_).map(_.map(_.label(label))))
+    abstract class Law1M[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
+      def apply[F[-_]: CapsF, A: Caps](fa: F[A]): ZIO[R, Nothing, TestResult]
+      final def run[R1 <: R, F[-_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        checkM(genF(gen))(apply(_).map(_.map(_.label(label))))
     }
 
     /**
      * Constructs a law from a pure function taking two parameters.
      */
-    abstract class Law2[-Caps[_[-_]]](label: String) extends Contravariant[Caps, Any] { self =>
-      def apply[F[-_]: Caps, A, B](fa: F[A], fb: F[B]): TestResult
-      final def run[R <: Random, F[-_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _).map(_.label(label)))
+    abstract class Law2[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] { self =>
+      def apply[F[-_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): TestResult
+      final def run[R, F[-_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
     }
 
     /**
      * Constructs a law from an effectual function taking two parameters.
      */
-    abstract class Law2M[-Caps[_[-_]], -R](label: String) extends Contravariant[Caps, R] { self =>
-      def apply[F[-_]: Caps, A, B](fa: F[A], fb: F[B]): ZIO[R, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[-_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        checkM(gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _).map(_.map(_.label(label))))
+    abstract class Law2M[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
+      def apply[F[-_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): ZIO[R, Nothing, TestResult]
+      final def run[R1 <: R, F[-_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        checkM(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
     }
 
     /**
      * Constructs a law from a pure function taking three parameters.
      */
-    abstract class Law3[-Caps[_[-_]]](label: String) extends Contravariant[Caps, Any] { self =>
-      def apply[F[-_]: Caps, A, B, C](fa: F[A], fb: F[B], fc: F[C]): TestResult
-      final def run[R <: Random, F[-_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt), gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _, _).map(_.label(label)))
+    abstract class Law3[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] { self =>
+      def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): TestResult
+      final def run[R, F[-_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
     }
 
     /**
      * Constructs a law from an effectual function taking three parameters.
      */
-    abstract class Law3M[-Caps[_[-_]], -R](label: String) extends Contravariant[Caps, R] { self =>
-      def apply[F[-_]: Caps, A, B, C](fa: F[A], fb: F[B], fc: F[C]): ZIO[R, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[-_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        checkM(gen(Gen.anyInt), gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _, _).map(_.map(_.label(label))))
+    abstract class Law3M[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
+      def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): ZIO[R, Nothing, TestResult]
+      final def run[R1 <: R, F[-_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        checkM(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
     }
   }
 
-  sealed trait Invariant[-Caps[_[_]], -R] { self =>
+  sealed trait Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
 
     /**
-     * Test that values of type `F[_]` satisfy the laws using the specified
+     * Test that values of type `F[+_]` satisfy the laws using the specified
      * function to construct a generator of `F[A]` values given a generator of
      * `A` values.
      */
-    def run[R1 <: R with Random, F[_]: Caps](genF: GenF[R1, F]): ZIO[R1, Nothing, TestResult]
+    def run[R1 <: R, F[_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult]
 
     /**
      * Combine these laws with the specified laws to produce a set of laws that
      * require both sets of laws to be satisfied.
      */
-    def +[Caps1[x[_]] <: Caps[x], R1 <: R](that: Invariant[Caps1, R1]): Invariant[Caps1, R1] =
+    def +[CapsF1[x[_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
+      that: Invariant[CapsF1, Caps1, R1]
+    ): Invariant[CapsF1, Caps1, R1] =
       Invariant.Both(self, that)
   }
 
   object Invariant {
 
-    private final case class Both[-Caps[_[_]], -R](left: Invariant[Caps, R], right: Invariant[Caps, R])
-        extends Invariant[Caps, R] {
-      final def run[R1 <: R with Random, F[_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        left.run(gen).zipWith(right.run(gen))(_ && _)
+    private final case class Both[-CapsF[_[_]], -Caps[_], -R](
+      left: Invariant[CapsF, Caps, R],
+      right: Invariant[CapsF, Caps, R]
+    ) extends Invariant[CapsF, Caps, R] {
+      final def run[R1 <: R, F[_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        left.run(genF, gen).zipWith(right.run(genF, gen))(_ && _)
     }
 
     /**
      * Constructs a law from a pure function taking a single parameter.
      */
-    abstract class Law1[-Caps[_[_]]](label: String) extends Invariant[Caps, Any] { self =>
-      def apply[F[_]: Caps, A](fa: F[A]): TestResult
-      final def run[R <: Random, F[_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt))(apply(_).map(_.label(label)))
+    abstract class Law1[-CapsF[_[_]], -Caps[_]](label: String) extends Invariant[CapsF, Caps, Any] { self =>
+      def apply[F[_]: CapsF, A: Caps](fa: F[A]): TestResult
+      final def run[R, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen))(apply(_).map(_.label(label)))
     }
 
     /**
      * Constructs a law from an effectual function taking a single parameter.
      */
-    abstract class Law1M[-Caps[_[_]], -R](label: String) extends Invariant[Caps, R] { self =>
-      def apply[F[_]: Caps, A](fa: F[A]): ZIO[R, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        checkM(gen(Gen.anyInt))(apply(_).map(_.map(_.label(label))))
+    abstract class Law1M[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
+      def apply[F[_]: CapsF, A: Caps](fa: F[A]): ZIO[R, Nothing, TestResult]
+      final def run[R1 <: R, F[_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        checkM(genF(gen))(apply(_).map(_.map(_.label(label))))
     }
 
     /**
      * Constructs a law from a pure function taking two parameters.
      */
-    abstract class Law2[-Caps[_[_]]](label: String) extends Invariant[Caps, Any] { self =>
-      def apply[F[_]: Caps, A, B](fa: F[A], fb: F[B]): TestResult
-      final def run[R <: Random, F[_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _).map(_.label(label)))
+    abstract class Law2[-CapsF[_[_]], -Caps[_]](label: String) extends Invariant[CapsF, Caps, Any] { self =>
+      def apply[F[_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): TestResult
+      final def run[R, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
     }
 
     /**
      * Constructs a law from an effectual function taking two parameters.
      */
-    abstract class Law2M[-Caps[_[_]], -R](label: String) extends Invariant[Caps, R] { self =>
-      def apply[F[_]: Caps, A, B](fa: F[A], fb: F[B]): ZIO[R, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        checkM(gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _).map(_.map(_.label(label))))
+    abstract class Law2M[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
+      def apply[F[_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): ZIO[R, Nothing, TestResult]
+      final def run[R1 <: R, F[_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        checkM(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
     }
 
     /**
      * Constructs a law from a pure function taking three parameters.
      */
-    abstract class Law3[-Caps[_[_]]](label: String) extends Invariant[Caps, Any] { self =>
-      def apply[F[_]: Caps, A, B, C](fa: F[A], fb: F[B], fc: F[C]): TestResult
-      final def run[R <: Random, F[_]: Caps](gen: GenF[R, F]): ZIO[R, Nothing, TestResult] =
-        check(gen(Gen.anyInt), gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _, _).map(_.label(label)))
+    abstract class Law3[-CapsF[_[_]], -Caps[_]](label: String) extends Invariant[CapsF, Caps, Any] { self =>
+      def apply[F[_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): TestResult
+      final def run[R, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
     }
 
     /**
      * Constructs a law from an effectual function taking three parameters.
      */
-    abstract class Law3M[-Caps[_[_]], -R](label: String) extends Invariant[Caps, R] { self =>
-      def apply[F[_]: Caps, A, B, C](fa: F[A], fb: F[B], fc: F[C]): ZIO[R, Nothing, TestResult]
-      final def run[R1 <: R with Random, F[_]: Caps](gen: GenF[R1, F]): ZIO[R1, Nothing, TestResult] =
-        checkM(gen(Gen.anyInt), gen(Gen.anyInt), gen(Gen.anyInt))(apply(_, _, _).map(_.map(_.label(label))))
+    abstract class Law3M[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
+      def apply[F[_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): ZIO[R, Nothing, TestResult]
+      final def run[R1 <: R, F[_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+        checkM(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
     }
   }
 }

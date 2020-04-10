@@ -1,11 +1,57 @@
 package zio.test.laws
 
-import zio.ZIO
 import zio.random.Random
-import zio.test.Assertion._
 import zio.test._
 
 object LawsFSpec extends ZIOBaseSpec {
+
+  def equalTo[A: Equal](expected: A): Assertion[A] =
+    Assertion.assertion("equalTo")(Assertion.Render.param(expected))(_ === expected)
+
+  implicit class AssertEqualToSyntax[A](private val self: A) extends AnyVal {
+    def <->(that: A)(implicit eq: Equal[A]): TestResult =
+      assert(self)(equalTo(that))
+  }
+
+  trait Equal[-A] {
+    def equal(l: A, r: A): Boolean
+  }
+
+  object Equal {
+
+    def apply[A](implicit equal: Equal[A]): Equal[A] =
+      equal
+
+    implicit def deriveEqual[F[_]: EqualF, A: Equal]: Equal[F[A]] =
+      EqualF[F].deriveEqual(Equal[A])
+
+    implicit val intEqual: Equal[Int] =
+      _ == _
+  }
+
+  implicit class EqualSyntax[A](private val self: A) extends AnyVal {
+    def ===(that: A)(implicit eq: Equal[A]): Boolean =
+      eq.equal(self, that)
+  }
+
+  trait EqualF[F[_]] {
+    def deriveEqual[A](equal: Equal[A]): Equal[F[A]]
+  }
+
+  object EqualF extends CovariantEqualF {
+
+    def apply[F[_]](implicit equalF: EqualF[F]): EqualF[F] =
+      equalF
+
+    implicit val OptionEqualF: EqualF[Option] =
+      new EqualF[Option] {
+        def deriveEqual[A](A: Equal[A]): Equal[Option[A]] = {
+          case (None, None)       => true
+          case (Some(l), Some(r)) => A.equal(l, r)
+          case _                  => false
+        }
+      }
+  }
 
   val OptionGenF: GenF[Random, Option] =
     new GenF[Random, Option] {
@@ -17,34 +63,20 @@ object LawsFSpec extends ZIOBaseSpec {
     def map[A, B](f: A => B): F[A] => F[B]
   }
 
-  object Covariant extends LawfulF.Covariant[Covariant] {
+  object Covariant extends LawfulF.Covariant[Covariant with EqualF, Equal] {
 
-    val identityLaw = new LawsF.Covariant.Law1[Covariant]("identityLaw") {
-      def apply[F[+_]: Covariant, A](fa: F[A]): TestResult = {
-        val actual   = fa.map(identity)
-        val expected = fa
-        assert(actual)(equalTo(expected))
-      }
+    val identityLaw = new LawsF.Covariant.Law1[Covariant with EqualF, Equal]("identityLaw") {
+      def apply[F[+_], A](fa: F[A])(implicit F: Covariant[F] with EqualF[F], A: Equal[A]): TestResult =
+        fa.map(identity) <-> fa
     }
 
-    val compositionLaw = new ZLawsF.Covariant.Law3Gen[Covariant, Any]("compositionLaw") {
-      def apply[F[+_]: Covariant, R, A, B, C](a: Gen[R, A], b: Gen[R, B], c: Gen[R, C])(
-        gen: GenF[R, F]
-      ): ZIO[R, Nothing, TestResult] = {
-        val fa = gen(a)
-        val f  = Gen.function[R, A, B](b)
-        val g  = Gen.function[R, B, C](c)
-        check(fa, f, g) { (fa, f, g) =>
-          val actual   = fa.map(f).map(g)
-          val expected = fa.map(f andThen g)
-          assert(actual)(equalTo(expected))
-        }
-      }
-    }
-
-    val compositionLaw2 = new ZLawsF.Covariant.Law3Specialized[Covariant]("compositionLaw") {
-      def apply[F[+_]: Covariant, A, B, C](fa: F[A], f: A => B, g: B => C): TestResult =
-        assert(fa.map(f).map(g))(equalTo(fa.map(f andThen g)))
+    val compositionLaw = new ZLawsF.Covariant.Law3Function[Covariant with EqualF, Equal]("compositionLaw") {
+      def apply[F[+_], A, B, C](
+        fa: F[A],
+        f: A => B,
+        g: B => C
+      )(implicit F: Covariant[F] with EqualF[F], A: Equal[A], B: Equal[B], C: Equal[C]): TestResult =
+        fa.map(f).map(g) <-> fa.map(f andThen g)
     }
 
     val laws = identityLaw + compositionLaw
@@ -63,11 +95,23 @@ object LawsFSpec extends ZIOBaseSpec {
     }
   }
 
+  trait CovariantEqualF {
+    implicit def CovariantEqualF[F[+_]](
+      implicit covariant: Covariant[F],
+      equalF: EqualF[F]
+    ): Covariant[F] with EqualF[F] =
+      new Covariant[F] with EqualF[F] {
+        def deriveEqual[A](equal: Equal[A]): Equal[F[A]] =
+          equalF.deriveEqual(equal)
+        def map[A, B](f: A => B): F[A] => F[B] =
+          covariant.map(f)
+      }
+  }
+
   def spec = suite("LawsFSpec")(
     suite("covariantLaws")(
       testM("option") {
-        ZIO(assertCompletes)
-        checkAllLaws(Covariant)(OptionGenF)
+        checkAllLaws(Covariant)(OptionGenF, Gen.anyInt)
       }
     )
   )

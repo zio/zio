@@ -18,26 +18,32 @@ package zio.test.laws
 
 object ZLawfulF {
 
-  trait Covariant[-Caps[_[+_]], -R] { self =>
-    def laws: ZLawsF.Covariant[Caps, R]
-    def +[Caps1[x[+_]] <: Caps[x], R1 <: R](that: Covariant[Caps1, R1]): Covariant[Caps1, R1] =
-      new Covariant[Caps1, R1] {
+  trait Covariant[-CapsF[_[+_]], -Caps[_], -R] { self =>
+    def laws: ZLawsF.Covariant[CapsF, Caps, R]
+    def +[CapsF1[x[+_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
+      that: Covariant[CapsF1, Caps1, R1]
+    ): Covariant[CapsF1, Caps1, R1] =
+      new Covariant[CapsF1, Caps1, R1] {
         val laws = self.laws + that.laws
       }
   }
 
-  trait Contravariant[-Caps[_[-_]], -R] { self =>
-    def laws: ZLawsF.Contravariant[Caps, R]
-    def +[Caps1[x[-_]] <: Caps[x], R1 <: R](that: Contravariant[Caps1, R1]): Contravariant[Caps1, R1] =
-      new Contravariant[Caps1, R1] {
+  trait Contravariant[-CapsF[_[-_]], -Caps[_], -R] { self =>
+    def laws: ZLawsF.Contravariant[CapsF, Caps, R]
+    def +[CapsF1[x[-_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
+      that: Contravariant[CapsF1, Caps1, R1]
+    ): Contravariant[CapsF1, Caps1, R1] =
+      new Contravariant[CapsF1, Caps1, R1] {
         val laws = self.laws + that.laws
       }
   }
 
-  trait Invariant[-Caps[_[_]], -R] { self =>
-    def laws: ZLawsF.Invariant[Caps, R]
-    def +[Caps1[x[_]] <: Caps[x], R1 <: R](that: Invariant[Caps1, R1]): Invariant[Caps1, R1] =
-      new Invariant[Caps1, R1] {
+  trait Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
+    def laws: ZLawsF.Invariant[CapsF, Caps, R]
+    def +[CapsF1[x[_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
+      that: Invariant[CapsF1, Caps1, R1]
+    ): Invariant[CapsF1, Caps1, R1] =
+      new Invariant[CapsF1, Caps1, R1] {
         val laws = self.laws + that.laws
       }
   }
