@@ -281,7 +281,10 @@ import zio.test.Assertion._
 import zio.test.mock.Expectation._
 import zio.test.mock.MockSystem._
 
-val exp01 = Property(equalTo("foo"), value(Some("bar")))
+val exp01 = Property( // capability to build an expectation for
+  equalTo("foo"), // assertion of the expected input argument
+  value(Some("bar")) // result, that will be returned
+)
 ```
 
 For methods that take input, the first argument will be an assertion on input, and the second the predefined result.
