@@ -557,8 +557,9 @@ sealed trait Chunk[+A] { self =>
    * Renders this chunk of bits as a binary string.
    */
   final def toBinaryString(implicit ev: A <:< Boolean): String = {
+    val bits    = self.asInstanceOf[Chunk[Boolean]]
     val builder = new scala.collection.mutable.StringBuilder
-    map(ev).foreach(p => if (p) builder.append("1") else builder.append("0"))
+    bits.foreach(bit => if (bit) builder.append("1") else builder.append("0"))
     builder.toString
   }
 
