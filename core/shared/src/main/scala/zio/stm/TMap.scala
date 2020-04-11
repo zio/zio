@@ -16,6 +16,8 @@
 
 package zio.stm
 
+import scala.collection.mutable
+
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
@@ -168,16 +170,20 @@ final class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
-    (tCapacity.get <*> toList).flatMap {
-      case (capacity, currData) =>
-        val g       = f.tupled
+    tBuckets.get.flatMap { buckets =>
+      val g        = f.tupled
+      val capacity = buckets.array.length
+
+      buckets.fold(mutable.Buffer.empty[(K, V)])(_ ++= _).flatMap { currData =>
         val newData = Array.fill[List[(K, V)]](capacity)(Nil)
 
-        currData.foreach { kv =>
+        val it = currData.iterator
+        while (it.hasNext) {
+          val kv     = it.next
           val mapped = g(kv)
           val idx    = TMap.indexOf(mapped._1, capacity)
-
           val bucket = newData(idx)
+
           if (!bucket.exists(_._1 == mapped._1))
             newData(idx) = mapped :: bucket
         }
@@ -190,6 +196,7 @@ final class TMap[K, V] private (
         }
 
         tBuckets.set(new TArray(newArr))
+      }
     }
 
   /**
