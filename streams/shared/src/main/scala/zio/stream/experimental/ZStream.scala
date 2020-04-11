@@ -83,6 +83,37 @@ abstract class ZStream[-R, +E, +O](
     ZStream.absolve(ev(self))
 
   /**
+   * Applies an aggregator to the stream, which converts one or more elements
+   * of type `A` into elements of type `B`.
+   */
+  def aggregate[R1 <: R, E1 >: E, O1 >: O, P](sink: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] =
+    ZStream {
+      for {
+        pull <- self.process
+        push <- sink.push
+        done <- ZRef.makeManaged(false)
+        run = {
+          def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
+            if (_)
+              push(None).repeat(Schedule.doWhile(_.isEmpty))
+            else
+              pull
+                .foldM(
+                  _.fold(done.set(true) *> push(None))(Pull.fail(_)),
+                  os => push(Some(os))
+                )
+                .foldCauseM(
+                  Cause.sequenceCauseOption(_).fold(go)(Pull.halt(_)),
+                  ps => if (ps.isEmpty) go else IO.succeedNow(ps)
+                )
+          }
+
+          go
+        }
+      } yield run
+    }
+
+  /**
    * Maps the success values of this stream to the specified constant value.
    */
   def as[O2](o2: => O2): ZStream[R, E, O2] =
@@ -1991,19 +2022,7 @@ abstract class ZStream[-R, +E, +O](
    * Applies the transducer to the stream and emits its outputs.
    */
   def transduce[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]): ZStream[R1, E1, O3] =
-    ZStream {
-      for {
-        pushTransducer <- transducer.push
-        pullSelf       <- self.process
-        pull = pullSelf.foldM(
-          {
-            case l @ Some(_) => ZIO.fail(l)
-            case None        => pushTransducer(None)
-          },
-          os => pushTransducer(Some(os))
-        )
-      } yield pull
-    }
+    aggregate(transducer)
 
   /**
    * Unwraps [[Exit]] values that also signify end-of-stream by failing with `None`.

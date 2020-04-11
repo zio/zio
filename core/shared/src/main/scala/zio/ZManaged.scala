@@ -1380,6 +1380,13 @@ object ZManaged {
     in.fold[ZManaged[R, E, Option[A2]]](succeed(None))(f(_).map(Some(_)))
 
   /**
+   * Applies the function `f` if the argument is non-empty and
+   * returns the results in a new `Option[A2]`.
+   */
+  final def foreach[R, E, A1, A2](in: Chunk[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, Chunk[A2]] =
+    in.mapManaged(f)
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
    * and returns the results in a new `List[B]`.
    *
