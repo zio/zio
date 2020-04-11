@@ -134,7 +134,7 @@ final class TMap[K, V] private (
       size        <- tSize.get
       capacity    = buckets.array.length
       needsResize = capacity * TMap.LoadFactor < size
-      _           <- if (needsResize) resize(capacity << 1) else STM.unit
+      _           <- STM.when(needsResize)(resize(capacity << 1))
     } yield ()
   }
 
