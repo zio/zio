@@ -169,10 +169,9 @@ final class TMap[K, V] private (
    */
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
     tBuckets.get.flatMap { buckets =>
-      val g        = f.tupled
-      val capacity = buckets.array.length
-
       buckets.toList.flatMap { list =>
+        val g          = f.tupled
+        val capacity   = buckets.array.length
         val currData   = list.flatten
         val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
 
@@ -202,11 +201,11 @@ final class TMap[K, V] private (
    */
   def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     tBuckets.get.flatMap { buckets =>
-      val g        = f.tupled
-      val capacity = buckets.array.length
-
       buckets.toList.flatMap { list =>
+        val g = f.tupled
+
         STM.foreach(list.flatten)(g).flatMap { mappedData =>
+          val capacity   = buckets.array.length
           val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
 
           val it = mappedData.iterator
