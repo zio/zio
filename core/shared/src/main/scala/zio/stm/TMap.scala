@@ -63,7 +63,7 @@ final class TMap[K, V] private (
         case head :: tail => op(res, head).flatMap(loopM(_, tail))
       }
 
-    tBuckets.get.flatMap(_.foldM(zero)(loopM))
+    tBuckets.get.flatMap(_.toList).flatMap(data => loopM(zero, data.flatten))
   }
 
   /**
