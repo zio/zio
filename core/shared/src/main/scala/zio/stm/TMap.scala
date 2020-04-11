@@ -51,7 +51,7 @@ final class TMap[K, V] private (
    * Atomically folds using a pure function.
    */
   def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
-    tBuckets.get.flatMap(_.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op)))
+    tBuckets.get.flatMap(_.toList).map(_.flatten.foldLeft(zero)(op))
 
   /**
    * Atomically folds using a transactional function.
