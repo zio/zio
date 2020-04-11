@@ -246,6 +246,7 @@ package object environment extends PlatformSpecific {
   object TestClock extends Serializable {
 
     trait Service extends Restorable {
+      def advance(duration: Duration): UIO[Unit]
       def adjust(duration: Duration): UIO[Unit]
       def fiberTime: UIO[Duration]
       def runAll: UIO[Unit]
@@ -276,6 +277,13 @@ package object environment extends PlatformSpecific {
           val updated         = data.copy(duration = end, sleeps = sleeps)
           (wakes, updated)
         }.flatMap(run)
+
+      /**
+       * Advances both the wall clock time and the current fiber time by the
+       * specified duration.
+       */
+      def advance(duration: Duration): UIO[Unit] =
+        adjust(duration) *> sleep(duration)
 
       /**
        * Returns the current fiber time as an `OffsetDateTime`.
@@ -421,6 +429,13 @@ package object environment extends PlatformSpecific {
      */
     def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
+
+    /**
+     * Access a `TestClock` instance in the environment and advances both the
+     * wall clock time and the current fiber time by the specified duration.
+     */
+    def advance(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
+      ZIO.accessM(_.get.advance(duration))
 
     /**
      * Accesses a `TestClock` instance in the environment and returns the current
@@ -1511,26 +1526,54 @@ package object environment extends PlatformSpecific {
       /**
        * Returns the specified environment variable if it exists.
        */
-      override def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
+      def env(variable: String): IO[SecurityException, Option[String]] =
         systemState.get.map(_.envs.get(variable))
 
-      override val envs: ZIO[Any, SecurityException, Map[String, String]] =
+      /**
+       * Returns the specified environment variable if it exists or else the
+       * specified fallback value.
+        **/
+      def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
+        System.envOrElseWith(variable, alt)(env)
+
+      /**
+       * Returns the specified environment variable if it exists or else the
+       * specified optional fallback value.
+        **/
+      def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
+        System.envOrOptionWith(variable, alt)(env)
+
+      val envs: ZIO[Any, SecurityException, Map[String, String]] =
         systemState.get.map(_.envs)
 
-      override val properties: ZIO[Any, Throwable, Map[String, String]] =
+      /**
+       * Returns the system line separator.
+       */
+      val lineSeparator: ZIO[Any, Nothing, String] =
+        systemState.get.map(_.lineSeparator)
+
+      val properties: ZIO[Any, Throwable, Map[String, String]] =
         systemState.get.map(_.properties)
 
       /**
        * Returns the specified system property if it exists.
        */
-      override def property(prop: String): ZIO[Any, Throwable, Option[String]] =
+      def property(prop: String): IO[Throwable, Option[String]] =
         systemState.get.map(_.properties.get(prop))
 
       /**
-       * Returns the system line separator.
-       */
-      override val lineSeparator: ZIO[Any, Nothing, String] =
-        systemState.get.map(_.lineSeparator)
+       * Returns the specified system property if it exists or else the
+       * specified fallback value.
+        **/
+      def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
+        System.propertyOrElseWith(prop, alt)(property)
+
+      /**
+       * Returns the specified system property if it exists or else the
+       * specified optional fallback value.
+        **/
+      def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
+        System.propertyOrOptionWith(prop, alt)(property)
 
       /**
        * Adds the specified name and value to the mapping of environment

@@ -21,6 +21,23 @@ object ChunkSpec extends ZIOBaseSpec {
           assert(chunk.apply(i))(equalTo(chunk.toSeq.apply(i)))
       }
     },
+    testM("corresponds") {
+      val genChunk    = smallChunks(intGen)
+      val genFunction = Gen.function[Random with Sized, (Int, Int), Boolean](Gen.boolean).map(Function.untupled(_))
+      check(genChunk, genChunk, genFunction) { (as, bs, f) =>
+        val actual   = as.corresponds(bs)(f)
+        val expected = as.toSeq.corresponds(bs.toSeq)(f)
+        assert(actual)(equalTo(expected))
+      }
+    },
+    testM("fill") {
+      val smallInt = Gen.int(-10, 10)
+      check(smallInt, smallInt) { (n, elem) =>
+        val actual   = Chunk.fill(n)(elem)
+        val expected = Chunk.fromArray(Array.fill(n)(elem))
+        assert(actual)(equalTo(expected))
+      }
+    },
     testM("length") {
       check(largeChunks(intGen))(chunk => assert(chunk.length)(equalTo(chunk.toSeq.length)))
     },

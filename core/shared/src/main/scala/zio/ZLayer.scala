@@ -39,6 +39,26 @@ final class ZLayer[-RIn, +E, +ROut] private (
   private val scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]]
 ) { self =>
 
+  def +!+[E1 >: E, RIn2, ROut2](that: ZLayer[RIn2, E1, ROut2])(implicit ev: Has.AreHas[ROut, ROut2]): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
+    self.zipWithPar(that)(ev.unionAll[ROut, ROut2])
+
+  /**
+   * Combines this layer with the specified layer, producing a new layer that
+   * has the inputs of both layers, and the outputs of both layers.
+   */
+  def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](that: ZLayer[RIn2, E1, ROut2])(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWithPar(that)(ev.union[ROut1, ROut2])
+
+  /**
+   * Feeds the output services of this layer into the input of the specified
+   * layer, resulting in a new layer with the inputs of this layer, and the
+   * outputs of both this layer and the specified layer.
+   */
+  def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
+    that: ZLayer[RIn2, E1, ROut2]
+  )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+    self ++ (self >>> that)
+
   /**
    * Feeds the output services of this layer into the input of the specified
    * layer, resulting in a new layer with the inputs of this layer, and the
@@ -46,6 +66,22 @@ final class ZLayer[-RIn, +E, +ROut] private (
    */
   def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
     fold(ZLayer.fromFunctionManyM(ZIO.halt(_)), that)
+
+  /**
+   * A named alias for `++`.
+   */
+  def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
+    that: ZLayer[RIn2, E1, ROut2]
+  )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self ++ that
+
+  /**
+   * A named alias for `>+>`.
+   */
+  def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
+    that: ZLayer[RIn2, E1, ROut2]
+  )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+    self >+> that
 
   /**
    * Builds a layer into a managed value.
@@ -135,6 +171,12 @@ final class ZLayer[-RIn, +E, +ROut] private (
    */
   def toRuntime(p: Platform)(implicit ev: Any <:< RIn): Managed[E, Runtime[ROut]] =
     build.provide(ev).map(Runtime(_, p))
+
+  /**
+   * Updates one of the services output by this layer.
+   */
+  def update[A: Tagged](f: A => A)(implicit ev1: Has.IsHas[ROut], ev2: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
+    self >>> ZLayer.fromFunctionMany(ev1.update[ROut, A](_, f))
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -2038,63 +2080,13 @@ object ZLayer {
       }
     )
 
-  implicit final class ZLayerHasROutOps[RIn, E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
-
-    /**
-     * Combines this layer with the specified layer, producing a new layer that
-     * has the inputs of both layers, and the outputs of both layers.
-     */
-    def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2 <: Has[_]](
-      that: ZLayer[RIn2, E1, ROut2]
-    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-      self.zipWithPar(that)(_.union[ROut2](_))
-
-    def +!+[E1 >: E, RIn2, ROut2 <: Has[_]](
-      that: ZLayer[RIn2, E1, ROut2]
-    ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
-      self.zipWithPar(that)(_.unionAll[ROut2](_))
-
-    /**
-     * Feeds the output services of this layer into the input of the specified
-     * layer, resulting in a new layer with the inputs of this layer, and the
-     * outputs of both this layer and the specified layer.
-     */
-    def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2 <: Has[_]](
-      that: ZLayer[RIn2, E1, ROut2]
-    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
-      self ++ (self >>> that)
-
-    /**
-     * A named alias for `++`.
-     */
-    def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2 <: Has[_]](
-      that: ZLayer[RIn2, E1, ROut2]
-    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-      self ++ that
-
-    /**
-     * A named alias for `>+>`.
-     */
-    def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2 <: Has[_]](
-      that: ZLayer[RIn2, E1, ROut2]
-    )(implicit tagged: Tagged[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
-      self >+> that
-
-    /**
-     * Updates one of the services output by this layer.
-     */
-    def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
-      self >>> ZLayer.fromFunctionMany(_.update[A](f))
-  }
-
-  implicit final class ZLayerHasRInROutOps[RIn <: Has[_], E, ROut <: Has[_]](private val self: ZLayer[RIn, E, ROut])
-      extends AnyVal {
+  implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
     /**
      * Returns a new layer that produces the outputs of this layer but also
      * passes through the inputs to this layer.
      */
-    def passthrough(implicit tag: Tagged[ROut]): ZLayer[RIn, E, RIn with ROut] =
+    def passthrough(implicit ev: Has.AreHas[RIn, ROut], tag: Tagged[ROut]): ZLayer[RIn, E, RIn with ROut] =
       ZLayer.identity[RIn] ++ self
   }
 
