@@ -1,5 +1,6 @@
 package zio.stm
 
+import java.lang.{ Runtime => JRuntime }
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
@@ -21,6 +22,8 @@ class TMapContentionBenchmarks {
   private var mapUpdates: List[UIO[Int]] = _
   private var refUpdates: List[UIO[Int]] = _
 
+  private val parallelism = JRuntime.getRuntime().availableProcessors()
+
   @Setup(Level.Trial)
   def setup(): Unit = {
     val data     = (1 to size).toList.zipWithIndex
@@ -35,9 +38,9 @@ class TMapContentionBenchmarks {
 
   @Benchmark
   def contentionMap(): Unit =
-    unsafeRun(UIO.forkAll_(mapUpdates))
+    unsafeRun(UIO.collectAllParN_(parallelism)(mapUpdates))
 
   @Benchmark
   def contentionRef(): Unit =
-    unsafeRun(UIO.forkAll_(refUpdates))
+    unsafeRun(UIO.collectAllParN_(parallelism)(refUpdates))
 }
