@@ -8,6 +8,7 @@ import zio.Exit.Success
 import zio.ZQueueSpecUtil.waitForSize
 import zio._
 import zio.duration._
+import zio.random.Random
 import zio.stm.TQueue
 import zio.test.Assertion.{
   dies,
@@ -30,6 +31,9 @@ import zio.test.environment.{ Live, TestClock }
 object StreamSpec extends ZIOBaseSpec {
 
   import ZIOTag._
+
+  def smallChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
+    Gen.small(Gen.chunkOfN(_)(a))
 
   def spec = suite("StreamSpec")(
     suite("Stream.absolve")(

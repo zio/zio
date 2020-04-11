@@ -8,7 +8,7 @@ import zio._
 import zio.random.Random
 import zio.test.{ Gen, GenZIO, Sized }
 
-trait StreamUtils extends ChunkUtils with GenZIO {
+trait StreamUtils extends GenZIO {
   def streamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, Stream[String, A]] =
     Gen.oneOf(failingStreamGen(a, max), pureStreamGen(a, max))
 
@@ -64,7 +64,8 @@ trait StreamUtils extends ChunkUtils with GenZIO {
     ZIO.foreach(1 to n)(_ => pull.either)
 }
 
-object StreamUtils extends StreamUtils with GenUtils {
+object StreamUtils extends StreamUtils {
+  val intGen        = Gen.int(-10, 10)
   val streamOfBytes = Gen.small(streamGen(Gen.anyByte, _))
   val streamOfInts  = Gen.small(streamGen(intGen, _))
 

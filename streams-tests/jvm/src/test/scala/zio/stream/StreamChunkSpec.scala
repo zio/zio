@@ -14,6 +14,18 @@ object StreamChunkSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
+  def tinyChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
+    Gen.chunkOfBounded(0, 3)(a)
+
+  def smallChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
+    Gen.small(Gen.chunkOfN(_)(a))
+
+  val intGen       = Gen.int(-10, 10)
+  val chunksOfInts = pureStreamChunkGen(smallChunks(intGen))
+
+  def toBoolFn[R <: Random, A]: Gen[R, A => Boolean] =
+    Gen.function(Gen.boolean)
+
   def spec = suite("StreamChunkSpec")(
     testM("StreamChunk.catchAllCauseErrors") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
