@@ -39,7 +39,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
 
             ZTransducer.splitLines.push.use { push =>
               for {
-                result <- push(Some(Chunk(data)))
+                result   <- push(Some(Chunk(data)))
                 leftover <- push(None)
               } yield assert((result ++ leftover).toArray[String].mkString("\n"))(equalTo(lines.mkString("\n")))
 
@@ -47,18 +47,17 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         ),
         testM("preserves data in chunks") {
-          checkM(weirdStringGenForSplitLines) {
-            xs =>
-              val data = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
-              val ys   = xs.headOption.map(_ :: xs.drop(1).sliding(2, 2).toList.map(_.mkString)).getOrElse(Nil)
+          checkM(weirdStringGenForSplitLines) { xs =>
+            val data = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
+            val ys   = xs.headOption.map(_ :: xs.drop(1).sliding(2, 2).toList.map(_.mkString)).getOrElse(Nil)
 
-              ZTransducer.splitLines.push.use { push =>
-                for {
-                  result <- push(Some(data))
-                  leftover <- push(None)
-                } yield assert((result ++ leftover).toArray[String].toList)(equalTo(ys))
+            ZTransducer.splitLines.push.use { push =>
+              for {
+                result   <- push(Some(data))
+                leftover <- push(None)
+              } yield assert((result ++ leftover).toArray[String].toList)(equalTo(ys))
 
-              }
+            }
           }
         },
         testM("handles leftovers") {
@@ -149,7 +148,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("chunk with leftover") {
           ZTransducer.utf8Decode.push.use { push =>
             for {
-              _ <- push(Some(Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)))
+              _     <- push(Some(Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)))
               part2 <- push(None)
             } yield assert(part2.mkString)(
               equalTo(new String(Array(0xF0.toByte, 0x90.toByte), "UTF-8"))
