@@ -19,10 +19,8 @@ class TMapContentionBenchmarks {
   @Param(Array("0", "10", "100", "1000", "10000", "100000"))
   var size: Int = _
 
-  private var mapUpdates: List[UIO[Int]] = _
-  private var refUpdates: List[UIO[Int]] = _
-
-  private val parallelism = JRuntime.getRuntime().availableProcessors()
+  private var mapUpdates: UIO[Unit] = _
+  private var refUpdates: UIO[Unit] = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
@@ -30,17 +28,18 @@ class TMapContentionBenchmarks {
     val map      = unsafeRun(TMap.fromIterable(data).commit)
     val ref      = ZTRef.unsafeMake(data.toMap)
     val schedule = Schedule.recurs(1000)
-    val updates  = (1 to 100).toList
+    val cpus     = JRuntime.getRuntime().availableProcessors()
+    val updates  = List.fill(cpus)(size - 1)
 
-    mapUpdates = updates.map(i => map.put(i, i).commit.repeat(schedule))
-    refUpdates = updates.map(i => ref.update(_.updated(i, i)).commit.repeat(schedule))
+    mapUpdates = UIO.foreachParN_(cpus)(updates)(i => map.put(i, i).commit.repeat(schedule))
+    refUpdates = UIO.foreachParN_(cpus)(updates)(i => ref.update(_.updated(i, i)).commit.repeat(schedule))
   }
 
   @Benchmark
   def contentionMap(): Unit =
-    unsafeRun(UIO.collectAllParN_(parallelism)(mapUpdates))
+    unsafeRun(mapUpdates)
 
   @Benchmark
   def contentionRef(): Unit =
-    unsafeRun(UIO.collectAllParN_(parallelism)(refUpdates))
+    unsafeRun(refUpdates)
 }
