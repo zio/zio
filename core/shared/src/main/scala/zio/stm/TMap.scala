@@ -22,7 +22,6 @@ package zio.stm
  */
 final class TMap[K, V] private (
   private val tBuckets: TRef[TArray[List[(K, V)]]],
-  private val tCapacity: TRef[Int],
   private val tSize: TRef[Int]
 ) {
 
@@ -43,7 +42,7 @@ final class TMap[K, V] private (
 
     for {
       buckets <- tBuckets.get
-      idx     <- indexOf(k)
+      idx     = TMap.indexOf(k, buckets.array.length)
       _       <- buckets.updateM(idx, removeMatching)
     } yield ()
   }
@@ -79,7 +78,7 @@ final class TMap[K, V] private (
   def get(k: K): USTM[Option[V]] =
     for {
       buckets <- tBuckets.get
-      idx     <- indexOf(k)
+      idx     = TMap.indexOf(k, buckets.array.length)
       bucket  <- buckets(idx)
     } yield bucket.find(_._1 == k).map(_._2)
 
@@ -126,15 +125,14 @@ final class TMap[K, V] private (
         tmap       <- TMap.allocate(newCapacity, data)
         newBuckets <- tmap.tBuckets.get
         _          <- tBuckets.set(newBuckets)
-        _          <- tCapacity.set(newCapacity)
       } yield ()
 
     for {
       buckets     <- tBuckets.get
-      idx         <- indexOf(k)
+      idx         = TMap.indexOf(k, buckets.array.length)
       _           <- buckets.updateM(idx, upsert)
       size        <- tSize.get
-      capacity    <- tCapacity.get
+      capacity    = buckets.array.length
       needsResize = capacity * TMap.LoadFactor < size
       _           <- if (needsResize) resize(capacity << 1) else STM.unit
     } yield ()
@@ -246,9 +244,6 @@ final class TMap[K, V] private (
    */
   def values: USTM[List[V]] =
     toList.map(_.map(_._2))
-
-  private def indexOf(k: K): USTM[Int] =
-    tCapacity.get.map(c => TMap.indexOf(k, c))
 }
 
 object TMap {
@@ -288,11 +283,10 @@ object TMap {
     }
 
     for {
-      tChains   <- TArray.fromIterable(buckets)
-      tBuckets  <- TRef.make(tChains)
-      tCapacity <- TRef.make(capacity)
-      tSize     <- TRef.make(size)
-    } yield new TMap(tBuckets, tCapacity, tSize)
+      tArray   <- TArray.fromIterable(buckets)
+      tBuckets <- TRef.make(tArray)
+      tSize    <- TRef.make(size)
+    } yield new TMap(tBuckets, tSize)
   }
 
   private def hash[K](k: K): Int = {
