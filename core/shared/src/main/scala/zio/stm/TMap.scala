@@ -173,24 +173,23 @@ final class TMap[K, V] private (
       val capacity = buckets.array.length
 
       buckets.toList.flatMap { list =>
-        val currData = list.flatten
-        val newData  = Array.fill[List[(K, V)]](capacity)(Nil)
+        val currData   = list.flatten
+        val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
 
         val it = currData.iterator
         while (it.hasNext) {
-          val kv     = it.next
-          val mapped = g(kv)
-          val idx    = TMap.indexOf(mapped._1, capacity)
-          val bucket = newData(idx)
+          val newPair = g(it.next)
+          val idx     = TMap.indexOf(newPair._1, capacity)
+          val bucket  = newBuckets(idx)
 
-          if (!bucket.exists(_._1 == mapped._1))
-            newData(idx) = mapped :: bucket
+          if (!bucket.exists(_._1 == newPair._1))
+            newBuckets(idx) = newPair :: bucket
         }
 
         val newArr = Array.ofDim[TRef[List[(K, V)]]](capacity)
         var idx    = 0
         while (idx < capacity) {
-          newArr(idx) = ZTRef.unsafeMake(newData(idx))
+          newArr(idx) = ZTRef.unsafeMake(newBuckets(idx))
           idx += 1
         }
 
@@ -208,22 +207,22 @@ final class TMap[K, V] private (
 
       buckets.toList.flatMap { list =>
         STM.foreach(list.flatten)(g).flatMap { mappedData =>
-          val newData = Array.fill[List[(K, V)]](capacity)(Nil)
+          val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
 
           val it = mappedData.iterator
           while (it.hasNext) {
-            val item   = it.next
-            val idx    = TMap.indexOf(item._1, capacity)
-            val bucket = newData(idx)
+            val newPair = it.next
+            val idx     = TMap.indexOf(newPair._1, capacity)
+            val bucket  = newBuckets(idx)
 
-            if (!bucket.exists(_._1 == item._1))
-              newData(idx) = item :: bucket
+            if (!bucket.exists(_._1 == newPair._1))
+              newBuckets(idx) = newPair :: bucket
           }
 
           val newArr = Array.ofDim[TRef[List[(K, V)]]](capacity)
           var idx    = 0
           while (idx < capacity) {
-            newArr(idx) = ZTRef.unsafeMake(newData(idx))
+            newArr(idx) = ZTRef.unsafeMake(newBuckets(idx))
             idx += 1
           }
 
