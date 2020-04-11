@@ -129,10 +129,10 @@ final class TMap[K, V] private (
 
     for {
       buckets     <- tBuckets.get
-      idx         = TMap.indexOf(k, buckets.array.length)
+      capacity    = buckets.array.length
+      idx         = TMap.indexOf(k, capacity)
       _           <- buckets.updateM(idx, upsert)
       size        <- tSize.get
-      capacity    = buckets.array.length
       needsResize = capacity * TMap.LoadFactor < size
       _           <- STM.when(needsResize)(resize(capacity << 1))
     } yield ()
