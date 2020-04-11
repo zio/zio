@@ -118,6 +118,68 @@ object ZStreamSpec extends ZIOBaseSpec {
         //   )(equalTo(data))
         // }
       ),
+      suite("aggregate")(
+        testM("aggregate") {
+          val s      = ZStream('1', '2', ',', '3', '4')
+          val parser = ZTransducer.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt)
+
+          assertM(s.aggregate(parser).runCollect)(equalTo(List(12, 34)))
+        },
+        // testM("no remainder") {
+        //   val t = ZTransducer.fold(100)(_ % 2 == 0)((s, a: Int) => (s + a, Chunk[Int]()))
+        //   assertM(ZStream(1, 2, 3, 4).aggregate(t).runCollect)(equalTo(List(101, 105, 104)))
+        // },
+        // testM("with remainder") {
+        //   val t = ZTransducer
+        //     .fold[Int, Int, (Int, Boolean)]((0, true))(_._2) { (s, a: Int) =>
+        //       a match {
+        //         case 1 => ((s._1 + 100, true), Chunk.empty)
+        //         case 2 => ((s._1 + 100, true), Chunk.empty)
+        //         case 3 => ((s._1 + 3, false), Chunk.single(a + 1))
+        //         case _ => ((s._1 + 4, false), Chunk.empty)
+        //       }
+        //     }
+        //     .map(_._1)
+
+        //   assertM(ZStream(1, 2, 3).aggregate(t).runCollect)(equalTo(List(203, 4)))
+        // },
+        // testM("with a sink that always signals more") {
+        //   val t = Sink.foldLeft(0)((s, a: Int) => s + a)
+        //   assertM(ZStream(1, 2, 3).aggregate(t).runCollect)(equalTo(List(1 + 2 + 3)))
+        // },
+        // testM("managed") {
+        //   final class TestSink(ref: Ref[Int]) extends ZSink[Any, Throwable, Int, Int, List[Int]] {
+        //     type State = (List[Int], Boolean)
+
+        //     def extract(state: State) = UIO.succeedNow((state._1, Chunk.empty))
+
+        //     def initial = UIO.succeedNow((Nil, true))
+
+        //     def step(state: State, a: Int) =
+        //       for {
+        //         i <- ref.get
+        //         _ <- if (i != 1000) IO.fail(new IllegalStateException(i.toString)) else IO.unit
+        //       } yield (List(a, a), false)
+
+        //     def cont(state: State) = state._2
+        //   }
+
+        //   val stream = ZStream(1, 2, 3, 4)
+
+        //   for {
+        //     resource <- Ref.make(0)
+        //     sink     = ZManaged.make(resource.set(1000).as(new TestSink(resource)))(_ => resource.set(2000))
+        //     result   <- stream.aggregateManaged(sink).runCollect
+        //     i        <- resource.get
+        //     _        <- if (i != 2000) IO.fail(new IllegalStateException(i.toString)) else IO.unit
+        //   } yield assert(result)(equalTo(List(List(1, 1), List(2, 2), List(3, 3), List(4, 4))))
+        // },
+        testM("propagate managed error") {
+          val fail = "I'm such a failure!"
+          val t    = ZTransducer.fail(fail)
+          assertM(ZStream(1, 2, 3).aggregate(t).runCollect.either)(isLeft(equalTo(fail)))
+        }
+      ),
       suite("bracket")(
         testM("bracket")(
           for {

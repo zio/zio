@@ -3,9 +3,9 @@ package zio.stream.experimental
 import zio._
 import zio.random.Random
 import zio.stream.ChunkUtils._
-import zio.test.{ Gen, Sized }
+import zio.test.{ Gen, GenZIO, Sized }
 
-object ZStreamGen {
+object ZStreamGen extends GenZIO {
   def streamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
     Gen.oneOf(failingStreamGen(a, max), pureStreamGen(a, max))
 
