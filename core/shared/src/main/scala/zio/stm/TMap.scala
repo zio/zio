@@ -16,8 +16,6 @@
 
 package zio.stm
 
-import scala.collection.mutable
-
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
@@ -174,8 +172,9 @@ final class TMap[K, V] private (
       val g        = f.tupled
       val capacity = buckets.array.length
 
-      buckets.fold(mutable.Buffer.empty[(K, V)])(_ ++= _).flatMap { currData =>
-        val newData = Array.fill[List[(K, V)]](capacity)(Nil)
+      buckets.toList.flatMap { list =>
+        val currData = list.flatten
+        val newData  = Array.fill[List[(K, V)]](capacity)(Nil)
 
         val it = currData.iterator
         while (it.hasNext) {
