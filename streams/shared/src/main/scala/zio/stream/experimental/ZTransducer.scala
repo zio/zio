@@ -12,7 +12,7 @@ import zio._
 //   result in Chunk.empty.
 abstract class ZTransducer[-R, +E, -I, +O](
   val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
-) extends ZConduit[R, E, I, O, Unit](push.map(_.andThen(_.mapError(Left(_))))) { self =>
+) extends ZConduit[R, E, I, O, Nothing](push.map(_.andThen(_.mapError(Left(_))))) { self =>
 
   /**
    * Compose this transducer with another transducer, resulting in a composite transducer.
