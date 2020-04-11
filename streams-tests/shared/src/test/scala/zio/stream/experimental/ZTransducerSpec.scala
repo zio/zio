@@ -9,16 +9,10 @@ object ZTransducerSpec extends ZIOBaseSpec {
   def run[R, E, I, O](parser: ZTransducer[R, E, I, O], input: List[Chunk[I]]): ZIO[R, E, List[Chunk[O]]] =
     parser.push.use { f =>
       def go(os0: List[Chunk[O]], i: Chunk[I]): ZIO[R, E, List[Chunk[O]]] =
-        f(Some(i)).foldM(
-          _.fold[ZIO[R, E, List[Chunk[O]]]](IO.succeed(os0))(IO.fail(_)),
-          os => IO.succeed(if (os.isEmpty) os0 else os :: os0)
-        )
+        f(Some(i)).flatMap(os => IO.succeed(if (os.isEmpty) os0 else os :: os0))
 
       def finish(os0: List[Chunk[O]]): ZIO[R, E, List[Chunk[O]]] =
-        f(None)
-          .repeat(Schedule.doWhile(_.isEmpty))
-          .map(_ :: os0)
-          .catchAll(_.fold[ZIO[R, E, List[Chunk[O]]]](IO.succeed(os0))(IO.fail(_)))
+        f(None).map(_ :: os0)
 
       ZIO.foldLeft(input)(List.empty[Chunk[O]])(go).flatMap(finish).map(_.reverse)
     }
@@ -46,10 +40,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             ZTransducer.splitLines.push.use { push =>
               for {
                 result <- push(Some(Chunk(data)))
-                leftover <- push(None).catchAll {
-                             case None    => ZIO.succeed(Chunk.empty)
-                             case Some(e) => ZIO.fail(e)
-                           }
+                leftover <- push(None)
               } yield assert((result ++ leftover).toArray[String].mkString("\n"))(equalTo(lines.mkString("\n")))
 
             }
@@ -64,10 +55,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
               ZTransducer.splitLines.push.use { push =>
                 for {
                   result <- push(Some(data))
-                  leftover <- push(None).catchAll {
-                               case None    => ZIO.succeed(Chunk.empty)
-                               case Some(e) => ZIO.fail(e)
-                             }
+                  leftover <- push(None)
                 } yield assert((result ++ leftover).toArray[String].toList)(equalTo(ys))
 
               }
@@ -95,10 +83,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           ZTransducer.splitLines.push.use { push =>
             for {
               part1 <- push(Some(Chunk("\n")))
-              part2 <- push(None).catchAll {
-                        case None    => ZIO.succeed(Chunk.empty)
-                        case Some(e) => ZIO.fail(e)
-                      }
+              part2 <- push(None)
             } yield assert(part1 ++ part2)(equalTo(Chunk("")))
           }
         },
@@ -106,10 +91,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           ZTransducer.splitLines.push.use { push =>
             for {
               part1 <- push(Some(Chunk("abc", "abc", "abc")))
-              part2 <- push(None).catchAll {
-                        case None    => ZIO.succeed(Chunk.empty)
-                        case Some(e) => ZIO.fail(e)
-                      }
+              part2 <- push(None)
             } yield assert(part1 ++ part2)(equalTo(Chunk("abcabcabc")))
           }
         },
@@ -127,10 +109,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           ZTransducer.utf8Decode.push.use { push =>
             for {
               part1 <- push(Some(Chunk.fromArray(s.getBytes("UTF-8"))))
-              part2 <- push(None).catchAll {
-                        case None    => ZIO.succeed(Chunk.empty)
-                        case Some(e) => ZIO.fail(e)
-                      }
+              part2 <- push(None)
             } yield assert((part1 ++ part2).mkString)(equalTo(s))
           }
         }),
@@ -139,10 +118,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             for {
               part1 <- push(Some(Chunk(0xC2.toByte)))
               part2 <- push(Some(Chunk(0xA2.toByte)))
-              part3 <- push(None).catchAll {
-                        case None    => ZIO.succeed(Chunk.empty)
-                        case Some(e) => ZIO.fail(e)
-                      }
+              part3 <- push(None)
             } yield assert((part1 ++ part2 ++ part3).mkString.getBytes("UTF-8"))(
               equalTo(Array(0xC2.toByte, 0xA2.toByte))
             )
@@ -153,10 +129,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             for {
               part1 <- push(Some(Chunk(0xE0.toByte, 0xA4.toByte)))
               part2 <- push(Some(Chunk(0xB9.toByte)))
-              part3 <- push(None).catchAll {
-                        case None    => ZIO.succeed(Chunk.empty)
-                        case Some(e) => ZIO.fail(e)
-                      }
+              part3 <- push(None)
             } yield assert((part1 ++ part2 ++ part3).mkString.getBytes("UTF-8"))(
               equalTo(Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte))
             )
@@ -167,10 +140,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             for {
               part1 <- push(Some(Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte)))
               part2 <- push(Some(Chunk(0x88.toByte)))
-              part3 <- push(None).catchAll {
-                        case None    => ZIO.succeed(Chunk.empty)
-                        case Some(e) => ZIO.fail(e)
-                      }
+              part3 <- push(None)
             } yield assert((part1 ++ part2 ++ part3).mkString.getBytes("UTF-8"))(
               equalTo(Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte))
             )
@@ -180,10 +150,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           ZTransducer.utf8Decode.push.use { push =>
             for {
               _ <- push(Some(Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)))
-              part2 <- push(None).catchAll {
-                        case None    => ZIO.succeed(Chunk.empty)
-                        case Some(e) => ZIO.fail(e)
-                      }
+              part2 <- push(None)
             } yield assert(part2.mkString)(
               equalTo(new String(Array(0xF0.toByte, 0x90.toByte), "UTF-8"))
             )

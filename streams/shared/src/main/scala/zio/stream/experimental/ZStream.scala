@@ -95,17 +95,14 @@ abstract class ZStream[-R, +E, +O](
         run = {
           def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
             if (_)
-              push(None).repeat(Schedule.doWhile(_.isEmpty))
+              Pull.end
             else
               pull
                 .foldM(
-                  _.fold(done.set(true) *> push(None))(Pull.fail(_)),
-                  os => push(Some(os))
+                  _.fold(done.set(true) *> push(None).asSomeError)(Pull.fail(_)),
+                  os => push(Some(os)).asSomeError
                 )
-                .foldCauseM(
-                  Cause.sequenceCauseOption(_).fold(go)(Pull.halt(_)),
-                  ps => if (ps.isEmpty) go else IO.succeedNow(ps)
-                )
+                .flatMap(ps => if (ps.isEmpty) go else IO.succeedNow(ps))
           }
 
           go

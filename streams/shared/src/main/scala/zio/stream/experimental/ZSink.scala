@@ -207,7 +207,7 @@ abstract class ZSink[-R, +E, -I, +Z] private (
           (input: Option[Chunk[I]]) =>
             push(input).foldM(
               {
-                case Left(e)  => ZIO.fail(Some(e))
+                case Left(e)  => ZIO.fail(e)
                 case Right(z) => restart.as(Chunk.single(z))
               },
               _ => UIO.succeed(Chunk.empty)
