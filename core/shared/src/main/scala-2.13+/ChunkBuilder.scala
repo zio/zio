@@ -38,7 +38,7 @@ private[zio] object ChunkBuilder {
   /**
    * Constructs a new `ChunkBuilder`.
    */
-  def make[A](): ChunkBuilder[A] =
+  def make[A]: ChunkBuilder[A] =
     new ChunkBuilder[A] {
       var arrayBuilder: ArrayBuilder[A] = null
       def addOne(a: A): this.type = {
