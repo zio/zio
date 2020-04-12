@@ -2,7 +2,6 @@ package zio.stream.experimental
 
 import zio._
 import zio.random.Random
-import zio.stream.ChunkUtils._
 import zio.test.{ Gen, GenZIO, Sized }
 
 object ZStreamGen extends GenZIO {
@@ -46,10 +45,10 @@ object ZStreamGen extends GenZIO {
     ZIO.foreach(1 to n)(_ => pull.either)
 
   val streamOfBytes = Gen.small(streamGen(Gen.anyByte, _))
-  val streamOfInts  = Gen.small(streamGen(intGen, _))
+  val streamOfInts  = Gen.small(streamGen(Gen.anyInt, _))
 
-  val listOfInts = Gen.listOf(intGen)
+  val listOfInts = Gen.listOf(Gen.anyInt)
 
   val pureStreamOfBytes = Gen.small(pureStreamGen(Gen.anyByte, _))
-  val pureStreamOfInts  = Gen.small(pureStreamGen(intGen, _))
+  val pureStreamOfInts  = Gen.small(pureStreamGen(Gen.anyInt, _))
 }
