@@ -63,7 +63,7 @@ abstract class ZStream[-R, +E, +O](
     transduce(transducer)
 
   /**
-   * Symbolic alias for [[ZStream#run]].
+   * Symbolic alias for [[[zio.stream.experimental.ZStream!.run[R1<:R,E1>:E,O1>:O,B]*]]].
    */
   def >>>[R1 <: R, E1 >: E, O2 >: O, Z](sink: ZSink[R1, E1, O2, Z]): ZIO[R1, E1, Z] =
     self.run(sink)
@@ -95,17 +95,14 @@ abstract class ZStream[-R, +E, +O](
         run = {
           def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
             if (_)
-              push(None).repeat(Schedule.doWhile(_.isEmpty))
+              Pull.end
             else
               pull
                 .foldM(
-                  _.fold(done.set(true) *> push(None))(Pull.fail(_)),
-                  os => push(Some(os))
+                  _.fold(done.set(true) *> push(None).asSomeError)(Pull.fail(_)),
+                  os => push(Some(os)).asSomeError
                 )
-                .foldCauseM(
-                  Cause.sequenceCauseOption(_).fold(go)(Pull.halt(_)),
-                  ps => if (ps.isEmpty) go else IO.succeedNow(ps)
-                )
+                .flatMap(ps => if (ps.isEmpty) go else IO.succeedNow(ps))
           }
 
           go
@@ -871,7 +868,7 @@ abstract class ZStream[-R, +E, +O](
   final def foldWhileManagedM[R1 <: R, E1 >: E, A1 >: O, S](
     s: S
   )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    process.flatMap { is: ZIO[R, Option[E], Chunk[O]] =>
+    process.flatMap { (is: ZIO[R, Option[E], Chunk[O]]) =>
       def loop(s1: S): ZIO[R1, E1, S] =
         if (!cont(s1)) UIO.succeedNow(s1)
         else
