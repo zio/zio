@@ -134,7 +134,7 @@ abstract class ZStream[-R, +E, +O](
           // Upstream is done, we need to flush the transducer. If the output is
           // empty, we send the end signal downstream.
           def finish(ps: Chunk[P]): URIO[R1, Boolean] =
-            bucket.offer(if (ps.isEmpty) Take.End else Exit.succeed(ps))
+            bucket.offer(if (ps.isEmpty) Take.End else Exit.succeed(ps)) as false
 
           // We have to make progress in the transducer. If the output is empty,
           // we must keep making progress until it isn't.
