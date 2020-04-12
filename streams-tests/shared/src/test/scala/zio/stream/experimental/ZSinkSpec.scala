@@ -1,10 +1,10 @@
 package zio.stream.experimental
 
+import zio.ZIOBaseSpec
 import zio.stream.ChunkUtils
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isTrue, succeeds }
 import zio.test._
-import zio.ZIOBaseSpec
 
 object ZSinkSpec extends ZIOBaseSpec {
   def spec = suite("ZSinkSpec")(
