@@ -192,7 +192,7 @@ object ChunkSpec extends ZIOBaseSpec {
       trait Dog extends Animal
 
       val vector   = Vector(new Cat {}, new Dog {}, new Animal {})
-      val actual   = Chunk.fromIterable(vector).map(a => a)
+      val actual   = Chunk.fromIterable(vector).map[Animal](identity)
       val expected = Chunk.fromArray(vector.toArray)
 
       assert(actual)(equalTo(expected))
@@ -201,7 +201,7 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk.empty.toArray[String])(equalTo(Array.empty[String]))
     },
     zio.test.test("to Array for an empty Chunk using filter") {
-      assert(Chunk(1).filter(_ == 2).map(_.toString).toArray[String])(equalTo(Array.empty[String]))
+      assert(Chunk(1).filter(_ == 2).map[String](_.toString).toArray[String])(equalTo(Array.empty[String]))
     },
     testM("toArray with elements of type String") {
       check(mediumChunks(Gen.alphaNumericString))(c => assert(c.toArray.toList)(equalTo(c.toList)))
@@ -313,7 +313,7 @@ object ChunkSpec extends ZIOBaseSpec {
       // foreach should not throw
       c.foreach(_ => ())
 
-      assert(c.filter(_ => false).map(_ * 2).length)(equalTo(0))
+      assert(c.filter(_ => false).map[Int](_ * 2).length)(equalTo(0))
     },
     zio.test.test("toArrayOnConcatOfSlice") {
       val onlyOdd: Int => Boolean = _ % 2 != 0
@@ -367,8 +367,8 @@ object ChunkSpec extends ZIOBaseSpec {
         Chunk.succeed(x),
         nonEmptyChunk ++ chunk,
         // chunk ++ nonEmptyChunk,
-        nonEmptyChunk.flatMap(i => Chunk(i)),
-        nonEmptyChunk.map(identity(_)),
+        nonEmptyChunk.flatMap((i: Int) => Chunk(i)),
+        nonEmptyChunk.map[Int](identity),
         nonEmptyChunk.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
         nonEmptyChunk.zipWithIndex,
         nonEmptyChunk.zipWithIndexFrom(0)
