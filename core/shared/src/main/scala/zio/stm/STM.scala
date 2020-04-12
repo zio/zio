@@ -52,9 +52,15 @@ object STM {
     ZSTM.collectAll(in)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectAll_]]
+   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:Iterable*]]]
    */
   def collectAll_[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
+    ZSTM.collectAll_(in)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:Chunk*]]]
+   */
+  def collectAll_[E, A](in: Chunk[STM[E, A]]): STM[E, Unit] =
     ZSTM.collectAll_(in)
 
   /**
