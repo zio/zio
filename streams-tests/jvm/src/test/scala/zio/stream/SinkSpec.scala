@@ -1575,7 +1575,7 @@ object SinkSpec extends ZIOBaseSpec {
                          init,
                          Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)
                        )
-            result <- ZSink.utf8DecodeChunk.extract(state1).map(_._2.flatMap(identity).toArray[Byte])
+            result <- ZSink.utf8DecodeChunk.extract(state1).map(_._2.flatMap(identity(_)).toArray[Byte])
           } yield assert(ZSink.utf8DecodeChunk.cont(state1))(isFalse) && assert(result)(
             equalTo(Array(0xF0.toByte, 0x90.toByte))
           )

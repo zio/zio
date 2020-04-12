@@ -31,7 +31,7 @@ import scala.reflect.{ classTag, ClassTag }
  * result, it is not safe to construct chunks from heteregenous primitive
  * types.
  */
-sealed trait Chunk[+A] { self =>
+sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
   /**
    * The number of elements in the chunk.
@@ -46,11 +46,6 @@ sealed trait Chunk[+A] { self =>
       case Chunk.Empty          => Chunk.single(a)
       case ne: NonEmptyChunk[A] => Chunk.concat(ne, Chunk.single(a))
     }
-
-  /**
-   * Returns a filtered, mapped subset of the elements of this chunk.
-   */
-  def collect[B](pf: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(pf)
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a .
@@ -87,7 +82,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Drops the first `n` elements of the chunk.
    */
-  final def drop(n: Int): Chunk[A] = {
+  override final def drop(n: Int): Chunk[A] = {
     val len = self.length
 
     if (n <= 0) self
@@ -105,7 +100,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Drops all elements so long as the predicate returns true.
    */
-  def dropWhile(f: A => Boolean): Chunk[A] = {
+  override def dropWhile(f: A => Boolean): Chunk[A] = {
     val len = self.length
 
     var i = 0
@@ -131,13 +126,15 @@ sealed trait Chunk[+A] { self =>
 
         equal
       }
+    case that: Seq[_] =>
+      self.corresponds(that)(_ == _)
     case _ => false
   }
 
   /**
    * Returns the first element that satisfies the predicate.
    */
-  def find(f: A => Boolean): Option[A] = {
+  override def find(f: A => Boolean): Option[A] = {
     val len               = self.length
     var result: Option[A] = None
     var i                 = 0
@@ -152,25 +149,19 @@ sealed trait Chunk[+A] { self =>
   /**
    * Returns the first element of this chunk if it exists.
    */
-  def headOption: Option[A] =
+  override def headOption: Option[A] =
     if (isEmpty) None else Some(self(0))
 
   /**
    * Returns the last element of this chunk if it exists.
    */
-  def lastOption: Option[A] =
+  override def lastOption: Option[A] =
     if (isEmpty) None else Some(self(self.length - 1))
-
-  /**
-   * Returns the first index for which the given predicate is satisfied.
-   */
-  def indexWhere(f: A => Boolean): Option[Int] =
-    indexWhere(f, 0)
 
   /**
    * Returns the first index for which the given predicate is satisfied after or at some given index.
    */
-  def indexWhere(f: A => Boolean, from: Int): Option[Int] = {
+  override def indexWhere(f: A => Boolean, from: Int): Int = {
     val len    = self.length
     var i      = math.max(from, 0)
     var result = -1
@@ -180,13 +171,13 @@ sealed trait Chunk[+A] { self =>
       else i += 1
     }
 
-    if (result == -1) None else Some(result)
+    result
   }
 
   /**
    * Determines whether a predicate is satisfied for at least one element of this chunk.
    */
-  def exists(f: A => Boolean): Boolean = {
+  override def exists(f: A => Boolean): Boolean = {
     val len    = self.length
     var exists = false
     var i      = 0
@@ -200,7 +191,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Determines whether a predicate is satisfied for all elements of this chunk.
    */
-  def forall(f: A => Boolean): Boolean = {
+  override def forall(f: A => Boolean): Boolean = {
     val len    = self.length
     var exists = true
     var i      = 0
@@ -214,7 +205,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Returns a filtered subset of this chunk.
    */
-  def filter(f: A => Boolean): Chunk[A] = {
+  override def filter(f: A => Boolean): Chunk[A] = {
     implicit val B: ClassTag[A] = Chunk.classTagOf(this)
 
     val len  = self.length
@@ -323,7 +314,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Folds over the elements in this chunk from the left.
    */
-  def fold[S](s0: S)(f: (S, A) => S): S = {
+  override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
     val len = self.length
     var s   = s0
 
@@ -340,12 +331,12 @@ sealed trait Chunk[+A] { self =>
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    fold[ZIO[R, E, S]](IO.succeedNow(s))((s, a) => s.flatMap(f(_, a)))
+    foldLeft[ZIO[R, E, S]](IO.succeedNow(s))((s, a) => s.flatMap(f(_, a)))
 
   /**
    * Folds over the elements in this chunk from the right.
    */
-  def foldRight[S](s0: S)(f: (A, S) => S): S = {
+  override def foldRight[S](s0: S)(f: (A, S) => S): S = {
     val len = self.length
     var s   = s0
 
@@ -396,7 +387,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Determines if the chunk is empty.
    */
-  final def isEmpty: Boolean = length == 0
+  override final def isEmpty: Boolean = length == 0
 
   /**
    * Returns a chunk with the elements mapped by the specified function.
@@ -415,59 +406,15 @@ sealed trait Chunk[+A] { self =>
   def materialize[A1 >: A]: Chunk[A1]
 
   /**
-   * Generates a readable string representation of this chunk using the
-   * specified start, separator, and end strings.
-   */
-  final def mkString(start: String, sep: String, end: String): String = {
-    val builder = new scala.collection.mutable.StringBuilder()
-
-    builder.append(start)
-
-    var i   = 0
-    val len = self.length
-
-    while (i < len) {
-      if (i != 0) builder.append(sep)
-      builder.append(self(i).toString)
-      i += 1
-    }
-
-    builder.append(end)
-
-    builder.toString
-  }
-
-  /**
-   * Generates a readable string representation of this chunk using the
-   * specified separator string.
-   */
-  final def mkString(sep: String): String = mkString("", sep, "")
-
-  /**
-   * Generates a readable string representation of this chunk.
-   */
-  final def mkString: String = mkString("")
-
-  /**
-   * Determines if the chunk is not empty.
-   */
-  final def nonEmpty: Boolean = length > 0
-
-  /**
-   * The number of elements in the chunk.
-   */
-  final def size: Int = length
-
-  /**
    * Returns two splits of this chunk at the specified index.
    */
-  final def splitAt(n: Int): (Chunk[A], Chunk[A]) =
+  override final def splitAt(n: Int): (Chunk[A], Chunk[A]) =
     (take(n), drop(n))
 
   /**
    * Takes the first `n` elements of the chunk.
    */
-  final def take(n: Int): Chunk[A] =
+  override final def take(n: Int): Chunk[A] =
     if (n <= 0) Chunk.Empty
     else if (n >= length) this
     else
@@ -483,7 +430,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Takes all elements so long as the predicate returns true.
    */
-  def takeWhile(f: A => Boolean): Chunk[A] = {
+  override def takeWhile(f: A => Boolean): Chunk[A] = {
     val len = self.length
 
     var i = 0
@@ -505,7 +452,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Converts the chunk into an array.
    */
-  def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = {
+  override def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = {
     val dest = Array.ofDim[A1](self.length)
 
     self.toArray(0, dest)
@@ -525,17 +472,12 @@ sealed trait Chunk[+A] { self =>
     builder.result()
   }
 
-  def toSeq: Seq[A] = {
-    val seqBuilder = Seq.newBuilder[A]
-    fromBuilder(seqBuilder)
-  }
-
-  def toList: List[A] = {
+  override def toList: List[A] = {
     val listBuilder = List.newBuilder[A]
     fromBuilder(listBuilder)
   }
 
-  def toVector: Vector[A] = {
+  override def toVector: Vector[A] = {
     val vectorBuilder = Vector.newBuilder[A]
     fromBuilder(vectorBuilder)
   }
@@ -580,7 +522,7 @@ sealed trait Chunk[+A] { self =>
    * Effectfully maps the elements of this chunk in parallel purely for the effects.
    */
   final def mapMPar_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    fold[ZIO[R, E, Unit]](IO.unit)((io, a) => f(a).zipParRight(io))
+    foldLeft[ZIO[R, E, Unit]](IO.unit)((io, a) => f(a).zipParRight(io))
 
   /**
    * Zips this chunk with the specified chunk using the specified combiner.
@@ -602,8 +544,8 @@ sealed trait Chunk[+A] { self =>
    */
   def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)]
 
-  protected[zio] def apply(n: Int): A
-  protected[zio] def foreach(f: A => Unit): Unit
+  def apply(n: Int): A
+  def foreach[B](f: A => B): Unit
 
   //noinspection AccessorLikeMethodIsUnit
   protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit
@@ -828,7 +770,7 @@ object Chunk {
   /**
    * Returns the `ClassTag` for the element type of the chunk.
    */
-  private def classTagOf[A](chunk: Chunk[A]): ClassTag[A] = chunk match {
+  private[zio] def classTagOf[A](chunk: Chunk[A]): ClassTag[A] = chunk match {
     case x: Arr[A]         => x.classTag
     case x: Concat[A]      => x.classTag
     case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
@@ -1048,7 +990,7 @@ object Chunk {
       }
     }
 
-    override def fold[S](s0: S)(f: (S, A) => S): S = {
+    override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
       val self = array
       val len  = self.length
       var s    = s0
@@ -1116,7 +1058,7 @@ object Chunk {
 
     override def apply(n: Int): A = array(n)
 
-    override def foreach(f: A => Unit): Unit = array.foreach(f)
+    override def foreach[B](f: A => B): Unit = array.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       Array.copy(array, 0, dest, n, length)
@@ -1131,7 +1073,7 @@ object Chunk {
 
     override def apply(n: Int): A = if (n < l.length) l(n) else r(n - l.length)
 
-    override def foreach(f: A => Unit): Unit = {
+    override def foreach[B](f: A => B): Unit = {
       l.foreach(f)
       r.foreach(f)
     }
@@ -1151,7 +1093,9 @@ object Chunk {
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
 
-    override def foreach(f: A => Unit): Unit = f(a)
+    override def foreach[B](f: A => B): Unit = {
+      val _ = f(a)
+    }
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       dest(n) = a
@@ -1164,7 +1108,7 @@ object Chunk {
 
     override val length: Int = l
 
-    override def foreach(f: A => Unit): Unit = {
+    override def foreach[B](f: A => B): Unit = {
       var i = 0
       while (i < length) {
         f(apply(i))
@@ -1192,7 +1136,7 @@ object Chunk {
 
     override def apply(n: Int): A = vector(n)
 
-    override def foreach(f: A => Unit): Unit = vector.foreach(f)
+    override def foreach[B](f: A => B): Unit = vector.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
   }
@@ -1255,9 +1199,11 @@ object Chunk {
       both: (Nothing, B) => C
     ): Chunk[C] = that.map(right)
 
-    protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
+    def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
-    protected[zio] def foreach(f: Nothing => Unit): Unit = ()
+    override def foreach[B](f: Nothing => B): Unit = {
+      val _ = f
+    }
 
     protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit = ()
 
@@ -1274,10 +1220,10 @@ object Chunk {
 
   sealed trait NonEmpty[+A] extends Chunk[A] { self =>
 
-    final def first: A = self(0)
-    final def last: A  = self(length - 1)
+    final def first: A         = self(0)
+    override final def last: A = self(length - 1)
 
-    final def reduce[A1 >: A](f: (A1, A1) => A1): A1 = {
+    override final def reduce[A1 >: A](f: (A1, A1) => A1): A1 = {
       val len     = length
       var res: A1 = first
       var i       = 1
