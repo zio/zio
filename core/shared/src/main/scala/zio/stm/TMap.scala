@@ -164,6 +164,12 @@ final class TMap[K, V] private (
     fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
 
   /**
+   * Collects all bindings into a chunk.
+   */
+  def toChunk: USTM[Chunk[(K, V)]] =
+    fold[Chunk[(K, V)]](Chunk.empty)((acc, kv) => Chunk.single(kv) ++ acc)
+
+  /**
    * Collects all bindings into a map.
    */
   def toMap: USTM[Map[K, V]] =
