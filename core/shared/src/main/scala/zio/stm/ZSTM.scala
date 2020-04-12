@@ -25,7 +25,7 @@ import scala.util.{ Failure, Success, Try }
 import com.github.ghik.silencer.silent
 
 import zio.internal.{ Platform, Stack, Sync }
-import zio.{ CanFail, Fiber, IO, UIO, ZIO }
+import zio.{ CanFail, Chunk, Fiber, IO, UIO, ZIO }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -914,8 +914,15 @@ object ZSTM {
    * Collects all the transactional effects in a list, returning a single
    * transactional effect that produces a list of values.
    */
-  def collectAll[R, E, A](i: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, List[A]] =
-    i.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil))(_.zipWith(_)(_ :: _))
+  def collectAll[R, E, A](in: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, List[A]] =
+    foreach(in)(ZIO.identityFn)
+
+  /**
+   * Collects all the transactional effects in a list, returning a single
+   * transactional effect that produces a chunk of values.
+   */
+  def collectAll[R, E, A](in: Chunk[ZSTM[R, E, A]]): ZSTM[R, E, Chunk[A]] =
+    foreach(in)(ZIO.identityFn)
 
   /**
    * Collects all the transactional effects, returning a single transactional
@@ -924,8 +931,18 @@ object ZSTM {
    * Equivalent to `collectAll(i).unit`, but without the cost of building the
    * list of results.
    */
-  def collectAll_[R, E, A](i: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
-    foreach_(i)(ZIO.identityFn)
+  def collectAll_[R, E, A](in: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
+    foreach_(in)(ZIO.identityFn)
+
+  /**
+   * Collects all the transactional effects, returning a single transactional
+   * effect that produces `Unit`.
+   *
+   * Equivalent to `collectAll(i).unit`, but without the cost of building the
+   * chunk of results.
+   */
+  def collectAll_[R, E, A](in: Chunk[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
+    foreach_(in)(ZIO.identityFn)
 
   /**
    * Kills the fiber running the effect.
@@ -1006,8 +1023,17 @@ object ZSTM {
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces a new `List[B]`.
    */
-  def foreach[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, List[B]] =
-    collectAll(as.map(f))
+  def foreach[R, E, A, B](in: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, List[B]] =
+    in.foldRight[ZSTM[R, E, List[B]]](ZSTM.succeedNow(Nil))((a, tx) => f(a).zipWith(tx)(_ :: _))
+
+  /**
+   * Applies the function `f` to each element of the `Chunk[A]` and
+   * returns a transactional effect that produces a new `Chunk[B]`.
+   */
+  def foreach[R, E, A, B](in: Chunk[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Chunk[B]] =
+    in.fold[ZSTM[R, E, Chunk[B]]](ZSTM.succeedNow(Chunk.empty))((acc, a) =>
+      f(a).zipWith(acc)((b, acc) => acc ++ Chunk.single(b))
+    )
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1016,13 +1042,23 @@ object ZSTM {
    * Equivalent to `foreach(as)(f).unit`, but without the cost of building
    * the list of results.
    */
-  def foreach_[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Unit] =
-    ZSTM.succeedNow(as.iterator).flatMap[R, E, Unit] { it =>
+  def foreach_[R, E, A](in: Iterable[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    ZSTM.succeedNow(in.iterator).flatMap[R, E, Unit] { it =>
       def loop: ZSTM[R, E, Unit] =
         if (it.hasNext) f(it.next) *> loop
         else ZSTM.unit
       loop
     }
+
+  /**
+   * Applies the function `f` to each element of the `Chunk[A]` and
+   * returns a transactional effect that produces `Unit`.
+   *
+   * Equivalent to `foreach(as)(f).unit`, but without the cost of building
+   * the chunk of results.
+   */
+  def foreach_[R, E, A](in: Chunk[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    in.fold[ZSTM[R, E, Unit]](ZSTM.unit)((tx, a) => tx *> f(a).unit)
 
   /**
    * Lifts an `Either` into a `STM`.
