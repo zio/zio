@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 import java.util.{ HashMap => MutableMap }
 
 import scala.annotation.tailrec
+import scala.collection.mutable.ArrayBuffer
 import scala.util.{ Failure, Success, Try }
 
 import com.github.ghik.silencer.silent
@@ -1040,10 +1041,20 @@ object ZSTM {
    * Applies the function `f` to each element of the `Chunk[A]` and
    * returns a transactional effect that produces a new `Chunk[B]`.
    */
-  def foreach[R, E, A, B](in: Chunk[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Chunk[B]] =
-    in.foldLeft[ZSTM[R, E, Chunk[B]]](ZSTM.succeedNow(Chunk.empty))((acc, a) =>
-      f(a).zipWith(acc)((b, acc) => acc ++ Chunk.single(b))
-    )
+  def foreach[R, E, A, B](in: Chunk[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Chunk[B]] = {
+    val length = in.length
+    var idx    = 0
+
+    var tx: ZSTM[R, E, ArrayBuffer[B]] = ZSTM.succeedNow(ArrayBuffer.empty[B])
+
+    while (idx < length) {
+      val a = in(idx)
+      tx = tx.zipWith(f(a))(_ += _)
+      idx += 1
+    }
+
+    tx.map(Chunk.fromIterable)
+  }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
