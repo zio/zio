@@ -16,6 +16,8 @@
 
 package zio.stm
 
+import zio.Chunk
+
 /**
  * Wraps array of [[TRef]] and adds methods for convenience.
  */
@@ -259,6 +261,12 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    */
   def toList: USTM[List[A]] =
     STM.collectAll(array.map(_.get))
+
+  /**
+   * Collects all elements into a chunk.
+   */
+  def toChunk: USTM[Chunk[A]] =
+    STM.collectAll(Chunk.fromArray(array).map(_.get))
 
   /**
    * Atomically updates all elements using a pure function.
