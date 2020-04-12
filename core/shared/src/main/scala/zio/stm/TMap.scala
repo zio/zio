@@ -22,7 +22,6 @@ package zio.stm
  */
 final class TMap[K, V] private (
   private val tBuckets: TRef[TArray[List[(K, V)]]],
-  private val tCapacity: TRef[Int],
   private val tSize: TRef[Int]
 ) {
 
@@ -43,7 +42,7 @@ final class TMap[K, V] private (
 
     for {
       buckets <- tBuckets.get
-      idx     <- indexOf(k)
+      idx     = TMap.indexOf(k, buckets.array.length)
       _       <- buckets.updateM(idx, removeMatching)
     } yield ()
   }
@@ -52,7 +51,7 @@ final class TMap[K, V] private (
    * Atomically folds using a pure function.
    */
   def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
-    tBuckets.get.flatMap(_.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op)))
+    tBuckets.get.flatMap(_.toList).map(_.flatten.foldLeft(zero)(op))
 
   /**
    * Atomically folds using a transactional function.
@@ -64,7 +63,7 @@ final class TMap[K, V] private (
         case head :: tail => op(res, head).flatMap(loopM(_, tail))
       }
 
-    tBuckets.get.flatMap(_.foldM(zero)(loopM))
+    tBuckets.get.flatMap(_.toList).flatMap(data => loopM(zero, data.flatten))
   }
 
   /**
@@ -79,7 +78,7 @@ final class TMap[K, V] private (
   def get(k: K): USTM[Option[V]] =
     for {
       buckets <- tBuckets.get
-      idx     <- indexOf(k)
+      idx     = TMap.indexOf(k, buckets.array.length)
       bucket  <- buckets(idx)
     } yield bucket.find(_._1 == k).map(_._2)
 
@@ -111,13 +110,21 @@ final class TMap[K, V] private (
    * Stores new binding into the map.
    */
   def put(k: K, v: V): USTM[Unit] = {
-    def upsert(bucket: List[(K, V)]): USTM[List[(K, V)]] = {
-      val exists = bucket.exists(_._1 == k)
+    def update(buckets: TArray[List[(K, V)]]): USTM[Int] = {
+      val capacity = buckets.array.length
+      val idx      = TMap.indexOf(k, capacity)
 
-      if (exists)
-        STM.succeedNow(bucket.map(kv => if (kv._1 == k) (k, v) else kv))
-      else
-        tSize.update(_ + 1).as((k, v) :: bucket)
+      buckets(idx).flatMap { bucket =>
+        val exists = bucket.exists(_._1 == k)
+
+        val updated =
+          if (exists)
+            bucket.map(kv => if (kv._1 == k) (k, v) else kv)
+          else
+            (k, v) :: bucket
+
+        buckets.array(idx).set(updated) *> tSize.updateAndGet(s => if (exists) s else s + 1)
+      }
     }
 
     def resize(newCapacity: Int): USTM[Unit] =
@@ -126,17 +133,14 @@ final class TMap[K, V] private (
         tmap       <- TMap.allocate(newCapacity, data)
         newBuckets <- tmap.tBuckets.get
         _          <- tBuckets.set(newBuckets)
-        _          <- tCapacity.set(newCapacity)
       } yield ()
 
     for {
       buckets     <- tBuckets.get
-      idx         <- indexOf(k)
-      _           <- buckets.updateM(idx, upsert)
-      size        <- tSize.get
-      capacity    <- tCapacity.get
+      size        <- update(buckets)
+      capacity    = buckets.array.length
       needsResize = capacity * TMap.LoadFactor < size
-      _           <- if (needsResize) resize(capacity << 1) else STM.unit
+      _           <- STM.when(needsResize)(resize(capacity << 1))
     } yield ()
   }
 
@@ -246,9 +250,6 @@ final class TMap[K, V] private (
    */
   def values: USTM[List[V]] =
     toList.map(_.map(_._2))
-
-  private def indexOf(k: K): USTM[Int] =
-    tCapacity.get.map(c => TMap.indexOf(k, c))
 }
 
 object TMap {
@@ -288,11 +289,10 @@ object TMap {
     }
 
     for {
-      tChains   <- TArray.fromIterable(buckets)
-      tBuckets  <- TRef.make(tChains)
-      tCapacity <- TRef.make(capacity)
-      tSize     <- TRef.make(size)
-    } yield new TMap(tBuckets, tCapacity, tSize)
+      tArray   <- TArray.fromIterable(buckets)
+      tBuckets <- TRef.make(tArray)
+      tSize    <- TRef.make(size)
+    } yield new TMap(tBuckets, tSize)
   }
 
   private def hash[K](k: K): Int = {
