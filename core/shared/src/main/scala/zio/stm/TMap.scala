@@ -122,7 +122,7 @@ final class TMap[K, V] private (
           if (exists)
             bucket.map(kv => if (kv._1 == k) (k, v) else kv)
           else
-            Chunk.single(k -> v) ++ bucket
+            Chunk(k -> v) ++ bucket
 
         buckets.array(idx).set(updated) *> tSize.updateAndGet(s => if (exists) s else s + 1)
       }
@@ -167,7 +167,7 @@ final class TMap[K, V] private (
    * Collects all bindings into a chunk.
    */
   def toChunk: USTM[Chunk[(K, V)]] =
-    fold[Chunk[(K, V)]](Chunk.empty)((acc, kv) => Chunk.single(kv) ++ acc)
+    fold[Chunk[(K, V)]](Chunk.empty)((acc, kv) => Chunk(kv) ++ acc)
 
   /**
    * Collects all bindings into a map.
@@ -191,7 +191,7 @@ final class TMap[K, V] private (
           val bucket  = newBuckets(idx)
 
           if (!bucket.exists(_._1 == newPair._1))
-            newBuckets(idx) = Chunk.single(newPair) ++ bucket
+            newBuckets(idx) = Chunk(newPair) ++ bucket
         }
 
         val newArr = Array.ofDim[TRef[Chunk[(K, V)]]](capacity)
@@ -222,7 +222,7 @@ final class TMap[K, V] private (
             val bucket = newBuckets(idx)
 
             if (!bucket.exists(_._1 == newPair._1))
-              newBuckets(idx) = Chunk.single(newPair) ++ bucket
+              newBuckets(idx) = Chunk(newPair) ++ bucket
           }
 
           val newArr = Array.ofDim[TRef[Chunk[(K, V)]]](capacity)
@@ -288,7 +288,7 @@ object TMap {
       val kv  = it.next
       val idx = indexOf(kv._1, capacity)
 
-      buckets(idx) = Chunk.single(kv) ++ buckets(idx)
+      buckets(idx) = Chunk(kv) ++ buckets(idx)
       size = size + 1
     }
 
