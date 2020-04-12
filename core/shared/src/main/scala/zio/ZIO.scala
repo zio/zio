@@ -1039,6 +1039,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     orElse(ZIO.fail(e1))
 
   /**
+   * Returns an effect that will produce the value of this effect, unless it
+   * fails with the `None` value, in which case it will produce the value of
+   * the specified effect.
+   */
+  final def orElseOptional[R1 <: R, E1, A1 >: A](
+    that: => ZIO[R1, Option[E1], A1]
+  )(implicit ev: E <:< Option[E1]): ZIO[R1, Option[E1], A1] =
+    catchAll(ev(_).fold(that)(e => ZIO.fail(Some(e))))
+
+  /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise suceeds with the specified value.
    */
