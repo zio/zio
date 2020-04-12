@@ -168,6 +168,8 @@ object ZTransducer {
     ZTransducer {
       case class FoldWeightedState(result: O, cost: Long, buffer: Chunk[I])
 
+      val initial = FoldWeightedState(z, 0, Chunk.empty)
+
       def go(state: FoldWeightedState): (FoldWeightedState, Chunk[O]) =
         state.buffer.headOption.fold[(FoldWeightedState, Chunk[O])](state -> Chunk.empty) { i =>
           val total = state.cost + costFn(i)
@@ -179,7 +181,7 @@ object ZTransducer {
             FoldWeightedState(f(state.result, i), total, state.buffer.drop(1)) -> Chunk.empty
         }
 
-      ZRef.makeManaged(FoldWeightedState(z, 0, Chunk.empty)).map { state =>
+      ZRef.makeManaged(initial).map { state =>
         {
           case Some(in) =>
             state.modify { s0 =>
@@ -196,7 +198,7 @@ object ZTransducer {
                 flush(s, os0 ++ os)
               }
 
-            state.get.map(flush(_, Chunk.empty))
+            state.getAndSet(initial).map(flush(_, Chunk.empty))
         }
       }
     }

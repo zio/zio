@@ -103,20 +103,20 @@ object ZStreamSpec extends ZIOBaseSpec {
             _      <- fiber.interrupt
             result <- cancelled.get
           } yield assert(result)(isTrue)
+        },
+        testM("leftover handling") {
+          val data = List(1, 2, 2, 3, 2, 3)
+          assertM(
+            ZStream(data: _*)
+              .aggregateAsync(
+                ZTransducer
+                  .foldWeighted(List[Int]())((i: Int) => i.toLong, 4)((acc, el) => el :: acc)
+                  .map(_.reverse)
+              )
+              .runCollect
+              .map(_.flatten)
+          )(equalTo(data))
         }
-        // testM("leftover handling") {
-        //   val data = List(1, 2, 2, 3, 2, 3)
-        //   assertM(
-        //     ZStream(data: _*)
-        //       .aggregateAsync(
-        //         ZTransducer
-        //           .foldWeighted(List[Int]())((i: Int) => i.toLong, 4)((acc, el) => el :: acc)
-        //           .map(_.reverse)
-        //       )
-        //       .runCollect
-        //       .map(_.flatten)
-        //   )(equalTo(data))
-        // }
       ),
       suite("aggregate")(
         testM("aggregate") {
