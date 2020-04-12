@@ -124,9 +124,15 @@ object STM {
     ZSTM.foreach(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foreach_]]
+   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](as:Iterable*]]]
    */
-  def foreach_[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
+  def foreach_[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
+    ZSTM.foreach_(in)(f)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](as:Chunk*]]]
+   */
+  def foreach_[E, A](in: Chunk[A])(f: A => STM[E, Any]): STM[E, Unit] =
     ZSTM.foreach_(in)(f)
 
   /**

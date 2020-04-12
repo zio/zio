@@ -945,27 +945,38 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("performs an action on each list element and return a single transaction that contains the result") {
         for {
           tvar      <- TRef.makeCommit(0)
-          _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).commit
-          expectedV = (1 to 100).sum
+          list      = List(1, 2, 3, 4, 5)
+          expectedV = list.sum
+          _         <- STM.foreach(list)(a => tvar.update(_ + a)).commit
           v         <- tvar.get.commit
         } yield assert(v)(equalTo(expectedV))
       },
       testM("performs an action on each chunk element and return a single transaction that contains the result") {
         for {
           tvar      <- TRef.makeCommit(0)
-          chunk     = Chunk.fromIterable((1 to 100).toList)
+          chunk     = Chunk(1, 2, 3, 4, 5)
+          expectedV = chunk.foldRight(0)(_ + _)
           _         <- STM.foreach(chunk)(a => tvar.update(_ + a)).commit
-          expectedV = (1 to 100).sum
           v         <- tvar.get.commit
         } yield assert(v)(equalTo(expectedV))
-      },
-      testM("`foreach_` performs actions in order") {
-        val as = List(1, 2, 3, 4, 5)
+      }
+    ),
+    suite("foreach_")(
+      testM("performs actions in order given a list") {
         for {
           ref <- TRef.makeCommit(List.empty[Int])
+          as  = List(1, 2, 3, 4, 5)
           _   <- STM.foreach_(as)(a => ref.update(_ :+ a)).commit
           bs  <- ref.get.commit
         } yield assert(bs)(equalTo(as))
+      },
+      testM("performs actions in order given a chunk") {
+        for {
+          ref <- TRef.makeCommit(List.empty[Int])
+          as  = Chunk(1, 2, 3, 4, 5)
+          _   <- STM.foreach_(as)(a => ref.update(_ :+ a)).commit
+          bs  <- ref.get.commit
+        } yield assert(bs)(equalTo(as.toList))
       }
     ),
     testM(
