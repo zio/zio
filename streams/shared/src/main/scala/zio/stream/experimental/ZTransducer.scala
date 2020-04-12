@@ -112,8 +112,14 @@ object ZTransducer {
       }
     }
 
+  def die(e: => Throwable): ZTransducer[Any, Nothing, Any, Nothing] =
+    ZTransducer(Managed.succeed((_: Any) => IO.die(e)))
+
   def fail[E](e: => E): ZTransducer[Any, E, Any, Nothing] =
     ZTransducer(ZManaged.succeed((_: Option[Any]) => ZIO.fail(e)))
+
+  def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZTransducer[R, E, Any, A] =
+    ZTransducer(Managed.succeed((_: Any) => zio.map(Chunk.single(_))))
 
   def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]]): ZTransducer[R, E, I, O] =
     ZTransducer(Managed.succeed(push))
