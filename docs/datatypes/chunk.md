@@ -30,12 +30,12 @@ How to use `collect` function to cherry-pick all strings from Chunk[A]:
 ```scala mdoc
 val collectChunk = Chunk("Hello ZIO", 1.5, "Hello ZIO NIO", 2.0, "Some string", 2.5)
 
-collectChunk.collect { case string: String => string }
+collectChunk.collect[String] { case string: String => string }
 ```
 How to use `collect` function to cherry-pick all the digits from Chunk[A]:
 
 ```scala mdoc
-collectChunk.collect { case digit: Double => digit }
+collectChunk.collect[Double] { case digit: Double => digit }
 ```
 
 `collectWhile` collects the elements (from left to right) until the predicate returns "false" for the first time:

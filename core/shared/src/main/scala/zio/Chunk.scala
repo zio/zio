@@ -47,6 +47,12 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       case ne: NonEmptyChunk[A] => Chunk.concat(ne, Chunk.single(a))
     }
 
+    /**
+     * Returns the concatenation of this chunk with the specified chunk.
+     */
+    def ++[A1 >: A](chunk: Chunk[A1]): Chunk[A1] =
+      Chunk.concat(self, chunk)
+
   /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a .
    */
@@ -552,19 +558,6 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 }
 
 object Chunk {
-
-  implicit class ChunkOps[+A](private val self: Chunk[A]) extends AnyVal {
-
-    /**
-     * Returns the concatenation of this chunk with the specified chunk.
-     */
-    def ++[A1 >: A](chunk: Chunk[A1]): Chunk[A1] = concat(self, chunk)
-
-    /**
-     * Returns the concatenation of this chunk with the specified chunk.
-     */
-    def ++[A1 >: A](nonEmptyChunk: NonEmptyChunk[A1]): NonEmptyChunk[A1] = concat(self, nonEmptyChunk)
-  }
 
   /**
    * Returns the empty chunk.
@@ -1237,7 +1230,8 @@ object Chunk {
     /**
      * Returns the concatenation of this chunk with the specified chunk.
      */
-    final def ++[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] = Chunk.concat(self, that)
+    override final def ++[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] =
+      Chunk.concat(self, that)
 
     /**
      * Materializes a chunk into a chunk backed by an array. This method can
