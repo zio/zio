@@ -122,8 +122,8 @@ abstract class ZStream[-R, +E, +O](
    * the downstream fiber is busy processing elements, the upstream fiber will feed elements
    * into the sink until it signals completion.
    *
-   * Any sink can be used here, but see [[Sink.foldWeightedM]] and [[Sink.foldUntilM]] for
-   * sinks that cover the common usecases.
+   * Any transducer can be used here, but see [[ZTransducer.foldWeightedM]] and [[ZTransducer.foldUntilM]] for
+   * transducers that cover the common usecases.
    */
   final def aggregateAsync[R1 <: R, E1 >: E, O1 >: O, P](transducer: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] =
     ZStream {
@@ -131,39 +131,36 @@ abstract class ZStream[-R, +E, +O](
         pull   <- self.process
         push   <- transducer.push
         bucket <- ZQueue.bounded[Take[E1, P]](1).toManaged(_.shutdown)
+        flush  <- ZRef.makeManaged(false)
         done   <- ZRef.makeManaged(false)
         produce = {
-          def finish: ZIO[R1, Nothing, Boolean] =
-            push(None)
-              .repeat(Schedule.doWhile(_.isEmpty))
-              .foldCauseM(
-                Cause
-                  .sequenceCauseOption(_)
-                  .fold(bucket.offer(Take.End))(c => bucket.offer(Exit.halt(c.map(Some(_))))),
-                ps => bucket.offer(Exit.succeed(ps))
-              )
-              .as(false)
+          def finish: URIO[R1, Boolean] =
+            push(None).run.flatMap(bucket.offer) as false
 
-          def maybeDrain(os: Chunk[O]): ZIO[R1, Nothing, Boolean] =
-            push(Some(os))
+          def drain(os: Option[Chunk[O]]): URIO[R1, Boolean] =
+            push(os)
               .foldCauseM(
-                Cause.sequenceCauseOption(_).fold(IO.unit)(c => bucket.offer(Exit.halt(c.map(Some(_)))).unit),
-                ps => bucket.offer(Exit.succeed(ps))
+                Cause.sequenceCauseOption(_).fold(IO.succeedNow(true))(c => bucket.offer(Exit.halt(c.map(Some(_))))),
+                ps => if (ps.isEmpty) go else bucket.offer(Exit.succeed(ps))
               )
-              .as(true)
 
-          val go: ZIO[R1, Nothing, Boolean] =
-            pull.foldCauseM(
-              Cause.sequenceCauseOption(_).fold(finish)(c => bucket.offer(Exit.halt(c.map(Some(_)))).as(true)),
-              maybeDrain
-            )
+          lazy val go: URIO[R1, Boolean] =
+            flush.getAndSet(false).flatMap {
+              if (_)
+                drain(None)
+              else
+                pull.foldCauseM(
+                  Cause.sequenceCauseOption(_).fold(finish)(c => bucket.offer(Exit.halt(c.map(Some(_))))),
+                  os => drain(Some(os))
+                )
+            }
 
           go.repeat(Schedule.doWhile(identity))
         }
 
         consume = {
-          lazy val go: ZIO[R1, Option[E1], Chunk[P]] =
-            bucket.take.flatMap(take => done.set(true).when(take == Take.End) *> Pull.fromTake(take))
+          val go: ZIO[R1, Option[E1], Chunk[P]] =
+            flush.set(true) *> bucket.take.flatMap(take => done.set(true).when(take == Take.End) *> Pull.fromTake(take))
 
           done.get.flatMap {
             if (_)
@@ -173,6 +170,7 @@ abstract class ZStream[-R, +E, +O](
           }
         }
       } yield produce.fork *> consume
+    }
 
   /**
    * Maps the success values of this stream to the specified constant value.
