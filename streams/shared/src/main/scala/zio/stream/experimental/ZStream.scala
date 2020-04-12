@@ -63,7 +63,7 @@ abstract class ZStream[-R, +E, +O](
     transduce(transducer)
 
   /**
-   * Symbolic alias for [[ZStream#run]].
+   * Symbolic alias for [[[zio.stream.experimental.ZStream!.run[R1<:R,E1>:E,O1>:O,B]*]]].
    */
   def >>>[R1 <: R, E1 >: E, O2 >: O, Z](sink: ZSink[R1, E1, O2, Z]): ZIO[R1, E1, Z] =
     self.run(sink)
@@ -95,17 +95,14 @@ abstract class ZStream[-R, +E, +O](
         run = {
           def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
             if (_)
-              push(None).repeat(Schedule.doWhile(_.isEmpty))
+              Pull.end
             else
               pull
                 .foldM(
-                  _.fold(done.set(true) *> push(None))(Pull.fail(_)),
-                  os => push(Some(os))
+                  _.fold(done.set(true) *> push(None).asSomeError)(Pull.fail(_)),
+                  os => push(Some(os)).asSomeError
                 )
-                .foldCauseM(
-                  Cause.sequenceCauseOption(_).fold(go)(Pull.halt(_)),
-                  ps => if (ps.isEmpty) go else IO.succeedNow(ps)
-                )
+                .flatMap(ps => if (ps.isEmpty) go else IO.succeedNow(ps))
           }
 
           go
@@ -134,24 +131,27 @@ abstract class ZStream[-R, +E, +O](
         flush  <- ZRef.makeManaged(false)
         done   <- ZRef.makeManaged(false)
         produce = {
-          def finish: URIO[R1, Boolean] =
-            push(None).run.flatMap(bucket.offer) as false
+          // Upstream is done, we need to flush the transducer. If the output is
+          // empty, we send the end signal downstream.
+          def finish(ps: Chunk[P]): URIO[R1, Boolean] =
+            bucket.offer(if (ps.isEmpty) Take.End else Exit.succeed(ps))
 
-          def drain(os: Option[Chunk[O]]): URIO[R1, Boolean] =
-            push(os)
-              .foldCauseM(
-                Cause.sequenceCauseOption(_).fold(IO.succeedNow(true))(c => bucket.offer(Exit.halt(c.map(Some(_))))),
-                ps => if (ps.isEmpty) go else bucket.offer(Exit.succeed(ps))
-              )
+          // We have to make progress in the transducer. If the output is empty,
+          // we must keep making progress until it isn't.
+          def iterate(ps: Chunk[P]): URIO[R1, Boolean] =
+            if (ps.isEmpty) go else bucket.offer(Exit.succeed(ps))
+
+          def drain(os: Option[Chunk[O]])(onSuccess: Chunk[P] => URIO[R1, Boolean]): URIO[R1, Boolean] =
+            push(os).foldCauseM(c => bucket.offer(Exit.halt(c.map(Some(_)))), onSuccess)
 
           lazy val go: URIO[R1, Boolean] =
             flush.getAndSet(false).flatMap {
               if (_)
-                drain(None)
+                drain(None)(iterate)
               else
                 pull.foldCauseM(
-                  Cause.sequenceCauseOption(_).fold(finish)(c => bucket.offer(Exit.halt(c.map(Some(_))))),
-                  os => drain(Some(os))
+                  Cause.sequenceCauseOption(_).fold(drain(None)(finish))(c => bucket.offer(Exit.halt(c.map(Some(_))))),
+                  os => drain(Some(os))(iterate)
                 )
             }
 
@@ -930,7 +930,7 @@ abstract class ZStream[-R, +E, +O](
   final def foldWhileManagedM[R1 <: R, E1 >: E, A1 >: O, S](
     s: S
   )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    process.flatMap { is: ZIO[R, Option[E], Chunk[O]] =>
+    process.flatMap { (is: ZIO[R, Option[E], Chunk[O]]) =>
       def loop(s1: S): ZIO[R1, E1, S] =
         if (!cont(s1)) UIO.succeedNow(s1)
         else
