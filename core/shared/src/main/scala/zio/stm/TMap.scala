@@ -110,13 +110,21 @@ final class TMap[K, V] private (
    * Stores new binding into the map.
    */
   def put(k: K, v: V): USTM[Unit] = {
-    def upsert(bucket: List[(K, V)]): USTM[List[(K, V)]] = {
-      val exists = bucket.exists(_._1 == k)
+    def update(buckets: TArray[List[(K, V)]]): USTM[Int] = {
+      val capacity = buckets.array.length
+      val idx      = TMap.indexOf(k, capacity)
 
-      if (exists)
-        STM.succeedNow(bucket.map(kv => if (kv._1 == k) (k, v) else kv))
-      else
-        tSize.update(_ + 1).as((k, v) :: bucket)
+      buckets(idx).flatMap { bucket =>
+        val exists = bucket.exists(_._1 == k)
+
+        val updated =
+          if (exists)
+            bucket.map(kv => if (kv._1 == k) (k, v) else kv)
+          else
+            (k, v) :: bucket
+
+        buckets.array(idx).set(updated) *> tSize.updateAndGet(s => if (exists) s else s + 1)
+      }
     }
 
     def resize(newCapacity: Int): USTM[Unit] =
@@ -129,10 +137,8 @@ final class TMap[K, V] private (
 
     for {
       buckets     <- tBuckets.get
+      size        <- update(buckets)
       capacity    = buckets.array.length
-      idx         = TMap.indexOf(k, capacity)
-      _           <- buckets.updateM(idx, upsert)
-      size        <- tSize.get
       needsResize = capacity * TMap.LoadFactor < size
       _           <- STM.when(needsResize)(resize(capacity << 1))
     } yield ()
