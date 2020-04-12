@@ -40,22 +40,22 @@ object STM {
   def check(p: => Boolean): USTM[Unit] = ZSTM.check(p)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectAll]]
+   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Iterable*]]]
    */
-  def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
-    ZSTM.collectAll(i)
+  def collectAll[E, A](in: Iterable[STM[E, A]]): STM[E, List[A]] =
+    ZSTM.collectAll(in)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectAll]]
+   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Chunk*]]]
    */
-  def collectAll[E, A](i: Chunk[STM[E, A]]): STM[E, Chunk[A]] =
-    ZSTM.collectAll(i)
+  def collectAll[E, A](in: Chunk[STM[E, A]]): STM[E, Chunk[A]] =
+    ZSTM.collectAll(in)
 
   /**
    * @see See [[zio.stm.ZSTM.collectAll_]]
    */
-  def collectAll_[E, A](i: Iterable[STM[E, A]]): STM[E, Unit] =
-    ZSTM.collectAll_(i)
+  def collectAll_[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
+    ZSTM.collectAll_(in)
 
   /**
    * @see See [[zio.stm.ZSTM.die]]
@@ -112,22 +112,22 @@ object STM {
     ZSTM.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foreach]]
+   * @see See [[[zio.stm.ZSTM.foreach[R,E,A](in:Iterable*]]]
    */
-  def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
-    ZSTM.foreach(as)(f)
+  def foreach[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+    ZSTM.foreach(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foreach]]
+   * @see See [[[zio.stm.ZSTM.foreach[R,E,A](in:Chunk*]]]
    */
-  def foreach[E, A, B](as: Chunk[A])(f: A => STM[E, B]): STM[E, Chunk[B]] =
-    ZSTM.foreach(as)(f)
+  def foreach[E, A, B](in: Chunk[A])(f: A => STM[E, B]): STM[E, Chunk[B]] =
+    ZSTM.foreach(in)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.foreach_]]
    */
-  def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
-    ZSTM.foreach_(as)(f)
+  def foreach_[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
+    ZSTM.foreach_(in)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fromEither]]
