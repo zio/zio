@@ -30,7 +30,7 @@ abstract class ZConduit[-R, +E, -I, +O, +Z] private[stream] (
    * Effectfully transforms the results of this conduit.
    */
   def mapResultM[R1 <: R, E1 >: E, Z2](f: Z => ZIO[R1, E1, Z2]): ZConduit[R1, E1, I, O, Z2] =
-    ZConduit(
+    ZConduit[R1, E1, I, O, Z2](
       run.map(push =>
         input =>
           push(input).catchAll {
