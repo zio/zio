@@ -47,11 +47,11 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       case ne: NonEmptyChunk[A] => Chunk.concat(ne, Chunk.single(a))
     }
 
-    /**
-     * Returns the concatenation of this chunk with the specified chunk.
-     */
-    def ++[A1 >: A](chunk: Chunk[A1]): Chunk[A1] =
-      Chunk.concat(self, chunk)
+  /**
+   * Returns the concatenation of this chunk with the specified chunk.
+   */
+  def ++[A1 >: A](chunk: Chunk[A1]): Chunk[A1] =
+    Chunk.concat(self, chunk)
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a .
