@@ -915,7 +915,7 @@ object ZSTM {
    * transactional effect that produces a list of values.
    */
   def collectAll[R, E, A](i: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, List[A]] =
-    i.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil))(_.zipWith(_)(_ :: _))
+    foreach(i)(ZIO.identityFn)
 
   /**
    * Collects all the transactional effects, returning a single transactional
@@ -1007,7 +1007,7 @@ object ZSTM {
    * returns a transactional effect that produces a new `List[B]`.
    */
   def foreach[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, List[B]] =
-    collectAll(as.map(f))
+    as.foldRight[ZSTM[R, E, List[B]]](ZSTM.succeedNow(Nil))((a, tx) => f(a).zipWith(tx)(_ :: _))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
