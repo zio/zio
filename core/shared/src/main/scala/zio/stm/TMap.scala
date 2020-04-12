@@ -187,8 +187,8 @@ final class TMap[K, V] private (
 
         data.flatten.foreach { kv =>
           val newPair = g(kv)
-          val idx = TMap.indexOf(newPair._1, capacity)
-          val bucket = newBuckets(idx)
+          val idx     = TMap.indexOf(newPair._1, capacity)
+          val bucket  = newBuckets(idx)
 
           if (!bucket.exists(_._1 == newPair._1))
             newBuckets(idx) = Chunk.single(newPair) ++ bucket
@@ -218,8 +218,8 @@ final class TMap[K, V] private (
           val newBuckets = Array.fill[Chunk[(K, V)]](capacity)(Chunk.empty)
 
           mappedData.foreach { newPair =>
-            val idx     = TMap.indexOf(newPair._1, capacity)
-            val bucket  = newBuckets(idx)
+            val idx    = TMap.indexOf(newPair._1, capacity)
+            val bucket = newBuckets(idx)
 
             if (!bucket.exists(_._1 == newPair._1))
               newBuckets(idx) = Chunk.single(newPair) ++ bucket
