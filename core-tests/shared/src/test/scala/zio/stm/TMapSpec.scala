@@ -142,6 +142,16 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(hasSameElements(elems))
       },
+      testM("toChunk") {
+        val elems = List("a" -> 1, "b" -> 2)
+        val tx =
+          for {
+            tmap  <- TMap.fromIterable(elems)
+            chunk <- tmap.toChunk
+          } yield chunk.toList
+
+        assertM(tx.commit)(hasSameElements(elems))
+      },
       testM("toMap") {
         val elems = Map("a" -> 1, "b" -> 2)
         val tx =
