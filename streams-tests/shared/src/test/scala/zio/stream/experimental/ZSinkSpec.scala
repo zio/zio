@@ -4,19 +4,19 @@ import zio.stream.ChunkUtils
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isTrue, succeeds }
 import zio.test._
-import zio.{ Chunk, ZIOBaseSpec }
+import zio.ZIOBaseSpec
 
 object ZSinkSpec extends ZIOBaseSpec {
   def spec = suite("ZSinkSpec")(
     suite("Constructors")(
       testM("head")(
-        checkM(Gen.listOf(ChunkUtils.smallChunks(Gen.anyInt))) { chunks: Seq[Chunk[Int]] =>
+        checkM(Gen.listOf(ChunkUtils.smallChunks(Gen.anyInt))) { chunks =>
           val headOpt = ZStream.fromChunks(chunks: _*).run(ZSink.head[Int])
           assertM(headOpt)(equalTo(chunks.flatMap(_.toSeq).headOption))
         }
       ),
       testM("last")(
-        checkM(Gen.listOf(ChunkUtils.smallChunks(Gen.anyInt))) { chunks: Seq[Chunk[Int]] =>
+        checkM(Gen.listOf(ChunkUtils.smallChunks(Gen.anyInt))) { chunks =>
           val lastOpt = ZStream.fromChunks(chunks: _*).run(ZSink.last[Int])
           assertM(lastOpt)(equalTo(chunks.flatMap(_.toSeq).lastOption))
         }

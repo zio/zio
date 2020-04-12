@@ -357,6 +357,9 @@ object ZSink {
 
   /**
    * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
+    * 
+    * This sink may terminate in the middle of a chunk and discard the rest of it. See the discussion on the 
+    * ZSink class scaladoc on sinks vs. transducers.
    */
   def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
     if (contFn(z))
@@ -368,7 +371,7 @@ object ZSink {
               case None => state.get.flatMap(Push.emit)
               case Some(is) => {
                 state.get
-                  .flatMap(is.foldM(_)(f).mapError(Left(_)))
+                  .flatMap(is.foldWhileM(_)(contFn)(f).mapError(Left(_)))
                   .flatMap { s =>
                     if (contFn(s))
                       state.set(s) *> Push.more
