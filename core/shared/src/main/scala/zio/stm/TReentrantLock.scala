@@ -18,7 +18,7 @@ package zio.stm
 
 import TReentrantLock._
 
-import zio.{ Fiber, Managed, UManaged }
+import zio.{ Fiber, Managed, UManaged, UIO }
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
@@ -218,6 +218,12 @@ object TReentrantLock {
    */
   def make: USTM[TReentrantLock] =
     TRef.make[Either[ReadLock, WriteLock]](Left(ReadLock.empty)).map(tref => new TReentrantLock(tref))
+
+  /**
+   * Makes a new reentrant read/write lock.
+   */
+  val makeCommit: UIO[TReentrantLock] =
+    make.commit
 
   private def die(message: String): Nothing =
     throw new RuntimeException(message)
