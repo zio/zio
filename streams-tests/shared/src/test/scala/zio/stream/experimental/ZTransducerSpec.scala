@@ -32,6 +32,58 @@ object ZTransducerSpec extends ZIOBaseSpec {
         val result = run(parser, input)
         assertM(result)(equalTo(List(Chunk(List(3, 4)), Chunk(List(2, 3, 4)), Chunk(List(4, 3, 2)))))
       },
+      suite("foldWeighted/foldUntil")(
+        testM("foldWeighted")(
+          assertM(
+            ZStream[Long](1, 5, 2, 3)
+              .aggregate(
+                ZTransducer.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse)
+              )
+              .runCollect
+          )(equalTo(List(List(1L, 5L), List(2L, 3L))))
+        ),
+        testM("foldWeightedDecompose")(
+          assertM(
+            ZStream(1, 5, 1)
+              .aggregate(
+                ZTransducer
+                  .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
+                    (acc, el) => el :: acc
+                  }
+                  .map(_.reverse)
+              )
+              .runCollect
+          )(equalTo(List(List(1), List(4), List(1, 1))))
+        ),
+        testM("foldWeightedM")(
+          assertM(
+            ZStream[Long](1, 5, 2, 3)
+              .aggregate(
+                ZTransducer
+                  .foldWeightedM(List.empty[Long])((a: Long) => UIO.succeedNow(a * 2), 12)((acc, el) =>
+                    UIO.succeedNow(el :: acc)
+                  )
+                  .map(_.reverse)
+              )
+              .runCollect
+          )(equalTo(List(List(1L, 5L), List(2L, 3L))))
+        ),
+        testM("foldWeightedDecomposeM")(
+          assertM(
+            ZStream(1, 5, 1)
+              .aggregate(
+                ZTransducer
+                  .foldWeightedDecomposeM(List.empty[Int])(
+                    (i: Int) => UIO.succeedNow(i.toLong),
+                    4,
+                    (i: Int) => UIO.succeedNow(Chunk(i - 1, 1))
+                  )((acc, el) => UIO.succeedNow(el :: acc))
+                  .map(_.reverse)
+              )
+              .runCollect
+          )(equalTo(List(List(1), List(4), List(1, 1))))
+        )
+      ),
       suite("splitLines")(
         testM("preserves data")(
           checkM(weirdStringGenForSplitLines) { lines =>

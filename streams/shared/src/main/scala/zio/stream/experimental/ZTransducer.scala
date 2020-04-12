@@ -125,6 +125,151 @@ object ZTransducer {
     ZTransducer(Managed.succeed(push))
 
   /**
+   * Creates a transducer that folds elements of type `I` into a structure
+   * of type `O`, until `max` worth of elements (determined by the `costFn`)
+   * have been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * cause the stream to hang. See [[foldWeightedDecompose]] for
+   * a variant that can handle these.
+   */
+  def foldWeighted[I, O](z: O)(costFn: I => Long, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+    foldWeightedDecompose[I, O](z)(costFn, max, Chunk.single(_))(f)
+
+  /**
+   * Creates a transducer that folds elements of type `I` into a structure
+   * of type `O`, until `max` worth of elements (determined by the `costFn`)
+   * have been folded.
+   *
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `O` aggregate to cross `max` into smaller elements. For
+   * example:
+   * {{{
+   * Stream(1, 5, 1)
+   *  .aggregate(
+   *    ZTransducer
+   *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
+   *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
+   *        el :: acc
+   *      }
+   *      .map(_.reverse)
+   *  )
+   *  .runCollect
+   * }}}
+   *
+   * The stream would emit the elements `List(1), List(4), List(1, 1)`.
+   * The [[foldWeightedDecomposeM]] allows the decompose function
+   * to return a `ZIO` value, and consequently it allows the transducer
+   * to fail.
+   */
+  def foldWeightedDecompose[I, O](
+    z: O
+  )(costFn: I => Long, max: Long, decompose: I => Chunk[I])(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+    ZTransducer {
+      case class FoldWeightedState(result: O, cost: Long, buffer: Chunk[I])
+
+      def go(state: FoldWeightedState): (FoldWeightedState, Chunk[O]) =
+        state.buffer.headOption.fold[(FoldWeightedState, Chunk[O])](state -> Chunk.empty) { i =>
+          val total = state.cost + costFn(i)
+          if (total > max)
+            FoldWeightedState(z, 0, buffer = decompose(i) ++ state.buffer.drop(1)) -> Chunk.single(state.result)
+          else if (total == max)
+            FoldWeightedState(z, 0, state.buffer.drop(1)) -> Chunk.single(f(state.result, i))
+          else
+            FoldWeightedState(f(state.result, i), total, state.buffer.drop(1)) -> Chunk.empty
+        }
+
+      ZRef.makeManaged(FoldWeightedState(z, 0, Chunk.empty)).map { state =>
+        {
+          case Some(in) =>
+            state.modify { s0 =>
+              val (s, os) = go(s0.copy(buffer = s0.buffer ++ in))
+              ZIO.succeedNow(os) -> s
+            }.flatten
+
+          case None =>
+            def flush(state: FoldWeightedState, os0: Chunk[O]): Chunk[O] =
+              if (state.buffer.isEmpty)
+                os0 + state.result
+              else {
+                val (s, os) = go(state)
+                flush(s, os0 ++ os)
+              }
+
+            state.get.map(flush(_, Chunk.empty))
+        }
+      }
+    }
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * cause the stream to hang. See [[foldWeightedDecomposeM]] for
+   * a variant that can handle these.
+   */
+  def foldWeightedM[R, E, I, S](
+    z: S
+  )(costFn: I => ZIO[R, E, Long], max: Long)(f: (S, I) => ZIO[R, E, S]): ZTransducer[R, E, I, S] =
+    foldWeightedDecomposeM(z)(costFn, max, (i: I) => UIO.succeedNow(Chunk.single(i)))(f)
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   *
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `S` aggregate to cross `max` into smaller elements. See
+   * [[foldWeightedDecompose]] for an example.
+   */
+  def foldWeightedDecomposeM[R, E, I, O](z: O)(
+    costFn: I => ZIO[R, E, Long],
+    max: Long,
+    decompose: I => ZIO[R, E, Chunk[I]]
+  )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] = {
+    final case class FoldWeightedState(result: O, cost: Long, buffer: Chunk[I])
+
+    val initial = FoldWeightedState(z, 0, Chunk.empty)
+
+    ZTransducer {
+      def go(state: FoldWeightedState): ZIO[R, E, (FoldWeightedState, Chunk[O])] =
+        state.buffer.headOption.fold[ZIO[R, E, (FoldWeightedState, Chunk[O])]](ZIO.succeedNow(state -> Chunk.empty)) {
+          i =>
+            costFn(i).flatMap { cost =>
+              val total = cost + state.cost
+              if (total > max)
+                decompose(i).map(in =>
+                  FoldWeightedState(z, 0, buffer = in ++ state.buffer.drop(1)) -> Chunk.single(state.result)
+                )
+              else if (total == max)
+                f(state.result, i).map(o => FoldWeightedState(z, 0, state.buffer.drop(1)) -> Chunk.single(o))
+              else
+                f(state.result, i).map(o => FoldWeightedState(o, total, state.buffer.drop(1)) -> Chunk.empty)
+            }
+        }
+
+      ZRef.makeManaged(initial).map { state =>
+        {
+          case Some(in) =>
+            state.get.flatMap(s =>
+              go(s.copy(buffer = s.buffer ++ in)).flatMap { case (s, os) => state.set(s) *> ZIO.succeedNow(os) }
+            )
+          case None =>
+            def flush(s: FoldWeightedState, os0: Chunk[O]): ZIO[R, E, Chunk[O]] =
+              if (s.buffer.isEmpty)
+                ZIO.succeedNow(os0 + s.result)
+              else
+                go(s).flatMap { case (s, os) => state.set(s) *> flush(s, os0 ++ os) }
+
+            state.getAndSet(initial).flatMap(flush(_, Chunk.empty))
+        }
+      }
+    }
+  }
+
+  /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
   val splitLines: ZTransducer[Any, Nothing, String, String] =
