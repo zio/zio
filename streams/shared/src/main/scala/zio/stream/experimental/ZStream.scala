@@ -130,7 +130,7 @@ abstract class ZStream[-R, +E, +O](
         bucket <- ZQueue.bounded[Take[E1, P]](1).toManaged(_.shutdown)
         flush  <- ZRef.makeManaged(false)
         done   <- ZRef.makeManaged(false)
-        produce = {
+        _ <- {
           // Upstream is done, we need to flush the transducer. If the output is
           // empty, we send the end signal downstream.
           def finish(ps: Chunk[P]): URIO[R1, Boolean] =
@@ -156,7 +156,7 @@ abstract class ZStream[-R, +E, +O](
             }
 
           go.repeat(Schedule.doWhile(identity))
-        }
+        }.forkManaged
 
         consume = {
           val go: ZIO[R1, Option[E1], Chunk[P]] =
@@ -169,7 +169,7 @@ abstract class ZStream[-R, +E, +O](
               go
           }
         }
-      } yield produce.fork *> consume
+      } yield consume
     }
 
   /**
