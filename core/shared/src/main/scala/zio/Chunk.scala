@@ -48,6 +48,15 @@ sealed trait Chunk[+A] { self =>
     }
 
   /**
+   * Converts a chunk of bytes to a chunk of bits.
+   */
+  final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
+    self match {
+      case Chunk.Empty                => Chunk.Empty
+      case nonEmpty: NonEmptyChunk[A] => Chunk.BitChunk(nonEmpty.map(ev), 0, length << 3)
+    }
+
+  /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
   def collect[B](pf: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(pf)
@@ -116,7 +125,7 @@ sealed trait Chunk[+A] { self =>
     drop(i)
   }
 
-  override def equals(that: Any): Boolean = that match {
+  override final def equals(that: Any): Boolean = that match {
     case that: Chunk[_] =>
       if (self.length != that.length) false
       else {
@@ -135,77 +144,14 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
-   * Returns the first element that satisfies the predicate.
-   */
-  def find(f: A => Boolean): Option[A] = {
-    val len               = self.length
-    var result: Option[A] = None
-    var i                 = 0
-    while (i < len && result.isEmpty) {
-      val elem = self(i)
-      if (f(elem)) result = Some(elem)
-      i += 1
-    }
-    result
-  }
-
-  /**
-   * Returns the first element of this chunk if it exists.
-   */
-  def headOption: Option[A] =
-    if (isEmpty) None else Some(self(0))
-
-  /**
-   * Returns the last element of this chunk if it exists.
-   */
-  def lastOption: Option[A] =
-    if (isEmpty) None else Some(self(self.length - 1))
-
-  /**
-   * Returns the first index for which the given predicate is satisfied.
-   */
-  def indexWhere(f: A => Boolean): Option[Int] =
-    indexWhere(f, 0)
-
-  /**
-   * Returns the first index for which the given predicate is satisfied after or at some given index.
-   */
-  def indexWhere(f: A => Boolean, from: Int): Option[Int] = {
-    val len    = self.length
-    var i      = math.max(from, 0)
-    var result = -1
-
-    while (result < 0 && i < len) {
-      if (f(self(i))) result = i
-      else i += 1
-    }
-
-    if (result == -1) None else Some(result)
-  }
-
-  /**
    * Determines whether a predicate is satisfied for at least one element of this chunk.
    */
-  def exists(f: A => Boolean): Boolean = {
+  final def exists(f: A => Boolean): Boolean = {
     val len    = self.length
     var exists = false
     var i      = 0
     while (!exists && i < len) {
       if (f(self(i))) exists = true
-      i += 1
-    }
-    exists
-  }
-
-  /**
-   * Determines whether a predicate is satisfied for all elements of this chunk.
-   */
-  def forall(f: A => Boolean): Boolean = {
-    val len    = self.length
-    var exists = true
-    var i      = 0
-    while (exists && i < len) {
-      exists = f(self(i))
       i += 1
     }
     exists
@@ -272,10 +218,19 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
-   * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
+   * Returns the first element that satisfies the predicate.
    */
-  def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
-    flatMap(ev(_))
+  final def find(f: A => Boolean): Option[A] = {
+    val len               = self.length
+    var result: Option[A] = None
+    var i                 = 0
+    while (i < len && result.isEmpty) {
+      val elem = self(i)
+      if (f(elem)) result = Some(elem)
+      i += 1
+    }
+    result
+  }
 
   /**
    * Returns the concatenation of mapping every element into a new chunk using
@@ -319,6 +274,12 @@ sealed trait Chunk[+A] { self =>
       Chunk.arr(dest)
     }
   }
+
+  /**
+   * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
+   */
+  final def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
+    flatMap(ev(_))
 
   /**
    * Folds over the elements in this chunk from the left.
@@ -388,15 +349,63 @@ sealed trait Chunk[+A] { self =>
     loop(z, 0)
   }
 
+  /**
+   * Determines whether a predicate is satisfied for all elements of this chunk.
+   */
+  final def forall(f: A => Boolean): Boolean = {
+    val len    = self.length
+    var exists = true
+    var i      = 0
+    while (exists && i < len) {
+      exists = f(self(i))
+      i += 1
+    }
+    exists
+  }
+
   override final def hashCode: Int = toArrayOption match {
     case None        => Seq.empty[A].hashCode
     case Some(array) => array.toSeq.hashCode
   }
 
   /**
+   * Returns the first element of this chunk if it exists.
+   */
+  final def headOption: Option[A] =
+    if (isEmpty) None else Some(self(0))
+
+  /**
+   * Returns the first index for which the given predicate is satisfied.
+   */
+  final def indexWhere(f: A => Boolean): Option[Int] =
+    indexWhere(f, 0)
+
+  /**
+   * Returns the first index for which the given predicate is satisfied after or at some given index.
+   */
+  final def indexWhere(f: A => Boolean, from: Int): Option[Int] = {
+    val len    = self.length
+    var i      = math.max(from, 0)
+    var result = -1
+
+    while (result < 0 && i < len) {
+      if (f(self(i))) result = i
+      else i += 1
+    }
+
+    if (result == -1) None else Some(result)
+  }
+
+  /**
    * Determines if the chunk is empty.
    */
   final def isEmpty: Boolean = length == 0
+
+  /**
+   * Returns the last element of this chunk if it exists.
+   */
+  final def lastOption: Option[A] =
+    if (isEmpty) None else Some(self(self.length - 1))
 
   /**
    * Returns a chunk with the elements mapped by the specified function.
@@ -409,10 +418,60 @@ sealed trait Chunk[+A] { self =>
   def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, Chunk[B])
 
   /**
+   * Statefully and effectfully maps over the elements of this chunk to produce
+   * new elements.
+   */
+  def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])]
+
+  /**
+   * Effectfully maps the elements of this chunk.
+   */
+  def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]]
+
+  /**
+   * Effectfully maps the elements of this chunk in parallel.
+   */
+  def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]]
+
+  /**
+   * Effectfully maps the elements of this chunk in parallel purely for the effects.
+   */
+  final def mapMPar_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    fold[ZIO[R, E, Unit]](IO.unit)((io, a) => f(a).zipParRight(io))
+
+  /**
+   * Effectfully maps the elements of this chunk purely for the effects.
+   */
+  final def mapM_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
+    val len                 = self.length
+    var zio: ZIO[R, E, Any] = ZIO.unit
+    var i                   = 0
+
+    while (i < len) {
+      val a = self(i)
+      zio = zio *> f(a)
+      i += 1
+    }
+
+    zio.unit
+  }
+
+  /**
    * Materializes a chunk into a chunk backed by an array. This method can
    * improve the performance of bulk operations.
    */
   def materialize[A1 >: A]: Chunk[A1]
+
+  /**
+   * Generates a readable string representation of this chunk.
+   */
+  final def mkString: String = mkString("")
+
+  /**
+   * Generates a readable string representation of this chunk using the
+   * specified separator string.
+   */
+  final def mkString(sep: String): String = mkString("", sep, "")
 
   /**
    * Generates a readable string representation of this chunk using the
@@ -436,17 +495,6 @@ sealed trait Chunk[+A] { self =>
 
     builder.toString
   }
-
-  /**
-   * Generates a readable string representation of this chunk using the
-   * specified separator string.
-   */
-  final def mkString(sep: String): String = mkString("", sep, "")
-
-  /**
-   * Generates a readable string representation of this chunk.
-   */
-  final def mkString: String = mkString("")
 
   /**
    * Determines if the chunk is not empty.
@@ -495,14 +543,6 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
-   * A helper function that converts the chunk into an array if it is not empty.
-   */
-  private def toArrayOption[A1 >: A]: Option[Array[A1]] = self match {
-    case Chunk.Empty => None
-    case chunk       => Some(chunk.toArray(Chunk.classTagOf(self)))
-  }
-
-  /**
    * Converts the chunk into an array.
    */
   def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = {
@@ -513,83 +553,42 @@ sealed trait Chunk[+A] { self =>
     dest
   }
 
-  private final def fromBuilder[A1 >: A, B[_]](builder: Builder[A1, B[A1]]): B[A1] = {
-    val c   = materialize
-    var i   = 0
-    val len = c.length
-    builder.sizeHint(len)
-    while (i < len) {
-      builder += c(i)
-      i += 1
-    }
-    builder.result()
+  /**
+   * Renders this chunk of bits as a binary string.
+   */
+  final def toBinaryString(implicit ev: A <:< Boolean): String = {
+    val bits    = self.asInstanceOf[Chunk[Boolean]]
+    val builder = new scala.collection.mutable.StringBuilder
+    bits.foreach(bit => if (bit) builder.append("1") else builder.append("0"))
+    builder.toString
   }
 
-  def toSeq: Seq[A] = {
-    val seqBuilder = Seq.newBuilder[A]
-    fromBuilder(seqBuilder)
-  }
-
-  def toList: List[A] = {
+  final def toList: List[A] = {
     val listBuilder = List.newBuilder[A]
     fromBuilder(listBuilder)
   }
 
-  def toVector: Vector[A] = {
-    val vectorBuilder = Vector.newBuilder[A]
-    fromBuilder(vectorBuilder)
+  final def toSeq: Seq[A] = {
+    val seqBuilder = Seq.newBuilder[A]
+    fromBuilder(seqBuilder)
   }
 
   override final def toString: String =
     toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
 
-  /**
-   * Statefully and effectfully maps over the elements of this chunk to produce
-   * new elements.
-   */
-  def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])]
-
-  /**
-   * Effectfully maps the elements of this chunk.
-   */
-  def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]]
-
-  /**
-   * Effectfully maps the elements of this chunk in parallel.
-   */
-  def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]]
-
-  /**
-   * Effectfully maps the elements of this chunk purely for the effects.
-   */
-  final def mapM_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
-    val len                 = self.length
-    var zio: ZIO[R, E, Any] = ZIO.unit
-    var i                   = 0
-
-    while (i < len) {
-      val a = self(i)
-      zio = zio *> f(a)
-      i += 1
-    }
-
-    zio.unit
+  final def toVector: Vector[A] = {
+    val vectorBuilder = Vector.newBuilder[A]
+    fromBuilder(vectorBuilder)
   }
 
-  /**
-   * Effectfully maps the elements of this chunk in parallel purely for the effects.
-   */
-  final def mapMPar_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    fold[ZIO[R, E, Unit]](IO.unit)((io, a) => f(a).zipParRight(io))
+  def zipAllWith[B, C](
+    that: Chunk[B]
+  )(left: A => C, right: B => C)(both: (A, B) => C): Chunk[C]
 
   /**
    * Zips this chunk with the specified chunk using the specified combiner.
    */
   def zipWith[B, C](that: Chunk[B])(f: (A, B) => C): Chunk[C]
-
-  def zipAllWith[B, C](
-    that: Chunk[B]
-  )(left: A => C, right: B => C)(both: (A, B) => C): Chunk[C]
 
   /**
    * Zips this chunk with the index of every element.
@@ -603,10 +602,31 @@ sealed trait Chunk[+A] { self =>
   def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)]
 
   protected[zio] def apply(n: Int): A
-  protected[zio] def foreach(f: A => Unit): Unit
+
+  protected[zio] def foreach(f: A => Any): Unit
 
   //noinspection AccessorLikeMethodIsUnit
   protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit
+
+  private final def fromBuilder[A1 >: A, B[_]](builder: Builder[A1, B[A1]]): B[A1] = {
+    val c   = materialize
+    var i   = 0
+    val len = c.length
+    builder.sizeHint(len)
+    while (i < len) {
+      builder += c(i)
+      i += 1
+    }
+    builder.result()
+  }
+
+  /**
+   * A helper function that converts the chunk into an array if it is not empty.
+   */
+  private final def toArrayOption[A1 >: A]: Option[Array[A1]] = self match {
+    case Chunk.Empty => None
+    case chunk       => Some(chunk.toArray(Chunk.classTagOf(self)))
+  }
 }
 
 object Chunk {
@@ -835,6 +855,7 @@ object Chunk {
     case x: Singleton[A]   => x.classTag
     case x: Slice[A]       => x.classTag
     case x: VectorChunk[A] => x.classTag
+    case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
   }
 
   private def arr[A](array: Array[A]): Arr[A] =
@@ -1116,7 +1137,7 @@ object Chunk {
 
     override def apply(n: Int): A = array(n)
 
-    override def foreach(f: A => Unit): Unit = array.foreach(f)
+    override def foreach(f: A => Any): Unit = array.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       Array.copy(array, 0, dest, n, length)
@@ -1131,7 +1152,7 @@ object Chunk {
 
     override def apply(n: Int): A = if (n < l.length) l(n) else r(n - l.length)
 
-    override def foreach(f: A => Unit): Unit = {
+    override def foreach(f: A => Any): Unit = {
       l.foreach(f)
       r.foreach(f)
     }
@@ -1151,7 +1172,9 @@ object Chunk {
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
 
-    override def foreach(f: A => Unit): Unit = f(a)
+    override def foreach(f: A => Any): Unit = {
+      val _ = f(a)
+    }
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       dest(n) = a
@@ -1164,7 +1187,7 @@ object Chunk {
 
     override val length: Int = l
 
-    override def foreach(f: A => Unit): Unit = {
+    override def foreach(f: A => Any): Unit = {
       var i = 0
       while (i < length) {
         f(apply(i))
@@ -1192,9 +1215,36 @@ object Chunk {
 
     override def apply(n: Int): A = vector(n)
 
-    override def foreach(f: A => Unit): Unit = vector.foreach(f)
+    override def foreach(f: A => Any): Unit = vector.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
+  }
+
+  private final case class BitChunk(bytes: NonEmptyChunk[Byte], minBitIndex: Int, maxBitIndex: Int)
+      extends NonEmpty[Boolean] {
+    self =>
+
+    override def apply(n: Int): Boolean =
+      (bytes(n >> 3) & (1 << (7 - (n & 7)))) != 0
+
+    override def foreach(f: Boolean => Any): Unit = {
+      var i = 0
+      while (i < length) {
+        f(apply(i))
+        i += 1
+      }
+    }
+
+    override val length: Int =
+      maxBitIndex - minBitIndex
+
+    override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
+      var i = n
+      while (i < length) {
+        dest(i + n) = apply(i)
+        i += 1
+      }
+    }
   }
 
   private case object Empty extends Chunk[Nothing] { self =>
@@ -1257,7 +1307,7 @@ object Chunk {
 
     protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
-    protected[zio] def foreach(f: Nothing => Unit): Unit = ()
+    protected[zio] def foreach(f: Nothing => Any): Unit = ()
 
     protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit = ()
 
