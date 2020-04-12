@@ -110,7 +110,7 @@ object ZTransducer {
 
   def die(e: => Throwable): ZTransducer[Any, Nothing, Any, Nothing] =
     ZTransducer(Managed.succeed((_: Any) => IO.die(e)))
-    
+
   def fail[E](e: => E): ZTransducer[Any, E, Any, Nothing] =
     ZTransducer(ZManaged.succeed((_: Option[Any]) => Push.fail(e)))
 
