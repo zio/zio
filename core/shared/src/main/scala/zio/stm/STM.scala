@@ -18,7 +18,7 @@ package zio.stm
 
 import scala.util.Try
 
-import zio.{ CanFail, Fiber, IO }
+import zio.{ CanFail, Chunk, Fiber, IO }
 
 object STM {
 
@@ -43,6 +43,12 @@ object STM {
    * @see See [[zio.stm.ZSTM.collectAll]]
    */
   def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
+    ZSTM.collectAll(i)
+
+  /**
+   * @see See [[zio.stm.ZSTM.collectAll]]
+   */
+  def collectAll[E, A](i: Chunk[STM[E, A]]): STM[E, Chunk[A]] =
     ZSTM.collectAll(i)
 
   /**
@@ -109,6 +115,12 @@ object STM {
    * @see See [[zio.stm.ZSTM.foreach]]
    */
   def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+    ZSTM.foreach(as)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.foreach]]
+   */
+  def foreach[E, A, B](as: Chunk[A])(f: A => STM[E, B]): STM[E, Chunk[B]] =
     ZSTM.foreach(as)(f)
 
   /**

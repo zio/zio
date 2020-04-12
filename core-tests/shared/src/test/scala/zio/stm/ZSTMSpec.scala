@@ -925,33 +925,49 @@ object ZSTMSpec extends ZIOBaseSpec {
         v2    <- tvar2.get.commit
       } yield assert(v1)(equalTo(oldV1)) && assert(v2)(equalTo(oldV2))
     },
-    testM(
-      "Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values"
-    ) {
-      for {
-        it    <- UIO((1 to 100).map(TRef.make(_)))
-        tvars <- STM.collectAll(it).commit
-        res   <- UIO.collectAllPar(tvars.map(_.get.commit))
-      } yield assert(res)(equalTo((1 to 100).toList))
-    },
-    testM(
-      "Using `foreach` perform an action in each value and return a single transaction that contains the result"
-    ) {
-      for {
-        tvar      <- TRef.makeCommit(0)
-        _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).commit
-        expectedV = (1 to 100).sum
-        v         <- tvar.get.commit
-      } yield assert(v)(equalTo(expectedV))
-    },
-    testM("Using `foreach_` performs actions in order") {
-      val as = List(1, 2, 3, 4, 5)
-      for {
-        ref <- TRef.makeCommit(List.empty[Int])
-        _   <- STM.foreach_(as)(a => ref.update(_ :+ a)).commit
-        bs  <- ref.get.commit
-      } yield assert(bs)(equalTo(as))
-    },
+    suite("collectAll")(
+      testM("collects a list of transactional effects to a single transaction that produces a list of values") {
+        for {
+          it    <- UIO((1 to 100).map(TRef.make(_)))
+          tvars <- STM.collectAll(it).commit
+          res   <- UIO.collectAllPar(tvars.map(_.get.commit))
+        } yield assert(res)(equalTo((1 to 100).toList))
+      },
+      testM("collects a chunk of transactional effects to a single transaction that produces a chunk of values") {
+        for {
+          it    <- UIO((1 to 100).map(TRef.make(_)))
+          tvars <- STM.collectAll(Chunk.fromIterable(it)).commit
+          res   <- UIO.collectAllPar(tvars.map(_.get.commit))
+        } yield assert(res)(equalTo(Chunk.fromIterable((1 to 100).toList)))
+      }
+    ),
+    suite("foreach")(
+      testM("performs an action on each list element and return a single transaction that contains the result") {
+        for {
+          tvar      <- TRef.makeCommit(0)
+          _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).commit
+          expectedV = (1 to 100).sum
+          v         <- tvar.get.commit
+        } yield assert(v)(equalTo(expectedV))
+      },
+      testM("performs an action on each chunk element and return a single transaction that contains the result") {
+        for {
+          tvar      <- TRef.makeCommit(0)
+          chunk     = Chunk.fromIterable((1 to 100).toList)
+          _         <- STM.foreach(chunk)(a => tvar.update(_ + a)).commit
+          expectedV = (1 to 100).sum
+          v         <- tvar.get.commit
+        } yield assert(v)(equalTo(expectedV))
+      },
+      testM("`foreach_` performs actions in order") {
+        val as = List(1, 2, 3, 4, 5)
+        for {
+          ref <- TRef.makeCommit(List.empty[Int])
+          _   <- STM.foreach_(as)(a => ref.update(_ :+ a)).commit
+          bs  <- ref.get.commit
+        } yield assert(bs)(equalTo(as))
+      }
+    ),
     testM(
       "Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed"
     ) {

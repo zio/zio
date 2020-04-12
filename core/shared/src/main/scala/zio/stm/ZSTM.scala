@@ -25,7 +25,7 @@ import scala.util.{ Failure, Success, Try }
 import com.github.ghik.silencer.silent
 
 import zio.internal.{ Platform, Stack, Sync }
-import zio.{ CanFail, Fiber, IO, UIO, ZIO }
+import zio.{ CanFail, Chunk, Fiber, IO, UIO, ZIO }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -918,6 +918,13 @@ object ZSTM {
     foreach(i)(ZIO.identityFn)
 
   /**
+   * Collects all the transactional effects in a list, returning a single
+   * transactional effect that produces a chunk of values.
+   */
+  def collectAll[R, E, A](i: Chunk[ZSTM[R, E, A]]): ZSTM[R, E, Chunk[A]] =
+    foreach(i)(ZIO.identityFn)
+
+  /**
    * Collects all the transactional effects, returning a single transactional
    * effect that produces `Unit`.
    *
@@ -1008,6 +1015,13 @@ object ZSTM {
    */
   def foreach[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, List[B]] =
     as.foldRight[ZSTM[R, E, List[B]]](ZSTM.succeedNow(Nil))((a, tx) => f(a).zipWith(tx)(_ :: _))
+
+  /**
+   * Applies the function `f` to each element of the `Chunk[A]` and
+   * returns a transactional effect that produces a new `Chunk[B]`.
+   */
+  def foreach[R, E, A, B](as: Chunk[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Chunk[B]] =
+    as.foldRight[ZSTM[R, E, Chunk[B]]](ZSTM.succeedNow(Chunk.empty))((a, acc) => f(a).zipWith(acc)((b, acc) => Chunk.single(b) ++ acc))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
