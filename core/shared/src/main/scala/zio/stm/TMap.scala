@@ -168,61 +168,65 @@ final class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
-    tBuckets.get.flatMap { tArr =>
-      val g = f.tupled
+    tBuckets.get.flatMap { buckets =>
+      buckets.toList.flatMap { data =>
+        val g          = f.tupled
+        val capacity   = buckets.array.length
+        val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
 
-      var idx      = 0
-      val original = tArr.array
-      val capacity = original.length
-      val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
+        val it = data.flatten.iterator
+        while (it.hasNext) {
+          val newPair = g(it.next)
+          val idx     = TMap.indexOf(newPair._1, capacity)
+          val bucket  = newBuckets(idx)
 
-      while (idx < capacity) {
-        newArr(idx) = ZTRef.unsafeMake(Nil)
-        idx = idx + 1
+          if (!bucket.exists(_._1 == newPair._1))
+            newBuckets(idx) = newPair :: bucket
+        }
+
+        val newArr = Array.ofDim[TRef[List[(K, V)]]](capacity)
+        var idx    = 0
+        while (idx < capacity) {
+          newArr(idx) = ZTRef.unsafeMake(newBuckets(idx))
+          idx += 1
+        }
+
+        tBuckets.set(new TArray(newArr))
       }
-
-      val newBuckets = new TArray(newArr)
-
-      val overwrite =
-        STM
-          .foreach(original)(_.get.map(_.view.map(g)))
-          .flatMap[Any, Nothing, Unit] { xs =>
-            STM.foreach_(xs.view.flatten.toMap)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
-          }
-
-      overwrite *> tBuckets.set(newBuckets)
     }
 
   /**
    * Atomically updates all bindings using a transactional function.
    */
   def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    tBuckets.get.flatMap { tArr =>
-      val g = f.tupled
+    tBuckets.get.flatMap { buckets =>
+      buckets.toList.flatMap { data =>
+        val g = f.tupled
 
-      var idx      = 0
-      val original = tArr.array
-      val capacity = original.length
-      val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
+        STM.foreach(data.flatten)(g).flatMap { mappedData =>
+          val capacity   = buckets.array.length
+          val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
 
-      while (idx < capacity) {
-        newArr(idx) = ZTRef.unsafeMake(Nil)
-        idx = idx + 1
-      }
+          val it = mappedData.iterator
+          while (it.hasNext) {
+            val newPair = it.next
+            val idx     = TMap.indexOf(newPair._1, capacity)
+            val bucket  = newBuckets(idx)
 
-      val newBuckets = new TArray(newArr)
-
-      val overwrite =
-        STM
-          .foreach(original)(_.get.map(_.view.map(g)))
-          .flatMap { xs =>
-            STM.collectAll(xs.view.flatten.toIterable).flatMap[Any, E, Unit] { items =>
-              val distinct = items.toMap
-              STM.foreach_(distinct)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
-            }
+            if (!bucket.exists(_._1 == newPair._1))
+              newBuckets(idx) = newPair :: bucket
           }
 
-      overwrite *> tBuckets.set(newBuckets)
+          val newArr = Array.ofDim[TRef[List[(K, V)]]](capacity)
+          var idx    = 0
+          while (idx < capacity) {
+            newArr(idx) = ZTRef.unsafeMake(newBuckets(idx))
+            idx += 1
+          }
+
+          tBuckets.set(new TArray(newArr))
+        }
+      }
     }
 
   /**
