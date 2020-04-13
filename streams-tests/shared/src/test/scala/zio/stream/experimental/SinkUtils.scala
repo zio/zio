@@ -14,8 +14,8 @@ object SinkUtils {
 
   def sinkRaceLaw[E, A](
     stream: ZStream[Any, Nothing, A],
-    s1: ZSink[Any, Unit, A, A],
-    s2: ZSink[Any, Unit, A, A]
+    s1: ZSink[Any, E, A, A],
+    s2: ZSink[Any, E, A, A]
   ): ZIO[Any, Nothing, TestResult] =
     for {
       r1 <- stream.run(s1).either
