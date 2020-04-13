@@ -265,17 +265,20 @@ object ZTransducer {
 
       val initial = FoldWeightedState(false, z, 0, Chunk.empty)
 
-      @tailrec def go(state: FoldWeightedState): (FoldWeightedState, Chunk[O]) =
+      @tailrec def go(state: FoldWeightedState): (Chunk[O], FoldWeightedState) =
         state.buffer.headOption match {
-          case None => state -> Chunk.empty
+          case None => Chunk.empty -> state
           case Some(i) =>
             val total = state.cost + costFn(i)
             if (total > max)
-              FoldWeightedState(false, z, 0, buffer = decompose(i) ++ state.buffer.drop(1)) -> Chunk.single(
-                state.result
+              Chunk.single(state.result) -> FoldWeightedState(
+                false,
+                z,
+                0,
+                buffer = decompose(i) ++ state.buffer.drop(1)
               )
             else if (total == max)
-              FoldWeightedState(false, z, 0, state.buffer.drop(1)) -> Chunk.single(f(state.result, i))
+              Chunk.single(f(state.result, i)) -> FoldWeightedState(false, z, 0, state.buffer.drop(1))
             else
               go(FoldWeightedState(true, f(state.result, i), total, state.buffer.drop(1)))
         }
@@ -284,17 +287,14 @@ object ZTransducer {
         if (state.buffer.isEmpty)
           if (state.started) os0 + state.result else os0
         else {
-          val (s, os) = go(state)
+          val (os, s) = go(state)
           flush(s, os0 ++ os)
         }
 
       ZRef.makeManaged(initial).map { state =>
         {
           case Some(in) =>
-            state.modify { s0 =>
-              val (s, os) = go(s0.copy(buffer = s0.buffer ++ in))
-              ZIO.succeedNow(os) -> s
-            }.flatten
+            state.modify(s => go(s.copy(buffer = s.buffer ++ in)))
 
           case None =>
             state.getAndSet(initial).map(flush(_, Chunk.empty))
