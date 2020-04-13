@@ -142,7 +142,7 @@ object ZTransducer {
             if (contFn(o))
               go(in.drop(1), os0, FoldState(true, o))
             else
-              go(in.drop(1), if (state.started) os0 + state.result else os0, initial)
+              go(in.drop(1), os0 + o, initial)
         }
 
       ZRef.makeManaged(initial).map { state =>
@@ -171,7 +171,7 @@ object ZTransducer {
               if (contFn(o))
                 go(in.drop(1), os0, FoldState(true, o))
               else
-                go(in.drop(1), if (state.started) os0 + state.result else os0, initial)
+                go(in.drop(1), os0 + o, initial)
             }
         }
 

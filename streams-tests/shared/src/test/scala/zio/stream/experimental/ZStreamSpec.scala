@@ -126,7 +126,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         testM("no remainder") {
           val t = ZTransducer.fold(100)(_ % 2 == 0)((s, a: Int) => s + a)
-          assertM(ZStream(1, 2, 3, 4).aggregate(t).runCollect)(equalTo(List(102, 104)))
+          assertM(ZStream(1, 2, 3, 4).aggregate(t).runCollect)(equalTo(List(101, 105, 104)))
         },
         testM("with a sink that always signals more") {
           val t = ZTransducer.fold(0)(_ => true)((s, a: Int) => s + a)
