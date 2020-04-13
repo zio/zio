@@ -215,7 +215,7 @@ This is a legally binding document, so please read it carefully before accepting
 
 ## 1. Definitions
 
-"We" or "Us" means John Arlen De Goes, the individual who founded the project, and any duly appointed and authorized representatives of said individual.
+"We" or "Us" means Ziverge, Inc., and its duly appointed and authorized representatives.
 
 "You" means the individual or entity who Submits a Contribution to Us.
 

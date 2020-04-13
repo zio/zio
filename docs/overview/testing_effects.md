@@ -29,7 +29,7 @@ The environment does not have to be a primitive value like an integer. It can be
 
 When the environment is a type with fields, then the `ZIO.access` method can be used to access a given part of the environment in a single method call:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 final case class Config(server: String, port: Int)
 
 val configString: ZIO[Config, Nothing, String] = 

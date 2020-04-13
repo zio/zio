@@ -5,6 +5,8 @@ import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 name := "zio"
 
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
 inThisBuild(
   List(
     organization := "dev.zio",
@@ -38,12 +40,12 @@ addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
+  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
 )
 addCommandAlias("compileNative", ";coreNative/compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
@@ -55,15 +57,15 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosJVM/test"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;examplesJS/test:compile;macrosJS/test"
 )
 addCommandAlias(
   "testJS211",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test"
 )
 
 lazy val root = project
@@ -79,6 +81,8 @@ lazy val root = project
     coreJS,
     coreTestsJVM,
     coreTestsJS,
+    macrosJVM,
+    macrosJS,
     docs,
     streamsJVM,
     streamsJS,
@@ -118,6 +122,9 @@ lazy val coreNative = core.native
   .settings(scalaVersion := "2.11.12")
   .settings(skip in Test := true)
   .settings(skip in doc := true)
+  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
+    SettingKey[Boolean]("ide-skip-project") := true
+  )
   .settings(sources in (Compile, doc) := Seq.empty)
   .settings(
     libraryDependencies ++= Seq(
@@ -145,9 +152,20 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(replSettings)
 
 lazy val coreTestsJS = coreTests.js
-  .settings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test
-  )
+  .settings(testJsSettings)
+
+lazy val macros = crossProject(JSPlatform, JVMPlatform)
+  .in(file("macros"))
+  .dependsOn(core)
+  .settings(stdSettings("zio-macros"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner)
+
+lazy val macrosJVM = macros.jvm.settings(dottySettings)
+lazy val macrosJS  = macros.js.settings(testJsSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
@@ -165,7 +183,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams-tests"))
   .dependsOn(streams)
   .dependsOn(coreTests % "test->test;compile->compile")
-  .settings(stdSettings("core-tests"))
+  .settings(stdSettings("streams-tests"))
   .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
@@ -179,28 +197,15 @@ lazy val streamsTestsJVM = streamsTests.jvm
   .settings(dottySettings)
 
 lazy val streamsTestsJS = streamsTests.js
-  .settings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test
-  )
+  .settings(testJsSettings)
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
   .settings(crossProjectSettings)
-  .settings(macroSettings)
-  .settings(
-    scalacOptions += "-language:experimental.macros",
-    libraryDependencies ++=
-      Seq("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0") ++ {
-        if (isDotty.value) Seq()
-        else
-          Seq(
-            "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided",
-            "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
-          )
-      }
-  )
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
 
 lazy val testJVM = test.jvm.settings(dottySettings)
 lazy val testJS  = test.js
@@ -214,12 +219,11 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
   .settings(skip in publish := true)
+  .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS = testTests.js.settings(
-  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5"
-)
+lazy val testTestsJS  = testTests.js.settings(testJsSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -246,9 +250,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
-lazy val testMagnoliaTestsJS = testMagnoliaTests.js.settings(
-  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5"
-)
+lazy val testMagnoliaTestsJS  = testMagnoliaTests.js.settings(testJsSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -263,8 +265,10 @@ lazy val stacktracerJVM = stacktracer.jvm
 
 lazy val stacktracerNative = stacktracer.native
   .settings(scalaVersion := "2.11.12")
+  .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
   .settings(skip in Test := true)
   .settings(skip in doc := true)
+
 lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
@@ -289,10 +293,7 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
 
 lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
-lazy val testRunnerJS = testRunner.js
-  .settings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test
-  )
+lazy val testRunnerJS  = testRunner.js.settings(testJsSettings)
 
 /**
  * Examples sub-project that is not included in the root project.
@@ -303,12 +304,11 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(crossProjectSettings)
-  .settings(macroSettings)
+  .settings(macroExpansionSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .jsSettings(libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test)
-  .dependsOn(testRunner)
+  .dependsOn(macros, testRunner)
 
-lazy val examplesJS = examples.js
+lazy val examplesJS = examples.js.settings(testJsSettings)
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
   .dependsOn(testJunitRunnerJVM)
@@ -324,14 +324,14 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"      % "2.2.2",
+        "co.fs2"                    %% "fs2-core"      % "2.3.0",
         "com.google.code.findbugs"  % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"     % "20.3.0",
-        "com.typesafe.akka"         %% "akka-stream"   % "2.6.3",
+        "com.twitter"               %% "util-core"     % "20.4.0",
+        "com.typesafe.akka"         %% "akka-stream"   % "2.6.4",
         "io.monix"                  %% "monix"         % "3.1.0",
-        "io.projectreactor"         % "reactor-core"   % "3.3.3.RELEASE",
-        "io.reactivex.rxjava2"      % "rxjava"         % "2.2.18",
-        "org.ow2.asm"               % "asm"            % "7.3.1",
+        "io.projectreactor"         % "reactor-core"   % "3.3.4.RELEASE",
+        "io.reactivex.rxjava2"      % "rxjava"         % "2.2.19",
+        "org.ow2.asm"               % "asm"            % "8.0.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"            % "scala-reflect"  % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"   % "2.1.2",
@@ -379,11 +379,10 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC8",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC6",
-      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
-      "dev.zio"             %% "zio-macros-core"             % "0.6.2"
+      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2"
     )
   )
-  .settings(macroSettings)
+  .settings(macroExpansionSettings)
   .dependsOn(
     coreJVM,
     streamsJVM,

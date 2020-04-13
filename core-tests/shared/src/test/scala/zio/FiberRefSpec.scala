@@ -9,6 +9,8 @@ import zio.test.environment.Live
 
 object FiberRefSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("FiberRefSpec")(
     suite("Create a new FiberRef with a specified value and check if:")(
       testM("`get` returns the current value") {
@@ -169,7 +171,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           _        <- loser1.race(loser2).catchAll(_ => ZIO.unit)
           value    <- fiberRef.get
         } yield assert(value)(equalTo(initial))
-      },
+      } @@ zioTag(errors),
       testM("the value of the loser is inherited in zipPar") {
         for {
           fiberRef <- FiberRef.make(initial)
@@ -179,7 +181,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           _        <- winner.zipPar(loser)
           value    <- fiberRef.get
         } yield assert(value)(equalTo(update2))
-      },
+      } @@ zioTag(errors),
       testM("nothing gets inherited with a failure in zipPar") {
         for {
           fiberRef <- FiberRef.make(initial)
@@ -189,7 +191,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           _        <- success.zipPar(failure1.zipPar(failure2)).orElse(ZIO.unit)
           value    <- fiberRef.get
         } yield assert(value)(equalTo(initial))
-      },
+      } @@ zioTag(errors),
       testM("combine function is applied on join - 1") {
         for {
           fiberRef <- FiberRef.make(0, math.max)
@@ -256,7 +258,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           _        <- loser.raceAll(Iterable.fill(63)(loser)).orElse(ZIO.unit)
           value    <- fiberRef.get
         } yield assert(value)(equalTo(initial))
-      },
+      } @@ zioTag(errors),
       testM("an unsafe handle is initialized and updated properly") {
         for {
           fiberRef <- FiberRef.make(initial)

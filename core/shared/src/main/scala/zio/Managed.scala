@@ -33,8 +33,14 @@ object Managed {
   /**
    * See [[zio.ZManaged.collectAll]]
    */
-  def collectAll[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
+  def collectAll[E, A](ms: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAll(ms)
+
+  /**
+   * See [[zio.ZManaged.collectAll_]]
+   */
+  def collectAll_[E, A](ms: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAll_(ms)
 
   /**
    * See [[zio.ZManaged.collectAllPar]]
@@ -43,10 +49,22 @@ object Managed {
     ZManaged.collectAllPar(as)
 
   /**
+   * See [[zio.ZManaged.collectAllPar_]]
+   */
+  def collectAllPar_[E, A](as: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAllPar_(as)
+
+  /**
    * See [[zio.ZManaged.collectAllParN]]
    */
   def collectAllParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAllParN(n)(as)
+
+  /**
+   * See [[zio.ZManaged.collectAllParN_]]
+   */
+  def collectAllParN_[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAllParN_(n)(as)
 
   /**
    * See [[zio.ZManaged.die]]
@@ -69,7 +87,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.effectTotal]]
    */
-  def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
+  def effectTotal[A](r: => A): Managed[Nothing, A] =
     ZManaged.effectTotal(r)
 
   /**
@@ -113,6 +131,12 @@ object Managed {
    */
   def foreach_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.foreach_(as)(f)
+
+  /**
+   * See [[zio.ZManaged.foreachExec]]
+   */
+  final def foreachExec[E, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => Managed[E, B]): Managed[E, List[B]] =
+    ZManaged.foreachExec(as)(exec)(f)
 
   /**
    * See [[zio.ZManaged.foreachPar]]
@@ -348,6 +372,18 @@ object Managed {
   val unit: Managed[Nothing, Unit] = ZManaged.unit
 
   /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  def unless[E](b: => Boolean)(managed: => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.unless(b)(managed)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessM[E](b: Managed[E, Boolean])(managed: => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.unlessM(b)(managed)
+
+  /**
    * See [[zio.ZManaged.unsandbox]]
    */
   def unsandbox[E, A](v: Managed[Cause[E], A]): Managed[E, A] =
@@ -368,15 +404,13 @@ object Managed {
   /**
    * See [[zio.ZManaged.whenCase]]
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCase[E, A](a: => A)(pf: PartialFunction[A, Managed[E, Any]]): Managed[E, Unit] =
     ZManaged.whenCase(a)(pf)
 
   /**
    * See [[zio.ZManaged.whenCaseM]]
    */
-  def whenCaseM[R, E, A](
-    a: ZManaged[R, E, A]
-  )(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCaseM[E, A](a: Managed[E, A])(pf: PartialFunction[A, Managed[E, Any]]): Managed[E, Unit] =
     ZManaged.whenCaseM(a)(pf)
 
   /**

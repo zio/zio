@@ -5,6 +5,8 @@ import zio.test._
 
 object PromiseSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("PromiseSpec")(
     testM("complete a promise using succeed") {
       for {
@@ -41,7 +43,7 @@ object PromiseSpec extends ZIOBaseSpec {
         s <- p.fail("error with fail")
         v <- p.await.run
       } yield assert(s)(isTrue) && assert(v)(fails(equalTo("error with fail")))
-    },
+    } @@ zioTag(errors),
     testM("fail a promise using complete") {
       for {
         p  <- Promise.make[String, Int]
@@ -52,7 +54,7 @@ object PromiseSpec extends ZIOBaseSpec {
       } yield assert(s)(isTrue) &&
         assert(v1)(fails(equalTo("first error"))) &&
         assert(v2)(fails(equalTo("first error")))
-    },
+    } @@ zioTag(errors),
     testM("fail a promise using completeWith") {
       for {
         p  <- Promise.make[String, Int]
@@ -63,12 +65,12 @@ object PromiseSpec extends ZIOBaseSpec {
       } yield assert(s)(isTrue) &&
         assert(v1)(fails(equalTo("first error"))) &&
         assert(v2)(fails(equalTo("second error")))
-    },
+    } @@ zioTag(errors),
     testM("complete a promise twice") {
       for {
         p <- Promise.make[Nothing, Int]
         _ <- p.succeed(1)
-        s <- p.complete(IO.succeedNow(9))
+        s <- p.complete(IO.succeed(9))
         v <- p.await
       } yield assert(s)(isFalse) && assert(v)(equalTo(1))
     },
@@ -77,7 +79,7 @@ object PromiseSpec extends ZIOBaseSpec {
         p <- Promise.make[Exception, Int]
         s <- p.interrupt
       } yield assert(s)(isTrue)
-    },
+    } @@ zioTag(interruption),
     testM("poll a promise that is not completed yet") {
       for {
         p       <- Promise.make[String, Int]
@@ -104,7 +106,7 @@ object PromiseSpec extends ZIOBaseSpec {
         _      <- p.interrupt
         result <- p.poll.someOrFail("fail").flatten.run
       } yield assert(result)(isInterrupted)
-    },
+    } @@ zioTag(interruption),
     testM("isDone when a promise is completed") {
       for {
         p <- Promise.make[String, Int]
@@ -118,6 +120,6 @@ object PromiseSpec extends ZIOBaseSpec {
         _ <- p.fail("failure")
         d <- p.isDone
       } yield assert(d)(isTrue)
-    }
+    } @@ zioTag(errors)
   )
 }

@@ -93,6 +93,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     (self && that).map(_._2)
 
   /**
+   * A symbolic alias for `andThen`.
+   */
+  final def ++[R1 <: R, A1 <: A, B1 >: B](that: Schedule[R1, A1, B1]): Schedule[R1, A1, B1] =
+    andThen(that)
+
+  /**
    * Chooses between two schedules with different outputs.
    */
   final def +++[R1 <: R, C, D](that: Schedule[R1, C, D]): Schedule[R1, Either[A, C], Either[B, D]] =
@@ -108,6 +114,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
           case Right(c) => that.update(c, s._2).map((s._1, _))
         }
     }
+
+  /**
+   * Operator alias for `andThenEither`.
+   */
+  final def <||>[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, Either[B, C]] =
+    andThenEither(that)
 
   /**
    * The same as `&&`, but ignores the right output.
@@ -798,6 +810,20 @@ object Schedule {
   val forever: Schedule[Any, Any, Int] = unfold(0)(_ + 1)
 
   /**
+   * A schedule that recurs once with the specified delay.
+   */
+  def fromDuration(duration: Duration): Schedule[Clock, Any, Duration] =
+    delayed(recurs(1).as(duration))
+
+  /**
+   * A schedule that recurs once for each of the specified durations, delaying
+   * each time for the length of the specified duration. Returns the length of
+   * the current duration between recurrences.
+   */
+  def fromDurations(duration: Duration, durations: Duration*): Schedule[Clock, Any, Duration] =
+    durations.foldLeft(fromDuration(duration))((schedule, duration) => schedule ++ fromDuration(duration))
+
+  /**
    * A schedule that recurs forever, mapping input values through the
    * specified function.
    */
@@ -838,8 +864,8 @@ object Schedule {
     Schedule[Clock with Random, Duration, Any, Duration](
       ZIO.succeedNow(Duration.Zero), {
         case _ =>
-          random.nextLong(maxNanos - minNanos + 1).flatMap { n =>
-            val duration = Duration.fromNanos(n - minNanos)
+          random.nextLongBounded(maxNanos - minNanos + 1).flatMap { n =>
+            val duration = Duration.fromNanos(n + minNanos)
             clock.sleep(duration).as(duration)
           }
       },

@@ -25,7 +25,7 @@ Immutable data structures that model procedural effects are called _functional e
 
 We can build a data structure to describe a console program with just three instructions:
 
-```scala mdoc:silent
+```scala mdoc:silent:reset-object
 sealed trait Console[+A]
 final case class Return[A](value: () => A) extends Console[A]
 final case class PrintLine[A](line: String, rest: Console[A]) extends Console[A]

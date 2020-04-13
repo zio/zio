@@ -16,8 +16,8 @@
 
 package zio
 
-import _root_.java.nio.channels.CompletionHandler
-import _root_.java.util.concurrent.CompletionStage
+import java.nio.channels.CompletionHandler
+import java.util.concurrent.CompletionStage
 
 import zio.interop.javaz
 

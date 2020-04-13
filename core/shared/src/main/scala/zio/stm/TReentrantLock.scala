@@ -18,7 +18,7 @@ package zio.stm
 
 import TReentrantLock._
 
-import zio.{ Fiber, Managed, UIO }
+import zio.{ Fiber, Managed, UManaged, UIO }
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
@@ -43,7 +43,7 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
    * is holding a write lock. Succeeds with the number of read locks held by
    * this fiber.
    */
-  lazy val acquireRead: STM[Nothing, Int] =
+  lazy val acquireRead: USTM[Int] =
     STM.fiberId.flatMap(fiberId => adjustRead(fiberId, 1))
 
   /**
@@ -51,7 +51,7 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
    * fibers are holding read or write locks. Succeeds with the number of
    * write locks held by this fiber.
    */
-  lazy val acquireWrite: STM[Nothing, Int] =
+  lazy val acquireWrite: USTM[Int] =
     for {
       fiberId <- STM.fiberId
       w <- data.get.collect {
@@ -70,42 +70,42 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
    *
    * See [[writeLock]].
    */
-  lazy val lock: Managed[Nothing, Int] = writeLock
+  lazy val lock: UManaged[Int] = writeLock
 
   /**
    * Determines if any fiber has a read or write lock.
    */
-  def locked: STM[Nothing, Boolean] =
+  def locked: USTM[Boolean] =
     (readLocked zipWith writeLocked)(_ || _)
 
   /**
    * Obtains a read lock in a managed context.
    */
-  lazy val readLock: Managed[Nothing, Int] =
+  lazy val readLock: UManaged[Int] =
     Managed.make(acquireRead.commit)(_ => releaseRead.commit)
 
   /**
    * Retrieves the number of acquired read locks.
    */
-  def readLocks: STM[Nothing, Int] = data.get.map(_.fold(_.readLocks, _.readLocks))
+  def readLocks: USTM[Int] = data.get.map(_.fold(_.readLocks, _.readLocks))
 
   /**
    * Determines if any fiber has a read lock.
    */
-  def readLocked: STM[Nothing, Boolean] = readLocks.map(_ > 0)
+  def readLocked: USTM[Boolean] = readLocks.map(_ > 0)
 
   /**
    * Releases a read lock held by this fiber. Succeeds with the outstanding
    * number of read locks held by this fiber.
    */
-  lazy val releaseRead: STM[Nothing, Int] =
+  lazy val releaseRead: USTM[Int] =
     STM.fiberId.flatMap(fiberId => adjustRead(fiberId, -1))
 
   /**
    * Releases a write lock held by this fiber. Succeeds with the outstanding
    * number of write locks held by this fiber.
    */
-  lazy val releaseWrite: STM[Nothing, Int] =
+  lazy val releaseWrite: USTM[Int] =
     STM.fiberId.flatMap(fiberId =>
       data.modify {
         case Right(WriteLock(1, m, `fiberId`)) =>
@@ -123,20 +123,20 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
   /**
    * Obtains a write lock in a managed context.
    */
-  lazy val writeLock: Managed[Nothing, Int] =
+  lazy val writeLock: UManaged[Int] =
     Managed.make(acquireWrite.commit)(_ => releaseWrite.commit)
 
   /**
    * Determines if a write lock is held by some fiber.
    */
-  def writeLocked: STM[Nothing, Boolean] = writeLocks.map(_ > 0)
+  def writeLocked: USTM[Boolean] = writeLocks.map(_ > 0)
 
   /**
    * Computes the number of write locks held by fibers.
    */
-  def writeLocks: STM[Nothing, Int] = data.get.map(_.fold(_ => 0, _.writeLocks))
+  def writeLocks: USTM[Int] = data.get.map(_.fold(_ => 0, _.writeLocks))
 
-  private def adjustRead(fiberId: Fiber.Id, delta: Int): STM[Nothing, Int] =
+  private def adjustRead(fiberId: Fiber.Id, delta: Int): USTM[Int] =
     (data.get.collect {
       case Left(readLock) => Left(readLock.adjust(fiberId, delta))
       case Right(wl @ WriteLock(w, r, `fiberId`)) =>
@@ -216,7 +216,7 @@ object TReentrantLock {
   /**
    * Makes a new reentrant read/write lock.
    */
-  val make: STM[Nothing, TReentrantLock] =
+  def make: USTM[TReentrantLock] =
     TRef.make[Either[ReadLock, WriteLock]](Left(ReadLock.empty)).map(tref => new TReentrantLock(tref))
 
   /**

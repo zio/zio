@@ -23,20 +23,20 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   /**
    * Checks if the queue is empty.
    */
-  def isEmpty: STM[Nothing, Boolean] =
+  def isEmpty: USTM[Boolean] =
     ref.get.map(_.isEmpty)
 
   /**
    * Checks if the queue is at capacity.
    */
-  def isFull: STM[Nothing, Boolean] =
+  def isFull: USTM[Boolean] =
     ref.get.map(_.size == capacity)
 
   /**
    * Views the last element inserted into the queue, retrying if the queue is
    * empty.
    */
-  def last: STM[Nothing, A] =
+  def last: USTM[A] =
     ref.get.flatMap(
       _.lastOption match {
         case Some(a) => STM.succeedNow(a)
@@ -48,7 +48,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * Offers the specified value to the queue, retrying if the queue is at
    * capacity.
    */
-  def offer(a: A): STM[Nothing, Unit] =
+  def offer(a: A): USTM[Unit] =
     ref.get.flatMap { q =>
       if (q.length < capacity) ref.update(_.enqueue(a)).unit
       else STM.retry
@@ -60,10 +60,10 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * the queue for all of these elements. Returns any remaining elements in the
    * specified collection.
    */
-  def offerAll(as: Iterable[A]): STM[Nothing, Iterable[A]] = {
+  def offerAll(as: Iterable[A]): USTM[Iterable[A]] = {
     val (forQueue, remaining) = as.splitAt(capacity)
     ref.get.flatMap { q =>
-      if (forQueue.size <= capacity - q.length) ref.update(_.enqueue(forQueue.toList))
+      if (forQueue.size <= capacity - q.length) ref.update(_ ++ forQueue)
       else STM.retry
     } *> STM.succeedNow(remaining)
   }
@@ -72,7 +72,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * Views the next element in the queue without removing it, retrying if the
    * queue is empty.
    */
-  def peek: STM[Nothing, A] =
+  def peek: USTM[A] =
     ref.get.flatMap(
       _.headOption match {
         case Some(a) => STM.succeedNow(a)
@@ -84,14 +84,14 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * Views the next element in the queue without removing it, returning `None`
    * if the queue is empty.
    */
-  def peekOption: STM[Nothing, Option[A]] =
+  def peekOption: USTM[Option[A]] =
     ref.get.map(_.headOption)
 
   /**
    * Takes a single element from the queue, returning `None` if the queue is
    * empty.
    */
-  def poll: STM[Nothing, Option[A]] =
+  def poll: USTM[Option[A]] =
     takeUpTo(1).map(_.headOption)
 
   /**
@@ -99,9 +99,9 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * taking and returning the first element that does satisfy the predicate.
    * Retries if no elements satisfy the predicate.
    */
-  def seek(f: A => Boolean): STM[Nothing, A] = {
+  def seek(f: A => Boolean): USTM[A] = {
     @annotation.tailrec
-    def go(q: ScalaQueue[A]): STM[Nothing, A] =
+    def go(q: ScalaQueue[A]): USTM[A] =
       q.dequeueOption match {
         case Some((a, as)) =>
           if (f(a)) ref.set(as) *> STM.succeedNow(a)
@@ -115,13 +115,13 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   /**
    * Returns the number of elements currently in the queue.
    */
-  def size: STM[Nothing, Int] =
+  def size: USTM[Int] =
     ref.get.map(_.length)
 
   /**
    * Takes a single element from the queue, retrying if the queue is empty.
    */
-  def take: STM[Nothing, A] =
+  def take: USTM[A] =
     ref.get.flatMap { q =>
       q.dequeueOption match {
         case Some((a, as)) =>
@@ -133,13 +133,13 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   /**
    * Takes all elements from the queue.
    */
-  def takeAll: STM[Nothing, List[A]] =
+  def takeAll: USTM[List[A]] =
     ref.modify(q => (q.toList, ScalaQueue.empty[A]))
 
   /**
    * Takes up to the specified maximum number of elements from the queue.
    */
-  def takeUpTo(max: Int): STM[Nothing, List[A]] =
+  def takeUpTo(max: Int): USTM[List[A]] =
     ref.get
       .map(_.splitAt(max))
       .flatMap(split => ref.set(split._2) *> STM.succeedNow(split._1))
@@ -151,12 +151,12 @@ object TQueue {
   /**
    * Constructs a new bounded queue with the specified capacity.
    */
-  def bounded[A](capacity: Int): STM[Nothing, TQueue[A]] =
+  def bounded[A](capacity: Int): USTM[TQueue[A]] =
     TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 
   /**
    * Constructs a new unbounded queue.
    */
-  def unbounded[A]: STM[Nothing, TQueue[A]] =
+  def unbounded[A]: USTM[TQueue[A]] =
     bounded(Int.MaxValue)
 }

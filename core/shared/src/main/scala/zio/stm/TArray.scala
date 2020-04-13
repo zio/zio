@@ -24,14 +24,14 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Extracts value from ref in array.
    */
-  def apply(index: Int): STM[Nothing, A] =
+  def apply(index: Int): USTM[A] =
     if (0 <= index && index < array.length) array(index).get
     else STM.die(new ArrayIndexOutOfBoundsException(index))
 
   /**
    * Finds the result of applying a partial function to the first value in its domain.
    */
-  def collectFirst[B](pf: PartialFunction[A, B]): STM[Nothing, Option[B]] =
+  def collectFirst[B](pf: PartialFunction[A, B]): USTM[Option[B]] =
     find(pf.isDefinedAt).map(_.map(pf))
 
   /**
@@ -47,12 +47,12 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Determine if the array contains a specified value.
    */
-  def contains(a: A): STM[Nothing, Boolean] = exists(_ == a)
+  def contains(a: A): USTM[Boolean] = exists(_ == a)
 
   /**
    * Count the values in the array matching a predicate.
    */
-  def count(p: A => Boolean): STM[Nothing, Int] =
+  def count(p: A => Boolean): USTM[Int] =
     fold(0)((n, a) => if (p(a)) n + 1 else n)
 
   /**
@@ -64,7 +64,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Determine if the array contains a value satisfying a predicate.
    */
-  def exists(p: A => Boolean): STM[Nothing, Boolean] = find(p).map(_.isDefined)
+  def exists(p: A => Boolean): USTM[Boolean] = find(p).map(_.isDefined)
 
   /**
    * Determine if the array contains a value satisfying a transactional predicate.
@@ -75,7 +75,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Find the first element in the array matching a predicate.
    */
-  def find(p: A => Boolean): STM[Nothing, Option[A]] =
+  def find(p: A => Boolean): USTM[Option[A]] =
     if (array.isEmpty) STM.succeedNow(None)
     else
       array.head.get.flatMap { a =>
@@ -86,7 +86,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Find the last element in the array matching a predicate.
    */
-  def findLast(p: A => Boolean): STM[Nothing, Option[A]] =
+  def findLast(p: A => Boolean): USTM[Option[A]] =
     new TArray(array.reverse).find(p)
 
   /**
@@ -111,13 +111,13 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * The first entry of the array, if it exists.
    */
-  def firstOption: STM[Nothing, Option[A]] =
+  def firstOption: USTM[Option[A]] =
     if (array.isEmpty) STM.succeedNow(None) else array.head.get.map(Some(_))
 
   /**
    * Atomically folds using a pure function.
    */
-  def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
+  def fold[Z](acc: Z)(op: (Z, A) => Z): USTM[Z] =
     if (array.isEmpty) STM.succeedNow(acc)
     else array.head.get.flatMap(a => new TArray(array.tail).fold(op(acc, a))(op))
 
@@ -133,7 +133,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically evaluate the conjunction of a predicate across the members
    * of the array.
    */
-  def forall(p: A => Boolean): STM[Nothing, Boolean] = exists(a => !p(a)).map(!_)
+  def forall(p: A => Boolean): USTM[Boolean] = exists(a => !p(a)).map(!_)
 
   /**
    * Atomically evaluate the conjunction of a transactional predicate across
@@ -152,26 +152,26 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Get the first index of a specific value in the array or -1 if it does
    * not occur.
    */
-  def indexOf(a: A): STM[Nothing, Int] = indexOf(a, 0)
+  def indexOf(a: A): USTM[Int] = indexOf(a, 0)
 
   /**
    * Get the first index of a specific value in the array, starting at a specific
    * index, or -1 if it does not occur.
    */
-  def indexOf(a: A, from: Int): STM[Nothing, Int] = indexWhere(_ == a, from)
+  def indexOf(a: A, from: Int): USTM[Int] = indexWhere(_ == a, from)
 
   /**
    * Get the index of the first entry in the array matching a predicate.
    */
-  def indexWhere(p: A => Boolean): STM[Nothing, Int] = indexWhere(p, 0)
+  def indexWhere(p: A => Boolean): USTM[Int] = indexWhere(p, 0)
 
   /**
    * Get the index of the first entry in the array, starting at a specific index,
    * matching a predicate.
    */
-  def indexWhere(p: A => Boolean, from: Int): STM[Nothing, Int] = {
+  def indexWhere(p: A => Boolean, from: Int): USTM[Int] = {
     val len = array.length
-    def forIndex(i: Int): STM[Nothing, Int] =
+    def forIndex(i: Int): USTM[Int] =
       if (i >= len) STM.succeedNow(-1)
       else apply(i).flatMap(a => if (p(a)) STM.succeedNow(i) else forIndex(i + 1))
 
@@ -200,15 +200,15 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Get the last index of a specific value in the array or -1 if it does not occur.
    */
-  def lastIndexOf(a: A): STM[Nothing, Int] =
+  def lastIndexOf(a: A): USTM[Int] =
     if (array.isEmpty) STM.succeedNow(-1) else lastIndexOf(a, array.length - 1)
 
   /**
    * Get the first index of a specific value in the array, bounded above by a
    * specific index, or -1 if it does not occur.
    */
-  def lastIndexOf(a: A, end: Int): STM[Nothing, Int] = {
-    def forIndex(i: Int): STM[Nothing, Int] =
+  def lastIndexOf(a: A, end: Int): USTM[Int] = {
+    def forIndex(i: Int): USTM[Int] =
       if (i < 0) STM.succeedNow(-1)
       else apply(i).flatMap(ai => if (ai == a) STM.succeedNow(i) else forIndex(i - 1))
 
@@ -218,25 +218,25 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * The last entry in the array, if it exists.
    */
-  def lastOption: STM[Nothing, Option[A]] =
+  def lastOption: USTM[Option[A]] =
     if (array.isEmpty) STM.succeedNow(None) else array.last.get.map(Some(_))
 
   /**
    * Atomically compute the greatest element in the array, if it exists.
    */
-  def maxOption(implicit ord: Ordering[A]): STM[Nothing, Option[A]] =
+  def maxOption(implicit ord: Ordering[A]): USTM[Option[A]] =
     reduceOption((acc, a) => if (ord.gt(a, acc)) a else acc)
 
   /**
    * Atomically compute the least element in the array, if it exists.
    */
-  def minOption(implicit ord: Ordering[A]): STM[Nothing, Option[A]] =
+  def minOption(implicit ord: Ordering[A]): USTM[Option[A]] =
     reduceOption((acc, a) => if (ord.lt(a, acc)) a else acc)
 
   /**
    * Atomically reduce the array, if non-empty, by a binary operator.
    */
-  def reduceOption(op: (A, A) => A): STM[Nothing, Option[A]] =
+  def reduceOption(op: (A, A) => A): USTM[Option[A]] =
     if (array.isEmpty) STM.succeedNow(None)
     else
       array.head.get
@@ -255,9 +255,15 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     }
 
   /**
+   * Collects all elements into a list.
+   */
+  def toList: USTM[List[A]] =
+    STM.collectAll(array.map(_.get))
+
+  /**
    * Atomically updates all elements using a pure function.
    */
-  def transform(f: A => A): STM[Nothing, Unit] =
+  def transform(f: A => A): USTM[Unit] =
     array.indices.foldLeft(STM.succeedNow(())) {
       case (tx, idx) => array(idx).update(f) *> tx
     }
@@ -275,7 +281,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Updates element in the array with given function.
    */
-  def update(index: Int, fn: A => A): STM[Nothing, Unit] =
+  def update(index: Int, fn: A => A): USTM[Unit] =
     if (0 <= index && index < array.length) array(index).update(fn)
     else STM.die(new ArrayIndexOutOfBoundsException(index))
 
@@ -297,16 +303,16 @@ object TArray {
   /**
    * Makes a new `TArray` that is initialized with specified values.
    */
-  def make[A](data: A*): STM[Nothing, TArray[A]] = fromIterable(data)
+  def make[A](data: A*): USTM[TArray[A]] = fromIterable(data)
 
   /**
    * Makes an empty `TArray`.
    */
-  def empty[A]: STM[Nothing, TArray[A]] = fromIterable(Nil)
+  def empty[A]: USTM[TArray[A]] = fromIterable(Nil)
 
   /**
    * Makes a new `TArray` initialized with provided iterable.
    */
-  def fromIterable[A](data: Iterable[A]): STM[Nothing, TArray[A]] =
+  def fromIterable[A](data: Iterable[A]): USTM[TArray[A]] =
     STM.foreach(data)(TRef.make(_)).map(list => new TArray(list.toArray))
 }

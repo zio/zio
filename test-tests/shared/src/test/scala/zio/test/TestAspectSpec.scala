@@ -18,7 +18,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("test") {
           assertM(ref.get)(equalTo(1))
         } @@ around_(ref.set(1), ref.set(-1))
-        result <- isSuccess(spec)
+        result <- succeeded(spec)
         after  <- ref.get
       } yield {
         assert(result)(isTrue) &&
@@ -31,7 +31,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("test") {
           ZIO.fail("error")
         } @@ after(ref.set(-1))
-        result <- isSuccess(spec)
+        result <- succeeded(spec)
         after  <- ref.get
       } yield {
         assert(result)(isFalse) &&
@@ -44,7 +44,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("test") {
           ZIO.dieMessage("death")
         } @@ after(ref.set(-1))
-        result <- isSuccess(spec)
+        result <- succeeded(spec)
         after  <- ref.get
       } yield {
         assert(result)(isFalse) &&
@@ -61,7 +61,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     testM("dottyOnly runs tests only on Dotty") {
       val spec   = test("Dotty-only")(assert(TestVersion.isDotty)(isTrue)) @@ dottyOnly
-      val result = if (TestVersion.isDotty) isSuccess(spec) else isIgnored(spec)
+      val result = if (TestVersion.isDotty) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     test("exceptDotty runs tests on all versions except Dotty") {
@@ -73,29 +73,32 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("exceptJVM runs tests on all platforms except the JVM") {
       assert(TestPlatform.isJVM)(isFalse)
     } @@ exceptJVM,
+    test("exceptNative runs tests on all platforms except ScalaNative") {
+      assert(TestPlatform.isNative)(isFalse)
+    } @@ exceptNative,
     test("exceptScala2 runs tests on all versions except Scala 2") {
       assert(TestVersion.isScala2)(isFalse)
     } @@ exceptScala2,
     test("failure makes a test pass if the result was a failure") {
       assert(throw new java.lang.Exception("boom"))(isFalse)
-    } @@ failure,
+    } @@ failing,
     test("failure makes a test pass if it died with a specified failure") {
       assert(throw new NullPointerException())(isFalse)
-    } @@ failure(diesWithSubtypeOf[NullPointerException]),
+    } @@ failing(diesWithSubtypeOf[NullPointerException]),
     test("failure does not make a test pass if it failed with an unexpected exception") {
       assert(throw new NullPointerException())(isFalse)
-    } @@ failure(diesWithSubtypeOf[IllegalArgumentException])
-      @@ failure,
+    } @@ failing(diesWithSubtypeOf[IllegalArgumentException])
+      @@ failing,
     test("failure does not make a test pass if the specified failure does not match") {
       assert(throw new RuntimeException())(isFalse)
-    } @@ failure(diesWith(hasMessage(equalTo("boom"))))
-      @@ failure,
+    } @@ failing(diesWith(hasMessage(equalTo("boom"))))
+      @@ failing,
     test("failure makes tests pass on any assertion failure") {
       assert(true)(equalTo(false))
-    } @@ failure,
+    } @@ failing,
     test("failure makes tests pass on an expected assertion failure") {
       assert(true)(equalTo(false))
-    } @@ failure(
+    } @@ failing(
       isCase[TestFailure[Any], Any](
         "Assertion",
         { case TestFailure.Assertion(result) => Some(result); case _ => None },
@@ -108,7 +111,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("flaky test") {
           assertM(ref.updateAndGet(_ + 1))(equalTo(100))
         } @@ flaky
-        result <- isSuccess(spec)
+        result <- succeeded(spec)
         n      <- ref.get
       } yield assert(result)(isTrue) && assert(n)(equalTo(100))
     },
@@ -118,13 +121,13 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("flaky test that dies") {
           assertM(ref.updateAndGet(_ + 1).filterOrDieMessage(_ >= 100)("die"))(equalTo(100))
         } @@ flaky
-        result <- isSuccess(spec)
+        result <- succeeded(spec)
         n      <- ref.get
       } yield assert(result)(isTrue) && assert(n)(equalTo(100))
     },
     test("flaky retries a test with a limit") {
       assert(true)(isFalse)
-    } @@ flaky @@ failure,
+    } @@ flaky @@ failing,
     testM("forked runs each test on its own separate fiber") {
       for {
         _        <- ZIO.infinity.fork
@@ -171,7 +174,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     testM("jsOnly runs tests only on ScalaJS") {
       val spec   = test("Javascript-only")(assert(TestPlatform.isJS)(isTrue)) @@ jsOnly
-      val result = if (TestPlatform.isJS) isSuccess(spec) else isIgnored(spec)
+      val result = if (TestPlatform.isJS) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("jvm applies test aspect only on jvm") {
@@ -184,7 +187,20 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     testM("jvmOnly runs tests only on the JVM") {
       val spec   = test("JVM-only")(assert(TestPlatform.isJVM)(isTrue)) @@ jvmOnly
-      val result = if (TestPlatform.isJVM) isSuccess(spec) else isIgnored(spec)
+      val result = if (TestPlatform.isJVM) succeeded(spec) else isIgnored(spec)
+      assertM(result)(isTrue)
+    },
+    testM("native applies test aspect only on ScalaNative") {
+      for {
+        ref    <- Ref.make(false)
+        spec   = test("test")(assert(true)(isTrue)) @@ native(after(ref.set(true)))
+        _      <- execute(spec)
+        result <- ref.get
+      } yield if (TestPlatform.isNative) assert(result)(isTrue) else assert(result)(isFalse)
+    },
+    testM("nativeOnly runs tests only on ScalaNative") {
+      val spec   = test("Native-only")(assert(TestPlatform.isNative)(isTrue)) @@ nativeOnly
+      val result = if (TestPlatform.isNative) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("noDelay causes sleep effects to be executed immediately") {
@@ -196,10 +212,10 @@ object TestAspectSpec extends ZIOBaseSpec {
       } @@ nonTermination(10.milliseconds),
       testM("makes a test fail if it succeeds within the specified time") {
         assertM(ZIO.unit)(anything)
-      } @@ nonTermination(1.minute) @@ failure,
+      } @@ nonTermination(1.minute) @@ failing,
       testM("makes a test fail if it fails within the specified time") {
         assertM(ZIO.fail("fail"))(anything)
-      } @@ nonTermination(1.minute) @@ failure
+      } @@ nonTermination(1.minute) @@ failing
     ),
     testM("retry retries failed tests according to a schedule") {
       for {
@@ -207,7 +223,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = testM("retry") {
           assertM(ref.updateAndGet(_ + 1))(equalTo(2))
         } @@ retry(Schedule.recurs(1))
-        result <- isSuccess(spec)
+        result <- succeeded(spec)
       } yield assert(result)(isTrue)
     },
     testM("scala2 applies test aspect only on Scala 2") {
@@ -220,7 +236,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     },
     testM("scala2Only runs tests only on Scala 2") {
       val spec   = test("Scala2-only")(assert(TestVersion.isScala2)(isTrue)) @@ scala2Only
-      val result = if (TestVersion.isScala2) isSuccess(spec) else isIgnored(spec)
+      val result = if (TestVersion.isScala2) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("setSeed sets the random seed to the specified value before each test") {
@@ -229,15 +245,15 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("timeout makes tests fail after given duration") {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
-      @@ failure(diesWithSubtypeOf[TestTimeoutException]),
+      @@ failing(diesWithSubtypeOf[TestTimeoutException]),
     testM("verify verifies the specified post-condition after each test is run") {
       for {
         ref <- Ref.make(false)
         spec = suite("verify")(
-          testM("first test")(ZIO.succeedNow(assertCompletes)),
+          testM("first test")(ZIO.succeed(assertCompletes)),
           testM("second test")(ref.set(true).as(assertCompletes))
         ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
-        result <- isSuccess(spec)
+        result <- succeeded(spec)
       } yield assert(result)(isFalse)
     }
   )

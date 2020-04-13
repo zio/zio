@@ -5,6 +5,9 @@ import zio.test.Assertion.{ dies, equalTo, fails, isTrue }
 import zio.test._
 
 object StreamDrainForkSpec extends ZIOBaseSpec {
+
+  import ZIOTag._
+
   def spec = suite("ZStream.drainFork")(
     testM("runs the other stream in the background") {
       for {
@@ -26,13 +29,13 @@ object StreamDrainForkSpec extends ZIOBaseSpec {
               .runDrain
         result <- bgInterrupted.get
       } yield assert(result)(isTrue)
-    },
+    } @@ zioTag(interruption),
     testM("fails the foreground stream if the background fails with a typed error") {
       assertM(ZStream.never.drainFork(ZStream.fail("Boom")).runDrain.run)(fails(equalTo("Boom")))
-    },
+    } @@ zioTag(errors),
     testM("fails the foreground stream if the background fails with a defect") {
       val ex = new RuntimeException("Boom")
       assertM(ZStream.never.drainFork(ZStream.die(ex)).runDrain.run)(dies(equalTo(ex)))
-    }
+    } @@ zioTag(errors)
   )
 }

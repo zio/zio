@@ -78,7 +78,8 @@ Here the expression `Right(Some(2))` is of type `Either[Any, Option[Int]]`and ou
 is of type `Assertion[Either[Any, Option[Int]]]`
 
 
-```scala mdoc
+```scala mdoc:reset-object
+import zio.test._
 import zio.test.Assertion.{isRight, isSome,equalTo, isGreaterThanEqualTo, not, hasField}
 
 final case class Address(country:String, city:String)
@@ -173,17 +174,15 @@ It is easy to accidentally use different test instances at the same time.
 ```scala mdoc:fail
 import zio.test._
 import zio.test.environment.TestClock
-import scala.language.postfixOps
 import Assertion._
-import zio.duration.Duration
-import scala.concurrent.duration._
+import zio.duration._
 
 testM("`acquire` doesn't leak permits upon cancellation") {
   for {
       testClock <- TestClock.makeTest(TestClock.DefaultData)
       s         <- Semaphore.make(1L)
-      sf        <- s.acquireN(2).timeout(Duration.fromScala(1 milli)).either.fork
-      _         <- testClock.adjust(Duration.fromScala(1 second))
+      sf        <- s.acquireN(2).timeout(1.millisecond).either.fork
+      _         <- testClock.adjust(1.second)
       _         <- sf.join
       _         <- s.release
       permits   <- s.available
@@ -293,22 +292,21 @@ resume.
 
 **Example 1**
 
-Thanks to call to `TestClock.adjust(1.minute)` we moved the time instantly 1 minute.
+Thanks to the call to `TestClock.adjust(1.minute)` the `ZIO.sleep(1.minute)` effect will return immediately, incrementing the fiber time by one minute. We then return the updated fiber time with `currentTime`.
 
 ```scala mdoc
 import java.util.concurrent.TimeUnit
 import zio.clock.currentTime
-import zio.duration.Duration
+import zio.duration._
 import zio.test.Assertion.isGreaterThanEqualTo
 import zio.test._
 import zio.test.environment.TestClock
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 testM("One can move time very fast") {
   for {
     startTime <- currentTime(TimeUnit.SECONDS)
-    _         <- TestClock.adjust(Duration.fromScala(1 minute))
+    _         <- TestClock.adjust(1.minute)
+    _         <- ZIO.sleep(1.minute)
     endTime   <- currentTime(TimeUnit.SECONDS)
   } yield assert(endTime - startTime)(isGreaterThanEqualTo(60L))
 }
@@ -319,18 +317,16 @@ testM("One can move time very fast") {
 `TestClock` affects also all code running asynchronously that is scheduled to run after certain time but with caveats to how runtime works.
 
 ```scala mdoc
-import zio.duration.Duration
+import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 testM("One can control time as he see fit") {
   for {
     promise <- Promise.make[Unit, Int]
-    _       <- (ZIO.sleep(Duration.fromScala(10 seconds)) *> promise.succeed(1)).fork
-    _       <- TestClock.adjust(Duration.fromScala(10 seconds))
+    _       <- (ZIO.sleep(10.seconds) *> promise.succeed(1)).fork
+    _       <- TestClock.adjust(10.seconds)
     readRef <- promise.await
   } yield assert(1)(equalTo(readRef))
 }
@@ -356,8 +352,8 @@ happen before it is set and its change is propagated.
 testM("THIS TEST WILL FAIL - Sleep and adjust can introduce races") {
   for {
     ref     <- Ref.make(0)
-    _       <- (ZIO.sleep(Duration(10, TimeUnit.SECONDS)) *> ref.update(_ + 1)).fork
-    _       <- TestClock.adjust(Duration(10, TimeUnit.SECONDS))
+    _       <- (ZIO.sleep(10.seconds) *> ref.update(_ + 1)).fork
+    _       <- TestClock.adjust(10.seconds)
     value   <- ref.get
   } yield assert(1)(equalTo(value))
 }
@@ -369,35 +365,32 @@ Even if you have a non-trivial flow of data from multiple streams that can produ
 snapshots of data in particular point in time `Queue` can help with that.
 
 ```scala mdoc
-import zio.duration.Duration
+import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import zio.stream._
 
 testM("zipWithLatest") {
-  val s1 = Stream.iterate(0)(_ + 1).fixed(Duration.fromScala(100 millis))
-  val s2 = Stream.iterate(0)(_ + 1).fixed(Duration.fromScala(70 millis))
+  val s1 = Stream.iterate(0)(_ + 1).fixed(100.milliseconds)
+  val s2 = Stream.iterate(0)(_ + 1).fixed(70.milliseconds)
   val s3 = s1.zipWithLatest(s2)((_, _))
 
   for {
-    _ <- TestClock.setTime(Duration.fromScala(0 millis))
     q <- Queue.unbounded[(Int, Int)]
     _ <- s3.foreach(q.offer).fork
     a <- q.take
-    _ <- TestClock.setTime(Duration.fromScala(70 millis))
+    _ <- TestClock.setTime(70.milliseconds)
     b <- q.take
-    _ <- TestClock.setTime(Duration.fromScala(100 millis))
+    _ <- TestClock.setTime(100.milliseconds)
     c <- q.take
-    _ <- TestClock.setTime(Duration.fromScala(140 millis))
+    _ <- TestClock.setTime(140.milliseconds)
     d <- q.take
   } yield
     assert(a)(equalTo(0 -> 0)) &&
-      assert(b)(equalTo(0       -> 1)) &&
-      assert(c)(equalTo(1       -> 1)) &&
-      assert(d)(equalTo(1       -> 2))
+      assert(b)(equalTo(0 -> 1)) &&
+      assert(c)(equalTo(1 -> 1)) &&
+      assert(d)(equalTo(1 -> 2))
 }
 ```
 
@@ -484,7 +477,7 @@ object MySpec extends DefaultRunnableSpec {
     } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
     test("A failing test... that passes") {
       assert(true)(isFalse)
-    } @@ failure, //@@ failure turns a failing test into a passing test
+    } @@ failing, //@@ failing turns a failing test into a passing test
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
       assert(false)(isTrue)
     } @@ jvmOnly           // only run on the JVM
@@ -492,4 +485,4 @@ object MySpec extends DefaultRunnableSpec {
       @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
   ) @@ timeout(60.seconds)   //apply a timeout to the whole suite
 }
-``` 
+```

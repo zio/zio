@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
-import zio.test.TestAspect.ifEnvSet
+import zio.test.TestAspect.{ ifEnvSet, only }
 import zio.test.TestUtils._
 import zio.test.environment.TestEnvironment
 import zio.{ Has, NeedsEnv, Ref, ZIO, ZLayer }
@@ -65,22 +65,50 @@ object SpecSpec extends ZIOBaseSpec {
       }
     ),
     suite("only")(
-      testM("ignores all tests except one matching the given label") {
-        for {
-          passed1 <- isSuccess(mixedSpec.only(passingTest))
-          passed2 <- isSuccess(mixedSpec.only(failingTest))
-        } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
+      testM("ignores all tests except one tagged") {
+        val spec = suite("root suite")(
+          suite("failing suite")(
+            test("failing test") {
+              assert(1)(equalTo(2))
+            }
+          ),
+          suite("passing suite")(
+            test("passing test") {
+              assert(1)(equalTo(1))
+            } @@ only
+          )
+        )
+        assertM(succeeded(spec))(isTrue)
       },
-      testM("ignores all tests except ones in the suite matching the given label") {
-        for {
-          passed1 <- isSuccess(mixedSpec.only(passingSuite))
-          passed2 <- isSuccess(mixedSpec.only(failingSuite))
-        } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
+      testM("ignores all tests except ones in the tagged suite") {
+        val spec = suite("root suite")(
+          suite("failing suite")(
+            test("failing test") {
+              assert(1)(equalTo(2))
+            }
+          ),
+          suite("passing suite")(
+            test("passing test") {
+              assert(1)(equalTo(1))
+            }
+          ) @@ only
+        )
+        assertM(succeeded(spec))(isTrue)
       },
-      testM("runs everything if root suite label given") {
-        for {
-          passed <- isSuccess(mixedSpec.only(rootSuite))
-        } yield assert(passed)(isFalse)
+      testM("runs everything if no tests are tagged") {
+        val spec = suite("root suite")(
+          suite("failing suite")(
+            test("failing test") {
+              assert(1)(equalTo(2))
+            }
+          ),
+          suite("passing suite")(
+            test("passing test") {
+              assert(1)(equalTo(1))
+            }
+          )
+        )
+        assertM(succeeded(spec))(isFalse)
       }
     ),
     suite("provideCustomLayer")(
@@ -98,22 +126,5 @@ object SpecSpec extends ZIOBaseSpec {
         } yield assertCompletes
       }.provideLayer(layer)
     )
-  )
-
-  val failingTest  = "failing-test"
-  val failingSuite = "failing-suite"
-  val passingTest  = "passing-test"
-  val passingSuite = "passing-suite"
-  val rootSuite    = "root-suite"
-  val prefix       = "prefix"
-  val suffix       = "suffix"
-
-  val mixedSpec = suite(prefix + rootSuite + suffix)(
-    suite(prefix + failingSuite + suffix)(test(prefix + failingTest + suffix) {
-      assert(1)(equalTo(2))
-    }),
-    suite(prefix + passingSuite + suffix)(test(prefix + passingTest + suffix) {
-      assert(1)(equalTo(1))
-    })
   )
 }

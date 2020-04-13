@@ -7,14 +7,19 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [ZIO with http4s, Auth, Codecs and zio-tests (RC18)](https://timpigden.github.io/_pages/zio-http4s/intro.html) by Tim Pigden (April 2020)
+- [Testing background process with ZIO](https://www.rudder.io/blog/testing-background-process-zio/) by François Armand (March 2020)
+- [Example of ZLayers being used in combination](https://timpigden.github.io/_pages/zlayer/Examples.html) by Tim Pigden (March 2020)
+- [From idea to product with ZLayer](https://scala.monster/welcome-zio/) by Pavels Sisojevs (March 2020)
+- [Spring to ZIO 101 - ZIO CRUD](https://adrianfilip.com/2020/03/15/spring-to-zio-101/) by Adrian Filip (March 2020)
+- [What are the benefits of the ZIO modules with ZLayers](https://medium.com/@pascal.mengelt/what-are-the-benefits-of-the-zio-modules-with-zlayers-3bf6cc064a9b) by Pascal Mengelt (March 2020)
 - [Effective testing with ZIO Test](https://scala.monster/zio-test/) by Pavels Sisojevs (January 2020)
-- [Implement your future with ZIO](https://scala.monster/welcome-zio/) by Pavels Sisojevs (December 2019)
+- [Implement your future with ZIO](https://scala.monster/welcome-zio-old/) by Pavels Sisojevs (December 2019)
 - [Decouple the Program from its Implementation with ZIO modules.](https://medium.com/@pascal.mengelt/decouple-the-program-from-its-implementation-with-zio-modules-d9b8713d502e) by Pascal Mengelt (December 2019)
 - [How to write a command line application with ZIO?](https://scalac.io/write-command-line-application-with-zio/) by Piotr Gołębiewski (November 2019)
 - [What can ZIO do for me? A Long Polling example with sttp.](https://medium.com/@pascal.mengelt/what-can-zio-do-for-me-32281e4e8b16) by Pascal Mengelt (November 2019)
 - [Simulating IoT Events with ZIO Streams](https://timpigden.github.io/_pages/zio-streams/GeneratingChillEvents.html) by Tim Pigden (November 2019)
 - [Speeding up time with ZIO TestClock](https://timpigden.github.io/_pages/zio-streams/SpeedingUpTime.html) by Tim Pigden (October 2019)
-- [ZIO with http4s, Auth, Codecs and zio-tests](https://timpigden.github.io/_pages/zio-http4s/intro.html) by Tim Pigden (October 2019)
 - [Functional dependency injection in Scala using ZIO environments](https://blog.jdriven.com/2019/10/functional-dependency-injection-in-scala-using-zio-environments/) by Chiel van de Steeg (October 2019)
 - [Making ZIO, Akka and Slick play together nicely](https://scalac.io/making-zio-akka-slick-play-together-nicely-part-1-zio-and-slick/) by Jakub Czuchnowski (August 2019)
 - [Wrapping impure code with ZIO](https://medium.com/@ghostdogpr/wrapping-impure-code-with-zio-9265c219e2e) by Pierre Ricadat (July 2019)
@@ -37,6 +42,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Talks
 
+- Systematic error management in application - We ported Rudder to ZIO: [video in French](https://www.youtube.com/watch?v=q0PlcgR5M1Q), [slides in English](https://speakerdeck.com/fanf42/systematic-error-management-we-ported-rudder-to-zio) by François Armand (Scala.io, October 2020)
 - [Upgrade Your Future](https://www.youtube.com/watch?v=USgfku1h7Hw) by John De Goes (September 2019)
 - [One Monad to Rule Them All](https://www.youtube.com/watch?v=POUEz8XHMhE) by John De Goes (August 2019)
 - [Functional Concurrency in Scala with ZIO](https://www.youtube.com/watch?v=m5nas4Hndqo) by Itamar Ravid (June 2019)
@@ -58,6 +64,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
+- [ZIO CRUD sample - Code for the 'Spring to ZIO 101' blog post 03/2020](https://github.com/adrianfilip/zio-crud-sample) by [Adrian Filip](https://github.com/adrianfilip)
 - [ZIO modules with different implementations - Code for the 'Decouple the Program from its Implementation...' blog post 12/2019](https://github.com/pme123/zio-comps-module) by [pme123](https://github.com/pme123)
 - [TicTacToe command line game using Module Pattern](https://github.com/ioleo/zio-by-example) by [ioleo](https://github.com/ioleo)
 - [Long Polling with ZIO - Code for the 'What can ZIO do for me?' blog post 11/2019](https://github.com/pme123/zio-http4s-long-polling) by [pme123](https://github.com/pme123)
@@ -71,6 +78,11 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [GitHub Release Pager with ZIO](https://github.com/psisoyev/release-pager) by [Pavels Sisojevs](https://github.com/psisoyev)
 - [Full Scala Stack, a sample project that uses akka-http, slick, zio, scalajs, react, ScalablyTyped and semantic ui](https://github.com/rleibman/full-scala-stack) by Roberto Leibman
 - [A minimal ZIO giter8 template](https://github.com/jchoffmann/zio-seed.g8) by [jchoffmann](https://github.com/jchoffmann)
+- [Lagom CQRS/ES microservices with ZIO, Caliban, zio-grpc, elastic4s and Logstage](https://github.com/sigurdthor/book-shelf) by [Yaroslav Yaremenko](https://github.com/sigurdthor)
+- [ZIO Advanced Template](https://github.com/Neurodyne/zio-top.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
+- [ZIO Quill, H2 Database with FlyWay migrations Explained](https://github.com/Neurodyne/h2db-quill-demo) by [Boris V.Kuznetsov](https://github.com/tampler)
+- [ZIO Tapir Http4s Integration](https://github.com/Neurodyne/zio-tapir) by [Boris V.Kuznetsov](https://github.com/tampler)
+- [Akka Microservice using DDD with ZIO Streams Tapir AkkaHTTP Integration](https://github.com/mvillafuertem/scalcite) by [Miguel Villafuerte](https://github.com/mvillafuertem)
 
 ## Projects using ZIO
 

@@ -91,6 +91,30 @@ object ClockSpec extends ZIOBaseSpec {
     testM("adjust does not produce sleeps") {
       adjust(1.millis) *> assertM(sleeps)(isEmpty)
     },
+    testM("advance correctly advances nanotime") {
+      for {
+        time1 <- nanoTime
+        _     <- advance(1.millis)
+        time2 <- nanoTime
+      } yield assert(fromNanos(time2 - time1))(equalTo(1.millis))
+    },
+    testM("advance correctly advances currentTime") {
+      for {
+        time1 <- currentTime(TimeUnit.NANOSECONDS)
+        _     <- advance(1.millis)
+        time2 <- currentTime(TimeUnit.NANOSECONDS)
+      } yield assert(time2 - time1)(equalTo(1.millis.toNanos))
+    },
+    testM("advance correctly advances currentDateTime") {
+      for {
+        time1 <- currentDateTime
+        _     <- advance(1.millis)
+        time2 <- currentDateTime
+      } yield assert((time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli))(equalTo(1L))
+    },
+    testM("advance does not produce sleeps") {
+      advance(1.millis) *> assertM(sleeps)(isEmpty)
+    },
     testM("setDateTime correctly sets currentDateTime") {
       for {
         expected <- UIO.effectTotal(OffsetDateTime.now(ZoneId.of("UTC+9")))

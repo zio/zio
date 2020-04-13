@@ -3,7 +3,6 @@ package zio.stream.experimental
 import scala.concurrent.ExecutionContext.global
 
 import zio.ZQueueSpecUtil.waitForSize
-import zio.stream.StreamUtils.smallChunks
 import zio.test.Assertion._
 import zio.test.{ testM, _ }
 import zio.{ Chunk, _ }
@@ -175,7 +174,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
         }
       ),
-      testM("Stream.fromQueue")(checkM(smallChunks(Gen.anyInt)) { c =>
+      testM("Stream.fromQueue")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { c =>
         for {
           queue <- Queue.unbounded[Int]
           _     <- queue.offerAll(c.toSeq)

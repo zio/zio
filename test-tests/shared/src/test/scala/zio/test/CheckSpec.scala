@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.Assertion._
-import zio.test.TestAspect.failure
+import zio.test.TestAspect.failing
 import zio.{ random, Chunk, Ref, ZIO }
 
 object CheckSpec extends ZIOBaseSpec {
@@ -11,14 +11,14 @@ object CheckSpec extends ZIOBaseSpec {
       checkM(Gen.int(1, 100)) { n =>
         for {
           _ <- ZIO.effect(())
-          r <- random.nextInt(n)
+          r <- random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
     },
     testM("effectual properties can be tested") {
       checkM(Gen.int(1, 100)) { n =>
         for {
-          r <- random.nextInt(n)
+          r <- random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
     },
@@ -26,10 +26,10 @@ object CheckSpec extends ZIOBaseSpec {
       checkM(Gen.int(1, 100)) { n =>
         for {
           _ <- ZIO.fail("fail")
-          r <- random.nextInt(n)
+          r <- random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
-    } @@ failure,
+    } @@ failing,
     testM("overloaded check methods work") {
       check(Gen.anyInt, Gen.anyInt, Gen.anyInt)((x, y, z) => assert((x + y) + z)(equalTo(x + (y + z))))
     },
@@ -40,7 +40,7 @@ object CheckSpec extends ZIOBaseSpec {
         _ <- checkM(gen <*> gen) { _ =>
               for {
                 _ <- ref.update(_ + 1)
-                p <- random.nextInt(10).map(_ != 0)
+                p <- random.nextIntBounded(10).map(_ != 0)
               } yield assert(p)(isTrue)
             }
         result <- ref.get
@@ -60,13 +60,13 @@ object CheckSpec extends ZIOBaseSpec {
     },
     testM("tests with filtered generators terminate") {
       check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0))((a, b) => assert(a)(equalTo(b)))
-    } @@ failure,
+    } @@ failing,
     testM("failing tests contain gen failure details") {
-      check(Gen.anyInt)(a => assert(a)(isGreaterThan(0))).flatMap {
-        _.run.map(_.failures match {
+      check(Gen.anyInt)(a => assert(a)(isGreaterThan(0))).map {
+        _.failures match {
           case Some(BoolAlgebra.Value(details)) => details.gen.fold(false)(_.shrinkedInput == 0)
           case _                                => false
-        })
+        }
       }.map(assert(_)(isTrue))
     },
     testM("implication works correctly") {

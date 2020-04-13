@@ -16,31 +16,27 @@
 
 package zio.test.mock
 
-import java.time.OffsetDateTime
+import java.time.{ DateTimeException, OffsetDateTime }
 import java.util.concurrent.TimeUnit
 
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.{ Has, UIO, URLayer, ZLayer }
+import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
-object MockClock {
+object MockClock extends Mock[Clock] {
 
-  sealed trait Tag[I, A] extends Method[Clock, I, A] {
-    def envBuilder = MockClock.envBuilder
-  }
+  object CurrentTime     extends Effect[TimeUnit, Nothing, Long]
+  object CurrentDateTime extends Effect[Unit, DateTimeException, OffsetDateTime]
+  object NanoTime        extends Effect[Unit, Nothing, Long]
+  object Sleep           extends Effect[Duration, Nothing, Unit]
 
-  object CurrentTime     extends Tag[TimeUnit, Long]
-  object CurrentDateTime extends Tag[Unit, OffsetDateTime]
-  object NanoTime        extends Tag[Unit, Long]
-  object Sleep           extends Tag[Duration, Unit]
-
-  private lazy val envBuilder: URLayer[Has[Proxy], Clock] =
-    ZLayer.fromService(invoke =>
+  val compose: URLayer[Has[Proxy], Clock] =
+    ZLayer.fromService(proxy =>
       new Clock.Service {
-        def currentTime(unit: TimeUnit): UIO[Long] = invoke(CurrentTime, unit)
-        def currentDateTime: UIO[OffsetDateTime]   = invoke(CurrentDateTime)
-        val nanoTime: UIO[Long]                    = invoke(NanoTime)
-        def sleep(duration: Duration): UIO[Unit]   = invoke(Sleep, duration)
+        def currentTime(unit: TimeUnit): UIO[Long]                 = proxy(CurrentTime, unit)
+        def currentDateTime: IO[DateTimeException, OffsetDateTime] = proxy(CurrentDateTime)
+        val nanoTime: UIO[Long]                                    = proxy(NanoTime)
+        def sleep(duration: Duration): UIO[Unit]                   = proxy(Sleep, duration)
       }
     )
 }
