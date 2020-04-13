@@ -142,13 +142,14 @@ object ZTransducer {
             if (contFn(o))
               go(in.drop(1), os0, FoldState(true, o))
             else
-              go(in.drop(1), os0 + o, initial)
+              go(in.drop(1), if (state.started) os0 + state.result else os0, initial)
         }
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(in) => state.modify(go(in, Chunk.empty, _))
-          case None     => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
+          case Some(Chunk.empty) => Push.next
+          case Some(in)          => state.modify(go(in, Chunk.empty, _))
+          case None              => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
       }
     }
@@ -170,12 +171,13 @@ object ZTransducer {
               if (contFn(o))
                 go(in.drop(1), os0, FoldState(true, o))
               else
-                go(in.drop(1), os0 + o, initial)
+                go(in.drop(1), if (state.started) os0 + state.result else os0, initial)
             }
         }
 
       ZRef.makeManaged(initial).map { state =>
         {
+          case Some(Chunk.empty) => Push.next
           case Some(in) =>
             state.get.flatMap(go(in, Chunk.empty, _)).flatMap {
               case (os, s) => state.set(s) *> Push.emit(os)
@@ -271,8 +273,9 @@ object ZTransducer {
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(in) => state.modify(go(in, Chunk.empty, _))
-          case None     => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
+          case Some(Chunk.empty) => Push.next
+          case Some(in)          => state.modify(go(in, Chunk.empty, _))
+          case None              => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
       }
     }
@@ -334,6 +337,7 @@ object ZTransducer {
 
       ZRef.makeManaged(initial).map { state =>
         {
+          case Some(Chunk.empty) => Push.next
           case Some(in) =>
             state.get.flatMap(go(in, Chunk.empty, _)).flatMap { case (s, os) => state.set(s) *> Push.emit(os) }
           case None =>
