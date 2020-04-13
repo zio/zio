@@ -9,7 +9,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
   def run[R, E, I, O](parser: ZTransducer[R, E, I, O], input: List[Chunk[I]]): ZIO[R, E, List[Chunk[O]]] =
     parser.push.use { f =>
       def go(os0: List[Chunk[O]], i: Chunk[I]): ZIO[R, E, List[Chunk[O]]] =
-        f(Some(i)).flatMap(os => IO.succeed(if (os.isEmpty) os0 else os :: os0))
+        f(Some(i)).map(os => if (os.isEmpty) os0 else os :: os0)
 
       def finish(os0: List[Chunk[O]]): ZIO[R, E, List[Chunk[O]]] =
         f(None).map(_ :: os0)
@@ -26,6 +26,33 @@ object ZTransducerSpec extends ZIOBaseSpec {
         val result = run(parser, input)
         assertM(result)(equalTo(List(Chunk(1, 2, 3, 4, 5), Chunk(6, 7, 8, 9, 10), Chunk(11))))
       },
+      suite("collectAllN")(
+        testM("happy path") {
+          val sink = ZTransducer.collectAllN[Int](3)
+          sink.push.use { push =>
+            for {
+              result1 <- push(Some(Chunk(1, 2, 3, 4)))
+              result2 <- push(None)
+            } yield assert(result1 ++ result2)(equalTo(Chunk(List(1, 2, 3), List(4))))
+          }
+        },
+        testM("empty list") {
+          val sink = ZTransducer.collectAllN[Int](0)
+          assertM(sink.push.use(_(None)))(equalTo(Chunk.empty))
+        },
+        // testM("init error") {
+        //   val sink = initErrorSink.collectAllN(1)
+        //   assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
+        // } @@ zioTag(errors),
+        // testM("step error") {
+        //   val sink = stepErrorSink.collectAllN(1)
+        //   assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
+        // } @@ zioTag(errors),
+        // testM("extract error") {
+        //   val sink = extractErrorSink.collectAllN(1)
+        //   assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
+        // } @@ zioTag(errors)
+      ),
       testM("collectAllWhile") {
         val parser = ZTransducer.collectAllWhile[Int](_ < 5)
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)

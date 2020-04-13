@@ -91,27 +91,27 @@ object ZTransducer {
       } yield push
     }
 
-  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
-    ZTransducer {
-      ZRef.makeManaged[Chunk[I]](Chunk.empty).map { buffered =>
-        {
-          case None =>
-            buffered
-              .getAndSet(Chunk.empty)
-              .map(out0 => if (out0.isEmpty) Chunk.empty else Chunk.single(out0.toList))
-          case Some(in) =>
-            buffered.modify { buf0 =>
-              val (outBuffer, newBuffer) = (buf0 ++ in).fold((List[List[I]](), List[I]())) {
-                case ((outBuffer, newBuffer), el) =>
-                  if (!p(el)) (newBuffer.reverse :: outBuffer, List())
-                  else (outBuffer, el :: newBuffer)
-              }
+  /**
+   * Creates a sink accumulating incoming values into a list of maximum size `n`.
+   */
+  def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
+    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse)
 
-              (Chunk.fromIterable(outBuffer.reverse.filter(_.nonEmpty)), Chunk.fromIterable(newBuffer.reverse))
-            }
-        }
-      }
-    }
+  /**
+   * Accumulates incoming elements into a list as long as they verify predicate `p`.
+   */
+  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
+    fold[I, (List[I], Boolean)]((Nil, true))(_._2) {
+      case ((as, _), a) => if (p(a)) (a :: as, true) else (as, false)
+    }.map(_._1.reverse)
+
+  /**
+   * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
+   */
+  def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
+    foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) {
+      case ((as, _), a) => p(a).map(if (_) (a :: as, true) else (as, false))
+    }.map(_._1.reverse)
 
   def die(e: => Throwable): ZTransducer[Any, Nothing, Any, Nothing] =
     ZTransducer(Managed.succeed((_: Any) => IO.die(e)))
