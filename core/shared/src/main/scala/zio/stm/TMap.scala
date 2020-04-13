@@ -180,13 +180,13 @@ final class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
-    tBuckets.get.flatMap { buckets =>
-      buckets.toList.flatMap { data =>
-        val g          = f.tupled
-        val capacity   = buckets.array.length
-        val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
+    tBuckets.get.flatMap(_.toChunk).flatMap { chunked =>
+      val g          = f.tupled
+      val capacity   = chunked.length
+      val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
 
-        val it = data.flatten.iterator
+      chunked.foreach { bucket =>
+        val it = bucket.iterator
         while (it.hasNext) {
           val newPair = g(it.next)
           val idx     = TMap.indexOf(newPair._1, capacity)
@@ -195,16 +195,16 @@ final class TMap[K, V] private (
           if (!bucket.exists(_._1 == newPair._1))
             newBuckets(idx) = newPair :: bucket
         }
-
-        val newArr = Array.ofDim[TRef[List[(K, V)]]](capacity)
-        var idx    = 0
-        while (idx < capacity) {
-          newArr(idx) = ZTRef.unsafeMake(newBuckets(idx))
-          idx += 1
-        }
-
-        tBuckets.set(new TArray(newArr))
       }
+
+      val newArr = Array.ofDim[TRef[List[(K, V)]]](capacity)
+      var idx    = 0
+      while (idx < capacity) {
+        newArr(idx) = ZTRef.unsafeMake(newBuckets(idx))
+        idx += 1
+      }
+
+      tBuckets.set(new TArray(newArr))
     }
 
   /**
