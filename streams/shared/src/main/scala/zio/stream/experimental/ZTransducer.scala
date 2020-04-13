@@ -339,7 +339,7 @@ object ZTransducer {
         if (s.buffer.isEmpty)
           if (s.started) Push.emit(os0 + s.result) else Push.emit(os0)
         else
-          go(s).flatMap { case (s, os) => state.set(s) *> flush(s, os0 ++ os) }
+          go(s).flatMap { case (s, os) => flush(s, os0 ++ os) }
 
       def go(state: FoldWeightedState): ZIO[R, E, (FoldWeightedState, Chunk[O])] =
         state.buffer.headOption.fold[ZIO[R, E, (FoldWeightedState, Chunk[O])]](ZIO.succeedNow(state -> Chunk.empty)) {
