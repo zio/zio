@@ -55,7 +55,7 @@ final class TMap[K, V] private (
   def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
     tBuckets.get
       .flatMap(_.toChunk)
-      .map(_.flatMap(b => Chunk.fromArray(b.toArray)).fold(zero)(op))
+      .map(_.flatMap(b => Chunk.fromArray(b.toArray)).foldLeft(zero)(op))
 
   /**
    * Atomically folds using a transactional function.
@@ -64,7 +64,7 @@ final class TMap[K, V] private (
     tBuckets.get.flatMap(_.toChunk).flatMap { buckets =>
       buckets
         .flatMap(b => Chunk.fromArray(b.toArray))
-        .fold[STM[E, A]](STM.succeedNow(zero))((tx, kv) => tx.flatMap(op(_, kv)))
+        .foldLeft[STM[E, A]](STM.succeedNow(zero))((tx, kv) => tx.flatMap(op(_, kv)))
     }
 
   /**
