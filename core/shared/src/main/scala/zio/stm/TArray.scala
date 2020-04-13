@@ -266,7 +266,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Collects all elements into a chunk.
    */
   def toChunk: USTM[Chunk[A]] =
-    STM.collectAll(Chunk.fromArray(array).map(_.get))
+    STM.foreach(Chunk.fromArray(array))(_.get)
 
   /**
    * Atomically updates all elements using a pure function.
