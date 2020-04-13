@@ -1,6 +1,5 @@
 package zio.test.laws
 
-import zio.random.Random
 import zio.test._
 
 object LawsFSpec extends ZIOBaseSpec {
@@ -55,12 +54,6 @@ object LawsFSpec extends ZIOBaseSpec {
       }
   }
 
-  val OptionGenF: GenF[Random, Option] =
-    new GenF[Random, Option] {
-      def apply[R1 <: Random, A](gen: Gen[R1, A]): Gen[R1, Option[A]] =
-        Gen.option(gen)
-    }
-
   trait Covariant[F[+_]] {
     def map[A, B](f: A => B): F[A] => F[B]
   }
@@ -70,17 +63,20 @@ object LawsFSpec extends ZIOBaseSpec {
     def apply[F[+_]](implicit covariant: Covariant[F]): Covariant[F] =
       covariant
 
-    val identityLaw = new LawsF.Covariant.Law1[CovariantEqualF, Equal]("identityLaw") {
-      def apply[F[+_]: CovariantEqualF, A: Equal](fa: F[A]): TestResult =
-        fa.map(identity) <-> fa
-    }
+    val identityLaw: LawsF.Covariant[CovariantEqualF, Equal] =
+      new LawsF.Covariant.Law1[CovariantEqualF, Equal]("identityLaw") {
+        def apply[F[+_]: CovariantEqualF, A: Equal](fa: F[A]): TestResult =
+          fa.map(identity) <-> fa
+      }
 
-    val compositionLaw = new ZLawsF.Covariant.Law3Function[CovariantEqualF, Equal]("compositionLaw") {
-      def apply[F[+_]: CovariantEqualF, A: Equal, B: Equal, C: Equal](fa: F[A], f: A => B, g: B => C): TestResult =
-        fa.map(f).map(g) <-> fa.map(f andThen g)
-    }
+    val compositionLaw: LawsF.Covariant[CovariantEqualF, Equal] =
+      new ZLawsF.Covariant.Law3Function[CovariantEqualF, Equal]("compositionLaw") {
+        def apply[F[+_]: CovariantEqualF, A: Equal, B: Equal, C: Equal](fa: F[A], f: A => B, g: B => C): TestResult =
+          fa.map(f).map(g) <-> fa.map(f andThen g)
+      }
 
-    val laws = identityLaw + compositionLaw
+    val laws: LawsF.Covariant[CovariantEqualF, Equal] =
+      identityLaw + compositionLaw
 
     implicit val OptionCovariant: Covariant[Option] =
       new Covariant[Option] {
@@ -112,7 +108,7 @@ object LawsFSpec extends ZIOBaseSpec {
   def spec = suite("LawsFSpec")(
     suite("covariantLaws")(
       testM("option") {
-        checkAllLaws(Covariant)(OptionGenF, Gen.anyInt)
+        checkAllLaws(Covariant)(GenF.option, Gen.anyInt)
       }
     )
   )

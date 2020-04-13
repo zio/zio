@@ -196,6 +196,16 @@ object ZLawsF {
       final def run[R1 <: R, F[-_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
         checkM(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
     }
+
+    /**
+     * Constructs a law from a pure function taking three parameters.
+     */
+    abstract class Law3Function[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] {
+      self =>
+      def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], f: A => B, g: B => C): TestResult
+      final def run[R, F[-_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen), Gen.function(gen), Gen.function(gen))(apply(_, _, _).map(_.label(label)))
+    }
   }
 
   sealed trait Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
@@ -279,6 +289,15 @@ object ZLawsF {
       def apply[F[_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): ZIO[R, Nothing, TestResult]
       final def run[R1 <: R, F[_]: CapsF, A: Caps](genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
         checkM(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+    }
+
+    /**
+     * Constructs a law from a pure function taking three parameters.
+     */
+    abstract class Law3Function[-CapsF[_[_]], -Caps[_]](label: String) extends Invariant[CapsF, Caps, Any] { self =>
+      def apply[F[_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], f: A => B, g: B => C): TestResult
+      final def run[R, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(gen), Gen.function(gen), Gen.function(gen))(apply(_, _, _).map(_.label(label)))
     }
   }
 }
