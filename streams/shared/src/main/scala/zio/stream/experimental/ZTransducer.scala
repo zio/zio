@@ -150,8 +150,8 @@ object ZTransducer {
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(in)          => state.modify(go(in, Chunk.empty, _))
-          case None              => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
+          case Some(in) => state.modify(go(in, Chunk.empty, _))
+          case None     => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
       }
     }
@@ -274,8 +274,8 @@ object ZTransducer {
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(in)          => state.modify(go(in, Chunk.empty, _))
-          case None              => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
+          case Some(in) => state.modify(go(in, Chunk.empty, _))
+          case None     => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
       }
     }
