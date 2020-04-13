@@ -706,7 +706,7 @@ object Chunk {
   def fromIterable[A](it: Iterable[A]): Chunk[A] =
     it match {
       case chunk: Chunk[A]                => chunk
-      case iterable if iterable.size == 0 => Empty
+      case iterable if iterable.isEmpty   => Empty
       case iterable if iterable.size == 1 => Singleton(iterable.head)
       case vector: Vector[A]              => VectorChunk(vector)
       case iterable =>
