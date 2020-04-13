@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 import java.util.{ HashMap => MutableMap }
 
 import scala.annotation.tailrec
-import scala.collection.mutable.ArrayBuffer
 import scala.util.{ Failure, Success, Try }
 
 import com.github.ghik.silencer.silent
