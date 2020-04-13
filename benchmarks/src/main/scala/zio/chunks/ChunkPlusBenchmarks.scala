@@ -8,7 +8,7 @@ import zio.{ Chunk, NonEmptyChunk }
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-class ChunkConcatBenchmarks {
+class ChunkPlusBenchmarks {
 
   @Param(Array("1", "8", "64", "512", "4096", "32768"))
   var size: Int = _

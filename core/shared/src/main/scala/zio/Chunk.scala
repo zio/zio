@@ -36,52 +36,71 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Appends an element to the chunk
    */
-  final def +[A1 >: A](a: A1): NonEmptyChunk[A1] =
-    self match {
-      case Chunk.Empty => Chunk.single(a)
-      case ne: NonEmptyChunk[A] =>
-        val lefts: Array[NonEmptyChunk[A]] = Array.ofDim[NonEmptyChunk[A]](16)
-        var n: Int                         = 0
+  final def +[A1 >: A](a: A1): NonEmptyChunk[A1] = {
+    @inline
+    def rewrite(ne: NonEmptyChunk[A], a: A1): NonEmptyChunk[A1] =
+      ne match {
+        case s @ Chunk.Singleton(a0) =>
+          val ct: ClassTag[A1] = s.classTag.asInstanceOf[ClassTag[A1]]
+          val dest             = Array.ofDim[A1](2)(ct)
+          dest(0) = a0
+          dest(1) = a
+          new Chunk.Arr(dest, ct)
 
-        var point: NonEmptyChunk[A] = ne
-
-        var continue = true
-        var rewrite  = false
-
-        while (continue) {
-          point match {
-            case _ if point.length + 1 <= 8 =>
-              continue = false
-              rewrite = true
-            case Chunk.Concat(ll, lr) if n < 16 && ll.size >= lr.size + 1 =>
-              lefts(n) = ll
-              n += 1
-              point = lr
-            case _ =>
-              continue = false
-          }
-        }
-
-        val node: NonEmptyChunk[A1] = if (rewrite) {
-          val len              = point.length + 1
-          val ct: ClassTag[A1] = Chunk.classTagOf(point)
+        case arr: Chunk.Arr[A] if arr.length < 8 =>
+          val len              = arr.length + 1
+          val ct: ClassTag[A1] = arr.classTag.asInstanceOf[ClassTag[A1]]
           val dest             = Array.ofDim[A1](len)(ct)
-          point.toArray(0, dest)
+          arr.toArray(0, dest)
           dest(len - 1) = a
           new Chunk.Arr(dest, ct)
-        } else {
-          Chunk.Concat(point, Chunk.single(a))
-        }
+      }
 
-        //foldLeft
-        var res = node
-        var i   = n - 1
-        while (i > 0) {
-          res = Chunk.Concat(lefts(i), res)
-          i -= 1
-        }
-        res
+    self match {
+      case Chunk.Empty                         => Chunk.single(a)
+      case s: Chunk.Singleton[A]               => rewrite(s, a)
+      case arr: Chunk.Arr[A] if arr.length < 8 => rewrite(arr, a)
+
+      case Chunk.Concat(body, tail) if tail.length < 8 =>
+        val rw = rewrite(tail, a)
+
+        if (rw.length == 8) {
+
+          val lefts: Array[NonEmptyChunk[A]] = Array.ofDim[NonEmptyChunk[A]](16)
+          var n: Int                         = 0
+
+          var point: NonEmptyChunk[A] = body
+
+          var continue = true
+          while (continue) {
+            point match {
+              case _ if point.length <= 16 =>
+                continue = false
+              case Chunk.Concat(l, r) if n < 16 && l.size >= r.size + 8 =>
+                lefts(n) = l
+                n += 1
+                point = r
+              case _ =>
+                continue = false
+            }
+          }
+
+          var res = Chunk.Concat(point, rw)
+          var i   = n - 1
+
+          while (i >= 0) {
+            res = Chunk.Concat(lefts(i), res)
+            i -= 1
+          }
+          res
+
+        } else Chunk.Concat(body, rw)
+
+      case ne: NonEmptyChunk[A] =>
+        val ct: ClassTag[A1] = Chunk.classTagOf(ne)
+        Chunk.Concat(ne, new Chunk.Arr(Array(a)(ct), ct))
     }
+  }
 
   /**
    * Returns the concatenation of this chunk with the specified chunk.
@@ -649,7 +668,42 @@ object Chunk {
   /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
-  def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmptyChunk[A] = Concat(l, r)
+  def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmptyChunk[A] = {
+    if(l.length > r.length) {
+
+      val lefts: Array[NonEmptyChunk[A]] = Array.ofDim[NonEmptyChunk[A]](16)
+      var n: Int                         = 0
+
+      var point: NonEmptyChunk[A] = l
+
+      var continue = true
+
+      while (continue) {
+        point match {
+          case _ if point.length <= r.length =>
+            continue = false
+          case Concat(l, r) if n < 16 && l.size >= r.size + r.length =>
+            lefts(n) = l
+            n += 1
+            point = r
+          case _ =>
+            continue = false
+        }
+      }
+
+      var res = Concat(point, r)
+      var i   = n - 1
+
+      while (i >= 0) {
+        res = Chunk.Concat(lefts(i), res)
+        i -= 1
+      }
+
+      res
+
+    } else
+      Concat(l,r)
+  }
 
   /**
    * Returns the concatenation of this chunk with the specified chunk.
@@ -797,7 +851,7 @@ object Chunk {
     case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
   }
 
-  private final class Arr[A](private val array: Array[A], implicit val classTag: ClassTag[A])
+  private[Chunk] final class Arr[A](private val array: Array[A], implicit val classTag: ClassTag[A])
       extends NonEmpty[A]
       with Serializable {
 
@@ -1079,8 +1133,6 @@ object Chunk {
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       dest(n) = a
   }
-
-  def slice[A](chunk: Chunk[A], offset: Int, l: Int): Chunk[A] = ???
 
   private final case class Slice[A](private val chunk: NonEmpty[A], offset: Int, l: Int) extends NonEmpty[A] {
 

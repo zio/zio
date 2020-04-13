@@ -393,6 +393,9 @@ object ChunkSpec extends ZIOBaseSpec {
       val _: NonEmptyChunk[A] = empty concatNonEmpty Chunk(new A {})
 
       assertCompletes
-    } @@ TestAspect.ignore
+    } @@ TestAspect.ignore,
+    zio.test.test("+ on large number of elements") {
+      assert[Seq[Int]]((1 to 32767).foldLeft(Chunk(0))(_ + _))(equalTo(0 until 32768))
+    }
   )
 }
