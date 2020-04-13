@@ -16,9 +16,11 @@
 
 package zio
 
+import scala.collection.GenTraversableOnce
 import scala.collection.IndexedSeqLike
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.IndexedSeq
+import scala.reflect.ClassTag
 
 /**
  * `ChunkLike` represents the capability for a `Chunk` to extend Scala's
@@ -39,14 +41,38 @@ private[zio] trait ChunkLike[+A] extends IndexedSeq[A] with IndexedSeqLike[A, Ch
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
-  def collect[B](pf: PartialFunction[A, B]): Chunk[B] =
-    self.materialize.collect(pf)
+  override final def collect[B, That](pf: PartialFunction[A, B])(implicit bf: CanBuildFrom[Chunk[A], B, That]): That =
+    bf match {
+      case _: ChunkCanBuildFrom[_] => collectChunk(pf)
+      case _                       => super.collect(pf)
+    }
+
+  /**
+   * Returns the concatenation of mapping every element into a new chunk using
+   * the specified function.
+   */
+  override final def flatMap[B, That](
+    f: A => GenTraversableOnce[B]
+  )(implicit bf: CanBuildFrom[Chunk[A], B, That]): That =
+    bf match {
+      case _: ChunkCanBuildFrom[_] => flatMapChunk(f)
+      case _                       => super.flatMap(f)
+    }
 
   /**
    * Returns the first index for which the given predicate is satisfied.
    */
-  override def indexWhere(f: A => Boolean): Int =
+  override final def indexWhere(f: A => Boolean): Int =
     indexWhere(f, 0)
+
+  /**
+   * Returns a chunk with the elements mapped by the specified function.
+   */
+  override final def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Chunk[A], B, That]): That =
+    bf match {
+      case _: ChunkCanBuildFrom[_] => mapChunk(f)
+      case _                       => super.map(f)
+    }
 
   /**
    * Generates a readable string representation of this chunk using the
@@ -96,8 +122,50 @@ private[zio] trait ChunkLike[+A] extends IndexedSeq[A] with IndexedSeqLike[A, Ch
   override final def size: Int =
     length
 
-  override final def toSeq: Chunk[A] =
-    self
+  /**
+   * The implementation of `flatMap` for `Chunk`.
+   */
+  protected final def flatMapChunk[B, That](f: A => GenTraversableOnce[B]): Chunk[B] = {
+    val len                    = self.length
+    var chunks: List[Chunk[B]] = Nil
+
+    var i               = 0
+    var total           = 0
+    var B0: ClassTag[B] = null.asInstanceOf[ClassTag[B]]
+    while (i < len) {
+      val chunk = f(self(i)) match {
+        case chunk: Chunk[B] => chunk
+        case other           => Chunk.fromIterable(other.toList)
+      }
+
+      if (chunk.length > 0) {
+        if (B0 == null)
+          B0 = Chunk.classTagOf(chunk)
+
+        chunks ::= chunk
+        total += chunk.length
+      }
+
+      i += 1
+    }
+
+    if (B0 == null) Chunk.empty
+    else {
+      implicit val B: ClassTag[B] = B0
+
+      val dest: Array[B] = Array.ofDim(total)
+
+      val it = chunks.iterator
+      var n  = total
+      while (it.hasNext) {
+        val chunk = it.next
+        n -= chunk.length
+        chunk.toArray(n, dest)
+      }
+
+      Chunk.arr(dest)
+    }
+  }
 
   /**
    * Constructs a new `ChunkBuilder`. This operation allocates mutable state
@@ -105,26 +173,15 @@ private[zio] trait ChunkLike[+A] extends IndexedSeq[A] with IndexedSeqLike[A, Ch
    * with Scala's collection library and should not be used for other purposes.
    */
   override protected[this] def newBuilder: ChunkBuilder[A] =
-    ChunkLike.newBuilder
+    ChunkBuilder.make()
 }
 
-private object ChunkLike {
-
-  /**
-   * Constructs a new `ChunkBuilder`.
-   */
-  def newBuilder[A]: ChunkBuilder[A] =
-    ChunkBuilder.make()
+object ChunkLike {
 
   /**
    * Provides implicit evidence that that a collection of type `Chunk[A]` can
    * be build from elements of type `A`.
    */
-  implicit def canBuildFrom[A]: CanBuildFrom[Chunk[A], A, Chunk[A]] =
-    new CanBuildFrom[Chunk[A], A, Chunk[A]] {
-      def apply(chunk: Chunk[A]): ChunkBuilder[A] =
-        ChunkBuilder.make()
-      def apply(): ChunkBuilder[A] =
-        ChunkBuilder.make()
-    }
+  implicit def chunkCanBuildFrom[A](implicit bf: ChunkCanBuildFrom[A]): ChunkCanBuildFrom[A] =
+    bf
 }

@@ -192,7 +192,7 @@ object ChunkSpec extends ZIOBaseSpec {
       trait Dog extends Animal
 
       val vector   = Vector(new Cat {}, new Dog {}, new Animal {})
-      val actual   = Chunk.fromIterable(vector).map[Animal](identity)
+      val actual   = Chunk.fromIterable(vector).map(identity)
       val expected = Chunk.fromArray(vector.toArray)
 
       assert(actual)(equalTo(expected))
@@ -201,7 +201,7 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk.empty.toArray[String])(equalTo(Array.empty[String]))
     },
     zio.test.test("to Array for an empty Chunk using filter") {
-      assert(Chunk(1).filter(_ == 2).map[String](_.toString).toArray[String])(equalTo(Array.empty[String]))
+      assert(Chunk(1).filter(_ == 2).map(_.toString).toArray[String])(equalTo(Array.empty[String]))
     },
     testM("toArray with elements of type String") {
       check(mediumChunks(Gen.alphaNumericString))(c => assert(c.toArray.toList)(equalTo(c.toList)))
@@ -212,7 +212,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("collect")(
       zio.test.test("collect empty Chunk") {
-        assert(Chunk.empty.collect[Int] { case _ => 1 })(isEmpty)
+        assert(Chunk.empty.collect { case _ => 1 })(isEmpty)
       },
       testM("collect chunk") {
         val pfGen = Gen.partialFunction[Random with Sized, Int, Int](intGen)
@@ -313,7 +313,7 @@ object ChunkSpec extends ZIOBaseSpec {
       // foreach should not throw
       c.foreach(_ => ())
 
-      assert(c.filter(_ => false).map[Int](_ * 2).length)(equalTo(0))
+      assert(c.filter(_ => false).map(_ * 2).length)(equalTo(0))
     },
     zio.test.test("toArrayOnConcatOfSlice") {
       val onlyOdd: Int => Boolean = _ % 2 != 0
@@ -342,7 +342,7 @@ object ChunkSpec extends ZIOBaseSpec {
         val c: NonEmptyChunk[Int]        = c_ + 0
         val f: Int => NonEmptyChunk[Int] = f_.andThen(_ + 0)
 
-        val in: NonEmptyChunk[Int] = c.flatMap(f)
+        val in: NonEmptyChunk[Int] = c.flatMapNonEmpty(f)
         val expected: Seq[Int]     = c.toList.flatMap(f.andThen(_.toList))
 
         assert(in.toList)(equalTo(expected))
@@ -365,10 +365,10 @@ object ChunkSpec extends ZIOBaseSpec {
         chunk + x,
         Chunk.single(x),
         Chunk.succeed(x),
-        nonEmptyChunk ++ chunk,
-        // chunk ++ nonEmptyChunk,
-        nonEmptyChunk.flatMap((i: Int) => Chunk(i)),
-        nonEmptyChunk.map[Int](identity),
+        nonEmptyChunk concatNonEmpty chunk,
+        chunk concatNonEmpty nonEmptyChunk,
+        nonEmptyChunk.flatMapNonEmpty(i => Chunk(i)),
+        nonEmptyChunk.mapNonEmpty(identity),
         nonEmptyChunk.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
         nonEmptyChunk.zipWithIndex,
         nonEmptyChunk.zipWithIndexFrom(0)

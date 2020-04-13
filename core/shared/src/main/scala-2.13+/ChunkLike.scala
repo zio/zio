@@ -19,6 +19,7 @@ package zio
 import scala.collection.IterableFactoryDefaults
 import scala.collection.SeqFactory
 import scala.collection.immutable.{ IndexedSeq, IndexedSeqOps, StrictOptimizedSeqOps }
+import scala.reflect.ClassTag
 
 /**
  * `ChunkLike` represents the capability for a `Chunk` to extend Scala's
@@ -44,7 +45,53 @@ trait ChunkLike[+A]
    * Returns a filtered, mapped subset of the elements of this `Chunk`.
    */
   override def collect[B](pf: PartialFunction[A, B]): Chunk[B] =
-    self.materialize.collect(pf)
+    collectChunk(pf)
+
+  /**
+   * Returns the concatenation of mapping every element into a new chunk using
+   * the specified function.
+   */
+  override final def flatMap[B](f: A => IterableOnce[B]): Chunk[B] = {
+    val len                    = self.length
+    var chunks: List[Chunk[B]] = Nil
+
+    var i               = 0
+    var total           = 0
+    var B0: ClassTag[B] = null.asInstanceOf[ClassTag[B]]
+    while (i < len) {
+      val chunk = f(self(i)) match {
+        case chunk: Chunk[B] => chunk
+        case other           => Chunk.fromIterable(other.iterator.to(List))
+      }
+
+      if (chunk.length > 0) {
+        if (B0 == null)
+          B0 = Chunk.classTagOf(chunk)
+
+        chunks ::= chunk
+        total += chunk.length
+      }
+
+      i += 1
+    }
+
+    if (B0 == null) Chunk.empty
+    else {
+      implicit val B: ClassTag[B] = B0
+
+      val dest: Array[B] = Array.ofDim(total)
+
+      val it = chunks.iterator
+      var n  = total
+      while (it.hasNext) {
+        val chunk = it.next
+        n -= chunk.length
+        chunk.toArray(n, dest)
+      }
+
+      Chunk.arr(dest)
+    }
+  }
 
   /**
    * Returns a `SeqFactory` that can construct `Chunk` values. The
@@ -53,6 +100,12 @@ trait ChunkLike[+A]
    */
   override val iterableFactory: SeqFactory[Chunk] =
     ChunkLike
+
+  /**
+   * Returns a chunk with the elements mapped by the specified function.
+   */
+  override final def map[B](f: A => B): Chunk[B] =
+    mapChunk(f)
 }
 
 object ChunkLike extends SeqFactory[Chunk] {
