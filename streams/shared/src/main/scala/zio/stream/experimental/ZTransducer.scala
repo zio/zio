@@ -145,19 +145,18 @@ object ZTransducer {
               Chunk.single(o) -> FoldState(false, z, is ++ state.buffer.drop(1))
         }
 
+      @tailrec def flush(s0: FoldState, os0: Chunk[O]): Chunk[O] =
+        if (s0.buffer.isEmpty)
+          if (s0.started) os0 + s0.result else os0
+        else {
+          val (os, s) = go(s0)
+          flush(s, os0 ++ os)
+        }
+
       ZRef.makeManaged(initial).map { state =>
         {
           case Some(in) => state.modify(s => go(s.copy(buffer = s.buffer ++ in)))
-          case None =>
-            @tailrec def flush(s0: FoldState, os0: Chunk[O]): Chunk[O] =
-              if (s0.buffer.isEmpty)
-                if (s0.started) os0 + s0.result else os0
-              else {
-                val (os, s) = go(s0)
-                flush(s, os0 ++ os)
-              }
-
-            state.getAndSet(initial).map(flush(_, Chunk.empty))
+          case None     => state.getAndSet(initial).map(flush(_, Chunk.empty))
         }
       }
     }
@@ -184,6 +183,12 @@ object ZTransducer {
             }
         }
 
+      def flush(s0: FoldState, os0: Chunk[O]): ZIO[R, E, Chunk[O]] =
+        if (s0.buffer.isEmpty)
+          if (s0.started) Push.emit(os0 + s0.result) else Push.emit(os0)
+        else
+          go(s0).flatMap { case (os, s) => flush(s, os0 ++ os) }
+
       ZRef.makeManaged(initial).map { state =>
         {
           case Some(in) =>
@@ -191,12 +196,6 @@ object ZTransducer {
               case (os, s) => state.set(s) *> Push.emit(os)
             }
           case None =>
-            def flush(s0: FoldState, os0: Chunk[O]): ZIO[R, E, Chunk[O]] =
-              if (s0.buffer.isEmpty)
-                if (s0.started) Push.emit(os0 + s0.result) else Push.emit(os0)
-              else
-                go(s0).flatMap { case (os, s) => flush(s, os0 ++ os) }
-
             state.getAndSet(initial).flatMap(flush(_, Chunk.empty))
         }
       }
@@ -281,6 +280,14 @@ object ZTransducer {
               go(FoldWeightedState(true, f(state.result, i), total, state.buffer.drop(1)))
         }
 
+      @tailrec def flush(state: FoldWeightedState, os0: Chunk[O]): Chunk[O] =
+        if (state.buffer.isEmpty)
+          if (state.started) os0 + state.result else os0
+        else {
+          val (s, os) = go(state)
+          flush(s, os0 ++ os)
+        }
+
       ZRef.makeManaged(initial).map { state =>
         {
           case Some(in) =>
@@ -290,14 +297,6 @@ object ZTransducer {
             }.flatten
 
           case None =>
-            @tailrec def flush(state: FoldWeightedState, os0: Chunk[O]): Chunk[O] =
-              if (state.buffer.isEmpty)
-                if (state.started) os0 + state.result else os0
-              else {
-                val (s, os) = go(state)
-                flush(s, os0 ++ os)
-              }
-
             state.getAndSet(initial).map(flush(_, Chunk.empty))
         }
       }
@@ -330,12 +329,18 @@ object ZTransducer {
     costFn: I => ZIO[R, E, Long],
     max: Long,
     decompose: I => ZIO[R, E, Chunk[I]]
-  )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] = {
-    final case class FoldWeightedState(started: Boolean, result: O, cost: Long, buffer: Chunk[I])
-
-    val initial = FoldWeightedState(false, z, 0, Chunk.empty)
-
+  )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
+      final case class FoldWeightedState(started: Boolean, result: O, cost: Long, buffer: Chunk[I])
+
+      val initial = FoldWeightedState(false, z, 0, Chunk.empty)
+
+      def flush(s: FoldWeightedState, os0: Chunk[O]): ZIO[R, E, Chunk[O]] =
+        if (s.buffer.isEmpty)
+          if (s.started) Push.emit(os0 + s.result) else Push.emit(os0)
+        else
+          go(s).flatMap { case (s, os) => state.set(s) *> flush(s, os0 ++ os) }
+
       def go(state: FoldWeightedState): ZIO[R, E, (FoldWeightedState, Chunk[O])] =
         state.buffer.headOption.fold[ZIO[R, E, (FoldWeightedState, Chunk[O])]](ZIO.succeedNow(state -> Chunk.empty)) {
           i =>
@@ -359,17 +364,10 @@ object ZTransducer {
               go(s.copy(buffer = s.buffer ++ in)).flatMap { case (s, os) => state.set(s) *> Push.emit(os) }
             )
           case None =>
-            def flush(s: FoldWeightedState, os0: Chunk[O]): ZIO[R, E, Chunk[O]] =
-              if (s.buffer.isEmpty)
-                if (s.started) Push.emit(os0 + s.result) else Push.emit(os0)
-              else
-                go(s).flatMap { case (s, os) => state.set(s) *> flush(s, os0 ++ os) }
-
             state.getAndSet(initial).flatMap(flush(_, Chunk.empty))
         }
       }
     }
-  }
 
   /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
