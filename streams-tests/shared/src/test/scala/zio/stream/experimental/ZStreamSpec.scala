@@ -45,15 +45,15 @@ object ZStreamSpec extends ZIOBaseSpec {
         })
       ),
       suite("aggregateAsync")(
-        // testM("aggregateAsync") {
-        //   ZStream(1, 1, 1, 1)
-        //     .aggregateAsync(ZTransducer.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc).map(_.reverse))
-        //     .runCollect
-        //     .map { result =>
-        //       assert(result.flatten)(equalTo(List(1, 1, 1, 1))) &&
-        //       assert(result.forall(_.length <= 3))(isTrue)
-        //     }
-        // },
+        testM("aggregateAsync") {
+          ZStream(1, 1, 1, 1)
+            .aggregateAsync(ZTransducer.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc).map(_.reverse))
+            .runCollect
+            .map { result =>
+              assert(result.flatten)(equalTo(List(1, 1, 1, 1))) &&
+              assert(result.forall(_.length <= 3))(isTrue)
+            }
+        },
         testM("error propagation") {
           val e = new RuntimeException("Boom")
           assertM(
