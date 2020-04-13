@@ -96,7 +96,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
               .aggregate(ZTransducer.foldUntilM(0L, 3)((s, a: Long) => UIO.succeedNow(s + a)))
               .runCollect
           )(equalTo(List(3L, 3L)))
-        ),
+        )
       ),
       suite("splitLines")(
         testM("preserves data")(

@@ -1,9 +1,9 @@
 package zio.stream.experimental
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 import zio._
-import scala.annotation.tailrec
 
 // Contract notes for transducers:
 // - When a None is received, the transducer must flush all of its internal state
@@ -137,7 +137,7 @@ object ZTransducer {
       @tailrec def go(state: FoldState): (Chunk[O], FoldState) =
         state.buffer.headOption match {
           case None => Chunk.empty -> state
-          case Some (i) =>
+          case Some(i) =>
             val (o, is) = f(state.result, i)
             if (contFn(o))
               go(FoldState(true, o, is ++ state.buffer.drop(1)))
@@ -148,7 +148,7 @@ object ZTransducer {
       ZRef.makeManaged(initial).map { state =>
         {
           case Some(in) => state.modify(s => go(s.copy(buffer = s.buffer ++ in)))
-          case None => 
+          case None =>
             @tailrec def flush(s0: FoldState, os0: Chunk[O]): Chunk[O] =
               if (s0.buffer.isEmpty)
                 if (s0.started) os0 + s0.result else os0
@@ -175,18 +175,22 @@ object ZTransducer {
         state.buffer.headOption match {
           case None => ZIO.succeedNow(Chunk.empty -> state)
           case Some(i) =>
-            f(state.result, i).flatMap { case (o, is) =>
-              if (contFn(o))
-                go(FoldState(true, o, is ++ state.buffer.drop(1)))
-              else
-                ZIO.succeedNow(Chunk.single(o) -> FoldState(false, z, is ++ state.buffer.drop(1)))
+            f(state.result, i).flatMap {
+              case (o, is) =>
+                if (contFn(o))
+                  go(FoldState(true, o, is ++ state.buffer.drop(1)))
+                else
+                  ZIO.succeedNow(Chunk.single(o) -> FoldState(false, z, is ++ state.buffer.drop(1)))
             }
         }
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(in) => state.get.flatMap(s => go(s.copy(buffer = s.buffer ++ in))).flatMap { case (os, s) => state.set(s) *> Push.emit(os) }
-          case None => 
+          case Some(in) =>
+            state.get.flatMap(s => go(s.copy(buffer = s.buffer ++ in))).flatMap {
+              case (os, s) => state.set(s) *> Push.emit(os)
+            }
+          case None =>
             def flush(s0: FoldState, os0: Chunk[O]): ZIO[R, E, Chunk[O]] =
               if (s0.buffer.isEmpty)
                 if (s0.started) Push.emit(os0 + s0.result) else Push.emit(os0)
@@ -268,7 +272,9 @@ object ZTransducer {
           case Some(i) =>
             val total = state.cost + costFn(i)
             if (total > max)
-              FoldWeightedState(false, z, 0, buffer = decompose(i) ++ state.buffer.drop(1)) -> Chunk.single(state.result)
+              FoldWeightedState(false, z, 0, buffer = decompose(i) ++ state.buffer.drop(1)) -> Chunk.single(
+                state.result
+              )
             else if (total == max)
               FoldWeightedState(false, z, 0, state.buffer.drop(1)) -> Chunk.single(f(state.result, i))
             else
@@ -325,7 +331,7 @@ object ZTransducer {
     max: Long,
     decompose: I => ZIO[R, E, Chunk[I]]
   )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] = {
-    final case class FoldWeightedState(started: Boolean ,result: O, cost: Long, buffer: Chunk[I])
+    final case class FoldWeightedState(started: Boolean, result: O, cost: Long, buffer: Chunk[I])
 
     val initial = FoldWeightedState(false, z, 0, Chunk.empty)
 
