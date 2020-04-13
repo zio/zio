@@ -142,7 +142,7 @@ object ZTransducer {
             if (contFn(o))
               go(in.drop(1), os0, FoldState(true, o))
             else
-              go(in.drop(1), os0 + o, FoldState(false, z))
+              go(in.drop(1), os0 + o, initial)
         }
 
       ZRef.makeManaged(initial).map { state =>
@@ -170,7 +170,7 @@ object ZTransducer {
               if (contFn(o))
                 go(in.drop(1), os0, FoldState(true, o))
               else
-                go(in.drop(1), os0 + o, FoldState(false, z))
+                go(in.drop(1), os0 + o, initial)
             }
         }
 
@@ -246,43 +246,33 @@ object ZTransducer {
     z: O
   )(costFn: I => Long, max: Long, decompose: I => Chunk[I])(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
-      case class FoldWeightedState(started: Boolean, result: O, cost: Long, buffer: Chunk[I])
+      case class FoldWeightedState(started: Boolean, result: O, cost: Long)
 
-      val initial = FoldWeightedState(false, z, 0, Chunk.empty)
+      val initial = FoldWeightedState(false, z, 0)
 
-      @tailrec def go(state: FoldWeightedState): (Chunk[O], FoldWeightedState) =
-        state.buffer.headOption match {
-          case None => Chunk.empty -> state
+      @tailrec def go(in: Chunk[I], os0: Chunk[O], state: FoldWeightedState): (Chunk[O], FoldWeightedState) =
+        in.headOption match {
+          case None => os0 -> state
           case Some(i) =>
             val total = state.cost + costFn(i)
-            if (total > max)
-              Chunk.single(state.result) -> FoldWeightedState(
-                false,
-                z,
-                0,
-                buffer = decompose(i) ++ state.buffer.drop(1)
-              )
-            else if (total == max)
-              Chunk.single(f(state.result, i)) -> FoldWeightedState(false, z, 0, state.buffer.drop(1))
+            if (total > max) {
+              val is = decompose(i)
+              if (is.isEmpty)
+                go(in.drop(1), os0 + f(state.result, i), initial)
+              else if (is.length == 1)
+                go(in.drop(1), os0 + f(state.result, is(0)), initial)
+              else
+                go(is ++ in.drop(1), os0, state)
+            } else if (total == max)
+              go(in.drop(1), os0 + f(state.result, i), initial)
             else
-              go(FoldWeightedState(true, f(state.result, i), total, state.buffer.drop(1)))
-        }
-
-      @tailrec def flush(state: FoldWeightedState, os0: Chunk[O]): Chunk[O] =
-        if (state.buffer.isEmpty)
-          if (state.started) os0 + state.result else os0
-        else {
-          val (os, s) = go(state)
-          flush(s, os0 ++ os)
+              go(in.drop(1), os0, FoldWeightedState(true, f(state.result, i), total))
         }
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(in) =>
-            state.modify(s => go(s.copy(buffer = s.buffer ++ in)))
-
-          case None =>
-            state.getAndSet(initial).map(flush(_, Chunk.empty))
+          case Some(in) => state.modify(go(in, Chunk.empty, _))
+          case None     => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
       }
     }
@@ -316,40 +306,38 @@ object ZTransducer {
     decompose: I => ZIO[R, E, Chunk[I]]
   )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
-      final case class FoldWeightedState(started: Boolean, result: O, cost: Long, buffer: Chunk[I])
+      final case class FoldWeightedState(started: Boolean, result: O, cost: Long)
 
-      val initial = FoldWeightedState(false, z, 0, Chunk.empty)
+      val initial = FoldWeightedState(false, z, 0)
 
-      def flush(s: FoldWeightedState, os0: Chunk[O]): ZIO[R, E, Chunk[O]] =
-        if (s.buffer.isEmpty)
-          if (s.started) Push.emit(os0 + s.result) else Push.emit(os0)
-        else
-          go(s).flatMap { case (s, os) => flush(s, os0 ++ os) }
-
-      def go(state: FoldWeightedState): ZIO[R, E, (FoldWeightedState, Chunk[O])] =
-        state.buffer.headOption.fold[ZIO[R, E, (FoldWeightedState, Chunk[O])]](ZIO.succeedNow(state -> Chunk.empty)) {
-          i =>
+      def go(in: Chunk[I], os: Chunk[O], state: FoldWeightedState): ZIO[R, E, (FoldWeightedState, Chunk[O])] =
+        in.headOption match {
+          case None => ZIO.succeedNow(state -> os)
+          case Some(i) =>
             costFn(i).flatMap { cost =>
               val total = cost + state.cost
               if (total > max)
-                decompose(i).map(in =>
-                  FoldWeightedState(false, z, 0, buffer = in ++ state.buffer.drop(1)) -> Chunk.single(state.result)
+                decompose(i).flatMap(is =>
+                  if (is.isEmpty)
+                    f(state.result, i).flatMap(o => go(in.drop(1), os + o, initial))
+                  else if (is.length == 1)
+                    f(state.result, is(0)).flatMap(o => go(in.drop(1), os + o, initial))
+                  else
+                    go(is ++ in.drop(1), os, state)
                 )
               else if (total == max)
-                f(state.result, i).map(o => FoldWeightedState(false, z, 0, state.buffer.drop(1)) -> Chunk.single(o))
+                f(state.result, i).flatMap(o => go(in.drop(1), os + o, initial))
               else
-                f(state.result, i).flatMap(o => go(FoldWeightedState(true, o, total, state.buffer.drop(1))))
+                f(state.result, i).flatMap(o => go(in.drop(1), os, FoldWeightedState(true, o, total)))
             }
         }
 
       ZRef.makeManaged(initial).map { state =>
         {
           case Some(in) =>
-            state.get.flatMap(s =>
-              go(s.copy(buffer = s.buffer ++ in)).flatMap { case (s, os) => state.set(s) *> Push.emit(os) }
-            )
+            state.get.flatMap(go(in, Chunk.empty, _)).flatMap { case (s, os) => state.set(s) *> Push.emit(os) }
           case None =>
-            state.getAndSet(initial).flatMap(flush(_, Chunk.empty))
+            state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
       }
     }

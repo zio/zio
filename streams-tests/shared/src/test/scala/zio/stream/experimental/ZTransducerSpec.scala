@@ -53,7 +53,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                   .map(_.reverse)
               )
               .runCollect
-          )(equalTo(List(List(1), List(4), List(1, 1))))
+          )(equalTo(List(List(1, 3), List(1, 1, 1))))
         ),
         testM("foldWeightedM")(
           assertM(
@@ -81,7 +81,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                   .map(_.reverse)
               )
               .runCollect
-          )(equalTo(List(List(1), List(4), List(1, 1))))
+          )(equalTo(List(List(1, 3), List(1, 1, 1))))
         ),
         testM("foldUntil")(
           assertM(
