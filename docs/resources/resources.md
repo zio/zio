@@ -64,6 +64,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
+- [ZIO Modern Backend giter8 Template - Tapir, sttp, http4s](https://github.com/Anadyne/zio-full-backend.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [ZIO CRUD sample - Code for the 'Spring to ZIO 101' blog post 03/2020](https://github.com/adrianfilip/zio-crud-sample) by [Adrian Filip](https://github.com/adrianfilip)
 - [ZIO modules with different implementations - Code for the 'Decouple the Program from its Implementation...' blog post 12/2019](https://github.com/pme123/zio-comps-module) by [pme123](https://github.com/pme123)
 - [TicTacToe command line game using Module Pattern](https://github.com/ioleo/zio-by-example) by [ioleo](https://github.com/ioleo)
