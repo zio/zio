@@ -53,6 +53,9 @@ abstract class ZTransducer[-R, +E, -I, +O](
       }
     }
 
+  final def filter(p: O => Boolean): ZTransducer[R, E, I, O] =
+    ZTransducer(self.push.map(push => i => push(i).map(_.filter(p))))
+
   final def map[P](f: O => P): ZTransducer[R, E, I, P] =
     ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
 }
@@ -103,7 +106,7 @@ object ZTransducer {
   def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
     fold[I, (List[I], Boolean)]((Nil, true))(_._2) {
       case ((as, _), a) => if (p(a)) (a :: as, true) else (as, false)
-    }.map(_._1.reverse)
+    }.map(_._1.reverse).filter(_.nonEmpty)
 
   /**
    * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
@@ -111,7 +114,7 @@ object ZTransducer {
   def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
     foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) {
       case ((as, _), a) => p(a).map(if (_) (a :: as, true) else (as, false))
-    }.map(_._1.reverse)
+    }.map(_._1.reverse).filter(_.nonEmpty)
 
   def die(e: => Throwable): ZTransducer[Any, Nothing, Any, Nothing] =
     ZTransducer(Managed.succeed((_: Any) => IO.die(e)))
@@ -147,7 +150,6 @@ object ZTransducer {
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(Chunk.empty) => Push.next
           case Some(in)          => state.modify(go(in, Chunk.empty, _))
           case None              => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
@@ -177,7 +179,6 @@ object ZTransducer {
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(Chunk.empty) => Push.next
           case Some(in) =>
             state.get.flatMap(go(in, Chunk.empty, _)).flatMap {
               case (os, s) => state.set(s) *> Push.emit(os)
@@ -273,7 +274,6 @@ object ZTransducer {
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(Chunk.empty) => Push.next
           case Some(in)          => state.modify(go(in, Chunk.empty, _))
           case None              => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
@@ -337,7 +337,6 @@ object ZTransducer {
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(Chunk.empty) => Push.next
           case Some(in) =>
             state.get.flatMap(go(in, Chunk.empty, _)).flatMap { case (s, os) => state.set(s) *> Push.emit(os) }
           case None =>
