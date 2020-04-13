@@ -191,7 +191,7 @@ final class TMap[K, V] private (
           val idx       = TMap.indexOf(newPair._1, capacity)
           val newBucket = newBuckets(idx)
 
-          if (!bucket.exists(_._1 == newPair._1))
+          if (!newBucket.exists(_._1 == newPair._1))
             newBuckets(idx) = newPair :: newBucket
         }
       }
