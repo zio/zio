@@ -38,8 +38,49 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def +[A1 >: A](a: A1): NonEmptyChunk[A1] =
     self match {
-      case Chunk.Empty          => Chunk.single(a)
-      case ne: NonEmptyChunk[A] => Chunk.concat(ne, Chunk.single(a))
+      case Chunk.Empty => Chunk.single(a)
+      case ne: NonEmptyChunk[A] =>
+        val lefts: Array[NonEmptyChunk[A]] = Array.ofDim[NonEmptyChunk[A]](16)
+        var n: Int                         = 0
+
+        var point: NonEmptyChunk[A] = ne
+
+        var continue = true
+        var rewrite  = false
+
+        while (continue) {
+          point match {
+            case _ if point.length + 1 <= 8 =>
+              continue = false
+              rewrite = true
+            case Chunk.Concat(ll, lr) if n < 16 && ll.size >= lr.size + 1 =>
+              lefts(n) = ll
+              n += 1
+              point = lr
+            case _ =>
+              continue = false
+          }
+        }
+
+        val node: NonEmptyChunk[A1] = if (rewrite) {
+          val len              = point.length + 1
+          val ct: ClassTag[A1] = Chunk.classTagOf(point)
+          val dest             = Array.ofDim[A1](len)(ct)
+          point.toArray(0, dest)
+          dest(len - 1) = a
+          new Chunk.Arr(dest, ct)
+        } else {
+          Chunk.Concat(point, Chunk.single(a))
+        }
+
+        //foldLeft
+        var res = node
+        var i   = n - 1
+        while (i > 0) {
+          res = Chunk.Concat(lefts(i), res)
+          i -= 1
+        }
+        res
     }
 
   /**
@@ -541,6 +582,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 }
 
 object Chunk {
+  private[zio] def addOld(ch: NonEmptyChunk[Int], i: Int): NonEmptyChunk[Int] = Concat(ch, Singleton(i))
 
   /**
    * Returns the empty chunk.
@@ -1037,6 +1079,8 @@ object Chunk {
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       dest(n) = a
   }
+
+  def slice[A](chunk: Chunk[A], offset: Int, l: Int): Chunk[A] = ???
 
   private final case class Slice[A](private val chunk: NonEmpty[A], offset: Int, l: Int) extends NonEmpty[A] {
 
