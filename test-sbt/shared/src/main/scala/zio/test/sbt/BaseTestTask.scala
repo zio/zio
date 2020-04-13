@@ -24,7 +24,7 @@ abstract class BaseTestTask(
       .asInstanceOf[AbstractRunnableSpec]
   }
 
-  protected def run(eventHandler: EventHandler) =
+  protected def run(eventHandler: EventHandler): ZIO[TestLogger with Clock, Throwable, Unit] =
     for {
       spec    <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary <- SummaryBuilder.buildSummary(spec)
@@ -41,14 +41,19 @@ abstract class BaseTestTask(
           .catchAll(_ => ZIO.unit)
     }) ++ Clock.live
 
-  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    Runtime((), specInstance.platform).unsafeRun(
-      (sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_)
-        .use_(ZIO.unit)
-        .onError(e => UIO(println(e.prettyPrint)))
-    )
-    Array()
-  }
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
+    try {
+      Runtime((), specInstance.platform).unsafeRun {
+        run(eventHandler)
+          .provideLayer(sbtTestLayer(loggers))
+          .onError(e => UIO(println(e.prettyPrint)))
+      }
+      Array()
+    } catch {
+      case t: Throwable =>
+        t.printStackTrace()
+        throw t
+    }
 
   override def tags(): Array[String] = Array.empty
 

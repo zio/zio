@@ -860,7 +860,13 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeStair(n).commit
           result <- tArray.reduceOptionM((a, b) => if (b == 4) STM.fail(boom) else STM.succeed(a + b)).commit.flip
         } yield assert(result)(equalTo(boom))
-      } @@ zioTag(errors)
+      } @@ zioTag(errors),
+      testM("toList") {
+        for {
+          tArray <- TArray.make(1, 2, 3, 4).commit
+          result <- tArray.toList.commit
+        } yield assert(result)(equalTo(List(1, 2, 3, 4)))
+      }
     )
   )
 

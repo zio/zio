@@ -1289,6 +1289,20 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail(false).orElseFail(true).flip)(isTrue)
       } @@ zioTag(errors)
     ),
+    suite("orElseOptional")(
+      testM("produces the value of this effect if it succeeds") {
+        val zio = ZIO.succeed("succeed").orElseOptional(ZIO.succeed("orElse"))
+        assertM(zio)(equalTo("succeed"))
+      },
+      testM("produces the value of this effect if it fails with some error") {
+        val zio = ZIO.fail(Some("fail")).orElseOptional(ZIO.succeed("orElse"))
+        assertM(zio.run)(fails(isSome(equalTo("fail"))))
+      },
+      testM("produces the value of the specified effect if it fails with none") {
+        val zio = ZIO.fail(None).orElseOptional(ZIO.succeed("orElse"))
+        assertM(zio)(equalTo("orElse"))
+      }
+    ),
     suite("orElseSucceed")(
       testM("executes this effect and returns its value if it succeeds") {
         implicit val canFail = CanFail

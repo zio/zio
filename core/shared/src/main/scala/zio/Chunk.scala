@@ -49,6 +49,15 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     Chunk.concat(self, chunk)
 
   /**
+   * Converts a chunk of bytes to a chunk of bits.
+   */
+  final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
+    self match {
+      case Chunk.Empty                => Chunk.Empty
+      case nonEmpty: NonEmptyChunk[A] => Chunk.BitChunk(nonEmpty.mapNonEmpty(ev), 0, length << 3)
+    }
+
+  /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a .
    */
   def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
@@ -453,6 +462,16 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     dest
   }
 
+  /**
+   * Renders this chunk of bits as a binary string.
+   */
+  final def toBinaryString(implicit ev: A <:< Boolean): String = {
+    val bits    = self.asInstanceOf[Chunk[Boolean]]
+    val builder = new scala.collection.mutable.StringBuilder
+    bits.foreach(bit => if (bit) builder.append("1") else builder.append("0"))
+    builder.toString
+  }
+
   override final def toList: List[A] = {
     val listBuilder = List.newBuilder[A]
     fromBuilder(listBuilder)
@@ -737,6 +756,7 @@ object Chunk {
     case x: Singleton[A]   => x.classTag
     case x: Slice[A]       => x.classTag
     case x: VectorChunk[A] => x.classTag
+    case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
   }
 
   private final class Arr[A](private val array: Array[A], implicit val classTag: ClassTag[A])
@@ -1062,6 +1082,33 @@ object Chunk {
     override def foreach[B](f: A => B): Unit = vector.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
+  }
+
+  private final case class BitChunk(bytes: NonEmptyChunk[Byte], minBitIndex: Int, maxBitIndex: Int)
+      extends NonEmpty[Boolean] {
+    self =>
+
+    override def apply(n: Int): Boolean =
+      (bytes(n >> 3) & (1 << (7 - (n & 7)))) != 0
+
+    override def foreach[A](f: Boolean => A): Unit = {
+      var i = 0
+      while (i < length) {
+        f(apply(i))
+        i += 1
+      }
+    }
+
+    override val length: Int =
+      maxBitIndex - minBitIndex
+
+    override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
+      var i = n
+      while (i < length) {
+        dest(i + n) = apply(i)
+        i += 1
+      }
+    }
   }
 
   private case object Empty extends Chunk[Nothing] { self =>
