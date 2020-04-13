@@ -26,7 +26,7 @@ import scala.util.{ Failure, Success, Try }
 import com.github.ghik.silencer.silent
 
 import zio.internal.{ Platform, Stack, Sync }
-import zio.{ CanFail, Chunk, Fiber, IO, UIO, ZIO }
+import zio.{ CanFail, Chunk, ChunkBuilder, Fiber, IO, UIO, ZIO }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -1045,7 +1045,7 @@ object ZSTM {
     val length = in.length
     var idx    = 0
 
-    var tx: ZSTM[R, E, ArrayBuffer[B]] = ZSTM.succeedNow(ArrayBuffer.empty[B])
+    var tx: ZSTM[R, E, ChunkBuilder[B]] = ZSTM.succeedNow(ChunkBuilder.make[B])
 
     while (idx < length) {
       val a = in(idx)
@@ -1053,7 +1053,7 @@ object ZSTM {
       idx += 1
     }
 
-    tx.map(Chunk.fromIterable)
+    tx.map(_.result())
   }
 
   /**
