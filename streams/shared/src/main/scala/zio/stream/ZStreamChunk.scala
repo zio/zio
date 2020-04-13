@@ -277,7 +277,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    */
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStreamChunk[R1, E1, B]): ZStreamChunk[R1, E1, B] =
     ZStreamChunk(
-      chunks.flatMap(_.map(f0).fold[ZStream[R1, E1, Chunk[B]]](ZStream.empty)((acc, el) => acc ++ el.chunks))
+      chunks.flatMap(_.map(f0).foldLeft[ZStream[R1, E1, Chunk[B]]](ZStream.empty)((acc, el) => acc ++ el.chunks))
     )
 
   /**
@@ -502,10 +502,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * Equivalent to `run(Sink.collectAll[A])`.
    */
   final def runCollect: ZIO[R, E, List[A]] =
-    for {
-      chunks <- chunks.runCollect
-      list   <- ZIO.succeedNow(chunks.flatMap(_.toSeq))
-    } yield list
+    chunks.runCollect.map(_.flatten)
 
   /**
    * Takes the specified number of elements from this stream.

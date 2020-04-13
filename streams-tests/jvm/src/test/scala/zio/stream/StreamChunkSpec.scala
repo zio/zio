@@ -100,7 +100,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
         for {
           res1 <- slurp(s.mapConcat(f))
-          res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
+          res2 <- slurp(s).map(_.flatMap(v => f(v)))
         } yield assert(res1)(equalTo(res2))
       }
     },
@@ -109,7 +109,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
         for {
           res1 <- slurp(s.mapConcatChunk(f))
-          res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
+          res2 <- slurp(s).map(_.flatMap(v => f(v)))
         } yield assert(res1)(equalTo(res2))
       }
     },
@@ -119,7 +119,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
           for {
             res1 <- slurp(s.mapConcatChunkM(s => UIO.succeed(f(s))))
-            res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
+            res2 <- slurp(s).map(_.flatMap(s => f(s)))
           } yield assert(res1)(equalTo(res2))
         }
       },
@@ -138,7 +138,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
           for {
             res1 <- slurp(s.mapConcatM(s => UIO.succeed(f(s))))
-            res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
+            res2 <- slurp(s).map(_.flatMap(s => f(s)))
           } yield assert(res1)(equalTo(res2))
         }
       },
@@ -439,13 +439,13 @@ object StreamChunkSpec extends ZIOBaseSpec {
     },
     testM("StreamChunk.ChunkN") {
       val s1 = StreamChunk(Stream(Chunk(1, 2, 3, 4, 5), Chunk(6, 7), Chunk(8, 9, 10, 11)))
-      assertM(s1.chunkN(2).chunks.map(_.toSeq).runCollect)(
+      assertM(s1.chunkN(2).chunks.map(_.toList).runCollect)(
         equalTo(List(List(1, 2), List(3, 4), List(5, 6), List(7, 8), List(9, 10), List(11)))
       )
     },
     testM("StreamChunk.ChunkN Non-Empty") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2), Chunk(3)))
-      assertM(s1.chunkN(1).chunks.map(_.toSeq).runCollect)(equalTo(List(List(1), List(2), List(3))))
+      assertM(s1.chunkN(1).chunks.map(_.toList).runCollect)(equalTo(List(List(1), List(2), List(3))))
     }
   )
 }

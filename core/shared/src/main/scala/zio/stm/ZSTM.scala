@@ -1031,7 +1031,7 @@ object ZSTM {
    * returns a transactional effect that produces a new `Chunk[B]`.
    */
   def foreach[R, E, A, B](in: Chunk[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Chunk[B]] =
-    in.fold[ZSTM[R, E, Chunk[B]]](ZSTM.succeedNow(Chunk.empty))((acc, a) =>
+    in.foldLeft[ZSTM[R, E, Chunk[B]]](ZSTM.succeedNow(Chunk.empty))((acc, a) =>
       f(a).zipWith(acc)((b, acc) => acc ++ Chunk.single(b))
     )
 
@@ -1058,7 +1058,7 @@ object ZSTM {
    * the chunk of results.
    */
   def foreach_[R, E, A](in: Chunk[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    in.fold[ZSTM[R, E, Unit]](ZSTM.unit)((tx, a) => tx *> f(a).unit)
+    in.foldLeft[ZSTM[R, E, Unit]](ZSTM.unit)((tx, a) => tx *> f(a).unit)
 
   /**
    * Lifts an `Either` into a `STM`.
