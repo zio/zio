@@ -123,9 +123,9 @@ final class ZSTM[-R, +E, +A] private[stm] (
     that >>> self
 
   /**
-   * Tries this effect first, and if it fails, tries the other effect.
+   * Tries this effect first, and if it fails or retries, then tries the other effect.
    */
-  def <>[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1])(implicit ev: CanFail[E]): ZSTM[R1, E1, A1] =
+  def <>[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     orElse(that)
 
   /**
@@ -537,7 +537,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Named alias for `<>`.
    */
-  def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1])(implicit ev: CanFail[E]): ZSTM[R1, E1, A1] =
+  def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     new ZSTM((journal, fiberId, stackSize, r) => {
       val reset = prepareResetJournal(journal)
 
@@ -567,25 +567,35 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Returns a transactional effect that will produce the value of this effect
-   * in left side, unless it fails, in which case, it will produce the value
+   * in left side, unless it fails or retries, in which case, it will produce the value
    * of the specified effect in right side.
    */
   def orElseEither[R1 <: R, E1 >: E, B](
     that: => ZSTM[R1, E1, B]
-  )(implicit ev: CanFail[E]): ZSTM[R1, E1, Either[A, B]] =
+  ): ZSTM[R1, E1, Either[A, B]] =
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
 
   /**
-   * Tries this effect first, and if it fails, fails with the specified error.
+   * Tries this effect first, and if it fails or retries, fails with the specified error.
    */
-  def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
+  def orElseFail[E1](e1: => E1): ZSTM[R, E1, A] =
     orElse(ZSTM.fail(e1))
 
   /**
-   * Tries this effect first, and if it fails, succeeds with the specified
+   * Returns an effect that will produce the value of this effect, unless it
+   * fails with the `None` value, in which case it will produce the value of
+   * the specified effect.
+   */
+  final def orElseOptional[R1 <: R, E1, A1 >: A](
+    that: => ZSTM[R1, Option[E1], A1]
+  )(implicit ev: E <:< Option[E1]): ZSTM[R1, Option[E1], A1] =
+    catchAll(ev(_).fold(that)(e => ZSTM.fail(Some(e))))
+
+  /**
+   * Tries this effect first, and if it fails or retries, succeeds with the specified
    * value.
    */
-  def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E]): URSTM[R, A1] =
+  def orElseSucceed[A1 >: A](a1: => A1): URSTM[R, A1] =
     orElse(ZSTM.succeedNow(a1))
 
   /**
