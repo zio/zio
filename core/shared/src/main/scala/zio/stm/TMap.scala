@@ -16,6 +16,7 @@
 
 package zio.stm
 
+import scala.collection.mutable.ArrayBuffer
 import zio.Chunk
 
 /**
@@ -179,61 +180,57 @@ final class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
-    tBuckets.get.flatMap { buckets =>
-      buckets.toChunk.flatMap { data =>
-        val g          = f.tupled
-        val capacity   = buckets.array.length
-        val newBuckets = Array.fill[Chunk[(K, V)]](capacity)(Chunk.empty)
+    tBuckets.get.flatMap(_.toChunk).flatMap { data =>
+      val g          = f.tupled
+      val capacity   = data.length
+      val newBuckets = Array.fill[ArrayBuffer[(K, V)]](capacity)(ArrayBuffer.empty)
 
-        data.flatten.foreach { kv =>
-          val newPair = g(kv)
-          val idx     = TMap.indexOf(newPair._1, capacity)
-          val bucket  = newBuckets(idx)
+      data.flatten.foreach { kv =>
+        val newPair = g(kv)
+        val idx     = TMap.indexOf(newPair._1, capacity)
+        val bucket  = newBuckets(idx)
 
-          if (!bucket.exists(_._1 == newPair._1))
-            newBuckets(idx) = Chunk(newPair) ++ bucket
-        }
-
-        val newArr = Array.ofDim[TRef[Chunk[(K, V)]]](capacity)
-        var idx    = 0
-        while (idx < capacity) {
-          newArr(idx) = ZTRef.unsafeMake(newBuckets(idx))
-          idx += 1
-        }
-
-        tBuckets.set(new TArray(newArr))
+        if (!bucket.exists(_._1 == newPair._1))
+          newBuckets(idx) += newPair
       }
+
+      val newArr = Array.ofDim[TRef[Chunk[(K, V)]]](capacity)
+      var idx    = 0
+      while (idx < capacity) {
+        newArr(idx) = ZTRef.unsafeMake(Chunk.fromIterable(newBuckets(idx)))
+        idx += 1
+      }
+
+      tBuckets.set(new TArray(newArr))
     }
 
   /**
    * Atomically updates all bindings using a transactional function.
    */
   def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    tBuckets.get.flatMap { buckets =>
-      buckets.toChunk.flatMap { data =>
-        val g = f.tupled
+    tBuckets.get.flatMap(_.toChunk).flatMap { data =>
+      val g = f.tupled
 
-        STM.foreach(data.flatten)(g).flatMap { mappedData =>
-          val capacity   = buckets.array.length
-          val newBuckets = Array.fill[Chunk[(K, V)]](capacity)(Chunk.empty)
+      STM.foreach(data.flatten)(g).flatMap { mappedData =>
+        val capacity   = data.length
+        val newBuckets = Array.fill[ArrayBuffer[(K, V)]](capacity)(ArrayBuffer.empty)
 
-          mappedData.foreach { newPair =>
-            val idx    = TMap.indexOf(newPair._1, capacity)
-            val bucket = newBuckets(idx)
+        mappedData.foreach { newPair =>
+          val idx    = TMap.indexOf(newPair._1, capacity)
+          val bucket = newBuckets(idx)
 
-            if (!bucket.exists(_._1 == newPair._1))
-              newBuckets(idx) = Chunk(newPair) ++ bucket
-          }
-
-          val newArr = Array.ofDim[TRef[Chunk[(K, V)]]](capacity)
-          var idx    = 0
-          while (idx < capacity) {
-            newArr(idx) = ZTRef.unsafeMake(newBuckets(idx))
-            idx += 1
-          }
-
-          tBuckets.set(new TArray(newArr))
+          if (!bucket.exists(_._1 == newPair._1))
+            newBuckets(idx) += newPair
         }
+
+        val newArr = Array.ofDim[TRef[Chunk[(K, V)]]](capacity)
+        var idx    = 0
+        while (idx < capacity) {
+          newArr(idx) = ZTRef.unsafeMake(Chunk.fromIterable(newBuckets(idx)))
+          idx += 1
+        }
+
+        tBuckets.set(new TArray(newArr))
       }
     }
 
