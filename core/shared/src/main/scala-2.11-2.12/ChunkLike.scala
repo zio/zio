@@ -133,10 +133,7 @@ private[zio] trait ChunkLike[+A] extends IndexedSeq[A] with IndexedSeqLike[A, Ch
     var total           = 0
     var B0: ClassTag[B] = null.asInstanceOf[ClassTag[B]]
     while (i < len) {
-      val chunk = f(self(i)) match {
-        case chunk: Chunk[B] => chunk
-        case other           => Chunk.fromIterable(other.toList)
-      }
+      val chunk = ChunkLike.fromGenTraversableOnce(f(self(i)))
 
       if (chunk.length > 0) {
         if (B0 == null)
@@ -184,4 +181,17 @@ object ChunkLike {
    */
   implicit def chunkCanBuildFrom[A](implicit bf: ChunkCanBuildFrom[A]): ChunkCanBuildFrom[A] =
     bf
+
+  /**
+   * Constructs a `Chunk` from a collection that may potentially only be
+   * traversed once.
+   */
+  private def fromGenTraversableOnce[A](as: GenTraversableOnce[A]): Chunk[A] =
+    as match {
+      case iterable: Iterable[A] => Chunk.fromIterable(iterable)
+      case iterableOnce =>
+        val chunkBuilder = ChunkBuilder.make[A]()
+        iterableOnce.foreach(chunkBuilder += _)
+        chunkBuilder.result()
+    }
 }

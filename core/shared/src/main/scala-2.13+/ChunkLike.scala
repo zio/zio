@@ -59,10 +59,7 @@ trait ChunkLike[+A]
     var total           = 0
     var B0: ClassTag[B] = null.asInstanceOf[ClassTag[B]]
     while (i < len) {
-      val chunk = f(self(i)) match {
-        case chunk: Chunk[B] => chunk
-        case other           => Chunk.fromIterable(other.iterator.to(List))
-      }
+      val chunk = ChunkLike.from(f(self(i)))
 
       if (chunk.length > 0) {
         if (B0 == null)
@@ -120,7 +117,13 @@ object ChunkLike extends SeqFactory[Chunk] {
    * Constructs a `Chunk` from the specified `IterableOnce`.
    */
   def from[A](source: IterableOnce[A]): Chunk[A] =
-    Chunk.fromIterable(source.iterator.to(Iterable))
+    source match {
+      case iterable: Iterable[A] => Chunk.fromIterable(iterable)
+      case iterableOnce =>
+        val chunkBuilder = ChunkBuilder.make[A]
+        iterableOnce.iterator.foreach(chunkBuilder.addOne)
+        chunkBuilder.result()
+    }
 
   /**
    * Constructs a new `ChunkBuilder`. This operation allocates mutable state

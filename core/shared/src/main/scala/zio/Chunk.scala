@@ -704,18 +704,15 @@ object Chunk {
    * Returns a chunk backed by an iterable.
    */
   def fromIterable[A](it: Iterable[A]): Chunk[A] =
-    if (it.size <= 0) Empty
-    else if (it.size == 1) Singleton(it.head)
-    else {
-      it match {
-        case l: Vector[A] => VectorChunk(l)
-        case _ =>
-          val first = it.head
-
-          implicit val A: ClassTag[A] = Tags.fromValue(first)
-
-          fromArray(it.toArray)
-      }
+    it match {
+      case chunk: Chunk[A]                => chunk
+      case iterable if iterable.size == 0 => Empty
+      case iterable if iterable.size == 1 => Singleton(iterable.head)
+      case vector: Vector[A]              => VectorChunk(vector)
+      case iterable =>
+        val first                   = iterable.head
+        implicit val A: ClassTag[A] = Tags.fromValue(first)
+        fromArray(it.toArray)
     }
 
   def fill[A](n: Int)(elem: => A): Chunk[A] =

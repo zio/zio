@@ -41,10 +41,14 @@ private[zio] object ChunkBuilder {
   def make[A]: ChunkBuilder[A] =
     new ChunkBuilder[A] {
       var arrayBuilder: ArrayBuilder[A] = null
+      var size: Int                     = -1
       def addOne(a: A): this.type = {
         if (arrayBuilder eq null) {
           implicit val tag = Chunk.Tags.fromValue(a)
           arrayBuilder = ArrayBuilder.make
+          if (size != -1) {
+            arrayBuilder.sizeHint(size)
+          }
         }
         arrayBuilder.addOne(a)
         this
@@ -58,6 +62,12 @@ private[zio] object ChunkBuilder {
           Chunk.empty
         } else {
           Chunk.fromArray(arrayBuilder.result)
+        }
+      override def sizeHint(n: Int): Unit =
+        if (arrayBuilder eq null) {
+          size = n
+        } else {
+          arrayBuilder.sizeHint(n)
         }
     }
 }
