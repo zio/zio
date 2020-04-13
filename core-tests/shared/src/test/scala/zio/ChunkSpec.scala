@@ -60,7 +60,7 @@ object ChunkSpec extends ZIOBaseSpec {
     testM("apply") {
       check(chunkWithIndex(Gen.unit)) {
         case (chunk, i) =>
-          assert(chunk.apply(i))(equalTo(chunk.toSeq.apply(i)))
+          assert(chunk.apply(i))(equalTo(chunk.toList.apply(i)))
       }
     },
     testM("corresponds") {
@@ -68,7 +68,7 @@ object ChunkSpec extends ZIOBaseSpec {
       val genFunction = Gen.function[Random with Sized, (Int, Int), Boolean](Gen.boolean).map(Function.untupled(_))
       check(genChunk, genChunk, genFunction) { (as, bs, f) =>
         val actual   = as.corresponds(bs)(f)
-        val expected = as.toSeq.corresponds(bs.toSeq)(f)
+        val expected = as.toList.corresponds(bs.toList)(f)
         assert(actual)(equalTo(expected))
       }
     },
@@ -81,18 +81,18 @@ object ChunkSpec extends ZIOBaseSpec {
       }
     },
     testM("length") {
-      check(largeChunks(intGen))(chunk => assert(chunk.length)(equalTo(chunk.toSeq.length)))
+      check(largeChunks(intGen))(chunk => assert(chunk.length)(equalTo(chunk.toList.length)))
     },
     testM("equality") {
       check(mediumChunks(intGen), mediumChunks(intGen)) { (c1, c2) =>
-        assert(c1.equals(c2))(equalTo(c1.toSeq.equals(c2.toSeq)))
+        assert(c1.equals(c2))(equalTo(c1.toList.equals(c2.toList)))
       }
     },
     zio.test.test("inequality") {
       assert(Chunk(1, 2, 3, 4, 5))(Assertion.not(equalTo(Chunk(1, 2, 3, 4, 5, 6))))
     },
     testM("materialize") {
-      check(mediumChunks(intGen))(c => assert(c.materialize.toSeq)(equalTo(c.toSeq)))
+      check(mediumChunks(intGen))(c => assert(c.materialize.toList)(equalTo(c.toList)))
     },
     testM("foldLeft") {
       check(Gen.alphaNumericString, Gen.function2(Gen.alphaNumericString), smallChunks(Gen.alphaNumericString)) {
@@ -112,7 +112,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     testM("map") {
       val fn = Gen.function[Random with Sized, Int, Int](intGen)
-      check(smallChunks(intGen), fn)((c, f) => assert(c.map(f).toSeq)(equalTo(c.toSeq.map(f))))
+      check(smallChunks(intGen), fn)((c, f) => assert(c.map(f).toList)(equalTo(c.toList.map(f))))
     },
     suite("mapM")(
       testM("mapM happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, f) =>
@@ -125,36 +125,36 @@ object ChunkSpec extends ZIOBaseSpec {
     testM("flatMap") {
       val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
       check(smallChunks(intGen), fn) { (c, f) =>
-        assert(c.flatMap(f).toSeq)(equalTo(c.toSeq.flatMap(f.andThen(_.toSeq))))
+        assert(c.flatMap(f).toList)(equalTo(c.toList.flatMap(f.andThen(_.toList))))
       }
     },
     testM("headOption") {
-      check(mediumChunks(intGen))(c => assert(c.headOption)(equalTo(c.toSeq.headOption)))
+      check(mediumChunks(intGen))(c => assert(c.headOption)(equalTo(c.toList.headOption)))
     },
     testM("lastOption") {
-      check(mediumChunks(intGen))(c => assert(c.lastOption)(equalTo(c.toSeq.lastOption)))
+      check(mediumChunks(intGen))(c => assert(c.lastOption)(equalTo(c.toList.lastOption)))
     },
     testM("indexWhere") {
       val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
       check(mediumChunks(intGen), fn, intGen) { (chunk, p, from) =>
-        assert(chunk.indexWhere(p, from).getOrElse(-1))(equalTo(chunk.toSeq.indexWhere(p, from)))
+        assert(chunk.indexWhere(p, from))(equalTo(chunk.toList.indexWhere(p, from)))
       }
     } @@ exceptScala211,
     testM("exists") {
       val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
-      check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.exists(p))(equalTo(chunk.toSeq.exists(p))))
+      check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.exists(p))(equalTo(chunk.toList.exists(p))))
     },
     testM("forall") {
       val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
-      check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.forall(p))(equalTo(chunk.toSeq.forall(p))))
+      check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.forall(p))(equalTo(chunk.toList.forall(p))))
     },
     testM("find") {
       val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
-      check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.find(p))(equalTo(chunk.toSeq.find(p))))
+      check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.find(p))(equalTo(chunk.toList.find(p))))
     },
     testM("filter") {
       val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
-      check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.filter(p).toSeq)(equalTo(chunk.toSeq.filter(p))))
+      check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.filter(p).toList)(equalTo(chunk.toList.filter(p))))
     },
     suite("filterM")(
       testM("filterM happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
@@ -165,26 +165,26 @@ object ChunkSpec extends ZIOBaseSpec {
       } @@ zioTag(errors)
     ),
     testM("drop chunk") {
-      check(largeChunks(intGen), intGen)((chunk, n) => assert(chunk.drop(n).toSeq)(equalTo(chunk.toSeq.drop(n))))
+      check(largeChunks(intGen), intGen)((chunk, n) => assert(chunk.drop(n).toList)(equalTo(chunk.toList.drop(n))))
     },
     testM("take chunk") {
       check(chunkWithIndex(Gen.unit)) {
         case (c, n) =>
-          assert(c.take(n).toSeq)(equalTo(c.toSeq.take(n)))
+          assert(c.take(n).toList)(equalTo(c.toList.take(n)))
       }
     },
     testM("dropWhile chunk") {
       check(mediumChunks(intGen), toBoolFn[Random, Int]) { (c, p) =>
-        assert(c.dropWhile(p).toSeq)(equalTo(c.toSeq.dropWhile(p)))
+        assert(c.dropWhile(p).toList)(equalTo(c.toList.dropWhile(p)))
       }
     },
     testM("takeWhile chunk") {
       check(mediumChunks(intGen), toBoolFn[Random, Int]) { (c, p) =>
-        assert(c.takeWhile(p).toSeq)(equalTo(c.toSeq.takeWhile(p)))
+        assert(c.takeWhile(p).toList)(equalTo(c.toList.takeWhile(p)))
       }
     },
     testM("toArray") {
-      check(mediumChunks(Gen.alphaNumericString))(c => assert(c.toArray.toSeq)(equalTo(c.toSeq)))
+      check(mediumChunks(Gen.alphaNumericString))(c => assert(c.toArray.toList)(equalTo(c.toList)))
     },
     zio.test.test("non-homogeneous element type") {
       trait Animal
@@ -204,7 +204,7 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1).filter(_ == 2).map(_.toString).toArray[String])(equalTo(Array.empty[String]))
     },
     testM("toArray with elements of type String") {
-      check(mediumChunks(Gen.alphaNumericString))(c => assert(c.toArray.toSeq)(equalTo(c.toSeq)))
+      check(mediumChunks(Gen.alphaNumericString))(c => assert(c.toArray.toList)(equalTo(c.toList)))
     },
     zio.test.test("toArray for a Chunk of any type") {
       val v: Vector[Any] = Vector("String", 1, Value(2))
@@ -212,11 +212,11 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("collect")(
       zio.test.test("collect empty Chunk") {
-        assert(Chunk.empty.collect { case _ => 1 } == Chunk.empty)(Assertion.isTrue)
+        assert(Chunk.empty.collect { case _ => 1 })(isEmpty)
       },
       testM("collect chunk") {
         val pfGen = Gen.partialFunction[Random with Sized, Int, Int](intGen)
-        check(mediumChunks(intGen), pfGen)((c, pf) => assert(c.collect(pf).toSeq)(equalTo(c.toSeq.collect(pf))))
+        check(mediumChunks(intGen), pfGen)((c, pf) => assert(c.collect(pf).toList)(equalTo(c.toList.collect(pf))))
       }
     ),
     suite("collectM")(
@@ -238,12 +238,12 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     suite("collectWhile")(
       zio.test.test("collectWhile empty Chunk") {
-        assert(Chunk.empty.collectWhile { case _ => 1 } == Chunk.empty)(Assertion.isTrue)
+        assert(Chunk.empty.collectWhile { case _ => 1 })(isEmpty)
       },
       testM("collectWhile chunk") {
         val pfGen = Gen.partialFunction[Random with Sized, Int, Int](intGen)
         check(mediumChunks(intGen), pfGen) { (c, pf) =>
-          assert(c.collectWhile(pf).toSeq)(equalTo(c.toSeq.takeWhile(pf.isDefinedAt).map(pf.apply)))
+          assert(c.collectWhile(pf).toList)(equalTo(c.toList.takeWhile(pf.isDefinedAt).map(pf.apply)))
         }
       }
     ),
@@ -269,12 +269,12 @@ object ChunkSpec extends ZIOBaseSpec {
         var sum = 0
         c.foreach(sum += _)
 
-        assert(sum)(equalTo(c.toSeq.sum))
+        assert(sum)(equalTo(c.toList.sum))
       }
     },
     testM("concat chunk") {
       check(smallChunks(intGen), smallChunks(intGen)) { (c1, c2) =>
-        assert((c1 ++ c2).toSeq)(equalTo(c1.toSeq ++ c2.toSeq))
+        assert((c1 ++ c2).toList)(equalTo(c1.toList ++ c2.toList))
       }
     },
     zio.test.test("chunk transitivity") {
@@ -342,10 +342,10 @@ object ChunkSpec extends ZIOBaseSpec {
         val c: NonEmptyChunk[Int]        = c_ + 0
         val f: Int => NonEmptyChunk[Int] = f_.andThen(_ + 0)
 
-        val in: NonEmptyChunk[Int] = c.flatMap(f)
-        val expected: Seq[Int]     = c.toSeq.flatMap(f.andThen(_.toSeq))
+        val in: NonEmptyChunk[Int] = c.flatMapNonEmpty(f)
+        val expected: Seq[Int]     = c.toList.flatMap(f.andThen(_.toList))
 
-        assert(in.toSeq)(equalTo(expected))
+        assert(in.toList)(equalTo(expected))
       }
     },
     zio.test.test("nonEmptyChunk subtype preservation") {
@@ -365,10 +365,10 @@ object ChunkSpec extends ZIOBaseSpec {
         chunk + x,
         Chunk.single(x),
         Chunk.succeed(x),
-        nonEmptyChunk ++ chunk,
-        chunk ++ nonEmptyChunk,
-        nonEmptyChunk.flatMap(i => Chunk(i)),
-        nonEmptyChunk.map(identity),
+        nonEmptyChunk concatNonEmpty chunk,
+        chunk concatNonEmpty nonEmptyChunk,
+        nonEmptyChunk.flatMapNonEmpty(i => Chunk(i)),
+        nonEmptyChunk.mapNonEmpty(identity),
         nonEmptyChunk.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
         nonEmptyChunk.zipWithIndex,
         nonEmptyChunk.zipWithIndexFrom(0)
@@ -390,7 +390,7 @@ object ChunkSpec extends ZIOBaseSpec {
 
       val empty: Chunk[B] = Chunk.empty
 
-      val _: NonEmptyChunk[A] = empty ++ Chunk(new A {})
+      val _: NonEmptyChunk[A] = empty concatNonEmpty Chunk(new A {})
 
       assertCompletes
     } @@ TestAspect.ignore

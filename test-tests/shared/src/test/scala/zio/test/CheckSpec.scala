@@ -55,7 +55,7 @@ object CheckSpec extends ZIOBaseSpec {
       } yield (chunk, i)
       check(chunkWithLength) {
         case (chunk, i) =>
-          assert(chunk.apply(i))(equalTo(chunk.toSeq.apply(i)))
+          assert(chunk.apply(i))(equalTo(chunk.toList.apply(i)))
       }
     },
     testM("tests with filtered generators terminate") {
