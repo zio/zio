@@ -582,6 +582,16 @@ final class ZSTM[-R, +E, +A] private[stm] (
     orElse(ZSTM.fail(e1))
 
   /**
+   * Returns an effect that will produce the value of this effect, unless it
+   * fails with the `None` value, in which case it will produce the value of
+   * the specified effect.
+   */
+  final def orElseOptional[R1 <: R, E1, A1 >: A](
+    that: => ZSTM[R1, Option[E1], A1]
+  )(implicit ev: E <:< Option[E1]): ZSTM[R1, Option[E1], A1] =
+    catchAll(ev(_).fold(that)(e => ZSTM.fail(Some(e))))
+
+  /**
    * Tries this effect first, and if it fails, succeeds with the specified
    * value.
    */
