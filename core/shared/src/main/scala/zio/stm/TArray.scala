@@ -260,7 +260,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Collects all elements into a list.
    */
   def toList: USTM[List[A]] =
-    STM.collectAll(array.map(_.get))
+    STM.foreach(array)(_.get)
 
   /**
    * Collects all elements into a chunk.
