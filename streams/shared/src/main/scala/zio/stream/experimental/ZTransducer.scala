@@ -128,35 +128,27 @@ object ZTransducer {
   /**
    * Creates a transducer by folding over a structure of type `S`.
    */
-  def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => (O, Chunk[I])): ZTransducer[Any, Nothing, I, O] =
+  def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
-      final case class FoldState(started: Boolean, result: O, buffer: Chunk[I])
+      final case class FoldState(started: Boolean, result: O)
 
-      val initial = FoldState(false, z, Chunk.empty)
+      val initial = FoldState(false, z)
 
-      @tailrec def go(state: FoldState): (Chunk[O], FoldState) =
-        state.buffer.headOption match {
-          case None => Chunk.empty -> state
+      @tailrec def go(in: Chunk[I], os0: Chunk[O], state: FoldState): (Chunk[O], FoldState) =
+        in.headOption match {
+          case None => os0 -> state
           case Some(i) =>
-            val (o, is) = f(state.result, i)
+            val o = f(state.result, i)
             if (contFn(o))
-              go(FoldState(true, o, is ++ state.buffer.drop(1)))
+              go(in.drop(1), os0, FoldState(true, o))
             else
-              Chunk.single(o) -> FoldState(false, z, is ++ state.buffer.drop(1))
-        }
-
-      @tailrec def flush(s0: FoldState, os0: Chunk[O]): Chunk[O] =
-        if (s0.buffer.isEmpty)
-          if (s0.started) os0 + s0.result else os0
-        else {
-          val (os, s) = go(s0)
-          flush(s, os0 ++ os)
+              go(in.drop(1), os0 + o, FoldState(false, z))
         }
 
       ZRef.makeManaged(initial).map { state =>
         {
-          case Some(in) => state.modify(s => go(s.copy(buffer = s.buffer ++ in)))
-          case None     => state.getAndSet(initial).map(flush(_, Chunk.empty))
+          case Some(in) => state.modify(go(in, Chunk.empty, _))
+          case None     => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
       }
     }
@@ -164,39 +156,32 @@ object ZTransducer {
   /**
    * Creates a sink by effectfully folding over a structure of type `S`.
    */
-  def foldM[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, (O, Chunk[I])]): ZTransducer[R, E, I, O] =
+  def foldM[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
-      final case class FoldState(started: Boolean, result: O, buffer: Chunk[I])
+      final case class FoldState(started: Boolean, result: O)
 
-      val initial = FoldState(false, z, Chunk.empty)
+      val initial = FoldState(false, z)
 
-      def go(state: FoldState): ZIO[R, E, (Chunk[O], FoldState)] =
-        state.buffer.headOption match {
-          case None => ZIO.succeedNow(Chunk.empty -> state)
+      def go(in: Chunk[I], os0: Chunk[O], state: FoldState): ZIO[R, E, (Chunk[O], FoldState)] =
+        in.headOption match {
+          case None => ZIO.succeedNow(os0 -> state)
           case Some(i) =>
-            f(state.result, i).flatMap {
-              case (o, is) =>
-                if (contFn(o))
-                  go(FoldState(true, o, is ++ state.buffer.drop(1)))
-                else
-                  ZIO.succeedNow(Chunk.single(o) -> FoldState(false, z, is ++ state.buffer.drop(1)))
+            f(state.result, i).flatMap { o =>
+              if (contFn(o))
+                go(in.drop(1), os0, FoldState(true, o))
+              else
+                go(in.drop(1), os0 + o, FoldState(false, z))
             }
         }
-
-      def flush(s0: FoldState, os0: Chunk[O]): ZIO[R, E, Chunk[O]] =
-        if (s0.buffer.isEmpty)
-          if (s0.started) Push.emit(os0 + s0.result) else Push.emit(os0)
-        else
-          go(s0).flatMap { case (os, s) => flush(s, os0 ++ os) }
 
       ZRef.makeManaged(initial).map { state =>
         {
           case Some(in) =>
-            state.get.flatMap(s => go(s.copy(buffer = s.buffer ++ in))).flatMap {
+            state.get.flatMap(go(in, Chunk.empty, _)).flatMap {
               case (os, s) => state.set(s) *> Push.emit(os)
             }
           case None =>
-            state.getAndSet(initial).flatMap(flush(_, Chunk.empty))
+            state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
         }
       }
     }

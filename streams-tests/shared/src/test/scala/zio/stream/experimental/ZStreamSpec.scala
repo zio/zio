@@ -78,7 +78,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             latch     <- Promise.make[Nothing, Unit]
             cancelled <- Ref.make(false)
             sink = ZTransducer.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
-              if (el == 1) UIO.succeedNow((el :: acc, Chunk[Int]()))
+              if (el == 1) UIO.succeedNow(el :: acc)
               else
                 (latch.succeed(()) *> ZIO.infinity)
                   .onInterrupt(cancelled.set(true))
@@ -125,22 +125,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertM(s.aggregate(parser).runCollect)(equalTo(List(12, 34)))
         },
         testM("no remainder") {
-          val t = ZTransducer.fold(100)(_ % 2 == 0)((s, a: Int) => (s + a, Chunk[Int]()))
+          val t = ZTransducer.fold(100)(_ % 2 == 0)((s, a: Int) => s + a)
           assertM(ZStream(1, 2, 3, 4).aggregate(t).runCollect)(equalTo(List(101, 105, 104)))
-        },
-        testM("with remainder") {
-          val t = ZTransducer
-            .fold[Int, (Int, Boolean)]((0, true))(_._2) { (s, a: Int) =>
-              a match {
-                case 1 => ((s._1 + 100, true), Chunk.empty)
-                case 2 => ((s._1 + 100, true), Chunk.empty)
-                case 3 => ((s._1 + 3, false), Chunk.single(a + 1))
-                case _ => ((s._1 + 4, false), Chunk.empty)
-              }
-            }
-            .map(_._1)
-
-          assertM(ZStream(1, 2, 3).aggregate(t).runCollect)(equalTo(List(203, 4)))
         },
         // testM("with a sink that always signals more") {
         //   val t = ZTransducer.foldLeft(0)((s, a: Int) => s + a)
