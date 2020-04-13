@@ -24,26 +24,26 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   /**
    * Tests whether or not set contains an element.
    */
-  def contains(a: A): STM[Nothing, Boolean] =
+  def contains(a: A): USTM[Boolean] =
     tmap.contains(a)
 
   /**
    * Removes element from set.
    */
-  def delete(a: A): STM[Nothing, Unit] =
+  def delete(a: A): USTM[Unit] =
     tmap.delete(a)
 
   /**
    * Atomically transforms the set into the difference of itself and the
    * provided set.
    */
-  def diff(other: TSet[A]): STM[Nothing, Unit] =
+  def diff(other: TSet[A]): USTM[Unit] =
     other.toList.map(_.toSet).flatMap(vals => removeIf(vals.contains))
 
   /**
    * Atomically folds using a pure function.
    */
-  def fold[B](zero: B)(op: (B, A) => B): STM[Nothing, B] =
+  def fold[B](zero: B)(op: (B, A) => B): USTM[B] =
     tmap.fold(zero)((acc, kv) => op(acc, kv._1))
 
   /**
@@ -62,41 +62,41 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * Atomically transforms the set into the intersection of itself and the
    * provided set.
    */
-  def intersect(other: TSet[A]): STM[Nothing, Unit] =
+  def intersect(other: TSet[A]): USTM[Unit] =
     other.toList.map(_.toSet).flatMap(vals => retainIf(vals.contains))
 
   /**
    * Stores new element in the set.
    */
-  def put(a: A): STM[Nothing, Unit] =
+  def put(a: A): USTM[Unit] =
     tmap.put(a, ())
 
   /**
    * Removes elements matching predicate.
    */
-  def removeIf(p: A => Boolean): STM[Nothing, Unit] =
+  def removeIf(p: A => Boolean): USTM[Unit] =
     tmap.removeIf((k, _) => p(k))
 
   /**
    * Retains elements matching predicate.
    */
-  def retainIf(p: A => Boolean): STM[Nothing, Unit] =
+  def retainIf(p: A => Boolean): USTM[Unit] =
     tmap.retainIf((k, _) => p(k))
 
   /**
    * Returns the set's cardinality.
    */
-  def size: STM[Nothing, Int] = toList.map(_.size)
+  def size: USTM[Int] = toList.map(_.size)
 
   /**
    * Collects all elements into a list.
    */
-  def toList: STM[Nothing, List[A]] = tmap.keys
+  def toList: USTM[List[A]] = tmap.keys
 
   /**
    * Atomically updates all elements using a pure function.
    */
-  def transform(f: A => A): STM[Nothing, Unit] =
+  def transform(f: A => A): USTM[Unit] =
     tmap.transform((k, v) => f(k) -> v)
 
   /**
@@ -109,7 +109,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * Atomically transforms the set into the union of itself and the provided
    * set.
    */
-  def union(other: TSet[A]): STM[Nothing, Unit] =
+  def union(other: TSet[A]): USTM[Unit] =
     other.foreach(put)
 }
 
@@ -118,16 +118,16 @@ object TSet {
   /**
    * Makes an empty `TSet`.
    */
-  def empty[A]: STM[Nothing, TSet[A]] = fromIterable(Nil)
+  def empty[A]: USTM[TSet[A]] = fromIterable(Nil)
 
   /**
    * Makes a new `TSet` initialized with provided iterable.
    */
-  def fromIterable[A](data: Iterable[A]): STM[Nothing, TSet[A]] =
+  def fromIterable[A](data: Iterable[A]): USTM[TSet[A]] =
     TMap.fromIterable(data.map((_, ()))).map(new TSet(_))
 
   /**
    * Makes a new `TSet` that is initialized with specified values.
    */
-  def make[A](data: A*): STM[Nothing, TSet[A]] = fromIterable(data)
+  def make[A](data: A*): USTM[TSet[A]] = fromIterable(data)
 }

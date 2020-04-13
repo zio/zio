@@ -22,26 +22,26 @@ final class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends
       case Some(e) => STM.fromEither(e)
     }.flatten
 
-  def done(v: Either[E, A]): STM[Nothing, Boolean] =
+  def done(v: Either[E, A]): USTM[Boolean] =
     ref.get.flatMap {
       case Some(_) => STM.succeedNow(false)
       case None    => ref.set(Some(v)) *> STM.succeedNow(true)
     }
 
-  def fail(e: E): STM[Nothing, Boolean] =
+  def fail(e: E): USTM[Boolean] =
     done(Left(e))
 
-  def poll: STM[Nothing, Option[STM[E, A]]] =
+  def poll: USTM[Option[STM[E, A]]] =
     ref.get.map {
       case Some(e) => Some(STM.fromEither(e))
       case None    => None
     }
 
-  def succeed(a: A): STM[Nothing, Boolean] =
+  def succeed(a: A): USTM[Boolean] =
     done(Right(a))
 }
 
 object TPromise {
-  def make[E, A]: STM[Nothing, TPromise[E, A]] =
+  def make[E, A]: USTM[TPromise[E, A]] =
     TRef.make[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
 }

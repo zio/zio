@@ -80,22 +80,76 @@ object Task extends TaskPlatformSpecific {
   def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
-   * @see See [[zio.ZIO.collectAll]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[A](in: Iterable[Task[A]]): Task[List[A]] =
     ZIO.collectAll(in)
 
   /**
-   * @see See [[zio.ZIO.collectAllPar]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.Chunk*]]]
+   */
+  def collectAll[A](in: Chunk[Task[A]]): Task[Chunk[A]] =
+    ZIO.collectAll(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
+   */
+  def collectAll[A](in: NonEmptyChunk[Task[A]]): Task[NonEmptyChunk[A]] =
+    ZIO.collectAll(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:Iterable*]]]
+   */
+  def collectAll_[A](in: Iterable[Task[A]]): Task[Unit] =
+    ZIO.collectAll_(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:zio\.Chunk*]]]
+   */
+  def collectAll_[A](in: Chunk[Task[A]]): Task[Unit] =
+    ZIO.collectAll_(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Iterable*]]]
    */
   def collectAllPar[A](as: Iterable[Task[A]]): Task[List[A]] =
     ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.Chunk*]]]
+   */
+  def collectAllPar[A](as: Chunk[Task[A]]): Task[Chunk[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.NonEmptyChunk*]]]
+   */
+  def collectAllPar[A](as: NonEmptyChunk[Task[A]]): Task[NonEmptyChunk[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar_[R,E,A](as:Iterable*]]]
+   */
+  def collectAllPar_[A](in: Iterable[Task[A]]): Task[Unit] =
+    ZIO.collectAllPar_(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar_[R,E,A](as:zio\.Chunk*]]]
+   */
+  def collectAllPar_[A](in: Chunk[Task[A]]): Task[Unit] =
+    ZIO.collectAllPar_(in)
 
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
   def collectAllParN[A](n: Int)(as: Iterable[Task[A]]): Task[List[A]] =
     ZIO.collectAllParN(n)(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllParN_]]
+   */
+  def collectAllParN_[A](n: Int)(as: Iterable[Task[A]]): Task[Unit] =
+    ZIO.collectAllParN_(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllSuccesses]]
@@ -276,14 +330,26 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
    */
-  final def foreach[A, B](in: Option[A])(f: A => Task[B]): Task[Option[B]] =
+  def foreach[A, B](in: Option[A])(f: A => Task[B]): Task[Option[B]] =
     ZIO.foreach(in)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.Chunk*]]]
    */
-  final def foreach[A, B](in: Chunk[A])(f: A => Task[B]): Task[Chunk[B]] =
+  def foreach[A, B](in: Chunk[A])(f: A => Task[B]): Task[Chunk[B]] =
     ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.NonEmptyChunk*]]]
+   */
+  def foreach[A, B](in: NonEmptyChunk[A])(f: A => Task[B]): Task[NonEmptyChunk[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.foreachExec]]
+   */
+  final def foreachExec[A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => Task[B]): Task[List[B]] =
+    ZIO.foreachExec(as)(exec)(f)
 
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
@@ -294,7 +360,13 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.Chunk*]]]
    */
-  final def foreachPar[A, B](as: Chunk[A])(fn: A => Task[B]): Task[Chunk[B]] =
+  def foreachPar[A, B](as: Chunk[A])(fn: A => Task[B]): Task[Chunk[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.NonEmptyChunk*]]]
+   */
+  def foreachPar[A, B](as: NonEmptyChunk[A])(fn: A => Task[B]): Task[NonEmptyChunk[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -312,7 +384,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[[zio.ZIO.foreach_[R,E,A](as:zio\.Chunk*]]]
    */
-  final def foreach_[A](as: Chunk[A])(f: A => Task[Any]): Task[Unit] =
+  def foreach_[A](as: Chunk[A])(f: A => Task[Any]): Task[Unit] =
     ZIO.foreach_(as)(f)
 
   /**
@@ -324,7 +396,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:zio\.Chunk*]]]
    */
-  final def foreachPar_[A, B](as: Chunk[A])(f: A => Task[Any]): Task[Unit] =
+  def foreachPar_[A, B](as: Chunk[A])(f: A => Task[Any]): Task[Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
@@ -644,6 +716,18 @@ object Task extends TaskPlatformSpecific {
     ZIO.uninterruptibleMask(k)
 
   /**
+   * @see See [[zio.ZIO.unless]]
+   */
+  def unless(b: => Boolean)(zio: => Task[Any]): Task[Unit] =
+    ZIO.unless(b)(zio)
+
+  /**
+   * @see See [[zio.ZIO.unlessM]]
+   */
+  def unlessM(b: Task[Boolean])(zio: => Task[Any]): Task[Unit] =
+    ZIO.unlessM(b)(zio)
+
+  /**
    * @see [[zio.ZIO.unsandbox]]
    */
   def unsandbox[A](v: IO[Cause[Throwable], A]): Task[A] = ZIO.unsandbox(v)
@@ -668,7 +752,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.whenCaseM]]
    */
-  def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCaseM[A](a: Task[A])(pf: PartialFunction[A, Task[Any]]): Task[Unit] =
     ZIO.whenCaseM(a)(pf)
 
   /**

@@ -8,6 +8,8 @@ import zio.test._
 
 object StreamBufferSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("StreamBufferSpec")(
     suite("Stream.buffer")(
       testM("buffer the Stream")(checkM(Gen.listOf(Gen.anyInt)) { list =>
@@ -26,7 +28,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
             .run(Sink.collectAll[Int])
             .run
         )(fails(equalTo(e)))
-      },
+      } @@ zioTag(errors),
       testM("fast producer progress independently") {
         for {
           ref   <- Ref.make(List[Int]())
@@ -51,7 +53,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
             .runCollect
             .run
         )(fails(equalTo(e)))
-      },
+      } @@ zioTag(errors),
       testM("fast producer progress independently") {
         for {
           ref    <- Ref.make(List.empty[Int])
@@ -92,7 +94,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
             .runCollect
             .run
         )(fails(equalTo(e)))
-      },
+      } @@ zioTag(errors),
       testM("fast producer progress independently") {
         for {
           ref    <- Ref.make(List.empty[Int])
@@ -136,13 +138,13 @@ object StreamBufferSpec extends ZIOBaseSpec {
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
         assertM((Stream.range(0, 10) ++ Stream.fail(e)).bufferUnbounded.runCollect.run)(fails(equalTo(e)))
-      },
+      } @@ zioTag(errors),
       testM("fast producer progress independently") {
         for {
           ref   <- Ref.make(List[Int]())
           latch <- Promise.make[Nothing, Unit]
           s = Stream
-            .fromEffect(UIO.succeedNow(()))
+            .fromEffect(UIO.succeed(()))
             .flatMap(_ => Stream.range(1, 1000).tap(i => ref.update(i :: _)).ensuring(latch.succeed(())))
             .bufferUnbounded
           l <- s.process.use { as =>

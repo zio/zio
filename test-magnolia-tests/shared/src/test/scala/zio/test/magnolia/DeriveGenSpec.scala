@@ -16,11 +16,32 @@ object DeriveGenSpec extends DefaultRunnableSpec {
   val genPerson: Gen[Random with Sized, Person] = DeriveGen[Person]
 
   sealed trait Color
-  case object Red   extends Color
-  case object Green extends Color
-  case object Blue  extends Color
+
+  object Color {
+    case object Red   extends Color
+    case object Green extends Color
+    case object Blue  extends Color
+  }
 
   val genColor: Gen[Random with Sized, Color] = DeriveGen[Color]
+
+  sealed trait NonEmptyList[+A] { self =>
+    def foldLeft[S](s: S)(f: (S, A) => S): S =
+     self match {
+       case NonEmptyList.Cons(h, t) => t.foldLeft(f(s, h))(f)
+       case NonEmptyList.Single(h)  => f(s, h)
+     }
+    def length: Int =
+     foldLeft(0)((s, _) => s + 1)
+  }
+
+  object NonEmptyList {
+    final case class Cons[+A](head: A, tail: NonEmptyList[A]) extends NonEmptyList[A]
+    final case class Single[+A](value: A) extends NonEmptyList[A]
+  }
+
+  def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Random with Sized, NonEmptyList[A]] =
+    DeriveGen[NonEmptyList[A]]
 
   def assertDeriveGen[A: DeriveGen]: TestResult = assertCompletes
 
@@ -31,6 +52,11 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       },
       testM("sealed traits can be derived") {
         checkSample(genColor)(equalTo(3), _.distinct.length)
+      },
+      testM("recursive types can be derived") {
+        check(genNonEmptyList[Int]) { as =>
+          assert(as.length)(isGreaterThan(0))
+        }
       }
     ),
     suite("instances")(

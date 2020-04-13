@@ -77,7 +77,7 @@ val zippedStream: Stream[Nothing, (Int, Int)] = Stream(1,2,3).zip(Stream(2,3,4))
 
 Then you would be able to reduce the stream into to a `ZIO` value : 
 
-```scala mdoc:silent 
+```scala mdoc:silent
 import zio._
 
 def tupleStreamReduce(total: Int, element: (Int, Int)) = {

@@ -6,12 +6,15 @@ import zio.test._
 import zio.test.environment._
 
 object ZLayerSpec extends ZIOBaseSpec {
+
+  import ZIOTag._
+
   trait Animal
   trait Dog extends Animal
   trait Cat extends Animal
 
   def testSize[R <: Has[_]](layer: Layer[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
-    layer.build.use(env => ZIO.succeedNow(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
+    layer.build.use(env => ZIO.succeed(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
 
   val acquire1 = "Acquiring Module 1"
   val acquire2 = "Acquiring Module 2"
@@ -212,7 +215,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      } @@ nonFlaky,
+      } @@ zioTag(interruption) @@ nonFlaky,
       testM("interruption with >>>") {
         for {
           ref    <- makeRef
@@ -224,7 +227,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      } @@ nonFlaky,
+      } @@ zioTag(interruption) @@ nonFlaky,
       testM("interruption with multiple layers") {
         for {
           ref    <- makeRef
@@ -238,7 +241,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2))) &&
           (assert(actual)(contains(acquire3)) ==> assert(actual)(contains(release3)))
-      } @@ nonFlaky,
+      } @@ zioTag(interruption) @@ nonFlaky,
       testM("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]

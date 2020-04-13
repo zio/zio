@@ -38,23 +38,23 @@ trait SinkUtils {
       type State = Option[List[A]]
 
       def extract(state: State) =
-        UIO.succeedNow(state match {
+        UIO.succeed(state match {
           case Some(elems) => (target, Chunk.fromIterable(elems))
           case None        => (default, Chunk.empty)
         })
 
-      def initial = UIO.succeedNow(None)
+      def initial = UIO.succeed(None)
 
       def step(state: State, a: A) =
         state match {
           case None =>
             val st = if (a == target) Some(Nil) else None
-            UIO.succeedNow(st)
+            UIO.succeed(st)
           case Some(acc) =>
             if (acc.length >= accumulateAfterMet)
-              UIO.succeedNow(state)
+              UIO.succeed(state)
             else
-              UIO.succeedNow(Some(acc :+ a))
+              UIO.succeed(Some(acc :+ a))
         }
 
       def cont(state: State) = state.map(_.length < accumulateAfterMet).getOrElse(true)
@@ -94,7 +94,7 @@ trait SinkUtils {
         assert(longer)(equalTo(rem))
         assert(rem.endsWith(shorter))(isTrue)
       }
-      maybeProp.catchAll(_ => UIO.succeedNow(assert(true)(isTrue)))
+      maybeProp.catchAll(_ => UIO.succeed(assert(true)(isTrue)))
     }
 
     def laws[A, B, C](

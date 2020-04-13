@@ -17,9 +17,9 @@
 package zio.stm
 
 final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
-  def acquire: STM[Nothing, Unit] = acquireN(1L)
+  def acquire: USTM[Unit] = acquireN(1L)
 
-  def acquireN(n: Long): STM[Nothing, Unit] =
+  def acquireN(n: Long): USTM[Unit] =
     for {
       _     <- assertNonNegative(n)
       value <- permits.get
@@ -27,23 +27,23 @@ final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
       _     <- permits.set(value - n)
     } yield ()
 
-  def available: STM[Nothing, Long] = permits.get
+  def available: USTM[Long] = permits.get
 
-  def release: STM[Nothing, Unit] = releaseN(1L)
+  def release: USTM[Unit] = releaseN(1L)
 
-  def releaseN(n: Long): STM[Nothing, Unit] =
+  def releaseN(n: Long): USTM[Unit] =
     assertNonNegative(n) *> permits.update(_ + n).unit
 
   def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
     acquire *> stm <* release
 
-  private def assertNonNegative(n: Long): STM[Nothing, Unit] =
+  private def assertNonNegative(n: Long): USTM[Unit] =
     if (n < 0)
       STM.die(new RuntimeException(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else STM.unit
 }
 
 object TSemaphore {
-  def make(n: Long): STM[Nothing, TSemaphore] =
+  def make(n: Long): USTM[TSemaphore] =
     TRef.make(n).map(v => new TSemaphore(v))
 }

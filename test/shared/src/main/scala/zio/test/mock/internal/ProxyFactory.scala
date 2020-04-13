@@ -16,9 +16,11 @@
 
 package zio.test.mock.internal
 
+import scala.util.Try
+
 import zio.test.Assertion
-import zio.test.mock.{ Expectation, Method, Proxy }
-import zio.{ Has, IO, Promise, Tagged, UIO, ULayer, ZIO, ZLayer }
+import zio.test.mock.{ Capability, Expectation, Proxy }
+import zio.{ Has, IO, Tagged, UIO, ULayer, ZIO, ZLayer }
 
 object ProxyFactory {
 
@@ -31,37 +33,42 @@ object ProxyFactory {
    */
   def mockProxy[R <: Has[_]: Tagged](state: State[R]): ULayer[Has[Proxy]] =
     ZLayer.succeed(new Proxy {
-      def invoke[RIn <: Has[_], ROut, I, E, A](invokedMethod: Method[RIn, I, A], args: I): ZIO[ROut, E, A] = {
-
+      def invoke[RIn <: Has[_], ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] =
           scopes match {
-            case Nil => ZIO.die(UnexpectedCallExpection(invokedMethod, args))
+            case Nil => ZIO.die(UnexpectedCallExpection(invoked, args))
             case Scope(expectation, id, update) :: nextScopes =>
               expectation match {
                 case anyExpectation if anyExpectation.saturated =>
                   findMatching(nextScopes)
 
-                case Call(method, assertion, _, _, _, _) if invokedMethod != method =>
-                  handleLeafFailure(InvalidMethod(invokedMethod, method, assertion), nextScopes)
-
-                case self @ Call(_, assertion, returns, _, _, invocations) =>
-                  assertion.asInstanceOf[Assertion[I]].test(args).flatMap {
+                case call @ Call(capability, assertion, returns, _, _, invocations) if invoked isEqual capability =>
+                  assertion.asInstanceOf[Assertion[I]].test(args) match {
                     case true =>
                       val result = returns.asInstanceOf[I => IO[E, A]](args)
-                      val updated = self.copy(
-                        satisfied = true,
-                        saturated = true,
-                        invocations = id :: invocations
-                      )
+                      val updated = call
+                        .asInstanceOf[Call[R, I, E, A]]
+                        .copy(
+                          satisfied = true,
+                          saturated = true,
+                          invocations = id :: invocations
+                        )
 
                       UIO.succeed(Matched[R, E, A](update(updated), result))
 
                     case false =>
                       handleLeafFailure(
-                        InvalidArguments(invokedMethod, args, assertion.asInstanceOf[Assertion[Any]]),
+                        InvalidArguments(invoked, args, assertion.asInstanceOf[Assertion[Any]]),
                         nextScopes
                       )
                   }
+
+                case Call(capability, assertion, _, _, _, _) =>
+                  val invalidCall =
+                    if (invoked.id == capability.id) InvalidPolyType(invoked, args, capability, assertion)
+                    else InvalidCapability(invoked, capability, assertion)
+
+                  handleLeafFailure(invalidCall, nextScopes)
 
                 case self @ Chain(children, _, _, invocations) =>
                   children.zipWithIndex.collectFirst {
@@ -164,11 +171,18 @@ object ProxyFactory {
                         if (updatedChild.saturated) resetTree(updatedChild)
                         else updatedChild
 
+                      def inRange(value: Int): Boolean =
+                        if (range.end != -1) range contains value
+                        else {
+                          val fakeUnboundedRange = range.start to Int.MaxValue by range.step
+                          fakeUnboundedRange contains value
+                        }
+
                       update(
                         self.copy(
                           child = subtree,
-                          satisfied = (range contains updatedStarted) && updatedChild.satisfied,
-                          saturated = range.max == updatedCompleted,
+                          satisfied = inRange(updatedStarted) && updatedChild.satisfied,
+                          saturated = Try(range.max == updatedCompleted).getOrElse(false),
                           invocations = id :: invocations,
                           started = updatedStarted,
                           completed = updatedCompleted
@@ -224,17 +238,13 @@ object ProxyFactory {
           }
 
         for {
-          promise <- Promise.make[E, A]
           id      <- state.callsCountRef.updateAndGet(_ + 1)
           _       <- state.failedMatchesRef.set(List.empty)
-          _ <- state.expectationRef.update { root =>
-                val rootScope = Scope[R](root, id, identity)
-                findMatching(rootScope :: Nil).flatMap {
-                  case Matched(expectation, result) =>
-                    promise.complete(result) as (expectation)
-                }
-              }
-          output <- promise.await
+          root    <- state.expectationRef.get
+          scope   = Scope[R](root, id, identity)
+          matched <- findMatching(scope :: Nil)
+          _       <- state.expectationRef.set(matched.expectation)
+          output  <- matched.result
         } yield output
       }
     })

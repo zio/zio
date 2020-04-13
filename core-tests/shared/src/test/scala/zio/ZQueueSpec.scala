@@ -11,6 +11,8 @@ import zio.test.environment.Live
 
 object ZQueueSpec extends ZIOBaseSpec {
 
+  import ZIOTag._
+
   def spec = suite("ZQueueSpec")(
     testM("sequential offer and take") {
       for {
@@ -37,7 +39,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         queue  <- Queue.bounded[Int](10)
         f      <- IO.forkAll(List.fill(10)(queue.take))
         values = Range.inclusive(1, 10).toList
-        _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeedNow(false))(_ *> _)
+        _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
         v      <- f.join
       } yield assert(v.toSet)(equalTo(values.toSet))
     },
@@ -84,7 +86,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         _     <- f.interrupt
         size  <- queue.size
       } yield assert(size)(equalTo(0))
-    },
+    } @@ zioTag(interruption),
     testM("offer interruption") {
       for {
         queue <- Queue.bounded[Int](2)
@@ -95,7 +97,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         _     <- f.interrupt
         size  <- queue.size
       } yield assert(size)(equalTo(2))
-    },
+    } @@ zioTag(interruption),
     testM("queue is ordered") {
       for {
         queue <- Queue.unbounded[Int]
@@ -132,7 +134,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         queue  <- Queue.bounded[Int](4)
         values = List(1, 2, 3, 4)
-        _      <- values.map(queue.offer).foldLeft(IO.succeedNow(false))(_ *> _)
+        _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
         _      <- queue.offer(5).fork
         _      <- waitForSize(queue, 5)
         v      <- queue.takeAll
@@ -225,7 +227,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         queue  <- Queue.bounded[Int](4)
         values = List(1, 2, 3, 4)
-        _      <- values.map(queue.offer).foldLeft(IO.succeedNow(false))(_ *> _)
+        _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
         f      <- queue.offer(5).fork
         _      <- waitForSize(queue, 5)
         l      <- queue.takeUpTo(5)
@@ -265,7 +267,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         l2      <- queue.takeAll
       } yield assert(l1)(equalTo(orders1)) &&
         assert(l2)(equalTo(List.empty[Int]))
-    },
+    } @@ zioTag(interruption),
     testM("offerAll with takeAll and back pressure, check ordering") {
       for {
         queue  <- Queue.bounded[Int](64)
@@ -553,7 +555,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("dropping strategy with offerAll") {
       for {
-        capacity <- IO.succeedNow(4)
+        capacity <- IO.succeed(4)
         queue    <- Queue.dropping[Int](capacity)
         iter     = Range.inclusive(1, 5)
         _        <- queue.offerAll(iter)
@@ -562,7 +564,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("dropping strategy with offerAll, check offer returns false") {
       for {
-        capacity <- IO.succeedNow(2)
+        capacity <- IO.succeed(2)
         queue    <- Queue.dropping[Int](capacity)
         v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
         _        <- queue.takeAll
@@ -570,7 +572,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("dropping strategy with offerAll, check ordering") {
       for {
-        capacity <- IO.succeedNow(128)
+        capacity <- IO.succeed(128)
         queue    <- Queue.dropping[Int](capacity)
         iter     = Range.inclusive(1, 256)
         _        <- queue.offerAll(iter)
@@ -579,7 +581,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("dropping strategy with pending taker") {
       for {
-        capacity <- IO.succeedNow(2)
+        capacity <- IO.succeed(2)
         queue    <- Queue.dropping[Int](capacity)
         iter     = Range.inclusive(1, 4)
         f        <- queue.take.fork
@@ -591,7 +593,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("sliding strategy with pending taker") {
       for {
-        capacity <- IO.succeedNow(2)
+        capacity <- IO.succeed(2)
         queue    <- Queue.sliding[Int](capacity)
         iter     = Range.inclusive(1, 4)
         _        <- queue.take.fork
@@ -603,7 +605,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("sliding strategy, check offerAll returns true") {
       for {
-        capacity <- IO.succeedNow(5)
+        capacity <- IO.succeed(5)
         queue    <- Queue.sliding[Int](capacity)
         iter     = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)
@@ -611,7 +613,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("bounded strategy, check offerAll returns true") {
       for {
-        capacity <- IO.succeedNow(5)
+        capacity <- IO.succeed(5)
         queue    <- Queue.bounded[Int](capacity)
         iter     = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)
@@ -662,7 +664,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("queue mapM") {
       for {
-        q <- Queue.bounded[Int](100).map(_.mapM(IO.succeedNow))
+        q <- Queue.bounded[Int](100).map(_.mapM(IO.succeed(_)))
         _ <- q.offer(10)
         v <- q.take
       } yield assert(v)(equalTo(10))
@@ -670,7 +672,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     testM("queue mapM with success") {
       for {
         q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
-        _ <- q.offer(IO.succeedNow(10))
+        _ <- q.offer(IO.succeed(10))
         v <- q.take.sandbox.either
       } yield assert(v)(isRight(equalTo(10)))
     },
@@ -680,7 +682,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         _ <- q.offer(IO.fail("Ouch"))
         v <- q.take.run
       } yield assert(v)(fails(equalTo("Ouch")))
-    },
+    } @@ zioTag(errors),
     testM("queue both") {
       for {
         q1 <- Queue.bounded[Int](100)
@@ -696,6 +698,13 @@ object ZQueueSpec extends ZIOBaseSpec {
         _ <- q.offer(10)
         v <- q.take
       } yield assert(v)(equalTo("10"))
+    },
+    testM("queue dimap") {
+      for {
+        q <- Queue.bounded[String](100).map(_.dimap[Int, Int](_.toString, _.toInt))
+        _ <- q.offer(10)
+        v <- q.take
+      } yield assert(v)(equalTo(10))
     },
     testM("queue filterInput") {
       for {

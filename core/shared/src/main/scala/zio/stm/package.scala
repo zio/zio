@@ -16,8 +16,13 @@
 
 package zio
 
-package object stm {
+package object stm extends EitherCompat {
 
-  type STM[+E, +A] = ZSTM[Any, E, A]
-
+  type RSTM[-R, +A]  = ZSTM[R, Throwable, A]
+  type URSTM[-R, +A] = ZSTM[R, Nothing, A]
+  type STM[+E, +A]   = ZSTM[Any, E, A]
+  type USTM[+A]      = ZSTM[Any, Nothing, A]
+  type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
+  type TRef[A]       = ZTRef[Nothing, Nothing, A, A]
+  type ETRef[+E, A]  = ZTRef[E, E, A, A]
 }

@@ -21,6 +21,8 @@ ZIO contains a small number of data types that can help you solve complex proble
  - **[TQueue](tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
  - **[TRef](tref.md)** - A `TRef` is a mutable reference to an immutable value that can participate in transactions.
  - **[TSet](tset.md)** - A `TSet` is a mutable set that can participate in transactions.
+ - **[Has](has.md)** - A `Has` is used to express an effect's dependency on a service of type `A`.
+ - **[ZLayer](zlayer.md)** - A `ZLayer` describes a layer of an application.
 
 Besides the core datatypes, the following datatypes can be found in ZIO streams library:
 

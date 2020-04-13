@@ -23,7 +23,7 @@ trait StreamChunkUtils extends StreamUtils {
     )
 }
 
-object StreamChunkUtils extends StreamChunkUtils with GenUtils {
+object StreamChunkUtils extends StreamChunkUtils {
   def slurp[E, A](s: StreamChunk[E, A]): IO[E, Seq[A]] =
     s.chunks
       .fold(Chunk.empty: Chunk[A])(_ ++ _)
@@ -37,6 +37,4 @@ object StreamChunkUtils extends StreamChunkUtils with GenUtils {
     }
     loop(list, zero)
   }
-
-  val chunksOfInts = pureStreamChunkGen(smallChunks(intGen))
 }

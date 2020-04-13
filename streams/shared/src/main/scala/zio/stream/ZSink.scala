@@ -56,9 +56,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
   /**
    * Operator alias for `zipRight`
    */
-  final def *>[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
-    that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, C] =
+  final def *>[R1 <: R, E1 >: E, A01 >: A0, A1 >: A0 <: A, C](
+    that: ZSink[R1, E1, A01, A1, C]
+  ): ZSink[R1, E1, A01, A1, C] =
     self zipRight that
 
   /**
@@ -72,13 +72,13 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
   /**
    * Operator alias for `zipLeft`
    */
-  final def <*[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
-    that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, B] =
+  final def <*[R1 <: R, E1 >: E, A01 >: A0, A1 >: A0 <: A, C](
+    that: ZSink[R1, E1, A01, A1, C]
+  ): ZSink[R1, E1, A01, A1, B] =
     self zipLeft that
 
   /**
-   * Operator alias for `zipLeft`
+   * Operator alias for `zipParLeft`
    */
   final def <&[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
@@ -88,9 +88,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
   /**
    * Operator alias for `zip`
    */
-  final def <*>[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
-    that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, (B, C)] =
+  final def <*>[R1 <: R, E1 >: E, A01 >: A0, A1 >: A0 <: A, C](
+    that: ZSink[R1, E1, A01, A1, C]
+  ): ZSink[R1, E1, A01, A1, (B, C)] =
     self zip that
 
   /**
@@ -165,13 +165,11 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
    * Creates a sink producing values of type `C` obtained by each produced value of type `B`
    * transformed into a sink by `f`.
    */
-  final def flatMap[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
-    f: B => ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, C] =
-    new ZSink[R1, E1, A00, A1, C] {
-      val _ = ev
-
-      type State = Either[self.State, (ZSink[R1, E1, A00, A1, C], Any, Chunk[A00])]
+  final def flatMap[R1 <: R, E1 >: E, A01 >: A0, A1 >: A0 <: A, C](
+    f: B => ZSink[R1, E1, A01, A1, C]
+  ): ZSink[R1, E1, A01, A1, C] =
+    new ZSink[R1, E1, A01, A1, C] {
+      type State = Either[self.State, (ZSink[R1, E1, A01, A1, C], Any, Chunk[A01])]
 
       val initial = self.initial.flatMap { init =>
         if (self.cont(init)) UIO.succeedNow((Left(init)))
@@ -180,7 +178,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
             case (b, leftover) =>
               val that = f(b)
               that.initial.flatMap { s1 =>
-                that.stepChunk(s1, leftover.asInstanceOf[Chunk[A1]]).map {
+                that.stepChunk(s1, leftover).map {
                   case (s2, chunk) =>
                     Right((that, s2, chunk))
                 }
@@ -198,7 +196,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                   case (b, leftover) =>
                     val that = f(b)
                     that.initial.flatMap { init =>
-                      that.stepChunk(init, leftover.asInstanceOf[Chunk[A1]]).map {
+                      that.stepChunk(init, leftover).map {
                         case (s3, chunk) =>
                           Right((that, s3, chunk))
                       }
@@ -219,7 +217,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
               case (b, leftover) =>
                 val that = f(b)
                 that.initial.flatMap { init =>
-                  that.stepChunk(init, leftover.asInstanceOf[Chunk[A1]]).flatMap {
+                  that.stepChunk(init, leftover).flatMap {
                     case (s2, chunk) =>
                       that.extract(s2).map {
                         case (c, cLeftover) =>
@@ -438,16 +436,16 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
   /**
    * Steps through a chunk of iterations of the sink
    */
-  final def stepChunk[A00 >: A0, A1 <: A](state: State, as: Chunk[A1])(
-    implicit ev: A1 =:= A00
-  ): ZIO[R, E, (State, Chunk[A00])] = {
-    val _   = ev
+  final def stepChunk[A1 <: A](
+    state: State,
+    as: Chunk[A1]
+  ): ZIO[R, E, (State, Chunk[A1])] = {
     val len = as.length
 
-    def loop(state: State, i: Int): ZIO[R, E, (State, Chunk[A00])] =
+    def loop(state: State, i: Int): ZIO[R, E, (State, Chunk[A1])] =
       if (i >= len) UIO.succeedNow(state -> Chunk.empty)
       else if (self.cont(state)) self.step(state, as(i)).flatMap(loop(_, i + 1))
-      else UIO.succeedNow(state -> as.asInstanceOf[Chunk[A00]].splitAt(i)._2)
+      else UIO.succeedNow(state -> as.splitAt(i)._2)
 
     loop(state, 0)
   }
@@ -620,9 +618,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
    * Note that this means that the two sinks will not consume the same inputs,
    * but rather run one after the other.
    */
-  final def zip[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
-    that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, (B, C)] =
+  final def zip[R1 <: R, E1 >: E, A01 >: A0, A1 >: A0 <: A, C](
+    that: ZSink[R1, E1, A01, A1, C]
+  ): ZSink[R1, E1, A01, A1, (B, C)] =
     flatMap(b => that.map(c => (b, c)))
 
   /**
@@ -630,9 +628,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
    *
    * See [[zip]] for notes about the behavior of this combinator.
    */
-  final def zipLeft[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
-    that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, B] =
+  final def zipLeft[R1 <: R, E1 >: E, A01 >: A0, A1 >: A0 <: A, C](
+    that: ZSink[R1, E1, A01, A1, C]
+  ): ZSink[R1, E1, A01, A1, B] =
     zipWith(that)((b, _) => b)
 
   /**
@@ -660,7 +658,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 if (self.cont(s2)) UIO.succeedNow(Left(s2))
                 else self.extract(s2).map(Right(_))
               },
-            { case (b, leftover) => UIO.succeedNow(Right((b, leftover ++ Chunk.single(a)))) }
+            { case (b, leftover) => UIO.succeedNow(Right((b, leftover ++ Chunk.single(ev(a))))) }
           )
 
         val rightStep: ZIO[R1, E1, Either[that.State, (C, Chunk[A00])]] =
@@ -670,7 +668,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 if (that.cont(s2)) UIO.succeedNow(Left(s2))
                 else that.extract(s2).map(Right(_))
               },
-            { case (c, leftover) => UIO.succeedNow(Right((c, leftover ++ Chunk.single(a)))) }
+            { case (c, leftover) => UIO.succeedNow(Right((c, (leftover ++ Chunk.single(ev(a)))))) }
           )
 
         leftStep.zipPar(rightStep)
@@ -720,9 +718,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
    *
    * See [[zip]] for notes about the behavior of this combinator.
    */
-  final def zipRight[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
+  final def zipRight[R1 <: R, E1 >: E, A00 >: A0, A1 >: A0 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, C] =
+  ): ZSink[R1, E1, A00, A1, C] =
     zipWith(that)((_, c) => c)
 
   /**
@@ -730,9 +728,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
    *
    * See [[zip]] for notes about the behavior of this combinator.
    */
-  final def zipWith[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C, D](
+  final def zipWith[R1 <: R, E1 >: E, A00 >: A0, A1 >: A0 <: A, C, D](
     that: ZSink[R1, E1, A00, A1, C]
-  )(f: (B, C) => D)(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, D] =
+  )(f: (B, C) => D): ZSink[R1, E1, A00, A1, D] =
     zip(that).map(f.tupled)
 }
 
@@ -812,7 +810,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
         type State = (sink.State, Chunk[A])
         val initial = sink.initial.map((_, Chunk.empty))
         def step(state: State, a: Chunk[A]) =
-          sink.stepChunk[A, A](state._1, a).map { case (s, chunk) => (s, chunk) }
+          sink.stepChunk(state._1, a).map { case (s, chunk) => (s, chunk) }
         def extract(state: State) = sink.extract(state._1).map { case (b, leftover) => (b, leftover ++ state._2) }
         def cont(state: State)    = sink.cont(state._1)
       }
@@ -1269,6 +1267,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Key of each element is determined by supplied function.
    *
    * Combines elements with same key with supplied function f.
+   * Stops consuming the stream once sees a value belonging to `n+1`-th key.
    */
   def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): Sink[Nothing, A, A, Map[K, A]] = {
     type State = (Map[K, A], Boolean)
@@ -1329,6 +1328,32 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    */
   def drain: ZSink[Any, Nothing, Nothing, Any, Unit] =
     foldLeft(())((s, _) => s)
+
+  /**
+   * Creates a sink that drops the first `n` values. Does not fail if there
+   * are fewer than `n` input values.
+   */
+  def drop[A](n: Long): ZSink[Any, Nothing, A, A, Unit] =
+    new SinkPure[Nothing, A, A, Unit] {
+      type State = Long
+      val initialPure                  = 0L
+      def stepPure(state: State, a: A) = state + 1
+      def extractPure(state: State)    = Right(((), Chunk.empty))
+      def cont(state: State)           = state < n
+    }
+
+  /**
+   * Creates a sink that drops the first `n` values and fails if there are
+   * fewer than `n` input values.
+   */
+  def skip[A](n: Long): ZSink[Any, Unit, A, A, Unit] =
+    new SinkPure[Unit, A, A, Unit] {
+      type State = Long
+      val initialPure                  = 0L
+      def stepPure(state: State, a: A) = state + 1
+      def extractPure(state: State)    = if (state < n) Left(()) else Right(((), Chunk.empty))
+      def cont(state: State)           = state < n
+    }
 
   /**
    * Creates a sink containing the first value.

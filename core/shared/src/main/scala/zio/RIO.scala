@@ -97,22 +97,76 @@ object RIO {
   def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
-   * @see See [[zio.ZIO.collectAll]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[R, A](in: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.collectAll(in)
 
   /**
-   * @see See [[zio.ZIO.collectAllPar]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.Chunk*]]]
+   */
+  def collectAll[R, A](in: Chunk[RIO[R, A]]): RIO[R, Chunk[A]] =
+    ZIO.collectAll(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
+   */
+  def collectAll[R, A](in: NonEmptyChunk[RIO[R, A]]): RIO[R, NonEmptyChunk[A]] =
+    ZIO.collectAll(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:Iterable*]]]
+   */
+  def collectAll_[R, A](in: Iterable[RIO[R, A]]): RIO[R, Unit] =
+    ZIO.collectAll_(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:zio\.Chunk*]]]
+   */
+  def collectAll_[R, A](in: Chunk[RIO[R, A]]): RIO[R, Unit] =
+    ZIO.collectAll_(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Iterable*]]]
    */
   def collectAllPar[R, A](as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.Chunk*]]]
+   */
+  def collectAllPar[R, A](as: Chunk[RIO[R, A]]): RIO[R, Chunk[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.NonEmptyChunk*]]]
+   */
+  def collectAllPar[R, A](as: NonEmptyChunk[RIO[R, A]]): RIO[R, NonEmptyChunk[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar_[R,E,A](as:Iterable*]]]
+   */
+  def collectAllPar_[R, A](in: Iterable[RIO[R, A]]): RIO[R, Unit] =
+    ZIO.collectAllPar_(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar_[R,E,A](as:zio\.Chunk*]]]
+   */
+  def collectAllPar_[R, A](in: Chunk[RIO[R, A]]): RIO[R, Unit] =
+    ZIO.collectAllPar_(in)
 
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
   def collectAllParN[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.collectAllParN(n)(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllParN_]]
+   */
+  def collectAllParN_[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, Unit] =
+    ZIO.collectAllParN_(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllSuccesses]]
@@ -305,14 +359,26 @@ object RIO {
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
    */
-  final def foreach[R, A, B](in: Option[A])(f: A => RIO[R, B]): RIO[R, Option[B]] =
+  def foreach[R, A, B](in: Option[A])(f: A => RIO[R, B]): RIO[R, Option[B]] =
     ZIO.foreach(in)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.Chunk*]]]
    */
-  final def foreach[R, A, B](in: Chunk[A])(f: A => RIO[R, B]): RIO[R, Chunk[B]] =
+  def foreach[R, A, B](in: Chunk[A])(f: A => RIO[R, B]): RIO[R, Chunk[B]] =
     ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.NonEmptyChunk*]]]
+   */
+  def foreach[R, A, B](in: NonEmptyChunk[A])(f: A => RIO[R, B]): RIO[R, NonEmptyChunk[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.foreachExec]]
+   */
+  final def foreachExec[R, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => RIO[R, B]): RIO[R, List[B]] =
+    ZIO.foreachExec(as)(exec)(f)
 
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
@@ -323,7 +389,13 @@ object RIO {
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.Chunk*]]]
    */
-  final def foreachPar[R, A, B](as: Chunk[A])(fn: A => RIO[R, B]): RIO[R, Chunk[B]] =
+  def foreachPar[R, A, B](as: Chunk[A])(fn: A => RIO[R, B]): RIO[R, Chunk[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.NonEmptyChunk*]]]
+   */
+  def foreachPar[R, A, B](as: NonEmptyChunk[A])(fn: A => RIO[R, B]): RIO[R, NonEmptyChunk[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -341,7 +413,7 @@ object RIO {
   /**
    * @see See [[[zio.ZIO.foreach_[R,E,A](as:zio\.Chunk*]]]
    */
-  final def foreach_[R, A](as: Chunk[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
+  def foreach_[R, A](as: Chunk[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
@@ -353,7 +425,7 @@ object RIO {
   /**
    * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:zio\.Chunk*]]]
    */
-  final def foreachPar_[R, A, B](as: Chunk[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
+  def foreachPar_[R, A, B](as: Chunk[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
@@ -707,6 +779,18 @@ object RIO {
     ZIO.uninterruptibleMask(k)
 
   /**
+   * @see See [[zio.ZIO.unless]]
+   */
+  def unless[R](b: => Boolean)(zio: => RIO[R, Any]): RIO[R, Unit] =
+    ZIO.unless(b)(zio)
+
+  /**
+   * @see See [[zio.ZIO.unlessM]]
+   */
+  def unlessM[R](b: RIO[R, Boolean])(zio: => RIO[R, Any]): RIO[R, Unit] =
+    ZIO.unlessM(b)(zio)
+
+  /**
    * @see See [[zio.ZIO.unsandbox]]
    */
   def unsandbox[R, A](v: IO[Cause[Throwable], A]): RIO[R, A] = ZIO.unsandbox(v)
@@ -725,13 +809,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCase[R, A](a: => A)(pf: PartialFunction[A, RIO[R, Any]]): RIO[R, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenCaseM]]
    */
-  def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCaseM[R, E, A](a: RIO[R, A])(pf: PartialFunction[A, RIO[R, Any]]): RIO[R, Unit] =
     ZIO.whenCaseM(a)(pf)
 
   /**

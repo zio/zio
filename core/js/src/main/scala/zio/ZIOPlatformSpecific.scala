@@ -16,6 +16,40 @@
 
 package zio
 
-private[zio] trait ZIOPlatformSpecific[-R, +E, +A]
+import scala.scalajs.js
+import scala.scalajs.js.{ Promise => JSPromise }
 
-private[zio] trait ZIOCompanionPlatformSpecific
+private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
+
+  /**
+   * Converts the current `ZIO` to a Scala.js promise.
+   */
+  def toPromiseJS(implicit ev: E <:< Throwable): URIO[R, JSPromise[A]] =
+    toPromiseJSWith(ev)
+
+  /**
+   * Converts the current `ZIO` to a Scala.js promise and maps the
+   * error type with `f`.
+   */
+  def toPromiseJSWith(f: E => Throwable): URIO[R, JSPromise[A]] =
+    self.foldCause(c => JSPromise.reject(c.squashWith(f)), JSPromise.resolve[A](_))
+}
+
+private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
+
+  /**
+   * Imports a Scala.js promise into a `ZIO`.
+   */
+  def fromPromiseJS[A](promise: => JSPromise[A]): Task[A] =
+    self.effectAsync { callback =>
+      promise.`then`[Unit](
+        a => callback(UIO.succeedNow(a)),
+        js.defined { (e: Any) =>
+          callback(IO.fail(e match {
+            case t: Throwable => t
+            case _            => js.JavaScriptException(e)
+          }))
+        }
+      )
+    }
+}

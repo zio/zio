@@ -37,7 +37,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.check]]
    */
-  def check(p: => Boolean): STM[Nothing, Unit] = ZSTM.check(p)
+  def check(p: => Boolean): USTM[Unit] = ZSTM.check(p)
 
   /**
    * @see See [[zio.stm.ZSTM.collectAll]]
@@ -46,15 +46,21 @@ object STM {
     ZSTM.collectAll(i)
 
   /**
+   * @see See [[zio.stm.ZSTM.collectAll_]]
+   */
+  def collectAll_[E, A](i: Iterable[STM[E, A]]): STM[E, Unit] =
+    ZSTM.collectAll_(i)
+
+  /**
    * @see See [[zio.stm.ZSTM.die]]
    */
-  def die(t: => Throwable): STM[Nothing, Nothing] =
+  def die(t: => Throwable): USTM[Nothing] =
     ZSTM.die(t)
 
   /**
    * @see See [[zio.stm.ZSTM.dieMessage]]
    */
-  def dieMessage(m: => String): STM[Nothing, Nothing] =
+  def dieMessage(m: => String): USTM[Nothing] =
     ZSTM.dieMessage(m)
 
   /**
@@ -72,7 +78,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fiberId]]
    */
-  val fiberId: STM[Nothing, Fiber.Id] =
+  val fiberId: USTM[Fiber.Id] =
     ZSTM.fiberId
 
   /**
@@ -120,7 +126,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fromFunction]]
    */
-  def fromFunction[A](f: Any => A): STM[Nothing, A] =
+  def fromFunction[A](f: Any => A): USTM[A] =
     ZSTM.fromFunction(f)
 
   /**
@@ -138,13 +144,13 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fromTry]]
    */
-  def fromTry[A](a: => Try[A]): STM[Throwable, A] =
+  def fromTry[A](a: => Try[A]): TaskSTM[A] =
     ZSTM.fromTry(a)
 
   /**
    * @see See [[zio.stm.ZSTM.identity]]
    */
-  def identity: STM[Nothing, Any] = ZSTM.identity
+  def identity: USTM[Any] = ZSTM.identity
 
   /**
    * @see See [[zio.stm.ZSTM.ifM]]
@@ -161,7 +167,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.left]]
    */
-  def left[A](a: => A): STM[Nothing, Either[A, Nothing]] =
+  def left[A](a: => A): USTM[Either[A, Nothing]] =
     ZSTM.left(a)
 
   /**
@@ -208,13 +214,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.none]]
    */
-  val none: STM[Nothing, Option[Nothing]] = ZSTM.none
-
-  /**
-   * @see See [[zio.stm.ZSTM.partial]]
-   */
-  def partial[A](a: => A): STM[Throwable, A] =
-    ZSTM.partial(a)
+  val none: USTM[Option[Nothing]] = ZSTM.none
 
   /**
    * @see See [[zio.stm.ZSTM.partition]]
@@ -246,25 +246,25 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.retry]]
    */
-  val retry: STM[Nothing, Nothing] =
+  val retry: USTM[Nothing] =
     ZSTM.retry
 
   /**
    * @see See [[zio.stm.ZSTM.right]]
    */
-  def right[A](a: => A): STM[Nothing, Either[Nothing, A]] =
+  def right[A](a: => A): USTM[Either[Nothing, A]] =
     ZSTM.right(a)
 
   /**
    * @see See [[zio.stm.ZSTM.some]]
    */
-  def some[A](a: => A): STM[Nothing, Option[A]] =
+  def some[A](a: => A): USTM[Option[A]] =
     ZSTM.some(a)
 
   /**
    * @see See [[zio.stm.ZSTM.succeed]]
    */
-  def succeed[A](a: => A): STM[Nothing, A] =
+  def succeed[A](a: => A): USTM[A] =
     ZSTM.succeed(a)
 
   /**
@@ -276,8 +276,20 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.unit]]
    */
-  val unit: STM[Nothing, Unit] =
+  val unit: USTM[Unit] =
     ZSTM.unit
+
+  /**
+   * @see See [[zio.stm.ZSTM.unless]]
+   */
+  def unless[E](b: => Boolean)(stm: => STM[E, Any]): STM[E, Unit] =
+    ZSTM.unless(b)(stm)
+
+  /**
+   * @see See [[zio.stm.ZSTM.unlessM]]
+   */
+  def unlessM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] =
+    ZSTM.unlessM(b)(stm)
 
   /**
    * @see See [[zio.stm.ZSTM.validate]]
@@ -317,6 +329,6 @@ object STM {
    */
   def whenM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
 
-  private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
+  private[zio] def succeedNow[A](a: A): USTM[A] =
     ZSTM.succeedNow(a)
 }

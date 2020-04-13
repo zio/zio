@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Has, Layer, UIO, ZIO }
+import zio.{ ExecutionStrategy, Has, Layer, UIO, ZIO }
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -32,7 +32,7 @@ object TestExecutor {
     env: Layer[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =
-      spec.annotated
+      spec.only.annotated
         .provideLayer(environment)
         .foreachExec(defExec)(
           e =>
@@ -45,7 +45,7 @@ object TestExecutor {
         )
         .flatMap(_.fold[UIO[ExecutedSpec[E]]] {
           case Spec.SuiteCase(label, specs, exec) =>
-            UIO.succeedNow(Spec.suite(label, specs.flatMap(UIO.collectAll).map(_.toVector), exec))
+            UIO.succeedNow(Spec.suite(label, specs.flatMap(UIO.collectAll(_)).map(_.toVector), exec))
           case Spec.TestCase(label, test, annotations) =>
             test.map {
               case (result, annotations1) =>

@@ -101,7 +101,7 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
       }
     }
 
-  final override def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
+  final override def foldWhileManaged[S](s: S)(cont: S => Boolean)(f: (S, A) => S): ZManaged[R, E, S] =
     processEffect.flatMap { thunk =>
       def fold(): Either[E, S] = {
         var state = s
@@ -268,7 +268,7 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
                     .extractPure(s)
                     .fold(e => {
                       state = AggregateState.Initial(chunk)
-                      StreamEffect.fail[E1, B](e)
+                      StreamEffect.failure(e)
                     }, {
                       case (b, leftovers) =>
                         state = AggregateState.Initial(chunk ++ leftovers)
@@ -291,7 +291,7 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
                 case AggregateState.DirtyDone(s) =>
                   sink
                     .extractPure(s)
-                    .fold(StreamEffect.fail[E1, B], {
+                    .fold(StreamEffect.failure, {
                       case (b, _) =>
                         state = AggregateState.Done
                         b
@@ -338,9 +338,9 @@ private[stream] object StreamEffect extends Serializable {
     override def fillInStackTrace() = this
   }
 
-  def end[A]: A = throw End
+  def end: Nothing = throw End
 
-  def fail[E, A](e: E): A = throw Failure(e)
+  def failure[E](e: E): Nothing = throw Failure(e)
 
   val empty: StreamEffect[Any, Nothing, Nothing] =
     StreamEffect {
@@ -358,7 +358,7 @@ private[stream] object StreamEffect extends Serializable {
           if (done) end
           else {
             done = true
-            fail(e)
+            failure(e)
           }
       }
     }
@@ -389,21 +389,77 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromIterator[A](iterator: => Iterator[A]): StreamEffect[Any, Nothing, A] =
+  def fromIteratorTotal[A](iterator: => Iterator[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
-      Managed.effectTotal(() => if (iterator.hasNext) iterator.next() else end)
-      val it = iterator
-      Managed.effectTotal(() => if (it.hasNext) it.next() else end)
+      Managed.effectTotal {
+        val it = iterator
+
+        () => if (it.hasNext) it.next() else end
+      }
     }
 
-  def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
-    val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
-    fromIterator(
+  def fromIterator[A](iterator: => Iterator[A]): StreamEffect[Any, Throwable, A] =
+    StreamEffect {
+      Managed.fromEffect {
+        for {
+          rt <- ZIO.runtime[Any]
+          it <- IO.effectTotal {
+                 var it: Iterator[A] = null
+                 var ex: Throwable   = null
+
+                 try { it = iterator }
+                 catch {
+                   case e: Throwable if !rt.platform.fatal(e) =>
+                     ex = e
+                 }
+
+                 () => {
+                   if (it != null) {
+                     val hasNext: Boolean =
+                       try it.hasNext
+                       catch {
+                         case e: Throwable if !rt.platform.fatal(e) =>
+                           StreamEffect.failure(e)
+                       }
+
+                     if (hasNext) {
+                       try it.next()
+                       catch {
+                         case e: Throwable if !rt.platform.fatal(e) =>
+                           StreamEffect.failure(e)
+                       }
+                     } else StreamEffect.end
+                   } else if (ex != null) {
+                     val ex0 = ex
+                     ex = null
+                     StreamEffect.failure(ex0)
+                   } else StreamEffect.end
+                 }
+               }
+        } yield it
+      }
+    }
+
+  def fromJavaIteratorTotal[A](iterator: => ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
+    val make = () => {
+      val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
       new Iterator[A] {
         def next(): A        = it.next()
         def hasNext: Boolean = it.hasNext
       }
-    )
+    }
+    fromIteratorTotal(make())
+  }
+
+  def fromJavaIterator[A](iterator: => ju.Iterator[A]): StreamEffect[Any, Throwable, A] = {
+    val make = () => {
+      val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
+      new Iterator[A] {
+        def next(): A        = it.next()
+        def hasNext: Boolean = it.hasNext
+      }
+    }
+    fromIterator(make())
   }
 
   def fromInputStream(
@@ -426,7 +482,7 @@ private[stream] object StreamEffect extends Serializable {
               } else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
               else Chunk.fromArray(buf)
             } catch {
-              case e: IOException => fail(e)
+              case e: IOException => failure(e)
             }
           }
 

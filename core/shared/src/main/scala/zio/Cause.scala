@@ -80,6 +80,16 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     find { case Fail(e) => e }
 
   /**
+   * Returns the `E` associated with the first `Fail` in this `Cause` if one
+   * exists, along with its (optional) trace.
+   */
+  def failureTraceOption: Option[(E, Option[ZTrace])] =
+    find {
+      case Traced(Fail(e), trace) => (e, Some(trace))
+      case Fail(e)                => (e, None)
+    }
+
+  /**
    * Retrieve the first checked error on the `Left` if available,
    * if there are no checked errors return the rest of the `Cause`
    * that is known to contain only `Die` or `Interrupt` causes.
@@ -87,6 +97,16 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
   final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
     case Some(error) => Left(error)
     case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+  }
+
+  /**
+   * Retrieve the first checked error and its trace on the `Left` if available,
+   * if there are no checked errors return the rest of the `Cause`
+   * that is known to contain only `Die` or `Interrupt` causes.
+   * */
+  final def failureTraceOrCause: Either[(E, Option[ZTrace]), Cause[Nothing]] = failureTraceOption match {
+    case Some(errorAndTrace) => Left(errorAndTrace)
+    case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
   }
 
   /**
@@ -374,6 +394,35 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    */
   final def squashTraceWith(f: E => Throwable): Throwable =
     attachTrace(squashWith(f))
+
+  /**
+   * Remove all `Die` causes that the specified partial function is defined at,
+   * returning `Some` with the remaining causes or `None` if there are no
+   * remaining causes.
+   */
+  final def stripSomeDefects(pf: PartialFunction[Throwable, Any]): Option[Cause[E]] =
+    self match {
+      case Empty              => None
+      case Interrupt(fiberId) => Some(Interrupt(fiberId))
+      case Fail(e)            => Some(Fail(e))
+      case Die(t)             => if (pf.isDefinedAt(t)) None else Some(Die(t))
+      case Both(l, r) =>
+        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
+          case (Some(l), Some(r)) => Some(Both(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+      case Then(l, r) =>
+        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
+          case (Some(l), Some(r)) => Some(Then(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+      case Traced(c, trace) => c.stripSomeDefects(pf).map(Traced(_, trace))
+      case Meta(c, data)    => c.stripSomeDefects(pf).map(Meta(_, data))
+    }
 
   /**
    * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
