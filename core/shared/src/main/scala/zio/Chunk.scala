@@ -705,10 +705,9 @@ object Chunk {
    */
   def fromIterable[A](it: Iterable[A]): Chunk[A] =
     it match {
-      case chunk: Chunk[A]                => chunk
-      case iterable if iterable.isEmpty   => Empty
-      case iterable if iterable.size == 1 => Singleton(iterable.head)
-      case vector: Vector[A]              => VectorChunk(vector)
+      case chunk: Chunk[A]              => chunk
+      case iterable if iterable.isEmpty => Empty
+      case vector: Vector[A]            => VectorChunk(vector)
       case iterable =>
         val first                   = iterable.head
         implicit val A: ClassTag[A] = Tags.fromValue(first)
