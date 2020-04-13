@@ -168,7 +168,7 @@ final class TMap[K, V] private (
    * Collects all bindings into a chunk.
    */
   def toChunk: USTM[Chunk[(K, V)]] =
-    fold[Chunk[(K, V)]](Chunk.empty)((acc, kv) => Chunk(kv) ++ acc)
+    tBuckets.get.flatMap(_.toChunk).map(_.flatten)
 
   /**
    * Collects all bindings into a map.
