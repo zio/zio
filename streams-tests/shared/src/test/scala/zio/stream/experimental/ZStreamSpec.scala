@@ -6,7 +6,6 @@ import ZStreamGen._
 
 import zio._
 import zio.duration._
-import zio.stream.ChunkUtils._
 import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
@@ -1029,11 +1028,12 @@ object ZStreamSpec extends ZIOBaseSpec {
           res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
         } yield assert(res1)(equalTo(res2))
       }),
-      testM("mapConcatChunk")(checkM(pureStreamOfBytes, Gen.function(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) { (s, f) =>
-        for {
-          res1 <- s.mapConcatChunk(f).runCollect
-          res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
-        } yield assert(res1)(equalTo(res2))
+      testM("mapConcatChunk")(checkM(pureStreamOfBytes, Gen.function(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) {
+        (s, f) =>
+          for {
+            res1 <- s.mapConcatChunk(f).runCollect
+            res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+          } yield assert(res1)(equalTo(res2))
       }),
       suite("mapConcatChunkM")(
         testM("mapConcatChunkM happy path") {
@@ -1378,7 +1378,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             // We're using ZStream.fromChunks in the test, and that discards empty
             // chunks; so we're only testing for non-empty chunks here.
             Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)).filter(_.size > 0)),
-            Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)).filter(_.size > 0)),
+            Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)).filter(_.size > 0))
           ) {
             (l, r) =>
               // zipWith pulls one last time after the last chunk,
@@ -1406,7 +1406,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             // We're using ZStream.fromChunks in the test, and that discards empty
             // chunks; so we're only testing for non-empty chunks here.
             Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)).filter(_.size > 0)),
-            Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)).filter(_.size > 0)),
+            Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)).filter(_.size > 0))
           ) { (l, r) =>
             val expected =
               Chunk
