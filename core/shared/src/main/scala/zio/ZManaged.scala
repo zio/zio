@@ -605,6 +605,16 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     orElse(ZManaged.fail(e1))
 
   /**
+   * Returns an effect that will produce the value of this effect, unless it
+   * fails with the `None` value, in which case it will produce the value of
+   * the specified effect.
+   */
+  final def orElseOptional[R1 <: R, E1, A1 >: A](
+    that: => ZManaged[R1, Option[E1], A1]
+  )(implicit ev: E <:< Option[E1]): ZManaged[R1, Option[E1], A1] =
+    catchAll(ev(_).fold(that)(e => ZManaged.fail(Some(e))))
+
+  /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise suceeds with the specified value.
    */
