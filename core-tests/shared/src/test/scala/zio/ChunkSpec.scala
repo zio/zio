@@ -382,17 +382,17 @@ object ChunkSpec extends ZIOBaseSpec {
 
       assertCompletes
       //checks at compile time
+    } @@ TestAspect.ignore,
+    zio.test.test("++ should work with subtyping") {
+
+      trait A
+      trait B extends A
+
+      val empty: Chunk[B] = Chunk.empty
+
+      val _: NonEmptyChunk[A] = empty concatNonEmpty Chunk(new A {})
+
+      assertCompletes
     } @@ TestAspect.ignore
-    // zio.test.test("++ should work with subtyping") {
-
-    //   trait A
-    //   trait B extends A
-
-    //   val empty: Chunk[B] = Chunk.empty
-
-    //   val _: NonEmptyChunk[A] = empty ++ Chunk(new A {})
-
-    //   assertCompletes
-    // } @@ TestAspect.ignore
   )
 }
