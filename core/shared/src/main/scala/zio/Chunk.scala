@@ -535,7 +535,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
 object Chunk {
 
-  implicit class ConcatNonEmptySyntax[A](private val self: NonEmptyChunk[A]) extends AnyVal {
+  implicit class ConcatNonEmptySyntax[+A](private val self: Chunk[A]) extends AnyVal {
 
     /**
      * Concatenates this `Chunk` with the specified `NonEmptyChunk`, returning a
