@@ -393,21 +393,23 @@ object ChunkSpec extends ZIOBaseSpec {
       val _: NonEmptyChunk[A] = empty concatNonEmpty Chunk(new A {})
 
       assertCompletes
-    } @@ TestAspect.ignore,
-    zio.test.test("+ on large number of elements") {
-      val max  = 32767
-      val ints = (1 to max).foldLeft(Chunk(0))(_ + _)
-      assert[Seq[Int]](ints)(equalTo(0 to 32767))
-    },
-    zio.test.test("concat on the left") {
-      val max  = 32767
-      val ints = (1 to max).map(Chunk.single).foldLeft(Chunk(0))(Chunk.concat)
-      assert[Seq[Int]](ints)(equalTo(0 to max))
-    },
-    zio.test.test("concat on the right") {
-      val max  = 32767
-      val ints = (1 to max).map(Chunk.single).foldLeft(Chunk(0))((acc, e) => Chunk.concat(e, acc))
-      assert[Seq[Int]](ints)(equalTo(max.to(0, -1)))
+    } @@ TestAspect.ignore, {
+      val max = 32768
+      val out = 1 to max
+
+      val maxDepth = 32 - Integer.numberOfLeadingZeros(out.size)
+
+      def check(label: String, ints: Chunk[Int]) =
+        zio.test.test(label)(
+          assert[Seq[Int]](ints)(equalTo(out)) &&
+            assert(Chunk.depth(ints))(isLessThanEqualTo(maxDepth))
+        )
+
+      suite("balanced concat/+ ")(
+        check("+", (2 to max).foldLeft(Chunk(1))(_ + _)),
+        check("concat on the left", (2 to max).foldLeft(Chunk(1))((c, i) => Chunk.concat(c, Chunk.single(i)))),
+        check("concat on the right", (1 until max).foldRight(Chunk(max))((i, c) => Chunk.concat(Chunk.single(i), c)))
+      )
     }
   )
 }

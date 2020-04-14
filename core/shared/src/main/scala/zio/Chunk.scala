@@ -1664,4 +1664,11 @@ object Chunk {
     private val CharClass       = classTag[Char]
     private val CharClassBox    = classTag[java.lang.Character]
   }
+
+  private[zio] def depth[A](chunk: Chunk[A]): Int =
+    chunk match {
+      case Slice(ne, _, _) => 1 + depth(ne)
+      case Concat(l, r)    => 1 + Math.max(depth(l), depth(r))
+      case _               => 1
+    }
 }
