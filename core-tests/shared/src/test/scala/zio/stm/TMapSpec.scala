@@ -214,7 +214,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("key" -> 2)))
+        assertM(tx.commit)(hasSameElements(List("key" -> 6)))
       },
       testM("transformM") {
         val tx =
@@ -234,7 +234,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("key" -> 2)))
+        assertM(tx.commit)(hasSameElements(List("key" -> 6)))
       },
       testM("transformValues") {
         val tx =

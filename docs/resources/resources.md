@@ -7,13 +7,14 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Effective testing with ZIO Test (RC18)](https://scala.monster/zio-test/) by Pavels Sisojevs (April 2020)
 - [ZIO with http4s, Auth, Codecs and zio-tests (RC18)](https://timpigden.github.io/_pages/zio-http4s/intro.html) by Tim Pigden (April 2020)
 - [Testing background process with ZIO](https://www.rudder.io/blog/testing-background-process-zio/) by François Armand (March 2020)
 - [Example of ZLayers being used in combination](https://timpigden.github.io/_pages/zlayer/Examples.html) by Tim Pigden (March 2020)
 - [From idea to product with ZLayer](https://scala.monster/welcome-zio/) by Pavels Sisojevs (March 2020)
 - [Spring to ZIO 101 - ZIO CRUD](https://adrianfilip.com/2020/03/15/spring-to-zio-101/) by Adrian Filip (March 2020)
 - [What are the benefits of the ZIO modules with ZLayers](https://medium.com/@pascal.mengelt/what-are-the-benefits-of-the-zio-modules-with-zlayers-3bf6cc064a9b) by Pascal Mengelt (March 2020)
-- [Effective testing with ZIO Test](https://scala.monster/zio-test/) by Pavels Sisojevs (January 2020)
+- [Effective testing with ZIO Test (RC17)](https://scala.monster/zio-test-old/) by Pavels Sisojevs (January 2020)
 - [Implement your future with ZIO](https://scala.monster/welcome-zio-old/) by Pavels Sisojevs (December 2019)
 - [Decouple the Program from its Implementation with ZIO modules.](https://medium.com/@pascal.mengelt/decouple-the-program-from-its-implementation-with-zio-modules-d9b8713d502e) by Pascal Mengelt (December 2019)
 - [How to write a command line application with ZIO?](https://scalac.io/write-command-line-application-with-zio/) by Piotr Gołębiewski (November 2019)
@@ -64,6 +65,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
+- [ZIO Modern Backend giter8 Template - Tapir, sttp, http4s](https://github.com/Anadyne/zio-full-backend.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [ZIO CRUD sample - Code for the 'Spring to ZIO 101' blog post 03/2020](https://github.com/adrianfilip/zio-crud-sample) by [Adrian Filip](https://github.com/adrianfilip)
 - [ZIO modules with different implementations - Code for the 'Decouple the Program from its Implementation...' blog post 12/2019](https://github.com/pme123/zio-comps-module) by [pme123](https://github.com/pme123)
 - [TicTacToe command line game using Module Pattern](https://github.com/ioleo/zio-by-example) by [ioleo](https://github.com/ioleo)

@@ -163,10 +163,10 @@ object GenSpec extends ZIOBaseSpec {
         )
       },
       testM("chunkOfBounded generates chunks whose size is in bounds") {
-        checkSample(Gen.chunkOfBounded(2, 10)(smallInt))(forall(hasSizeChunk(isWithin(2, 10))))
+        checkSample(Gen.chunkOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
       },
       testM("chunkOf1 generates nonempty chunks") {
-        checkSample(Gen.chunkOf1(smallInt), size = 0)(forall(isNonEmptyChunk))
+        checkSample(Gen.chunkOf1(smallInt), size = 0)(forall(isNonEmpty))
       },
       testM("chunkOfN generates chunks of correct size") {
         checkSample(Gen.chunkOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))

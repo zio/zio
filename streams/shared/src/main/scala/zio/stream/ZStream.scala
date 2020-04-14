@@ -1678,6 +1678,26 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   /**
+   * Halts the evaluation of this stream when the provided IO completes. The given IO
+   * will be forked as part of the returned stream, and its success will be discarded.
+   *
+   * An element in the process of being pulled will not be interrupted when the IO
+   * completes. See `interruptWhen` for this behavior.
+   *
+   * If the IO completes with a failure, the stream will emit that failure.
+   */
+  final def haltWhen[R1 <: R, E1 >: E](io: ZIO[R1, E1, Any]): ZStream[R1, E1, A] =
+    ZStream {
+      for {
+        as    <- self.process
+        runIO <- io.forkManaged
+      } yield runIO.poll.flatMap {
+        case None       => as
+        case Some(exit) => exit.fold(cause => Pull.halt(cause), _ => Pull.end)
+      }
+    }
+
+  /**
    * Interleaves this stream and the specified stream deterministically by
    * alternating pulling values from this stream and the specified stream.
    * When one stream is exhausted all remaining values in the other stream
@@ -1740,6 +1760,22 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       } yield result
     }
   }
+
+  /**
+   * Interrupts the evaluation of this stream when the provided IO completes. The given
+   * IO will be forked as part of this stream, and its success will be discarded. This
+   * combinator will also interrupt any in-progress element being pulled from upstream.
+   *
+   * If the IO completes with a failure before the stream completes, the returned stream
+   * will emit that failure.
+   */
+  final def interruptWhen[R1 <: R, E1 >: E](io: ZIO[R1, E1, Any]): ZStream[R1, E1, A] =
+    ZStream {
+      for {
+        as    <- self.process
+        runIO <- (io.asSomeError *> Pull.end).forkManaged
+      } yield runIO.join.disconnect.raceFirst(as)
+    }
 
   /**
    * Interrupts the evaluation of this stream when the provided promise resolves. This

@@ -8,6 +8,7 @@ import zio.Exit.Success
 import zio.ZQueueSpecUtil.waitForSize
 import zio._
 import zio.duration._
+import zio.random.Random
 import zio.stm.TQueue
 import zio.test.Assertion.{
   dies,
@@ -30,6 +31,9 @@ import zio.test.environment.{ Live, TestClock }
 object StreamSpec extends ZIOBaseSpec {
 
   import ZIOTag._
+
+  def smallChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
+    Gen.small(Gen.chunkOfN(_)(a))
 
   def spec = suite("StreamSpec")(
     suite("Stream.absolve")(
@@ -1004,7 +1008,7 @@ object StreamSpec extends ZIOBaseSpec {
       } yield assert(sum)(equalTo(10))
     },
     testM("Stream.fromChunk")(checkM(smallChunks(Gen.anyInt)) { c =>
-      assertM(Stream.fromChunk(c).runCollect)(equalTo(c.toSeq.toList))
+      assertM(Stream.fromChunk(c).runCollect)(equalTo(c.toList))
     }),
     testM("Stream.fromInputStream") {
       import java.io.ByteArrayInputStream
@@ -1033,7 +1037,7 @@ object StreamSpec extends ZIOBaseSpec {
     testM("Stream.fromQueue")(checkM(smallChunks(Gen.anyInt)) { c =>
       for {
         queue <- Queue.unbounded[Int]
-        _     <- queue.offerAll(c.toSeq)
+        _     <- queue.offerAll(c)
         fiber <- Stream
                   .fromQueue(queue)
                   .foldWhileM(List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
@@ -1042,7 +1046,7 @@ object StreamSpec extends ZIOBaseSpec {
         _     <- waitForSize(queue, -1)
         _     <- queue.shutdown
         items <- fiber.join
-      } yield assert(items)(equalTo(c.toSeq.toList))
+      } yield assert(items)(equalTo(c.toList))
     }),
     testM("Stream.fromSchedule") {
       val schedule = Schedule.exponential(1.second) <* Schedule.recurs(5)
@@ -1262,13 +1266,13 @@ object StreamSpec extends ZIOBaseSpec {
     testM("Stream.mapConcat")(checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
       for {
         res1 <- s.mapConcat(f).runCollect
-        res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+        res2 <- s.runCollect.map(_.flatMap(v => f(v)))
       } yield assert(res1)(equalTo(res2))
     }),
     testM("Stream.mapConcatChunk")(checkM(pureStreamOfBytes, Gen.function(smallChunks(Gen.anyInt))) { (s, f) =>
       for {
         res1 <- s.mapConcatChunk(f).runCollect
-        res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+        res2 <- s.runCollect.map(_.flatMap(v => f(v)))
       } yield assert(res1)(equalTo(res2))
     }),
     suite("Stream.mapConcatChunkM")(
@@ -1276,7 +1280,7 @@ object StreamSpec extends ZIOBaseSpec {
         checkM(pureStreamOfBytes, Gen.function(smallChunks(Gen.anyInt))) { (s, f) =>
           for {
             res1 <- s.mapConcatChunkM(b => UIO.succeed(f(b))).runCollect
-            res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+            res2 <- s.runCollect.map(_.flatMap(v => f(v)))
           } yield assert(res1)(equalTo(res2))
         }
       },
@@ -1293,7 +1297,7 @@ object StreamSpec extends ZIOBaseSpec {
         checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
           for {
             res1 <- s.mapConcatM(b => UIO.succeed(f(b))).runCollect
-            res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+            res2 <- s.runCollect.map(_.flatMap(v => f(v).toList))
           } yield assert(res1)(equalTo(res2))
         }
       },
@@ -1774,13 +1778,13 @@ object StreamSpec extends ZIOBaseSpec {
       val s = Stream.fromChunk(c)
       assertM(s.toQueue(1000).use { (queue: Queue[Take[Nothing, Int]]) =>
         waitForSize(queue, c.length + 1) *> queue.takeAll
-      })(equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End))
+      })(equalTo(c.toList.map(i => Take.Value(i)) :+ Take.End))
     }),
     testM("Stream.toQueueUnbounded")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
       val s = Stream.fromChunk(c)
       assertM(s.toQueueUnbounded.use { (queue: Queue[Take[Nothing, Int]]) =>
         waitForSize(queue, c.length + 1) *> queue.takeAll
-      })(equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End))
+      })(equalTo(c.toList.map(i => Take.Value(i)) :+ Take.End))
     }),
     suite("Stream.aggregate")(
       testM("aggregate") {
