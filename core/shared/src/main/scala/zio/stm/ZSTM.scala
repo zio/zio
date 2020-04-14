@@ -1706,7 +1706,8 @@ object ZSTM {
 
       val tref: ZTRef.Atomic[S]
 
-      protected[this] val expected: Versioned[S]
+      private[stm] val expected: Versioned[S]
+
       protected[this] var newValue: S
 
       val isNew: Boolean
