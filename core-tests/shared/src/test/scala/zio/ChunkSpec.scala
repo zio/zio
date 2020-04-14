@@ -394,10 +394,13 @@ object ChunkSpec extends ZIOBaseSpec {
 
       assertCompletes
     } @@ TestAspect.ignore, {
-      val max = 32768
-      val out = 1 to max
+      //numbers fit in JS short representation
+      val min = 128
+      val max = 32767
 
-      val maxDepth = 32 - Integer.numberOfLeadingZeros(out.size)
+      val out = min to max
+
+      val maxDepth = 2 + 31 - Integer.numberOfLeadingZeros(out.size)
 
       def check(label: String, ints_ : => Chunk[Int]) =
         zio.test.test(label)({
@@ -407,9 +410,9 @@ object ChunkSpec extends ZIOBaseSpec {
         })
 
       suite("balanced concat/+ ")(
-        check("+", (2 to max).foldLeft(Chunk(1))(_ + _)),
-        check("concat on the left", (2 to max).foldLeft(Chunk(1))((c, i) => Chunk.concat(c, Chunk.single(i)))),
-        check("concat on the right", (1 until max).foldRight(Chunk(max))((i, c) => Chunk.concat(Chunk.single(i), c)))
+        check("+", (min + 1 to max).foldLeft(Chunk(min))(_ + _)),
+        check("concat on the left", (min + 1 to max).foldLeft(Chunk(min))((c, i) => Chunk.concat(c, Chunk.single(i)))),
+        check("concat on the right", (min until max).foldRight(Chunk(max))((i, c) => Chunk.concat(Chunk.single(i), c)))
       )
     }
   )
