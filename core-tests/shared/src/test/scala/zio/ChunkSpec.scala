@@ -399,11 +399,12 @@ object ChunkSpec extends ZIOBaseSpec {
 
       val maxDepth = 32 - Integer.numberOfLeadingZeros(out.size)
 
-      def check(label: String, ints: Chunk[Int]) =
-        zio.test.test(label)(
+      def check(label: String, ints_ : => Chunk[Int]) =
+        zio.test.test(label)({
+          val ints = ints_
           assert[Seq[Int]](ints)(equalTo(out)) &&
-            assert(Chunk.depth(ints))(isLessThanEqualTo(maxDepth))
-        )
+          assert(Chunk.depth(ints))(isLessThanEqualTo(maxDepth))
+        })
 
       suite("balanced concat/+ ")(
         check("+", (2 to max).foldLeft(Chunk(1))(_ + _)),
