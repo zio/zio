@@ -134,12 +134,13 @@ object ZTransducer {
   def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
       def go(in: Chunk[I], state: O): (Chunk[O], O) =
-        in.fold[(Chunk[O], O)](Chunk.empty -> state) { case ((os0, state), i) =>
-          val o = f(state, i)
-          if (contFn(o))
-            os0 -> o
-          else
-            (os0 + o) -> z
+        in.fold[(Chunk[O], O)](Chunk.empty -> state) {
+          case ((os0, state), i) =>
+            val o = f(state, i)
+            if (contFn(o))
+              os0 -> o
+            else
+              (os0 + o) -> z
         }
 
       ZRef.makeManaged(z).map { state =>
@@ -156,13 +157,14 @@ object ZTransducer {
   def foldM[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
       def go(in: Chunk[I], state: O): ZIO[R, E, (Chunk[O], O)] =
-        in.foldM[R, E, (Chunk[O], O)](Chunk.empty -> state) { case ((os0, state), i) =>
-          f(state, i).map { o =>
-            if (contFn(o))
-              os0 -> o
-            else
-              (os0 + o) -> z
-          }
+        in.foldM[R, E, (Chunk[O], O)](Chunk.empty -> state) {
+          case ((os0, state), i) =>
+            f(state, i).map { o =>
+              if (contFn(o))
+                os0 -> o
+              else
+                (os0 + o) -> z
+            }
         }
 
       ZRef.makeManaged(z).map { state =>
@@ -237,9 +239,9 @@ object ZTransducer {
     z: O
   )(costFn: I => Long, max: Long, decompose: I => Chunk[I])(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
-      case class FoldWeightedState(started: Boolean, result: O, cost: Long)
+      case class FoldWeightedState(result: O, cost: Long)
 
-      val initial = FoldWeightedState(false, z, 0)
+      val initial = FoldWeightedState(z, 0)
 
       @tailrec def go(in: Chunk[I], os0: Chunk[O], state: FoldWeightedState): (Chunk[O], FoldWeightedState) =
         in.headOption match {
@@ -257,13 +259,13 @@ object ZTransducer {
             } else if (total == max)
               go(in.drop(1), os0 + f(state.result, i), initial)
             else
-              go(in.drop(1), os0, FoldWeightedState(true, f(state.result, i), total))
+              go(in.drop(1), os0, FoldWeightedState(f(state.result, i), total))
         }
 
       ZRef.makeManaged(initial).map { state =>
         {
           case Some(in) => state.modify(go(in, Chunk.empty, _))
-          case None     => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
+          case None     => state.getAndSet(initial).map(s => Chunk.single(s.result))
         }
       }
     }

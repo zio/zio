@@ -38,7 +38,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         },
         testM("empty list") {
           val sink = ZTransducer.collectAllN[Int](0)
-          assertM(sink.push.use(_(None)))(equalTo(Chunk.empty))
+          assertM(sink.push.use(_(None)))(equalTo(Chunk(Nil)))
         }
         // testM("init error") {
         //   val sink = initErrorSink.collectAllN(1)
