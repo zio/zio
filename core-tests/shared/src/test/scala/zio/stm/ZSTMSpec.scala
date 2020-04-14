@@ -489,7 +489,6 @@ object ZSTMSpec extends ZIOBaseSpec {
         }
       ) @@ zioTag(errors),
       testM("orElse to try another computation when the computation is failed") {
-        implicit val canFail = CanFail
         (for {
           s <- STM.succeed(1) orElse STM.succeed(2)
           f <- STM.fail("failed") orElse STM.succeed("try this")
@@ -1026,7 +1025,6 @@ object ZSTMSpec extends ZIOBaseSpec {
     ),
     suite("orElse must")(
       testM("rollback left retry") {
-        implicit val canFail = CanFail
         for {
           tvar  <- TRef.makeCommit(0)
           left  = tvar.update(_ + 100) *> STM.retry
@@ -1058,8 +1056,7 @@ object ZSTMSpec extends ZIOBaseSpec {
     ) @@ zioTag(errors),
     suite("orElseFail")(
       testM("tries this effect first") {
-        implicit val canFail = CanFail
-        val transaction      = ZSTM.succeed(true).orElseFail(false)
+        val transaction = ZSTM.succeed(true).orElseFail(false)
         assertM(transaction.commit)(isTrue)
       },
       testM("if it fails, fails with the specified error") {
@@ -1069,8 +1066,7 @@ object ZSTMSpec extends ZIOBaseSpec {
     ) @@ zioTag(errors),
     suite("orElseSucceed")(
       testM("tries this effect first") {
-        implicit val canFail = CanFail
-        val transaction      = ZSTM.succeed(true).orElseSucceed(false)
+        val transaction = ZSTM.succeed(true).orElseSucceed(false)
         assertM(transaction.commit)(isTrue)
       },
       testM("if it succeeds, succeeds with the specified value") {
