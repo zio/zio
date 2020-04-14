@@ -73,13 +73,6 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     self.materialize.collectWhileM(pf)
 
   /**
-   * Concatenates this `CHunk` with the specified `NonEmptyChunk`, returning a
-   * `NonEmptyChunk`.
-   */
-  def concatNonEmpty[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
-    Chunk.concat(self, that)
-
-  /**
    * Determines whether this chunk and the specified chunk have the same length
    * and every pair of corresponding elements of this chunk and the specified
    * chunk satisfy the specified predicate.
@@ -541,6 +534,16 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 }
 
 object Chunk {
+
+  implicit class ConcatNonEmptySyntax[A](private val self: NonEmptyChunk[A]) extends AnyVal {
+
+    /**
+     * Concatenates this `Chunk` with the specified `NonEmptyChunk`, returning a
+     * `NonEmptyChunk`.
+     */
+    def concatNonEmpty[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
+      Chunk.concat(self, that)
+  }
 
   /**
    * Returns the empty chunk.
