@@ -55,16 +55,15 @@ final class TMap[K, V] private (
    */
   def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
     new STM((journal, _, _, _) => {
-      val value = tBuckets.unsafeAccess(journal)
+      val buckets = tBuckets.unsafeAccess(journal)
+      var res     = zero
+      var i       = 0
 
-      var res = zero
-      var i   = 0
+      while (i < buckets.array.length) {
+        val bucket = buckets.array(i)
+        val items  = bucket.unsafeAccess(journal)
 
-      while (i < value.array.length) {
-        val bucket = value.array(i)
-        val list   = bucket.unsafeAccess(journal)
-
-        res = list.foldLeft(res)(op)
+        res = items.foldLeft(res)(op)
 
         i += 1
       }
@@ -194,13 +193,19 @@ final class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
-    tBuckets.get.flatMap(_.toChunk).flatMap { buckets =>
-      val g          = f.tupled
-      val capacity   = buckets.length
-      val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
+    new STM((journal, _, _, _) => {
+      val g        = f.tupled
+      val buckets  = tBuckets.unsafeAccess(journal)
+      val capacity = buckets.array.length
 
-      buckets.foreach { bucket =>
-        val it = bucket.iterator
+      val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
+      var i          = 0
+
+      while (i < capacity) {
+        val bucket = buckets.array(i)
+        val pairs  = bucket.unsafeAccess(journal)
+
+        val it = pairs.iterator
         while (it.hasNext) {
           val newPair   = g(it.next)
           val idx       = TMap.indexOf(newPair._1, capacity)
@@ -209,17 +214,18 @@ final class TMap[K, V] private (
           if (!newBucket.exists(_._1 == newPair._1))
             newBuckets(idx) = newPair :: newBucket
         }
+
+        i += 1
       }
 
-      val newArr = Array.ofDim[TRef[List[(K, V)]]](capacity)
-      var idx    = 0
-      while (idx < capacity) {
-        newArr(idx) = ZTRef.unsafeMake(newBuckets(idx))
-        idx += 1
+      i = 0
+      while (i < capacity) {
+        buckets.array(i) = ZTRef.unsafeMake(newBuckets(i))
+        i += 1
       }
 
-      tBuckets.set(new TArray(newArr))
-    }
+      TExit.Succeed(())
+    })
 
   /**
    * Atomically updates all bindings using a transactional function.
