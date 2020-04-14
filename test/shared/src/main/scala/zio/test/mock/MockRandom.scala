@@ -36,6 +36,7 @@ object MockRandom extends Mock[Random] {
   object NextLongBounded   extends Effect[Long, Nothing, Long]
   object NextPrintableChar extends Effect[Unit, Nothing, Char]
   object NextString        extends Effect[Int, Nothing, String]
+  object SetSeed           extends Effect[Long, Nothing, Unit]
   object Shuffle           extends Effect[List[Any], Nothing, List[Any]]
 
   val compose: URLayer[Has[Proxy], Random] =
@@ -59,7 +60,8 @@ object MockRandom extends Mock[Random] {
           proxy(NextLongBetween, minInclusive, maxExclusive)
         def nextLongBounded(n: Long): UIO[Long]     = proxy(NextLongBounded, n)
         val nextPrintableChar: UIO[Char]            = proxy(NextPrintableChar)
-        def nextString(length: Int)                 = proxy(NextString, length)
+        def nextString(length: Int): UIO[String]    = proxy(NextString, length)
+        def setSeed(seed: Long): UIO[Unit]          = proxy(SetSeed, seed)
         def shuffle[A](list: List[A]): UIO[List[A]] = proxy(Shuffle, list).asInstanceOf[UIO[List[A]]]
       }
     )
