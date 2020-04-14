@@ -133,25 +133,19 @@ object ZTransducer {
    */
   def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
-      final case class FoldState(started: Boolean, result: O)
-
-      val initial = FoldState(false, z)
-
-      @tailrec def go(in: Chunk[I], os0: Chunk[O], state: FoldState): (Chunk[O], FoldState) =
-        in.headOption match {
-          case None => os0 -> state
-          case Some(i) =>
-            val o = f(state.result, i)
-            if (contFn(o))
-              go(in.drop(1), os0, FoldState(true, o))
-            else
-              go(in.drop(1), os0 + o, initial)
+      def go(in: Chunk[I], state: O): (Chunk[O], O) =
+        in.fold[(Chunk[O], O)](Chunk.empty -> state) { case ((os0, state), i) =>
+          val o = f(state, i)
+          if (contFn(o))
+            os0 -> o
+          else
+            (os0 + o) -> z
         }
 
-      ZRef.makeManaged(initial).map { state =>
+      ZRef.makeManaged(z).map { state =>
         {
-          case Some(in) => state.modify(go(in, Chunk.empty, _))
-          case None     => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
+          case Some(in) => state.modify(go(in, _))
+          case None     => state.getAndSet(z).map(Chunk.single(_))
         }
       }
     }
@@ -161,30 +155,24 @@ object ZTransducer {
    */
   def foldM[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
-      final case class FoldState(started: Boolean, result: O)
-
-      val initial = FoldState(false, z)
-
-      def go(in: Chunk[I], os0: Chunk[O], state: FoldState): ZIO[R, E, (Chunk[O], FoldState)] =
-        in.headOption match {
-          case None => ZIO.succeedNow(os0 -> state)
-          case Some(i) =>
-            f(state.result, i).flatMap { o =>
-              if (contFn(o))
-                go(in.drop(1), os0, FoldState(true, o))
-              else
-                go(in.drop(1), os0 + o, initial)
-            }
+      def go(in: Chunk[I], state: O): ZIO[R, E, (Chunk[O], O)] =
+        in.foldM[R, E, (Chunk[O], O)](Chunk.empty -> state) { case ((os0, state), i) =>
+          f(state, i).map { o =>
+            if (contFn(o))
+              os0 -> o
+            else
+              (os0 + o) -> z
+          }
         }
 
-      ZRef.makeManaged(initial).map { state =>
+      ZRef.makeManaged(z).map { state =>
         {
           case Some(in) =>
-            state.get.flatMap(go(in, Chunk.empty, _)).flatMap {
+            state.get.flatMap(go(in, _)).flatMap {
               case (os, s) => state.set(s) *> Push.emit(os)
             }
           case None =>
-            state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
+            state.getAndSet(z).map(Chunk.single(_))
         }
       }
     }
