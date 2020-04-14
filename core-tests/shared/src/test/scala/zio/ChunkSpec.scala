@@ -395,7 +395,19 @@ object ChunkSpec extends ZIOBaseSpec {
       assertCompletes
     } @@ TestAspect.ignore,
     zio.test.test("+ on large number of elements") {
-      assert[Seq[Int]]((1 to 32767).foldLeft(Chunk(0))(_ + _))(equalTo(0 until 32768))
+      val max  = 32767
+      val ints = (1 to max).foldLeft(Chunk(0))(_ + _)
+      assert[Seq[Int]](ints)(equalTo(0 to 32767))
+    },
+    zio.test.test("concat on the left") {
+      val max  = 32767
+      val ints = (1 to max).map(Chunk.single).foldLeft(Chunk(0))(Chunk.concat)
+      assert[Seq[Int]](ints)(equalTo(0 to max))
+    },
+    zio.test.test("concat on the right") {
+      val max  = 32767
+      val ints = (1 to max).map(Chunk.single).foldLeft(Chunk(0))((acc, e) => Chunk.concat(e, acc))
+      assert[Seq[Int]](ints)(equalTo(max.to(0, -1)))
     }
   )
 }

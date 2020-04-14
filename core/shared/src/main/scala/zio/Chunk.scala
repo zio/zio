@@ -668,8 +668,9 @@ object Chunk {
   /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
-  def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmptyChunk[A] = {
-    if(l.length > r.length) {
+  def concat[A](l: NonEmpty[A], r: NonEmpty[A]): NonEmptyChunk[A] =
+    if (l.length == r.length) Concat(l, r)
+    else if (l.length > r.length) {
 
       val lefts: Array[NonEmptyChunk[A]] = Array.ofDim[NonEmptyChunk[A]](16)
       var n: Int                         = 0
@@ -678,14 +679,14 @@ object Chunk {
 
       var continue = true
 
-      while (continue) {
+      while (continue && n < 16) {
         point match {
           case _ if point.length <= r.length =>
             continue = false
-          case Concat(l, r) if n < 16 && l.size >= r.size + r.length =>
-            lefts(n) = l
+          case Concat(ll, lr) if ll.length >= lr.length + r.length =>
+            lefts(n) = ll
             n += 1
-            point = r
+            point = lr
           case _ =>
             continue = false
         }
@@ -701,9 +702,37 @@ object Chunk {
 
       res
 
-    } else
-      Concat(l,r)
-  }
+    } else {
+      val rights = Array.ofDim[NonEmptyChunk[A]](16)
+      var n: Int = 0
+
+      var point: NonEmptyChunk[A] = r
+
+      var continue = true
+
+      while (continue && n < 16) {
+        point match {
+          case _ if point.length <= l.length =>
+            continue = false
+          case Concat(rl, rr) if rr.length >= rl.length + l.length =>
+            rights(n) = rr
+            n += 1
+            point = rl
+          case _ =>
+            continue = false
+        }
+      }
+
+      var res = Concat(l, point)
+      var i   = n - 1
+
+      while (i >= 0) {
+        res = Chunk.Concat(res, rights(i))
+        i -= 1
+      }
+
+      res
+    }
 
   /**
    * Returns the concatenation of this chunk with the specified chunk.
