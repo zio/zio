@@ -23,44 +23,49 @@ package object random {
       def shuffle[A](list: List[A]): UIO[List[A]]
     }
 
-    object Service {
-      val live: Service = new Service {
-        import scala.util.{ Random => SRandom }
+    import scala.util.{ Random => SRandom }
 
+    object Service {
+      val live: Service = make(new SRandom())
+
+      def withSeed(seed: Long): Service =
+        make(new SRandom(seed))
+
+      def make(random: SRandom): Service = new Service {
         val nextBoolean: UIO[Boolean] =
-          ZIO.effectTotal(SRandom.nextBoolean())
+          ZIO.effectTotal(random.nextBoolean())
         def nextBytes(length: Int): UIO[Chunk[Byte]] =
           ZIO.effectTotal {
             val array = Array.ofDim[Byte](length)
-            SRandom.nextBytes(array)
+            random.nextBytes(array)
             Chunk.fromArray(array)
           }
         val nextDouble: UIO[Double] =
-          ZIO.effectTotal(SRandom.nextDouble())
+          ZIO.effectTotal(random.nextDouble())
         def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
           nextDoubleBetweenWith(minInclusive, maxExclusive)(nextDouble)
         val nextFloat: UIO[Float] =
-          ZIO.effectTotal(SRandom.nextFloat())
+          ZIO.effectTotal(random.nextFloat())
         def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
           nextFloatBetweenWith(minInclusive, maxExclusive)(nextFloat)
         val nextGaussian: UIO[Double] =
-          ZIO.effectTotal(SRandom.nextGaussian())
+          ZIO.effectTotal(random.nextGaussian())
         val nextInt: UIO[Int] =
-          ZIO.effectTotal(SRandom.nextInt())
+          ZIO.effectTotal(random.nextInt())
         def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
           nextIntBetweenWith(minInclusive, maxExclusive)(nextInt, nextIntBounded)
         def nextIntBounded(n: Int): UIO[Int] =
-          ZIO.effectTotal(SRandom.nextInt(n))
+          ZIO.effectTotal(random.nextInt(n))
         val nextLong: UIO[Long] =
-          ZIO.effectTotal(SRandom.nextLong())
+          ZIO.effectTotal(random.nextLong())
         def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
           nextLongBetweenWith(minInclusive, maxExclusive)(nextLong, nextLongBounded)
         def nextLongBounded(n: Long): UIO[Long] =
           Random.nextLongBoundedWith(n)(nextLong)
         val nextPrintableChar: UIO[Char] =
-          ZIO.effectTotal(SRandom.nextPrintableChar())
+          ZIO.effectTotal(random.nextPrintableChar())
         def nextString(length: Int): UIO[String] =
-          ZIO.effectTotal(SRandom.nextString(length))
+          ZIO.effectTotal(random.nextString(length))
         def shuffle[A](list: List[A]): UIO[List[A]] =
           Random.shuffleWith(nextIntBounded(_), list)
       }
@@ -71,6 +76,12 @@ package object random {
 
     val live: Layer[Nothing, Random] =
       ZLayer.succeed(Service.live)
+
+    def withSeed(seed: Long): Layer[Nothing, Random] =
+      ZLayer.succeed(Service.withSeed(seed))
+
+    def make(random: SRandom): Layer[Nothing, Random] =
+      ZLayer.succeed(Service.make(random))
 
     private[zio] def nextDoubleBetweenWith(minInclusive: Double, maxExclusive: Double)(
       nextDouble: UIO[Double]
