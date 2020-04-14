@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio.Chunk
+import zio.stm.ZSTM.internal._
 
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
@@ -53,9 +54,23 @@ final class TMap[K, V] private (
    * Atomically folds using a pure function.
    */
   def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
-    tBuckets.get
-      .flatMap(_.toChunk)
-      .map(_.flatMap(b => Chunk.fromArray(b.toArray)).foldLeft(zero)(op))
+    new STM((journal, _, _, _) => {
+      val value = tBuckets.unsafeAccess(journal)
+
+      var res = zero
+      var i   = 0
+
+      while (i < value.array.length) {
+        val bucket = value.array(i)
+        val list   = bucket.unsafeAccess(journal)
+
+        res = list.foldLeft(res)(op)
+
+        i += 1
+      }
+
+      TExit.Succeed(res)
+    })
 
   /**
    * Atomically folds using a transactional function.
