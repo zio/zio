@@ -70,7 +70,7 @@ object LawsFSpec extends ZIOBaseSpec {
       }
 
     val compositionLaw: LawsF.Covariant[CovariantEqualF, Equal] =
-      new ZLawsF.Covariant.Law3Function[CovariantEqualF, Equal]("compositionLaw") {
+      new ZLawsF.Covariant.ComposeLaw[CovariantEqualF, Equal]("compositionLaw") {
         def apply[F[+_]: CovariantEqualF, A: Equal, B: Equal, C: Equal](fa: F[A], f: A => B, g: B => C): TestResult =
           fa.map(f).map(g) <-> fa.map(f andThen g)
       }
