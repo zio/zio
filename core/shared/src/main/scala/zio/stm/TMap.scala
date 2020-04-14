@@ -181,7 +181,28 @@ final class TMap[K, V] private (
    * Collects all bindings into a chunk.
    */
   def toChunk: USTM[Chunk[(K, V)]] =
-    toList.map(Chunk.fromIterable)
+    new STM((journal, _, _, _) => {
+      val buckets  = tBuckets.unsafeAccess(journal)
+      val capacity = buckets.array.length
+      val size     = tSize.unsafeAccess(journal)
+      val data     = Array.ofDim[(K, V)](size)
+      var i        = 0
+      var j        = 0
+
+      while (i < capacity) {
+        val bucket = buckets.array(i)
+        val pairs  = bucket.unsafeAccess(journal)
+
+        pairs.foreach { kv =>
+          data(j) = kv
+          j += 1
+        }
+
+        i += 1
+      }
+
+      TExit.Succeed(Chunk.fromArray(data))
+    })
 
   /**
    * Collects all bindings into a map.
