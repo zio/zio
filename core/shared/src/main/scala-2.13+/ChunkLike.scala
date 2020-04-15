@@ -86,7 +86,7 @@ trait ChunkLike[+A]
         chunk.toArray(n, dest)
       }
 
-      Chunk.arr(dest)
+      Chunk.fromArray(dest)
     }
   }
 

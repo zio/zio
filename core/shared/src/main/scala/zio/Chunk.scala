@@ -181,7 +181,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     }
 
     if (j == 0) Chunk.Empty
-    else Chunk.Slice(Chunk.arr(dest), 0, j)
+    else Chunk.Slice(Chunk.Arr(dest), 0, j)
   }
 
   /**
@@ -214,7 +214,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     dest.map {
       case (array, arrLen) =>
         if (arrLen == 0) Chunk.empty
-        else Chunk.Slice(Chunk.arr(array), 0, arrLen)
+        else Chunk.Slice(Chunk.Arr(array), 0, arrLen)
     }
   }
 
@@ -389,7 +389,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
     s ->
       (if (dest == null) Chunk.empty
-       else Chunk.arr(dest))
+       else Chunk.Arr(dest))
   }
 
   /**
@@ -515,7 +515,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   def materialize[A1 >: A]: Chunk[A1] =
     self.toArrayOption[A1] match {
       case None        => Chunk.Empty
-      case Some(array) => Chunk.arr(array)
+      case Some(array) => Chunk.Arr(array)
     }
 
   /**
@@ -613,7 +613,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
       }
 
-      Chunk.arr(dest)
+      Chunk.Arr(dest)
     }
   }
 
@@ -641,7 +641,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
         i = i + 1
       }
 
-      Chunk.arr(dest)
+      Chunk.Arr(dest)
     }
   }
 
@@ -661,7 +661,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       i += 1
     }
 
-    Chunk.arr(dest)
+    Chunk.Arr(dest)
   }
 
   //noinspection AccessorLikeMethodIsUnit
@@ -695,7 +695,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       i = i + 1
     }
 
-    if (dest != null) Chunk.arr(dest)
+    if (dest != null) Chunk.Arr(dest)
     else Chunk.Empty
   }
 
@@ -739,7 +739,7 @@ object Chunk {
    * Returns a chunk backed by an array.
    */
   def fromArray[A](array: Array[A]): Chunk[A] =
-    if (array.isEmpty) Empty else arr(array)
+    if (array.isEmpty) Empty else Arr(array)
 
   /**
    * Returns a chunk backed by a [[java.nio.ByteBuffer]].
@@ -844,7 +844,7 @@ object Chunk {
         array(i) = elem
         i += 1
       }
-      arr(array)
+      Arr(array)
     }
 
   /**
@@ -858,9 +858,6 @@ object Chunk {
    */
   def succeed[A](a: A): Chunk[A] =
     single(a)
-
-  private[zio] def arr[A](array: Array[A]): Chunk[A] =
-    new Arr(array, ClassTag(array.getClass.getComponentType))
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
@@ -876,9 +873,10 @@ object Chunk {
       case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
-  private final class Arr[A](private val array: Array[A], implicit val classTag: ClassTag[A])
-      extends Chunk[A]
-      with Serializable { self =>
+  private final case class Arr[A](private val array: Array[A]) extends Chunk[A] with Serializable { self =>
+
+    implicit val classTag: ClassTag[A] =
+      ClassTag(array.getClass.getComponentType)
 
     override val length: Int =
       array.length
@@ -916,7 +914,7 @@ object Chunk {
 
       dest.map(array =>
         if (array == null) Chunk.empty
-        else Chunk.Slice(Chunk.arr(array), 0, j)
+        else Chunk.Slice(Chunk.Arr(array), 0, j)
       )
     }
 
@@ -947,7 +945,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.arr(dest), 0, j)
+      else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
     override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
@@ -985,7 +983,7 @@ object Chunk {
 
       dest.map(array =>
         if (array == null) Chunk.empty
-        else Chunk.Slice(Chunk.arr(array), 0, j)
+        else Chunk.Slice(Chunk.Arr(array), 0, j)
       )
     }
 
@@ -1020,7 +1018,7 @@ object Chunk {
       }
 
       if (j == 0) Chunk.Empty
-      else Chunk.Slice(Chunk.arr(dest), 0, j)
+      else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
     override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
@@ -1102,7 +1100,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.arr(dest), 0, j)
+      else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
     override protected def mapChunk[B](f: A => B): Chunk[B] = {
@@ -1125,7 +1123,8 @@ object Chunk {
         i = i + 1
       }
 
-      Chunk.arr(dest)
+      if (dest != null) Chunk.Arr(dest)
+      else Chunk.Empty
     }
   }
 

@@ -160,7 +160,7 @@ private[zio] trait ChunkLike[+A] extends IndexedSeq[A] with IndexedSeqLike[A, Ch
         chunk.toArray(n, dest)
       }
 
-      Chunk.arr(dest)
+      Chunk.fromArray(dest)
     }
   }
 
