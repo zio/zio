@@ -1091,9 +1091,14 @@ object Chunk {
       (bytes(n >> 3) & (1 << (7 - (n & 7)))) != 0
 
     override def foreach[A](f: Boolean => A): Unit = {
-      var i = 0
-      while (i < length) {
-        f(apply(i))
+      var i    = minBitIndex
+      var byte = bytes(i >> 3)
+      while (i < maxBitIndex) {
+        if ((i & 7) == 0) {
+          byte = bytes(i >> 3)
+        }
+        f((byte & 0x80) != 0)
+        byte = (byte << 1).toByte
         i += 1
       }
     }
