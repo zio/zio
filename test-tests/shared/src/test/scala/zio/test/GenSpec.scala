@@ -10,7 +10,7 @@ import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test.{ check => Check, checkN => CheckN }
-import zio.{ Chunk, ZIO }
+import zio.{ Chunk, NonEmptyChunk, ZIO }
 
 object GenSpec extends ZIOBaseSpec {
   implicit val localDateTimeOrdering: Ordering[LocalDateTime] = _ compareTo _
@@ -166,7 +166,7 @@ object GenSpec extends ZIOBaseSpec {
         checkSample(Gen.chunkOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
       },
       testM("chunkOf1 generates nonempty chunks") {
-        checkSample(Gen.chunkOf1(smallInt), size = 0)(forall(isNonEmpty))
+        checkSample(Gen.chunkOf1(smallInt), size = 0)(forall(isNonEmpty), _.map(_.toChunk))
       },
       testM("chunkOfN generates chunks of correct size") {
         checkSample(Gen.chunkOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
@@ -423,7 +423,7 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.chunkOf(smallInt))(Chunk.empty)
       },
       testM("chunkOf1 shrinks to singleton vector") {
-        checkShrink(Gen.chunkOf1(smallInt))(Chunk(-10))
+        checkShrink(Gen.chunkOf1(smallInt))(NonEmptyChunk(-10))
       },
       testM("chunkOfBounded shrinks to bottom of range") {
         checkShrink(Gen.chunkOfBounded(2, 10)(smallInt))(Chunk(-10, -10))
