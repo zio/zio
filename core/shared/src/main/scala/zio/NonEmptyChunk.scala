@@ -54,6 +54,16 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     nonEmpty(chunk.asBits)
 
   /**
+   * Returns whether this `NonEmptyChunk` and the specified `NonEmptyChunk` are
+   * equal to each other.
+   */
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: NonEmptyChunk[_] => self.chunk == that.chunk
+      case _                      => false
+    }
+
+  /**
    * Maps each element of this `NonEmptyChunk` to a new `NonEmptyChunk` and
    * then concatenates them together.
    */
@@ -66,6 +76,12 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    */
   def flatten[B](implicit ev: A <:< NonEmptyChunk[B]): NonEmptyChunk[B] =
     flatMap(ev)
+
+  /**
+    * Returns the hashcode of this `NonEmptyChunk`.
+    */
+  override def hashCode: Int =
+    chunk.hashCode
 
   /**
    * Transforms the elements of this `NonEmptyChunk` with the specified
