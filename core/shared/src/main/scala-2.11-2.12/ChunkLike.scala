@@ -160,9 +160,15 @@ private[zio] trait ChunkLike[+A] extends IndexedSeq[A] with IndexedSeqLike[A, Ch
         chunk.toArray(n, dest)
       }
 
-      Chunk.arr(dest)
+      Chunk.fromArray(dest)
     }
   }
+
+  /**
+   * Zips this chunk with the index of every element.
+   */
+  final def zipWithIndex: Chunk[(A, Int)] =
+    zipWithIndexFrom(0)
 
   /**
    * Constructs a new `ChunkBuilder`. This operation allocates mutable state
