@@ -1,6 +1,7 @@
 package zio.stream.experimental
 
 import zio._
+import zio.stream.experimental.internal.ZSinkParallelHelper
 
 // Important notes while writing sinks and combinators:
 // - What return values for sinks mean:
@@ -239,71 +240,44 @@ abstract class ZSink[-R, +E, -I, +Z] private (
   final def raceBoth[R1 <: R, E1 >: E, A0, I1 <: I, Z1](
     that: ZSink[R1, E1, I1, Z1]
   ): ZSink[R1, E1, I1, Either[Z, Z1]] = {
-
-    case class SingleSinkState(active: Push[R1, E1, I1, Any], isFirst: Boolean, otherSinkFailure: E1) {
-      def halt(err: E1): IO[Either[E1, Nothing], Nothing] = {
-        val (e1, e2) = if (isFirst) (err, otherSinkFailure) else (otherSinkFailure, err)
-        Push.halt(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
-      }
-
-      def emit(z: Any): ZIO[Any, Either[Nothing, Either[Z, Z1]], Nothing] =
-        if (isFirst) Push.emit(Left(z.asInstanceOf[Z])) else Push.emit(Right(z.asInstanceOf[Z1]))
-    }
-
-    ZSink(for {
-      ref <- ZRef.makeManaged[Option[SingleSinkState]](None)
-      p1  <- self.push
-      p2  <- that.push
-      push: Push[R1, E1, I1, Either[Z, Z1]] = {
-        in =>
-          ref.get.flatMap {
-            case Some(onlyOne) => {
-              onlyOne
-                .active(in)
-                .foldM({
-                  case Left(err) => onlyOne.halt(err)
-                  case Right(z)  => onlyOne.emit(z)
-                }, _ => Push.more)
-            }
-            case None => {
-              p1(in).either.zipPar(p2(in).either).flatMap {
-                case (res1, res2) => {
-                  res1 match {
-                    case Left(r1) => {
-                      r1 match {
-                        case Left(e1) => {
-                          res2 match {
-                            case Left(r2) => {
-                              r2 match {
-                                case Left(e2)  => Push.halt(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
-                                case Right(z2) => Push.emit(Right(z2))
-                              }
-                            }
-                            case Right(_) => ref.set(Some(SingleSinkState(p2, false, e1))) *> Push.more
-                          }
-                        }
-                        case Right(z1) => Push.emit(Left(z1))
-                      }
-                    }
-                    case Right(_) => {
+    def extractFirstWinner(state: ZSinkParallelHelper.Results[Z, Z1, E1]): ZIO[R1, Either[E1, Either[Z, Z1]], Unit] =
+      state.left match {
+        case Some(res1) => {
+          res1 match {
+            case Left(e1) =>
+              state.right match {
+                case Some(res2) =>
+                  res2 match {
+                    case Left(e2)  => Push.halt(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
+                    case Right(z2) => Push.emit(Right(z2))
+                  }
+                case None => {
+                  state.right match {
+                    case Some(res2) =>
                       res2 match {
-                        case Left(r2) => {
-                          r2 match {
-                            case Left(e2)  => ref.set(Some(SingleSinkState(p1, true, e2))) *> Push.more
-                            case Right(z2) => Push.emit(Right(z2))
-                          }
-                        }
-                        case Right(_) => Push.more
+                        case Left(_)   => Push.more
+                        case Right(z2) => Push.emit(Right(z2))
                       }
-                    }
+                    case None => Push.more
                   }
                 }
               }
-            }
+            case Right(z1) => Push.emit(Left(z1))
           }
+        }
+        case None => {
+          state.right match {
+            case Some(res2) =>
+              res2 match {
+                case Left(_)   => Push.more
+                case Right(z2) => Push.emit(Right(z2))
+              }
+            case None => Push.more
+          }
+        }
       }
 
-    } yield push)
+    ZSinkParallelHelper.runBoth(self, that)(extractFirstWinner)
   }
 
   /**
