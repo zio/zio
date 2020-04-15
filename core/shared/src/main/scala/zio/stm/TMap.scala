@@ -75,11 +75,7 @@ final class TMap[K, V] private (
    * Atomically folds using a transactional function.
    */
   def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] =
-    tBuckets.get.flatMap(_.toChunk).flatMap { buckets =>
-      buckets
-        .flatMap(b => Chunk.fromArray(b.toArray))
-        .foldLeft[STM[E, A]](STM.succeedNow(zero))((tx, kv) => tx.flatMap(op(_, kv)))
-    }
+    toChunk.flatMap(_.foldLeft[STM[E, A]](STM.succeedNow(zero))((tx, kv) => tx.flatMap(op(_, kv))))
 
   /**
    * Atomically performs transactional-effect for each binding present in map.
