@@ -42,8 +42,6 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type Ref[A]      = ZRef[Nothing, Nothing, A, A]
   type ERef[+E, A] = ZRef[E, E, A, A]
 
-  type NonEmptyChunk[+A] = Chunk.NonEmpty[A]
-
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
       Some((ab._1, ab._2))
