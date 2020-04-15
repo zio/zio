@@ -121,38 +121,75 @@ final class TMap[K, V] private (
    * Stores new binding into the map.
    */
   def put(k: K, v: V): USTM[Unit] = {
-    def update(buckets: TArray[List[(K, V)]]): USTM[Int] = {
+    def resize(journal: Journal, buckets: TArray[List[(K, V)]]): TArray[List[(K, V)]] = {
       val capacity = buckets.array.length
-      val idx      = TMap.indexOf(k, capacity)
+      val size     = tSize.unsafeAccess(journal)
+      val data     = Array.ofDim[(K, V)](size)
+      var i        = 0
+      var j        = 0
 
-      buckets(idx).flatMap { bucket =>
-        val exists = bucket.exists(_._1 == k)
+      while (i < capacity) {
+        val bucket = buckets.array(i)
+        val pairs  = bucket.unsafeAccess(journal)
 
-        val updated =
-          if (exists)
-            bucket.map(kv => if (kv._1 == k) (k, v) else kv)
-          else
-            (k, v) :: bucket
+        pairs.foreach { kv =>
+          data(j) = kv
+          j += 1
+        }
 
-        buckets.array(idx).set(updated) *> tSize.updateAndGet(s => if (exists) s else s + 1)
+        i += 1
       }
+
+      val newCapacity = capacity << 1
+      val newBuckets  = Array.fill[List[(K, V)]](newCapacity)(Nil)
+
+      data.foreach { pair =>
+        val idx = TMap.indexOf(pair._1, newCapacity)
+        newBuckets(idx) = pair :: newBuckets(idx)
+      }
+
+      val newArray = Array.ofDim[TRef[List[(K, V)]]](newCapacity)
+
+      i = 0
+      while (i < newCapacity) {
+        newArray(i) = ZTRef.unsafeMake(newBuckets(i))
+        i += 1
+      }
+
+      new TArray(newArray)
     }
 
-    def resize(newCapacity: Int): USTM[Unit] =
-      for {
-        data       <- toList
-        tmap       <- TMap.allocate(newCapacity, data)
-        newBuckets <- tmap.tBuckets.get
-        _          <- tBuckets.set(newBuckets)
-      } yield ()
+    val update =
+      new STM((journal, _, _, _) => {
+        val buckets      = tBuckets.unsafeAccess(journal)
+        val capacity     = buckets.array.length
+        val idx          = TMap.indexOf(k, capacity)
+        val bucket       = buckets.array(idx).unsafeAccess(journal)
+        val shouldUpdate = bucket.exists(_._1 == k)
 
-    for {
-      buckets     <- tBuckets.get
-      size        <- update(buckets)
-      capacity    = buckets.array.length
-      needsResize = capacity * TMap.LoadFactor < size
-      _           <- STM.when(needsResize)(resize(capacity << 1))
-    } yield ()
+        val action =
+          if (shouldUpdate) {
+            val newBucket = bucket.map(kv => if (kv._1 == k) (k, v) else kv)
+            buckets.array(idx) = ZTRef.unsafeMake(newBucket)
+            STM.unit
+          } else {
+            val newSize   = tSize.unsafeAccess(journal) + 1
+            val newBucket = (k, v) :: bucket
+
+            buckets.array(idx) = ZTRef.unsafeMake(newBucket)
+
+            if (capacity * TMap.LoadFactor < newSize) {
+              val newBuckets = resize(journal, buckets)
+              tBuckets.set(newBuckets) *> tSize.set(newSize)
+            } else {
+              tSize.set(newSize)
+            }
+          }
+
+        TExit.Succeed(TMap.UpdateResult(action))
+      })
+
+    update.flatMap(_.stm)
   }
 
   /**
@@ -328,6 +365,8 @@ object TMap {
    * Makes a new `TMap` that is initialized with specified values.
    */
   def make[K, V](data: (K, V)*): USTM[TMap[K, V]] = fromIterable(data)
+
+  private final case class UpdateResult(stm: STM[Nothing, Unit])
 
   private def allocate[K, V](capacity: Int, data: List[(K, V)]): USTM[TMap[K, V]] = {
     val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
