@@ -222,9 +222,8 @@ final class TMap[K, V] private (
         val bucket = buckets.array(i)
         val pairs  = bucket.unsafeAccess(journal)
 
-        val it = pairs.iterator
-        while (it.hasNext) {
-          val newPair   = g(it.next)
+        pairs.foreach { pair =>
+          val newPair   = g(pair)
           val idx       = TMap.indexOf(newPair._1, capacity)
           val newBucket = newBuckets(idx)
 
@@ -300,7 +299,7 @@ final class TMap[K, V] private (
    * Atomically updates all values using a transactional function.
    */
   def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
-    tBuckets.get.flatMap(_.transformM(bucket => STM.collectAll(bucket.map(kv => f(kv._2).map(kv._1 -> _)))))
+    transformM((k, v) => f(v).map(k -> _))
 
   /**
    * Collects all values stored in map.
