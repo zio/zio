@@ -103,6 +103,12 @@ trait ChunkLike[+A]
    */
   override final def map[B](f: A => B): Chunk[B] =
     mapChunk(f)
+
+  /**
+   * Zips this chunk with the index of every element.
+   */
+  override final def zipWithIndex: Chunk[(A, Int)] =
+    zipWithIndexFrom(0)
 }
 
 object ChunkLike extends SeqFactory[Chunk] {

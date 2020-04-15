@@ -78,8 +78,8 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     flatMap(ev)
 
   /**
-    * Returns the hashcode of this `NonEmptyChunk`.
-    */
+   * Returns the hashcode of this `NonEmptyChunk`.
+   */
   override def hashCode: Int =
     chunk.hashCode
 

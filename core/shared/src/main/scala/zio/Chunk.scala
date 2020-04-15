@@ -646,12 +646,6 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Zips this chunk with the index of every element.
-   */
-  final def zipWithIndex: Chunk[(A, Int)] =
-    zipWithIndexFrom(0)
-
-  /**
    * Zips this chunk with the index of every element, starting from the initial
    * index value.
    */
