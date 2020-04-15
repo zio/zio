@@ -1,8 +1,8 @@
 package zio.stream.experimental.internal
 
-import zio.{ UIO, URIO, ZIO, ZRef }
 import zio.stream.experimental.ZSink
 import zio.stream.experimental.ZSink.Push
+import zio.{ UIO, URIO, ZIO, ZRef }
 
 /**
  * Utility class that does common heavy lifting
