@@ -45,31 +45,37 @@ private[zio] final class Stack[A <: AnyRef]() {
   /**
    * Pops an item off the stack, or returns `null` if the stack is empty.
    */
-  def pop(): A = {
-    val idx = size - 1
-    var a   = array(idx)
-    if (idx == 0 && nesting > 0) {
-      array = a.asInstanceOf[Array[AnyRef]]
-      a = array(12)
-      array(12) = null // GC
-      size = 12
-      nesting -= 1
+  def pop(): A =
+    if (size <= 0) {
+      null.asInstanceOf[A]
     } else {
-      array(idx) = null // GC
-      size = idx
+      val idx = size - 1
+      var a   = array(idx)
+      if (idx == 0 && nesting > 0) {
+        array = a.asInstanceOf[Array[AnyRef]]
+        a = array(12)
+        array(12) = null // GC
+        size = 12
+        nesting -= 1
+      } else {
+        array(idx) = null // GC
+        size = idx
+      }
+      a.asInstanceOf[A]
     }
-    a.asInstanceOf[A]
-  }
 
   /**
    * Peeks the item on the head of the stack, or returns `null` if empty.
    */
-  def peek(): A = {
-    val idx = size - 1
-    var a   = array(idx)
-    if (idx == 0 && nesting > 0) a = (a.asInstanceOf[Array[AnyRef]])(12)
-    a.asInstanceOf[A]
-  }
+  def peek(): A =
+    if (size <= 0) {
+      null.asInstanceOf[A]
+    } else {
+      val idx = size - 1
+      var a   = if (size <= 0) array(idx)
+      if (idx == 0 && nesting > 0) a = (a.asInstanceOf[Array[AnyRef]])(12)
+      a.asInstanceOf[A]
+    }
 
   def peekOrElse(a: A): A = if (size <= 0) a else peek()
 }
