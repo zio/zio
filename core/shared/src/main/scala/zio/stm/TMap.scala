@@ -277,8 +277,9 @@ final class TMap[K, V] private (
         val bucket = buckets.array(i)
         val pairs  = bucket.unsafeGet(journal)
 
-        pairs.foreach { kv =>
-          data(j) = kv
+        val it = pairs.iterator
+        while (it.hasNext) {
+          data(j) = it.next
           j += 1
         }
 
