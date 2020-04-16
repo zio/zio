@@ -292,7 +292,9 @@ final class TMap[K, V] private (
           val capacity   = buckets.array.length
           val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
 
-          newData.foreach { newPair =>
+          val it = newData.iterator
+          while (it.hasNext) {
+            val newPair = it.next
             val idx       = TMap.indexOf(newPair._1, capacity)
             val newBucket = newBuckets(idx)
 
