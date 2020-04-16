@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.ZIOBaseSpec
+import zio.{ Schedule, UIO, ZIOBaseSpec }
 import zio.test.Assertion._
 import zio.test._
 
@@ -255,6 +255,16 @@ object TMapSpec extends ZIOBaseSpec {
           } yield res
 
         assertM(tx.commit)(hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
+      },
+      testM("parallel value transformation") {
+        for {
+          tmap   <- TMap.make("a" -> 0).commit
+          policy = Schedule.recurs(999)
+          tx     = tmap.transformValues(_ + 1).commit.repeat(policy)
+          n      = 2
+          _      <- UIO.collectAllPar_(List.fill(n)(tx))
+          res    <- tmap.get("a").commit
+        } yield assert(res)(isSome(equalTo(2000)))
       },
       testM("transformValuesM") {
         val tx =
