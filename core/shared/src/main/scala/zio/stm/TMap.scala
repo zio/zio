@@ -37,18 +37,21 @@ final class TMap[K, V] private (
   /**
    * Removes binding for given key.
    */
-  def delete(k: K): USTM[Unit] = {
-    def removeMatching(bucket: List[(K, V)]): USTM[List[(K, V)]] = {
-      val (toRemove, toRetain) = bucket.partition(_._1 == k)
-      if (toRemove.isEmpty) STM.succeedNow(toRetain) else tSize.update(_ - 1).as(toRetain)
-    }
+  def delete(k: K): USTM[Unit] =
+    new STM((journal, _, _, _) => {
+      val buckets = tBuckets.unsafeAccess(journal)
+      val idx     = TMap.indexOf(k, buckets.array.length)
+      val bucket  = buckets.array(idx).unsafeAccess(journal)
 
-    for {
-      buckets <- tBuckets.get
-      idx     = TMap.indexOf(k, buckets.array.length)
-      _       <- buckets.updateM(idx, removeMatching)
-    } yield ()
-  }
+      val (toRemove, toRetain) = bucket.partition(_._1 == k)
+      
+      if (toRemove.isEmpty)
+        TExit.Succeed(STM.unit)
+      else {
+        buckets.array(idx) = ZTRef.unsafeMake(toRetain)
+        TExit.Succeed(tSize.update(_ - 1))
+      }
+    }).flatten
 
   /**
    * Atomically folds using a pure function.
