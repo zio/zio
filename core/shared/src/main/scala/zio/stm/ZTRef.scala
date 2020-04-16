@@ -166,7 +166,7 @@ sealed trait ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
   private[stm] def unsafeSet(journal: Journal, a: A): Unit =
     atomic.getOrMakeEntry(journal).unsafeSet(a)
-        
+
   protected def atomic: ZTRef.Atomic[_]
 }
 
@@ -338,7 +338,7 @@ object ZTRef {
           ca(c).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
-        val atomic: Atomic[_] = 
+        val atomic: Atomic[_] =
           self.atomic
       }
 
@@ -360,7 +360,7 @@ object ZTRef {
             .flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
-        val atomic: Atomic[_] = 
+        val atomic: Atomic[_] =
           self.atomic
       }
 
@@ -394,7 +394,7 @@ object ZTRef {
           ca(c).flatMap(a => self.setEither(a)(s).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
-        val atomic: Atomic[_] = 
+        val atomic: Atomic[_] =
           self.atomic
       }
 
@@ -416,7 +416,7 @@ object ZTRef {
             .flatMap(a => self.setEither(a)(s).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
-        val atomic: Atomic[_] = 
+        val atomic: Atomic[_] =
           self.atomic
       }
 

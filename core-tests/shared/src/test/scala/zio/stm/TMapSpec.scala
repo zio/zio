@@ -16,9 +16,9 @@
 
 package zio.stm
 
-import zio.{ Schedule, UIO, ZIOBaseSpec }
 import zio.test.Assertion._
 import zio.test._
+import zio.{ Schedule, UIO, ZIOBaseSpec }
 
 object TMapSpec extends ZIOBaseSpec {
 
