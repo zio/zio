@@ -149,8 +149,10 @@ final class TMap[K, V] private (
       val newCapacity = capacity << 1
       val newBuckets  = Array.fill[List[(K, V)]](newCapacity)(Nil)
 
-      data.foreach { pair =>
-        val idx = TMap.indexOf(pair._1, newCapacity)
+      val it = data.iterator
+      while (it.hasNext) {
+        val pair = it.next
+        val idx  = TMap.indexOf(pair._1, newCapacity)
         newBuckets(idx) = pair :: newBuckets(idx)
       }
 
@@ -353,7 +355,7 @@ final class TMap[K, V] private (
           val buckets    = tBuckets.unsafeGet(journal)
           val capacity   = buckets.array.length
           val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
-          var newSize = 0
+          var newSize    = 0
 
           val it = newData.iterator
           while (it.hasNext) {
