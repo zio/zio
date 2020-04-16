@@ -3,10 +3,8 @@ package zio
 import scala.concurrent.Future
 
 import zio.clock.Clock
-import zio.console.putStr
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.environment.TestConsole
 import zio.test.environment.{ TestClock, TestRandom }
 import zio.test.{ assert, assertM, suite, testM, TestResult }
 
@@ -323,21 +321,21 @@ object ScheduleSpec extends ZIOBaseSpec {
       )(equalTo(List(Duration.Zero)))
     },
     testM("perform log for each recurrence of effect") {
-      def schedule[A] =
+      def schedule[A](ref: Ref[Int]) =
         Schedule
           .recurs(3)
-          .onDecision((a: A, s) =>
+          .onDecision((_: A, s) =>
             s match {
-              case None        => putStr(s"done: a=$a")
-              case Some(value) => putStr(s"log: s=$value, a=$a")
+              case None    => ref.update(_ + 1)
+              case Some(_) => ref.update(_ + 1)
             }
           )
 
       for {
-        ref    <- Ref.make(0)
-        _      <- ref.getAndUpdate(_ + 1).repeat(schedule)
-        output <- TestConsole.output
-      } yield assert(output)(equalTo(Vector("log: s=1, a=0", "log: s=2, a=1", "log: s=3, a=2", "done: a=3")))
+        ref <- Ref.make(0)
+        _   <- ref.getAndUpdate(_ + 1).repeat(schedule(ref))
+        res <- ref.get
+      } yield assert(res)(equalTo(8))
     }
   )
 

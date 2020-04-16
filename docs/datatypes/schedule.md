@@ -113,3 +113,11 @@ val whileTimeout = Schedule.exponential(10.milliseconds) && Schedule.doWhile[Thr
   case _ => false
 }
 ```
+
+Perform effect each time schedule makes a decision whether or not to repeat:
+```scala mdoc:silent
+def schedule[A] = Schedule.recurs(3).onDecision((a: A, s) => s match {
+    case None => putStrLn(s"done repeating")
+    case Some(att) => putStrLn(s"repeat #$att")
+})
+```
