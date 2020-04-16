@@ -97,7 +97,7 @@ object ZTransducer {
    * Creates a sink accumulating incoming values into a list of maximum size `n`.
    */
   def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
-    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse)
+    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse).filter(_.nonEmpty)
 
   /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
@@ -132,22 +132,27 @@ object ZTransducer {
    */
   def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
-      val initial = false -> z
-
-      def go(in: Chunk[I], state: (Boolean, O)): (Chunk[O], (Boolean, O)) =
-        in.fold[(Chunk[O], (Boolean, O))](Chunk.empty -> state) {
-          case ((os0, state), i) =>
-            val o = f(state._2, i)
+      def go(in: Chunk[I], state: O, progress: Boolean): (Chunk[O], O, Boolean) =
+        in.fold[(Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) {
+          case ((os0, state, _), i) =>
+            val o = f(state, i)
             if (contFn(o))
-              os0 -> (true -> o)
+              (os0, o, true)
             else
-              (os0 + o) -> initial
+              (os0 + o, z, false)
         }
 
-      ZRef.makeManaged(initial).map { state =>
+      ZRef.makeManaged[Option[O]](Some(z)).map { state =>
         {
-          case Some(in) => state.modify(go(in, _))
-          case None     => state.getAndSet(initial).map(s => if (s._1) Chunk.single(s._2) else Chunk.empty)
+          case Some(in) =>
+            state.modify { s =>
+              val (o, s2, progress) = go(in, s.getOrElse(z), s.nonEmpty)
+              if (progress)
+                o -> Some(s2)
+              else
+                o -> None
+            }
+          case None => state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(Chunk.single(_)))
         }
       }
     }
@@ -157,27 +162,31 @@ object ZTransducer {
    */
   def foldM[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
-      val initial = false -> z
+      val initial = Some(z)
 
-      def go(in: Chunk[I], state: (Boolean, O)): ZIO[R, E, (Chunk[O], (Boolean, O))] =
-        in.foldM[R, E, (Chunk[O], (Boolean, O))](Chunk.empty -> state) {
-          case ((os0, state), i) =>
-            f(state._2, i).map { o =>
+      def go(in: Chunk[I], state: O, progress: Boolean): ZIO[R, E, (Chunk[O], O, Boolean)] =
+        in.foldM[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) {
+          case ((os0, state, _), i) =>
+            f(state, i).map { o =>
               if (contFn(o))
-                os0 -> (true -> o)
+                (os0, o, true)
               else
-                (os0 + o) -> initial
+                (os0 + o, z, false)
             }
         }
 
-      ZRef.makeManaged(initial).map { state =>
+      ZRef.makeManaged[Option[O]](initial).map { state =>
         {
           case Some(in) =>
-            state.get.flatMap(go(in, _)).flatMap {
-              case (os, s) => state.set(s) *> Push.emit(os)
+            state.get.flatMap(s => go(in, s.getOrElse(z), s.nonEmpty)).flatMap {
+              case (os, s, progress) =>
+                if (progress)
+                  state.set(Some(s)) *> Push.emit(os)
+                else
+                  state.set(None) *> Push.emit(os)
             }
           case None =>
-            state.getAndSet(initial).map(s => if (s._1) Chunk.single(s._2) else Chunk.empty)
+            state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(Chunk.single(_)))
         }
       }
     }
@@ -242,32 +251,44 @@ object ZTransducer {
     z: O
   )(costFn: I => Long, max: Long, decompose: I => Chunk[I])(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
-      case class FoldWeightedState(started: Boolean, result: O, cost: Long)
+      case class FoldWeightedState(result: O, cost: Long)
 
-      val initial = FoldWeightedState(false, z, 0)
+      val initial = FoldWeightedState(z, 0)
 
-      def go(in: Chunk[I], os0: Chunk[O], state: FoldWeightedState): (Chunk[O], FoldWeightedState) =
-        in.fold[(Chunk[O], FoldWeightedState)](os0 -> state) {
-          case ((os0, state), i) =>
+      def go(
+        in: Chunk[I],
+        os0: Chunk[O],
+        state: FoldWeightedState,
+        progress: Boolean
+      ): (Chunk[O], FoldWeightedState, Boolean) =
+        in.fold[(Chunk[O], FoldWeightedState, Boolean)]((os0, state, progress)) {
+          case ((os0, state, _), i) =>
             val total = state.cost + costFn(i)
             if (total > max) {
               val is = decompose(i)
               if (is.isEmpty)
-                (os0 + f(state.result, i)) -> initial
+                (os0 + f(state.result, i), initial, false)
               else if (is.length == 1)
-                (os0 + f(state.result, is(0))) -> initial
+                (os0 + f(state.result, is(0)), initial, false)
               else
-                go(is, os0, state)
+                go(is, os0, state, progress)
             } else if (total == max)
-              (os0 + f(state.result, i)) -> initial
+              (os0 + f(state.result, i), initial, false)
             else
-              os0 -> FoldWeightedState(true, f(state.result, i), total)
+              (os0, FoldWeightedState(f(state.result, i), total), true)
         }
 
-      ZRef.makeManaged(initial).map { state =>
+      ZRef.makeManaged[Option[FoldWeightedState]](Some(initial)).map { state =>
         {
-          case Some(in) => state.modify(go(in, Chunk.empty, _))
-          case None     => state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
+          case Some(in) =>
+            state.modify { s =>
+              val (o, s2, progress) = go(in, Chunk.empty, s.getOrElse(initial), s.nonEmpty)
+              if (progress)
+                o -> Some(s2)
+              else
+                o -> None
+            }
+          case None => state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(s => Chunk.single(s.result)))
         }
       }
     }
@@ -301,37 +322,49 @@ object ZTransducer {
     decompose: I => ZIO[R, E, Chunk[I]]
   )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
-      final case class FoldWeightedState(started: Boolean, result: O, cost: Long)
+      final case class FoldWeightedState(result: O, cost: Long)
 
-      val initial = FoldWeightedState(false, z, 0)
+      val initial = FoldWeightedState(z, 0)
 
-      def go(in: Chunk[I], os: Chunk[O], state: FoldWeightedState): ZIO[R, E, (Chunk[O], FoldWeightedState)] =
-        in.foldM[R, E, (Chunk[O], FoldWeightedState)](os -> state) {
-          case ((os, state), i) =>
+      def go(
+        in: Chunk[I],
+        os: Chunk[O],
+        state: FoldWeightedState,
+        progress: Boolean
+      ): ZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)] =
+        in.foldM[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, progress)) {
+          case ((os, state, _), i) =>
             costFn(i).flatMap { cost =>
               val total = cost + state.cost
               if (total > max)
                 decompose(i).flatMap(is =>
                   if (is.isEmpty)
-                    f(state.result, i).map(o => (os + o) -> initial)
+                    f(state.result, i).map(o => ((os + o), initial, false))
                   else if (is.length == 1)
-                    f(state.result, is(0)).map(o => (os + o) -> initial)
-                  else
-                    go(is, os, state)
+                    f(state.result, is(0)).map(o => ((os + o), initial, false))
+                  else {
+                    go(is, os, state, progress)
+                  }
                 )
               else if (total == max)
-                f(state.result, i).map(o => (os + o) -> initial)
+                f(state.result, i).map(o => ((os + o), initial, false))
               else
-                f(state.result, i).map(o => os -> FoldWeightedState(true, o, total))
+                f(state.result, i).map(o => (os, FoldWeightedState(o, total), true))
             }
         }
 
-      ZRef.makeManaged(initial).map { state =>
+      ZRef.makeManaged[Option[FoldWeightedState]](Some(initial)).map { state =>
         {
           case Some(in) =>
-            state.get.flatMap(go(in, Chunk.empty, _)).flatMap { case (os, s) => state.set(s) *> Push.emit(os) }
+            state.get.flatMap(s => go(in, Chunk.empty, s.getOrElse(initial), s.nonEmpty)).flatMap {
+              case (os, s, progress) =>
+                if (progress)
+                  state.set(Some(s)) *> Push.emit(os)
+                else
+                  state.set(None) *> Push.emit(os)
+            }
           case None =>
-            state.getAndSet(initial).map(s => if (s.started) Chunk.single(s.result) else Chunk.empty)
+            state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(s => Chunk.single(s.result)))
         }
       }
     }
