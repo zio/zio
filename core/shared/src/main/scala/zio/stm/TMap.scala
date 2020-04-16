@@ -316,21 +316,7 @@ final class TMap[K, V] private (
    * Atomically updates all values using a pure function.
    */
   def transformValues(f: V => V): USTM[Unit] =
-    new STM((journal, _, _, _) => {
-      val buckets  = tBuckets.unsafeAccess(journal)
-      val capacity = buckets.array.length
-      var i        = 0
-
-      while (i < capacity) {
-        val bucket   = buckets.array(i)
-        val pairs    = bucket.unsafeAccess(journal)
-        val newPairs = pairs.map(kv => kv._1 -> f(kv._2))
-        buckets.array(i) = ZTRef.unsafeMake(newPairs)
-        i += 1
-      }
-
-      TExit.Succeed(())
-    })
+    transform((k, v) => k -> f(v))
 
   /**
    * Atomically updates all values using a transactional function.
