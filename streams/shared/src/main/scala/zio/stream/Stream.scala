@@ -337,6 +337,12 @@ object Stream extends Serializable {
     ZStream.range(min, max)
 
   /**
+   * See [[ZStream.signalRef]]
+   */
+  def signalRef[A](a: A): UIO[(RefM[A], Stream[Nothing, A])] =
+    RefM.signalRef(a).map { case (ref, queue) => (ref, ZStream.fromQueue(queue)) }
+
+  /**
    * See [[ZStream.succeed]]
    */
   def succeed[A](a: => A): Stream[Nothing, A] =
