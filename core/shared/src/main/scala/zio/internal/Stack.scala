@@ -72,7 +72,7 @@ private[zio] final class Stack[A <: AnyRef]() {
       null.asInstanceOf[A]
     } else {
       val idx = size - 1
-      var a   = if (size <= 0) array(idx)
+      var a   = array(idx)
       if (idx == 0 && nesting > 0) a = (a.asInstanceOf[Array[AnyRef]])(12)
       a.asInstanceOf[A]
     }
