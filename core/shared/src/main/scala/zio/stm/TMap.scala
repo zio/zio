@@ -127,34 +127,28 @@ final class TMap[K, V] private (
    * Stores new binding into the map.
    */
   def put(k: K, v: V): USTM[Unit] = {
-    def resize(journal: Journal, buckets: TArray[List[(K, V)]]): TArray[List[(K, V)]] = {
-      val capacity = buckets.array.length
-      val size     = tSize.unsafeGet(journal)
-      val data     = Array.ofDim[(K, V)](size)
-      var i        = 0
-      var j        = 0
+    def resize(journal: Journal, buckets: TArray[List[(K, V)]]): Unit = {
+      val capacity    = buckets.array.length
+      val newCapacity = capacity << 1
+      val newBuckets  = Array.fill[List[(K, V)]](newCapacity)(Nil)
+      var i           = 0
 
       while (i < capacity) {
-        val bucket = buckets.array(i)
-        val pairs  = bucket.unsafeGet(journal)
+        val pairs = buckets.array(i).unsafeGet(journal)
+        val it    = pairs.iterator
 
-        pairs.foreach { kv =>
-          data(j) = kv
-          j += 1
+        while (it.hasNext) {
+          val pair = it.next
+          val idx  = TMap.indexOf(pair._1, newCapacity)
+          newBuckets(idx) = pair :: newBuckets(idx)
         }
 
         i += 1
       }
 
-      val newCapacity = capacity << 1
-      val newBuckets  = Array.fill[List[(K, V)]](newCapacity)(Nil)
-
-      val it = data.iterator
-      while (it.hasNext) {
-        val pair = it.next
-        val idx  = TMap.indexOf(pair._1, newCapacity)
-        newBuckets(idx) = pair :: newBuckets(idx)
-      }
+      // insert new pair
+      val newIdx = TMap.indexOf(k, newCapacity)
+      newBuckets(newIdx) = (k, v) :: newBuckets(newIdx)
 
       val newArray = Array.ofDim[TRef[List[(K, V)]]](newCapacity)
 
@@ -164,7 +158,7 @@ final class TMap[K, V] private (
         i += 1
       }
 
-      new TArray(newArray)
+      tBuckets.unsafeSet(journal, new TArray(newArray))
     }
 
     new STM((journal, _, _, _) => {
@@ -178,14 +172,15 @@ final class TMap[K, V] private (
         val newBucket = bucket.map(kv => if (kv._1 == k) (k, v) else kv)
         buckets.array(idx).unsafeSet(journal, newBucket)
       } else {
-        val newSize   = tSize.unsafeGet(journal) + 1
-        val newBucket = (k, v) :: bucket
+        val newSize = tSize.unsafeGet(journal) + 1
 
-        buckets.array(idx).unsafeSet(journal, newBucket)
         tSize.unsafeSet(journal, newSize)
 
-        if (capacity * TMap.LoadFactor < newSize)
-          tBuckets.unsafeSet(journal, resize(journal, buckets))
+        if (capacity * TMap.LoadFactor < newSize) resize(journal, buckets)
+        else {
+          val newBucket = (k, v) :: bucket
+          buckets.array(idx).unsafeSet(journal, newBucket)
+        }
       }
 
       TExit.Succeed(())
