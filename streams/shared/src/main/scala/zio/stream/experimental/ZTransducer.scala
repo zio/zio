@@ -243,6 +243,13 @@ object ZTransducer {
    * }}}
    *
    * The stream would emit the elements `List(1), List(4), List(1, 1)`.
+   * 
+   * Be vigilant with this function, it has to generate "simpler" values 
+   * or the fold may never end. A value is considered indivisible if 
+   * `decompose` yields the empty chunk or a single-valued chunk. In 
+   * these cases, there is no other choice than to yield a value that 
+   * will cross the threshold. 
+   * 
    * The [[foldWeightedDecomposeM]] allows the decompose function
    * to return a `ZIO` value, and consequently it allows the transducer
    * to fail.
@@ -313,8 +320,13 @@ object ZTransducer {
    * been folded.
    *
    * The `decompose` function will be used for decomposing elements that
-   * cause an `S` aggregate to cross `max` into smaller elements. See
-   * [[foldWeightedDecompose]] for an example.
+   * cause an `S` aggregate to cross `max` into smaller elements. Be vigilant with
+   * this function, it has to generate "simpler" values or the fold may never end.
+   * A value is considered indivisible if `decompose` yields the empty chunk or a
+   * single-valued chunk. In these cases, there is no other choice than to yield
+   * a value that will cross the threshold. 
+   * 
+   * See [[foldWeightedDecompose]] for an example.
    */
   def foldWeightedDecomposeM[R, E, I, O](z: O)(
     costFn: I => ZIO[R, E, Long],
