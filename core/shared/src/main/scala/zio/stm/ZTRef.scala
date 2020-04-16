@@ -160,6 +160,14 @@ sealed trait ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
    */
   final def writeOnly: ZTRef[EA, Unit, A, Nothing] =
     fold(identity, _ => (), Right(_), _ => Left(()))
+
+  private[stm] def unsafeGet(journal: Journal): B =
+    atomic.getOrMakeEntry(journal).unsafeGet
+
+  private[stm] def unsafeSet(journal: Journal, a: A): Unit =
+    atomic.getOrMakeEntry(journal).unsafeSet(a)
+
+  protected def atomic: ZTRef.Atomic[_]
 }
 
 object ZTRef {
@@ -168,7 +176,6 @@ object ZTRef {
     @volatile private[stm] var versioned: Versioned[A],
     private[stm] val todo: AtomicReference[Map[TxnId, Todo]]
   ) extends ZTRef[Nothing, Nothing, A, A] { self =>
-
     def fold[EC, ED, C, D](
       ea: Nothing => EC,
       eb: Nothing => ED,
@@ -180,6 +187,7 @@ object ZTRef {
         def getEither(s: S): Either[ED, D] = bd(s)
         def setEither(c: C): Either[EC, S] = ca(c)
         val value: Atomic[S]               = self
+        val atomic: ZTRef.Atomic[_]        = self.atomic
       }
 
     def foldAll[EC, ED, C, D](
@@ -194,6 +202,7 @@ object ZTRef {
         def getEither(s: S): Either[ED, D]       = bd(s)
         def setEither(c: C)(s: S): Either[EC, S] = ca(c)(s)
         val value: Atomic[S]                     = self
+        val atomic: ZTRef.Atomic[_]              = self.atomic
       }
 
     def get: USTM[A] =
@@ -295,7 +304,9 @@ object ZTRef {
     def updateSomeAndGet(f: PartialFunction[A, A]): USTM[A] =
       updateAndGet(f orElse { case a => a })
 
-    private def getOrMakeEntry(journal: Journal): Entry =
+    protected val atomic: Atomic[_] = self
+
+    private[stm] def getOrMakeEntry(journal: Journal): Entry =
       if (journal.containsKey(self)) journal.get(self)
       else {
         val entry = Entry(self, false)
@@ -327,6 +338,8 @@ object ZTRef {
           ca(c).flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
+        val atomic: Atomic[_] =
+          self.atomic
       }
 
     final def foldAll[EC, ED, C, D](
@@ -347,6 +360,8 @@ object ZTRef {
             .flatMap(a => self.setEither(a).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
+        val atomic: Atomic[_] =
+          self.atomic
       }
 
     final def get: STM[EB, B] =
@@ -379,6 +394,8 @@ object ZTRef {
           ca(c).flatMap(a => self.setEither(a)(s).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
+        val atomic: Atomic[_] =
+          self.atomic
       }
 
     final def foldAll[EC, ED, C, D](
@@ -399,6 +416,8 @@ object ZTRef {
             .flatMap(a => self.setEither(a)(s).fold(e => Left(ea(e)), Right(_)))
         val value: Atomic[S] =
           self.value
+        val atomic: Atomic[_] =
+          self.atomic
       }
 
     final def get: STM[EB, B] =

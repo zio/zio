@@ -25,7 +25,7 @@ import scala.util.{ Failure, Success, Try }
 import com.github.ghik.silencer.silent
 
 import zio.internal.{ Platform, Stack, Sync }
-import zio.{ CanFail, Chunk, Fiber, IO, UIO, ZIO }
+import zio.{ CanFail, Chunk, ChunkBuilder, Fiber, IO, UIO, ZIO }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -1041,9 +1041,20 @@ object ZSTM {
    * returns a transactional effect that produces a new `Chunk[B]`.
    */
   def foreach[R, E, A, B](in: Chunk[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Chunk[B]] =
-    in.foldLeft[ZSTM[R, E, Chunk[B]]](ZSTM.succeedNow(Chunk.empty))((acc, a) =>
-      f(a).zipWith(acc)((b, acc) => acc ++ Chunk.single(b))
-    )
+    ZSTM.suspend {
+      val length = in.length
+      var idx    = 0
+
+      var tx: ZSTM[R, E, ChunkBuilder[B]] = ZSTM.succeedNow(ChunkBuilder.make[B])
+
+      while (idx < length) {
+        val a = in(idx)
+        tx = tx.zipWith(f(a))(_ += _)
+        idx += 1
+      }
+
+      tx.map(_.result())
+    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1696,7 +1707,8 @@ object ZSTM {
 
       val tref: ZTRef.Atomic[S]
 
-      protected[this] val expected: Versioned[S]
+      private[stm] val expected: Versioned[S]
+
       protected[this] var newValue: S
 
       val isNew: Boolean

@@ -16,6 +16,8 @@
 
 package zio.stm
 
+import zio.Chunk
+
 /**
  * Wraps array of [[TRef]] and adds methods for convenience.
  */
@@ -258,25 +260,25 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Collects all elements into a list.
    */
   def toList: USTM[List[A]] =
-    STM.collectAll(array.map(_.get))
+    STM.foreach(array)(_.get)
+
+  /**
+   * Collects all elements into a chunk.
+   */
+  def toChunk: USTM[Chunk[A]] =
+    STM.foreach(Chunk.fromArray(array))(_.get)
 
   /**
    * Atomically updates all elements using a pure function.
    */
   def transform(f: A => A): USTM[Unit] =
-    array.indices.foldLeft(STM.succeedNow(())) {
-      case (tx, idx) => array(idx).update(f) *> tx
-    }
+    array.foldLeft(STM.unit)((tx, ref) => ref.update(f) *> tx)
 
   /**
    * Atomically updates all elements using a transactional effect.
    */
   def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
-    array.indices.foldLeft[STM[E, Unit]](STM.succeedNow(())) {
-      case (tx, idx) =>
-        val ref = array(idx)
-        ref.get.flatMap(f).flatMap(a => ref.set(a)).flatMap(_ => tx)
-    }
+    array.foldLeft[STM[E, Unit]](STM.unit)((tx, ref) => ref.get.flatMap(f).flatMap(ref.set) *> tx)
 
   /**
    * Updates element in the array with given function.
