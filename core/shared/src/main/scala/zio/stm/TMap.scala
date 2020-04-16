@@ -199,8 +199,8 @@ final class TMap[K, V] private (
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
 
-      var i    = 0
-      var size = 0
+      var i       = 0
+      var newSize = 0
 
       while (i < capacity) {
         val bucket    = buckets.array(i).unsafeGet(journal)
@@ -211,7 +211,7 @@ final class TMap[K, V] private (
           val pair = it.next
           if (!f(pair)) {
             newBucket = pair :: newBucket
-            size += 1
+            newSize += 1
           }
         }
 
@@ -219,7 +219,7 @@ final class TMap[K, V] private (
         i += 1
       }
 
-      tSize.unsafeSet(journal, size)
+      tSize.unsafeSet(journal, newSize)
 
       TExit.Succeed(())
     })
@@ -233,8 +233,8 @@ final class TMap[K, V] private (
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
 
-      var i    = 0
-      var size = 0
+      var i       = 0
+      var newSize = 0
 
       while (i < capacity) {
         val bucket    = buckets.array(i).unsafeGet(journal)
@@ -245,7 +245,7 @@ final class TMap[K, V] private (
           val pair = it.next
           if (f(pair)) {
             newBucket = pair :: newBucket
-            size += 1
+            newSize += 1
           }
         }
 
@@ -253,7 +253,7 @@ final class TMap[K, V] private (
         i += 1
       }
 
-      tSize.unsafeSet(journal, size)
+      tSize.unsafeSet(journal, newSize)
 
       TExit.Succeed(())
     })
@@ -307,6 +307,7 @@ final class TMap[K, V] private (
       val capacity = buckets.array.length
 
       val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
+      var newSize    = 0
       var i          = 0
 
       while (i < capacity) {
@@ -319,8 +320,10 @@ final class TMap[K, V] private (
           val idx       = TMap.indexOf(newPair._1, capacity)
           val newBucket = newBuckets(idx)
 
-          if (!newBucket.exists(_._1 == newPair._1))
+          if (!newBucket.exists(_._1 == newPair._1)) {
             newBuckets(idx) = newPair :: newBucket
+            newSize += 1
+          }
         }
 
         i += 1
@@ -332,6 +335,8 @@ final class TMap[K, V] private (
         buckets.array(i).unsafeSet(journal, newBuckets(i))
         i += 1
       }
+
+      tSize.unsafeSet(journal, newSize)
 
       TExit.Succeed(())
     })
@@ -348,6 +353,7 @@ final class TMap[K, V] private (
           val buckets    = tBuckets.unsafeGet(journal)
           val capacity   = buckets.array.length
           val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
+          var newSize = 0
 
           val it = newData.iterator
           while (it.hasNext) {
@@ -355,8 +361,10 @@ final class TMap[K, V] private (
             val idx       = TMap.indexOf(newPair._1, capacity)
             val newBucket = newBuckets(idx)
 
-            if (!newBucket.exists(_._1 == newPair._1))
+            if (!newBucket.exists(_._1 == newPair._1)) {
               newBuckets(idx) = newPair :: newBucket
+              newSize += 1
+            }
           }
 
           var i = 0
@@ -365,6 +373,7 @@ final class TMap[K, V] private (
             i += 1
           }
 
+          tSize.unsafeSet(journal, newSize)
           TExit.Succeed(())
         })
       }
