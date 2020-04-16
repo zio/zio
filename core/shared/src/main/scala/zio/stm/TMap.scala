@@ -194,13 +194,69 @@ final class TMap[K, V] private (
    * Removes bindings matching predicate.
    */
   def removeIf(p: (K, V) => Boolean): USTM[Unit] =
-    tBuckets.get.flatMap(_.transform(_.filterNot(kv => p(kv._1, kv._2))))
+    new STM((journal, _, _, _) => {
+      val f        = p.tupled
+      val buckets  = tBuckets.unsafeGet(journal)
+      val capacity = buckets.array.length
+
+      var i    = 0
+      var size = 0
+
+      while (i < capacity) {
+        val bucket    = buckets.array(i).unsafeGet(journal)
+        var newBucket = List.empty[(K, V)]
+
+        val it = bucket.iterator
+        while (it.hasNext) {
+          val pair = it.next
+          if (!f(pair)) {
+            newBucket = pair :: newBucket
+            size += 1
+          }
+        }
+
+        buckets.array(i).unsafeSet(journal, newBucket)
+        i += 1
+      }
+
+      tSize.unsafeSet(journal, size)
+
+      TExit.Succeed(())
+    })
 
   /**
    * Retains bindings matching predicate.
    */
   def retainIf(p: (K, V) => Boolean): USTM[Unit] =
-    tBuckets.get.flatMap(_.transform(_.filter(kv => p(kv._1, kv._2))))
+    new STM((journal, _, _, _) => {
+      val f        = p.tupled
+      val buckets  = tBuckets.unsafeGet(journal)
+      val capacity = buckets.array.length
+
+      var i    = 0
+      var size = 0
+
+      while (i < capacity) {
+        val bucket    = buckets.array(i).unsafeGet(journal)
+        var newBucket = List.empty[(K, V)]
+
+        val it = bucket.iterator
+        while (it.hasNext) {
+          val pair = it.next
+          if (f(pair)) {
+            newBucket = pair :: newBucket
+            size += 1
+          }
+        }
+
+        buckets.array(i).unsafeSet(journal, newBucket)
+        i += 1
+      }
+
+      tSize.unsafeSet(journal, size)
+
+      TExit.Succeed(())
+    })
 
   /**
    * Collects all bindings into a list.
