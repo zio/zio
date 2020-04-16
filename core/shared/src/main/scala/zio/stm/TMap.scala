@@ -39,9 +39,9 @@ final class TMap[K, V] private (
    */
   def delete(k: K): USTM[Unit] =
     new STM((journal, _, _, _) => {
-      val buckets = tBuckets.unsafeAccess(journal)
+      val buckets = tBuckets.unsafeGet(journal)
       val idx     = TMap.indexOf(k, buckets.array.length)
-      val bucket  = buckets.array(idx).unsafeAccess(journal)
+      val bucket  = buckets.array(idx).unsafeGet(journal)
 
       val (toRemove, toRetain) = bucket.partition(_._1 == k)
       
@@ -58,13 +58,13 @@ final class TMap[K, V] private (
    */
   def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
     new STM((journal, _, _, _) => {
-      val buckets = tBuckets.unsafeAccess(journal)
+      val buckets = tBuckets.unsafeGet(journal)
       var res     = zero
       var i       = 0
 
       while (i < buckets.array.length) {
         val bucket = buckets.array(i)
-        val items  = bucket.unsafeAccess(journal)
+        val items  = bucket.unsafeGet(journal)
 
         res = items.foldLeft(res)(op)
 
@@ -91,9 +91,9 @@ final class TMap[K, V] private (
    */
   def get(k: K): USTM[Option[V]] =
     new STM((journal, _, _, _) => {
-      val buckets = tBuckets.unsafeAccess(journal)
+      val buckets = tBuckets.unsafeGet(journal)
       val idx     = TMap.indexOf(k, buckets.array.length)
-      val bucket  = buckets.array(idx).unsafeAccess(journal)
+      val bucket  = buckets.array(idx).unsafeGet(journal)
 
       TExit.Succeed(bucket.find(_._1 == k).map(_._2))
     })
@@ -128,14 +128,14 @@ final class TMap[K, V] private (
   def put(k: K, v: V): USTM[Unit] = {
     def resize(journal: Journal, buckets: TArray[List[(K, V)]]): TArray[List[(K, V)]] = {
       val capacity = buckets.array.length
-      val size     = tSize.unsafeAccess(journal)
+      val size     = tSize.unsafeGet(journal)
       val data     = Array.ofDim[(K, V)](size)
       var i        = 0
       var j        = 0
 
       while (i < capacity) {
         val bucket = buckets.array(i)
-        val pairs  = bucket.unsafeAccess(journal)
+        val pairs  = bucket.unsafeGet(journal)
 
         pairs.foreach { kv =>
           data(j) = kv
@@ -166,10 +166,10 @@ final class TMap[K, V] private (
 
     val update =
       new STM((journal, _, _, _) => {
-        val buckets      = tBuckets.unsafeAccess(journal)
+        val buckets      = tBuckets.unsafeGet(journal)
         val capacity     = buckets.array.length
         val idx          = TMap.indexOf(k, capacity)
-        val bucket       = buckets.array(idx).unsafeAccess(journal)
+        val bucket       = buckets.array(idx).unsafeGet(journal)
         val shouldUpdate = bucket.exists(_._1 == k)
 
         val action =
@@ -178,7 +178,7 @@ final class TMap[K, V] private (
             buckets.array(idx) = ZTRef.unsafeMake(newBucket)
             STM.unit
           } else {
-            val newSize   = tSize.unsafeAccess(journal) + 1
+            val newSize   = tSize.unsafeGet(journal) + 1
             val newBucket = (k, v) :: bucket
 
             buckets.array(idx) = ZTRef.unsafeMake(newBucket)
@@ -220,16 +220,16 @@ final class TMap[K, V] private (
    */
   def toChunk: USTM[Chunk[(K, V)]] =
     new STM((journal, _, _, _) => {
-      val buckets  = tBuckets.unsafeAccess(journal)
+      val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
-      val size     = tSize.unsafeAccess(journal)
+      val size     = tSize.unsafeGet(journal)
       val data     = Array.ofDim[(K, V)](size)
       var i        = 0
       var j        = 0
 
       while (i < capacity) {
         val bucket = buckets.array(i)
-        val pairs  = bucket.unsafeAccess(journal)
+        val pairs  = bucket.unsafeGet(journal)
 
         pairs.foreach { kv =>
           data(j) = kv
@@ -254,7 +254,7 @@ final class TMap[K, V] private (
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
     new STM((journal, _, _, _) => {
       val g        = f.tupled
-      val buckets  = tBuckets.unsafeAccess(journal)
+      val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
 
       val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
@@ -262,7 +262,7 @@ final class TMap[K, V] private (
 
       while (i < capacity) {
         val bucket = buckets.array(i)
-        val pairs  = bucket.unsafeAccess(journal)
+        val pairs  = bucket.unsafeGet(journal)
 
         pairs.foreach { pair =>
           val newPair   = g(pair)
@@ -298,7 +298,7 @@ final class TMap[K, V] private (
 
       STM.foreach(data)(g).flatMap { newData =>
         new STM((journal, _, _, _) => {
-          val buckets    = tBuckets.unsafeAccess(journal)
+          val buckets    = tBuckets.unsafeGet(journal)
           val capacity   = buckets.array.length
           val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
 
