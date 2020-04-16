@@ -119,7 +119,7 @@ object TMapSpec extends ZIOBaseSpec {
         assertM(tx.commit)(isNone)
       },
       testM("add many keys with negative hash codes") {
-        val expected = Range(1, 1000).map(i => HashContainer(-i) -> i).toList
+        val expected = (1 to 1000).map(i => HashContainer(-i) -> i).toList
 
         val tx =
           for {
