@@ -87,11 +87,13 @@ final class TMap[K, V] private (
    * Retrieves value associated with given key.
    */
   def get(k: K): USTM[Option[V]] =
-    for {
-      buckets <- tBuckets.get
-      idx     = TMap.indexOf(k, buckets.array.length)
-      bucket  <- buckets(idx)
-    } yield bucket.find(_._1 == k).map(_._2)
+    new STM((journal, _, _, _) => {
+      val buckets = tBuckets.unsafeAccess(journal)
+      val idx     = TMap.indexOf(k, buckets.array.length)
+      val bucket  = buckets.array(idx).unsafeAccess(journal)
+
+      TExit.Succeed(bucket.find(_._1 == k).map(_._2))
+    })
 
   /**
    * Retrieves value associated with given key or default value, in case the
@@ -271,14 +273,18 @@ final class TMap[K, V] private (
         i += 1
       }
 
+      // val newArray = Array.ofDim[TRef[List[(K, V)]]](capacity)
       i = 0
       while (i < capacity) {
+        // newArray(i) = ZTRef.unsafeMake(newBuckets(i))
         buckets.array(i) = ZTRef.unsafeMake(newBuckets(i))
         i += 1
       }
 
+      // TExit.Succeed(new TArray(newArray))
       TExit.Succeed(())
     })
+  // }).flatMap(tBuckets.set)
 
   /**
    * Atomically updates all bindings using a transactional function.
