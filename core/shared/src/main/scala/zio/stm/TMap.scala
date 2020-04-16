@@ -44,7 +44,7 @@ final class TMap[K, V] private (
       val bucket  = buckets.array(idx).unsafeGet(journal)
 
       val (toRemove, toRetain) = bucket.partition(_._1 == k)
-      
+
       if (toRemove.isEmpty)
         TExit.Succeed(STM.unit)
       else {
@@ -264,8 +264,9 @@ final class TMap[K, V] private (
         val bucket = buckets.array(i)
         val pairs  = bucket.unsafeGet(journal)
 
-        pairs.foreach { pair =>
-          val newPair   = g(pair)
+        val it = pairs.iterator
+        while (it.hasNext) {
+          val newPair   = g(it.next)
           val idx       = TMap.indexOf(newPair._1, capacity)
           val newBucket = newBuckets(idx)
 
@@ -276,18 +277,19 @@ final class TMap[K, V] private (
         i += 1
       }
 
-      // val newArray = Array.ofDim[TRef[List[(K, V)]]](capacity)
+      val newArray = Array.ofDim[TRef[List[(K, V)]]](capacity)
+
       i = 0
+
       while (i < capacity) {
-        // newArray(i) = ZTRef.unsafeMake(newBuckets(i))
-        buckets.array(i) = ZTRef.unsafeMake(newBuckets(i))
+        newArray(i) = ZTRef.unsafeMake(newBuckets(i))
         i += 1
       }
 
-      // TExit.Succeed(new TArray(newArray))
+      tBuckets.unsafeSet(journal, new TArray(newArray))
+
       TExit.Succeed(())
     })
-  // }).flatMap(tBuckets.set)
 
   /**
    * Atomically updates all bindings using a transactional function.
