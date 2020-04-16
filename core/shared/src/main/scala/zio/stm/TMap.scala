@@ -269,16 +269,12 @@ final class TMap[K, V] private (
         i += 1
       }
 
-      val newArray = Array.ofDim[TRef[List[(K, V)]]](capacity)
-
       i = 0
 
       while (i < capacity) {
-        newArray(i) = ZTRef.unsafeMake(newBuckets(i))
+        buckets.array(i).unsafeSet(journal, newBuckets(i))
         i += 1
       }
-
-      tBuckets.unsafeSet(journal, new TArray(newArray))
 
       TExit.Succeed(())
     })
@@ -304,14 +300,12 @@ final class TMap[K, V] private (
               newBuckets(idx) = newPair :: newBucket
           }
 
-          val newArray = Array.ofDim[TRef[List[(K, V)]]](capacity)
-          var i        = 0
+          var i = 0
           while (i < capacity) {
-            newArray(i) = ZTRef.unsafeMake(newBuckets(i))
+            buckets.array(i).unsafeSet(journal, newBuckets(i))
             i += 1
           }
 
-          tBuckets.unsafeSet(journal, new TArray(newArray))
           TExit.Succeed(())
         })
       }
