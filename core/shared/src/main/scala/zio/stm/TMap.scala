@@ -45,13 +45,14 @@ final class TMap[K, V] private (
 
       val (toRemove, toRetain) = bucket.partition(_._1 == k)
 
-      if (toRemove.isEmpty)
-        TExit.Succeed(STM.unit)
-      else {
-        buckets.array(idx) = ZTRef.unsafeMake(toRetain)
-        TExit.Succeed(tSize.update(_ - 1))
+      if (toRemove.nonEmpty) {
+        val currSize = tSize.unsafeGet(journal)
+        buckets.array(idx).unsafeSet(journal, toRetain)
+        tSize.unsafeSet(journal, currSize - 1)
       }
-    }).flatten
+
+      TExit.Succeed(())
+    })
 
   /**
    * Atomically folds using a pure function.
@@ -294,7 +295,7 @@ final class TMap[K, V] private (
 
           val it = newData.iterator
           while (it.hasNext) {
-            val newPair = it.next
+            val newPair   = it.next
             val idx       = TMap.indexOf(newPair._1, capacity)
             val newBucket = newBuckets(idx)
 
