@@ -5,7 +5,8 @@ title:  "STM"
 
 Software Transactional Memory (STM) is a technique which allows composition of arbitrary atomic operations. It is the 
 software analog of transactions in database systems. STM can perform groups of memory operations in an atomic fashion. 
-The API is based on `Control.Concurrent.STM` although the implementation is completely different.
+The API is inspired by Haskell's [STM library](http://hackage.haskell.org/package/stm-2.5.0.0/docs/Control-Concurrent-STM.html) 
+although the implementation in ZIO is completely different.
 
 STM brings several advantages over traditional low-level locking mechanisms:
 * **Compositionality**
@@ -22,23 +23,28 @@ data structures are lock-free.
 
 ## Transactional data structures
 
-There are a variety of transactional data structures that can take part in an STM transaction. These include:
+There are a variety of transactional data structures that can take part in an STM transaction:
 * [TRef](tref.md): A mutable reference to an immutable value
 * [TPromise](tpromise.md): A mutable reference that can be set exactly once 
 * [TArray](tarray.md): An array of mutable references
+* [TMap](tmap.md): A mutable map
 * [TQueue](tqueue.md): A mutable queue
 * [TSet](tset.md): A mutable set
 * [TSemaphore](tsemaphore.md): A semaphore 
 * [TReentrantLock](treentrantlock.md): A reentrant lock
 
+Since STM places a great emphasis on compositionality, you can build upon these data structures and define your very 
+own concurrent data structures. For example, you can build a transactional priority queue using `TRef`, `TMap` and `TQueue`.
+
 ## The STM datatype
 
 An `STM[E, A]` represents an effect that can be performed transactionally resulting in a failure `E` or a success `A`.
-The `STM` data-type is _not_ as powerful as the `ZIO[R, E, A]` datatype as it does not allow you to perform arbitrary 
-effects. These are because actions inside STM actions can be executed an arbitrary amount of times (and rolled-back as 
-well). Only STM actions and pure computation may be performed inside a memory transaction. No STM actions can be 
-performed outside a transaction, so you cannot accidentally read or write a transactional data structure outside the
-protection of `STM.atomically` (or without explicitly `commit`ting the transaction). For example:
+There is a more powerful variant `ZSTM[R, E, A]` which supports an environment type `R` like `ZIO[R, E, A]`. The `STM` 
+(and `ZSTM` variant) data-type is _not_ as powerful as the `ZIO[R, E, A]` datatype as it does not allow you to perform 
+arbitrary effects. These are because actions inside STM actions can be executed an arbitrary amount of times (and 
+rolled-back as well). Only STM actions and pure computation may be performed inside a memory transaction. No STM actions 
+can be performed outside a transaction, so you cannot accidentally read or write a transactional data structure outside 
+the protection of `STM.atomically` (or without explicitly `commit`ting the transaction). For example:
 
 ```scala mdoc:silent
 import zio._
@@ -70,11 +76,11 @@ executed. STM transactions compose sequentially. By using `STM.atomically` (or `
 atomic transaction in the sense that the entire set of operations within `STM.atomically` appears to take place 
 indivisibly.
 
-## Exceptions
+## Errors
 
-`STM` supports exceptions just like `ZIO`. In `transferMoney`, we saw an example of an exception (`STM.fail`). 
-Exceptions in `STM` have abort semantics: if an atomic transaction throws an exception, the transaction is rolled back
-with no effect.
+`STM` supports errors just like `ZIO` via the error channel. In `transferMoney`, we saw an example of an error (`STM.fail`). 
+Errors in `STM` have abort semantics: if an atomic transaction encounters an error, the transaction is rolled back with 
+no effect.
 
 ## `retry`
 
@@ -95,6 +101,8 @@ def transferMoneyNoMatterWhat(from: TRef[Long], to: TRef[Long], amount: Long): S
 
 `STM.retry` will abort and retry the entire transaction until it succeeds (instead of failing like the previous example). 
 Note that the transaction will only be retried when one of the underlying transactional data structures have been changed.
+There are many other variants of the `STM.retry` combinator like `STM.check` so rather than writing 
+`if (senderBal < amount) STM.retry else STM.unit`, you can replace it with `STM.check(senderBal < amount)`.
 
 ## Composing alternatives
 
