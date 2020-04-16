@@ -867,7 +867,7 @@ object TArraySpec extends ZIOBaseSpec {
           result <- tArray.toList.commit
         } yield assert(result)(equalTo(List(1, 2, 3, 4)))
       },
-      testM("toList") {
+      testM("toChunk") {
         for {
           tArray <- TArray.make(1, 2, 3, 4).commit
           result <- tArray.toChunk.commit
