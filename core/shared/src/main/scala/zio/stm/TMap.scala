@@ -164,37 +164,29 @@ final class TMap[K, V] private (
       new TArray(newArray)
     }
 
-    val update =
-      new STM((journal, _, _, _) => {
-        val buckets      = tBuckets.unsafeGet(journal)
-        val capacity     = buckets.array.length
-        val idx          = TMap.indexOf(k, capacity)
-        val bucket       = buckets.array(idx).unsafeGet(journal)
-        val shouldUpdate = bucket.exists(_._1 == k)
+    new STM((journal, _, _, _) => {
+      val buckets      = tBuckets.unsafeGet(journal)
+      val capacity     = buckets.array.length
+      val idx          = TMap.indexOf(k, capacity)
+      val bucket       = buckets.array(idx).unsafeGet(journal)
+      val shouldUpdate = bucket.exists(_._1 == k)
 
-        val action =
-          if (shouldUpdate) {
-            val newBucket = bucket.map(kv => if (kv._1 == k) (k, v) else kv)
-            buckets.array(idx) = ZTRef.unsafeMake(newBucket)
-            STM.unit
-          } else {
-            val newSize   = tSize.unsafeGet(journal) + 1
-            val newBucket = (k, v) :: bucket
+      if (shouldUpdate) {
+        val newBucket = bucket.map(kv => if (kv._1 == k) (k, v) else kv)
+        buckets.array(idx).unsafeSet(journal, newBucket)
+      } else {
+        val newSize   = tSize.unsafeGet(journal) + 1
+        val newBucket = (k, v) :: bucket
 
-            buckets.array(idx) = ZTRef.unsafeMake(newBucket)
+        buckets.array(idx).unsafeSet(journal, newBucket)
+        tSize.unsafeSet(journal, newSize)
 
-            if (capacity * TMap.LoadFactor < newSize) {
-              val newBuckets = resize(journal, buckets)
-              tBuckets.set(newBuckets) *> tSize.set(newSize)
-            } else {
-              tSize.set(newSize)
-            }
-          }
+        if (capacity * TMap.LoadFactor < newSize)
+          tBuckets.unsafeSet(journal, resize(journal, buckets))
+      }
 
-        TExit.Succeed(TMap.UpdateResult(action))
-      })
-
-    update.flatMap(_.stm)
+      TExit.Succeed(())
+    })
   }
 
   /**
@@ -311,9 +303,9 @@ final class TMap[K, V] private (
             if (!newBucket.exists(_._1 == newPair._1))
               newBuckets(idx) = newPair :: newBucket
           }
-      
+
           val newArray = Array.ofDim[TRef[List[(K, V)]]](capacity)
-          var i = 0
+          var i        = 0
           while (i < capacity) {
             newArray(i) = ZTRef.unsafeMake(newBuckets(i))
             i += 1
