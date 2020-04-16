@@ -94,7 +94,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Drops the first `n` elements of the chunk.
    */
-  override final def drop(n: Int): Chunk[A] = {
+  override def drop(n: Int): Chunk[A] = {
     val len = self.length
 
     if (n <= 0) self
@@ -527,7 +527,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Takes the first `n` elements of the chunk.
    */
-  override final def take(n: Int): Chunk[A] =
+  override def take(n: Int): Chunk[A] =
     if (n <= 0) Chunk.Empty
     else if (n >= length) this
     else
@@ -1233,12 +1233,48 @@ object Chunk {
     override def apply(n: Int): Boolean =
       (bytes(n >> 3) & (1 << (7 - (n & 7)))) != 0
 
+    override def drop(n: Int): BitChunk = {
+      val index  = (minBitIndex + n) min maxBitIndex
+      val toDrop = index >> 3
+      val min    = index & 7
+      val max    = maxBitIndex - index + min
+      BitChunk(bytes.drop(toDrop), min, max)
+    }
+
     override def foreach[A](f: Boolean => A): Unit = {
-      var i = 0
-      while (i < length) {
+      val minByteIndex    = (minBitIndex + 7) >> 3
+      val maxByteIndex    = maxBitIndex >> 3
+      val minFullBitIndex = (minByteIndex << 3) min maxBitIndex
+      val maxFullBitIndex = (maxByteIndex << 3) max minFullBitIndex
+      var i               = minBitIndex
+      while (i < minFullBitIndex) {
         f(apply(i))
         i += 1
       }
+      i = minByteIndex
+      while (i < maxByteIndex) {
+        val byte = bytes(i)
+        f((byte & 128) != 0)
+        f((byte & 64) != 0)
+        f((byte & 32) != 0)
+        f((byte & 16) != 0)
+        f((byte & 8) != 0)
+        f((byte & 4) != 0)
+        f((byte & 2) != 0)
+        f((byte & 1) != 0)
+        i += 1
+      }
+      i = maxFullBitIndex
+      while (i < maxBitIndex) {
+        f(apply(i))
+        i += 1
+      }
+    }
+
+    override def take(n: Int): BitChunk = {
+      val index  = (minBitIndex + n) min maxBitIndex
+      val toTake = (index + 7) >> 3
+      BitChunk(bytes.take(toTake), minBitIndex, index)
     }
 
     override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
