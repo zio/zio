@@ -311,13 +311,15 @@ final class TMap[K, V] private (
             if (!newBucket.exists(_._1 == newPair._1))
               newBuckets(idx) = newPair :: newBucket
           }
-
-          var idx = 0
-          while (idx < capacity) {
-            buckets.array(idx) = ZTRef.unsafeMake(newBuckets(idx))
-            idx += 1
+      
+          val newArray = Array.ofDim[TRef[List[(K, V)]]](capacity)
+          var i = 0
+          while (i < capacity) {
+            newArray(i) = ZTRef.unsafeMake(newBuckets(i))
+            i += 1
           }
 
+          tBuckets.unsafeSet(journal, new TArray(newArray))
           TExit.Succeed(())
         })
       }
