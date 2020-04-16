@@ -1040,20 +1040,21 @@ object ZSTM {
    * Applies the function `f` to each element of the `Chunk[A]` and
    * returns a transactional effect that produces a new `Chunk[B]`.
    */
-  def foreach[R, E, A, B](in: Chunk[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Chunk[B]] = {
-    val length = in.length
-    var idx    = 0
+  def foreach[R, E, A, B](in: Chunk[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Chunk[B]] =
+    ZSTM.suspend {
+      val length = in.length
+      var idx    = 0
 
-    var tx: ZSTM[R, E, ChunkBuilder[B]] = ZSTM.succeedNow(ChunkBuilder.make[B])
+      var tx: ZSTM[R, E, ChunkBuilder[B]] = ZSTM.succeedNow(ChunkBuilder.make[B])
 
-    while (idx < length) {
-      val a = in(idx)
-      tx = tx.zipWith(f(a))(_ += _)
-      idx += 1
+      while (idx < length) {
+        val a = in(idx)
+        tx = tx.zipWith(f(a))(_ += _)
+        idx += 1
+      }
+
+      tx.map(_.result())
     }
-
-    tx.map(_.result())
-  }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and

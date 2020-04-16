@@ -38,7 +38,7 @@ final class TMap[K, V] private (
    * Removes binding for given key.
    */
   def delete(k: K): USTM[Unit] =
-    new STM((journal, _, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val buckets = tBuckets.unsafeGet(journal)
       val idx     = TMap.indexOf(k, buckets.array.length)
       val bucket  = buckets.array(idx).unsafeGet(journal)
@@ -58,7 +58,7 @@ final class TMap[K, V] private (
    * Atomically folds using a pure function.
    */
   def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
-    new STM((journal, _, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val buckets = tBuckets.unsafeGet(journal)
       var res     = zero
       var i       = 0
@@ -91,7 +91,7 @@ final class TMap[K, V] private (
    * Retrieves value associated with given key.
    */
   def get(k: K): USTM[Option[V]] =
-    new STM((journal, _, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val buckets = tBuckets.unsafeGet(journal)
       val idx     = TMap.indexOf(k, buckets.array.length)
       val bucket  = buckets.array(idx).unsafeGet(journal)
@@ -161,7 +161,7 @@ final class TMap[K, V] private (
       tBuckets.unsafeSet(journal, new TArray(newArray))
     }
 
-    new STM((journal, _, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val buckets      = tBuckets.unsafeGet(journal)
       val capacity     = buckets.array.length
       val idx          = TMap.indexOf(k, capacity)
@@ -191,7 +191,7 @@ final class TMap[K, V] private (
    * Removes bindings matching predicate.
    */
   def removeIf(p: (K, V) => Boolean): USTM[Unit] =
-    new STM((journal, _, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val f        = p.tupled
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
@@ -225,7 +225,7 @@ final class TMap[K, V] private (
    * Retains bindings matching predicate.
    */
   def retainIf(p: (K, V) => Boolean): USTM[Unit] =
-    new STM((journal, _, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val f        = p.tupled
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
@@ -265,7 +265,7 @@ final class TMap[K, V] private (
    * Collects all bindings into a chunk.
    */
   def toChunk: USTM[Chunk[(K, V)]] =
-    new STM((journal, _, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
       val size     = tSize.unsafeGet(journal)
@@ -299,7 +299,7 @@ final class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
-    new STM((journal, _, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val g        = f.tupled
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
@@ -347,7 +347,7 @@ final class TMap[K, V] private (
       val g = f.tupled
 
       STM.foreach(data)(g).flatMap { newData =>
-        new STM((journal, _, _, _) => {
+        new ZSTM((journal, _, _, _) => {
           val buckets    = tBuckets.unsafeGet(journal)
           val capacity   = buckets.array.length
           val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
