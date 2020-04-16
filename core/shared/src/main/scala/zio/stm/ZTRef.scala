@@ -161,14 +161,12 @@ sealed trait ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
   final def writeOnly: ZTRef[EA, Unit, A, Nothing] =
     fold(identity, _ => (), Right(_), _ => Left(()))
 
-  private[stm] def unsafeGet(journal: Journal): B = {
-    val entry = Entry(atomic, false)
+  private[stm] def unsafeGet(journal: Journal): B =
+    atomic.getOrMakeEntry(journal).unsafeGet
 
-    journal.put(atomic, entry)
-
-    entry.expected.value.asInstanceOf[B]
-  }
-
+  private[stm] def unsafeSet(journal: Journal, a: A): Unit =
+    atomic.getOrMakeEntry(journal).unsafeSet(a)
+        
   protected def atomic: ZTRef.Atomic[_]
 }
 
@@ -308,7 +306,7 @@ object ZTRef {
 
     protected val atomic: Atomic[_] = self
 
-    private def getOrMakeEntry(journal: Journal): Entry =
+    private[stm] def getOrMakeEntry(journal: Journal): Entry =
       if (journal.containsKey(self)) journal.get(self)
       else {
         val entry = Entry(self, false)
