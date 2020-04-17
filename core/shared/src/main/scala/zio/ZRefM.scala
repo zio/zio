@@ -86,7 +86,7 @@ sealed trait ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
    * result of the partial function if it is defined or else fails with `None`.
    */
   final def collect[C](pf: PartialFunction[B, C]): ZRefM[RA, RB, EA, Option[EB], A, C] =
-    collectM(pf andThen ZIO.succeedNow)
+    collectM(pf.andThen(ZIO.succeedNow(_)))
 
   /**
    * Maps and filters the `get` value of the `ZRefM` with the specified
