@@ -52,6 +52,9 @@ abstract class ZTransducer[-R, +E, -I, +O](
       }
     }
 
+  final def filter(p: O => Boolean): ZTransducer[R, E, I, O] =
+    ZTransducer(self.push.map(push => i => push(i).map(_.filter(p))))
+
   final def map[P](f: O => P): ZTransducer[R, E, I, P] =
     ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
 }
@@ -90,27 +93,27 @@ object ZTransducer {
       } yield push
     }
 
-  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
-    ZTransducer {
-      ZRef.makeManaged[Chunk[I]](Chunk.empty).map { buffered =>
-        {
-          case None =>
-            buffered
-              .getAndSet(Chunk.empty)
-              .map(out0 => if (out0.isEmpty) Chunk.empty else Chunk.single(out0.toList))
-          case Some(in) =>
-            buffered.modify { buf0 =>
-              val (outBuffer, newBuffer) = (buf0 ++ in).fold((List[List[I]](), List[I]())) {
-                case ((outBuffer, newBuffer), el) =>
-                  if (!p(el)) (newBuffer.reverse :: outBuffer, List())
-                  else (outBuffer, el :: newBuffer)
-              }
+  /**
+   * Creates a sink accumulating incoming values into a list of maximum size `n`.
+   */
+  def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
+    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse).filter(_.nonEmpty)
 
-              (Chunk.fromIterable(outBuffer.reverse.filter(_.nonEmpty)), Chunk.fromIterable(newBuffer.reverse))
-            }
-        }
-      }
-    }
+  /**
+   * Accumulates incoming elements into a list as long as they verify predicate `p`.
+   */
+  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
+    fold[I, (List[I], Boolean)]((Nil, true))(_._2) {
+      case ((as, _), a) => if (p(a)) (a :: as, true) else (as, false)
+    }.map(_._1.reverse).filter(_.nonEmpty)
+
+  /**
+   * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
+   */
+  def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
+    foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) {
+      case ((as, _), a) => p(a).map(if (_) (a :: as, true) else (as, false))
+    }.map(_._1.reverse).filter(_.nonEmpty)
 
   def die(e: => Throwable): ZTransducer[Any, Nothing, Any, Nothing] =
     ZTransducer(Managed.succeed((_: Any) => IO.die(e)))
@@ -123,6 +126,260 @@ object ZTransducer {
 
   def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]]): ZTransducer[R, E, I, O] =
     ZTransducer(Managed.succeed(push))
+
+  /**
+   * Creates a transducer by folding over a structure of type `S`.
+   */
+  def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+    ZTransducer {
+      def go(in: Chunk[I], state: O, progress: Boolean): (Chunk[O], O, Boolean) =
+        in.fold[(Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) {
+          case ((os0, state, _), i) =>
+            val o = f(state, i)
+            if (contFn(o))
+              (os0, o, true)
+            else
+              (os0 + o, z, false)
+        }
+
+      ZRef.makeManaged[Option[O]](Some(z)).map { state =>
+        {
+          case Some(in) =>
+            state.modify { s =>
+              val (o, s2, progress) = go(in, s.getOrElse(z), s.nonEmpty)
+              if (progress)
+                o -> Some(s2)
+              else
+                o -> None
+            }
+          case None => state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(Chunk.single(_)))
+        }
+      }
+    }
+
+  /**
+   * Creates a sink by effectfully folding over a structure of type `S`.
+   */
+  def foldM[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    ZTransducer {
+      val initial = Some(z)
+
+      def go(in: Chunk[I], state: O, progress: Boolean): ZIO[R, E, (Chunk[O], O, Boolean)] =
+        in.foldM[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) {
+          case ((os0, state, _), i) =>
+            f(state, i).map { o =>
+              if (contFn(o))
+                (os0, o, true)
+              else
+                (os0 + o, z, false)
+            }
+        }
+
+      ZRef.makeManaged[Option[O]](initial).map { state =>
+        {
+          case Some(in) =>
+            state.get.flatMap(s => go(in, s.getOrElse(z), s.nonEmpty)).flatMap {
+              case (os, s, progress) =>
+                if (progress)
+                  state.set(Some(s)) *> Push.emit(os)
+                else
+                  state.set(None) *> Push.emit(os)
+            }
+          case None =>
+            state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(Chunk.single(_)))
+        }
+      }
+    }
+
+  /**
+   * Creates a transducer that folds elements of type `I` into a structure
+   * of type `O` until `max` elements have been folded.
+   *
+   * Like [[foldWeighted]], but with a constant cost function of 1.
+   */
+  def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+    foldWeighted[I, O](z)(_ => 1, max)(f)
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `O` until `max` elements have been folded.
+   *
+   * Like [[foldWeightedM]], but with a constant cost function of 1.
+   */
+  def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    foldWeightedM[R, E, I, O](z)(_ => UIO.succeedNow(1), max)(f)
+
+  /**
+   * Creates a transducer that folds elements of type `I` into a structure
+   * of type `O`, until `max` worth of elements (determined by the `costFn`)
+   * have been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * cause the stream to hang. See [[foldWeightedDecompose]] for
+   * a variant that can handle these.
+   */
+  def foldWeighted[I, O](z: O)(costFn: I => Long, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+    foldWeightedDecompose[I, O](z)(costFn, max, Chunk.single(_))(f)
+
+  /**
+   * Creates a transducer that folds elements of type `I` into a structure
+   * of type `O`, until `max` worth of elements (determined by the `costFn`)
+   * have been folded.
+   *
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `O` aggregate to cross `max` into smaller elements. For
+   * example:
+   * {{{
+   * Stream(1, 5, 1)
+   *  .aggregate(
+   *    ZTransducer
+   *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
+   *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
+   *        el :: acc
+   *      }
+   *      .map(_.reverse)
+   *  )
+   *  .runCollect
+   * }}}
+   *
+   * The stream would emit the elements `List(1), List(4), List(1, 1)`.
+   *
+   * Be vigilant with this function, it has to generate "simpler" values
+   * or the fold may never end. A value is considered indivisible if
+   * `decompose` yields the empty chunk or a single-valued chunk. In
+   * these cases, there is no other choice than to yield a value that
+   * will cross the threshold.
+   *
+   * The [[foldWeightedDecomposeM]] allows the decompose function
+   * to return a `ZIO` value, and consequently it allows the transducer
+   * to fail.
+   */
+  def foldWeightedDecompose[I, O](
+    z: O
+  )(costFn: I => Long, max: Long, decompose: I => Chunk[I])(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+    ZTransducer {
+      case class FoldWeightedState(result: O, cost: Long)
+
+      val initial = FoldWeightedState(z, 0)
+
+      def go(
+        in: Chunk[I],
+        os0: Chunk[O],
+        state: FoldWeightedState,
+        progress: Boolean
+      ): (Chunk[O], FoldWeightedState, Boolean) =
+        in.fold[(Chunk[O], FoldWeightedState, Boolean)]((os0, state, progress)) {
+          case ((os0, state, _), i) =>
+            val total = state.cost + costFn(i)
+            if (total > max) {
+              val is = decompose(i)
+              if (is.isEmpty)
+                (os0 + f(state.result, i), initial, false)
+              else if (is.length == 1)
+                (os0 + f(state.result, is(0)), initial, false)
+              else
+                go(is, os0, state, progress)
+            } else if (total == max)
+              (os0 + f(state.result, i), initial, false)
+            else
+              (os0, FoldWeightedState(f(state.result, i), total), true)
+        }
+
+      ZRef.makeManaged[Option[FoldWeightedState]](Some(initial)).map { state =>
+        {
+          case Some(in) =>
+            state.modify { s =>
+              val (o, s2, progress) = go(in, Chunk.empty, s.getOrElse(initial), s.nonEmpty)
+              if (progress)
+                o -> Some(s2)
+              else
+                o -> None
+            }
+          case None => state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(s => Chunk.single(s.result)))
+        }
+      }
+    }
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * cause the stream to hang. See [[foldWeightedDecomposeM]] for
+   * a variant that can handle these.
+   */
+  def foldWeightedM[R, E, I, S](
+    z: S
+  )(costFn: I => ZIO[R, E, Long], max: Long)(f: (S, I) => ZIO[R, E, S]): ZTransducer[R, E, I, S] =
+    foldWeightedDecomposeM(z)(costFn, max, (i: I) => UIO.succeedNow(Chunk.single(i)))(f)
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   *
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `S` aggregate to cross `max` into smaller elements. Be vigilant with
+   * this function, it has to generate "simpler" values or the fold may never end.
+   * A value is considered indivisible if `decompose` yields the empty chunk or a
+   * single-valued chunk. In these cases, there is no other choice than to yield
+   * a value that will cross the threshold.
+   *
+   * See [[foldWeightedDecompose]] for an example.
+   */
+  def foldWeightedDecomposeM[R, E, I, O](z: O)(
+    costFn: I => ZIO[R, E, Long],
+    max: Long,
+    decompose: I => ZIO[R, E, Chunk[I]]
+  )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    ZTransducer {
+      final case class FoldWeightedState(result: O, cost: Long)
+
+      val initial = FoldWeightedState(z, 0)
+
+      def go(
+        in: Chunk[I],
+        os: Chunk[O],
+        state: FoldWeightedState,
+        progress: Boolean
+      ): ZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)] =
+        in.foldM[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, progress)) {
+          case ((os, state, _), i) =>
+            costFn(i).flatMap { cost =>
+              val total = cost + state.cost
+              if (total > max)
+                decompose(i).flatMap(is =>
+                  if (is.isEmpty)
+                    f(state.result, i).map(o => ((os + o), initial, false))
+                  else if (is.length == 1)
+                    f(state.result, is(0)).map(o => ((os + o), initial, false))
+                  else {
+                    go(is, os, state, progress)
+                  }
+                )
+              else if (total == max)
+                f(state.result, i).map(o => ((os + o), initial, false))
+              else
+                f(state.result, i).map(o => (os, FoldWeightedState(o, total), true))
+            }
+        }
+
+      ZRef.makeManaged[Option[FoldWeightedState]](Some(initial)).map { state =>
+        {
+          case Some(in) =>
+            state.get.flatMap(s => go(in, Chunk.empty, s.getOrElse(initial), s.nonEmpty)).flatMap {
+              case (os, s, progress) =>
+                if (progress)
+                  state.set(Some(s)) *> Push.emit(os)
+                else
+                  state.set(None) *> Push.emit(os)
+            }
+          case None =>
+            state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(s => Chunk.single(s.result)))
+        }
+      }
+    }
 
   /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
