@@ -184,11 +184,13 @@ object ZStreamSpec extends ZIOBaseSpec {
                   )
                   .runCollect)
                   .fork
-            _      <- TestClock.adjust(31.minutes)
+            _      <- TestClock.advance(1.hour)
             result <- f.join
-          } yield assert(result)(equalTo(List(Right(List(2, 1, 1, 1, 1)), Right(List(2)), Left(1))))
+          } yield assert(result)(
+            equalTo(List(Right(Nil), Left(1), Right(List(2, 1, 1, 1, 1)), Right(List(2)), Left(2)))
+          )
         },
-        testM("error propagation") {
+        testM("error propagation 1") {
           val e = new RuntimeException("Boom")
           assertM(
             ZStream(1, 1, 1, 1)
@@ -197,16 +199,19 @@ object ZStreamSpec extends ZIOBaseSpec {
               .run
           )(dies(equalTo(e)))
         } @@ zioTag(errors),
-        testM("error propagation") {
+        testM("error propagation 2") {
           val e    = new RuntimeException("Boom")
           val sink = ZTransducer.foldM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e))
 
-          assertM(
-            ZStream(1, 1)
-              .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
-              .runCollect
-              .run
-          )(dies(equalTo(e)))
+          assertM(for {
+            f <- ZStream(1, 1)
+                  .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
+                  .runCollect
+                  .run
+                  .fork
+            _      <- TestClock.adjust(1.hour)
+            result <- f.join
+          } yield result)(dies(equalTo(e)))
         } @@ zioTag(errors),
         testM("interruption propagation") {
           for {
@@ -263,31 +268,33 @@ object ZStreamSpec extends ZIOBaseSpec {
                     .runCollect
                     .map(_.flatten))
                     .fork
-              _      <- TestClock.adjust(31.minutes)
+              _      <- TestClock.advance(31.minutes)
               result <- f.join
             } yield result
           )(equalTo(data))
         }
       ),
-      suite("aggregateAsyncWithin999")(
+      suite("aggregateAsyncWithin")(
         testM("aggregateAsyncWithin") {
           for {
-            f <- (ZStream(1, 1, 1, 1, 2, 2)
-                  .aggregateAsyncWithin(
-                    ZTransducer
-                      .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
-                        if (el == 1) (el :: acc._1, true)
-                        else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
-                        else (el :: acc._1, false)
-                      }
-                      .map(_._1),
-                    Schedule.spaced(30.minutes)
+            f <- (
+                  ZStream(1, 1, 1, 1, 2, 2)
+                    .aggregateAsyncWithin(
+                      ZTransducer
+                        .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
+                          if (el == 1) (el :: acc._1, true)
+                          else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
+                          else (el :: acc._1, false)
+                        }
+                        .map(_._1),
+                      Schedule.spaced(30.minutes)
+                    )
                   )
-                  .runCollect)
+                  .runCollect
                   .fork
-            _      <- TestClock.adjust(31.minutes)
+            _      <- TestClock.advance(1.hour)
             result <- f.join
-          } yield assert(result)(equalTo(List(List(2, 1, 1, 1, 1), List(2))))
+          } yield assert(result)(equalTo(List(Nil, List(2, 1, 1, 1, 1), List(2))))
         }
       ),
       suite("bracket")(
