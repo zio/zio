@@ -63,7 +63,7 @@ abstract class ZStream[-R, +E, +O](
     transduce(transducer)
 
   /**
-   * Symbolic alias for [[[zio.stream.experimental.ZStream!.run[R1<:R,E1>:E,O1>:O,B]*]]].
+   * Symbolic alias for [[[zio.stream.experimental.ZStream!.run[R1<:R,E1>:E,B]*]]].
    */
   def >>>[R1 <: R, E1 >: E, O2 >: O, Z](sink: ZSink[R1, E1, O2, Z]): ZIO[R1, E1, Z] =
     self.run(sink)
