@@ -276,16 +276,32 @@ object ZSink {
    * A sink that collects all of its inputs into a list.
    */
   def collectAll[A]: ZSink[Any, Nothing, A, List[A]] =
-    ZSink {
-      for {
-        as <- ZRef.makeManaged[Chunk[A]](Chunk.empty)
-        push = (xs: Option[Chunk[A]]) =>
-          xs match {
-            case Some(xs) => as.update(_ ++ xs)
-            case None     => as.get.flatMap(as => Push.emit(as.toList))
-          }
-      } yield push
+    foldLeftChunks(Chunk[A]())(_ ++ (_: Chunk[A])).map(_.toList)
+
+  /**
+   * A sink that collects all of its inputs into a map. The keys are extracted from inputs
+   * using the keying function `key`; if multiple inputs use the same key, they are merged
+   * using the `f` function.
+   */
+  def collectAllToMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Map[K, A]] =
+    foldLeftChunks(Map[K, A]()) { (acc, as) =>
+      as.fold(acc) { (acc, a) =>
+        val k = key(a)
+
+        acc.updated(
+          k,
+          // Avoiding `get/getOrElse` here to avoid an Option allocation
+          if (acc.contains(k)) f(acc(k), a)
+          else a
+        )
+      }
     }
+
+  /**
+   * A sink that collects all of its inputs into a set.
+   */
+  def collectAllToSet[A]: ZSink[Any, Nothing, A, Set[A]] =
+    foldLeftChunks(Set[A]())((acc, as) => as.fold(acc)(_ + _))
 
   /**
    * A sink that counts the number of elements fed to it.
@@ -311,6 +327,87 @@ object ZSink {
    */
   def dieMessage(m: => String): ZSink[Any, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(new RuntimeException(m)))
+
+  /**
+   * A sink that folds its inputs with the provided function, termination predicate and initial state.
+   */
+  def fold[I, S](z: S)(contFn: S => Boolean)(f: (S, I) => S): ZSink[Any, Nothing, I, S] =
+    foldChunks(z)(contFn)((s, is) => is.foldWhile(s)(contFn)(f))
+
+  /**
+   * A sink that folds its input chunks with the provided function, termination predicate and initial state.
+   */
+  def foldChunks[I, S](z: S)(contFn: S => Boolean)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, S] =
+    foldChunksM(z)(contFn)((s, is) => UIO.succeed(f(s, is)))
+
+  /**
+   * A sink that effectfully folds its input chunks with the provided function, termination predicate and initial state.
+   *
+   * This sink may terminate in the middle of a chunk and discard the rest of it. See the discussion on the
+   * ZSink class scaladoc on sinks vs. transducers.
+   */
+  def foldChunksM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, S] =
+    if (contFn(z))
+      ZSink {
+        for {
+          state <- Ref.make(z).toManaged_
+          push = (is: Option[Chunk[I]]) =>
+            is match {
+              case None => state.get.flatMap(Push.emit)
+              case Some(is) => {
+                state.get
+                  .flatMap(f(_, is).mapError(Left(_)))
+                  .flatMap { s =>
+                    if (contFn(s))
+                      state.set(s) *> Push.more
+                    else
+                      Push.emit(s)
+                  }
+              }
+            }
+        } yield push
+      }
+    else
+      ZSink(ZManaged.succeed(_ => Push.emit(z)))
+
+  /**
+   * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
+   *
+   * This sink may terminate in the middle of a chunk and discard the rest of it. See the discussion on the
+   * ZSink class scaladoc on sinks vs. transducers.
+   */
+  def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
+    foldChunksM(z)(contFn)((s, is) => is.foldWhileM(s)(contFn)(f))
+
+  /**
+   * A sink that folds its inputs with the provided function and initial state.
+   */
+  def foldLeft[I, S](z: S)(f: (S, I) => S): ZSink[Any, Nothing, I, S] =
+    fold(z)(_ => true)(f)
+
+  /**
+   * A sink that folds its input chunks with the provided function and initial state.
+   */
+  def foldLeftChunks[I, S](z: S)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, S] =
+    foldChunks(z)(_ => true)(f)
+
+  /**
+   * A sink that effectfully folds its input chunks with the provided function and initial state.
+   */
+  def foldLeftChunksM[R, E, I, S](z: S)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, S] =
+    foldChunksM[R, E, I, S](z: S)(_ => true)(f)
+
+  /**
+   * A sink that effectfully folds its inputs with the provided function and initial state.
+   */
+  def foldLeftM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
+    foldM[R, E, I, S](z: S)(_ => true)(f)
+
+  /**
+   * Creates a single-value sink produced from an effect
+   */
+  def fromEffect[R, E, Z](b: => ZIO[R, E, Z]): ZSink[R, E, Any, Z] =
+    fromPush(_ => b.foldM(Push.fail, Push.emit))
 
   def fromPush[R, E, I, Z](sink: Push[R, E, I, Z]): ZSink[R, E, I, Z] =
     ZSink(Managed.succeed(sink))
@@ -354,58 +451,4 @@ object ZSink {
    */
   def succeed[Z](z: Z): ZSink[Any, Nothing, Any, Z] =
     fromPush(_ => Push.emit(z))
-
-  /**
-   * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
-   *
-   * This sink may terminate in the middle of a chunk and discard the rest of it. See the discussion on the
-   * ZSink class scaladoc on sinks vs. transducers.
-   */
-  def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
-    if (contFn(z))
-      ZSink {
-        for {
-          state <- Ref.make(z).toManaged_
-          push = (is: Option[Chunk[I]]) =>
-            is match {
-              case None => state.get.flatMap(Push.emit)
-              case Some(is) => {
-                state.get
-                  .flatMap(is.foldWhileM(_)(contFn)(f).mapError(Left(_)))
-                  .flatMap { s =>
-                    if (contFn(s))
-                      state.set(s) *> Push.more
-                    else
-                      Push.emit(s)
-                  }
-              }
-            }
-        } yield push
-      }
-    else
-      ZSink(ZManaged.succeed(_ => Push.emit(z)))
-
-  /**
-   * A sink that effectfully folds its inputs with the provided function and initial state.
-   */
-  def foldLeftM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
-    foldM[R, E, I, S](z: S)(_ => true)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S]
-
-  /**
-   * A sink that folds its inputs with the provided function, termination predicate and initial state.
-   */
-  def fold[I, S](z: S)(contFn: S => Boolean)(f: (S, I) => S): ZSink[Any, Nothing, I, S] =
-    foldM(z)(contFn)((s, i) => UIO.succeedNow(f(s, i)))
-
-  /**
-   * A sink that folds its inputs with the provided function and initial state.
-   */
-  def foldLeft[I, S](z: S)(f: (S, I) => S): ZSink[Any, Nothing, I, S] =
-    fold(z)(_ => true)(f)
-
-  /**
-   * Creates a single-value sink produced from an effect
-   */
-  def fromEffect[R, E, Z](b: => ZIO[R, E, Z]): ZSink[R, E, Any, Z] =
-    fromPush(_ => b.foldM(Push.fail, Push.emit))
 }

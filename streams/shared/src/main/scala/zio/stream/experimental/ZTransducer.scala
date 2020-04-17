@@ -52,9 +52,15 @@ abstract class ZTransducer[-R, +E, -I, +O](
       }
     }
 
+  /**
+   * Filters the outputs of this transducer.
+   */
   final def filter(p: O => Boolean): ZTransducer[R, E, I, O] =
     ZTransducer(self.push.map(push => i => push(i).map(_.filter(p))))
 
+  /**
+   * Transforms the outputs of this transducer.
+   */
   final def map[P](f: O => P): ZTransducer[R, E, I, P] =
     ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
 }
@@ -94,10 +100,66 @@ object ZTransducer {
     }
 
   /**
-   * Creates a sink accumulating incoming values into a list of maximum size `n`.
+   * Creates a transducer accumulating incoming values into lists of maximum size `n`.
    */
   def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
-    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse).filter(_.nonEmpty)
+    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse)
+
+  /**
+   * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
+   * are mapped to keys using the function `key`; elements mapped to the same key will
+   * be merged with the function `f`.
+   */
+  def collectAllToMapN[K, I](n: Long)(key: I => K)(f: (I, I) => I): ZTransducer[Any, Nothing, I, Map[K, I]] =
+    ZTransducer {
+      ZRef.makeManaged(Option(Map[K, I]())).map { state =>
+        {
+          case None => state.getAndSet(None).map(Chunk.fromIterable(_))
+          case Some(is) =>
+            state.modify { maybeAcc =>
+              val acc = maybeAcc.getOrElse(Map())
+
+              val (output, newAcc, _) = is.fold((List[Map[K, I]](), acc, acc.keys.size)) {
+                case ((mapsOfN, currMap, keyCount), i) =>
+                  val k = key(i)
+                  if (currMap.contains(k) && keyCount <= n)
+                    (mapsOfN, currMap.updated(k, f(currMap(k), i)), keyCount)
+                  else if (!currMap.contains(k) && keyCount < n)
+                    (mapsOfN, currMap.updated(k, i), keyCount + 1)
+                  else
+                    (currMap :: mapsOfN, Map(k -> i), 1)
+              }
+
+              Chunk.fromIterable(output.reverse) -> Some(newAcc)
+            }
+        }
+      }
+    }
+
+  /**
+   * Creates a transducer accumulating incoming values into sets of maximum size `n`.
+   */
+  def collectAllToSetN[I](n: Long): ZTransducer[Any, Nothing, I, Set[I]] =
+    ZTransducer {
+      ZRef.makeManaged(Option(Set[I]())).map { state =>
+        {
+          case None => state.getAndSet(None).map(Chunk.fromIterable(_))
+          case Some(is) =>
+            state.modify { maybeAcc =>
+              val acc = maybeAcc.getOrElse(Set())
+
+              val (output, newAcc, _) = is.fold((List[Set[I]](), acc, acc.size)) {
+                case ((setsOfN, currSet, setSize), i) =>
+                  if (currSet(i)) (setsOfN, currSet, setSize)
+                  else if (!currSet(i) && setSize < n) (setsOfN, currSet + i, setSize + 1)
+                  else (currSet :: setsOfN, Set(i), 1)
+              }
+
+              Chunk.fromIterable(output.reverse) -> Some(newAcc)
+            }
+        }
+      }
+    }
 
   /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
@@ -115,20 +177,22 @@ object ZTransducer {
       case ((as, _), a) => p(a).map(if (_) (a :: as, true) else (as, false))
     }.map(_._1.reverse).filter(_.nonEmpty)
 
+  /**
+   * Creates a transducer that always dies with the specified exception.
+   */
   def die(e: => Throwable): ZTransducer[Any, Nothing, Any, Nothing] =
     ZTransducer(Managed.succeed((_: Any) => IO.die(e)))
 
+  /**
+   * Creates a transducer that always fails with the specified failure.
+   */
   def fail[E](e: => E): ZTransducer[Any, E, Any, Nothing] =
     ZTransducer(ZManaged.succeed((_: Option[Any]) => ZIO.fail(e)))
 
-  def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZTransducer[R, E, Any, A] =
-    ZTransducer(Managed.succeed((_: Any) => zio.map(Chunk.single(_))))
-
-  def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]]): ZTransducer[R, E, I, O] =
-    ZTransducer(Managed.succeed(push))
-
   /**
-   * Creates a transducer by folding over a structure of type `S`.
+   * Creates a transducer by folding over a structure of type `O` for as long as
+   * `contFn` results in `true`. The transducer will emit a value when `contFn`
+   * evaluates to `false` and then restart the folding.
    */
   def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
@@ -156,6 +220,20 @@ object ZTransducer {
         }
       }
     }
+
+  /**
+   * Creates a transducer by folding over a structure of type `O`. The transducer will
+   * fold the inputs until the stream ends, resulting in a stream with one element.
+   */
+  def foldLeft[I, O](z: O)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+    fold(z)(_ => true)(f)
+
+  /**
+   * Creates a transducer by effectfully folding over a structure of type `O`. The transducer will
+   * fold the inputs until the stream ends, resulting in a stream with one element.
+   */
+  def foldLeftM[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    foldM(z)(_ => true)(f)
 
   /**
    * Creates a sink by effectfully folding over a structure of type `S`.
@@ -215,8 +293,8 @@ object ZTransducer {
    * have been folded.
    *
    * @note Elements that have an individual cost larger than `max` will
-   * cause the stream to hang. See [[foldWeightedDecompose]] for
-   * a variant that can handle these.
+   * force the transducer to cross the `max` cost. See [[foldWeightedDecompose]]
+   * for a variant that can handle these cases.
    */
   def foldWeighted[I, O](z: O)(costFn: I => Long, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     foldWeightedDecompose[I, O](z)(costFn, max, Chunk.single(_))(f)
@@ -306,8 +384,8 @@ object ZTransducer {
    * been folded.
    *
    * @note Elements that have an individual cost larger than `max` will
-   * cause the stream to hang. See [[foldWeightedDecomposeM]] for
-   * a variant that can handle these.
+   * force the transducer to cross the `max` cost. See [[foldWeightedDecomposeM]]
+   * for a variant that can handle these cases.
    */
   def foldWeightedM[R, E, I, S](
     z: S
@@ -380,6 +458,18 @@ object ZTransducer {
         }
       }
     }
+
+  /**
+   * Creates a transducer that always evaluates the specified effect.
+   */
+  def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZTransducer[R, E, Any, A] =
+    ZTransducer(Managed.succeed((_: Any) => zio.map(Chunk.single(_))))
+
+  /**
+   * Creates a transducer from a chunk processing function.
+   */
+  def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]]): ZTransducer[R, E, I, O] =
+    ZTransducer(Managed.succeed(push))
 
   /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).

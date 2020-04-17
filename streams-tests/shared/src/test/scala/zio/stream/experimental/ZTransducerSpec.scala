@@ -38,7 +38,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         },
         testM("empty list") {
           val sink = ZTransducer.collectAllN[Int](0)
-          assertM(sink.push.use(_(None)))(equalTo(Chunk.empty))
+          assertM(sink.push.use(_(None)))(equalTo(Chunk(List())))
         }
         // testM("init error") {
         //   val sink = initErrorSink.collectAllN(1)
@@ -52,6 +52,33 @@ object ZTransducerSpec extends ZIOBaseSpec {
         //   val sink = extractErrorSink.collectAllN(1)
         //   assertM(sinkIteration(sink, 1).either)(isLeft(equalTo("Ouch")))
         // } @@ zioTag(errors)
+      ),
+      suite("collectAllToMapN")(
+        testM("stop collecting when map size exceeds limit")(
+          assertM(
+            run(
+              ZTransducer.collectAllToMapN[Int, Int](2)(_ % 3)(_ + _),
+              List(Chunk(0, 1, 2))
+            )
+          )(equalTo(List(Chunk(Map(0 -> 0, 1 -> 1)), Chunk(Map(2 -> 2)))))
+        ),
+        testM("keep collecting as long as map size does not exceed the limit")(
+          assertM(
+            run(
+              ZTransducer.collectAllToMapN[Int, Int](3)(_ % 3)(_ + _),
+              List(
+                Chunk(0, 1, 2),
+                Chunk(3, 4, 5),
+                Chunk(6, 7, 8, 9)
+              )
+            )
+          )(equalTo(List(Chunk(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))))
+        )
+      ),
+      testM("collectAllToSetN")(
+        assertM(
+          run(ZTransducer.collectAllToSetN[Int](3), List(Chunk(1, 2, 1), Chunk(2, 3, 3, 4)))
+        )(equalTo(List(Chunk(Set(1, 2, 3)), Chunk(Set(4)))))
       ),
       testM("collectAllWhile") {
         val parser = ZTransducer.collectAllWhile[Int](_ < 5)
