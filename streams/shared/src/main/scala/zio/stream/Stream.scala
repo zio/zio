@@ -337,12 +337,6 @@ object Stream extends Serializable {
     ZStream.range(min, max)
 
   /**
-   * See [[ZStream.subscriptionRef]]
-   */
-  def subscriptionRef[A](a: A): UIO[SubscriptionRef[A]] =
-    ZStream.subscriptionRef(a)
-
-  /**
    * See [[ZStream.succeed]]
    */
   def succeed[A](a: => A): Stream[Nothing, A] =

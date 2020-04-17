@@ -16,10 +16,28 @@
 
 package zio.stream
 
-import zio.RefM
+import zio.{ RefM, UIO, UManaged }
 
 /**
  * A `SubscriptionRef[A]` contains a `RefM[A]` and a `Stream` that will emit
  * every change to the `RefM`.
  */
-final case class SubscriptionRef[A](ref: RefM[A], changes: Stream[Nothing, A])
+final class SubscriptionRef[A] private (val ref: RefM[A], val changes: Stream[Nothing, A])
+
+object SubscriptionRef {
+
+  /**
+   * Creates a new `SubscriptionRef` with the specified value.
+   */
+  def make[A](a: A): UIO[SubscriptionRef[A]] =
+    RefM.dequeueRef(a).map {
+      case (ref, queue) => new SubscriptionRef(ref, ZStream.fromQueue(queue))
+    }
+
+  /**
+   * Creates a new `SubscriptionRef` with the specified value in the context of
+   * a `Managed`.
+   */
+  def makeManaged[A](a: A): UManaged[SubscriptionRef[A]] =
+    make(a).toManaged_
+}
