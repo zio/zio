@@ -110,39 +110,6 @@ abstract class ZStream[-R, +E, +O](
       } yield run
     }
 
-  private def produceAsync[R1 <: R, E1 >: E, O1 >: O, P](
-    flush: Ref[Boolean],
-    bucket: Queue[Take[E1, P]],
-    pull: ZIO[R1, Option[E1], Chunk[O1]],
-    push: Option[Chunk[O1]] => ZIO[R1, E1, Chunk[P]]
-  ): URIO[R1, Boolean] = {
-// Upstream is done, we need to flush the transducer. If the output is
-    // empty, we send the end signal downstream.
-    def finish(ps: Chunk[P]): URIO[R1, Boolean] =
-      bucket.offerAll(if (ps.isEmpty) List(Take.End) else List(Exit.succeed(ps), Take.End)) as false
-
-    // We have to make progress in the transducer. If the output is empty,
-    // we must keep making progress until it isn't.
-    def iterate(ps: Chunk[P]): URIO[R1, Boolean] =
-      if (ps.isEmpty) go else bucket.offer(Exit.succeed(ps))
-
-    def drain(os: Option[Chunk[O1]])(onSuccess: Chunk[P] => URIO[R1, Boolean]): URIO[R1, Boolean] =
-      push(os).foldCauseM(c => bucket.offer(Exit.halt(c.map(Some(_)))), onSuccess)
-
-    lazy val go: URIO[R1, Boolean] =
-      flush.getAndSet(false).flatMap {
-        if (_)
-          drain(None)(iterate)
-        else
-          pull.foldCauseM(
-            Cause.sequenceCauseOption(_).fold(drain(None)(finish))(c => bucket.offer(Exit.halt(c.map(Some(_))))),
-            os => drain(Some(os))(iterate)
-          )
-      }
-
-    go.repeat(Schedule.doWhile(identity))
-  }
-
   /**
    * Aggregates elements of this stream using the provided sink for as long
    * as the downstream operators on the stream are busy.
@@ -156,27 +123,7 @@ abstract class ZStream[-R, +E, +O](
    * transducers that cover the common usecases.
    */
   final def aggregateAsync[R1 <: R, E1 >: E, O1 >: O, P](transducer: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] =
-    ZStream {
-      for {
-        pull   <- self.process
-        push   <- transducer.push
-        bucket <- ZQueue.bounded[Take[E1, P]](1).toManaged(_.shutdown)
-        flush  <- ZRef.makeManaged(false)
-        done   <- ZRef.makeManaged(false)
-        _      <- produceAsync(flush, bucket, pull, push).forkManaged
-        consume = {
-          val go: ZIO[R1, Option[E1], Chunk[P]] =
-            flush.set(true) *> bucket.take.flatMap(take => done.set(true).when(take == Take.End) *> Pull.fromTake(take))
-
-          done.get.flatMap {
-            if (_)
-              Pull.end
-            else
-              go
-          }
-        }
-      } yield consume
-    }
+    aggregateAsyncWithin(transducer, Schedule.forever)
 
   /**
    * Uses `aggregateAsyncWithinEither` but only returns the `Right` results.
@@ -230,7 +177,33 @@ abstract class ZStream[-R, +E, +O](
         done          <- ZRef.makeManaged(false)
         initial       <- schedule.initial.toManaged_
         scheduleState <- ZRef.makeManaged(initial)
-        _             <- produceAsync(flush, bucket, pull, push).forkManaged
+        _ <- {
+// Upstream is done, we need to flush the transducer. If the output is
+          // empty, we send the end signal downstream.
+          def finish(ps: Chunk[P]): URIO[R1, Boolean] =
+            bucket.offerAll(if (ps.isEmpty) List(Take.End) else List(Exit.succeed(ps), Take.End)) as false
+
+          // We have to make progress in the transducer. If the output is empty,
+          // we must keep making progress until it isn't.
+          def iterate(ps: Chunk[P]): URIO[R1, Boolean] =
+            if (ps.isEmpty) go else bucket.offer(Exit.succeed(ps))
+
+          def drain(os: Option[Chunk[O1]])(onSuccess: Chunk[P] => URIO[R1, Boolean]): URIO[R1, Boolean] =
+            push(os).foldCauseM(c => bucket.offer(Exit.halt(c.map(Some(_)))), onSuccess)
+
+          lazy val go: URIO[R1, Boolean] =
+            flush.getAndSet(false).flatMap {
+              if (_)
+                drain(None)(iterate)
+              else
+                pull.foldCauseM(
+                  Cause.sequenceCauseOption(_).fold(drain(None)(finish))(c => bucket.offer(Exit.halt(c.map(Some(_))))),
+                  os => drain(Some(os))(iterate)
+                )
+            }
+
+          go.repeat(Schedule.doWhile(identity))
+        }.forkManaged
         consume = {
           // Advance the schedule with the output of the transducer,
           // yield the output plus that of the schedule if it is done.
