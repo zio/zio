@@ -147,12 +147,20 @@ At this point, you should re-run all tests to make sure everything is passing:
 sbt test
 ```
 
-If all the tests are passing, then you can format your code:
+If all the tests are passing, then you can prepare your code to be shipped:
 
 ```bash
-# If you are already in a SBT session you can type only 'fmt'
+# If you are already in a SBT session you can type only 'prepare'
 
-sbt fmt
+sbt prepare
+```
+
+For simplicity, there is a command that does everything. Prepares code, compiles it and runs tests:
+
+```bash
+# If you are already in a SBT session you can type only 'build'
+
+sbt build
 ```
 
 If your changes altered an API, then you may need to rebuild the microsite to make sure none of the (compiled) documentation breaks:
@@ -207,7 +215,7 @@ This is a legally binding document, so please read it carefully before accepting
 
 ## 1. Definitions
 
-"We" or "Us" means John Arlen De Goes, the individual who founded the project, and any duly appointed and authorized representatives of said individual.
+"We" or "Us" means Ziverge, Inc., and its duly appointed and authorized representatives.
 
 "You" means the individual or entity who Submits a Contribution to Us.
 

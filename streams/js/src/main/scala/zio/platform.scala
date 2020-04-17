@@ -1,4 +1,5 @@
 package zio.stream
 
-trait ZStreamPlatformSpecific
-trait ZSinkPlatformSpecific
+trait ZSinkPlatformSpecificConstructors
+trait ZStreamPlatformSpecificConstructors
+trait StreamPlatformSpecificConstructors

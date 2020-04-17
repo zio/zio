@@ -94,7 +94,7 @@ import zio.stm._
 
 val updateSingle: UIO[Int] = (for {
   tRef <- TRef.make(10)
-  nValue <- tRef.update(_ + 20)
+  nValue <- tRef.updateAndGet(_ + 20)
 } yield nValue).commit
 ```
 
@@ -106,7 +106,7 @@ import zio.stm._
 
 val updateMultiple: UIO[Int] = for {
   tRef <- TRef.makeCommit(10)
-  nValue <- tRef.update(_ + 20).commit
+  nValue <- tRef.updateAndGet(_ + 20).commit
 } yield nValue
 ```
 
@@ -152,9 +152,9 @@ def transfer(tSender: TRef[Int],
              amount: Int): UIO[Int] = {
   STM.atomically {
     for {
-      _ <- tSender.get.filter(_ >= amount)
+      _ <- tSender.get.retryUntil(_ >= amount)
       _ <- tSender.update(_ - amount)
-      nAmount <- tReceiver.update(_ + amount)
+      nAmount <- tReceiver.updateAndGet(_ + amount)
     } yield nAmount
   }
 }
@@ -163,7 +163,7 @@ val transferredMoney: UIO[String] = for {
   tSender <- TRef.makeCommit(50)
   tReceiver <- TRef.makeCommit(100)
   _ <- transfer(tSender, tReceiver, 50).fork
-  _ <- tSender.get.filter(_ == 0).commit
+  _ <- tSender.get.retryUntil(_ == 0).commit
   tuple2 <- tSender.get.zip(tReceiver.get).commit
   (senderBalance, receiverBalance) = tuple2
 } yield s"sender: $senderBalance & receiver: $receiverBalance"
@@ -172,3 +172,7 @@ val transferredMoney: UIO[String] = for {
 In this example, we create and commit two transactional references for the sender and receiver to be able to extract their value. 
 On the following step, we create an atomic transactional that updates both accounts only when there is sufficient balance available in the sender account. In the end, we fork to run asynchronously.
 On the running fiber, we suspend until the sender balance suffers changes, in this case, to reach `zero`. Finally, we extract the new values out of the accounts and combine them in one result. 
+
+## ZTRef
+
+Like `Ref[A]`, `TRef[A]` is actually a type alias for `ZTRef[+EA, +EB, -A, +B]`, a polymorphic, transactional reference and supports all the transformations that `ZRef` does. For more discussion regarding polymorphic references see the documentation on [`ZRef`](../datatypes/ref.md).

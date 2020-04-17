@@ -21,8 +21,8 @@ object MutableConcurrentQueueJVM extends ZIOBaseSpec {
         val returnQ = serializeAndDeserialize(q)
         returnQ.offer(2)
 
-        (assert(returnQ.poll(-1), equalTo(1))
-        && assert(returnQ.poll(-1), equalTo(-1)))
+        (assert(returnQ.poll(-1))(equalTo(1))
+        && assert(returnQ.poll(-1))(equalTo(-1)))
       },
       test("a pow 2 capacity ring buffer") {
         val q = MutableConcurrentQueue.bounded[Int](3)
@@ -30,9 +30,9 @@ object MutableConcurrentQueueJVM extends ZIOBaseSpec {
         val returnQ = serializeAndDeserialize(q)
         returnQ.offer(2)
 
-        (assert(returnQ.poll(-1), equalTo(1))
-        && assert(returnQ.poll(-1), equalTo(2))
-        && assert(returnQ.poll(-1), equalTo(-1)))
+        (assert(returnQ.poll(-1))(equalTo(1))
+        && assert(returnQ.poll(-1))(equalTo(2))
+        && assert(returnQ.poll(-1))(equalTo(-1)))
       },
       test("an arbitrary capacity ring buffer") {
         val q = MutableConcurrentQueue.bounded[Int](2)
@@ -40,9 +40,9 @@ object MutableConcurrentQueueJVM extends ZIOBaseSpec {
         val returnQ = serializeAndDeserialize(q)
         returnQ.offer(2)
 
-        (assert(returnQ.poll(-1), equalTo(1))
-        && assert(returnQ.poll(-1), equalTo(2))
-        && assert(returnQ.poll(-1), equalTo(-1)))
+        (assert(returnQ.poll(-1))(equalTo(1))
+        && assert(returnQ.poll(-1))(equalTo(2))
+        && assert(returnQ.poll(-1))(equalTo(-1)))
       }
     )
   )

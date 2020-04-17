@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,15 +27,15 @@ import scala.annotation.implicitNotFound
     "your effect has Nothing for the error type, which means it cannot " +
     "fail, so there is no need to handle the failure. To find out which " +
     "method you can use instead of this operation, please see the " +
-    "reference chart at: https://zio.dev/docs/canfail"
+    "reference chart at: https://zio.dev/docs/can_fail"
 )
 sealed trait CanFail[-E]
 
 object CanFail extends CanFail[Any] {
 
-  implicit final def canFail[E]: CanFail[E] = CanFail
+  implicit def canFail[E]: CanFail[E] = CanFail
 
   // Provide multiple ambiguous values so an implicit CanFail[Nothing] cannot be found.
-  implicit final val canFailAmbiguous1: CanFail[Nothing] = CanFail
-  implicit final val canFailAmbiguous2: CanFail[Nothing] = CanFail
+  implicit val canFailAmbiguous1: CanFail[Nothing] = CanFail
+  implicit val canFailAmbiguous2: CanFail[Nothing] = CanFail
 }

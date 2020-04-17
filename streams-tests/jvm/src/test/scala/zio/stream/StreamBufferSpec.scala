@@ -1,12 +1,14 @@
 package zio.stream
 
 import scala.{ Stream => _ }
+
 import zio._
-import zio.test._
 import zio.test.Assertion.{ equalTo, fails }
-import zio.test.TestAspect.flaky
+import zio.test._
 
 object StreamBufferSpec extends ZIOBaseSpec {
+
+  import ZIOTag._
 
   def spec = suite("StreamBufferSpec")(
     suite("Stream.buffer")(
@@ -15,9 +17,8 @@ object StreamBufferSpec extends ZIOBaseSpec {
           Stream
             .fromIterable(list)
             .buffer(2)
-            .run(Sink.collectAll[Int]),
-          equalTo(list)
-        )
+            .run(Sink.collectAll[Int])
+        )(equalTo(list))
       }),
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
@@ -25,10 +26,9 @@ object StreamBufferSpec extends ZIOBaseSpec {
           (Stream.range(0, 10) ++ Stream.fail(e))
             .buffer(2)
             .run(Sink.collectAll[Int])
-            .run,
-          fails(equalTo(e))
-        )
-      },
+            .run
+        )(fails(equalTo(e)))
+      } @@ zioTag(errors),
       testM("fast producer progress independently") {
         for {
           ref   <- Ref.make(List[Int]())
@@ -41,7 +41,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
                   l <- ref.get
                 } yield l
               }
-        } yield assert(l.reverse, equalTo((1 to 4).toList))
+        } yield assert(l.reverse)(equalTo((1 to 4).toList))
       }
     ),
     suite("Stream.bufferDropping")(
@@ -51,10 +51,9 @@ object StreamBufferSpec extends ZIOBaseSpec {
           (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
             .bufferDropping(2)
             .runCollect
-            .run,
-          fails(equalTo(e))
-        )
-      },
+            .run
+        )(fails(equalTo(e)))
+      } @@ zioTag(errors),
       testM("fast producer progress independently") {
         for {
           ref    <- Ref.make(List.empty[Int])
@@ -64,10 +63,10 @@ object StreamBufferSpec extends ZIOBaseSpec {
           latch4 <- Promise.make[Nothing, Unit]
           s1 = Stream(0) ++ Stream
             .fromEffect(latch1.await)
-            .flatMap(_ => Stream.range(1, 16).ensuring(latch2.succeed(())))
+            .flatMap(_ => Stream.range(1, 17).ensuring(latch2.succeed(())))
           s2 = Stream
             .fromEffect(latch3.await)
-            .flatMap(_ => Stream.range(17, 24).ensuring(latch4.succeed(())))
+            .flatMap(_ => Stream.range(17, 25).ensuring(latch4.succeed(())))
           s = (s1 ++ s2).bufferDropping(8)
           snapshots <- s.process.use { as =>
                         for {
@@ -82,8 +81,8 @@ object StreamBufferSpec extends ZIOBaseSpec {
                           snapshot2 <- ref.get
                         } yield (zero, snapshot1, snapshot2)
                       }
-        } yield assert(snapshots._1, equalTo(0)) && assert(snapshots._2, equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
-          assert(snapshots._3, equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1)))
+        } yield assert(snapshots._1)(equalTo(0)) && assert(snapshots._2)(equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
+          assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1)))
       }
     ),
     suite("Stream.bufferSliding")(
@@ -93,10 +92,9 @@ object StreamBufferSpec extends ZIOBaseSpec {
           (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
             .bufferSliding(2)
             .runCollect
-            .run,
-          fails(equalTo(e))
-        )
-      },
+            .run
+        )(fails(equalTo(e)))
+      } @@ zioTag(errors),
       testM("fast producer progress independently") {
         for {
           ref    <- Ref.make(List.empty[Int])
@@ -106,10 +104,10 @@ object StreamBufferSpec extends ZIOBaseSpec {
           latch4 <- Promise.make[Nothing, Unit]
           s1 = Stream(0) ++ Stream
             .fromEffect(latch1.await)
-            .flatMap(_ => Stream.range(1, 16).ensuring(latch2.succeed(())))
+            .flatMap(_ => Stream.range(1, 17).ensuring(latch2.succeed(())))
           s2 = Stream
             .fromEffect(latch3.await)
-            .flatMap(_ => Stream.range(17, 24).ensuring(latch4.succeed(())))
+            .flatMap(_ => Stream.range(17, 25).ensuring(latch4.succeed(())))
           s = (s1 ++ s2).bufferSliding(8)
           snapshots <- s.process.use { as =>
                         for {
@@ -124,27 +122,23 @@ object StreamBufferSpec extends ZIOBaseSpec {
                           snapshot2 <- ref.get
                         } yield (zero, snapshot1, snapshot2)
                       }
-        } yield assert(snapshots._1, equalTo(0)) && assert(
-          snapshots._2,
-          equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))
-        ) &&
-          assert(snapshots._3, equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9)))
+        } yield assert(snapshots._1)(equalTo(0)) && assert(snapshots._2)(equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))) &&
+          assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9)))
       }
-    ) @@ flaky,
+    ),
     suite("Stream.bufferUnbounded")(
       testM("buffer the Stream")(checkM(Gen.listOf(Gen.anyInt)) { list =>
         assertM(
           Stream
             .fromIterable(list)
             .bufferUnbounded
-            .runCollect,
-          equalTo(list)
-        )
+            .runCollect
+        )(equalTo(list))
       }),
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
-        assertM((Stream.range(0, 10) ++ Stream.fail(e)).bufferUnbounded.runCollect.run, fails(equalTo(e)))
-      },
+        assertM((Stream.range(0, 10) ++ Stream.fail(e)).bufferUnbounded.runCollect.run)(fails(equalTo(e)))
+      } @@ zioTag(errors),
       testM("fast producer progress independently") {
         for {
           ref   <- Ref.make(List[Int]())
@@ -160,7 +154,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
                   l <- ref.get
                 } yield l
               }
-        } yield assert(l.reverse, equalTo((1 to 1000).toList))
+        } yield assert(l.reverse)(equalTo(Range(1, 1000).toList))
       }
     )
   )

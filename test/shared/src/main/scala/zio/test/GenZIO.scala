@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,13 +83,13 @@ trait GenZIO {
    * A generator of effects that have died with a `Throwable`.
    */
   final def died[R](gen: Gen[R, Throwable]): Gen[R, ZIO[Any, Nothing, Nothing]] =
-    gen.map(ZIO.die)
+    gen.map(ZIO.die(_))
 
   /**
    * A generator of effects that have failed with an error.
    */
   final def failures[R, E](gen: Gen[R, E]): Gen[R, ZIO[Any, E, Nothing]] =
-    gen.map(ZIO.fail)
+    gen.map(ZIO.fail(_))
 
   /**
    * A generator of effects that are the result of applying parallelism
@@ -103,5 +103,5 @@ trait GenZIO {
    * A generator of successful effects.
    */
   final def successes[R, A](gen: Gen[R, A]): Gen[R, ZIO[Any, Nothing, A]] =
-    gen.map(ZIO.succeed)
+    gen.map(ZIO.succeedNow)
 }

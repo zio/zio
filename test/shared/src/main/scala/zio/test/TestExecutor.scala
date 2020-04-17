@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,42 @@
 
 package zio.test
 
-import zio.{ Managed, ZIO }
+import zio.{ ExecutionStrategy, Has, Layer, UIO, ZIO }
+
+/**
+ * A `TestExecutor[R, E]` is capable of executing specs that require an
+ * environment `R` and may fail with an `E`.
+ */
+trait TestExecutor[+R <: Has[_], E] {
+  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]]
+  def environment: Layer[Nothing, R]
+}
 
 object TestExecutor {
-  def managed[R, E, L, S](
-    environment: Managed[Nothing, R]
-  ): TestExecutor[R, E, L, S, S] =
-    (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
-      spec
-        .provideManaged(environment)
+  def default[R <: Annotations, E](
+    env: Layer[Nothing, R]
+  ): TestExecutor[R, E] = new TestExecutor[R, E] {
+    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =
+      spec.only.annotated
+        .provideLayer(environment)
         .foreachExec(defExec)(
           e =>
             e.failureOrCause.fold(
-              failure => ZIO.succeed(Left(failure)),
-              cause => ZIO.succeed(Left(TestFailure.Runtime(cause)))
-            ),
-          s => ZIO.succeed(Right(s))
+              { case (failure, annotations) => ZIO.succeedNow((Left(failure), annotations)) },
+              cause => ZIO.succeedNow((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
+            ), {
+            case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
+          }
         )
-
-    }
+        .flatMap(_.fold[UIO[ExecutedSpec[E]]] {
+          case Spec.SuiteCase(label, specs, exec) =>
+            UIO.succeedNow(Spec.suite(label, specs.flatMap(UIO.collectAll(_)).map(_.toVector), exec))
+          case Spec.TestCase(label, test, annotations) =>
+            test.map {
+              case (result, annotations1) =>
+                Spec.test(label, UIO.succeedNow(result), annotations ++ annotations1)
+            }
+        })
+    val environment = env
+  }
 }

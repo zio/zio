@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,13 @@
 
 package zio.test.sbt
 
+import scala.collection.mutable.ArrayBuffer
+
 import sbt.testing._
-import zio.FunctionIO
+
+import zio.UIO
 import zio.test.sbt.TestingSupport._
 import zio.test.{ Assertion, DefaultRunnableSpec, Summary, TestArgs, TestAspect }
-
-import scala.collection.mutable.ArrayBuffer
 
 object ZTestFrameworkSpec {
 
@@ -64,19 +65,18 @@ object ZTestFrameworkSpec {
 
     loadAndExecute(failingSpecFQN, loggers = loggers)
 
-    loggers.map(_.messages) foreach (
-      messages =>
-        assertEquals(
-          "logged messages",
-          messages.mkString.split("\n").dropRight(1).mkString("\n"),
-          List(
-            s"${reset("info:")} ${red("- some suite")}",
-            s"${reset("info:")}   ${red("- failing test")}",
-            s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-            s"${reset("info:")}   ${green("+")} passing test"
-          ).mkString("\n")
-        )
+    loggers.map(_.messages) foreach (messages =>
+      assertEquals(
+        "logged messages",
+        messages.mkString.split("\n").dropRight(1).mkString("\n"),
+        List(
+          s"${reset("info:")} ${red("- some suite")} - ignored: 1",
+          s"${reset("info:")}   ${red("- failing test")}",
+          s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
+          s"${reset("info:")}   ${green("+")} passing test"
+        ).mkString("\n")
       )
+    )
   }
 
   def testColored() = {
@@ -84,18 +84,17 @@ object ZTestFrameworkSpec {
 
     loadAndExecute(multiLineSpecFQN, loggers = loggers)
 
-    loggers.map(_.messages) foreach (
-      messages =>
-        assertEquals(
-          "logged messages",
-          messages.mkString.split("\n").dropRight(1).mkString("\n"),
-          List(
-            s"${reset("info:")} ${red("- multi-line test")}",
-            s"${reset("info:")}   ${Console.BLUE}Hello,",
-            s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}"
-          ).mkString("\n")
-        )
+    loggers.map(_.messages) foreach (messages =>
+      assertEquals(
+        "logged messages",
+        messages.mkString.split("\n").dropRight(1).mkString("\n"),
+        List(
+          s"${reset("info:")} ${red("- multi-line test")}",
+          s"${reset("info:")}   ${Console.BLUE}Hello,",
+          s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}"
+        ).mkString("\n")
       )
+    )
   }
 
   def testTestSelection() = {
@@ -103,17 +102,16 @@ object ZTestFrameworkSpec {
 
     loadAndExecute(failingSpecFQN, loggers = loggers, testArgs = Array("-t", "passing test"))
 
-    loggers.map(_.messages) foreach (
-      messages =>
-        assertEquals(
-          "logged messages",
-          messages.mkString.split("\n").dropRight(1).mkString("\n"),
-          List(
-            s"${reset("info:")} ${green("+")} some suite",
-            s"${reset("info:")}   ${green("+")} passing test"
-          ).mkString("\n")
-        )
+    loggers.map(_.messages) foreach (messages =>
+      assertEquals(
+        "logged messages",
+        messages.mkString.split("\n").dropRight(1).mkString("\n"),
+        List(
+          s"${reset("info:")} ${green("+")} some suite",
+          s"${reset("info:")}   ${green("+")} passing test"
+        ).mkString("\n")
       )
+    )
   }
 
   def testSummary() = {
@@ -121,15 +119,15 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => {
-        val zTestTask = task.asInstanceOf[BaseTestTask]
+      .map(task => task.asInstanceOf[ZTestTask])
+      .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          FunctionIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          UIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty
         )
-      })
+      }
       .head
 
     task.execute(_ => (), Array.empty)
@@ -142,15 +140,15 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => {
-        val zTestTask = task.asInstanceOf[BaseTestTask]
+      .map(task => task.asInstanceOf[ZTestTask])
+      .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          FunctionIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          UIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty
         )
-      })
+      }
       .head
 
     task.execute(_ => (), Array.empty)
@@ -170,20 +168,27 @@ object ZTestFrameworkSpec {
       .tasks(Array(taskDef))
       .head
 
-    task.execute(eventHandler, loggers.toArray)
+    @scala.annotation.tailrec
+    def doRun(tasks: Iterable[Task]): Unit = {
+      val more = tasks.flatMap(_.execute(eventHandler, loggers.toArray))
+      if (more.nonEmpty) {
+        doRun(more)
+      }
+    }
+    doRun(Iterable(task))
   }
 
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
   object SimpleFailingSpec extends DefaultRunnableSpec {
     def spec = zio.test.suite("some suite")(
       zio.test.test("failing test") {
-        zio.test.assert(1, Assertion.equalTo(2))
+        zio.test.assert(1)(Assertion.equalTo(2))
       },
       zio.test.test("passing test") {
-        zio.test.assert(1, Assertion.equalTo(1))
+        zio.test.assert(1)(Assertion.equalTo(1))
       },
       zio.test.test("ignored test") {
-        zio.test.assert(1, Assertion.equalTo(2))
+        zio.test.assert(1)(Assertion.equalTo(2))
       } @@ TestAspect.ignore
     )
   }
@@ -191,7 +196,7 @@ object ZTestFrameworkSpec {
   lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
   object MultiLineSpec extends DefaultRunnableSpec {
     def spec = zio.test.test("multi-line test") {
-      zio.test.assert("Hello,\nWorld!", Assertion.equalTo("Hello, World!"))
+      zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
     }
   }
 }

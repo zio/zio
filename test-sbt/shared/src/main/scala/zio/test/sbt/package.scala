@@ -2,18 +2,21 @@ package zio.test
 
 import scala.annotation.tailrec
 
-import zio.{ FunctionIO, UIO }
+import zio.{ UIO, URIO }
 
 package object sbt {
 
-  type SendSummary = FunctionIO[Nothing, Summary, Unit]
+  type SendSummary = URIO[Summary, Unit]
 
   object SendSummary {
-    def fromSend(send: Summary => Unit): SendSummary = FunctionIO.effectTotal(send)
+    def fromSend(send: Summary => Unit): SendSummary =
+      URIO.fromFunctionM(summary => URIO.effectTotal(send(summary)))
 
-    def fromSendM(send: Summary => UIO[Unit]): SendSummary = FunctionIO.fromFunctionM(send)
+    def fromSendM(send: Summary => UIO[Unit]): SendSummary =
+      URIO.fromFunctionM(send)
 
-    def noop: SendSummary = FunctionIO.succeed(())
+    def noop: SendSummary =
+      UIO.unit
   }
 
   /**

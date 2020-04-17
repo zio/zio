@@ -10,7 +10,7 @@ scala_213: &scala_213
   SCALA_VERSION: 2.13.1
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.20.0-RC1
+  SCALA_VERSION: 0.23.0-RC1
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -93,13 +93,17 @@ install_nodejs: &install_nodejs
         nvm use
         node -v
 
+filter_tags: &filter_tags
+  tags:
+    only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+
 lint: &lint
   steps:
     - checkout
     - <<: *load_cache
     - run:
         name: Lint code
-        command: ./sbt ++${SCALA_VERSION}! check
+        command: ./sbt ++${SCALA_VERSION}! fmtCheck fixCheck
     - <<: *clean_cache
     - <<: *save_cache
 
@@ -110,7 +114,7 @@ mdoc: &mdoc
     - run:
         name: Generate documentation
         command: |
-          ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
+          ./sbt -Dfatal.warnings=true coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
           ./sbt ++${SCALA_VERSION}! mdoc
     - <<: *clean_cache
     - <<: *save_cache
@@ -151,6 +155,19 @@ testJVMDotty: &testJVMDotty
     - <<: *clean_cache
     - <<: *save_cache
 
+testJVM211: &testJVM211
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - run:
+        name: Run tests
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM211
+    - <<: *clean_cache
+    - <<: *save_cache
+    - store_test_results:
+        path: core-tests/jvm/target/test-reports
+
 testJS: &testJS
   steps:
     - checkout
@@ -160,6 +177,20 @@ testJS: &testJS
     - run:
         name: Run tests
         command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS
+    - <<: *clean_cache
+    - <<: *save_cache
+    - store_test_results:
+        path: core-tests/js/target/test-reports
+
+testJS211: &testJS211
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - <<: *install_nodejs
+    - run:
+        name: Run tests
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS211
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -187,13 +218,23 @@ release: &release
           command: echo "credentials += Credentials(\"Sonatype Nexus Repository Manager\", \"oss.sonatype.org\", \"${SONATYPE_USER}\", \"${SONATYPE_PASSWORD}\")" > ~/.sbt/1.0/sonatype.sbt
       - run:
           name: Write PGP public key
-          command: echo -n "${PGP_PUBLIC}" | base64 -d > /tmp/public.asc
+          command: echo -n "${PGP_PUBLIC}" | base64 -di > /tmp/public.asc
       - run:
           name: Write PGP secret key
-          command: echo -n "${PGP_SECRET}" | base64 -d > /tmp/secret.asc
+          command: echo -n "${PGP_SECRET}" | base64 -di > /tmp/secret.asc
       - run:
           name: Release artifacts
-          command: ./sbt ++${SCALA_VERSION}! clean sonatypeBundleClean +publishSigned sonatypeBundleRelease
+          command: |
+            mkdir -p $HOME/bin
+            sudo apt-get update && sudo apt-get -y install gnupg2
+            echo pinentry-mode loopback >> ~/.gnupg/gpg.conf
+            echo allow-loopback-pinentry >> ~/.gnupg/gpg-agent.conf
+            chmod 600 ~/.gnupg/*
+            ln -s /usr/bin/gpg2 $HOME/bin/gpg
+            $HOME/bin/gpg --version
+            echo RELOADAGENT | gpg-connect-agent
+            echo $PGP_SECRET | base64 -di | gpg2 --import --no-tty --batch --yes
+            PATH=$HOME/bin:$PATH ./sbt ++${SCALA_VERSION}! ci-release
 
 microsite: &microsite
   steps:
@@ -239,7 +280,7 @@ jobs:
       - <<: *jdk_8
 
   test_211_jdk8_jvm:
-    <<: *testJVM
+    <<: *testJVM211
     <<: *machine_ubuntu
     <<: *machine_resource
     environment:
@@ -279,7 +320,7 @@ jobs:
       - <<: *jdk_11
 
   test_211_jdk8_js:
-    <<: *testJS
+    <<: *testJS211
     <<: *machine_ubuntu
     environment:
       - <<: *scala_211
@@ -326,70 +367,59 @@ workflows:
     jobs:
       - lint:
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - mdoc:
           requires:
             - lint
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - test_211_jdk8_jvm:
           requires:
             - lint
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - test_212_jdk8_jvm:
           requires:
             - lint
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - test_213_jdk8_jvm:
           requires:
             - lint
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - test_dotty_jdk8_jvm:
-         requires:
-           - lint
-         filters:
-           tags:
-             only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
       - test_212_jdk11_jvm:
           requires:
             - lint
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - test_211_jdk8_js:
           requires:
             - lint
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - test_212_jdk8_js:
           requires:
             - lint
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - test_213_jdk8_js:
           requires:
             - lint
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - test_211_jdk8_native:
           requires:
             - lint
           filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+            <<: *filter_tags
       - release:
-          context: Sonatype
+          context: Sonatype2
           requires:
             - test_211_jdk8_jvm
             - test_211_jdk8_js
@@ -398,17 +428,17 @@ workflows:
             - test_212_jdk8_js
             - test_213_jdk8_jvm
             - test_213_jdk8_js
+            - mdoc
           filters:
+            <<: *filter_tags
             branches:
-              ignore: /.*/
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+              only:
+                - master
       - microsite:
           context: Website
           requires:
             - release
           filters:
+            <<: *filter_tags
             branches:
               ignore: /.*/
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/

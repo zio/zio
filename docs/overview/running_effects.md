@@ -15,7 +15,7 @@ This class provides Scala with a main function, so it can be called from IDEs an
 import zio._
 import zio.console._
 
-object MyApp extends App {
+object MyApp extends zio.App {
 
   def run(args: List[String]) =
     myAppLogic.fold(_ => 1, _ => 0)
@@ -31,24 +31,24 @@ object MyApp extends App {
 
 If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provide`) before you return it from `run`, because `App` does not know how to supply custom environments.
 
-## DefaultRuntime
+## Default Runtime
 
 Most applications are not greenfield, and must integrate with legacy code, and procedural libraries and frameworks.
 
 In these cases, a better solution for running effects is to create a `Runtime`, which can be passed around and used to run effects wherever required.
 
-ZIO contains a default runtime called `DefaultRuntime`. This `Runtime` bundles together production implementations of all ZIO modules (including `Console`, `System`, `Clock`, `Random`, `Scheduler`, and on the JVM, `Blocking`), and it can run effects that require any combination of these modules.
+ZIO contains a default runtime called `Runtime.default`. This `Runtime` bundles together production implementations of all ZIO modules (including `Console`, `System`, `Clock`, `Random`, `Scheduler`, and on the JVM, `Blocking`), and it can run effects that require any combination of these modules.
 
-To create a `DefaultRuntime`, merely use the `new` keyword:
+To access it, merely use
 
 ```scala mdoc:silent
-val runtime = new DefaultRuntime {}
+val runtime = Runtime.default
 ```
 
 Once you have a runtime, you can use it to execute effects:
 
 ```scala mdoc:silent
-runtime.unsafeRun(putStrLn("Hello World!"))
+runtime.unsafeRun(ZIO(println("Hello World!")))
 ```
 
 In addition to the `unsafeRun` method, there are other methods that allow executing effects asynchronously or into `Future` values.
@@ -65,9 +65,9 @@ A custom `Runtime[R]` can be created with two values:
 For example, the following creates a `Runtime` that can provide an `Int` to effects, using the default `Platform` provided by ZIO:
 
 ```scala mdoc:silent
-import zio.internal.PlatformLive
+import zio.internal.Platform
 
-val myRuntime: Runtime[Int] = Runtime(42, PlatformLive.Default)
+val myRuntime: Runtime[Int] = Runtime(42, Platform.default)
 ```
 
 ## Error Reporting

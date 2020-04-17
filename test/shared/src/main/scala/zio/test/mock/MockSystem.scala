@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,28 +16,43 @@
 
 package zio.test.mock
 
-import zio.{ IO, UIO }
 import zio.system.System
+import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
-trait MockSystem extends System {
+object MockSystem extends Mock[System] {
 
-  val system: MockSystem.Service[Any]
-}
+  object Env              extends Effect[String, SecurityException, Option[String]]
+  object EnvOrElse        extends Effect[(String, String), SecurityException, String]
+  object EnvOrOption      extends Effect[(String, Option[String]), SecurityException, Option[String]]
+  object Envs             extends Effect[Unit, SecurityException, Map[String, String]]
+  object Properties       extends Effect[Unit, Throwable, Map[String, String]]
+  object Property         extends Effect[String, Throwable, Option[String]]
+  object PropertyOrElse   extends Effect[(String, String), Throwable, String]
+  object PropertyOrOption extends Effect[(String, Option[String]), Throwable, Option[String]]
+  object LineSeparator    extends Effect[Unit, Nothing, String]
 
-object MockSystem {
+  val compose: URLayer[Has[Proxy], System] =
+    ZLayer.fromService(proxy =>
+      new System.Service {
+        def env(variable: String): IO[SecurityException, Option[String]] =
+          proxy(Env, variable)
+        def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
+          proxy(EnvOrElse, variable, alt)
+        def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
+          proxy(EnvOrOption, variable, alt)
+        val envs: IO[SecurityException, Map[String, String]] =
+          proxy(Envs)
+        val lineSeparator: UIO[String] =
+          proxy(LineSeparator)
+        val properties: IO[Throwable, Map[String, String]] =
+          proxy(Properties)
+        def property(prop: String): IO[Throwable, Option[String]] =
+          proxy(Property, prop)
+        def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
+          proxy(PropertyOrElse, prop, alt)
+        def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
+          proxy(PropertyOrOption, prop, alt)
 
-  trait Service[R] extends System.Service[R]
-
-  object env           extends Method[MockSystem, String, Option[String]]
-  object property      extends Method[MockSystem, String, Option[String]]
-  object lineSeparator extends Method[MockSystem, Unit, String]
-
-  implicit val mockable: Mockable[MockSystem] = (mock: Mock) =>
-    new MockSystem {
-      val system = new Service[Any] {
-        def env(variable: String): IO[SecurityException, Option[String]] = mock(MockSystem.env, variable)
-        def property(prop: String): IO[Throwable, Option[String]]        = mock(MockSystem.property, prop)
-        val lineSeparator: UIO[String]                                   = mock(MockSystem.lineSeparator)
       }
-    }
+    )
 }

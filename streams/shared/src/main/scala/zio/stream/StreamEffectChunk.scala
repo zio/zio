@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package zio.stream
 
 import zio._
 
-private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamEffect[R, E, Chunk[A]])
+private[stream] final class StreamEffectChunk[-R, +E, +A](override val chunks: StreamEffect[R, E, Chunk[A]])
     extends ZStreamChunk[R, E, A](chunks) { self =>
 
   override def collectWhile[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
@@ -100,13 +100,11 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
   override def filter(pred: A => Boolean): StreamEffectChunk[R, E, A] =
     StreamEffectChunk(chunks.map(_.filter(pred)))
 
-  final override def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
-    chunks.foldWhileManaged(s)(cont) { (s, as) =>
-      as.foldWhile(s)(cont)(f)
-    }
+  final override def foldWhileManaged[S](s: S)(cont: S => Boolean)(f: (S, A) => S): ZManaged[R, E, S] =
+    chunks.foldWhileManaged(s)(cont)((s, as) => as.foldWhile(s)(cont)(f))
 
-  override def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
-    foldWhileManaged(s)(_ => true)(f).use(UIO.succeed)
+  override def fold[S](s: S)(f: (S, A) => S): ZIO[R, E, S] =
+    foldWhileManaged(s)(_ => true)(f).use(UIO.succeedNow)
 
   override def map[B](f: A => B): StreamEffectChunk[R, E, B] =
     StreamEffectChunk(chunks.map(_.map(f)))
@@ -114,7 +112,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
   override def mapConcatChunk[B](f: A => Chunk[B]): StreamEffectChunk[R, E, B] =
     StreamEffectChunk(chunks.map(_.flatMap(f)))
 
-  private final def processChunk: ZManaged[R, Nothing, () => A] =
+  private def processChunk: ZManaged[R, Nothing, () => A] =
     chunks.processEffect.flatMap { thunk =>
       Managed.effectTotal {
         var counter         = 0
@@ -132,7 +130,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
       }
     }
 
-  override final def flattenChunks: StreamEffect[R, E, A] =
+  override def flattenChunks: StreamEffect[R, E, A] =
     StreamEffect(processChunk)
 
   override def take(n: Int): StreamEffectChunk[R, E, A] =
@@ -204,7 +202,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
       }
     }
 
-  override final def toInputStream(
+  override def toInputStream(
     implicit ev0: E <:< Throwable,
     ev1: A <:< Byte
   ): ZManaged[R, E, java.io.InputStream] =
@@ -224,7 +222,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
     } yield javaStream
 }
 
-private[stream] object StreamEffectChunk extends Serializable {
-  final def apply[R, E, A](chunks: StreamEffect[R, E, Chunk[A]]): StreamEffectChunk[R, E, A] =
+private[stream] object StreamEffectChunk {
+  def apply[R, E, A](chunks: StreamEffect[R, E, Chunk[A]]): StreamEffectChunk[R, E, A] =
     new StreamEffectChunk(chunks)
 }

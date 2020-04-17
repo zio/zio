@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  * Copyright 2017-2018 Łukasz Biały, Paul Chiusano, Michael Pilquist,
  * Oleg Pyzhcov, Fabio Labella, Alexandru Nedelcu, Pavel Chlupacek.
  *
@@ -20,10 +20,10 @@
 
 package zio
 
-import internals._
-
 import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
+
+import internals._
 
 /**
  * An asynchronous semaphore, which is a generalization of a mutex. Semaphores
@@ -37,7 +37,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   /**
    * The number of permits currently available.
    */
-  final def available: UIO[Long] = state.get.map {
+  def available: UIO[Long] = state.get.map {
     case Left(_)  => 0
     case Right(n) => n
   }
@@ -45,33 +45,31 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   /**
    * Acquires a permit, executes the action and releases the permit right after.
    */
-  final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
+  def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
     withPermits(1)(task)
 
   /**
    * Acquires a permit in a [[zio.ZManaged]] and releases the permit in the finalizer.
    */
-  final def withPermitManaged[R, E]: ZManaged[R, E, Unit] =
+  def withPermitManaged[R, E]: ZManaged[R, E, Unit] =
     withPermitsManaged(1)
 
   /**
    * Acquires `n` permits, executes the action and releases the permits right after.
    */
-  final def withPermits[R, E, A](n: Long)(task: ZIO[R, E, A]): ZIO[R, E, A] =
-    prepare(n).bracket(
-      e => e.release
-    )(r => r.awaitAcquire *> task)
+  def withPermits[R, E, A](n: Long)(task: ZIO[R, E, A]): ZIO[R, E, A] =
+    prepare(n).bracket(e => e.release)(r => r.awaitAcquire *> task)
 
   /**
    * Acquires `n` permits in a [[zio.ZManaged]] and releases the permits in the finalizer.
    */
-  final def withPermitsManaged[R, E](n: Long): ZManaged[R, E, Unit] =
+  def withPermitsManaged[R, E](n: Long): ZManaged[R, E, Unit] =
     ZManaged(prepare(n).map(a => Reservation(a.awaitAcquire, _ => a.release)))
 
   /**
    * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
    */
-  final private def prepare(n: Long): UIO[Acquisition] = {
+  private def prepare(n: Long): UIO[Acquisition] = {
     def restore(p: Promise[Nothing, Unit], n: Long): UIO[Unit] =
       IO.flatten(state.modify {
         case Left(q) =>
@@ -80,7 +78,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
       })
 
     if (n == 0)
-      IO.succeed(Acquisition(IO.unit, IO.unit))
+      IO.succeedNow(Acquisition(IO.unit, IO.unit))
     else
       Promise.make[Nothing, Unit].flatMap { p =>
         state.modify {
@@ -98,7 +96,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * they will be woken up (in FIFO order) if this action releases enough
    * of them.
    */
-  final private def releaseN0(toRelease: Long): UIO[Unit] = {
+  private def releaseN0(toRelease: Long): UIO[Unit] = {
 
     @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
       case Right(m) => acc -> Right(n + m)
@@ -126,7 +124,7 @@ object Semaphore extends Serializable {
   /**
    * Creates a new `Sempahore` with the specified number of permits.
    */
-  final def make(permits: Long): UIO[Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
+  def make(permits: Long): UIO[Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
 }
 
 private object internals {
@@ -142,5 +140,5 @@ private object internals {
       IO.die(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else IO.unit
 
-  class NegativeArgument(message: String) extends IllegalArgumentException(message)
+  final class NegativeArgument(message: String) extends IllegalArgumentException(message)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,31 @@
 
 package zio
 
-import scala.concurrent.{ CanAwait, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
+import scala.concurrent.{ CanAwait, ExecutionContext, Future }
 import scala.util.Try
 
-abstract class CancelableFuture[+E, +A](val future: Future[A]) extends Future[A] with FutureTransformCompat[A] {
+abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] with FutureTransformCompat[A] {
 
   /**
    * Immediately cancels the operation and returns a [[scala.concurrent.Future]] containing the result
    */
-  def cancel: Future[Exit[E, A]]
+  def cancel(): Future[Exit[Throwable, A]]
 
-  def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
+  final def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
     future.onComplete(f)(executor)
 
-  def isCompleted: Boolean =
+  final def isCompleted: Boolean =
     future.isCompleted
 
-  def value: Option[Try[A]] =
+  final def value: Option[Try[A]] =
     future.value
 
-  def ready(atMost: Duration)(implicit permit: CanAwait): this.type = {
+  final def ready(atMost: Duration)(implicit permit: CanAwait): this.type = {
     future.ready(atMost)(permit)
     this
   }
 
-  def result(atMost: Duration)(implicit permit: CanAwait): A =
+  final def result(atMost: Duration)(implicit permit: CanAwait): A =
     future.result(atMost)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,51 +19,47 @@ package zio.test
 import zio._
 import zio.clock.Clock
 import zio.console.Console
-import zio.internal.{ Platform, PlatformLive }
+import zio.internal.Platform
 
 /**
- * A `TestRunner[R, E, L, T, S]` encapsulates all the logic necessary to run
- * specs that contain tests of type `T`, require an environment `R` and may
- * fail with an error `E` or succeed with an `S`, using labels of type `L`.
- * Test runners require a test executor, a platform, and a reporter.
+ * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that
+ * require an environment `R` and may fail with an error `E`. Test runners
+ * require a test executor, a platform, and a reporter.
  */
-case class TestRunner[R, E, L, -T, S](
-  executor: TestExecutor[R, E, L, T, S],
-  platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[E, L, S] = DefaultTestReporter()
+final case class TestRunner[R <: Has[_], E](
+  executor: TestExecutor[R, E],
+  platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
+  reporter: TestReporter[E] = DefaultTestReporter(TestAnnotationRenderer.default),
+  bootstrap: Layer[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live)
 ) { self =>
 
-  final val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
+  lazy val runtime = Runtime((), platform)
 
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: ZSpec[R, E, L, T]): URIO[TestLogger with Clock, ExecutedSpec[E, L, S]] =
-    executor(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
+  def run(spec: ZSpec[R, E]): URIO[TestLogger with Clock, ExecutedSpec[E]] =
+    executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
       case (duration, results) => reporter(duration, results).as(results)
     }
 
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRun(
-    spec: ZSpec[R, E, L, T],
-    testLogger: TestLogger = defaultTestLogger,
-    clock: Clock = Clock.Live
-  ): ExecutedSpec[E, L, S] =
-    buildRuntime(testLogger, clock).unsafeRun(run(spec))
+  def unsafeRun(
+    spec: ZSpec[R, E]
+  ): ExecutedSpec[E] =
+    runtime.unsafeRun(run(spec).provideLayer(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
-  final def unsafeRunAsync(
-    spec: ZSpec[R, E, L, T],
-    testLogger: TestLogger = defaultTestLogger,
-    clock: Clock = Clock.Live
+  def unsafeRunAsync(
+    spec: ZSpec[R, E]
   )(
-    k: ExecutedSpec[E, L, S] => Unit
+    k: ExecutedSpec[E] => Unit
   ): Unit =
-    buildRuntime(testLogger, clock).unsafeRunAsync(run(spec)) {
+    runtime.unsafeRunAsync(run(spec).provideLayer(bootstrap)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -71,34 +67,23 @@ case class TestRunner[R, E, L, -T, S](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRunSync(
-    spec: ZSpec[R, E, L, T],
-    testLogger: TestLogger = defaultTestLogger,
-    clock: Clock = Clock.Live
-  ): Exit[Nothing, ExecutedSpec[E, L, S]] =
-    buildRuntime(testLogger, clock).unsafeRunSync(run(spec))
+  def unsafeRunSync(
+    spec: ZSpec[R, E]
+  ): Exit[Nothing, ExecutedSpec[E]] =
+    runtime.unsafeRunSync(run(spec).provideLayer(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the reporter.
    */
-  final def withReporter[E1 >: E, L1 >: L, S1 >: S](reporter: TestReporter[E1, L1, S1]) =
+  def withReporter[E1 >: E](reporter: TestReporter[E1]) =
     copy(reporter = reporter)
 
   /**
    * Creates a copy of this runner replacing the platform
    */
-  final def withPlatform(f: Platform => Platform): TestRunner[R, E, L, T, S] =
+  def withPlatform(f: Platform => Platform): TestRunner[R, E] =
     copy(platform = f(platform))
 
-  private[test] def buildRuntime(
-    loggerSvc: TestLogger = defaultTestLogger,
-    clockSvc: Clock = Clock.Live
-  ): Runtime[TestLogger with Clock] =
-    Runtime(buildEnv(loggerSvc, clockSvc), platform)
-
-  private def buildEnv(loggerSvc: TestLogger, clockSvc: Clock): TestLogger with Clock =
-    new TestLogger with Clock {
-      override def testLogger: TestLogger.Service = loggerSvc.testLogger
-      override val clock: Clock.Service[Any]      = clockSvc.clock
-    }
+  private[test] def buildRuntime: Managed[Nothing, Runtime[TestLogger with Clock]] =
+    bootstrap.toRuntime(platform)
 }

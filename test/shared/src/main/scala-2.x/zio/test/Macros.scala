@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 package zio.test
 
-import zio.UIO
-
-import scala.reflect.macros.blackbox.Context
 import scala.reflect.macros.TypecheckException
+import scala.reflect.macros.blackbox.Context
+
+import zio.UIO
 
 private[test] object Macros {
 
@@ -30,7 +30,7 @@ private[test] object Macros {
       c.Expr(q"zio.UIO.succeed(Right(()))")
     } catch {
       case e: TypecheckException => c.Expr(q"zio.UIO.succeed(Left(${e.getMessage}))")
-      case _: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed"))""")
+      case t: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed: " + ${t.getMessage}))""")
     }
   }
 }

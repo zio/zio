@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,21 +21,21 @@ object Queue {
   /**
    * @see See [[zio.ZQueue.bounded]]
    */
-  final def bounded[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.bounded(requestedCapacity)
+  def bounded[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.bounded(requestedCapacity)
 
   /**
    * @see See [[zio.ZQueue.dropping]]
    */
-  final def dropping[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.dropping(requestedCapacity)
+  def dropping[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.dropping(requestedCapacity)
 
   /**
    * @see See [[zio.ZQueue.sliding]]
    */
-  final def sliding[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.sliding(requestedCapacity)
+  def sliding[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.sliding(requestedCapacity)
 
   /**
    * @see See [[zio.ZQueue.unbounded]]
    */
-  final def unbounded[A]: UIO[Queue[A]] = ZQueue.unbounded
+  def unbounded[A]: UIO[Queue[A]] = ZQueue.unbounded
 
 }

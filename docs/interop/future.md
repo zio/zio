@@ -5,7 +5,7 @@ title:  "Future"
 
 ## Scala Future
 
-Basic interoperability with Scala's `Future` is now provided by ZIO, and does not require a separate module. However, additional functionality can be located in the `interop-future` module.
+Basic interoperability with Scala's `Future` is now provided by ZIO, and does not require a separate module.
 
 ### From Future
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package zio
 
 import java.util.concurrent.atomic.AtomicReference
+
 import Promise.internal._
 
 /**
@@ -36,14 +37,14 @@ import Promise.internal._
  * } yield value
  * }}}
  */
-class Promise[E, A] private (private val state: AtomicReference[State[E, A]], blockingOn: List[Fiber.Id])
+final class Promise[E, A] private (private val state: AtomicReference[State[E, A]], blockingOn: List[Fiber.Id])
     extends Serializable {
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
    * until the result is available.
    */
-  final def await: IO[E, A] =
+  def await: IO[E, A] =
     IO.effectAsyncInterrupt[E, A](
       k => {
         var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
@@ -75,13 +76,13 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def die(e: Throwable): UIO[Boolean] = completeWith(IO.die(e))
+  def die(e: Throwable): UIO[Boolean] = completeWith(IO.die(e))
 
   /**
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.done(e))
+  def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.done(e))
 
   /**
    * Completes the promise with the result of the specified effect. If the
@@ -90,7 +91,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
    * Note that [[Promise.completeWith]] will be much faster, so consider using
    * that if you do not need to memoize the result of the specified effect.
    */
-  final def complete(io: IO[E, A]): UIO[Boolean] =
+  def complete(io: IO[E, A]): UIO[Boolean] =
     io.to(this)
 
   /**
@@ -106,7 +107,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
    * completes the promise with the result of an effect see
    * [[Promise.complete]].
    */
-  final def completeWith(io: IO[E, A]): UIO[Boolean] =
+  def completeWith(io: IO[E, A]): UIO[Boolean] =
     IO.effectTotal {
       var action: () => Boolean = null.asInstanceOf[() => Boolean]
       var retry                 = true
@@ -136,31 +137,31 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
+  def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.halt(e))
+  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.halt(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise as by the fiber calling this method.
    */
-  final def interrupt: UIO[Boolean] = ZIO.fiberId.flatMap(id => completeWith(IO.interruptAs(id)))
+  def interrupt: UIO[Boolean] = ZIO.fiberId.flatMap(id => completeWith(IO.interruptAs(id)))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise as by the specified fiber.
    */
-  final def interruptAs(fiberId: Fiber.Id): UIO[Boolean] = completeWith(IO.interruptAs(fiberId))
+  def interruptAs(fiberId: Fiber.Id): UIO[Boolean] = completeWith(IO.interruptAs(fiberId))
 
   /**
    * Checks for completion of this Promise. Produces true if this promise has
    * already been completed with a value or an error and false otherwise.
    */
-  final def isDone: UIO[Boolean] =
+  def isDone: UIO[Boolean] =
     IO.effectTotal(state.get() match {
       case Done(_)    => true
       case Pending(_) => false
@@ -170,18 +171,18 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
    * Checks for completion of this Promise. Returns the result effect if this
    * promise has already been completed or a `None` otherwise.
    */
-  final def poll: UIO[Option[IO[E, A]]] =
+  def poll: UIO[Option[IO[E, A]]] =
     IO.effectTotal(state.get).flatMap {
-      case Pending(_) => IO.succeed(None)
-      case Done(io)   => IO.succeed(Some(io))
+      case Pending(_) => IO.succeedNow(None)
+      case Done(io)   => IO.succeedNow(Some(io))
     }
 
   /**
    * Completes the promise with the specified value.
    */
-  final def succeed(a: A): UIO[Boolean] = completeWith(IO.succeed(a))
+  def succeed(a: A): UIO[Boolean] = completeWith(IO.succeedNow(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler[Any] = IO.effectTotal {
+  private def interruptJoiner(joiner: IO[E, A] => Any): Canceler[Any] = IO.effectTotal {
     var retry = true
 
     while (retry) {
@@ -199,9 +200,9 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
     }
   }
 
-  private[zio] final def unsafeDone(io: IO[E, A]): Unit = {
-    var retry: Boolean                  = true
-    var joiners: List[IO[E, A] => Unit] = null
+  private[zio] def unsafeDone(io: IO[E, A]): Unit = {
+    var retry: Boolean                 = true
+    var joiners: List[IO[E, A] => Any] = null
 
     while (retry) {
       val oldState = state.get
@@ -224,21 +225,22 @@ object Promise {
   private val ConstFalse: () => Boolean = () => false
 
   private[zio] object internal {
-    sealed trait State[E, A]                                        extends Serializable with Product
-    final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
-    final case class Done[E, A](value: IO[E, A])                    extends State[E, A]
+    sealed trait State[E, A]                                       extends Serializable with Product
+    final case class Pending[E, A](joiners: List[IO[E, A] => Any]) extends State[E, A]
+    final case class Done[E, A](value: IO[E, A])                   extends State[E, A]
   }
 
   /**
    * Makes a new promise to be completed by the fiber creating the promise.
    */
-  final def make[E, A]: UIO[Promise[E, A]] = ZIO.fiberId.flatMap(makeAs(_))
+  def make[E, A]: UIO[Promise[E, A]] = ZIO.fiberId.flatMap(makeAs(_))
 
   /**
    * Makes a new promise to be completed by the fiber with the specified id.
    */
-  final def makeAs[E, A](fiberId: Fiber.Id): UIO[Promise[E, A]] =
-    ZIO.effectTotal(
-      new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)
-    )
+  def makeAs[E, A](fiberId: Fiber.Id): UIO[Promise[E, A]] =
+    ZIO.effectTotal(unsafeMake(fiberId))
+
+  private[zio] def unsafeMake[E, A](fiberId: Fiber.Id): Promise[E, A] =
+    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)
 }

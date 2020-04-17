@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,763 +16,343 @@
 
 package zio.stm
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
+import scala.util.Try
 
-import zio.{ Fiber, IO, UIO }
-import zio.internal.{ Platform, Sync }
-import java.util.{ HashMap => MutableMap }
-
-import com.github.ghik.silencer.silent
-
-import scala.util.{ Failure, Success, Try }
-import scala.annotation.tailrec
-
-/**
- * `STM[E, A]` represents an effect that can be performed transactionally,
- * resulting in a failure `E` or a value `A`.
- *
- * {{{
- * def transfer(receiver: TRef[Int],
- *              sender: TRef[Int], much: Int): UIO[Int] =
- *   STM.atomically {
- *     for {
- *       balance <- sender.get
- *       _       <- STM.check(balance >= much)
- *       _       <- receiver.update(_ + much)
- *       _       <- sender.update(_ - much)
- *       newAmnt <- receiver.get
- *     } yield newAmnt
- *   }
- *
- *   val action: UIO[Int] =
- *     for {
- *       t <- STM.atomically(TRef.make(0).zip(TRef.make(20000)))
- *       (receiver, sender) = t
- *       balance <- transfer(receiver, sender, 1000)
- *     } yield balance
- * }}}
- *
- * Software Transactional Memory is a technique which allows composition
- *  of arbitrary atomic operations. It is the software analog of transactions in database systems.
- *
- * The API is lifted directly from the Haskell package Control.Concurrent.STM although the implementation does not
- *  resemble the Haskell one at all.
- *  [[http://hackage.haskell.org/package/stm-2.5.0.0/docs/Control-Concurrent-STM.html]]
- *
- *  STM in Haskell was introduced in:
- *  Composable memory transactions, by Tim Harris, Simon Marlow, Simon Peyton Jones, and Maurice Herlihy, in ACM
- *  Conference on Principles and Practice of Parallel Programming 2005.
- * [[https://www.microsoft.com/en-us/research/publication/composable-memory-transactions/]]
- *
- * See also:
- * Lock Free Data Structures using STMs in Haskell, by Anthony Discolo, Tim Harris, Simon Marlow, Simon Peyton Jones,
- * Satnam Singh) FLOPS 2006: Eighth International Symposium on Functional and Logic Programming, Fuji Susono, JAPAN,
- *  April 2006
- *  [[https://www.microsoft.com/en-us/research/publication/lock-free-data-structures-using-stms-in-haskell/]]
- *
- */
-final class STM[+E, +A] private[stm] (
-  val exec: (STM.internal.Journal, Fiber.Id) => STM.internal.TRez[E, A]
-) extends AnyVal { self =>
-  import STM.internal.{ prepareResetJournal, TRez }
-
-  /**
-   * Sequentially zips this value with the specified one.
-   */
-  final def <*>[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
-    self zip that
-
-  /**
-   * Sequentially zips this value with the specified one, discarding the
-   * second element of the tuple.
-   */
-  final def <*[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
-    self zipLeft that
-
-  /**
-   * Sequentially zips this value with the specified one, discarding the
-   * first element of the tuple.
-   */
-  final def *>[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
-    self zipRight that
-
-  /**
-   * Feeds the value produced by this effect to the specified function,
-   * and then runs the returned effect as well to produce its results.
-   */
-  final def >>=[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
-    self flatMap f
-
-  /**
-   * Maps the success value of this effect to the specified constant value.
-   */
-  final def as[B](b: => B): STM[E, B] = self map (_ => b)
-
-  /**
-   * Maps the error value of this effect to the specified constant value.
-   */
-  final def asError[E1](e: => E1): STM[E1, A] = self mapError (_ => e)
-
-  /**
-   * Simultaneously filters and maps the value produced by this effect.
-   */
-  final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
-    new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
-          case t @ TRez.Fail(_) => t
-          case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) TRez.Succeed(pf(a)) else TRez.Retry
-          case TRez.Retry       => TRez.Retry
-        }
-    )
-
-  /**
-   * Commits this transaction atomically.
-   */
-  final def commit: IO[E, A] = STM.atomically(self)
-
-  /**
-   * Converts the failure channel into an `Either`.
-   */
-  final def either: STM[Nothing, Either[E, A]] = fold(Left(_), Right(_))
-
-  /**
-   * Executes the specified finalization transaction whether or
-   * not this effect succeeds. Note that as with all STM transactions,
-   * if the full transaction fails, everything will be rolled back.
-   */
-  final def ensuring(finalizer: STM[Nothing, Any]): STM[E, A] =
-    foldM(e => finalizer *> STM.fail(e), a => finalizer *> STM.succeed(a))
-
-  /**
-   * Filters the value produced by this effect, retrying the transaction until
-   * the predicate returns true for the value.
-   */
-  final def filter(f: A => Boolean): STM[E, A] =
-    collect {
-      case a if f(a) => a
-    }
-
-  /**
-   * Feeds the value produced by this effect to the specified function,
-   * and then runs the returned effect as well to produce its results.
-   */
-  final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
-    new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
-          case TRez.Succeed(a)  => f(a).exec(journal, fiberId)
-          case t @ TRez.Fail(_) => t
-          case TRez.Retry       => TRez.Retry
-        }
-    )
-
-  /**
-   * Flattens out a nested `STM` effect.
-   */
-  final def flatten[E1 >: E, B](implicit ev: A <:< STM[E1, B]): STM[E1, B] =
-    self flatMap ev
-
-  /**
-   * Folds over the `STM` effect, handling both failure and success, but not
-   * retry.
-   */
-  final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
-    new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
-          case TRez.Fail(e)    => TRez.Succeed(f(e))
-          case TRez.Succeed(a) => TRez.Succeed(g(a))
-          case TRez.Retry      => TRez.Retry
-        }
-    )
-
-  /**
-   * Effectfully folds over the `STM` effect, handling both failure and
-   * success.
-   */
-  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
-    new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
-          case TRez.Fail(e)    => f(e).exec(journal, fiberId)
-          case TRez.Succeed(a) => g(a).exec(journal, fiberId)
-          case TRez.Retry      => TRez.Retry
-        }
-    )
-
-  /**
-   * Returns a new effect that ignores the success or failure of this effect.
-   */
-  final def ignore: STM[Nothing, Unit] = self.either.unit
-
-  /**
-   * Maps the value produced by the effect.
-   */
-  final def map[B](f: A => B): STM[E, B] =
-    new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
-          case TRez.Succeed(a)  => TRez.Succeed(f(a))
-          case t @ TRez.Fail(_) => t
-          case TRez.Retry       => TRez.Retry
-        }
-    )
-
-  /**
-   * Maps from one error type to another.
-   */
-  final def mapError[E1](f: E => E1): STM[E1, A] =
-    new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
-          case t @ TRez.Succeed(_) => t
-          case TRez.Fail(e)        => TRez.Fail(f(e))
-          case TRez.Retry          => TRez.Retry
-        }
-    )
-
-  /**
-   * Converts the failure channel into an `Option`.
-   */
-  final def option: STM[Nothing, Option[A]] = fold(_ => None, Some(_))
-
-  /**
-   * Tries this effect first, and if it fails, tries the other effect.
-   */
-  final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
-    new STM(
-      (journal, fiberId) => {
-        val reset = prepareResetJournal(journal)
-
-        val executed = self.exec(journal, fiberId)
-
-        executed match {
-          case TRez.Fail(_)        => { reset(); that.exec(journal, fiberId) }
-          case t @ TRez.Succeed(_) => t
-          case TRez.Retry          => { reset(); that.exec(journal, fiberId) }
-        }
-      }
-    )
-
-  /**
-   * Returns a transactional effect that will produce the value of this effect in left side, unless it
-   * fails, in which case, it will produce the value of the specified effect in right side.
-   */
-  final def orElseEither[E1 >: E, B](that: => STM[E1, B]): STM[E1, Either[A, B]] =
-    (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
-
-  /**
-   * Maps the success value of this effect to unit.
-   */
-  final def unit: STM[E, Unit] = as(())
-
-  /**
-   * Same as [[filter]]
-   */
-  final def withFilter(f: A => Boolean): STM[E, A] = filter(f)
-
-  /**
-   * Named alias for `<*>`.
-   */
-  final def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
-    (self zipWith that)((a, b) => a -> b)
-
-  /**
-   * Named alias for `<*`.
-   */
-  final def zipLeft[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
-    (self zip that) map (_._1)
-
-  /**
-   * Named alias for `*>`.
-   */
-  final def zipRight[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
-    (self zip that) map (_._2)
-
-  /**
-   * Sequentially zips this value with the specified one, combining the values
-   * using the specified combiner function.
-   */
-  final def zipWith[E1 >: E, B, C](that: => STM[E1, B])(f: (A, B) => C): STM[E1, C] =
-    self flatMap (a => that map (b => f(a, b)))
-}
+import zio.{ CanFail, Chunk, Fiber, IO }
 
 object STM {
 
-  private[stm] object internal {
-    final val DefaultJournalSize = 4
-
-    class Versioned[A](val value: A)
-
-    type TxnId = Long
-
-    type Journal =
-      MutableMap[TRef[_], STM.internal.Entry]
-
-    type Todo = () => Unit
-
-    /**
-     * Creates a function that can reset the journal.
-     */
-    final def prepareResetJournal(journal: Journal): () => Unit = {
-      val saved = new MutableMap[TRef[_], Entry](journal.size)
-
-      val it = journal.entrySet.iterator
-      while (it.hasNext) {
-        val entry = it.next
-        saved.put(entry.getKey, entry.getValue.copy())
-      }
-
-      () => { journal.clear(); journal.putAll(saved); () }
-    }
-
-    /**
-     * Commits the journal.
-     */
-    final def commitJournal(journal: Journal): Unit = {
-      val it = journal.entrySet.iterator
-      while (it.hasNext) it.next.getValue.commit()
-    }
-
-    /**
-     * Allocates memory for the journal, if it is null, otherwise just clears it.
-     */
-    final def allocJournal(journal: Journal): Journal =
-      if (journal eq null) new MutableMap[TRef[_], Entry](DefaultJournalSize)
-      else {
-        journal.clear()
-        journal
-      }
-
-    /**
-     * Determines if the journal is valid.
-     */
-    final def isValid(journal: Journal): Boolean = {
-      var valid = true
-      val it    = journal.entrySet.iterator
-      while (valid && it.hasNext) valid = it.next.getValue.isValid
-      valid
-    }
-
-    /**
-     * Analyzes the journal, determining whether it is valid and whether it is
-     * read only in a single pass. Note that information on whether the
-     * journal is read only will only be accurate if the journal is valid, due
-     * to short-circuiting that occurs on an invalid journal.
-     */
-    final def analyzeJournal(journal: Journal): JournalAnalysis = {
-      var result = JournalAnalysis.ReadOnly: JournalAnalysis
-      val it     = journal.entrySet.iterator
-      while ((result ne JournalAnalysis.Invalid) && it.hasNext) {
-        val value = it.next.getValue
-        if (value.isInvalid) result = JournalAnalysis.Invalid
-        else if (value.isChanged) result = JournalAnalysis.ReadWrite
-      }
-      result
-    }
-
-    sealed trait JournalAnalysis extends Serializable with Product
-    object JournalAnalysis {
-      case object Invalid   extends JournalAnalysis
-      case object ReadOnly  extends JournalAnalysis
-      case object ReadWrite extends JournalAnalysis
-    }
-
-    /**
-     * Determines if the journal is invalid.
-     */
-    final def isInvalid(journal: Journal): Boolean = !isValid(journal)
-
-    /**
-     * Atomically collects and clears all the todos from any `TRef` that
-     * participated in the transaction.
-     */
-    final def collectTodos(journal: Journal): MutableMap[TxnId, Todo] = {
-      import collection.JavaConverters._
-
-      val allTodos  = new MutableMap[TxnId, Todo](DefaultJournalSize)
-      val emptyTodo = Map.empty[TxnId, Todo]
-
-      val it = journal.entrySet.iterator
-      while (it.hasNext) {
-        val tref = it.next.getValue.tref
-        val todo = tref.todo
-
-        var loop = true
-        while (loop) {
-          val oldTodo = todo.get
-
-          loop = !todo.compareAndSet(oldTodo, emptyTodo)
-
-          if (!loop) allTodos.putAll(oldTodo.asJava): @silent("JavaConverters")
-        }
-      }
-
-      allTodos
-    }
-
-    /**
-     * Executes the todos in the current thread, sequentially.
-     */
-    final def execTodos(todos: MutableMap[TxnId, Todo]): Unit = {
-      val it = todos.entrySet.iterator
-      while (it.hasNext) it.next.getValue.apply()
-    }
-
-    /**
-     * For the given transaction id, adds the specified todo effect to all
-     * `TRef` values.
-     */
-    final def addTodo(txnId: TxnId, journal: Journal, todoEffect: Todo): Boolean = {
-      var added = false
-
-      val it = journal.entrySet.iterator
-      while (it.hasNext) {
-        val tref = it.next.getValue.tref
-
-        var loop = true
-        while (loop) {
-          val oldTodo = tref.todo.get
-
-          if (!oldTodo.contains(txnId)) {
-            val newTodo = oldTodo.updated(txnId, todoEffect)
-
-            loop = !tref.todo.compareAndSet(oldTodo, newTodo)
-
-            if (!loop) added = true
-          } else loop = false
-        }
-      }
-
-      added
-    }
-
-    /**
-     * Runs all the todos.
-     */
-    final def completeTodos[E, A](io: IO[E, A], journal: Journal, platform: Platform): TryCommit[E, A] = {
-      val todos = collectTodos(journal)
-
-      if (todos.size > 0) platform.executor.submitOrThrow(() => execTodos(todos))
-
-      TryCommit.Done(io)
-    }
-
-    /**
-     * Finds all the new todo targets that are not already tracked in the `oldJournal`.
-     */
-    final def untrackedTodoTargets(oldJournal: Journal, newJournal: Journal): Journal = {
-      val untracked = new MutableMap[TRef[_], Entry](newJournal.size)
-
-      untracked.putAll(newJournal)
-
-      val it = newJournal.entrySet.iterator
-      while (it.hasNext) {
-        val entry = it.next
-        val key   = entry.getKey
-        val value = entry.getValue
-        if (oldJournal.containsKey(key)) {
-          // We already tracked this one, remove it:
-          untracked.remove(key)
-        } else if (value.isNew) {
-          // This `TRef` was created in the current transaction, so no need to
-          // add any todos to it, because it cannot be modified from the outside
-          // until the transaction succeeds; so any todo added to it would never
-          // succeed.
-          untracked.remove(key)
-        }
-      }
-
-      untracked
-    }
-
-    final def tryCommitAsync[E, A](
-      journal: Journal,
-      platform: Platform,
-      fiberId: Fiber.Id,
-      stm: STM[E, A],
-      txnId: TxnId,
-      done: AtomicBoolean
-    )(
-      k: IO[E, A] => Unit
-    ): Unit = {
-      def complete(io: IO[E, A]): Unit = { done.set(true); k(io) }
-
-      @tailrec
-      def suspend(accum: Journal, journal: Journal): Unit = {
-        addTodo(txnId, journal, () => tryCommitAsync(null, platform, fiberId, stm, txnId, done)(k))
-
-        if (isInvalid(journal)) tryCommit(platform, fiberId, stm) match {
-          case TryCommit.Done(io) => complete(io)
-          case TryCommit.Suspend(journal2) =>
-            val untracked = untrackedTodoTargets(accum, journal2)
-
-            if (untracked.size > 0) {
-              accum.putAll(untracked)
-
-              suspend(accum, untracked)
-            }
-        }
-      }
-
-      Sync(done) {
-        if (!done.get) {
-          if (journal ne null) suspend(journal, journal)
-          else
-            tryCommit(platform, fiberId, stm) match {
-              case TryCommit.Done(io)         => complete(io)
-              case TryCommit.Suspend(journal) => suspend(journal, journal)
-            }
-        }
-      }
-    }
-
-    final def tryCommit[E, A](platform: Platform, fiberId: Fiber.Id, stm: STM[E, A]): TryCommit[E, A] = {
-      var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
-      var value   = null.asInstanceOf[TRez[E, A]]
-
-      var loop = true
-
-      while (loop) {
-        journal = allocJournal(journal)
-        value = stm.exec(journal, fiberId)
-
-        val analysis = analyzeJournal(journal)
-
-        if (analysis ne JournalAnalysis.Invalid) {
-          loop = false
-
-          value match {
-            case _: TRez.Succeed[_] =>
-              if (analysis eq JournalAnalysis.ReadWrite) {
-                Sync(globalLock) {
-                  if (isValid(journal)) commitJournal(journal) else loop = true
-                }
-              } else {
-                Sync(globalLock) {
-                  if (isInvalid(journal)) loop = true
-                }
-              }
-
-            case _ =>
-          }
-        }
-      }
-
-      value match {
-        case TRez.Succeed(a) => completeTodos(IO.succeed(a), journal, platform)
-        case TRez.Fail(e)    => completeTodos(IO.fail(e), journal, platform)
-        case TRez.Retry      => TryCommit.Suspend(journal)
-      }
-    }
-
-    final val succeedUnit: TRez[Nothing, Unit] = TRez.Succeed(())
-
-    final def makeTxnId(): Long = txnCounter.incrementAndGet()
-
-    private[this] val txnCounter: AtomicLong = new AtomicLong()
-
-    final val globalLock = new AnyRef {}
-
-    sealed trait TRez[+A, +B] extends Serializable with Product
-    object TRez {
-      final case class Fail[A](value: A)    extends TRez[A, Nothing]
-      final case class Succeed[B](value: B) extends TRez[Nothing, B]
-      case object Retry                     extends TRez[Nothing, Nothing]
-    }
-
-    abstract class Entry { self =>
-      type A
-
-      val tref: TRef[A]
-
-      protected[this] val expected: Versioned[A]
-      protected[this] var newValue: A
-
-      val isNew: Boolean
-
-      private[this] var _isChanged = false
-
-      final def unsafeSet(value: Any): Unit = {
-        _isChanged = true
-        newValue = value.asInstanceOf[A]
-      }
-
-      final def unsafeGet[B]: B = newValue.asInstanceOf[B]
-
-      /**
-       * Commits the new value to the `TRef`.
-       */
-      final def commit(): Unit = tref.versioned = new Versioned(newValue)
-
-      /**
-       * Creates a copy of the Entry.
-       */
-      final def copy(): Entry = new Entry {
-        type A = self.A
-        val tref     = self.tref
-        val expected = self.expected
-        val isNew    = self.isNew
-        var newValue = self.newValue
-        _isChanged = self.isChanged
-      }
-
-      /**
-       * Determines if the entry is invalid. This is the negated version of
-       * `isValid`.
-       */
-      final def isInvalid: Boolean = !isValid
-
-      /**
-       * Determines if the entry is valid. That is, if the version of the
-       * `TRef` is equal to the expected version.
-       */
-      final def isValid: Boolean = tref.versioned eq expected
-
-      /**
-       * Determines if the variable has been set in a transaction.
-       */
-      final def isChanged: Boolean = _isChanged
-
-      override def toString: String =
-        s"Entry(expected.value = ${expected.value}, newValue = $newValue, tref = $tref, isChanged = $isChanged)"
-    }
-
-    object Entry {
-
-      /**
-       * Creates an entry for the journal, given the `TRef` being untracked, the
-       * new value of the `TRef`, and the expected version of the `TRef`.
-       */
-      final def apply[A0](tref0: TRef[A0], isNew0: Boolean): Entry = {
-        val versioned = tref0.versioned
-
-        new Entry {
-          type A = A0
-          val tref     = tref0
-          val isNew    = isNew0
-          val expected = versioned
-          var newValue = versioned.value
-        }
-      }
-    }
-
-    sealed abstract class TryCommit[+E, +A]
-    object TryCommit {
-      final case class Done[+E, +A](io: IO[E, A]) extends TryCommit[E, A]
-      final case class Suspend(journal: Journal)  extends TryCommit[Nothing, Nothing]
-    }
-  }
-
-  import internal._
+  /**
+   * @see See [[zio.stm.ZSTM.absolve]]
+   */
+  def absolve[R, E, A](e: STM[E, Either[E, A]]): STM[E, A] =
+    ZSTM.absolve(e)
 
   /**
-   * Atomically performs a batch of operations in a single transaction.
+   * @see See [[zio.stm.ZSTM.atomically]]
    */
-  final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
-    IO.effectSuspendTotalWith { (platform, fiberId) =>
-      tryCommit(platform, fiberId, stm) match {
-        case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
-        case TryCommit.Suspend(journal) =>
-          val txnId     = makeTxnId()
-          val done      = new AtomicBoolean(false)
-          val interrupt = UIO(Sync(done) { done.set(true) })
-          val async     = IO.effectAsync[E, A](tryCommitAsync(journal, platform, fiberId, stm, txnId, done))
-
-          async ensuring interrupt
-      }
-    }
+  def atomically[E, A](stm: STM[E, A]): IO[E, A] =
+    ZSTM.atomically(stm)
 
   /**
-   * Checks the condition, and if it's true, returns unit, otherwise, retries.
+   * @see See [[zio.stm.ZSTM.check]]
    */
-  final def check(p: Boolean): STM[Nothing, Unit] = if (p) STM.unit else retry
+  def check(p: => Boolean): USTM[Unit] = ZSTM.check(p)
 
   /**
-   * Collects all the transactional effects in a list, returning a single
-   * transactional effect that produces a list of values.
+   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Iterable*]]]
    */
-  final def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
-    i.foldRight[STM[E, List[A]]](STM.succeed(Nil)) {
-      case (stm, acc) =>
-        acc.zipWith(stm)((xs, x) => x :: xs)
-    }
+  def collectAll[E, A](in: Iterable[STM[E, A]]): STM[E, List[A]] =
+    ZSTM.collectAll(in)
 
   /**
-   * Kills the fiber running the effect.
+   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:zio\.Chunk*]]]
    */
-  final def die(t: Throwable): STM[Nothing, Nothing] = succeed(throw t)
+  def collectAll[E, A](in: Chunk[STM[E, A]]): STM[E, Chunk[A]] =
+    ZSTM.collectAll(in)
 
   /**
-   * Kills the fiber running the effect with a `RuntimeException` that contains
-   * the specified message.
+   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:Iterable*]]]
    */
-  final def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
+  def collectAll_[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
+    ZSTM.collectAll_(in)
 
   /**
-   * Returns a value that models failure in the transaction.
+   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:zio\.Chunk*]]]
    */
-  final def fail[E](e: E): STM[E, Nothing] = new STM((_, _) => TRez.Fail(e))
+  def collectAll_[E, A](in: Chunk[STM[E, A]]): STM[E, Unit] =
+    ZSTM.collectAll_(in)
 
   /**
-   * Returns the fiber id of the fiber committing the transaction.
+   * @see See [[zio.stm.ZSTM.die]]
    */
-  final val fiberId: STM[Nothing, Fiber.Id] = new STM((_, fiberId) => TRez.Succeed(fiberId))
+  def die(t: => Throwable): USTM[Nothing] =
+    ZSTM.die(t)
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns a transactional effect that produces a new `List[B]`.
+   * @see See [[zio.stm.ZSTM.dieMessage]]
    */
-  final def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
-    collectAll(as.map(f))
+  def dieMessage(m: => String): USTM[Nothing] =
+    ZSTM.dieMessage(m)
 
   /**
-   * Creates an STM effect from an `Either` value.
+   * @see See [[zio.stm.ZSTM.done]]
    */
-  final def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
-    STM.suspend {
-      e match {
-        case Left(t)  => STM.fail(t)
-        case Right(a) => STM.succeed(a)
-      }
-    }
+  def done[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
+    ZSTM.done(exit)
 
   /**
-   * Creates an STM effect from a `Try` value.
+   * @see See [[zio.stm.ZSTM.fail]]
    */
-  final def fromTry[A](a: => Try[A]): STM[Throwable, A] =
-    STM.suspend {
-      Try(a).flatten match {
-        case Failure(t) => STM.fail(t)
-        case Success(a) => STM.succeed(a)
-      }
-    }
+  def fail[E](e: => E): STM[E, Nothing] =
+    ZSTM.fail(e)
 
   /**
-   * Creates an `STM` value from a partial (but pure) function.
+   * @see See [[zio.stm.ZSTM.fiberId]]
    */
-  final def partial[A](a: => A): STM[Throwable, A] = fromTry(Try(a))
+  val fiberId: USTM[Fiber.Id] =
+    ZSTM.fiberId
 
   /**
-   * Abort and retry the whole transaction when any of the underlying
-   * transactional variables have changed.
+   * @see [[zio.stm.ZSTM.filter]]
    */
-  final val retry: STM[Nothing, Nothing] = new STM((_, _) => TRez.Retry)
+  def filter[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, List[A]] =
+    ZSTM.filter(as)(f)
 
   /**
-   * Returns an `STM` effect that succeeds with the specified value.
+   * @see See [[zio.stm.ZSTM.flatten]]
    */
-  final def succeed[A](a: A): STM[Nothing, A] = new STM((_, _) => TRez.Succeed(a))
+  def flatten[E, A](task: STM[E, STM[E, A]]): STM[E, A] =
+    ZSTM.flatten(task)
 
   /**
-   * Suspends creation of the specified transaction lazily.
+   * @see See [[zio.stm.ZSTM.foldLeft]]
    */
-  final def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
-    STM.succeed(stm).flatten
+  def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => STM[E, S]): STM[E, S] =
+    ZSTM.foldLeft(in)(zero)(f)
 
   /**
-   * Returns an `STM` effect that succeeds with `Unit`.
+   * @see See [[zio.stm.ZSTM.foldRight]]
    */
-  final val unit: STM[Nothing, Unit] = succeed(())
+  def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => STM[E, S]): STM[E, S] =
+    ZSTM.foldRight(in)(zero)(f)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:Iterable*]]]
+   */
+  def foreach[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+    ZSTM.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:zio\.Chunk*]]]
+   */
+  def foreach[E, A, B](in: Chunk[A])(f: A => STM[E, B]): STM[E, Chunk[B]] =
+    ZSTM.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](in:Iterable*]]]
+   */
+  def foreach_[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
+    ZSTM.foreach_(in)(f)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](in:zio\.Chunk*]]]
+   */
+  def foreach_[E, A](in: Chunk[A])(f: A => STM[E, Any]): STM[E, Unit] =
+    ZSTM.foreach_(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.fromEither]]
+   */
+  def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
+    ZSTM.fromEither(e)
+
+  /**
+   * @see See [[zio.stm.ZSTM.fromFunction]]
+   */
+  def fromFunction[A](f: Any => A): USTM[A] =
+    ZSTM.fromFunction(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.fromFunctionM]]
+   */
+  def fromFunctionM[R, E, A](f: Any => STM[E, A]): STM[E, A] =
+    ZSTM.fromFunctionM(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.fromOption]]
+   */
+  def fromOption[A](v: => Option[A]): STM[Unit, A] =
+    ZSTM.fromOption(v)
+
+  /**
+   * @see See [[zio.stm.ZSTM.fromTry]]
+   */
+  def fromTry[A](a: => Try[A]): TaskSTM[A] =
+    ZSTM.fromTry(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.identity]]
+   */
+  def identity: USTM[Any] = ZSTM.identity
+
+  /**
+   * @see See [[zio.stm.ZSTM.ifM]]
+   */
+  def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
+    new ZSTM.IfM(b)
+
+  /**
+   * @see See [[zio.stm.ZSTM.iterate]]
+   */
+  def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => STM[E, S]): STM[E, S] =
+    ZSTM.iterate(initial)(cont)(body)
+
+  /**
+   * @see See [[zio.stm.ZSTM.left]]
+   */
+  def left[A](a: => A): USTM[Either[A, Nothing]] =
+    ZSTM.left(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.loop]]
+   */
+  def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, A]): STM[E, List[A]] =
+    ZSTM.loop(initial)(cont, inc)(body)
+
+  /**
+   * @see See [[zio.stm.ZSTM.loop_]]
+   */
+  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, Any]): STM[E, Unit] =
+    ZSTM.loop_(initial)(cont, inc)(body)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C]*]]
+   */
+  def mapN[E, A, B, C](tx1: STM[E, A], tx2: STM[E, B])(f: (A, B) => C): STM[E, C] =
+    ZSTM.mapN(tx1, tx2)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D]*]]
+   */
+  def mapN[E, A, B, C, D](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C])(
+    f: (A, B, C) => D
+  ): STM[E, D] =
+    ZSTM.mapN(tx1, tx2, tx3)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D,F]*]]
+   */
+  def mapN[E, A, B, C, D, F](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C], tx4: STM[E, D])(
+    f: (A, B, C, D) => F
+  ): STM[E, F] =
+    ZSTM.mapN(tx1, tx2, tx3, tx4)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.mergeAll]]
+   */
+  def mergeAll[E, A, B](
+    in: Iterable[STM[E, A]]
+  )(zero: B)(f: (B, A) => B): STM[E, B] = ZSTM.mergeAll(in)(zero)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.none]]
+   */
+  val none: USTM[Option[Nothing]] = ZSTM.none
+
+  /**
+   * @see See [[zio.stm.ZSTM.partition]]
+   */
+  def partition[E, A, B](
+    in: Iterable[A]
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[Nothing, (List[E], List[B])] =
+    ZSTM.partition(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.reduceAll]]
+   */
+  def reduceAll[E, A](a: STM[E, A], as: Iterable[STM[E, A]])(
+    f: (A, A) => A
+  ): STM[E, A] = ZSTM.reduceAll(a, as)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.replicate]]
+   */
+  def replicate[E, A](n: Int)(tx: STM[E, A]): Iterable[STM[E, A]] =
+    ZSTM.replicate(n)(tx)
+
+  /**
+   * @see See [[zio.stm.ZSTM.require]]
+   */
+  def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
+    ZSTM.require(error)
+
+  /**
+   * @see See [[zio.stm.ZSTM.retry]]
+   */
+  val retry: USTM[Nothing] =
+    ZSTM.retry
+
+  /**
+   * @see See [[zio.stm.ZSTM.right]]
+   */
+  def right[A](a: => A): USTM[Either[Nothing, A]] =
+    ZSTM.right(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.some]]
+   */
+  def some[A](a: => A): USTM[Option[A]] =
+    ZSTM.some(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.succeed]]
+   */
+  def succeed[A](a: => A): USTM[A] =
+    ZSTM.succeed(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.suspend]]
+   */
+  def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
+    ZSTM.suspend(stm)
+
+  /**
+   * @see See [[zio.stm.ZSTM.unit]]
+   */
+  val unit: USTM[Unit] =
+    ZSTM.unit
+
+  /**
+   * @see See [[zio.stm.ZSTM.unless]]
+   */
+  def unless[E](b: => Boolean)(stm: => STM[E, Any]): STM[E, Unit] =
+    ZSTM.unless(b)(stm)
+
+  /**
+   * @see See [[zio.stm.ZSTM.unlessM]]
+   */
+  def unlessM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] =
+    ZSTM.unlessM(b)(stm)
+
+  /**
+   * @see See [[zio.stm.ZSTM.validate]]
+   */
+  def validate[E, A, B](
+    in: Iterable[A]
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[::[E], List[B]] =
+    ZSTM.validate(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.validateFirst]]
+   */
+  def validateFirst[E, A, B](
+    in: Iterable[A]
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[List[E], B] =
+    ZSTM.validateFirst(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.when]]
+   */
+  def when[E](b: => Boolean)(stm: => STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenCase]]
+   */
+  def whenCase[E, A](a: => A)(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+    ZSTM.whenCase(a)(pf)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenCaseM]]
+   */
+  def whenCaseM[E, A](a: STM[E, A])(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+    ZSTM.whenCaseM(a)(pf)
+
+  /**
+   * @see See [[zio.stm.ZSTM.whenM]]
+   */
+  def whenM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
+
+  private[zio] def succeedNow[A](a: A): USTM[A] =
+    ZSTM.succeedNow(a)
 }

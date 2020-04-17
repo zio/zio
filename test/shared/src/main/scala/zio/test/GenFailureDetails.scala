@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,16 +24,16 @@ sealed trait GenFailureDetails {
 
   val initialInput: Value
   val shrinkedInput: Value
-  val iterations: Int
+  val iterations: Long
 }
 
 object GenFailureDetails {
-  def apply[A](initialInput0: A, shrinkedInput0: A, iterations0: Int): GenFailureDetails =
+  def apply[A](initialInput0: A, shrinkedInput0: A, iterations0: Long): GenFailureDetails =
     new GenFailureDetails {
       type Value = A
 
       val initialInput: Value  = initialInput0
       val shrinkedInput: Value = shrinkedInput0
-      val iterations: Int      = iterations0
+      val iterations: Long     = iterations0
     }
 }

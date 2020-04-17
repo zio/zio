@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,5 +16,4 @@
 
 package zio
 
-private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[Any, A] =>
-}
+private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[A] => }

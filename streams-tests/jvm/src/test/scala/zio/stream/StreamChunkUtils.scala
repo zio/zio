@@ -2,6 +2,7 @@ package zio.stream
 
 import scala.annotation.tailrec
 import scala.reflect.ClassTag
+
 import zio.random.Random
 import zio.test.{ Gen, Sized }
 import zio.{ Chunk, IO }
@@ -22,11 +23,10 @@ trait StreamChunkUtils extends StreamUtils {
     )
 }
 
-object StreamChunkUtils extends StreamChunkUtils with GenUtils {
+object StreamChunkUtils extends StreamChunkUtils {
   def slurp[E, A](s: StreamChunk[E, A]): IO[E, Seq[A]] =
     s.chunks
       .fold(Chunk.empty: Chunk[A])(_ ++ _)
-      .map(_.toSeq)
 
   def foldLazyList[S, T](list: List[T], zero: S)(cont: S => Boolean)(f: (S, T) => S): S = {
     @tailrec
@@ -36,7 +36,4 @@ object StreamChunkUtils extends StreamChunkUtils with GenUtils {
     }
     loop(list, zero)
   }
-
-  val chunksOfInts    = pureStreamChunkGen(smallChunks(intGen))
-  val chunksOfStrings = pureStreamChunkGen(smallChunks(stringGen))
 }

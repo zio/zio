@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ sealed abstract class InterruptStatus(val isInterruptible: Boolean) extends Seri
   private[zio] final def toBoolean: Boolean = isInterruptible
 }
 object InterruptStatus {
-  final def interruptible: InterruptStatus   = Interruptible
-  final def uninterruptible: InterruptStatus = Uninterruptible
+  def interruptible: InterruptStatus   = Interruptible
+  def uninterruptible: InterruptStatus = Uninterruptible
 
   /**
    * Indicates the fiber can be interrupted right now.

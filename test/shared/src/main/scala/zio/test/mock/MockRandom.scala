@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,50 +16,53 @@
 
 package zio.test.mock
 
-import zio.{ Chunk, UIO }
 import zio.random.Random
+import zio.{ Chunk, Has, UIO, URLayer, ZLayer }
 
-trait MockRandom extends Random {
+object MockRandom extends Mock[Random] {
 
-  val random: MockRandom.Service[Any]
-}
+  object NextBoolean       extends Effect[Unit, Nothing, Boolean]
+  object NextBytes         extends Effect[Int, Nothing, Chunk[Byte]]
+  object NextDouble        extends Effect[Unit, Nothing, Double]
+  object NextDoubleBetween extends Effect[(Double, Double), Nothing, Double]
+  object NextFloat         extends Effect[Unit, Nothing, Float]
+  object NextFloatBetween  extends Effect[(Float, Float), Nothing, Float]
+  object NextGaussian      extends Effect[Unit, Nothing, Double]
+  object NextInt           extends Effect[Unit, Nothing, Int]
+  object NextIntBetween    extends Effect[(Int, Int), Nothing, Int]
+  object NextIntBounded    extends Effect[Int, Nothing, Int]
+  object NextLong          extends Effect[Unit, Nothing, Long]
+  object NextLongBetween   extends Effect[(Long, Long), Nothing, Long]
+  object NextLongBounded   extends Effect[Long, Nothing, Long]
+  object NextPrintableChar extends Effect[Unit, Nothing, Char]
+  object NextString        extends Effect[Int, Nothing, String]
+  object SetSeed           extends Effect[Long, Nothing, Unit]
+  object Shuffle           extends Effect[List[Any], Nothing, List[Any]]
 
-object MockRandom {
-
-  trait Service[R] extends Random.Service[R]
-
-  object nextBoolean  extends Method[MockRandom, Unit, Boolean]
-  object nextBytes    extends Method[MockRandom, Int, Chunk[Byte]]
-  object nextDouble   extends Method[MockRandom, Unit, Double]
-  object nextFloat    extends Method[MockRandom, Unit, Float]
-  object nextGaussian extends Method[MockRandom, Unit, Double]
-  object nextInt {
-    object _0 extends Method[MockRandom, Int, Int]
-    object _1 extends Method[MockRandom, Unit, Int]
-  }
-  object nextLong {
-    object _0 extends Method[MockRandom, Unit, Long]
-    object _1 extends Method[MockRandom, Long, Long]
-  }
-  object nextPrintableChar extends Method[MockRandom, Unit, Char]
-  object nextString        extends Method[MockRandom, Int, String]
-  object shuffle           extends Method[MockRandom, List[Any], List[Any]]
-
-  implicit val mockable: Mockable[MockRandom] = (mock: Mock) =>
-    new MockRandom {
-      val random = new Service[Any] {
-        val nextBoolean: UIO[Boolean]                = mock(MockRandom.nextBoolean)
-        def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(MockRandom.nextBytes, length)
-        val nextDouble: UIO[Double]                  = mock(MockRandom.nextDouble)
-        val nextFloat: UIO[Float]                    = mock(MockRandom.nextFloat)
-        val nextGaussian: UIO[Double]                = mock(MockRandom.nextGaussian)
-        def nextInt(n: Int): UIO[Int]                = mock(MockRandom.nextInt._0, n)
-        val nextInt: UIO[Int]                        = mock(MockRandom.nextInt._1)
-        val nextLong: UIO[Long]                      = mock(MockRandom.nextLong._0)
-        def nextLong(n: Long): UIO[Long]             = mock(MockRandom.nextLong._1, n)
-        val nextPrintableChar: UIO[Char]             = mock(MockRandom.nextPrintableChar)
-        def nextString(length: Int)                  = mock(MockRandom.nextString, length)
-        def shuffle[A](list: List[A]): UIO[List[A]]  = mock(MockRandom.shuffle, list).asInstanceOf[UIO[List[A]]]
+  val compose: URLayer[Has[Proxy], Random] =
+    ZLayer.fromService(proxy =>
+      new Random.Service {
+        val nextBoolean: UIO[Boolean]                = proxy(NextBoolean)
+        def nextBytes(length: Int): UIO[Chunk[Byte]] = proxy(NextBytes, length)
+        val nextDouble: UIO[Double]                  = proxy(NextDouble)
+        def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+          proxy(NextDoubleBetween, minInclusive, maxExclusive)
+        val nextFloat: UIO[Float] = proxy(NextFloat)
+        def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+          proxy(NextFloatBetween, minInclusive, maxExclusive)
+        val nextGaussian: UIO[Double] = proxy(NextGaussian)
+        val nextInt: UIO[Int]         = proxy(NextInt)
+        def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
+          proxy(NextIntBetween, minInclusive, maxExclusive)
+        def nextIntBounded(n: Int): UIO[Int] = proxy(NextIntBounded, n)
+        val nextLong: UIO[Long]              = proxy(NextLong)
+        def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
+          proxy(NextLongBetween, minInclusive, maxExclusive)
+        def nextLongBounded(n: Long): UIO[Long]     = proxy(NextLongBounded, n)
+        val nextPrintableChar: UIO[Char]            = proxy(NextPrintableChar)
+        def nextString(length: Int): UIO[String]    = proxy(NextString, length)
+        def setSeed(seed: Long): UIO[Unit]          = proxy(SetSeed, seed)
+        def shuffle[A](list: List[A]): UIO[List[A]] = proxy(Shuffle, list).asInstanceOf[UIO[List[A]]]
       }
-    }
+    )
 }

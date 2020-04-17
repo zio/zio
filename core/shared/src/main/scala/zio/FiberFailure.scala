@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,5 +25,5 @@ package zio
  * to better integrate with Scala exception handling.
  */
 final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, true, false) {
-  override final def getMessage: String = cause.prettyPrint
+  override def getMessage: String = cause.prettyPrint
 }

@@ -13,8 +13,8 @@ object GenZIOSpec extends ZIOBaseSpec {
         sample                <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)
       } yield {
-        assert(successes, isEmpty) &&
-        assert(failures, isNonEmpty && forall(dies(anything)))
+        assert(successes)(isEmpty) &&
+        assert(failures)(isNonEmpty && forall(dies(anything)))
       }
     },
     testM("failures generates failed effects") {
@@ -23,8 +23,8 @@ object GenZIOSpec extends ZIOBaseSpec {
         sample                <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)
       } yield {
-        assert(successes, isEmpty) &&
-        assert(failures, isNonEmpty && forall(fails(anything)))
+        assert(successes)(isEmpty) &&
+        assert(failures)(isNonEmpty && forall(fails(anything)))
       }
     },
     testM("successes generates successful effects") {
@@ -33,8 +33,8 @@ object GenZIOSpec extends ZIOBaseSpec {
         sample                <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)
       } yield {
-        assert(successes, isNonEmpty && forall(isWithin(-10, 10))) &&
-        assert(failures, isEmpty)
+        assert(successes)(isNonEmpty && forall(isWithin(-10, 10))) &&
+        assert(failures)(isEmpty)
       }
     }
   )

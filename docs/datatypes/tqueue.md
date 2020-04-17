@@ -7,16 +7,25 @@ A `TQueue[A]` is a mutable queue that can participate in transactions in STM.
 
 ## Create a TQueue
 
-Creating an empty `TQueue` with specified capacity:
+Creating an empty bounded `TQueue` with specified capacity:
 
 ```scala mdoc:silent
 import zio._
 import zio.stm._
 
-val tQueue: STM[Nothing, TQueue[Int]] = TQueue.make[Int](5)
+val tQueueBounded: STM[Nothing, TQueue[Int]] = TQueue.bounded[Int](5)
 ```
 
-## Put element(s) to a TQueue
+Creating an empty unbounded `TQueue`:
+
+```scala mdoc:silent
+import zio._
+import zio.stm._
+
+val tQueueUnbounded: STM[Nothing, TQueue[Int]] = TQueue.unbounded[Int]
+```
+
+## Put element(s) in a TQueue
 
 In order to put an element to a `TQueue`:
 
@@ -25,7 +34,7 @@ import zio._
 import zio.stm._
 
 val tQueueOffer: UIO[TQueue[Int]] = (for {
-  tQueue <- TQueue.make[Int](3)
+  tQueue <- TQueue.bounded[Int](3)
   _      <- tQueue.offer(1)
 } yield tQueue).commit
 ```
@@ -40,7 +49,7 @@ import zio._
 import zio.stm._
 
 val tQueueOfferAll: UIO[TQueue[Int]] = (for {
-  tQueue <- TQueue.make[Int](3)
+  tQueue <- TQueue.bounded[Int](3)
   _      <- tQueue.offerAll(List(1, 2))
 } yield tQueue).commit
 ```
@@ -54,7 +63,7 @@ import zio._
 import zio.stm._
 
 val tQueueTake: UIO[Int] = (for {
-  tQueue <- TQueue.make[Int](3)
+  tQueue <- TQueue.bounded[Int](3)
   _      <- tQueue.offerAll(List(1, 2))
   res    <- tQueue.take
 } yield res).commit
@@ -69,7 +78,7 @@ import zio._
 import zio.stm._
 
 val tQueuePoll: UIO[Option[Int]] = (for {
-  tQueue <- TQueue.make[Int](3)
+  tQueue <- TQueue.bounded[Int](3)
   res    <- tQueue.poll
 } yield res).commit
 ```
@@ -81,7 +90,7 @@ import zio._
 import zio.stm._
 
 val tQueueTakeUpTo: UIO[List[Int]] = (for {
-  tQueue <- TQueue.make[Int](4)
+  tQueue <- TQueue.bounded[Int](4)
   _      <- tQueue.offerAll(List(1, 2))
   res    <- tQueue.takeUpTo(3)
 } yield res).commit
@@ -94,7 +103,7 @@ import zio._
 import zio.stm._
 
 val tQueueTakeAll: UIO[List[Int]] = (for {
-  tQueue <- TQueue.make[Int](4)
+  tQueue <- TQueue.bounded[Int](4)
   _      <- tQueue.offerAll(List(1, 2))
   res    <- tQueue.takeAll
 } yield res).commit
@@ -109,7 +118,7 @@ import zio._
 import zio.stm._
 
 val tQueueSize: UIO[Int] = (for {
-  tQueue <- TQueue.make[Int](3)
+  tQueue <- TQueue.bounded[Int](3)
   _      <- tQueue.offerAll(List(1, 2))
   size   <- tQueue.size
 } yield size).commit

@@ -10,7 +10,8 @@
       "overview/overview_testing_effects",
       "overview/overview_running_effects",
       "overview/overview_background",
-      "overview/overview_performance"
+      "overview/overview_performance",
+      "overview/overview_platforms"
     ]
   },
   "datatypes-sidebar": {
@@ -65,11 +66,12 @@
   "howto-sidebar": {
     "How to": [
       "howto/howto_index",
-      "howto/howto_use_module_pattern",
+      "howto/howto_use_layers",
       "howto/howto_test_effects",
       "howto/howto_mock_services",
       "howto/howto_handle_errors",
-      "howto/howto_access_system_information"
+      "howto/howto_access_system_information",
+      "howto/howto_macros"
     ]
   },
   "resources-sidebar": {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,97 +25,102 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.await]]
    */
-  final def await[A]: Sink[Unit, Nothing, A, A] =
+  def await[A]: Sink[Unit, Nothing, A, A] =
     ZSink.await
 
   /**
    * see [[ZSink.collectAll]]
    */
-  final def collectAll[A]: Sink[Nothing, Nothing, A, List[A]] =
+  def collectAll[A]: Sink[Nothing, Nothing, A, List[A]] =
     ZSink.collectAll
 
   /**
    * see [[ZSink.collectAllN]]
    */
-  final def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
+  def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
     ZSink.collectAllN(n)
 
   /**
    * see [[ZSink.collectAllToSet]]
    */
-  final def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
+  def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
     ZSink.collectAllToSet
 
   /**
    * see [[ZSink.collectAllToSetN]]
    */
-  final def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] =
+  def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] =
     ZSink.collectAllToSetN(n)
 
   /**
    * see [[ZSink.collectAllToMap]]
    */
-  final def collectAllToMap[K, A](key: A => K): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
-    ZSink.collectAllToMap(key)
+  def collectAllToMap[K, A](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
+    ZSink.collectAllToMap(key)(f)
 
   /**
    * see [[ZSink.collectAllToMapN]]
    */
-  final def collectAllToMapN[K, A](n: Long)(key: A => K): ZSink[Any, Nothing, A, A, Map[K, A]] =
-    ZSink.collectAllToMapN(n)(key)
+  def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, A, Map[K, A]] =
+    ZSink.collectAllToMapN(n)(key)(f)
 
   /**
    * see [[ZSink.collectAllWhile]]
    */
-  final def collectAllWhile[A](p: A => Boolean): Sink[Nothing, A, A, List[A]] =
-    collectAllWhileM(a => IO.succeed(p(a)))
+  def collectAllWhile[A](p: A => Boolean): Sink[Nothing, A, A, List[A]] =
+    collectAllWhileM(a => IO.succeedNow(p(a)))
 
   /**
    * see [[ZSink.collectAllWhileM]]
    */
-  final def collectAllWhileM[E, A](p: A => IO[E, Boolean]): Sink[E, A, A, List[A]] =
+  def collectAllWhileM[E, A](p: A => IO[E, Boolean]): Sink[E, A, A, List[A]] =
     ZSink.collectAllWhileM(p)
+
+  /**
+   * see [[ZSink.count]]
+   */
+  def count[A]: Sink[Nothing, Nothing, A, Long] = ZSink.count[A]
 
   /**
    * see [[ZSink.die]]
    */
-  final def die(e: Throwable): Sink[Nothing, Nothing, Any, Nothing] =
+  def die(e: => Throwable): Sink[Nothing, Nothing, Any, Nothing] =
     ZSink.die(e)
 
   /**
    * see [[ZSink.dieMessage]]
    */
-  final def dieMessage(m: String): Sink[Nothing, Nothing, Any, Nothing] =
+  def dieMessage(m: => String): Sink[Nothing, Nothing, Any, Nothing] =
     ZSink.dieMessage(m)
 
   /**
    * see [[ZSink.drain]]
    */
-  final def drain: Sink[Nothing, Nothing, Any, Unit] =
+  def drain: Sink[Nothing, Nothing, Any, Unit] =
     ZSink.drain
 
   /**
    * see [[ZSink.head]]
    */
-  final def head[A]: Sink[Nothing, A, A, Option[A]] =
+  def head[A]: Sink[Nothing, A, A, Option[A]] =
     ZSink.head
 
   /**
    * see [[ZSink.last]]
    */
-  final def last[A]: Sink[Nothing, Nothing, A, Option[A]] =
+  def last[A]: Sink[Nothing, Nothing, A, Option[A]] =
     ZSink.last
 
   /**
    * see [[ZSink.fail]]
    */
-  final def fail[E](e: E): Sink[E, Nothing, Any, Nothing] =
+  def fail[E](e: => E): Sink[E, Nothing, Any, Nothing] =
     ZSink.fail(e)
 
   /**
    * see [[ZSink.fold]]
    */
-  final def fold[A0, A, S](
+  def fold[A0, A, S](
     z: S
   )(contFn: S => Boolean)(f: (S, A) => (S, Chunk[A0])): Sink[Nothing, A0, A, S] =
     ZSink.fold(z)(contFn)(f)
@@ -123,19 +128,19 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.foldLeft]]
    */
-  final def foldLeft[A, S](z: S)(f: (S, A) => S): Sink[Nothing, Nothing, A, S] =
+  def foldLeft[A, S](z: S)(f: (S, A) => S): Sink[Nothing, Nothing, A, S] =
     ZSink.foldLeft(z)(f)
 
   /**
    * see [[ZSink.foldLeftM]]
    */
-  final def foldLeftM[E, A, S](z: S)(f: (S, A) => IO[E, S]): Sink[E, Nothing, A, S] =
+  def foldLeftM[E, A, S](z: S)(f: (S, A) => IO[E, S]): Sink[E, Nothing, A, S] =
     ZSink.foldLeftM(z)(f)
 
   /**
    * see [[ZSink.foldM]]
    */
-  final def foldM[E, A0, A, S](
+  def foldM[E, A0, A, S](
     z: S
   )(contFn: S => Boolean)(f: (S, A) => IO[E, (S, Chunk[A0])]): Sink[E, A0, A, S] =
     ZSink.foldM(z)(contFn)(f)
@@ -143,19 +148,19 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.foldUntilM]]
    */
-  final def foldUntilM[E, S, A](z: S, max: Long)(f: (S, A) => IO[E, S]): Sink[E, A, A, S] =
+  def foldUntilM[E, S, A](z: S, max: Long)(f: (S, A) => IO[E, S]): Sink[E, A, A, S] =
     ZSink.foldUntilM(z, max)(f)
 
   /**
    * see [[ZSink.foldUntil]]
    */
-  final def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): Sink[Nothing, A, A, S] =
+  def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): Sink[Nothing, A, A, S] =
     ZSink.foldUntil(z, max)(f)
 
   /**
    * see [[ZSink.foldWeightedM]]
    */
-  final def foldWeightedM[E, E1 >: E, A, S](
+  def foldWeightedM[E, E1 >: E, A, S](
     z: S
   )(costFn: A => IO[E, Long], max: Long)(
     f: (S, A) => IO[E1, S]
@@ -164,7 +169,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.foldWeightedDecomposeM]]
    */
-  final def foldWeightedDecomposeM[E, E1 >: E, A, S](
+  def foldWeightedDecomposeM[E, E1 >: E, A, S](
     z: S
   )(costFn: A => IO[E, Long], max: Long, decompose: A => IO[E, Chunk[A]])(
     f: (S, A) => IO[E1, S]
@@ -174,7 +179,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.foldWeighted]]
    */
-  final def foldWeighted[A, S](
+  def foldWeighted[A, S](
     z: S
   )(costFn: A => Long, max: Long)(
     f: (S, A) => S
@@ -184,7 +189,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.foldWeighted]]
    */
-  final def foldWeightedDecompose[A, S](
+  def foldWeightedDecompose[A, S](
     z: S
   )(costFn: A => Long, max: Long, decompose: A => Chunk[A])(
     f: (S, A) => S
@@ -194,49 +199,49 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.fromEffect]]
    */
-  final def fromEffect[E, B](b: => IO[E, B]): Sink[E, Nothing, Any, B] =
+  def fromEffect[E, B](b: => IO[E, B]): Sink[E, Nothing, Any, B] =
     ZSink.fromEffect(b)
 
   /**
    * see [[ZSink.fromFunction]]
    */
-  final def fromFunction[A, B](f: A => B): Sink[Unit, Nothing, A, B] =
+  def fromFunction[A, B](f: A => B): Sink[Unit, Nothing, A, B] =
     ZSink.fromFunction(f)
 
   /**
    * see [[ZSink.fromFunctionM]]
    */
-  final def fromFunctionM[E, A, B](f: A => ZIO[Any, E, B]): Sink[Option[E], Nothing, A, B] =
+  def fromFunctionM[E, A, B](f: A => ZIO[Any, E, B]): Sink[Option[E], Nothing, A, B] =
     ZSink.fromFunctionM(f)
 
   /**
    * see [[ZSink.halt]]
    */
-  final def halt[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
+  def halt[E](e: => Cause[E]): Sink[E, Nothing, Any, Nothing] =
     ZSink.halt(e)
 
   /**
    * see [[ZSink.identity]]
    */
-  final def identity[A]: Sink[Unit, Nothing, A, A] =
+  def identity[A]: Sink[Unit, Nothing, A, A] =
     ZSink.identity
 
   /**
    * see [[ZSink.ignoreWhile]]
    */
-  final def ignoreWhile[A](p: A => Boolean): Sink[Nothing, A, A, Unit] =
+  def ignoreWhile[A](p: A => Boolean): Sink[Nothing, A, A, Unit] =
     ZSink.ignoreWhile(p)
 
   /**
    * see [[ZSink.ignoreWhileM]]
    */
-  final def ignoreWhileM[E, A](p: A => IO[E, Boolean]): Sink[E, A, A, Unit] =
+  def ignoreWhileM[E, A](p: A => IO[E, Boolean]): Sink[E, A, A, Unit] =
     ZSink.ignoreWhileM(p)
 
   /**
    * see [[ZSink.pull1]]
    */
-  final def pull1[E, A0, A, B](
+  def pull1[E, A0, A, B](
     end: IO[E, B]
   )(input: A => Sink[E, A0, A, B]): Sink[E, A0, A, B] =
     ZSink.pull1(end)(input)
@@ -244,29 +249,34 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.read1]]
    */
-  final def read1[E, A](e: Option[A] => E)(p: A => Boolean): Sink[E, A, A, A] =
+  def read1[E, A](e: Option[A] => E)(p: A => Boolean): Sink[E, A, A, A] =
     ZSink.read1(e)(p)
 
   /**
    * see [[ZSink.splitLines]]
    */
-  final val splitLines: Sink[Nothing, String, String, Chunk[String]] = ZSink.splitLines
+  val splitLines: Sink[Nothing, String, String, Chunk[String]] = ZSink.splitLines
 
   /**
    * see [[ZSink.splitLinesChunk]]
    */
-  final val splitLinesChunk: Sink[Nothing, Chunk[String], Chunk[String], Chunk[String]] = ZSink.splitLinesChunk
+  val splitLinesChunk: Sink[Nothing, Chunk[String], Chunk[String], Chunk[String]] = ZSink.splitLinesChunk
 
   /**
    * see [[ZSink.succeed]]
    */
-  final def succeed[A, B](b: B): Sink[Nothing, A, A, B] =
+  def succeed[A, B](b: => B): Sink[Nothing, A, A, B] =
     ZSink.succeed(b)
+
+  /**
+   * see [[ZSink.sum]]
+   */
+  def sum[A: Numeric]: Sink[Nothing, Nothing, A, A] = ZSink.sum[A]
 
   /**
    * see [[ZSink.throttleEnforce]]
    */
-  final def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
     ZSink.throttleEnforce(units, duration, burst)(costFn)
@@ -274,7 +284,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.throttleEnforceM]]
    */
-  final def throttleEnforceM[E, A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleEnforceM[E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, Option[A]]] =
     ZSink.throttleEnforceM[Any, E, A](units, duration, burst)(costFn)
@@ -282,7 +292,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.throttleShape]]
    */
-  final def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
     ZSink.throttleShape(units, duration, burst)(costFn)
@@ -290,7 +300,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.throttleShapeM]]
    */
-  final def throttleShapeM[E, A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleShapeM[E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, A]] =
     ZSink.throttleShapeM[Any, E, A](units, duration, burst)(costFn)
@@ -298,6 +308,9 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.utf8DecodeChunk]]
    */
-  final val utf8DecodeChunk: Sink[Nothing, Chunk[Byte], Chunk[Byte], String] =
+  val utf8DecodeChunk: Sink[Nothing, Chunk[Byte], Chunk[Byte], String] =
     ZSink.utf8DecodeChunk
+
+  private[zio] def succeedNow[A, B](b: B): Sink[Nothing, A, A, B] =
+    ZSink.succeedNow(b)
 }

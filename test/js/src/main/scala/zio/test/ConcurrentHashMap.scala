@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,13 @@ package zio.test
 import scala.collection.mutable.Map
 
 private[test] final case class ConcurrentHashMap[K, V] private (private val map: Map[K, V]) {
-  final def foldLeft[B](z: B)(f: (B, (K, V)) => B): B =
+  def foldLeft[B](z: B)(f: (B, (K, V)) => B): B =
     map.foldLeft(z)(f)
-  final def getOrElseUpdate(key: K, op: => V): V =
+  def getOrElseUpdate(key: K, op: => V): V =
     map.getOrElseUpdate(key, op)
 }
 
 private[test] object ConcurrentHashMap {
-  final def empty[K, V]: ConcurrentHashMap[K, V] =
+  def empty[K, V]: ConcurrentHashMap[K, V] =
     new ConcurrentHashMap[K, V](Map.empty[K, V])
 }

@@ -1,12 +1,14 @@
 package zio.stream
 
-import zio.test.{ Gen, GenZIO, Sized }
-import zio.random.Random
-import zio._
-import ZStream.Pull
 import scala.concurrent.ExecutionContext
 
-trait StreamUtils extends ChunkUtils with GenZIO {
+import ZStream.Pull
+
+import zio._
+import zio.random.Random
+import zio.test.{ Gen, GenZIO, Sized }
+
+trait StreamUtils extends GenZIO {
   def streamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, Stream[String, A]] =
     Gen.oneOf(failingStreamGen(a, max), pureStreamGen(a, max))
 
@@ -16,7 +18,7 @@ trait StreamUtils extends ChunkUtils with GenZIO {
       case n =>
         Gen.oneOf(
           Gen.const(Stream.empty),
-          Gen.int(1, n).flatMap(Gen.listOfN(_)(a)).map(Stream.fromIterable)
+          Gen.int(1, n).flatMap(Gen.listOfN(_)(a)).map(Stream.fromIterable(_))
         )
     }
 
@@ -26,20 +28,19 @@ trait StreamUtils extends ChunkUtils with GenZIO {
       case _ =>
         Gen
           .int(1, max)
-          .flatMap(
-            n =>
-              for {
-                i  <- Gen.int(0, n - 1)
-                it <- Gen.listOfN(n)(a)
-              } yield ZStream.unfoldM((i, it)) {
-                case (_, Nil) | (0, _) => IO.fail("fail-case")
-                case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
-              }
+          .flatMap(n =>
+            for {
+              i  <- Gen.int(0, n - 1)
+              it <- Gen.listOfN(n)(a)
+            } yield ZStream.unfoldM((i, it)) {
+              case (_, Nil) | (0, _) => IO.fail("fail-case")
+              case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
+            }
           )
     }
 
   def pureStreamEffectGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, StreamEffect[Any, Nothing, A]] =
-    Gen.int(0, max).flatMap(Gen.listOfN(_)(a)).map(StreamEffect.fromIterable)
+    Gen.int(0, max).flatMap(Gen.listOfN(_)(a)).map(StreamEffect.fromIterable(_))
 
   def failingStreamEffectGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, StreamEffect[Any, String, A]] =
     for {
@@ -63,14 +64,13 @@ trait StreamUtils extends ChunkUtils with GenZIO {
     ZIO.foreach(1 to n)(_ => pull.either)
 }
 
-object StreamUtils extends StreamUtils with GenUtils {
-  val streamOfBytes   = Gen.small(streamGen(Gen.anyByte, _))
-  val streamOfInts    = Gen.small(streamGen(intGen, _))
-  val streamOfStrings = Gen.small(streamGen(stringGen, _))
+object StreamUtils extends StreamUtils {
+  val intGen        = Gen.int(-10, 10)
+  val streamOfBytes = Gen.small(streamGen(Gen.anyByte, _))
+  val streamOfInts  = Gen.small(streamGen(intGen, _))
 
   val listOfInts = Gen.listOf(intGen)
 
-  val pureStreamOfBytes   = Gen.small(pureStreamGen(Gen.anyByte, _))
-  val pureStreamOfInts    = Gen.small(pureStreamGen(intGen, _))
-  val pureStreamOfStrings = Gen.small(pureStreamGen(stringGen, _))
+  val pureStreamOfBytes = Gen.small(pureStreamGen(Gen.anyByte, _))
+  val pureStreamOfInts  = Gen.small(pureStreamGen(intGen, _))
 }

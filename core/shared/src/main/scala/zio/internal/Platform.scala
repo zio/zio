@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,7 +83,7 @@ trait Platform { self =>
     }
 }
 object Platform extends PlatformSpecific {
-  class Proxy(self: Platform) extends Platform {
+  abstract class Proxy(self: Platform) extends Platform {
     def executor: Executor                     = self.executor
     def tracing: Tracing                       = self.tracing
     def fatal(t: Throwable): Boolean           = self.fatal(t)
