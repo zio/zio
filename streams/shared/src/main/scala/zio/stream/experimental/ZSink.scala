@@ -179,7 +179,7 @@ abstract class ZSink[-R, +E, -I, +Z] private (
    * Transforms this sink's result.
    */
   def map[Z2](f: Z => Z2): ZSink[R, E, I, Z2] =
-    ZSink(self.push.map(sink => (inputs: Option[Chunk[I]]) => sink(inputs).mapError(_.right.map(f))))
+    ZSink(self.push.map(sink => (inputs: Option[Chunk[I]]) => sink(inputs).mapError(_.map(f))))
 
   /**
    * Effectfully transforms this sink's result.
