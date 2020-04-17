@@ -9,9 +9,12 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
-import zio.test.environment.Live
+import zio.test.environment.{ Live, TestClock }
 
 object ZStreamSpec extends ZIOBaseSpec {
+
+  import ZIOTag._
+
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
 
@@ -163,6 +166,128 @@ object ZStreamSpec extends ZIOBaseSpec {
           val fail = "I'm such a failure!"
           val t    = ZTransducer.fail(fail)
           assertM(ZStream(1, 2, 3).aggregate(t).runCollect.either)(isLeft(equalTo(fail)))
+        }
+      ),
+      suite("aggregateAsyncWithinEither")(
+        testM("aggregateAsyncWithinEither") {
+          for {
+            f <- (ZStream(1, 1, 1, 1, 2, 2)
+                  .aggregateAsyncWithinEither(
+                    ZTransducer
+                      .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
+                        if (el == 1) (el :: acc._1, true)
+                        else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
+                        else (el :: acc._1, false)
+                      }
+                      .map(_._1),
+                    Schedule.spaced(30.minutes)
+                  )
+                  .runCollect)
+                  .fork
+            _      <- TestClock.adjust(31.minutes)
+            result <- f.join
+          } yield assert(result)(equalTo(List(Right(List(2, 1, 1, 1, 1)), Right(List(2)), Left(1))))
+        },
+        testM("error propagation") {
+          val e = new RuntimeException("Boom")
+          assertM(
+            ZStream(1, 1, 1, 1)
+              .aggregateAsyncWithinEither(ZTransducer.die(e), Schedule.spaced(30.minutes))
+              .runCollect
+              .run
+          )(dies(equalTo(e)))
+        } @@ zioTag(errors),
+        testM("error propagation") {
+          val e    = new RuntimeException("Boom")
+          val sink = ZTransducer.foldM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e))
+
+          assertM(
+            ZStream(1, 1)
+              .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
+              .runCollect
+              .run
+          )(dies(equalTo(e)))
+        } @@ zioTag(errors),
+        testM("interruption propagation") {
+          for {
+            latch     <- Promise.make[Nothing, Unit]
+            cancelled <- Ref.make(false)
+            sink = ZTransducer.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+              if (el == 1) UIO.succeed(el :: acc)
+              else
+                (latch.succeed(()) *> ZIO.infinity)
+                  .onInterrupt(cancelled.set(true))
+            }
+            fiber <- ZStream(1, 1, 2)
+                      .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
+                      .runCollect
+                      .untraced
+                      .fork
+            _      <- latch.await
+            _      <- fiber.interrupt
+            result <- cancelled.get
+          } yield assert(result)(isTrue)
+        } @@ zioTag(interruption),
+        testM("interruption propagation") {
+          for {
+            latch     <- Promise.make[Nothing, Unit]
+            cancelled <- Ref.make(false)
+            sink = ZTransducer.fromEffect {
+              (latch.succeed(()) *> ZIO.infinity)
+                .onInterrupt(cancelled.set(true))
+            }
+            fiber <- ZStream(1, 1, 2)
+                      .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
+                      .runCollect
+                      .untraced
+                      .fork
+            _      <- latch.await
+            _      <- fiber.interrupt
+            result <- cancelled.get
+          } yield assert(result)(isTrue)
+        } @@ zioTag(interruption),
+        testM("aggregateAsyncWithinEitherLeftoverHandling") {
+          val data = List(1, 2, 2, 3, 2, 3)
+          assertM(
+            for {
+              f <- (ZStream(data: _*)
+                    .aggregateAsyncWithinEither(
+                      ZTransducer
+                        .foldWeighted(List[Int]())((i: Int) => i.toLong, 4)((acc, el) => el :: acc)
+                        .map(_.reverse),
+                      Schedule.spaced(100.millis)
+                    )
+                    .collect {
+                      case Right(v) => v
+                    }
+                    .runCollect
+                    .map(_.flatten))
+                    .fork
+              _      <- TestClock.adjust(31.minutes)
+              result <- f.join
+            } yield result
+          )(equalTo(data))
+        }
+      ),
+      suite("aggregateAsyncWithin999")(
+        testM("aggregateAsyncWithin") {
+          for {
+            f <- (ZStream(1, 1, 1, 1, 2, 2)
+                  .aggregateAsyncWithin(
+                    ZTransducer
+                      .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
+                        if (el == 1) (el :: acc._1, true)
+                        else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
+                        else (el :: acc._1, false)
+                      }
+                      .map(_._1),
+                    Schedule.spaced(30.minutes)
+                  )
+                  .runCollect)
+                  .fork
+            _      <- TestClock.adjust(31.minutes)
+            result <- f.join
+          } yield assert(result)(equalTo(List(List(2, 1, 1, 1, 1), List(2))))
         }
       ),
       suite("bracket")(

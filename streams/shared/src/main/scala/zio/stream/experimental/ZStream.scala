@@ -110,6 +110,39 @@ abstract class ZStream[-R, +E, +O](
       } yield run
     }
 
+  private def produceAsync[R1 <: R, E1 >: E, O1 >: O, P](
+    flush: Ref[Boolean],
+    bucket: Queue[Take[E1, P]],
+    pull: ZIO[R1, Option[E1], Chunk[O1]],
+    push: Option[Chunk[O1]] => ZIO[R1, E1, Chunk[P]]
+  ): URIO[R1, Boolean] = {
+// Upstream is done, we need to flush the transducer. If the output is
+    // empty, we send the end signal downstream.
+    def finish(ps: Chunk[P]): URIO[R1, Boolean] =
+      bucket.offerAll(if (ps.isEmpty) List(Take.End) else List(Exit.succeed(ps), Take.End)) as false
+
+    // We have to make progress in the transducer. If the output is empty,
+    // we must keep making progress until it isn't.
+    def iterate(ps: Chunk[P]): URIO[R1, Boolean] =
+      if (ps.isEmpty) go else bucket.offer(Exit.succeed(ps))
+
+    def drain(os: Option[Chunk[O1]])(onSuccess: Chunk[P] => URIO[R1, Boolean]): URIO[R1, Boolean] =
+      push(os).foldCauseM(c => bucket.offer(Exit.halt(c.map(Some(_)))), onSuccess)
+
+    lazy val go: URIO[R1, Boolean] =
+      flush.getAndSet(false).flatMap {
+        if (_)
+          drain(None)(iterate)
+        else
+          pull.foldCauseM(
+            Cause.sequenceCauseOption(_).fold(drain(None)(finish))(c => bucket.offer(Exit.halt(c.map(Some(_))))),
+            os => drain(Some(os))(iterate)
+          )
+      }
+
+    go.repeat(Schedule.doWhile(identity))
+  }
+
   /**
    * Aggregates elements of this stream using the provided sink for as long
    * as the downstream operators on the stream are busy.
@@ -130,37 +163,89 @@ abstract class ZStream[-R, +E, +O](
         bucket <- ZQueue.bounded[Take[E1, P]](1).toManaged(_.shutdown)
         flush  <- ZRef.makeManaged(false)
         done   <- ZRef.makeManaged(false)
-        _ <- {
-          // Upstream is done, we need to flush the transducer. If the output is
-          // empty, we send the end signal downstream.
-          def finish(ps: Chunk[P]): URIO[R1, Boolean] =
-            bucket.offerAll(if (ps.isEmpty) List(Take.End) else List(Exit.succeed(ps), Take.End)) as false
-
-          // We have to make progress in the transducer. If the output is empty,
-          // we must keep making progress until it isn't.
-          def iterate(ps: Chunk[P]): URIO[R1, Boolean] =
-            if (ps.isEmpty) go else bucket.offer(Exit.succeed(ps))
-
-          def drain(os: Option[Chunk[O]])(onSuccess: Chunk[P] => URIO[R1, Boolean]): URIO[R1, Boolean] =
-            push(os).foldCauseM(c => bucket.offer(Exit.halt(c.map(Some(_)))), onSuccess)
-
-          lazy val go: URIO[R1, Boolean] =
-            flush.getAndSet(false).flatMap {
-              if (_)
-                drain(None)(iterate)
-              else
-                pull.foldCauseM(
-                  Cause.sequenceCauseOption(_).fold(drain(None)(finish))(c => bucket.offer(Exit.halt(c.map(Some(_))))),
-                  os => drain(Some(os))(iterate)
-                )
-            }
-
-          go.repeat(Schedule.doWhile(identity))
-        }.forkManaged
-
+        _      <- produceAsync(flush, bucket, pull, push).forkManaged
         consume = {
           val go: ZIO[R1, Option[E1], Chunk[P]] =
             flush.set(true) *> bucket.take.flatMap(take => done.set(true).when(take == Take.End) *> Pull.fromTake(take))
+
+          done.get.flatMap {
+            if (_)
+              Pull.end
+            else
+              go
+          }
+        }
+      } yield consume
+    }
+
+  /**
+   * Uses `aggregateAsyncWithinEither` but only returns the `Right` results.
+   *
+   * @param transducer used for the aggregation
+   * @param schedule signalling for when to stop the aggregation
+   * @tparam R1 environment type
+   * @tparam E1 error type
+   * @tparam O1 type of the values consumed by the given transducer
+   * @tparam P type of the value produced by the given transducer and consumed by the given schedule
+   * @return `ZStream[R1, E1, B]`
+   */
+  final def aggregateAsyncWithin[R1 <: R, E1 >: E, O1 >: O, P](
+    transducer: ZTransducer[R1, E1, O1, P],
+    schedule: Schedule[R1, Chunk[P], Any]
+  ): ZStream[R1, E1, P] = aggregateAsyncWithinEither(transducer, schedule).collect {
+    case Right(v) => v
+  }
+
+  /**
+   * Aggregates elements using the provided transducer until it signals completion, or the
+   * delay signalled by the schedule has passed.
+   *
+   * This operator divides the stream into two asynchronous islands. Operators upstream
+   * of this operator run on one fiber, while downstream operators run on another. Elements
+   * will be aggregated by the transducer until the downstream fiber pulls the aggregated value,
+   * or until the schedule's delay has passed.
+   *
+   * Aggregated elements will be fed into the schedule to determine the delays between
+   * pulls.
+   *
+   * @param transducer used for the aggregation
+   * @param schedule signalling for when to stop the aggregation
+   * @tparam R1 environment type
+   * @tparam E1 error type
+   * @tparam O1 type of the values consumed by the given transducer
+   * @tparam P type of the value produced by the given transducer and consumed by the given schedule
+   * @tparam Q type of the value produced by the given schedule
+   * @return `ZStream[R1, E1, Either[Q, P]]`
+   */
+  final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, O1 >: O, P, Q](
+    transducer: ZTransducer[R1, E1, O1, P],
+    schedule: Schedule[R1, Chunk[P], Q]
+  ): ZStream[R1, E1, Either[Q, P]] =
+    ZStream {
+      for {
+        pull          <- self.process
+        push          <- transducer.push
+        bucket        <- ZQueue.bounded[Take[E1, P]](1).toManaged(_.shutdown)
+        flush         <- ZRef.makeManaged(false)
+        done          <- ZRef.makeManaged(false)
+        initial       <- schedule.initial.toManaged_
+        scheduleState <- ZRef.makeManaged(initial)
+        _             <- produceAsync(flush, bucket, pull, push).forkManaged
+        consume = {
+          // Advance the schedule with the output of the transducer,
+          // yield the output plus that of the schedule if it is done.
+          def process(take: Take[E1, P]): ZIO[R1, Option[E1], Chunk[Either[Q, P]]] =
+            for {
+              os  <- Pull.fromTake(take)
+              st0 <- scheduleState.get
+              st  <- schedule.update(os, st0).option
+              _   <- scheduleState.set(st.getOrElse(initial))
+            } yield os.map(Right(_)) ++ st.fold[Chunk[Either[Q, P]]](Chunk.empty)(ps =>
+              Chunk.single(Left(schedule.extract(os, ps)))
+            )
+
+          val go: ZIO[R1, Option[E1], Chunk[Either[Q, P]]] =
+            flush.set(true) *> bucket.take.flatMap(take => done.set(true).when(take == Take.End) *> process(take))
 
           done.get.flatMap {
             if (_)
