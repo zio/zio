@@ -483,6 +483,16 @@ object ZRefM {
   }
 
   /**
+   * Creates a new `RefM` and a `Dequeue` that will emit every change to the
+   * `RefM`.
+   */
+  def dequeueRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
+    for {
+      ref   <- make(a)
+      queue <- Queue.unbounded[A]
+    } yield (ref.tapInput(queue.offer), queue)
+
+  /**
    * Creates a new `ZRefM` with the specified value.
    */
   def make[A](a: A): UIO[RefM[A]] =
@@ -497,14 +507,4 @@ object ZRefM {
    */
   def makeManaged[A](a: A): UManaged[RefM[A]] =
     make(a).toManaged_
-
-  /**
-   * Creates a new `ZRefM` and a `Dequeue` that will contain every value written
-   * to the `ZRefM`.
-   */
-  def subscriptionRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
-    for {
-      ref   <- make(a)
-      queue <- Queue.unbounded[A]
-    } yield (ref.tapInput(queue.offer), queue)
 }

@@ -476,9 +476,9 @@ object ZRefMSpec extends ZIOBaseSpec {
       } @@ zioTag(errors)
     ),
     suite("combinators")(
-      testM("subscriptionRef") {
+      testM("dequeueRef") {
         for {
-          data         <- RefM.subscriptionRef(0)
+          data         <- RefM.dequeueRef(0)
           (ref, queue) = data
           _            <- ZIO.collectAllPar(ZIO.replicate(100)(ref.update(n => ZIO.succeed(n + 1))))
           value        <- ZIO.collectAll(ZIO.replicate(100)(queue.take))

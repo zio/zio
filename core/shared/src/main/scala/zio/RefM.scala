@@ -3,6 +3,12 @@ package zio
 object RefM {
 
   /**
+   * @see [[zio.ZRefM.dequeueRef]]
+   */
+  def dequeueRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
+    ZRefM.dequeueRef(a)
+
+  /**
    * @see [[zio.ZRefM.make]]
    */
   def make[A](a: A): UIO[RefM[A]] =
@@ -13,10 +19,4 @@ object RefM {
    */
   def makeManaged[A](a: A): UManaged[RefM[A]] =
     ZRefM.makeManaged(a)
-
-  /**
-   * @see [[zio.ZRefM.subscriptionRef]]
-   */
-  def subscriptionRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
-    ZRefM.subscriptionRef(a)
 }

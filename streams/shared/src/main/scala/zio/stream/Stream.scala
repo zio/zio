@@ -339,8 +339,8 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.subscriptionRef]]
    */
-  def subscriptionRef[A](a: A): UIO[(RefM[A], Stream[Nothing, A])] =
-    RefM.subscriptionRef(a).map { case (ref, queue) => (ref, ZStream.fromQueue(queue)) }
+  def subscriptionRef[A](a: A): UIO[SubscriptionRef[A]] =
+    ZStream.subscriptionRef(a)
 
   /**
    * See [[ZStream.succeed]]

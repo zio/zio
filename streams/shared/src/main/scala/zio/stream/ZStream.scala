@@ -3553,11 +3553,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     fromEffect(fa).repeat(schedule)
 
   /**
-   * Creates a `RefM` and a stream that will emit every value written to the
-   * `RefM`.
+   * Creates a `SubscriptionRef` containing a `RefM` and a `Stream` that will
+   * emit every change to the `RefM`.
    */
-  def subscriptionRef[A](a: A): UIO[(RefM[A], Stream[Nothing, A])] =
-    RefM.subscriptionRef(a).map { case (ref, queue) => (ref, ZStream.fromQueue(queue)) }
+  def subscriptionRef[A](a: A): UIO[SubscriptionRef[A]] =
+    RefM.dequeueRef(a).map {
+      case (ref, queue) => SubscriptionRef(ref, ZStream.fromQueue(queue))
+    }
 
   /**
    * Creates a single-valued pure stream
