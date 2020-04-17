@@ -16,7 +16,7 @@
 
 package zio.stream
 
-import zio.{ RefM, UIO, UManaged }
+import zio.{ RefM, UIO }
 
 /**
  * A `SubscriptionRef[A]` contains a `RefM[A]` and a `Stream` that will emit
