@@ -86,7 +86,7 @@ abstract class ZStream[-R, +E, +O](
    * Applies an aggregator to the stream, which converts one or more elements
    * of type `A` into elements of type `B`.
    */
-  def aggregate[R1 <: R, E1 >: E, O1 >: O, P](sink: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] =
+  def aggregate[R1 <: R, E1 >: E, P](sink: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
     ZStream {
       for {
         pull <- self.process
@@ -122,7 +122,7 @@ abstract class ZStream[-R, +E, +O](
    * Any transducer can be used here, but see [[ZTransducer.foldWeightedM]] and [[ZTransducer.foldUntilM]] for
    * transducers that cover the common usecases.
    */
-  final def aggregateAsync[R1 <: R, E1 >: E, O1 >: O, P](transducer: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] =
+  final def aggregateAsync[R1 <: R, E1 >: E, P](transducer: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
     aggregateAsyncWithin(transducer, Schedule.forever)
 
   /**
@@ -136,8 +136,8 @@ abstract class ZStream[-R, +E, +O](
    * @tparam P type of the value produced by the given transducer and consumed by the given schedule
    * @return `ZStream[R1, E1, B]`
    */
-  final def aggregateAsyncWithin[R1 <: R, E1 >: E, O1 >: O, P](
-    transducer: ZTransducer[R1, E1, O1, P],
+  final def aggregateAsyncWithin[R1 <: R, E1 >: E, P](
+    transducer: ZTransducer[R1, E1, O, P],
     schedule: Schedule[R1, Chunk[P], Any]
   ): ZStream[R1, E1, P] = aggregateAsyncWithinEither(transducer, schedule).collect {
     case Right(v) => v
@@ -164,8 +164,8 @@ abstract class ZStream[-R, +E, +O](
    * @tparam Q type of the value produced by the given schedule
    * @return `ZStream[R1, E1, Either[Q, P]]`
    */
-  final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, O1 >: O, P, Q](
-    transducer: ZTransducer[R1, E1, O1, P],
+  final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, P, Q](
+    transducer: ZTransducer[R1, E1, O, P],
     schedule: Schedule[R1, Chunk[P], Q]
   ): ZStream[R1, E1, Either[Q, P]] =
     ZStream {
@@ -178,7 +178,7 @@ abstract class ZStream[-R, +E, +O](
         initial       <- schedule.initial.toManaged_
         scheduleState <- ZRef.makeManaged(initial)
         _ <- {
-// Upstream is done, we need to flush the transducer. If the output is
+          // Upstream is done, we need to flush the transducer. If the output is
           // empty, we send the end signal downstream.
           def finish(ps: Chunk[P]): URIO[R1, Boolean] =
             bucket.offerAll(if (ps.isEmpty) List(Take.End) else List(Exit.succeed(ps), Take.End)) as false
@@ -188,7 +188,7 @@ abstract class ZStream[-R, +E, +O](
           def iterate(ps: Chunk[P]): URIO[R1, Boolean] =
             if (ps.isEmpty) go else bucket.offer(Exit.succeed(ps))
 
-          def drain(os: Option[Chunk[O1]])(onSuccess: Chunk[P] => URIO[R1, Boolean]): URIO[R1, Boolean] =
+          def drain(os: Option[Chunk[O]])(onSuccess: Chunk[P] => URIO[R1, Boolean]): URIO[R1, Boolean] =
             push(os).foldCauseM(c => bucket.offer(Exit.halt(c.map(Some(_)))), onSuccess)
 
           lazy val go: URIO[R1, Boolean] =
