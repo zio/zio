@@ -612,6 +612,7 @@ object Fiber extends FiberPlatformSpecific {
    * Collects a complete dump of all fibers and all children of the
    * fibers and renders it as a string.
    */
+  @silent("JavaConverters")
   lazy val dumpAllStr: UIO[String] =
     dumpStr(internal.Sync(rootFibers)(rootFibers.asScala.toList): _*)
 
