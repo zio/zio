@@ -108,7 +108,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertM(
             ZStream(data: _*)
               .aggregateAsync(
-                ZTransducer.foldWeighted(List[Int]())((_: Int).toLong, 4)((acc, el) => el :: acc)
+                ZTransducer.foldWeighted(List[Int]())((_, x: Int) => x.toLong, 4)((acc, el) => el :: acc)
               )
               .map(_.reverse)
               .runCollect

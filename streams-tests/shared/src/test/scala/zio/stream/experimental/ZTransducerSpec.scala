@@ -159,7 +159,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(
             ZStream[Long](1, 5, 2, 3)
               .aggregate(
-                ZTransducer.foldWeighted(List[Long]())((_: Long) * 2, 12)((acc, el) => el :: acc).map(_.reverse)
+                ZTransducer.foldWeighted(List[Long]())((_, x: Long) => x * 2, 12)((acc, el) => el :: acc).map(_.reverse)
               )
               .runCollect
           )(equalTo(List(List(1L, 5L), List(2L, 3L))))
@@ -170,9 +170,13 @@ object ZTransducerSpec extends ZIOBaseSpec {
               ZStream(1, 5, 1)
                 .aggregate(
                   ZTransducer
-                    .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
-                      (acc, el) => el :: acc
-                    }
+                    .foldWeightedDecompose(List[Int]())(
+                      (_, i: Int) => i.toLong,
+                      4,
+                      (i: Int) =>
+                        if (i > 1) Chunk(i - 1, 1)
+                        else Chunk(i)
+                    )((acc, el) => el :: acc)
                     .map(_.reverse)
                 )
                 .runCollect
@@ -181,7 +185,9 @@ object ZTransducerSpec extends ZIOBaseSpec {
           testM("empty")(
             assertM(
               ZStream.empty
-                .aggregate(ZTransducer.foldWeightedDecompose[Int, Int](0)(_.toLong, 1000, Chunk.single(_))(_ + _))
+                .aggregate(
+                  ZTransducer.foldWeightedDecompose[Int, Int](0)((_, x) => x.toLong, 1000, Chunk.single(_))(_ + _)
+                )
                 .runCollect
             )(equalTo(List(0)))
           )
@@ -191,7 +197,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             ZStream[Long](1, 5, 2, 3)
               .aggregate(
                 ZTransducer
-                  .foldWeightedM(List.empty[Long])((a: Long) => UIO.succeedNow(a * 2), 12)((acc, el) =>
+                  .foldWeightedM(List.empty[Long])((_, a: Long) => UIO.succeedNow(a * 2), 12)((acc, el) =>
                     UIO.succeedNow(el :: acc)
                   )
                   .map(_.reverse)
@@ -206,9 +212,9 @@ object ZTransducerSpec extends ZIOBaseSpec {
                 .aggregate(
                   ZTransducer
                     .foldWeightedDecomposeM(List.empty[Int])(
-                      (i: Int) => UIO.succeedNow(i.toLong),
+                      (_, i: Int) => UIO.succeedNow(i.toLong),
                       4,
-                      (i: Int) => UIO.succeedNow(Chunk(i - 1, 1))
+                      (i: Int) => UIO.succeedNow(if (i > 1) Chunk(i - 1, 1) else Chunk(i))
                     )((acc, el) => UIO.succeedNow(el :: acc))
                     .map(_.reverse)
                 )
@@ -220,7 +226,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
               ZStream.empty
                 .aggregate(
                   ZTransducer.foldWeightedDecomposeM[Any, Nothing, Int, Int](0)(
-                    x => ZIO.succeed(x.toLong),
+                    (_, x) => ZIO.succeed(x.toLong),
                     1000,
                     x => ZIO.succeed(Chunk.single(x))
                   )((x, y) => ZIO.succeed(x + y))

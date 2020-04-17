@@ -111,55 +111,18 @@ object ZTransducer {
    * be merged with the function `f`.
    */
   def collectAllToMapN[K, I](n: Long)(key: I => K)(f: (I, I) => I): ZTransducer[Any, Nothing, I, Map[K, I]] =
-    ZTransducer {
-      ZRef.makeManaged(Option(Map[K, I]())).map { state =>
-        {
-          case None => state.getAndSet(None).map(Chunk.fromIterable(_))
-          case Some(is) =>
-            state.modify { maybeAcc =>
-              val acc = maybeAcc.getOrElse(Map())
+    foldWeighted(Map[K, I]())((acc, i: I) => if (acc contains key(i)) 0 else 1, n) { (acc, i) =>
+      val k = key(i)
 
-              val (output, newAcc, _) = is.fold((List[Map[K, I]](), acc, acc.keys.size)) {
-                case ((mapsOfN, currMap, keyCount), i) =>
-                  val k = key(i)
-                  if (currMap.contains(k) && keyCount <= n)
-                    (mapsOfN, currMap.updated(k, f(currMap(k), i)), keyCount)
-                  else if (!currMap.contains(k) && keyCount < n)
-                    (mapsOfN, currMap.updated(k, i), keyCount + 1)
-                  else
-                    (currMap :: mapsOfN, Map(k -> i), 1)
-              }
-
-              Chunk.fromIterable(output.reverse) -> Some(newAcc)
-            }
-        }
-      }
+      if (acc contains k) acc.updated(k, f(acc(k), i))
+      else acc.updated(k, i)
     }
 
   /**
    * Creates a transducer accumulating incoming values into sets of maximum size `n`.
    */
   def collectAllToSetN[I](n: Long): ZTransducer[Any, Nothing, I, Set[I]] =
-    ZTransducer {
-      ZRef.makeManaged(Option(Set[I]())).map { state =>
-        {
-          case None => state.getAndSet(None).map(Chunk.fromIterable(_))
-          case Some(is) =>
-            state.modify { maybeAcc =>
-              val acc = maybeAcc.getOrElse(Set())
-
-              val (output, newAcc, _) = is.fold((List[Set[I]](), acc, acc.size)) {
-                case ((setsOfN, currSet, setSize), i) =>
-                  if (currSet(i)) (setsOfN, currSet, setSize)
-                  else if (!currSet(i) && setSize < n) (setsOfN, currSet + i, setSize + 1)
-                  else (currSet :: setsOfN, Set(i), 1)
-              }
-
-              Chunk.fromIterable(output.reverse) -> Some(newAcc)
-            }
-        }
-      }
-    }
+    foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _)
 
   /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
@@ -276,7 +239,7 @@ object ZTransducer {
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
   def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
-    foldWeighted[I, O](z)(_ => 1, max)(f)
+    foldWeighted[I, O](z)((_, _) => 1, max)(f)
 
   /**
    * Creates a transducer that effectfully folds elements of type `I` into a structure
@@ -285,7 +248,7 @@ object ZTransducer {
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
   def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldWeightedM[R, E, I, O](z)(_ => UIO.succeedNow(1), max)(f)
+    foldWeightedM[R, E, I, O](z)((_, _) => UIO.succeedNow(1), max)(f)
 
   /**
    * Creates a transducer that folds elements of type `I` into a structure
@@ -296,7 +259,7 @@ object ZTransducer {
    * force the transducer to cross the `max` cost. See [[foldWeightedDecompose]]
    * for a variant that can handle these cases.
    */
-  def foldWeighted[I, O](z: O)(costFn: I => Long, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+  def foldWeighted[I, O](z: O)(costFn: (O, I) => Long, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     foldWeightedDecompose[I, O](z)(costFn, max, Chunk.single(_))(f)
 
   /**
@@ -334,7 +297,7 @@ object ZTransducer {
    */
   def foldWeightedDecompose[I, O](
     z: O
-  )(costFn: I => Long, max: Long, decompose: I => Chunk[I])(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+  )(costFn: (O, I) => Long, max: Long, decompose: I => Chunk[I])(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
       case class FoldWeightedState(result: O, cost: Long)
 
@@ -344,22 +307,31 @@ object ZTransducer {
         in: Chunk[I],
         os0: Chunk[O],
         state: FoldWeightedState,
-        progress: Boolean
+        dirty: Boolean
       ): (Chunk[O], FoldWeightedState, Boolean) =
-        in.fold[(Chunk[O], FoldWeightedState, Boolean)]((os0, state, progress)) {
+        in.fold[(Chunk[O], FoldWeightedState, Boolean)]((os0, state, dirty)) {
           case ((os0, state, _), i) =>
-            val total = state.cost + costFn(i)
+            val total = state.cost + costFn(state.result, i)
+
             if (total > max) {
               val is = decompose(i)
-              if (is.isEmpty)
-                (os0 + f(state.result, i), initial, false)
-              else if (is.length == 1)
-                (os0 + f(state.result, is(0)), initial, false)
+
+              if (is.length <= 1 && !dirty)
+                // If `i` cannot be decomposed, we need to cross the `max` threshold. To
+                // minimize "injury", we only allow this when we haven't added anything else
+                // to the aggregate (dirty = false).
+                (os0 + f(state.result, if (is.nonEmpty) is(0) else i), initial, false)
+              else if (is.length <= 1 && dirty)
+                // If the state is dirty and `i` cannot be decomposed, we close the current
+                // aggregate and recurse with just `is`. We're not adding `f(initial, i)` to
+                // the results immediately because it could be that `i` by itself does not
+                // cross the threshold, so we can attempt to aggregate it with subsequent elements.
+                go(if (is.nonEmpty) is else Chunk.single(i), os0 + state.result, initial, false)
               else
-                go(is, os0, state, progress)
-            } else if (total == max)
-              (os0 + f(state.result, i), initial, false)
-            else
+                // `i` got decomposed, so we will recurse and see whether the decomposition
+                // can be aggregated without crossing `max`.
+                go(is, os0, state, dirty)
+            } else
               (os0, FoldWeightedState(f(state.result, i), total), true)
         }
 
@@ -367,8 +339,8 @@ object ZTransducer {
         {
           case Some(in) =>
             state.modify { s =>
-              val (o, s2, progress) = go(in, Chunk.empty, s.getOrElse(initial), s.nonEmpty)
-              if (progress)
+              val (o, s2, dirty) = go(in, Chunk.empty, s.getOrElse(initial), s.nonEmpty)
+              if (dirty)
                 o -> Some(s2)
               else
                 o -> None
@@ -387,9 +359,9 @@ object ZTransducer {
    * force the transducer to cross the `max` cost. See [[foldWeightedDecomposeM]]
    * for a variant that can handle these cases.
    */
-  def foldWeightedM[R, E, I, S](
-    z: S
-  )(costFn: I => ZIO[R, E, Long], max: Long)(f: (S, I) => ZIO[R, E, S]): ZTransducer[R, E, I, S] =
+  def foldWeightedM[R, E, I, O](
+    z: O
+  )(costFn: (O, I) => ZIO[R, E, Long], max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     foldWeightedDecomposeM(z)(costFn, max, (i: I) => UIO.succeedNow(Chunk.single(i)))(f)
 
   /**
@@ -407,7 +379,7 @@ object ZTransducer {
    * See [[foldWeightedDecompose]] for an example.
    */
   def foldWeightedDecomposeM[R, E, I, O](z: O)(
-    costFn: I => ZIO[R, E, Long],
+    costFn: (O, I) => ZIO[R, E, Long],
     max: Long,
     decompose: I => ZIO[R, E, Chunk[I]]
   )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
@@ -420,24 +392,22 @@ object ZTransducer {
         in: Chunk[I],
         os: Chunk[O],
         state: FoldWeightedState,
-        progress: Boolean
+        dirty: Boolean
       ): ZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)] =
-        in.foldM[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, progress)) {
+        in.foldM[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, dirty)) {
           case ((os, state, _), i) =>
-            costFn(i).flatMap { cost =>
+            costFn(state.result, i).flatMap { cost =>
               val total = cost + state.cost
               if (total > max)
                 decompose(i).flatMap(is =>
-                  if (is.isEmpty)
-                    f(state.result, i).map(o => ((os + o), initial, false))
-                  else if (is.length == 1)
-                    f(state.result, is(0)).map(o => ((os + o), initial, false))
-                  else {
-                    go(is, os, state, progress)
-                  }
+                  // See comments on `foldWeightedDecompose` for details on every case here.
+                  if (is.length <= 1 && !dirty)
+                    f(state.result, if (is.nonEmpty) is(0) else i).map(o => ((os + o), initial, false))
+                  else if (is.length <= 1 && dirty)
+                    go(if (is.nonEmpty) is else Chunk.single(i), os + state.result, initial, false)
+                  else
+                    go(is, os, state, dirty)
                 )
-              else if (total == max)
-                f(state.result, i).map(o => ((os + o), initial, false))
               else
                 f(state.result, i).map(o => (os, FoldWeightedState(o, total), true))
             }
@@ -447,8 +417,8 @@ object ZTransducer {
         {
           case Some(in) =>
             state.get.flatMap(s => go(in, Chunk.empty, s.getOrElse(initial), s.nonEmpty)).flatMap {
-              case (os, s, progress) =>
-                if (progress)
+              case (os, s, dirty) =>
+                if (dirty)
                   state.set(Some(s)) *> Push.emit(os)
                 else
                   state.set(None) *> Push.emit(os)
