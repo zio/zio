@@ -321,18 +321,18 @@ object ZTransducer {
                 // minimize "injury", we only allow this when we haven't added anything else
                 // to the aggregate (dirty = false).
                 (os0 + f(state.result, if (is.nonEmpty) is(0) else i), initial, false)
-              else if (is.length <= 1 && dirty)
+              else if (is.length <= 1 && dirty) {
                 // If the state is dirty and `i` cannot be decomposed, we close the current
-                // aggregate and recurse with just `is`. We're not adding `f(initial, i)` to
+                // aggregate and a create new one from `is`. We're not adding `f(initial, i)` to
                 // the results immediately because it could be that `i` by itself does not
                 // cross the threshold, so we can attempt to aggregate it with subsequent elements.
-                go(if (is.nonEmpty) is else Chunk.single(i), os0 + state.result, initial, false)
-              else
+                val elem = if (is.nonEmpty) is(0) else i
+                (os0 + state.result, FoldWeightedState(f(initial.result, elem), costFn(initial.result, elem)), true)
+              } else
                 // `i` got decomposed, so we will recurse and see whether the decomposition
                 // can be aggregated without crossing `max`.
                 go(is, os0, state, dirty)
-            } else
-              (os0, FoldWeightedState(f(state.result, i), total), true)
+            } else (os0, FoldWeightedState(f(state.result, i), total), true)
         }
 
       ZRef.makeManaged[Option[FoldWeightedState]](Some(initial)).map { state =>
@@ -403,10 +403,13 @@ object ZTransducer {
                   // See comments on `foldWeightedDecompose` for details on every case here.
                   if (is.length <= 1 && !dirty)
                     f(state.result, if (is.nonEmpty) is(0) else i).map(o => ((os + o), initial, false))
-                  else if (is.length <= 1 && dirty)
-                    go(if (is.nonEmpty) is else Chunk.single(i), os + state.result, initial, false)
-                  else
-                    go(is, os, state, dirty)
+                  else if (is.length <= 1 && dirty) {
+                    val elem = if (is.nonEmpty) is(0) else i
+
+                    f(initial.result, elem).zipWith(costFn(initial.result, elem)) { (s, cost) =>
+                      (os + state.result, FoldWeightedState(s, cost), true)
+                    }
+                  } else go(is, os, state, dirty)
                 )
               else
                 f(state.result, i).map(o => (os, FoldWeightedState(o, total), true))
