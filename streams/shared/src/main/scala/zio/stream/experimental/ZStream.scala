@@ -236,12 +236,12 @@ abstract class ZStream[-R, +E, +O](
           // yield the output plus that of the schedule if it is done.
           def process(take: Take[E1, P]): ZIO[R1, Option[E1], Chunk[Either[Q, P]]] =
             for {
-              os  <- Pull.fromTake(take)
+              os0 <- Pull.fromTake(take)
               st0 <- scheduleState.get
-              st  <- schedule.update(os, st0).option
+              st  <- schedule.update(os0, st0).option
               _   <- scheduleState.set(st.getOrElse(initial))
-            } yield os.map(Right(_)) ++ st.fold[Chunk[Either[Q, P]]](Chunk.empty)(ps =>
-              Chunk.single(Left(schedule.extract(os, ps)))
+            } yield st.foldLeft[Chunk[Either[Q, P]]](os0.map(Right(_)))((os, ps) =>
+              os ++ Chunk.single(Left(schedule.extract(os0, ps)))
             )
 
           val go: ZIO[R1, Option[E1], Chunk[Either[Q, P]]] =
