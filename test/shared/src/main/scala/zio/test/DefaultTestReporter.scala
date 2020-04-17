@@ -402,7 +402,7 @@ object FailureRenderer {
         case Nil =>
           lines
 
-        case (ident, Expectation.And(children, false, _, _)) :: tail =>
+        case (ident, Expectation.And(children, false, _, _, _)) :: tail =>
           val title       = Line.fromString("in any order", ident)
           val unsatisfied = children.filter(!_.satisfied).map(ident + tabSize -> _)
           loop(unsatisfied ++ tail, lines :+ title)
@@ -412,12 +412,12 @@ object FailureRenderer {
             withOffset(ident)(Fragment(s"$method with arguments ") + cyan(assertion.toString))
           loop(tail, lines :+ rendered)
 
-        case (ident, Expectation.Chain(children, false, _, _)) :: tail =>
+        case (ident, Expectation.Chain(children, false, _, _, _)) :: tail =>
           val title       = Line.fromString("in sequential order", ident)
           val unsatisfied = children.filter(!_.satisfied).map(ident + tabSize -> _)
           loop(unsatisfied ++ tail, lines :+ title)
 
-        case (ident, Expectation.Or(children, false, _, _)) :: tail =>
+        case (ident, Expectation.Or(children, false, _, _, _)) :: tail =>
           val title       = Line.fromString("one of", ident)
           val unsatisfied = children.map(ident + tabSize -> _)
           loop(unsatisfied ++ tail, lines :+ title)
