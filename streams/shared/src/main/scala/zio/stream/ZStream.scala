@@ -3556,8 +3556,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * Creates a `RefM` and a stream that will emit every value written to the
    * `RefM`.
    */
-  def signalRef[A](a: A): UIO[(RefM[A], Stream[Nothing, A])] =
-    RefM.signalRef(a).map { case (ref, queue) => (ref, ZStream.fromQueue(queue)) }
+  def subscriptionRef[A](a: A): UIO[(RefM[A], Stream[Nothing, A])] =
+    RefM.subscriptionRef(a).map { case (ref, queue) => (ref, ZStream.fromQueue(queue)) }
 
   /**
    * Creates a single-valued pure stream

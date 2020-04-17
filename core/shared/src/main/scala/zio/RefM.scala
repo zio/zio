@@ -15,8 +15,8 @@ object RefM {
     ZRefM.makeManaged(a)
 
   /**
-   * @see [[zio.ZRefM.signalRef]]
+   * @see [[zio.ZRefM.subscriptionRef]]
    */
-  def signalRef[A](a: A): UIO[(RefM[A], Queue[A])] =
-    ZRefM.signalRef(a)
+  def subscriptionRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
+    ZRefM.subscriptionRef(a)
 }

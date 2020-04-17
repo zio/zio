@@ -499,10 +499,10 @@ object ZRefM {
     make(a).toManaged_
 
   /**
-   * Creates a new `ZRefM` and a `Queue` that will contain every value written
+   * Creates a new `ZRefM` and a `Dequeue` that will contain every value written
    * to the `ZRefM`.
    */
-  def signalRef[A](a: A): UIO[(RefM[A], Queue[A])] =
+  def subscriptionRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
     for {
       ref   <- make(a)
       queue <- Queue.unbounded[A]
