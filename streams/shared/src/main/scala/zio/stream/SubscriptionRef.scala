@@ -33,11 +33,4 @@ object SubscriptionRef {
     RefM.dequeueRef(a).map {
       case (ref, queue) => new SubscriptionRef(ref, ZStream.fromQueue(queue))
     }
-
-  /**
-   * Creates a new `SubscriptionRef` with the specified value in the context of
-   * a `Managed`.
-   */
-  def makeManaged[A](a: A): UManaged[SubscriptionRef[A]] =
-    make(a).toManaged_
 }
