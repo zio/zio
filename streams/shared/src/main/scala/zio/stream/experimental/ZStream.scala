@@ -86,7 +86,7 @@ abstract class ZStream[-R, +E, +O](
    * Applies an aggregator to the stream, which converts one or more elements
    * of type `A` into elements of type `B`.
    */
-  def aggregate[R1 <: R, E1 >: E, O1 >: O, P](sink: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] =
+  def aggregate[R1 <: R, E1 >: E, P](sink: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
     ZStream {
       for {
         pull <- self.process
@@ -122,7 +122,7 @@ abstract class ZStream[-R, +E, +O](
    * Any transducer can be used here, but see [[ZTransducer.foldWeightedM]] and [[ZTransducer.foldUntilM]] for
    * transducers that cover the common usecases.
    */
-  final def aggregateAsync[R1 <: R, E1 >: E, O1 >: O, P](transducer: ZTransducer[R1, E1, O1, P]): ZStream[R1, E1, P] =
+  final def aggregateAsync[R1 <: R, E1 >: E, P](transducer: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
     ZStream {
       for {
         pull   <- self.process
@@ -1812,7 +1812,7 @@ abstract class ZStream[-R, +E, +O](
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  def run[R1 <: R, E1 >: E, O1 >: O, B](sink: ZSink[R1, E1, O1, B]): ZIO[R1, E1, B] =
+  def run[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, B]): ZIO[R1, E1, B] =
     (process <*> sink.push).use {
       case (pull, push) =>
         def go: ZIO[R1, E1, B] = pull.foldCauseM(
@@ -2080,7 +2080,7 @@ abstract class ZStream[-R, +E, +O](
   /**
    * Applies the transducer to the stream and emits its outputs.
    */
-  def transduce[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]): ZStream[R1, E1, O3] =
+  def transduce[R1 <: R, E1 >: E, O3](transducer: ZTransducer[R1, E1, O, O3]): ZStream[R1, E1, O3] =
     aggregate(transducer)
 
   /**

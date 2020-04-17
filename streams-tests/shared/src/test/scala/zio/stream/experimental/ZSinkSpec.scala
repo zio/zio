@@ -11,14 +11,14 @@ object ZSinkSpec extends ZIOBaseSpec {
       testM("collectAllToSet")(
         assertM(
           ZStream(1, 2, 3, 3, 4)
-            .run(ZSink.collectAllToSet[Int])
+            .run(ZSink.collectAllToSet)
         )(equalTo(Set(1, 2, 3, 4)))
       ),
       testM("collectAllToMap")(
         assertM(
           ZStream
             .range(0, 10)
-            .run(ZSink.collectAllToMap[Int, Int](value => value % 3)(_ + _))
+            .run(ZSink.collectAllToMap((_: Int) % 3)(_ + _))
         )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
       ),
       testM("head")(
@@ -47,13 +47,13 @@ object ZSinkSpec extends ZIOBaseSpec {
       ),
       suite("fold")(
         testM("termination in the middle")(
-          assertM(ZStream.range(1, 10).run(ZSink.fold[Int, Int](0)(_ <= 5)((a, b) => a + b)))(equalTo(6))
+          assertM(ZStream.range(1, 10).run(ZSink.fold(0)(_ <= 5)((a, b) => a + b)))(equalTo(6))
         ),
         testM("immediate termination")(
-          assertM(ZStream.range(1, 10).run(ZSink.fold[Int, Int](0)(_ <= -1)((a, b) => a + b)))(equalTo(0))
+          assertM(ZStream.range(1, 10).run(ZSink.fold(0)(_ <= -1)((a, b) => a + b)))(equalTo(0))
         ),
         testM("termination in the middle")(
-          assertM(ZStream.range(1, 10).run(ZSink.fold[Int, Int](0)(_ <= 500)((a, b) => a + b)))(equalTo(45))
+          assertM(ZStream.range(1, 10).run(ZSink.fold(0)(_ <= 500)((a, b) => a + b)))(equalTo(45))
         )
       ),
       suite("foldM")(

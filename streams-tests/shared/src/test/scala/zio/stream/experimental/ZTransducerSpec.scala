@@ -90,9 +90,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("empty")(
           assertM(
             ZStream.empty
-              .aggregate(
-                ZTransducer.fold[Int, Int](0)(_ => true)(_ + _)
-              )
+              .aggregate(ZTransducer.fold[Int, Int](0)(_ => true)(_ + _))
               .runCollect
           )(equalTo(List(0)))
         ),
@@ -105,10 +103,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
           def run[E](stream: ZStream[Any, E, Int]) =
             (for {
               effects <- Ref.make[List[Int]](Nil)
-              sink = ZTransducer.foldM[Any, Nothing, Int, Int](0)(_ => true) { (_, a) =>
-                effects.update(a :: _) *> UIO.succeed(30)
-              }
-              exit   <- stream.aggregate(sink).runCollect
+              exit <- stream
+                       .aggregate(ZTransducer.foldM(0)(_ => true) { (_, a) =>
+                         effects.update(a :: _) *> UIO.succeed(30)
+                       })
+                       .runCollect
               result <- effects.get
             } yield (exit, result)).run
 
@@ -125,7 +124,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(
             ZStream.empty
               .aggregate(
-                ZTransducer.foldM[Any, Nothing, Int, Int](0)(_ => true)((x, y) => ZIO.succeed(x + y))
+                ZTransducer.foldM(0)(_ => true)((x, y: Int) => ZIO.succeed(x + y))
               )
               .runCollect
           )(equalTo(List(0)))
@@ -139,10 +138,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
           def run[E](stream: ZStream[Any, E, Int]) =
             (for {
               effects <- Ref.make[List[Int]](Nil)
-              sink = ZTransducer.foldM[Any, E, Int, Int](0)(_ => true) { (_, a) =>
-                effects.update(a :: _) *> UIO.succeed(30)
-              }
-              exit   <- stream.aggregate(sink).runCollect
+              exit <- stream
+                       .aggregate(ZTransducer.foldM(0)(_ => true) { (_, a) =>
+                         effects.update(a :: _) *> UIO.succeed(30)
+                       })
+                       .runCollect
               result <- effects.get
             } yield exit -> result).run
 
@@ -159,7 +159,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(
             ZStream[Long](1, 5, 2, 3)
               .aggregate(
-                ZTransducer.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse)
+                ZTransducer.foldWeighted(List[Long]())((_: Long) * 2, 12)((acc, el) => el :: acc).map(_.reverse)
               )
               .runCollect
           )(equalTo(List(List(1L, 5L), List(2L, 3L))))
@@ -232,14 +232,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("foldUntil")(
           assertM(
             ZStream[Long](1, 1, 1, 1, 1, 1)
-              .aggregate(ZTransducer.foldUntil(0L, 3)(_ + (_: Long)))
+              .aggregate(ZTransducer.foldUntil(0L, 3)(_ + _))
               .runCollect
           )(equalTo(List(3L, 3L)))
         ),
         testM("foldUntilM")(
           assertM(
             ZStream[Long](1, 1, 1, 1, 1, 1)
-              .aggregate(ZTransducer.foldUntilM(0L, 3)((s, a: Long) => UIO.succeedNow(s + a)))
+              .aggregate(ZTransducer.foldUntilM(0L, 3)((s, a) => UIO.succeedNow(s + a)))
               .runCollect
           )(equalTo(List(3L, 3L)))
         )
