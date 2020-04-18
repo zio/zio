@@ -1022,7 +1022,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           tvar  <- TRef.makeCommit(0)
           left  = tvar.update(_ + 100) *> STM.retry
-          right = tvar.update(_ + 200).unit
+          right = tvar.update(_ + 200)
           _     <- (left orElse right).commit
           v     <- tvar.get.commit
         } yield assert(v)(equalTo(200))
@@ -1031,7 +1031,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           tvar  <- TRef.makeCommit(0)
           left  = tvar.update(_ + 100) *> STM.fail("Uh oh!")
-          right = tvar.update(_ + 200).unit
+          right = tvar.update(_ + 200)
           _     <- (left orElse right).commit
           v     <- tvar.get.commit
         } yield assert(v)(equalTo(200))
