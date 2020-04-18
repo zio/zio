@@ -342,6 +342,23 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     zipWithPar(that)((b, _) => b)
 
   /**
+   * Operator alias for `zipPar`.
+   */
+  final def <&>[R1 <: R, E1 >: E, I1 <: I, Z1](that: ZSink[R1, E1, I1, Z1]): ZSink[R1, E1, I1, (Z, Z1)] =
+    self.zipPar(that)
+
+  /**
+   * Operator alias for `zipParRight`.
+   */
+  final def &>[R1 <: R, E1 >: E, I1 <: I, Z1](that: ZSink[R1, E1, I1, Z1]): ZSink[R1, E1, I1, Z1] =
+    self.zipParRight(that)
+
+  /**
+   * Operator alias for `zipParLeft`.
+   */
+  final def <&[R1 <: R, E1 >: E, I1 <: I](that: ZSink[R1, E1, I1, Any]): ZSink[R1, E1, I1, Z] = self.zipParLeft(that)
+
+  /**
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
