@@ -205,14 +205,22 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Get the index of the first entry in the array, starting at a specific index,
    * matching a predicate.
    */
-  def indexWhere(p: A => Boolean, from: Int): USTM[Int] = {
-    val len = array.length
-    def forIndex(i: Int): USTM[Int] =
-      if (i >= len) STM.succeedNow(-1)
-      else apply(i).flatMap(a => if (p(a)) STM.succeedNow(i) else forIndex(i + 1))
+  def indexWhere(p: A => Boolean, from: Int): USTM[Int] =
+    if (from < 0)
+      STM.succeedNow(-1)
+    else
+      new ZSTM((journal, _, _, _) => {
+        var i     = from
+        var found = false
 
-    if (from >= 0) forIndex(from) else STM.succeedNow(-1)
-  }
+        while (!found && i < array.length) {
+          val a = array(i).unsafeGet(journal)
+          found = p(a)
+          i += 1
+        }
+
+        if (found) TExit.Succeed(i - 1) else TExit.Succeed(-1)
+      })
 
   /**
    * Get the index of the first entry in the array matching a transactional
