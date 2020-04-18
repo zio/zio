@@ -251,13 +251,21 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Get the first index of a specific value in the array, bounded above by a
    * specific index, or -1 if it does not occur.
    */
-  def lastIndexOf(a: A, end: Int): USTM[Int] = {
-    def forIndex(i: Int): USTM[Int] =
-      if (i < 0) STM.succeedNow(-1)
-      else apply(i).flatMap(ai => if (ai == a) STM.succeedNow(i) else forIndex(i - 1))
+  def lastIndexOf(a: A, end: Int): USTM[Int] =
+    if (end >= array.length)
+      STM.succeedNow(-1)
+    else
+      new ZSTM((journal, _, _, _) => {
+        var i     = end
+        var found = false
 
-    if (end < array.length) forIndex(end) else STM.succeedNow(-1)
-  }
+        while (!found && i >= 0) {
+          found = array(i).unsafeGet(journal) == a
+          i -= 1
+        }
+
+        if (found) TExit.Succeed(i + 1) else TExit.Succeed(-1)
+      })
 
   /**
    * The last entry in the array, if it exists.
