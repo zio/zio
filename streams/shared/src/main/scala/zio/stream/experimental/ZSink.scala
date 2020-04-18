@@ -1,7 +1,6 @@
 package zio.stream.experimental
 
 import zio._
-import zio.stream.experimental.internal.ZSinkParallelHelper
 
 // Important notes while writing sinks and combinators:
 // - What return values for sinks mean:
@@ -225,8 +224,8 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     self.race(that)
 
   /**
-   * Runs both sinks in parallel on the input, returning the result from the
-   * one that finishes successfully first.
+   * Runs both sinks in parallel on the input, , returning the result or the error from the
+   * one that finishes first.
    */
   final def race[R1 <: R, E1 >: E, A0, I1 <: I, Z1 >: Z](
     that: ZSink[R1, E1, I1, Z1]
@@ -234,51 +233,25 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     self.raceBoth(that).map(_.merge)
 
   /**
-   * Runs both sinks in parallel on the input, returning the result from the
-   * one that finishes successfully first.
+   * Runs both sinks in parallel on the input, returning the result or the error from the
+   * one that finishes first.
    */
   final def raceBoth[R1 <: R, E1 >: E, A0, I1 <: I, Z1](
     that: ZSink[R1, E1, I1, Z1]
-  ): ZSink[R1, E1, I1, Either[Z, Z1]] = {
-    def extractFirstWinner(state: ZSinkParallelHelper.State[Z, Z1, E1]): ZIO[R1, Either[E1, Either[Z, Z1]], Unit] =
-      state.left match {
-        case Some(res1) => {
-          res1 match {
-            case Left(e1) =>
-              state.right match {
-                case Some(res2) =>
-                  res2 match {
-                    case Left(e2)  => Push.halt(Cause.Both(Cause.fail(e1), Cause.fail(e2)))
-                    case Right(z2) => Push.emit(Right(z2))
-                  }
-                case None => {
-                  state.right match {
-                    case Some(res2) =>
-                      res2 match {
-                        case Left(_)   => Push.more
-                        case Right(z2) => Push.emit(Right(z2))
-                      }
-                    case None => Push.more
-                  }
-                }
-              }
-            case Right(z1) => Push.emit(Left(z1))
-          }
-        }
-        case None => {
-          state.right match {
-            case Some(res2) =>
-              res2 match {
-                case Left(_)   => Push.more
-                case Right(z2) => Push.emit(Right(z2))
-              }
-            case None => Push.more
-          }
-        }
+  ): ZSink[R1, E1, I1, Either[Z, Z1]] =
+    ZSink(for {
+      p1 <- self.push
+      p2 <- that.push
+      push: Push[R1, E1, I1, Either[Z, Z1]] = { in =>
+        p1(in).raceWith(p2(in))(
+          (res1, fib2) =>
+            res1
+              .foldM(f => fib2.interrupt *> ZIO.halt(f.map(_.map(Left(_)))), _ => fib2.join.mapError(_.map(Right(_)))),
+          (res2, fib1) =>
+            res2.foldM(f => fib1.interrupt *> ZIO.halt(f.map(_.map(Right(_)))), _ => fib1.join.mapError(_.map(Left(_))))
+        )
       }
-
-    ZSinkParallelHelper.runBoth(self, that)(extractFirstWinner)
-  }
+    } yield push)
 
   /**
    * Creates a sink that produces values until one verifies
