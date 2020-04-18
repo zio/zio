@@ -72,7 +72,7 @@ object ZSinkParallelHelper {
   def runBoth[R, E, I, Z1, Z2, Z](one: ZSink[R, E, I, Z1], another: ZSink[R, E, I, Z2])(
     extract: State[Z1, Z2, E] => ZIO[R, Either[E, Z], Unit]
   ): ZSink[R, E, I, Z] = {
-    val helper = new Helper(extract)
+    val helper: Helper[R, E, I, Z1, Z2, Z] = new Helper(extract)
     ZSink(for {
       ref <- ZRef.makeManaged[State[Z1, Z2, E]](State(None, None))
       p1  <- one.push
