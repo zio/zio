@@ -289,11 +289,23 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically reduce the array, if non-empty, by a binary operator.
    */
   def reduceOption(op: (A, A) => A): USTM[Option[A]] =
-    if (array.isEmpty) STM.succeedNow(None)
-    else
-      array.head.get
-        .flatMap(h => new TArray(array.tail).fold(h)((acc, a) => op(acc, a)))
-        .map(Some(_))
+    new ZSTM((journal, _, _, _) => {
+      var i   = 0
+      var res = null.asInstanceOf[A]
+
+      while (i < array.length) {
+        val a = array(i).unsafeGet(journal)
+
+        res = res match {
+          case null => a
+          case v    => op(v, a)
+        }
+
+        i += 1
+      }
+
+      TExit.Succeed(Option(res))
+    })
 
   /**
    * Atomically reduce the non-empty array using a transactional binary operator.
