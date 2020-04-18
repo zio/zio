@@ -15,7 +15,7 @@ import zio._
 class TArrayOpsBenchmarks {
   import IOBenchmarks.unsafeRun
 
-  @Param(Array("0", "10", "100", "1000", "10000", "100000"))
+  @Param(Array("10", "100", "1000", "10000", "100000"))
   var size: Int = _
 
   private var idx: Int           = _
@@ -59,6 +59,14 @@ class TArrayOpsBenchmarks {
   @Benchmark
   def indexWhereM(): Int = 
     unsafeRun(array.indexWhereM(a => STM.succeedNow(a == size)).commit)
+
+  @Benchmark
+  def reduceOption(): Option[Int] =
+    unsafeRun(array.reduceOption(_ + _).commit)
+
+  @Benchmark
+  def reduceOptionM(): Option[Int] =
+    unsafeRun(array.reduceOptionM((a, b) => STM.succeedNow(a + b)).commit)
 
   @Benchmark
   def transform(): Unit =
