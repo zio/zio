@@ -120,8 +120,17 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Find the last element in the array matching a transactional predicate.
    */
-  def findLastM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
-    new TArray(array.reverse).findM(p)
+  def findLastM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] = {
+    val init = (Option.empty[A], array.length - 1)
+    val cont = (s: (Option[A], Int)) => s._1.isEmpty && s._2 >= 0
+
+    ZSTM
+      .iterate(init)(cont) { s =>
+        val idx = s._2
+        array(idx).get.flatMap(a => p(a).map(ok => (if (ok) Some(a) else None, idx - 1)))
+      }
+      .map(_._1)
+  }
 
   /**
    * Find the first element in the array matching a transactional predicate.
