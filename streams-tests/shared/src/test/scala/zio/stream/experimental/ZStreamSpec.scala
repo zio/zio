@@ -194,7 +194,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             _      <- TestClock.advance(1.hour)
             result <- f.join
           } yield assert(result)(
-            equalTo(List(Right(Nil), Left(1), Right(List(2, 1, 1, 1, 1)), Right(List(2)), Left(2)))
+            equalTo(List(Right(List(2, 1, 1, 1, 1)), Right(List(2)), Left(1)))
           )
         },
         testM("error propagation 1") {
@@ -265,7 +265,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               f <- (ZStream(data: _*)
                     .aggregateAsyncWithinEither(
                       ZTransducer
-                        .foldWeighted(List[Int]())((i: Int) => i.toLong, 4)((acc, el) => el :: acc)
+                        .foldWeighted(List[Int]())((_, i: Int) => i.toLong, 4)((acc, el) => el :: acc)
                         .map(_.reverse),
                       Schedule.spaced(100.millis)
                     )
@@ -301,7 +301,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                   .fork
             _      <- TestClock.advance(1.hour)
             result <- f.join
-          } yield assert(result)(equalTo(List(Nil, List(2, 1, 1, 1, 1), List(2))))
+          } yield assert(result)(equalTo(List(List(2, 1, 1, 1, 1), List(2))))
         }
       ),
       suite("bracket")(

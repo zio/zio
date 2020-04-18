@@ -173,6 +173,7 @@ abstract class ZStream[-R, +E, +O](
         pull          <- self.process
         push          <- transducer.push
         bucket        <- ZQueue.bounded[Take[E1, P]](1).toManaged(_.shutdown)
+        start         <- Promise.make[Nothing, Unit].toManaged_
         flush         <- ZRef.makeManaged(false)
         done          <- ZRef.makeManaged(false)
         initial       <- schedule.initial.toManaged_
@@ -196,7 +197,7 @@ abstract class ZStream[-R, +E, +O](
               if (_)
                 drain(None)(iterate)
               else
-                pull.foldCauseM(
+                start.succeed(()) *> pull.foldCauseM(
                   Cause.sequenceCauseOption(_).fold(drain(None)(finish))(c => bucket.offer(Exit.halt(c.map(Some(_))))),
                   os => drain(Some(os))(iterate)
                 )
@@ -218,7 +219,9 @@ abstract class ZStream[-R, +E, +O](
             )
 
           val go: ZIO[R1, Option[E1], Chunk[Either[Q, P]]] =
-            flush.set(true) *> bucket.take.flatMap(take => done.set(true).when(take == Take.End) *> process(take))
+            start.await *> flush.set(true) *> bucket.take.flatMap(take =>
+              done.set(true).when(take == Take.End) *> process(take)
+            )
 
           done.get.flatMap {
             if (_)
