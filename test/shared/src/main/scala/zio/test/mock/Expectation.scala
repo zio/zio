@@ -57,10 +57,13 @@ sealed abstract class Expectation[R <: Has[_]: Tagged] { self =>
    */
   def and[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
-      case (And.Items(xs1), And.Items(xs2)) => And(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2)
-      case (And.Items(xs), _)               => And(self.mock.compose ++ that.mock.compose)(xs :+ that)
-      case (_, And.Items(xs))               => And(self.mock.compose ++ that.mock.compose)(self :: xs)
-      case _                                => And(self.mock.compose ++ that.mock.compose)(self :: that :: Nil)
+      case (And.Items(xs1), And.Items(xs2)) =>
+        And(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2).asInstanceOf[Expectation[R with R0]]
+      case (And.Items(xs), _) =>
+        And(self.mock.compose ++ that.mock.compose)(xs :+ that).asInstanceOf[Expectation[R with R0]]
+      case (_, And.Items(xs)) =>
+        And(self.mock.compose ++ that.mock.compose)(self :: xs).asInstanceOf[Expectation[R with R0]]
+      case _ => And(self.mock.compose ++ that.mock.compose)(self :: that :: Nil).asInstanceOf[Expectation[R with R0]]
     }
 
   /**
@@ -72,10 +75,13 @@ sealed abstract class Expectation[R <: Has[_]: Tagged] { self =>
    */
   def andThen[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
-      case (Chain.Items(xs1), Chain.Items(xs2)) => Chain(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2)
-      case (Chain.Items(xs), _)                 => Chain(self.mock.compose ++ that.mock.compose)(xs :+ that)
-      case (_, Chain.Items(xs))                 => Chain(self.mock.compose ++ that.mock.compose)(self :: xs)
-      case _                                    => Chain(self.mock.compose ++ that.mock.compose)(self :: that :: Nil)
+      case (Chain.Items(xs1), Chain.Items(xs2)) =>
+        Chain(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2).asInstanceOf[Expectation[R with R0]]
+      case (Chain.Items(xs), _) =>
+        Chain(self.mock.compose ++ that.mock.compose)(xs :+ that).asInstanceOf[Expectation[R with R0]]
+      case (_, Chain.Items(xs)) =>
+        Chain(self.mock.compose ++ that.mock.compose)(self :: xs).asInstanceOf[Expectation[R with R0]]
+      case _ => Chain(self.mock.compose ++ that.mock.compose)(self :: that :: Nil).asInstanceOf[Expectation[R with R0]]
     }
 
   /**
@@ -107,10 +113,13 @@ sealed abstract class Expectation[R <: Has[_]: Tagged] { self =>
    */
   def or[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
-      case (Or.Items(xs1), Or.Items(xs2)) => Or(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2)
-      case (Or.Items(xs), _)              => Or(self.mock.compose ++ that.mock.compose)(xs :+ that)
-      case (_, Or.Items(xs))              => Or(self.mock.compose ++ that.mock.compose)(self :: xs)
-      case _                              => Or(self.mock.compose ++ that.mock.compose)(self :: that :: Nil)
+      case (Or.Items(xs1), Or.Items(xs2)) =>
+        Or(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2).asInstanceOf[Expectation[R with R0]]
+      case (Or.Items(xs), _) =>
+        Or(self.mock.compose ++ that.mock.compose)(xs :+ that).asInstanceOf[Expectation[R with R0]]
+      case (_, Or.Items(xs)) =>
+        Or(self.mock.compose ++ that.mock.compose)(self :: xs).asInstanceOf[Expectation[R with R0]]
+      case _ => Or(self.mock.compose ++ that.mock.compose)(self :: that :: Nil).asInstanceOf[Expectation[R with R0]]
     }
 
   /**
@@ -172,7 +181,7 @@ object Expectation {
 
     object Items {
 
-      def unapply[R <: Has[_]](and: And[R]): Option[(List[Expectation[R]])] =
+      private[test] def unapply[R <: Has[_]](and: And[R]): Option[(List[Expectation[R]])] =
         Some(and.children)
     }
   }
@@ -220,7 +229,7 @@ object Expectation {
 
     object Items {
 
-      def unapply[R <: Has[_]](chain: Chain[R]): Option[(List[Expectation[R]])] =
+      private[test] def unapply[R <: Has[_]](chain: Chain[R]): Option[(List[Expectation[R]])] =
         Some(chain.children)
     }
   }
@@ -244,7 +253,7 @@ object Expectation {
 
     object Items {
 
-      def unapply[R <: Has[_]](or: Or[R]): Option[(List[Expectation[R]])] =
+      private[test] def unapply[R <: Has[_]](or: Or[R]): Option[(List[Expectation[R]])] =
         Some(or.children)
     }
   }
