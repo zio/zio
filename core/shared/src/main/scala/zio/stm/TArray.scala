@@ -126,13 +126,17 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Find the first element in the array matching a transactional predicate.
    */
-  def findM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
-    foldM(Option.empty[A]) { (acc, a) =>
-      acc match {
-        case None      => STM.ifM(p(a))(STM.some(a), STM.none)
-        case Some(acc) => STM.some(acc)
+  def findM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] = {
+    val init = (Option.empty[A], 0)
+    val cont = (s: (Option[A], Int)) => s._1.isEmpty && s._2 < array.length
+
+    ZSTM
+      .iterate(init)(cont) { s =>
+        val idx = s._2
+        array(idx).get.flatMap(a => p(a).map(ok => (if (ok) Some(a) else None, idx + 1)))
       }
-    }
+      .map(_._1)
+  }
 
   /**
    * The first entry of the array, if it exists.
