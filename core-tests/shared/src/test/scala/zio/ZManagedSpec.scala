@@ -182,8 +182,12 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Runs on failures") {
         for {
           effects <- Ref.make[List[String]](Nil)
-          _       <- ZManaged.fromEffect(ZIO.fail(())).ensuringBeforeRelease_(effects.update("Ensured" :: _)).use_(ZIO.unit).either
-          result  <- effects.get
+          _ <- ZManaged
+                .fromEffect(ZIO.fail(()))
+                .ensuringBeforeRelease_(effects.update("Ensured" :: _))
+                .use_(ZIO.unit)
+                .either
+          result <- effects.get
         } yield assert(result)(equalTo(List("Ensured")))
       } @@ zioTag(errors),
       testM("Works when finalizers have defects") {
