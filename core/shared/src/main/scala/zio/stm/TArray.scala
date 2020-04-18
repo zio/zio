@@ -309,7 +309,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically reduce the non-empty array using a transactional binary operator.
    */
   def reduceOptionM[E](op: (A, A) => STM[E, A]): STM[E, Option[A]] =
-    foldM[E, Option[A]](None) { (acc, a) =>
+    foldM(Option.empty[A]) { (acc, a) =>
       acc match {
         case Some(acc) => op(acc, a).map(Some(_))
         case _         => STM.some(a)
