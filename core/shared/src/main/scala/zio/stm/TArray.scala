@@ -28,9 +28,9 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Extracts value from ref in array.
    */
   def apply(index: Int): USTM[A] =
-    if (0 <= index && index < array.length) 
+    if (0 <= index && index < array.length)
       array(index).get
-    else 
+    else
       STM.die(new ArrayIndexOutOfBoundsException(index))
 
   /**
@@ -81,12 +81,21 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Find the first element in the array matching a predicate.
    */
   def find(p: A => Boolean): USTM[Option[A]] =
-    if (array.isEmpty) STM.succeedNow(None)
-    else
-      array.head.get.flatMap { a =>
-        if (p(a)) STM.succeedNow(Some(a))
-        else new TArray(array.tail).find(p)
+    new ZSTM((journal, _, _, _) => {
+      var i   = 0
+      var res = Option.empty[A]
+
+      while (res.isEmpty && i < array.length) {
+        val a = array(i).unsafeGet(journal)
+
+        if (p(a))
+          res = Some(a)
+
+        i += 1
       }
+
+      TExit.Succeed(res)
+    })
 
   /**
    * Find the last element in the array matching a predicate.
@@ -140,7 +149,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically folds using a transactional function.
    */
   def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
-    if (array.isEmpty) 
+    if (array.isEmpty)
       STM.succeedNow(acc)
     else
       array.head.get.flatMap(a => op(acc, a).flatMap(acc2 => new TArray(array.tail).foldM(acc2)(op)))
@@ -308,9 +317,9 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Updates element in the array with given function.
    */
   def update(index: Int, fn: A => A): USTM[Unit] =
-    if (0 <= index && index < array.length) 
+    if (0 <= index && index < array.length)
       array(index).update(fn)
-    else 
+    else
       STM.die(new ArrayIndexOutOfBoundsException(index))
 
   /**
