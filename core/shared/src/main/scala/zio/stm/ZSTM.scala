@@ -457,6 +457,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
+   * Maps the value produced by the effect with the specified function that may
+   * throw exceptions but is otherwise pure, translating any thrown exceptions
+   * into typed failed effects.
+   */
+  final def mapPartial[B](f: A => B)(implicit ev: E <:< Throwable): ZSTM[R, Throwable, B] =
+    foldM(e => ZSTM.fail(ev(e)), a => ZSTM.partial(f(a)))
+
+  /**
    * Returns a new effect where the error channel has been merged into the
    * success channel to their common combined type.
    */
@@ -1242,6 +1250,12 @@ object ZSTM {
    * Returns an effect wth the empty value.
    */
   val none: USTM[Option[Nothing]] = succeedNow(None)
+
+  /**
+   * Creates an `STM` value from a partial (but pure) function.
+   */
+  def partial[A](a: => A): STM[Throwable, A] =
+    fromTry(Try(a))
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.

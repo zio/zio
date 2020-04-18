@@ -243,6 +243,12 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.partition]]
    */
+  def partial[A](a: => A): STM[Throwable, A] =
+    ZSTM.partial(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.partition]]
+   */
   def partition[E, A, B](
     in: Iterable[A]
   )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[Nothing, (List[E], List[B])] =
