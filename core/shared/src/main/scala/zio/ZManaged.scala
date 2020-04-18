@@ -275,7 +275,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    *
    * For usecases that need access to the ZManaged's result, see [[ZManaged#onExitFirst]].
    */
-  def ensuringFirst[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def ensuringBeforeRelease_[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {
       reserve.map(r => r.copy(release = e => f.ensuring(r.release(e))))
     }
@@ -540,7 +540,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Ensures that a cleanup function runs when this ZManaged is finalized, before
    * the existing finalizers.
    */
-  def onExitFirst[R1 <: R](cleanup: Exit[E, A] => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def ensuringBeforeRelease[R1 <: R](cleanup: Exit[E, A] => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {
       Ref.make[Exit[Any, Any] => ZIO[R1, Nothing, Any]](_ => UIO.unit).map { finalizer =>
         Reservation(
@@ -1740,7 +1740,7 @@ object ZManaged {
   def makeInterruptible[R, E, A](
     acquire: ZIO[R, E, A]
   )(release: A => ZIO[R, Nothing, Any]): ZManaged[R, E, A] =
-    ZManaged.fromEffect(acquire).onExitFirst(_.foreach(release))
+    ZManaged.fromEffect(acquire).ensuringBeforeRelease(_.foreach(release))
 
   /**
    * Sequentially zips the specified effects using the specified combiner
