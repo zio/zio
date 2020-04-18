@@ -101,7 +101,21 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Find the last element in the array matching a predicate.
    */
   def findLast(p: A => Boolean): USTM[Option[A]] =
-    new TArray(array.reverse).find(p)
+    new ZSTM((journal, _, _, _) => {
+      var i   = array.length - 1
+      var res = Option.empty[A]
+
+      while (res.isEmpty && i >= 0) {
+        val a = array(i).unsafeGet(journal)
+
+        if (p(a))
+          res = Some(a)
+
+        i -= 1
+      }
+
+      TExit.Succeed(res)
+    })
 
   /**
    * Find the last element in the array matching a transactional predicate.
