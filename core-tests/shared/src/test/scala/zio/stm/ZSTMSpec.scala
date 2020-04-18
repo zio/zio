@@ -488,12 +488,6 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.fromEither[String, Int](Right(1)).orDieWith(n => new Error(n)).commit)(equalTo(1))
         }
       ) @@ zioTag(errors),
-      testM("orElse to try another computation when the computation is failed") {
-        (for {
-          s <- STM.succeed(1) orElse STM.succeed(2)
-          f <- STM.fail("failed") orElse STM.succeed("try this")
-        } yield assert((s, f))(equalTo((1, "try this")))).commit
-      } @@ zioTag(errors),
       suite("partition")(
         testM("collects only successes") {
           implicit val canFail = CanFail
@@ -1023,24 +1017,24 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield assert(e)(equalTo("Error!")) && assert(v)(isTrue)
       }
     ),
-    suite("orElse must")(
+    suite("orElse")(
       testM("rollback left retry") {
         for {
           tvar  <- TRef.makeCommit(0)
           left  = tvar.update(_ + 100) *> STM.retry
-          right = tvar.update(_ + 100).unit
+          right = tvar.update(_ + 200).unit
           _     <- (left orElse right).commit
           v     <- tvar.get.commit
-        } yield assert(v)(equalTo(100))
+        } yield assert(v)(equalTo(200))
       },
       testM("rollback left failure") {
         for {
           tvar  <- TRef.makeCommit(0)
           left  = tvar.update(_ + 100) *> STM.fail("Uh oh!")
-          right = tvar.update(_ + 100).unit
+          right = tvar.update(_ + 200).unit
           _     <- (left orElse right).commit
           v     <- tvar.get.commit
-        } yield assert(v)(equalTo(100))
+        } yield assert(v)(equalTo(200))
       },
       testM("local reset, not global") {
         for {
