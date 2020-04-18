@@ -38,11 +38,11 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def find(): Option[Int] =
-    unsafeRun(array.find(_ == (size - 1)).commit)
+    unsafeRun(array.find(_ == size).commit)
 
   @Benchmark
   def findM(): Option[Int] =
-    unsafeRun(array.findM(i => STM.succeedNow(i == (size - 1))).commit)
+    unsafeRun(array.findM(a => STM.succeedNow(a == size)).commit)
 
   @Benchmark
   def fold(): Int =
@@ -51,6 +51,14 @@ class TArrayOpsBenchmarks {
   @Benchmark
   def foldM(): Int =
     unsafeRun(array.foldM(0)((acc, e) => STM.succeedNow(acc + e)).commit)
+
+  @Benchmark
+  def indexWhere(): Int = 
+    unsafeRun(array.indexWhere(_ == size).commit)
+
+  @Benchmark
+  def indexWhereM(): Int = 
+    unsafeRun(array.indexWhereM(a => STM.succeedNow(a == size)).commit)
 
   @Benchmark
   def transform(): Unit =
