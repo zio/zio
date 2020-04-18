@@ -240,7 +240,7 @@ abstract class ZSink[-R, +E, -I, +Z] private (
   final def raceBoth[R1 <: R, E1 >: E, A0, I1 <: I, Z1](
     that: ZSink[R1, E1, I1, Z1]
   ): ZSink[R1, E1, I1, Either[Z, Z1]] = {
-    def extractFirstWinner(state: ZSinkParallelHelper.Results[Z, Z1, E1]): ZIO[R1, Either[E1, Either[Z, Z1]], Unit] =
+    def extractFirstWinner(state: ZSinkParallelHelper.State[Z, Z1, E1]): ZIO[R1, Either[E1, Either[Z, Z1]], Unit] =
       state.left match {
         case Some(res1) => {
           res1 match {
