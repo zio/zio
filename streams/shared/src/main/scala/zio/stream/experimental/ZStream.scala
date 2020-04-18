@@ -63,7 +63,7 @@ abstract class ZStream[-R, +E, +O](
     transduce(transducer)
 
   /**
-   * Symbolic alias for [[[zio.stream.experimental.ZStream!.run[R1<:R,E1>:E,O1>:O,B]*]]].
+   * Symbolic alias for [[[zio.stream.experimental.ZStream!.run[R1<:R,E1>:E,B]*]]].
    */
   def >>>[R1 <: R, E1 >: E, O2 >: O, Z](sink: ZSink[R1, E1, O2, Z]): ZIO[R1, E1, Z] =
     self.run(sink)
@@ -1870,7 +1870,7 @@ abstract class ZStream[-R, +E, +O](
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  def run[R1 <: R, E1 >: E, O1 >: O, B](sink: ZSink[R1, E1, O1, B]): ZIO[R1, E1, B] =
+  def run[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, B]): ZIO[R1, E1, B] =
     (process <*> sink.push).use {
       case (pull, push) =>
         def go: ZIO[R1, E1, B] = pull.foldCauseM(
@@ -2138,7 +2138,7 @@ abstract class ZStream[-R, +E, +O](
   /**
    * Applies the transducer to the stream and emits its outputs.
    */
-  def transduce[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]): ZStream[R1, E1, O3] =
+  def transduce[R1 <: R, E1 >: E, O3](transducer: ZTransducer[R1, E1, O, O3]): ZStream[R1, E1, O3] =
     aggregate(transducer)
 
   /**

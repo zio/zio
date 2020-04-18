@@ -49,7 +49,8 @@ object ZStreamSpec extends ZIOBaseSpec {
       suite("aggregateAsync")(
         testM("aggregateAsync") {
           ZStream(1, 1, 1, 1)
-            .aggregateAsync(ZTransducer.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc).map(_.reverse))
+            .aggregateAsync(ZTransducer.foldUntil(List[Int](), 3)((acc, el) => el :: acc))
+            .map(_.reverse)
             .runCollect
             .map { result =>
               assert(result.flatten)(equalTo(List(1, 1, 1, 1))) &&
@@ -66,12 +67,11 @@ object ZStreamSpec extends ZIOBaseSpec {
           )(dies(equalTo(e)))
         },
         testM("error propagation") {
-          val e    = new RuntimeException("Boom")
-          val sink = ZTransducer.foldM[Any, Nothing, Int, List[Int]](Nil)(_ => true)((_, _) => ZIO.die(e))
+          val e = new RuntimeException("Boom")
 
           assertM(
             ZStream(1, 1)
-              .aggregateAsync(sink)
+              .aggregateAsync(ZTransducer.foldLeftM(Nil)((_, _) => ZIO.die(e)))
               .runCollect
               .run
           )(dies(equalTo(e)))
@@ -111,10 +111,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertM(
             ZStream(data: _*)
               .aggregateAsync(
-                ZTransducer
-                  .foldWeighted(List[Int]())((i: Int) => i.toLong, 4)((acc, el) => el :: acc)
-                  .map(_.reverse)
+                ZTransducer.foldWeighted(List[Int]())((_, x: Int) => x.toLong, 4)((acc, el) => el :: acc)
               )
+              .map(_.reverse)
               .runCollect
               .map(_.flatten)
           )(equalTo(data))
@@ -122,18 +121,26 @@ object ZStreamSpec extends ZIOBaseSpec {
       ),
       suite("aggregate")(
         testM("aggregate") {
-          val s      = ZStream('1', '2', ',', '3', '4')
-          val parser = ZTransducer.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt)
-
-          assertM(s.aggregate(parser).runCollect)(equalTo(List(12, 34)))
+          assertM(
+            ZStream('1', '2', ',', '3', '4')
+              .aggregate(ZTransducer.collectAllWhile(_.isDigit))
+              .map(_.mkString.toInt)
+              .runCollect
+          )(equalTo(List(12, 34)))
         },
         testM("no remainder") {
-          val t = ZTransducer.fold(100)(_ % 2 == 0)((s, a: Int) => s + a)
-          assertM(ZStream(1, 2, 3, 4).aggregate(t).runCollect)(equalTo(List(101, 105, 104)))
+          assertM(
+            ZStream(1, 2, 3, 4)
+              .aggregate(ZTransducer.fold(100)(_ % 2 == 0)(_ + _))
+              .runCollect
+          )(equalTo(List(101, 105, 104)))
         },
         testM("with a sink that always signals more") {
-          val t = ZTransducer.fold(0)(_ => true)((s, a: Int) => s + a)
-          assertM(ZStream(1, 2, 3).aggregate(t).runCollect)(equalTo(List(1 + 2 + 3)))
+          assertM(
+            ZStream(1, 2, 3)
+              .aggregate(ZTransducer.fold(0)(_ => true)(_ + _))
+              .runCollect
+          )(equalTo(List(1 + 2 + 3)))
         },
         // testM("managed") {
         //   final class TestSink(ref: Ref[Int]) extends ZSink[Any, Throwable, Int, Int, List[Int]] {
