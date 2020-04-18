@@ -46,7 +46,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   def collectFirstM[E, B](pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     find(pf.isDefinedAt).flatMap {
       case Some(a) => pf(a).map(Some(_))
-      case _       => STM.succeedNow(None)
+      case _       => STM.none
     }
 
   /**
@@ -127,14 +127,12 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Find the first element in the array matching a transactional predicate.
    */
   def findM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
-    if (array.isEmpty) STM.succeedNow(None)
-    else
-      array.head.get.flatMap { a =>
-        p(a).flatMap { result =>
-          if (result) STM.succeedNow(Some(a))
-          else new TArray(array.tail).findM(p)
-        }
+    foldM(Option.empty[A]) { (acc, a) =>
+      acc match {
+        case None      => STM.ifM(p(a))(STM.some(a), STM.none)
+        case Some(acc) => STM.some(acc)
       }
+    }
 
   /**
    * The first entry of the array, if it exists.
@@ -311,10 +309,10 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically reduce the non-empty array using a transactional binary operator.
    */
   def reduceOptionM[E](op: (A, A) => STM[E, A]): STM[E, Option[A]] =
-    foldM[E, Option[A]](None) { (optAcc, a) =>
-      optAcc match {
+    foldM[E, Option[A]](None) { (acc, a) =>
+      acc match {
         case Some(acc) => op(acc, a).map(Some(_))
-        case _         => STM.succeedNow(Some(a))
+        case _         => STM.some(a)
       }
     }
 
