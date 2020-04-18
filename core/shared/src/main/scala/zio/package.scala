@@ -37,10 +37,14 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
-  type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
+  type Queue[A]    = ZQueue[Any, Nothing, Any, Nothing, A, A]
+  type Dequeue[+A] = ZQueue[Any, Nothing, Any, Nothing, Nothing, A]
 
   type Ref[A]      = ZRef[Nothing, Nothing, A, A]
   type ERef[+E, A] = ZRef[E, E, A, A]
+
+  type RefM[A]      = ZRefM[Any, Any, Nothing, Nothing, A, A]
+  type ERefM[+E, A] = ZRefM[Any, Any, E, E, A, A]
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
