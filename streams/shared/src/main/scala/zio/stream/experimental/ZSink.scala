@@ -254,6 +254,94 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     } yield push)
 
   /**
+   * Runs both sinks in parallel on the input and combines the results
+   * using the provided function.
+   */
+  final def zipWithPar[R1 <: R, E1 >: E, I1 <: I, Z1, Z2](
+    that: ZSink[R1, E1, I1, Z1]
+  )(f: (Z, Z1) => Z2): ZSink[R1, E1, I1, Z2] = {
+
+    type State = (Option[Z], Option[Z1])
+
+    def applyLeft(s: State, res: Either[Either[E, Z], Unit]): ZIO[R1, Either[E1, Z2], State] =
+      res match {
+        case Left(v) =>
+          v match {
+            case Left(e) => ZIO.fail(Left(e))
+            case Right(z) =>
+              s._2 match {
+                case Some(z1) => ZIO.fail(Right(f(z, z1)))
+                case None     => ZIO.succeedNow(s.copy(_1 = Some(z)))
+              }
+          }
+        case Right(_) => ZIO.succeedNow(s)
+      }
+
+    def applyRight(s: State, res: Either[Either[E1, Z1], Unit]): ZIO[R1, Either[E1, Z2], State] =
+      res match {
+        case Left(v) =>
+          v match {
+            case Left(e) => ZIO.fail(Left(e))
+            case Right(z1) =>
+              s._1 match {
+                case Some(z) => ZIO.fail(Right(f(z, z1)))
+                case None    => ZIO.succeedNow(s.copy(_2 = Some(z1)))
+              }
+          }
+        case Right(_) => ZIO.succeedNow(s)
+      }
+
+    ZSink(for {
+      ref <- ZRef.make[State]((None, None)).toManaged_
+      p1  <- self.push
+      p2  <- that.push
+      push: Push[R1, E1, I1, Z2] = {
+        in =>
+          ref.get.flatMap { state =>
+            val newState: ZIO[R1, Either[E1, Z2], State] = {
+              if (state._1.isDefined) {
+                p2(in).either.flatMap(applyRight(state, _))
+              } else {
+                if (state._2.isDefined) {
+                  p1(in).either.flatMap(applyLeft(state, _))
+                } else {
+                  p1(in).either.zipPar(p2(in).either).flatMap {
+                    case (l, r) => applyLeft(state, l).flatMap(s1 => applyRight(s1, r))
+                  }
+                }
+              }
+            }
+            newState.flatMap(ns => if (ns eq state) ZIO.unit else ref.set(ns))
+          }
+      }
+    } yield push)
+  }
+
+  /**
+   * Runs both sinks in parallel on the input and combines the results into a Tuple.
+   */
+  final def zipPar[R1 <: R, E1 >: E, I1 <: I, Z1](
+    that: ZSink[R1, E1, I1, Z1]
+  ): ZSink[R1, E1, I1, (Z, Z1)] =
+    zipWithPar(that)((_, _))
+
+  /**
+   * Runs both sinks in parallel on the input and combines the results into a Tuple.
+   */
+  final def zipParRight[R1 <: R, E1 >: E, I1 <: I, Z1](
+    that: ZSink[R1, E1, I1, Z1]
+  ): ZSink[R1, E1, I1, Z1] =
+    zipWithPar(that)((_, c) => c)
+
+  /**
+   * Runs both sinks in parallel on the input and combines the results into a Tuple.
+   */
+  final def zipParLeft[R1 <: R, E1 >: E, I1 <: I](
+    that: ZSink[R1, E1, I1, Any]
+  ): ZSink[R1, E1, I1, Z] =
+    zipWithPar(that)((b, _) => b)
+
+  /**
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
