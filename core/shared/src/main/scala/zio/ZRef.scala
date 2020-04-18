@@ -168,7 +168,7 @@ sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
 object ZRef extends Serializable {
 
-  private final case class Atomic[A](value: AtomicReference[A]) extends ZRef[Nothing, Nothing, A, A] { self =>
+  private final case class Atomic[A](value: AtomicReference[A]) extends Ref[A] { self =>
 
     def fold[EC, ED, C, D](
       ea: Nothing => EC,
@@ -439,7 +439,7 @@ object ZRef extends Serializable {
       }.absolve
   }
 
-  implicit class UnifiedSyntax[E, A](private val self: ERef[E, A]) extends AnyVal {
+  implicit class UnifiedSyntax[+E, A](private val self: ERef[E, A]) extends AnyVal {
 
     /**
      * Atomically writes the specified value to the `ZRef`, returning the value
@@ -583,4 +583,11 @@ object ZRef extends Serializable {
    */
   def make[A](a: A): UIO[Ref[A]] =
     UIO.effectTotal(Atomic(new AtomicReference(a)))
+
+  /**
+   * Creates a new `ZRef` with the specified value in the context of a
+   * `Managed.`
+   */
+  def makeManaged[A](a: A): UManaged[Ref[A]] =
+    make(a).toManaged_
 }

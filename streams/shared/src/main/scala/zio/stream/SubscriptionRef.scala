@@ -14,19 +14,23 @@
  * limitations under the License.
  */
 
-package zio
+package zio.stream
 
-object Ref extends Serializable {
+import zio.{ RefM, UIO }
+
+/**
+ * A `SubscriptionRef[A]` contains a `RefM[A]` and a `Stream` that will emit
+ * every change to the `RefM`.
+ */
+final class SubscriptionRef[A] private (val ref: RefM[A], val changes: Stream[Nothing, A])
+
+object SubscriptionRef {
 
   /**
-   * @see [[zio.ZRef.make]]
+   * Creates a new `SubscriptionRef` with the specified value.
    */
-  def make[A](a: A): UIO[Ref[A]] =
-    ZRef.make(a)
-
-  /**
-   * @see [[zio.ZRef.makeManaged]]
-   */
-  def makeManaged[A](a: A): UManaged[Ref[A]] =
-    ZRef.makeManaged(a)
+  def make[A](a: A): UIO[SubscriptionRef[A]] =
+    RefM.dequeueRef(a).map {
+      case (ref, queue) => new SubscriptionRef(ref, ZStream.fromQueue(queue))
+    }
 }

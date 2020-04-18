@@ -335,65 +335,6 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
       assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
-    },
-    testM("flatMap Non Empty") {
-      val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
-      check(smallChunks(intGen), fn) { (c_, f_) =>
-        val c: NonEmptyChunk[Int]        = c_ + 0
-        val f: Int => NonEmptyChunk[Int] = f_.andThen(_ + 0)
-
-        val in: NonEmptyChunk[Int] = c.flatMapNonEmpty(f)
-        val expected: Seq[Int]     = c.toList.flatMap(f.andThen(_.toList))
-
-        assert(in.toList)(equalTo(expected))
-      }
-    },
-    zio.test.test("nonEmptyChunk subtype preservation") {
-      //checks at compile time
-
-      def nonEmptyChunk: NonEmptyChunk[Int] = ???
-      def chunk: Chunk[Int]                 = ???
-      def x: Int                            = ???
-
-      def checkIsSubtypeOf[A](value: A*): Unit = ???
-
-      checkIsSubtypeOf[NonEmptyChunk[_]](
-        Chunk(nonEmptyChunk).flatten,
-        Chunk(x),
-        Chunk.concat(chunk, nonEmptyChunk),
-        Chunk.concat(nonEmptyChunk, chunk),
-        chunk + x,
-        Chunk.single(x),
-        Chunk.succeed(x),
-        nonEmptyChunk concatNonEmpty chunk,
-        chunk concatNonEmpty nonEmptyChunk,
-        nonEmptyChunk concatNonEmpty nonEmptyChunk,
-        nonEmptyChunk.flatMapNonEmpty(i => Chunk(i)),
-        nonEmptyChunk.mapNonEmpty(identity),
-        nonEmptyChunk.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
-        nonEmptyChunk.zipWithIndex,
-        nonEmptyChunk.zipWithIndexFrom(0)
-      )
-
-      checkIsSubtypeOf[ZIO[_, _, NonEmptyChunk[_]]](
-        nonEmptyChunk.mapM(x => ZIO.succeed(x)),
-        nonEmptyChunk.mapMPar(x => ZIO.succeed(x)),
-        nonEmptyChunk.mapAccumM("")((s, i) => ZIO.succeed(s + i -> i)).map(_._2)
-      )
-
-      assertCompletes
-      //checks at compile time
-    } @@ TestAspect.ignore,
-    zio.test.test("++ should work with subtyping") {
-
-      trait A
-      trait B extends A
-
-      val empty: Chunk[B] = Chunk.empty
-
-      val _: NonEmptyChunk[A] = empty concatNonEmpty Chunk(new A {})
-
-      assertCompletes
-    } @@ TestAspect.ignore
+    }
   )
 }

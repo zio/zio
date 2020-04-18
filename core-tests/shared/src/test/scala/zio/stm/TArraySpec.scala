@@ -15,9 +15,9 @@
  */
 package zio.stm
 
-import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
+import zio.{ Chunk, ZIOBaseSpec }
 
 object TArraySpec extends ZIOBaseSpec {
 
@@ -866,6 +866,12 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- TArray.make(1, 2, 3, 4).commit
           result <- tArray.toList.commit
         } yield assert(result)(equalTo(List(1, 2, 3, 4)))
+      },
+      testM("toChunk") {
+        for {
+          tArray <- TArray.make(1, 2, 3, 4).commit
+          result <- tArray.toChunk.commit
+        } yield assert(result)(equalTo(Chunk(1, 2, 3, 4)))
       }
     )
   )

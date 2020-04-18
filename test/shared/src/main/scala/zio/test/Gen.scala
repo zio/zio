@@ -328,7 +328,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of non-empty chunks.
    */
   def chunkOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, NonEmptyChunk[A]] =
-    listOf1(g).map { case h :: t => Chunk(h, t: _*) }
+    listOf1(g).map { case h :: t => NonEmptyChunk.fromIterable(h, t) }
 
   /**
    * A generator of chunks whose size falls within the specified bounds.
