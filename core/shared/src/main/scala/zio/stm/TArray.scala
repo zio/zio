@@ -28,8 +28,10 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Extracts value from ref in array.
    */
   def apply(index: Int): USTM[A] =
-    if (0 <= index && index < array.length) array(index).get
-    else STM.die(new ArrayIndexOutOfBoundsException(index))
+    if (0 <= index && index < array.length) 
+      array(index).get
+    else 
+      STM.die(new ArrayIndexOutOfBoundsException(index))
 
   /**
    * Finds the result of applying a partial function to the first value in its domain.
@@ -138,7 +140,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically folds using a transactional function.
    */
   def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
-    if (array.isEmpty) STM.succeedNow(acc)
+    if (array.isEmpty) 
+      STM.succeedNow(acc)
     else
       array.head.get.flatMap(a => op(acc, a).flatMap(acc2 => new TArray(array.tail).foldM(acc2)(op)))
 
@@ -305,8 +308,10 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Updates element in the array with given function.
    */
   def update(index: Int, fn: A => A): USTM[Unit] =
-    if (0 <= index && index < array.length) array(index).update(fn)
-    else STM.die(new ArrayIndexOutOfBoundsException(index))
+    if (0 <= index && index < array.length) 
+      array(index).update(fn)
+    else 
+      STM.die(new ArrayIndexOutOfBoundsException(index))
 
   /**
    * Atomically updates element in the array with given transactional effect.
