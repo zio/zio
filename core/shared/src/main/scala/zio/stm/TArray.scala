@@ -145,9 +145,9 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Atomically folds using a pure function.
    */
-  def fold[Z](acc: Z)(op: (Z, A) => Z): USTM[Z] =
+  def fold[Z](zero: Z)(op: (Z, A) => Z): USTM[Z] =
     new ZSTM((journal, _, _, _) => {
-      var res = acc
+      var res = zero
       var i   = 0
 
       while (i < array.length) {
@@ -162,11 +162,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Atomically folds using a transactional function.
    */
-  def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
-    if (array.isEmpty)
-      STM.succeedNow(acc)
-    else
-      array.head.get.flatMap(a => op(acc, a).flatMap(acc2 => new TArray(array.tail).foldM(acc2)(op)))
+  def foldM[E, Z](zero: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
+    toChunk.flatMap(_.foldLeft[STM[E, Z]](STM.succeedNow(zero))((tx, a) => tx.flatMap(op(_, a))))
 
   /**
    * Atomically evaluate the conjunction of a predicate across the members
