@@ -216,6 +216,44 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     }
 
   /**
+   * A named alias for `race`.
+   */
+  final def |[R1 <: R, E1 >: E, A0, I1 <: I, Z1 >: Z](
+    that: ZSink[R1, E1, I1, Z1]
+  ): ZSink[R1, E1, I1, Z1] =
+    self.race(that)
+
+  /**
+   * Runs both sinks in parallel on the input, , returning the result or the error from the
+   * one that finishes first.
+   */
+  final def race[R1 <: R, E1 >: E, A0, I1 <: I, Z1 >: Z](
+    that: ZSink[R1, E1, I1, Z1]
+  ): ZSink[R1, E1, I1, Z1] =
+    self.raceBoth(that).map(_.merge)
+
+  /**
+   * Runs both sinks in parallel on the input, returning the result or the error from the
+   * one that finishes first.
+   */
+  final def raceBoth[R1 <: R, E1 >: E, A0, I1 <: I, Z1](
+    that: ZSink[R1, E1, I1, Z1]
+  ): ZSink[R1, E1, I1, Either[Z, Z1]] =
+    ZSink(for {
+      p1 <- self.push
+      p2 <- that.push
+      push: Push[R1, E1, I1, Either[Z, Z1]] = { in =>
+        p1(in).raceWith(p2(in))(
+          (res1, fib2) =>
+            res1
+              .foldM(f => fib2.interrupt *> ZIO.halt(f.map(_.map(Left(_)))), _ => fib2.join.mapError(_.map(Right(_)))),
+          (res2, fib1) =>
+            res2.foldM(f => fib1.interrupt *> ZIO.halt(f.map(_.map(Right(_)))), _ => fib1.join.mapError(_.map(Left(_))))
+        )
+      }
+    } yield push)
+
+  /**
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
