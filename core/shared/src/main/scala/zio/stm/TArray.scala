@@ -244,10 +244,11 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * a transactional predicate.
    */
   def indexWhereM[E](p: A => STM[E, Boolean], from: Int): STM[E, Int] = {
-    val len = array.length
     def forIndex(i: Int): STM[E, Int] =
-      if (i >= len) STM.succeedNow(-1)
-      else apply(i).flatMap(a => p(a).flatMap(result => if (result) STM.succeedNow(i) else forIndex(i + 1)))
+      if (i < array.length)
+        array(i).get.flatMap(p).flatMap(ok => if (ok) STM.succeedNow(i) else forIndex(i + 1))
+      else
+        STM.succeedNow(-1)
 
     if (from >= 0) forIndex(from) else STM.succeedNow(-1)
   }
