@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio.Chunk
+import zio.stm.ZSTM.internal._
 
 /**
  * Wraps array of [[TRef]] and adds methods for convenience.
@@ -120,8 +121,18 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically folds using a pure function.
    */
   def fold[Z](acc: Z)(op: (Z, A) => Z): USTM[Z] =
-    if (array.isEmpty) STM.succeedNow(acc)
-    else array.head.get.flatMap(a => new TArray(array.tail).fold(op(acc, a))(op))
+    new ZSTM((journal, _, _, _) => {
+      var res = acc
+      var i   = 0
+
+      while (i < array.length) {
+        val value = array(i).unsafeGet(journal)
+        res = op(res, value)
+        i += 1
+      }
+
+      TExit.Succeed(res)
+    })
 
   /**
    * Atomically folds using a transactional function.
@@ -272,7 +283,17 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically updates all elements using a pure function.
    */
   def transform(f: A => A): USTM[Unit] =
-    array.foldLeft(STM.unit)((tx, ref) => ref.update(f) *> tx)
+    new ZSTM((journal, _, _, _) => {
+      var i = 0
+
+      while (i < array.length) {
+        val current = array(i).unsafeGet(journal)
+        array(i).unsafeSet(journal, f(current))
+        i += 1
+      }
+
+      TExit.Succeed(())
+    })
 
   /**
    * Atomically updates all elements using a transactional effect.
