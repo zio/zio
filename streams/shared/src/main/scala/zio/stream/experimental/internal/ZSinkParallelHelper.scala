@@ -85,12 +85,12 @@ object ZSinkParallelHelper {
                 if (state.left.isEmpty) {
                   if (state.right.isEmpty) {
                     p1(in).either.raceWith(p2(in).either)(
-                      (res1, fib2) =>
+                      (res1, fib2: Fiber[Nothing, Either[Either[E, Z2], Unit]]) =>
                         res1.foldM(
                           crash => fib2.interrupt *> ZIO.halt(crash),
                           ok => helper.applyLeftResult(state, ok, Some(fib2))
                         ),
-                      (res2, fib1) =>
+                      (res2, fib1: Fiber[Nothing, Either[Either[E, Z1], Unit]]) =>
                         res2.foldM(
                           crash => fib1.interrupt *> ZIO.halt(crash),
                           ok => helper.applyRightResult(state, ok, Some(fib1))
