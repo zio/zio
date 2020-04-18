@@ -273,7 +273,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Ensures that `f` is executed when this ZManaged is finalized, before
    * the existing finalizer.
    *
-   * For usecases that need access to the ZManaged's result, see [[ZManaged#onExitFirst]].
+   * For usecases that need access to the ZManaged's result, see [[ZManaged#ensuringBeforeRelease]].
    */
   def ensuringBeforeRelease_[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {

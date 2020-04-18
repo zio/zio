@@ -569,7 +569,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         managed.use(res => ZIO.succeed(assert(res)(isSome(equalTo(1)))))
       }
     ),
-    suite("onExitFirst")(
+    suite("ensuringBeforeRelease")(
       testM("Calls the cleanup") {
         for {
           finalizersRef <- Ref.make[List[String]](Nil)
