@@ -466,12 +466,11 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     }
 
   /**
-   * Effectfully maps the resource acquired by this value.
+   * Returns an effect whose success is mapped by the specified side effecting
+   * `f` function, translating any thrown exceptions into typed failed effects.
    */
-  def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
-    ZManaged[R1, E1, B] {
-      reserve.map(token => token.copy(acquire = token.acquire.flatMap(f)))
-    }
+  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): ZManaged[R, Throwable, B] =
+    foldM(e => ZManaged.fail(ev(e)), a => ZManaged.effect(f(a)))
 
   /**
    * Returns an effect whose failure is mapped by the specified `f` function.
@@ -484,6 +483,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZManaged[R, E1, A] =
     ZManaged(reserve.mapErrorCause(f).map(r => Reservation(r.acquire.mapErrorCause(f), r.release)))
+
+  /**
+   * Effectfully maps the resource acquired by this value.
+   */
+  def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+    ZManaged[R1, E1, B] {
+      reserve.map(token => token.copy(acquire = token.acquire.flatMap(f)))
+    }
 
   def memoize: ZManaged[Any, Nothing, ZManaged[R, E, A]] =
     ZManaged.finalizerRef(_ => UIO.unit).mapM { finalizers =>
@@ -1407,6 +1414,13 @@ object ZManaged {
    */
   def done[E, A](r: => Exit[E, A]): ZManaged[Any, E, A] =
     ZManaged.fromEffect(ZIO.done(r))
+
+  /**
+   * Lifts a synchronous side-effect into a `ZManaged[R, Throwable, A]`,
+   * translating any thrown exceptions into typed failed effects.
+   */
+  def effect[A](r: => A): ZManaged[Any, Throwable, A] =
+    ZManaged.fromEffect(ZIO.effect(r))
 
   /**
    * Lifts a by-name, pure value into a Managed.

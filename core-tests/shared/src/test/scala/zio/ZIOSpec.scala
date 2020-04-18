@@ -1016,6 +1016,16 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List(0, 1, 2, 3, 4)))
       }
     ),
+    suite("mapEffect")(
+      testM("returns an effect whose success is mapped by the specified side effecting function") {
+        val task = ZIO.succeed("123").mapEffect(_.toInt)
+        assertM(task)(equalTo(123))
+      },
+      testM("translates any thrown exceptions into typed failed effects") {
+        val task = ZIO.succeed("hello").mapEffect(_.toInt)
+        assertM(task.run)(fails(isSubtype[NumberFormatException](anything)))
+      }
+    ),
     suite("mapN")(
       testM("with Tuple2") {
         checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
