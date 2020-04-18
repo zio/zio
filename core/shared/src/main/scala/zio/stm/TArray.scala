@@ -163,7 +163,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically folds using a transactional function.
    */
   def foldM[E, Z](zero: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
-    toChunk.flatMap(_.foldLeft[STM[E, Z]](STM.succeedNow(zero))((tx, a) => tx.flatMap(op(_, a))))
+    toChunk.flatMap(STM.foldLeft(_)(zero)(op))
 
   /**
    * Atomically evaluate the conjunction of a predicate across the members
