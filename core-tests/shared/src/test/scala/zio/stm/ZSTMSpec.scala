@@ -1020,25 +1020,25 @@ object ZSTMSpec extends ZIOBaseSpec {
     suite("orElse")(
       testM("rollback left retry") {
         for {
-          tvar  <- TRef.makeCommit(0)
-          left  = tvar.update(_ + 100) *> STM.retry
-          right = tvar.update(_ + 200)
+          ref   <- TRef.makeCommit(0)
+          left  = ref.update(_ + 100) *> STM.retry
+          right = ref.update(_ + 200)
           _     <- (left orElse right).commit
-          v     <- tvar.get.commit
+          v     <- ref.get.commit
         } yield assert(v)(equalTo(200))
       },
       testM("rollback left failure") {
         for {
-          tvar  <- TRef.makeCommit(0)
-          left  = tvar.update(_ + 100) *> STM.fail("Uh oh!")
-          right = tvar.update(_ + 200)
+          ref   <- TRef.makeCommit(0)
+          left  = ref.update(_ + 100) *> STM.fail("Uh oh!")
+          right = ref.update(_ + 200)
           _     <- (left orElse right).commit
-          v     <- tvar.get.commit
+          v     <- ref.get.commit
         } yield assert(v)(equalTo(200))
       },
       testM("local reset, not global") {
         for {
-          ref <- TRef.make(0).commit
+          ref <- TRef.makeCommit(0)
           result <- STM.atomically(for {
                      _       <- ref.set(2)
                      newVal1 <- ref.get
