@@ -28,7 +28,7 @@ import scala.annotation.implicitNotFound
  * {{{
  * type Console = Has[ConsoleService]
  * }}}
- * 
+ *
  * Services parameterized on path dependent types are not supported.
  */
 final class Has[A] private (
