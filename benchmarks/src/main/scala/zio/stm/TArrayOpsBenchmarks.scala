@@ -53,11 +53,11 @@ class TArrayOpsBenchmarks {
     unsafeRun(array.foldM(0)((acc, e) => STM.succeedNow(acc + e)).commit)
 
   @Benchmark
-  def indexWhere(): Int = 
+  def indexWhere(): Int =
     unsafeRun(array.indexWhere(_ == size).commit)
 
   @Benchmark
-  def indexWhereM(): Int = 
+  def indexWhereM(): Int =
     unsafeRun(array.indexWhereM(a => STM.succeedNow(a == size)).commit)
 
   @Benchmark
