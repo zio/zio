@@ -277,26 +277,22 @@ abstract class ZSink[-R, +E, -I, +Z] private (
               val newState: ZIO[R1, Either[E1, Z2], State] = {
                 state match {
                   case BothRunning => {
-                    p1(in).either.zipPar(p2(in).either).flatMap {
-                      case (l, r) => {
-                        l match {
-                          case Left(Left(e)) => ZIO.fail(Left(e))
-                          case Left(Right(z)) => {
-                            r match {
-                              case Left(Left(e))   => ZIO.fail(Left(e))
-                              case Left(Right(z1)) => ZIO.fail(Right(f(z, z1)))
-                              case Right(_)        => ZIO.succeedNow(LeftDone(z))
-                            }
-                          }
-                          case Right(_) =>
-                            r match {
-                              case Left(Left(e))   => ZIO.fail(Left(e))
-                              case Left(Right(z1)) => ZIO.succeedNow(RightDone(z1))
-                              case Right(_)        => ZIO.succeedNow(BothRunning)
-                            }
-                        }
-                      }
+                    val l = p1(in).foldM({
+                      case Left(e)  => ZIO.fail(Left(e))
+                      case Right(z) => ZIO.succeedNow(Some(z))
+                    }, _ => ZIO.succeedNow(None))
+                    val r = p2(in).foldM({
+                      case Left(e)  => ZIO.fail(Left(e))
+                      case Right(z) => ZIO.succeedNow(Some(z))
+                    }, _ => ZIO.succeedNow(None))
+
+                    l.zipPar(r).flatMap {
+                      case (Some(z), Some(z1)) => ZIO.fail(Right(f(z, z1)))
+                      case (Some(z), None)     => ZIO.succeedNow(LeftDone(z))
+                      case (None, Some(z1))    => ZIO.succeedNow(RightDone(z1))
+                      case (None, None)        => ZIO.succeedNow(BothRunning)
                     }
+
                   }
                   case LeftDone(z) => {
                     p2(in)
