@@ -262,33 +262,9 @@ abstract class ZSink[-R, +E, -I, +Z] private (
   )(f: (Z, Z1) => Z2): ZSink[R1, E1, I1, Z2] = {
 
     sealed trait State
-    case object BothRunning extends State
-    case class LeftDone(z: Z) extends State
+    case object BothRunning     extends State
+    case class LeftDone(z: Z)   extends State
     case class RightDone(z: Z1) extends State
-
-    def applyLeft(s: State, res: Either[E1, Z]): ZIO[R1, Either[E1, Z2], State] =
-          res match {
-            case Left(e) => ZIO.fail(Left(e))
-            case Right(z) =>
-              s match {
-                case BothRunning => ZIO.succeedNow(LeftDone(z))
-                case RightDone(z1)     => ZIO.fail(Right(f(z, z1)))
-                case LeftDone(_) => ZIO.dieMessage("should not happen")
-              }
-          }
-
-    def applyRight(s: State, res: Either[E1, Z1]): ZIO[R1, Either[E1, Z2], State] =
-      res match {
-        case Left(e) => ZIO.fail(Left(e))
-        case Right(z1) =>
-          s match {
-            case BothRunning => ZIO.succeedNow(RightDone(z1))
-            case LeftDone(z)     => ZIO.fail(Right(f(z, z1)))
-            case RightDone(_) => ZIO.dieMessage("should not happen")
-          }
-      }
-
-    val done: Either[Either[Nothing,Nothing],Unit] = Right(())
 
     ZSink(for {
       ref <- ZRef.make[State](BothRunning).toManaged_
@@ -296,24 +272,47 @@ abstract class ZSink[-R, +E, -I, +Z] private (
       p2  <- that.push
       push: Push[R1, E1, I1, Z2] = {
         in =>
-          ref.get.flatMap { state =>
-            val newState: ZIO[R1, Either[E1, Z2], State] = {
-              val updates = state match {
-                case BothRunning => p1(in).either.zipPar(p2(in).either)
-                case LeftDone(_) => p2(in).either.map(e => (done, e))
-                case RightDone(_) => p1(in).either.map(e => (e, done))
-              }
-
-              updates.flatMap{
-                case (l, r) => {
-                  l.fold(applyLeft(state,_), _ => ZIO.succeedNow(state)).flatMap(s1 => {
-                    r.fold(applyRight(s1,_), _ => ZIO.succeedNow(s1))
-                  })
+          ref.get.flatMap {
+            state =>
+              val newState: ZIO[R1, Either[E1, Z2], State] = {
+                state match {
+                  case BothRunning => {
+                    p1(in).either.zipPar(p2(in).either).flatMap {
+                      case (l, r) => {
+                        l match {
+                          case Left(Left(e)) => ZIO.fail(Left(e))
+                          case Left(Right(z)) => {
+                            r match {
+                              case Left(Left(e))   => ZIO.fail(Left(e))
+                              case Left(Right(z1)) => ZIO.fail(Right(f(z, z1)))
+                              case Right(_)        => ZIO.succeedNow(LeftDone(z))
+                            }
+                          }
+                          case Right(_) =>
+                            r match {
+                              case Left(Left(e))   => ZIO.fail(Left(e))
+                              case Left(Right(z1)) => ZIO.succeedNow(RightDone(z1))
+                              case Right(_)        => ZIO.succeedNow(BothRunning)
+                            }
+                        }
+                      }
+                    }
+                  }
+                  case LeftDone(z) => {
+                    p2(in).foldM({
+                      case Left(e)   => ZIO.fail(Left(e))
+                      case Right(z1) => ZIO.fail(Right(f(z, z1)))
+                    }, _ => ZIO.succeedNow(state))
+                  }
+                  case RightDone(z1) => {
+                    p1(in).foldM({
+                      case Left(e)  => ZIO.fail(Left(e))
+                      case Right(z) => ZIO.fail(Right(f(z, z1)))
+                    }, _ => ZIO.succeedNow(state))
+                  }
                 }
               }
-
-            }
-            newState.flatMap(ns => if (ns eq state) ZIO.unit else ref.set(ns))
+              newState.flatMap(ns => if (ns eq state) ZIO.unit else ref.set(ns))
           }
       }
     } yield push)
