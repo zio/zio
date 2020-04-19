@@ -2,9 +2,8 @@ package zio.stream.experimental
 
 import scala.util.Random
 
-import SinkUtils.{ findSink, sinkRaceLaw }
-
 import zio.ZIOBaseSpec
+import zio.stream.experimental.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isTrue, succeeds }
 import zio.test._
@@ -81,8 +80,21 @@ object ZSinkSpec extends ZIOBaseSpec {
           val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
           sinkRaceLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
         }
-
-      }
+      },
+      suite("zipWithPar")(testM("coherence") {
+        checkM(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
+          val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
+          SinkUtils.zipParLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
+        }
+      }),
+      suite("zipRight (*>)")(
+        testM("happy path") {
+          assertM(ZStream(1, 2, 3).run(ZSink.head.zipParRight(ZSink.succeed("Hello"))))(equalTo(("Hello")))
+        }
+      ),
+      suite("zipWith")(testM("happy path") {
+        assertM(ZStream(1, 2, 3).run(ZSink.head.zipParLeft(ZSink.succeed("Hello"))))(equalTo(Some(1)))
+      })
     )
   )
 }

@@ -254,6 +254,112 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     } yield push)
 
   /**
+   * Runs both sinks in parallel on the input and combines the results
+   * using the provided function.
+   */
+  final def zipWithPar[R1 <: R, E1 >: E, I1 <: I, Z1, Z2](
+    that: ZSink[R1, E1, I1, Z1]
+  )(f: (Z, Z1) => Z2): ZSink[R1, E1, I1, Z2] = {
+
+    sealed trait State
+    case object BothRunning     extends State
+    case class LeftDone(z: Z)   extends State
+    case class RightDone(z: Z1) extends State
+
+    ZSink(for {
+      ref <- ZRef.make[State](BothRunning).toManaged_
+      p1  <- self.push
+      p2  <- that.push
+      push: Push[R1, E1, I1, Z2] = {
+        in =>
+          ref.get.flatMap {
+            state =>
+              val newState: ZIO[R1, Either[E1, Z2], State] = {
+                state match {
+                  case BothRunning => {
+                    p1(in).either.zipPar(p2(in).either).flatMap {
+                      case (l, r) => {
+                        l match {
+                          case Left(Left(e)) => ZIO.fail(Left(e))
+                          case Left(Right(z)) => {
+                            r match {
+                              case Left(Left(e))   => ZIO.fail(Left(e))
+                              case Left(Right(z1)) => ZIO.fail(Right(f(z, z1)))
+                              case Right(_)        => ZIO.succeedNow(LeftDone(z))
+                            }
+                          }
+                          case Right(_) =>
+                            r match {
+                              case Left(Left(e))   => ZIO.fail(Left(e))
+                              case Left(Right(z1)) => ZIO.succeedNow(RightDone(z1))
+                              case Right(_)        => ZIO.succeedNow(BothRunning)
+                            }
+                        }
+                      }
+                    }
+                  }
+                  case LeftDone(z) => {
+                    p2(in).foldM({
+                      case Left(e)   => ZIO.fail(Left(e))
+                      case Right(z1) => ZIO.fail(Right(f(z, z1)))
+                    }, _ => ZIO.succeedNow(state))
+                  }
+                  case RightDone(z1) => {
+                    p1(in).foldM({
+                      case Left(e)  => ZIO.fail(Left(e))
+                      case Right(z) => ZIO.fail(Right(f(z, z1)))
+                    }, _ => ZIO.succeedNow(state))
+                  }
+                }
+              }
+              newState.flatMap(ns => if (ns eq state) ZIO.unit else ref.set(ns))
+          }
+      }
+    } yield push)
+  }
+
+  /**
+   * Runs both sinks in parallel on the input and combines the results into a Tuple.
+   */
+  final def zipPar[R1 <: R, E1 >: E, I1 <: I, Z1](
+    that: ZSink[R1, E1, I1, Z1]
+  ): ZSink[R1, E1, I1, (Z, Z1)] =
+    zipWithPar(that)((_, _))
+
+  /**
+   * Runs both sinks in parallel on the input and combines the results into a Tuple.
+   */
+  final def zipParRight[R1 <: R, E1 >: E, I1 <: I, Z1](
+    that: ZSink[R1, E1, I1, Z1]
+  ): ZSink[R1, E1, I1, Z1] =
+    zipWithPar(that)((_, c) => c)
+
+  /**
+   * Runs both sinks in parallel on the input and combines the results into a Tuple.
+   */
+  final def zipParLeft[R1 <: R, E1 >: E, I1 <: I](
+    that: ZSink[R1, E1, I1, Any]
+  ): ZSink[R1, E1, I1, Z] =
+    zipWithPar(that)((b, _) => b)
+
+  /**
+   * Operator alias for `zipPar`.
+   */
+  final def <&>[R1 <: R, E1 >: E, I1 <: I, Z1](that: ZSink[R1, E1, I1, Z1]): ZSink[R1, E1, I1, (Z, Z1)] =
+    self.zipPar(that)
+
+  /**
+   * Operator alias for `zipParRight`.
+   */
+  final def &>[R1 <: R, E1 >: E, I1 <: I, Z1](that: ZSink[R1, E1, I1, Z1]): ZSink[R1, E1, I1, Z1] =
+    self.zipParRight(that)
+
+  /**
+   * Operator alias for `zipParLeft`.
+   */
+  final def <&[R1 <: R, E1 >: E, I1 <: I](that: ZSink[R1, E1, I1, Any]): ZSink[R1, E1, I1, Z] = self.zipParLeft(that)
+
+  /**
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
