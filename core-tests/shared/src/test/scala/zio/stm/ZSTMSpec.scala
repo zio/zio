@@ -970,20 +970,6 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield assert(bs)(equalTo(as.toList))
       }
     ),
-    testM(
-      "Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed"
-    ) {
-      implicit val canFail = CanFail
-      for {
-        rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).commit
-        leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
-        leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).commit
-        failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).commit.either
-      } yield assert(rightV)(isRight(equalTo(42))) &&
-        assert(leftV1)(isLeft(equalTo(1))) &&
-        assert(leftV2)(isLeft(equalTo(2))) &&
-        assert(failedV)(isLeft(equalTo(-2)))
-    },
     suite("Failure must")(
       testM("rollback full transaction") {
         for {
@@ -1054,23 +1040,30 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield assert(msg)(equalTo("left"))
       }
     ) @@ zioTag(errors),
+    testM("orElseEither returns result of the first successful transaction wrapped in either") {
+      for {
+        rv  <- STM.retry.orElseEither(STM.succeed(42)).commit
+        lv1 <- STM.succeed(1).orElseEither(STM.succeed("No!")).commit
+        lv2 <- STM.succeed(2).orElseEither(STM.retry).commit
+      } yield assert(rv)(isRight(equalTo(42))) && assert(lv1)(isLeft(equalTo(1))) && assert(lv2)(isLeft(equalTo(2)))
+    },
     suite("orElseFail")(
       testM("tries this effect first") {
-        val transaction = ZSTM.succeed(true).orElseFail(false)
+        val transaction = STM.succeed(true).orElseFail(false)
         assertM(transaction.commit)(isTrue)
       },
-      testM("if it fails, fails with the specified error") {
-        val transaction = ZSTM.fail(false).orElseFail(true).fold(identity, _ => false)
-        assertM(transaction.commit)(isTrue)
+      testM("fails retried transaction with the specified error") {
+        val transaction = STM.retry.orElseFail(true).either
+        assertM(transaction.commit)(isLeft(equalTo(true)))
       }
     ) @@ zioTag(errors),
     suite("orElseSucceed")(
       testM("tries this effect first") {
-        val transaction = ZSTM.succeed(true).orElseSucceed(false)
+        val transaction = STM.succeed(true).orElseSucceed(false)
         assertM(transaction.commit)(isTrue)
       },
-      testM("if it succeeds, succeeds with the specified value") {
-        val transaction = ZSTM.fail(false).orElseSucceed(true)
+      testM("if it is retried, succeeds with the specified value") {
+        val transaction = STM.retry.orElseSucceed(true)
         assertM(transaction.commit)(isTrue)
       }
     ),
@@ -1255,19 +1248,14 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(chain(10000).run)(fails(equalTo(10000)))
       } @@ zioTag(errors),
       testM("long orElse chains") {
-        def chain(depth: Int): ZIO[Any, Int, Nothing] = {
-          @annotation.tailrec
-          def loop(n: Int, curr: Int, acc: STM[Int, Nothing]): ZIO[Any, Int, Nothing] =
-            if (n <= 0) acc.commit
-            else {
-              val inc = curr + 1
-              loop(n - 1, inc, acc.orElse(STM.fail(inc)))
-            }
+        val tx =
+          for {
+            ref <- TRef.make(0)
+            _   <- STM.loop_(10000)(_ > 0, _ - 1)(_ => STM.retry <> ref.getAndUpdate(_ + 1))
+            res <- ref.get
+          } yield res
 
-          loop(depth, 0, STM.fail(0))
-        }
-
-        assertM(chain(10000).run)(fails(equalTo(10000)))
+        assertM(tx.commit)(equalTo(10000))
       } @@ zioTag(errors),
       testM("long provide chains") {
         assertM(chain(10000)(_.provide(0)))(equalTo(0))
