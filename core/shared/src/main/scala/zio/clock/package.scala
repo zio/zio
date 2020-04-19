@@ -16,7 +16,7 @@
 
 package zio
 
-import java.time.{ DateTimeException, Instant, OffsetDateTime, ZoneId }
+import java.time.{ DateTimeException, Instant, LocalDate, LocalTime, OffsetDateTime, ZoneId, ZonedDateTime }
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
@@ -78,6 +78,30 @@ package object clock {
    */
   val currentDateTime: ZIO[Clock, DateTimeException, OffsetDateTime] =
     ZIO.accessM(_.get.currentDateTime)
+
+  /**
+   * Get the current instant
+   */
+  val currentInstant: ZIO[Clock, DateTimeException, Instant] =
+    currentDateTime.map(_.toInstant)
+
+  /**
+   * Get the current local date
+   */
+  val currentLocalDate: ZIO[Clock, DateTimeException, LocalDate] =
+    currentDateTime.map(_.toLocalDate)
+
+  /**
+   * Get the current local time
+   */
+  val currentLocalTime: ZIO[Clock, DateTimeException, LocalTime] =
+    currentDateTime.map(_.toLocalTime)
+
+  /**
+   * Get the current zoned date time
+   */
+  val currentZonedDateTime: ZIO[Clock, DateTimeException, ZonedDateTime] =
+    currentDateTime.map(_.toZonedDateTime)
 
   /**
    * Returns the system nano time, which is not relative to any date.
