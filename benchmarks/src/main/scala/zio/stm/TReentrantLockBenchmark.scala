@@ -63,7 +63,7 @@ class TReentrantLockBenchmark {
   @GroupThreads(20)
   def zioLockWriteGroup3(): Unit = zioLockWrite()
 
-  @Benchmark
+  /*@Benchmark
   @Group("StampedLockBasic")
   @GroupThreads(1)
   def javaLockReadGroup(): Unit = stampedLockRead()
@@ -141,7 +141,7 @@ class TReentrantLockBenchmark {
   @Benchmark
   @Group("ReentrantLockHighContention")
   @GroupThreads(20)
-  def reentrantLockWriteGroup3(): Unit = reentrantLockWrite()
+  def reentrantLockWriteGroup3(): Unit = reentrantLockWrite()*/
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def zioLockRead(): Unit = {
