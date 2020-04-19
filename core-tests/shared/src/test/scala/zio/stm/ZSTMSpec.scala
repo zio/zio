@@ -1,8 +1,6 @@
 package zio
 package stm
 
-import scala.util.Try
-
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
@@ -1027,41 +1025,29 @@ object ZSTMSpec extends ZIOBaseSpec {
           v     <- ref.get.commit
         } yield assert(v)(equalTo(200))
       },
-      testM("rollback left failure") {
+      testM("fail if left fails") {
         for {
           ref   <- TRef.makeCommit(0)
-          left  = ref.update(_ + 100) *> STM.fail("Uh oh!")
+          left  = ref.update(_ + 100) *> STM.fail("boom")
           right = ref.update(_ + 200)
-          _     <- (left orElse right).commit
-          v     <- ref.get.commit
-        } yield assert(v)(equalTo(200))
+          res   <- (left orElse right).commit.run
+        } yield assert(res)(fails(equalTo("boom")))
       },
-      testM("local reset, not global") {
-        for {
-          ref <- TRef.makeCommit(0)
-          result <- STM.atomically(for {
-                     _       <- ref.set(2)
-                     newVal1 <- ref.get
-                     _       <- STM.fromTry(Try(throw new RuntimeException)).orElse(STM.unit)
-                     newVal2 <- ref.get
-                   } yield (newVal1, newVal2))
-        } yield assert(result)(equalTo(2 -> 2))
-      },
-      testM("retry left after alternative retries") {
-        for {
-          ref   <- TRef.makeCommit(0)
-          left  = ref.get.flatMap(v => STM.check(v > 50).as("left"))
-          right = STM.retry
-          f     <- ref.update(_ + 10).commit.repeat(Schedule.recurs(10)).fork
-          msg   <- (left orElse right).commit
-          _     <- f.interrupt
-        } yield assert(msg)(equalTo("left"))
-      },
-      testM("retry left after alternative fails") {
+      testM("fail if right fails") {
         for {
           ref   <- TRef.makeCommit(0)
           left  = ref.get.flatMap(v => STM.check(v > 30).as("left"))
           right = STM.fail("boom")
+          f     <- ref.update(_ + 10).commit.repeat(Schedule.recurs(10)).fork
+          res   <- (left orElse right).commit.run
+          _     <- f.interrupt
+        } yield assert(res)(fails(equalTo("boom")))
+      },
+      testM("retry left after right retries") {
+        for {
+          ref   <- TRef.makeCommit(0)
+          left  = ref.get.flatMap(v => STM.check(v > 50).as("left"))
+          right = STM.retry
           f     <- ref.update(_ + 10).commit.repeat(Schedule.recurs(10)).fork
           msg   <- (left orElse right).commit
           _     <- f.interrupt
