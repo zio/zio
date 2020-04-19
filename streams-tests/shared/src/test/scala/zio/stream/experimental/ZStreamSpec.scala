@@ -1216,6 +1216,22 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
         }
       ),
+      testM("peel") {
+        val sink: ZSink[Any, Nothing, Int, Chunk[Int]] = ZSink {
+          ZManaged.succeed {
+            case Some(inputs) => ZIO.fail(Right(inputs))
+            case None         => ZIO.fail(Right(Chunk.empty))
+          }
+        }
+
+        ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6)).peel(sink).use {
+          case (chunk, rest) =>
+            rest.runCollect.map { rest =>
+              assert(chunk)(equalTo(Chunk(1, 2, 3))) &&
+              assert(rest)(equalTo(List(4, 5, 6)))
+            }
+        }
+      },
       testM("orElse") {
         val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Boom")
         val s2 = ZStream(4, 5, 6)

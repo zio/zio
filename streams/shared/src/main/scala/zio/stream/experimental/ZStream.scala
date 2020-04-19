@@ -1682,6 +1682,19 @@ abstract class ZStream[-R, +E, +O](
       }
 
   /**
+   * Peels off enough material from the stream to construct an `R` using the
+   * provided [[ZSink]] and then returns both the `R` and the rest of the
+   * [[ZStream]] in a managed resource. Like all [[ZManaged]] values, the provided
+   * stream is valid only within the scope of [[ZManaged]].
+   */
+  def peel[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, O, Z]): ZManaged[R1, E1, (Z, ZStream[R1, E1, O])] =
+    self.process.flatMap { pull =>
+      val stream = ZStream.repeatEffectChunkOption(pull)
+
+      stream.run(sink).toManaged_.map((_, stream))
+    }
+
+  /**
    * Provides the stream with its required environment, which eliminates
    * its dependency on `R`.
    */
