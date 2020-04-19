@@ -299,16 +299,20 @@ abstract class ZSink[-R, +E, -I, +Z] private (
                     }
                   }
                   case LeftDone(z) => {
-                    p2(in).foldM({
-                      case Left(e)   => ZIO.fail(Left(e))
-                      case Right(z1) => ZIO.fail(Right(f(z, z1)))
-                    }, _ => ZIO.succeedNow(state))
+                    p2(in)
+                      .catchAll({
+                        case Left(e)   => ZIO.fail(Left(e))
+                        case Right(z1) => ZIO.fail(Right(f(z, z1)))
+                      })
+                      .as(state)
                   }
                   case RightDone(z1) => {
-                    p1(in).foldM({
-                      case Left(e)  => ZIO.fail(Left(e))
-                      case Right(z) => ZIO.fail(Right(f(z, z1)))
-                    }, _ => ZIO.succeedNow(state))
+                    p1(in)
+                      .catchAll({
+                        case Left(e)  => ZIO.fail(Left(e))
+                        case Right(z) => ZIO.fail(Right(f(z, z1)))
+                      })
+                      .as(state)
                   }
                 }
               }
