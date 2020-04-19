@@ -261,55 +261,57 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     that: ZSink[R1, E1, I1, Z1]
   )(f: (Z, Z1) => Z2): ZSink[R1, E1, I1, Z2] = {
 
-    type State = (Option[Z], Option[Z1])
+    sealed trait State
+    case object BothRunning extends State
+    case class LeftDone(z: Z) extends State
+    case class RightDone(z: Z1) extends State
 
-    def applyLeft(s: State, res: Either[Either[E, Z], Unit]): ZIO[R1, Either[E1, Z2], State] =
-      res match {
-        case Left(v) =>
-          v match {
+    def applyLeft(s: State, res: Either[E1, Z]): ZIO[R1, Either[E1, Z2], State] =
+          res match {
             case Left(e) => ZIO.fail(Left(e))
             case Right(z) =>
-              s._2 match {
-                case Some(z1) => ZIO.fail(Right(f(z, z1)))
-                case None     => ZIO.succeedNow(s.copy(_1 = Some(z)))
+              s match {
+                case BothRunning => ZIO.succeedNow(LeftDone(z))
+                case RightDone(z1)     => ZIO.fail(Right(f(z, z1)))
+                case LeftDone(_) => ZIO.dieMessage("should not happen")
               }
           }
-        case Right(_) => ZIO.succeedNow(s)
+
+    def applyRight(s: State, res: Either[E1, Z1]): ZIO[R1, Either[E1, Z2], State] =
+      res match {
+        case Left(e) => ZIO.fail(Left(e))
+        case Right(z1) =>
+          s match {
+            case BothRunning => ZIO.succeedNow(RightDone(z1))
+            case LeftDone(z)     => ZIO.fail(Right(f(z, z1)))
+            case RightDone(_) => ZIO.dieMessage("should not happen")
+          }
       }
 
-    def applyRight(s: State, res: Either[Either[E1, Z1], Unit]): ZIO[R1, Either[E1, Z2], State] =
-      res match {
-        case Left(v) =>
-          v match {
-            case Left(e) => ZIO.fail(Left(e))
-            case Right(z1) =>
-              s._1 match {
-                case Some(z) => ZIO.fail(Right(f(z, z1)))
-                case None    => ZIO.succeedNow(s.copy(_2 = Some(z1)))
-              }
-          }
-        case Right(_) => ZIO.succeedNow(s)
-      }
+    val done: Either[Either[Nothing,Nothing],Unit] = Right(())
 
     ZSink(for {
-      ref <- ZRef.make[State]((None, None)).toManaged_
+      ref <- ZRef.make[State](BothRunning).toManaged_
       p1  <- self.push
       p2  <- that.push
       push: Push[R1, E1, I1, Z2] = {
         in =>
           ref.get.flatMap { state =>
             val newState: ZIO[R1, Either[E1, Z2], State] = {
-              if (state._1.isDefined) {
-                p2(in).either.flatMap(applyRight(state, _))
-              } else {
-                if (state._2.isDefined) {
-                  p1(in).either.flatMap(applyLeft(state, _))
-                } else {
-                  p1(in).either.zipPar(p2(in).either).flatMap {
-                    case (l, r) => applyLeft(state, l).flatMap(s1 => applyRight(s1, r))
-                  }
+              val updates = state match {
+                case BothRunning => p1(in).either.zipPar(p2(in).either)
+                case LeftDone(_) => p2(in).either.map(e => (done, e))
+                case RightDone(_) => p1(in).either.map(e => (e, done))
+              }
+
+              updates.flatMap{
+                case (l, r) => {
+                  l.fold(applyLeft(state,_), _ => ZIO.succeedNow(state)).flatMap(s1 => {
+                    r.fold(applyRight(s1,_), _ => ZIO.succeedNow(s1))
+                  })
                 }
               }
+
             }
             newState.flatMap(ns => if (ns eq state) ZIO.unit else ref.set(ns))
           }
