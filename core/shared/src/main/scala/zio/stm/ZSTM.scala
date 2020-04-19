@@ -552,7 +552,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
       val continueM: TExit[E, A] => STM[E1, A1] = {
         case TExit.Fail(e)    => ZSTM.fail(e)
         case TExit.Succeed(a) => ZSTM.succeedNow(a)
-        case TExit.Retry      => { reset(); that.provide(r) }
+        case TExit.Retry      => { reset(); that.orElse(self).provide(r) }
       }
 
       val framesCount = stackSize.incrementAndGet()
