@@ -1022,7 +1022,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("fail if right fails") {
         for {
           ref   <- TRef.makeCommit(0)
-          left  = ref.get.flatMap(v => STM.check(v > 30).as("left"))
+          left  = ref.get.flatMap(v => STM.check(v > 1000).as("left"))
           right = STM.fail("boom")
           f     <- ref.update(_ + 10).commit.repeat(Schedule.recurs(10)).fork
           res   <- (left orElse right).commit.run
