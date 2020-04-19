@@ -27,17 +27,17 @@ object DeriveGenSpec extends DefaultRunnableSpec {
 
   sealed trait NonEmptyList[+A] { self =>
     def foldLeft[S](s: S)(f: (S, A) => S): S =
-     self match {
-       case NonEmptyList.Cons(h, t) => t.foldLeft(f(s, h))(f)
-       case NonEmptyList.Single(h)  => f(s, h)
-     }
+      self match {
+        case NonEmptyList.Cons(h, t) => t.foldLeft(f(s, h))(f)
+        case NonEmptyList.Single(h)  => f(s, h)
+      }
     def length: Int =
-     foldLeft(0)((s, _) => s + 1)
+      foldLeft(0)((s, _) => s + 1)
   }
 
   object NonEmptyList {
     final case class Cons[+A](head: A, tail: NonEmptyList[A]) extends NonEmptyList[A]
-    final case class Single[+A](value: A) extends NonEmptyList[A]
+    final case class Single[+A](value: A)                     extends NonEmptyList[A]
   }
 
   def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Random with Sized, NonEmptyList[A]] =
@@ -54,9 +54,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
         checkSample(genColor)(equalTo(3), _.distinct.length)
       },
       testM("recursive types can be derived") {
-        check(genNonEmptyList[Int]) { as =>
-          assert(as.length)(isGreaterThan(0))
-        }
+        check(genNonEmptyList[Int])(as => assert(as.length)(isGreaterThan(0)))
       }
     ),
     suite("instances")(
@@ -87,7 +85,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
     suite("shrinking")(
       testM("derived generators shrink to smallest value") {
         checkShrink(genPerson)(Person("", 0))
-      },
+      }
     )
   )
 }

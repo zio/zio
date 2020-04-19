@@ -263,11 +263,8 @@ object FailureRenderer {
   import FailureMessage._
 
   def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Message =
-    failureDetails match {
-      case FailureDetails(assertionFailureDetails, genFailureDetails) =>
-        renderGenFailureDetails(genFailureDetails, offset) ++
-          renderAssertionFailureDetails(assertionFailureDetails, offset)
-    }
+    renderGenFailureDetails(failureDetails.gen, offset) ++
+      renderAssertionFailureDetails(failureDetails.assertion, offset)
 
   private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
     def loop(failureDetails: List[AssertionValue], rendered: Message): Message =
@@ -303,14 +300,14 @@ object FailureRenderer {
     withOffset(offset + tabSize) {
       blue(whole.value.toString) +
         renderSatisfied(whole) ++
-        highlight(cyan(whole.assertion.toString), fragment.assertion.toString)
+        highlight(cyan(whole.printAssertion), fragment.printAssertion)
     }
 
   private def renderFragment(fragment: AssertionValue, offset: Int): Line =
     withOffset(offset + tabSize) {
       blue(fragment.value.toString) +
         renderSatisfied(fragment) +
-        cyan(fragment.assertion.toString)
+        cyan(fragment.printAssertion)
     }
 
   private def highlight(fragment: Fragment, substring: String, colorCode: String = AnsiColor.YELLOW): Line = {
@@ -325,7 +322,7 @@ object FailureRenderer {
   }
 
   private def renderSatisfied(fragment: AssertionValue): Fragment =
-    if (fragment.assertion.test(fragment.value)) Fragment(" satisfied ")
+    if (fragment.result.isSuccess) Fragment(" satisfied ")
     else Fragment(" did not satisfy ")
 
   def renderCause(cause: Cause[Any], offset: Int): Message =
