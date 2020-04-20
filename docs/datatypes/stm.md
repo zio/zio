@@ -120,4 +120,4 @@ def transferMoneyFailFast(from: TRef[Long], to: TRef[Long], amount: Long): STM[S
     transferMoneyNoMatterWhat(from, to, amount) orTry STM.fail("Sender does not have enough of money")
 ```
 
-This will cause the transfer to fail immediately if the sender does not have money because of the semantics of `orElse`.
+This will cause the transfer to fail immediately if the sender does not have money because of the semantics of `orTry`.
