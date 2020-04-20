@@ -17,6 +17,7 @@
 package zio
 
 import java.nio._
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
@@ -36,7 +37,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Appends an element to the chunk
    */
-  final def +[A1 >: A](a: A1): Chunk[A1] =
+  def +[A1 >: A](a: A1): Chunk[A1] =
     if (self.length == 0) Chunk.single(a)
     else Chunk.Concat(self, Chunk.single(a))
 
@@ -864,6 +865,7 @@ object Chunk {
    */
   private[zio] def classTagOf[A](chunk: Chunk[A]): ClassTag[A] =
     chunk match {
+      case x: Add[A]         => x.classTag
       case x: Arr[A]         => x.classTag
       case x: Concat[A]      => x.classTag
       case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
@@ -873,6 +875,36 @@ object Chunk {
       case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
+  private val bufferSize: Int =
+    100
+
+  private final case class Add[A](start: Chunk[A], buffer: Array[AnyRef], bufferUsed: Int, chain: AtomicInteger)
+      extends Chunk[A] {
+
+    implicit val classTag: ClassTag[A] = classTagOf(start)
+
+    val length: Int =
+      start.length + bufferUsed
+
+    override def +[A1 >: A](a1: A1): Chunk[A1] =
+      if (bufferUsed < buffer.length && chain.compareAndSet(bufferUsed, bufferUsed + 1)) {
+        buffer(bufferUsed) = a1.asInstanceOf[AnyRef]
+        Add(start, buffer, bufferUsed + 1, chain)
+      } else {
+        val buffer = Array.ofDim[AnyRef](bufferSize)
+        buffer(0) = a1.asInstanceOf[AnyRef]
+        Add(start, buffer, bufferUsed, chain)
+      }
+
+    def apply(n: Int): A =
+      if (n < start.length) start(n) else buffer(n - start.length).asInstanceOf[A]
+
+    protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
+      start.toArray(n, dest)
+      buffer.asInstanceOf[Array[A]].copyToArray(dest, n + start.length, bufferUsed)
+    }
+  }
+
   private final case class Arr[A](private val array: Array[A]) extends Chunk[A] with Serializable { self =>
 
     implicit val classTag: ClassTag[A] =
@@ -880,6 +912,12 @@ object Chunk {
 
     override val length: Int =
       array.length
+
+    override def +[A1 >: A](a1: A1): Chunk[A] = {
+      val buffer = Array.ofDim[AnyRef](bufferSize)
+      buffer(0) = a1.asInstanceOf[AnyRef]
+      Chunk.Add(self, buffer, 1, new AtomicInteger(1))
+    }
 
     override def apply(n: Int): A =
       array(n)
@@ -1138,6 +1176,9 @@ object Chunk {
 
     override val length: Int =
       l.length + r.length
+
+    override def +[A1 >: A](a1: A1): Chunk[A1] =
+      Concat(l, r + a1)
 
     override def apply(n: Int): A =
       if (n < l.length) l(n) else r(n - l.length)
