@@ -641,7 +641,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Tries this effect first, and if it fails or retries, succeeds with the specified
    * value.
    */
-  def orElseSucceed[A1 >: A](a1: => A1): ZSTM[R, E, A1] =
+  def orElseSucceed[A1 >: A](a1: => A1): URSTM[R, A1] =
     orElse(ZSTM.succeedNow(a1))
 
   /**
