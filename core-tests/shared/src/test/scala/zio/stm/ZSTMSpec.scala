@@ -36,7 +36,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             ref   <- TRef.makeCommit(0)
             left  = ref.get.flatMap(v => STM.check(v > 500).as("left"))
-            right = ref.get.flatMap(v => STM.check(v > 1000).as("right"))
+            right = ref.get.flatMap(v => STM.check(v < 0).as("right"))
             f     <- ref.update(_ + 10).commit.forever.fork
             res   <- (left <|> right).commit
             _     <- f.interrupt
