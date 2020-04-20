@@ -11,16 +11,11 @@ import zio.Chunk
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ChunkAddBenchmarks {
 
-  var chunk: Chunk[Int]   = _
-  var vector: Vector[Int] = _
+  val chunk  = Chunk(1)
+  val vector = Vector(1)
 
   @Param(Array("10000"))
   var size: Int = _
-
-  @Setup(Level.Trial)
-  def setup() =
-    chunk = Chunk(1)
-  vector = Vector(1)
 
   @Benchmark
   def chunkAdd(): Chunk[Int] = {
