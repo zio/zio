@@ -107,17 +107,17 @@ There are many other variants of the `STM.retry` combinator like `STM.check` so 
 ## Composing alternatives
 
 STM transactions compose sequentially so that both STM effects are executed. However, STM transactions can also compose 
-transactions as alternatives so that only one STM effect is executed by making use of `alternative` on STM effects. Provided
-we have two STM effects `sA` and `sB`, you can express that you would like to compose the two using `sA alternative sB`. The
+transactions as alternatives so that only one STM effect is executed by making use of `orTry` on STM effects. Provided
+we have two STM effects `sA` and `sB`, you can express that you would like to compose the two using `sA orTry sB`. The
 transaction would first attempt to run `sA` and if it retries then `sA` is abandoned with no effect and then `sB` runs.
 Now if `sB` also retries then the entire call retries. However, it waits for the transactional data structures to change 
-that are involved in either `sA` or `sB`. Using `alternative` is an elegant technique that can be used to determine whether 
+that are involved in either `sA` or `sB`. Using `orTry` is an elegant technique that can be used to determine whether 
 or not an STM transaction needs to block. For example, we can take `transferMoneyNoMatterWhat` and turn it into an 
 STM transaction that will fail immediately if the sender does not have enough of money instead of retrying by doing:
 
 ```scala mdoc:silent
 def transferMoneyFailFast(from: TRef[Long], to: TRef[Long], amount: Long): STM[String, Long] =
-    transferMoneyNoMatterWhat(from, to, amount) alternative STM.fail("Sender does not have enough of money")
+    transferMoneyNoMatterWhat(from, to, amount) orTry STM.fail("Sender does not have enough of money")
 ```
 
 This will cause the transfer to fail immediately if the sender does not have money because of the semantics of `orElse`.
