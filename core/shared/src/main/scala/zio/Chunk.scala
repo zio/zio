@@ -901,7 +901,7 @@ object Chunk {
 
     protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
       start.toArray(n, dest)
-      buffer.asInstanceOf[Array[A]].copyToArray(dest, n + start.length, bufferUsed)
+      val _ = buffer.asInstanceOf[Array[A]].copyToArray(dest, n + start.length, bufferUsed)
     }
   }
 
