@@ -67,8 +67,10 @@ import zio.ZIO
  */
 package object laws {
 
-  type Lawful[-Caps[_]] = ZLawful[Caps, Any]
-  type Laws[-Caps[_]]   = ZLaws[Caps, Any]
+  type Lawful[-Caps[_]]                                      = ZLawful[Caps, Any]
+  type Lawful2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]] = ZLawful2[CapsBoth, CapsLeft, CapsRight, Any]
+  type Laws[-Caps[_]]                                        = ZLaws[Caps, Any]
+  type Laws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]]   = ZLaws2[CapsBoth, CapsLeft, CapsRight, Any]
 
   object LawfulF {
     type Covariant[-CapsF[_[+_]], -Caps[_]]     = ZLawfulF.Covariant[CapsF, Caps, Any]
@@ -83,6 +85,11 @@ package object laws {
     type Law2M[-Caps[_]] = ZLaws.Law2M[Caps, Any]
     type Law3[-Caps[_]]  = ZLaws.Law3[Caps]
     type Law3M[-Caps[_]] = ZLaws.Law3M[Caps, Any]
+  }
+
+  object Laws2 {
+    type Law1Left[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]]  = ZLaws2.Law1Left[CapsBoth, CapsLeft, CapsRight]
+    type Law1Right[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]] = ZLaws2.Law1Right[CapsBoth, CapsLeft, CapsRight]
   }
 
   object LawsF {
@@ -123,6 +130,11 @@ package object laws {
     lawful: ZLawful[Caps, R]
   )(gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
     lawful.laws.run(gen)
+
+  def checkAllLaws[CapsBoth[_, _], CapsLeft[_], CapsRight[_], R, R1 <: R, A: CapsLeft, B: CapsRight](
+    lawful: ZLawful2[CapsBoth, CapsLeft, CapsRight, R]
+  )(a: Gen[R1, A], b: Gen[R1, B])(implicit CapsBoth: CapsBoth[A, B]): ZIO[R1, Nothing, TestResult] =
+    lawful.laws.run(a, b)
 
   def checkAllLaws[CapsF[_[+_]], Caps[_], R, R1 <: R, F[+_]: CapsF, A: Caps](
     lawful: ZLawfulF.Covariant[CapsF, Caps, R]
