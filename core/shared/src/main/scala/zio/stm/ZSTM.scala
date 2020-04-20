@@ -129,6 +129,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
     orElse(that)
 
   /**
+   * Tries this effect first, and if it fails, tries the other effect. This is
+   * an equivalent of haskell's orElse.
+   */
+  def <|>[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+    alternative(that)
+
+  /**
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
@@ -153,6 +160,37 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZSTM[R, E1, B] =
     ZSTM.absolve(self.map(ev))
+
+  /**
+   * Named alias for `<|>`.
+   */
+  def alternative[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+    new ZSTM((journal, fiberId, stackSize, r) => {
+      val reset = prepareResetJournal(journal)
+
+      val continueM: TExit[E, A] => STM[E1, A1] = {
+        case TExit.Fail(e)    => ZSTM.fail(e)
+        case TExit.Succeed(a) => ZSTM.succeedNow(a)
+        case TExit.Retry      => { reset(); that.alternative(self).provide(r) }
+      }
+
+      val framesCount = stackSize.incrementAndGet()
+
+      if (framesCount > ZSTM.MaxFrames) {
+        throw new ZSTM.Resumable(self.provide(r), Stack(continueM))
+      } else {
+        val continued =
+          try {
+            continueM(self.exec(journal, fiberId, stackSize, r))
+          } catch {
+            case res: ZSTM.Resumable[e, e1, a, b] =>
+              res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+              throw res
+          }
+
+        continued.exec(journal, fiberId, stackSize, r)
+      }
+    })
 
   /**
    * Named alias for `>>>`.

@@ -21,6 +21,38 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.succeed(Left("oh no!")).absolve.commit.run)(fails(equalTo("oh no!")))
         } @@ zioTag(errors)
       ),
+      suite("alternative")(
+        testM("succeeds if left succeeds") {
+          val left  = STM.succeed("left")
+          val right = STM.succeed("right")
+          (left <|> right).commit.map(assert(_)(equalTo("left")))
+        },
+        testM("succeeds if right succeeds") {
+          val left  = STM.retry
+          val right = STM.succeed("right")
+          (left <|> right).commit.map(assert(_)(equalTo("right")))
+        },
+        testM("retries left after right retries") {
+          for {
+            ref   <- TRef.makeCommit(0)
+            left  = ref.get.flatMap(v => STM.check(v > 500).as("left"))
+            right = ref.get.flatMap(v => STM.check(v > 1000).as("right"))
+            f     <- ref.update(_ + 10).commit.forever.fork
+            res   <- (left <|> right).commit
+            _     <- f.interrupt
+          } yield assert(res)(equalTo("left"))
+        },
+        testM("fails if left fails") {
+          val left  = STM.fail("left")
+          val right = STM.succeed("right")
+          (left <|> right).commit.run.map(assert(_)(fails(equalTo("left"))))
+        } @@ zioTag(errors),
+        testM("fails if right fails") {
+          val left  = STM.retry
+          val right = STM.fail("right")
+          (left <|> right).commit.run.map(assert(_)(fails(equalTo("right"))))
+        } @@ zioTag(errors)
+      ),
       testM("andThen two environments") {
         val add   = ZSTM.access[Int](_ + 1)
         val print = ZSTM.access[Int](n => s"$n is the sum")
@@ -1211,6 +1243,16 @@ object ZSTMSpec extends ZIOBaseSpec {
       } @@ nonFlaky(5000)
     },
     suite("STM stack safety")(
+      testM("long alternative chains") {
+        val tx =
+          for {
+            ref <- TRef.make(0)
+            _   <- STM.loop_(10000)(_ > 0, _ - 1)(_ => STM.retry <|> ref.getAndUpdate(_ + 1))
+            res <- ref.get
+          } yield res
+
+        assertM(tx.commit)(equalTo(10000))
+      },
       testM("long map chains") {
         assertM(chain(10000)(_.map(_ + 1)))(equalTo(10000))
       },
