@@ -38,7 +38,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def +[A1 >: A](a: A1): Chunk[A1] =
     if (self.length == 0) Chunk.single(a)
-    else Chunk.Concat(self, Chunk.single(a))
+    else Chunk.Concat(self, Chunk.single(a), Chunk.Side.Right)
 
   /**
    * Returns the concatenation of this chunk with the specified chunk.
@@ -46,7 +46,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
     if (self.length == 0) that
     else if (that.length == 0) self
-    else Chunk.Concat(self, that)
+    else Chunk.Concat(self, that, Chunk.Side.Right)
 
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
     that.prepend(self)
@@ -517,6 +517,12 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       case None        => Chunk.Empty
       case Some(array) => Chunk.Arr(array)
     }
+
+  /**
+   * Prepends the specified `Chunk` to the beginning of this `Chunk`.
+   */
+  def prepend[A1 >: A](that: Chunk[A1]): Chunk[A1] =
+    Chunk.Concat(that, self, Chunk.Side.Left)
 
   /**
    * Returns two splits of this chunk at the specified index.
@@ -1128,12 +1134,20 @@ object Chunk {
     }
   }
 
-  private final case class Concat[A](l: Chunk[A], r: Chunk[A]) extends Chunk[A] { self =>
+  private final case class Concat[A](l: Chunk[A], r: Chunk[A], side: Side) extends Chunk[A] { self =>
 
     implicit val classTag: ClassTag[A] =
-      l match {
-        case Empty => classTagOf(r)
-        case _     => classTagOf(l)
+      side match {
+        case Side.Left =>
+          l match {
+            case Empty => classTagOf(r)
+            case _     => classTagOf(l)
+          }
+        case Side.Right =>
+          r match {
+            case Empty => classTagOf(l)
+            case _     => classTagOf(r)
+          }
       }
 
     override val length: Int =
@@ -1333,6 +1347,12 @@ object Chunk {
      */
     override protected def mapChunk[B](f: Nothing => B): Chunk[B] =
       Empty
+  }
+
+  private[zio] sealed trait Side
+  private[zio] object Side {
+    case object Left  extends Side
+    case object Right extends Side
   }
 
   private[zio] object Tags {

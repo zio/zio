@@ -335,6 +335,19 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
       assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
+    },
+    zio.test.test("cast exception on concat integers") {
+      (1 to 128).foldLeft(Chunk(1))(_ + _).materialize
+      assertCompletes
+    },
+    zio.test.test("cast exception on prepend intengers") {
+      (1 to 128).foldLeft(Chunk(1))((acc, n) => acc.prepend(Chunk(n)))
+      assertCompletes
+    },
+    testM("prepend chunk") {
+      check(smallChunks(intGen), smallChunks(intGen)) { (c1, c2) =>
+        assert((c1.prepend(c2)).toList)(equalTo(c2.toList ++ c1.toList))
+      }
     }
   )
 }
