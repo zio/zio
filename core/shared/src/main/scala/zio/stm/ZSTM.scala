@@ -129,7 +129,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
     orElse(that)
 
   /**
-   * Tries this effect first, and if it fails, tries the other effect. This is
+   * Tries this effect first, and if it enters retry, then it tries the other effect. This is
    * an equivalent of haskell's orElse.
    */
   def <|>[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
