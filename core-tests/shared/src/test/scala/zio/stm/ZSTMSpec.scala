@@ -21,37 +21,6 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.succeed(Left("oh no!")).absolve.commit.run)(fails(equalTo("oh no!")))
         } @@ zioTag(errors)
       ),
-      suite("alternative")(
-        testM("succeeds if left succeeds") {
-          val left  = STM.succeed("left")
-          val right = STM.succeed("right")
-          (left <|> right).commit.map(assert(_)(equalTo("left")))
-        },
-        testM("succeeds if right succeeds") {
-          val left  = STM.retry
-          val right = STM.succeed("right")
-          (left <|> right).commit.map(assert(_)(equalTo("right")))
-        },
-        testM("retries left after right retries") {
-          for {
-            ref     <- TRef.makeCommit(0)
-            left    = ref.get.flatMap(v => STM.check(v > 500).as("left"))
-            right   = STM.retry
-            updater = ref.update(_ + 10).commit.forever
-            res     <- (left <|> right).commit.race(updater)
-          } yield assert(res)(equalTo("left"))
-        } @@ jvmOnly,
-        testM("fails if left fails") {
-          val left  = STM.fail("left")
-          val right = STM.succeed("right")
-          (left <|> right).commit.run.map(assert(_)(fails(equalTo("left"))))
-        } @@ zioTag(errors),
-        testM("fails if right fails") {
-          val left  = STM.retry
-          val right = STM.fail("right")
-          (left <|> right).commit.run.map(assert(_)(fails(equalTo("right"))))
-        } @@ zioTag(errors)
-      ),
       testM("andThen two environments") {
         val add   = ZSTM.access[Int](_ + 1)
         val print = ZSTM.access[Int](n => s"$n is the sum")
@@ -1092,6 +1061,37 @@ object ZSTMSpec extends ZIOBaseSpec {
         val transaction = STM.fail(true).orElseSucceed(false)
         assertM(transaction.commit)(isFalse)
       }
+    ),
+    suite("alternative")(
+      testM("succeeds if left succeeds") {
+        val left  = STM.succeed("left")
+        val right = STM.succeed("right")
+        (left <|> right).commit.map(assert(_)(equalTo("left")))
+      },
+      testM("succeeds if right succeeds") {
+        val left  = STM.retry
+        val right = STM.succeed("right")
+        (left <|> right).commit.map(assert(_)(equalTo("right")))
+      },
+      testM("retries left after right retries") {
+        for {
+          ref     <- TRef.makeCommit(0)
+          left    = ref.get.flatMap(v => STM.check(v > 500).as("left"))
+          right   = STM.retry
+          updater = ref.update(_ + 10).commit.forever
+          res     <- (left <|> right).commit.race(updater)
+        } yield assert(res)(equalTo("left"))
+      } @@ jvmOnly,
+      testM("fails if left fails") {
+        val left  = STM.fail("left")
+        val right = STM.succeed("right")
+        (left <|> right).commit.run.map(assert(_)(fails(equalTo("left"))))
+      } @@ zioTag(errors),
+      testM("fails if right fails") {
+        val left  = STM.retry
+        val right = STM.fail("right")
+        (left <|> right).commit.run.map(assert(_)(fails(equalTo("right"))))
+      } @@ zioTag(errors)
     ),
     suite("mergeAll")(
       testM("return zero element on empty input") {
