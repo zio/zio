@@ -23,7 +23,7 @@ class ChunkAddBenchmarks {
     var current = chunk
 
     while (i < size) {
-      current = current + 2
+      current = current :+ 2
       i += 1
     }
 

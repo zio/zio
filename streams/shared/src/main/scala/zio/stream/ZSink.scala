@@ -1804,7 +1804,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       def extractPure(state: State): Either[Nothing, (Chunk[String], Chunk[String])] = {
         val (frames, leftover) =
           if (state.cont && !state.leftover.isEmpty)
-            state.frames + state.leftover -> Chunk.empty
+            (state.frames :+ state.leftover) -> Chunk.empty
           else
             state.frames -> Chunk.single(state.leftover)
         Right(frames -> leftover)

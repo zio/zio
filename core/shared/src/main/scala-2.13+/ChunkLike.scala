@@ -41,6 +41,9 @@ trait ChunkLike[+A]
     with StrictOptimizedSeqOps[A, Chunk, Chunk[A]]
     with IterableFactoryDefaults[A, Chunk] { self: Chunk[A] =>
 
+  override final def appended[A1 >: A](a1: A1): Chunk[A1] =
+    append(a1)
+
   /**
    * Returns a filtered, mapped subset of the elements of this `Chunk`.
    */

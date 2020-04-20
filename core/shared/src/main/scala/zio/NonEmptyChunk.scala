@@ -32,8 +32,8 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
   /**
    * Apparents a single element to the end of this `NonEmptyChunk`.
    */
-  def +[A1 >: A](a: A1): NonEmptyChunk[A1] =
-    nonEmpty(chunk + a)
+  def :+[A1 >: A](a: A1): NonEmptyChunk[A1] =
+    nonEmpty(chunk :+ a)
 
   /**
    * Appends the specified `Chunk` to the end of this `NonEmptyChunk`.
