@@ -1682,7 +1682,7 @@ abstract class ZStream[-R, +E, +O](
       }
 
   /**
-   * Peels off enough material from the stream to construct an `R` using the
+   * Peels off enough material from the stream to construct a `Z` using the
    * provided [[ZSink]] and then returns both the `Z` and the rest of the
    * [[ZStream]] in a managed resource. Like all [[ZManaged]] values, the provided
    * stream is valid only within the scope of [[ZManaged]].
