@@ -57,6 +57,53 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(chunk.size)(equalTo(chunk.length))
       }
     ),
+    suite("add")(
+      testM("apply") {
+        val chunksWithIndex: Gen[Random with Sized, (Chunk[Int], Chunk[Int], Int)] =
+          for {
+            p  <- Gen.boolean
+            as <- Gen.chunkOf(Gen.anyInt)
+            bs <- Gen.chunkOf1(Gen.anyInt)
+            n  <- Gen.int(0, as.length + bs.length - 1)
+          } yield if (p) (as, bs, n) else (bs, as, n)
+        check(chunksWithIndex) {
+          case (as, bs, n) =>
+            val actual   = bs.foldLeft(as)(_ + _).apply(n)
+            val expected = (as ++ bs).apply(n)
+            assert(actual)(equalTo(expected))
+        }
+      },
+      testM("buffer full") {
+        check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+          def addAll[A](l: Chunk[A], r: Chunk[A]): Chunk[A] = r.foldLeft(l)(_ + _)
+          val actual                                        = List.fill(100)(bs).foldLeft(as)(addAll)
+          val expected                                      = List.fill(100)(bs).foldLeft(as)(_ ++ _)
+          assert(actual)(equalTo(expected))
+        }
+      },
+      testM("buffer used") {
+        checkM(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+          val effect   = ZIO.succeed(bs.foldLeft(as)(_ + _))
+          val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
+          val expected = (as ++ bs)
+          assertM(actual)(forall(equalTo(expected)))
+        }
+      },
+      testM("equals") {
+        check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+          val actual   = bs.foldLeft(as)(_ + _)
+          val expected = (as ++ bs)
+          assert(actual)(equalTo(expected))
+        }
+      },
+      testM("length") {
+        check(Gen.chunkOf(Gen.anyInt), smallChunks(Gen.anyInt)) { (as, bs) =>
+          val actual   = bs.foldLeft(as)(_ + _).length
+          val expected = (as ++ bs).length
+          assert(actual)(equalTo(expected))
+        }
+      }
+    ),
     testM("apply") {
       check(chunkWithIndex(Gen.unit)) {
         case (chunk, i) =>

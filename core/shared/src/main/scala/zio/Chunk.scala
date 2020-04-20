@@ -875,11 +875,14 @@ object Chunk {
       case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
-  private val bufferSize: Int =
+  /**
+   * The maximum number of elements in the buffer for fast append.
+   */
+  private val BufferSize: Int =
     100
 
   private final case class Add[A](start: Chunk[A], buffer: Array[AnyRef], bufferUsed: Int, chain: AtomicInteger)
-      extends Chunk[A] {
+      extends Chunk[A] { self =>
 
     implicit val classTag: ClassTag[A] = classTagOf(start)
 
@@ -891,9 +894,9 @@ object Chunk {
         buffer(bufferUsed) = a1.asInstanceOf[AnyRef]
         Add(start, buffer, bufferUsed + 1, chain)
       } else {
-        val buffer = Array.ofDim[AnyRef](bufferSize)
+        val buffer = Array.ofDim[AnyRef](BufferSize)
         buffer(0) = a1.asInstanceOf[AnyRef]
-        Add(start, buffer, bufferUsed, chain)
+        Add(self, buffer, 1, new AtomicInteger(1))
       }
 
     def apply(n: Int): A =
@@ -914,7 +917,7 @@ object Chunk {
       array.length
 
     override def +[A1 >: A](a1: A1): Chunk[A] = {
-      val buffer = Array.ofDim[AnyRef](bufferSize)
+      val buffer = Array.ofDim[AnyRef](BufferSize)
       buffer(0) = a1.asInstanceOf[AnyRef]
       Chunk.Add(self, buffer, 1, new AtomicInteger(1))
     }
