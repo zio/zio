@@ -129,6 +129,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
     orElse(that)
 
   /**
+   * Tries this effect first, and if it enters retry, then it tries the other effect. This is
+   * an equivalent of haskell's orElse.
+   */
+  def <|>[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+    orTry(that)
+
+  /**
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
@@ -461,7 +468,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * throw exceptions but is otherwise pure, translating any thrown exceptions
    * into typed failed effects.
    */
-  final def mapPartial[B](f: A => B)(implicit ev: E <:< Throwable): ZSTM[R, Throwable, B] =
+  def mapPartial[B](f: A => B)(implicit ev: E <:< Throwable): ZSTM[R, Throwable, B] =
     foldM(e => ZSTM.fail(ev(e)), a => ZSTM.partial(f(a)))
 
   /**
@@ -578,7 +585,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * in left side, unless it fails or retries, in which case, it will produce the value
    * of the specified effect in right side.
    */
-  def orElseEither[R1 <: R, E1 >: E, B](
+  def orElseEither[R1 <: R, E1, B](
     that: => ZSTM[R1, E1, B]
   ): ZSTM[R1, E1, Either[A, B]] =
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
@@ -594,7 +601,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * fails with the `None` value, in which case it will produce the value of
    * the specified effect.
    */
-  final def orElseOptional[R1 <: R, E1, A1 >: A](
+  def orElseOptional[R1 <: R, E1, A1 >: A](
     that: => ZSTM[R1, Option[E1], A1]
   )(implicit ev: E <:< Option[E1]): ZSTM[R1, Option[E1], A1] =
     catchAll(ev(_).fold(that)(e => ZSTM.fail(Some(e))))
@@ -605,6 +612,37 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def orElseSucceed[A1 >: A](a1: => A1): URSTM[R, A1] =
     orElse(ZSTM.succeedNow(a1))
+
+  /**
+   * Named alias for `<|>`.
+   */
+  def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+    new ZSTM((journal, fiberId, stackSize, r) => {
+      val reset = prepareResetJournal(journal)
+
+      val continueM: TExit[E, A] => STM[E1, A1] = {
+        case TExit.Fail(e)    => ZSTM.fail(e)
+        case TExit.Succeed(a) => ZSTM.succeedNow(a)
+        case TExit.Retry      => { reset(); that.orTry(self).provide(r) }
+      }
+
+      val framesCount = stackSize.incrementAndGet()
+
+      if (framesCount > ZSTM.MaxFrames) {
+        throw new ZSTM.Resumable(self.provide(r), Stack(continueM))
+      } else {
+        val continued =
+          try {
+            continueM(self.exec(journal, fiberId, stackSize, r))
+          } catch {
+            case res: ZSTM.Resumable[e, e1, a, b] =>
+              res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+              throw res
+          }
+
+        continued.exec(journal, fiberId, stackSize, r)
+      }
+    })
 
   /**
    * Provides the transaction its required environment, which eliminates
@@ -783,13 +821,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  final def unless(b: => Boolean): ZSTM[R, E, Unit] =
+  def unless(b: => Boolean): ZSTM[R, E, Unit] =
     ZSTM.unless(b)(self)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  final def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+  def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
     ZSTM.unlessM(b)(self)
 
   /**
