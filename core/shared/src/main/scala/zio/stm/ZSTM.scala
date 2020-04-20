@@ -164,7 +164,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Named alias for `<|>`.
    */
-  def alternative[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+  def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     new ZSTM((journal, fiberId, stackSize, r) => {
       val reset = prepareResetJournal(journal)
 
