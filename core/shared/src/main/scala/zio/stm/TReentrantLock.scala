@@ -17,10 +17,9 @@
 package zio.stm
 
 import TReentrantLock._
-import zio.stm.ZSTM.internal.TExit
-import zio.{Fiber, Managed, UManaged}
 
-//todo update comments
+import zio.stm.ZSTM.internal.TExit
+import zio.{ Fiber, Managed, UManaged }
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
@@ -42,27 +41,29 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
 
   /**
    * Acquires a read lock. The transaction will suspend until no other fiber
-   * is holding a write lock.
+   * is holding a write lock. Succeeds with the number of read locks held by this fiber.
    */
-  lazy val acquireRead: USTM[Unit] = adjustRead(1)
+  lazy val acquireRead: USTM[Int] = adjustRead(1)
 
   /**
    * Acquires a write lock. The transaction will suspend until no other
    * fibers are holding read or write locks. Succeeds with the number of
    * write locks held by this fiber.
    */
-  lazy val acquireWrite: USTM[Unit] = new ZSTM((journal, fiberId, _, _) => {
-    val res = data.unsafeGet(journal) match {
+  lazy val acquireWrite: USTM[Int] = new ZSTM((journal, fiberId, _, _) =>
+    data.unsafeGet(journal) match {
 
-      case Left(readLock) if (readLock.noOtherHolder(fiberId)) =>
-        Right(WriteLock(1, readLock.readLocks(fiberId), fiberId))
+      case Left(readLock) if readLock.noOtherHolder(fiberId) =>
+        data.unsafeSet(journal, Right(WriteLock(1, readLock.readLocks(fiberId), fiberId)))
+        TExit.Succeed(1)
 
       case Right(WriteLock(n, m, `fiberId`)) =>
-        Right(WriteLock(n + 1, m, fiberId))
+        data.unsafeSet(journal, Right(WriteLock(n + 1, m, fiberId)))
+        TExit.Succeed(n + 1)
+
+      case _ => TExit.Retry
     }
-    data.unsafeSet(journal, res)
-    TExit.Succeed(())
-  })
+  )
 
   /**
    * Just a convenience method for applications that only need reentrant locks,
@@ -70,7 +71,7 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
    *
    * See [[writeLock]].
    */
-  lazy val lock: UManaged[Unit] = writeLock
+  lazy val lock: UManaged[Int] = writeLock
 
   /**
    * Determines if any fiber has a read or write lock.
@@ -81,7 +82,7 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
   /**
    * Obtains a read lock in a managed context.
    */
-  lazy val readLock: UManaged[Unit] =
+  lazy val readLock: UManaged[Int] =
     Managed.make(acquireRead.commit)(_ => releaseRead.commit)
 
   /**
@@ -92,12 +93,11 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
   /**
    * Retrieves the number of acquired read locks for this fiber.
    */
-  def fiberReadLocks: USTM[Int] = new ZSTM(
-    (journal, fiberId, _, _) => {
-    val res = data.unsafeGet(journal).fold(_.readLocks(fiberId), _.readLocks)
+  def fiberReadLocks: USTM[Int] =
+    new ZSTM((journal, fiberId, _, _) => {
+      val res = data.unsafeGet(journal).fold(_.readLocks(fiberId), _.readLocks)
       TExit.Succeed(res)
-      }
-  )
+    })
 
   /**
    * Determines if any fiber has a read lock.
@@ -108,13 +108,13 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
    * Releases a read lock held by this fiber. Succeeds with the outstanding
    * number of read locks held by this fiber.
    */
-  lazy val releaseRead: USTM[Unit] = adjustRead(-1)
+  lazy val releaseRead: USTM[Int] = adjustRead(-1)
 
   /**
    * Releases a write lock held by this fiber. Succeeds with the outstanding
    * number of write locks held by this fiber.
    */
-  lazy val releaseWrite: USTM[Unit] = new ZSTM((journal, fiberId, _, _) => {
+  lazy val releaseWrite: USTM[Int] = new ZSTM((journal, fiberId, _, _) => {
     val res = data.unsafeGet(journal) match {
       case Right(WriteLock(1, m, `fiberId`)) => Left(ReadLock(fiberId, m))
       case Right(WriteLock(n, m, `fiberId`)) if n > 1 =>
@@ -123,13 +123,13 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
       case s => die(s"Defect: Fiber ${fiberId} releasing write lock it does not hold: ${s}")
     }
     data.unsafeSet(journal, res)
-    TExit.Succeed(())
+    TExit.Succeed(res.fold(_.readLocks(fiberId), _.readLocks))
   })
 
   /**
    * Obtains a write lock in a managed context.
    */
-  lazy val writeLock: UManaged[Unit] =
+  lazy val writeLock: UManaged[Int] =
     Managed.make(acquireWrite.commit)(_ => releaseWrite.commit)
 
   /**
@@ -143,19 +143,28 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
   def writeLocks: USTM[Int] = data.get.map(_.fold(_ => 0, _.writeLocks))
 
   /**
-   * Adjusts the number of read locks
+   * Adjusts the number of read locks. Succeeds with the number of read locks held by this fiber.
    */
-  private def adjustRead(delta: Int): USTM[Unit] =
-    new ZSTM((journal, fiberId, _, _) => {
-      val res = data.unsafeGet(journal) match {
-        case Left(readLock) => Left(readLock.adjust(fiberId, delta))
-        case Right(WriteLock(w, r, `fiberId`)) if r + delta >= 0 =>
-          Right(WriteLock(w, r + delta, fiberId))
-        case _ => die(s"Defect: Fiber ${fiberId} releasing read locks it does not hold")
+  private def adjustRead(delta: Int): USTM[Int] =
+    new ZSTM((journal, fiberId, _, _) =>
+      data.unsafeGet(journal) match {
+
+        case Left(readLock) =>
+          val res = readLock.adjust(fiberId, delta)
+          data.unsafeSet(journal, Left(res))
+          TExit.Succeed(res.readLocks(fiberId))
+
+        case Right(WriteLock(w, r, `fiberId`)) =>
+          val newTotal = r + delta
+          if (newTotal < 0)
+            die(s"Defect: Fiber ${fiberId} releasing read locks it does not hold, newTotal: $newTotal")
+          else
+            data.unsafeSet(journal, Right(WriteLock(w, newTotal, fiberId)))
+          TExit.Succeed(newTotal)
+
+        case _ => TExit.Retry //another fiber is holding a write lock
       }
-      data.unsafeSet(journal, res)
-      TExit.Succeed(())
-    })
+    )
 }
 object TReentrantLock {
 
