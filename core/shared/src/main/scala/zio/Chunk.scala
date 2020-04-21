@@ -525,6 +525,17 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     (take(n), drop(n))
 
   /**
+   * Splits this chunk on the first element that matches this predicate.
+   */
+  final def splitWhere(f: A => Boolean): (Chunk[A], Chunk[A]) = {
+    var i = 0
+    while (i < length && f(self(i)))
+      i += 1
+
+    splitAt(i)
+  }
+
+  /**
    * Takes the first `n` elements of the chunk.
    */
   override def take(n: Int): Chunk[A] =
@@ -858,6 +869,11 @@ object Chunk {
    */
   def succeed[A](a: A): Chunk[A] =
     single(a)
+
+  /**
+   * The unit chunk
+   */
+  val unit: Chunk[Unit] = single(())
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.

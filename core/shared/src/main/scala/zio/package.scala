@@ -38,6 +38,10 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
   type Queue[A]    = ZQueue[Any, Nothing, Any, Nothing, A, A]
+
+  /**
+   * A queue that can only be dequeued.
+   */
   type Dequeue[+A] = ZQueue[Any, Nothing, Any, Nothing, Nothing, A]
 
   type Ref[A]      = ZRef[Nothing, Nothing, A, A]

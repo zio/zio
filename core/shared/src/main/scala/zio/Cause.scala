@@ -36,6 +36,12 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     if (self eq Empty) that else if (that eq Empty) self else Then(self, that)
 
   /**
+   * Maps the error value of this cause to the specified constant value.
+   */
+  final def as[E1](e: => E1): Cause[E1] =
+    map(_ => e)
+
+  /**
    * Determines if this cause contains or is equal to the specified cause.
    */
   final def contains[E1 >: E](that: Cause[E1]): Boolean =
@@ -553,6 +559,34 @@ object Cause extends Serializable {
           case (None, Some(cr))     => Some(cr)
           case (Some(cl), None)     => Some(cl)
           case (None, None)         => None
+        }
+    }
+
+  /**
+   * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by
+   * recursively stripping out any failures with the error `None`.
+   */
+  def sequenceCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
+    c match {
+      case Internal.Empty                => Left(Internal.Empty)
+      case Internal.Traced(cause, trace) => sequenceCauseEither(cause).left.map(Internal.Traced(_, trace))
+      case Internal.Meta(cause, data)    => sequenceCauseEither(cause).left.map(Internal.Meta(_, data))
+      case Internal.Interrupt(id)        => Left(Internal.Interrupt(id))
+      case d @ Internal.Die(_)           => Left(d)
+      case Internal.Fail(Left(e))        => Left(Internal.Fail(e))
+      case Internal.Fail(Right(a))       => Right(a)
+      case Internal.Then(left, right) =>
+        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+          case (Left(cl), Left(cr)) => Left(Internal.Then(cl, cr))
+          case (Right(a), _)        => Right(a)
+          case (_, Right(a))        => Right(a)
+        }
+
+      case Internal.Both(left, right) =>
+        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+          case (Left(cl), Left(cr)) => Left(Internal.Both(cl, cr))
+          case (Right(a), _)        => Right(a)
+          case (_, Right(a))        => Right(a)
         }
     }
 
