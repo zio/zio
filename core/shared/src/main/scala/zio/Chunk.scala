@@ -123,6 +123,38 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     drop(i)
   }
 
+  def dropWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = {
+    val len                                       = self.length
+    var dest: ZIO[R, E, (Boolean, Int, Array[A])] = UIO.succeedNow((true, 0, null.asInstanceOf[Array[A]]))
+
+    var i = 0
+    while (i < len) {
+      val j = i
+      dest = dest.flatMap {
+        case (dropping, skip, array) =>
+          val a = self(j)
+          (if (dropping) p(a) else UIO(false)).map {
+            case true => (true, skip + 1, array)
+            case false =>
+              val array2 = if (array == null) {
+                implicit val A: ClassTag[A] = Chunk.Tags.fromValue(a)
+                Array.ofDim[A](len - skip)
+              } else array
+              array2(j - skip) = a
+              (false, skip, array2)
+          }
+      }
+
+      i += 1
+    }
+
+    dest.map {
+      case (_, _, array) =>
+        if (array == null) Chunk.empty
+        else Chunk.fromArray(array)
+    }
+  }
+
   override final def equals(that: Any): Boolean =
     that match {
       case that: Chunk[_] =>
@@ -525,6 +557,17 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     (take(n), drop(n))
 
   /**
+   * Splits this chunk on the first element that matches this predicate.
+   */
+  final def splitWhere(f: A => Boolean): (Chunk[A], Chunk[A]) = {
+    var i = 0
+    while (i < length && f(self(i)))
+      i += 1
+
+    splitAt(i)
+  }
+
+  /**
    * Takes the first `n` elements of the chunk.
    */
   override def take(n: Int): Chunk[A] =
@@ -858,6 +901,11 @@ object Chunk {
    */
   def succeed[A](a: A): Chunk[A] =
     single(a)
+
+  /**
+   * The unit chunk
+   */
+  val unit: Chunk[Unit] = single(())
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
