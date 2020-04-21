@@ -541,7 +541,7 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.sleeps)
 
     /**
-     * Access a `TestClock` instance in the environemtn and runs the first
+     * Accesses a `TestClock` instance in the environment and runs the first
      * scheduled effect, semantically blocking until the fiber executing that
      * effect is done or suspended. If there are no scheduled effects
      * semantically blocks until there is at least one scheduled effect.
