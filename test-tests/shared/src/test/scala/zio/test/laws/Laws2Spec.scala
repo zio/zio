@@ -4,6 +4,8 @@ import zio.test._
 
 object Laws2Spec extends ZIOBaseSpec {
 
+  type AnyF[_] = Any
+
   def equalTo[A: Equal](expected: A): Assertion[A] =
     Assertion.assertion("equalTo")(Assertion.Render.param(expected))(_ === expected)
 
@@ -35,13 +37,13 @@ object Laws2Spec extends ZIOBaseSpec {
 
   object Equivalence extends Lawful2[Equivalence, Equal, Equal] {
 
-    val leftIdentity = new Laws2.Law1Left[Equivalence, Equal, Equal]("leftIdentity") {
-      def apply[A: Equal, B: Equal](a1: A)(implicit Equivalence: Equivalence[A, B]): TestResult =
+    val leftIdentity = new Laws2.Law1Left[Equivalence, Equal, AnyF]("leftIdentity") {
+      def apply[A: Equal, B: AnyF](a1: A)(implicit Equivalence: Equivalence[A, B]): TestResult =
         Equivalence.from(Equivalence.to(a1)) <-> a1
     }
 
-    val rightIdentity = new Laws2.Law1Right[Equivalence, Equal, Equal]("rightIdentity") {
-      def apply[A: Equal, B: Equal](b1: B)(implicit Equivalence: Equivalence[A, B]): TestResult =
+    val rightIdentity = new Laws2.Law1Right[Equivalence, AnyF, Equal]("rightIdentity") {
+      def apply[A: AnyF, B: Equal](b1: B)(implicit Equivalence: Equivalence[A, B]): TestResult =
         Equivalence.to(Equivalence.from(b1)) <-> b1
     }
 
