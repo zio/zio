@@ -2887,6 +2887,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     })
 
   /**
+   * Accesses a service in the environment of the effect
+   */
+  final def getService[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
+    ZIO.access[Has[A]](_.get)
+
+  /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   def halt[E](cause: => Cause[E]): IO[E, Nothing] =
