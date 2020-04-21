@@ -254,6 +254,7 @@ package object environment extends PlatformSpecific {
       def setTime(duration: Duration): UIO[Unit]
       def setTimeZone(zone: ZoneId): UIO[Unit]
       def sleeps: UIO[List[Duration]]
+      def tick: UIO[Unit]
       def timeZone: UIO[ZoneId]
     }
 
@@ -375,7 +376,8 @@ package object environment extends PlatformSpecific {
        */
       def sleep(duration: Duration): UIO[Unit] =
         for {
-          latch <- Promise.make[Nothing, Unit]
+          fiberId <- ZIO.fiberId
+          latch   <- Promise.make[Nothing, Unit]
           start <- fiberState.modify { data =>
                     val end = data.duration + duration
                     (data.duration, FiberData(end, data.timeZone))
@@ -383,7 +385,7 @@ package object environment extends PlatformSpecific {
           await <- clockState.modify { data =>
                     val end = start + duration
                     if (end > data.duration)
-                      (true, data.copy(sleeps = (end, latch) :: data.sleeps))
+                      (true, data.copy(sleeps = (end, latch, fiberId) :: data.sleeps))
                     else
                       (false, data)
                   }
@@ -398,19 +400,45 @@ package object environment extends PlatformSpecific {
         clockState.get.map(_.sleeps.map(_._1))
 
       /**
+       * Runs the first scheduled effect, semantically blocking until the fiber
+       * executing that effect is done or suspended. If there are no scheduled
+       * effects semantically blocks until there is at least one scheduled
+       * effect.
+       */
+      val tick: UIO[Unit] =
+        live.provide(awaitSleep) *>
+          clockState.modify { data =>
+            val sorted = data.sleeps.sortBy(_._1)
+            sorted match {
+              case h :: t => (Some(h), data.copy(sleeps = t))
+              case _      => (None, data)
+            }
+          }.flatMap {
+            case None => UIO.unit
+            case Some((_, promise, fiberId)) =>
+              promise.succeed(()) *> live.provide(awaitSuspended(fiberId))
+          }
+
+      /**
        * Returns the time zone.
        */
       lazy val timeZone: UIO[ZoneId] =
         fiberState.get.map(_.timeZone)
-
-      private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
-        UIO.foreach(wakes.sortBy(_._1))(_._2.succeed(())).unit
 
       private[TestClock] val warningDone: UIO[Unit] =
         warningState.updateSome[Any, Nothing] {
           case WarningData.Start          => ZIO.succeedNow(WarningData.done)
           case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
         }
+
+      private lazy val awaitSleep: URIO[Clock, Unit] =
+        hasSleep.repeat(Schedule.doUntil[Boolean](identity) && Schedule.fixed(1.millisecond)).unit
+
+      private lazy val hasSleep: URIO[Clock, Boolean] =
+        clockState.get.map(_.sleeps.nonEmpty)
+
+      private def run(wakes: List[(Duration, Promise[Nothing, Unit], Fiber.Id)]): UIO[Unit] =
+        UIO.foreach(wakes.sortBy(_._1))(_._2.succeed(())).unit
 
       private val warningStart: UIO[Unit] =
         warningState.updateSome {
@@ -513,6 +541,15 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.sleeps)
 
     /**
+     * Access a `TestClock` instance in the environemtn and runs the first
+     * scheduled effect, semantically blocking until the fiber executing that
+     * effect is done or suspended. If there are no scheduled effects
+     * semantically blocks until there is at least one scheduled effect.
+     */
+    val tick: ZIO[TestClock, Nothing, Unit] =
+      ZIO.accessM(_.get.tick)
+
+    /**
      * Accesses a `TestClock` instance in the environment and returns the current
      * time zone.
      */
@@ -522,7 +559,7 @@ package object environment extends PlatformSpecific {
     /**
      * The state of the `TestClock`.
      */
-    final case class Data(duration: Duration, sleeps: List[(Duration, Promise[Nothing, Unit])])
+    final case class Data(duration: Duration, sleeps: List[(Duration, Promise[Nothing, Unit], Fiber.Id)])
 
     final case class FiberData(duration: Duration, timeZone: ZoneId)
 
@@ -546,11 +583,26 @@ package object environment extends PlatformSpecific {
       val done: WarningData                                 = Done
     }
 
-    private def toDateTime(duration: Duration, timeZone: ZoneId): OffsetDateTime =
-      OffsetDateTime.ofInstant(Instant.ofEpochMilli(duration.toMillis), timeZone)
+    private def awaitSuspended(fiberId: Fiber.Id): URIO[Clock, Unit] =
+      suspended(fiberId).repeat(Schedule.doUntil[Boolean](identity) && Schedule.fixed(1.millisecond)).unit
 
     private def fromDateTime(dateTime: OffsetDateTime): Duration =
       Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+
+    private def suspended(fiberId: Fiber.Id): UIO[Boolean] =
+      Fiber.get(fiberId).flatMap {
+        case None => UIO.succeedNow(true)
+        case Some(fiber) =>
+          fiber.status.flatMap {
+            case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
+              ZIO.foreach(blockingOn)(suspended).map(_.forall(identity))
+            case Fiber.Status.Done => UIO.succeedNow(true)
+            case _                 => UIO.succeedNow(false)
+          }
+      }
+
+    private def toDateTime(duration: Duration, timeZone: ZoneId): OffsetDateTime =
+      OffsetDateTime.ofInstant(Instant.ofEpochMilli(duration.toMillis), timeZone)
 
     private val warning =
       "Warning: A test is using time, but is not advancing the test clock, " +
