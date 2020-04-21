@@ -151,11 +151,10 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
     val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
     val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever
-    left.zipWith(right) {
-      case (Some(Right(l)), Some(Right(r))) => Some(l.zipWith(r)(f))
-      case (Some(Right(l)), Some(Left(r)))  => Some(l.zipWith(r)(f))
-      case (Some(Left(l)), Some(Right(r)))  => Some(l.zipWith(r)(f))
-      case _                                => None
+    left.zipAllWith(right)(l => (Some(l), None), r => (None, Some(r)))((l, r) => (Some(l), Some(r))).collectWhile {
+      case (Some(Right(l)), Some(Right(r))) => l.zipWith(r)(f)
+      case (Some(Right(l)), Some(Left(r)))  => l.zipWith(r)(f)
+      case (Some(Left(l)), Some(Right(r)))  => l.zipWith(r)(f)
     }
   }
 }

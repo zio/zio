@@ -43,9 +43,8 @@ abstract class Mock[R <: Has[_]: Tagged] { self =>
 
   abstract class Effect[I: Tagged, E: Tagged, A: Tagged]              extends Capability[R, I, E, A](self)
   abstract class Method[I: Tagged, E <: Throwable: Tagged, A: Tagged] extends Capability[R, I, E, A](self)
-  abstract class Sink[I: Tagged, E: Tagged, A0: Tagged, A: Tagged, B: Tagged]
-      extends Capability[R, I, E, ZSink[Any, E, A0, A, B]](self)
-  abstract class Stream[I: Tagged, E: Tagged, A: Tagged] extends Capability[R, I, Nothing, ZStream[Any, E, A]](self)
+  abstract class Sink[I: Tagged, E: Tagged, A: Tagged, B: Tagged]     extends Capability[R, I, E, ZSink[Any, E, A, B]](self)
+  abstract class Stream[I: Tagged, E: Tagged, A: Tagged]              extends Capability[R, I, Nothing, ZStream[Any, E, A]](self)
 
   object Poly {
 
