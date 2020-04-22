@@ -131,8 +131,8 @@ private[zio] object ChunkBuilder {
       that match {
         case that: Boolean =>
           self.arrayBuilder.equals(that.arrayBuilder) &&
-          self.maxBitIndex == that.maxBitIndex &&
-          self.lastByte == that.lastByte
+            self.maxBitIndex == that.maxBitIndex &&
+            self.lastByte == that.lastByte
         case _ => false
       }
     override def toString: String =

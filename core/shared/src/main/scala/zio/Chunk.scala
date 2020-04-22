@@ -665,7 +665,8 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   //noinspection AccessorLikeMethodIsUnit
-  protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit
+  protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
+    materialize.toArray(n, dest)
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
@@ -1295,15 +1296,6 @@ object Chunk {
     override def apply(n: Int): Nothing =
       throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
-    override def collectM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      UIO.succeedNow(Empty)
-
-    override def collectWhile[B](pf: PartialFunction[Nothing, B]): Chunk[B] =
-      Empty
-
-    override def collectWhileM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      UIO.succeedNow(Empty)
-
     override def foreach[B](f: Nothing => B): Unit = {
       val _ = f
     }
@@ -1317,23 +1309,6 @@ object Chunk {
 
     override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] =
       Array.empty
-
-    override def zipAllWith[B, C](that: Chunk[B])(left: Nothing => C, right: B => C)(
-      both: (Nothing, B) => C
-    ): Chunk[C] =
-      that.map(right)
-
-    protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit =
-      ()
-
-    override protected def collectChunk[B](pf: PartialFunction[Nothing, B]): Chunk[B] =
-      Empty
-
-    /**
-     * Returns a chunk with the elements mapped by the specified function.
-     */
-    override protected def mapChunk[B](f: Nothing => B): Chunk[B] =
-      Empty
   }
 
   private[zio] object Tags {
