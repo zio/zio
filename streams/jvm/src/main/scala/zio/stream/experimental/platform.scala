@@ -132,6 +132,8 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
 
   /**
    * Creates a stream from a [[java.io.InputStream]]
+   * Note: the input stream will not be explicitly closed after
+   * it is exhausted.
    */
   def fromInputStream(
     is: => InputStream,
@@ -169,14 +171,47 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     }
 
   /**
+   * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
+   * stream is closed after it is exhausted.
+   */
+  def fromInputStreamEffect[R](
+    is: ZIO[R, IOException, InputStream],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R with Blocking, IOException, Byte] =
+    fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
+
+  /**
+   * Creates a stream from a managed [[java.io.InputStream]] value.
+   */
+  def fromInputStreamManaged[R](
+    is: ZManaged[R, IOException, InputStream],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R with Blocking, IOException, Byte] =
+    ZStream
+      .managed(is)
+      .flatMap(fromInputStream(_, chunkSize))
+
+  /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStream[R, E, A](stream: => ju.stream.Stream[A]): ZStream[R, E, A] =
+  final def fromJavaStream[R, A](stream: => ju.stream.Stream[A]): ZStream[R, Throwable, A] =
     ZStream.fromJavaIterator(stream.iterator())
+
+  /**
+   * Creates a stream from a Java stream
+   */
+  final def fromJavaStreamEffect[R, A](stream: ZIO[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
+    ZStream.fromJavaIteratorEffect(stream.flatMap(s => UIO(s.iterator())))
 
   /**
    * Creates a stream from a managed Java stream
    */
-  final def fromJavaStreamManaged[R, E, A](stream: ZManaged[R, E, ju.stream.Stream[A]]): ZStream[R, E, A] =
+  final def fromJavaStreamManaged[R, A](stream: ZManaged[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
     ZStream.fromJavaIteratorManaged(stream.mapM(s => UIO(s.iterator())))
+
+  /**
+   * Creates a stream from a Java stream
+   */
+  final def fromJavaStreamTotal[A](stream: => ju.stream.Stream[A]): ZStream[Any, Nothing, A] =
+    ZStream.fromJavaIteratorTotal(stream.iterator())
 }

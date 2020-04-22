@@ -668,4 +668,10 @@ object ZSink {
    */
   def succeed[Z](z: Z): ZSink[Any, Nothing, Any, Z] =
     fromPush(_ => Push.emit(z))
+
+  /**
+   * A sink that sums incoming numeric values.
+   */
+  def sum[A](implicit A: Numeric[A]): ZSink[Any, Nothing, A, A] =
+    foldLeft(A.zero)(A.plus)
 }

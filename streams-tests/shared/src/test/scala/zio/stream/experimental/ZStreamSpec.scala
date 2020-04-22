@@ -529,7 +529,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           ZStream.empty.distributedWithDynamic(1, _ => UIO.succeedNow(_ => true)).use { add =>
             val subscribe = ZStream.unwrap(add.map {
               case (_, queue) =>
-                ZStream.fromQueue(queue).unExit
+                ZStream.fromQueue(queue).collectWhileSuccess
             })
             Promise.make[Nothing, Unit].flatMap { onEnd =>
               subscribe.ensuring(onEnd.succeed(())).runDrain.fork *>
@@ -1650,22 +1650,25 @@ object ZStreamSpec extends ZIOBaseSpec {
           )
         },
         testM("is safe to pull again after failed acquisition") {
+          val ex = new Exception("Ouch")
+
           for {
             ref <- Ref.make(false)
             pulls <- ZStream
-                      .fromIteratorManaged(Managed.make(IO.fail("Ouch"))(_ => ref.set(true)))
+                      .fromIteratorManaged(Managed.make(IO.fail(ex))(_ => ref.set(true)))
                       .process
                       .use(nPulls(_, 3))
             fin <- ref.get
-          } yield assert(fin)(isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+          } yield assert(fin)(isFalse) && assert(pulls)(equalTo(List(Left(Some(ex)), Left(None), Left(None))))
         },
         testM("is safe to pull again after inner failure") {
+          val ex = new Exception("Ouch")
           for {
             ref <- Ref.make(false)
             pulls <- ZStream
                       .fromIteratorManaged(Managed.make(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true)))
                       .flatMap(n =>
-                        ZStream.succeed((n * 2).toString) ++ ZStream.fail("Ouch") ++ ZStream.succeed(
+                        ZStream.succeed((n * 2).toString) ++ ZStream.fail(ex) ++ ZStream.succeed(
                           (n * 3).toString
                         )
                       )
@@ -1676,10 +1679,10 @@ object ZStreamSpec extends ZIOBaseSpec {
             equalTo(
               List(
                 Right(Chunk("2")),
-                Left(Some("Ouch")),
+                Left(Some(ex)),
                 Right(Chunk("3")),
                 Right(Chunk("4")),
-                Left(Some("Ouch")),
+                Left(Some(ex)),
                 Right(Chunk("6")),
                 Left(None),
                 Left(None)
@@ -1688,11 +1691,12 @@ object ZStreamSpec extends ZIOBaseSpec {
           )
         },
         testM("is safe to pull again from a failed Managed") {
+          val ex = new Exception("Ouch")
           ZStream
-            .fromIteratorManaged(Managed.fail("Ouch"))
+            .fromIteratorManaged(Managed.fail(ex))
             .process
             .use(nPulls(_, 3))
-            .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+            .map(assert(_)(equalTo(List(Left(Some(ex)), Left(None), Left(None)))))
         }
       ),
       testM("concatAll") {

@@ -44,4 +44,24 @@ trait ZStreamPlatformSpecificConstructors {
       } yield pull
     }
 
+  /**
+   * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
+   * stream is closed after it is exhausted.
+   */
+  def fromInputStreamEffect[R](
+    is: ZIO[R, IOException, InputStream],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R, IOException, Byte] =
+    fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
+
+  /**
+   * Creates a stream from a managed [[java.io.InputStream]] value.
+   */
+  def fromInputStreamManaged[R](
+    is: ZManaged[R, IOException, InputStream],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R, IOException, Byte] =
+    ZStream
+      .managed(is)
+      .flatMap(fromInputStream(_, chunkSize))
 }
