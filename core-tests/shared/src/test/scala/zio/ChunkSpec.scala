@@ -30,7 +30,7 @@ object ChunkSpec extends ZIOBaseSpec {
 
   def chunkWithIndex[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, (Chunk[A], Int)] =
     for {
-      chunk <- Gen.chunkOfBounded(0, 100)(a)
+      chunk <- Gen.chunkOfBounded(1, 100)(a)
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
