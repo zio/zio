@@ -1224,7 +1224,8 @@ object Chunk {
     }
   }
 
-  private final case class BitChunk(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int) extends Chunk[Boolean] {
+  private[zio] final case class BitChunk(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int)
+      extends Chunk[Boolean] {
     self =>
 
     override val length: Int =
