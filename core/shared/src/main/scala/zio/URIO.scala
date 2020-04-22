@@ -449,6 +449,31 @@ object URIO {
     ZIO.fromFunctionM(f)
 
   /**
+   * @see See [[zio.ZIO.getService]]
+   */
+  def getService[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
+    ZIO.getService[A]
+
+  /**
+   * @see See [[zio.ZIO.getServices[A,B]*]]
+   */
+  def getServices[A: Tagged, B: Tagged]: URIO[Has[A] with Has[B], (A, B)] =
+    ZIO.getServices[A, B]
+
+  /**
+   * @see See [[zio.ZIO.getServices[A,B,C]*]]
+   */
+  def getServices[A: Tagged, B: Tagged, C: Tagged]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
+    ZIO.getServices[A, B, C]
+
+  /**
+   * @see See [[zio.ZIO.getServices[A,B,C,D]*]]
+   */
+  def getServices[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
+    ZIO.getServices[A, B, C, D]
+
+  /**
    * @see [[zio.ZIO.halt]]
    */
   def halt(cause: => Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)

@@ -24,8 +24,8 @@ import scala.util.{ Failure, Success, Try }
 
 import com.github.ghik.silencer.silent
 
+import zio._
 import zio.internal.{ Platform, Stack, Sync }
-import zio.{ CanFail, Chunk, ChunkBuilder, Fiber, IO, UIO, ZIO }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -1129,6 +1129,31 @@ object ZSTM {
         case Success(a) => STM.succeedNow(a)
       }
     }
+
+  /**
+   * Gets the specified service from the environment of the effect.
+   */
+  def getService[A](implicit tagged: Tagged[A]): ZSTM[Has[A], Nothing, A] =
+    ZSTM.access(_.get[A])
+
+  /**
+   * Gets the specified services from the environment of the effect.
+   */
+  def getServices[A: Tagged, B: Tagged]: ZSTM[Has[A] with Has[B], Nothing, (A, B)] =
+    ZSTM.access(r => (r.get[A], r.get[B]))
+
+  /**
+   * Gets the specified services from the environment of the effect.
+   */
+  def getServices[A: Tagged, B: Tagged, C: Tagged]: ZSTM[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+    ZSTM.access(r => (r.get[A], r.get[B], r.get[C]))
+
+  /**
+   * Gets the specified services from the environment of the effect.
+   */
+  def getServices[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : ZSTM[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+    ZSTM.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Returns the identity effectful function, which performs no effects

@@ -2887,10 +2887,29 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     })
 
   /**
-   * Accesses a service in the environment of the effect
+   * Gets the specified service from the environment of the effect.
    */
-  final def getService[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
-    ZIO.access[Has[A]](_.get)
+  def getService[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
+    ZIO.access(_.get[A])
+
+  /**
+   * Gets the specified services from the environment of the effect.
+   */
+  def getServices[A: Tagged, B: Tagged]: URIO[Has[A] with Has[B], (A, B)] =
+    ZIO.access(r => (r.get[A], r.get[B]))
+
+  /**
+   * Gets the specified services from the environment of the effect.
+   */
+  def getServices[A: Tagged, B: Tagged, C: Tagged]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
+    ZIO.access(r => (r.get[A], r.get[B], r.get[C]))
+
+  /**
+   * Gets the specified services from the environment of the effect.
+   */
+  def getServices[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
+    ZIO.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
