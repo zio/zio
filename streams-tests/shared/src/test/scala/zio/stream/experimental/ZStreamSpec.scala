@@ -14,6 +14,7 @@ import zio.test.environment.{ Live, TestClock }
 object ZStreamSpec extends ZIOBaseSpec {
 
   import ZIOTag._
+  import ZStream.Take
 
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
@@ -50,7 +51,6 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("aggregateAsync") {
           ZStream(1, 1, 1, 1)
             .aggregateAsync(ZTransducer.foldUntil(List[Int](), 3)((acc, el) => el :: acc))
-            .map(_.reverse)
             .runCollect
             .map { result =>
               assert(result.flatten)(equalTo(List(1, 1, 1, 1))) &&
@@ -177,24 +177,21 @@ object ZStreamSpec extends ZIOBaseSpec {
       ),
       suite("aggregateAsyncWithinEither")(
         testM("aggregateAsyncWithinEither") {
-          for {
-            f <- (ZStream(1, 1, 1, 1, 2, 2)
-                  .aggregateAsyncWithinEither(
-                    ZTransducer
-                      .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
-                        if (el == 1) (el :: acc._1, true)
-                        else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
-                        else (el :: acc._1, false)
-                      }
-                      .map(_._1),
-                    Schedule.spaced(30.minutes)
-                  )
-                  .runCollect)
-                  .fork
-            _      <- TestClock.advance(1.hour)
-            result <- f.join
-          } yield assert(result)(
-            equalTo(List(Right(List(2, 1, 1, 1, 1)), Right(List(2)), Left(1)))
+          assertM(
+            ZStream(1, 1, 1, 1, 2, 2)
+              .aggregateAsyncWithinEither(
+                ZTransducer
+                  .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
+                    if (el == 1) (el :: acc._1, true)
+                    else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
+                    else (el :: acc._1, false)
+                  }
+                  .map(_._1),
+                Schedule.spaced(30.minutes)
+              )
+              .runCollect
+          )(
+            equalTo(List(Right(List(2, 1, 1, 1, 1)), Right(List(2))))
           )
         },
         testM("error propagation 1") {
@@ -207,18 +204,17 @@ object ZStreamSpec extends ZIOBaseSpec {
           )(dies(equalTo(e)))
         } @@ zioTag(errors),
         testM("error propagation 2") {
-          val e    = new RuntimeException("Boom")
-          val sink = ZTransducer.foldM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e))
+          val e = new RuntimeException("Boom")
 
-          assertM(for {
-            f <- ZStream(1, 1)
-                  .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
-                  .runCollect
-                  .run
-                  .fork
-            _      <- TestClock.adjust(1.hour)
-            result <- f.join
-          } yield result)(dies(equalTo(e)))
+          assertM(
+            ZStream(1, 1)
+              .aggregateAsyncWithinEither(
+                ZTransducer.foldM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e)),
+                Schedule.spaced(30.minutes)
+              )
+              .runCollect
+              .run
+          )(dies(equalTo(e)))
         } @@ zioTag(errors),
         testM("interruption propagation") {
           for {
@@ -283,25 +279,20 @@ object ZStreamSpec extends ZIOBaseSpec {
       ),
       suite("aggregateAsyncWithin")(
         testM("aggregateAsyncWithin") {
-          for {
-            f <- (
-                  ZStream(1, 1, 1, 1, 2, 2)
-                    .aggregateAsyncWithin(
-                      ZTransducer
-                        .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
-                          if (el == 1) (el :: acc._1, true)
-                          else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
-                          else (el :: acc._1, false)
-                        }
-                        .map(_._1),
-                      Schedule.spaced(30.minutes)
-                    )
-                  )
-                  .runCollect
-                  .fork
-            _      <- TestClock.advance(1.hour)
-            result <- f.join
-          } yield assert(result)(equalTo(List(List(2, 1, 1, 1, 1), List(2))))
+          assertM(
+            ZStream(1, 1, 1, 1, 2, 2)
+              .aggregateAsyncWithin(
+                ZTransducer
+                  .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
+                    if (el == 1) (el :: acc._1, true)
+                    else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
+                    else (el :: acc._1, false)
+                  }
+                  .map(_._1),
+                Schedule.spaced(30.minutes)
+              )
+              .runCollect
+          )(equalTo(List(List(2, 1, 1, 1, 1), List(2))))
         }
       ),
       suite("bracket")(
@@ -1103,6 +1094,52 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runCollect
               .either
           )(isLeft(equalTo("Boom")))
+        }
+      ),
+      testM("grouped")(
+        assertM(ZStream(1, 2, 3, 4).grouped(2).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
+      ),
+      suite("groupedWithin")(
+        testM("999") {
+          Queue.bounded[Take[Nothing, Int]](8).flatMap {
+          queue =>
+            (Promise.make[Nothing, Unit] <*> Promise.make[Nothing, Unit]).flatMap { case (p1, p2) =>
+              (Ref
+                .make[List[List[Take[Nothing, Int]]]](
+                  List(
+                    List(Exit.succeed(Chunk(1, 2))),
+                    List(Exit.succeed(Chunk(3, 4))),
+                    List(Exit.succeed(Chunk.single(5)), Take.End)
+                  )
+                ) <*> Ref.make(List(p1, p2)))
+                .flatMap { case (ref, ps) =>
+                  val offer = ref.modify {
+                    case x :: xs => (x, xs)
+                    case Nil     => (Nil, Nil)
+                  }.flatMap(xs => console.putStrLn(s"offering $xs") *> queue.offerAll(xs))
+                  val proceed = ps.modify {
+                    case x :: xs => (x.succeed(()), xs)
+                    case Nil     => (IO.unit, Nil)
+                  }.flatten
+                  val stream = ZStream
+                    .fromQueue(queue)
+                    .unExitChunk
+                    .tap(x => console.putStrLn(x.toString))
+                    .groupedWithin(10, 2.seconds)
+                    .tap(_ => proceed)
+                  assertM(for {
+                    f <- stream.runCollect.fork
+                    _ <- offer *> TestClock.advance(2.seconds) *> p1.await
+                    _ <- offer *> TestClock.advance(2.seconds) *> p2.await
+                    _ <- offer
+                    result <- f.join
+                  } yield result)(equalTo(List(List(1, 2), List(3, 4), List(5))))
+                }
+              }
+        }
+        },
+        testM("group immediately when chunk size is reached") {
+          assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
         }
       ),
       testM("interleave") {
