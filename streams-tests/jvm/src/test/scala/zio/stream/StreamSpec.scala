@@ -510,7 +510,7 @@ object StreamSpec extends ZIOBaseSpec {
         )(isLeft(isNonEmptyString))
       } @@ zioTag(errors)
     ),
-    suite("Stream.concat")(
+    suite("concat")(
       testM("concat")(checkM(streamOfBytes, streamOfBytes) { (s1, s2) =>
         for {
           listConcat   <- s1.runCollect.zipWith(s2.runCollect)(_ ++ _).run

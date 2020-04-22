@@ -174,7 +174,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
         }
       ),
-      testM("Stream.fromQueue")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { c =>
+      testM("fromQueue")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { c =>
         for {
           queue <- Queue.unbounded[Int]
           _     <- queue.offerAll(c.toSeq)

@@ -2912,7 +2912,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a [[zio.stm.TQueue]] of values.
    */
   def fromTQueue[A](queue: TQueue[A]): ZStream[Any, Nothing, A] =
-    repeatEffectChunk(queue.takeAll.map(Chunk.fromIterable(_)).commit)
+    repeatEffectChunk(queue.take.map(Chunk.single(_)).commit)
 
   /**
    * The stream that always halts with `cause`.
