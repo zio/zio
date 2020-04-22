@@ -16,7 +16,7 @@
 
 package zio.internal
 
-import java.util.concurrent._
+import java.util.concurrent.{ AbstractExecutorService, TimeUnit }
 import java.{ util => ju }
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutorService }
