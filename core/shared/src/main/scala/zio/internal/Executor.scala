@@ -24,7 +24,7 @@ import scala.concurrent.ExecutionContext
  * An executor is responsible for executing actions. Each action is guaranteed
  * to begin execution on a fresh stack frame.
  */
-trait Executor { self =>
+trait Executor extends ExecutorPlatformSpecific { self =>
 
   /**
    * The number of operations a fiber should run before yielding.
