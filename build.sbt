@@ -232,7 +232,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(
     crossScalaVersions --= Seq("2.11.12", dottyVersion),
     scalacOptions += "-language:experimental.macros",
-    libraryDependencies += "com.propensive" %%% "magnolia" % "0.12.8"
+    libraryDependencies += "com.propensive" %%% "magnolia" % "0.15.0"
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
