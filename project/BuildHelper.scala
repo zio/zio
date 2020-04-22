@@ -84,11 +84,12 @@ object BuildHelper {
   )
 
   val scalaReflectSettings = Seq(
+    resolvers += Resolver.sonatypeRepo("public"),
     libraryDependencies ++=
       (if (isDotty.value) Seq()
        else
          Seq(
-           "dev.zio" %%% "izumi-reflect" % "0.12.0-M0"
+           "dev.zio" %%% "izumi-reflect" % "0.12.0-M1"
          ))
   )
 

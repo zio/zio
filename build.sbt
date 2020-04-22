@@ -232,7 +232,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(
     crossScalaVersions --= Seq("2.11.12", dottyVersion),
     scalacOptions += "-language:experimental.macros",
-    libraryDependencies += "com.propensive" %%% "magnolia" % "0.12.6"
+    libraryDependencies += "com.propensive" %%% "magnolia" % "0.12.8"
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
@@ -279,7 +279,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
     ),
     mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
-  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.32"))
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "1.0.1"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .dependsOn(core)
   .dependsOn(test)
