@@ -1634,31 +1634,6 @@ object ZManaged {
   def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] = flatten(fromFunction(f))
 
   /**
-   * Gets the specified service from the environment of the effect.
-   */
-  def getService[A](implicit tagged: Tagged[A]): ZManaged[Has[A], Nothing, A] =
-    ZManaged.access(_.get[A])
-
-  /**
-   * Gets the specified services from the environment of the effect.
-   */
-  def getServices[A: Tagged, B: Tagged]: ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
-    ZManaged.access(r => (r.get[A], r.get[B]))
-
-  /**
-   * Gets the specified services from the environment of the effect.
-   */
-  def getServices[A: Tagged, B: Tagged, C: Tagged]: ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
-    ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
-
-  /**
-   * Gets the specified services from the environment of the effect.
-   */
-  def getServices[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
-    : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
-    ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
-
-  /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
@@ -2065,6 +2040,31 @@ object ZManaged {
    * tuple.
    */
   def second[A, B]: ZManaged[(A, B), Nothing, B] = fromFunction(_._2)
+
+  /**
+   * Accesses the specified service in the environment of the effect.
+   */
+  def service[A](implicit tagged: Tagged[A]): ZManaged[Has[A], Nothing, A] =
+    ZManaged.access(_.get[A])
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged]: ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
+    ZManaged.access(r => (r.get[A], r.get[B]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged]: ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+    ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+    ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    *  Returns an effect with the optional value.

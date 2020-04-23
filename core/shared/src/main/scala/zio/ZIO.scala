@@ -2887,31 +2887,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     })
 
   /**
-   * Gets the specified service from the environment of the effect.
-   */
-  def getService[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
-    ZIO.access(_.get[A])
-
-  /**
-   * Gets the specified services from the environment of the effect.
-   */
-  def getServices[A: Tagged, B: Tagged]: URIO[Has[A] with Has[B], (A, B)] =
-    ZIO.access(r => (r.get[A], r.get[B]))
-
-  /**
-   * Gets the specified services from the environment of the effect.
-   */
-  def getServices[A: Tagged, B: Tagged, C: Tagged]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
-    ZIO.access(r => (r.get[A], r.get[B], r.get[C]))
-
-  /**
-   * Gets the specified services from the environment of the effect.
-   */
-  def getServices[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
-    : URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
-    ZIO.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
-
-  /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   def halt[E](cause: => Cause[E]): IO[E, Nothing] =
@@ -3277,6 +3252,31 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * tuple.
    */
   def second[A, B]: URIO[(A, B), B] = fromFunction[(A, B), B](_._2)
+
+  /**
+   * Accesses the specified service in the environment of the effect.
+   */
+  def service[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
+    ZIO.access(_.get[A])
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged]: URIO[Has[A] with Has[B], (A, B)] =
+    ZIO.access(r => (r.get[A], r.get[B]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
+    ZIO.access(r => (r.get[A], r.get[B], r.get[C]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
+    ZIO.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Returns an effect that suspends for the specified duration. This method is

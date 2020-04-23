@@ -3451,31 +3451,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     ZStream.repeatEffect(queue.take.commit)
 
   /**
-   * Gets the specified service from the environment of the effect.
-   */
-  def getService[A](implicit tagged: Tagged[A]): ZStream[Has[A], Nothing, A] =
-    ZStream.access(_.get[A])
-
-  /**
-   * Gets the specified services from the environment of the effect.
-   */
-  def getServices[A: Tagged, B: Tagged]: ZStream[Has[A] with Has[B], Nothing, (A, B)] =
-    ZStream.access(r => (r.get[A], r.get[B]))
-
-  /**
-   * Gets the specified services from the environment of the effect.
-   */
-  def getServices[A: Tagged, B: Tagged, C: Tagged]: ZStream[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
-    ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
-
-  /**
-   * Gets the specified services from the environment of the effect.
-   */
-  def getServices[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
-    : ZStream[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
-    ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
-
-  /**
    * The stream that always halts with `cause`.
    */
   def halt[E](cause: => Cause[E]): ZStream[Any, E, Nothing] =
@@ -3576,6 +3551,31 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     schedule: Schedule[R, Unit, _]
   ): ZStream[R, E, A] =
     fromEffect(fa).repeat(schedule)
+
+  /**
+   * Accesses the specified service in the environment of the effect.
+   */
+  def service[A](implicit tagged: Tagged[A]): ZStream[Has[A], Nothing, A] =
+    ZStream.access(_.get[A])
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged]: ZStream[Has[A] with Has[B], Nothing, (A, B)] =
+    ZStream.access(r => (r.get[A], r.get[B]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged]: ZStream[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+    ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : ZStream[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+    ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Creates a single-valued pure stream
