@@ -48,7 +48,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         })
       ),
       suite("aggregateAsync")(
-        testM("aggregateAsync") {
+        testM("aggregateAsync999") {
           ZStream(1, 1, 1, 1)
             .aggregateAsync(ZTransducer.foldUntil(List[Int](), 3)((acc, el) => el :: acc))
             .runCollect

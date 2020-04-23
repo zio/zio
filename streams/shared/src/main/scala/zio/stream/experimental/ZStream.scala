@@ -122,7 +122,9 @@ abstract class ZStream[-R, +E, +O](
    * Any transducer can be used here, but see [[ZTransducer.foldWeightedM]] and [[ZTransducer.foldUntilM]] for
    * transducers that cover the common usecases.
    */
-  final def aggregateAsync[R1 <: R, E1 >: E, P](transducer: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
+  final def aggregateAsync[R1 <: R, E1 >: E, P](
+    transducer: ZTransducer[R1, E1, O, P]
+  ): ZStream[R1, E1, P] =
     aggregateAsyncWithin(transducer, Schedule.forever)
 
   /**
@@ -170,12 +172,12 @@ abstract class ZStream[-R, +E, +O](
   ): ZStream[R1, E1, Either[Q, P]] =
     ZStream {
       for {
-        pull           <- self.process
-        push           <- transducer.push
-        bucket         <- ZQueue.bounded[Take[E1, P]](1).toManaged(_.shutdown)
-        notifyProducer <- Promise.make[Nothing, Boolean].tap(_.succeed(false)).flatMap(ZRef.make).toManaged_
-        start          <- Promise.make[Nothing, Unit].toManaged_
-        done           <- ZRef.makeManaged(false)
+        pull     <- self.process
+        push     <- transducer.push
+        results  <- ZQueue.bounded[Take[E1, P]](1).toManaged(_.shutdown)
+        commands <- ZQueue.bounded[Boolean](1).toManaged(_.shutdown)
+        done     <- ZRef.makeManaged(false)
+        start    <- Promise.make[Nothing, Unit].toManaged_
         scheduleState <- schedule.initial
                           .flatMap(i => ZRef.make[(Chunk[P], schedule.State)](Chunk.empty -> i))
                           .toManaged_
@@ -183,15 +185,15 @@ abstract class ZStream[-R, +E, +O](
           // Upstream is done, we need to flush the transducer. If the output is
           // empty, we send the end signal downstream.
           def finish(ps: Chunk[P]): URIO[R1, Boolean] =
-            bucket.offerAll(if (ps.isEmpty) List(Take.End) else List(Exit.succeed(ps), Take.End)) as false
+            results.offerAll(if (ps.isEmpty) List(Take.End) else List(Exit.succeed(ps), Take.End)) as false
 
           // If the transducer emitted a frame, it is submitted downstream. This will block until the frame
           // is consumed, but otherwise resumes waiting for the next instruction.
           def iterate(ps: Chunk[P]): URIO[R1, Boolean] =
-            if (ps.isEmpty) UIO.succeedNow(true) else bucket.offer(Exit.succeed(ps))
+            results.offer(Exit.succeed(ps))
 
           def iterateFail(c: Cause[E1]): URIO[R1, Boolean] =
-            bucket.offer(Exit.halt(c.map(Some(_))))
+            results.offer(Exit.halt(c.map(Some(_))))
 
           // We push a command to the transducer, calling the continuation when it is done.
           def drain(
@@ -201,19 +203,18 @@ abstract class ZStream[-R, +E, +O](
 
           // We read the command from upstream (either flush the transducer of pull upstream) and submit
           // the relevant result downstream
-          val go: URIO[R1, Boolean] = (Promise.make[Nothing, Boolean] <*> notifyProducer.get.flatMap(_.await)).flatMap {
-            case (command, flush) =>
-              val action =
-                if (flush)
-                  drain(None)(iterateFail, iterate)
-                else
-                  pull.foldCauseM(
-                    Cause.sequenceCauseOption(_).fold(drain(None)(iterateFail, finish))(iterateFail),
-                    os => drain(Some(os))(iterateFail, iterate)
-                  )
-
-              notifyProducer.set(command) *> action <* start.succeed(())
-          }
+          lazy val go: URIO[R1, Boolean] =
+            commands.take.flatMap {
+              if (_)
+                drain(None)(iterateFail, ps => if (ps.isEmpty) finish(ps) else iterate(ps))
+              else
+                pull.foldCauseM(
+                  Cause
+                    .sequenceCauseOption(_)
+                    .fold(drain(None)(iterateFail, finish))(iterateFail),
+                  os => drain(Some(os))(iterateFail, iterate)
+                )
+            } <* start.succeed(())
 
           go.repeat(Schedule.doWhile(identity))
         }
@@ -227,29 +228,34 @@ abstract class ZStream[-R, +E, +O](
           val updateSchedule: URIO[R1, Option[schedule.State]] =
             scheduleState.get.flatMap(state => schedule.update(state._1, state._2).option)
 
-          // Waiting for the normal output of the transducer
+          // Waiting for the normal output of the producer
           val waitForProducer: ZIO[R1, Nothing, Take[E1, P]] =
-            notifyProducer.get.flatMap(_.succeed(false)) *> bucket.take
+            results.take
 
-          val go: ZIO[R1, Option[E1], Chunk[Either[Q, P]]] =
-            start.await *> (updateSchedule raceEither waitForProducer).flatMap {
-              // Schedule is done, we reset it and yield its output downstream
-              case Left(None) =>
-                for {
-                  init <- schedule.initial
-                  state <- scheduleState.getAndSet(Chunk.empty -> init)
-                } yield Chunk.single(Left(schedule.extract(state._1, state._2)))
+          def go(race: Boolean): ZIO[R1, Option[E1], Chunk[Either[Q, P]]] =
+            if (race)
+              commands.offer(false) *> start.await *> (updateSchedule raceEither waitForProducer).flatMap {
+                // Schedule is done, we reset it and yield its output downstream
+                case Left(None) =>
+                  for {
+                    init  <- schedule.initial
+                    state <- scheduleState.getAndSet(Chunk.empty -> init)
+                  } yield Chunk.single(Left(schedule.extract(state._1, state._2)))
 
-              // Schedule has made progress, we poll upstream and if there is data, we
-              case Left(Some(nextState)) =>
-                notifyProducer.get.flatMap(_.succeed(true)) *> scheduleState.update(_.copy(_2 = nextState)) *> bucket.take.flatMap(handleTake)
+                // Schedule has made progress, we poll upstream and if there is data, we
+                case Left(Some(nextState)) =>
+                  commands.offer(true) *> scheduleState.update(_.copy(_2 = nextState)) *> go(false)
 
-              // Upstream has made progress, we handle its output
-              case Right(take) =>
-                handleTake(take)
-            }
+                case Right(take) if take.exists(_.isEmpty) =>
+                  go(true)
 
-          done.get.flatMap(if (_) Pull.end else go)
+                case Right(take) =>
+                  handleTake(take)
+              }
+            else
+              results.take.flatMap(take => if (take.exists(_.isEmpty)) go(true) else handleTake(take))
+
+          done.get.flatMap(if (_) Pull.end else go(true))
         }
 
         _ <- producer.forkManaged
