@@ -229,10 +229,11 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
   .dependsOn(test)
   .settings(stdSettings("zio-test-magnolia"))
+  .settings(macroDefinitionSettings)
   .settings(
     crossScalaVersions --= Seq("2.11.12", dottyVersion),
     scalacOptions += "-language:experimental.macros",
-    libraryDependencies += "com.propensive" %%% "magnolia" % "0.12.8"
+    libraryDependencies += ("com.propensive" %%% "magnolia" % "0.15.0").exclude("org.scala-lang", "scala-compiler")
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
@@ -337,7 +338,7 @@ lazy val benchmarks = project.module
         "org.typelevel"             %% "cats-effect"   % "2.1.3",
         "org.scalacheck"            %% "scalacheck"    % "1.14.3",
         "hedgehog"                  %% "hedgehog-core" % "0.1.0",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"     % "0.9.0"
+        "com.github.japgolly.nyaya" %% "nyaya-gen"     % "0.9.1"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
