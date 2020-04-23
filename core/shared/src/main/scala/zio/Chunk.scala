@@ -61,16 +61,16 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Returns a filtered, mapped subset of the elements of this chunk based on a .
    */
   def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-    self.materialize.collectM(pf)
+    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectM(pf)
 
   /**
    * Transforms all elements of the chunk for as long as the specified partial function is defined.
    */
   def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] =
-    self.materialize.collectWhile(pf)
+    if (isEmpty) Chunk.empty else self.materialize.collectWhile(pf)
 
   def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-    self.materialize.collectWhileM(pf)
+    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectWhileM(pf)
 
   /**
    * Determines whether this chunk and the specified chunk have the same length
@@ -666,13 +666,13 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
   //noinspection AccessorLikeMethodIsUnit
   protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
-    materialize.toArray(n, dest)
+    if (isEmpty) () else materialize.toArray(n, dest)
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
   protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] =
-    self.materialize.collectChunk(pf)
+    if (isEmpty) Chunk.empty else self.materialize.collectChunk(pf)
 
   /**
    * Returns a chunk with the elements mapped by the specified function.
