@@ -16,7 +16,7 @@
 
 package zio.test.mock.module
 
-import zio.ZIO
+import zio.{ URIO, ZIO }
 import zio.stream.{ Sink, Stream }
 
 /**
@@ -29,6 +29,6 @@ object StreamModule {
     def stream(a: Int): Stream[String, Int]
   }
 
-  def sink(a: Int)   = ZIO.access[StreamModule](_.get.sink(a))
-  def stream(a: Int) = ZIO.access[StreamModule](_.get.stream(a))
+  def sink(a: Int): URIO[StreamModule, Sink[String, Nothing, Int, List[Int]]] = ZIO.access[StreamModule](_.get.sink(a))
+  def stream(a: Int): URIO[StreamModule, Stream[String, Int]]                 = ZIO.access[StreamModule](_.get.stream(a))
 }
