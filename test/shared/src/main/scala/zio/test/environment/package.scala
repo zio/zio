@@ -27,6 +27,7 @@ import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
+import zio.stm.{ STM, TPriorityQueue, TRef }
 import zio.system.System
 import zio.{ PlatformSpecific => _, _ }
 
@@ -175,14 +176,14 @@ package object environment extends PlatformSpecific {
   }
 
   /**
-   * `TestClock` makes it easy to deterministically and efficiently test effects
-   * involving the passage of time.
+   * `TestClock` makes it easy to deterministically and efficiently test
+   * effects involving the passage of time.
    *
    * Instead of waiting for actual time to pass, `sleep` and methods implemented
-   * in terms of it schedule effects to take place at a given wall clock time.
-   * Users can adjust the wall clock time using the `adjust` and `setTime`
-   * methods, and all effects scheduled to take place on or before that wall
-   * clock time will automically be run.
+   * in terms of it schedule effects to take place at a given clock time. Users
+   * can adjust the clock time using the `adjust` and `setTime` methods, and all
+   * effects scheduled to take place on or before that time will automically be
+   * run in order.
    *
    * For example, here is how we can test `ZIO#timeout` using `TestClock:
    *
@@ -199,13 +200,12 @@ package object environment extends PlatformSpecific {
    * }}}
    *
    * Note how we forked the fiber that `sleep` was invoked on. Calls to `sleep`
-   * and methods derived from it will semantically block until the wall clock
-   * time is set to on or after the time they are scheduled to run. If we
-   * didn't fork the fiber on which we called sleep we would never get to set
-   * the the wall clock time on the line below. Thus, a useful pattern when
-   * using `TestClock` is to fork the effect being tested, then adjust the wall
-   * clock time, and finally verify that the expected effects have been
-   * performed.
+   * and methods derived from it will semantically block until the time is
+   * set to on or after the time they are scheduled to run. If we didn't fork
+   * the fiber on which we called sleep we would never get to set the the time
+   * on the line below. Thus, a useful pattern when using `TestClock` is to
+   * fork the effect being tested, then adjust the clock to the desired time,
+   * and finally verify that the expected effects have been performed.
    *
    * Sleep and related combinators schedule events to occur at a specified
    * duration in the future relative to the current fiber time (e.g. 10 seconds
@@ -224,7 +224,7 @@ package object environment extends PlatformSpecific {
    *
    *  for {
    *    q <- Queue.unbounded[Unit]
-   *    _ <- (q.offer(()).delay(60.minutes)).forever.fork
+   *    _ <- q.offer(()).delay(60.minutes).forever.fork
    *    a <- q.poll.map(_.isEmpty)
    *    _ <- TestClock.adjust(60.minutes)
    *    b <- q.take.as(true)
@@ -239,15 +239,16 @@ package object environment extends PlatformSpecific {
    * that an effect is performed after the recurrence period, and that the effect
    * is performed exactly once. The key thing to note here is that after each
    * recurrence the next recurrence is scheduled to occur at the appropriate time
-   * in the future, so when we adjust the wall clock time by 60 minutes exactly
-   * one value is placed in the queue, and when we adjust the wall clock time
-   * by another 60 minutes exactly one more value is placed in the queue.
+   * in the future, so when we adjust the clock by 60 minutes exactly one value
+   * is placed in the queue, and when we adjust the clock by another 60 minutes
+   * exactly one more value is placed in the queue.
    */
   object TestClock extends Serializable {
 
     trait Service extends Restorable {
-      def advance(duration: Duration): UIO[Unit]
       def adjust(duration: Duration): UIO[Unit]
+      def awaitScheduled: UIO[Unit]
+      def awaitScheduledN(n: Int): UIO[Unit]
       def fiberTime: UIO[Duration]
       def runAll: UIO[Unit]
       def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
@@ -259,52 +260,55 @@ package object environment extends PlatformSpecific {
     }
 
     final case class Test(
-      clockState: Ref[TestClock.Data],
+      clockState: TRef[TestClock.Data],
       fiberState: FiberRef[TestClock.FiberData],
+      scheduled: TPriorityQueue[Duration, Sleep],
       live: Live.Service,
       warningState: RefM[TestClock.WarningData]
     ) extends Clock.Service
         with TestClock.Service {
 
       /**
-       * Increments the wall clock time by the specified duration. Any effects
-       * that were scheduled to occur on or before the new wall clock time will
-       * immediately be run.
+       * Increments the current clock time by the specified duration. Any
+       * effects that were scheduled to occur on or before the new time will be
+       * run in order.
        */
       def adjust(duration: Duration): UIO[Unit] =
-        warningDone *> clockState.modify { data =>
-          val end             = data.duration + duration
-          val (wakes, sleeps) = data.sleeps.partition(_._1 <= end)
-          val updated         = data.copy(duration = end, sleeps = sleeps)
-          (wakes, updated)
-        }.flatMap(run)
+        warningDone *>
+          clockState.get.commit.flatMap(state => runUntil(state.duration + duration))
 
       /**
-       * Advances both the wall clock time and the current fiber time by the
-       * specified duration.
+       * Suspends until an effect has been scheduled.
        */
-      def advance(duration: Duration): UIO[Unit] =
-        adjust(duration) *> sleep(duration)
+      def awaitScheduled: UIO[Unit] =
+        scheduled.peek.unit.commit
 
       /**
-       * Returns the current fiber time as an `OffsetDateTime`.
+       * Suspends until the specified number of effects have been scheduled.
+       */
+      def awaitScheduledN(n: Int): UIO[Unit] =
+        scheduled.size.retryUntil(_ >= n).unit.commit
+
+      /**
+       * Returns the current clock time as an `OffsetDateTime`.
        */
       def currentDateTime: UIO[OffsetDateTime] =
-        fiberState.get.map(data => toDateTime(data.duration, data.timeZone))
+        clockState.get.map(data => toDateTime(data.duration, data.timeZone)).commit
 
       /**
-       * Returns the current fiber time in the specified time unit.
+       * Returns the current clock time in the specified time unit.
        */
       def currentTime(unit: TimeUnit): UIO[Long] =
-        fiberState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
+        clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS)).commit
 
       /**
-       * Returns the current fiber time for this fiber. The fiber time is backed
-       * by a `FiberRef` and is incremented for the duration each fiber is
-       * sleeping. When a fiber is joined the fiber time will be set to the
+       * Returns the current fiber time for this fiber. The fiber time is
+       * backed by a `FiberRef` and is incremented for the duration each fiber
+       * is sleeping. When a fiber is joined the fiber time will be set to the
        * maximum of the fiber time of the parent and child fibers. Thus, the
-       * fiber time reflects the duration of sleeping that has occurred for this
-       * fiber to reach its current state, properly reflecting forks and joins.
+       * fiber time reflects the duration of sleeping that has occurred for
+       * this fiber to reach its current state, properly reflecting forks and
+       * joins.
        *
        * {{{
        * for {
@@ -318,14 +322,14 @@ package object environment extends PlatformSpecific {
         fiberState.get.map(_.duration)
 
       /**
-       * Returns the current fiber time in nanoseconds.
+       * Returns the current clock time in nanoseconds.
        */
       val nanoTime: UIO[Long] =
-        fiberState.get.map(_.duration.toNanos)
+        clockState.get.map(_.duration.toNanos).commit
 
       /**
-       * Runs all scheduled effects. After this any scheduled effects will be
-       * run immediately
+       * Runs all scheduled effects in order. After this any scheduled effects
+       * will be run immediately
        */
       def runAll: UIO[Unit] =
         setTime(Duration.Infinity)
@@ -336,43 +340,42 @@ package object environment extends PlatformSpecific {
        */
       val save: UIO[UIO[Unit]] =
         for {
+          clockData <- clockState.get.commit
           fiberData <- fiberState.get
-          clockData <- clockState.get
-        } yield fiberState.set(fiberData) *> clockState.set(clockData)
+          sleeps    <- scheduled.toList.commit
+        } yield clockState.set(clockData).commit *>
+          fiberState.set(fiberData) *>
+          (scheduled.takeAll *> scheduled.offerAll(sleeps.map(sleep => sleep.duration -> sleep))).commit
 
       /**
-       * Sets the wall clock time to the specified `OffsetDateTime`. Any
+       * Sets the current clock time to the specified `OffsetDateTime`. Any
        * effects that were scheduled to occur on or before the new time will
-       * immediately be run.
+       * be run in order.
        */
       def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
         setTime(fromDateTime(dateTime))
 
       /**
-       * Sets the wall clock time to the specified time in terms of duration
+       * Sets the current clock time to the specified time in terms of duration
        * since the epoch. Any effects that were scheduled to occur on or before
-       * the new time will immediately be run.
+       * the new time will immediately be run in order.
        */
       def setTime(duration: Duration): UIO[Unit] =
-        warningDone *> clockState.modify { data =>
-          val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
-          val updated         = data.copy(duration = duration, sleeps = sleeps)
-          (wakes, updated)
-        }.flatMap(run)
+        warningDone *> runUntil(duration)
 
       /**
-       * Sets the time zone to the specified time zone. The wall clock time in
+       * Sets the time zone to the specified time zone. The clock time in
        * terms of nanoseconds since the epoch will not be adjusted and no
        * scheduled effects will be run as a result of this method.
        */
       def setTimeZone(zone: ZoneId): UIO[Unit] =
-        fiberState.update(_.copy(timeZone = zone))
+        clockState.update(_.copy(timeZone = zone)).commit
 
       /**
-       * Semantically blocks the current fiber until the wall clock time is
-       * equal to or greater than the specified duration. Once the wall clock
-       * time is adjusted to on or after the duration, the fiber will
-       * automatically be resumed.
+       * Semantically blocks the current fiber until the clock time is equal
+       * to or greater than the specified duration. Once the clock time is
+       * adjusted to on or after the duration, the fiber will automatically be
+       * resumed.
        */
       def sleep(duration: Duration): UIO[Unit] =
         for {
@@ -380,66 +383,74 @@ package object environment extends PlatformSpecific {
           latch   <- Promise.make[Nothing, Unit]
           start <- fiberState.modify { data =>
                     val end = data.duration + duration
-                    (data.duration, FiberData(end, data.timeZone))
+                    (data.duration, FiberData(end))
                   }
-          await <- clockState.modify { data =>
+          await <- clockState.get.flatMap { data =>
                     val end = start + duration
                     if (end > data.duration)
-                      (true, data.copy(sleeps = (end, latch, fiberId) :: data.sleeps))
+                      scheduled.offer(end, Sleep(end, latch, fiberId)).as(true)
                     else
-                      (false, data)
-                  }
+                      STM.succeed(false)
+                  }.commit
           _ <- if (await) warningStart *> latch.await else latch.succeed(())
         } yield ()
 
       /**
-       * Returns a list of the wall clock times at which all queued effects are
-       * scheduled to resume.
+       * Returns a list of the times at which all queued effects are scheduled
+       * to resume.
        */
       lazy val sleeps: UIO[List[Duration]] =
-        clockState.get.map(_.sleeps.map(_._1))
+        scheduled.toList.map(_.map(_.duration)).commit
 
       /**
        * Runs the first scheduled effect, semantically blocking until the fiber
-       * executing that effect is done or suspended. If there are no scheduled
-       * effects semantically blocks until there is at least one scheduled
-       * effect.
+       * executing that effect is done or suspended.
        */
       val tick: UIO[Unit] =
-        live.provide(awaitSleep) *>
-          clockState.modify { data =>
-            val sorted = data.sleeps.sortBy(_._1)
-            sorted match {
-              case h :: t => (Some(h), data.copy(sleeps = t))
-              case _      => (None, data)
-            }
-          }.flatMap {
-            case None => UIO.unit
-            case Some((_, promise, fiberId)) =>
-              promise.succeed(()) *> live.provide(awaitSuspended(fiberId))
-          }
+        scheduled.peekOption.commit.flatMap {
+          case None => UIO.unit
+          case Some(Sleep(_, promise, fiberId)) =>
+            promise.succeed(()) *> live.provide(awaitSuspended(fiberId))
+        }
 
       /**
        * Returns the time zone.
        */
       lazy val timeZone: UIO[ZoneId] =
-        fiberState.get.map(_.timeZone)
+        clockState.get.map(_.timeZone).commit
 
+      /**
+       * Cancels the warning message that is displayed if a test is using time
+       * but is not advancing the `TestClock`.
+       */
       private[TestClock] val warningDone: UIO[Unit] =
         warningState.updateSome[Any, Nothing] {
           case WarningData.Start          => ZIO.succeedNow(WarningData.done)
           case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
         }
 
-      private lazy val awaitSleep: URIO[Clock, Unit] =
-        hasSleep.repeat(Schedule.doUntil[Boolean](identity) && Schedule.fixed(1.millisecond)).unit
+      /**
+       * Run all effects scheduled to occur on or before the specified
+       * duration, in order.
+       */
+      private def runUntil(duration: Duration): UIO[Unit] =
+        scheduled.peekOption.flatMap {
+          case Some(sleep) if sleep.duration <= duration =>
+            clockState.update(_.copy(duration = sleep.duration)) *> scheduled.take.asSome
+          case _ =>
+            clockState.update(_.copy(duration = duration)) *> STM.none
+        }.commit.flatMap {
+          case None => UIO.unit
+          case Some(sleep) =>
+            sleep.promise.succeed(()) *>
+              live.provide(awaitSuspended(sleep.fiberId)) *>
+              runUntil(duration)
+        }
 
-      private lazy val hasSleep: URIO[Clock, Boolean] =
-        clockState.get.map(_.sleeps.nonEmpty)
-
-      private def run(wakes: List[(Duration, Promise[Nothing, Unit], Fiber.Id)]): UIO[Unit] =
-        UIO.foreach(wakes.sortBy(_._1))(_._2.succeed(())).unit
-
+      /**
+       * Forks a fiber that will display a warning message if a test is using
+       * time but is not advancing the `TestClock`.
+       */
       private val warningStart: UIO[Unit] =
         warningState.updateSome {
           case WarningData.Start =>
@@ -451,19 +462,48 @@ package object environment extends PlatformSpecific {
     }
 
     /**
+     * Constructs a new `Test` object that implements the `TestClock`
+     * interface. This can be useful for mixing in with implementations of
+     * other interfaces.
+     */
+    def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
+      ZLayer.fromServiceManyManaged { (live: Live.Service) =>
+        for {
+          ref      <- TRef.makeCommit(data).toManaged_
+          fiberRef <- FiberRef.make(FiberData(Duration.Zero), FiberData.combine).toManaged_
+          queue    <- TPriorityQueue.empty[Duration, Sleep].commit.toManaged_
+          refM     <- RefM.make(WarningData.start).toManaged_
+          test     <- Managed.make(UIO(Test(ref, fiberRef, queue, live, refM)))(_.warningDone)
+        } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
+      }
+
+    val any: ZLayer[Clock with TestClock, Nothing, Clock with TestClock] =
+      ZLayer.requires[Clock with TestClock]
+
+    val default: ZLayer[Live, Nothing, Clock with TestClock] =
+      live(Data(Duration.Zero, ZoneId.of("UTC")))
+
+    /**
      * Accesses a `TestClock` instance in the environment and increments the
-     * wall clock time by the specified duration, running any actions scheduled
-     * for on or before the new time.
+     * time by the specified duration, running any actions scheduled for on or
+     * before the new time in order.
      */
     def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
 
     /**
-     * Access a `TestClock` instance in the environment and advances both the
-     * wall clock time and the current fiber time by the specified duration.
+     * Accesses a `TestClock` instance in the environment and suspends until an
+     * effect has been scheduled.
      */
-    def advance(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
-      ZIO.accessM(_.get.advance(duration))
+    def awaitScheduled: ZIO[TestClock, Nothing, Unit] =
+      ZIO.accessM(_.get.awaitScheduled)
+
+    /**
+     * Accesses a `TestClock` instance in the environment and suspends until
+     * the specified number of effects have been scheduled.
+     */
+    def awaitScheduledN(n: Int): ZIO[TestClock, Nothing, Unit] =
+      ZIO.accessM(_.get.awaitScheduledN(n))
 
     /**
      * Accesses a `TestClock` instance in the environment and returns the current
@@ -473,28 +513,8 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.fiberTime)
 
     /**
-     * Constructs a new `Test` object that implements the `TestClock` interface.
-     * This can be useful for mixing in with implementations of other interfaces.
-     */
-    def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
-      ZLayer.fromServiceManyManaged { (live: Live.Service) =>
-        for {
-          ref      <- Ref.make(data).toManaged_
-          fiberRef <- FiberRef.make(FiberData(Duration.Zero, ZoneId.of("UTC")), FiberData.combine).toManaged_
-          refM     <- RefM.make(WarningData.start).toManaged_
-          test     <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
-        } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
-      }
-
-    val any: ZLayer[Clock with TestClock, Nothing, Clock with TestClock] =
-      ZLayer.requires[Clock with TestClock]
-
-    val default: ZLayer[Live, Nothing, Clock with TestClock] =
-      live(Data(Duration.Zero, Nil))
-
-    /**
      * Accesses a `TestClock` instance in the environment and runs all
-     * scheduled effects. After this any scheduled effects will be run
+     * scheduled effects in order. After this any scheduled effects will be run
      * immediately.
      */
     val runAll: ZIO[TestClock, Nothing, Unit] =
@@ -503,39 +523,39 @@ package object environment extends PlatformSpecific {
     /**
      * Accesses a `TestClock` instance in the environment and saves the clock
      * state in an effect which, when run, will restore the `TestClock` to the
-     * saved state
+     * saved state.
      */
     val save: ZIO[TestClock, Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
 
     /**
-     * Accesses a `TestClock` instance in the environment and sets the wall
-     * clock time to the specified `OffsetDateTime`, running any actions
-     * scheduled for on or before the new time.
+     * Accesses a `TestClock` instance in the environment and sets the clock
+     * time to the specified `OffsetDateTime`, running any actions scheduled
+     * for on or before the new time in order.
      */
     def setDateTime(dateTime: => OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setDateTime(dateTime))
 
     /**
-     * Accesses a `TestClock` instance in the environment and sets the wall
-     * clock time to the specified time in terms of duration since the epoch,
-     * running any actions scheduled for on or before the new time.
+     * Accesses a `TestClock` instance in the environment and sets the clock
+     * time to the specified time in terms of duration since the epoch,
+     * running any actions scheduled for on or before the new time in order.
      */
     def setTime(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTime(duration))
 
     /**
-     * Accesses a `TestClock` instance in the environment, setting the time zone
-     * to the specified time zone. The wall clock time in terms of nanoseconds
-     * since the epoch will not be altered and no scheduled actions will be run
-     * as a result of this effect.
+     * Accesses a `TestClock` instance in the environment, setting the time
+     * zone to the specified time zone. The clock time in terms of nanoseconds
+     * since the epoch will not be altered and no scheduled actions will be
+     * run as a result of this effect.
      */
     def setTimeZone(zone: => ZoneId): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTimeZone(zone))
 
     /**
-     * Accesses a `TestClock` instance in the environment and returns a list of
-     * wall clock times that effects are scheduled to run.
+     * Accesses a `TestClock` instance in the environment and returns a list
+     * of times that effects are scheduled to run.
      */
     val sleeps: ZIO[TestClock, Nothing, List[Duration]] =
       ZIO.accessM(_.get.sleeps)
@@ -543,8 +563,7 @@ package object environment extends PlatformSpecific {
     /**
      * Accesses a `TestClock` instance in the environment and runs the first
      * scheduled effect, semantically blocking until the fiber executing that
-     * effect is done or suspended. If there are no scheduled effects
-     * semantically blocks until there is at least one scheduled effect.
+     * effect is done or suspended.
      */
     val tick: ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.tick)
@@ -557,53 +576,117 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.timeZone)
 
     /**
-     * The state of the `TestClock`.
+     * `Data` represents the state of the `TestClock`, incuding the clock time
+     * and time zone.
      */
-    final case class Data(duration: Duration, sleeps: List[(Duration, Promise[Nothing, Unit], Fiber.Id)])
+    final case class Data(duration: Duration, timeZone: ZoneId)
 
-    final case class FiberData(duration: Duration, timeZone: ZoneId)
+    /**
+     * `Sleep` represents the state of a scheduled effect, including the time
+     * the effect is scheduled to run, a promise that can be completed to
+     * resume execution of the effect, and the fiber executing the effect.
+     */
+    final case class Sleep(duration: Duration, promise: Promise[Nothing, Unit], fiberId: Fiber.Id)
+
+    /**
+     * `FiberData` represents the state of a single fiber, including the
+     * duration of sleeping that has occurred for the fiber to reach its
+     * current state.
+     */
+    final case class FiberData(duration: Duration)
 
     object FiberData {
+
+      /**
+       * Combine the fiber time of two fibers by setting the fiber time to the
+       * maximum of the fiber time of the parent and child fibers.
+       */
       def combine(first: FiberData, last: FiberData): FiberData =
-        FiberData(
-          first.duration max last.duration,
-          last.timeZone
-        )
+        FiberData(first.duration max last.duration)
     }
 
+    /**
+     * `WarningData` describes the state of the warning message that is
+     * displayed if a test is using time by is not advancing the `TestClock`.
+     * The possible states are `Start` if a test has not used time, `Pending`
+     * if a test has used time but has not adjusted the `TestClock`, and `Done`
+     * if a test has adjusted the `TestClock` or the warning message has
+     * already been displayed.
+     */
     sealed trait WarningData
 
     object WarningData {
+
       case object Start                                     extends WarningData
       final case class Pending(fiber: Fiber[Nothing, Unit]) extends WarningData
       case object Done                                      extends WarningData
 
-      val start: WarningData                                = Start
+      /**
+       * State indicating that a test has not used time.
+       */
+      val start: WarningData = Start
+
+      /**
+       * State indicating that a test has used time but has not adjusted the
+       * `TestClock` with a reference to the fiber that will display the
+       * warning message.
+       */
       def pending(fiber: Fiber[Nothing, Unit]): WarningData = Pending(fiber)
-      val done: WarningData                                 = Done
+
+      /**
+       * State indicating that a test has used time or the warning message has
+       * already been displayed.
+       */
+      val done: WarningData = Done
     }
 
+    /**
+     * Polls untl the specified fiber completes execution or is indefinitely
+     * suspended, meaning that the fiber and all the fibers it is blocking on
+     * and all the fibers they are blocking on recursively are suspended.
+     */
     private def awaitSuspended(fiberId: Fiber.Id): URIO[Clock, Unit] =
       suspended(fiberId).repeat(Schedule.doUntil[Boolean](identity) && Schedule.fixed(1.millisecond)).unit
 
+    /**
+     * Constructs a `Duration` from an `OffsetDateTime`.
+     */
     private def fromDateTime(dateTime: OffsetDateTime): Duration =
       Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
 
-    private def suspended(fiberId: Fiber.Id): UIO[Boolean] =
-      Fiber.get(fiberId).flatMap {
-        case None => UIO.succeedNow(true)
-        case Some(fiber) =>
-          fiber.status.flatMap {
-            case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
-              ZIO.foreach(blockingOn)(suspended).map(_.forall(identity))
-            case Fiber.Status.Done => UIO.succeedNow(true)
-            case _                 => UIO.succeedNow(false)
-          }
-      }
+    /**
+     * Returns whether the specified fiber has completed execution or is
+     * indefinitely suspended, meaning that the fiber and all the fibers it is
+     * blocking on and all the fibers they are blocking on recursively are
+     * suspended.
+     */
+    private def suspended(fiberId: Fiber.Id): UIO[Boolean] = {
 
+      def loop(fiberId: Fiber.Id, suspended: Set[Fiber.Id]): UIO[Boolean] =
+        Fiber.get(fiberId).flatMap {
+          case None => UIO.succeedNow(true)
+          case Some(fiber) =>
+            fiber.status.flatMap {
+              case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
+                ZIO.foreach(blockingOn.filterNot(suspended))(loop(_, suspended + fiberId)).map(_.forall(identity))
+              case Fiber.Status.Done => UIO.succeedNow(true)
+              case _                 => UIO.succeedNow(false)
+            }
+        }
+
+      loop(fiberId, Set.empty)
+    }
+
+    /**
+     * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
+     */
     private def toDateTime(duration: Duration, timeZone: ZoneId): OffsetDateTime =
       OffsetDateTime.ofInstant(Instant.ofEpochMilli(duration.toMillis), timeZone)
 
+    /**
+     * The warning message that will be displayed if a test is using time but
+     * is not advancing the `TestClock`.
+     */
     private val warning =
       "Warning: A test is using time, but is not advancing the test clock, " +
         "which may result in the test hanging. Use TestClock.adjust to " +
