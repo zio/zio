@@ -190,10 +190,11 @@ object ClockSpec extends ZIOBaseSpec {
         ref       <- Ref.make(3)
         countdown = ref.updateAndGet(_ - 1).flatMap(n => latch.succeed(()).when(n == 0))
         _         <- countdown.repeat(Schedule.fixed(2.seconds)).delay(1.second).fork
+        _         <- TestClock.awaitScheduled
         _         <- TestClock.adjust(5.seconds)
         _         <- latch.await
       } yield assertCompletes
-    },
+    } @@ nonFlaky,
     testM("runAll runs all scheduled effects") {
       for {
         _ <- TestClock.runAll
