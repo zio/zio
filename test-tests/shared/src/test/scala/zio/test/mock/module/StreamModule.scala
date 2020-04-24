@@ -16,8 +16,8 @@
 
 package zio.test.mock.module
 
-import zio.{ URIO, ZIO }
 import zio.stream.{ Sink, Stream }
+import zio.{ URIO, ZIO }
 
 /**
  * Example of ZIO Data Types module used for testing ZIO Mock framework.
