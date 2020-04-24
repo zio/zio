@@ -764,7 +764,6 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
 
-  @silent("JavaConverters")
   private[zio] def get(fiberId: Fiber.Id): UIO[Option[Fiber.Runtime[Any, Any]]] = {
 
     def loop(fiber: Fiber.Runtime[Any, Any]): UIO[Option[Fiber.Runtime[Any, Any]]] =

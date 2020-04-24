@@ -467,7 +467,6 @@ package object environment extends PlatformSpecific {
             sleep.promise.succeed(()) *>
               awaitSuspended(sleep.fiberId) *>
               runUntil(STM.succeedNow(sleep.duration))
-
         }
 
       /**
