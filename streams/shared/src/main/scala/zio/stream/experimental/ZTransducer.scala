@@ -72,6 +72,23 @@ object ZTransducer {
     new ZTransducer(push) {}
 
   /**
+   * Shorthand form for [[ZTransducer.identity]]. Use as:
+   * {{{
+   * ZTransducer[Int].filter(_ % 2 != 0)
+   * }}}
+   */
+  def apply[I]: ZTransducer[Any, Nothing, I, I] = identity[I]
+
+  /**
+   * The identity transducer. Passed elements through.
+   */
+  def identity[I]: ZTransducer[Any, Nothing, I, I] =
+    ZTransducer.fromPush {
+      case Some(is) => ZIO.succeed(is)
+      case None     => ZIO.succeed(Chunk.empty)
+    }
+
+  /**
    * A transducer that re-chunks the elements fed to it into chunks of up to
    * `n` elements each.
    */
