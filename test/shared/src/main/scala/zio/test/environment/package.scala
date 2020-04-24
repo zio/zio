@@ -403,15 +403,17 @@ package object environment extends PlatformSpecific {
         scheduled.toList.map(_.map(_.duration)).commit
 
       /**
-       * Runs the first scheduled effect, semantically blocking until the fiber
-       * executing that effect is done or suspended.
+       * Runs the first scheduled effect, setting the clock time to the time
+       * the effect was scheduled to run and semantically blocking until the
+       * fiber executing that effect is done or suspended. If there are no
+       * scheduled effects semantically blocks until there is at least one
+       * scheduled effect.
        */
       val tick: UIO[Unit] =
-        scheduled.peekOption.commit.flatMap {
-          case None => UIO.unit
-          case Some(Sleep(_, promise, fiberId)) =>
-            promise.succeed(()) *> live.provide(awaitSuspended(fiberId))
-        }
+        scheduled.take
+          .flatMap(sleep => clockState.update(_.copy(duration = sleep.duration)).as(sleep))
+          .commit
+          .flatMap(sleep => sleep.promise.succeed(()) *> awaitSuspended(sleep.fiberId))
 
       /**
        * Returns the time zone.
@@ -430,6 +432,24 @@ package object environment extends PlatformSpecific {
         }
 
       /**
+       * Polls untl the specified fiber completes execution or is indefinitely
+       * suspended, meaning that the fiber and all the fibers it is blocking on
+       * and all the fibers they are blocking on recursively are suspended.
+       */
+      private def awaitSuspended(fiberId: Fiber.Id): UIO[Unit] =
+        live.provide {
+          suspended(fiberId).repeat {
+            Schedule.doUntilEquals(true) && Schedule.fixed(1.millisecond)
+          }
+        }.unit
+
+      /**
+       * Constructs a `Duration` from an `OffsetDateTime`.
+       */
+      private def fromDateTime(dateTime: OffsetDateTime): Duration =
+        Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+
+      /**
        * Run all effects scheduled to occur on or before the specified
        * duration, in order.
        */
@@ -443,9 +463,38 @@ package object environment extends PlatformSpecific {
           case None => UIO.unit
           case Some(sleep) =>
             sleep.promise.succeed(()) *>
-              live.provide(awaitSuspended(sleep.fiberId)) *>
+              awaitSuspended(sleep.fiberId) *>
               runUntil(duration)
         }
+
+      /**
+       * Returns whether the specified fiber has completed execution or is
+       * indefinitely suspended, meaning that the fiber and all the fibers it is
+       * blocking on and all the fibers they are blocking on recursively are
+       * suspended.
+       */
+      private def suspended(fiberId: Fiber.Id): UIO[Boolean] = {
+
+        def loop(fiberId: Fiber.Id, suspended: Set[Fiber.Id]): UIO[Boolean] =
+          Fiber.get(fiberId).flatMap {
+            case None => UIO.succeedNow(true)
+            case Some(fiber) =>
+              fiber.status.flatMap {
+                case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
+                  ZIO.foreach(blockingOn.filterNot(suspended))(loop(_, suspended + fiberId)).map(_.forall(identity))
+                case Fiber.Status.Done => UIO.succeedNow(true)
+                case _                 => UIO.succeedNow(false)
+              }
+          }
+
+        loop(fiberId, Set.empty)
+      }
+
+      /**
+       * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
+       */
+      private def toDateTime(duration: Duration, timeZone: ZoneId): OffsetDateTime =
+        OffsetDateTime.ofInstant(Instant.ofEpochMilli(duration.toMillis), timeZone)
 
       /**
        * Forks a fiber that will display a warning message if a test is using
@@ -562,8 +611,10 @@ package object environment extends PlatformSpecific {
 
     /**
      * Accesses a `TestClock` instance in the environment and runs the first
-     * scheduled effect, semantically blocking until the fiber executing that
-     * effect is done or suspended.
+     * scheduled effect, setting the clock time to the time the effect was
+     * scheduled to run and semantically blocking until the effect is done or
+     * suspended. If there are no scheduled effects semantically blocks until
+     * there is at least one scheduled effect.
      */
     val tick: ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.tick)
@@ -639,49 +690,6 @@ package object environment extends PlatformSpecific {
        */
       val done: WarningData = Done
     }
-
-    /**
-     * Polls untl the specified fiber completes execution or is indefinitely
-     * suspended, meaning that the fiber and all the fibers it is blocking on
-     * and all the fibers they are blocking on recursively are suspended.
-     */
-    private def awaitSuspended(fiberId: Fiber.Id): URIO[Clock, Unit] =
-      suspended(fiberId).repeat(Schedule.doUntil[Boolean](identity) && Schedule.fixed(1.millisecond)).unit
-
-    /**
-     * Constructs a `Duration` from an `OffsetDateTime`.
-     */
-    private def fromDateTime(dateTime: OffsetDateTime): Duration =
-      Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
-
-    /**
-     * Returns whether the specified fiber has completed execution or is
-     * indefinitely suspended, meaning that the fiber and all the fibers it is
-     * blocking on and all the fibers they are blocking on recursively are
-     * suspended.
-     */
-    private def suspended(fiberId: Fiber.Id): UIO[Boolean] = {
-
-      def loop(fiberId: Fiber.Id, suspended: Set[Fiber.Id]): UIO[Boolean] =
-        Fiber.get(fiberId).flatMap {
-          case None => UIO.succeedNow(true)
-          case Some(fiber) =>
-            fiber.status.flatMap {
-              case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
-                ZIO.foreach(blockingOn.filterNot(suspended))(loop(_, suspended + fiberId)).map(_.forall(identity))
-              case Fiber.Status.Done => UIO.succeedNow(true)
-              case _                 => UIO.succeedNow(false)
-            }
-        }
-
-      loop(fiberId, Set.empty)
-    }
-
-    /**
-     * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
-     */
-    private def toDateTime(duration: Duration, timeZone: ZoneId): OffsetDateTime =
-      OffsetDateTime.ofInstant(Instant.ofEpochMilli(duration.toMillis), timeZone)
 
     /**
      * The warning message that will be displayed if a test is using time but
