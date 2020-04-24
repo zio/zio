@@ -14,9 +14,9 @@ object SpecSpec extends ZIOBaseSpec {
     trait Service
   }
 
-  val layer = ZLayer.succeed(new Module.Service {})
+  val layer: ZLayer[Any, Nothing, Module] = ZLayer.succeed(new Module.Service {})
 
-  def spec = suite("SpecSpec")(
+  def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
     suite("provideLayerShared")(
       testM("gracefully handles fiber death") {
         implicit val needsEnv = NeedsEnv
