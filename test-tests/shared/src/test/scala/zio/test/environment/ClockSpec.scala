@@ -124,11 +124,10 @@ object ClockSpec extends ZIOBaseSpec {
       setTimeZone(ZoneId.of("UTC+11")) *>
         assertM(sleeps)(isEmpty)
     },
-    testM("tick") {
+    testM("tick runs the first scheduled effect") {
       for {
         ref    <- Ref.make(false)
         _      <- ref.set(true).delay(1.second).fork
-        _      <- awaitScheduled
         _      <- TestClock.tick
         result <- ref.get
       } yield assert(result)(isTrue)

@@ -199,6 +199,12 @@ object URIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectFirst]]
+   */
+  def collectFirst[R, A, B](as: Iterable[A])(f: A => URIO[R, Option[B]]): URIO[R, Option[B]] =
+    ZIO.collectFirst(as)(f)
+
+  /**
    * @see [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -281,6 +287,12 @@ object URIO {
   def environment[R]: ZIO[R, Nothing, R] = ZIO.environment
 
   /**
+   * @see See [[zio.ZIO.exists]]
+   */
+  def exists[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, Boolean] =
+    ZIO.exists(as)(f)
+
+  /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
@@ -321,6 +333,12 @@ object URIO {
    */
   def foldRight[R, S, A](in: Iterable[A])(zero: S)(f: (A, S) => URIO[R, S]): URIO[R, S] =
     ZIO.foldRight(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.forall]]
+   */
+  def forall[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, Boolean] =
+    ZIO.forall(as)(f)
 
   /**
    * @see [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]

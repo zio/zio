@@ -731,8 +731,10 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * The root fibers.
    */
-  val roots: UIO[Set[Fiber[Any, Any]]] = UIO {
-    internal.Sync(rootFibers)(rootFibers.asScala.toSet[Fiber[Any, Any]].filterNot(_ eq null): @silent("JavaConverters"))
+  val roots: UIO[Set[Fiber.Runtime[Any, Any]]] = UIO {
+    internal.Sync(rootFibers)(
+      rootFibers.asScala.toSet[Fiber.Runtime[Any, Any]].filterNot(_ eq null): @silent("JavaConverters")
+    )
   }
 
   /**
@@ -765,27 +767,13 @@ object Fiber extends FiberPlatformSpecific {
   @silent("JavaConverters")
   private[zio] def get(fiberId: Fiber.Id): UIO[Option[Fiber.Runtime[Any, Any]]] = {
 
-    def loop(
-      fiber: Fiber.Runtime[Any, Any],
-      stack: List[Fiber.Runtime[Any, Any]]
-    ): UIO[Option[Fiber.Runtime[Any, Any]]] =
+    def loop(fiber: Fiber.Runtime[Any, Any]): UIO[Option[Fiber.Runtime[Any, Any]]] =
       fiber.id.flatMap { id =>
         if (id == fiberId) UIO.succeedNow(Some(fiber))
-        else
-          fiber.children.map(_.toList).flatMap {
-            case h :: t => loop(h, t ::: stack)
-            case _ =>
-              stack match {
-                case h :: t => loop(h, t)
-                case _      => UIO.succeedNow(None)
-              }
-          }
+        else fiber.children.flatMap(ZIO.collectFirst(_)(loop))
       }
 
-    UIO.effectTotal(internal.Sync(rootFibers)(rootFibers.asScala.toList)).flatMap {
-      case h :: t => loop(h, t)
-      case _      => UIO.succeedNow(None)
-    }
+    roots.flatMap(ZIO.collectFirst(_)(loop))
   }
 
   private[zio] val _fiberCounter: AtomicLong =

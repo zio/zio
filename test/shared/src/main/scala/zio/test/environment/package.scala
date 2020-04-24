@@ -274,8 +274,7 @@ package object environment extends PlatformSpecific {
        * run in order.
        */
       def adjust(duration: Duration): UIO[Unit] =
-        warningDone *>
-          clockState.get.commit.flatMap(state => runUntil(state.duration + duration))
+        warningDone *> runUntil(clockState.get.map(_.duration + duration))
 
       /**
        * Suspends until an effect has been scheduled.
@@ -361,7 +360,7 @@ package object environment extends PlatformSpecific {
        * the new time will immediately be run in order.
        */
       def setTime(duration: Duration): UIO[Unit] =
-        warningDone *> runUntil(duration)
+        warningDone *> runUntil(STM.succeedNow(duration))
 
       /**
        * Sets the time zone to the specified time zone. The clock time in
@@ -390,7 +389,7 @@ package object environment extends PlatformSpecific {
                     if (end > data.duration)
                       scheduled.offer(end, Sleep(end, latch, fiberId)).as(true)
                     else
-                      STM.succeed(false)
+                      STM.succeedNow(false)
                   }.commit
           _ <- if (await) warningStart *> latch.await else latch.succeed(())
         } yield ()
@@ -453,18 +452,22 @@ package object environment extends PlatformSpecific {
        * Run all effects scheduled to occur on or before the specified
        * duration, in order.
        */
-      private def runUntil(duration: Duration): UIO[Unit] =
-        scheduled.peekOption.flatMap {
-          case Some(sleep) if sleep.duration <= duration =>
-            clockState.update(_.copy(duration = sleep.duration)) *> scheduled.take.asSome
-          case _ =>
-            clockState.update(_.copy(duration = duration)) *> STM.none
+      private def runUntil(duration: STM[Nothing, Duration]): UIO[Unit] =
+        duration.flatMap { duration =>
+          scheduled.peekOption.flatMap {
+            case Some(sleep) if sleep.duration <= duration =>
+              clockState.update(_.copy(duration = sleep.duration)) *>
+                scheduled.take.map(_.copy(duration = duration)).asSome
+            case _ =>
+              clockState.update(_.copy(duration = duration)) *> STM.none
+          }
         }.commit.flatMap {
           case None => UIO.unit
           case Some(sleep) =>
             sleep.promise.succeed(()) *>
               awaitSuspended(sleep.fiberId) *>
-              runUntil(duration)
+              runUntil(STM.succeedNow(sleep.duration))
+
         }
 
       /**
@@ -481,7 +484,7 @@ package object environment extends PlatformSpecific {
             case Some(fiber) =>
               fiber.status.flatMap {
                 case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
-                  ZIO.foreach(blockingOn.filterNot(suspended))(loop(_, suspended + fiberId)).map(_.forall(identity))
+                  ZIO.forall(blockingOn.filterNot(suspended))(loop(_, suspended + fiberId))
                 case Fiber.Status.Done => UIO.succeedNow(true)
                 case _                 => UIO.succeedNow(false)
               }

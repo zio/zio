@@ -205,6 +205,12 @@ object RIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectFirst]]
+   */
+  def collectFirst[R, A, B](as: Iterable[A])(f: A => RIO[R, Option[B]]): RIO[R, Option[B]] =
+    ZIO.collectFirst(as)(f)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -304,6 +310,12 @@ object RIO {
   def environment[R]: ZIO[R, Nothing, R] = ZIO.environment
 
   /**
+   * @see See [[zio.ZIO.exists]]
+   */
+  def exists[R, A](as: Iterable[A])(f: A => RIO[R, Boolean]): RIO[R, Boolean] =
+    ZIO.exists(as)(f)
+
+  /**
    * @see See [[zio.ZIO.fail]]
    */
   def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)
@@ -349,6 +361,12 @@ object RIO {
    */
   def foldRight[R, S, A](in: Iterable[A])(zero: S)(f: (A, S) => RIO[R, S]): RIO[R, S] =
     ZIO.foldRight(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.forall]]
+   */
+  def forall[R, A](as: Iterable[A])(f: A => RIO[R, Boolean]): RIO[R, Boolean] =
+    ZIO.forall(as)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]

@@ -182,6 +182,12 @@ object UIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectFirst]]
+   */
+  def collectFirst[A, B](as: Iterable[A])(f: A => UIO[Option[B]]): UIO[Option[B]] =
+    ZIO.collectFirst(as)(f)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -258,6 +264,12 @@ object UIO {
   def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => UIO[A]): UIO[A] = ZIO.effectSuspendTotalWith(p)
 
   /**
+   * @see See [[zio.ZIO.exists]]
+   */
+  def exists[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[Boolean] =
+    ZIO.exists(as)(f)
+
+  /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
@@ -292,16 +304,10 @@ object UIO {
     ZIO.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[zio.ZIO.forkAll]]
+   * @see See [[zio.ZIO.forall]]
    */
-  def forkAll[A](as: Iterable[UIO[A]]): UIO[Fiber[Nothing, List[A]]] =
-    ZIO.forkAll(as)
-
-  /**
-   * @see See [[zio.ZIO.forkAll_]]
-   */
-  def forkAll_[A](as: Iterable[UIO[A]]): UIO[Unit] =
-    ZIO.forkAll_(as)
+  def forall[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[Boolean] =
+    ZIO.forall(as)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
@@ -386,6 +392,18 @@ object UIO {
    */
   def foreachParN_[A](n: Int)(as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.foreachParN_(n)(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.forkAll]]
+   */
+  def forkAll[A](as: Iterable[UIO[A]]): UIO[Fiber[Nothing, List[A]]] =
+    ZIO.forkAll(as)
+
+  /**
+   * @see See [[zio.ZIO.forkAll_]]
+   */
+  def forkAll_[A](as: Iterable[UIO[A]]): UIO[Unit] =
+    ZIO.forkAll_(as)
 
   /**
    * @see See [[zio.ZIO.fromEither]]

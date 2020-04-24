@@ -64,6 +64,12 @@ object STM {
     ZSTM.collectAll_(in)
 
   /**
+   * @see See [[zio.stm.ZSTM.collectFirst]]
+   */
+  def collectFirst[E, A, B](as: Iterable[A])(f: A => STM[E, Option[B]]): STM[E, Option[B]] =
+    ZSTM.collectFirst(as)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.die]]
    */
   def die(t: => Throwable): USTM[Nothing] =
@@ -80,6 +86,12 @@ object STM {
    */
   def done[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
     ZSTM.done(exit)
+
+  /**
+   * @see See [[zio.stm.ZSTM.done]]
+   */
+  def exists[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, Boolean] =
+    ZSTM.exists(as)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fail]]
@@ -116,6 +128,12 @@ object STM {
    */
   def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => STM[E, S]): STM[E, S] =
     ZSTM.foldRight(in)(zero)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.forall]]
+   */
+  def forall[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Boolean] =
+    ZSTM.forall(as)(f)
 
   /**
    * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:Iterable*]]]
