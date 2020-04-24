@@ -1,11 +1,11 @@
 package zio
 
-import izumi.reflect.macrortti.{ LightTypeTag, LightTypeTagRef }
+import izumi.reflect.macrortti.LightTypeTagRef
 
 private[zio] trait VersionSpecific {
 
   type Tagged[A] = izumi.reflect.Tag[A]
-  type TagType   = LightTypeTag
+  type TagType   = izumi.reflect.macrortti.LightTypeTag
 
   type TaggedF[F[_]]                                                                  = izumi.reflect.TagK[F]
   type TaggedF2[F[_, _]]                                                              = izumi.reflect.TagKK[F]
