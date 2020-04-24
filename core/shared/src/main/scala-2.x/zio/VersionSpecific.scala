@@ -1,6 +1,6 @@
 package zio
 
-import izumi.reflect.Tags.{ Tag, TagK, TagKK, TagK3 }
+import izumi.reflect.{ Tag, TagK, TagKK, TagK3 }
 import izumi.reflect.macrortti.{ LightTypeTag, LightTypeTagRef }
 
 private[zio] trait VersionSpecific {

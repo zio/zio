@@ -64,7 +64,6 @@ object BuildHelper {
       else
         Seq()
     },
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
       val old = (Compile / doc / sources).value
       if (isDotty.value) {
@@ -84,12 +83,7 @@ object BuildHelper {
   )
 
   val scalaReflectSettings = Seq(
-    libraryDependencies ++=
-      (if (isDotty.value) Seq()
-       else
-         Seq(
-           "dev.zio" %%% "izumi-reflect" % "0.12.0-M1"
-         ))
+    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M1")
   )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
@@ -224,7 +218,7 @@ object BuildHelper {
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.6.0" % Provided)
+        Seq(("com.github.ghik" % "silencer-lib_2.13.1" % "1.6.0" % Provided).withDottyCompat(scalaVersion.value))
       else
         Seq(
           "com.github.ghik" % "silencer-lib" % "1.4.4" % Provided cross CrossVersion.full,
@@ -325,15 +319,14 @@ object BuildHelper {
 
   def macroDefinitionSettings = Seq(
     scalacOptions += "-language:experimental.macros",
-    libraryDependencies ++=
-      Seq("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0") ++ {
-        if (isDotty.value) Seq()
-        else
-          Seq(
-            "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided",
-            "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
-          )
-      }
+    libraryDependencies ++= {
+      if (isDotty.value) Seq()
+      else
+        Seq(
+          "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided",
+          "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
+        )
+    }
   )
 
   def testJsSettings = Seq(
