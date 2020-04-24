@@ -1324,8 +1324,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               halt <- Promise.make[String, Nothing]
               _    <- halt.fail("Fail")
-              result <- ZStream
-                         .fromIterable(Range(0, Int.MaxValue))
+              result <- ZStream(0)
+                         .forever
                          .haltWhen(halt.await)
                          .runDrain
                          .either
