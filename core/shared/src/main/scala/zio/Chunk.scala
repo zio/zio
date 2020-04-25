@@ -124,7 +124,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   def dropWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = {
-    val len                                  = self.length
+    val len                                       = self.length
     var dest: ZIO[R, E, (Boolean, Int, Array[A])] = UIO.succeedNow((true, 0, null.asInstanceOf[Array[A]]))
 
     var i = 0

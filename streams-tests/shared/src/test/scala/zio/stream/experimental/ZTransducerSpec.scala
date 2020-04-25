@@ -250,6 +250,30 @@ object ZTransducerSpec extends ZIOBaseSpec {
           )(equalTo(List(3L, 3L)))
         )
       ),
+      testM("dropWhile")(
+        assertM(
+          ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
+            .aggregate(ZTransducer.dropWhile(_ < 3))
+            .runCollect
+        )(equalTo(List(3, 4, 5, 1, 2, 3, 4, 5)))
+      ),
+      suite("dropWhileM")(
+        testM("happy path")(
+          assertM(
+            ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
+              .aggregate(ZTransducer.dropWhileM(x => UIO(x < 3)))
+              .runCollect
+          )(equalTo(List(3, 4, 5, 1, 2, 3, 4, 5)))
+        )
+        // testM("error")(
+        //   assertM {
+        //     (ZStream(1,2,3) ++ ZStream.fail("Aie") ++ ZStream(5,1,2,3,4,5))
+        //       .aggregate(ZTransducer.dropWhileM(x => UIO(x < 3)))
+        //       .either
+        //       .runCollect
+        //   }(equalTo(List(Right(3),Left("Aie"),Right(5),Right(1),Right(2),Right(3),Right(4),Right(5))))
+        // )
+      ),
       suite("splitLines")(
         testM("preserves data")(
           checkM(weirdStringGenForSplitLines) { lines =>

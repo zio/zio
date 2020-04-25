@@ -147,6 +147,50 @@ object ZTransducer {
     ZTransducer(Managed.succeed((_: Any) => IO.die(e)))
 
   /**
+   * Creates a transducer that starts consuming values as soon as one fails
+   * the predicate `p`.
+   */
+  def dropWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, I] =
+    ZTransducer {
+      for {
+        dropping <- ZRef.makeManaged(true)
+        push = { (is: Option[Chunk[I]]) =>
+          is match {
+            case None => UIO(Chunk.empty)
+            case Some(is) =>
+              dropping.modify {
+                case false => is -> false
+                case true =>
+                  val is1 = is.dropWhile(p)
+                  is1 -> (is1.length == 0)
+              }
+          }
+        }
+      } yield push
+    }
+
+  /**
+   * Creates a transducer that starts consuming values as soon as one fails
+   * the effectful predicate `p`.
+   */
+  def dropWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, I] =
+    ZTransducer {
+      for {
+        dropping <- ZRef.makeManaged(true)
+        push = { (is: Option[Chunk[I]]) =>
+          is match {
+            case None => UIO(Chunk.empty)
+            case Some(is) =>
+              dropping.get.flatMap {
+                case false => UIO(is -> false)
+                case true  => is.dropWhileM(p).map(is1 => is1 -> (is1.length == 0))
+              }.flatMap { case (is, pt) => dropping.set(pt) as is }
+          }
+        }
+      } yield push
+    }
+
+  /**
    * Creates a transducer that always fails with the specified failure.
    */
   def fail[E](e: => E): ZTransducer[Any, E, Any, Nothing] =
