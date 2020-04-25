@@ -176,7 +176,7 @@ private[zio] trait ChunkLike[+A] extends IndexedSeq[A] with IndexedSeqLike[A, Ch
    * with Scala's collection library and should not be used for other purposes.
    */
   override protected[this] def newBuilder: ChunkBuilder[A] =
-    ChunkBuilder.make()
+    ChunkBuilder.make
 }
 
 object ChunkLike {
@@ -196,7 +196,7 @@ object ChunkLike {
     as match {
       case iterable: Iterable[A] => Chunk.fromIterable(iterable)
       case iterableOnce =>
-        val chunkBuilder = ChunkBuilder.make[A]()
+        val chunkBuilder = ChunkBuilder.make[A]
         iterableOnce.foreach(chunkBuilder += _)
         chunkBuilder.result()
     }

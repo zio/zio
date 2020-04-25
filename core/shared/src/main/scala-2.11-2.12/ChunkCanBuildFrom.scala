@@ -38,8 +38,8 @@ object ChunkCanBuildFrom {
    */
   implicit def apply[A]: ChunkCanBuildFrom[A] =
     new ChunkCanBuildFrom[A] {
-      def apply(from: Chunk[Any]): ChunkBuilder[A] = ChunkBuilder.make()
-      def apply(): ChunkBuilder[A]                 = ChunkBuilder.make()
+      def apply(from: Chunk[Any]): ChunkBuilder[A] = ChunkBuilder.make
+      def apply(): ChunkBuilder[A]                 = ChunkBuilder.make
     }
 
   /**
