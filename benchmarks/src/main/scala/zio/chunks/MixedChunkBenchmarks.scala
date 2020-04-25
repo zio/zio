@@ -65,6 +65,7 @@ class MixedChunkBenchmarks {
   def mapM(): UIO[Unit] = chunk.mapM_(_ => ZIO.unit)
 
   @Benchmark
-  def foldM(): Int = IOBenchmarks.unsafeRun(chunk.foldM(0)((s, a) => ZIO.succeed(s + a)))
+  def foldM(): Int =
+    IOBenchmarks.unsafeRun(chunk.foldM[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
 
 }
