@@ -357,7 +357,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * A more powerful version of `fold` that allows recovering from any kind of failure except interruptions.
    */
-  def foldCause[B](failure: Cause[E] => B, success: A => B): ZManaged[R, E, B] =
+  def foldCause[B](failure: Cause[E] => B, success: A => B): ZManaged[R, Nothing, B] =
     sandbox.fold(failure, success)
 
   /**
