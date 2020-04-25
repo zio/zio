@@ -138,9 +138,9 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
             case false =>
               val array2 = if (array == null) {
                 implicit val A: ClassTag[A] = Chunk.Tags.fromValue(a)
-                Array.ofDim[A](len)
+                Array.ofDim[A](len - skip)
               } else array
-              array2(j) = a
+              array2(j - skip) = a
               (false, skip, array2)
           }
       }
@@ -149,9 +149,9 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     }
 
     dest.map {
-      case (_, skip, array) =>
+      case (_, _, array) =>
         if (array == null) Chunk.empty
-        else Chunk.fromArray(array).drop(skip)
+        else Chunk.fromArray(array)
     }
   }
 
