@@ -1362,7 +1362,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                         .fromQueue(queue)
                         .collectWhileSuccess
                         .flattenChunks
-                        .tap(x => console.putStrLn(x.toString))
                         .groupedWithin(10, 2.seconds)
                         .tap(_ => proceed)
                       assertM(for {
@@ -1909,6 +1908,28 @@ object ZStreamSpec extends ZIOBaseSpec {
           sum <- ref.get
         } yield assert(res)(equalTo(List(1, 1))) && assert(sum)(equalTo(2))
       },
+      suite("timeout")(
+        testM("succeed") {
+          assertM(
+            ZStream
+              .succeed(1)
+              .timeout(Duration.Infinity)
+              .runCollect
+          )(equalTo(List(1)))
+        },
+        testM("should interrupt stream") {
+          assertM(
+            ZStream
+              .range(0, 5)
+              .tap(_ => ZIO.sleep(Duration.Infinity))
+              .timeout(Duration.Zero)
+              .runDrain
+              .sandbox
+              .ignore
+              .map(_ => true)
+          )(isTrue)
+        } @@ zioTag(interruption)
+      ),
       testM("toInputStream") {
         val stream = ZStream(1, 2, 3).map(_.toByte)
         for {

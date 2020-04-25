@@ -2302,6 +2302,19 @@ abstract class ZStream[-R, +E, +O](
     ZStream(self.process.map(_.tap(_.mapM_(f0).mapError(Some(_)))))
 
   /**
+   * Interrupts the stream if it does not produce a value after d duration.
+   */
+  final def timeout(d: Duration): ZStream[R with Clock, E, O] =
+    ZStream[R with Clock, E, O] {
+      self.process.map { next =>
+        next.timeout(d).flatMap {
+          case Some(a) => ZIO.succeedNow(a)
+          case None    => ZIO.interrupt
+        }
+      }
+    }
+
+  /**
    * Converts this stream of bytes into a `java.io.InputStream` wrapped in a [[ZManaged]].
    * The returned input stream will only be valid within the scope of the ZManaged.
    */
