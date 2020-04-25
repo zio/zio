@@ -469,7 +469,7 @@ object ZTransducer {
     identity.map(f)
 
   /**
-   * Creates a sink that effectfully transforms incoming values.
+   * Creates a transducer that effectfully transforms incoming values.
    */
   def fromFunctionM[R, E, I, O](f: I => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     identity.mapM(f(_))
