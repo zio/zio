@@ -24,8 +24,8 @@ import scala.util.{ Failure, Success, Try }
 
 import com.github.ghik.silencer.silent
 
+import zio._
 import zio.internal.{ Platform, Stack, Sync }
-import zio.{ CanFail, Chunk, ChunkBuilder, Fiber, IO, UIO, ZIO }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -1346,6 +1346,31 @@ object ZSTM {
    */
   def second[A, B]: URSTM[(A, B), B] =
     fromFunction[(A, B), B](_._2)
+
+  /**
+   * Accesses the specified service in the environment of the effect.
+   */
+  def service[A](implicit tagged: Tagged[A]): ZSTM[Has[A], Nothing, A] =
+    ZSTM.access(_.get[A])
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged]: ZSTM[Has[A] with Has[B], Nothing, (A, B)] =
+    ZSTM.access(r => (r.get[A], r.get[B]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged]: ZSTM[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+    ZSTM.access(r => (r.get[A], r.get[B], r.get[C]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : ZSTM[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+    ZSTM.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Returns an effect with the optional value.
