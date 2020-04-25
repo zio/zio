@@ -51,7 +51,7 @@ final class TMap[K, V] private (
         tSize.unsafeSet(journal, currSize - 1)
       }
 
-      TExit.Succeed(())
+      TExit.unit
     })
 
   /**
@@ -183,7 +183,7 @@ final class TMap[K, V] private (
         }
       }
 
-      TExit.Succeed(())
+      TExit.unit
     })
   }
 
@@ -218,7 +218,7 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.Succeed(())
+      TExit.unit
     })
 
   /**
@@ -252,7 +252,7 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.Succeed(())
+      TExit.unit
     })
 
   /**
@@ -336,7 +336,7 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.Succeed(())
+      TExit.unit
     })
 
   /**
@@ -372,7 +372,7 @@ final class TMap[K, V] private (
           }
 
           tSize.unsafeSet(journal, newSize)
-          TExit.Succeed(())
+          TExit.unit
         })
       }
     }
