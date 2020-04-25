@@ -2518,15 +2518,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foreach[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     in.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil))((a, io) => f(a).zipWith(io)((b, bs) => b :: bs))
 
-  import scala.collection.generic.CanBuildFrom
-
-  def foreach0[CC[x], R, E, A, B, That](
-    in: CC[A]
-  )(f: A => ZIO[R, E, B])(implicit ev: CC[A] => Iterable[A], bf: CanBuildFrom[CC[A], B, That]): ZIO[R, E, That] =
-    ???
-
-  val x: ZIO[Any, Nothing, Chunk[Int]] = ZIO.foreach0(Chunk(1, 2, 3))(a => ZIO.succeed(a))
-
   /**
    * Applies the function `f` if the argument is non-empty and
    * returns the results in a new `Option[B]`.

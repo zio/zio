@@ -20,7 +20,7 @@ import scala.reflect.ClassTag
 import scala.util.{ Failure, Success, Try }
 
 import zio.test.AssertionM.RenderParam
-import zio.{ Cause, Exit, ZIO }
+import zio.{ Cause, Chunk, Exit, ZIO }
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
@@ -391,6 +391,13 @@ object Assertion extends AssertionVariants {
     Assertion.assertionRec("hasSize")(param(assertion))(assertion)(actual => Some(actual.size))
 
   /**
+   * Makes a new assertion that requires the size of a chunk be satisfied by
+   * the specified assertion.
+   */
+  def hasSizeChunk[A](assertion: Assertion[Int]): Assertion[Chunk[A]] =
+    Assertion.assertionRec("hasSizeChunk")(param(assertion))(assertion)(actual => Some(actual.size))
+
+  /**
    * Makes a new assertion that requires the size of a string be satisfied by
    * the specified assertion.
    */
@@ -444,6 +451,12 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an Iterable to be empty.
    */
   val isEmpty: Assertion[Iterable[Any]] =
+    Assertion.assertion("isEmpty")()(_.isEmpty)
+
+  /**
+   * Makes a new assertion that requires a Chunk to be empty.
+   */
+  val isEmptyChunk: Assertion[Chunk[Any]] =
     Assertion.assertion("isEmpty")()(_.isEmpty)
 
   /**
@@ -544,6 +557,12 @@ object Assertion extends AssertionVariants {
    */
   val isNonEmpty: Assertion[Iterable[Any]] =
     Assertion.assertion("isNonEmpty")()(_.nonEmpty)
+
+  /**
+   * Makes a new assertion that requires an Iterable to be non empty.
+   */
+  val isNonEmptyChunk: Assertion[Chunk[Any]] =
+    Assertion.assertion("isNonEmptyChunk")()(_.nonEmpty)
 
   /**
    * Makes a new assertion that requires a given string to be non empty

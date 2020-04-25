@@ -24,8 +24,8 @@ trait StreamChunkUtils extends StreamUtils {
 }
 
 object StreamChunkUtils extends StreamChunkUtils {
-  def slurp[E, A](s: StreamChunk[E, A]): IO[E, Seq[A]] =
-    s.chunks.fold(Chunk.empty: Seq[A])(_ ++ _)
+  def slurp[E, A](s: StreamChunk[E, A]): IO[E, List[A]] =
+    s.runCollect
 
   def foldLazyList[S, T](list: List[T], zero: S)(cont: S => Boolean)(f: (S, T) => S): S = {
     @tailrec
