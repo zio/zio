@@ -22,30 +22,30 @@ import zio.test.Assertion
 import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
 import zio.test.mock.Result.{ Fail, Succeed }
 import zio.test.mock.internal.{ MockException, ProxyFactory, State }
-import zio.{ Has, IO, Managed, Tagged, ULayer, ZLayer }
+import zio.{ Has, IO, Managed, Tagged, ULayer, URLayer, ZLayer }
 
 /**
  * An `Expectation[R]` is an immutable tree structure that represents
  * expectations on environment `R`.
  */
-sealed trait Expectation[R <: Has[_]] { self =>
+sealed abstract class Expectation[R <: Has[_]: Tagged] { self =>
 
   /**
    * Operator alias for `and`.
    */
-  def &&[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+  def &&[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     and[R0](that)
 
   /**
    * Operator alias for `or`.
    */
-  def ||[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+  def ||[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     or[R0](that)
 
   /**
    * Operator alias for `andThen`.
    */
-  def ++[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+  def ++[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     andThen[R0](that)
 
   /**
@@ -55,12 +55,15 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.getStrLn(value("foo"))
    * }}
    */
-  def and[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+  def and[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
-      case (And.Items(xs1), And.Items(xs2)) => And(cast(xs1 ++ xs2))
-      case (And.Items(xs), _)               => And(cast(xs :+ that))
-      case (_, And.Items(xs))               => And(cast(self :: xs))
-      case _                                => And(cast(self :: that :: Nil))
+      case (And.Items(xs1), And.Items(xs2)) =>
+        And(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2).asInstanceOf[Expectation[R with R0]]
+      case (And.Items(xs), _) =>
+        And(self.mock.compose ++ that.mock.compose)(xs :+ that).asInstanceOf[Expectation[R with R0]]
+      case (_, And.Items(xs)) =>
+        And(self.mock.compose ++ that.mock.compose)(self :: xs).asInstanceOf[Expectation[R with R0]]
+      case _ => And(self.mock.compose ++ that.mock.compose)(self :: that :: Nil).asInstanceOf[Expectation[R with R0]]
     }
 
   /**
@@ -70,12 +73,15 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.getStrLn(value("foo"))
    * }}
    */
-  def andThen[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+  def andThen[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
-      case (Chain.Items(xs1), Chain.Items(xs2)) => Chain(cast(xs1 ++ xs2))
-      case (Chain.Items(xs), _)                 => Chain(cast(xs :+ that))
-      case (_, Chain.Items(xs))                 => Chain(cast(self :: xs))
-      case _                                    => Chain(cast(self :: that :: Nil))
+      case (Chain.Items(xs1), Chain.Items(xs2)) =>
+        Chain(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2).asInstanceOf[Expectation[R with R0]]
+      case (Chain.Items(xs), _) =>
+        Chain(self.mock.compose ++ that.mock.compose)(xs :+ that).asInstanceOf[Expectation[R with R0]]
+      case (_, Chain.Items(xs)) =>
+        Chain(self.mock.compose ++ that.mock.compose)(self :: xs).asInstanceOf[Expectation[R with R0]]
+      case _ => Chain(self.mock.compose ++ that.mock.compose)(self :: that :: Nil).asInstanceOf[Expectation[R with R0]]
     }
 
   /**
@@ -105,12 +111,15 @@ sealed trait Expectation[R <: Has[_]] { self =>
    * val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.getStrLn(value("foo"))
    * }}
    */
-  def or[R0 <: Has[_]](that: Expectation[R0])(implicit tag: Tagged[R with R0]): Expectation[R with R0] =
+  def or[R0 <: Has[_]: Tagged](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
-      case (Or.Items(xs1), Or.Items(xs2)) => Or(cast(xs1 ++ xs2))
-      case (Or.Items(xs), _)              => Or(cast(xs :+ that))
-      case (_, Or.Items(xs))              => Or(cast(self :: xs))
-      case _                              => Or(cast(self :: that :: Nil))
+      case (Or.Items(xs1), Or.Items(xs2)) =>
+        Or(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2).asInstanceOf[Expectation[R with R0]]
+      case (Or.Items(xs), _) =>
+        Or(self.mock.compose ++ that.mock.compose)(xs :+ that).asInstanceOf[Expectation[R with R0]]
+      case (_, Or.Items(xs)) =>
+        Or(self.mock.compose ++ that.mock.compose)(self :: xs).asInstanceOf[Expectation[R with R0]]
+      case _ => Or(self.mock.compose ++ that.mock.compose)(self :: that :: Nil).asInstanceOf[Expectation[R with R0]]
     }
 
   /**
@@ -130,12 +139,6 @@ sealed trait Expectation[R <: Has[_]] { self =>
     Repeated(self, range)
 
   /**
-   * Utility method to cast a list of expectations into desired `R` type.
-   */
-  private def cast[R1 <: Has[_]](children: List[Expectation[_]]): List[Expectation[R1]] =
-    children.asInstanceOf[List[Expectation[R1]]]
-
-  /**
    * Invocations log.
    */
   private[test] val invocations: List[Int]
@@ -143,7 +146,7 @@ sealed trait Expectation[R <: Has[_]] { self =>
   /**
    * Environment to which expectation belongs.
    */
-  private[test] def mock: Mock[R]
+  private[test] val mock: Mock[R]
 
   /**
    * Mock execution flag.
@@ -167,18 +170,18 @@ object Expectation {
     children: List[Expectation[R]],
     satisfied: Boolean,
     saturated: Boolean,
-    invocations: List[Int]
-  ) extends Expectation[R] {
-    def mock: Mock[R] = Mock.Composed(children.map(_.mock.compose).reduce(_ ++ _))
-  }
+    invocations: List[Int],
+    mock: Mock.Composed[R]
+  ) extends Expectation[R]
 
   private[test] object And {
 
-    def apply[R <: Has[_]: Tagged](children: List[Expectation[R]]): And[R] =
-      And(children, false, false, List.empty)
+    def apply[R <: Has[_]: Tagged](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): And[R] =
+      And(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose))
 
-    private[test] object Items {
-      def unapply[R <: Has[_]](and: And[R]): Option[List[Expectation[R]]] =
+    object Items {
+
+      private[test] def unapply[R <: Has[_]](and: And[R]): Option[(List[Expectation[R]])] =
         Some(and.children)
     }
   }
@@ -187,7 +190,7 @@ object Expectation {
    * Models a call in environment `R` that takes input arguments `I` and returns an effect
    * that may fail with an error `E` or produce a single `A`.
    */
-  private[test] case class Call[R <: Has[_], I, E, A](
+  private[test] case class Call[R <: Has[_]: Tagged, I, E, A](
     capability: Capability[R, I, E, A],
     assertion: Assertion[I],
     returns: I => IO[E, A],
@@ -195,12 +198,12 @@ object Expectation {
     saturated: Boolean,
     invocations: List[Int]
   ) extends Expectation[R] {
-    def mock: Mock[R] = capability.mock
+    val mock: Mock[R] = capability.mock
   }
 
   private[test] object Call {
 
-    def apply[R <: Has[_], I, E, A](
+    def apply[R <: Has[_]: Tagged, I, E, A](
       capability: Capability[R, I, E, A],
       assertion: Assertion[I],
       returns: I => IO[E, A]
@@ -215,18 +218,18 @@ object Expectation {
     children: List[Expectation[R]],
     satisfied: Boolean,
     saturated: Boolean,
-    invocations: List[Int]
-  ) extends Expectation[R] {
-    def mock: Mock[R] = Mock.Composed(children.map(_.mock.compose).reduce(_ ++ _))
-  }
+    invocations: List[Int],
+    mock: Mock.Composed[R]
+  ) extends Expectation[R]
 
   private[test] object Chain {
 
-    def apply[R <: Has[_]: Tagged](children: List[Expectation[R]]): Chain[R] =
-      Chain(children, false, false, List.empty)
+    def apply[R <: Has[_]: Tagged](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Chain[R] =
+      Chain(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose))
 
-    private[test] object Items {
-      def unapply[R <: Has[_]](chain: Chain[R]): Option[List[Expectation[R]]] =
+    object Items {
+
+      private[test] def unapply[R <: Has[_]](chain: Chain[R]): Option[(List[Expectation[R]])] =
         Some(chain.children)
     }
   }
@@ -239,18 +242,18 @@ object Expectation {
     children: List[Expectation[R]],
     satisfied: Boolean,
     saturated: Boolean,
-    invocations: List[Int]
-  ) extends Expectation[R] {
-    def mock: Mock[R] = Mock.Composed(children.map(_.mock.compose).reduce(_ ++ _))
-  }
+    invocations: List[Int],
+    mock: Mock.Composed[R]
+  ) extends Expectation[R]
 
   private[test] object Or {
 
-    def apply[R <: Has[_]: Tagged](children: List[Expectation[R]]): Or[R] =
-      Or(children, false, false, List.empty)
+    def apply[R <: Has[_]: Tagged](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Or[R] =
+      Or(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose))
 
-    private[test] object Items {
-      def unapply[R <: Has[_]](or: Or[R]): Option[List[Expectation[R]]] =
+    object Items {
+
+      private[test] def unapply[R <: Has[_]](or: Or[R]): Option[(List[Expectation[R]])] =
         Some(or.children)
     }
   }
@@ -258,7 +261,7 @@ object Expectation {
   /**
    * Models expectation repetition on environment `R`.
    */
-  private[test] final case class Repeated[R <: Has[_]](
+  private[test] final case class Repeated[R <: Has[_]: Tagged](
     child: Expectation[R],
     range: Range,
     satisfied: Boolean,
@@ -267,12 +270,12 @@ object Expectation {
     started: Int,
     completed: Int
   ) extends Expectation[R] {
-    def mock: Mock[R] = child.mock
+    val mock: Mock[R] = child.mock
   }
 
   private[test] object Repeated {
 
-    def apply[R <: Has[_]](child: Expectation[R], range: Range): Repeated[R] =
+    def apply[R <: Has[_]: Tagged](child: Expectation[R], range: Range): Repeated[R] =
       if (range.step <= 0) throw MockException.InvalidRangeException(range)
       else Repeated(child, range, range.start == 0, false, List.empty, 0, 0)
   }

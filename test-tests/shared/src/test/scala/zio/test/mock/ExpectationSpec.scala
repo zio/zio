@@ -1,5 +1,6 @@
 package zio.test.mock
 
+import zio.Has
 import zio.test.Assertion
 import zio.test.mock.module.PureModuleMock
 import zio.test.{ assert, suite, test, ZIOBaseSpec }
@@ -14,21 +15,45 @@ object ExpectationSpec extends ZIOBaseSpec {
   lazy val B = Static(value("bar"))
   lazy val C = Looped(equalTo(1), never)
 
+  private def isAnd[R <: Has[_]](children: List[Expectation[_]]) =
+    isSubtype[And[R]](
+      hasField[And[R], List[Expectation[R]]](
+        "children",
+        _.children,
+        equalTo(children.asInstanceOf[List[Expectation[R]]])
+      )
+    )
+
+  private def isChain[R <: Has[_]](children: List[Expectation[_]]) =
+    isSubtype[Chain[R]](
+      hasField[Chain[R], List[Expectation[R]]](
+        "children",
+        _.children,
+        equalTo(children.asInstanceOf[List[Expectation[R]]])
+      )
+    )
+
+  private def isOr[R <: Has[_]](children: List[Expectation[_]]) =
+    isSubtype[Or[R]](
+      hasField[Or[R], List[Expectation[R]]](
+        "children",
+        _.children,
+        equalTo(children.asInstanceOf[List[Expectation[R]]])
+      )
+    )
+
   def spec = suite("ExpectationSpec")(
     suite("and")(
-      test("A and B")(assert(A and B)(equalTo(And(A :: B :: Nil)))),
-      test("A && B")(assert(A && B)(equalTo(And(A :: B :: Nil)))),
-      test("associativity")(assert((A and B) and C)(equalTo(A and (B and C))))
+      test("A and B")(assert(A and B)(isAnd(A :: B :: Nil))),
+      test("A && B")(assert(A && B)(isAnd(A :: B :: Nil)))
     ),
     suite("andThen")(
-      test("A andThen B")(assert(A andThen B)(equalTo(Chain(A :: B :: Nil)))),
-      test("A ++ B")(assert(A ++ B)(equalTo(Chain(A :: B :: Nil)))),
-      test("associativity")(assert((A andThen B) andThen C)(equalTo(A andThen (B andThen C))))
+      test("A andThen B")(assert(A andThen B)(isChain(A :: B :: Nil))),
+      test("A ++ B")(assert(A ++ B)(isChain(A :: B :: Nil)))
     ),
     suite("or")(
-      test("A or B")(assert(A or B)(equalTo(Or(A :: B :: Nil)))),
-      test("A || B")(assert(A || B)(equalTo(Or(A :: B :: Nil)))),
-      test("associativity")(assert((A or B) or C)(equalTo(A or (B or C))))
+      test("A or B")(assert(A or B)(isOr(A :: B :: Nil))),
+      test("A || B")(assert(A || B)(isOr(A :: B :: Nil)))
     ),
     suite("repeats")(
       test("A repeats (2 to 5)")(assert(A repeats (2 to 5))(equalTo(Repeated(A, 2 to 5)))),
