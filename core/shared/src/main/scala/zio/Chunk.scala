@@ -40,7 +40,7 @@ sealed trait Chunk[+A] { self =>
   val length: Int
 
   /**
-   * Appends an element to the chunk.
+   * Appends an element to the chunk
    */
   final def +[A1 >: A](a: A1): Chunk[A1] =
     if (self.length == 0) Chunk.single(a)
@@ -67,6 +67,24 @@ sealed trait Chunk[+A] { self =>
     Chunk.BitChunk(self.map(ev), 0, length << 3)
 
   /**
+   * Get the element at the specified index.
+   */
+  def boolean(index: Int)(implicit ev: A <:< Boolean): Boolean =
+    ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def byte(index: Int)(implicit ev: A <:< Byte): Byte =
+    ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def char(index: Int)(implicit ev: A <:< Char): Char =
+    ev(apply(index))
+
+  /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
   def collect[B](pf: PartialFunction[A, B]): Chunk[B] =
@@ -77,17 +95,17 @@ sealed trait Chunk[+A] { self =>
    * an effectual partial function.
    */
   def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-    self.materialize.collectM(pf)
+    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectM(pf)
 
   /**
    * Transforms all elements of the chunk for as long as the specified partial
    * function is defined.
    */
   def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] =
-    self.materialize.collectWhile(pf)
+    if (isEmpty) Chunk.empty else self.materialize.collectWhile(pf)
 
   def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-    self.materialize.collectWhileM(pf)
+    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectWhileM(pf)
 
   /**
    * Determines whether this chunk and the specified chunk have the same length
@@ -107,6 +125,12 @@ sealed trait Chunk[+A] { self =>
       }
       corresponds
     }
+
+  /**
+   * Get the element at the specified index.
+   */
+  def double(index: Int)(implicit ev: A <:< Double): Double =
+    ev(apply(index))
 
   /**
    * Drops the first `n` elements of the chunk.
@@ -300,6 +324,12 @@ sealed trait Chunk[+A] { self =>
     flatMap(ev(_))
 
   /**
+   * Get the element at the specified index.
+   */
+  def float(index: Int)(implicit ev: A <:< Float): Float =
+    ev(apply(index))
+
+  /**
    * Folds over the elements in this chunk from the left.
    */
   def foldLeft[S](s0: S)(f: (S, A) => S): S = {
@@ -424,6 +454,12 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
+   * Get the element at the specified index.
+   */
+  def int(index: Int)(implicit ev: A <:< Int): Int =
+    ev(apply(index))
+
+  /**
    * Determines if the chunk is empty.
    */
   final def isEmpty: Boolean =
@@ -434,6 +470,12 @@ sealed trait Chunk[+A] { self =>
    */
   final def lastOption: Option[A] =
     if (isEmpty) None else Some(self(self.length - 1))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def long(index: Int)(implicit ev: A <:< Long): Long =
+    ev(apply(index))
 
   /**
    * Returns a chunk with the elements mapped by the specified function.
@@ -661,6 +703,12 @@ sealed trait Chunk[+A] { self =>
    */
   final def nonEmpty: Boolean =
     length > 0
+
+  /**
+   * Get the element at the specified index.
+   */
+  def short(index: Int)(implicit ev: A <:< Short): Short =
+    ev(apply(index))
 
   /**
    * The number of elements in the chunk.
@@ -1388,7 +1436,8 @@ object Chunk {
     }
   }
 
-  private final case class BitChunk(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int) extends Chunk[Boolean] {
+  private[zio] final case class BitChunk(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int)
+      extends Chunk[Boolean] {
     self =>
 
     override val length: Int =

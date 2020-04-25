@@ -30,7 +30,7 @@ object ChunkSpec extends ZIOBaseSpec {
 
   def chunkWithIndex[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, (Chunk[A], Int)] =
     for {
-      chunk <- Gen.chunkOfBounded(0, 100)(a)
+      chunk <- Gen.chunkOfBounded(1, 100)(a)
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
@@ -61,6 +61,40 @@ object ChunkSpec extends ZIOBaseSpec {
       check(chunkWithIndex(Gen.unit)) {
         case (chunk, i) =>
           assert(chunk.apply(i))(equalTo(chunk.toList.apply(i)))
+      }
+    },
+    testM("specialized accessors") {
+      check(chunkWithIndex(Gen.boolean)) {
+        case (chunk, i) =>
+          assert(chunk.boolean(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.byte(0, 127))) {
+        case (chunk, i) =>
+          assert(chunk.byte(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.char(33, 123))) {
+        case (chunk, i) =>
+          assert(chunk.char(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.short(5, 100))) {
+        case (chunk, i) =>
+          assert(chunk.short(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.int(1, 142))) {
+        case (chunk, i) =>
+          assert(chunk.int(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.long(1, 142))) {
+        case (chunk, i) =>
+          assert(chunk.long(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.double(0.0, 100.0).map(_.toFloat))) {
+        case (chunk, i) =>
+          assert(chunk.float(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.double(1.0, 200.0))) {
+        case (chunk, i) =>
+          assert(chunk.double(i))(equalTo(chunk.toList.apply(i)))
       }
     },
     testM("corresponds") {
