@@ -223,7 +223,9 @@ abstract class ZStream[-R, +E, +O](
             if (!race)
               waitForProducer.flatMap(handleTake) <* raceNextTime.set(true)
             else
-              updateSchedule.raceWith(waitForProducer)(
+              updateSchedule.raceWith[R1, Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
+                waitForProducer
+              )(
                 (scheduleDone, producerWaiting) =>
                   ZIO.done(scheduleDone).flatMap {
                     case None =>
