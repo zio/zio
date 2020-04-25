@@ -16,8 +16,6 @@
 
 package zio
 
-import java.util.concurrent.atomic.AtomicReferenceArray
-
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
@@ -2588,17 +2586,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * For a sequential version of this method, see `foreach`.
    */
-  def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
-    val size      = as.size
-    val resultArr = new AtomicReferenceArray[B](size)
-
-    val wrappedFn: ZIOFn1[(A, Int), ZIO[R, E, Any]] = ZIOFn(fn) {
-      case (a, i) => fn(a).tap(b => ZIO.effectTotal(resultArr.set(i, b)))
+  def foreachPar[R, E, A, B](as: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
+    val size = as.size
+    effectTotal(Array.ofDim[AnyRef](size)).flatMap { array =>
+      val zioFunction: ZIOFn1[(A, Int), ZIO[R, E, Any]] =
+        ZIOFn(f) {
+          case (a, i) =>
+            f(a).flatMap(b => effectTotal(array(i) = b.asInstanceOf[AnyRef]))
+        }
+      foreachPar_(as.zipWithIndex)(zioFunction) *>
+        effectTotal(array.asInstanceOf[Array[B]].toList)
     }
-
-    foreachPar_(as.zipWithIndex)(wrappedFn).as(
-      (0 until size).reverse.foldLeft[List[B]](Nil)((acc, i) => resultArr.get(i) :: acc)
-    )
   }
 
   /**

@@ -256,6 +256,15 @@ object ZIOSpec extends ZIOBaseSpec {
         val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
         val res  = IO.collectAllPar(list)
         assertM(res)(equalTo(List(1, 2, 3)))
+      },
+      testM("is referentially transparent") {
+        for {
+          counter <- Ref.make(0)
+          op      = counter.getAndUpdate(_ + 1)
+          ops3    = ZIO.collectAllPar(List(op, op, op))
+          ops6    = ops3.zipPar(ops3)
+          res     <- ops6
+        } yield assert(res._1)(not(equalTo(res._2)))
       }
     ),
     suite("collectAllParN")(
