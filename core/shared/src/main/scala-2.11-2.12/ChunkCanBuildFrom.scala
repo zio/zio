@@ -17,7 +17,6 @@
 package zio
 
 import scala.collection.generic.CanBuildFrom
-import scala.collection.mutable.Builder
 
 /**
  * `ChunkCanBuildFrom` provides implicit evidence that a collection of type
@@ -28,8 +27,8 @@ import scala.collection.mutable.Builder
  * performance implementations of transformation operations for chunks.
  */
 sealed trait ChunkCanBuildFrom[A] extends CanBuildFrom[Chunk[Any], A, Chunk[A]] {
-  override def apply(from: Chunk[Any]): Builder[A, Chunk[A]] = ChunkBuilder.make()
-  override def apply(): Builder[A, Chunk[A]]                 = ChunkBuilder.make()
+  override def apply(from: Chunk[Any]): ChunkBuilder[A]
+  override def apply(): ChunkBuilder[A]
 }
 
 object ChunkCanBuildFrom {
@@ -38,53 +37,80 @@ object ChunkCanBuildFrom {
    * Construct a new instance of `ChunkCanBuildFrom` for the specified type.
    */
   implicit def apply[A]: ChunkCanBuildFrom[A] =
-    new ChunkCanBuildFrom[A] {}
+    new ChunkCanBuildFrom[A] {
+      def apply(from: Chunk[Any]): ChunkBuilder[A] = ChunkBuilder.make()
+      def apply(): ChunkBuilder[A]                 = ChunkBuilder.make()
+    }
 
   /**
    * The instance of `ChunkCanBuildFrom` for `Boolean`.
    */
   implicit val chunkCanBuildFromBoolean: ChunkCanBuildFrom[Boolean] =
-    ChunkCanBuildFrom[Boolean]
+    new ChunkCanBuildFrom[Boolean] {
+      def apply(from: Chunk[Any]): ChunkBuilder[Boolean] = new ChunkBuilder.Boolean
+      def apply(): ChunkBuilder[Boolean]                 = new ChunkBuilder.Boolean
+    }
 
   /**
    * The instance of `ChunkCanBuildFrom` for `Byte`.
    */
   implicit val chunkCanBuildFromByte: ChunkCanBuildFrom[Byte] =
-    ChunkCanBuildFrom[Byte]
+    new ChunkCanBuildFrom[Byte] {
+      def apply(from: Chunk[Any]): ChunkBuilder[Byte] = new ChunkBuilder.Byte
+      def apply(): ChunkBuilder[Byte]                 = new ChunkBuilder.Byte
+    }
 
   /**
    * The instance of `ChunkCanBuildFrom` for `Char`.
    */
   implicit val chunkCanBuildFromChar: ChunkCanBuildFrom[Char] =
-    ChunkCanBuildFrom[Char]
+    new ChunkCanBuildFrom[Char] {
+      def apply(from: Chunk[Any]): ChunkBuilder[Char] = new ChunkBuilder.Char
+      def apply(): ChunkBuilder[Char]                 = new ChunkBuilder.Char
+    }
 
   /**
    * The instance of `ChunkCanBuildFrom` for `Double`.
    */
   implicit val chunkCanBuildFromDouble: ChunkCanBuildFrom[Double] =
-    ChunkCanBuildFrom[Double]
+    new ChunkCanBuildFrom[Double] {
+      def apply(from: Chunk[Any]): ChunkBuilder[Double] = new ChunkBuilder.Double
+      def apply(): ChunkBuilder[Double]                 = new ChunkBuilder.Double
+    }
 
   /**
    * The instance of `ChunkCanBuildFrom` for `Float`.
    */
   implicit val chunkCanBuildFromFloat: ChunkCanBuildFrom[Float] =
-    ChunkCanBuildFrom[Float]
+    new ChunkCanBuildFrom[Float] {
+      def apply(from: Chunk[Any]): ChunkBuilder[Float] = new ChunkBuilder.Float
+      def apply(): ChunkBuilder[Float]                 = new ChunkBuilder.Float
+    }
 
   /**
    * The instance of `ChunkCanBuildFrom` for `Int`.
    */
   implicit val chunkCanBuildFromInt: ChunkCanBuildFrom[Int] =
-    ChunkCanBuildFrom[Int]
+    new ChunkCanBuildFrom[Int] {
+      def apply(from: Chunk[Any]): ChunkBuilder[Int] = new ChunkBuilder.Int
+      def apply(): ChunkBuilder[Int]                 = new ChunkBuilder.Int
+    }
 
   /**
    * The instance of `ChunkCanBuildFrom` for `Long`.
    */
   implicit val chunkCanBuildFromLong: ChunkCanBuildFrom[Long] =
-    ChunkCanBuildFrom[Long]
+    new ChunkCanBuildFrom[Long] {
+      def apply(from: Chunk[Any]): ChunkBuilder[Long] = new ChunkBuilder.Long
+      def apply(): ChunkBuilder[Long]                 = new ChunkBuilder.Long
+    }
 
   /**
    * The instance of `ChunkCanBuildFrom` for `Short`.
    */
   implicit val chunkCanBuildFromShort: ChunkCanBuildFrom[Short] =
-    ChunkCanBuildFrom[Short]
+    new ChunkCanBuildFrom[Short] {
+      def apply(from: Chunk[Any]): ChunkBuilder[Short] = new ChunkBuilder.Short
+      def apply(): ChunkBuilder[Short]                 = new ChunkBuilder.Short
+    }
 }

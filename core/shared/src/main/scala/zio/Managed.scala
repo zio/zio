@@ -85,6 +85,12 @@ object Managed {
     ZManaged.done(r)
 
   /**
+   * See [[zio.ZManaged.effect]]
+   */
+  def effect[A](r: => A): Managed[Throwable, A] =
+    ZManaged.fromEffect(ZIO.effect(r))
+
+  /**
    * See [[zio.ZManaged.effectTotal]]
    */
   def effectTotal[A](r: => A): Managed[Nothing, A] =

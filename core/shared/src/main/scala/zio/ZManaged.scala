@@ -466,12 +466,11 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     }
 
   /**
-   * Effectfully maps the resource acquired by this value.
+   * Returns an effect whose success is mapped by the specified side effecting
+   * `f` function, translating any thrown exceptions into typed failed effects.
    */
-  def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
-    ZManaged[R1, E1, B] {
-      reserve.map(token => token.copy(acquire = token.acquire.flatMap(f)))
-    }
+  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): ZManaged[R, Throwable, B] =
+    foldM(e => ZManaged.fail(ev(e)), a => ZManaged.effect(f(a)))
 
   /**
    * Returns an effect whose failure is mapped by the specified `f` function.
@@ -484,6 +483,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZManaged[R, E1, A] =
     ZManaged(reserve.mapErrorCause(f).map(r => Reservation(r.acquire.mapErrorCause(f), r.release)))
+
+  /**
+   * Effectfully maps the resource acquired by this value.
+   */
+  def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+    ZManaged[R1, E1, B] {
+      reserve.map(token => token.copy(acquire = token.acquire.flatMap(f)))
+    }
 
   def memoize: ZManaged[Any, Nothing, ZManaged[R, E, A]] =
     ZManaged.finalizerRef(_ => UIO.unit).mapM { finalizers =>
@@ -677,7 +684,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  def provideLayer[E1 >: E, R0, R1 <: Has[_]](
+  def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
     layer.build.map(ev1).flatMap(self.provide)
@@ -1409,6 +1416,13 @@ object ZManaged {
     ZManaged.fromEffect(ZIO.done(r))
 
   /**
+   * Lifts a synchronous side-effect into a `ZManaged[R, Throwable, A]`,
+   * translating any thrown exceptions into typed failed effects.
+   */
+  def effect[A](r: => A): ZManaged[Any, Throwable, A] =
+    ZManaged.fromEffect(ZIO.effect(r))
+
+  /**
    * Lifts a by-name, pure value into a Managed.
    */
   def effectTotal[A](r: => A): ZManaged[Any, Nothing, A] =
@@ -2026,6 +2040,31 @@ object ZManaged {
    * tuple.
    */
   def second[A, B]: ZManaged[(A, B), Nothing, B] = fromFunction(_._2)
+
+  /**
+   * Accesses the specified service in the environment of the effect.
+   */
+  def service[A](implicit tagged: Tagged[A]): ZManaged[Has[A], Nothing, A] =
+    ZManaged.access(_.get[A])
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged]: ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
+    ZManaged.access(r => (r.get[A], r.get[B]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged]: ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+    ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+    ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    *  Returns an effect with the optional value.

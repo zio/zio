@@ -256,6 +256,15 @@ object ZIOSpec extends ZIOBaseSpec {
         val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
         val res  = IO.collectAllPar(list)
         assertM(res)(equalTo(List(1, 2, 3)))
+      },
+      testM("is referentially transparent") {
+        for {
+          counter <- Ref.make(0)
+          op      = counter.getAndUpdate(_ + 1)
+          ops3    = ZIO.collectAllPar(List(op, op, op))
+          ops6    = ops3.zipPar(ops3)
+          res     <- ops6
+        } yield assert(res._1)(not(equalTo(res._2)))
       }
     ),
     suite("collectAllParN")(
@@ -1014,6 +1023,16 @@ object ZIOSpec extends ZIOBaseSpec {
           _      <- ZIO.loop_(0)(_ < 5, _ + 1)(a => ref.update(a :: _))
           result <- ref.get.map(_.reverse)
         } yield assert(result)(equalTo(List(0, 1, 2, 3, 4)))
+      }
+    ),
+    suite("mapEffect")(
+      testM("returns an effect whose success is mapped by the specified side effecting function") {
+        val task = ZIO.succeed("123").mapEffect(_.toInt)
+        assertM(task)(equalTo(123))
+      },
+      testM("translates any thrown exceptions into typed failed effects") {
+        val task = ZIO.succeed("hello").mapEffect(_.toInt)
+        assertM(task.run)(fails(isSubtype[NumberFormatException](anything)))
       }
     ),
     suite("mapN")(

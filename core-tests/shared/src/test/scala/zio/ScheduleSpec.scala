@@ -319,6 +319,23 @@ object ScheduleSpec extends ZIOBaseSpec {
           (Schedule.stop || (Schedule.spaced(2.seconds) && Schedule.stop)) >>> testElapsed
         )(List.fill(5)(()))
       )(equalTo(List(Duration.Zero)))
+    },
+    testM("perform log for each recurrence of effect") {
+      def schedule[A](ref: Ref[Int]) =
+        Schedule
+          .recurs(3)
+          .onDecision((_: A, s) =>
+            s match {
+              case None    => ref.update(_ + 1)
+              case Some(_) => ref.update(_ + 1)
+            }
+          )
+
+      for {
+        ref <- Ref.make(0)
+        _   <- ref.getAndUpdate(_ + 1).repeat(schedule(ref))
+        res <- ref.get
+      } yield assert(res)(equalTo(8))
     }
   )
 

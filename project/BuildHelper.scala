@@ -88,7 +88,7 @@ object BuildHelper {
       (if (isDotty.value) Seq()
        else
          Seq(
-           "dev.zio" %%% "izumi-reflect" % "0.12.0-M0"
+           "dev.zio" %%% "izumi-reflect" % "0.12.0-M1"
          ))
   )
 
@@ -335,7 +335,7 @@ object BuildHelper {
   )
 
   def testJsSettings = Seq(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5" % Test
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0" % Test
   )
 
   def welcomeMessage = onLoadMessage := {

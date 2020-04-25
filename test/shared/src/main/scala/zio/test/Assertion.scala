@@ -19,7 +19,8 @@ package zio.test
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success, Try }
 
-import zio.{ Cause, Chunk, Exit }
+import zio.test.AssertionM.RenderParam
+import zio.{ Cause, Exit, ZIO }
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
@@ -29,8 +30,11 @@ import zio.{ Cause, Chunk, Exit }
 final class Assertion[-A] private (
   val render: Assertion.Render,
   val run: (=> A) => AssertResult
-) extends ((=> A) => AssertResult) { self =>
+) extends ((=> A) => AssertResult)
+    with AssertionM[A] { self =>
   import zio.test.Assertion.Render._
+
+  def runM: (=> A) => AssertResultM = a => BoolAlgebraM(ZIO.succeed(run(a)))
 
   /**
    * Returns a new assertion that succeeds only if both assertions succeed.
@@ -41,7 +45,7 @@ final class Assertion[-A] private (
   /**
    * A symbolic alias for `label`.
    */
-  def ??(string: String): Assertion[A] =
+  override def ??(string: String): Assertion[A] =
     label(string)
 
   /**
@@ -66,13 +70,13 @@ final class Assertion[-A] private (
   /**
    * Labels this assertion with the specified string.
    */
-  def label(string: String): Assertion[A] =
+  override def label(string: String): Assertion[A] =
     new Assertion(infix(param(self), "??", param(quoted(string))), run)
 
   /**
    * Returns the negation of this assertion.
    */
-  def negate: Assertion[A] =
+  override def negate: Assertion[A] =
     Assertion.not(self)
 
   /**
@@ -89,91 +93,9 @@ final class Assertion[-A] private (
 }
 
 object Assertion extends AssertionVariants {
-  import zio.test.Assertion.Render._
-
-  /**
-   * `Render` captures both the name of an assertion as well as the parameters
-   * to the assertion combinator for pretty-printing.
-   */
-  sealed trait Render {
-    override final def toString: String = this match {
-      case Render.Function(name, paramLists) =>
-        name + paramLists.map(_.mkString("(", ", ", ")")).mkString
-      case Render.Infix(left, op, right) =>
-        "(" + left + " " + op + " " + right + ")"
-    }
-  }
-  object Render {
-    final case class Function(name: String, paramLists: List[List[RenderParam]]) extends Render
-    final case class Infix(left: RenderParam, op: String, right: RenderParam)    extends Render
-
-    /**
-     * Creates a string representation of a class name.
-     */
-    def className[A](C: ClassTag[A]): String =
-      try {
-        C.runtimeClass.getSimpleName
-      } catch {
-        // See https://github.com/scala/bug/issues/2034.
-        case t: InternalError if t.getMessage == "Malformed class name" =>
-          C.runtimeClass.getName
-      }
-
-    /**
-     * Creates a string representation of a field accessor.
-     */
-    def field(name: String): String =
-      "_." + name
-
-    /**
-     * Create a `Render` from an assertion combinator that should be rendered
-     * using standard function notation.
-     */
-    def function(name: String, paramLists: List[List[RenderParam]]): Render =
-      Render.Function(name, paramLists)
-
-    /**
-     * Create a `Render` from an assertion combinator that should be rendered
-     * using infix function notation.
-     */
-    def infix(left: RenderParam, op: String, right: RenderParam): Render =
-      Render.Infix(left, op, right)
-
-    /**
-     * Construct a `RenderParam` from an `Assertion`.
-     */
-    def param[A](assertion: Assertion[A]): RenderParam =
-      RenderParam.Assertion(assertion)
-
-    /**
-     * Construct a `RenderParam` from a value.
-     */
-    def param[A](value: A): RenderParam =
-      RenderParam.Value(value)
-
-    /**
-     * Quote a string so it renders as a valid Scala string when rendered.
-     */
-    def quoted(string: String): String =
-      "\"" + string + "\""
-
-    /**
-     * Creates a string representation of an unapply method for a term.
-     */
-    def unapply(termName: String): String =
-      termName + ".unapply"
-  }
-
-  sealed trait RenderParam {
-    override final def toString: String = this match {
-      case RenderParam.Assertion(assertion) => assertion.toString
-      case RenderParam.Value(value)         => value.toString
-    }
-  }
-  object RenderParam {
-    final case class Assertion[A](assertion: zio.test.Assertion[A]) extends RenderParam
-    final case class Value(value: Any)                              extends RenderParam
-  }
+  type Render = AssertionM.Render
+  val Render = AssertionM.Render
+  import Render._
 
   /**
    * Makes a new assertion that always succeeds.
@@ -186,8 +108,11 @@ object Assertion extends AssertionVariants {
    */
   def assertion[A](name: String)(params: RenderParam*)(run: (=> A) => Boolean): Assertion[A] = {
     lazy val assertion: Assertion[A] = assertionDirect(name)(params: _*) { actual =>
-      if (run(actual)) BoolAlgebra.success(AssertionValue(assertion, actual))
-      else BoolAlgebra.failure(AssertionValue(assertion, actual))
+      lazy val tryActual = Try(actual)
+      lazy val result: AssertResult =
+        if (run(tryActual.get)) BoolAlgebra.success(AssertionValue(assertion, tryActual.get, result))
+        else BoolAlgebra.failure(AssertionValue(assertion, tryActual.get, result))
+      result
     }
     assertion
   }
@@ -214,17 +139,21 @@ object Assertion extends AssertionVariants {
     name: String
   )(params: RenderParam*)(
     assertion: Assertion[B]
-  )(get: (=> A) => Option[B], orElse: AssertionValue => AssertResult = BoolAlgebra.failure): Assertion[A] = {
-    lazy val result: Assertion[A] = assertionDirect(name)(params: _*) { a =>
-      get(a) match {
+  )(get: (=> A) => Option[B], orElse: AssertionData => AssertResult = _.asFailure): Assertion[A] = {
+    lazy val resultAssertion: Assertion[A] = assertionDirect(name)(params: _*) { a =>
+      lazy val tryA = Try(a)
+      get(tryA.get) match {
         case Some(b) =>
-          if (assertion.test(b)) BoolAlgebra.success(AssertionValue(result, a))
-          else BoolAlgebra.failure(AssertionValue(assertion, b))
+          val innerResult = assertion.run(b)
+          lazy val result: AssertResult =
+            if (innerResult.isSuccess) BoolAlgebra.success(AssertionValue(resultAssertion, tryA.get, result))
+            else BoolAlgebra.failure(AssertionValue(assertion, b, innerResult))
+          result
         case None =>
-          orElse(AssertionValue(result, a))
+          orElse(AssertionData(resultAssertion, tryA.get))
       }
     }
-    result
+    resultAssertion
   }
 
   /**
@@ -333,7 +262,7 @@ object Assertion extends AssertionVariants {
   def forall[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRec("forall")(param(assertion))(assertion)(
       _.find(!assertion.test(_)),
-      BoolAlgebra.success
+      _.asSuccess
     )
 
   /**
@@ -460,13 +389,6 @@ object Assertion extends AssertionVariants {
    */
   def hasSize[A](assertion: Assertion[Int]): Assertion[Iterable[A]] =
     Assertion.assertionRec("hasSize")(param(assertion))(assertion)(actual => Some(actual.size))
-
-  /**
-   * Makes a new assertion that requires the size of a chunk be satisfied by
-   * the specified assertion.
-   */
-  def hasSizeChunk[A](assertion: Assertion[Int]): Assertion[Chunk[A]] =
-    Assertion.assertionRec("hasSizeChunk")(param(assertion))(assertion)(actual => Some(actual.size))
 
   /**
    * Makes a new assertion that requires the size of a string be satisfied by
@@ -622,12 +544,6 @@ object Assertion extends AssertionVariants {
    */
   val isNonEmpty: Assertion[Iterable[Any]] =
     Assertion.assertion("isNonEmpty")()(_.nonEmpty)
-
-  /**
-   * Makes a new assertion that requires an Iterable to be non empty.
-   */
-  val isNonEmptyChunk: Assertion[Chunk[Any]] =
-    Assertion.assertion("isNonEmptyChunk")()(_.nonEmpty)
 
   /**
    * Makes a new assertion that requires a given string to be non empty

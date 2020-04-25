@@ -52,4 +52,12 @@ class TMapOpsBenchmarks {
   @Benchmark
   def removal(): Unit =
     unsafeRun(ZIO.foreach_(calls)(_ => map.delete(idx).commit))
+
+  @Benchmark
+  def fold(): Int =
+    unsafeRun(map.fold(0)((acc, kv) => acc + kv._2).commit)
+
+  @Benchmark
+  def foldM(): Int =
+    unsafeRun(map.foldM(0)((acc, kv) => STM.succeedNow(acc + kv._2)).commit)
 }

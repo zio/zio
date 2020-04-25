@@ -30,7 +30,7 @@ object ChunkSpec extends ZIOBaseSpec {
 
   def chunkWithIndex[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, (Chunk[A], Int)] =
     for {
-      chunk <- Gen.chunkOfBounded(0, 100)(a)
+      chunk <- Gen.chunkOfBounded(1, 100)(a)
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
@@ -61,6 +61,40 @@ object ChunkSpec extends ZIOBaseSpec {
       check(chunkWithIndex(Gen.unit)) {
         case (chunk, i) =>
           assert(chunk.apply(i))(equalTo(chunk.toList.apply(i)))
+      }
+    },
+    testM("specialized accessors") {
+      check(chunkWithIndex(Gen.boolean)) {
+        case (chunk, i) =>
+          assert(chunk.boolean(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.byte(0, 127))) {
+        case (chunk, i) =>
+          assert(chunk.byte(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.char(33, 123))) {
+        case (chunk, i) =>
+          assert(chunk.char(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.short(5, 100))) {
+        case (chunk, i) =>
+          assert(chunk.short(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.int(1, 142))) {
+        case (chunk, i) =>
+          assert(chunk.int(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.long(1, 142))) {
+        case (chunk, i) =>
+          assert(chunk.long(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.double(0.0, 100.0).map(_.toFloat))) {
+        case (chunk, i) =>
+          assert(chunk.float(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.double(1.0, 200.0))) {
+        case (chunk, i) =>
+          assert(chunk.double(i))(equalTo(chunk.toList.apply(i)))
       }
     },
     testM("corresponds") {
@@ -335,64 +369,6 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
       assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
-    },
-    testM("flatMap Non Empty") {
-      val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
-      check(smallChunks(intGen), fn) { (c_, f_) =>
-        val c: NonEmptyChunk[Int]        = c_ + 0
-        val f: Int => NonEmptyChunk[Int] = f_.andThen(_ + 0)
-
-        val in: NonEmptyChunk[Int] = c.flatMapNonEmpty(f)
-        val expected: Seq[Int]     = c.toList.flatMap(f.andThen(_.toList))
-
-        assert(in.toList)(equalTo(expected))
-      }
-    },
-    zio.test.test("nonEmptyChunk subtype preservation") {
-      //checks at compile time
-
-      def nonEmptyChunk: NonEmptyChunk[Int] = ???
-      def chunk: Chunk[Int]                 = ???
-      def x: Int                            = ???
-
-      def checkIsSubtypeOf[A](value: A*): Unit = ???
-
-      checkIsSubtypeOf[NonEmptyChunk[_]](
-        Chunk(nonEmptyChunk).flatten,
-        Chunk(x),
-        Chunk.concat(chunk, nonEmptyChunk),
-        Chunk.concat(nonEmptyChunk, chunk),
-        chunk + x,
-        Chunk.single(x),
-        Chunk.succeed(x),
-        nonEmptyChunk concatNonEmpty chunk,
-        chunk concatNonEmpty nonEmptyChunk,
-        nonEmptyChunk.flatMapNonEmpty(i => Chunk(i)),
-        nonEmptyChunk.mapNonEmpty(identity),
-        nonEmptyChunk.zipAllWith(Chunk(0))(l => (l, l), r => (r, r))((l, r) => (l, r)),
-        nonEmptyChunk.zipWithIndex,
-        nonEmptyChunk.zipWithIndexFrom(0)
-      )
-
-      checkIsSubtypeOf[ZIO[_, _, NonEmptyChunk[_]]](
-        nonEmptyChunk.mapM(x => ZIO.succeed(x)),
-        nonEmptyChunk.mapMPar(x => ZIO.succeed(x)),
-        nonEmptyChunk.mapAccumM("")((s, i) => ZIO.succeed(s + i -> i)).map(_._2)
-      )
-
-      assertCompletes
-      //checks at compile time
-    } @@ TestAspect.ignore,
-    zio.test.test("++ should work with subtyping") {
-
-      trait A
-      trait B extends A
-
-      val empty: Chunk[B] = Chunk.empty
-
-      val _: NonEmptyChunk[A] = empty concatNonEmpty Chunk(new A {})
-
-      assertCompletes
-    } @@ TestAspect.ignore
+    }
   )
 }

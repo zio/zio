@@ -6,6 +6,7 @@ title:  "Summary"
 ZIO contains a small number of data types that can help you solve complex problems in asynchronous and concurrent programming.
 
  - **[Fiber](fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
+ - **[STM](stm.md)** - An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
  - **[ZIO](io.md)** — A `ZIO` is a value that models an effectful program, which might fail or succeed.
  - **[Managed](managed.md)** — A `Managed` is a value that describes a perishable resource that may be consumed only once inside a given scope.
  - **[Promise](promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.

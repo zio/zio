@@ -20,6 +20,7 @@ package object random {
       def nextLongBounded(n: Long): UIO[Long]
       def nextPrintableChar: UIO[Char]
       def nextString(length: Int): UIO[String]
+      def setSeed(seed: Long): UIO[Unit]
       def shuffle[A](list: List[A]): UIO[List[A]]
     }
 
@@ -61,6 +62,8 @@ package object random {
           ZIO.effectTotal(SRandom.nextPrintableChar())
         def nextString(length: Int): UIO[String] =
           ZIO.effectTotal(SRandom.nextString(length))
+        def setSeed(seed: Long): UIO[Unit] =
+          ZIO.effectTotal(SRandom.setSeed(seed))
         def shuffle[A](list: List[A]): UIO[List[A]] =
           Random.shuffleWith(nextIntBounded(_), list)
       }
@@ -247,6 +250,12 @@ package object random {
    */
   def nextString(length: => Int): ZIO[Random, Nothing, String] =
     ZIO.accessM(_.get.nextString(length))
+
+  /**
+   * Sets the seed of this random number generator.
+   */
+  def setSeed(seed: Long): ZIO[Random, Nothing, Unit] =
+    ZIO.accessM(_.get.setSeed(seed))
 
   /**
    * Randomly shuffles the specified list.

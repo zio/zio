@@ -120,6 +120,13 @@ final class ZLayer[-RIn, +E, +ROut] private (
     new ZLayer(self.scope)
 
   /**
+   * Builds this layer and uses it until it is interrupted. This is useful when
+   * your entire application is a layer, such as an HTTP server.
+   */
+  def launch(implicit ev: Any <:< RIn): IO[E, Nothing] =
+    build.provide(ev).useForever
+
+  /**
    * Returns a new layer whose output is mapped by the specified function.
    */
   def map[ROut1](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
