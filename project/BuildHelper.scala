@@ -186,13 +186,11 @@ object BuildHelper {
   def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File, isDotty: Boolean) =
     CrossVersion.partialVersion(scalaVer) match {
       case Some((2, x)) if x <= 11 =>
-        platformSpecificSources(platform, conf, baseDir)("2.11", "2.x", "2.11-2.12")
-      case Some((2, x)) if x == 12 =>
-        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "2.x", "2.11-2.12")
-      case Some((2, x)) if x >= 13 =>
-        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "2.x", "2.13+")
+        platformSpecificSources(platform, conf, baseDir)("2.11", "2.x")
+      case Some((2, x)) if x >= 12 =>
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "2.x")
       case _ if isDotty =>
-        platformSpecificSources(platform, conf, baseDir)("2.12+", "dotty", "2.13+")
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "dotty")
       case _ =>
         Nil
     }
