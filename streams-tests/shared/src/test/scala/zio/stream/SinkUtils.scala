@@ -1,4 +1,4 @@
-package zio.stream.experimental
+package zio.stream
 
 import zio.test.Assertion.equalTo
 import zio.test.{ assert, Assertion, TestResult }

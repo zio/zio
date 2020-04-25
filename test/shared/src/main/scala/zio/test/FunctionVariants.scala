@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.stream.ZStream.BufferedPull
+
 trait FunctionVariants {
 
   /**
@@ -57,7 +59,9 @@ trait FunctionVariants {
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
     Gen.fromEffect {
-      gen.sample.forever.process.use(pull => Fun.makeHash((_: A) => pull.optional.map(_.get.value))(hash))
+      gen.sample.forever.process
+        .mapM(BufferedPull.make[R, Nothing, Sample[R, B]](_))
+        .use(pull => Fun.makeHash((_: A) => pull.pullElement.optional.map(_.get.value))(hash))
     }
 
   /**

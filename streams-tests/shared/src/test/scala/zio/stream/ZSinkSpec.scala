@@ -1,10 +1,10 @@
-package zio.stream.experimental
+package zio.stream
 
 import scala.util.Random
 
 import zio.ZIOBaseSpec
-import zio.stream.experimental.SinkUtils.{ findSink, sinkRaceLaw }
-import zio.stream.experimental.ZStreamGen._
+import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
+import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isTrue, succeeds }
 import zio.test._
 

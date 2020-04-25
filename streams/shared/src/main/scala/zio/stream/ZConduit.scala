@@ -1,4 +1,4 @@
-package zio.stream.experimental
+package zio.stream
 
 import zio._
 
