@@ -250,6 +250,20 @@ object ZTransducerSpec extends ZIOBaseSpec {
           )(equalTo(List(3L, 3L)))
         )
       ),
+      testM("fromFunction")(
+        assertM(
+          ZStream(1, 2, 3, 4, 5)
+            .aggregate(ZTransducer.fromFunction[Int, String](_.toString))
+            .runCollect
+        )(equalTo(List("1", "2", "3", "4", "5")))
+      ),
+      testM("fromFunctionM")(
+        assertM(
+          ZStream("1", "2", "3", "4", "5")
+            .transduce(ZTransducer.fromFunctionM[Any, Throwable, String, Int](s => Task(s.toInt)))
+            .runCollect
+        )(equalTo(List(1, 2, 3, 4, 5)))
+      ),
       suite("splitLines")(
         testM("preserves data")(
           checkM(weirdStringGenForSplitLines) { lines =>
