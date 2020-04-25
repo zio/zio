@@ -476,7 +476,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Returns an effect whose failure is mapped by the specified `f` function.
    */
   def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
-    ZManaged(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
+    ZManaged(reserve.bimap(f, r => Reservation(r.acquire.mapError(f), r.release)))
 
   /**
    * Returns an effect whose full failure is mapped by the specified `f` function.

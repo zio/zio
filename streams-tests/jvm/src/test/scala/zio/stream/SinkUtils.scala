@@ -43,7 +43,7 @@ trait SinkUtils {
           case None        => (default, Chunk.empty)
         })
 
-      def initial = UIO.succeed(None)
+      def initial = UIO.none
 
       def step(state: State, a: A) =
         state match {
@@ -54,7 +54,7 @@ trait SinkUtils {
             if (acc.length >= accumulateAfterMet)
               UIO.succeed(state)
             else
-              UIO.succeed(Some(acc :+ a))
+              UIO.some(acc :+ a)
         }
 
       def cont(state: State) = state.map(_.length < accumulateAfterMet).getOrElse(true)
