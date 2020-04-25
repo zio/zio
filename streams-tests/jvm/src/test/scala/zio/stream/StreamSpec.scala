@@ -1864,7 +1864,7 @@ object StreamSpec extends ZIOBaseSpec {
         Stream
           .unfoldM(0) { i =>
             if (i < 10) IO.some((i, i + 1))
-            else IO.succeed(None)
+            else IO.none
           }
           .runCollect
       )(equalTo((0 to 9).toList))
