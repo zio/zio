@@ -28,6 +28,8 @@ import scala.annotation.implicitNotFound
  * {{{
  * type Console = Has[ConsoleService]
  * }}}
+ *
+ * Services parameterized on path dependent types are not supported.
  */
 final class Has[A] private (
   private val map: Map[TagType, scala.Any],
@@ -129,6 +131,11 @@ object Has {
     def prune(implicit tagged: Tagged[Self]): Self = {
       val tag = taggedTagType(tagged)
       val set = taggedGetHasServices(tag)
+
+      val missingServices = set -- self.map.keySet
+      if (missingServices.nonEmpty) {
+        throw new Error(s"Defect in zio.Has: ${missingServices} statically known to be contained within the environment are missing")
+      }
 
       if (set.isEmpty) self
       else new Has(filterKeys(self.map)(set)).asInstanceOf[Self]

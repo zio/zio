@@ -349,7 +349,7 @@ object URIO {
   /**
    * @see See [[zio.ZIO.foreachExec]]
    */
-  final def foreachExec[R, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => URIO[R, B]): URIO[R, List[B]] =
+  def foreachExec[R, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => URIO[R, B]): URIO[R, List[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
   /**
@@ -385,7 +385,7 @@ object URIO {
   /**
    * @see [[[zio.ZIO.foreach_[R,E,A](as:zio\.Chunk*]]]
    */
-  final def foreach_[R, A](as: Chunk[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+  def foreach_[R, A](as: Chunk[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
@@ -647,6 +647,31 @@ object URIO {
    * @see [[zio.ZIO.second]]
    */
   def second[A, B]: URIO[(A, B), B] = ZIO.second
+
+  /**
+   * @see See [[zio.ZIO.service]]
+   */
+  def service[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
+    ZIO.service[A]
+
+  /**
+   * @see See [[zio.ZIO.services[A,B]*]]
+   */
+  def services[A: Tagged, B: Tagged]: URIO[Has[A] with Has[B], (A, B)] =
+    ZIO.services[A, B]
+
+  /**
+   * @see See [[zio.ZIO.services[A,B,C]*]]
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
+    ZIO.services[A, B, C]
+
+  /**
+   * @see See [[zio.ZIO.services[A,B,C,D]*]]
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
+    ZIO.services[A, B, C, D]
 
   /**
    * @see [[zio.ZIO.sleep]]
