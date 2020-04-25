@@ -124,14 +124,6 @@ object ClockSpec extends ZIOBaseSpec {
       setTimeZone(ZoneId.of("UTC+11")) *>
         assertM(sleeps)(isEmpty)
     },
-    testM("tick runs the first scheduled effect") {
-      for {
-        ref    <- Ref.make(false)
-        _      <- ref.set(true).delay(1.second).fork
-        _      <- TestClock.tick
-        result <- ref.get
-      } yield assert(result)(isTrue)
-    } @@ nonFlaky,
     testM("timeout example from TestClock documentation works correctly") {
       val example = for {
         fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork

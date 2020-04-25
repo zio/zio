@@ -255,7 +255,6 @@ package object environment extends PlatformSpecific {
       def setTime(duration: Duration): UIO[Unit]
       def setTimeZone(zone: ZoneId): UIO[Unit]
       def sleeps: UIO[List[Duration]]
-      def tick: UIO[Unit]
       def timeZone: UIO[ZoneId]
     }
 
@@ -400,19 +399,6 @@ package object environment extends PlatformSpecific {
        */
       lazy val sleeps: UIO[List[Duration]] =
         scheduled.toList.map(_.map(_.duration)).commit
-
-      /**
-       * Runs the first scheduled effect, setting the clock time to the time
-       * the effect was scheduled to run and semantically blocking until the
-       * fiber executing that effect is done or suspended. If there are no
-       * scheduled effects semantically blocks until there is at least one
-       * scheduled effect.
-       */
-      val tick: UIO[Unit] =
-        scheduled.take
-          .flatMap(sleep => clockState.update(_.copy(duration = sleep.duration)).as(sleep))
-          .commit
-          .flatMap(sleep => sleep.promise.succeed(()) *> awaitSuspended(sleep.fiberId))
 
       /**
        * Returns the time zone.
@@ -610,16 +596,6 @@ package object environment extends PlatformSpecific {
      */
     val sleeps: ZIO[TestClock, Nothing, List[Duration]] =
       ZIO.accessM(_.get.sleeps)
-
-    /**
-     * Accesses a `TestClock` instance in the environment and runs the first
-     * scheduled effect, setting the clock time to the time the effect was
-     * scheduled to run and semantically blocking until the effect is done or
-     * suspended. If there are no scheduled effects semantically blocks until
-     * there is at least one scheduled effect.
-     */
-    val tick: ZIO[TestClock, Nothing, Unit] =
-      ZIO.accessM(_.get.tick)
 
     /**
      * Accesses a `TestClock` instance in the environment and returns the current
