@@ -63,6 +63,13 @@ abstract class ZTransducer[-R, +E, -I, +O](
    */
   final def map[P](f: O => P): ZTransducer[R, E, I, P] =
     ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
+
+  /**
+   * Effectually transforms the outputs of this transducer
+   */
+  final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
+    ZTransducer(self.push.map(push => i => push(i).flatMap(_.mapM(f))))
+
 }
 
 object ZTransducer {
@@ -454,6 +461,18 @@ object ZTransducer {
    */
   def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZTransducer[R, E, Any, A] =
     ZTransducer(Managed.succeed((_: Any) => zio.map(Chunk.single(_))))
+
+  /**
+   * Creates a transducer that purely transforms incoming values.
+   */
+  def fromFunction[I, O](f: I => O): ZTransducer[Any, Unit, I, O] =
+    identity.map(f)
+
+  /**
+   * Creates a transducer that effectfully transforms incoming values.
+   */
+  def fromFunctionM[R, E, I, O](f: I => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    identity.mapM(f(_))
 
   /**
    * Creates a transducer from a chunk processing function.
