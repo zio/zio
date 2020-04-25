@@ -223,7 +223,9 @@ abstract class ZStream[-R, +E, +O](
             if (!race)
               waitForProducer.flatMap(handleTake) <* raceNextTime.set(true)
             else
-              updateSchedule.raceWith(waitForProducer)(
+              updateSchedule.raceWith[R1, Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
+                waitForProducer
+              )(
                 (scheduleDone, producerWaiting) =>
                   ZIO.done(scheduleDone).flatMap {
                     case None =>
@@ -2300,6 +2302,19 @@ abstract class ZStream[-R, +E, +O](
    */
   final def tap[R1 <: R, E1 >: E](f0: O => ZIO[R1, E1, Any]): ZStream[R1, E1, O] =
     ZStream(self.process.map(_.tap(_.mapM_(f0).mapError(Some(_)))))
+
+  /**
+   * Interrupts the stream if it does not produce a value after d duration.
+   */
+  final def timeout(d: Duration): ZStream[R with Clock, E, O] =
+    ZStream[R with Clock, E, O] {
+      self.process.map { next =>
+        next.timeout(d).flatMap {
+          case Some(a) => ZIO.succeedNow(a)
+          case None    => ZIO.interrupt
+        }
+      }
+    }
 
   /**
    * Converts this stream of bytes into a `java.io.InputStream` wrapped in a [[ZManaged]].

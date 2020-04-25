@@ -1362,7 +1362,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                         .fromQueue(queue)
                         .collectWhileSuccess
                         .flattenChunks
-                        .tap(x => console.putStrLn(x.toString))
                         .groupedWithin(10, 2.seconds)
                         .tap(_ => proceed)
                       assertM(for {
@@ -1909,6 +1908,28 @@ object ZStreamSpec extends ZIOBaseSpec {
           sum <- ref.get
         } yield assert(res)(equalTo(List(1, 1))) && assert(sum)(equalTo(2))
       },
+      suite("timeout")(
+        testM("succeed") {
+          assertM(
+            ZStream
+              .succeed(1)
+              .timeout(Duration.Infinity)
+              .runCollect
+          )(equalTo(List(1)))
+        },
+        testM("should interrupt stream") {
+          assertM(
+            ZStream
+              .range(0, 5)
+              .tap(_ => ZIO.sleep(Duration.Infinity))
+              .timeout(Duration.Zero)
+              .runDrain
+              .sandbox
+              .ignore
+              .map(_ => true)
+          )(isTrue)
+        } @@ zioTag(interruption)
+      ),
       testM("toInputStream") {
         val stream = ZStream(1, 2, 3).map(_.toByte)
         for {
@@ -1924,18 +1945,20 @@ object ZStreamSpec extends ZIOBaseSpec {
                               }
         } yield assert(streamResult)(equalTo(inputStreamResult))
       },
-      testM("toIterator")((for {
-        counter  <- Ref.make(0).toManaged_ //Increment and get the value
-        effect   = counter.updateAndGet(_ + 1)
-        iterator <- ZStream.repeatEffect(effect).toIterator
-        n        = 2000
-        out <- ZStream
-                .fromIterator(iterator.map(_.merge))
-                .mapConcatM(element => effect.map(newElement => List(element, newElement)))
-                .take(n.toLong)
-                .runCollect
-                .toManaged_
-      } yield assert(out)(equalTo((1 to n).toList))).use(ZIO.succeed(_))),
+      testM("toIterator") {
+        (for {
+          counter  <- Ref.make(0).toManaged_ //Increment and get the value
+          effect   = counter.updateAndGet(_ + 1)
+          iterator <- ZStream.repeatEffect(effect).toIterator
+          n        = 2000
+          out <- ZStream
+                  .fromIterator(iterator.map(_.merge))
+                  .mapConcatM(element => effect.map(newElement => List(element, newElement)))
+                  .take(n.toLong)
+                  .runCollect
+                  .toManaged_
+        } yield assert(out)(equalTo((1 to n).toList))).use(ZIO.succeed(_))
+      } @@ TestAspect.jvmOnly, // Until #3360 is solved
       suite("toQueue")(
         testM("toQueue")(checkM(Gen.chunkOfBounded(0, 3)(Gen.anyInt)) { (c: Chunk[Int]) =>
           val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))

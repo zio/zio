@@ -360,20 +360,20 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     that: ZSink[R1, E1, I1, Z1]
   )(f: (Z, Z1) => Z2): ZSink[R1, E1, I1, Z2] = {
 
-    sealed trait State
-    case object BothRunning     extends State
-    case class LeftDone(z: Z)   extends State
-    case class RightDone(z: Z1) extends State
+    sealed trait State[+Z, +Z1]
+    case object BothRunning          extends State[Nothing, Nothing]
+    case class LeftDone[+Z](z: Z)    extends State[Z, Nothing]
+    case class RightDone[+Z1](z: Z1) extends State[Nothing, Z1]
 
     ZSink(for {
-      ref <- ZRef.make[State](BothRunning).toManaged_
+      ref <- ZRef.make[State[Z, Z1]](BothRunning).toManaged_
       p1  <- self.push
       p2  <- that.push
       push: Push[R1, E1, I1, Z2] = {
         in =>
           ref.get.flatMap {
             state =>
-              val newState: ZIO[R1, Either[E1, Z2], State] = {
+              val newState: ZIO[R1, Either[E1, Z2], State[Z, Z1]] = {
                 state match {
                   case BothRunning => {
                     val l = p1(in).foldM({
