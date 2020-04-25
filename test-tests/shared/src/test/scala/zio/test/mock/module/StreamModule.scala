@@ -25,7 +25,7 @@ import zio.stream.{ Sink, Stream }
 object StreamModule {
 
   trait Service {
-    def sink(a: Int): Sink[String, Nothing, Int, List[Int]]
+    def sink(a: Int): Sink[String, Int, List[Int]]
     def stream(a: Int): Stream[String, Int]
   }
 
