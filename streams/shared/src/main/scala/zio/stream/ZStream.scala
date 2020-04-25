@@ -1053,15 +1053,16 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   ): ZManaged[R, Nothing, List[Queue[Take[E1, A1]]]] =
     Promise.make[Nothing, A => UIO[UniqueKey => Boolean]].toManaged_.flatMap { prom =>
       distributedWithDynamic[E1, A1](maximumLag, (a: A) => prom.await.flatMap(_(a)), _ => ZIO.unit).flatMap { next =>
-        ZIO.collectAll {
-          Range(0, n).map(id => next.map { case (key, queue) => ((key -> id), queue) })
-        }.flatMap { entries =>
-          val (mappings, queues) = entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Queue[Take[E1, A1]]])) {
-            case ((mapping, queue), (mappings, queues)) =>
-              (mappings + mapping, queue :: queues)
+        ZIO
+          .foreach(Range(0, n))(id => next.map { case (key, queue) => ((key -> id), queue) })
+          .flatMap { entries =>
+            val (mappings, queues) = entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Queue[Take[E1, A1]]])) {
+              case ((mapping, queue), (mappings, queues)) =>
+                (mappings + mapping, queue :: queues)
+            }
+            prom.succeed((a: A) => decide(a).map(f => (key: UniqueKey) => f(mappings(key)))).as(queues)
           }
-          prom.succeed((a: A) => decide(a).map(f => (key: UniqueKey) => f(mappings(key)))).as(queues)
-        }.toManaged_
+          .toManaged_
       }
     }
 

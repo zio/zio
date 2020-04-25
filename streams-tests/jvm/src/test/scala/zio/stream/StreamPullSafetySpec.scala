@@ -56,10 +56,10 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
             def initial: IO[String, State] =
               ref.modify {
                 case (n, failed) =>
-                  if (failed) (UIO.succeed(None), (n + 1, false)) else (IO.fail("Ouch"), (n, true))
+                  if (failed) (UIO.none, (n + 1, false)) else (IO.fail("Ouch"), (n, true))
               }.flatten
 
-            def step(s: State, a: Int): UIO[State] = UIO.succeed(Some(a))
+            def step(s: State, a: Int): UIO[State] = UIO.some(a)
 
             def extract(s: State): IO[String, (String, Chunk[Nothing])] =
               IO.fromOption(s).map(n => (n.toString, Chunk.empty)).orElseFail("Empty")
@@ -1256,8 +1256,8 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       testM("is safe to pull again after success") {
         Stream
           .unfoldM(0) { n =>
-            if (n == 1) UIO.succeed(None)
-            else UIO.succeed(Some((n, n + 1)))
+            if (n == 1) UIO.none
+            else UIO.some((n, n + 1))
           }
           .process
           .use(nPulls(_, 3))
@@ -1270,8 +1270,8 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .unfoldM(1) { n =>
                       ref.get.flatMap { done =>
                         if (n == 2 && !done) ref.set(true) *> IO.fail("Ouch")
-                        else if (n > 2) UIO.succeed(None)
-                        else UIO.succeed(Some((n, n + 1)))
+                        else if (n > 2) UIO.none
+                        else UIO.some((n, n + 1))
                       }
                     }
                     .process

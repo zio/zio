@@ -290,7 +290,7 @@ object ChunkSpec extends ZIOBaseSpec {
         checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
             result   <- c.collectWhileM(pf).map(_.toList)
-            expected <- UIO.collectAll(c.toList.takeWhile(pf.isDefinedAt).map(pf.apply))
+            expected <- UIO.foreach(c.toList.takeWhile(pf.isDefinedAt))(pf.apply)
           } yield assert(result)(equalTo(expected))
         }
       },
