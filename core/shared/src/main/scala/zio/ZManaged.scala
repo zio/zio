@@ -262,7 +262,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Ensures that `f` is executed when this ZManaged is finalized, after
    * the existing finalizer.
    *
-   * For usecases that need access to the ZManaged's result, see [[ZManaged#onExit]].
+   * For usecases that need access to the ZManaged's result, see [[ZManaged#ensuring]].
    */
   def ensuring_[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {
@@ -524,7 +524,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
    * the existing finalizers.
    */
-  def onExit[R1 <: R](cleanup: Exit[E, A] => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def ensuring[R1 <: R](cleanup: Exit[E, A] => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {
       Ref.make[Exit[Any, Any] => ZIO[R1, Nothing, Any]](_ => UIO.unit).map { finalizer =>
         Reservation(

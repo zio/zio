@@ -521,14 +521,14 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(count)(equalTo(3))
       }
     ),
-    suite("onExit")(
+    suite("ensuring")(
       testM("Calls the cleanup") {
         for {
           finalizersRef <- Ref.make[List[String]](Nil)
           resultRef     <- Ref.make[Option[Exit[Nothing, String]]](None)
           _ <- ZManaged
                 .make(UIO.succeed("42"))(_ => finalizersRef.update("First" :: _))
-                .onExit(e => finalizersRef.update("Second" :: _) *> resultRef.set(Some(e)))
+                .ensuring(e => finalizersRef.update("Second" :: _) *> resultRef.set(Some(e)))
                 .use_(ZIO.unit)
           finalizers <- finalizersRef.get
           result     <- resultRef.get
