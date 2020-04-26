@@ -1,10 +1,10 @@
 package zio.test
 
-import zio.test.Assertion.{ equalTo, isFalse, isTrue }
-import zio.test.TestAspect.{ ifEnvSet, only }
+import zio.test.Assertion.{ equalTo, hasSize, isFalse, isGreaterThan, isTrue }
+import zio.test.TestAspect.{ ifEnvSet, nondeterministic, only }
 import zio.test.TestUtils._
 import zio.test.environment.TestEnvironment
-import zio.{ Has, NeedsEnv, Ref, ZIO, ZLayer }
+import zio.{ random, Has, NeedsEnv, Ref, ZIO, ZLayer }
 
 object SpecSpec extends ZIOBaseSpec {
 
@@ -59,9 +59,38 @@ object SpecSpec extends ZIOBaseSpec {
         ).provideLayerShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
-          successes    <- executedSpec.countTests(_.isRight)
-          failures     <- executedSpec.countTests(_.isLeft)
+          successes    <- executedSpec.countTests(_.isRight).use(ZIO.succeedNow)
+          failures     <- executedSpec.countTests(_.isLeft).use(ZIO.succeedNow)
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
+      }
+    ),
+    suite("provideSomeLayerShared")(
+      testM("leaves the remainder of the environment") {
+        for {
+          ref <- Ref.make[Set[Int]](Set.empty)
+          spec = suite("suite")(
+            testM("test1") {
+              for {
+                n <- random.nextInt
+                _ <- ref.update(_ + n)
+              } yield assertCompletes
+            },
+            testM("test2") {
+              for {
+                n <- random.nextInt
+                _ <- ref.update(_ + n)
+              } yield assertCompletes
+            },
+            testM("test3") {
+              for {
+                n <- random.nextInt
+                _ <- ref.update(_ + n)
+              } yield assertCompletes
+            }
+          ).provideSomeLayerShared[TestEnvironment](ZLayer.succeed(())) @@ nondeterministic
+          _      <- execute(spec)
+          result <- ref.get
+        } yield assert(result)(hasSize(isGreaterThan(1)))
       }
     ),
     suite("only")(

@@ -41,20 +41,21 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       spec: ZSpec[R, E],
       description: Description,
       path: Vector[String] = Vector.empty
-    ): URIO[R, Unit] =
+    ): ZManaged[R, Any, Unit] =
       spec.caseValue match {
         case SuiteCase(label, specs, _) =>
           val suiteDesc = Description.createSuiteDescription(label, path.mkString(":"))
-          effectTotal(description.addChild(suiteDesc)) *>
+          ZManaged.effectTotal(description.addChild(suiteDesc)) *>
             specs
-              .flatMap(ZIO.foreach(_)(traverse(_, suiteDesc, path :+ label)))
+              .flatMap(ZManaged.foreach(_)(traverse(_, suiteDesc, path :+ label)))
               .ignore
         case TestCase(label, _, _) =>
-          effectTotal(description.addChild(testDescription(label, path)))
+          ZManaged.effectTotal(description.addChild(testDescription(label, path)))
       }
 
     unsafeRun(
       traverse(filteredSpec, description)
+        .use(ZIO.succeedNow)
         .provideLayer(spec.runner.executor.environment)
     )
     description
@@ -112,7 +113,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
         case SuiteCase(label, specs, es) =>
           @silent("inferred to be `Any`")
           val instrumented =
-            specs.flatMap(ZIO.foreach(_)(s => ZIO.succeedNow(Spec(loop(s.caseValue, path :+ label)))))
+            specs.flatMap(ZManaged.foreach(_)(s => ZManaged.succeedNow(Spec(loop(s.caseValue, path :+ label)))))
           SuiteCase(label, instrumented.map(_.toVector), es)
       }
     Spec(loop(zspec.caseValue))
