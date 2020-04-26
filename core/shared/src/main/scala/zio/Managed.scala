@@ -121,6 +121,12 @@ object Managed {
     ZManaged.flatten(m)
 
   /**
+   * See [[zio.ZManaged.flattenM]]
+   */
+  def flattenM[E, A](m: Managed[E, IO[E, A]]): Managed[E, A] =
+    ZManaged.flattenM(m)
+
+  /**
    * See [[[zio.ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
    */
   def foreach[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
