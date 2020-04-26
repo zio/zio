@@ -1493,7 +1493,7 @@ object StreamSpec extends ZIOBaseSpec {
           .partitionEither(i => ZIO.succeed(if (i % 2 == 0) Left(i) else Right(i)))
           .map { case (evens, odds) => evens.mergeEither(odds) }
           .use(_.runCollect)
-        assertM(ZIO.collectAll(Range(0, 100).toList.map(_ => stream)).map(_ => 0))(equalTo(0))
+        assertM(ZIO.collectAll(Range(0, 100).toList.map(_ => stream)).as(0))(equalTo(0))
       },
       testM("values") {
         Stream
@@ -1747,7 +1747,7 @@ object StreamSpec extends ZIOBaseSpec {
             .runDrain
             .sandbox
             .ignore
-            .map(_ => true)
+            .as(true)
         )(isTrue)
       } @@ zioTag(interruption)
     ),
@@ -1863,8 +1863,8 @@ object StreamSpec extends ZIOBaseSpec {
       assertM(
         Stream
           .unfoldM(0) { i =>
-            if (i < 10) IO.succeed(Some((i, i + 1)))
-            else IO.succeed(None)
+            if (i < 10) IO.some((i, i + 1))
+            else IO.none
           }
           .runCollect
       )(equalTo((0 to 9).toList))

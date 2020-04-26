@@ -57,22 +57,22 @@ class ParSequenceBenchmark {
     result.runSyncUnsafe()
   }
   @Benchmark
-  def monixGather(): Long = {
+  def monixParSequence(): Long = {
     val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
-    val result = MTask.gather(tasks).map(_.sum.toLong)
+    val result = MTask.parSequence(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
   @Benchmark
-  def monixGatherUnordered(): Long = {
+  def monixParSequenceUnordered(): Long = {
     val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
-    val result = MTask.gatherUnordered(tasks).map(_.sum.toLong)
+    val result = MTask.parSequenceUnordered(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
 
   @Benchmark
-  def monixGatherN(): Long = {
+  def monixParSequenceN(): Long = {
     val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
-    val result = MTask.gatherN(parallelism)(tasks).map(_.sum.toLong)
+    val result = MTask.parSequenceN(parallelism)(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
 

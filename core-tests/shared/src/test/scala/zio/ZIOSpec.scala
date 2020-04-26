@@ -256,6 +256,15 @@ object ZIOSpec extends ZIOBaseSpec {
         val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
         val res  = IO.collectAllPar(list)
         assertM(res)(equalTo(List(1, 2, 3)))
+      },
+      testM("is referentially transparent") {
+        for {
+          counter <- Ref.make(0)
+          op      = counter.getAndUpdate(_ + 1)
+          ops3    = ZIO.collectAllPar(List(op, op, op))
+          ops6    = ops3.zipPar(ops3)
+          res     <- ops6
+        } yield assert(res._1)(not(equalTo(res._2)))
       }
     ),
     suite("collectAllParN")(
@@ -1663,7 +1672,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("someOrFailException")(
       testM("extracts the optional value") {
-        assertM(ZIO.succeed(Some(42)).someOrFailException)(equalTo(42))
+        assertM(ZIO.some(42).someOrFailException)(equalTo(42))
       },
       testM("fails when given a None") {
         val task = ZIO.succeed(Option.empty[Int]).someOrFailException
@@ -2943,8 +2952,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           effectRef      <- Ref.make(0)
           conditionRef   <- Ref.make(0)
-          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
-          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
           _              <- effectRef.set(1).unlessM(conditionTrue)
           val1           <- effectRef.get
           conditionVal1  <- conditionRef.get
@@ -3156,8 +3165,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           effectRef      <- Ref.make(0)
           conditionRef   <- Ref.make(0)
-          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
-          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
           _              <- effectRef.set(1).whenM(conditionFalse)
           val1           <- effectRef.get
           conditionVal1  <- conditionRef.get

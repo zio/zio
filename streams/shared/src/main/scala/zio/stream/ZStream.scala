@@ -1053,15 +1053,16 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   ): ZManaged[R, Nothing, List[Queue[Take[E1, A1]]]] =
     Promise.make[Nothing, A => UIO[UniqueKey => Boolean]].toManaged_.flatMap { prom =>
       distributedWithDynamic[E1, A1](maximumLag, (a: A) => prom.await.flatMap(_(a)), _ => ZIO.unit).flatMap { next =>
-        ZIO.collectAll {
-          Range(0, n).map(id => next.map { case (key, queue) => ((key -> id), queue) })
-        }.flatMap { entries =>
-          val (mappings, queues) = entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Queue[Take[E1, A1]]])) {
-            case ((mapping, queue), (mappings, queues)) =>
-              (mappings + mapping, queue :: queues)
+        ZIO
+          .foreach(Range(0, n))(id => next.map { case (key, queue) => ((key -> id), queue) })
+          .flatMap { entries =>
+            val (mappings, queues) = entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Queue[Take[E1, A1]]])) {
+              case ((mapping, queue), (mappings, queues)) =>
+                (mappings + mapping, queue :: queues)
+            }
+            prom.succeed((a: A) => decide(a).map(f => (key: UniqueKey) => f(mappings(key)))).as(queues)
           }
-          prom.succeed((a: A) => decide(a).map(f => (key: UniqueKey) => f(mappings(key)))).as(queues)
-        }.toManaged_
+          .toManaged_
       }
     }
 
@@ -1587,7 +1588,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       for {
         decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]].toManaged_
         out <- Queue
-                .bounded[Take[E1, (K, GroupBy.DequeueOnly[Take[E1, V]])]](buffer)
+                .bounded[Take[E1, (K, Dequeue[Take[E1, V]])]](buffer)
                 .toManaged(_.shutdown)
         ref <- Ref.make[Map[K, UniqueKey]](Map()).toManaged_
         add <- self
@@ -2142,7 +2143,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Provides a layer to the stream, which translates it to another level.
    */
-  final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
+  final def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZStream[R0, E1, A] =
     ZStream.managed {
@@ -2909,7 +2910,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * be merged in arbitrary order.
    */
   final class GroupBy[-R, +E, +K, +V](
-    private val grouped: ZStream[R, E, (K, GroupBy.DequeueOnly[Take[E, V]])],
+    private val grouped: ZStream[R, E, (K, Dequeue[Take[E, V]])],
     private val buffer: Int
   ) {
 
@@ -2945,11 +2946,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
         case (k, q) =>
           f(k, ZStream.fromQueueWithShutdown(q).unTake)
       }
-  }
-
-  object GroupBy {
-    // Queue that only allow taking
-    type DequeueOnly[+A] = ZQueue[Any, Nothing, Any, Nothing, Nothing, A]
   }
 
   /**
@@ -3415,7 +3411,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
    */
-  def fromQueue[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
+  def fromQueue[R, E, A](queue: ZQueue[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
     ZStream {
       ZManaged.succeedNow {
         queue.take.catchAllCause(c =>
@@ -3430,7 +3426,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
    */
-  def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
+  def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
     fromQueue(queue).ensuringFirst(queue.shutdown)
 
   /**
@@ -3551,6 +3547,31 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     schedule: Schedule[R, Unit, _]
   ): ZStream[R, E, A] =
     fromEffect(fa).repeat(schedule)
+
+  /**
+   * Accesses the specified service in the environment of the effect.
+   */
+  def service[A](implicit tagged: Tagged[A]): ZStream[Has[A], Nothing, A] =
+    ZStream.access(_.get[A])
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged]: ZStream[Has[A] with Has[B], Nothing, (A, B)] =
+    ZStream.access(r => (r.get[A], r.get[B]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged]: ZStream[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+    ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : ZStream[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+    ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Creates a single-valued pure stream

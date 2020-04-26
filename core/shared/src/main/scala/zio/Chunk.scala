@@ -34,6 +34,46 @@ import scala.reflect.{ classTag, ClassTag }
 sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
   /**
+   * Get the element at the specified index.
+   */
+  def boolean(index: Int)(implicit ev: A <:< Boolean): Boolean = ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def byte(index: Int)(implicit ev: A <:< Byte): Byte = ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def char(index: Int)(implicit ev: A <:< Char): Char = ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def short(index: Int)(implicit ev: A <:< Short): Short = ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def int(index: Int)(implicit ev: A <:< Int): Int = ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def long(index: Int)(implicit ev: A <:< Long): Long = ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def float(index: Int)(implicit ev: A <:< Float): Float = ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def double(index: Int)(implicit ev: A <:< Double): Double = ev(apply(index))
+
+  /**
    * Appends an element to the chunk
    */
   final def +[A1 >: A](a: A1): Chunk[A1] =
@@ -61,16 +101,16 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Returns a filtered, mapped subset of the elements of this chunk based on a .
    */
   def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-    self.materialize.collectM(pf)
+    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectM(pf)
 
   /**
    * Transforms all elements of the chunk for as long as the specified partial function is defined.
    */
   def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] =
-    self.materialize.collectWhile(pf)
+    if (isEmpty) Chunk.empty else self.materialize.collectWhile(pf)
 
   def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-    self.materialize.collectWhileM(pf)
+    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectWhileM(pf)
 
   /**
    * Determines whether this chunk and the specified chunk have the same length
@@ -665,13 +705,14 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   //noinspection AccessorLikeMethodIsUnit
-  protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit
+  protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
+    if (isEmpty) () else materialize.toArray(n, dest)
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
   protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] =
-    self.materialize.collectChunk(pf)
+    if (isEmpty) Chunk.empty else self.materialize.collectChunk(pf)
 
   /**
    * Returns a chunk with the elements mapped by the specified function.
@@ -1224,7 +1265,8 @@ object Chunk {
     }
   }
 
-  private final case class BitChunk(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int) extends Chunk[Boolean] {
+  private[zio] final case class BitChunk(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int)
+      extends Chunk[Boolean] {
     self =>
 
     override val length: Int =
@@ -1294,15 +1336,6 @@ object Chunk {
     override def apply(n: Int): Nothing =
       throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
-    override def collectM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      UIO.succeedNow(Empty)
-
-    override def collectWhile[B](pf: PartialFunction[Nothing, B]): Chunk[B] =
-      Empty
-
-    override def collectWhileM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      UIO.succeedNow(Empty)
-
     override def foreach[B](f: Nothing => B): Unit = {
       val _ = f
     }
@@ -1316,23 +1349,6 @@ object Chunk {
 
     override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] =
       Array.empty
-
-    override def zipAllWith[B, C](that: Chunk[B])(left: Nothing => C, right: B => C)(
-      both: (Nothing, B) => C
-    ): Chunk[C] =
-      that.map(right)
-
-    protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit =
-      ()
-
-    override protected def collectChunk[B](pf: PartialFunction[Nothing, B]): Chunk[B] =
-      Empty
-
-    /**
-     * Returns a chunk with the elements mapped by the specified function.
-     */
-    override protected def mapChunk[B](f: Nothing => B): Chunk[B] =
-      Empty
   }
 
   private[zio] object Tags {

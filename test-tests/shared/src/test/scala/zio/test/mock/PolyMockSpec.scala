@@ -400,11 +400,11 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
         }
       )
     ),
-    // assignability and subclassing are not the same concepts
-    // and so the `ClassTag` based implementation for Tagged is broken
-    // on dotty for some cases (like Tuples, Lists, etc)
     // see https://github.com/zio/zio/pull/3136
-    // will be fixed when izumi-reflect is supported on dotty
+    // will be fixed when izumi-reflect on dotty reimplements substitution macro for polymorphic tags (TagMacro in Scala 2)
+    // Currently `polyMixed[Int]` on dotty produces a tag literally for `(A, String)` instead of `(Int, String)`,
+    // i.e. substitution is not implemented.
+    // see `zio.TaggedSpec` for a test for substitution
     suite("polymorphic mixed output")(
       suite("expectations met")(
         testValue("String")(
