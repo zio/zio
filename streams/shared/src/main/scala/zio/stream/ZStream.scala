@@ -1588,7 +1588,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       for {
         decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]].toManaged_
         out <- Queue
-                .bounded[Take[E1, (K, GroupBy.DequeueOnly[Take[E1, V]])]](buffer)
+                .bounded[Take[E1, (K, Dequeue[Take[E1, V]])]](buffer)
                 .toManaged(_.shutdown)
         ref <- Ref.make[Map[K, UniqueKey]](Map()).toManaged_
         add <- self
@@ -2910,7 +2910,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * be merged in arbitrary order.
    */
   final class GroupBy[-R, +E, +K, +V](
-    private val grouped: ZStream[R, E, (K, GroupBy.DequeueOnly[Take[E, V]])],
+    private val grouped: ZStream[R, E, (K, Dequeue[Take[E, V]])],
     private val buffer: Int
   ) {
 
@@ -2946,11 +2946,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
         case (k, q) =>
           f(k, ZStream.fromQueueWithShutdown(q).unTake)
       }
-  }
-
-  object GroupBy {
-    // Queue that only allow taking
-    type DequeueOnly[+A] = ZQueue[Any, Nothing, Any, Nothing, Nothing, A]
   }
 
   /**
@@ -3416,7 +3411,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
    */
-  def fromQueue[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
+  def fromQueue[R, E, A](queue: ZQueue[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
     ZStream {
       ZManaged.succeedNow {
         queue.take.catchAllCause(c =>
@@ -3431,7 +3426,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
    */
-  def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
+  def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
     fromQueue(queue).ensuringFirst(queue.shutdown)
 
   /**
