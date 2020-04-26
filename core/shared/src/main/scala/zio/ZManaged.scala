@@ -264,7 +264,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    *
    * For usecases that need access to the ZManaged's result, see [[ZManaged#onExit]].
    */
-  def ensuring[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def ensuring_[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {
       reserve.map(r => r.copy(release = e => r.release(e).ensuring(f)))
     }

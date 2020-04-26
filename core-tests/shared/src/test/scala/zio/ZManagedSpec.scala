@@ -144,7 +144,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           effects <- Ref.make[List[String]](Nil)
           _ <- ZManaged
                 .finalizer(effects.update("First" :: _))
-                .ensuring(effects.update("Second" :: _))
+                .ensuring_(effects.update("Second" :: _))
                 .use_(ZIO.unit)
           result <- effects.get
         } yield assert(result)(equalTo(List("Second", "First")))
@@ -152,7 +152,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Runs on failures") {
         for {
           effects <- Ref.make[List[String]](Nil)
-          _       <- ZManaged.fromEffect(ZIO.fail(())).ensuring(effects.update("Ensured" :: _)).use_(ZIO.unit).either
+          _       <- ZManaged.fromEffect(ZIO.fail(())).ensuring_(effects.update("Ensured" :: _)).use_(ZIO.unit).either
           result  <- effects.get
         } yield assert(result)(equalTo(List("Ensured")))
       } @@ zioTag(errors),
@@ -161,7 +161,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           effects <- Ref.make[List[String]](Nil)
           _ <- ZManaged
                 .finalizer(ZIO.dieMessage("Boom"))
-                .ensuring(effects.update("Ensured" :: _))
+                .ensuring_(effects.update("Ensured" :: _))
                 .use_(ZIO.unit)
                 .run
           result <- effects.get

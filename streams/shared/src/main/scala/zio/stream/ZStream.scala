@@ -1226,7 +1226,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Executes the provided finalizer after this stream's finalizers run.
    */
   final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
-    ZStream(self.process.ensuring(fin))
+    ZStream(self.process.ensuring_(fin))
 
   /**
    * Executes the provided finalizer before this stream's finalizers run.
@@ -3236,7 +3236,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
                            .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt(_)),
                          Pull.emitNow
                        )
-                   }).ensuring(canceler)
+                   }).ensuring_(canceler)
                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
                }
       } yield pull
