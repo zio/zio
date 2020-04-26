@@ -1,19 +1,18 @@
 package zio.stm
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.locks.{ ReentrantLock, StampedLock }
+import java.util.concurrent.locks.{ReentrantLock, StampedLock}
 
-import org.openjdk.jmh.annotations.{ Benchmark, Group, GroupThreads, _ }
-import org.openjdk.jmh.infra.Blackhole
-
+import org.openjdk.jmh.annotations.{Benchmark, Group, GroupThreads, _}
 import zio.IOBenchmarks._
-import zio._
+import zio.{UIO, ZIO, clock}
+import zio.duration._
 
 @State(Scope.Group)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Measurement(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 5)
-@Warmup(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 5)
+@Measurement(iterations = 1, timeUnit = TimeUnit.SECONDS, time = 10)
+@Warmup(iterations = 1, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(2)
 class TReentrantLockBenchmark {
 
@@ -21,8 +20,9 @@ class TReentrantLockBenchmark {
 
   val reentrantLock = new ReentrantLock()
 
-  val zioLock: ZIO[Any, Nothing, TReentrantLock] = TReentrantLock.make.commit
+  var zioLock: TReentrantLock = unsafeRun(TReentrantLock.make.commit)
 
+/*
   @Benchmark
   @Group("ZioLockBasic")
   @GroupThreads(1)
@@ -52,7 +52,7 @@ class TReentrantLockBenchmark {
   @Group("ZioLockMediumContention")
   @GroupThreads(10)
   def zioLockWriteGroup2(): Unit = zioLockWrite()
-
+*/
   @Benchmark
   @Group("ZioLockHighContention")
   @GroupThreads(20)
@@ -62,8 +62,8 @@ class TReentrantLockBenchmark {
   @Group("ZioLockHighContention")
   @GroupThreads(20)
   def zioLockWriteGroup3(): Unit = zioLockWrite()
-
-  /*@Benchmark
+/*
+  @Benchmark
   @Group("StampedLockBasic")
   @GroupThreads(1)
   def javaLockReadGroup(): Unit = stampedLockRead()
@@ -102,7 +102,7 @@ class TReentrantLockBenchmark {
   @Group("StampedLockHighContention")
   @GroupThreads(20)
   def javaLockWriteGroup3(): Unit = stampedLockWrite()
-   */
+
 
   @Benchmark
   @Group("ReentrantLockBasic")
@@ -124,7 +124,7 @@ class TReentrantLockBenchmark {
   @GroupThreads(5)
   def reentrantLockWriteGroup1(): Unit = reentrantLockWrite()
 
-  @Benchmark
+   @Benchmark
   @Group("ReentrantLockMediumContention")
   @GroupThreads(20)
   def reentrantLockReadGroup2(): Unit = reentrantLockRead()
@@ -133,7 +133,7 @@ class TReentrantLockBenchmark {
   @Group("ReentrantLockMediumContention")
   @GroupThreads(10)
   def reentrantLockWriteGroup2(): Unit = reentrantLockWrite()
-
+*/
   @Benchmark
   @Group("ReentrantLockHighContention")
   @GroupThreads(20)
@@ -144,33 +144,36 @@ class TReentrantLockBenchmark {
   @GroupThreads(20)
   def reentrantLockWriteGroup3(): Unit = reentrantLockWrite()
 
+
   // used to amortize the relative cost of unsafeRun
   // compared to benchmarked operations
-  private val calls = (0 to 10000).toList
+  private val calls = 100
+  private val readSleep = 1L
+  private val writeSleep = 1L
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def zioLockRead(): Unit =
-    unsafeRun(
-      ZIO.foreach_(calls)(_ => zioLock.flatMap(lock => lock.acquireRead.commit *> doWorkM() *> lock.releaseRead.commit))
-    )
+  def repeat(n: Int)(effect: UIO[Any]): UIO[Any] =
+    if (n <= 0) effect else effect.flatMap(_ => effect)
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def zioLockWrite(): Unit =
-    unsafeRun(
-      ZIO.foreach_(calls)(_ =>
-        zioLock.flatMap(lock => lock.acquireWrite.commit *> doWorkM() *> lock.releaseWrite.commit)
-      )
-    )
+  def zioLockRead(): Unit = {
+    unsafeRun(repeat(calls)((zioLock.acquireRead.commit *> doReadM() *> zioLock.releaseRead.commit)))
+    ()
+  }
+
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  def zioLockWrite(): Unit = {
+    unsafeRun(repeat(calls)((zioLock.acquireWrite.commit *> doWriteM() *> zioLock.releaseWrite.commit)))
+    ()
+  }
 
   /*@CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def stampedLockRead(): Unit = {
     val stamp = stampedLock.tryOptimisticRead
 
     if (stampedLock.validate(stamp)) {
-      doWork()
     } else {
       val stamp = stampedLock.readLock()
-      doWork()
       stampedLock.unlockRead(stamp)
     }
   }
@@ -178,29 +181,34 @@ class TReentrantLockBenchmark {
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def stampedLockWrite(): Unit = {
     val stamp = stampedLock.writeLock()
-    doWork()
     stampedLock.unlockWrite(stamp)
   }*/
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def reentrantLockWrite(): Unit =
-    for (_ <- calls) {
+    for (_ <- 1 to calls) {
       reentrantLock.lock()
-      doWork()
+      doWrite()
       reentrantLock.unlock()
     }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def reentrantLockRead(): Unit =
-    for (_ <- calls) {
+    for (_ <- 1 to calls) {
       reentrantLock.lock()
-      doWork()
+      doRead()
       reentrantLock.unlock()
     }
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def doWorkM(): UIO[Unit] = ZIO.effectTotal(doWork())
+  def doReadM(): UIO[Unit] = UIO(clock.sleep(readSleep.millis)) *> ZIO.yieldNow
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def doWork(): Unit = Blackhole.consumeCPU(100L)
+  def doWriteM(): UIO[Unit] = UIO(clock.sleep(writeSleep.millis)) *> ZIO.yieldNow
+
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  def doRead(): Unit = Thread.sleep(readSleep)
+
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  def doWrite(): Unit = Thread.sleep(writeSleep)
 
 }
