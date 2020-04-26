@@ -1848,9 +1848,9 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("catch failing finalizers with fail") {
         val io = IO
           .fail(ExampleError)
-          .ensuring(IO.effectTotal(throw InterruptCause1))
-          .ensuring(IO.effectTotal(throw InterruptCause2))
-          .ensuring(IO.effectTotal(throw InterruptCause3))
+          .ensuring_(IO.effectTotal(throw InterruptCause1))
+          .ensuring_(IO.effectTotal(throw InterruptCause2))
+          .ensuring_(IO.effectTotal(throw InterruptCause3))
 
         val expectedCause = Cause.fail(ExampleError) ++
           Cause.die(InterruptCause1) ++
@@ -1862,9 +1862,9 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("catch failing finalizers with terminate") {
         val io = IO
           .die(ExampleError)
-          .ensuring(IO.effectTotal(throw InterruptCause1))
-          .ensuring(IO.effectTotal(throw InterruptCause2))
-          .ensuring(IO.effectTotal(throw InterruptCause3))
+          .ensuring_(IO.effectTotal(throw InterruptCause1))
+          .ensuring_(IO.effectTotal(throw InterruptCause2))
+          .ensuring_(IO.effectTotal(throw InterruptCause3))
 
         val expectedCause = Cause.die(ExampleError) ++
           Cause.die(InterruptCause1) ++
@@ -1920,7 +1920,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("fail ensuring") {
         var finalized = false
 
-        val io = Task.fail(ExampleError).ensuring(IO.effectTotal { finalized = true; () })
+        val io = Task.fail(ExampleError).ensuring_(IO.effectTotal { finalized = true; () })
 
         for {
           a1 <- assertM(io.run)(fails(equalTo(ExampleError)))
@@ -1944,7 +1944,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val e2 = new Error("e2")
         val e3 = new Error("e3")
 
-        val io = TaskExampleError.ensuring(IO.die(e2)).ensuring(IO.die(e3))
+        val io = TaskExampleError.ensuring_(IO.die(e2)).ensuring_(IO.die(e3))
 
         val expectedCause: Cause[Throwable] =
           Cause.Then(Cause.fail(ExampleError), Cause.Then(Cause.die(e2), Cause.die(e3)))
@@ -1956,7 +1956,7 @@ object ZIOSpec extends ZIOBaseSpec {
 
         val io = IO
           .succeed[Int](42)
-          .ensuring(IO.die(ExampleError))
+          .ensuring_(IO.die(ExampleError))
           .fork
           .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.effectTotal { reported = e }))
 
@@ -2034,7 +2034,7 @@ object ZIOSpec extends ZIOBaseSpec {
             p1 <- Promise.make[Nothing, Unit]
             p2 <- Promise.make[Nothing, Int]
             s <- (p1.succeed(()) *> p2.await)
-                  .ensuring(r.set(true) *> clock.sleep(10.millis))
+                  .ensuring_(r.set(true) *> clock.sleep(10.millis))
                   .fork
             _    <- p1.await
             _    <- s.interrupt
@@ -2136,13 +2136,13 @@ object ZIOSpec extends ZIOBaseSpec {
                        step.await *> ZIO.effectTotal(k(unexpectedPlace.update(1 :: _)))
                      }
                    }
-                   .ensuring(ZIO.effectAsync[Any, Nothing, Unit] { _ =>
+                   .ensuring_(ZIO.effectAsync[Any, Nothing, Unit] { _ =>
                      runtime.unsafeRunAsync_ {
                        step.succeed(())
                      }
                    //never complete
                    })
-                   .ensuring(unexpectedPlace.update(2 :: _))
+                   .ensuring_(unexpectedPlace.update(2 :: _))
                    .forkDaemon
           result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
           unexpected <- unexpectedPlace.get
@@ -2171,7 +2171,7 @@ object ZIOSpec extends ZIOBaseSpec {
                      //never complete
                      }
                    }
-                   .ensuring(unexpectedPlace.update(2 :: _))
+                   .ensuring_(unexpectedPlace.update(2 :: _))
                    .uninterruptible
                    .forkDaemon
           result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
@@ -2584,7 +2584,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           cont <- Promise.make[Nothing, Unit]
           p1   <- Promise.make[Nothing, Boolean]
-          f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring(p1.succeed(true)).fork
+          f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring_(p1.succeed(true)).fork
           _    <- cont.await
           _    <- f1.interrupt
           res  <- p1.await
@@ -2595,7 +2595,7 @@ object ZIOSpec extends ZIOBaseSpec {
           p1 <- Promise.make[Nothing, Boolean]
           c  <- Promise.make[Nothing, Unit]
           f1 <- (c.succeed(()) *> ZIO.never)
-                 .ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interruptors.nonEmpty)))
+                 .ensuring_(IO.descriptor.flatMap(d => p1.succeed(d.interruptors.nonEmpty)))
                  .fork
           _   <- c.await
           _   <- f1.interrupt
@@ -2619,7 +2619,7 @@ object ZIOSpec extends ZIOBaseSpec {
           recovered <- Ref.make(false)
           fiber <- withLatch { release =>
                     (release *> ZIO.never)
-                      .ensuring(
+                      .ensuring_(
                         (ZIO.unit *> ZIO.fail("Uh oh")).catchAll(_ => recovered.set(true))
                       )
                       .fork
@@ -2688,7 +2688,7 @@ object ZIOSpec extends ZIOBaseSpec {
           ref <- Ref.make(false)
           fiber <- withLatch { release =>
                     (ZIO.effect(throw new Error).run *> release *> ZIO.never)
-                      .ensuring(ref.set(true))
+                      .ensuring_(ref.set(true))
                       .fork
                   }
           _     <- fiber.interrupt
@@ -2700,7 +2700,7 @@ object ZIOSpec extends ZIOBaseSpec {
           ref <- Ref.make(false)
           fiber <- withLatch { release =>
                     (ZIO.effect(throw new Error).run *> release *> ZIO.unit.forever)
-                      .ensuring(ref.set(true))
+                      .ensuring_(ref.set(true))
                       .fork
                   }
           _     <- fiber.interrupt
@@ -2711,7 +2711,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           p1 <- Promise.make[Nothing, Unit]
           s <- (p1.succeed(()) *> ZIO.never)
-                .ensuring(ZIO.never)
+                .ensuring_(ZIO.never)
                 .disconnect
                 .fork
           _   <- p1.await
@@ -2725,7 +2725,7 @@ object ZIOSpec extends ZIOBaseSpec {
             p1 <- Promise.make[Nothing, Unit]
             p3 <- Promise.make[Nothing, Unit]
             s <- (p1.succeed(()) *> ZIO.never)
-                  .ensuring(r.set(true) *> clock.sleep(10.millis) *> p3.succeed(()))
+                  .ensuring_(r.set(true) *> clock.sleep(10.millis) *> p3.succeed(()))
                   .disconnect
                   .fork
             _    <- p1.await

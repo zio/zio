@@ -1235,7 +1235,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           latch   <- Promise.make[Nothing, Unit]
           ref     <- Ref.make(0)
           managed = ZManaged.make(ZIO.unit)(_ => ref.update(_ + 1)).withEarlyRelease
-          _       <- managed.use(_._1).ensuring(latch.succeed(()))
+          _       <- managed.use(_._1).ensuring_(latch.succeed(()))
           _       <- latch.await
           result  <- ref.get
         } yield assert(result)(equalTo(1))

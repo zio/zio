@@ -109,7 +109,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         for {
           p          <- Promise.make[Nothing, Unit]
           r          <- Ref.make(0)
-          _          <- r.update(_ + 2).repeat(Schedule.recurs(2)).ensuring(p.succeed(()))
+          _          <- r.update(_ + 2).repeat(Schedule.recurs(2)).ensuring_(p.succeed(()))
           v          <- r.get
           finalizerV <- p.poll
         } yield assert(v)(equalTo(6)) && assert(finalizerV.isDefined)(equalTo(true))
@@ -283,7 +283,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       testM("run the specified finalizer as soon as the schedule is complete") {
         for {
           p          <- Promise.make[Nothing, Unit]
-          v          <- IO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).option
+          v          <- IO.fail("oh no").retry(Schedule.recurs(2)).ensuring_(p.succeed(())).option
           finalizerV <- p.poll
         } yield assert(v.isEmpty)(equalTo(true)) && assert(finalizerV.isDefined)(equalTo(true))
       }

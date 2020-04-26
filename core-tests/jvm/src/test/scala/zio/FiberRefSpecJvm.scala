@@ -28,7 +28,7 @@ object FiberRefSpecJvm extends ZIOBaseSpec {
 
         _      <- fiberRef.set(update1)
         thread <- UIO(new Thread(unsafelyGetSetGet))
-        _      <- UIO(thread.start()).ensuring(UIO(thread.join()))
+        _      <- UIO(thread.start()).ensuring_(UIO(thread.join()))
 
         value0                   <- fiberRef.get
         values                   <- UIO(resRef.get())

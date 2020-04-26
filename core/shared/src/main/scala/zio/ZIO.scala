@@ -514,7 +514,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * should generally not be used for releasing resources. For higher-level
    * logic built on `ensuring`, see `ZIO#bracket`.
    */
-  final def ensuring[R1 <: R](finalizer: URIO[R1, Any]): ZIO[R1, E, A] =
+  final def ensuring_[R1 <: R](finalizer: URIO[R1, Any]): ZIO[R1, E, A] =
     ZIO.uninterruptibleMask(restore =>
       restore(self)
         .foldCauseM(
@@ -544,7 +544,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * will be invoked, whether or not this effect succeeds.
    */
   final def ensuringChildren[R1 <: R](f: Iterable[Fiber[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
-    self.ensuring(ZIO.children.flatMap(f))
+    self.ensuring_(ZIO.children.flatMap(f))
 
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
@@ -766,7 +766,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * handler with all forked (non-daemon) children of this effect.
    */
   final def handleChildrenWith[R1 <: R](f: Iterable[Fiber[Any, Any]] => URIO[R1, Any]): ZIO[R1, E, A] =
-    self.ensuring(ZIO.children.flatMap(f))
+    self.ensuring_(ZIO.children.flatMap(f))
 
   /**
    * Returns a successful effect with the head of the list if the list is
@@ -2657,7 +2657,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
             .whenM[R, E](startTask) {
               f(a).interruptible
                 .tapCause(c => causes.update(_ && c) *> startFailure)
-                .ensuring {
+                .ensuring_ {
                   val isComplete = status.modify {
                     case (started, done, failing) =>
                       val newDone = done + 1
@@ -3812,7 +3812,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val before = UIO(debug.updateAndGet(_ + name))
     val after  = UIO(debug.updateAndGet(_ - name))
 
-    (before *> zio).ensuring(after)
+    (before *> zio).ensuring_(after)
   }
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)

@@ -136,7 +136,7 @@ package object blocking {
                               withMutex { thread.set(None); end.set(()) }
                             }
                           }.forkDaemon
-                  a <- restore(fiber.join.refailWithTrace).ensuring(interruptThread)
+                  a <- restore(fiber.join.refailWithTrace).ensuring_(interruptThread)
                 } yield a
               )
             )

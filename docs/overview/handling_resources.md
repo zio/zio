@@ -22,7 +22,7 @@ val finalizer =
   UIO.effectTotal(println("Finalizing!"))
 
 val finalized: IO[String, Unit] = 
-  IO.fail("Failed!").ensuring(finalizer)
+  IO.fail("Failed!").ensuring_(finalizer)
 ```
 
 The finalizer is not allowed to fail, which means that it must handle any errors internally.

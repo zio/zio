@@ -37,7 +37,7 @@ object RTSSpec extends ZIOBaseSpec {
         done  <- Ref.make(false)
         start <- IO.succeed(internal.OneShot.make[Unit])
         fiber <- blocking.effectBlockingInterrupt { start.set(()); Thread.sleep(60L * 60L * 1000L) }
-                  .ensuring(done.set(true))
+                  .ensuring_(done.set(true))
                   .fork
         _     <- IO.succeed(start.get())
         res   <- fiber.interrupt
@@ -130,7 +130,7 @@ object RTSSpec extends ZIOBaseSpec {
       def test =
         IO.effect(if (c.incrementAndGet() <= 1) throw new RuntimeException("x"))
           .forever
-          .ensuring(IO.unit)
+          .ensuring_(IO.unit)
           .either
           .forever
 

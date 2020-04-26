@@ -205,7 +205,7 @@ object RefM extends Serializable {
       interrupted.get.flatMap {
         case Some(cause) => onDefect(cause)
         case None =>
-          update(a).foldCauseM(c => onDefect(c).ensuring(promise.halt(c)), {
+          update(a).foldCauseM(c => onDefect(c).ensuring_(promise.halt(c)), {
             case (b, a) => ref.set(a) <* promise.succeed(b)
           })
       }

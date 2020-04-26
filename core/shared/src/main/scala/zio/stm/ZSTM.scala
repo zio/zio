@@ -909,7 +909,7 @@ object ZSTM {
             val interrupt = UIO(Sync(done)(done.set(true)))
             val async     = ZIO.effectAsync(tryCommitAsync(journal, platform, fiberId, stm, txnId, done, r))
 
-            async ensuring interrupt
+            async ensuring_ interrupt
         }
       }
     }

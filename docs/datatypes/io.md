@@ -154,7 +154,7 @@ A helper method called `ensuring` provides a simpler analogue of `finally`:
 var i: Int = 0
 val action: Task[String] = Task.effectTotal(i += 1) *> Task.fail(new Throwable("Boom!"))
 val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)
-val composite = action.ensuring(cleanupAction)
+val composite = action.ensuring_(cleanupAction)
 ```
 ### A full working example on using brackets
 ```scala mdoc:silent

@@ -266,7 +266,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def ensuring_[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {
-      reserve.map(r => r.copy(release = e => r.release(e).ensuring(f)))
+      reserve.map(r => r.copy(release = e => r.release(e).ensuring_(f)))
     }
 
   /**
@@ -277,7 +277,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def ensuringBeforeRelease_[R1 <: R](f: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
     ZManaged {
-      reserve.map(r => r.copy(release = e => f.ensuring(r.release(e))))
+      reserve.map(r => r.copy(release = e => f.ensuring_(r.release(e))))
     }
 
   /**
@@ -496,7 +496,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
                          .reserve
                          .flatMap {
                            case Reservation(acquire, release) =>
-                             restore(acquire).ensuring(finalizers.add(release))
+                             restore(acquire).ensuring_(finalizers.add(release))
                          }
                          .to(promise)
                      }
@@ -529,7 +529,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
       Ref.make[Exit[Any, Any] => ZIO[R1, Nothing, Any]](_ => UIO.unit).map { finalizer =>
         Reservation(
           acquire = ZIO.bracketExit(self.reserve)((res, exitA: Exit[E, A]) =>
-            finalizer.set(exitU => res.release(exitU).ensuring(cleanup(exitA)))
+            finalizer.set(exitU => res.release(exitU).ensuring_(cleanup(exitA)))
           )(_.acquire),
           release = e => finalizer.get.flatMap(f => f(e))
         )
@@ -545,7 +545,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
       Ref.make[Exit[Any, Any] => ZIO[R1, Nothing, Any]](_ => UIO.unit).map { finalizer =>
         Reservation(
           acquire = ZIO.bracketExit(self.reserve)((res, exitA: Exit[E, A]) =>
-            finalizer.set(exitU => cleanup(exitA).ensuring(res.release(exitU)))
+            finalizer.set(exitU => cleanup(exitA).ensuring_(res.release(exitU)))
           )(_.acquire),
           release = e => finalizer.get.flatMap(f => f(e))
         )
@@ -1113,7 +1113,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
                   latch <- Promise.make[Nothing, Unit]
                   res   <- self.reservation
                   acquire = ZIO.ifM(ref.getAndSet(Acquiring).map(_ == Running))(
-                    restore(res.acquire).ensuring(latch.succeed(())),
+                    restore(res.acquire).ensuring_(latch.succeed(())),
                     ZIO.interrupt
                   )
                   release = (exit: Exit[Any, Any]) =>
@@ -1132,7 +1132,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
                   latch <- Promise.make[Nothing, Unit]
                   res   <- that.reserve
                   acquire = ZIO.ifM(ref.getAndSet(Acquiring).map(_ == Running))(
-                    restore(res.acquire).ensuring(latch.succeed(())),
+                    restore(res.acquire).ensuring_(latch.succeed(())),
                     ZIO.interrupt
                   )
                   release = (exit: Exit[Any, Any]) =>
@@ -1874,7 +1874,7 @@ object ZManaged {
                           } yield prom
                         }
                 b <- proms.foldLeft[ZIO[R, E, B]](ZIO.succeedNow(zero))((acc, prom) => acc.zipWith(prom.await)(f))
-              } yield b).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
+              } yield b).ensuring_((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
           exitU =>
@@ -1966,7 +1966,7 @@ object ZManaged {
                       .flatMap(res => restore(res.acquire))
                   }
                   result <- proms.foldLeft[ZIO[R, E, A]](zero)((acc, a) => acc.zipWith(a.await)(f))
-                } yield result).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
+                } yield result).ensuring_((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
           exitU =>
