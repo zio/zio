@@ -30,7 +30,7 @@ import zio.internal.MutableConcurrentQueue
  * type `EA`. The dequeueing operations may utilize an environment of type `RB` and may fail
  * with errors of type `EB`.
  */
-trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
+trait ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Waits until the queue is shutdown.
@@ -106,25 +106,25 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   /**
    * Alias for `both`.
    */
-  final def &&[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
-    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
-  ): ZQueue[RA1, EA1, RB1, EB1, A1, (B, C)] =
+  final def &&[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
+    that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
+  ): ZQueue[RA1, RB1, EA1, EB1, A1, (B, C)] =
     both(that)
 
   /**
    * Like `bothWith`, but tuples the elements instead of applying a function.
    */
-  final def both[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
-    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
-  ): ZQueue[RA1, EA1, RB1, EB1, A1, (B, C)] =
+  final def both[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
+    that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
+  ): ZQueue[RA1, RB1, EA1, EB1, A1, (B, C)] =
     bothWith(that)((_, _))
 
   /**
    * Like `bothWithM`, but uses a pure function.
    */
-  final def bothWith[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
-    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
-  )(f: (B, C) => D): ZQueue[RA1, EA1, RB1, EB1, A1, D] =
+  final def bothWith[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
+    that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
+  )(f: (B, C) => D): ZQueue[RA1, RB1, EA1, EB1, A1, D] =
     bothWithM(that)((a, b) => IO.succeedNow(f(a, b)))
 
   /**
@@ -136,10 +136,10 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
    * For example, a dropping queue and a bounded queue composed together may apply `f`
    * to different elements.
    */
-  final def bothWithM[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, R3 <: RB1, E3 >: EB1, D](
-    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
-  )(f: (B, C) => ZIO[R3, E3, D]): ZQueue[RA1, EA1, R3, E3, A1, D] =
-    new ZQueue[RA1, EA1, R3, E3, A1, D] {
+  final def bothWithM[RA1 <: RA, RB1 <: RB, R3 <: RB1, EA1 >: EA, EB1 >: EB, E3 >: EB1, A1 <: A, C, D](
+    that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
+  )(f: (B, C) => ZIO[R3, E3, D]): ZQueue[RA1, R3, EA1, E3, A1, D] =
+    new ZQueue[RA1, R3, EA1, E3, A1, D] {
       def capacity: Int = math.min(self.capacity, that.capacity)
 
       def offer(a: A1): ZIO[RA1, EA1, Boolean]               = self.offer(a).zipWithPar(that.offer(a))(_ && _)
@@ -173,31 +173,31 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   /**
    * Transforms elements enqueued into this queue with a pure function.
    */
-  final def contramap[C](f: C => A): ZQueue[RA, EA, RB, EB, C, B] =
+  final def contramap[C](f: C => A): ZQueue[RA, RB, EA, EB, C, B] =
     contramapM(f andThen ZIO.succeedNow)
 
   /**
    * Transforms elements enqueued into this queue with an effectful function.
    */
-  final def contramapM[RA2 <: RA, EA2 >: EA, C](f: C => ZIO[RA2, EA2, A]): ZQueue[RA2, EA2, RB, EB, C, B] =
+  final def contramapM[RA2 <: RA, EA2 >: EA, C](f: C => ZIO[RA2, EA2, A]): ZQueue[RA2, RB, EA2, EB, C, B] =
     dimapM(f, ZIO.succeedNow)
 
   /**
    * Transforms elements enqueued into and dequeued from this queue with the
    * specified effectual functions.
    */
-  final def dimap[C, D](f: C => A, g: B => D): ZQueue[RA, EA, RB, EB, C, D] =
+  final def dimap[C, D](f: C => A, g: B => D): ZQueue[RA, RB, EA, EB, C, D] =
     dimapM(f andThen ZIO.succeedNow, g andThen ZIO.succeedNow)
 
   /**
    * Transforms elements enqueued into and dequeued from this queue with the
    * specified effectual functions.
    */
-  final def dimapM[RC <: RA, EC >: EA, RD <: RB, ED >: EB, C, D](
+  final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
     f: C => ZIO[RC, EC, A],
     g: B => ZIO[RD, ED, D]
-  ): ZQueue[RC, EC, RD, ED, C, D] =
-    new ZQueue[RC, EC, RD, ED, C, D] {
+  ): ZQueue[RC, RD, EC, ED, C, D] =
+    new ZQueue[RC, RD, EC, ED, C, D] {
       def capacity: Int = self.capacity
 
       def offer(c: C): ZIO[RC, EC, Boolean] =
@@ -219,14 +219,14 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
    * Applies a filter to elements enqueued into this queue. Elements that do not
    * pass the filter will be immediately dropped.
    */
-  final def filterInput[A1 <: A](f: A1 => Boolean): ZQueue[RA, EA, RB, EB, A1, B] =
+  final def filterInput[A1 <: A](f: A1 => Boolean): ZQueue[RA, RB, EA, EB, A1, B] =
     filterInputM(f andThen ZIO.succeedNow)
 
   /**
    * Like `filterInput`, but uses an effectful function to filter the elements.
    */
-  final def filterInputM[R2 <: RA, E2 >: EA, A1 <: A](f: A1 => ZIO[R2, E2, Boolean]): ZQueue[R2, E2, RB, EB, A1, B] =
-    new ZQueue[R2, E2, RB, EB, A1, B] {
+  final def filterInputM[R2 <: RA, E2 >: EA, A1 <: A](f: A1 => ZIO[R2, E2, Boolean]): ZQueue[R2, RB, E2, EB, A1, B] =
+    new ZQueue[R2, RB, E2, EB, A1, B] {
       def capacity: Int = self.capacity
 
       def offer(a: A1): ZIO[R2, E2, Boolean] =
@@ -254,13 +254,13 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   /**
    * Transforms elements dequeued from this queue with a function.
    */
-  final def map[C](f: B => C): ZQueue[RA, EA, RB, EB, A, C] =
+  final def map[C](f: B => C): ZQueue[RA, RB, EA, EB, A, C] =
     mapM(f andThen ZIO.succeedNow)
 
   /**
    * Transforms elements dequeued from this queue with an effectful function.
    */
-  final def mapM[R2 <: RB, E2 >: EB, C](f: B => ZIO[R2, E2, C]): ZQueue[RA, EA, R2, E2, A, C] =
+  final def mapM[R2 <: RB, E2 >: EB, C](f: B => ZIO[R2, E2, C]): ZQueue[RA, R2, EA, E2, A, C] =
     dimapM(ZIO.succeedNow, f)
 
   /**
@@ -494,7 +494,7 @@ object ZQueue {
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
-  ): Queue[A] = new ZQueue[Any, Nothing, Any, Nothing, A, A] {
+  ): Queue[A] = new ZQueue[Any, Any, Nothing, Nothing, A, A] {
 
     private def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.effectTotal(unsafeRemove(takers, taker))
 
