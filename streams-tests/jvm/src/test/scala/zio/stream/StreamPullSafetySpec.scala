@@ -4,7 +4,6 @@ package zio.stream
 //import ZStream.Pull
 
 import zio._
-//import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test._
 
 object StreamPullSafetySpec extends ZIOBaseSpec {

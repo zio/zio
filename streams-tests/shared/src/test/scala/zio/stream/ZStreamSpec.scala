@@ -1,5 +1,7 @@
 package zio.stream
 
+import java.util.concurrent.TimeUnit
+
 import scala.concurrent.ExecutionContext
 
 import ZStreamGen._
@@ -11,7 +13,6 @@ import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
-import java.util.concurrent.TimeUnit
 
 object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
