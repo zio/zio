@@ -330,7 +330,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * inner effect, yielding the value of the inner effect.
    *
    * This method can be used to "flatten" nested effects.
-    **/
+   */
   def flatten[R1 <: R, E1 >: E, B](implicit ev: A <:< ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     flatMap(ev)
 
@@ -339,7 +339,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * inner effect, yielding the value of the inner effect.
    *
    * This method can be used to "flatten" nested effects.
-    **/
+   */
   def flattenM[R1 <: R, E1 >: E, B](implicit ev: A <:< ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
     mapM(ev)
 
