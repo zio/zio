@@ -725,6 +725,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
+   * Runs the acquire and release actions and returns the result of this
+   * managed effect. Note that this is only safe if the result of this managed
+   * effect is valid outside its scope.
+   */
+  def release: ZIO[R, E, A] =
+    use(ZIO.succeedNow)
+
+  /**
    * Gives access to wrapped [[Reservation]].
    */
   def reserve: ZIO[R, E, Reservation[R, E, A]] = reservation
