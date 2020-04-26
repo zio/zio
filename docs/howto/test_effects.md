@@ -478,6 +478,9 @@ object MySpec extends DefaultRunnableSpec {
     test("A failing test... that passes") {
       assert(true)(isFalse)
     } @@ failing, //@@ failing turns a failing test into a passing test
+    test("A ignored test") {
+      assert(false)(isTrue)
+    } @@ ignore, //@@ ignore marks test as ignored
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
       assert(false)(isTrue)
     } @@ jvmOnly           // only run on the JVM

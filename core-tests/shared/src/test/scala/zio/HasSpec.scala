@@ -1,7 +1,6 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.exceptDotty
 import zio.test._
 
 object HasSpec extends ZIOBaseSpec {
@@ -58,13 +57,13 @@ object HasSpec extends ZIOBaseSpec {
         assert(whole.size)(equalTo(2)) &&
         assert((whole: Has[Dog]).prune.size)(equalTo(1)) &&
         assert((whole: Has[Cat]).prune.size)(equalTo(1))
-      } @@ exceptDotty,
+      },
       zio.test.test("Union will prune what is not known about on RHS") {
         val unioned = Has(dog1) union ((Has(dog2).add(bunny1)): Has[Bunny])
 
         assert(unioned.get[Dog])(equalTo(dog1)) &&
         assert(unioned.size)(equalTo(2))
-      } @@ exceptDotty
+      }
     ),
     suite("covariant types")(
       zio.test.test("Modules sharing common parent are independent") {
@@ -98,7 +97,7 @@ object HasSpec extends ZIOBaseSpec {
         assert(unioned.get[IList[Dog]])(equalTo(dogs1)) &&
         assert(unioned.size)(equalTo(2))
       }
-    ) @@ exceptDotty,
+    ),
     suite("contravariant types")(
       zio.test.test("Modules sharing common parent are independent") {
         val hasBoth = Has(dogHotel1).add[PetHotel[Cat]](catHotel1)
@@ -131,6 +130,6 @@ object HasSpec extends ZIOBaseSpec {
         assert(unioned.get[PetHotel[Dog]])(equalTo(dogHotel1)) &&
         assert(unioned.size)(equalTo(2))
       }
-    ) @@ exceptDotty
+    )
   )
 }
