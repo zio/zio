@@ -345,13 +345,13 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
 
   /**
    * Flip the error and result
-    **/
+   */
   def flip: ZManaged[R, A, E] =
     foldM(ZManaged.succeedNow, ZManaged.fail(_))
 
   /**
    * Flip the error and result, then apply an effectful function to the effect
-    **/
+   */
   def flipWith[R1, A1, E1](f: ZManaged[R, A, E] => ZManaged[R1, A1, E1]): ZManaged[R1, E1, A1] =
     f(flip).flip
 
