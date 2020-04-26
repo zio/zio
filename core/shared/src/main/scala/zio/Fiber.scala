@@ -492,7 +492,13 @@ object Fiber extends FiberPlatformSpecific {
    * The identity of a Fiber, described by the time it began life, and a
    * monotonically increasing sequence number generated from an atomic counter.
    */
-  final case class Id(startTimeMillis: Long, seqNumber: Long) extends Serializable
+  final case class Id(startTimeMillis: Long, seqNumber: Long) extends Ordered[Id] with Serializable { self =>
+    def compare(that: Id): Int = {
+      val compare1 = self.startTimeMillis.compare(that.startTimeMillis)
+      if (compare1 != 0) compare1
+      else self.seqNumber.compare(that.seqNumber)
+    }
+  }
   object Id {
 
     /**
@@ -769,6 +775,7 @@ object Fiber extends FiberPlatformSpecific {
     def loop(fiber: Fiber.Runtime[Any, Any]): UIO[Option[Fiber.Runtime[Any, Any]]] =
       fiber.id.flatMap { id =>
         if (id == fiberId) UIO.succeedNow(Some(fiber))
+        if (id > fiberId) UIO.succeedNow(None)
         else fiber.children.flatMap(ZIO.collectFirst(_)(loop))
       }
 

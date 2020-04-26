@@ -262,6 +262,7 @@ package object environment extends PlatformSpecific {
       clockState: TRef[TestClock.Data],
       fiberState: FiberRef[TestClock.FiberData],
       scheduled: TPriorityQueue[Duration, Sleep],
+      fiber: Fiber.Id => UIO[Option[Fiber[Any, Any]]],
       live: Live.Service,
       warningState: RefM[TestClock.WarningData]
     ) extends Clock.Service
@@ -429,6 +430,35 @@ package object environment extends PlatformSpecific {
         }.unit
 
       /**
+       * Captures a "snapshot" of a suspended fiber's status, returning a map
+       * from the suspended fiber's identity to the identities of all the
+       * suspended fibers it is blocking on and all the suspended fibers they
+       * are blocking on, recursively. Fails with the `Unit` value if the fiber
+       * or any fiber it is directly or indirectly blocking on is running. Note
+       * that because we cannot synchronize on the status of multiple fibers at
+       * the same time this snaposhot may not be fully consistent.
+       */
+      private def freeze(fiberId: Fiber.Id): IO[Unit, Map[Fiber.Id, Set[Fiber.Id]]] = {
+
+        def loop(fiberId: Fiber.Id, map: Map[Fiber.Id, Set[Fiber.Id]]): IO[Unit, Map[Fiber.Id, Set[Fiber.Id]]] =
+          Fiber.get(fiberId).flatMap {
+            case None => IO.succeedNow(map + (fiberId -> Set.empty))
+            case Some(fiber) =>
+              fiber.status.flatMap {
+                case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
+                  ZIO.foldLeft(blockingOn)(map) { (map, id) =>
+                    val updated = map + map.get(fiberId).fold(fiberId -> Set(id))(ids => fiberId -> (ids + id))
+                    if (map.contains(id)) ZIO.succeedNow(updated) else loop(id, updated)
+                  }
+                case Fiber.Status.Done => IO.succeedNow(map + (fiberId -> Set.empty))
+                case _                 => IO.fail(())
+              }
+          }
+
+        loop(fiberId, Map.empty)
+      }
+
+      /**
        * Constructs a `Duration` from an `OffsetDateTime`.
        */
       private def fromDateTime(dateTime: OffsetDateTime): Duration =
@@ -451,6 +481,7 @@ package object environment extends PlatformSpecific {
           case None => UIO.unit
           case Some(sleep) =>
             sleep.promise.succeed(()) *>
+              ZIO.yieldNow *>
               awaitSuspended(sleep.fiberId) *>
               runUntil(STM.succeedNow(sleep.duration))
         }
@@ -461,22 +492,8 @@ package object environment extends PlatformSpecific {
        * blocking on and all the fibers they are blocking on recursively are
        * suspended.
        */
-      private def suspended(fiberId: Fiber.Id): UIO[Boolean] = {
-
-        def loop(fiberId: Fiber.Id, suspended: Set[Fiber.Id]): UIO[Boolean] =
-          Fiber.get(fiberId).flatMap {
-            case None => UIO.succeedNow(true)
-            case Some(fiber) =>
-              fiber.status.flatMap {
-                case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
-                  ZIO.forall(blockingOn.filterNot(suspended))(loop(_, suspended + fiberId))
-                case Fiber.Status.Done => UIO.succeedNow(true)
-                case _                 => UIO.succeedNow(false)
-              }
-          }
-
-        loop(fiberId, Set.empty)
-      }
+      private def suspended(fiberId: Fiber.Id): UIO[Boolean] =
+        freeze(fiberId).zipWith(freeze(fiberId))(_ == _).orElseSucceed(false)
 
       /**
        * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
@@ -509,8 +526,9 @@ package object environment extends PlatformSpecific {
           ref      <- TRef.makeCommit(data).toManaged_
           fiberRef <- FiberRef.make(FiberData(Duration.Zero), FiberData.combine).toManaged_
           queue    <- TPriorityQueue.empty[Duration, Sleep].commit.toManaged_
+          fiber    <- ZIO.memoize(Fiber.get).toManaged_
           refM     <- RefM.make(WarningData.start).toManaged_
-          test     <- Managed.make(UIO(Test(ref, fiberRef, queue, live, refM)))(_.warningDone)
+          test     <- Managed.make(UIO(Test(ref, fiberRef, queue, fiber, live, refM)))(_.warningDone)
         } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
       }
 

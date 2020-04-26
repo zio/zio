@@ -594,6 +594,12 @@ object URIO {
     ZIO.mapParN(urio1, urio2, urio3, urio4)(f)
 
   /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[R, A, B](f: A => URIO[R, B]): UIO[A => URIO[R, B]] =
+    ZIO.memoize(f)
+
+  /**
    * @see [[zio.ZIO.mergeAll]]
    */
   def mergeAll[R, A, B](in: Iterable[URIO[R, A]])(zero: B)(f: (B, A) => B): URIO[R, B] =

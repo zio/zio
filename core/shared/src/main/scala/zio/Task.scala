@@ -611,6 +611,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.mapParN(task1, task2, task3, task4)(f)
 
   /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[A, B](f: A => Task[B]): UIO[A => Task[B]] =
+    ZIO.memoize(f)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   def mergeAll[A, B](in: Iterable[Task[A]])(zero: B)(f: (B, A) => B): Task[B] =

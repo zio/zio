@@ -3126,6 +3126,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
+   * Returns a memoized version of the specified effectual function.
+   */
+  def memoize[R, E, A, B](f: A => ZIO[R, E, B]): UIO[A => ZIO[R, E, B]] =
+    RefM.make(Map.empty[A, Promise[E, B]]).map { ref => a =>
+      for {
+        promise <- ref.modify { map =>
+                    map.get(a) match {
+                      case Some(promise) => ZIO.succeedNow((promise, map))
+                      case None =>
+                        for {
+                          promise <- Promise.make[E, B]
+                          _       <- f(a).to(promise).fork
+                        } yield (promise, map)
+                    }
+                  }
+        b <- promise.await
+      } yield b
+    }
+
+  /**
    * Merges an `Iterable[IO]` to a single IO, working sequentially.
    */
   def mergeAll[R, E, A, B](
@@ -3147,6 +3167,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         Predef.identity(_) >>= { a => acc.update(f(_, a)) }
       } *> acc.get
     }
+
+  /**
+   * Returns a effect that will never produce anything. The moral equivalent of
+   * `while(true) {}`, only without the wasted CPU cycles. Fibers that suspended
+   * running this effect are automatically garbage collected on the JVM,
+   * because they cannot be reactivated.
+   */
+  val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
 
   /**
    * Returns an effect with the empty value.
@@ -3194,14 +3222,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def provide[R, E, A](r: => R): ZIO[R, E, A] => IO[E, A] =
     (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
-
-  /**
-   * Returns a effect that will never produce anything. The moral equivalent of
-   * `while(true) {}`, only without the wasted CPU cycles. Fibers that suspended
-   * running this effect are automatically garbage collected on the JVM,
-   * because they cannot be reactivated.
-   */
-  val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
