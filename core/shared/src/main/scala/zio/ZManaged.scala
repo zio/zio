@@ -335,6 +335,15 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     flatMap(ev)
 
   /**
+   * Returns an effect that performs the outer effect first, followed by the
+   * inner effect, yielding the value of the inner effect.
+   *
+   * This method can be used to "flatten" nested effects.
+    **/
+  def flattenM[R1 <: R, E1 >: E, B](implicit ev: A <:< ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+    mapM(ev)
+
+  /**
    * Flip the error and result
     **/
   def flip: ZManaged[R, A, E] =
@@ -1489,9 +1498,18 @@ object ZManaged {
    * inner effect, yielding the value of the inner effect.
    *
    * This method can be used to "flatten" nested effects.
-    **/
+   */
   def flatten[R, E, A](zManaged: ZManaged[R, E, ZManaged[R, E, A]]): ZManaged[R, E, A] =
     zManaged.flatMap(scala.Predef.identity)
+
+  /**
+   * Returns an effect that performs the outer effect first, followed by the
+   * inner effect, yielding the value of the inner effect.
+   *
+   * This method can be used to "flatten" nested effects.
+   */
+  def flattenM[R, E, A](zManaged: ZManaged[R, E, ZIO[R, E, A]]): ZManaged[R, E, A] =
+    zManaged.mapM(scala.Predef.identity)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
