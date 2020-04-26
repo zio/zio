@@ -37,6 +37,7 @@ import zio.{ Fiber, Managed, UManaged }
  * allows this structure to be composed into more complicated concurrent
  * structures that are consumed from effectful code.
  */
+//todo benchmark int vs unit return once benchmarks improved
 final class TReentrantLock private (data: TRef[LockState]) {
 
   /**
