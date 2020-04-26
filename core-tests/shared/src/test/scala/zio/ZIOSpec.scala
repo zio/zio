@@ -1164,7 +1164,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("executes that a cleanup function runs when effect succeeds") {
         for {
           ref <- Ref.make(false)
-          _ <- ZIO.unit.onExit {
+          _ <- ZIO.unit.ensuring {
                 case Exit.Success(_) => ref.set(true)
                 case _               => UIO.unit
               }
@@ -1176,7 +1176,7 @@ object ZIOSpec extends ZIOBaseSpec {
           ref <- Ref.make(false)
           _ <- ZIO
                 .die(new RuntimeException)
-                .onExit {
+                .ensuring {
                   case Exit.Failure(c) if c.died => ref.set(true)
                   case _                         => UIO.unit
                 }
@@ -1189,7 +1189,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           latch1 <- Promise.make[Nothing, Unit]
           latch2 <- Promise.make[Nothing, Unit]
-          fiber <- (latch1.succeed(()) *> ZIO.never).onExit {
+          fiber <- (latch1.succeed(()) *> ZIO.never).ensuring {
                     case Exit.Failure(c) if c.interrupted => latch2.succeed(())
                     case _                                => UIO.unit
                   }.fork
