@@ -260,7 +260,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                .repeatEffectOption(consume(stateVar, permits))
                .mapConcatChunk(identity)
                .process
-               .ensuringBeforeRelease(producer.interrupt.fork)
+               .ensuringBeforeRelease_(producer.interrupt.fork)
       } yield bs
     }.flatMap(ZStream.repeatEffectOption)
   }
@@ -562,7 +562,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                      )
                      .fork
         bs <- consumerStream(stateVar, permits).process
-               .ensuringBeforeRelease(producer.interruptAs(fiberId).fork)
+               .ensuringBeforeRelease_(producer.interruptAs(fiberId).fork)
       } yield bs
     }.flatMap(ZStream.repeatEffectOption)
   }
@@ -1232,7 +1232,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Executes the provided finalizer before this stream's finalizers run.
    */
   final def ensuringBeforeFinalizer[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
-    ZStream(self.process.ensuringBeforeRelease(fin))
+    ZStream(self.process.ensuringBeforeRelease_(fin))
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
