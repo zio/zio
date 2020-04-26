@@ -775,7 +775,7 @@ object Fiber extends FiberPlatformSpecific {
     def loop(fiber: Fiber.Runtime[Any, Any]): UIO[Option[Fiber.Runtime[Any, Any]]] =
       fiber.id.flatMap { id =>
         if (id == fiberId) UIO.succeedNow(Some(fiber))
-        if (id > fiberId) UIO.succeedNow(None)
+        else if (id > fiberId) UIO.succeedNow(None)
         else fiber.children.flatMap(ZIO.collectFirst(_)(loop))
       }
 
