@@ -52,6 +52,12 @@ abstract class ZTransducer[-R, +E, -I, +O](
       }
     }
 
+  final def contramap[J](f: J => I): ZTransducer[R, E, J, O] =
+    ZTransducer(self.push.map(push => is => push(is.map(_.map(f)))))
+
+  final def contramapM[R1 <: R, E1 >: E, J](f: J => ZIO[R1, E1, I]): ZTransducer[R1, E1, J, O] =
+    ZTransducer(self.push.map(push => is => ZIO.foreach(is)(_.mapM(f)).flatMap(push)))
+
   /**
    * Filters the outputs of this transducer.
    */
@@ -63,6 +69,12 @@ abstract class ZTransducer[-R, +E, -I, +O](
    */
   final def map[P](f: O => P): ZTransducer[R, E, I, P] =
     ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
+
+  /**
+   * Transforms the outputs of this transducer.
+   */
+  final def mapError[E1](f: E => E1): ZTransducer[R, E1, I, O] =
+    ZTransducer(self.push.map(push => i => push(i).mapError(f)))
 
   /**
    * Effectually transforms the outputs of this transducer
