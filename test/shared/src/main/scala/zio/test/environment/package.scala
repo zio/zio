@@ -302,7 +302,7 @@ package object environment extends PlatformSpecific {
       /**
        * Returns the current fiber time for this fiber. The fiber time is
        * backed by a `FiberRef` and is incremented for the duration each fiber
-       * is sleeping. When a fiber is joined the fiber time will be set to the
+       * is sleeping. When a fiber is joined, the fiber time will be set to the
        * maximum of the fiber time of the parent and child fibers. Thus, the
        * fiber time reflects the duration of sleeping that has occurred for
        * this fiber to reach its current state, properly reflecting forks and
@@ -417,7 +417,7 @@ package object environment extends PlatformSpecific {
         }
 
       /**
-       * Polls untl the specified fiber completes execution or is indefinitely
+       * Polls until the specified fiber completes execution or is indefinitely
        * suspended, meaning that the fiber and all the fibers it is blocking on
        * and all the fibers they are blocking on recursively are suspended.
        */
