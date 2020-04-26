@@ -594,13 +594,13 @@ object StreamSpec extends ZIOBaseSpec {
         execution <- log.get
       } yield assert(execution)(equalTo(List("Ensuring", "Release", "Use", "Acquire")))
     },
-    testM("Stream.ensuringFirst") {
+    testM("Stream.ensuringBeforeFinalizer") {
       for {
         log <- Ref.make[List[String]](Nil)
         _ <- (for {
               _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
               _ <- Stream.fromEffect(log.update("Use" :: _))
-            } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
+            } yield ()).ensuringBeforeFinalizer(log.update("Ensuring" :: _)).runDrain
         execution <- log.get
       } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
     },

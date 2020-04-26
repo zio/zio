@@ -239,7 +239,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * Executes the provided finalizer before this stream's finalizers run.
    */
   final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStreamChunk[R1, E, A] =
-    ZStreamChunk(chunks.ensuringFirst(fin))
+    ZStreamChunk(chunks.ensuringBeforeFinalizer(fin))
 
   /**
    * Returns a stream whose failures and successes have been lifted into an

@@ -1231,7 +1231,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Executes the provided finalizer before this stream's finalizers run.
    */
-  final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
+  final def ensuringBeforeFinalizer[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
     ZStream(self.process.ensuringBeforeRelease_(fin))
 
   /**
@@ -3431,7 +3431,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
    */
   def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
-    fromQueue(queue).ensuringFirst(queue.shutdown)
+    fromQueue(queue).ensuringBeforeFinalizer(queue.shutdown)
 
   /**
    * Creates a stream from a [[zio.Schedule]] that does not require any further
