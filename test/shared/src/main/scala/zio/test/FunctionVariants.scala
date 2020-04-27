@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.Semaphore
 import zio.stream.ZStream.BufferedPull
 
 trait FunctionVariants {
@@ -59,9 +60,13 @@ trait FunctionVariants {
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
     Gen.fromEffect {
-      gen.sample.forever.process
-        .mapM(BufferedPull.make[R, Nothing, Sample[R, B]](_))
-        .use(pull => Fun.makeHash((_: A) => pull.pullElement.optional.map(_.get.value))(hash))
+      gen.sample.forever.process.use { pull =>
+        for {
+          lock    <- Semaphore.make(1)
+          bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)
+          fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).optional.map(_.get.value))(hash)
+        } yield fun
+      }
     }
 
   /**
