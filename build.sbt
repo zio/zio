@@ -330,7 +330,7 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "20.4.1",
         "com.typesafe.akka"         %% "akka-stream"   % "2.6.4",
         "io.monix"                  %% "monix"         % "3.2.0",
-        "io.projectreactor"         % "reactor-core"   % "3.3.4.RELEASE",
+        "io.projectreactor"         % "reactor-core"   % "3.3.5.RELEASE",
         "io.reactivex.rxjava2"      % "rxjava"         % "2.2.19",
         "org.ow2.asm"               % "asm"            % "8.0.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
