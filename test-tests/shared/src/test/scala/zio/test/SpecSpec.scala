@@ -16,12 +16,12 @@ object SpecSpec extends ZIOBaseSpec {
       testM("ignores all tests except one tagged") {
         val spec = suite("suite1")(
           suite("suite2")(
-            test("test1") {
+            zio.test.test("test1") {
               assert(1)(equalTo(2))
             }
           ),
           suite("suite3")(
-            test("test2") {
+            zio.test.test("test2") {
               assert(1)(equalTo(1))
             } @@ only
           )
@@ -31,12 +31,12 @@ object SpecSpec extends ZIOBaseSpec {
       testM("ignores all tests except ones in the tagged suite") {
         val spec = suite("suite1")(
           suite("suite2")(
-            test("test1") {
+            zio.test.test("test1") {
               assert(1)(equalTo(2))
             }
           ),
           suite("suite3")(
-            test("test3") {
+            zio.test.test("test3") {
               assert(1)(equalTo(1))
             }
           ) @@ only
@@ -46,12 +46,12 @@ object SpecSpec extends ZIOBaseSpec {
       testM("runs everything if no tests are tagged") {
         val spec = suite("suite1")(
           suite("suite2")(
-            test("test1") {
+            zio.test.test("test1") {
               assert(1)(equalTo(2))
             }
           ),
           suite("suite3")(
-            test("test2") {
+            zio.test.test("test2") {
               assert(1)(equalTo(1))
             }
           )
@@ -78,7 +78,7 @@ object SpecSpec extends ZIOBaseSpec {
       testM("gracefully handles fiber death") {
         implicit val needsEnv = NeedsEnv
         val spec = suite("suite")(
-          test("test") {
+          zio.test.test("test") {
             assert(true)(isTrue)
           }
         ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
@@ -104,10 +104,10 @@ object SpecSpec extends ZIOBaseSpec {
       },
       testM("is not interfered with by test level failures") {
         val spec = suite("suite")(
-          test("test1") {
+          zio.test.test("test1") {
             assert(1)(Assertion.equalTo(2))
           },
-          test("test2") {
+          zio.test.test("test2") {
             assert(1)(Assertion.equalTo(1))
           },
           testM("test3") {
