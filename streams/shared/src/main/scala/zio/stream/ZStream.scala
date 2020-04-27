@@ -642,7 +642,7 @@ abstract class ZStream[-R, +E, +O](
         left  <- self.process.mapM(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
         right <- that.process.mapM(BufferedPull.make[R1, E1, O2](_))
         pull <- ZStream
-                 .unfoldM(s)(s => f(s, left.pullElement, right.pullElement).flatMap(ZIO.done(_).option))
+                 .unfoldM(s)(s => f(s, left.pullElement, right.pullElement).flatMap(ZIO.done(_).optional))
                  .process
       } yield pull
     }
@@ -665,7 +665,7 @@ abstract class ZStream[-R, +E, +O](
         left  <- self.process
         right <- that.process
         pull <- ZStream
-                 .unfoldChunkM(s)(s => f(s, left, right).flatMap(ZIO.done(_).option))
+                 .unfoldChunkM(s)(s => f(s, left, right).flatMap(ZIO.done(_).optional))
                  .process
       } yield pull
     }
