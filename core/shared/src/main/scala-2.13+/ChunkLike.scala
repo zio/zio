@@ -137,5 +137,5 @@ object ChunkLike extends SeqFactory[Chunk] {
    * with Scala's collection library and should not be used for other purposes.
    */
   def newBuilder[A]: ChunkBuilder[A] =
-    ChunkBuilder.make
+    ChunkBuilder.make()
 }
