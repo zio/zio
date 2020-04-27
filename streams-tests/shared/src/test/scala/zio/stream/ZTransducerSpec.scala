@@ -48,30 +48,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
           val parser = ZTransducer.identity[Int].map(_.toString)
           assertM(run(parser, List(Chunk(1))))(equalTo(List(Chunk("1"), Chunk.empty)))
         },
-        testM("init error") {
+        testM("error") {
           val parser = initErrorParser.map(_.toString)
-          assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
-        } @@ zioTag(errors),
-        testM("step error") {
-          val parser = stepErrorParser.map(_.toString)
-          assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
-        } @@ zioTag(errors),
-        testM("extract error") {
-          val parser = stepErrorParser.map(_.toString)
           assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
       suite("mapError")(
-        testM("init error") {
+        testM("error") {
           val parser = initErrorParser.mapError(_ => "Error")
-          assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Error")))
-        },
-        testM("step error") {
-          val parser = stepErrorParser.mapError(_ => "Error")
-          assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Error")))
-        },
-        testM("extract error") {
-          val parser = stepErrorParser.mapError(_ => "Error")
           assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Error")))
         }
       ) @@ zioTag(errors),
@@ -80,16 +64,8 @@ object ZTransducerSpec extends ZIOBaseSpec {
           val parser = ZTransducer.identity[Int].mapM[Any, Unit, String](n => UIO.succeed(n.toString))
           assertM(run(parser, List(Chunk(1))))(equalTo(List(Chunk("1"), Chunk.empty)))
         },
-        testM("init error") {
+        testM("error") {
           val parser = initErrorParser.mapM[Any, String, String](n => UIO.succeed(n.toString))
-          assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
-        } @@ zioTag(errors),
-        testM("step error") {
-          val parser = stepErrorParser.mapM[Any, String, String](n => UIO.succeed(n.toString))
-          assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
-        } @@ zioTag(errors),
-        testM("extract error") {
-          val parser = stepErrorParser.mapM[Any, String, String](n => UIO.succeed(n.toString))
           assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       )
@@ -117,14 +93,6 @@ object ZTransducerSpec extends ZIOBaseSpec {
         }
         // testM("init error") {
         //   val parser = initErrorParser.collectAllN(1)
-        //   assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
-        // } @@ zioTag(errors),
-        // testM("step error") {
-        //   val parser = stepErrorParser.collectAllN(1)
-        //   assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
-        // } @@ zioTag(errors),
-        // testM("extract error") {
-        //   val parser = stepErrorParser.collectAllN(1)
         //   assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
         // } @@ zioTag(errors)
       ),
