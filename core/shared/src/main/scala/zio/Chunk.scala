@@ -203,7 +203,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   override def filter(f: A => Boolean): Chunk[A] = {
     val len     = self.length
-    val builder = ChunkBuilder.make[A]
+    val builder = ChunkBuilder.make[A]()
     builder.sizeHint(len)
 
     var i = 0
@@ -226,7 +226,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = {
     val len     = self.length
-    val builder = ChunkBuilder.make[A]
+    val builder = ChunkBuilder.make[A]()
     builder.sizeHint(len)
     var dest: ZIO[R, E, ChunkBuilder[A]] = IO.succeedNow(builder)
 
@@ -393,7 +393,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     var s: S1 = s1
     var i     = 0
     val len   = self.length
-    val b     = ChunkBuilder.make[B]
+    val b     = ChunkBuilder.make[B]()
 
     b.sizeHint(len)
 
@@ -414,7 +414,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] = {
     val len     = self.length
-    val builder = ChunkBuilder.make[B]
+    val builder = ChunkBuilder.make[B]()
     builder.sizeHint(len)
     var dest: ZIO[R, E, S1] = UIO.succeedNow(s1)
 
@@ -440,7 +440,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
     val len     = self.length
-    val builder = ChunkBuilder.make[B]
+    val builder = ChunkBuilder.make[B]()
     builder.sizeHint(len)
     var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
 
@@ -594,7 +594,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
     if (size == 0) Chunk.empty
     else {
-      val builder = ChunkBuilder.make[C]
+      val builder = ChunkBuilder.make[C]()
       builder.sizeHint(size)
 
       var i = 0
@@ -621,7 +621,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
     if (size == 0) Chunk.empty
     else {
-      val builder = ChunkBuilder.make[C]
+      val builder = ChunkBuilder.make[C]()
       builder.sizeHint(size)
 
       var i = 0
@@ -640,7 +640,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)] = {
     val len     = self.length
-    val builder = ChunkBuilder.make[(A, Int)]
+    val builder = ChunkBuilder.make[(A, Int)]()
 
     var i = 0
     while (i < len) {
@@ -666,7 +666,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   protected def mapChunk[B](f: A => B): Chunk[B] = {
     val len     = self.length
-    val builder = ChunkBuilder.make[B]
+    val builder = ChunkBuilder.make[B]()
 
     var i = 0
     while (i < len) {
@@ -813,7 +813,7 @@ object Chunk {
   def fill[A](n: Int)(elem: => A): Chunk[A] =
     if (n <= 0) Chunk.empty
     else {
-      val builder = ChunkBuilder.make[A]
+      val builder = ChunkBuilder.make[A]()
       builder.sizeHint(n)
 
       var i = 0
@@ -863,7 +863,7 @@ object Chunk {
 
     override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
       val len     = array.length
-      val builder = ChunkBuilder.make[B]
+      val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
       val orElse                           = (_: A) => UIO.succeedNow(null.asInstanceOf[B])
       var dest: ZIO[R, E, ChunkBuilder[B]] = UIO.succeedNow(builder)
@@ -885,7 +885,7 @@ object Chunk {
     override def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val self    = array
       val len     = self.length
-      val builder = ChunkBuilder.make[B]
+      val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
 
       var i    = 0
@@ -907,7 +907,7 @@ object Chunk {
 
     override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
       val len     = self.length
-      val builder = ChunkBuilder.make[B]
+      val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
       var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
 
@@ -946,7 +946,7 @@ object Chunk {
 
     override def filter(f: A => Boolean): Chunk[A] = {
       val len     = self.length
-      val builder = ChunkBuilder.make[A]
+      val builder = ChunkBuilder.make[A]()
       builder.sizeHint(len)
 
       var i = 0
@@ -1019,7 +1019,7 @@ object Chunk {
 
     override protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val len     = self.length
-      val builder = ChunkBuilder.make[B]
+      val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
 
       var i = 0
@@ -1036,7 +1036,7 @@ object Chunk {
 
     override protected def mapChunk[B](f: A => B): Chunk[B] = {
       val len     = self.length
-      val builder = ChunkBuilder.make[B]
+      val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
 
       var i = 0

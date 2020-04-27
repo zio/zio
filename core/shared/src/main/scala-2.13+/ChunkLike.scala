@@ -126,7 +126,7 @@ object ChunkLike extends SeqFactory[Chunk] {
     source match {
       case iterable: Iterable[A] => Chunk.fromIterable(iterable)
       case iterableOnce =>
-        val chunkBuilder = ChunkBuilder.make[A]
+        val chunkBuilder = ChunkBuilder.make[A]()
         iterableOnce.iterator.foreach(chunkBuilder.addOne)
         chunkBuilder.result()
     }
