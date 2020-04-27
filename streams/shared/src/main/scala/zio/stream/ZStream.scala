@@ -643,19 +643,7 @@ abstract class ZStream[-R, +E, +O](
         right <- that.process.mapM(BufferedPull.make[R1, E1, O2](_))
         pull <- ZStream
                  .unfoldM(s) { s =>
-                   f(s, left.pullElement, right.pullElement).flatMap { exit =>
-                     ZIO.done(
-                       exit.fold(
-                         Cause
-                           .sequenceCauseOption(_) match {
-                           case None    => Exit.succeed(None)
-                           case Some(e) => Exit.halt(e)
-                         },
-                         result => Exit.succeed(Some(result))
-                       )
-                     )
-
-                   }
+                   f(s, left.pullElement, right.pullElement).flatMap(ZIO.done(_).option)
                  }
                  .process
       } yield pull
@@ -680,18 +668,7 @@ abstract class ZStream[-R, +E, +O](
         right <- that.process
         pull <- ZStream
                  .unfoldChunkM(s) { s =>
-                   f(s, left, right).flatMap { exit =>
-                     ZIO.done(
-                       exit.fold(
-                         Cause
-                           .sequenceCauseOption(_) match {
-                           case None    => Exit.succeed(None)
-                           case Some(e) => Exit.halt(e)
-                         },
-                         result => Exit.succeed(Some(result))
-                       )
-                     )
-                   }
+                   f(s, left, right).flatMap(ZIO.done(_).option)
                  }
                  .process
       } yield pull
