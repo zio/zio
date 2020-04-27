@@ -55,8 +55,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
 
     unsafeRun(
       traverse(filteredSpec, description)
-        .use(ZIO.succeedNow)
         .provideLayer(spec.runner.executor.environment)
+        .useNow
     )
     description
   }

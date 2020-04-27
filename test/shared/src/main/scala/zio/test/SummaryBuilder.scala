@@ -38,7 +38,7 @@ object SummaryBuilder {
       spec.exists {
         case Spec.TestCase(_, test, _) => test.map(_.isLeft)
         case _                         => UIO.succeedNow(false)
-      }.use(UIO.succeedNow)
+      }.useNow
 
     def loop(current: ExecutedSpec[E], accM: UIO[Seq[ExecutedSpec[E]]]): UIO[Seq[ExecutedSpec[E]]] =
       ifM(hasFailures(current)) {

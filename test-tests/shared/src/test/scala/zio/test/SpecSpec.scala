@@ -116,8 +116,8 @@ object SpecSpec extends ZIOBaseSpec {
         ).provideLayerShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
-          successes    <- executedSpec.countTests(_.isRight).use(ZIO.succeedNow)
-          failures     <- executedSpec.countTests(_.isLeft).use(ZIO.succeedNow)
+          successes    <- executedSpec.countTests(_.isRight).useNow
+          failures     <- executedSpec.countTests(_.isLeft).useNow
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),
