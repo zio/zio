@@ -1091,7 +1091,7 @@ object ZSTM {
       val length = in.length
       var idx    = 0
 
-      var tx: ZSTM[R, E, ChunkBuilder[B]] = ZSTM.succeedNow(ChunkBuilder.make[B])
+      var tx: ZSTM[R, E, ChunkBuilder[B]] = ZSTM.succeedNow(ChunkBuilder.make[B]())
 
       while (idx < length) {
         val a = in(idx)
