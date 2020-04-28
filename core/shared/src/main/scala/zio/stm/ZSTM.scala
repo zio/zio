@@ -1045,6 +1045,13 @@ object ZSTM {
     }
 
   /**
+   * Filters the collection using the specified effectual predicate, removing
+   * all elements that satisfies the predicate.
+   */
+  def filterNot[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, List[A]] =
+    filter(as)(f(_).map(!_))
+
+  /**
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
