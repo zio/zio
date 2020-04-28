@@ -1957,7 +1957,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 p     <- Promise.make[E1, B]
                 latch <- Promise.make[Nothing, Unit]
                 _     <- out.offer(Pull.fromPromise(p))
-                _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork
+                _     <- permits.withPermit(f(a).to(p) *> latch.succeed(())).fork
                 _     <- latch.await
               } yield ()
             }.foldCauseM(

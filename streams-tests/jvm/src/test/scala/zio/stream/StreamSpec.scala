@@ -1407,11 +1407,14 @@ object StreamSpec extends ZIOBaseSpec {
           result <- interrupted.get
         } yield assert(result)(isTrue)
       } @@ zioTag(interruption),
-      testM("guarantee ordering")(checkM(Gen.int(1, 4096), Gen.listOf(Gen.anyInt)) { (n: Int, m: List[Int]) =>
-        for {
-          mapM    <- Stream.fromIterable(m).mapM(UIO.succeed(_)).runCollect
-          mapMPar <- Stream.fromIterable(m).mapMPar(n)(UIO.succeed(_)).runCollect
-        } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
+      testM("guarantee ordering")(checkM(Gen.int(1, 4096), Gen.listOfBounded(2, 1024)(Gen.anyInt)) {
+        (n: Int, m: List[Int]) =>
+          for {
+            topic   <- Queue.bounded[Int](m.size)
+            mapM    <- Stream.fromIterable(m).mapM(UIO.succeed(_)).runCollect
+            _       <- Stream.fromIterable(m).mapMPar(n)(topic.offer).runCollect
+            mapMPar <- topic.takeAll
+          } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
       })
     ) @@ TestAspect.forked,
     suite("Stream merging")(
