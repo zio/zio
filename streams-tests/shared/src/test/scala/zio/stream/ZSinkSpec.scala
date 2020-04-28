@@ -2,8 +2,8 @@ package zio.stream
 
 import scala.util.Random
 
-import zio._
 import zio.ZIOBaseSpec
+import zio._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isTrue, succeeds }
