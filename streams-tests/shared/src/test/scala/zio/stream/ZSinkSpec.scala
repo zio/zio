@@ -2,6 +2,7 @@ package zio.stream
 
 import scala.util.Random
 
+import zio._
 import zio.ZIOBaseSpec
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
@@ -81,20 +82,30 @@ object ZSinkSpec extends ZIOBaseSpec {
           sinkRaceLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
         }
       },
-      suite("zipWithPar")(testM("coherence") {
-        checkM(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
-          val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
-          SinkUtils.zipParLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
-        }
-      }),
-      suite("zipRight (*>)")(
-        testM("happy path") {
-          assertM(ZStream(1, 2, 3).run(ZSink.head.zipParRight(ZSink.succeed("Hello"))))(equalTo(("Hello")))
-        }
-      ),
-      suite("zipWith")(testM("happy path") {
-        assertM(ZStream(1, 2, 3).run(ZSink.head.zipParLeft(ZSink.succeed("Hello"))))(equalTo(Some(1)))
-      })
+      suite("zipWithPar")(
+        testM("coherence") {
+          checkM(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
+            val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
+            SinkUtils
+              .zipParLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
+          }
+        } @@ TestAspect.nonFlaky(500),
+        suite("zipRight (*>)")(
+          testM("happy path") {
+            assertM(ZStream(1, 2, 3).run(ZSink.head.zipParRight(ZSink.succeed("Hello"))))(equalTo(("Hello")))
+          }
+        ),
+        suite("zipWith")(testM("happy path") {
+          assertM(ZStream(1, 2, 3).run(ZSink.head.zipParLeft(ZSink.succeed("Hello"))))(equalTo(Some(1)))
+        })
+      )
+      // testM("crash") {
+      //   val l      = List(9, 6, 2, 7, 4)
+      //   val sink = findSink(20).zipPar(findSink(40))
+      //   val stream = ZStream.fromIterable(Random.shuffle(l)).run(sink).either
+
+      //   stream.map(assert(_)(equalTo(Left(()))))
+      // } @@ TestAspect.nonFlaky(10000) @@ TestAspect.only
     )
   )
 }

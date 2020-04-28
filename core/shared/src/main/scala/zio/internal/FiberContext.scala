@@ -169,8 +169,9 @@ private[zio] final class FiberContext[E, A](
    * Unwinds the stack, looking for the first error handler, and exiting
    * interruptible / uninterruptible regions.
    */
-  private[this] def unwindStack(): Unit = {
-    var unwinding = true
+  private[this] def unwindStack(): Boolean = {
+    var unwinding      = true
+    var discardedFolds = false
 
     // Unwind the stack, looking for an error handler:
     while (unwinding && !stack.isEmpty) {
@@ -192,10 +193,16 @@ private[zio] final class FiberContext[E, A](
 
           unwinding = false
 
+        case _: ZIO.Fold[_, _, _, _, _] =>
+          if (traceStack && inTracingRegion) popStackTrace()
+          discardedFolds = true
+
         case _ =>
           if (traceStack && inTracingRegion) popStackTrace()
       }
     }
+
+    discardedFolds
   }
 
   private[this] def executor: Executor = executors.peekOrElse(platform.executor)
@@ -393,7 +400,7 @@ private[zio] final class FiberContext[E, A](
 
                     val cause0 = zio.fill(() => captureTrace(fastPathTrace))
 
-                    unwindStack()
+                    val discardedFolds = unwindStack()
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -401,7 +408,14 @@ private[zio] final class FiberContext[E, A](
                         // Add interruption information into the cause, if it's not already there:
                         val interrupted = state.get.interrupted
 
-                        if (!cause0.contains(interrupted)) cause0 ++ interrupted else cause0
+                        if (discardedFolds)
+                          // We threw away some error handlers while unwinding the stack because
+                          // we got interrupted during this instruction. So it's not safe to return
+                          // cause0, because it might not be typed correctly. So we just return
+                          // the interruption.
+                          state.get.interrupted
+                        else if (!cause0.contains(interrupted)) cause0 ++ interrupted
+                        else cause0
                       }
 
                       curZio = done(Exit.halt(cause))
