@@ -24,7 +24,7 @@ import zio.test.Assertion.{
   isUnit,
   startsWith
 }
-import zio.test.TestAspect.flaky
+import zio.test.TestAspect.{ flaky, nonFlaky }
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
@@ -1051,7 +1051,12 @@ object StreamSpec extends ZIOBaseSpec {
     testM("Stream.fromSchedule") {
       val schedule = Schedule.exponential(1.second) <* Schedule.recurs(5)
       val stream   = ZStream.fromSchedule(schedule)
-      val zio      = TestClock.adjust(62.seconds) *> stream.runCollect
+      val zio = for {
+        fiber <- stream.runCollect.fork
+        _     <- TestClock.awaitScheduled
+        _     <- TestClock.adjust(62.seconds)
+        value <- fiber.join
+      } yield value
       val expected = List(1.seconds, 2.seconds, 4.seconds, 8.seconds, 16.seconds, 32.seconds)
       assertM(zio)(equalTo(expected))
     },
@@ -1146,31 +1151,18 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     suite("Stream.groupedWithin")(
       testM("group before chunk size is reached due to time window") {
-        Queue.bounded[Take[Nothing, Int]](8).flatMap {
-          queue =>
-            Ref
-              .make[List[List[Take[Nothing, Int]]]](
-                List(
-                  List(Take.Value(1), Take.Value(2)),
-                  List(Take.Value(3), Take.Value(4)),
-                  List(Take.Value(5), Take.End)
-                )
-              )
-              .flatMap { ref =>
-                val offer = ref.modify {
-                  case x :: xs => (x, xs)
-                  case Nil     => (Nil, Nil)
-                }.flatMap(queue.offerAll)
-                val stream = ZStream.fromEffect(offer) *> ZStream
-                  .fromQueue(queue)
-                  .unTake
-                  .tap(_ => TestClock.adjust(1.second))
-                  .groupedWithin(10, 2.seconds)
-                  .tap(_ => offer)
-                assertM(stream.runCollect)(equalTo(List(List(1, 2), List(3, 4), List(5))))
-              }
-        }
-      } @@ flaky,
+        val stream = Stream(1, 2, 3, 4, 5).tap(_ => ZIO.sleep(1.second)).groupedWithin(10, 2.seconds)
+        for {
+          fiber <- stream.runCollect.fork
+          _     <- TestClock.awaitScheduledN(2)
+          _     <- TestClock.adjust(2.seconds)
+          _     <- TestClock.awaitScheduledN(2)
+          _     <- TestClock.adjust(2.seconds)
+          _     <- TestClock.awaitScheduledN(2)
+          _     <- TestClock.adjust(1.seconds)
+          value <- fiber.join
+        } yield assert(value)(equalTo(List(List(1, 2), List(3, 4), List(5))))
+      } @@ nonFlaky,
       testM("group immediately when chunk size is reached") {
         assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
       }

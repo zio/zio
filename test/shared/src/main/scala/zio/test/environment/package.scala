@@ -194,6 +194,7 @@ package object environment extends PlatformSpecific {
    *
    *  for {
    *    fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
+   *    _      <- TestClock.awaitScheduled
    *    _      <- TestClock.adjust(1.minute)
    *    result <- fiber.join
    *  } yield result == None
@@ -202,17 +203,15 @@ package object environment extends PlatformSpecific {
    * Note how we forked the fiber that `sleep` was invoked on. Calls to `sleep`
    * and methods derived from it will semantically block until the time is
    * set to on or after the time they are scheduled to run. If we didn't fork
-   * the fiber on which we called sleep we would never get to set the the time
-   * on the line below. Thus, a useful pattern when using `TestClock` is to
-   * fork the effect being tested, then adjust the clock to the desired time,
-   * and finally verify that the expected effects have been performed.
-   *
-   * Sleep and related combinators schedule events to occur at a specified
-   * duration in the future relative to the current fiber time (e.g. 10 seconds
-   * from the current fiber time). The fiber time is backed by a `FiberRef` and
-   * is incremented for the duration each fiber is sleeping. Child fibers inherit
-   * the fiber time of their parent so methods that rely on repeated `sleep`
-   * calls work as you would expect.
+   * the fiber on which we called sleep we would never get to set the time
+   * below. Then we used `awaitScheduled` to wait for the forked effect to be
+   * scheduled, making sure we didn't accidentally set the time before the
+   * effect was scheduled and thus schedule it for too far in the future.
+   * Finally, we adjusted the time and checked for the expected result. This
+   * reflects a common pattern when using `TestClock` of forking the effect
+   * being tested, waiting for the effect to be scheduled, then adjusting the
+   * clock to the desired time, and finally verifying that the expected effects
+   * have been performed.
    *
    * For example, here is how we can test an effect that recurs with a fixed
    * delay:
@@ -226,6 +225,7 @@ package object environment extends PlatformSpecific {
    *    q <- Queue.unbounded[Unit]
    *    _ <- q.offer(()).delay(60.minutes).forever.fork
    *    a <- q.poll.map(_.isEmpty)
+   *    _ <- TestClock.awaitScheduled
    *    _ <- TestClock.adjust(60.minutes)
    *    b <- q.take.as(true)
    *    c <- q.poll.map(_.isEmpty)
@@ -249,7 +249,6 @@ package object environment extends PlatformSpecific {
       def adjust(duration: Duration): UIO[Unit]
       def awaitScheduled: UIO[Unit]
       def awaitScheduledN(n: Int): UIO[Unit]
-      def fiberTime: UIO[Duration]
       def runAll: UIO[Unit]
       def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
       def setTime(duration: Duration): UIO[Unit]
@@ -260,9 +259,8 @@ package object environment extends PlatformSpecific {
 
     final case class Test(
       clockState: TRef[TestClock.Data],
-      fiberState: FiberRef[TestClock.FiberData],
+      fiberState: Fiber.Id => UIO[Option[Fiber.Runtime[Any, Any]]],
       scheduled: TPriorityQueue[Duration, Sleep],
-      fiber: Fiber.Id => UIO[Option[Fiber[Any, Any]]],
       live: Live.Service,
       warningState: RefM[TestClock.WarningData]
     ) extends Clock.Service
@@ -301,26 +299,6 @@ package object environment extends PlatformSpecific {
         clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS)).commit
 
       /**
-       * Returns the current fiber time for this fiber. The fiber time is
-       * backed by a `FiberRef` and is incremented for the duration each fiber
-       * is sleeping. When a fiber is joined, the fiber time will be set to the
-       * maximum of the fiber time of the parent and child fibers. Thus, the
-       * fiber time reflects the duration of sleeping that has occurred for
-       * this fiber to reach its current state, properly reflecting forks and
-       * joins.
-       *
-       * {{{
-       * for {
-       *   _      <- TestClock.set(Duration.Infinity)
-       *   _      <- ZIO.sleep(2.millis).zipPar(ZIO.sleep(1.millis))
-       *   result <- TestClock.fiberTime
-       * } yield result.toNanos == 2000000L
-       * }}}
-       */
-      val fiberTime: UIO[Duration] =
-        fiberState.get.map(_.duration)
-
-      /**
        * Returns the current clock time in nanoseconds.
        */
       val nanoTime: UIO[Long] =
@@ -340,10 +318,8 @@ package object environment extends PlatformSpecific {
       val save: UIO[UIO[Unit]] =
         for {
           clockData <- clockState.get.commit
-          fiberData <- fiberState.get
           sleeps    <- scheduled.toList.commit
         } yield clockState.set(clockData).commit *>
-          fiberState.set(fiberData) *>
           (scheduled.takeAll *> scheduled.offerAll(sleeps.map(sleep => sleep.duration -> sleep))).commit
 
       /**
@@ -380,12 +356,8 @@ package object environment extends PlatformSpecific {
         for {
           fiberId <- ZIO.fiberId
           latch   <- Promise.make[Nothing, Unit]
-          start <- fiberState.modify { data =>
-                    val end = data.duration + duration
-                    (data.duration, FiberData(end))
-                  }
           await <- clockState.get.flatMap { data =>
-                    val end = start + duration
+                    val end = data.duration + duration
                     if (end > data.duration)
                       scheduled.offer(end, Sleep(end, latch, fiberId)).as(true)
                     else
@@ -441,7 +413,7 @@ package object environment extends PlatformSpecific {
       private def freeze(fiberId: Fiber.Id): IO[Unit, Map[Fiber.Id, Set[Fiber.Id]]] = {
 
         def loop(fiberId: Fiber.Id, map: Map[Fiber.Id, Set[Fiber.Id]]): IO[Unit, Map[Fiber.Id, Set[Fiber.Id]]] =
-          Fiber.get(fiberId).flatMap {
+          fiberState(fiberId).flatMap {
             case None => IO.succeedNow(map + (fiberId -> Set.empty))
             case Some(fiber) =>
               fiber.status.flatMap {
@@ -523,12 +495,11 @@ package object environment extends PlatformSpecific {
     def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
       ZLayer.fromServiceManyManaged { (live: Live.Service) =>
         for {
-          ref      <- TRef.makeCommit(data).toManaged_
-          fiberRef <- FiberRef.make(FiberData(Duration.Zero), FiberData.combine).toManaged_
-          queue    <- TPriorityQueue.empty[Duration, Sleep].commit.toManaged_
-          fiber    <- ZIO.memoize(Fiber.get).toManaged_
-          refM     <- RefM.make(WarningData.start).toManaged_
-          test     <- Managed.make(UIO(Test(ref, fiberRef, queue, fiber, live, refM)))(_.warningDone)
+          ref        <- TRef.makeCommit(data).toManaged_
+          queue      <- TPriorityQueue.empty[Duration, Sleep].commit.toManaged_
+          fiberState <- ZIO.memoize(Fiber.get).toManaged_
+          refM       <- RefM.make(WarningData.start).toManaged_
+          test       <- Managed.make(UIO(Test(ref, fiberState, queue, live, refM)))(_.warningDone)
         } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
       }
 
@@ -559,13 +530,6 @@ package object environment extends PlatformSpecific {
      */
     def awaitScheduledN(n: Int): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.awaitScheduledN(n))
-
-    /**
-     * Accesses a `TestClock` instance in the environment and returns the current
-     * fiber time for this fiber.
-     */
-    val fiberTime: ZIO[TestClock, Nothing, Duration] =
-      ZIO.accessM(_.get.fiberTime)
 
     /**
      * Accesses a `TestClock` instance in the environment and runs all
@@ -634,23 +598,6 @@ package object environment extends PlatformSpecific {
      * resume execution of the effect, and the fiber executing the effect.
      */
     final case class Sleep(duration: Duration, promise: Promise[Nothing, Unit], fiberId: Fiber.Id)
-
-    /**
-     * `FiberData` represents the state of a single fiber, including the
-     * duration of sleeping that has occurred for the fiber to reach its
-     * current state.
-     */
-    final case class FiberData(duration: Duration)
-
-    object FiberData {
-
-      /**
-       * Combine the fiber time of two fibers by setting the fiber time to the
-       * maximum of the fiber time of the parent and child fibers.
-       */
-      def combine(first: FiberData, last: FiberData): FiberData =
-        FiberData(first.duration max last.duration)
-    }
 
     /**
      * `WarningData` describes the state of the warning message that is

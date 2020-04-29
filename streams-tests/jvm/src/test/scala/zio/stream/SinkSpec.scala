@@ -1479,6 +1479,7 @@ object SinkSpec extends ZIOBaseSpec {
                       .throttleShape[Int](1, 1.second)(_.toLong)
                       .use(sinkTest)
                       .fork
+            _    <- TestClock.awaitScheduled
             _    <- TestClock.adjust(8.seconds)
             test <- fiber.join
           } yield test
@@ -1511,18 +1512,11 @@ object SinkSpec extends ZIOBaseSpec {
               res2  <- sink.extract(step2).map(_._1)
               init3 <- sink.initial
               _     <- TestClock.adjust(4.seconds)
-              _     <- clock.sleep(4.seconds)
               step3 <- sink.step(init3, 3)
               res3  <- sink.extract(step3).map(_._1)
             } yield assert(List(res1, res2, res3))(equalTo(List(1, 2, 3)))
 
-          for {
-            fiber <- ZSink
-                      .throttleShape[Int](1, 1.second, 2)(_.toLong)
-                      .use(sinkTest)
-                      .fork
-            test <- fiber.join
-          } yield test
+          ZSink.throttleShape[Int](1, 1.second, 2)(_.toLong).use(sinkTest)
         }
       ),
       suite("utf8DecodeChunk")(

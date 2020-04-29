@@ -15,7 +15,6 @@ object EnvironmentSpec extends ZIOBaseSpec {
     testM("Clock returns time when it is set") {
       for {
         _    <- TestClock.setTime(1.millis)
-        _    <- clock.sleep(1.millis)
         time <- clock.currentTime(TimeUnit.MILLISECONDS)
       } yield assert(time)(equalTo(1L))
     },
