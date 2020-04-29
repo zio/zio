@@ -330,19 +330,28 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * inner effect, yielding the value of the inner effect.
    *
    * This method can be used to "flatten" nested effects.
-    **/
+   */
   def flatten[R1 <: R, E1 >: E, B](implicit ev: A <:< ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     flatMap(ev)
 
   /**
+   * Returns an effect that performs the outer effect first, followed by the
+   * inner effect, yielding the value of the inner effect.
+   *
+   * This method can be used to "flatten" nested effects.
+   */
+  def flattenM[R1 <: R, E1 >: E, B](implicit ev: A <:< ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+    mapM(ev)
+
+  /**
    * Flip the error and result
-    **/
+   */
   def flip: ZManaged[R, A, E] =
     foldM(ZManaged.succeedNow, ZManaged.fail(_))
 
   /**
    * Flip the error and result, then apply an effectful function to the effect
-    **/
+   */
   def flipWith[R1, A1, E1](f: ZManaged[R, A, E] => ZManaged[R1, A1, E1]): ZManaged[R1, E1, A1] =
     f(flip).flip
 
@@ -357,7 +366,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * A more powerful version of `fold` that allows recovering from any kind of failure except interruptions.
    */
-  def foldCause[B](failure: Cause[E] => B, success: A => B): ZManaged[R, E, B] =
+  def foldCause[B](failure: Cause[E] => B, success: A => B): ZManaged[R, Nothing, B] =
     sandbox.fold(failure, success)
 
   /**
@@ -476,7 +485,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Returns an effect whose failure is mapped by the specified `f` function.
    */
   def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
-    ZManaged(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
+    ZManaged(reserve.bimap(f, r => Reservation(r.acquire.mapError(f), r.release)))
 
   /**
    * Returns an effect whose full failure is mapped by the specified `f` function.
@@ -1018,6 +1027,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   val useForever: ZIO[R, E, Nothing] = use(_ => ZIO.never)
 
   /**
+   * Runs the acquire and release actions and returns the result of this
+   * managed effect. Note that this is only safe if the result of this managed
+   * effect is valid outside its scope.
+   */
+  def useNow: ZIO[R, E, A] =
+    use(ZIO.succeedNow)
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
   def when(b: => Boolean): ZManaged[R, E, Unit] =
@@ -1489,9 +1506,18 @@ object ZManaged {
    * inner effect, yielding the value of the inner effect.
    *
    * This method can be used to "flatten" nested effects.
-    **/
+   */
   def flatten[R, E, A](zManaged: ZManaged[R, E, ZManaged[R, E, A]]): ZManaged[R, E, A] =
     zManaged.flatMap(scala.Predef.identity)
+
+  /**
+   * Returns an effect that performs the outer effect first, followed by the
+   * inner effect, yielding the value of the inner effect.
+   *
+   * This method can be used to "flatten" nested effects.
+   */
+  def flattenM[R, E, A](zManaged: ZManaged[R, E, ZIO[R, E, A]]): ZManaged[R, E, A] =
+    zManaged.mapM(scala.Predef.identity)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and

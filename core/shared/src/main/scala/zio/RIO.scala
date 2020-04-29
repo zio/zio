@@ -320,6 +320,12 @@ object RIO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterNot]]
+   */
+  def filterNot[R, A](as: Iterable[A])(f: A => RIO[R, Boolean]): RIO[R, List[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
    * @see See [[zio.ZIO.first]]
    */
   def first[A, B]: RIO[(A, B), A] = ZIO.first

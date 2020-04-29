@@ -168,7 +168,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           fiberRef <- FiberRef.make(initial)
           loser1   = fiberRef.set(update1) *> ZIO.fail("ups1")
           loser2   = fiberRef.set(update2) *> ZIO.fail("ups2")
-          _        <- loser1.race(loser2).catchAll(_ => ZIO.unit)
+          _        <- loser1.race(loser2).ignore
           value    <- fiberRef.get
         } yield assert(value)(equalTo(initial))
       } @@ zioTag(errors),

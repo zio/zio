@@ -18,7 +18,7 @@ package zio.test.mock
 import zio.duration._
 import zio.test.environment.Live
 import zio.test.mock.module.T22
-import zio.test.{ assertM, testM, Assertion }
+import zio.test.{ assertM, testM, Assertion, ZSpec }
 import zio.{ ULayer, ZIO }
 
 trait MockSpecUtils[R] {
@@ -30,7 +30,7 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[A]
-  ) = testM(name) {
+  ): ZSpec[Any, E] = testM(name) {
     val result = mock.build.use[Any, E, A](app.provide _)
     assertM(result)(check)
   }
@@ -39,7 +39,7 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[E]
-  ) = testM(name) {
+  ): ZSpec[Any, A] = testM(name) {
     val result = mock.build.use[Any, A, E](app.flip.provide _)
     assertM(result)(check)
   }
@@ -48,7 +48,7 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[Option[A]]
-  ) = testM(name) {
+  ): ZSpec[Live, E] = testM(name) {
     val result =
       Live.live {
         mock.build
@@ -63,8 +63,8 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[Throwable]
-  ) = testM(name) {
-    val result =
+  ): ZSpec[Any, Any] = testM(name) {
+    val result: ZIO[Any, Any, Throwable] =
       mock.build
         .use(app.provide _)
         .orElse(ZIO.unit)
