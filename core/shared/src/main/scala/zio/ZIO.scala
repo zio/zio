@@ -1787,7 +1787,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.Fold[R1, E, E2, A, B](
       self,
       ZIOFn(() => that) { cause =>
-        cause.stripFailures match {
+        cause.keepDefects match {
           case None    => that
           case Some(c) => ZIO.halt(c)
         }
@@ -2464,6 +2464,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     as.foldRight[ZIO[R, E, List[A]]](ZIO.succeedNow(Nil)) { (a, zio) =>
       f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
     }
+
+  /**
+   * Filters the collection using the specified effectual predicate, removing
+   * all elements that satisfy the predicate.
+   */
+  def filterNot[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
+    filter(as)(f(_).map(!_))
 
   /**
    * Returns an effectful function that extracts out the first element of a

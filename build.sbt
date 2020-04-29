@@ -238,7 +238,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(
     crossScalaVersions --= Seq("2.11.12", dottyVersion),
     scalacOptions += "-language:experimental.macros",
-    libraryDependencies += ("com.propensive" %%% "magnolia" % "0.15.0").exclude("org.scala-lang", "scala-compiler")
+    libraryDependencies += ("com.propensive" %%% "magnolia" % "0.16.0").exclude("org.scala-lang", "scala-compiler")
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
@@ -330,7 +330,7 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "20.4.1",
         "com.typesafe.akka"         %% "akka-stream"   % "2.6.4",
         "io.monix"                  %% "monix"         % "3.2.0",
-        "io.projectreactor"         % "reactor-core"   % "3.3.4.RELEASE",
+        "io.projectreactor"         % "reactor-core"   % "3.3.5.RELEASE",
         "io.reactivex.rxjava2"      % "rxjava"         % "2.2.19",
         "org.ow2.asm"               % "asm"            % "8.0.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
@@ -338,7 +338,7 @@ lazy val benchmarks = project.module
         "org.typelevel"             %% "cats-effect"   % "2.1.3",
         "org.scalacheck"            %% "scalacheck"    % "1.14.3",
         "hedgehog"                  %% "hedgehog-core" % "0.1.0",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"     % "0.9.1"
+        "com.github.japgolly.nyaya" %% "nyaya-gen"     % "0.9.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
