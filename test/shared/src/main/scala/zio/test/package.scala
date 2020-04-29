@@ -156,10 +156,28 @@ package object test extends CompileVariants {
     assert(true)(Assertion.isTrue)
 
   /**
+   * Checks the assertions holds for the each element of a given list.
+   */
+  def assertElements[A](it: => Iterable[A])(assertion: A => TestResult): TestResult =
+    it.foldLeft(assertCompletes) {
+      case (assert1, a) => assert1 && assertion(a)
+    }
+
+  /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   def assertM[R, E, A](value: ZIO[R, E, A])(assertion: Assertion[A]): ZIO[R, E, TestResult] =
     value.map(assert(_)(assertion))
+
+  /**
+   * Checks the assertions holds for the each element of a given effectfully-computed list.
+   */
+  def assertMElements[R, E, A](it: => Iterable[A])(assertion: A => ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+    ZIO
+      .foreach(it)(assertion(_))
+      .map(_.foldLeft(assertCompletes) {
+        case (assert1, assert2) => assert1 && assert2
+      })
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the

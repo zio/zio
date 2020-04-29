@@ -2,14 +2,29 @@ package zio.test
 
 import scala.collection.immutable.SortedSet
 import scala.util.{ Failure, Success }
-
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.{ Chunk, Exit }
+import zio.{ Chunk, Exit, IO }
 
 object AssertionSpec extends ZIOBaseSpec {
 
   def spec = suite("AssertionSpec")(
+    test("assertElements must succeed when the assertion is satisfied for all elements") {
+      assertElements(List(1, 2, 3))(v => assert(v > 0)(isTrue))
+    },
+    testM(
+      "assertMElements must succeed when the assertion is satisfied for all elements produced by an effectful computation"
+    ) {
+      assertMElements(List(1, 2, 3))(v => assertM(IO(v / v))(equalTo(1)))
+    },
+    test("assertElements must fail when the assertion is not satisfied for one or more elements") {
+      assertElements(List(0, 1, 2, 3))(v => assert(v > 0)(isTrue))
+    } @@ failing,
+    testM(
+      "assertMElements must succeed when the assertion is not satisfied for one or more elements produced by an effectful computation"
+    ) {
+      assertMElements(List(0, 1, 2, 3))(v => assertM(IO(v / v))(equalTo(1)))
+    } @@ failing,
     test("and must succeed when both assertions are satisfied") {
       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
     },
