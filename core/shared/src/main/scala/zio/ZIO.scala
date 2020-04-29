@@ -1787,7 +1787,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.Fold[R1, E, E2, A, B](
       self,
       ZIOFn(() => that) { cause =>
-        cause.stripFailures match {
+        cause.keepDefects match {
           case None    => that
           case Some(c) => ZIO.halt(c)
         }

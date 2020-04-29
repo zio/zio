@@ -405,17 +405,21 @@ private[zio] final class FiberContext[E, A](
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
                       val cause = {
-                        // Add interruption information into the cause, if it's not already there:
                         val interrupted = state.get.interrupted
+
+                        // Add interruption information into the cause, if it's not already there:
+                        val causeAndInterrupt =
+                          if (!cause0.contains(interrupted)) cause0 ++ interrupted
+                          else cause0
 
                         if (discardedFolds)
                           // We threw away some error handlers while unwinding the stack because
                           // we got interrupted during this instruction. So it's not safe to return
-                          // cause0, because it might not be typed correctly. So we just return
+                          // typed failures from cause0, because they might not be typed correctly.
+                          // Instead, we strip the typed failures, and return the remainders and
                           // the interruption.
-                          state.get.interrupted
-                        else if (!cause0.contains(interrupted)) cause0 ++ interrupted
-                        else cause0
+                          causeAndInterrupt.stripFailures
+                        else causeAndInterrupt
                       }
 
                       curZio = done(Exit.halt(cause))

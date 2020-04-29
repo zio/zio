@@ -202,6 +202,37 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         cause.fold(empty, failCase, dieCase, interruptCase)(thenCase, bothCase, tracedCase)
     }
 
+  /**
+   * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
+   * return only `Die` cause/finalizer defects.
+   */
+  final def keepDefects: Option[Cause[Nothing]] =
+    self match {
+      case Empty        => None
+      case Interrupt(_) => None
+      case Fail(_)      => None
+      case d @ Die(_)   => Some(d)
+
+      case Both(l, r) =>
+        (l.keepDefects, r.keepDefects) match {
+          case (Some(l), Some(r)) => Some(Both(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+
+      case Then(l, r) =>
+        (l.keepDefects, r.keepDefects) match {
+          case (Some(l), Some(r)) => Some(Then(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+
+      case Traced(c, trace) => c.keepDefects.map(Traced(_, trace))
+      case Meta(c, data)    => c.keepDefects.map(Meta(_, data))
+    }
+
   final def map[E1](f: E => E1): Cause[E1] =
     flatMap(e => Fail(f(e)))
 
@@ -396,6 +427,23 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     attachTrace(squashWith(f))
 
   /**
+   * Discards all typed failures kept on this `Cause`.
+   */
+  final def stripFailures: Cause[Nothing] =
+    self match {
+      case Empty            => Empty
+      case c @ Interrupt(_) => c
+      case Fail(_)          => Empty
+      case c @ Die(_)       => c
+
+      case Both(l, r) => l.stripFailures && r.stripFailures
+      case Then(l, r) => l.stripFailures ++ r.stripFailures
+
+      case Traced(c, trace) => Traced(c.stripFailures, trace)
+      case Meta(c, data)    => Meta(c.stripFailures, data)
+    }
+
+  /**
    * Remove all `Die` causes that the specified partial function is defined at,
    * returning `Some` with the remaining causes or `None` if there are no
    * remaining causes.
@@ -422,37 +470,6 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         }
       case Traced(c, trace) => c.stripSomeDefects(pf).map(Traced(_, trace))
       case Meta(c, data)    => c.stripSomeDefects(pf).map(Meta(_, data))
-    }
-
-  /**
-   * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
-   * return only `Die` cause/finalizer defects.
-   */
-  final def stripFailures: Option[Cause[Nothing]] =
-    self match {
-      case Empty        => None
-      case Interrupt(_) => None
-      case Fail(_)      => None
-      case d @ Die(_)   => Some(d)
-
-      case Both(l, r) =>
-        (l.stripFailures, r.stripFailures) match {
-          case (Some(l), Some(r)) => Some(Both(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-
-      case Then(l, r) =>
-        (l.stripFailures, r.stripFailures) match {
-          case (Some(l), Some(r)) => Some(Then(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-
-      case Traced(c, trace) => c.stripFailures.map(Traced(_, trace))
-      case Meta(c, data)    => c.stripFailures.map(Meta(_, data))
     }
 
   /**
