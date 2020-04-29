@@ -89,7 +89,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             SinkUtils
               .zipParLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
           }
-        } @@ TestAspect.nonFlaky(500),
+        },
         suite("zipRight (*>)")(
           testM("happy path") {
             assertM(ZStream(1, 2, 3).run(ZSink.head.zipParRight(ZSink.succeed("Hello"))))(equalTo(("Hello")))
@@ -99,13 +99,6 @@ object ZSinkSpec extends ZIOBaseSpec {
           assertM(ZStream(1, 2, 3).run(ZSink.head.zipParLeft(ZSink.succeed("Hello"))))(equalTo(Some(1)))
         })
       )
-      // testM("crash") {
-      //   val l      = List(9, 6, 2, 7, 4)
-      //   val sink = findSink(20).zipPar(findSink(40))
-      //   val stream = ZStream.fromIterable(Random.shuffle(l)).run(sink).either
-
-      //   stream.map(assert(_)(equalTo(Left(()))))
-      // } @@ TestAspect.nonFlaky(10000) @@ TestAspect.only
     )
   )
 }
