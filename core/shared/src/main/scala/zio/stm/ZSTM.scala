@@ -1069,6 +1069,13 @@ object ZSTM {
     }
 
   /**
+   * Filters the collection using the specified effectual predicate, removing
+   * all elements that satisfy the predicate.
+   */
+  def filterNot[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, List[A]] =
+    filter(as)(f(_).map(!_))
+
+  /**
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
@@ -1127,7 +1134,7 @@ object ZSTM {
       val length = in.length
       var idx    = 0
 
-      var tx: ZSTM[R, E, ChunkBuilder[B]] = ZSTM.succeedNow(ChunkBuilder.make[B])
+      var tx: ZSTM[R, E, ChunkBuilder[B]] = ZSTM.succeedNow(ChunkBuilder.make[B]())
 
       while (idx < length) {
         val a = in(idx)

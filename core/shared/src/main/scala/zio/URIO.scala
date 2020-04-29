@@ -304,6 +304,12 @@ object URIO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterNot]]
+   */
+  def filterNot[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, List[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
    * @see [[zio.ZIO.first]]
    */
   def first[A, B]: URIO[(A, B), A] = ZIO.first
