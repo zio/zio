@@ -2144,21 +2144,16 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("zipWithLatest") {
           import zio.test.environment.TestClock
 
+          val s1 = ZStream.iterate(0)(_ + 1).fixed(100.millis)
+          val s2 = ZStream.iterate(0)(_ + 1).fixed(70.millis)
+          val s3 = s1.zipWithLatest(s2)((_, _))
+
           for {
-            q  <- Queue.unbounded[(Int, Int)]
-            s1 = ZStream.iterate(0)(_ + 1).fixed(100.millis)
-            s2 = ZStream.iterate(0)(_ + 1).fixed(70.millis)
-            s3 = s1.zipWithLatest(s2)((_, _))
-            _  <- s3.foreach(q.offer).fork
-            a  <- q.take
-            _  <- TestClock.setTime(70.millis)
-            b  <- q.take
-            _  <- TestClock.setTime(100.millis)
-            c  <- q.take
-            _  <- TestClock.setTime(140.millis)
-            d  <- q.take
-            _  <- TestClock.setTime(210.millis)
-          } yield assert(List(a, b, c, d))(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
+            fiber <- s3.take(4).runCollect.fork
+            _     <- TestClock.awaitScheduledN(2)
+            _     <- TestClock.setTime(210.milliseconds)
+            value <- fiber.join
+          } yield assert(value)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
         }
       ),
       suite("Constructors")(
