@@ -269,6 +269,12 @@ object UIO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterNot]]
+   */
+  def filterNot[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[List[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
    * @see [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[A](uio: UIO[A], rest: Iterable[UIO[A]]): UIO[A] = ZIO.firstSuccessOf(uio, rest)

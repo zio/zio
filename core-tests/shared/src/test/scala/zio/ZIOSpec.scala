@@ -1646,7 +1646,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("someOrFailException")(
       testM("extracts the optional value") {
-        assertM(ZIO.succeed(Some(42)).someOrFailException)(equalTo(42))
+        assertM(ZIO.some(42).someOrFailException)(equalTo(42))
       },
       testM("fails when given a None") {
         val task = ZIO.succeed(Option.empty[Int]).someOrFailException
@@ -2926,8 +2926,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           effectRef      <- Ref.make(0)
           conditionRef   <- Ref.make(0)
-          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
-          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
           _              <- effectRef.set(1).unlessM(conditionTrue)
           val1           <- effectRef.get
           conditionVal1  <- conditionRef.get
@@ -3139,8 +3139,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           effectRef      <- Ref.make(0)
           conditionRef   <- Ref.make(0)
-          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
-          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
           _              <- effectRef.set(1).whenM(conditionFalse)
           val1           <- effectRef.get
           conditionVal1  <- conditionRef.get

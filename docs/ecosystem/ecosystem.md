@@ -36,6 +36,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
 - [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
+- [zio-easymock](https://github.com/egast/zio-easymock): EasyMock mocking for zio-test
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client
 - [zio-event-sourcing](https://github.com/holinov/zio-event-sourcing): Purely functional concurent and scalable persistance layer
 - [zio-interop-log4j2](https://github.com/mlangc/zio-interop-log4j2): Fiber aware MDC logging for Log4j 2

@@ -921,14 +921,14 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           it    <- UIO((1 to 100).map(TRef.make(_)))
           tvars <- STM.collectAll(it).commit
-          res   <- UIO.collectAllPar(tvars.map(_.get.commit))
+          res   <- UIO.foreachPar(tvars)(_.get.commit)
         } yield assert(res)(equalTo((1 to 100).toList))
       },
       testM("collects a chunk of transactional effects to a single transaction that produces a chunk of values") {
         for {
           it    <- UIO((1 to 100).map(TRef.make(_)))
           tvars <- STM.collectAll(Chunk.fromIterable(it)).commit
-          res   <- UIO.collectAllPar(tvars.map(_.get.commit))
+          res   <- UIO.foreachPar(tvars)(_.get.commit)
         } yield assert(res)(equalTo(Chunk.fromIterable((1 to 100).toList)))
       }
     ),

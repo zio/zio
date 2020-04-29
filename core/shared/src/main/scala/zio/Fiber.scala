@@ -408,7 +408,7 @@ object Fiber extends FiberPlatformSpecific {
         name       <- self.getRef(Fiber.fiberName)
         id         <- self.id
         status     <- self.status
-        trace      <- if (withTrace) self.trace.map(Some(_)) else UIO(None)
+        trace      <- if (withTrace) self.trace.asSome else UIO.none
         ch         <- self.children
         childDumps <- ZIO.foreach(ch)(_.dumpWith(withTrace))
       } yield Fiber.Dump(id, name, status, childDumps, trace)

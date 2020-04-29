@@ -36,9 +36,7 @@ abstract class BaseTestTask(
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, TestLogger with Clock] =
     ZLayer.succeed[TestLogger.Service](new TestLogger.Service {
       def logLine(line: String): UIO[Unit] =
-        ZIO
-          .effect(loggers.foreach(_.info(colored(line))))
-          .catchAll(_ => ZIO.unit)
+        ZIO.effect(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
