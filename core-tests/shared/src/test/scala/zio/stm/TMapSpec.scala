@@ -16,9 +16,9 @@
 
 package zio.stm
 
-import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
+import zio.{ Schedule, UIO, ZIOBaseSpec }
 
 object TMapSpec extends ZIOBaseSpec {
 
@@ -119,7 +119,7 @@ object TMapSpec extends ZIOBaseSpec {
         assertM(tx.commit)(isNone)
       },
       testM("add many keys with negative hash codes") {
-        val expected = Range(1, 1000).map(i => HashContainer(-i) -> i).toList
+        val expected = (1 to 1000).map(i => HashContainer(-i) -> i).toList
 
         val tx =
           for {
@@ -139,6 +139,16 @@ object TMapSpec extends ZIOBaseSpec {
             tmap <- TMap.fromIterable(elems)
             list <- tmap.toList
           } yield list
+
+        assertM(tx.commit)(hasSameElements(elems))
+      },
+      testM("toChunk") {
+        val elems = List("a" -> 1, "b" -> 2)
+        val tx =
+          for {
+            tmap  <- TMap.fromIterable(elems)
+            chunk <- tmap.toChunk
+          } yield chunk.toList
 
         assertM(tx.commit)(hasSameElements(elems))
       },
@@ -214,7 +224,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("key" -> 2)))
+        assertM(tx.commit)(hasSameElements(List("key" -> 6)))
       },
       testM("transformM") {
         val tx =
@@ -234,7 +244,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("key" -> 2)))
+        assertM(tx.commit)(hasSameElements(List("key" -> 6)))
       },
       testM("transformValues") {
         val tx =
@@ -245,6 +255,16 @@ object TMapSpec extends ZIOBaseSpec {
           } yield res
 
         assertM(tx.commit)(hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
+      },
+      testM("parallel value transformation") {
+        for {
+          tmap   <- TMap.make("a" -> 0).commit
+          policy = Schedule.recurs(999)
+          tx     = tmap.transformValues(_ + 1).commit.repeat(policy)
+          n      = 2
+          _      <- UIO.collectAllPar_(List.fill(n)(tx))
+          res    <- tmap.get("a").commit
+        } yield assert(res)(isSome(equalTo(2000)))
       },
       testM("transformValuesM") {
         val tx =

@@ -227,6 +227,117 @@ object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
           )
         )
       ),
+      suite("varargs")(
+        testValue("returns value")(
+          PureModuleMock.Varargs(equalTo((1, Seq("2", "3"))), value("foo")),
+          PureModule.varargs(1, "2", "3"),
+          equalTo("foo")
+        ),
+        testValue("returns valueF")(
+          PureModuleMock
+            .Varargs(equalTo((1, Seq("2", "3"))), valueF { case (a, b) => s"foo $a, [${b.mkString(", ")}]" }),
+          PureModule.varargs(1, "2", "3"),
+          equalTo("foo 1, [2, 3]")
+        ),
+        testValue("returns valueM")(
+          PureModuleMock.Varargs(equalTo((1, Seq("2", "3"))), valueM {
+            case (a, b) => UIO.succeed(s"foo $a, [${b.mkString(", ")}]")
+          }),
+          PureModule.varargs(1, "2", "3"),
+          equalTo("foo 1, [2, 3]")
+        ),
+        testError("returns failure")(
+          PureModuleMock.Varargs(equalTo((1, Seq("2", "3"))), failure("foo")),
+          PureModule.varargs(1, "2", "3"),
+          equalTo("foo")
+        ),
+        testError("returns failureF")(
+          PureModuleMock.Varargs(equalTo((1, Seq("2", "3"))), failureF {
+            case (a, b) => s"foo $a, [${b.mkString(", ")}]"
+          }),
+          PureModule.varargs(1, "2", "3"),
+          equalTo("foo 1, [2, 3]")
+        ),
+        testError("returns failureM")(
+          PureModuleMock.Varargs(equalTo((1, Seq("2", "3"))), failureM {
+            case (a, b) => IO.fail(s"foo $a, [${b.mkString(", ")}]")
+          }),
+          PureModule.varargs(1, "2", "3"),
+          equalTo("foo 1, [2, 3]")
+        )
+      ),
+      suite("curriedVarargs")(
+        testValue("returns value")(
+          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), value("foo")),
+          PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
+          equalTo("foo")
+        ),
+        testValue("returns valueF")(
+          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), valueF {
+            case (a, b, c, d) => s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"
+          }),
+          PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
+          equalTo("foo 1, [2, 3], 4, [5, 6]")
+        ),
+        testValue("returns valueM")(
+          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), valueM {
+            case (a, b, c, d) => UIO.succeed(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
+          }),
+          PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
+          equalTo("foo 1, [2, 3], 4, [5, 6]")
+        ),
+        testError("returns failure")(
+          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), failure("foo")),
+          PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
+          equalTo("foo")
+        ),
+        testError("returns failureF")(
+          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), failureF {
+            case (a, b, c, d) => s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"
+          }),
+          PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
+          equalTo("foo 1, [2, 3], 4, [5, 6]")
+        ),
+        testError("returns failureM")(
+          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), failureM {
+            case (a, b, c, d) => IO.fail(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
+          }),
+          PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
+          equalTo("foo 1, [2, 3], 4, [5, 6]")
+        )
+      ),
+      suite("byName")(
+        testValue("returns value")(
+          PureModuleMock.ByName(equalTo(1), value("foo")),
+          PureModule.byName(1),
+          equalTo("foo")
+        ),
+        testValue("returns valueF")(
+          PureModuleMock.ByName(equalTo(1), valueF(i => s"foo $i")),
+          PureModule.byName(1),
+          equalTo("foo 1")
+        ),
+        testValue("returns valueM")(
+          PureModuleMock.ByName(equalTo(1), valueM(i => UIO.succeed(s"foo $i"))),
+          PureModule.byName(1),
+          equalTo("foo 1")
+        ),
+        testError("returns failure")(
+          PureModuleMock.ByName(equalTo(1), failure("foo")),
+          PureModule.byName(1),
+          equalTo("foo")
+        ),
+        testError("returns failureF")(
+          PureModuleMock.ByName(equalTo(1), failureF(i => s"foo $i")),
+          PureModule.byName(1),
+          equalTo("foo 1")
+        ),
+        testError("returns failureM")(
+          PureModuleMock.ByName(equalTo(1), failureM(i => IO.fail(s"foo $i"))),
+          PureModule.byName(1),
+          equalTo("foo 1")
+        )
+      ),
       suite("maxParams")(
         testValue("returns value")(
           PureModuleMock.MaxParams(equalTo(intTuple22), value("foo")),

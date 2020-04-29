@@ -18,7 +18,7 @@ package zio.stm
 
 import scala.util.Try
 
-import zio.{ CanFail, Fiber, IO }
+import zio.{ CanFail, Chunk, Fiber, IO }
 
 object STM {
 
@@ -40,16 +40,28 @@ object STM {
   def check(p: => Boolean): USTM[Unit] = ZSTM.check(p)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectAll]]
+   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Iterable*]]]
    */
-  def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
-    ZSTM.collectAll(i)
+  def collectAll[E, A](in: Iterable[STM[E, A]]): STM[E, List[A]] =
+    ZSTM.collectAll(in)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectAll_]]
+   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:zio\.Chunk*]]]
    */
-  def collectAll_[E, A](i: Iterable[STM[E, A]]): STM[E, Unit] =
-    ZSTM.collectAll_(i)
+  def collectAll[E, A](in: Chunk[STM[E, A]]): STM[E, Chunk[A]] =
+    ZSTM.collectAll(in)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:Iterable*]]]
+   */
+  def collectAll_[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
+    ZSTM.collectAll_(in)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:zio\.Chunk*]]]
+   */
+  def collectAll_[E, A](in: Chunk[STM[E, A]]): STM[E, Unit] =
+    ZSTM.collectAll_(in)
 
   /**
    * @see See [[zio.stm.ZSTM.die]]
@@ -106,16 +118,28 @@ object STM {
     ZSTM.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foreach]]
+   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:Iterable*]]]
    */
-  def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
-    ZSTM.foreach(as)(f)
+  def foreach[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+    ZSTM.foreach(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foreach_]]
+   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:zio\.Chunk*]]]
    */
-  def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
-    ZSTM.foreach_(as)(f)
+  def foreach[E, A, B](in: Chunk[A])(f: A => STM[E, B]): STM[E, Chunk[B]] =
+    ZSTM.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](in:Iterable*]]]
+   */
+  def foreach_[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
+    ZSTM.foreach_(in)(f)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](in:zio\.Chunk*]]]
+   */
+  def foreach_[E, A](in: Chunk[A])(f: A => STM[E, Any]): STM[E, Unit] =
+    ZSTM.foreach_(in)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fromEither]]
@@ -215,6 +239,12 @@ object STM {
    * @see See [[zio.stm.ZSTM.none]]
    */
   val none: USTM[Option[Nothing]] = ZSTM.none
+
+  /**
+   * @see See [[zio.stm.ZSTM.partition]]
+   */
+  def partial[A](a: => A): STM[Throwable, A] =
+    ZSTM.partial(a)
 
   /**
    * @see See [[zio.stm.ZSTM.partition]]

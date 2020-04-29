@@ -658,7 +658,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 if (self.cont(s2)) UIO.succeedNow(Left(s2))
                 else self.extract(s2).map(Right(_))
               },
-            { case (b, leftover) => UIO.succeedNow(Right((b, leftover ++ Chunk.single(a)))) }
+            { case (b, leftover) => UIO.succeedNow(Right((b, leftover ++ Chunk.single(ev(a))))) }
           )
 
         val rightStep: ZIO[R1, E1, Either[that.State, (C, Chunk[A00])]] =
@@ -668,7 +668,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 if (that.cont(s2)) UIO.succeedNow(Left(s2))
                 else that.extract(s2).map(Right(_))
               },
-            { case (c, leftover) => UIO.succeedNow(Right((c, leftover ++ Chunk.single(a)))) }
+            { case (c, leftover) => UIO.succeedNow(Right((c, (leftover ++ Chunk.single(ev(a)))))) }
           )
 
         leftStep.zipPar(rightStep)
@@ -1267,6 +1267,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Key of each element is determined by supplied function.
    *
    * Combines elements with same key with supplied function f.
+   * Stops consuming the stream once sees a value belonging to `n+1`-th key.
    */
   def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): Sink[Nothing, A, A, Map[K, A]] = {
     type State = (Map[K, A], Boolean)

@@ -23,21 +23,26 @@ package zio.test
  */
 sealed trait AssertionValue {
   type Value
-
   def value: Value
+  protected def assertion: AssertionM[Value]
+  def result: AssertResult
 
-  def assertion: Assertion[Value]
+  def printAssertion: String                       = assertion.toString
+  def label(string: String): AssertionValue        = AssertionValue(assertion.label(string), value, result)
+  def sameAssertion(that: AssertionValue): Boolean = assertion == that.assertion
 
-  def negate: AssertionValue = AssertionValue(assertion.negate, value)
+  def negate: AssertionValue = AssertionValue(assertion.negate, value, !result)
 }
 
 object AssertionValue {
-  def apply[A](assertion0: Assertion[A], value0: => A): AssertionValue =
-    new AssertionValue {
-      type Value = A
-
-      lazy val value = value0
-
-      val assertion = assertion0
-    }
+  def apply[A](assertion: AssertionM[A], value: => A, result: => AssertResult): AssertionValue = {
+    def inner(assertion0: AssertionM[A], value0: => A, result0: => AssertResult) =
+      new AssertionValue {
+        type Value = A
+        protected val assertion: AssertionM[Value] = assertion0
+        lazy val value: Value                      = value0
+        lazy val result: AssertResult              = result0
+      }
+    inner(assertion, value, result)
+  }
 }

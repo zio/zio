@@ -42,6 +42,9 @@ object ImpureModuleMock extends Mock[ImpureModule] {
   object PolyInputErrorOutput extends Poly.Method.InputErrorOutput
   object PolyMixed            extends Poly.Method.Output[Unit, Throwable]
   object PolyBounded          extends Poly.Method.Output[Unit, Throwable]
+  object Varargs              extends Method[(Int, Seq[String]), Throwable, String]
+  object CurriedVarargs       extends Method[(Int, Seq[String], Long, Seq[Char]), Throwable, String]
+  object ByName               extends Effect[Int, Throwable, String]
 
   object Overloaded {
     object _0 extends Method[Int, Throwable, String]
@@ -76,6 +79,10 @@ object ImpureModuleMock extends Mock[ImpureModule] {
             rts.unsafeRunTask(proxy(PolyInputErrorOutput.of[I, E, A], v))
           def polyMixed[A: Tagged]: (A, String)   = rts.unsafeRunTask(proxy(PolyMixed.of[(A, String)]))
           def polyBounded[A <: AnyVal: Tagged]: A = rts.unsafeRunTask(proxy(PolyBounded.of[A]))
+          def varargs(a: Int, b: String*): String = rts.unsafeRunTask(proxy(Varargs, (a, b)))
+          def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): String =
+            rts.unsafeRunTask(proxy(CurriedVarargs, (a, b, c, d)))
+          def byName(a: => Int): String = rts.unsafeRunTask(proxy(ByName, a))
           def maxParams(
             a: Int,
             b: Int,

@@ -246,6 +246,7 @@ package object environment extends PlatformSpecific {
   object TestClock extends Serializable {
 
     trait Service extends Restorable {
+      def advance(duration: Duration): UIO[Unit]
       def adjust(duration: Duration): UIO[Unit]
       def fiberTime: UIO[Duration]
       def runAll: UIO[Unit]
@@ -276,6 +277,13 @@ package object environment extends PlatformSpecific {
           val updated         = data.copy(duration = end, sleeps = sleeps)
           (wakes, updated)
         }.flatMap(run)
+
+      /**
+       * Advances both the wall clock time and the current fiber time by the
+       * specified duration.
+       */
+      def advance(duration: Duration): UIO[Unit] =
+        adjust(duration) *> sleep(duration)
 
       /**
        * Returns the current fiber time as an `OffsetDateTime`.
@@ -421,6 +429,13 @@ package object environment extends PlatformSpecific {
      */
     def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
+
+    /**
+     * Access a `TestClock` instance in the environment and advances both the
+     * wall clock time and the current fiber time by the specified duration.
+     */
+    def advance(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
+      ZIO.accessM(_.get.advance(duration))
 
     /**
      * Accesses a `TestClock` instance in the environment and returns the current
@@ -636,7 +651,7 @@ package object environment extends PlatformSpecific {
         for {
           input <- consoleState.get.flatMap(d =>
                     IO.fromOption(d.input.headOption)
-                      .mapError(_ => new EOFException("There is no more input left to read"))
+                      .orElseFail(new EOFException("There is no more input left to read"))
                   )
           _ <- consoleState.update(data => Data(data.input.tail, data.output))
         } yield input
@@ -794,9 +809,9 @@ package object environment extends PlatformSpecific {
    *
    * for {
    *   _ <- TestRandom.feedInts(4, 5, 2)
-   *   x <- random.nextInt(6)
-   *   y <- random.nextInt(6)
-   *   z <- random.nextInt(6)
+   *   x <- random.nextIntBounded(6)
+   *   y <- random.nextIntBounded(6)
+   *   z <- random.nextIntBounded(6)
    * } yield x + y + z == 11
    * }}}
    *
@@ -838,34 +853,6 @@ package object environment extends PlatformSpecific {
     final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer])
         extends Random.Service
         with TestRandom.Service {
-
-      /**
-       * Takes a long from the buffer if one exists or else generates a
-       * pseudo-random long in the specified range.
-       */
-      def between(minInclusive: Long, maxExclusive: Long): UIO[Long] =
-        getOrElse(bufferedLong)(randomBetween(minInclusive, maxExclusive))
-
-      /**
-       * Takes an integer from the buffer if one exists or else generates a
-       * pseudo-random integer in the specified range.
-       */
-      def between(minInclusive: Int, maxExclusive: Int): UIO[Int] =
-        getOrElse(bufferedInt)(randomBetween(minInclusive, maxExclusive))
-
-      /**
-       * Takes a float from the buffer if one exists or else generates a
-       * pseudo-random float in the specified range.
-       */
-      def between(minInclusive: Float, maxExclusive: Float): UIO[Float] =
-        getOrElse(bufferedFloat)(randomBetween(minInclusive, maxExclusive))
-
-      /**
-       * Takes a double from the buffer if one exists or else generates a
-       * pseudo-random double in the specified range.
-       */
-      def between(minInclusive: Double, maxExclusive: Double): UIO[Double] =
-        getOrElse(bufferedDouble)(randomBetween(minInclusive, maxExclusive))
 
       /**
        * Clears the buffer of booleans.
@@ -1010,11 +997,25 @@ package object environment extends PlatformSpecific {
         getOrElse(bufferedDouble)(randomDouble)
 
       /**
+       * Takes a double from the buffer if one exists or else generates a
+       * pseudo-random double in the specified range.
+       */
+      def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+        getOrElse(bufferedDouble)(randomDoubleBetween(minInclusive, maxExclusive))
+
+      /**
        * Takes a float from the buffer if one exists or else generates a
        * pseudo-random, uniformly distributed float between 0.0 and 1.0.
        */
       lazy val nextFloat: UIO[Float] =
         getOrElse(bufferedFloat)(randomFloat)
+
+      /**
+       * Takes a float from the buffer if one exists or else generates a
+       * pseudo-random float in the specified range.
+       */
+      def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+        getOrElse(bufferedFloat)(randomFloatBetween(minInclusive, maxExclusive))
 
       /**
        * Takes a double from the buffer if one exists or else generates a
@@ -1033,11 +1034,18 @@ package object environment extends PlatformSpecific {
 
       /**
        * Takes an integer from the buffer if one exists or else generates a
+       * pseudo-random integer in the specified range.
+       */
+      def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
+        getOrElse(bufferedInt)(randomIntBetween(minInclusive, maxExclusive))
+
+      /**
+       * Takes an integer from the buffer if one exists or else generates a
        * pseudo-random integer between 0 (inclusive) and the specified value
        * (exclusive).
        */
-      def nextInt(n: Int): UIO[Int] =
-        getOrElse(bufferedInt)(randomInt(n))
+      def nextIntBounded(n: Int): UIO[Int] =
+        getOrElse(bufferedInt)(randomIntBounded(n))
 
       /**
        * Takes a long from the buffer if one exists or else generates a
@@ -1048,11 +1056,18 @@ package object environment extends PlatformSpecific {
 
       /**
        * Takes a long from the buffer if one exists or else generates a
+       * pseudo-random long in the specified range.
+       */
+      def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
+        getOrElse(bufferedLong)(randomLongBetween(minInclusive, maxExclusive))
+
+      /**
+       * Takes a long from the buffer if one exists or else generates a
        * pseudo-random long between 0 (inclusive) and the specified value
        * (exclusive).
        */
-      def nextLong(n: Long): UIO[Long] =
-        getOrElse(bufferedLong)(randomLong(n))
+      def nextLongBounded(n: Long): UIO[Long] =
+        getOrElse(bufferedLong)(randomLongBounded(n))
 
       /**
        * Takes a character from the buffer if one exists or else generates a
@@ -1093,7 +1108,7 @@ package object environment extends PlatformSpecific {
        * Randomly shuffles the specified list.
        */
       def shuffle[A](list: List[A]): UIO[List[A]] =
-        Random.shuffleWith(randomInt, list)
+        Random.shuffleWith(randomIntBounded, list)
 
       private def bufferedBoolean(buffer: Buffer): (Option[Boolean], Buffer) =
         (
@@ -1154,34 +1169,6 @@ package object environment extends PlatformSpecific {
       private def mostSignificantBits(x: Double): Int =
         toInt((x / (1 << 24).toDouble))
 
-      /**
-       * Takes a long from the buffer if one exists or else generates a
-       * pseudo-random long in the specified range.
-       */
-      private def randomBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
-        Random.betweenWith(nextLong, nextLong(_), minInclusive, maxExclusive)
-
-      /**
-       * Takes an integer from the buffer if one exists or else generates a
-       * pseudo-random integer in the specified range.
-       */
-      private def randomBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
-        Random.betweenWith(nextInt, nextInt(_), minInclusive, maxExclusive)
-
-      /**
-       * Takes a float from the buffer if one exists or else generates a
-       * pseudo-random float in the specified range.
-       */
-      private def randomBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
-        Random.betweenWith(nextFloat, minInclusive, maxExclusive)
-
-      /**
-       * Takes a double from the buffer if one exists or else generates a
-       * pseudo-random double in the specified range.
-       */
-      private def randomBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
-        Random.betweenWith(nextDouble, minInclusive, maxExclusive)
-
       private def randomBits(bits: Int): UIO[Int] =
         randomState.modify { data =>
           val multiplier  = 0X5DEECE66DL
@@ -1219,8 +1206,14 @@ package object environment extends PlatformSpecific {
           i2 <- randomBits(27)
         } yield ((i1.toDouble * (1L << 27).toDouble) + i2.toDouble) / (1L << 53).toDouble
 
+      private def randomDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+        Random.nextDoubleBetweenWith(minInclusive, maxExclusive)(randomDouble)
+
       private val randomFloat: UIO[Float] =
         randomBits(24).map(i => (i.toDouble / (1 << 24).toDouble).toFloat)
+
+      private def randomFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+        Random.nextFloatBetweenWith(minInclusive, maxExclusive)(randomFloat)
 
       private val randomGaussian: UIO[Double] =
         //  The Box-Muller transform generates two normally distributed random
@@ -1255,7 +1248,7 @@ package object environment extends PlatformSpecific {
       private val randomInt: UIO[Int] =
         randomBits(32)
 
-      private def randomInt(n: Int): UIO[Int] =
+      private def randomIntBounded(n: Int): UIO[Int] =
         if (n <= 0)
           UIO.die(new IllegalArgumentException("n must be positive"))
         else if ((n & -n) == n)
@@ -1270,20 +1263,26 @@ package object environment extends PlatformSpecific {
           loop
         }
 
+      private def randomIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
+        Random.nextIntBetweenWith(minInclusive, maxExclusive)(randomInt, randomIntBounded)
+
       private val randomLong: UIO[Long] =
         for {
           i1 <- randomBits(32)
           i2 <- randomBits(32)
         } yield ((i1.toLong << 32) + i2)
 
-      private def randomLong(n: Long): UIO[Long] =
-        Random.nextLongWith(randomLong, n)
+      private def randomLongBounded(n: Long): UIO[Long] =
+        Random.nextLongBoundedWith(n)(randomLong)
+
+      private def randomLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
+        Random.nextLongBetweenWith(minInclusive, maxExclusive)(randomLong, randomLongBounded)
 
       private val randomPrintableChar: UIO[Char] =
-        randomInt(127 - 33).map(i => (i + 33).toChar)
+        randomIntBounded(127 - 33).map(i => (i + 33).toChar)
 
       private def randomString(length: Int): UIO[String] = {
-        val safeChar = randomInt(0xD800 - 1).map(i => (i + 1).toChar)
+        val safeChar = randomIntBounded(0xD800 - 1).map(i => (i + 1).toChar)
         UIO.collectAll(List.fill(length)(safeChar)).map(_.mkString)
       }
 
@@ -1527,26 +1526,54 @@ package object environment extends PlatformSpecific {
       /**
        * Returns the specified environment variable if it exists.
        */
-      override def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
+      def env(variable: String): IO[SecurityException, Option[String]] =
         systemState.get.map(_.envs.get(variable))
 
-      override val envs: ZIO[Any, SecurityException, Map[String, String]] =
+      /**
+       * Returns the specified environment variable if it exists or else the
+       * specified fallback value.
+        **/
+      def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
+        System.envOrElseWith(variable, alt)(env)
+
+      /**
+       * Returns the specified environment variable if it exists or else the
+       * specified optional fallback value.
+        **/
+      def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
+        System.envOrOptionWith(variable, alt)(env)
+
+      val envs: ZIO[Any, SecurityException, Map[String, String]] =
         systemState.get.map(_.envs)
 
-      override val properties: ZIO[Any, Throwable, Map[String, String]] =
+      /**
+       * Returns the system line separator.
+       */
+      val lineSeparator: ZIO[Any, Nothing, String] =
+        systemState.get.map(_.lineSeparator)
+
+      val properties: ZIO[Any, Throwable, Map[String, String]] =
         systemState.get.map(_.properties)
 
       /**
        * Returns the specified system property if it exists.
        */
-      override def property(prop: String): ZIO[Any, Throwable, Option[String]] =
+      def property(prop: String): IO[Throwable, Option[String]] =
         systemState.get.map(_.properties.get(prop))
 
       /**
-       * Returns the system line separator.
-       */
-      override val lineSeparator: ZIO[Any, Nothing, String] =
-        systemState.get.map(_.lineSeparator)
+       * Returns the specified system property if it exists or else the
+       * specified fallback value.
+        **/
+      def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
+        System.propertyOrElseWith(prop, alt)(property)
+
+      /**
+       * Returns the specified system property if it exists or else the
+       * specified optional fallback value.
+        **/
+      def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
+        System.propertyOrOptionWith(prop, alt)(property)
 
       /**
        * Adds the specified name and value to the mapping of environment

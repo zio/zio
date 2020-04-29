@@ -23,7 +23,7 @@ import scala.math.Numeric.DoubleIsFractional
 
 import zio.random._
 import zio.stream.{ Stream, ZStream }
-import zio.{ UIO, ZIO }
+import zio.{ Chunk, NonEmptyChunk, UIO, ZIO }
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
@@ -186,7 +186,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyByte: Gen[Random, Byte] =
     fromEffectSample {
-      nextInt(Byte.MaxValue - Byte.MinValue + 1)
+      nextIntBounded(Byte.MaxValue - Byte.MinValue + 1)
         .map(r => (Byte.MinValue + r).toByte)
         .map(Sample.shrinkIntegral(0))
     }
@@ -196,7 +196,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyChar: Gen[Random, Char] =
     fromEffectSample {
-      nextInt(Char.MaxValue - Char.MinValue + 1)
+      nextIntBounded(Char.MaxValue - Char.MinValue + 1)
         .map(r => (Char.MinValue + r).toChar)
         .map(Sample.shrinkIntegral(0))
     }
@@ -230,7 +230,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyShort: Gen[Random, Short] =
     fromEffectSample {
-      nextInt(Short.MaxValue - Short.MinValue + 1)
+      nextIntBounded(Short.MaxValue - Short.MinValue + 1)
         .map(r => (Short.MinValue + r).toShort)
         .map(Sample.shrinkIntegral(0))
     }
@@ -259,6 +259,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
       (mostSigBits & ~0x0000F000) | 0x00004000,
       (leastSigBits & ~(0xC0000000L << 32)) | (0x80000000L << 32)
     )
+
+  /**
+   * A generator of big decimals inside the specified range: [start, end].
+   * The shrinker will shrink toward the lower end of the range ("smallest").
+   *
+   * The values generated will have a precision equal to the precision of the
+   * difference between `max` and `min`.
+   */
+  def bigDecimal(min: BigDecimal, max: BigDecimal): Gen[Random, BigDecimal] = {
+    val difference = max - min
+    val decimals   = difference.scale max 0
+    val bigInt     = (difference * BigDecimal(10).pow(decimals)).toBigInt
+    Gen.bigInt(0, bigInt).map(bigInt => min + BigDecimal(bigInt) / BigDecimal(10).pow(decimals))
+  }
 
   /**
    * A generator of big integers inside the specified range: [start, end].
@@ -303,6 +317,30 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def char(min: Char, max: Char): Gen[Random, Char] =
     int(min.toInt, max.toInt).map(_.toChar)
+
+  /**
+   * A sized generator of chunks.
+   */
+  def chunkOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Chunk[A]] =
+    listOf(g).map(Chunk.fromIterable)
+
+  /**
+   * A sized generator of non-empty chunks.
+   */
+  def chunkOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, NonEmptyChunk[A]] =
+    listOf1(g).map { case h :: t => NonEmptyChunk.fromIterable(h, t) }
+
+  /**
+   * A generator of chunks whose size falls within the specified bounds.
+   */
+  def chunkOfBounded[R <: Random, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Chunk[A]] =
+    bounded(min, max)(chunkOfN(_)(g))
+
+  /**
+   * A generator of chunks of the specified size.
+   */
+  def chunkOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, Chunk[A]] =
+    listOfN(n)(g).map(Chunk.fromIterable)
 
   /**
    * A constant generator of the specified value.
@@ -424,7 +462,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.fromEffectSample {
       val difference = max - min + 1
       val effect =
-        if (difference > 0) nextInt(difference).map(min + _)
+        if (difference > 0) nextIntBounded(difference).map(min + _)
         else nextInt.doUntil(n => min <= n && n <= max)
       effect.map(Sample.shrinkIntegral(min))
     }
@@ -439,8 +477,11 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def listOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
     small(listOfN(_)(g))
 
-  def listOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
-    small(listOfN(_)(g), 1)
+  def listOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, ::[A]] =
+    for {
+      h <- g
+      t <- small(n => listOfN(n - 1 max 0)(g))
+    } yield ::(h, t)
 
   /**
    * A generator of lists whose size falls within the specified bounds.
@@ -459,7 +500,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.fromEffectSample {
       val difference = max - min + 1
       val effect =
-        if (difference > 0) nextLong(difference).map(min + _)
+        if (difference > 0) nextLongBounded(difference).map(min + _)
         else nextLong.doUntil(n => min <= n && n <= max)
       effect.map(Sample.shrinkIntegral(min))
     }
@@ -555,6 +596,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     small(setOfN(_)(gen), 1)
 
   /**
+   * A generator of sets whose size falls within the specified bounds.
+   */
+  def setOfBounded[R <: Random, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Set[A]] =
+    bounded(min, max)(setOfN(_)(g))
+
+  /**
    * A generator of sets of the specified size.
    */
   def setOfN[R <: Random, A](n: Int)(gen: Gen[R, A]): Gen[R, Set[A]] =
@@ -564,12 +611,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         elem <- gen.filterNot(set)
       } yield set + elem
     }
-
-  /**
-   * A generator of sets whose size falls within the specified bounds.
-   */
-  def setOfBounded[R <: Random, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Set[A]] =
-    bounded(min, max)(setOfN(_)(g))
 
   /**
    * A generator of short values inside the specified range: [start, end].

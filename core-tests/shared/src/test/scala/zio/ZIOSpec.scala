@@ -140,14 +140,11 @@ object ZIOSpec extends ZIOBaseSpec {
           ref   <- Ref.make(0)
           cache <- incrementAndGet(ref).cached(60.minutes)
           a     <- cache
-          _     <- TestClock.adjust(59.minutes)
-          _     <- clock.sleep(59.minutes)
+          _     <- TestClock.advance(59.minutes)
           b     <- cache
-          _     <- TestClock.adjust(1.minute)
-          _     <- clock.sleep(1.minutes)
+          _     <- TestClock.advance(1.minute)
           c     <- cache
-          _     <- TestClock.adjust(59.minutes)
-          _     <- clock.sleep(1.minute)
+          _     <- TestClock.advance(59.minutes)
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       },
@@ -259,6 +256,15 @@ object ZIOSpec extends ZIOBaseSpec {
         val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
         val res  = IO.collectAllPar(list)
         assertM(res)(equalTo(List(1, 2, 3)))
+      },
+      testM("is referentially transparent") {
+        for {
+          counter <- Ref.make(0)
+          op      = counter.getAndUpdate(_ + 1)
+          ops3    = ZIO.collectAllPar(List(op, op, op))
+          ops6    = ops3.zipPar(ops3)
+          res     <- ops6
+        } yield assert(res._1)(not(equalTo(res._2)))
       }
     ),
     suite("collectAllParN")(
@@ -1019,6 +1025,16 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List(0, 1, 2, 3, 4)))
       }
     ),
+    suite("mapEffect")(
+      testM("returns an effect whose success is mapped by the specified side effecting function") {
+        val task = ZIO.succeed("123").mapEffect(_.toInt)
+        assertM(task)(equalTo(123))
+      },
+      testM("translates any thrown exceptions into typed failed effects") {
+        val task = ZIO.succeed("hello").mapEffect(_.toInt)
+        assertM(task.run)(fails(isSubtype[NumberFormatException](anything)))
+      }
+    ),
     suite("mapN")(
       testM("with Tuple2") {
         checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
@@ -1291,6 +1307,20 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("otherwise fails with the specified error") {
         assertM(ZIO.fail(false).orElseFail(true).flip)(isTrue)
       } @@ zioTag(errors)
+    ),
+    suite("orElseOptional")(
+      testM("produces the value of this effect if it succeeds") {
+        val zio = ZIO.succeed("succeed").orElseOptional(ZIO.succeed("orElse"))
+        assertM(zio)(equalTo("succeed"))
+      },
+      testM("produces the value of this effect if it fails with some error") {
+        val zio = ZIO.fail(Some("fail")).orElseOptional(ZIO.succeed("orElse"))
+        assertM(zio.run)(fails(isSome(equalTo("fail"))))
+      },
+      testM("produces the value of the specified effect if it fails with none") {
+        val zio = ZIO.fail(None).orElseOptional(ZIO.succeed("orElse"))
+        assertM(zio)(equalTo("orElse"))
+      }
     ),
     suite("orElseSucceed")(
       testM("executes this effect and returns its value if it succeeds") {
@@ -1616,7 +1646,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("someOrFailException")(
       testM("extracts the optional value") {
-        assertM(ZIO.succeed(Some(42)).someOrFailException)(equalTo(42))
+        assertM(ZIO.some(42).someOrFailException)(equalTo(42))
       },
       testM("fails when given a None") {
         val task = ZIO.succeed(Option.empty[Int]).someOrFailException
@@ -2896,8 +2926,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           effectRef      <- Ref.make(0)
           conditionRef   <- Ref.make(0)
-          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
-          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
           _              <- effectRef.set(1).unlessM(conditionTrue)
           val1           <- effectRef.get
           conditionVal1  <- conditionRef.get
@@ -3109,8 +3139,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           effectRef      <- Ref.make(0)
           conditionRef   <- Ref.make(0)
-          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
-          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
           _              <- effectRef.set(1).whenM(conditionFalse)
           val1           <- effectRef.get
           conditionVal1  <- conditionRef.get

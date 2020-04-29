@@ -68,7 +68,7 @@ private[zio] trait FiberPlatformSpecific {
               .fold(Exit.fail, Exit.succeed)
               .map(Some(_))
           } else {
-            UIO.succeed(None)
+            UIO.none
           }
         }
 

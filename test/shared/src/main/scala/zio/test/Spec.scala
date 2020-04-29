@@ -366,7 +366,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   /**
    * Provides a layer to the spec, translating it up a level.
    */
-  final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
+  final def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
     transform[R0, E1, T] {
@@ -377,7 +377,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
-  final def provideLayerShared[E1 >: E, R0, R1 <: Has[_]](
+  final def provideLayerShared[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1],
     defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4)
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =

@@ -83,8 +83,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
                       inParallel {
                         list.foreach(a => k(Task.succeed(a)))
                       }(global)
-                      latch.succeed(()) *>
-                        Task.unit
+                      latch.succeed(()).unit
                     }
                     .take(list.size.toLong)
                     .run(Sink.collectAll[Int])

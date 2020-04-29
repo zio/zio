@@ -121,12 +121,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Symbolic alias for andThen
    */
-  def >>>[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] =
-    for {
-      r  <- ZManaged.environment[R]
-      r1 <- provide(r)
-      a  <- that.provide(r1)
-    } yield a
+  def >>>[E1 >: E, B](that: ZManaged[A, E1, B]): ZManaged[R, E1, B] =
+    self.flatMap(that.provide)
 
   /**
    * Symbolic alias for join
@@ -190,7 +186,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Executes the this effect and then provides its output as an environment to the second effect
    */
-  def andThen[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] = self >>> that
+  def andThen[E1 >: E, B](that: ZManaged[A, E1, B]): ZManaged[R, E1, B] = self >>> that
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
@@ -334,19 +330,28 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * inner effect, yielding the value of the inner effect.
    *
    * This method can be used to "flatten" nested effects.
-    **/
+   */
   def flatten[R1 <: R, E1 >: E, B](implicit ev: A <:< ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     flatMap(ev)
 
   /**
+   * Returns an effect that performs the outer effect first, followed by the
+   * inner effect, yielding the value of the inner effect.
+   *
+   * This method can be used to "flatten" nested effects.
+   */
+  def flattenM[R1 <: R, E1 >: E, B](implicit ev: A <:< ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+    mapM(ev)
+
+  /**
    * Flip the error and result
-    **/
+   */
   def flip: ZManaged[R, A, E] =
     foldM(ZManaged.succeedNow, ZManaged.fail(_))
 
   /**
    * Flip the error and result, then apply an effectful function to the effect
-    **/
+   */
   def flipWith[R1, A1, E1](f: ZManaged[R, A, E] => ZManaged[R1, A1, E1]): ZManaged[R1, E1, A1] =
     f(flip).flip
 
@@ -361,7 +366,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * A more powerful version of `fold` that allows recovering from any kind of failure except interruptions.
    */
-  def foldCause[B](failure: Cause[E] => B, success: A => B): ZManaged[R, E, B] =
+  def foldCause[B](failure: Cause[E] => B, success: A => B): ZManaged[R, Nothing, B] =
     sandbox.fold(failure, success)
 
   /**
@@ -470,24 +475,31 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     }
 
   /**
-   * Effectfully maps the resource acquired by this value.
+   * Returns an effect whose success is mapped by the specified side effecting
+   * `f` function, translating any thrown exceptions into typed failed effects.
    */
-  def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
-    ZManaged[R1, E1, B] {
-      reserve.map(token => token.copy(acquire = token.acquire.flatMap(f)))
-    }
+  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): ZManaged[R, Throwable, B] =
+    foldM(e => ZManaged.fail(ev(e)), a => ZManaged.effect(f(a)))
 
   /**
    * Returns an effect whose failure is mapped by the specified `f` function.
    */
   def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
-    ZManaged(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
+    ZManaged(reserve.bimap(f, r => Reservation(r.acquire.mapError(f), r.release)))
 
   /**
    * Returns an effect whose full failure is mapped by the specified `f` function.
    */
   def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZManaged[R, E1, A] =
     ZManaged(reserve.mapErrorCause(f).map(r => Reservation(r.acquire.mapErrorCause(f), r.release)))
+
+  /**
+   * Effectfully maps the resource acquired by this value.
+   */
+  def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+    ZManaged[R1, E1, B] {
+      reserve.map(token => token.copy(acquire = token.acquire.flatMap(f)))
+    }
 
   def memoize: ZManaged[Any, Nothing, ZManaged[R, E, A]] =
     ZManaged.finalizerRef(_ => UIO.unit).mapM { finalizers =>
@@ -609,6 +621,16 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     orElse(ZManaged.fail(e1))
 
   /**
+   * Returns an effect that will produce the value of this effect, unless it
+   * fails with the `None` value, in which case it will produce the value of
+   * the specified effect.
+   */
+  final def orElseOptional[R1 <: R, E1, A1 >: A](
+    that: => ZManaged[R1, Option[E1], A1]
+  )(implicit ev: E <:< Option[E1]): ZManaged[R1, Option[E1], A1] =
+    catchAll(ev(_).fold(that)(e => ZManaged.fail(Some(e))))
+
+  /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise suceeds with the specified value.
    */
@@ -671,7 +693,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  def provideLayer[E1 >: E, R0, R1 <: Has[_]](
+  def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
     layer.build.map(ev1).flatMap(self.provide)
@@ -763,8 +785,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  def retry[R1 <: R, E1 >: E, S](policy: Schedule[R1, E1, S])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] = {
-    def loop[B](zio: ZIO[R, E1, B], state: policy.State): ZIO[R1, E1, (policy.State, B)] =
+  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1, E, A] = {
+    def loop[B](zio: ZIO[R, E, B], state: policy.State): ZIO[R1, E, (policy.State, B)] =
       zio.foldM(
         err =>
           policy
@@ -1003,6 +1025,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Useful for resources that you want to acquire and use as long as the application is running, like a HTTP server.
    */
   val useForever: ZIO[R, E, Nothing] = use(_ => ZIO.never)
+
+  /**
+   * Runs the acquire and release actions and returns the result of this
+   * managed effect. Note that this is only safe if the result of this managed
+   * effect is valid outside its scope.
+   */
+  def useNow: ZIO[R, E, A] =
+    use(ZIO.succeedNow)
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -1403,6 +1433,13 @@ object ZManaged {
     ZManaged.fromEffect(ZIO.done(r))
 
   /**
+   * Lifts a synchronous side-effect into a `ZManaged[R, Throwable, A]`,
+   * translating any thrown exceptions into typed failed effects.
+   */
+  def effect[A](r: => A): ZManaged[Any, Throwable, A] =
+    ZManaged.fromEffect(ZIO.effect(r))
+
+  /**
    * Lifts a by-name, pure value into a Managed.
    */
   def effectTotal[A](r: => A): ZManaged[Any, Nothing, A] =
@@ -1469,9 +1506,18 @@ object ZManaged {
    * inner effect, yielding the value of the inner effect.
    *
    * This method can be used to "flatten" nested effects.
-    **/
+   */
   def flatten[R, E, A](zManaged: ZManaged[R, E, ZManaged[R, E, A]]): ZManaged[R, E, A] =
     zManaged.flatMap(scala.Predef.identity)
+
+  /**
+   * Returns an effect that performs the outer effect first, followed by the
+   * inner effect, yielding the value of the inner effect.
+   *
+   * This method can be used to "flatten" nested effects.
+   */
+  def flattenM[R, E, A](zManaged: ZManaged[R, E, ZIO[R, E, A]]): ZManaged[R, E, A] =
+    zManaged.mapM(scala.Predef.identity)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -2020,6 +2066,31 @@ object ZManaged {
    * tuple.
    */
   def second[A, B]: ZManaged[(A, B), Nothing, B] = fromFunction(_._2)
+
+  /**
+   * Accesses the specified service in the environment of the effect.
+   */
+  def service[A](implicit tagged: Tagged[A]): ZManaged[Has[A], Nothing, A] =
+    ZManaged.access(_.get[A])
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged]: ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
+    ZManaged.access(r => (r.get[A], r.get[B]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged]: ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+    ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
+
+  /**
+   * Accesses the specified services in the environment of the effect.
+   */
+  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+    : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+    ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    *  Returns an effect with the optional value.

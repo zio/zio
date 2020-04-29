@@ -37,13 +37,15 @@ object RandomSpec extends ZIOBaseSpec {
     testM("check nextLong")(forAllEqual(_.nextLong)(_.nextLong())),
     testM("check nextPrintableChar")(forAllEqual(_.nextPrintableChar)(_.nextPrintableChar())),
     testM("check nextString")(forAllEqualN(_.nextString(_))(_.nextString(_))),
-    testM("bounded nextInt")(forAllEqualN(_.nextInt(_))(_.nextInt(_))),
-    testM("bounded nextInt generates values within the bounds")(forAllBounded(Gen.anyInt)(_.nextInt(_))),
-    testM("bounded nextLong generates values within the bounds")(forAllBounded(Gen.anyLong)(_.nextLong(_))),
-    testM("between generates doubles within the bounds")(forAllBetween(Gen.anyDouble)(_.between(_, _))),
-    testM("between generates floats within the bounds")(forAllBetween(Gen.anyFloat)(_.between(_, _))),
-    testM("between generates integers within the bounds")(forAllBetween(Gen.anyInt)(_.between(_, _))),
-    testM("between generates longs within the bounds")(forAllBetween(Gen.anyLong)(_.between(_, _))),
+    testM("check nextIntBounded")(forAllEqualN(_.nextIntBounded(_))(_.nextInt(_))),
+    testM("nextIntBounded generates values within the bounds")(forAllBounded(Gen.anyInt)(_.nextIntBounded(_))),
+    testM("nextLongBounded generates values within the bounds")(forAllBounded(Gen.anyLong)(_.nextLongBounded(_))),
+    testM("nextDoubleBetween generates doubles within the bounds")(
+      forAllBetween(Gen.anyDouble)(_.nextDoubleBetween(_, _))
+    ),
+    testM("nextFloatBetween generates floats within the bounds")(forAllBetween(Gen.anyFloat)(_.nextFloatBetween(_, _))),
+    testM("nextIntBetween generates integers within the bounds")(forAllBetween(Gen.anyInt)(_.nextIntBetween(_, _))),
+    testM("nextLongBetween generates longs within the bounds")(forAllBetween(Gen.anyLong)(_.nextLongBetween(_, _))),
     testM("shuffle")(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_))),
     testM("referential transparency") {
       val test = TestRandom.makeTest(DefaultData)

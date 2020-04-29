@@ -14,6 +14,18 @@ object StreamChunkSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
+  def tinyChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
+    Gen.chunkOfBounded(0, 3)(a)
+
+  def smallChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
+    Gen.small(Gen.chunkOfN(_)(a))
+
+  val intGen       = Gen.int(-10, 10)
+  val chunksOfInts = pureStreamChunkGen(smallChunks(intGen))
+
+  def toBoolFn[R <: Random, A]: Gen[R, A => Boolean] =
+    Gen.function(Gen.boolean)
+
   def spec = suite("StreamChunkSpec")(
     testM("StreamChunk.catchAllCauseErrors") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
@@ -88,7 +100,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
         for {
           res1 <- slurp(s.mapConcat(f))
-          res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
+          res2 <- slurp(s).map(_.flatMap(v => f(v)))
         } yield assert(res1)(equalTo(res2))
       }
     },
@@ -97,7 +109,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
         for {
           res1 <- slurp(s.mapConcatChunk(f))
-          res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
+          res2 <- slurp(s).map(_.flatMap(v => f(v)))
         } yield assert(res1)(equalTo(res2))
       }
     },
@@ -107,7 +119,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
           for {
             res1 <- slurp(s.mapConcatChunkM(s => UIO.succeed(f(s))))
-            res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
+            res2 <- slurp(s).map(_.flatMap(s => f(s)))
           } yield assert(res1)(equalTo(res2))
         }
       },
@@ -126,7 +138,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         checkM(pureStreamChunkGen(tinyChunks(intGen)), fn) { (s, f) =>
           for {
             res1 <- slurp(s.mapConcatM(s => UIO.succeed(f(s))))
-            res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
+            res2 <- slurp(s).map(_.flatMap(s => f(s)))
           } yield assert(res1)(equalTo(res2))
         }
       },
@@ -346,7 +358,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         Gen.function2(intGen)
       ) { (s, zero, cont, f) =>
         for {
-          res1 <- s.foldWhileM[Any, Nothing, Int, Int](zero)(cont)((acc, a) => IO.succeed(f(acc, a)))
+          res1 <- s.foldWhileM(zero)(cont)((acc, a) => IO.succeed(f(acc, a)))
           res2 <- slurp(s).map(l => foldLazyList(l.toList, zero)(cont)(f))
         } yield assert(res1)(equalTo(res2))
       }
@@ -354,7 +366,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
     testM("StreamChunk.flattenChunks") {
       checkM(chunksOfInts) { s =>
         for {
-          res1 <- s.flattenChunks.fold[Int, List[Int]](Nil)((acc, a) => a :: acc).map(_.reverse)
+          res1 <- s.flattenChunks.fold[List[Int]](Nil)((acc, a) => a :: acc).map(_.reverse)
           res2 <- slurp(s)
         } yield assert(res1)(equalTo(res2))
       }
@@ -427,13 +439,13 @@ object StreamChunkSpec extends ZIOBaseSpec {
     },
     testM("StreamChunk.ChunkN") {
       val s1 = StreamChunk(Stream(Chunk(1, 2, 3, 4, 5), Chunk(6, 7), Chunk(8, 9, 10, 11)))
-      assertM(s1.chunkN(2).chunks.map(_.toSeq).runCollect)(
+      assertM(s1.chunkN(2).chunks.map(_.toList).runCollect)(
         equalTo(List(List(1, 2), List(3, 4), List(5, 6), List(7, 8), List(9, 10), List(11)))
       )
     },
     testM("StreamChunk.ChunkN Non-Empty") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2), Chunk(3)))
-      assertM(s1.chunkN(1).chunks.map(_.toSeq).runCollect)(equalTo(List(List(1), List(2), List(3))))
+      assertM(s1.chunkN(1).chunks.map(_.toList).runCollect)(equalTo(List(List(1), List(2), List(3))))
     }
   )
 }

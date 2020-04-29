@@ -4,13 +4,13 @@ import java.time._
 
 import scala.math.Numeric.DoubleIsFractional
 
-import zio.ZIO
 import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test.{ check => Check, checkN => CheckN }
+import zio.{ Chunk, NonEmptyChunk, ZIO }
 
 object GenSpec extends ZIOBaseSpec {
   implicit val localDateTimeOrdering: Ordering[LocalDateTime] = _ compareTo _
@@ -25,12 +25,12 @@ object GenSpec extends ZIOBaseSpec {
           if (p) assert(())(Assertion.anything) else assert(n)(Assertion.nothing)
         }
 
-        assertM(CheckN(100)(gen)(test).flatMap { result =>
-          result.run.map(_.failures.fold(false) {
+        assertM(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "1"
             case _ => false
-          })
+          }
         })(isTrue)
       },
       testM("with bogus reverse property") {
@@ -44,16 +44,15 @@ object GenSpec extends ZIOBaseSpec {
             val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
             if (p) assert(())(Assertion.anything) else assert((as, bs))(Assertion.nothing)
         }
-        assertM(CheckN(100)(gen)(test).flatMap {
-          result =>
-            result.run.map(_.failures.fold(false) {
-              case BoolAlgebra.Value(failureDetails) =>
-                failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
-                  failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
-                  failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
-                  failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
-              case _ => false
-            })
+        assertM(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) {
+            case BoolAlgebra.Value(failureDetails) =>
+              failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
+                failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
+                failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
+                failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
+            case _ => false
+          }
         })(isTrue)
       },
       testM("with randomly generated functions") {
@@ -79,12 +78,12 @@ object GenSpec extends ZIOBaseSpec {
 
         def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
-        assertM(CheckN(100)(gen)(test).flatMap { result =>
-          result.run.map(_.failures.fold(false) {
+        assertM(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "List(0)"
             case _ => false
-          })
+          }
         })(isTrue)
       }
     ),
@@ -133,6 +132,12 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyOffsetDateTime generates OffsetDateTime values") {
         checkSample(Gen.anyOffsetDateTime)(isNonEmpty)
       },
+      testM("bigDecimal generates values in range") {
+        val min        = BigDecimal("1.414213562373095048801688724209698")
+        val max        = BigDecimal("2.0")
+        val bigDecimal = Gen.bigDecimal(min, max)
+        checkSample(bigDecimal)(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
       testM("bigInt generates values in range") {
         val min    = BigInt("1")
         val max    = BigInt("265252859812191058636308480000000")
@@ -150,6 +155,21 @@ object GenSpec extends ZIOBaseSpec {
           forall(isGreaterThanEqualTo(33) && isLessThanEqualTo(123)),
           _.map(_.toInt)
         )
+      },
+      testM("chunkOf generates sizes in range") {
+        checkSample(Gen.chunkOf(smallInt))(
+          forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)),
+          _.map(_.length)
+        )
+      },
+      testM("chunkOfBounded generates chunks whose size is in bounds") {
+        checkSample(Gen.chunkOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
+      },
+      testM("chunkOf1 generates nonempty chunks") {
+        checkSample(Gen.chunkOf1(smallInt), size = 0)(forall(isNonEmpty), _.map(_.toChunk))
+      },
+      testM("chunkOfN generates chunks of correct size") {
+        checkSample(Gen.chunkOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
       },
       testM("const generates constant value") {
         checkSample(Gen.const("constant"))(forall(equalTo("constant")))
@@ -399,6 +419,18 @@ object GenSpec extends ZIOBaseSpec {
       testM("char shrinks to bottom of range") {
         checkShrink(Gen.char(33, 123))(33)
       },
+      testM("chunkOf shrinks to empty vector") {
+        checkShrink(Gen.chunkOf(smallInt))(Chunk.empty)
+      },
+      testM("chunkOf1 shrinks to singleton vector") {
+        checkShrink(Gen.chunkOf1(smallInt))(NonEmptyChunk(-10))
+      },
+      testM("chunkOfBounded shrinks to bottom of range") {
+        checkShrink(Gen.chunkOfBounded(2, 10)(smallInt))(Chunk(-10, -10))
+      },
+      testM("chunkOfN shrinks elements") {
+        checkShrink(Gen.chunkOfN(10)(smallInt))(Chunk.fill(10)(-10))
+      },
       testM("double shrinks to bottom of range") {
         checkShrink(Gen.double(5.0, 9.0))(5.0)
       },
@@ -428,7 +460,7 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.listOf(smallInt))(Nil)
       },
       testM("listOf1 shrinks to singleton list") {
-        checkShrink(Gen.listOf1(smallInt))(List(-10))
+        checkShrink(Gen.listOf1(smallInt))(::(-10, Nil))
       },
       testM("listOfBounded shrinks to bottom of range") {
         checkShrink(Gen.listOfBounded(2, 10)(smallInt))(List(-10, -10))

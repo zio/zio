@@ -24,7 +24,7 @@ final case class FailureDetails(assertion: ::[AssertionValue], gen: Option[GenFa
   def label(string: String): FailureDetails =
     FailureDetails(
       assertion match {
-        case h :: t => ::(AssertionValue(h.assertion.label(string), h.value), t)
+        case h :: t => ::(h.label(string), t)
       },
       gen
     )

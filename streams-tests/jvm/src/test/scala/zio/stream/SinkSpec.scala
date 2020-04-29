@@ -1081,12 +1081,18 @@ object SinkSpec extends ZIOBaseSpec {
                 .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 3)(_ + _))
             )(equalTo(Map[Int, Int](0 -> 0, 1 -> 1)))
           ),
-          testM("keep collecting as long as map size does not exceed the limit")(
+          testM("collects entire stream if the number of keys doesn't exceed `n`")(
             assertM(
               Stream
                 .range(0, 10)
                 .run(Sink.collectAllToMapN[Int, Int](3)(value => value % 3)(_ + _))
             )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
+          ),
+          testM("keep collecting as long as map size does not exceed the limit")(
+            assertM(
+              Stream(0, 1, 3, 4, 2)
+                .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 3)(_ + _))
+            )(equalTo(Map[Int, Int](0 -> 3, 1 -> 5)))
           )
         ),
         testM("collectAllWhile")(
@@ -1408,8 +1414,7 @@ object SinkSpec extends ZIOBaseSpec {
               step1 <- sink.step(init1, 1)
               res1  <- sink.extract(step1).map(_._1)
               init2 <- sink.initial
-              _     <- TestClock.adjust(23.milliseconds)
-              _     <- clock.sleep(23.milliseconds)
+              _     <- TestClock.advance(23.milliseconds)
               step2 <- sink.step(init2, 2)
               res2  <- sink.extract(step2).map(_._1)
               init3 <- sink.initial
@@ -1418,8 +1423,7 @@ object SinkSpec extends ZIOBaseSpec {
               init4 <- sink.initial
               step4 <- sink.step(init4, 4)
               res4  <- sink.extract(step4).map(_._1)
-              _     <- TestClock.adjust(11.milliseconds)
-              _     <- clock.sleep(11.milliseconds)
+              _     <- TestClock.advance(11.milliseconds)
               init5 <- sink.initial
               step5 <- sink.step(init5, 5)
               res5  <- sink.extract(step5).map(_._1)
@@ -1435,8 +1439,7 @@ object SinkSpec extends ZIOBaseSpec {
               step1 <- sink.step(init1, 1)
               res1  <- sink.extract(step1).map(_._1)
               init2 <- sink.initial
-              _     <- TestClock.adjust(23.milliseconds)
-              _     <- clock.sleep(23.milliseconds)
+              _     <- TestClock.advance(23.milliseconds)
               step2 <- sink.step(init2, 2)
               res2  <- sink.extract(step2).map(_._1)
               init3 <- sink.initial
@@ -1445,8 +1448,7 @@ object SinkSpec extends ZIOBaseSpec {
               init4 <- sink.initial
               step4 <- sink.step(init4, 4)
               res4  <- sink.extract(step4).map(_._1)
-              _     <- TestClock.adjust(11.milliseconds)
-              _     <- clock.sleep(11.milliseconds)
+              _     <- TestClock.advance(11.milliseconds)
               init5 <- sink.initial
               step5 <- sink.step(init5, 5)
               res5  <- sink.extract(step5).map(_._1)
@@ -1573,7 +1575,7 @@ object SinkSpec extends ZIOBaseSpec {
                          init,
                          Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)
                        )
-            result <- ZSink.utf8DecodeChunk.extract(state1).map(_._2.flatMap(identity).toArray[Byte])
+            result <- ZSink.utf8DecodeChunk.extract(state1).map(_._2.flatten.toArray[Byte])
           } yield assert(ZSink.utf8DecodeChunk.cont(state1))(isFalse) && assert(result)(
             equalTo(Array(0xF0.toByte, 0x90.toByte))
           )

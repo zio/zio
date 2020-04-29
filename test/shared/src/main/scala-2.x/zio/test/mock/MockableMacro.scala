@@ -20,6 +20,8 @@ import scala.reflect.macros.whitebox.Context
 
 import com.github.ghik.silencer.silent
 
+import zio.test.TestVersion
+
 /**
  * Generates method tags for a service into annotated object.
  */
@@ -37,13 +39,15 @@ private[mock] object MockableMacro {
       case _            => abort("@mockable macro should only be applied to objects.")
     }
 
-    val service: Type    = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
+    val service: Type = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
+    if (service == definitions.NothingTpe) abort(s"@mockable macro requires type parameter: @mockable[Module.Service]")
+
     val env: Type        = c.typecheck(tq"_root_.zio.Has[$service]", c.TYPEmode).tpe
-    val any: Type        = tq"_root_.scala.Any".tpe
-    val throwable: Type  = tq"_root_.java.lang.Throwable".tpe
-    val unit: Type       = tq"_root_.scala.Unit".tpe
+    val any: Type        = definitions.AnyTpe
+    val throwable: Type  = c.typecheck(q"(??? : _root_.java.lang.Throwable)").tpe
+    val unit: Type       = definitions.UnitTpe
     val composeAsc: Tree = tq"_root_.zio.URLayer[_root_.zio.Has[_root_.zio.test.mock.Proxy], $env]"
-    val taggedFcqns      = List("izumi.reflect.Tags.Tag", "scala.reflect.ClassTag")
+    val taggedFcqns      = List("izumi.reflect.Tag")
 
     def bound(tpe: Type): Tree =
       tq"$tpe" match {
@@ -121,9 +125,15 @@ private[mock] object MockableMacro {
         if (symbol.isVar) abort(s"Error generating tag for $name. Variables are not supported by @mockable macro.")
         if (params.size > 22) abort(s"Unable to generate tag for method $name with more than 22 arguments.")
 
+        def paramTypeToTupleType(symbol: Symbol) = {
+          val ts = symbol.typeSignature
+          if (ts.typeSymbol == definitions.RepeatedParamClass) tq"_root_.scala.Seq[${ts.typeArgs.head}]"
+          else tq"$ts"
+        }
+
         val i =
           if (symbol.isVal) unit
-          else c.typecheck(tq"(..${params.map(_.typeSignature)})", c.TYPEmode).tpe
+          else c.typecheck(tq"(..${params.map(paramTypeToTupleType(_))})", c.TYPEmode).tpe
 
         val dealiased = symbol.returnType.dealias
         val capability =
@@ -208,7 +218,10 @@ private[mock] object MockableMacro {
         if (info.symbol.isAbstract) Modifiers(Flag.FINAL)
         else Modifiers(Flag.FINAL | Flag.OVERRIDE)
 
-      val returnType = tq"_root_.zio.ZIO[$r, $e, $a]"
+      val returnType = info.capability match {
+        case Capability.Method(t) => tq"$t"
+        case _                    => tq"_root_.zio.ZIO[$r, $e, $a]"
+      }
       val returnValue =
         (info.capability, info.params.map(_.name)) match {
           case (_: Capability.Effect, Nil)        => q"proxy($tag)"
@@ -223,7 +236,8 @@ private[mock] object MockableMacro {
           case (_: Capability.Stream, paramNames) => q"rts.unsafeRun(proxy($tag, ..$paramNames))"
         }
 
-      if (info.symbol.isVal) q"$mods val $name: $returnType = $returnValue"
+      val noParams = info.symbol.paramLists.isEmpty // Scala 2.11 workaround. For some reason isVal == false in 2.11
+      if (info.symbol.isVal || (noParams && TestVersion.isScala211)) q"$mods val $name: $returnType = $returnValue"
       else {
         info.symbol.paramLists.map(_.map { ts =>
           val name = ts.asTerm.name
@@ -247,13 +261,18 @@ private[mock] object MockableMacro {
       .toList
       .groupBy(_.symbol.name)
 
+    def sortOverloads(infos: List[MethodInfo]): List[MethodInfo] = {
+      import scala.math.Ordering.Implicits._
+      infos.sortBy(_.symbol.paramLists.flatten.map(_.info.toString))
+    }
+
     val tags =
       methods.collect {
         case (name, info :: Nil) =>
           makeTag(name.toTermName, info)
         case (name, infos) =>
           val tagName = capitalize(name.toTermName)
-          val overloadedTags = infos.zipWithIndex.map {
+          val overloadedTags = sortOverloads(infos).zipWithIndex.map {
             case (info, idx) =>
               val idxName = TermName(s"_$idx")
               makeTag(idxName, info)
@@ -267,12 +286,14 @@ private[mock] object MockableMacro {
         case (name, info :: Nil) =>
           List(makeMock(name.toTermName, info, None))
         case (name, infos) =>
-          infos.zipWithIndex.map {
+          sortOverloads(infos).zipWithIndex.map {
             case (info, idx) =>
               val idxName = TermName(s"_$idx")
               makeMock(name.toTermName, info, Some(idxName))
           }
       }.toList.flatten
+
+    val serviceClassName = TypeName(c.freshName())
 
     val structure =
       q"""
@@ -283,9 +304,10 @@ private[mock] object MockableMacro {
           val compose: $composeAsc =
             _root_.zio.ZLayer.fromServiceM { proxy =>
               withRuntime.map { rts =>
-                new $service {
+                class $serviceClassName extends $service {
                   ..$mocks
                 }
+                new $serviceClassName
               }
             }
         }

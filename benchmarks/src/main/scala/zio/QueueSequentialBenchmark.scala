@@ -17,8 +17,8 @@ import zio.stm._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
-@Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
+@Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
+@Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
 @Fork(3)
 /**
  * This benchmark sequentially offers a number of items to the queue, then takes them out of the queue.
@@ -50,8 +50,8 @@ class QueueSequentialBenchmark {
       else task.flatMap(_ => repeat(task, max - 1))
 
     val io = for {
-      _ <- repeat(zioQ.offer(0).map(_ => ()), totalSize)
-      _ <- repeat(zioQ.take.map(_ => ()), totalSize)
+      _ <- repeat(zioQ.offer(0).unit, totalSize)
+      _ <- repeat(zioQ.take.unit, totalSize)
     } yield 0
 
     unsafeRun(io)

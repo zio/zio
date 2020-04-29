@@ -85,6 +85,12 @@ object Managed {
     ZManaged.done(r)
 
   /**
+   * See [[zio.ZManaged.effect]]
+   */
+  def effect[A](r: => A): Managed[Throwable, A] =
+    ZManaged.fromEffect(ZIO.effect(r))
+
+  /**
    * See [[zio.ZManaged.effectTotal]]
    */
   def effectTotal[A](r: => A): Managed[Nothing, A] =
@@ -113,6 +119,12 @@ object Managed {
    */
   def flatten[E, A](m: Managed[E, Managed[E, A]]): Managed[E, A] =
     ZManaged.flatten(m)
+
+  /**
+   * See [[zio.ZManaged.flattenM]]
+   */
+  def flattenM[E, A](m: Managed[E, IO[E, A]]): Managed[E, A] =
+    ZManaged.flattenM(m)
 
   /**
    * See [[[zio.ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]

@@ -43,7 +43,7 @@ object ProxyFactory {
                   findMatching(nextScopes)
 
                 case call @ Call(capability, assertion, returns, _, _, invocations) if invoked isEqual capability =>
-                  assertion.asInstanceOf[Assertion[I]].test(args).flatMap {
+                  assertion.asInstanceOf[Assertion[I]].test(args) match {
                     case true =>
                       val result = returns.asInstanceOf[I => IO[E, A]](args)
                       val updated = call
@@ -70,7 +70,7 @@ object ProxyFactory {
 
                   handleLeafFailure(invalidCall, nextScopes)
 
-                case self @ Chain(children, _, _, invocations) =>
+                case self @ Chain(children, _, _, invocations, _) =>
                   children.zipWithIndex.collectFirst {
                     case (child, index) if !child.saturated =>
                       Scope[R](
@@ -97,7 +97,7 @@ object ProxyFactory {
                     case Some(scope) => findMatching(scope :: nextScopes)
                   }
 
-                case self @ And(children, _, _, invocations) =>
+                case self @ And(children, _, _, invocations, _) =>
                   children.zipWithIndex.collect {
                     case (child, index) if !child.saturated =>
                       Scope[R](
@@ -124,7 +124,7 @@ object ProxyFactory {
                     case scopes => findMatching(scopes ++ nextScopes)
                   }
 
-                case self @ Or(children, _, _, invocations) =>
+                case self @ Or(children, _, _, invocations, _) =>
                   children.zipWithIndex.collect {
                     case (child, index) =>
                       Scope[R](

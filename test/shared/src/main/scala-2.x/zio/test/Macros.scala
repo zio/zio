@@ -30,7 +30,7 @@ private[test] object Macros {
       c.Expr(q"zio.UIO.succeed(Right(()))")
     } catch {
       case e: TypecheckException => c.Expr(q"zio.UIO.succeed(Left(${e.getMessage}))")
-      case _: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed"))""")
+      case t: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed: " + ${t.getMessage}))""")
     }
   }
 }

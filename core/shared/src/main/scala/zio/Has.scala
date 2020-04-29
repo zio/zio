@@ -16,6 +16,8 @@
 
 package zio
 
+import scala.annotation.implicitNotFound
+
 /**
  * The trait `Has[A]` is used with ZIO environment to express an effect's
  * dependency on a service of type `A`. For example,
@@ -26,6 +28,8 @@ package zio
  * {{{
  * type Console = Has[ConsoleService]
  * }}}
+ *
+ * Services parameterized on path dependent types are not supported.
  */
 final class Has[A] private (
   private val map: Map[TagType, scala.Any],
@@ -50,6 +54,12 @@ object Has {
 
   type MustHave[A, B] = A <:< Has[B]
 
+  @implicitNotFound(
+    "Currently, your ZLayer produces ${R}, but to use this operator, you " +
+      "must produce Has[${R}]. You can either map over your layer, and wrap " +
+      "it with the Has(_) constructor, or you can directly wrap your " +
+      "service in Has at the point where it is currently being constructed."
+  )
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
     def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit tagged: Tagged[R1]): R0 with R1
@@ -62,6 +72,27 @@ object Has {
         def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit tagged: Tagged[R1]): R0 with R1 =
           r.union[R1](r1)
         def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
+      }
+  }
+
+  @implicitNotFound(
+    "The ZLayer operator you are trying to use needs to combine multiple " +
+      "services. While services cannot directly be combined, they can be " +
+      "combined if first wrapped in the Has data type. Before you use this " +
+      "operator, you must ensure the service produced by your layer is " +
+      "wrapped in Has."
+  )
+  trait AreHas[-R, -R1] {
+    def union[R0 <: R, R00 <: R1](r: R0, r1: R00)(implicit tagged: Tagged[R00]): R0 with R00
+    def unionAll[R0 <: R, R00 <: R1](r: R0, r1: R00): R0 with R00
+  }
+  object AreHas {
+    implicit def ImplicitAre[R <: Has[_], R1 <: Has[_]]: AreHas[R, R1] =
+      new AreHas[R, R1] {
+        def union[R0 <: R, R00 <: R1](r: R0, r1: R00)(implicit tagged: Tagged[R00]): R0 with R00 =
+          r.union[R00](r1)
+        def unionAll[R0 <: R, R00 <: R1](r: R0, r1: R00): R0 with R00 =
+          r.unionAll[R00](r1)
       }
   }
 
@@ -100,6 +131,11 @@ object Has {
     def prune(implicit tagged: Tagged[Self]): Self = {
       val tag = taggedTagType(tagged)
       val set = taggedGetHasServices(tag)
+
+      val missingServices = set -- self.map.keySet
+      if (missingServices.nonEmpty) {
+        throw new Error(s"Defect in zio.Has: ${missingServices} statically known to be contained within the environment are missing")
+      }
 
       if (set.isEmpty) self
       else new Has(filterKeys(self.map)(set)).asInstanceOf[Self]
