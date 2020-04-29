@@ -1284,7 +1284,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .either
             )(isLeft(equalTo("Boom")))
           }
-        ),
+        ) @@ TestAspect.jvmOnly,
         suite("haltWhen")(
           suite("haltWhen(Promise)")(
             testM("halts after the current element") {
