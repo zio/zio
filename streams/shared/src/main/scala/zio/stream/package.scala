@@ -1,12 +1,12 @@
 package zio
 
 package object stream {
-
   type Stream[+E, +A] = ZStream[Any, E, A]
+  val Stream = ZStream
 
-  type StreamChunk[+E, +A] = ZStreamChunk[Any, E, A]
-  val StreamChunk = ZStreamChunk
+  type Sink[+E, -A, +B] = ZSink[Any, E, A, B]
+  val Sink = ZSink
 
-  type Sink[+E, +A0, -A, +B] = ZSink[Any, E, A0, A, B]
-
+  type Transducer[+E, -A, +B] = ZTransducer[Any, E, A, B]
+  val Transducer = ZTransducer
 }

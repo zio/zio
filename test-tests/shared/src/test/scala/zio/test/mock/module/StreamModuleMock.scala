@@ -27,7 +27,7 @@ import zio.{ Has, UIO, URLayer, ZLayer }
  */
 object StreamModuleMock extends Mock[StreamModule] {
 
-  object Sink   extends Sink[Any, String, Nothing, Int, List[Int]]
+  object Sink   extends Sink[Any, String, Int, List[Int]]
   object Stream extends Stream[Any, String, Int]
 
   @silent("is never used")

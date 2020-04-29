@@ -61,12 +61,12 @@ class StreamBenchmarks {
   @Benchmark
   def zioChunkFilterMapSum = {
     val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
-    val stream = ZStreamChunk
+    val stream = ZStream
       .fromChunks(chunks: _*)
       .filter(_ % 2 == 0)
       .map(_.toLong)
 
-    val sink   = ZSink.foldLeft(0L)((s, as: Chunk[Long]) => as.fold(s)(_ + _))
+    val sink   = ZSink.foldLeftChunks(0L)((s, as: Chunk[Long]) => as.fold(s)(_ + _))
     val result = stream.run(sink)
 
     unsafeRun(result)
@@ -170,7 +170,7 @@ class CSVStreamBenchmarks {
   @Benchmark
   def zioCsvTokenize() = {
     val chunks = genCsvChunks.map(Chunk.fromArray)
-    val stream = ZStreamChunk
+    val stream = ZStream
       .fromChunks(chunks.toIndexedSeq: _*)
       .mapAccum[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) {
         case (acc, char) =>
