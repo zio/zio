@@ -2467,7 +2467,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Filters the collection using the specified effectual predicate, removing
-   * all elements that satisfies the predicate.
+   * all elements that satisfy the predicate.
    */
   def filterNot[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
     filter(as)(f(_).map(!_))
