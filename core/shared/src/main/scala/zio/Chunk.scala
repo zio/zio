@@ -491,7 +491,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
     val len                        = self.length
-    var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
+    var array: ZIO[R, E, Array[B]] = IO.succeedNow(null.asInstanceOf[Array[B]])
     var i                          = 0
 
     while (i < len) {

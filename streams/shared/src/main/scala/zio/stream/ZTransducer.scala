@@ -103,8 +103,8 @@ object ZTransducer {
    */
   def identity[I]: ZTransducer[Any, Nothing, I, I] =
     ZTransducer.fromPush {
-      case Some(is) => ZIO.succeed(is)
-      case None     => ZIO.succeed(Chunk.empty)
+      case Some(is) => ZIO.succeedNow(is)
+      case None     => ZIO.succeedNow(Chunk.empty)
     }
 
   /**
@@ -545,8 +545,8 @@ object ZTransducer {
         {
           case None =>
             stateRef.getAndSet((None, false)).flatMap {
-              case (None, _)      => ZIO.succeed(Chunk.empty)
-              case (Some(str), _) => ZIO.succeed(Chunk(str))
+              case (None, _)      => ZIO.succeedNow(Chunk.empty)
+              case (Some(str), _) => ZIO.succeedNow(Chunk(str))
             }
 
           case Some(strings) =>
@@ -634,8 +634,8 @@ object ZTransducer {
         {
           case None =>
             stateRef.getAndSet(Chunk.empty).flatMap { leftovers =>
-              if (leftovers.isEmpty) ZIO.succeed(Chunk.empty)
-              else ZIO.succeed(Chunk.single(new String(leftovers.toArray[Byte], "UTF-8")))
+              if (leftovers.isEmpty) ZIO.succeedNow(Chunk.empty)
+              else ZIO.succeedNow(Chunk.single(new String(leftovers.toArray[Byte], "UTF-8")))
             }
 
           case Some(bytes) =>

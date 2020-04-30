@@ -54,7 +54,7 @@ object ProxyFactory {
                           invocations = id :: invocations
                         )
 
-                      UIO.succeed(Matched[R, E, A](update(updated), result))
+                      UIO.succeedNow(Matched[R, E, A](update(updated), result))
 
                     case false =>
                       handleLeafFailure(

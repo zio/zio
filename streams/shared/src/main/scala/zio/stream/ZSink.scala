@@ -259,7 +259,7 @@ abstract class ZSink[-R, +E, -I, +Z] private (
                 case Left(e)  => ZIO.fail(e)
                 case Right(z) => restart.as(Chunk.single(z))
               },
-              _ => UIO.succeed(Chunk.empty)
+              _ => UIO.succeedNow(Chunk.empty)
             )
       }
     }
@@ -546,7 +546,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that folds its input chunks with the provided function, termination predicate and initial state.
    */
   def foldChunks[I, S](z: S)(contFn: S => Boolean)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, S] =
-    foldChunksM(z)(contFn)((s, is) => UIO.succeed(f(s, is)))
+    foldChunksM(z)(contFn)((s, is) => UIO.succeedNow(f(s, is)))
 
   /**
    * A sink that effectfully folds its input chunks with the provided function, termination predicate and initial state.
