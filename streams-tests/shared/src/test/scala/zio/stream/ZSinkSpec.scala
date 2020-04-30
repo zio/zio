@@ -49,6 +49,9 @@ object ZSinkSpec extends ZIOBaseSpec {
           } yield assert(xs)(equalTo(ys))
         }
       ),
+      testM("mapError")(
+        assertM(ZStream.range(1, 10).run(ZSink.fail("fail").mapError(s => s + "!")).either)(equalTo(Left("fail!")))
+      ),
       suite("fold")(
         testM("termination in the middle")(
           assertM(ZStream.range(1, 10).run(ZSink.fold(0)(_ <= 5)((a, b) => a + b)))(equalTo(6))
