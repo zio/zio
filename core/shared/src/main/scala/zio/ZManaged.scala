@@ -2102,7 +2102,7 @@ object ZManaged {
    * Lifts a lazy, pure value into a Managed.
    */
   def succeed[A](r: => A): ZManaged[Any, Nothing, A] =
-    ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
+    ZManaged(IO.succeedNow(Reservation(IO.succeed(r), _ => IO.unit)))
 
   /**
    * Returns a lazily constructed Managed.
