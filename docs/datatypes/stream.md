@@ -85,10 +85,7 @@ import zio.stream._
     Stream
       .fromIterable(examResults)
       .groupByKey(exam => exam.score / 10 * 10) {
-        case (k, s) =>
-          s.aggregate(Sink.foldLeft[Exam, Int](0) { case (acc: Int, _: Exam) => acc + 1 })
-            .take(1)
-            .map((k -> _))
+        case (k, s) => ZStream.fromEffect(s.runCollect.map(l => k -> l.size))
       }
 ```
 
