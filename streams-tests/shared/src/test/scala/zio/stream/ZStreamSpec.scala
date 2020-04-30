@@ -1430,6 +1430,22 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(interleavedStream)(equalTo(interleavedLists))
           }
         },
+        suite("Stream.intersperse")(
+          testM("intersperse several") {
+            Stream(1, 2, 3, 4)
+              .map(_.toString)
+              .intersperse("@")
+              .runCollect
+              .map(result => assert(result)(equalTo(List("1", "@", "2", "@", "3", "@", "4"))))
+          },
+          testM("intersperse single") {
+            Stream(1)
+              .map(_.toString)
+              .intersperse("@")
+              .runCollect
+              .map(result => assert(result)(equalTo(List("1"))))
+          }
+        ),
         suite("interruptWhen")(
           suite("interruptWhen(Promise)")(
             testM("interrupts the current element") {
