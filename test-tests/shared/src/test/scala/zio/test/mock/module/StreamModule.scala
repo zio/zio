@@ -25,10 +25,10 @@ import zio.{ URIO, ZIO }
 object StreamModule {
 
   trait Service {
-    def sink(a: Int): Sink[String, Nothing, Int, List[Int]]
+    def sink(a: Int): Sink[String, Int, List[Int]]
     def stream(a: Int): Stream[String, Int]
   }
 
-  def sink(a: Int): URIO[StreamModule, Sink[String, Nothing, Int, List[Int]]] = ZIO.access[StreamModule](_.get.sink(a))
-  def stream(a: Int): URIO[StreamModule, Stream[String, Int]]                 = ZIO.access[StreamModule](_.get.stream(a))
+  def sink(a: Int): URIO[StreamModule, Sink[String, Int, List[Int]]] = ZIO.access[StreamModule](_.get.sink(a))
+  def stream(a: Int): URIO[StreamModule, Stream[String, Int]]        = ZIO.access[StreamModule](_.get.stream(a))
 }

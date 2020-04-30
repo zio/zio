@@ -212,6 +212,14 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.dropWhile(p).toList)(equalTo(c.toList.dropWhile(p)))
       }
     },
+    suite("dropWhileM")(
+      testM("dropWhileM happy path") {
+        assertM(Chunk(1, 2, 3, 4, 5).dropWhileM(el => UIO.succeed(el < 3)))(equalTo(Chunk(3, 4, 5)))
+      },
+      testM("dropWhileM error") {
+        Chunk(1, 1, 1).dropWhileM(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
+      } @@ zioTag(errors)
+    ),
     testM("takeWhile chunk") {
       check(mediumChunks(intGen), toBoolFn[Random, Int]) { (c, p) =>
         assert(c.takeWhile(p).toList)(equalTo(c.toList.takeWhile(p)))

@@ -36,6 +36,12 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     if (self eq Empty) that else if (that eq Empty) self else Then(self, that)
 
   /**
+   * Maps the error value of this cause to the specified constant value.
+   */
+  final def as[E1](e: => E1): Cause[E1] =
+    map(_ => e)
+
+  /**
    * Determines if this cause contains or is equal to the specified cause.
    */
   final def contains[E1 >: E](that: Cause[E1]): Boolean =
@@ -194,6 +200,37 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         )
       case Meta(cause, _) =>
         cause.fold(empty, failCase, dieCase, interruptCase)(thenCase, bothCase, tracedCase)
+    }
+
+  /**
+   * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
+   * return only `Die` cause/finalizer defects.
+   */
+  final def keepDefects: Option[Cause[Nothing]] =
+    self match {
+      case Empty        => None
+      case Interrupt(_) => None
+      case Fail(_)      => None
+      case d @ Die(_)   => Some(d)
+
+      case Both(l, r) =>
+        (l.keepDefects, r.keepDefects) match {
+          case (Some(l), Some(r)) => Some(Both(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+
+      case Then(l, r) =>
+        (l.keepDefects, r.keepDefects) match {
+          case (Some(l), Some(r)) => Some(Then(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+
+      case Traced(c, trace) => c.keepDefects.map(Traced(_, trace))
+      case Meta(c, data)    => c.keepDefects.map(Meta(_, data))
     }
 
   final def map[E1](f: E => E1): Cause[E1] =
@@ -390,6 +427,23 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     attachTrace(squashWith(f))
 
   /**
+   * Discards all typed failures kept on this `Cause`.
+   */
+  final def stripFailures: Cause[Nothing] =
+    self match {
+      case Empty            => Empty
+      case c @ Interrupt(_) => c
+      case Fail(_)          => Empty
+      case c @ Die(_)       => c
+
+      case Both(l, r) => l.stripFailures && r.stripFailures
+      case Then(l, r) => l.stripFailures ++ r.stripFailures
+
+      case Traced(c, trace) => Traced(c.stripFailures, trace)
+      case Meta(c, data)    => Meta(c.stripFailures, data)
+    }
+
+  /**
    * Remove all `Die` causes that the specified partial function is defined at,
    * returning `Some` with the remaining causes or `None` if there are no
    * remaining causes.
@@ -416,37 +470,6 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         }
       case Traced(c, trace) => c.stripSomeDefects(pf).map(Traced(_, trace))
       case Meta(c, data)    => c.stripSomeDefects(pf).map(Meta(_, data))
-    }
-
-  /**
-   * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
-   * return only `Die` cause/finalizer defects.
-   */
-  final def stripFailures: Option[Cause[Nothing]] =
-    self match {
-      case Empty        => None
-      case Interrupt(_) => None
-      case Fail(_)      => None
-      case d @ Die(_)   => Some(d)
-
-      case Both(l, r) =>
-        (l.stripFailures, r.stripFailures) match {
-          case (Some(l), Some(r)) => Some(Both(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-
-      case Then(l, r) =>
-        (l.stripFailures, r.stripFailures) match {
-          case (Some(l), Some(r)) => Some(Then(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-
-      case Traced(c, trace) => c.stripFailures.map(Traced(_, trace))
-      case Meta(c, data)    => c.stripFailures.map(Meta(_, data))
     }
 
   /**
@@ -553,6 +576,34 @@ object Cause extends Serializable {
           case (None, Some(cr))     => Some(cr)
           case (Some(cl), None)     => Some(cl)
           case (None, None)         => None
+        }
+    }
+
+  /**
+   * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by
+   * recursively stripping out any failures with the error `None`.
+   */
+  def sequenceCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
+    c match {
+      case Internal.Empty                => Left(Internal.Empty)
+      case Internal.Traced(cause, trace) => sequenceCauseEither(cause).left.map(Internal.Traced(_, trace))
+      case Internal.Meta(cause, data)    => sequenceCauseEither(cause).left.map(Internal.Meta(_, data))
+      case Internal.Interrupt(id)        => Left(Internal.Interrupt(id))
+      case d @ Internal.Die(_)           => Left(d)
+      case Internal.Fail(Left(e))        => Left(Internal.Fail(e))
+      case Internal.Fail(Right(a))       => Right(a)
+      case Internal.Then(left, right) =>
+        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+          case (Left(cl), Left(cr)) => Left(Internal.Then(cl, cr))
+          case (Right(a), _)        => Right(a)
+          case (_, Right(a))        => Right(a)
+        }
+
+      case Internal.Both(left, right) =>
+        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+          case (Left(cl), Left(cr)) => Left(Internal.Both(cl, cr))
+          case (Right(a), _)        => Right(a)
+          case (_, Right(a))        => Right(a)
         }
     }
 

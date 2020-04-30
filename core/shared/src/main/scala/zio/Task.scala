@@ -295,6 +295,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterNot]]
+   */
+  def filterNot[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[A](

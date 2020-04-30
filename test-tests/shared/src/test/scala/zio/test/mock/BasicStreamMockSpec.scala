@@ -18,12 +18,12 @@ object BasicStreamMockSpec extends ZIOBaseSpec with MockSpecUtils[StreamModule] 
         suite("sink")(
           testValue("success")(
             StreamModuleMock.Sink(equalTo(1), value(ZSink.collectAll)),
-            StreamModule.sink(1).flatMap(A.run),
+            StreamModule.sink(1).flatMap(A.run(_)),
             equalTo(List(1, 2, 3))
           ),
           testError("failure")(
             StreamModuleMock.Sink(equalTo(1), failure("foo")),
-            StreamModule.sink(1).flatMap(A.run),
+            StreamModule.sink(1).flatMap(A.run(_)),
             equalTo("foo")
           )
         ),

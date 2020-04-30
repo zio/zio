@@ -63,6 +63,9 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
    */
   final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
 
+  final def exists(p: A => Boolean): Boolean =
+    fold(_ => false, p)
+
   /**
    * Flat maps over the value type.
    */

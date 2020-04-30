@@ -12,7 +12,7 @@ object CauseSpec extends ZIOBaseSpec {
   def spec = suite("CauseSpec")(
     suite("Cause")(
       testM("`Cause#died` and `Cause#stripFailures` are consistent") {
-        check(causes)(c => assert(c.stripFailures)(if (c.died) isSome(anything) else isNone))
+        check(causes)(c => assert(c.keepDefects)(if (c.died) isSome(anything) else isNone))
       },
       testM("`Cause.equals` is symmetric") {
         check(causes, causes)((a, b) => assert(a == b)(equalTo(b == a)))
