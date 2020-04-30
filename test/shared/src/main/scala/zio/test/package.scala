@@ -444,7 +444,7 @@ package object test extends CompileVariants {
    * Builds a suite containing a number of other specs.
    */
   def suite[R, E, T](label: String)(specs: Spec[R, E, T]*): Spec[R, E, T] =
-    Spec.suite(label, ZIO.succeedNow(specs.toVector), None)
+    Spec.suite(label, ZManaged.succeedNow(specs.toVector), None)
 
   /**
    * Builds a spec with a single pure test.
