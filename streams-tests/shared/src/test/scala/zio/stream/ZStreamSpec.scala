@@ -304,7 +304,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                       .runCollect
                       .map(_.flatten))
                       .fork
-                _      <- TestClock.awaitScheduled
                 _      <- TestClock.adjust(31.minutes)
                 result <- f.join
               } yield result
@@ -1752,6 +1751,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         .take(2)
                         .runDrain
                         .fork
+              _      <- TestClock.awaitScheduled
               _      <- TestClock.adjust(50.millis)
               _      <- fiber.join
               result <- ref.get
@@ -1789,6 +1789,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         .take(3) // take one schedule output
                         .runDrain
                         .fork
+              _      <- TestClock.awaitScheduled
               _      <- TestClock.adjust(50.millis)
               _      <- fiber.join
               result <- ref.get
