@@ -45,14 +45,16 @@ object DefaultTestReporter {
       executedSpec.caseValue match {
         case c @ Spec.SuiteCase(label, executedSpecs, _) =>
           for {
-            specs <- executedSpecs
-            failures <- UIO.foreach(specs)(_.exists {
-                         case Spec.TestCase(_, test, _) => test.map(_.isLeft);
-                         case _                         => UIO.succeedNow(false)
-                       })
+            specs <- executedSpecs.useNow
+            failures <- UIO.foreach(specs) { specs =>
+                         specs.exists {
+                           case Spec.TestCase(_, test, _) => test.map(_.isLeft)
+                           case _                         => UIO.succeedNow(false)
+                         }.useNow
+                       }
             annotations <- Spec(c).fold[UIO[TestAnnotationMap]] {
                             case Spec.SuiteCase(_, specs, _) =>
-                              specs.flatMap(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
+                              specs.use(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
                             case Spec.TestCase(_, _, annotations) => UIO.succeedNow(annotations)
                           }
             hasFailures = failures.exists(identity)
@@ -107,7 +109,7 @@ object DefaultTestReporter {
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           for {
-            specs <- executedSpecs
+            specs <- executedSpecs.useNow
             stats <- UIO.foreach(specs)(loop)
           } yield stats.foldLeft((0, 0, 0)) {
             case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
