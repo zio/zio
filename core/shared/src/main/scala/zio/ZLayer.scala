@@ -65,7 +65,7 @@ final class ZLayer[-RIn, +E, +ROut] private (
    * outputs of the specified layer.
    */
   def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    fold(ZLayer.fromFunctionManyM(ZIO.halt(_)), that)
+    fold(ZLayer.fromFunctionManyM { case (_, cause) => ZIO.halt(cause) }, that)
 
   /**
    * A named alias for `++`.
@@ -98,16 +98,16 @@ final class ZLayer[-RIn, +E, +ROut] private (
    * the specified `failure` or `success` layers, resulting in a new layer with
    * the inputs of this layer, and the error or outputs of the specified layer.
    */
-  def fold[E1, ROut2](
-    failure: ZLayer[Cause[E], E1, ROut2],
+  def fold[E1, RIn1 <: RIn, ROut2](
+    failure: ZLayer[(RIn1, Cause[E]), E1, ROut2],
     success: ZLayer[ROut, E1, ROut2]
-  )(implicit ev: CanFail[E]): ZLayer[RIn, E1, ROut2] =
+  )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut2] =
     new ZLayer(
       ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
         memoMap
           .getOrElseMemoize(self, finalizers)
           .foldCauseM(
-            e => memoMap.getOrElseMemoize(failure, finalizers).provide(e),
+            e => ZManaged.accessManaged(r => memoMap.getOrElseMemoize(failure, finalizers).provide((r, e))),
             r => memoMap.getOrElseMemoize(success, finalizers).provide(r)
           )
       }
@@ -137,7 +137,7 @@ final class ZLayer[-RIn, +E, +ROut] private (
    * function.
    */
   def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZLayer[RIn, E1, ROut] =
-    fold(ZLayer.fromFunctionManyM(e => ZIO.halt(e.map(f))), ZLayer.identity)
+    fold(ZLayer.fromFunctionManyM { case (_, cause) => ZIO.halt(cause.map(f)) }, ZLayer.identity)
 
   /**
    * Returns a managed effect that, if evaluated, will return the lazily
@@ -151,19 +151,27 @@ final class ZLayer[-RIn, +E, +ROut] private (
    * unchecked and not a part of the type of the layer.
    */
   def orDie(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
-    fold(ZLayer.fromFunctionManyM(_.failureOrCause.fold(ZIO.die(_), ZIO.halt(_))), ZLayer.identity)
+    fold(ZLayer.fromFunctionManyM(_._2.failureOrCause.fold(ZIO.die(_), ZIO.halt(_))), ZLayer.identity)
 
   /**
    * Executes this layer and returns its output, if it succeeds, but otherwise
    * executes the specified layer.
    */
   def orElse[RIn1 <: RIn, E1, ROut1 >: ROut](that: => ZLayer[RIn1, E1, ROut1])(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
-    new ZLayer(
-      ZManaged.finalizerRef(_ => UIO.unit).map { finalizers => memoMap =>
-        memoMap
-          .getOrElseMemoize(self, finalizers)
-          .orElse(memoMap.getOrElseMemoize(that, finalizers))
-      }
+    fold(ZLayer.first >>> that, ZLayer.identity)
+
+  /**
+   * Performs the specified effect if this layer fails.
+   */
+  def tapError[RIn1 <: RIn, E1 >: E](f: E => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
+    fold(
+      ZLayer.fromFunctionManyM {
+        case (r, cause) => cause.failureOrCause.fold(
+          e => f(e).provide(r) *> ZIO.fail(e),
+          c => ZIO.halt(c)
+        )
+      },
+      ZLayer.identity
     )
 
   /**
@@ -215,6 +223,12 @@ object ZLayer {
    */
   def fail[E](e: => E): Layer[E, Nothing] =
     ZLayer(ZManaged.fail(e))
+
+   /**
+    * A layer that passes along the first element of a tuple.
+    */
+   def first[A, B]: ZLayer[(A, B), Nothing, A] =
+     ZLayer.fromFunctionMany(_._1)
 
   /**
    * Constructs a layer from acquire and release actions. The acquire and
@@ -2052,6 +2066,12 @@ object ZLayer {
    */
   def requires[A]: ZLayer[A, Nothing, A] =
     ZLayer(ZManaged.environment[A])
+
+  /**
+    * A layer that passes along the second elemeent of a tuple.
+    */
+   def second[A, B]: ZLayer[(A, B), Nothing, B] =
+     ZLayer.fromFunctionMany(_._2)
 
   /**
    * Constructs a layer that accesses and returns the specified service from
