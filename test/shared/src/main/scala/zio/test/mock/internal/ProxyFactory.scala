@@ -20,7 +20,7 @@ import scala.util.Try
 
 import zio.test.Assertion
 import zio.test.mock.{ Capability, Expectation, Proxy }
-import zio.{ Has, IO, Tagged, UIO, ULayer, ZIO, ZLayer }
+import zio.{ Has, IO, Tag, UIO, ULayer, ZIO, ZLayer }
 
 object ProxyFactory {
 
@@ -31,7 +31,7 @@ object ProxyFactory {
   /**
    * Given initial `State[R]`, constructs a `Proxy` running that state.
    */
-  def mockProxy[R <: Has[_]: Tagged](state: State[R]): ULayer[Has[Proxy]] =
+  def mockProxy[R <: Has[_]: Tag](state: State[R]): ULayer[Has[Proxy]] =
     ZLayer.succeed(new Proxy {
       def invoke[RIn <: Has[_], ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] =
