@@ -249,7 +249,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Filters this chunk by the specified effectful predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
-  final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = {
+  final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
     val len     = self.length
     val builder = ChunkBuilder.make[A]()
     builder.sizeHint(len)
@@ -437,33 +437,34 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Statefully and effectfully maps over the elements of this chunk to produce
    * new elements.
    */
-  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] = {
-    val len     = self.length
-    val builder = ChunkBuilder.make[B]()
-    builder.sizeHint(len)
-    var dest: ZIO[R, E, S1] = UIO.succeedNow(s1)
+  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] =
+    ZIO.effectSuspendTotal {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+      var dest: ZIO[R, E, S1] = UIO.succeedNow(s1)
 
-    var i = 0
-    while (i < len) {
-      val j = i
-      dest = dest.flatMap { state =>
-        f1(state, self(j)).map {
-          case (state2, b) =>
-            builder += b
-            state2
+      var i = 0
+      while (i < len) {
+        val j = i
+        dest = dest.flatMap { state =>
+          f1(state, self(j)).map {
+            case (state2, b) =>
+              builder += b
+              state2
+          }
         }
+
+        i += 1
       }
 
-      i += 1
+      dest.map((_, builder.result()))
     }
-
-    dest.map((_, builder.result()))
-  }
 
   /**
    * Effectfully maps the elements of this chunk.
    */
-  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
+  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = ZIO.effectSuspendTotal {
     val len     = self.length
     val builder = ChunkBuilder.make[B]()
     builder.sizeHint(len)
@@ -901,7 +902,7 @@ object Chunk {
     override def apply(n: Int): A =
       array(n)
 
-    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
+    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = ZIO.effectSuspendTotal {
       val len     = array.length
       val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
@@ -945,32 +946,33 @@ object Chunk {
       builder.result()
     }
 
-    override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
-      val len     = self.length
-      val builder = ChunkBuilder.make[B]()
-      builder.sizeHint(len)
-      var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
+    override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
+      ZIO.effectSuspendTotal {
+        val len     = self.length
+        val builder = ChunkBuilder.make[B]()
+        builder.sizeHint(len)
+        var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
 
-      var i    = 0
-      var done = false
-      val orElse = (_: A) => {
-        done = true
-        UIO.succeedNow(null.asInstanceOf[B])
-      }
-
-      while (!done && i < len) {
-        val j = i
-        // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
-        val rhs = pf.applyOrElse(self(j), orElse)
-        dest = dest.zipWith(rhs) {
-          case (builder, b) =>
-            if (b != null) (builder += b) else builder
+        var i    = 0
+        var done = false
+        val orElse = (_: A) => {
+          done = true
+          UIO.succeedNow(null.asInstanceOf[B])
         }
-        i += 1
-      }
 
-      dest.map(_.result())
-    }
+        while (!done && i < len) {
+          val j = i
+          // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
+          val rhs = pf.applyOrElse(self(j), orElse)
+          dest = dest.zipWith(rhs) {
+            case (builder, b) =>
+              if (b != null) (builder += b) else builder
+          }
+          i += 1
+        }
+
+        dest.map(_.result())
+      }
 
     override def dropWhile(f: A => Boolean): Chunk[A] = {
       val self = array
