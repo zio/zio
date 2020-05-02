@@ -247,8 +247,6 @@ package object environment extends PlatformSpecific {
 
     trait Service extends Restorable {
       def adjust(duration: Duration): UIO[Unit]
-      def awaitScheduled: UIO[Unit]
-      def awaitScheduledN(n: Int): UIO[Unit]
       def runAll: UIO[Unit]
       def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
       def setTime(duration: Duration): UIO[Unit]
@@ -273,18 +271,6 @@ package object environment extends PlatformSpecific {
        */
       def adjust(duration: Duration): UIO[Unit] =
         warningDone *> runUntil(clockState.get.map(_.duration + duration))
-
-      /**
-       * Suspends until an effect has been scheduled.
-       */
-      def awaitScheduled: UIO[Unit] =
-        scheduled.peek.unit.commit
-
-      /**
-       * Suspends until the specified number of effects have been scheduled.
-       */
-      def awaitScheduledN(n: Int): UIO[Unit] =
-        scheduled.size.retryUntil(_ >= n).unit.commit
 
       /**
        * Returns the current clock time as an `OffsetDateTime`.
@@ -394,9 +380,9 @@ package object environment extends PlatformSpecific {
        * suspended, meaning that the fiber and all the fibers it is blocking on
        * and all the fibers they are blocking on recursively are suspended.
        */
-      private def awaitSuspended(fiberId: Fiber.Id): UIO[Unit] =
+      private lazy val awaitSuspended: UIO[Unit] =
         live.provide {
-          suspended(fiberId).repeat {
+          suspended.repeat {
             Schedule.doUntilEquals(true) && Schedule.fixed(1.millisecond)
           }
         }.unit
@@ -410,25 +396,20 @@ package object environment extends PlatformSpecific {
        * that because we cannot synchronize on the status of multiple fibers at
        * the same time this snaposhot may not be fully consistent.
        */
-      private def freeze(fiberId: Fiber.Id): IO[Unit, Map[Fiber.Id, Set[Fiber.Id]]] = {
-
-        def loop(fiberId: Fiber.Id, map: Map[Fiber.Id, Set[Fiber.Id]]): IO[Unit, Map[Fiber.Id, Set[Fiber.Id]]] =
-          fiberState(fiberId).flatMap {
-            case None => IO.succeedNow(map + (fiberId -> Set.empty))
-            case Some(fiber) =>
-              fiber.status.flatMap {
-                case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
-                  ZIO.foldLeft(blockingOn)(map) { (map, id) =>
-                    val updated = map + map.get(fiberId).fold(fiberId -> Set(id))(ids => fiberId -> (ids + id))
-                    if (map.contains(id)) ZIO.succeedNow(updated) else loop(id, updated)
-                  }
-                case Fiber.Status.Done => IO.succeedNow(map + (fiberId -> Set.empty))
-                case _                 => IO.fail(())
-              }
+      private lazy val freeze: IO[Unit, Set[Fiber.Status]] =
+        ZIO.fiberId.flatMap { fiberId =>
+          fiberState(fiberId).get.flatMap { fiber =>
+            fiber.descendants.flatMap { fibers =>
+              ZIO
+                .foreach(fibers)(_.status.filterOrFail {
+                  case Fiber.Status.Done                     => true
+                  case Fiber.Status.Suspended(_, _, _, _, _) => true
+                  case _                                     => false
+                }(()))
+                .map(_.toSet)
+            }
           }
-
-        loop(fiberId, Map.empty)
-      }
+        }
 
       /**
        * Constructs a `Duration` from an `OffsetDateTime`.
@@ -441,22 +422,23 @@ package object environment extends PlatformSpecific {
        * duration, in order.
        */
       private def runUntil(duration: STM[Nothing, Duration]): UIO[Unit] =
-        duration.flatMap { duration =>
-          scheduled.peekOption.flatMap {
-            case Some(sleep) if sleep.duration <= duration =>
-              clockState.update(_.copy(duration = sleep.duration)) *>
-                scheduled.take.map(_.copy(duration = duration)).asSome
-            case _ =>
-              clockState.update(_.copy(duration = duration)) *> STM.none
+        awaitSuspended *>
+          duration.flatMap { duration =>
+            scheduled.peekOption.flatMap {
+              case Some(sleep) if sleep.duration <= duration =>
+                clockState.update(_.copy(duration = sleep.duration)) *>
+                  scheduled.take.map(_.copy(duration = duration)).asSome
+              case _ =>
+                clockState.update(_.copy(duration = duration)) *> STM.none
+            }
+          }.commit.flatMap {
+            case None => UIO.unit
+            case Some(sleep) =>
+              sleep.promise.succeed(()) *>
+                ZIO.yieldNow *>
+                awaitSuspended *>
+                runUntil(STM.succeedNow(sleep.duration))
           }
-        }.commit.flatMap {
-          case None => UIO.unit
-          case Some(sleep) =>
-            sleep.promise.succeed(()) *>
-              ZIO.yieldNow *>
-              awaitSuspended(sleep.fiberId) *>
-              runUntil(STM.succeedNow(sleep.duration))
-        }
 
       /**
        * Returns whether the specified fiber has completed execution or is
@@ -464,8 +446,8 @@ package object environment extends PlatformSpecific {
        * blocking on and all the fibers they are blocking on recursively are
        * suspended.
        */
-      private def suspended(fiberId: Fiber.Id): UIO[Boolean] =
-        freeze(fiberId).zipWith(freeze(fiberId))(_ == _).orElseSucceed(false)
+      private lazy val suspended: UIO[Boolean] =
+        freeze.zipWith(freeze)(_ == _).orElseSucceed(false)
 
       /**
        * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
@@ -516,20 +498,6 @@ package object environment extends PlatformSpecific {
      */
     def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
-
-    /**
-     * Accesses a `TestClock` instance in the environment and suspends until an
-     * effect has been scheduled.
-     */
-    def awaitScheduled: ZIO[TestClock, Nothing, Unit] =
-      ZIO.accessM(_.get.awaitScheduled)
-
-    /**
-     * Accesses a `TestClock` instance in the environment and suspends until
-     * the specified number of effects have been scheduled.
-     */
-    def awaitScheduledN(n: Int): ZIO[TestClock, Nothing, Unit] =
-      ZIO.accessM(_.get.awaitScheduledN(n))
 
     /**
      * Accesses a `TestClock` instance in the environment and runs all

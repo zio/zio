@@ -2924,7 +2924,6 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("returns `None` otherwise") {
         for {
           fiber  <- ZIO.never.uninterruptible.disconnect.timeout(100.millis).fork
-          _      <- TestClock.awaitScheduled
           _      <- TestClock.adjust(100.millis)
           result <- fiber.join
         } yield assert(result)(isNone)

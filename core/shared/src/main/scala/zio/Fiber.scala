@@ -108,7 +108,7 @@ sealed trait Fiber[+E, +A] { self =>
   /**
    * Descendants of the fiber (children and their children, recursively).
    */
-  def descendants: UIO[Iterable[Fiber[Any, Any]]] =
+  def descendants: UIO[Iterable[Fiber.Runtime[Any, Any]]] =
     children.flatMap(children => ZIO.foreach(children)(_.descendants).map(collected => children ++ collected.flatten))
 
   /**

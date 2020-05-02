@@ -1134,9 +1134,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         }
         for {
           f      <- test.fork
-          _      <- TestClock.awaitScheduled
           _      <- TestClock.adjust(20.milliseconds)
-          _      <- TestClock.awaitScheduled
           _      <- TestClock.adjust(20.milliseconds)
           result <- f.join
         } yield result

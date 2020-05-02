@@ -1375,8 +1375,8 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .tap(_ => proceed)
                         assertM(for {
                           f      <- stream.runCollect.fork
-                          _      <- offer *> TestClock.awaitScheduled *> TestClock.adjust(2.seconds) *> p1.await
-                          _      <- offer *> TestClock.awaitScheduled *> TestClock.adjust(2.seconds) *> p2.await
+                          _      <- offer *> TestClock.adjust(2.seconds) *> p1.await
+                          _      <- offer *> TestClock.adjust(2.seconds) *> p2.await
                           _      <- offer
                           result <- f.join
                         } yield result)(equalTo(List(List(1, 2), List(3, 4), List(5))))
@@ -1751,7 +1751,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                         .take(2)
                         .runDrain
                         .fork
-              _      <- TestClock.awaitScheduled
               _      <- TestClock.adjust(50.millis)
               _      <- fiber.join
               result <- ref.get
@@ -1789,7 +1788,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                         .take(3) // take one schedule output
                         .runDrain
                         .fork
-              _      <- TestClock.awaitScheduled
               _      <- TestClock.adjust(50.millis)
               _      <- fiber.join
               result <- ref.get
@@ -1960,7 +1958,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                           }
                         }
                         .fork
-              _    <- TestClock.awaitScheduled
               _    <- TestClock.adjust(8.seconds)
               test <- fiber.join
             } yield test
@@ -2151,7 +2148,6 @@ object ZStreamSpec extends ZIOBaseSpec {
 
           for {
             fiber <- s3.take(4).runCollect.fork
-            _     <- TestClock.awaitScheduledN(2)
             _     <- TestClock.setTime(210.milliseconds)
             value <- fiber.join
           } yield assert(value)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
@@ -2339,7 +2335,6 @@ object ZStreamSpec extends ZIOBaseSpec {
           val stream   = ZStream.fromSchedule(schedule)
           val zio = for {
             fiber <- stream.runCollect.fork
-            _     <- TestClock.awaitScheduled
             _     <- TestClock.adjust(62.seconds)
             value <- fiber.join
           } yield value
@@ -2428,7 +2423,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                       .take(2)
                       .runDrain
                       .fork
-            _      <- TestClock.awaitScheduled
             _      <- TestClock.adjust(50.millis)
             _      <- fiber.join
             result <- ref.get

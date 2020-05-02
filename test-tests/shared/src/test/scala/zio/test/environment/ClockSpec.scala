@@ -19,7 +19,6 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         latch <- Promise.make[Nothing, Unit]
         _     <- (sleep(10.hours) *> latch.succeed(())).fork
-        _     <- TestClock.awaitScheduled
         _     <- adjust(11.hours)
         _     <- latch.await
       } yield assertCompletes
@@ -39,7 +38,6 @@ object ClockSpec extends ZIOBaseSpec {
         ref    <- Ref.make("")
         _      <- (sleep(3.hours) *> ref.update(_ + "World!") *> latch2.succeed(())).fork
         _      <- (sleep(1.hours) *> ref.update(_ + "Hello, ") *> latch1.succeed(())).fork
-        _      <- TestClock.awaitScheduledN(2)
         _      <- adjust(2.hours)
         _      <- latch1.await
         _      <- adjust(2.hours)
@@ -51,7 +49,6 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         latch <- Promise.make[Nothing, Unit]
         _     <- (sleep(10.hours) *> latch.succeed(())).fork
-        _     <- TestClock.awaitScheduled
         _     <- setTime(11.hours)
         _     <- latch.await
       } yield assertCompletes
@@ -122,7 +119,6 @@ object ClockSpec extends ZIOBaseSpec {
     testM("timeout example from TestClock documentation works correctly") {
       val example = for {
         fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
-        _      <- TestClock.awaitScheduledN(2)
         _      <- TestClock.adjust(1.minute)
         result <- fiber.join
       } yield result == None
@@ -133,7 +129,6 @@ object ClockSpec extends ZIOBaseSpec {
         q <- Queue.unbounded[Unit]
         _ <- q.offer(()).delay(60.minutes).forever.fork
         a <- q.poll.map(_.isEmpty)
-        _ <- TestClock.awaitScheduled
         _ <- TestClock.adjust(60.minutes)
         b <- q.take.as(true)
         c <- q.poll.map(_.isEmpty)
@@ -147,7 +142,6 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         clockTime <- currentTime(TimeUnit.NANOSECONDS)
         _         <- sleep(2.nanos).fork
-        _         <- TestClock.awaitScheduled
         _         <- adjust(3.nanos)
       } yield assert(clockTime)(equalTo(0.millis.toNanos))
     ) @@ nonFlaky(3),
@@ -157,7 +151,6 @@ object ClockSpec extends ZIOBaseSpec {
         ref       <- Ref.make(3)
         countdown = ref.updateAndGet(_ - 1).flatMap(n => latch.succeed(()).when(n == 0))
         _         <- countdown.repeat(Schedule.fixed(2.seconds)).delay(1.second).fork
-        _         <- TestClock.awaitScheduled
         _         <- TestClock.adjust(5.seconds)
         _         <- latch.await
       } yield assertCompletes
