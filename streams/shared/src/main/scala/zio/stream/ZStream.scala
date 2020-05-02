@@ -2657,11 +2657,11 @@ abstract class ZStream[-R, +E, +O](
   def zipWith[R1 <: R, E1 >: E, O2, O3](
     that: ZStream[R1, E1, O2]
   )(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
-    sealed trait State
-    case class Running(excess: Either[Chunk[O], Chunk[O2]]) extends State
-    case class LeftDone(nonEmptyExcessL: Chunk[O])          extends State
-    case class RightDone(nonEmptyExcess: Chunk[O2])         extends State
-    case object End                                         extends State
+    sealed trait State[+W1, +W2]
+    case class Running[W1, W2](excess: Either[Chunk[W1], Chunk[W2]]) extends State[W1, W2]
+    case class LeftDone[W1](nonEmptyExcessL: Chunk[W1])          extends State[W1, Nothing]
+    case class RightDone[W2](nonEmptyExcess: Chunk[W2])         extends State[Nothing, W2]
+    case object End                                         extends State[Nothing, Nothing]
 
     def zipSides(cl: Chunk[O], cr: Chunk[O2]): (Chunk[O3], Either[Chunk[O], Chunk[O2]]) =
       if (cl.size > cr.size)
@@ -2673,7 +2673,7 @@ abstract class ZStream[-R, +E, +O](
       leftUpd: Option[Chunk[O]],
       rightUpd: Option[Chunk[O2]],
       excess: Either[Chunk[O], Chunk[O2]]
-    ): Exit[Option[Nothing], (Chunk[O3], State)] = {
+    ): Exit[Option[Nothing], (Chunk[O3], State[O, O2])] = {
       val (left, right) = {
         val (leftExcess, rightExcess) = excess.fold(l => (l, Chunk.empty), r => (Chunk.empty, r))
         val l                         = leftUpd.fold(leftExcess)(upd => leftExcess ++ upd)
@@ -2694,7 +2694,7 @@ abstract class ZStream[-R, +E, +O](
       }
     }
 
-    combineChunks(that)(Running(Left(Chunk.empty)): State) { (st, p1, p2) =>
+    combineChunks(that)(Running(Left(Chunk.empty)): State[O, O2]) { (st, p1, p2) =>
       st match {
         case Running(excess) => {
             p1.optional.zipWithPar(p2.optional) {
