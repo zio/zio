@@ -40,7 +40,7 @@ abstract class ZConduit[-R, +E, -I, +O, +Z] private[stream] (
       )
     )
 
-  def mapResult[Z2](f: Z => Z2): ZConduit[R, E, I, O, Z2] = mapResultM(z => UIO.succeed(f(z)))
+  def mapResult[Z2](f: Z => Z2): ZConduit[R, E, I, O, Z2] = mapResultM(z => UIO.succeedNow(f(z)))
 
   def mapOutput[O2](f: O => O2): ZConduit[R, E, I, O2, Z] =
     mapOutputChunks(_.map(f))

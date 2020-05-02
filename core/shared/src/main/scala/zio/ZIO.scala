@@ -953,7 +953,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.uninterruptibleMask { restore =>
       restore(self).foldCauseM(
         cause => if (cause.interrupted) cleanup(cause.interruptors) *> ZIO.halt(cause) else ZIO.halt(cause),
-        a => ZIO.succeed(a)
+        a => ZIO.succeedNow(a)
       )
     }
 
@@ -2857,7 +2857,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           .fold(
             Task.effectAsync { (cb: Task[A] => Any) =>
               f.onComplete {
-                case Success(a) => latch.success(()); cb(Task.succeed(a))
+                case Success(a) => latch.success(()); cb(Task.succeedNow(a))
                 case Failure(t) => latch.success(()); cb(Task.fail(t))
               }(interruptibleEC)
             }

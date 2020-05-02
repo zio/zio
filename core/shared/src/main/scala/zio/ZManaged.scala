@@ -448,6 +448,12 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged.absolve(mapError(ev1)(CanFail).map(ev2(_).toRight(())))
 
   /**
+   * Returns a new effect that ignores the success or failure of this effect.
+   */
+  def ignore: ZManaged[R, Nothing, Unit] =
+    fold(_ => (), _ => ())
+
+  /**
    * Returns whether this managed effect is a failure.
    */
   def isFailure: ZManaged[R, Nothing, Boolean] =
@@ -1518,6 +1524,14 @@ object ZManaged {
    */
   def flattenM[R, E, A](zManaged: ZManaged[R, E, ZIO[R, E, A]]): ZManaged[R, E, A] =
     zManaged.mapM(scala.Predef.identity)
+
+  /**
+   * Folds an Iterable[A] using an effectual function f, working sequentially from left to right.
+   */
+  def foldLeft[R, E, S, A](
+    in: Iterable[A]
+  )(zero: S)(f: (S, A) => ZManaged[R, E, S]): ZManaged[R, E, S] =
+    in.foldLeft(ZManaged.succeedNow(zero): ZManaged[R, E, S])((acc, el) => acc.flatMap(f(_, el)))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and

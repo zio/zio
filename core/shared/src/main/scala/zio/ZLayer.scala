@@ -147,7 +147,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    * executes the specified layer.
    */
   def orElse[RIn1 <: RIn, E1, ROut1 >: ROut](that: => ZLayer[RIn1, E1, ROut1])(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
-    ZLayer.Fold(self, ZLayer.first[RIn1, Cause[E]] >>> that, ZLayer.identity[ROut])
+    fold(ZLayer.first >>> that, ZLayer.identity)
 
   /**
    * Returns the size of this layer, ignoring error handlers.
@@ -158,6 +158,20 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
       case ZLayer.Managed(_)                => 1
       case ZLayer.ZipWithPar(self, that, _) => self.size + that.size
     }
+
+  /**
+   * Performs the specified effect if this layer fails.
+   */
+  def tapError[RIn1 <: RIn, E1 >: E](f: E => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
+    fold(
+      ZLayer.fromFunctionManyM {
+        case (r, cause) => cause.failureOrCause.fold(
+          e => f(e).provide(r) *> ZIO.fail(e),
+          c => ZIO.halt(c)
+        )
+      },
+      ZLayer.identity
+    )
 
   /**
     * A named alias for `>>>`.
@@ -227,6 +241,12 @@ object ZLayer {
    */
   def fail[E](e: => E): Layer[E, Nothing] =
     ZLayer(ZManaged.fail(e))
+
+   /**
+    * A layer that passes along the first element of a tuple.
+    */
+   def first[A]: ZLayer[(A, Any), Nothing, A] =
+     ZLayer.fromFunctionMany(_._1)
 
   /**
    * Constructs a layer from acquire and release actions. The acquire and
@@ -2052,13 +2072,6 @@ object ZLayer {
   def fromManagedMany[R, E, A](m: ZManaged[R, E, A]): ZLayer[R, E, A] =
     ZLayer(m)
 
-
-  /**
-   * A layer that passes along the first element of a tuple.
-   */
-  def first[A, B]: ZLayer[(A, B), Nothing, A] =
-    ZLayer.fromFunctionMany(_._1)
-
   /**
    * An identity layer that passes along its inputs.
    */
@@ -2073,9 +2086,9 @@ object ZLayer {
     ZLayer(ZManaged.environment[A])
 
   /**
-   * A layer that passes along the second elemeent of a tuple.
+   * A layer that passes along the second element of a tuple.
    */
-  def second[A, B]: ZLayer[(A, B), Nothing, B] =
+  def second[A]: ZLayer[(Any, A), Nothing, A] =
     ZLayer.fromFunctionMany(_._2)
 
   /**

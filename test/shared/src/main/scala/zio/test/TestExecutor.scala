@@ -43,9 +43,9 @@ object TestExecutor {
             case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
           }
         )
-        .flatMap(_.fold[UIO[ExecutedSpec[E]]] {
+        .use(_.fold[UIO[ExecutedSpec[E]]] {
           case Spec.SuiteCase(label, specs, exec) =>
-            UIO.succeedNow(Spec.suite(label, specs.flatMap(UIO.collectAll(_)).map(_.toVector), exec))
+            UIO.succeedNow(Spec.suite(label, specs.mapM(UIO.collectAll(_)).map(_.toVector), exec))
           case Spec.TestCase(label, test, annotations) =>
             test.map {
               case (result, annotations1) =>
