@@ -21,13 +21,18 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 - [ZIO Telemetry](https://github.com/zio/zio-telemetry): A ZIO-powered OpenTelemetry library 
 
 
+## Powered by ZIO
+
+- [ZIO IntelliJ](https://github.com/zio/zio-intellij): A complimentary, community-developed plugin for IntelliJ IDEA, brings enhancements when using ZIO in your projects
+
+
 ## Libraries with Direct ZIO Support
 
 If you know a useful library that has direct support for ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
 
 - [cakeless](https://github.com/itkpi/cakeless): Wire your cakes automatically into zio environment
 - [caliban](https://github.com/ghostdogpr/caliban): Functional GraphQL backend in Scala
-- [d4s](https://github.com/PlayQ/d4s): "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way.
+- [d4s](https://github.com/PlayQ/d4s): "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way
 - [distage](https://github.com/7mind/izumi): Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
 - [elastic4s](https://github.com/sksamuel/elastic4s): Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client
 - [idealingua](https://github.com/7mind/izumi): API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
