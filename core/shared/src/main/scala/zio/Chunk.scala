@@ -163,7 +163,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     drop(i)
   }
 
-  def dropWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = {
+  def dropWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
     val len     = self.length
     val builder = ChunkBuilder.make[A]()
     builder.sizeHint(len)
