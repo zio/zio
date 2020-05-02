@@ -167,23 +167,25 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     val len     = self.length
     val builder = ChunkBuilder.make[A]()
     builder.sizeHint(len)
-    var dest: ZIO[R, E, (Boolean, ChunkBuilder[A])] = IO.succeedNow((true, builder))
+    var dropping: ZIO[R, E, Boolean] = UIO.succeedNow(true)
 
     var i = 0
     while (i < len) {
       val j = i
-      dest = dest.flatMap {
-        case (dropping, builder) =>
-          val a = self(j)
-          (if (dropping) p(a) else UIO(false)).map {
-            case true  => (true, builder)
-            case false => (false, builder += a)
-          }
+      dropping = dropping.flatMap { d =>
+        val a = self(j)
+        (if (d) p(a) else UIO(false)).map {
+          case true =>
+            true
+          case false =>
+            builder += a
+            false
+        }
       }
       i += 1
     }
 
-    dest.map { case (_, builder) => builder.result() }
+    dropping as builder.result()
   }
 
   override final def equals(that: Any): Boolean =
