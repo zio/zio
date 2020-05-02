@@ -2078,22 +2078,18 @@ object ZStreamSpec extends ZIOBaseSpec {
           })
         ),
         suite("zipWith")(
+          testM("zip doesn't pull too much when one of the streams is done") {
+            val l = ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5)) ++ ZStream.fail("Nothing to see here")
+            val r = ZStream.fromChunks(Chunk("a", "b"), Chunk("c"))
+            assertM(l.zip(r).runCollect)(equalTo(List((1, "a"), (2, "b"), (3, "c"))))
+          },
           testM("zip equivalence with Chunk#zipWith") {
             checkM(
-              // We're using ZStream.fromChunks in the test, and that discards empty
-              // chunks; so we're only testing for non-empty chunks here.
-              tinyListOf(Gen.chunkOf(Gen.anyInt).filter(_.size > 0)),
-              tinyListOf(Gen.chunkOf(Gen.anyInt).filter(_.size > 0))
-            ) {
-              (l, r) =>
-                // zipWith pulls one last time after the last chunk,
-                // so we take the smaller side + 1.
-                val expected =
-                  if (l.size <= r.size)
-                    Chunk.fromIterable(l).flatten.zipWith(Chunk.fromIterable(r.take(l.size + 1)).flatten)((_, _))
-                  else Chunk.fromIterable(l.take(r.size + 1)).flatten.zipWith(Chunk.fromIterable(r).flatten)((_, _))
-
-                assertM(ZStream.fromChunks(l: _*).zip(ZStream.fromChunks(r: _*)).runCollect)(equalTo(expected.toList))
+              tinyListOf(Gen.chunkOf(Gen.anyInt)),
+              tinyListOf(Gen.chunkOf(Gen.anyInt))
+            ) { (l, r) =>
+              val expected = Chunk.fromIterable(l).flatten.zip(Chunk.fromIterable(r).flatten)
+              assertM(ZStream.fromChunks(l: _*).zip(ZStream.fromChunks(r: _*)).runCollect)(equalTo(expected.toList))
             }
           },
           testM("zipWith prioritizes failure") {
