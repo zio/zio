@@ -2664,23 +2664,24 @@ abstract class ZStream[-R, +E, +O](
     case object End                                         extends State
 
     def zipSides(cl: Chunk[O], cr: Chunk[O2]): (Chunk[O3], Either[Chunk[O], Chunk[O2]]) =
-      if (cl.size > cr.size) {
+      if (cl.size > cr.size)
         (cl.take(cr.size).zipWith(cr)(f), Left(cl.drop(cr.size)))
-      } else if (cl.size == cr.size) (cl.zipWith(cr)(f), Left(Chunk.empty))
-      else {
+      else
         (cl.zipWith(cr.take(cl.size))(f), Right(cr.drop(cl.size)))
-      }
 
     def handleSuccess(
-      maybeO: Option[Chunk[O]],
-      maybeO2: Option[Chunk[O2]],
+      leftUpd: Option[Chunk[O]],
+      rightUpd: Option[Chunk[O2]],
       excess: Either[Chunk[O], Chunk[O2]]
     ): Exit[Option[Nothing], (Chunk[O3], State)] = {
-      val (leftExcess, rightExcess)                                   = excess.fold(l => (l, Chunk.empty), r => (Chunk.empty, r))
-      val left                                                        = maybeO.fold(leftExcess)(upd => leftExcess ++ upd)
-      val right                                                       = maybeO2.fold(rightExcess)(upd => rightExcess ++ upd)
+      val (left, right) = {
+        val (leftExcess, rightExcess) = excess.fold(l => (l, Chunk.empty), r => (Chunk.empty, r))
+        val l                         = leftUpd.fold(leftExcess)(upd => leftExcess ++ upd)
+        val r                         = rightUpd.fold(rightExcess)(upd => rightExcess ++ upd)
+        (l, r)
+      }
       val (emit, newExcess): (Chunk[O3], Either[Chunk[O], Chunk[O2]]) = zipSides(left, right)
-      (maybeO.isDefined, maybeO2.isDefined) match {
+      (leftUpd.isDefined, rightUpd.isDefined) match {
         case (true, true)   => Exit.succeed((emit, Running(newExcess)))
         case (false, false) => Exit.fail(None)
         case _ => {
@@ -2697,18 +2698,16 @@ abstract class ZStream[-R, +E, +O](
       st match {
         case Running(excess) => {
             p1.optional.zipWithPar(p2.optional) {
-              case (l, r) => {
-                handleSuccess(l, r, excess)
-              }
+              case (l, r) => handleSuccess(l, r, excess)
             }
           }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
         case LeftDone(excessL) => {
-            p2.optional.map(chopt => handleSuccess(None, chopt, Left(excessL)))
+            p2.optional.map(handleSuccess(None, _, Left(excessL)))
           }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
         case RightDone(excessR) => {
-          p1.optional.map(chopt => handleSuccess(chopt, None, Right(excessR))).catchAllCause(e =>
-            UIO.succeedNow(Exit.halt(e.map(Some(_))))
-          )
+          p1.optional
+            .map(handleSuccess(_, None, Right(excessR)))
+            .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
         }
         case End => {
           UIO.succeedNow(Exit.fail(None))
