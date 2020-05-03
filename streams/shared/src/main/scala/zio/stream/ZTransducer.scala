@@ -82,6 +82,18 @@ abstract class ZTransducer[-R, +E, -I, +O](
   final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
     ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
 
+  override final def mapOutputChunks[O2](f: Chunk[O] => Chunk[O2]): ZTransducer[R, E, I, O2] =
+    ZTransducer {
+      self.push.map(push => (input: Option[Chunk[I]]) => push(input).map(f))
+    }
+
+  override final def mapOutputChunksM[R1 <: R, E1 >: E, O2](
+    f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
+  ): ZTransducer[R1, E1, I, O2] =
+    ZTransducer {
+      self.push.map(push => (input: Option[Chunk[I]]) => push(input).flatMap(f))
+    }
+
 }
 
 object ZTransducer {
