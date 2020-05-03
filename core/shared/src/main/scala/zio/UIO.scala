@@ -298,6 +298,18 @@ object UIO {
     ZIO.foldRight(in)(zero)(f)
 
   /**
+   * @see See [[zio.ZIO.forkAll]]
+   */
+  def forkAll[A](as: Iterable[UIO[A]]): UIO[Fiber[Nothing, List[A]]] =
+    ZIO.forkAll(as)
+
+  /**
+   * @see See [[zio.ZIO.forkAll_]]
+   */
+  def forkAll_[A](as: Iterable[UIO[A]]): UIO[Unit] =
+    ZIO.forkAll_(as)
+
+  /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
   def foreach[A, B](in: Iterable[A])(f: A => UIO[B]): UIO[List[B]] =
@@ -380,18 +392,6 @@ object UIO {
    */
   def foreachParN_[A](n: Int)(as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.foreachParN_(n)(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.forkAll]]
-   */
-  def forkAll[A](as: Iterable[UIO[A]]): UIO[Fiber[Nothing, List[A]]] =
-    ZIO.forkAll(as)
-
-  /**
-   * @see See [[zio.ZIO.forkAll_]]
-   */
-  def forkAll_[A](as: Iterable[UIO[A]]): UIO[Unit] =
-    ZIO.forkAll_(as)
 
   /**
    * @see See [[zio.ZIO.fromEither]]

@@ -3118,14 +3118,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Returns a effect that will never produce anything. The moral equivalent of
-   * `while(true) {}`, only without the wasted CPU cycles. Fibers that suspended
-   * running this effect are automatically garbage collected on the JVM,
-   * because they cannot be reactivated.
-   */
-  val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
-
-  /**
    * Returns an effect with the empty value.
    */
   val none: UIO[Option[Nothing]] = succeedNow(None)
@@ -3171,6 +3163,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def provide[R, E, A](r: => R): ZIO[R, E, A] => IO[E, A] =
     (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
+
+  /**
+   * Returns a effect that will never produce anything. The moral equivalent of
+   * `while(true) {}`, only without the wasted CPU cycles. Fibers that suspended
+   * running this effect are automatically garbage collected on the JVM,
+   * because they cannot be reactivated.
+   */
+  val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
