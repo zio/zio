@@ -365,7 +365,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   def run[R <: TestClock, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
     for {
       fiber  <- effect.fork
-      _      <- TestClock.runAll
+      _      <- TestClock.setTime(Duration.Infinity)
       result <- fiber.join
     } yield result
 

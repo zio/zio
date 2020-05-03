@@ -729,10 +729,8 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * The root fibers.
    */
-  val roots: UIO[Set[Fiber.Runtime[Any, Any]]] = UIO {
-    internal.Sync(rootFibers)(
-      rootFibers.asScala.toSet[Fiber.Runtime[Any, Any]].filterNot(_ eq null): @silent("JavaConverters")
-    )
+  val roots: UIO[Set[Fiber[Any, Any]]] = UIO {
+    internal.Sync(rootFibers)(rootFibers.asScala.toSet[Fiber[Any, Any]].filterNot(_ eq null): @silent("JavaConverters"))
   }
 
   /**

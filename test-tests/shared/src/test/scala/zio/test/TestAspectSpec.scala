@@ -203,9 +203,6 @@ object TestAspectSpec extends ZIOBaseSpec {
       val result = if (TestPlatform.isNative) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
-    testM("noDelay causes sleep effects to be executed immediately") {
-      assertM(ZIO.sleep(Duration.Infinity))(anything)
-    } @@ noDelay,
     suite("nonTermination")(
       testM("makes a test pass if it does not terminate within the specified time") {
         assertM(ZIO.never)(anything)

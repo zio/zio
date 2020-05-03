@@ -154,12 +154,6 @@ object ClockSpec extends ZIOBaseSpec {
         _         <- TestClock.adjust(5.seconds)
         _         <- latch.await
       } yield assertCompletes
-    } @@ nonFlaky,
-    testM("runAll runs all scheduled effects") {
-      for {
-        _ <- TestClock.runAll
-        _ <- ZIO.sleep(Duration.Infinity)
-      } yield assertCompletes
-    }
+    } @@ nonFlaky
   )
 }

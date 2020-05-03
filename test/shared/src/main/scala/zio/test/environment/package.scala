@@ -244,7 +244,6 @@ package object environment extends PlatformSpecific {
 
     trait Service extends Restorable {
       def adjust(duration: Duration): UIO[Unit]
-      def runAll: UIO[Unit]
       def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
       def setTime(duration: Duration): UIO[Unit]
       def setTimeZone(zone: ZoneId): UIO[Unit]
@@ -284,13 +283,6 @@ package object environment extends PlatformSpecific {
        */
       val nanoTime: UIO[Long] =
         clockState.get.map(_.duration.toNanos)
-
-      /**
-       * Runs all scheduled effects in order. After this any scheduled effects
-       * will be run immediately
-       */
-      def runAll: UIO[Unit] =
-        setTime(Duration.Infinity)
 
       /**
        * Saves the `TestClock`'s current state in an effect which, when run,
@@ -493,14 +485,6 @@ package object environment extends PlatformSpecific {
      */
     def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
-
-    /**
-     * Accesses a `TestClock` instance in the environment and runs all
-     * scheduled effects in order. After this any scheduled effects will be run
-     * immediately.
-     */
-    val runAll: ZIO[TestClock, Nothing, Unit] =
-      setTime(Duration.Infinity)
 
     /**
      * Accesses a `TestClock` instance in the environment and saves the clock
