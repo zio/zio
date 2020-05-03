@@ -7,13 +7,13 @@ import scala.concurrent.ExecutionContext
 import ZStreamGen._
 
 import zio._
+import zio.clock.Clock
 import zio.duration._
 import zio.stm.TQueue
 import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
 import zio.test.environment.TestClock
-import zio.clock.Clock
 
 object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
