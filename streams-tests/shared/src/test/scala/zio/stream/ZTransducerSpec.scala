@@ -64,6 +64,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
     suite("Constructors")(
       //TODO: this test is failing: https://github.com/zio/zio/issues/3522
       /*testM("chunkN") {
+
         val parser = ZTransducer.chunkN[Int](5).mapOutputChunks(ch => Chunk(ch))
         val input  = List(Chunk(1), Chunk.empty, Chunk(2, 3, 4, 5), Chunk(6, 7), Chunk.empty, Chunk(8, 9, 10), Chunk(11))
         val result = run(parser, input)
