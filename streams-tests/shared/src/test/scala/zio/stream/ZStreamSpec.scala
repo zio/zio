@@ -13,6 +13,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
 import zio.test.environment.TestClock
+import zio.clock.Clock
 
 object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -210,43 +211,45 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("debounce")(
           testM("drop earlier elements within waitTime") {
-            Queue.bounded[Take[Nothing, Int]](8).flatMap {
-              queue =>
-                (Promise.make[Nothing, Unit] <*> Promise.make[Nothing, Unit]).flatMap {
-                  case (p1, p2) =>
-                    (Ref
-                      .make[List[List[Take[Nothing, Int]]]](
-                        List(
-                          List(Exit.succeed(Chunk(1, 2))),
-                          List(Exit.succeed(Chunk(3, 4))),
-                          List(Exit.succeed(Chunk.single(5)), Take.End)
-                        )
-                      ) <*> Ref.make(List(p1, p2))).flatMap {
-                      case (ref, ps) =>
-                        val offer = ref.modify {
-                          case x :: xs => (x, xs)
-                          case Nil     => (Nil, Nil)
-                        }.flatMap(queue.offerAll)
-                        val proceed = ps.modify {
-                          case x :: xs => (x.succeed(()), xs)
-                          case Nil     => (IO.unit, Nil)
-                        }.flatten
-                        val stream = ZStream
-                          .fromQueue(queue)
-                          .collectWhileSuccess
-                          .flattenChunks
-                          .debounce(1.second)
-                          .tap(_ => proceed)
-                        assertM(for {
-                          f      <- stream.runCollect.fork
-                          _      <- offer *> TestClock.advance(2.seconds) *> p1.await
-                          _      <- offer *> TestClock.advance(2.seconds) *> p2.await
-                          _      <- offer
-                          result <- f.join
-                        } yield result)(equalTo(List(2, 4, 5)))
-                    }
-                }
+            assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) { c =>
+              val stream = ZStream
+                .fromQueue(c.queue)
+                .collectWhileSuccess
+                .flattenChunks
+                .debounce(1.second)
+                .tap(_ => c.proceed)
+
+              assertM(for {
+                f      <- stream.runCollect.fork
+                _      <- c.offer *> TestClock.advance(2.seconds) *> c.awaitNext
+                _      <- c.offer *> TestClock.advance(2.seconds) *> c.awaitNext
+                _      <- c.offer
+                result <- f.join
+              } yield result)(equalTo(List(2, 4, 5)))
             }
+          },
+          testM("drop earlier elements within waitTime (across chunks)") {
+            assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) { c =>
+              val stream = ZStream
+                .fromQueue(c.queue)
+                .collectWhileSuccess
+                .flattenChunks
+                .debounce(5.second)
+                .tap(_ => c.proceed)
+
+              assertM(for {
+                f      <- stream.runCollect.fork
+                _      <- c.offer *> TestClock.advance(2.seconds)
+                _      <- c.offer *> TestClock.advance(2.seconds)
+                _      <- c.offer *> c.awaitNext
+                _      <- TestClock.advance(1.seconds)
+                result <- f.join
+              } yield result)(equalTo(List(5)))
+            }
+          },
+          testM("empty") {
+            val stream = ZStream.empty.debounce(5.seconds)
+            assertM(stream.runCollect)(isEmpty)
           }
         ),
         suite("aggregateAsyncWithinEither")(
@@ -1386,43 +1389,22 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertM(ZStream(1, 2, 3, 4).grouped(2).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
         ),
         suite("groupedWithin")(
-          testM("group in multiple buckets after waitTime passed") {
-            Queue.bounded[Take[Nothing, Int]](8).flatMap {
-              queue =>
-                (Promise.make[Nothing, Unit] <*> Promise.make[Nothing, Unit]).flatMap {
-                  case (p1, p2) =>
-                    (Ref
-                      .make[List[List[Take[Nothing, Int]]]](
-                        List(
-                          List(Exit.succeed(Chunk(1, 2))),
-                          List(Exit.succeed(Chunk(3, 4))),
-                          List(Exit.succeed(Chunk.single(5)), Take.End)
-                        )
-                      ) <*> Ref.make(List(p1, p2))).flatMap {
-                      case (ref, ps) =>
-                        val offer = ref.modify {
-                          case x :: xs => (x, xs)
-                          case Nil     => (Nil, Nil)
-                        }.flatMap(queue.offerAll)
-                        val proceed = ps.modify {
-                          case x :: xs => (x.succeed(()), xs)
-                          case Nil     => (IO.unit, Nil)
-                        }.flatten
-                        val stream = ZStream
-                          .fromQueue(queue)
-                          .collectWhileSuccess
-                          .flattenChunks
-                          .groupedWithin(10, 2.seconds)
-                          .tap(_ => proceed)
-                        assertM(for {
-                          f      <- stream.runCollect.fork
-                          _      <- offer *> TestClock.advance(2.seconds) *> p1.await
-                          _      <- offer *> TestClock.advance(2.seconds) *> p2.await
-                          _      <- offer
-                          result <- f.join
-                        } yield result)(equalTo(List(List(1, 2), List(3, 4), List(5))))
-                    }
-                }
+          testM("group based on time passed") {
+            assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) { c =>
+              val stream = ZStream
+                .fromQueue(c.queue)
+                .collectWhileSuccess
+                .flattenChunks
+                .groupedWithin(10, 2.seconds)
+                .tap(_ => c.proceed)
+
+              assertM(for {
+                f      <- stream.runCollect.fork
+                _      <- c.offer *> TestClock.advance(2.seconds) *> c.awaitNext
+                _      <- c.offer *> TestClock.advance(2.seconds) *> c.awaitNext
+                _      <- c.offer
+                result <- f.join
+              } yield result)(equalTo(List(List(1, 2), List(3, 4), List(5))))
             }
           },
           testM("group immediately when chunk size is reached") {
@@ -2495,4 +2477,36 @@ object ZStreamSpec extends ZIOBaseSpec {
         }
       )
     ) @@ TestAspect.timed
+
+  trait ChunkCoordination[A] {
+    def queue: Queue[Take[Nothing, A]]
+    def offer: UIO[Boolean]
+    def proceed: UIO[Unit]
+    def awaitNext: UIO[Unit]
+  }
+
+  def assertWithChunkCoordination[A](
+    chunks: List[Chunk[A]]
+  )(assertion: ChunkCoordination[A] => ZIO[Clock with TestClock, Nothing, TestResult]) =
+    for {
+      q  <- Queue.unbounded[Take[Nothing, A]]
+      ps <- Queue.unbounded[Unit]
+      ref <- Ref
+              .make[List[List[Take[Nothing, A]]]](
+                chunks.init.map { chunk =>
+                  List(Exit.succeed(chunk))
+                } ++ chunks.lastOption.map(chunk => List(Exit.succeed(chunk), Take.End))
+              )
+      chunkCoordination = new ChunkCoordination[A] {
+        val queue = q
+        val offer = ref.modify {
+          case x :: xs => (x, xs)
+          case Nil     => (Nil, Nil)
+        }.flatMap(queue.offerAll)
+        val proceed   = ps.offer(()).unit
+        val awaitNext = ps.take
+      }
+      testResult <- assertion(chunkCoordination)
+    } yield testResult
+
 }
