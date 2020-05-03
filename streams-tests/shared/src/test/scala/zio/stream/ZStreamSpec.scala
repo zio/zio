@@ -208,6 +208,47 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream(1, 2, 3).aggregate(t).runCollect.either)(isLeft(equalTo(fail)))
           }
         ),
+        suite("debounce")(
+          testM("drop earlier elements within waitTime") {
+            Queue.bounded[Take[Nothing, Int]](8).flatMap {
+              queue =>
+                (Promise.make[Nothing, Unit] <*> Promise.make[Nothing, Unit]).flatMap {
+                  case (p1, p2) =>
+                    (Ref
+                      .make[List[List[Take[Nothing, Int]]]](
+                        List(
+                          List(Exit.succeed(Chunk(1, 2))),
+                          List(Exit.succeed(Chunk(3, 4))),
+                          List(Exit.succeed(Chunk.single(5)), Take.End)
+                        )
+                      ) <*> Ref.make(List(p1, p2))).flatMap {
+                      case (ref, ps) =>
+                        val offer = ref.modify {
+                          case x :: xs => (x, xs)
+                          case Nil     => (Nil, Nil)
+                        }.flatMap(queue.offerAll)
+                        val proceed = ps.modify {
+                          case x :: xs => (x.succeed(()), xs)
+                          case Nil     => (IO.unit, Nil)
+                        }.flatten
+                        val stream = ZStream
+                          .fromQueue(queue)
+                          .collectWhileSuccess
+                          .flattenChunks
+                          .debounce(1.second)
+                          .tap(_ => proceed)
+                        assertM(for {
+                          f      <- stream.runCollect.fork
+                          _      <- offer *> TestClock.advance(2.seconds) *> p1.await
+                          _      <- offer *> TestClock.advance(2.seconds) *> p2.await
+                          _      <- offer
+                          result <- f.join
+                        } yield result)(equalTo(List(2, 4, 5)))
+                    }
+                }
+            }
+          }
+        ),
         suite("aggregateAsyncWithinEither")(
           testM("aggregateAsyncWithinEither") {
             assertM(
@@ -1345,7 +1386,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertM(ZStream(1, 2, 3, 4).grouped(2).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
         ),
         suite("groupedWithin")(
-          testM("999") {
+          testM("group in multiple buckets after waitTime passed") {
             Queue.bounded[Take[Nothing, Int]](8).flatMap {
               queue =>
                 (Promise.make[Nothing, Unit] <*> Promise.make[Nothing, Unit]).flatMap {
