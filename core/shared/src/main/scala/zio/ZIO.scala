@@ -2237,18 +2237,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.collectAllParN(n)(in).map(_.collect(f))
 
   /**
-   * Collects the first element of the `Iterable[A]` for which the effectual
-   * function `f` returns `Some`.
-   */
-  def collectFirst[R, E, A, B](as: Iterable[A])(f: A => ZIO[R, E, Option[B]]): ZIO[R, E, Option[B]] =
-    effectTotal(as.iterator).flatMap { iterator =>
-      def loop: ZIO[R, E, Option[B]] =
-        if (iterator.hasNext) f(iterator.next).flatMap(_.fold(loop)(some(_)))
-        else none
-      loop
-    }
-
-  /**
    * Returns information about the current fiber, such as its identity.
    */
   def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeedNow)
@@ -2458,18 +2446,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def environment[R]: URIO[R, R] = access(r => r)
 
   /**
-   * Determines whether any element of the `Iterable[A]` satisfies the
-   * effectual predicate `f`.
-   */
-  def exists[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
-    effectTotal(as.iterator).flatMap { iterator =>
-      def loop: ZIO[R, E, Boolean] =
-        if (iterator.hasNext) f(iterator.next).flatMap(b => if (b) succeedNow(b) else loop)
-        else succeedNow(false)
-      loop
-    }
-
-  /**
    * Returns an effect that models failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
@@ -2536,18 +2512,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     in: Iterable[A]
   )(zero: S)(f: (A, S) => ZIO[R, E, S]): ZIO[R, E, S] =
     in.foldRight(IO.succeedNow(zero): ZIO[R, E, S])((el, acc) => acc.flatMap(f(el, _)))
-
-  /**
-   * Determines whether all elements of the `Iterable[A]` satisfy the effectual
-   * predicate `f`.
-   */
-  def forall[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
-    effectTotal(as.iterator).flatMap { iterator =>
-      def loop: ZIO[R, E, Boolean] =
-        if (iterator.hasNext) f(iterator.next).flatMap(b => if (b) loop else succeedNow(b))
-        else succeedNow(true)
-      loop
-    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -3128,26 +3092,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(f: (A, B, C, D) => F): ZIO[R, E, F] =
     (zio1 <&> zio2 <&> zio3 <&> zio4).map {
       case (((a, b), c), d) => f(a, b, c, d)
-    }
-
-  /**
-   * Returns a memoized version of the specified effectual function.
-   */
-  def memoize[R, E, A, B](f: A => ZIO[R, E, B]): UIO[A => ZIO[R, E, B]] =
-    RefM.make(Map.empty[A, Promise[E, B]]).map { ref => a =>
-      for {
-        promise <- ref.modify { map =>
-                    map.get(a) match {
-                      case Some(promise) => ZIO.succeedNow((promise, map))
-                      case None =>
-                        for {
-                          promise <- Promise.make[E, B]
-                          _       <- f(a).to(promise).fork
-                        } yield (promise, map)
-                    }
-                  }
-        b <- promise.await
-      } yield b
     }
 
   /**

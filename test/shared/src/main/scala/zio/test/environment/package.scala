@@ -27,7 +27,6 @@ import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
-import zio.stm.{ STM, TPriorityQueue, TRef }
 import zio.system.System
 import zio.{ PlatformSpecific => _, _ }
 
@@ -194,7 +193,6 @@ package object environment extends PlatformSpecific {
    *
    *  for {
    *    fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
-   *    _      <- TestClock.awaitScheduled
    *    _      <- TestClock.adjust(1.minute)
    *    result <- fiber.join
    *  } yield result == None
@@ -225,7 +223,6 @@ package object environment extends PlatformSpecific {
    *    q <- Queue.unbounded[Unit]
    *    _ <- q.offer(()).delay(60.minutes).forever.fork
    *    a <- q.poll.map(_.isEmpty)
-   *    _ <- TestClock.awaitScheduled
    *    _ <- TestClock.adjust(60.minutes)
    *    b <- q.take.as(true)
    *    c <- q.poll.map(_.isEmpty)
@@ -256,9 +253,7 @@ package object environment extends PlatformSpecific {
     }
 
     final case class Test(
-      clockState: TRef[TestClock.Data],
-      fiberState: Fiber.Id => UIO[Option[Fiber.Runtime[Any, Any]]],
-      scheduled: TPriorityQueue[Duration, Sleep],
+      clockState: Ref[TestClock.Data],
       live: Live.Service,
       warningState: RefM[TestClock.WarningData]
     ) extends Clock.Service
@@ -270,25 +265,25 @@ package object environment extends PlatformSpecific {
        * run in order.
        */
       def adjust(duration: Duration): UIO[Unit] =
-        warningDone *> runUntil(clockState.get.map(_.duration + duration))
+        warningDone *> clockState.get.flatMap(data => runUntil(data.duration + duration))
 
       /**
        * Returns the current clock time as an `OffsetDateTime`.
        */
       def currentDateTime: UIO[OffsetDateTime] =
-        clockState.get.map(data => toDateTime(data.duration, data.timeZone)).commit
+        clockState.get.map(data => toDateTime(data.duration, data.timeZone))
 
       /**
        * Returns the current clock time in the specified time unit.
        */
       def currentTime(unit: TimeUnit): UIO[Long] =
-        clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS)).commit
+        clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
 
       /**
        * Returns the current clock time in nanoseconds.
        */
       val nanoTime: UIO[Long] =
-        clockState.get.map(_.duration.toNanos).commit
+        clockState.get.map(_.duration.toNanos)
 
       /**
        * Runs all scheduled effects in order. After this any scheduled effects
@@ -303,10 +298,8 @@ package object environment extends PlatformSpecific {
        */
       val save: UIO[UIO[Unit]] =
         for {
-          clockData <- clockState.get.commit
-          sleeps    <- scheduled.toList.commit
-        } yield clockState.set(clockData).commit *>
-          (scheduled.takeAll *> scheduled.offerAll(sleeps.map(sleep => sleep.duration -> sleep))).commit
+          clockData <- clockState.get
+        } yield clockState.set(clockData)
 
       /**
        * Sets the current clock time to the specified `OffsetDateTime`. Any
@@ -322,7 +315,7 @@ package object environment extends PlatformSpecific {
        * the new time will immediately be run in order.
        */
       def setTime(duration: Duration): UIO[Unit] =
-        warningDone *> runUntil(STM.succeedNow(duration))
+        warningDone *> runUntil(duration)
 
       /**
        * Sets the time zone to the specified time zone. The clock time in
@@ -330,7 +323,7 @@ package object environment extends PlatformSpecific {
        * scheduled effects will be run as a result of this method.
        */
       def setTimeZone(zone: ZoneId): UIO[Unit] =
-        clockState.update(_.copy(timeZone = zone)).commit
+        clockState.update(_.copy(timeZone = zone))
 
       /**
        * Semantically blocks the current fiber until the clock time is equal
@@ -340,15 +333,14 @@ package object environment extends PlatformSpecific {
        */
       def sleep(duration: Duration): UIO[Unit] =
         for {
-          fiberId <- ZIO.fiberId
-          latch   <- Promise.make[Nothing, Unit]
-          await <- clockState.get.flatMap { data =>
+          latch <- Promise.make[Nothing, Unit]
+          await <- clockState.modify { data =>
                     val end = data.duration + duration
                     if (end > data.duration)
-                      scheduled.offer(end, Sleep(end, latch, fiberId)).as(true)
+                      (true, data.copy(sleeps = (end, latch) :: data.sleeps))
                     else
-                      STM.succeedNow(false)
-                  }.commit
+                      (false, data)
+                  }
           _ <- if (await) warningStart *> latch.await else latch.succeed(())
         } yield ()
 
@@ -357,13 +349,13 @@ package object environment extends PlatformSpecific {
        * to resume.
        */
       lazy val sleeps: UIO[List[Duration]] =
-        scheduled.toList.map(_.map(_.duration)).commit
+        clockState.get.map(_.sleeps.map(_._1))
 
       /**
        * Returns the time zone.
        */
       lazy val timeZone: UIO[ZoneId] =
-        clockState.get.map(_.timeZone).commit
+        clockState.get.map(_.timeZone)
 
       /**
        * Cancels the warning message that is displayed if a test is using time
@@ -397,19 +389,26 @@ package object environment extends PlatformSpecific {
        * the same time this snaposhot may not be fully consistent.
        */
       private lazy val freeze: IO[Unit, Set[Fiber.Status]] =
-        ZIO.fiberId.flatMap { fiberId =>
-          fiberState(fiberId).get.flatMap { fiber =>
-            fiber.descendants.flatMap { fibers =>
-              ZIO
-                .foreach(fibers)(_.status.filterOrFail {
-                  case Fiber.Status.Done                     => true
-                  case Fiber.Status.Suspended(_, _, _, _, _) => true
-                  case _                                     => false
-                }(()))
-                .map(_.toSet)
-            }
-          }
+        descendants.flatMap { fibers =>
+          ZIO
+            .foreach(fibers)(_.status.filterOrFail {
+              case Fiber.Status.Done                     => true
+              case Fiber.Status.Suspended(_, _, _, _, _) => true
+              case _                                     => false
+            }(()))
+            .map(_.toSet)
         }
+
+      /**
+       * Provides access to the list of descendants of this fiber (children and
+       * their children, recursively).
+       */
+      private def descendants: UIO[Iterable[Fiber.Runtime[Any, Any]]] =
+        for {
+          descriptor <- ZIO.descriptor
+          children   <- descriptor.children
+          collected  <- ZIO.foreach(children)(_.descendants)
+        } yield children ++ collected.flatten
 
       /**
        * Constructs a `Duration` from an `OffsetDateTime`.
@@ -421,23 +420,21 @@ package object environment extends PlatformSpecific {
        * Run all effects scheduled to occur on or before the specified
        * duration, in order.
        */
-      private def runUntil(duration: STM[Nothing, Duration]): UIO[Unit] =
+      private def runUntil(duration: Duration): UIO[Unit] =
         awaitSuspended *>
-          duration.flatMap { duration =>
-            scheduled.peekOption.flatMap {
-              case Some(sleep) if sleep.duration <= duration =>
-                clockState.update(_.copy(duration = sleep.duration)) *>
-                  scheduled.take.map(_.copy(duration = duration)).asSome
-              case _ =>
-                clockState.update(_.copy(duration = duration)) *> STM.none
+          clockState.modify { data =>
+            data.sleeps.sortBy(_._1) match {
+              case (d, p) :: t if d <= duration =>
+                (Some(p), Data(d, t, data.timeZone))
+              case _ => (None, Data(duration, data.sleeps, data.timeZone))
             }
-          }.commit.flatMap {
+          }.flatMap {
             case None => UIO.unit
-            case Some(sleep) =>
-              sleep.promise.succeed(()) *>
+            case Some(promise) =>
+              promise.succeed(()) *>
                 ZIO.yieldNow *>
                 awaitSuspended *>
-                runUntil(STM.succeedNow(sleep.duration))
+                runUntil(duration)
           }
 
       /**
@@ -477,11 +474,9 @@ package object environment extends PlatformSpecific {
     def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
       ZLayer.fromServiceManyManaged { (live: Live.Service) =>
         for {
-          ref        <- TRef.makeCommit(data).toManaged_
-          queue      <- TPriorityQueue.empty[Duration, Sleep].commit.toManaged_
-          fiberState <- ZIO.memoize(Fiber.get).toManaged_
-          refM       <- RefM.make(WarningData.start).toManaged_
-          test       <- Managed.make(UIO(Test(ref, fiberState, queue, live, refM)))(_.warningDone)
+          ref  <- Ref.make(data).toManaged_
+          refM <- RefM.make(WarningData.start).toManaged_
+          test <- Managed.make(UIO(Test(ref, live, refM)))(_.warningDone)
         } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
       }
 
@@ -489,7 +484,7 @@ package object environment extends PlatformSpecific {
       ZLayer.requires[Clock with TestClock]
 
     val default: ZLayer[Live, Nothing, Clock with TestClock] =
-      live(Data(Duration.Zero, ZoneId.of("UTC")))
+      live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))
 
     /**
      * Accesses a `TestClock` instance in the environment and increments the
@@ -558,7 +553,11 @@ package object environment extends PlatformSpecific {
      * `Data` represents the state of the `TestClock`, incuding the clock time
      * and time zone.
      */
-    final case class Data(duration: Duration, timeZone: ZoneId)
+    final case class Data(
+      duration: Duration,
+      sleeps: List[(Duration, Promise[Nothing, Unit])],
+      timeZone: ZoneId
+    )
 
     /**
      * `Sleep` represents the state of a scheduled effect, including the time

@@ -182,12 +182,6 @@ object UIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
-   * @see See [[zio.ZIO.collectFirst]]
-   */
-  def collectFirst[A, B](as: Iterable[A])(f: A => UIO[Option[B]]): UIO[Option[B]] =
-    ZIO.collectFirst(as)(f)
-
-  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -264,12 +258,6 @@ object UIO {
   def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => UIO[A]): UIO[A] = ZIO.effectSuspendTotalWith(p)
 
   /**
-   * @see See [[zio.ZIO.exists]]
-   */
-  def exists[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[Boolean] =
-    ZIO.exists(as)(f)
-
-  /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
@@ -308,12 +296,6 @@ object UIO {
    */
   def foldRight[S, A](in: Iterable[A])(zero: S)(f: (A, S) => UIO[S]): UIO[S] =
     ZIO.foldRight(in)(zero)(f)
-
-  /**
-   * @see See [[zio.ZIO.forall]]
-   */
-  def forall[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[Boolean] =
-    ZIO.forall(as)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
@@ -553,12 +535,6 @@ object UIO {
     f: (A, B, C, D) => F
   ): UIO[F] =
     ZIO.mapParN(uio1, uio2, uio3, uio4)(f)
-
-  /**
-   * @see See [[zio.ZIO.memoize]]
-   */
-  def memoize[A, B](f: A => UIO[B]): UIO[A => UIO[B]] =
-    ZIO.memoize(f)
 
   /**
    * @see See [[zio.ZIO.mergeAll]]

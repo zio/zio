@@ -67,12 +67,6 @@ object Managed {
     ZManaged.collectAllParN_(n)(as)
 
   /**
-   * See [[zio.ZManaged.collectFirst]]
-   */
-  def collectFirst[E, A, B](as: Iterable[A])(f: A => Managed[E, Option[B]]): Managed[E, Option[B]] =
-    ZManaged.collectFirst(as)(f)
-
-  /**
    * See [[zio.ZManaged.die]]
    */
   def die(t: => Throwable): Managed[Nothing, Nothing] =
@@ -103,13 +97,6 @@ object Managed {
     ZManaged.effectTotal(r)
 
   /**
-   * Determines whether any element of the `Iterable[A]` satisfies the
-   * effectual predicate `f`.
-   */
-  def exists[E, A](as: Iterable[A])(f: A => Managed[E, Boolean]): Managed[E, Boolean] =
-    ZManaged.exists(as)(f)
-
-  /**
    * See [[zio.ZManaged.fail]]
    */
   def fail[E](error: => E): Managed[E, Nothing] =
@@ -138,12 +125,6 @@ object Managed {
    */
   def flattenM[E, A](m: Managed[E, IO[E, A]]): Managed[E, A] =
     ZManaged.flattenM(m)
-
-  /**
-   * See [[zio.ZManaged.forall]]
-   */
-  def forall[E, A](as: Iterable[A])(f: A => Managed[E, Boolean]): Managed[E, Boolean] =
-    ZManaged.forall(as)(f)
 
   /**
    * See [[[zio.ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
@@ -346,12 +327,6 @@ object Managed {
    * See [[zio.ZManaged.never]]
    */
   val never: Managed[Nothing, Nothing] = ZManaged.never
-
-  /**
-   * See [[zio.ZManaged.none]]
-   */
-  val none: Managed[Nothing, Option[Nothing]] =
-    ZManaged.none
 
   /**
    * See [[zio.ZManaged.reduceAll]]

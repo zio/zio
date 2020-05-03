@@ -16,8 +16,6 @@
 
 package zio
 
-import java.util.concurrent.atomic.AtomicLong
-
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
 
@@ -492,13 +490,7 @@ object Fiber extends FiberPlatformSpecific {
    * The identity of a Fiber, described by the time it began life, and a
    * monotonically increasing sequence number generated from an atomic counter.
    */
-  final case class Id(startTimeMillis: Long, seqNumber: Long) extends Ordered[Id] with Serializable { self =>
-    def compare(that: Id): Int = {
-      val compare1 = self.startTimeMillis.compare(that.startTimeMillis)
-      if (compare1 != 0) compare1
-      else self.seqNumber.compare(that.seqNumber)
-    }
-  }
+  final case class Id(startTimeMillis: Long, seqNumber: Long) extends Serializable
   object Id {
 
     /**
@@ -767,26 +759,11 @@ object Fiber extends FiberPlatformSpecific {
   def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
-  private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
-    new ThreadLocal[internal.FiberContext[_, _]]()
+  private[zio] def newFiberId(): Fiber.Id = Fiber.Id(System.currentTimeMillis(), _fiberCounter.getAndIncrement())
 
-  private[zio] def get(fiberId: Fiber.Id): UIO[Option[Fiber.Runtime[Any, Any]]] = {
-
-    def loop(fiber: Fiber.Runtime[Any, Any]): UIO[Option[Fiber.Runtime[Any, Any]]] =
-      fiber.id.flatMap { id =>
-        if (id == fiberId) UIO.succeedNow(Some(fiber))
-        else if (id > fiberId) UIO.succeedNow(None)
-        else fiber.children.flatMap(ZIO.collectFirst(_)(loop))
-      }
-
-    roots.flatMap(ZIO.collectFirst(_)(loop))
-  }
-
-  private[zio] val _fiberCounter: AtomicLong =
-    new java.util.concurrent.atomic.AtomicLong(0)
-
-  private[zio] def newFiberId(): Fiber.Id =
-    Fiber.Id(System.currentTimeMillis(), _fiberCounter.getAndIncrement())
+  private[zio] def untrack[E, A](context: internal.FiberContext[E, A]): Boolean =
+    if (context ne null) Fiber.rootFibers.remove(context)
+    else false
 
   private[zio] def track[E, A](context: internal.FiberContext[E, A]): Unit =
     if (context ne null) {
@@ -796,12 +773,13 @@ object Fiber extends FiberPlatformSpecific {
       if (!internal.Platform.isJVM) context.onDone(_ => Fiber.rootFibers.remove(context))
     }
 
-  private[zio] def untrack[E, A](context: internal.FiberContext[E, A]): Boolean =
-    if (context ne null) Fiber.rootFibers.remove(context)
-    else false
+  private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
+    new ThreadLocal[internal.FiberContext[_, _]]()
 
   private type RootFibers = java.util.Set[internal.FiberContext[_, _]]
 
   private val rootFibers: RootFibers =
     internal.Platform.newConcurrentWeakSet[internal.FiberContext[_, _]]()
+
+  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicLong(0)
 }
