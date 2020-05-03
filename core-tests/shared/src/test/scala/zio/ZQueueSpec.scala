@@ -273,7 +273,6 @@ object ZQueueSpec extends ZIOBaseSpec {
         } yield assert(count > 5)(isTrue)
       }
     ),
-
     testM("offerAll with takeAll") {
       for {
         queue  <- Queue.bounded[Int](10)
