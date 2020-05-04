@@ -17,41 +17,36 @@ object ClockSpec extends ZIOBaseSpec {
   def spec = suite("ClockSpec")(
     testM("sleep does not require passage of clock time") {
       for {
-        latch <- Promise.make[Nothing, Unit]
-        _     <- (sleep(10.hours) *> latch.succeed(())).fork
-        _     <- adjust(11.hours)
-        _     <- latch.await
-      } yield assertCompletes
-    } @@ nonFlaky,
-    testM("sleep delays effect until time is adjusted") {
-      for {
-        ref    <- Ref.make(true)
-        _      <- (sleep(10.hours) *> ref.set(false)).fork
-        _      <- adjust(9.hours)
+        ref    <- Ref.make(false)
+        _      <- ref.set(true).delay(10.hours).fork
+        _      <- adjust(11.hours)
         result <- ref.get
       } yield assert(result)(isTrue)
     } @@ nonFlaky,
+    testM("sleep delays effect until time is adjusted") {
+      for {
+        ref    <- Ref.make(false)
+        _      <- ref.set(true).delay(10.hours).fork
+        _      <- adjust(9.hours)
+        result <- ref.get
+      } yield assert(result)(isFalse)
+    } @@ nonFlaky,
     testM("sleep correctly handles multiple sleeps") {
       for {
-        latch1 <- Promise.make[Nothing, Unit]
-        latch2 <- Promise.make[Nothing, Unit]
         ref    <- Ref.make("")
-        _      <- (sleep(3.hours) *> ref.update(_ + "World!") *> latch2.succeed(())).fork
-        _      <- (sleep(1.hours) *> ref.update(_ + "Hello, ") *> latch1.succeed(())).fork
-        _      <- adjust(2.hours)
-        _      <- latch1.await
-        _      <- adjust(2.hours)
-        _      <- latch2.await
+        _      <- ref.update(_ + "World!").delay(3.hours).fork
+        _      <- ref.update(_ + "Hello, ").delay(1.hours).fork
+        _      <- adjust(4.hours)
         result <- ref.get
       } yield assert(result)(equalTo("Hello, World!"))
     } @@ nonFlaky,
     testM("sleep correctly handles new set time") {
       for {
-        latch <- Promise.make[Nothing, Unit]
-        _     <- (sleep(10.hours) *> latch.succeed(())).fork
-        _     <- setTime(11.hours)
-        _     <- latch.await
-      } yield assertCompletes
+        ref    <- Ref.make(false)
+        _      <- ref.set(true).delay(10.hours).fork
+        _      <- setTime(11.hours)
+        result <- ref.get
+      } yield assert(result)(isTrue)
     } @@ nonFlaky,
     testM("adjust correctly advances nanotime") {
       for {
@@ -75,7 +70,10 @@ object ClockSpec extends ZIOBaseSpec {
       } yield assert((time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli))(equalTo(1L))
     },
     testM("adjust does not produce sleeps") {
-      adjust(1.millis) *> assertM(sleeps)(isEmpty)
+      for {
+        _      <- adjust(1.millis)
+        sleeps <- sleeps
+      } yield assert(sleeps)(isEmpty)
     },
     testM("setDateTime correctly sets currentDateTime") {
       for {
@@ -154,6 +152,13 @@ object ClockSpec extends ZIOBaseSpec {
         _         <- TestClock.adjust(5.seconds)
         _         <- latch.await
       } yield assertCompletes
-    } @@ nonFlaky
+    } @@ nonFlaky,
+    testM("adjustments to time are visible on other fibers") {
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        effect  = adjust(1.second) *> clock.currentTime(TimeUnit.SECONDS)
+        result  <- (effect <* promise.succeed(())) <&> (promise.await *> effect)
+      } yield assert(result)(equalTo((1L, 2L)))
+    }
   )
 }
