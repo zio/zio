@@ -1467,6 +1467,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
+   * Specialized version of haltWhen which halts the evaluation of this stream
+   * after the given duration.
+   *
+   * An element in the process of being pulled will not be interrupted when the
+   * given duration completes. See `interruptAfter` for this behavior.
+   */
+  final def haltAfter(duration: Duration): ZStream[R with Clock, E, O] =
+    haltWhen(clock.sleep(duration))
+
+  /**
    * Partitions the stream with specified chunkSize
    * @param chunkSize size of the chunk
    */
@@ -1637,6 +1647,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         }
       } yield pull
     }
+
+  /**
+   * Specialized version of interruptWhen which interrupts the evaluation of this stream
+   * after the given duration.
+   */
+  final def interruptAfter(duration: Duration): ZStream[R with Clock, E, O] =
+    interruptWhen(clock.sleep(duration))
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be

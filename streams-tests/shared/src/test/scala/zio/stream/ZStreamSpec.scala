@@ -1342,6 +1342,38 @@ object ZStreamSpec extends ZIOBaseSpec {
             } @@ zioTag(errors)
           )
         ),
+        suite("haltAfter")(
+          testM("halts after given duration") {
+            assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3), Chunk(4))) {
+              c =>
+                assertM(
+                  for {
+                    fiber <- ZStream
+                              .fromQueue(c.queue)
+                              .collectWhileSuccess
+                              .haltAfter(5.seconds)
+                              .tap(_ => c.proceed)
+                              .runCollect
+                              .fork
+                    _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
+                    _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
+                    _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
+                    _      <- c.offer
+                    result <- fiber.join
+                  } yield result
+                )(equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
+            }
+          },
+          testM("will process first chunk") {
+            for {
+              queue  <- Queue.unbounded[Int]
+              fiber  <- ZStream.fromQueue(queue).haltAfter(5.seconds).runCollect.fork
+              _      <- TestClock.adjust(6.seconds)
+              _      <- queue.offer(1)
+              result <- fiber.join
+            } yield assert(result)(equalTo(List(1)))
+          }
+        ),
         testM("grouped")(
           assertM(ZStream(1, 2, 3, 4).grouped(2).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
         ),
@@ -1498,6 +1530,36 @@ object ZStreamSpec extends ZIOBaseSpec {
             } @@ zioTag(errors)
           ) @@ zioTag(interruption)
         ),
+        suite("interruptAfter")(
+          testM("interrupts after given duration") {
+            assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3))) { c =>
+              assertM(
+                for {
+                  fiber <- ZStream
+                            .fromQueue(c.queue)
+                            .collectWhileSuccess
+                            .interruptAfter(5.seconds)
+                            .tap(_ => c.proceed)
+                            .runCollect
+                            .fork
+                  _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
+                  _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
+                  _      <- c.offer
+                  result <- fiber.join
+                } yield result
+              )(equalTo(List(Chunk(1), Chunk(2))))
+            }
+          },
+          testM("interrupts before first chunk") {
+            for {
+              queue  <- Queue.unbounded[Int]
+              fiber  <- ZStream.fromQueue(queue).interruptAfter(5.seconds).runCollect.fork
+              _      <- TestClock.adjust(6.seconds)
+              _      <- queue.offer(1)
+              result <- fiber.join
+            } yield assert(result)(isEmpty)
+          }
+        ) @@ zioTag(interruption),
         suite("managed")(
           testM("preserves interruptibility of effect") {
             for {
