@@ -742,13 +742,6 @@ abstract class ZStream[-R, +E, +O](
     (self crossWith that)((_, o2) => o2)
 
   /**
-   * Only emits elements after `waitTime` has passed. If another element in the source stream is
-   * produced before `waitTime` has passed, the previous element will be dropped.
-   */
-  final def debounce(waitTime: Duration): ZStream[R with Clock, E, O] =
-    aggregateAsyncWithin(ZTransducer.lastOption[O], Schedule.spaced(waitTime)).collectSome
-
-  /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
    * queues should receive which elements. The decide function will receive the indices of the queues
    * in the resulting list.
