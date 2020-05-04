@@ -392,3 +392,35 @@ lazy val hidden: ZLayer[Any, Nothing, Cake] = all
 ```
 
 And if you do build your dependency graph more explicitly you can be confident that layers used in multiple parts of the dependency graph will only be created once due to memoization and sharing.
+
+# Auto-wiring ZIO Layers
+
+For big enough programs, explicitly sequencing `ZLayer`s
+https://izumi.7mind.io/latest/release/doc/distage
+
+`ModuleDef` is a set of derivation rules - it declares what `ZLayer` should be used to create a given Service.
+
+After adding enough rules to cover all the required services, we can ask for a Service to be assembled using them:    
+
+Note, not all rules inside `ModuleDef` will be executed by the effect returned in `produceRun` - only those layers that are required to create the requested Service will be composed together and their `acquire`/`release` actions executed:
+
+```scala mdoc
+// irrelevant layer not executed
+Injector().produceRun(definition) {
+  (_: Service).run
+}
+```
+
+```scala mdoc
+// if directly requested it is executed
+Injector().produceRun(definition) {
+  (hello: Hello.Service) => ZIO.unit
+}
+```
+
+
+`ZLayer` models an explicit composition of services in which outputs of layers connect explicitly to the inputs of subsequent layers. The order of composition specifies the order of execution and must be coded manually.
+
+```scala mdoc
+
+```
