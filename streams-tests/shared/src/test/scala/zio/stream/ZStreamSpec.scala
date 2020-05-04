@@ -1956,22 +1956,28 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           },
           testM("with burst") {
-            Queue
-              .bounded[Int](10)
-              .flatMap { queue =>
-                ZStream.fromQueue(queue).throttleShape(1, 1.second, 2)(_.fold(0)(_ + _).toLong).process.use { pull =>
-                  for {
-                    _    <- queue.offer(1)
-                    res1 <- pull
-                    _    <- TestClock.adjust(2.seconds)
-                    _    <- queue.offer(2)
-                    res2 <- pull
-                    _    <- TestClock.adjust(4.seconds)
-                    _    <- queue.offer(3)
-                    res3 <- pull
-                  } yield assert(List(res1, res2, res3))(equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
-                }
-              }
+            for {
+              fiber <- Queue
+                        .bounded[Int](10)
+                        .flatMap { queue =>
+                          ZStream.fromQueue(queue).throttleShape(1, 1.second, 2)(_.fold(0)(_ + _).toLong).process.use {
+                            pull =>
+                              for {
+                                _    <- queue.offer(1)
+                                res1 <- pull
+                                _    <- TestClock.adjust(2.seconds)
+                                _    <- queue.offer(2)
+                                res2 <- pull
+                                _    <- TestClock.adjust(4.seconds)
+                                _    <- clock.sleep(4.seconds)
+                                _    <- queue.offer(3)
+                                res3 <- pull
+                              } yield assert(List(res1, res2, res3))(equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
+                          }
+                        }
+                        .fork
+              test <- fiber.join
+            } yield test
           },
           testM("free elements") {
             assertM(
