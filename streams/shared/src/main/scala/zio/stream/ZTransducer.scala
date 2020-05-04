@@ -537,6 +537,24 @@ object ZTransducer {
     ZTransducer(Managed.succeed(push))
 
   /**
+   * Creates a transducer that returns the first element of a chunk, if it exists.
+   */
+  def headOption[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+    foldLeft[O, Option[O]](Option.empty[O]) {
+      case (acc, a) =>
+        acc match {
+          case Some(_) => acc
+          case None    => Some(a)
+        }
+    }
+
+  /**
+   * Creates a transducer that returns the last element of a chunk, if it exists.
+   */
+  def lastOption[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+    foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
+
+  /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
   val splitLines: ZTransducer[Any, Nothing, String, String] =
