@@ -743,7 +743,7 @@ abstract class ZStream[-R, +E, +O](
 
   /**
    * Only emits elements after `waitTime` has passed. If another element in the source stream is
-   * produced before `waitTime` has passed, the previous element is will be dropped.
+   * produced before `waitTime` has passed, the previous element will be dropped.
    */
   final def debounce(waitTime: Duration): ZStream[R with Clock, E, O] =
     aggregateAsyncWithin(ZTransducer.lastOption[O], Schedule.spaced(waitTime)).collectSome
