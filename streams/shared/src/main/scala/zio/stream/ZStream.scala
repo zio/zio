@@ -2666,8 +2666,8 @@ abstract class ZStream[-R, +E, +O](
   )(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
     sealed trait State[+W1, +W2]
     case class Running[W1, W2](excess: Either[Chunk[W1], Chunk[W2]]) extends State[W1, W2]
-    case class LeftDone[W1](nonEmptyExcessL: Chunk[W1])              extends State[W1, Nothing]
-    case class RightDone[W2](nonEmptyExcess: Chunk[W2])              extends State[Nothing, W2]
+    case class LeftDone[W1](excessL: NonEmptyChunk[W1])              extends State[W1, Nothing]
+    case class RightDone[W2](excessR: NonEmptyChunk[W2])             extends State[Nothing, W2]
     case object End                                                  extends State[Nothing, Nothing]
 
     def zipSides(cl: Chunk[O], cr: Chunk[O2]): (Chunk[O3], Either[Chunk[O], Chunk[O2]]) =
@@ -2693,8 +2693,8 @@ abstract class ZStream[-R, +E, +O](
         case (false, false) => Exit.fail(None)
         case _ => {
           val newState = newExcess match {
-            case Left(l)  => if (l.isEmpty) End else LeftDone(l)
-            case Right(r) => if (r.isEmpty) End else RightDone(r)
+            case Left(l)  => NonEmptyChunk.fromChunk(l).fold[State[O, O2]](End)(LeftDone(_))
+            case Right(r) => NonEmptyChunk.fromChunk(r).fold[State[O, O2]](End)(RightDone(_))
           }
           Exit.succeed((emit, newState))
         }
