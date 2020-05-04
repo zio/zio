@@ -214,7 +214,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("dropWhileM")(
       testM("dropWhileM happy path") {
-        assertM(Chunk(1, 2, 3, 4, 5).dropWhileM(el => UIO.succeed(el < 3)))(equalTo(Chunk(3, 4, 5)))
+        assertM(Chunk(1, 2, 3, 4, 5).dropWhileM(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(2, 3, 4, 5)))
       },
       testM("dropWhileM error") {
         Chunk(1, 1, 1).dropWhileM(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))

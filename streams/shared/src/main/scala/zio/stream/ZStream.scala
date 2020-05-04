@@ -2654,34 +2654,65 @@ abstract class ZStream[-R, +E, +O](
    *
    * The new stream will end when one of the sides ends.
    */
-  def zipWith[R1 <: R, E1 >: E, O2, O3](that: ZStream[R1, E1, O2])(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
-    sealed trait State[+O, +O2]
-    case class Running[O, O2](excessL: Chunk[O], excessR: Chunk[O2]) extends State[O, O2]
+  def zipWith[R1 <: R, E1 >: E, O2, O3](
+    that: ZStream[R1, E1, O2]
+  )(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
+    sealed trait State[+W1, +W2]
+    case class Running[W1, W2](excess: Either[Chunk[W1], Chunk[W2]]) extends State[W1, W2]
+    case class LeftDone[W1](excessL: NonEmptyChunk[W1])              extends State[W1, Nothing]
+    case class RightDone[W2](excessR: NonEmptyChunk[W2])             extends State[Nothing, W2]
     case object End                                                  extends State[Nothing, Nothing]
 
-    def zipSides(cl: Chunk[O], cr: Chunk[O2]) =
-      if (cl.size > cr.size) (cl.take(cr.size).zipWith(cr)(f), cl.drop(cr.size), Chunk())
-      else if (cl.size == cr.size) (cl.zipWith(cr)(f), Chunk(), Chunk())
-      else (cl.zipWith(cr.take(cl.size))(f), Chunk(), cr.drop(cl.size))
+    def zipSides(cl: Chunk[O], cr: Chunk[O2]): (Chunk[O3], Either[Chunk[O], Chunk[O2]]) =
+      if (cl.size > cr.size)
+        (cl.take(cr.size).zipWith(cr)(f), Left(cl.drop(cr.size)))
+      else
+        (cl.zipWith(cr.take(cl.size))(f), Right(cr.drop(cl.size)))
 
-    combineChunks(that)(Running(Chunk[O](), Chunk[O2]()): State[O, O2]) {
-      case (Running(excessL, excessR), pullL, pullR) =>
-        pullL.optional
-          .zipWithPar(pullR.optional) {
-            case (Some(o), Some(o2)) =>
-              val (emit, el, er) = zipSides(excessL ++ o, excessR ++ o2)
-              Exit.succeed(emit -> Running(el, er))
-            case (Some(o), None) =>
-              val (emit, _, _) = zipSides(excessL ++ o, excessR)
-              Exit.succeed(emit -> End)
-            case (None, Some(o2)) =>
-              val (emit, _, _) = zipSides(excessL, excessR ++ o2)
-              Exit.succeed(emit -> End)
-            case (None, None) =>
-              Exit.fail(None)
+    def handleSuccess(
+      leftUpd: Option[Chunk[O]],
+      rightUpd: Option[Chunk[O2]],
+      excess: Either[Chunk[O], Chunk[O2]]
+    ): Exit[Option[Nothing], (Chunk[O3], State[O, O2])] = {
+      val (left, right) = {
+        val (leftExcess, rightExcess) = excess.fold(l => (l, Chunk.empty), r => (Chunk.empty, r))
+        val l                         = leftUpd.fold(leftExcess)(upd => leftExcess ++ upd)
+        val r                         = rightUpd.fold(rightExcess)(upd => rightExcess ++ upd)
+        (l, r)
+      }
+      val (emit, newExcess): (Chunk[O3], Either[Chunk[O], Chunk[O2]]) = zipSides(left, right)
+      (leftUpd.isDefined, rightUpd.isDefined) match {
+        case (true, true)   => Exit.succeed((emit, Running(newExcess)))
+        case (false, false) => Exit.fail(None)
+        case _ => {
+          val newState = newExcess match {
+            case Left(l)  => NonEmptyChunk.fromChunk(l).fold[State[O, O2]](End)(LeftDone(_))
+            case Right(r) => NonEmptyChunk.fromChunk(r).fold[State[O, O2]](End)(RightDone(_))
           }
-          .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-      case (End, _, _) => UIO.succeedNow(Exit.fail(None))
+          Exit.succeed((emit, newState))
+        }
+      }
+    }
+
+    combineChunks(that)(Running(Left(Chunk.empty)): State[O, O2]) { (st, p1, p2) =>
+      st match {
+        case Running(excess) => {
+            p1.optional.zipWithPar(p2.optional) {
+              case (l, r) => handleSuccess(l, r, excess)
+            }
+          }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
+        case LeftDone(excessL) => {
+            p2.optional.map(handleSuccess(None, _, Left(excessL)))
+          }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
+        case RightDone(excessR) => {
+          p1.optional
+            .map(handleSuccess(_, None, Right(excessR)))
+            .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
+        }
+        case End => {
+          UIO.succeedNow(Exit.fail(None))
+        }
+      }
     }
   }
 

@@ -231,6 +231,12 @@ abstract class ZSink[-R, +E, -I, +Z] private (
     ZSink(self.push.map(sink => (inputs: Option[Chunk[I]]) => sink(inputs).mapError(_.map(f))))
 
   /**
+   * Transforms the errors emitted by this sink using `f`.
+   */
+  def mapError[E2](f: E => E2): ZSink[R, E2, I, Z] =
+    ZSink(self.push.map(p => in => p(in).mapError(e => e.left.map(f))))
+
+  /**
    * Effectfully transforms this sink's result.
    */
   def mapM[R1 <: R, E1 >: E, Z2](f: Z => ZIO[R1, E1, Z2]): ZSink[R1, E1, I, Z2] =

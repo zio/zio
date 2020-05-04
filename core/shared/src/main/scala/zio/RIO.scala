@@ -661,13 +661,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.partition]]
    */
-  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
     ZIO.partition(in)(f)
 
   /**
    * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
     ZIO.partitionPar(in)(f)
 
   /**
@@ -675,7 +675,7 @@ object RIO {
    */
   def partitionParN[R, A, B](n: Int)(
     in: Iterable[A]
-  )(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  )(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
     ZIO.partitionParN(n)(in)(f)
 
   /**
