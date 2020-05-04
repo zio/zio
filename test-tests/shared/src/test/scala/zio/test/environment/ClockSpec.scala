@@ -136,7 +136,7 @@ object ClockSpec extends ZIOBaseSpec {
       } yield a && b && c && d && e
       assertM(example)(isTrue)
     } @@ nonFlaky,
-    testM("clock time is always zero at the beginning of a repeated test")(
+    testM("clock time is always 0 at the start of a test that repeats")(
       for {
         clockTime <- currentTime(TimeUnit.NANOSECONDS)
         _         <- sleep(2.nanos).fork
