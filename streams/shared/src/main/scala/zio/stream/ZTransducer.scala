@@ -615,6 +615,62 @@ object ZTransducer {
     }
 
   /**
+   * Splits strings on a delimiter.
+   */
+  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] =
+    ZTransducer {
+      ZRef.makeManaged[(Option[String], Int)](None -> 0).map { state =>
+        {
+          case None =>
+            state.modify {
+              case s @ (None, _) => Chunk.empty     -> s
+              case (Some(s), _)  => Chunk.single(s) -> (None -> 0)
+            }
+          case Some(is) =>
+            state.modify { s0 =>
+              var out: mutable.ArrayBuffer[String] = null
+              var chunkIndex                       = 0
+              var buffer                           = s0._1.getOrElse("")
+              var delimIndex                       = s0._2
+              while (chunkIndex < is.length) {
+                val in    = buffer + is(chunkIndex)
+                var index = buffer.length
+                var start = 0
+                buffer = ""
+                while (index < in.length) {
+                  while (delimIndex < delimiter.length && index < in.length && in(index) == delimiter(delimIndex)) {
+                    delimIndex += 1
+                    index += 1
+                  }
+                  if (delimIndex == delimiter.length || in == "") {
+                    if (out eq null) out = mutable.ArrayBuffer[String]()
+                    out += in.substring(start, index - delimiter.length)
+                    delimIndex = 0
+                    start = index
+                  }
+                  if (index < in.length) {
+                    delimIndex = 0
+                    while (index < in.length && in(index) != delimiter(0)) index += 1;
+                  }
+                }
+
+                if (start < in.length) {
+                  buffer = in.drop(start)
+                }
+
+                chunkIndex += 1
+              }
+
+              val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray)
+              val buf   = if (buffer == "") None else Some(buffer)
+
+              chunk -> (buf -> delimIndex)
+            }
+        }
+      }
+    }
+
+  /**
    * Decodes chunks of UTF-8 bytes into strings.
    *
    * This transducer uses the String constructor's behavior when handling malformed byte
