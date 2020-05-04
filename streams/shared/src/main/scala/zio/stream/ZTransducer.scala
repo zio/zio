@@ -539,7 +539,7 @@ object ZTransducer {
   /**
    * Creates a transducer that returns the first element of a chunk, if it exists.
    */
-  def headOption[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+  def head[O]: ZTransducer[Any, Nothing, O, Option[O]] =
     foldLeft[O, Option[O]](Option.empty[O]) {
       case (acc, a) =>
         acc match {
@@ -551,7 +551,7 @@ object ZTransducer {
   /**
    * Creates a transducer that returns the last element of a chunk, if it exists.
    */
-  def lastOption[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+  def last[O]: ZTransducer[Any, Nothing, O, Option[O]] =
     foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
 
   /**
