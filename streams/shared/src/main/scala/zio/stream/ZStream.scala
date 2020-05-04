@@ -7,6 +7,7 @@ import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.UniqueKey
 import zio.stm.TQueue
+import zio.stream.internal.Utils.zipChunks
 
 abstract class ZStream[-R, +E, +O](
   val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
@@ -2601,58 +2602,47 @@ abstract class ZStream[-R, +E, +O](
   def zipAllWith[R1 <: R, E1 >: E, O2, O3](
     that: ZStream[R1, E1, O2]
   )(left: O => O3, right: O2 => O3)(both: (O, O2) => O3): ZStream[R1, E1, O3] = {
-    sealed trait State[+O, +O2]
-    case class Running[O, O2](excessL: Chunk[O], excessR: Chunk[O2])   extends State[O, O2]
-    case class LeftDone[O, O2](excessL: Chunk[O], excessR: Chunk[O2])  extends State[O, O2]
-    case class RightDone[O, O2](excessL: Chunk[O], excessR: Chunk[O2]) extends State[O, O2]
-    case object End                                                    extends State[Nothing, Nothing]
+    sealed trait Status
+    case object Running   extends Status
+    case object LeftDone  extends Status
+    case object RightDone extends Status
+    case object End       extends Status
+    type State = (Status, Either[Chunk[O], Chunk[O2]])
 
-    def zipSides(cl: Chunk[O], cr: Chunk[O2], bothDone: Boolean) =
-      if (cl.size > cr.size) {
-        if (bothDone) (cl.take(cr.size).zipWith(cr)(both) ++ cl.drop(cr.size).map(left), Chunk(), Chunk())
-        else (cl.take(cr.size).zipWith(cr)(both), cl.drop(cr.size), Chunk())
-      } else if (cl.size == cr.size) (cl.zipWith(cr)(both), Chunk(), Chunk())
-      else {
-        if (bothDone) (cl.zipWith(cr.take(cl.size))(both) ++ cr.drop(cl.size).map(right), Chunk(), Chunk())
-        else (cl.zipWith(cr.take(cl.size))(both), Chunk(), cr.drop(cl.size))
+    def handleSuccess(
+      maybeO: Option[Chunk[O]],
+      maybeO2: Option[Chunk[O2]],
+      excess: Either[Chunk[O], Chunk[O2]]
+    ): Exit[Nothing, (Chunk[O3], State)] = {
+      val (excessL, excessR) = excess.fold(l => (l, Chunk.empty), r => (Chunk.empty, r))
+      val chunkL             = maybeO.fold(excessL)(upd => excessL ++ upd)
+      val chunkR             = maybeO2.fold(excessR)(upd => excessR ++ upd)
+      val (emit, newExcess)  = zipChunks(chunkL, chunkR, both)
+      val (fullEmit, status) = (maybeO.isDefined, maybeO2.isDefined) match {
+        case (true, true) => (emit, Running)
+        case (false, false) =>
+          val leftover: Chunk[O3] = newExcess.fold[Chunk[O3]](_.map(left), _.map(right))
+          (emit ++ leftover, End)
+        case (false, true) => (emit, LeftDone)
+        case (true, false) => (emit, RightDone)
       }
+      Exit.succeed((fullEmit, (status, newExcess)))
+    }
 
-    def handleSuccess(maybeO: Option[Chunk[O]], maybeO2: Option[Chunk[O2]], excessL: Chunk[O], excessR: Chunk[O2]) =
-      (maybeO, maybeO2) match {
-        case (Some(o), Some(o2)) =>
-          val (emit, el, er) = zipSides(excessL ++ o, excessR ++ o2, bothDone = false)
-          Exit.succeed(emit -> Running(el, er))
-
-        case (None, Some(o2)) =>
-          val (emit, el, er) = zipSides(excessL, excessR ++ o2, bothDone = false)
-          Exit.succeed(emit -> LeftDone(el, er))
-
-        case (Some(o), None) =>
-          val (emit, el, er) = zipSides(excessL ++ o, excessR, bothDone = false)
-          Exit.succeed(emit -> RightDone(el, er))
-
-        case (None, None) =>
-          val (emit, _, _) = zipSides(excessL, excessR, bothDone = true)
-          Exit.succeed(emit -> End)
-      }
-
-    combineChunks(that)(Running(Chunk(), Chunk()): State[O, O2]) {
-      case (Running(excessL, excessR), pullL, pullR) =>
+    combineChunks(that)((Running, Left(Chunk())): State) {
+      case ((Running, excess), pullL, pullR) =>
         pullL.optional
-          .zipWithPar(pullR.optional)(handleSuccess(_, _, excessL, excessR))
+          .zipWithPar(pullR.optional)(handleSuccess(_, _, excess))
           .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-
-      case (LeftDone(excessL, excessR), _, pullR) =>
+      case ((LeftDone, excess), _, pullR) =>
         pullR.optional
-          .map(handleSuccess(None, _, excessL, excessR))
+          .map(handleSuccess(None, _, excess))
           .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-
-      case (RightDone(excessL, excessR), pullL, _) =>
+      case ((RightDone, excess), pullL, _) =>
         pullL.optional
-          .map(handleSuccess(_, None, excessL, excessR))
+          .map(handleSuccess(_, None, excess))
           .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-
-      case (End, _, _) => UIO.succeedNow(Exit.fail(None))
+      case ((End, _), _, _) => UIO.succeedNow(Exit.fail(None))
     }
   }
 
@@ -2670,12 +2660,6 @@ abstract class ZStream[-R, +E, +O](
     case class RightDone[W2](excessR: NonEmptyChunk[W2])             extends State[Nothing, W2]
     case object End                                                  extends State[Nothing, Nothing]
 
-    def zipSides(cl: Chunk[O], cr: Chunk[O2]): (Chunk[O3], Either[Chunk[O], Chunk[O2]]) =
-      if (cl.size > cr.size)
-        (cl.take(cr.size).zipWith(cr)(f), Left(cl.drop(cr.size)))
-      else
-        (cl.zipWith(cr.take(cl.size))(f), Right(cr.drop(cl.size)))
-
     def handleSuccess(
       leftUpd: Option[Chunk[O]],
       rightUpd: Option[Chunk[O2]],
@@ -2687,7 +2671,7 @@ abstract class ZStream[-R, +E, +O](
         val r                         = rightUpd.fold(rightExcess)(upd => rightExcess ++ upd)
         (l, r)
       }
-      val (emit, newExcess): (Chunk[O3], Either[Chunk[O], Chunk[O2]]) = zipSides(left, right)
+      val (emit, newExcess): (Chunk[O3], Either[Chunk[O], Chunk[O2]]) = zipChunks(left, right, f)
       (leftUpd.isDefined, rightUpd.isDefined) match {
         case (true, true)   => Exit.succeed((emit, Running(newExcess)))
         case (false, false) => Exit.fail(None)
