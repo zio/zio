@@ -209,49 +209,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream(1, 2, 3).aggregate(t).runCollect.either)(isLeft(equalTo(fail)))
           }
         ),
-        suite("debounce")(
-          testM("drop earlier elements within waitTime") {
-            assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) { c =>
-              val stream = ZStream
-                .fromQueue(c.queue)
-                .collectWhileSuccess
-                .flattenChunks
-                .debounce(1.second)
-                .tap(_ => c.proceed)
-
-              assertM(for {
-                f      <- stream.runCollect.fork
-                _      <- c.offer *> TestClock.advance(2.seconds) *> c.awaitNext
-                _      <- c.offer *> TestClock.advance(2.seconds) *> c.awaitNext
-                _      <- c.offer
-                result <- f.join
-              } yield result)(equalTo(List(2, 4, 5)))
-            }
-          },
-          testM("drop earlier elements within waitTime (across chunks)") {
-            assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) { c =>
-              val stream = ZStream
-                .fromQueue(c.queue)
-                .collectWhileSuccess
-                .flattenChunks
-                .debounce(5.second)
-                .tap(_ => c.proceed)
-
-              assertM(for {
-                f      <- stream.runCollect.fork
-                _      <- c.offer *> TestClock.advance(2.seconds)
-                _      <- c.offer *> TestClock.advance(2.seconds)
-                _      <- c.offer *> c.awaitNext
-                _      <- TestClock.advance(1.seconds)
-                result <- f.join
-              } yield result)(equalTo(List(5)))
-            }
-          },
-          testM("empty") {
-            val stream = ZStream.empty.debounce(5.seconds)
-            assertM(stream.runCollect)(isEmpty)
-          }
-        ),
         suite("aggregateAsyncWithinEither")(
           testM("aggregateAsyncWithinEither") {
             assertM(
