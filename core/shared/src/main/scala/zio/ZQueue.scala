@@ -109,7 +109,7 @@ trait ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * collected.
    */
   final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] =
-    if (max < min) ZIO.succeedNow(Nil)
+    if (max < min) UIO.succeedNow(Nil)
     else
       takeUpTo(max).flatMap { bs =>
         val remaining = min - bs.length
