@@ -117,6 +117,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self zip that
 
   /**
+   * A symbolic alias for `orElseEither`.
+   */
+  def <+>[R1 <: R, E1, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, Either[A, B]] =
+    self.orElseEither(that)
+
+  /**
    * Propagates self environment to that.
    */
   def <<<[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =

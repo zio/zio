@@ -114,6 +114,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self &&& that
 
   /**
+   * A symbolic alias for `orElseEither`.
+   */
+  final def <+>[R1 <: R, E1, B](that: => ZIO[R1, E1, B])(implicit ev: CanFail[E]): ZIO[R1, E1, Either[A, B]] =
+    self.orElseEither(that)
+
+  /**
    * Operator alias for `compose`.
    */
   final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
@@ -124,6 +130,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def <>[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1])(implicit ev: CanFail[E]): ZIO[R1, E2, A1] =
     orElse(that)
+
+  /**
+   * A symbolic alias for `raceEither`.
+   */
+  final def <|>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
+    self.raceEither(that)
 
   /**
    * Alias for `flatMap`.
