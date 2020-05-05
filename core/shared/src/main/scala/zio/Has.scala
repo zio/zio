@@ -32,8 +32,8 @@ import scala.annotation.implicitNotFound
  * Services parameterized on path dependent types are not supported.
  */
 final class Has[A] private (
-  private val map: Map[TagType, scala.Any],
-  private var cache: Map[TagType, scala.Any] = Map()
+  private val map: Map[LightTypeTag, scala.Any],
+  private var cache: Map[LightTypeTag, scala.Any] = Map()
 ) extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case that: Has[_] => map == that.map
@@ -50,7 +50,7 @@ final class Has[A] private (
   def size: Int = map.size
 }
 object Has {
-  private val TaggedAnyRef: Tagged[AnyRef] = implicitly[Tagged[AnyRef]]
+  private val TaggedAnyRef: Tag[AnyRef] = implicitly[Tag[AnyRef]]
 
   type MustHave[A, B] = A <:< Has[B]
 
@@ -61,17 +61,16 @@ object Has {
       "service in Has at the point where it is currently being constructed."
   )
   trait IsHas[-R] {
-    def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
-    def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit tagged: Tagged[R1]): R0 with R1
-    def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
+    def add[R0 <: R, M: Tag](r: R0, m: M): R0 with Has[M]
+    def union[R0 <: R, R1 <: Has[_]: Tag](r: R0, r1: R1): R0 with R1
+    def update[R0 <: R, M: Tag](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
   }
   object IsHas {
     implicit def ImplicitIs[R <: Has[_]]: IsHas[R] =
       new IsHas[R] {
-        def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M] = r.add(m)
-        def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit tagged: Tagged[R1]): R0 with R1 =
-          r.union[R1](r1)
-        def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
+        def add[R0 <: R, M: Tag](r: R0, m: M): R0 with Has[M] = r.add(m)
+        def union[R0 <: R, R1 <: Has[_]: Tag](r: R0, r1: R1): R0 with R1 = r.union[R1](r1)
+        def update[R0 <: R, M: Tag](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
       }
   }
 
@@ -83,13 +82,13 @@ object Has {
       "wrapped in Has."
   )
   trait AreHas[-R, -R1] {
-    def union[R0 <: R, R00 <: R1](r: R0, r1: R00)(implicit tagged: Tagged[R00]): R0 with R00
+    def union[R0 <: R, R00 <: R1: Tag](r: R0, r1: R00): R0 with R00
     def unionAll[R0 <: R, R00 <: R1](r: R0, r1: R00): R0 with R00
   }
   object AreHas {
     implicit def ImplicitAre[R <: Has[_], R1 <: Has[_]]: AreHas[R, R1] =
       new AreHas[R, R1] {
-        def union[R0 <: R, R00 <: R1](r: R0, r1: R00)(implicit tagged: Tagged[R00]): R0 with R00 =
+        def union[R0 <: R, R00 <: R1: Tag](r: R0, r1: R00): R0 with R00 =
           r.union[R00](r1)
         def unionAll[R0 <: R, R00 <: R1](r: R0, r1: R00): R0 with R00 =
           r.unionAll[R00](r1)
@@ -98,18 +97,18 @@ object Has {
 
   implicit final class HasSyntax[Self <: Has[_]](private val self: Self) extends AnyVal {
 
-    def ++[B <: Has[_]](that: B)(implicit tagged: Tagged[B]): Self with B = self.union[B](that)
+    def ++[B <: Has[_]: Tag](that: B): Self with B = self.union[B](that)
 
     /**
      * Adds a service to the environment.
      */
-    def add[B](b: B)(implicit tagged: Tagged[B]): Self with Has[B] =
+    def add[B](b: B)(implicit tagged: Tag[B]): Self with Has[B] =
       new Has(self.map + (taggedTagType(tagged) -> b)).asInstanceOf[Self with Has[B]]
 
     /**
      * Retrieves a service from the environment.
      */
-    def get[B](implicit ev: Self <:< Has[B], tagged: Tagged[B]): B = {
+    def get[B](implicit ev: Self <:< Has[B], tagged: Tag[B]): B = {
       val tag = taggedTagType(tagged)
 
       self.map
@@ -127,13 +126,15 @@ object Has {
      * Prunes the environment to the set of services statically known to be
      * contained within it.
      */
-    def prune(implicit tagged: Tagged[Self]): Self = {
+    def prune(implicit tagged: Tag[Self]): Self = {
       val tag = taggedTagType(tagged)
       val set = taggedGetHasServices(tag)
 
       val missingServices = set -- self.map.keySet
       if (missingServices.nonEmpty) {
-        throw new Error(s"Defect in zio.Has: ${missingServices} statically known to be contained within the environment are missing")
+        throw new Error(
+          s"Defect in zio.Has: ${missingServices} statically known to be contained within the environment are missing"
+        )
       }
 
       if (set.isEmpty) self
@@ -143,7 +144,7 @@ object Has {
     /**
      * Combines this environment with the specified environment.
      */
-    def union[B <: Has[_]](that: B)(implicit tagged: Tagged[B]): Self with B =
+    def union[B <: Has[_]: Tag](that: B): Self with B =
       self.unionAll[B](that.prune)
 
     /**
@@ -157,30 +158,30 @@ object Has {
     /**
      * Updates a service in the environment.
      */
-    def update[B: Tagged](f: B => B)(implicit ev: Self MustHave B): Self =
+    def update[B: Tag](f: B => B)(implicit ev: Self MustHave B): Self =
       self.add(f(get[B]))
   }
 
   /**
    * Constructs a new environment holding the single service.
    */
-  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(taggedTagType(TaggedAnyRef) -> (()))).add(a)
+  def apply[A: Tag](a: A): Has[A] = new Has[AnyRef](Map(), Map(taggedTagType(TaggedAnyRef) -> (()))).add(a)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged](a: A, b: B): Has[A] with Has[B] = Has(a).add(b)
+  def allOf[A: Tag, B: Tag](a: A, b: B): Has[A] with Has[B] = Has(a).add(b)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged](a: A, b: B, c: C): Has[A] with Has[B] with Has[C] =
+  def allOf[A: Tag, B: Tag, C: Tag](a: A, b: B, c: C): Has[A] with Has[B] with Has[C] =
     Has(a).add(b).add(c)
 
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag](
     a: A,
     b: B,
     c: C,
@@ -191,7 +192,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag](
     a: A,
     b: B,
     c: C,
@@ -203,7 +204,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag](
     a: A,
     b: B,
     c: C,
@@ -216,7 +217,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag](
     a: A,
     b: B,
     c: C,
@@ -230,7 +231,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag](
     a: A,
     b: B,
     c: C,
@@ -245,7 +246,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag](
     a: A,
     b: B,
     c: C,
@@ -261,7 +262,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag](
     a: A,
     b: B,
     c: C,
@@ -278,7 +279,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag](
     a: A,
     b: B,
     c: C,
@@ -296,7 +297,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag](
     a: A,
     b: B,
     c: C,
@@ -315,7 +316,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag](
     a: A,
     b: B,
     c: C,
@@ -335,7 +336,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag, N: Tag](
     a: A,
     b: B,
     c: C,
@@ -356,7 +357,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag, N: Tag, O: Tag](
     a: A,
     b: B,
     c: C,
@@ -378,7 +379,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag, N: Tag, O: Tag, P: Tag](
     a: A,
     b: B,
     c: C,
@@ -401,7 +402,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag, N: Tag, O: Tag, P: Tag, Q: Tag](
     a: A,
     b: B,
     c: C,
@@ -425,7 +426,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag, N: Tag, O: Tag, P: Tag, Q: Tag, R: Tag](
     a: A,
     b: B,
     c: C,
@@ -450,7 +451,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged, S: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag, N: Tag, O: Tag, P: Tag, Q: Tag, R: Tag, S: Tag](
     a: A,
     b: B,
     c: C,
@@ -476,7 +477,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged, S: Tagged, T: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag, N: Tag, O: Tag, P: Tag, Q: Tag, R: Tag, S: Tag, T: Tag](
     a: A,
     b: B,
     c: C,
@@ -503,7 +504,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged, S: Tagged, T: Tagged, U: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag, N: Tag, O: Tag, P: Tag, Q: Tag, R: Tag, S: Tag, T: Tag, U: Tag](
     a: A,
     b: B,
     c: C,
@@ -531,7 +532,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged, F: Tagged, G: Tagged, H: Tagged, I: Tagged, J: Tagged, K: Tagged, L: Tagged, M: Tagged, N: Tagged, O: Tagged, P: Tagged, Q: Tagged, R: Tagged, S: Tagged, T: Tagged, U: Tagged, V: Tagged](
+  def allOf[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag, M: Tag, N: Tag, O: Tag, P: Tag, Q: Tag, R: Tag, S: Tag, T: Tag, U: Tag, V: Tag](
     a: A,
     b: B,
     c: C,
@@ -564,9 +565,9 @@ object Has {
    * Env.scoped[Logging](decorateLogger(_)) { effect }
    * }}
    */
-  def scoped[A: Tagged](f: A => A): Scoped[A] = new Scoped(f)
+  def scoped[A: Tag](f: A => A): Scoped[A] = new Scoped(f)
 
-  class Scoped[M: Tagged](f: M => M) {
+  class Scoped[M: Tag](f: M => M) {
     def apply[R <: Has[M], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       ZIO.environment[R].flatMap(env => zio.provide(env.update(f)))
   }

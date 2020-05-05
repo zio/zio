@@ -591,7 +591,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Converts the chunk into an array.
    */
-  override def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = {
+  override def toArray[A1 >: A: ClassTag]: Array[A1] = {
     val dest = Array.ofDim[A1](self.length)
 
     self.toArray(0, dest)
@@ -1053,7 +1053,7 @@ object Chunk {
       take(i)
     }
 
-    override def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] =
+    override def toArray[A1 >: A: ClassTag]: Array[A1] =
       array.asInstanceOf[Array[A1]]
 
     override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
@@ -1269,7 +1269,7 @@ object Chunk {
     override def materialize[A1]: Chunk[A1] =
       Empty
 
-    override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] =
+    override def toArray[A1: ClassTag]: Array[A1] =
       Array.empty
   }
 

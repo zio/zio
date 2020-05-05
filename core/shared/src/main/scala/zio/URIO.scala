@@ -657,26 +657,25 @@ object URIO {
   /**
    * @see See [[zio.ZIO.service]]
    */
-  def service[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
+  def service[A: Tag]: URIO[Has[A], A] =
     ZIO.service[A]
 
   /**
    * @see See [[zio.ZIO.services[A,B]*]]
    */
-  def services[A: Tagged, B: Tagged]: URIO[Has[A] with Has[B], (A, B)] =
+  def services[A: Tag, B: Tag]: URIO[Has[A] with Has[B], (A, B)] =
     ZIO.services[A, B]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C]*]]
    */
-  def services[A: Tagged, B: Tagged, C: Tagged]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
     ZIO.services[A, B, C]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C,D]*]]
    */
-  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
-    : URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
+  def services[A: Tag, B: Tag, C: Tag, D: Tag]: URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
     ZIO.services[A, B, C, D]
 
   /**

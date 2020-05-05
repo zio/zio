@@ -75,6 +75,12 @@ abstract class ZStream[-R, +E, +O](
     self concat that
 
   /**
+   * Symbolic alias for [[ZStream#orElse]].
+   */
+  final def <>[R1 <: R, E2, O1 >: O](that: => ZStream[R1, E2, O1])(implicit ev: CanFail[E]): ZStream[R1, E2, O1] =
+    self orElse that
+
+  /**
    * Returns a stream that submerges the error case of an `Either` into the `ZStream`.
    */
   final def absolve[R1 <: R, E1, O1](
@@ -1886,7 +1892,7 @@ abstract class ZStream[-R, +E, +O](
    */
   def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
-  )(implicit ev: ZEnv with R1 <:< R, tagged: Tagged[R1]): ZStream[ZEnv, E1, O] =
+  )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZStream[ZEnv, E1, O] =
     provideSomeLayer[ZEnv](layer)
 
   /**
@@ -3295,25 +3301,25 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A](implicit tagged: Tagged[A]): ZStream[Has[A], Nothing, A] =
+  def service[A: Tag]: ZStream[Has[A], Nothing, A] =
     ZStream.access(_.get[A])
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
-  def services[A: Tagged, B: Tagged]: ZStream[Has[A] with Has[B], Nothing, (A, B)] =
+  def services[A: Tag, B: Tag]: ZStream[Has[A] with Has[B], Nothing, (A, B)] =
     ZStream.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
-  def services[A: Tagged, B: Tagged, C: Tagged]: ZStream[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag]: ZStream[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
-  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+  def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZStream[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
@@ -3477,7 +3483,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): ZStream[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZStream[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 

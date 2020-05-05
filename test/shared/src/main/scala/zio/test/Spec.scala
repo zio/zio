@@ -345,7 +345,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tagged[R1]): Spec[TestEnvironment, E1, T] =
+  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
     provideSomeLayer[TestEnvironment](layer)
 
   /**
@@ -363,7 +363,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   def provideCustomLayerShared[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tagged[R1]): Spec[TestEnvironment, E1, T] =
+  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
     provideSomeLayerShared[TestEnvironment](layer)
 
   /**
@@ -542,14 +542,14 @@ object Spec {
   final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): Spec[R0, E1, T] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[R0, E1, T] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   final class ProvideSomeLayerShared[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): Spec[R0, E1, T] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[R0, E1, T] =
       self.caseValue match {
         case SuiteCase(label, specs, exec) =>
           Spec.suite(
