@@ -11,7 +11,7 @@ import zio.stream.internal.Utils.zipChunks
 
 abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
 
-  import ZStream.{ BufferedPull, Pull, Take }
+  import ZStream.{ BufferedPull, Pull, Take, TerminationStrategy }
 
   /**
    * Symbolic alias for [[ZStream#cross]].
@@ -1828,9 +1828,36 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
   /**
    * Merges this stream and the specified stream together.
+   *
+   * New produced stream will terminate when both specified stream terminate if no termination
+   * strategy is specified.
    */
-  final def merge[R1 <: R, E1 >: E, O1 >: O](that: ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
-    self.mergeWith[R1, E1, O1, O1](that)(identity, identity) // TODO: Dotty doesn't infer this properly
+  final def merge[R1 <: R, E1 >: E, O1 >: O](
+    that: ZStream[R1, E1, O1],
+    strategy: TerminationStrategy = TerminationStrategy.Both
+  ): ZStream[R1, E1, O1] =
+    self.mergeWith[R1, E1, O1, O1](that, strategy)(identity, identity) // TODO: Dotty doesn't infer this properly
+
+  /**
+   * Merges this stream and the specified stream together. New produced stream will
+   * terminate when either stream terminates.
+   */
+  final def mergeTerminateEither[R1 <: R, E1 >: E, O1 >: O](that: ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+    self.merge[R1, E1, O1](that, TerminationStrategy.Either)
+
+  /**
+   * Merges this stream and the specified stream together. New produced stream will
+   * terminate when this stream terminates.
+   */
+  final def mergeTerminateLeft[R1 <: R, E1 >: E, O1 >: O](that: ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+    self.merge[R1, E1, O1](that, TerminationStrategy.Left)
+
+  /**
+   * Merges this stream and the specified stream together. New produced stream will
+   * terminate when the specefied stream terminates.
+   */
+  final def mergeTerminateRight[R1 <: R, E1 >: E, O1 >: O](that: ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
+    self.merge[R1, E1, O1](that, TerminationStrategy.Right)
 
   /**
    * Merges this stream and the specified stream together to produce a stream of
@@ -1842,22 +1869,36 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Merges this stream and the specified stream together to a common element
    * type with the specified mapping functions.
+   *
+   * New produced stream will terminate when both specified stream terminate if
+   * no termination strategy is specified.
    */
   final def mergeWith[R1 <: R, E1 >: E, O2, O3](
-    that: ZStream[R1, E1, O2]
+    that: ZStream[R1, E1, O2],
+    strategy: TerminationStrategy = TerminationStrategy.Both
   )(l: O => O3, r: O2 => O3): ZStream[R1, E1, O3] = {
-    type Loser = Either[Fiber[Nothing, Exit[Option[E], Chunk[O]]], Fiber[Nothing, Exit[Option[E1], Chunk[O2]]]]
+    type Candidate[E, O] = Fiber[Nothing, Take[E, O]]
+    type Loser           = Either[Candidate[E, O], Candidate[E1, O2]]
 
-    def race(
-      left: ZIO[R, Nothing, Exit[Option[E], Chunk[O]]],
-      right: ZIO[R1, Nothing, Exit[Option[E1], Chunk[O2]]]
-    ): ZIO[R1, Nothing, (Exit[Option[E1], Chunk[O3]], Loser)] =
-      left.raceWith[R1, Nothing, Nothing, Exit[Option[E1], Chunk[O2]], (Exit[Option[E1], Chunk[O3]], Loser)](right)(
+    def race(left: URIO[R, Take[E, O]], right: URIO[R1, Take[E1, O2]]): URIO[R1, (Take[E1, O3], Loser)] =
+      left.raceWith[R1, Nothing, Nothing, Take[E1, O2], (Take[E1, O3], Loser)](right)(
         (exit, right) => ZIO.done(exit).map(a => (a.map(_.map(l)), Right(right))),
         (exit, left) => ZIO.done(exit).map(b => (b.map(_.map(r)), Left(left)))
       )
 
-    self.combineChunks(that)((false, false, Option.empty[Loser])) {
+    def termination[E, O](left: Boolean, right: Boolean, mapper: O => O3)(fiber: Candidate[E, O]) =
+      strategy match {
+        case TerminationStrategy.Either =>
+          fiber.interrupt.as(Take.End)
+        case TerminationStrategy.Left if left =>
+          fiber.interrupt.as(Take.End)
+        case TerminationStrategy.Right if right =>
+          fiber.interrupt.as(Take.End)
+        case _ =>
+          fiber.join.map(_.map(_.map(mapper))).map(_.map((_, (left, right, None))))
+      }
+
+    combineChunks(that)((false, false, Option.empty[Loser])) {
       case ((leftDone, rightDone, loser), left, right) =>
         if (leftDone) {
           right.map(c => (c.map(r), (leftDone, rightDone, None))).run
@@ -1877,8 +1918,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                     loser.merge.interrupt.as(Exit.halt(e.map(Some(_))))
                   case None =>
                     loser.fold(
-                      _.join.map(_.map(_.map(l))).map(_.map((_, (leftDone, true, None)))),
-                      _.join.map(_.map(_.map(r))).map(_.map((_, (true, rightDone, None))))
+                      termination[E, O](leftDone, true, l),
+                      termination[E1, O2](true, rightDone, r)
                     )
                 },
                 chunk => ZIO.succeedNow(Exit.succeed((chunk, (leftDone, rightDone, Some(loser)))))
@@ -3624,5 +3665,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       case class Empty(notifyConsumer: Promise[Nothing, Unit])          extends State[Nothing]
       case class Full[+A](a: A, notifyProducer: Promise[Nothing, Unit]) extends State[A]
     }
+  }
+
+  sealed trait TerminationStrategy
+  object TerminationStrategy {
+    case object Left   extends TerminationStrategy
+    case object Right  extends TerminationStrategy
+    case object Both   extends TerminationStrategy
+    case object Either extends TerminationStrategy
   }
 }
