@@ -104,6 +104,23 @@ trait ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   def takeUpTo(max: Int): ZIO[RB, EB, List[B]]
 
   /**
+   * Takes between min and max number of values from the queue. If there
+   * is less tham min items available, it'll block until the items are
+   * collected.
+   */
+  final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] =
+    if (max < min) UIO.succeedNow(Nil)
+    else
+      takeUpTo(max).flatMap { bs =>
+        val remaining = min - bs.length
+
+        if (remaining > 0)
+          take.repeat(Schedule.collectAll[B] <* Schedule.recurs(remaining - 1)).map(bs ++ _)
+        else
+          UIO.succeedNow(bs)
+      }
+
+  /**
    * Alias for `both`.
    */
   final def &&[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](

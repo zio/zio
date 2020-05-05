@@ -168,7 +168,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Maps the success value of this effect to a service.
    */
-  def asService[A1 >: A](implicit tagged: Tagged[A1]): ZManaged[R, E, Has[A1]] =
+  def asService[A1 >: A: Tag]: ZManaged[R, E, Has[A1]] =
     map(Has(_))
 
   /**
@@ -693,7 +693,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
-  )(implicit ev: ZEnv with R1 <:< R, tagged: Tagged[R1]): ZManaged[ZEnv, E1, A] =
+  )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
 
   /**
@@ -980,7 +980,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Constructs a layer from this managed resource.
    */
-  def toLayer[A1 >: A](implicit tagged: Tagged[A1]): ZLayer[R, E, Has[A1]] =
+  def toLayer[A1 >: A: Tag]: ZLayer[R, E, Has[A1]] =
     ZLayer.fromManaged(self)
 
   /**
@@ -1331,7 +1331,7 @@ object ZManaged {
   final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): ZManaged[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZManaged[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
@@ -2084,25 +2084,25 @@ object ZManaged {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A](implicit tagged: Tagged[A]): ZManaged[Has[A], Nothing, A] =
+  def service[A: Tag]: ZManaged[Has[A], Nothing, A] =
     ZManaged.access(_.get[A])
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
-  def services[A: Tagged, B: Tagged]: ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
+  def services[A: Tag, B: Tag]: ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
     ZManaged.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
-  def services[A: Tagged, B: Tagged, C: Tagged]: ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag]: ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
-  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+  def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 

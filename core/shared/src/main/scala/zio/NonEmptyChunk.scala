@@ -188,6 +188,12 @@ object NonEmptyChunk {
     nonEmpty(Chunk(a) ++ Chunk.fromIterable(as))
 
   /**
+   * Checks if a `chunk` is not empty and constructs a `NonEmptyChunk` from it.
+   */
+  def fromChunk[A](chunk: Chunk[A]): Option[NonEmptyChunk[A]] =
+    if (chunk.isEmpty) None else Some(nonEmpty(chunk))
+
+  /**
    * Constructs a `NonEmptyChunk` from the `::` case of a `List`.
    */
   def fromCons[A](as: ::[A]): NonEmptyChunk[A] =
@@ -217,6 +223,6 @@ object NonEmptyChunk {
    * when it is statically known that the `Chunk` must have at least one
    * element.
    */
-  private def nonEmpty[A](chunk: Chunk[A]): NonEmptyChunk[A] =
+  private[zio] def nonEmpty[A](chunk: Chunk[A]): NonEmptyChunk[A] =
     new NonEmptyChunk(chunk)
 }

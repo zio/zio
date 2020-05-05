@@ -537,6 +537,24 @@ object ZTransducer {
     ZTransducer(Managed.succeed(push))
 
   /**
+   * Creates a transducer that returns the first element of the stream, if it exists.
+   */
+  def head[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+    foldLeft[O, Option[O]](Option.empty[O]) {
+      case (acc, a) =>
+        acc match {
+          case Some(_) => acc
+          case None    => Some(a)
+        }
+    }
+
+  /**
+   * Creates a transducer that returns the last element of the stream, if it exists.
+   */
+  def last[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+    foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
+
+  /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
   val splitLines: ZTransducer[Any, Nothing, String, String] =
@@ -591,6 +609,62 @@ object ZTransducer {
                 }
 
                 (Chunk.fromArray(buf.toArray), (if (carry.length() > 0) Some(carry) else None, inCRLF))
+            }
+        }
+      }
+    }
+
+  /**
+   * Splits strings on a delimiter.
+   */
+  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] =
+    ZTransducer {
+      ZRef.makeManaged[(Option[String], Int)](None -> 0).map { state =>
+        {
+          case None =>
+            state.modify {
+              case s @ (None, _) => Chunk.empty     -> s
+              case (Some(s), _)  => Chunk.single(s) -> (None -> 0)
+            }
+          case Some(is) =>
+            state.modify { s0 =>
+              var out: mutable.ArrayBuffer[String] = null
+              var chunkIndex                       = 0
+              var buffer                           = s0._1.getOrElse("")
+              var delimIndex                       = s0._2
+              while (chunkIndex < is.length) {
+                val in    = buffer + is(chunkIndex)
+                var index = buffer.length
+                var start = 0
+                buffer = ""
+                while (index < in.length) {
+                  while (delimIndex < delimiter.length && index < in.length && in(index) == delimiter(delimIndex)) {
+                    delimIndex += 1
+                    index += 1
+                  }
+                  if (delimIndex == delimiter.length || in == "") {
+                    if (out eq null) out = mutable.ArrayBuffer[String]()
+                    out += in.substring(start, index - delimiter.length)
+                    delimIndex = 0
+                    start = index
+                  }
+                  if (index < in.length) {
+                    delimIndex = 0
+                    while (index < in.length && in(index) != delimiter(0)) index += 1;
+                  }
+                }
+
+                if (start < in.length) {
+                  buffer = in.drop(start)
+                }
+
+                chunkIndex += 1
+              }
+
+              val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray)
+              val buf   = if (buffer == "") None else Some(buffer)
+
+              chunk -> (buf -> delimIndex)
             }
         }
       }
