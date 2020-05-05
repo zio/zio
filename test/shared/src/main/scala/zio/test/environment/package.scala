@@ -357,15 +357,12 @@ package object environment extends PlatformSpecific {
       /**
        * Polls until all descendants of this fiber are done or suspended.
        */
-      private lazy val awaitSuspended: UIO[Set[Fiber.Status]] =
-        live.provide(suspended.orElse(suspended.delay(1.millisecond).eventually))
-
-      /**
-       * Polls until the status of the descendants of this fiber is not equal
-       * to the specified initial status.
-       */
-      private def awaitRunning(first: Set[Fiber.Status]): UIO[Set[Fiber.Status]] =
-        live.provide(running(first).orElse(running(first).delay(1.millisecond).eventually))
+      private lazy val awaitSuspended: UIO[Unit] =
+        live.provide {
+          suspended.repeat {
+            Schedule.doUntilEquals(true) && Schedule.fixed(1.millisecond)
+          }
+        }.unit
 
       /**
        * Provides access to the list of descendants of this fiber (children and
@@ -407,7 +404,7 @@ package object environment extends PlatformSpecific {
        * duration, which may depend on the current time, in order.
        */
       private def run(f: Duration => Duration): UIO[Unit] =
-        awaitSuspended.flatMap { status =>
+        awaitSuspended *>
           clockState.modify { data =>
             val end = f(data.duration)
             data.sleeps.sortBy(_._1) match {
@@ -420,32 +417,16 @@ package object environment extends PlatformSpecific {
             case Some((end, promise)) =>
               promise.succeed(()) *>
                 ZIO.yieldNow *>
-                awaitRunning(status) *>
                 run(_ => end)
           }
-        }
-
-      /**
-       * Returns the status of all descendants of this fiber if it is not equal
-       * to the specified initial status.
-       */
-      private def running(first: Set[Fiber.Status]): IO[Unit, Set[Fiber.Status]] =
-        for {
-          last   <- freeze
-          status <- if (first != last) ZIO.succeedNow(last) else ZIO.fail(())
-        } yield status
 
       /**
        * Returns the status of all descendants of this fiber if two consecutive
        * "snapshots" of their status were identical or else fails with the
        * `Unit` value.
        */
-      private lazy val suspended: IO[Unit, Set[Fiber.Status]] =
-        for {
-          first  <- freeze
-          last   <- freeze
-          status <- if (first == last) ZIO.succeedNow(last) else ZIO.fail(())
-        } yield status
+      private lazy val suspended: UIO[Boolean] =
+        freeze.zipWith(live.provide(freeze.delay(1.millisecond)))(_ == _).orElseSucceed(false)
 
       /**
        * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.

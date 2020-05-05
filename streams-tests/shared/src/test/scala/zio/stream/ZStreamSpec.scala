@@ -1969,7 +1969,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                                 _    <- queue.offer(2)
                                 res2 <- pull
                                 _    <- TestClock.adjust(4.seconds)
-                                _    <- clock.sleep(4.seconds)
                                 _    <- queue.offer(3)
                                 res3 <- pull
                               } yield assert(List(res1, res2, res3))(equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
