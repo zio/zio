@@ -424,7 +424,7 @@ package object environment extends PlatformSpecific {
        * Returns whether all descendants of this fiber are done or suspended.
        */
       private lazy val suspended: UIO[Boolean] =
-        freeze.zipWith(live.provide(freeze.delay(1.millisecond)))(_ == _).orElseSucceed(false)
+        freeze.zipWith(freeze)(_ == _).orElseSucceed(false)
 
       /**
        * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
