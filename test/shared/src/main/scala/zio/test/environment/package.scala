@@ -201,15 +201,10 @@ package object environment extends PlatformSpecific {
    * Note how we forked the fiber that `sleep` was invoked on. Calls to `sleep`
    * and methods derived from it will semantically block until the time is
    * set to on or after the time they are scheduled to run. If we didn't fork
-   * the fiber on which we called sleep we would never get to set the time
-   * below. Then we used `awaitScheduled` to wait for the forked effect to be
-   * scheduled, making sure we didn't accidentally set the time before the
-   * effect was scheduled and thus schedule it for too far in the future.
-   * Finally, we adjusted the time and checked for the expected result. This
-   * reflects a common pattern when using `TestClock` of forking the effect
-   * being tested, waiting for the effect to be scheduled, then adjusting the
-   * clock to the desired time, and finally verifying that the expected effects
-   * have been performed.
+   * the fiber on which we called sleep we would never get to set the time on
+   * the line below. Thus, a useful pattern when using `TestClock` is to fork
+   * the effect being tested, then adjust the wall clock time, and finally
+   * verify that the expected effects have been performed.
    *
    * For example, here is how we can test an effect that recurs with a fixed
    * delay:
@@ -264,7 +259,7 @@ package object environment extends PlatformSpecific {
        * run in order.
        */
       def adjust(duration: Duration): UIO[Unit] =
-        warningDone *> clockState.get.flatMap(data => runUntil(data.duration + duration))
+        warningDone *> run(_ + duration)
 
       /**
        * Returns the current clock time as an `OffsetDateTime`.
@@ -307,7 +302,7 @@ package object environment extends PlatformSpecific {
        * the new time will immediately be run in order.
        */
       def setTime(duration: Duration): UIO[Unit] =
-        warningDone *> runUntil(duration)
+        warningDone *> run(_ => duration)
 
       /**
        * Sets the time zone to the specified time zone. The clock time in
@@ -325,15 +320,15 @@ package object environment extends PlatformSpecific {
        */
       def sleep(duration: Duration): UIO[Unit] =
         for {
-          latch <- Promise.make[Nothing, Unit]
+          promise <- Promise.make[Nothing, Unit]
           await <- clockState.modify { data =>
                     val end = data.duration + duration
                     if (end > data.duration)
-                      (true, data.copy(sleeps = (end, latch) :: data.sleeps))
+                      (true, data.copy(sleeps = (end, promise) :: data.sleeps))
                     else
                       (false, data)
                   }
-          _ <- if (await) warningStart *> latch.await else latch.succeed(())
+          _ <- if (await) warningStart *> promise.await else promise.succeed(())
         } yield ()
 
       /**
@@ -360,36 +355,17 @@ package object environment extends PlatformSpecific {
         }
 
       /**
-       * Polls until the specified fiber completes execution or is indefinitely
-       * suspended, meaning that the fiber and all the fibers it is blocking on
-       * and all the fibers they are blocking on recursively are suspended.
+       * Polls until all descendants of this fiber are done or suspended.
        */
-      private lazy val awaitSuspended: UIO[Unit] =
-        live.provide {
-          suspended.repeat {
-            Schedule.doUntilEquals(true) && Schedule.fixed(1.millisecond)
-          }
-        }.unit
+      private lazy val awaitSuspended: UIO[Set[Fiber.Status]] =
+        live.provide(suspended.orElse(suspended.delay(1.millisecond).eventually))
 
       /**
-       * Captures a "snapshot" of a suspended fiber's status, returning a map
-       * from the suspended fiber's identity to the identities of all the
-       * suspended fibers it is blocking on and all the suspended fibers they
-       * are blocking on, recursively. Fails with the `Unit` value if the fiber
-       * or any fiber it is directly or indirectly blocking on is running. Note
-       * that because we cannot synchronize on the status of multiple fibers at
-       * the same time this snaposhot may not be fully consistent.
+       * Polls until the status of the descendants of this fiber is not equal
+       * to the specified initial status.
        */
-      private lazy val freeze: IO[Unit, Set[Fiber.Status]] =
-        descendants.flatMap { fibers =>
-          ZIO
-            .foreach(fibers)(_.status.filterOrFail {
-              case Fiber.Status.Done                     => true
-              case Fiber.Status.Suspended(_, _, _, _, _) => true
-              case _                                     => false
-            }(()))
-            .map(_.toSet)
-        }
+      private def awaitRunning(first: Set[Fiber.Status]): UIO[Set[Fiber.Status]] =
+        live.provide(running(first).orElse(running(first).delay(1.millisecond).eventually))
 
       /**
        * Provides access to the list of descendants of this fiber (children and
@@ -403,6 +379,24 @@ package object environment extends PlatformSpecific {
         } yield children ++ collected.flatten
 
       /**
+       * Captures a "snapshot" of the status of all descendants of this fiber.
+       * Fails with the `Unit` value if any descendant of this fiber is not
+       * done or suspended. Note that because we cannot synchronize on the
+       * status of multiple fibers at the same time this snapshot may not be
+       * fully consistent.
+       */
+      private lazy val freeze: IO[Unit, Set[Fiber.Status]] =
+        descendants.flatMap { fibers =>
+          ZIO
+            .foreach(fibers)(_.status.filterOrFail {
+              case Fiber.Status.Done                     => true
+              case Fiber.Status.Suspended(_, _, _, _, _) => true
+              case _                                     => false
+            }(()))
+            .map(_.toSet)
+        }
+
+      /**
        * Constructs a `Duration` from an `OffsetDateTime`.
        */
       private def fromDateTime(dateTime: OffsetDateTime): Duration =
@@ -410,33 +404,48 @@ package object environment extends PlatformSpecific {
 
       /**
        * Run all effects scheduled to occur on or before the specified
-       * duration, in order.
+       * duration, which may depend on the current time, in order.
        */
-      private def runUntil(duration: Duration): UIO[Unit] =
-        awaitSuspended *>
+      private def run(f: Duration => Duration): UIO[Unit] =
+        awaitSuspended.flatMap { status =>
           clockState.modify { data =>
+            val end = f(data.duration)
             data.sleeps.sortBy(_._1) match {
-              case (d, p) :: t if d <= duration =>
-                (Some(p), Data(d, t, data.timeZone))
-              case _ => (None, Data(duration, data.sleeps, data.timeZone))
+              case (duration, promise) :: sleeps if duration <= end =>
+                (Some((end, promise)), Data(duration, sleeps, data.timeZone))
+              case _ => (None, Data(end, data.sleeps, data.timeZone))
             }
           }.flatMap {
             case None => UIO.unit
-            case Some(promise) =>
+            case Some((end, promise)) =>
               promise.succeed(()) *>
                 ZIO.yieldNow *>
-                awaitSuspended *>
-                runUntil(duration)
+                awaitRunning(status) *>
+                run(_ => end)
           }
+        }
 
       /**
-       * Returns whether the specified fiber has completed execution or is
-       * indefinitely suspended, meaning that the fiber and all the fibers it is
-       * blocking on and all the fibers they are blocking on recursively are
-       * suspended.
+       * Returns the status of all descendants of this fiber if it is not equal
+       * to the specified initial status.
        */
-      private lazy val suspended: UIO[Boolean] =
-        freeze.zipWith(freeze)(_ == _).orElseSucceed(false)
+      private def running(first: Set[Fiber.Status]): IO[Unit, Set[Fiber.Status]] =
+        for {
+          last   <- freeze
+          status <- if (first != last) ZIO.succeedNow(last) else ZIO.fail(())
+        } yield status
+
+      /**
+       * Returns the status of all descendants of this fiber if two consecutive
+       * "snapshots" of their status were identical or else fails with the
+       * `Unit` value.
+       */
+      private lazy val suspended: IO[Unit, Set[Fiber.Status]] =
+        for {
+          first  <- freeze
+          last   <- freeze
+          status <- if (first == last) ZIO.succeedNow(last) else ZIO.fail(())
+        } yield status
 
       /**
        * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
