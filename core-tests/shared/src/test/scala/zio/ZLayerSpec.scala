@@ -302,6 +302,36 @@ object ZLayerSpec extends ZIOBaseSpec {
           s <- ZIO.environment[Has[String]].map(_.get[String])
         } yield (i, s)
         assertM(zio.provideLayer(live))(equalTo((1, "1")))
-      }
+      },
+      testM("fresh with ++") {
+        val expected = Vector(acquire1, acquire1, release1, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          env    = (layer1 ++ layer1.fresh).build
+          _      <- env.useNow
+          result <- ref.get
+        } yield assert(result)(equalTo(expected))
+      } @@ nonFlaky,
+      testM("fresh with >>>") {
+        val expected = Vector(acquire1, acquire1, release1, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          env    = (layer1 >>> layer1.fresh).build
+          _      <- env.useNow
+          result <- ref.get
+        } yield assert(result)(equalTo(expected))
+      } @@ nonFlaky,
+      testM("fresh with multiple layers") {
+        val expected = Vector(acquire1, acquire1, release1, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          env    = ((layer1 ++ layer1) ++ (layer1 ++ layer1).fresh).build
+          _      <- env.useNow
+          result <- ref.get
+        } yield assert(result)(equalTo(expected))
+      } @@ nonFlaky
     )
 }
