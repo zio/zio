@@ -1451,12 +1451,15 @@ abstract class ZStream[-R, +E, +O](
    * @param delayThreshold the delay to wait to data to arrive late
    * @param timestamp time associated with the value, relative to the Unix epoch, in local timezone.
    */
-  def watermarkM[R1 <: R, E1 >: E](delayThreshold: Duration, timestamp: O => ZIO[R1, E1, java.time.Instant]): ZStream[R1 with Clock, E1, O] =
+  def watermarkM[R1 <: R, E1 >: E](
+    delayThreshold: Duration,
+    timestamp: O => ZIO[R1, E1, java.time.Instant]
+  ): ZStream[R1 with Clock, E1, O] =
     filterM(event =>
       for {
-        currentTime         <- clock.currentTime(ju.concurrent.TimeUnit.MILLISECONDS)
-        eventTimestamp      <- timestamp(event)
-        watermarkPredicate  <- ZIO.succeedNow(eventTimestamp.toEpochMilli >= (currentTime - delayThreshold.toMillis))
+        currentTime        <- clock.currentTime(ju.concurrent.TimeUnit.MILLISECONDS)
+        eventTimestamp     <- timestamp(event)
+        watermarkPredicate <- ZIO.succeedNow(eventTimestamp.toEpochMilli >= (currentTime - delayThreshold.toMillis))
       } yield watermarkPredicate
     )
 

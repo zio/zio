@@ -1373,20 +1373,22 @@ object ZStreamSpec extends ZIOBaseSpec {
             clock.currentTime(TimeUnit.MILLISECONDS).flatMap { currentTime =>
               assertM(
                 ZStream(1, 2, 10, 20)
-                .watermark(3.seconds,
-                  value => java.time.Instant.ofEpochMilli(currentTime).minusSeconds(value.toLong)
-                ).runCollect
+                  .watermark(3.seconds, value => java.time.Instant.ofEpochMilli(currentTime).minusSeconds(value.toLong))
+                  .runCollect
               )(equalTo(List(1, 2)))
             }
           } @@ flaky,
           testM("watermarkM") {
             assertM(
               ZStream(1, 2, 10, 20)
-                .watermarkM(3.seconds,
+                .watermarkM(
+                  3.seconds,
                   value =>
-                    clock.currentTime(TimeUnit.MILLISECONDS).map(currentTime =>
-                      java.time.Instant.ofEpochMilli(currentTime).minusSeconds(value.toLong))
-                ).runCollect
+                    clock
+                      .currentTime(TimeUnit.MILLISECONDS)
+                      .map(currentTime => java.time.Instant.ofEpochMilli(currentTime).minusSeconds(value.toLong))
+                )
+                .runCollect
             )(equalTo(List(1, 2)))
           } @@ flaky
         ),
