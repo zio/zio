@@ -50,6 +50,12 @@ final class ZLayer[-RIn, +E, +ROut] private (
     self.zipWithPar(that)(ev.union[ROut1, ROut2])
 
   /**
+   * A symbolic alias for `orElse`.
+   */
+  def <>[RIn1 <: RIn, E1, ROut1 >: ROut](that: => ZLayer[RIn1, E1, ROut1])(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
+    self.orElse(that)
+
+  /**
    * Feeds the output services of this layer into the input of the specified
    * layer, resulting in a new layer with the inputs of this layer, and the
    * outputs of both this layer and the specified layer.

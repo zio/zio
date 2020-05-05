@@ -47,24 +47,6 @@ import zio.internal.{ Executor, FiberRenderer }
 sealed trait Fiber[+E, +A] { self =>
 
   /**
-   * Zips this fiber and the specified fiber together, producing a tuple of their
-   * output.
-   *
-   * @param that fiber to be zipped
-   * @tparam E1 error type
-   * @tparam B type of that fiber
-   * @return `Fiber[E1, (A, B)]` combined fiber
-   */
-  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, (A, B)] =
-    (self zipWith that)((a, b) => (a, b))
-
-  /**
-   * A symbolic alias for `orElseEither`.
-   */
-  final def <+>[E1 >: E, B](that: => Fiber[E1, B])(implicit ev: CanFail[E]): Fiber.Synthetic[E1, Either[A, B]] =
-    self.orElseEither(that)
-
-  /**
    * Same as `zip` but discards the output of the left hand side.
    *
    * @param that fiber to be zipped
@@ -85,6 +67,30 @@ sealed trait Fiber[+E, +A] { self =>
    */
   final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, A] =
     (self zipWith that)((a, _) => a)
+
+  /**
+   * Zips this fiber and the specified fiber together, producing a tuple of their
+   * output.
+   *
+   * @param that fiber to be zipped
+   * @tparam E1 error type
+   * @tparam B type of that fiber
+   * @return `Fiber[E1, (A, B)]` combined fiber
+   */
+  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, (A, B)] =
+    (self zipWith that)((a, b) => (a, b))
+
+  /**
+   * A symbolic alias for `orElseEither`.
+   */
+  final def <+>[E1 >: E, B](that: => Fiber[E1, B])(implicit ev: CanFail[E]): Fiber.Synthetic[E1, Either[A, B]] =
+    self.orElseEither(that)
+
+  /**
+   * A symbolic alias for `orElse`.
+   */
+  def <>[E1, A1 >: A](that: => Fiber[E1, A1])(implicit ev: CanFail[E]): Fiber.Synthetic[E1, A1] =
+    self.orElse(that)
 
   /**
    * Maps the output of this fiber to the specified constant.

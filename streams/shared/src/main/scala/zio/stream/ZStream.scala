@@ -75,6 +75,12 @@ abstract class ZStream[-R, +E, +O](
     self concat that
 
   /**
+   * Symbolic alias for [[ZStream#orElse]].
+   */
+  final def <>[R1 <: R, E2, O1 >: O](that: => ZStream[R1, E2, O1])(implicit ev: CanFail[E]): ZStream[R1, E2, O1] =
+    self orElse that
+
+  /**
    * Returns a stream that submerges the error case of an `Either` into the `ZStream`.
    */
   final def absolve[R1 <: R, E1, O1](
