@@ -153,12 +153,10 @@ object FiberSpec extends ZIOBaseSpec {
       suite("track blockingOn")(
         testM("in await") {
           for {
-            p    <- Promise.make[Nothing, Unit]
-            f1   <- p.await.fork
+            f1   <- ZIO.effectAsync[Any, Any, Any](_ => (), Nil).fork
             f1id <- f1.id
             f2   <- f1.await.fork
-            blockingOn <- (ZIO.yieldNow *> f2.dump)
-                           .map(_.status)
+            blockingOn <- f2.status
                            .repeat(
                              Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
                                case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
@@ -167,11 +165,10 @@ object FiberSpec extends ZIOBaseSpec {
           } yield assert(blockingOn)(isSome(equalTo(List(f1id))))
         },
         testM("in race") {
+          val effect = ZIO.effectAsync[Any, Any, Any](_ => (), Nil)
           for {
-            p <- Promise.make[Nothing, Unit]
-            f <- p.await.race(p.await).fork
-            blockingOn <- (ZIO.yieldNow *> f.dump)
-                           .map(_.status)
+            f <- effect.race(effect).fork
+            blockingOn <- f.status
                            .repeat(
                              Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
                                case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
