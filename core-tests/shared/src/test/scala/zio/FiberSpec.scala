@@ -1,7 +1,6 @@
 package zio
 
 import zio.LatchOps._
-import zio.duration._
 import zio.internal.FiberRenderer
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -153,28 +152,25 @@ object FiberSpec extends ZIOBaseSpec {
       suite("track blockingOn")(
         testM("in await") {
           for {
-            f1   <- ZIO.effectAsync[Any, Any, Any](_ => (), Nil).fork
+            f1   <- ZIO.never.fork
             f1id <- f1.id
             f2   <- f1.await.fork
             blockingOn <- f2.status
-                           .repeat(
-                             Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
-                               case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                             } <* Schedule.fixed(10.milli)
-                           )
-          } yield assert(blockingOn)(isSome(equalTo(List(f1id))))
+                           .collect(()) {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           }
+                           .eventually
+          } yield assert(blockingOn)(equalTo(List(f1id)))
         },
         testM("in race") {
-          val effect = ZIO.effectAsync[Any, Any, Any](_ => (), Nil)
           for {
-            f <- effect.race(effect).fork
+            f <- ZIO.never.race(ZIO.never).fork
             blockingOn <- f.status
-                           .repeat(
-                             Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
-                               case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                             } <* Schedule.fixed(10.milli)
-                           )
-          } yield assert(blockingOn)(isSome(hasSize(equalTo(2))))
+                           .collect(()) {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           }
+                           .eventually
+          } yield assert(blockingOn)(hasSize(equalTo(2)))
         }
       )
     )
