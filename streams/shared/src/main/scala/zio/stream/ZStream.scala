@@ -1436,6 +1436,31 @@ abstract class ZStream[-R, +E, +O](
     aggregateAsyncWithin(ZTransducer.collectAllN(chunkSize), Schedule.spaced(within))
 
   /**
+   * Defines a time watermark for this stream. Removes all incoming values older then specified time delay.
+   * Watermarking is used to reduce memory and processing time for stale data.
+   *
+   * @param delayThreshold the delay to wait to data to arrive late
+   * @param timestamp time associated with the value, relative to the Unix epoch, in local timezone.
+   */
+  def watermark(delayThreshold: Duration, timestamp: O => java.time.Instant): ZStream[R with Clock, E, O] =
+    watermarkM(delayThreshold, a => ZIO.succeedNow(timestamp(a)))
+
+  /**
+   * Effectfull version of `watermark` function
+   *
+   * @param delayThreshold the delay to wait to data to arrive late
+   * @param timestamp time associated with the value, relative to the Unix epoch, in local timezone.
+   */
+  def watermarkM[R1 <: R, E1 >: E](delayThreshold: Duration, timestamp: O => ZIO[R1, E1, java.time.Instant]): ZStream[R1 with Clock, E1, O] =
+    filterM(event =>
+      for {
+        currentTime         <- clock.currentTime(ju.concurrent.TimeUnit.MILLISECONDS)
+        eventTimestamp      <- timestamp(event)
+        watermarkPredicate  <- ZIO.succeedNow(eventTimestamp.toEpochMilli >= (currentTime - delayThreshold.toMillis))
+      } yield watermarkPredicate
+    )
+
+  /**
    * Halts the evaluation of this stream when the provided promise resolves.
    *
    * If the promise completes with a failure, the stream will emit that failure.

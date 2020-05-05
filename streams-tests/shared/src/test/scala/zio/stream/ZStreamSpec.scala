@@ -1368,6 +1368,28 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
           }
         ),
+        suite("watermark")(
+          testM("watermark") {
+            clock.currentTime(TimeUnit.MILLISECONDS).flatMap { currentTime =>
+              assertM(
+                ZStream(1, 2, 10, 20)
+                .watermark(3.seconds,
+                  value => java.time.Instant.ofEpochMilli(currentTime).minusSeconds(value.toLong)
+                ).runCollect
+              )(equalTo(List(1, 2)))
+            }
+          } @@ flaky,
+          testM("watermarkM") {
+            assertM(
+              ZStream(1, 2, 10, 20)
+                .watermarkM(3.seconds,
+                  value =>
+                    clock.currentTime(TimeUnit.MILLISECONDS).map(currentTime =>
+                      java.time.Instant.ofEpochMilli(currentTime).minusSeconds(value.toLong))
+                ).runCollect
+            )(equalTo(List(1, 2)))
+          } @@ flaky
+        ),
         testM("interleave") {
           val s1 = ZStream(2, 3)
           val s2 = ZStream(5, 6, 7)
