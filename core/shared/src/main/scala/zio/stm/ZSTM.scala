@@ -1781,6 +1781,8 @@ object ZSTM {
 
     sealed trait TExit[+A, +B] extends Serializable with Product
     object TExit {
+      val unit: TExit[Nothing, Unit] = Succeed(())
+
       final case class Fail[+A](value: A)    extends TExit[A, Nothing]
       final case class Succeed[+B](value: B) extends TExit[Nothing, B]
       case object Retry                      extends TExit[Nothing, Nothing]
