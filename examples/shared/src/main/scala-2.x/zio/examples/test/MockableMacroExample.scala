@@ -1,8 +1,8 @@
 package zio.examples.test
 
 import zio.test.mock.mockable
-import zio.{Tagged, UIO}
-import zio.{IO, Task, Tagged, UIO, URIO, ZIO}
+import zio.{ Tag, UIO }
+import zio.{ IO, Tag, Task, UIO, URIO, ZIO }
 
 object DiffrentScopeExample {
 
@@ -18,16 +18,16 @@ object DiffrentScopeExample {
     def task: Task[Long]
     def uio: UIO[Long]
     def urio: URIO[String, Long]
-    def poly1[A: Tagged](a: A): UIO[Unit]
-    def poly2[A: Tagged]: IO[A, Unit]
-    def poly3[A: Tagged]: UIO[A]
-    def poly4[A: Tagged, B: Tagged](a: A): IO[B, Unit]
-    def poly5[A: Tagged, B: Tagged](a: A): IO[Unit, B]
-    def poly6[A: Tagged, B: Tagged]: IO[A, B]
-    def poly7[A: Tagged, B: Tagged, C: Tagged](a: A): IO[B, C]
-    def poly8[A: Tagged]: UIO[(A, String)]
-    def poly9[A <: Foo: Tagged]: UIO[A]
-    def poly10[A: Tagged](a: Wrapped[A]): UIO[A]
+    def poly1[A: Tag](a: A): UIO[Unit]
+    def poly2[A: Tag]: IO[A, Unit]
+    def poly3[A: Tag]: UIO[A]
+    def poly4[A: Tag, B: Tag](a: A): IO[B, Unit]
+    def poly5[A: Tag, B: Tag](a: A): IO[Unit, B]
+    def poly6[A: Tag, B: Tag]: IO[A, B]
+    def poly7[A: Tag, B: Tag, C: Tag](a: A): IO[B, C]
+    def poly8[A: Tag]: UIO[(A, String)]
+    def poly9[A <: Foo: Tag]: UIO[A]
+    def poly10[A: Tag](a: Wrapped[A]): UIO[A]
   }
 }
 

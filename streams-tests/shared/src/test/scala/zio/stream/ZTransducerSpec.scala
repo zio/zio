@@ -402,6 +402,45 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         }
       ),
+      suite("splitOn")(
+        testM("preserves data")(checkM(Gen.listOf(Gen.anyString.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
+          val data   = lines.mkString("|")
+          val parser = ZTransducer.splitOn("|")
+          assertM(run(parser, List(Chunk.single(data))).map(_.map(_.toList).flatten))(equalTo(lines))
+        }),
+        testM("handles leftovers") {
+          val parser = ZTransducer.splitOn("\n")
+          assertM(run(parser, List(Chunk("ab", "c\nb"), Chunk("c"))))(equalTo(List(Chunk("abc"), Chunk("bc"))))
+        },
+        testM("aggregates") {
+          assertM(
+            Stream("abc", "delimiter", "bc", "delimiter", "bcd", "bcd")
+              .aggregate(ZTransducer.splitOn("delimiter"))
+              .runCollect
+          )(equalTo(List("abc", "bc", "bcdbcd")))
+        },
+        testM("single newline edgecase") {
+          assertM(
+            Stream("test")
+              .aggregate(ZTransducer.splitOn("test"))
+              .runCollect
+          )(equalTo(List("")))
+        },
+        testM("no delimiter in data") {
+          assertM(
+            Stream("abc", "abc", "abc")
+              .aggregate(ZTransducer.splitOn("hello"))
+              .runCollect
+          )(equalTo(List("abcabcabc")))
+        },
+        testM("delimiter on the boundary") {
+          assertM(
+            Stream("abc<", ">abc")
+              .aggregate(ZTransducer.splitOn("<>"))
+              .runCollect
+          )(equalTo(List("abc", "abc")))
+        }
+      ),
       suite("utf8DecodeChunk")(
         testM("regular strings")(checkM(Gen.anyString) { s =>
           ZTransducer.utf8Decode.push.use { push =>

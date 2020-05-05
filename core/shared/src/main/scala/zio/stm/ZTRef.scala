@@ -215,7 +215,7 @@ object ZTRef {
       new ZSTM((journal, _, _, _) => {
         val entry = getOrMakeEntry(journal)
         entry.unsafeSet(a)
-        TExit.Succeed(())
+        TExit.unit
       })
 
     /**
@@ -277,7 +277,7 @@ object ZTRef {
         val entry    = getOrMakeEntry(journal)
         val newValue = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
-        TExit.Succeed(())
+        TExit.unit
       })
 
     /**
