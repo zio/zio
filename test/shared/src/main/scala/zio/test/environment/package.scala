@@ -178,11 +178,11 @@ package object environment extends PlatformSpecific {
    * `TestClock` makes it easy to deterministically and efficiently test
    * effects involving the passage of time.
    *
-   * Instead of waiting for actual time to pass, `sleep` and methods implemented
-   * in terms of it schedule effects to take place at a given clock time. Users
-   * can adjust the clock time using the `adjust` and `setTime` methods, and all
-   * effects scheduled to take place on or before that time will automically be
-   * run in order.
+   * Instead of waiting for actual time to pass, `sleep` and methods
+   * implemented in terms of it schedule effects to take place at a given clock
+   * time. Users can adjust the clock time using the `adjust` and `setTime`
+   * methods, and all effects scheduled to take place on or before that time
+   * will automatically be run in order.
    *
    * For example, here is how we can test `ZIO#timeout` using `TestClock:
    *
@@ -199,12 +199,12 @@ package object environment extends PlatformSpecific {
    * }}}
    *
    * Note how we forked the fiber that `sleep` was invoked on. Calls to `sleep`
-   * and methods derived from it will semantically block until the time is
-   * set to on or after the time they are scheduled to run. If we didn't fork
-   * the fiber on which we called sleep we would never get to set the time on
-   * the line below. Thus, a useful pattern when using `TestClock` is to fork
-   * the effect being tested, then adjust the wall clock time, and finally
-   * verify that the expected effects have been performed.
+   * and methods derived from it will semantically block until the time is set
+   * to on or after the time they are scheduled to run. If we didn't fork the
+   * fiber on which we called sleep we would never get to set the time on the
+   * line below. Thus, a useful pattern when using `TestClock` is to fork the
+   * effect being tested, then adjust the clock time, and finally verify that
+   * the expected effects have been performed.
    *
    * For example, here is how we can test an effect that recurs with a fixed
    * delay:
@@ -228,12 +228,12 @@ package object environment extends PlatformSpecific {
    * }}}
    *
    * Here we verify that no effect is performed before the recurrence period,
-   * that an effect is performed after the recurrence period, and that the effect
-   * is performed exactly once. The key thing to note here is that after each
-   * recurrence the next recurrence is scheduled to occur at the appropriate time
-   * in the future, so when we adjust the clock by 60 minutes exactly one value
-   * is placed in the queue, and when we adjust the clock by another 60 minutes
-   * exactly one more value is placed in the queue.
+   * that an effect is performed after the recurrence period, and that the
+   * effect is performed exactly once. The key thing to note here is that after
+   * each recurrence the next recurrence is scheduled to occur at the
+   * appropriate time in the future, so when we adjust the clock by 60 minutes
+   * exactly one value is placed in the queue, and when we adjust the clock by
+   * another 60 minutes exactly one more value is placed in the queue.
    */
   object TestClock extends Serializable {
 
@@ -400,7 +400,7 @@ package object environment extends PlatformSpecific {
         Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
 
       /**
-       * Run all effects scheduled to occur on or before the specified
+       * Runs all effects scheduled to occur on or before the specified
        * duration, which may depend on the current time, in order.
        */
       private def run(f: Duration => Duration): UIO[Unit] =
@@ -421,9 +421,7 @@ package object environment extends PlatformSpecific {
           }
 
       /**
-       * Returns the status of all descendants of this fiber if two consecutive
-       * "snapshots" of their status were identical or else fails with the
-       * `Unit` value.
+       * Returns whether all descendants of this fiber are done or suspended.
        */
       private lazy val suspended: UIO[Boolean] =
         freeze.zipWith(live.provide(freeze.delay(1.millisecond)))(_ == _).orElseSucceed(false)
