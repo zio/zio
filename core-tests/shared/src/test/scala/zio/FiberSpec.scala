@@ -32,6 +32,7 @@ object FiberSpec extends ZIOBaseSpec {
           } yield assert(value)(equalTo(update))
         },
         testM("`orElse`") {
+          import zio.CanFail.canFail
           for {
             fiberRef <- FiberRef.make(initial)
             latch1   <- Promise.make[Nothing, Unit]

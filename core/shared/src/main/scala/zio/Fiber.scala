@@ -59,6 +59,12 @@ sealed trait Fiber[+E, +A] { self =>
     (self zipWith that)((a, b) => (a, b))
 
   /**
+   * A symbolic alias for `orElseEither`.
+   */
+  final def <+>[E1 >: E, B](that: => Fiber[E1, B])(implicit ev: CanFail[E]): Fiber.Synthetic[E1, Either[A, B]] =
+    self.orElseEither(that)
+
+  /**
    * Same as `zip` but discards the output of the left hand side.
    *
    * @param that fiber to be zipped
@@ -227,12 +233,13 @@ sealed trait Fiber[+E, +A] { self =>
    * @tparam A1 type of the other fiber
    * @return `Fiber[E1, A1]`
    */
-  def orElse[E1 >: E, A1 >: A](that: => Fiber[E1, A1]): Fiber.Synthetic[E1, A1] =
+  def orElse[E1, A1 >: A](that: => Fiber[E1, A1])(implicit ev: CanFail[E]): Fiber.Synthetic[E1, A1] =
     new Fiber.Synthetic[E1, A1] {
       final def await: UIO[Exit[E1, A1]] =
         self.await.zipWith(that.await) {
-          case (Exit.Failure(_), e2) => e2
-          case (e1, _)               => e1
+          case (e1 @ Exit.Success(_), _) => e1
+          case (_, e2)                   => e2
+
         }
 
       final def children: UIO[Iterable[Fiber.Runtime[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
@@ -250,7 +257,11 @@ sealed trait Fiber[+E, +A] { self =>
         that.inheritRefs *> self.inheritRefs
 
       final def poll: UIO[Option[Exit[E1, A1]]] =
-        self.poll.zipWith(that.poll)(_ orElse _)
+        self.poll.zipWith(that.poll) {
+          case (Some(e1 @ Exit.Success(_)), _) => Some(e1)
+          case (Some(_), o2)                   => o2
+          case _                               => None
+        }
     }
 
   /**
@@ -263,7 +274,7 @@ sealed trait Fiber[+E, +A] { self =>
    * @tparam B type of the other fiber
    * @return `Fiber[E1, B]`
    */
-  final def orElseEither[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, Either[A, B]] =
+  final def orElseEither[E1, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, Either[A, B]] =
     (self map (Left(_))) orElse (that map (Right(_)))
 
   /**
