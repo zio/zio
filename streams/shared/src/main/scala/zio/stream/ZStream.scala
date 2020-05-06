@@ -1457,10 +1457,9 @@ abstract class ZStream[-R, +E, +O](
   ): ZStream[R1 with Clock, E1, O] =
     filterM(event =>
       for {
-        currentTime        <- clock.currentTime(ju.concurrent.TimeUnit.MILLISECONDS)
-        eventTimestamp     <- timestamp(event)
-        watermarkPredicate <- ZIO.succeedNow(eventTimestamp.toEpochMilli >= (currentTime - delayThreshold.toMillis))
-      } yield watermarkPredicate
+        currentTime    <- clock.currentTime(ju.concurrent.TimeUnit.MILLISECONDS)
+        eventTimestamp <- timestamp(event)
+      } yield eventTimestamp.toEpochMilli >= (currentTime - delayThreshold.toMillis)
     )
 
   /**
