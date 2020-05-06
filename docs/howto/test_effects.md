@@ -24,7 +24,7 @@ import Assertion.isGreaterThan
 
 val clockSuite = suite("clock") (
   testM("time is non-zero") {
-    assertM(nanoTime, isGreaterThan(0L))
+    assertM(nanoTime)(isGreaterThan(0L))
   }
 )
 ```
@@ -36,8 +36,8 @@ As you can see the whole suit was assigned to `clockSuite` val. As it was said s
 import zio.test._
 import Assertion._
 
-val paymentProviderABCSuite  = suite("ABC payment provider tests") {test("Your test")(assert("Your value", Assertion.isNonEmptyString))}
-val paymentProviderXYZSuite  = suite("XYZ payment provider tests") {test("Your other test")(assert("Your other value", Assertion.isNonEmptyString))}
+val paymentProviderABCSuite  = suite("ABC payment provider tests") {test("Your test")(assert("Your value")(Assertion.isNonEmptyString))}
+val paymentProviderXYZSuite  = suite("XYZ payment provider tests") {test("Your other test")(assert("Your other value")(Assertion.isNonEmptyString))}
 val allPaymentProvidersTests = suite("All payment providers tests")(paymentProviderABCSuite, paymentProviderXYZSuite)
 ```
 
@@ -59,7 +59,7 @@ known from operating on boolean values like and (`&&`), or (`||`), negation (`ne
 ```scala mdoc
 import zio.test.Assertion
 
-val assertionForString: Assertion[String] = Assertion.containsString("Foo") && Assertion.endsWith("Bar")
+val assertionForString: Assertion[String] = Assertion.containsString("Foo") && Assertion.endsWithString("Bar")
 ```
 
 What's more, assertions also compose with each other allowing for doing rich diffs not only simple value to value comparison.
@@ -68,7 +68,7 @@ What's more, assertions also compose with each other allowing for doing rich dif
 import zio.test.Assertion.{isRight, isSome,equalTo, hasField}
 
 test("Check assertions") {
-  assert(Right(Some(2)), isRight(isSome(equalTo(2))))
+  assert(Right(Some(2)))(isRight(isSome(equalTo(2))))
 }
 ```
 
@@ -78,7 +78,8 @@ Here the expression `Right(Some(2))` is of type `Either[Any, Option[Int]]`and ou
 is of type `Assertion[Either[Any, Option[Int]]]`
 
 
-```scala mdoc
+```scala mdoc:reset-object
+import zio.test._
 import zio.test.Assertion.{isRight, isSome,equalTo, isGreaterThanEqualTo, not, hasField}
 
 final case class Address(country:String, city:String)
@@ -86,7 +87,8 @@ final case class User(name:String, age:Int, address: Address)
 
 test("Rich checking") {
   assert(
-    User("Jonny", 26, Address("Denmark", "Copenhagen")),
+    User("Jonny", 26, Address("Denmark", "Copenhagen"))
+  )(
     hasField("age", (u:User) => u.age, isGreaterThanEqualTo(18)) &&
     hasField("country", (u:User) => u.address.country, not(equalTo("USA")))
   )
@@ -113,7 +115,7 @@ testM("Semaphore should expose available number of permits") {
   for {
     s         <- Semaphore.make(1L)
     permits   <- s.available
-  } yield assert(permits, equalTo(1L))
+  } yield assert(permits)(equalTo(1L))
 }
 ```
 
@@ -122,22 +124,22 @@ testM("Semaphore should expose available number of permits") {
 When all of our tests are constructed, we need to have a way to actually execute them. Your first stop is the `zio.test.DefaultRunnableSpec` which accepts a single suite that will be executed. A single suite might seem to be limiting but as it was already said suites can hold any number of other suites. You may structure your tests like this:
 
 
-```scala
+```scala mdoc
 import zio.test._
 import zio.clock.nanoTime
 import Assertion._
 
 val suite1 = suite("suite1") (
-  testM("s1.t1") {assertM(nanoTime, isGreaterThanEqualTo(0L))},
-  testM("s1.t2") {assertM(nanoTime, isGreaterThanEqualTo(0L))}
+  testM("s1.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
+  testM("s1.t2") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
 )
 val suite2 = suite("suite2") (
-  testM("s2.t1") {assertM(nanoTime, isGreaterThanEqualTo(0L))},
-  testM("s2.t2") {assertM(nanoTime, isGreaterThanEqualTo(0L))},
-  testM("s2.t3") {assertM(nanoTime, isGreaterThanEqualTo(0L))}
+  testM("s2.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
+  testM("s2.t2") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
+  testM("s2.t3") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
 )
 val suite3 = suite("suite3") (
-  testM("s3.t1") {assertM(nanoTime, isGreaterThanEqualTo(0L))}
+  testM("s3.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
 )
 
 object AllSuites extends DefaultRunnableSpec {
@@ -146,7 +148,7 @@ object AllSuites extends DefaultRunnableSpec {
 ```
 
 `DefaultRunnableSpec` is very similar in its logic of operations to `zio.App`. Instead of providing one `ZIO` application
-at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `DefaultRunnableSpec` provides an Environment. Here it is an instance of `TestEnvironment` which helps us with controling our systems infrastructure. More info on using test environment can be found in sections below.
+at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `DefaultRunnableSpec` provides an Environment. Here it is an instance of `TestEnvironment` which helps us with controlling our systems infrastructure. More info on using test environment can be found in sections below.
 Just like with `zio.App` where at the very end an instance of `ZIO[R,E,A]` is expected where `R` can be at maximum of type `Environment` in `DefaultRunnableSpec` `R` cannot be more than `TestEnvironment`. So just like in normal application if our
 `R` is composed of some other modules we need to provide them first before test can be executed. How can we provide our dependencies?
 Here again the design of `zio-test` shines. Since our tests are ordinary values we can just transform them with a call to `mapTest`.
@@ -157,7 +159,7 @@ libraryDependencies ++= Seq(
   "dev.zio" %% "zio-test"     % zioVersion % "test",
   "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
 ),
-testFrameworks += Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
+testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 ```
 
 ## Using Test Environment
@@ -172,17 +174,15 @@ It is easy to accidentally use different test instances at the same time.
 ```scala mdoc:fail
 import zio.test._
 import zio.test.environment.TestClock
-import scala.language.postfixOps
 import Assertion._
-import zio.duration.Duration
-import scala.concurrent.duration._
+import zio.duration._
 
 testM("`acquire` doesn't leak permits upon cancellation") {
   for {
       testClock <- TestClock.makeTest(TestClock.DefaultData)
       s         <- Semaphore.make(1L)
-      sf        <- s.acquireN(2).timeout(Duration.fromScala(1 milli)).either.fork
-      _         <- testClock.adjust(Duration.fromScala(1 second))
+      sf        <- s.acquireN(2).timeout(1.millisecond).either.fork
+      _         <- testClock.adjust(1.second)
       _         <- sf.join
       _         <- s.release
       permits   <- s.available
@@ -226,7 +226,7 @@ testM("Use setSeed to generate stable values") {
     r2 <- random.nextLong
     r3 <- random.nextLong
   } yield
-    assert(List(r1,r2,r3), equalTo(List[Long](
+    assert(List(r1,r2,r3))(equalTo(List[Long](
       -4947896108136290151L,
       -5264020926839611059L,
       -9135922664019402287L
@@ -251,9 +251,8 @@ testM("One can provide its own list of ints") {
     r8 <- random.nextInt
     r9 <- random.nextInt
   } yield assert(
-    List(1, 9, 2, 8, 3, 7, 4, 6, 5),
-    equalTo(List(r1, r2, r3, r4, r5, r6, r7, r8, r9))
-  )
+    List(1, 9, 2, 8, 3, 7, 4, 6, 5)
+  )(equalTo(List(r1, r2, r3, r4, r5, r6, r7, r8, r9)))
 }
 ```
 
@@ -262,28 +261,54 @@ like `clearInts`.
 
 ### Testing Clock
 
-Sometimes one need to be able to control the flow of time. In most cases you want your unit test to be as fast as possible. Waiting for real time to pass by is a real killer for this. ZIO exposes a `TestClock` in `TestEnvironment` that can control time so we can deterministically and efficiently test effects involving the passage of time.
+In most cases you want unit tests to be as fast as possible. Waiting for real time to pass by is a real killer for 
+this. ZIO exposes a `TestClock` in `TestEnvironment` that can control time so we can deterministically and efficiently 
+test effects involving the passage of time without actually having to wait for the full amount of time to pass.
+
+When using `TestClock`, it's very important to understand two key related concepts (clock time and fiber time) and how
+they interact with each other.
+
+#### Fiber Time
+Each fiber has a fiber time associated with it. Calls to `sleep` and methods derived from it will semantically block 
+until the clock time is set/adjusted to on or after the current fiber time. The fiber time is simply the cumulative 
+duration of successive `sleep` calls on the fiber.
+
+#### Clock Time
+Clock time is just like a clock on the wall, except that in our `TestClock`, the clock is broken. Instead of moving by
+itself, the clock time only changes when adjusted or set by the user, using the `adjust` and `setTime` methods. The
+clock time never changes by itself. When the clock is adjusted, any effects on sleeping fibers with a fiber time 
+on or before the new clock time will automatically be run.
+
+#### TestClock Vectors
+The interaction between clock time and fiber time can be thought of in terms of vector addition, with clock time on the
+x axis and fiber time on the y axis. A fiber will continue to execute as long as clock time remains greater than fiber
+time (i.e. is below the identity function). Fibers that end up with greater fiber time than clock time can't do anything
+except wait for another fiber to adjust the clock time to be greater than the fiber time, at which point exection will
+resume.
+
+![TestClock Vectors](test_time.svg)
+
+#### Examples
 
 **Example 1**
 
-Thanks to call to `TestClock.adjust(1.minute)` we moved the time instantly 1 minute.
+Thanks to the call to `TestClock.adjust(1.minute)` the `ZIO.sleep(1.minute)` effect will return immediately, incrementing the fiber time by one minute. We then return the updated fiber time with `currentTime`.
 
 ```scala mdoc
 import java.util.concurrent.TimeUnit
 import zio.clock.currentTime
-import zio.duration.Duration
+import zio.duration._
 import zio.test.Assertion.isGreaterThanEqualTo
 import zio.test._
 import zio.test.environment.TestClock
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 testM("One can move time very fast") {
   for {
     startTime <- currentTime(TimeUnit.SECONDS)
-    _         <- TestClock.adjust(Duration.fromScala(1 minute))
+    _         <- TestClock.adjust(1.minute)
+    _         <- ZIO.sleep(1.minute)
     endTime   <- currentTime(TimeUnit.SECONDS)
-  } yield assert(endTime - startTime, isGreaterThanEqualTo(60L))
+  } yield assert(endTime - startTime)(isGreaterThanEqualTo(60L))
 }
 ```
 
@@ -292,20 +317,18 @@ testM("One can move time very fast") {
 `TestClock` affects also all code running asynchronously that is scheduled to run after certain time but with caveats to how runtime works.
 
 ```scala mdoc
-import zio.duration.Duration
+import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 testM("One can control time as he see fit") {
   for {
     promise <- Promise.make[Unit, Int]
-    _       <- (ZIO.sleep(Duration.fromScala(10 seconds)) *> promise.succeed(1)).fork
-    _       <- TestClock.adjust(Duration.fromScala(10 seconds))
+    _       <- (ZIO.sleep(10.seconds) *> promise.succeed(1)).fork
+    _       <- TestClock.adjust(10.seconds)
     readRef <- promise.await
-  } yield assert(1, equalTo(readRef))
+  } yield assert(1)(equalTo(readRef))
 }
 ```
 
@@ -313,21 +336,26 @@ The above code creates a write once cell that will be set to "1" after 10 second
 At the end we wait on the promise until it is set. With call to `TestClock.adjust(10.seconds)` we simulate passing of 10 seconds of time.
 Because of it we don't need to wait for the real 10 seconds to pass and thus our unit test can run faster. This is a pattern that will very often be used when `sleep` and `TestClock` are being used for testing of effects that are based on time. The fiber that needs to sleep will be forked and `TestClock` will used to adjust the time so that all expected effects are run in the forked fiber.
 
-*WARNING*
+**WARNING**
 Notice that if we don't call `adjust` at all we'll get stuck. `TestClock` doesn't make any progress on its own.
 
-Also it is worth mentioning that adjusting the time on `TestClock` doesn't make us immune to the timing overheads introduced by the runtime and races this introduces. Effects are guaranteed to be waken up not earlier than the argument passed to `sleep` but from there the order of execution since scheduled on different threads is indeterministic and its up to the user code to use tools like `Promise` to guarantee proper sequencing. 
-Below code will be flaky because there is non-zero overhead when switching fibers thus reading of the value might happen before it is set and its change is 
-propagated.
+
+It is worth mentioning that adjusting the time on `TestClock` doesn't make us immune to the timing overheads 
+introduced by the runtime and races this introduces. Effects are guaranteed to be waken up not earlier than the argument 
+passed to `sleep` but from there the order of execution since scheduled on different threads is indeterministic and its 
+up to the user code to use tools like `Promise` to guarantee proper sequencing. 
+
+The code below will be flaky because there is non-zero overhead when switching fibers thus reading of the value might 
+happen before it is set and its change is propagated.
 
 ```scala mdoc
 testM("THIS TEST WILL FAIL - Sleep and adjust can introduce races") {
   for {
     ref     <- Ref.make(0)
-    _       <- (ZIO.sleep(Duration(10, TimeUnit.SECONDS)) *> ref.update(_ + 1)).fork
-    _       <- TestClock.adjust(Duration(10, TimeUnit.SECONDS))
+    _       <- (ZIO.sleep(10.seconds) *> ref.update(_ + 1)).fork
+    _       <- TestClock.adjust(10.seconds)
     value   <- ref.get
-  } yield assert(1, equalTo(value))
+  } yield assert(1)(equalTo(value))
 }
 ```
 
@@ -337,35 +365,32 @@ Even if you have a non-trivial flow of data from multiple streams that can produ
 snapshots of data in particular point in time `Queue` can help with that.
 
 ```scala mdoc
-import zio.duration.Duration
+import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import zio.stream._
 
 testM("zipWithLatest") {
-  val s1 = Stream.iterate(0)(_ + 1).fixed(Duration.fromScala(100 millis))
-  val s2 = Stream.iterate(0)(_ + 1).fixed(Duration.fromScala(70 millis))
+  val s1 = Stream.iterate(0)(_ + 1).fixed(100.milliseconds)
+  val s2 = Stream.iterate(0)(_ + 1).fixed(70.milliseconds)
   val s3 = s1.zipWithLatest(s2)((_, _))
 
   for {
-    _ <- TestClock.setTime(Duration.fromScala(0 millis))
     q <- Queue.unbounded[(Int, Int)]
     _ <- s3.foreach(q.offer).fork
     a <- q.take
-    _ <- TestClock.setTime(Duration.fromScala(70 millis))
+    _ <- TestClock.setTime(70.milliseconds)
     b <- q.take
-    _ <- TestClock.setTime(Duration.fromScala(100 millis))
+    _ <- TestClock.setTime(100.milliseconds)
     c <- q.take
-    _ <- TestClock.setTime(Duration.fromScala(140 millis))
+    _ <- TestClock.setTime(140.milliseconds)
     d <- q.take
   } yield
-    assert(a, equalTo(0 -> 0)) &&
-      assert(b, equalTo(0       -> 1)) &&
-      assert(c, equalTo(1       -> 1)) &&
-      assert(d, equalTo(1       -> 2))
+    assert(a)(equalTo(0 -> 0)) &&
+      assert(b)(equalTo(0 -> 1)) &&
+      assert(c)(equalTo(1 -> 1)) &&
+      assert(d)(equalTo(1 -> 2))
 }
 ```
 
@@ -390,10 +415,10 @@ val consoleSuite = suite("ConsoleTest")(
       q1             = questionVector(0)
       q2             = questionVector(1)
     } yield {
-      assert(name, equalTo("Jimmy")) &&
-      assert(age, equalTo(37)) &&
-      assert(q1, equalTo("What is your name?\n")) &&
-      assert(q2, equalTo("What is your age?\n"))
+      assert(name)(equalTo("Jimmy")) &&
+      assert(age)(equalTo(37)) &&
+      assert(q1)(equalTo("What is your name?\n")) &&
+      assert(q2)(equalTo("What is your age?\n"))
     }
   }
 )
@@ -418,19 +443,19 @@ import zio.test.environment._
 for {
   _      <- TestSystem.putProperty("java.vm.name", "VM")
   result <- system.property("java.vm.name")
-} yield assert(result, equalTo(Some("VM")))
+} yield assert(result)(equalTo(Some("VM")))
 ```
 
 It is worth noticing that no actual environment variables or properties will be set during testing so there will be
 no impact on other parts of the system.
 
-### Test Aspects
+## Test Aspects
 
 Test aspects are used to modify existing tests or even entire suites that you have already created. Test aspects are
 applied to a test or suite using the `@@` operator. This is an example test suite showing the use of aspects to modify 
 test behaviour:
 
-```scala
+```scala mdoc:reset
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -439,25 +464,28 @@ import zio.test._
 object MySpec extends DefaultRunnableSpec {
   def spec = suite("A Suite")(
     test("A passing test") {
-      assert(true, isTrue)
+      assert(true)(isTrue)
     },
     test("A passing test run for JVM only") {
-      assert(true, isTrue)
+      assert(true)(isTrue)
     } @@ jvmOnly, //@@ jvmOnly only runs tests on the JVM
     test("A passing test run for JS only") {
-      assert(true, isTrue)
+      assert(true)(isTrue)
     } @@ jsOnly, //@@ jsOnly only runs tests on Scala.js
     test("A passing test with a timeout") {
-      assert(true, isTrue)
+      assert(true)(isTrue)
     } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
     test("A failing test... that passes") {
-      assert(true, isFalse)
-    } @@ failure, //@@ failure turns a failing test into a passing test
+      assert(true)(isFalse)
+    } @@ failing, //@@ failing turns a failing test into a passing test
+    test("A ignored test") {
+      assert(false)(isTrue)
+    } @@ ignore, //@@ ignore marks test as ignored
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
-      assert(false, isTrue)
+      assert(false)(isTrue)
     } @@ jvmOnly           // only run on the JVM
       @@ eventually        //@@ eventually retries a test indefinitely until it succeeds
       @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
   ) @@ timeout(60.seconds)   //apply a timeout to the whole suite
 }
-``` 
+```

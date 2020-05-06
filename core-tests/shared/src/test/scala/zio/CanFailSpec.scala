@@ -1,7 +1,7 @@
 package zio
 
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 object CanFailSpec extends ZIOBaseSpec {
 
@@ -15,7 +15,7 @@ object CanFailSpec extends ZIOBaseSpec {
             io.orElse(uio)
             """
       }
-      assertM(result, isRight(anything))
+      assertM(result)(isRight(anything))
     },
     testM("useless combinators don't compile") {
       val result = typeCheck {
@@ -26,7 +26,7 @@ object CanFailSpec extends ZIOBaseSpec {
             uio.orElse(io)
             """
       }
-      assertM(result, isLeft(anything))
+      assertM(result)(isLeft(anything))
     }
   )
 }

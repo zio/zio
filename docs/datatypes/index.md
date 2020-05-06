@@ -6,6 +6,7 @@ title:  "Summary"
 ZIO contains a small number of data types that can help you solve complex problems in asynchronous and concurrent programming.
 
  - **[Fiber](fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
+ - **[STM](stm.md)** - An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
  - **[ZIO](io.md)** — A `ZIO` is a value that models an effectful program, which might fail or succeed.
  - **[Managed](managed.md)** — A `Managed` is a value that describes a perishable resource that may be consumed only once inside a given scope.
  - **[Promise](promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
@@ -15,6 +16,14 @@ ZIO contains a small number of data types that can help you solve complex proble
  - **[Schedule](schedule.md)** — A `Schedule` is a model of a recurring schedule, which can be used for repeating successful `IO` values, or retrying failed `IO` values.
  - **[Semaphore](semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
  - **[Chunk](chunk.md)** — ZIO `Chunk`: Fast, Pure Alternative to Arrays
+ - **[TArray](tarray.md)** - A `TArray[A]` is an array of mutable references that can participate in transactions.
+ - **[TMap](tmap.md)** - A `TMap[A]` is a mutable map that can participate in transactions.
+ - **[TPromise](tpromise.md)** - A `TPromise` is a mutable reference that can be set exactly once and can participate in transactions.
+ - **[TQueue](tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
+ - **[TRef](tref.md)** - A `TRef` is a mutable reference to an immutable value that can participate in transactions.
+ - **[TSet](tset.md)** - A `TSet` is a mutable set that can participate in transactions.
+ - **[Has](has.md)** - A `Has` is used to express an effect's dependency on a service of type `A`.
+ - **[ZLayer](zlayer.md)** - A `ZLayer` describes a layer of an application.
 
 Besides the core datatypes, the following datatypes can be found in ZIO streams library:
 

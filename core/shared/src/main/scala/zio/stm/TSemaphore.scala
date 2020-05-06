@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 package zio.stm
 
-class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
-  final def acquire: STM[Nothing, Unit] = acquireN(1L)
+final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
+  def acquire: USTM[Unit] = acquireN(1L)
 
-  final def acquireN(n: Long): STM[Nothing, Unit] =
+  def acquireN(n: Long): USTM[Unit] =
     for {
       _     <- assertNonNegative(n)
       value <- permits.get
@@ -27,23 +27,23 @@ class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
       _     <- permits.set(value - n)
     } yield ()
 
-  final def available: STM[Nothing, Long] = permits.get
+  def available: USTM[Long] = permits.get
 
-  final def release: STM[Nothing, Unit] = releaseN(1L)
+  def release: USTM[Unit] = releaseN(1L)
 
-  final def releaseN(n: Long): STM[Nothing, Unit] =
+  def releaseN(n: Long): USTM[Unit] =
     assertNonNegative(n) *> permits.update(_ + n).unit
 
-  final def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
+  def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
     acquire *> stm <* release
 
-  private def assertNonNegative(n: Long): STM[Nothing, Unit] =
+  private def assertNonNegative(n: Long): USTM[Unit] =
     if (n < 0)
       STM.die(new RuntimeException(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else STM.unit
 }
 
 object TSemaphore {
-  final def make(n: Long): STM[Nothing, TSemaphore] =
+  def make(n: Long): USTM[TSemaphore] =
     TRef.make(n).map(v => new TSemaphore(v))
 }

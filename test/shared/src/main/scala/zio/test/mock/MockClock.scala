@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,34 +16,27 @@
 
 package zio.test.mock
 
-import java.time.OffsetDateTime
+import java.time.{ DateTimeException, OffsetDateTime }
 import java.util.concurrent.TimeUnit
 
-import zio.UIO
 import zio.clock.Clock
 import zio.duration.Duration
+import zio.{ Has, IO, UIO, URLayer, ZLayer }
 
-trait MockClock extends Clock {
+object MockClock extends Mock[Clock] {
 
-  val clock: MockClock.Service[Any]
-}
+  object CurrentTime     extends Effect[TimeUnit, Nothing, Long]
+  object CurrentDateTime extends Effect[Unit, DateTimeException, OffsetDateTime]
+  object NanoTime        extends Effect[Unit, Nothing, Long]
+  object Sleep           extends Effect[Duration, Nothing, Unit]
 
-object MockClock {
-
-  trait Service[R] extends Clock.Service[R]
-
-  object currentTime     extends Method[MockClock, TimeUnit, Long]
-  object currentDateTime extends Method[MockClock, Unit, OffsetDateTime]
-  object nanoTime        extends Method[MockClock, Unit, Long]
-  object sleep           extends Method[MockClock, Duration, Unit]
-
-  implicit val mockable: Mockable[MockClock] = (mock: Mock) =>
-    new MockClock {
-      val clock = new Service[Any] {
-        def currentTime(unit: TimeUnit): UIO[Long] = mock(MockClock.currentTime, unit)
-        def currentDateTime: UIO[OffsetDateTime]   = mock(MockClock.currentDateTime)
-        val nanoTime: UIO[Long]                    = mock(MockClock.nanoTime)
-        def sleep(duration: Duration): UIO[Unit]   = mock(MockClock.sleep, duration)
+  val compose: URLayer[Has[Proxy], Clock] =
+    ZLayer.fromService(proxy =>
+      new Clock.Service {
+        def currentTime(unit: TimeUnit): UIO[Long]                 = proxy(CurrentTime, unit)
+        def currentDateTime: IO[DateTimeException, OffsetDateTime] = proxy(CurrentDateTime)
+        val nanoTime: UIO[Long]                                    = proxy(NanoTime)
+        def sleep(duration: Duration): UIO[Unit]                   = proxy(Sleep, duration)
       }
-    }
+    )
 }

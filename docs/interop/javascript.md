@@ -13,7 +13,7 @@ println(s"""libraryDependencies += "dev.zio" %%% "zio" % "${zio.BuildInfo.versio
 println(s"""```""")
 ```
 
-Java Time API which is not a part of ScalaJS. You might have to add dependecy that provides `java.time` package to
+Java Time API which is not a part of ScalaJS. You might have to add dependency that provides `java.time` package to
 avoid linker errors when using `Clock`. ZIO uses [scala-java-time](https://github.com/cquiroz/scala-java-time) for
 running it's test.
 

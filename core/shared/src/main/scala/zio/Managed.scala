@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,180 +21,306 @@ object Managed {
   /**
    * See [[zio.ZManaged.absolve]]
    */
-  final def absolve[E, A](v: Managed[E, Either[E, A]]): Managed[E, A] =
+  def absolve[E, A](v: Managed[E, Either[E, A]]): Managed[E, A] =
     ZManaged.absolve(v)
 
   /**
    * See [[zio.ZManaged]]
    */
-  final def apply[E, A](reserve: IO[E, Reservation[Any, E, A]]): Managed[E, A] =
+  def apply[E, A](reserve: IO[E, Reservation[Any, E, A]]): Managed[E, A] =
     ZManaged.apply(reserve)
 
   /**
    * See [[zio.ZManaged.collectAll]]
    */
-  final def collectAll[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
+  def collectAll[E, A](ms: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAll(ms)
+
+  /**
+   * See [[zio.ZManaged.collectAll_]]
+   */
+  def collectAll_[E, A](ms: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAll_(ms)
 
   /**
    * See [[zio.ZManaged.collectAllPar]]
    */
-  final def collectAllPar[E, A](as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
+  def collectAllPar[E, A](as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAllPar(as)
+
+  /**
+   * See [[zio.ZManaged.collectAllPar_]]
+   */
+  def collectAllPar_[E, A](as: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAllPar_(as)
 
   /**
    * See [[zio.ZManaged.collectAllParN]]
    */
-  final def collectAllParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
+  def collectAllParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAllParN(n)(as)
+
+  /**
+   * See [[zio.ZManaged.collectAllParN_]]
+   */
+  def collectAllParN_[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, Unit] =
+    ZManaged.collectAllParN_(n)(as)
 
   /**
    * See [[zio.ZManaged.die]]
    */
-  final def die(t: Throwable): Managed[Nothing, Nothing] =
+  def die(t: => Throwable): Managed[Nothing, Nothing] =
     ZManaged.die(t)
 
   /**
    * See [[zio.ZManaged.dieMessage]]
    */
-  final def dieMessage(message: String): Managed[Throwable, Nothing] =
+  def dieMessage(message: => String): Managed[Throwable, Nothing] =
     ZManaged.dieMessage(message)
 
   /**
    * See [[zio.ZManaged.done]]
    */
-  final def done[E, A](r: Exit[E, A]): Managed[E, A] =
+  def done[E, A](r: => Exit[E, A]): Managed[E, A] =
     ZManaged.done(r)
+
+  /**
+   * See [[zio.ZManaged.effect]]
+   */
+  def effect[A](r: => A): Managed[Throwable, A] =
+    ZManaged.fromEffect(ZIO.effect(r))
 
   /**
    * See [[zio.ZManaged.effectTotal]]
    */
-  final def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
+  def effectTotal[A](r: => A): Managed[Nothing, A] =
     ZManaged.effectTotal(r)
 
   /**
    * See [[zio.ZManaged.fail]]
    */
-  final def fail[E](error: E): Managed[E, Nothing] =
+  def fail[E](error: => E): Managed[E, Nothing] =
     ZManaged.fail(error)
 
   /**
    * See [[zio.ZManaged.finalizer]]
    */
-  final def finalizer(f: IO[Nothing, Any]): Managed[Nothing, Unit] =
+  def finalizer(f: IO[Nothing, Any]): Managed[Nothing, Unit] =
     ZManaged.finalizer(f)
+
+  /**
+   * See [[zio.ZManaged.finalizerRef]]
+   */
+  def finalizerRef(initial: Exit[Any, Any] => UIO[Any]): Managed[Nothing, ZManaged.FinalizerRef[Any]] =
+    ZManaged.finalizerRef(initial)
 
   /**
    * See [[zio.ZManaged.flatten]]
    */
-  final def flatten[E, A](m: Managed[E, Managed[E, A]]): Managed[E, A] =
+  def flatten[E, A](m: Managed[E, Managed[E, A]]): Managed[E, A] =
     ZManaged.flatten(m)
 
   /**
-   * See [[zio.ZManaged.foreach]]
+   * See [[zio.ZManaged.flattenM]]
    */
-  final def foreach[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
+  def flattenM[E, A](m: Managed[E, IO[E, A]]): Managed[E, A] =
+    ZManaged.flattenM(m)
+
+  /**
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](as:Iterable*]]]
+   */
+  def foreach[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.foreach(as)(f)
+
+  /**
+   * See [[[zio.ZManaged.foreach[R,E,A1,A2](in:Option*]]]
+   */
+  final def foreach[E, A1, A2](in: Option[A1])(f: A1 => Managed[E, A2]): Managed[E, Option[A2]] =
+    ZManaged.foreach(in)(f)
 
   /**
    * See [[zio.ZManaged.foreach_]]
    */
-  final def foreach_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
+  def foreach_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.foreach_(as)(f)
+
+  /**
+   * See [[zio.ZManaged.foreachExec]]
+   */
+  final def foreachExec[E, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => Managed[E, B]): Managed[E, List[B]] =
+    ZManaged.foreachExec(as)(exec)(f)
 
   /**
    * See [[zio.ZManaged.foreachPar]]
    */
-  final def foreachPar[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
+  def foreachPar[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.foreachPar(as)(f)
 
   /**
    * See [[zio.ZManaged.foreachPar_]]
    */
-  final def foreachPar_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
+  def foreachPar_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.foreachPar_(as)(f)
 
   /**
    * See [[zio.ZManaged.foreachParN]]
    */
-  final def foreachParN[E, A1, A2](n: Int)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
+  def foreachParN[E, A1, A2](n: Int)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.foreachParN(n)(as)(f)
 
   /**
    * See [[zio.ZManaged.foreachParN_]]
    */
-  final def foreachParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
+  def foreachParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.foreachParN_(n)(as)(f)
 
   /**
    * See [[zio.ZManaged.fromAutoCloseable]]
    */
-  final def fromAutoCloseable[E, A <: AutoCloseable](fa: IO[E, A]): Managed[E, A] =
+  def fromAutoCloseable[E, A <: AutoCloseable](fa: IO[E, A]): Managed[E, A] =
     ZManaged.fromAutoCloseable(fa)
 
   /**
    * See [[zio.ZManaged.fromEffect]]
    */
-  final def fromEffect[E, A](fa: IO[E, A]): Managed[E, A] =
+  def fromEffect[E, A](fa: IO[E, A]): Managed[E, A] =
     ZManaged.fromEffect(fa)
 
   /**
    * See [[zio.ZManaged.fromEither]]
    */
-  final def fromEither[E, A](v: => Either[E, A]): Managed[E, A] =
+  def fromEither[E, A](v: => Either[E, A]): Managed[E, A] =
     ZManaged.fromEither(v)
 
   /**
    * See [[zio.ZManaged.halt]]
    */
-  final def halt[E](cause: Cause[E]): Managed[E, Nothing] =
+  def halt[E](cause: => Cause[E]): Managed[E, Nothing] =
     ZManaged.halt(cause)
+
+  /**
+   * See [[zio.ZManaged.ifM]]
+   */
+  def ifM[E](b: Managed[E, Boolean]): ZManaged.IfM[Any, E] =
+    new ZManaged.IfM(b)
 
   /**
    * See [[zio.ZManaged.interrupt]]
    */
-  final val interrupt: Managed[Nothing, Nothing] = ZManaged.interrupt
+  val interrupt: Managed[Nothing, Nothing] = ZManaged.interrupt
+
+  /**
+   * See [[zio.ZManaged.iterate]]
+   */
+  def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => Managed[E, S]): Managed[E, S] =
+    ZManaged.iterate(initial)(cont)(body)
+
+  /**
+   * See [[zio.ZManaged.loop]]
+   */
+  def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Managed[E, A]): Managed[E, List[A]] =
+    ZManaged.loop(initial)(cont, inc)(body)
+
+  /**
+   * See [[zio.ZManaged.loop_]]
+   */
+  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.loop_(initial)(cont, inc)(body)
 
   /**
    * See [[zio.ZManaged.make]]
    */
-  final def make[E, A](acquire: IO[E, A])(release: A => UIO[Any]): Managed[E, A] =
+  def make[E, A](acquire: IO[E, A])(release: A => UIO[Any]): Managed[E, A] =
     ZManaged.make(acquire)(release)
 
   /**
    * See [[zio.ZManaged.makeEffect]]
    */
-  final def makeEffect[A](acquire: => A)(release: A => Any): Managed[Throwable, A] =
+  def makeEffect[A](acquire: => A)(release: A => Any): Managed[Throwable, A] =
     ZManaged.makeEffect(acquire)(release)
 
   /**
    * See [[zio.ZManaged.makeExit]]
    */
-  final def makeExit[E, A](acquire: IO[E, A])(release: (A, Exit[Any, Any]) => UIO[Any]): Managed[E, A] =
+  def makeExit[E, A](acquire: IO[E, A])(release: (A, Exit[Any, Any]) => UIO[Any]): Managed[E, A] =
     ZManaged.makeExit(acquire)(release)
 
   /**
    * See [[zio.ZManaged.makeInterruptible]]
    */
-  final def makeInterruptible[R, E, A](acquire: IO[E, A])(release: A => UIO[Any]): Managed[E, A] =
+  def makeInterruptible[R, E, A](acquire: IO[E, A])(release: A => UIO[Any]): Managed[E, A] =
     ZManaged.makeInterruptible(acquire)(release)
+
+  /**
+   *  @see [[zio.ZManaged.mapN[R,E,A,B,C]*]]
+   */
+  def mapN[E, A, B, C](managed1: Managed[E, A], managed2: Managed[E, B])(f: (A, B) => C): Managed[E, C] =
+    ZManaged.mapN(managed1, managed2)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapN[R,E,A,B,C,D]*]]
+   */
+  def mapN[E, A, B, C, D](managed1: Managed[E, A], managed2: Managed[E, B], managed3: Managed[E, C])(
+    f: (A, B, C) => D
+  ): Managed[E, D] =
+    ZManaged.mapN(managed1, managed2, managed3)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapN[R,E,A,B,C,D,F]*]]
+   */
+  def mapN[E, A, B, C, D, F](
+    managed1: Managed[E, A],
+    managed2: Managed[E, B],
+    managed3: Managed[E, C],
+    managed4: Managed[E, D]
+  )(
+    f: (A, B, C, D) => F
+  ): Managed[E, F] =
+    ZManaged.mapN(managed1, managed2, managed3, managed4)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapParN[R,E,A,B,C]*]]
+   */
+  def mapParN[E, A, B, C](managed1: Managed[E, A], managed2: Managed[E, B])(f: (A, B) => C): Managed[E, C] =
+    ZManaged.mapParN(managed1, managed2)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapParN[R,E,A,B,C,D]*]]
+   */
+  def mapParN[E, A, B, C, D](managed1: Managed[E, A], managed2: Managed[E, B], managed3: Managed[E, C])(
+    f: (A, B, C) => D
+  ): Managed[E, D] =
+    ZManaged.mapParN(managed1, managed2, managed3)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapParN[R,E,A,B,C,D,F]*]]
+   */
+  def mapParN[E, A, B, C, D, F](
+    managed1: Managed[E, A],
+    managed2: Managed[E, B],
+    managed3: Managed[E, C],
+    managed4: Managed[E, D]
+  )(
+    f: (A, B, C, D) => F
+  ): Managed[E, F] =
+    ZManaged.mapParN(managed1, managed2, managed3, managed4)(f)
 
   /**
    * See [[zio.ZManaged.mergeAll]]
    */
-  final def mergeAll[E, A, B](in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
+  def mergeAll[E, A, B](in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
     ZManaged.mergeAll(in)(zero)(f)
 
   /**
    * See [[zio.ZManaged.mergeAllPar]]
    */
-  final def mergeAllPar[E, A, B](in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
+  def mergeAllPar[E, A, B](in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
     ZManaged.mergeAllPar(in)(zero)(f)
 
   /**
    * See [[zio.ZManaged.mergeAllParN]]
    */
-  final def mergeAllParN[E, A, B](n: Int)(in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
+  def mergeAllParN[E, A, B](n: Int)(in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
     ZManaged.mergeAllParN(n)(in)(zero)(f)
 
   /**
@@ -205,19 +331,19 @@ object Managed {
   /**
    * See [[zio.ZManaged.reduceAll]]
    */
-  final def reduceAll[E, A](a: Managed[E, A], as: Iterable[Managed[E, A]])(f: (A, A) => A): Managed[E, A] =
+  def reduceAll[E, A](a: Managed[E, A], as: Iterable[Managed[E, A]])(f: (A, A) => A): Managed[E, A] =
     ZManaged.reduceAll(a, as)(f)
 
   /**
    * See [[zio.ZManaged.reduceAllPar]]
    */
-  final def reduceAllPar[E, A](a: Managed[E, A], as: Iterable[Managed[E, A]])(f: (A, A) => A): Managed[E, A] =
+  def reduceAllPar[E, A](a: Managed[E, A], as: Iterable[Managed[E, A]])(f: (A, A) => A): Managed[E, A] =
     ZManaged.reduceAllPar(a, as)(f)
 
   /**
    * See [[zio.ZManaged.reduceAllParN]]
    */
-  final def reduceAllParN[E, A](
+  def reduceAllParN[E, A](
     n: Long
   )(a1: Managed[E, A], as: Iterable[Managed[E, A]])(f: (A, A) => A): Managed[E, A] =
     ZManaged.reduceAllParN(n)(a1, as)(f)
@@ -225,128 +351,86 @@ object Managed {
   /**
    * See [[zio.ZManaged.require]]
    */
-  final def require[E, A](error: E): Managed[E, Option[A]] => Managed[E, A] =
+  def require[E, A](error: => E): Managed[E, Option[A]] => Managed[E, A] =
     ZManaged.require[Any, E, A](error)
 
   /**
    * See [[zio.ZManaged.reserve]]
    */
-  final def reserve[E, A](reservation: Reservation[Any, E, A]): Managed[E, A] =
+  def reserve[E, A](reservation: Reservation[Any, E, A]): Managed[E, A] =
     ZManaged.reserve(reservation)
 
   /**
    * See [[zio.ZManaged.sandbox]]
    */
-  final def sandbox[E, A](v: Managed[E, A]): Managed[Cause[E], A] =
+  def sandbox[E, A](v: Managed[E, A]): Managed[Cause[E], A] =
     ZManaged.sandbox(v)
-
-  /**
-   * See [[zio.ZManaged.sequence]]
-   */
-  final def sequence[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
-    ZManaged.sequence(ms)
-
-  /**
-   * See [[zio.ZManaged.sequencePar]]
-   */
-  final def sequencePar[E, A](as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
-    ZManaged.sequencePar(as)
-
-  /**
-   * See [[zio.ZManaged.sequenceParN]]
-   */
-  final def sequenceParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
-    ZManaged.sequenceParN(n)(as)
 
   /**
    * See [[zio.ZManaged.succeed]]
    */
-  final def succeed[A](r: A): Managed[Nothing, A] =
+  def succeed[A](r: => A): Managed[Nothing, A] =
     ZManaged.succeed(r)
 
   /**
    * See [[zio.ZManaged.suspend]]
    */
-  final def suspend[E, A](managed: => Managed[E, A]): Managed[E, A] =
+  def suspend[E, A](managed: => Managed[E, A]): Managed[E, A] =
     ZManaged.suspend(managed)
-
-  /**
-   * See [[zio.ZManaged.traverse]]
-   */
-  final def traverse[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
-    ZManaged.traverse(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverse_]]
-   */
-  final def traverse_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
-    ZManaged.traverse_(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traversePar]]
-   */
-  final def traversePar[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
-    ZManaged.traversePar(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traversePar_]]
-   */
-  final def traversePar_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
-    ZManaged.traversePar_(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverseParN]]
-   */
-  final def traverseParN[E, A1, A2](n: Int)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
-    ZManaged.traverseParN(n)(as)(f)
-
-  /**
-   * See [[zio.ZManaged.traverseParN_]]
-   */
-  final def traverseParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
-    ZManaged.traverseParN_(n)(as)(f)
 
   /**
    * See [[zio.ZManaged.unit]]
    */
-  final val unit: Managed[Nothing, Unit] = ZManaged.unit
+  val unit: Managed[Nothing, Unit] = ZManaged.unit
+
+  /**
+   * The moral equivalent of `if (!p) exp`
+   */
+  def unless[E](b: => Boolean)(managed: => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.unless(b)(managed)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessM[E](b: Managed[E, Boolean])(managed: => Managed[E, Any]): Managed[E, Unit] =
+    ZManaged.unlessM(b)(managed)
 
   /**
    * See [[zio.ZManaged.unsandbox]]
    */
-  final def unsandbox[E, A](v: Managed[Cause[E], A]): Managed[E, A] =
+  def unsandbox[E, A](v: Managed[Cause[E], A]): Managed[E, A] =
     ZManaged.unsandbox(v)
 
   /**
    * See [[zio.ZManaged.unwrap]]
    */
-  final def unwrap[E, A](fa: IO[E, Managed[E, A]]): Managed[E, A] =
+  def unwrap[E, A](fa: IO[E, Managed[E, A]]): Managed[E, A] =
     ZManaged.unwrap(fa)
 
   /**
    * See [[zio.ZManaged.when]]
    */
-  final def when[E](b: Boolean)(managed: Managed[E, Any]): Managed[E, Unit] =
+  def when[E](b: => Boolean)(managed: => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.when(b)(managed)
 
   /**
    * See [[zio.ZManaged.whenCase]]
    */
-  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCase[E, A](a: => A)(pf: PartialFunction[A, Managed[E, Any]]): Managed[E, Unit] =
     ZManaged.whenCase(a)(pf)
 
   /**
    * See [[zio.ZManaged.whenCaseM]]
    */
-  final def whenCaseM[R, E, A](
-    a: ZManaged[R, E, A]
-  )(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCaseM[E, A](a: Managed[E, A])(pf: PartialFunction[A, Managed[E, Any]]): Managed[E, Unit] =
     ZManaged.whenCaseM(a)(pf)
 
   /**
    * See [[zio.ZManaged.whenM]]
    */
-  final def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, Any]): Managed[E, Unit] =
+  def whenM[E](b: Managed[E, Boolean])(managed: => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.whenM(b)(managed)
 
+  private[zio] def succeedNow[A](r: A): Managed[Nothing, A] =
+    ZManaged.succeedNow(r)
 }

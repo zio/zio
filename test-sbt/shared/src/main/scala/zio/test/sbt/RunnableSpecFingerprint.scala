@@ -1,10 +1,11 @@
 package zio.test.sbt
 
 import sbt.testing.SubclassFingerprint
+
 import zio.test.AbstractRunnableSpec
 
 object RunnableSpecFingerprint extends SubclassFingerprint {
-  val superclassName: String  = classOf[AbstractRunnableSpec].getName
-  val isModule                = true
-  val requireNoArgConstructor = false
+  val superclassName: String        = classOf[AbstractRunnableSpec].getName
+  final val isModule                = true
+  final val requireNoArgConstructor = false
 }

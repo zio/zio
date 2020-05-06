@@ -2,10 +2,9 @@ package zio.internal
 
 import java.util.concurrent.TimeUnit
 
+import BenchUtils._
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.{ Blackhole, Control }
-
-import BenchUtils._
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

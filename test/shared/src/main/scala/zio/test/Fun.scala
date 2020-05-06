@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package zio.test
 
-import zio.{ Runtime, ZIO }
 import zio.internal.Executor
+import zio.{ Runtime, ZIO }
 
 /**
  * A `Fun[A, B]` is a referentially transparent version of a potentially
@@ -28,15 +28,15 @@ import zio.internal.Executor
 private[test] final case class Fun[-A, +B] private (private val f: A => B, private val hash: A => Int)
     extends (A => B) {
 
-  final def apply(a: A): B =
+  def apply(a: A): B =
     map.getOrElseUpdate(hash(a), (a, f(a)))._2
 
-  override final def toString: String = {
+  override def toString: String = {
     val mappings = map.foldLeft(List.empty[String]) { case (acc, (_, (a, b))) => s"$a -> $b" :: acc }
     mappings.mkString("Fun(", ", ", ")")
   }
 
-  private[this] final val map = ConcurrentHashMap.empty[Int, (A, B)]
+  private[this] val map = ConcurrentHashMap.empty[Int, (A, B)]
 }
 
 private[test] object Fun {
@@ -45,7 +45,7 @@ private[test] object Fun {
    * Constructs a new `Fun` from an effectual function. The function should not
    * involve asynchronous effects.
    */
-  final def make[R, A, B](f: A => ZIO[R, Nothing, B]): ZIO[R, Nothing, Fun[A, B]] =
+  def make[R, A, B](f: A => ZIO[R, Nothing, B]): ZIO[R, Nothing, Fun[A, B]] =
     makeHash(f)(_.hashCode)
 
   /**
@@ -53,7 +53,7 @@ private[test] object Fun {
    * This is useful when the domain of the function does not implement
    * `hashCode` in a way that is consistent with equality.
    */
-  final def makeHash[R, A, B](f: A => ZIO[R, Nothing, B])(hash: A => Int): ZIO[R, Nothing, Fun[A, B]] =
+  def makeHash[R, A, B](f: A => ZIO[R, Nothing, B])(hash: A => Int): ZIO[R, Nothing, Fun[A, B]] =
     ZIO.runtime[R].map { runtime =>
       val funRuntime = withFunExecutor(runtime)
       Fun(a => funRuntime.unsafeRun(f(a)), hash)
@@ -62,7 +62,7 @@ private[test] object Fun {
   /**
    * Constructs a new `Fun` from a pure function.
    */
-  final def fromFunction[A, B](f: A => B): Fun[A, B] =
+  def fromFunction[A, B](f: A => B): Fun[A, B] =
     Fun(f, _.hashCode)
 
   /**

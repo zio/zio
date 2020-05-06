@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,14 @@
 package zio.internal.impls
 
 import java.util.concurrent.atomic.AtomicLongArray
+
 import zio.internal.impls.padding.MutableQueueFieldsPadding
 import zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
 
 object RingBuffer {
 
   /**
-   * @note mimimum supported capacity is 2
+   * @note minimum supported capacity is 2
    */
   final def apply[A](requestedCapacity: Int): RingBuffer[A] = {
     assert(requestedCapacity >= 2)
@@ -211,7 +212,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
         // We're at the right spot. At this point we can try to
         // reserve the place for enqueue by doing CAS on tail.
         if (aTail.compareAndSet(this, curTail, curTail + 1)) {
-          // We successfuly reserved a place to enqueue.
+          // We successfully reserved a place to enqueue.
           state = STATE_RESERVED
         } else {
           // There was a concurrent offer that won CAS. We need to try again at the next location.
@@ -316,7 +317,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
         }
       } else { // curSeq > curHead + 1
         // Either some other thread beat us or this thread got
-        // delayed. We need to resyncronize with `head` and try again.
+        // delayed. We need to resynchronize with `head` and try again.
         curHead = aHead.get(this)
         state = STATE_LOOP
       }

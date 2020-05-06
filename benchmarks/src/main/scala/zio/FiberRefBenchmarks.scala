@@ -13,6 +13,7 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
+
 import zio.IOBenchmarks.verify
 
 @State(Scope.Thread)
@@ -52,7 +53,7 @@ class FiberRefBenchmarks {
     for {
       fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
       _         <- ZIO.foreach_(1.to(n))(_ => ZIO.yieldNow)
-      values    <- ZIO.collectAllPar(fiberRefs.map(_.get))
+      values    <- ZIO.foreachPar(fiberRefs)(_.get)
       _         <- verify(values == 1.to(n))(s"Got $values")
     } yield ()
   }

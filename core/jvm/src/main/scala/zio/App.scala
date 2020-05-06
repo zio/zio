@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ package zio
  * }
  * }}}
  */
-trait App extends DefaultRuntime {
+trait App extends BootstrapRuntime {
 
   /**
    * The main function of the application, which will be passed the command-line
@@ -52,7 +52,7 @@ trait App extends DefaultRuntime {
   final def main(args0: Array[String]): Unit =
     try sys.exit(
       unsafeRun(
-        for {
+        (for {
           fiber <- run(args0.toList).fork
           _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
                 override def run() = {
@@ -60,7 +60,8 @@ trait App extends DefaultRuntime {
                 }
               }))
           result <- fiber.join
-        } yield result
+          _      <- fiber.interrupt
+        } yield result)
       )
     )
     catch { case _: SecurityException => }

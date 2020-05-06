@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ private[zio] final class StackBool private () {
   private[this] var head  = new Entry(null)
   private[this] var _size = 0L
 
-  final def getOrElse(index: Int, b: Boolean): Boolean = {
+  def getOrElse(index: Int, b: Boolean): Boolean = {
     val i0   = _size & 63L
     val base = (64L - i0) + index
     val i    = base & 63L
@@ -44,9 +44,9 @@ private[zio] final class StackBool private () {
     }
   }
 
-  final def size: Long = _size
+  def size: Long = _size
 
-  final def push(flag: Boolean): Unit = {
+  def push(flag: Boolean): Unit = {
     val index = _size & 0X3FL
 
     if (flag) head.bits = head.bits | (1L << index)
@@ -57,7 +57,7 @@ private[zio] final class StackBool private () {
     _size += 1L
   }
 
-  final def popOrElse(b: Boolean): Boolean =
+  def popOrElse(b: Boolean): Boolean =
     if (_size == 0L) b
     else {
       _size -= 1L
@@ -68,7 +68,7 @@ private[zio] final class StackBool private () {
       ((1L << index) & head.bits) != 0L
     }
 
-  final def peekOrElse(b: Boolean): Boolean =
+  def peekOrElse(b: Boolean): Boolean =
     if (_size == 0L) b
     else {
       val size  = _size - 1L
@@ -79,19 +79,19 @@ private[zio] final class StackBool private () {
       ((1L << index) & entry.bits) != 0L
     }
 
-  final def popDrop[A](a: A): A = { popOrElse(false); a }
+  def popDrop[A](a: A): A = { popOrElse(false); a }
 
-  final def toList: List[Boolean] =
+  def toList: List[Boolean] =
     (0 until _size.toInt).map(getOrElse(_, false)).toList
 
-  final override def toString: String =
+  override def toString: String =
     "StackBool(" + toList.mkString(", ") + ")"
 
-  final override def equals(that: Any) = that match {
+  override def equals(that: Any) = that match {
     case that: StackBool => toList == that.toList
   }
 
-  final override def hashCode = toList.hashCode
+  override def hashCode = toList.hashCode
 }
 private[zio] object StackBool {
   def apply(): StackBool = new StackBool

@@ -69,7 +69,7 @@ val fibonacci = Schedule.fibonacci(10.milliseconds)
 Applying random jitter to a schedule:
 
 ```scala mdoc:silent
-val jitteredExp = Schedule.exponential(10.milliseconds).jittered()
+val jitteredExp = Schedule.exponential(10.milliseconds).jittered
 ```
 
 Modifies the delay of a schedule:
@@ -100,7 +100,7 @@ val expCapped = Schedule.exponential(100.milliseconds) || Schedule.spaced(1.seco
 Stops retrying after a specified amount of time has elapsed:
 
 ```scala mdoc:silent
-val expMaxElapsed = Schedule.exponential(10.milliseconds) && Schedule.elapsed.whileOutput(_ < 30.seconds)
+val expMaxElapsed = (Schedule.exponential(10.milliseconds) >>> Schedule.elapsed).whileOutput(_ < 30.seconds)
 ```
 
 Retry only when a specific exception occurs:
@@ -112,4 +112,12 @@ val whileTimeout = Schedule.exponential(10.milliseconds) && Schedule.doWhile[Thr
   case _: TimeoutException => true
   case _ => false
 }
+```
+
+Perform effect each time schedule makes a decision whether or not to repeat:
+```scala mdoc:silent
+def schedule[A] = Schedule.recurs(3).onDecision((a: A, s) => s match {
+    case None => console.putStrLn(s"done repeating")
+    case Some(att) => console.putStrLn(s"repeat #$att")
+})
 ```

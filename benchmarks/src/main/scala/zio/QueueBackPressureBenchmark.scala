@@ -1,18 +1,21 @@
 package zio
 
-import zio.stm._
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.ExecutionContext
+
 import cats.effect.{ ContextShift, IO => CIO }
 import monix.eval.{ Task => MTask }
 import org.openjdk.jmh.annotations._
+
 import zio.IOBenchmarks._
+import zio.stm._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
+@Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
 @Fork(3)
 /**
  * This benchmark offers and takes a number of items in parallel, with a very small queue to enforce back pressure mechanism is used.
@@ -33,7 +36,7 @@ class QueueBackPressureBenchmark {
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](queueSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](queueSize).unsafeRunSync()
-    zioTQ = unsafeRun(TQueue.make(queueSize).commit)
+    zioTQ = unsafeRun(TQueue.bounded(queueSize).commit)
     monixQ = monix.catnap.ConcurrentQueue.bounded[MTask, Int](queueSize).runSyncUnsafe()
   }
 

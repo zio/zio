@@ -9,6 +9,7 @@ set -o pipefail
 declare -r sbt_release_version="1.3.2"
 declare -r sbt_unreleased_version="1.3.2"
 
+declare -r latest_dotty="0.23.0-RC1"
 declare -r latest_213="2.13.1"
 declare -r latest_212="2.12.10"
 declare -r latest_211="2.11.12"
@@ -373,6 +374,7 @@ runner with the -x option.
   -211                      use $latest_211
   -212                      use $latest_212
   -213                      use $latest_213
+  -dotty                    use dotty $latest_dotty
   -scala-home <path>        use the scala build at the specified directory
   -scala-version <version>  use the specified version of scala
   -binary-version <version> use the specified scala version when searching for dependencies
@@ -453,6 +455,7 @@ process_args () {
               -211) setScalaVersion "$latest_211" && shift ;;
               -212) setScalaVersion "$latest_212" && shift ;;
               -213) setScalaVersion "$latest_213" && shift ;;
+            -dotty) setScalaVersion "$latest_dotty" && shift ;;
                new) sbt_new=true && : ${sbt_explicit_version:=$sbt_release_version} && addResidual "$1" && shift ;;
                  *) addResidual "$1" && shift ;;
     esac

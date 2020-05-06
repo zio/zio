@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ package zio.internal
  * A variable that can be set a single time. The synchronous,
  * effectful equivalent of `Promise`.
  */
-private[zio] class OneShot[A] private (var value: A) {
+private[zio] final class OneShot[A] private (var value: A) {
 
   /**
    * Sets the variable to the value. The behavior of this function
    * is undefined if the variable has already been set.
    */
-  final def set(v: A): Unit = {
+  def set(v: A): Unit = {
     if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")
     if (value != null) throw new Error("Defect: OneShot variable being set twice")
     value = v
@@ -35,12 +35,12 @@ private[zio] class OneShot[A] private (var value: A) {
   /**
    * Determines if the variable has been set.
    */
-  final def isSet: Boolean = value != null
+  def isSet: Boolean = value != null
 
   /**
    * Retrieves the value of the variable, blocking if necessary.
    */
-  final def get(): A = {
+  def get(): A = {
     if (value == null) throw new Error("Cannot block for result to be set in JavaScript")
     value
   }
@@ -51,5 +51,5 @@ object OneShot {
   /**
    * Makes a new (unset) variable.
    */
-  final def make[A]: OneShot[A] = new OneShot(null.asInstanceOf[A])
+  def make[A]: OneShot[A] = new OneShot(null.asInstanceOf[A])
 }

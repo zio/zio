@@ -1,5 +1,5 @@
 ---
-id: usecases_reetrying
+id: usecases_retrying
 title:  "Retrying"
 ---
 

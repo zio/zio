@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package zio.test.sbt
 import sbt.testing._
 
 final class ZTestFramework extends Framework {
-  override val name = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
+  override final val name = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
 
   val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
 
@@ -32,6 +32,11 @@ final class ZTestFramework extends Framework {
     testClassLoader: ClassLoader,
     send: String => Unit
   ): Runner =
-    new ZSlaveTestRunner(args, remoteArgs, testClassLoader, SendSummary.fromSend(send))
+    new ZSlaveTestRunner(
+      args,
+      remoteArgs,
+      testClassLoader,
+      SendSummary.fromSend(summary => send(SummaryProtocol.serialize(summary)))
+    )
 
 }

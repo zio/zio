@@ -6,10 +6,10 @@ object ExampleSpec extends DefaultRunnableSpec {
 
   def spec = suite("some suite")(
     test("failing test") {
-      assert(1, Assertion.equalTo(2))
+      assert(1)(Assertion.equalTo(2))
     },
     test("passing test") {
-      assert(1, Assertion.equalTo(1))
+      assert(1)(Assertion.equalTo(1))
     }
   )
 }

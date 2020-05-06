@@ -1,16 +1,18 @@
 package zio.stm
 
-import zio._
-
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 
-import IOBenchmarks._
+import zio.IOBenchmarks._
+import zio._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
+@Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
+@Fork(1)
 class SingleRefBenchmark {
   @Param(Array("10"))
   var fibers: Int = _

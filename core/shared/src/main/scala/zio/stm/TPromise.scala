@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,32 +16,32 @@
 
 package zio.stm
 
-class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVal {
-  final def await: STM[E, A] =
+final class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVal {
+  def await: STM[E, A] =
     ref.get.collect {
       case Some(e) => STM.fromEither(e)
     }.flatten
 
-  final def done(v: Either[E, A]): STM[Nothing, Boolean] =
+  def done(v: Either[E, A]): USTM[Boolean] =
     ref.get.flatMap {
-      case Some(_) => STM.succeed(false)
-      case None    => ref.set(Some(v)) *> STM.succeed(true)
+      case Some(_) => STM.succeedNow(false)
+      case None    => ref.set(Some(v)) *> STM.succeedNow(true)
     }
 
-  final def fail(e: E): STM[Nothing, Boolean] =
+  def fail(e: E): USTM[Boolean] =
     done(Left(e))
 
-  final def poll: STM[Nothing, Option[STM[E, A]]] =
+  def poll: USTM[Option[STM[E, A]]] =
     ref.get.map {
       case Some(e) => Some(STM.fromEither(e))
       case None    => None
     }
 
-  final def succeed(a: A): STM[Nothing, Boolean] =
+  def succeed(a: A): USTM[Boolean] =
     done(Right(a))
 }
 
 object TPromise {
-  final def make[E, A]: STM[Nothing, TPromise[E, A]] =
+  def make[E, A]: USTM[TPromise[E, A]] =
     TRef.make[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
 }

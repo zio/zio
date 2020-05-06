@@ -52,7 +52,7 @@ def fib(n: Int): UIO[Int] =
 
 The interrupt operation does not resume until the fiber has completed or has been interrupted and all its finalizers have been run. These precise semantics allow construction of programs that do not leak resources.
 
-A more powerful variant of `fork`, called `fork0`, allows specification of supervisor that will be passed any non-recoverable errors from the forked fiber, including all such errors that occur in finalizers. If this supervisor is not specified, then the supervisor of the parent fiber will be used, recursively, up to the root handler, which can be specified in `DefaultRuntime` (the default supervisor merely prints the stack trace).
+A more powerful variant of `fork`, called `fork0`, allows specification of supervisor that will be passed any non-recoverable errors from the forked fiber, including all such errors that occur in finalizers. If this supervisor is not specified, then the supervisor of the parent fiber will be used, recursively, up to the root handler, which can be specified in `Runtime` (the default supervisor merely prints the stack trace).
 
 ## Error Model
 
@@ -60,7 +60,7 @@ The `IO` error model is simple, consistent, permits both typed errors and termin
 
 An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable by using the `either` method.  The resulting effect cannot fail, because the failure case bas been exposed as part of the `Either` success case.  
 
-```scala mdoc:silent 
+```scala mdoc:silent
 val error: ZIO[Any, Throwable, String] = IO.fail(new RuntimeException("Some Error"))
 val errorEither: ZIO[Any, Nothing, Either[Throwable, String]] = error.either
 ```
@@ -71,7 +71,7 @@ Separately from errors of type `E`, a fiber may be terminated for the following 
  * The fiber failed to handle some error of type `E`. This can happen only when an `IO.fail` is not handled. For values of type `UIO[A]`, this type of failure is impossible.
  * The fiber has a defect that leads to a non-recoverable error. There are only two ways this can happen:
      1. A partial function is passed to a higher-order function such as `map` or `flatMap`. For example, `io.map(_ => throw e)`, or `io.flatMap(a => throw e)`. The solution to this problem is to not to pass impure functions to purely functional libraries like ZIO, because doing so leads to violations of laws and destruction of equational reasoning.
-     2. Error-throwing code was embedded into some value via `IO.sync`, etc. For importing partial effects into `IO`, the proper solution is to use a method such as `syncException`, which safely translates exceptions into values.
+     2. Error-throwing code was embedded into some value via `IO.effectTotal`, etc. For importing partial effects into `IO`, the proper solution is to use a method such as `IO.effect`, which safely translates exceptions into values.
 
 When a fiber is terminated, the reason for the termination, expressed as a `Throwable`, is passed to the fiber's supervisor, which may choose to log, print the stack trace, restart the fiber, or perform some other action appropriate to the context.
 
@@ -120,4 +120,4 @@ Fibers only ever shift onto the thread pool of the runtime system, which means t
 
 For performance reasons, fibers will attempt to execute on the same thread for a (configurable) minimum period, before yielding to other fibers. Fibers that resume from asynchronous callbacks will resume on the initiating thread, and continue for some time before yielding and resuming on the runtime thread pool.
 
-These defaults help guarantee stack safety and cooperative multitasking. They can be changed in `DefaultRuntime` if automatic thread shifting is not desired.
+These defaults help guarantee stack safety and cooperative multitasking. They can be changed in `Runtime` if automatic thread shifting is not desired.

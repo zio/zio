@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,10 +25,15 @@ object TestPlatform {
   /**
    * Returns whether the current platform is ScalaJS.
    */
-  val isJS = true
+  final val isJS = true
 
   /**
    * Returns whether the currently platform is the JVM.
    */
-  val isJVM = false
+  final val isJVM = false
+
+  /**
+   * Returns whether the current platform is Scala Native.
+   */
+  final val isNative = false
 }

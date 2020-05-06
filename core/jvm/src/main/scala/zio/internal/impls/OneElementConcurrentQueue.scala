@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,20 +43,20 @@ import zio.internal.MutableConcurrentQueue
  * Instance size: 24 bytes
  * Space losses: 0 bytes internal + 0 bytes external = 0 bytes total
  */
-class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serializable {
-  private[this] final val ref      = new AtomicReference[AnyRef]()
-  private[this] final val deqAdder = new LongAdder()
+final class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serializable {
+  private[this] val ref      = new AtomicReference[AnyRef]()
+  private[this] val deqAdder = new LongAdder()
 
-  override final val capacity: Int = 1
+  override final val capacity = 1
 
-  override final def dequeuedCount(): Long = deqAdder.sum()
-  override final def enqueuedCount(): Long =
+  override def dequeuedCount(): Long = deqAdder.sum()
+  override def enqueuedCount(): Long =
     if (isEmpty()) dequeuedCount() else dequeuedCount() + 1
 
-  override final def isEmpty(): Boolean = ref.get() == null
-  override final def isFull(): Boolean  = !isEmpty()
+  override def isEmpty(): Boolean = ref.get() == null
+  override def isFull(): Boolean  = !isEmpty()
 
-  override final def offer(a: A): Boolean = {
+  override def offer(a: A): Boolean = {
     assert(a != null)
 
     val aRef    = ref
@@ -76,7 +76,7 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
     ret
   }
 
-  override final def poll(default: A): A = {
+  override def poll(default: A): A = {
     var ret     = default
     var looping = true
     val aRef    = ref
@@ -97,5 +97,5 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
     ret
   }
 
-  override final def size(): Int = if (isEmpty()) 0 else 1
+  override def size(): Int = if (isEmpty()) 0 else 1
 }

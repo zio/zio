@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,8 @@
 
 package zio.test
 
+import zio.Tag
 import zio.duration._
-
-import scala.reflect.ClassTag
 
 /**
  * A type of annotation.
@@ -27,23 +26,53 @@ final class TestAnnotation[V] private (
   val identifier: String,
   val initial: V,
   val combine: (V, V) => V,
-  private val classTag: ClassTag[V]
-) {
-  override final def equals(that: Any): Boolean = that match {
-    case that: TestAnnotation[_] => (identifier, classTag) == ((identifier, that.classTag))
+  private val tag: Tag[V]
+) extends Serializable {
+  override def equals(that: Any): Boolean = that match {
+    case that: TestAnnotation[_] => (identifier, tag) == ((that.identifier, that.tag))
   }
 
-  override final lazy val hashCode = (identifier, classTag).hashCode
+  override lazy val hashCode =
+    (identifier, tag).hashCode
 }
 object TestAnnotation {
+
+  def apply[V](identifier: String, initial: V, combine: (V, V) => V)(implicit tag: Tag[V]): TestAnnotation[V] =
+    new TestAnnotation(identifier, initial, combine, tag)
+
+  /**
+   * An annotation which counts ignored tests.
+   */
+  val ignored: TestAnnotation[Int] =
+    TestAnnotation("ignored", 0, _ + _)
+
+  /**
+   * An annotation which tags tests to be the only ones evaluated.
+   */
+  val only: TestAnnotation[Boolean] =
+    TestAnnotation("only", false, _ || _)
+
+  /**
+   * An annotation which counts repeated tests.
+   */
+  val repeated: TestAnnotation[Int] =
+    TestAnnotation("repeated", 0, _ + _)
+
+  /**
+   * An annotation which counts retried tests.
+   */
+  val retried: TestAnnotation[Int] =
+    TestAnnotation("retried", 0, _ + _)
+
+  /**
+   * An annotation which tags tests with strings.
+   */
+  val tagged: TestAnnotation[Set[String]] =
+    TestAnnotation("tagged", Set.empty, _ union _)
 
   /**
    * An annotation for timing.
    */
-  val Timing: TestAnnotation[Duration] = TestAnnotation("timing", Duration.Zero, _ + _)
-
-  def apply[V](identifier: String, initial: V, combine: (V, V) => V)(
-    implicit classTag: ClassTag[V]
-  ): TestAnnotation[V] =
-    new TestAnnotation(identifier, initial, combine, classTag)
+  val timing: TestAnnotation[Duration] =
+    TestAnnotation("timing", Duration.Zero, _ + _)
 }

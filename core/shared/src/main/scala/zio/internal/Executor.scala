@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,14 @@
 package zio.internal
 
 import java.util.concurrent._
+
 import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContextExecutorService
-import java.{ util => ju }
 
 /**
  * An executor is responsible for executing actions. Each action is guaranteed
  * to begin execution on a fresh stack frame.
  */
-trait Executor { self =>
+trait Executor extends ExecutorPlatformSpecific { self =>
 
   /**
    * The number of operations a fiber should run before yielding.
@@ -65,21 +64,6 @@ trait Executor { self =>
         cause.printStackTrace
     }
 
-  /**
-   * Views this `Executor` as a Scala `ExecutionContextExecutorService`.
-   */
-  lazy val asECES: ExecutionContextExecutorService =
-    new AbstractExecutorService with ExecutionContextExecutorService {
-      override val prepare: ExecutionContext                               = asEC
-      override val isShutdown: Boolean                                     = false
-      override val isTerminated: Boolean                                   = false
-      override val shutdown: Unit                                          = ()
-      override val shutdownNow: ju.List[Runnable]                          = ju.Collections.emptyList[Runnable]
-      override def execute(runnable: Runnable): Unit                       = asEC execute runnable
-      override def reportFailure(t: Throwable): Unit                       = asEC reportFailure t
-      override def awaitTermination(length: Long, unit: TimeUnit): Boolean = false
-    }
-
 }
 
 object Executor extends DefaultExecutors with Serializable {
@@ -87,7 +71,7 @@ object Executor extends DefaultExecutors with Serializable {
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.
    */
-  final def fromExecutionContext(yieldOpCount0: Int)(
+  def fromExecutionContext(yieldOpCount0: Int)(
     ec: ExecutionContext
   ): Executor =
     new Executor {

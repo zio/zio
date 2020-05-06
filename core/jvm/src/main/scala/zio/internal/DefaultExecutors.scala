@@ -7,7 +7,7 @@ private[internal] abstract class DefaultExecutors {
     fromThreadPoolExecutor(_ => yieldOpCount) {
       val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
       val maxPoolSize   = corePoolSize
-      val keepAliveTime = 1000L
+      val keepAliveTime = 60000L
       val timeUnit      = TimeUnit.MILLISECONDS
       val workQueue     = new LinkedBlockingQueue[Runnable]()
       val threadFactory = new NamedThreadFactory("zio-default-async", true)

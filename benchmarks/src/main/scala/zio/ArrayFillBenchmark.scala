@@ -2,9 +2,9 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations._
-
 import scala.collection.immutable.Range
+
+import org.openjdk.jmh.annotations._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -16,23 +16,17 @@ class ArrayFillBenchmark {
   def createTestArray: Array[Int] = Range.inclusive(1, size).toArray.reverse
 
   @Benchmark
-  def scalazArrayFill() = {
+  def zioArrayFill() = {
     import IOBenchmarks.unsafeRun
 
-    def arrayFill(array: Array[Int]): FunctionIO[Nothing, Int, Int] = {
-      val condition = FunctionIO.fromFunction[Int, Boolean]((i: Int) => i < array.length)
-
-      FunctionIO.whileDo[Nothing, Int](condition)(FunctionIO.effectTotal[Int, Int] { (i: Int) =>
-        array.update(i, i)
-
-        i + 1
-      })
-    }
+    def arrayFill(array: Array[Int])(i: Int): UIO[Unit] =
+      if (i >= array.length) UIO.unit
+      else UIO(array.update(i, i)).flatMap(_ => arrayFill(array)(i + 1))
 
     unsafeRun(
       for {
         array <- IO.effectTotal[Array[Int]](createTestArray)
-        _     <- arrayFill(array).run(0)
+        _     <- arrayFill(array)(0)
       } yield ()
     )
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ trait CompileVariants {
    */
   inline final def typeCheck(inline code: String): UIO[Either[String, Unit]] =
     try {
-      if (typeChecks(code)) UIO.succeed(Right(()))
-      else UIO.succeed(Left(errorMessage))
+      if (typeChecks(code)) UIO.succeedNow(Right(()))
+      else UIO.succeedNow(Left(errorMessage))
     } catch {
       case _: Throwable => UIO.die(new RuntimeException("Compilation failed"))
     }

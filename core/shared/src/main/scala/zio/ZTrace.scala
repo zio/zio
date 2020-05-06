@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package zio
 
-import zio.internal.stacktracer.ZTraceElement
-
 import scala.annotation.tailrec
+
+import zio.internal.stacktracer.ZTraceElement
 
 final case class ZTrace(
   fiberId: Fiber.Id,
@@ -26,7 +26,7 @@ final case class ZTrace(
   stackTrace: List[ZTraceElement],
   parentTrace: Option[ZTrace]
 ) {
-  final def prettyPrint: String = {
+  def prettyPrint: String = {
     val execTrace  = this.executionTrace.nonEmpty
     val stackTrace = this.stackTrace.nonEmpty
 
@@ -44,9 +44,9 @@ final case class ZTrace(
       else s"Fiber:$fiberId ZIO Execution trace: <empty trace>" :: Nil
 
     val ancestry: List[String] =
-      parentTrace.map { trace =>
-        s"Fiber:$fiberId was spawned by:\n" :: trace.prettyPrint :: Nil
-      }.getOrElse(s"Fiber:$fiberId was spawned by: <empty trace>" :: Nil)
+      parentTrace
+        .map(trace => s"Fiber:$fiberId was spawned by:\n" :: trace.prettyPrint :: Nil)
+        .getOrElse(s"Fiber:$fiberId was spawned by: <empty trace>" :: Nil)
 
     (stackPrint ++ ("" :: execPrint) ++ ("" :: ancestry)).mkString("\n")
   }
@@ -57,7 +57,7 @@ final case class ZTrace(
    * NOTE: `parentTrace` fields are still populated for members of this list,
    * despite that the next trace in the list is equivalent to `parentTrace`
    * */
-  final def parents: List[ZTrace] = {
+  def parents: List[ZTrace] = {
     val builder = List.newBuilder[ZTrace]
     var parent  = parentTrace.orNull
     while (parent ne null) {
@@ -67,7 +67,7 @@ final case class ZTrace(
     builder.result()
   }
 
-  final def ancestryLength: Int = {
+  def ancestryLength: Int = {
     @tailrec
     def go(i: Int, trace: ZTrace): Int =
       trace.parentTrace match {
@@ -80,7 +80,7 @@ final case class ZTrace(
 }
 
 object ZTrace {
-  final def truncatedParentTrace(trace: ZTrace, maxAncestors: Int): Option[ZTrace] =
+  def truncatedParentTrace(trace: ZTrace, maxAncestors: Int): Option[ZTrace] =
     if (trace.ancestryLength > maxAncestors)
       trace.parents.iterator
         .take(maxAncestors)

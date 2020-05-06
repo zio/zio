@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
  */
 
 package zio.test
+
+import zio.Semaphore
+import zio.stream.ZStream.BufferedPull
 
 trait FunctionVariants {
 
@@ -53,12 +56,16 @@ trait FunctionVariants {
    * `B` values and a hashing function for `A` values. Two `A` values will be
    * considered to be equal, and thus will be guaranteed to generate the same
    * `B` value, if they have have the same hash. This is useful when `A` does
-   * not implement `hashCode` in a way that is constent with equality.
+   * not implement `hashCode` in a way that is consistent with equality.
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
     Gen.fromEffect {
       gen.sample.forever.process.use { pull =>
-        Fun.makeHash((_: A) => pull.optional.map(_.get.value))(hash)
+        for {
+          lock    <- Semaphore.make(1)
+          bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)
+          fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).optional.map(_.get.value))(hash)
+        } yield fun
       }
     }
 
