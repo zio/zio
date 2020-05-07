@@ -122,13 +122,13 @@ object ScheduleSpec extends ZIOBaseSpec {
         val scheduled = schedule.noDelay.run(List.fill(5)(()))
         val expected  = List(1.minute, 2.minute, 4.minute, 8.minute, 16.minute)
         assertM(scheduled)(equalTo(expected))
-      },
+      } @@ timeout(1.seconds),
       testM("respect Schedule.recurs even if more input is provided than needed") {
         val schedule  = Schedule.recurs(2) && Schedule.exponential(1.minute)
         val scheduled = schedule.noDelay.run(1 to 10)
         val expected  = List((0, 1.minute), (1, 2.minute), (2, 4.minute))
         assertM(scheduled)(equalTo(expected))
-      } @@ timeout(1.seconds)
+      }
     ),
     suite("Retry on failure according to a provided strategy")(
       testM("retry 0 time for `once` when first time succeeds") {
