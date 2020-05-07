@@ -529,6 +529,49 @@ abstract class ZStream[-R, +E, +O](
   }
 
   /**
+   * Re-chunks the elements of the stream into chunks of
+   * `n` elements each.
+   * The last chunk might contain less than `n` elements
+   */
+  def chunkN(n: Int): ZStream[R, E, O] = {
+    case class State(buffer: Chunk[O], done: Boolean)
+
+    def emitOrAccumulate(
+      buffer: Chunk[O],
+      done: Boolean,
+      ref: Ref[State],
+      pull: ZIO[R, Option[E], Chunk[O]]
+    ): ZIO[R, Option[E], Chunk[O]] =
+      if (buffer.size < n) {
+        if (done) {
+          if (buffer.isEmpty)
+            Pull.end
+          else
+            ref.set(State(Chunk.empty, true)) *> Pull.emit(buffer)
+        } else
+          pull.foldM({
+            case Some(e) => Pull.fail(e)
+            case None    => emitOrAccumulate(buffer, true, ref, pull)
+          }, ch => emitOrAccumulate(buffer ++ ch, false, ref, pull))
+      } else {
+        val (chunk, leftover) = buffer.splitAt(n)
+        ref.set(State(leftover, done)) *> Pull.emit(chunk)
+      }
+
+    if (n < 1)
+      ZStream.halt(Cause.die(new IllegalArgumentException("chunkN: n must be at least 1")))
+    else
+      ZStream {
+        for {
+          ref  <- ZRef.make[State](State(Chunk.empty, false)).toManaged_
+          p    <- self.process
+          pull = ref.get.flatMap(s => emitOrAccumulate(s.buffer, s.done, ref, p))
+        } yield pull
+
+      }
+  }
+
+  /**
    * Performs a filter and map in a single step.
    */
   def collect[O1](pf: PartialFunction[O, O1]): ZStream[R, E, O1] =
