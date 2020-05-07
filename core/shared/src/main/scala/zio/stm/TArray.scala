@@ -333,7 +333,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Get the size of this array.
    */
-  def size: USTM[Int] = STM.succeedNow(array.length)
+  def size: USTM[Int] = 
+    STM.succeedNow(array.length)
 
   /**
    * Collects all elements into a list.
