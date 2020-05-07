@@ -534,12 +534,12 @@ abstract class ZStream[-R, +E, +O](
    * The last chunk might contain less than `n` elements
    */
   def chunkN(n: Int): ZStream[R, E, O] = {
-    case class State(buffer: Chunk[O], done: Boolean)
+    case class State[X](buffer: Chunk[X], done: Boolean)
 
     def emitOrAccumulate(
       buffer: Chunk[O],
       done: Boolean,
-      ref: Ref[State],
+      ref: Ref[State[O]],
       pull: ZIO[R, Option[E], Chunk[O]]
     ): ZIO[R, Option[E], Chunk[O]] =
       if (buffer.size < n) {
@@ -563,7 +563,7 @@ abstract class ZStream[-R, +E, +O](
     else
       ZStream {
         for {
-          ref  <- ZRef.make[State](State(Chunk.empty, false)).toManaged_
+          ref  <- ZRef.make[State[O]](State(Chunk.empty, false)).toManaged_
           p    <- self.process
           pull = ref.get.flatMap(s => emitOrAccumulate(s.buffer, s.done, ref, p))
         } yield pull
