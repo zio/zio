@@ -10,9 +10,8 @@ import zio._
 //
 //   Stated differently, after a first push(None), all subsequent push(None) must
 //   result in Chunk.empty.
-abstract class ZTransducer[-R, +E, -I, +O](
-  val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
-) extends ZConduit[R, E, I, O, Nothing](push.map(_.andThen(_.mapError(Left(_))))) { self =>
+abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]) {
+  self =>
 
   /**
    * Compose this transducer with another transducer, resulting in a composite transducer.
@@ -71,6 +70,24 @@ abstract class ZTransducer[-R, +E, -I, +O](
     ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
 
   /**
+   * Transforms the chunks emitted by this transducer.
+   */
+  final def mapChunks[O2](f: Chunk[O] => Chunk[O2]): ZTransducer[R, E, I, O2] =
+    ZTransducer {
+      self.push.map(push => (input: Option[Chunk[I]]) => push(input).map(f))
+    }
+
+  /**
+   * Effectfully transforms the chunks emitted by this transducer.
+   */
+  final def mapChunksM[R1 <: R, E1 >: E, O2](
+    f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
+  ): ZTransducer[R1, E1, I, O2] =
+    ZTransducer {
+      self.push.map(push => (input: Option[Chunk[I]]) => push(input).flatMap(f))
+    }
+
+  /**
    * Transforms the outputs of this transducer.
    */
   final def mapError[E1](f: E => E1): ZTransducer[R, E1, I, O] =
@@ -81,19 +98,6 @@ abstract class ZTransducer[-R, +E, -I, +O](
    */
   final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
     ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
-
-  override final def mapOutputChunks[O2](f: Chunk[O] => Chunk[O2]): ZTransducer[R, E, I, O2] =
-    ZTransducer {
-      self.push.map(push => (input: Option[Chunk[I]]) => push(input).map(f))
-    }
-
-  override final def mapOutputChunksM[R1 <: R, E1 >: E, O2](
-    f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
-  ): ZTransducer[R1, E1, I, O2] =
-    ZTransducer {
-      self.push.map(push => (input: Option[Chunk[I]]) => push(input).flatMap(f))
-    }
-
 }
 
 object ZTransducer {
