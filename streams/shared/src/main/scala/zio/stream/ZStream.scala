@@ -1546,6 +1546,12 @@ abstract class ZStream[-R, +E, +O](
     }
 
   /**
+   * Intersperse and also add a prefix and a suffix
+   */
+  final def intersperse[O1 >: O](start: O1, middle: O1, end: O1): ZStream[R, E, O1] =
+    ZStream(start) ++ intersperse(middle) ++ ZStream(end)
+
+  /**
    * Interrupts the evaluation of this stream when the provided IO completes. The given
    * IO will be forked as part of this stream, and its success will be discarded. This
    * combinator will also interrupt any in-progress element being pulled from upstream.
