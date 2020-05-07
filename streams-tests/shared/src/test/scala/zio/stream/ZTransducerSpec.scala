@@ -390,11 +390,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("preserves data")(checkM(Gen.listOf(Gen.anyString.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
           val data   = lines.mkString("|")
           val parser = ZTransducer.splitOn("|")
-          assertM(run(parser, List(Chunk.single(data))).map(_.map(_.toList).flatten))(equalTo(lines))
+          assertM(run(parser, List(Chunk.single(data))))(equalTo(lines))
         }),
         testM("handles leftovers") {
           val parser = ZTransducer.splitOn("\n")
-          assertM(run(parser, List(Chunk("ab", "c\nb"), Chunk("c"))))(equalTo(List(Chunk("abc"), Chunk("bc"))))
+          assertM(run(parser, List(Chunk("ab", "c\nb"), Chunk("c"))))(equalTo(List("abc", "bc")))
         },
         testM("aggregates") {
           assertM(
