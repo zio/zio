@@ -2435,7 +2435,7 @@ abstract class ZStream[-R, +E, +O](
             if ((currChunk ne null) && nextIndex < currChunk.size) {
               val result = currChunk(nextIndex)
               nextIndex += 1
-              result.toInt
+              result & 0xFF
             } else {
               runtime.unsafeRunSync(capturedPull) match {
                 case Exit.Failure(cause) =>

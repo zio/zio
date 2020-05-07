@@ -2010,7 +2010,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           } @@ zioTag(interruption)
         ),
         testM("toInputStream") {
-          val stream = ZStream(1, 2, 3).map(_.toByte)
+          val stream = ZStream(-3, -2, -1, 0, 1, 2, 3).map(_.toByte)
           for {
             streamResult <- stream.runCollect
             inputStreamResult <- stream.toInputStream.use { inputStream =>
