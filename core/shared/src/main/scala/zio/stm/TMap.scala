@@ -256,6 +256,14 @@ final class TMap[K, V] private (
     })
 
   /**
+   * Get the size of this map.
+   */
+  def size: USTM[Int] =
+    new ZSTM((journal, _, _, _) =>
+      TExit.Succeed(tSize.unsafeGet(journal))
+    )
+
+  /**
    * Collects all bindings into a list.
    */
   def toList: USTM[List[(K, V)]] =
