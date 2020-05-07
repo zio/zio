@@ -120,34 +120,6 @@ object ZTransducer {
     }
 
   /**
-   * A transducer that re-chunks the elements fed to it into chunks of up to
-   * `n` elements each.
-   */
-  def chunkN[I](n: Int): ZTransducer[Any, Nothing, I, I] =
-    ZTransducer {
-      for {
-        buffered <- ZRef.makeManaged[Chunk[I]](Chunk.empty)
-        push = { (input: Option[Chunk[I]]) =>
-          input match {
-            case None =>
-              buffered
-                .modify(buf => (if (buf.isEmpty) Push.emit(Chunk.empty) else Push.emit(buf)) -> Chunk.empty)
-                .flatten
-            case Some(is) =>
-              buffered.modify { buf0 =>
-                val buf = buf0 ++ is
-                if (buf.length >= n) {
-                  val (out, buf1) = buf.splitAt(n)
-                  Push.emit(out) -> buf1
-                } else
-                  Push.next -> buf
-              }.flatten
-          }
-        }
-      } yield push
-    }
-
-  /**
    * Creates a transducer accumulating incoming values into lists of maximum size `n`.
    */
   def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
