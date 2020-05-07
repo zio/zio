@@ -521,6 +521,36 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   final def second[C]: Schedule[R, (C, A), (C, B)] = Schedule.identity[C] *** self
 
   /**
+   * Simulates a schedule by generating its output given the specified input.
+   * This function skips any sleep calls.
+   */
+  final def simulate[R1 <: R](
+    input: Iterable[A]
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): ZIO[R1, Nothing, List[B]] = {
+    def proxy(clock0: Clock.Service): Clock.Service = new Clock.Service {
+      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
+      def currentDateTime             = clock0.currentDateTime
+      val nanoTime                    = clock0.nanoTime
+      def sleep(duration: Duration)   = ZIO.unit
+    }
+
+    def loop(xs: List[A], state: State, acc: List[B]): ZIO[R1, Nothing, List[B]] = xs match {
+      case Nil => ZIO.succeedNow(acc)
+      case x :: xs =>
+        update(x, state)
+          .foldM(
+            _ => ZIO.succeedNow(extract(x, state) :: acc),
+            s => loop(xs, s, extract(x, state) :: acc)
+          )
+    }
+
+    initial
+      .flatMap(loop(input.toList, _, Nil))
+      .map(_.reverse)
+      .provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy(_)))
+  }
+
+  /**
    * Sends every input value to the specified sink.
    */
   final def tapInput[R1 <: R, A1 <: A](f: A1 => ZIO[R1, Nothing, Unit]): Schedule[R1, A1, B] =

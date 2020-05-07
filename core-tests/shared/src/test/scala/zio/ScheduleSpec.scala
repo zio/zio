@@ -115,6 +115,20 @@ object ScheduleSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(6)) && assert(finalizerV.isDefined)(equalTo(true))
       }
     ),
+    suite("Simulate a schedule")(
+      testM("without timing out") {
+        val schedule  = Schedule.exponential(1.minute)
+        val scheduled = schedule.simulate(List.fill(5)(()))
+        val expected  = List(1.minute, 2.minute, 4.minute, 8.minute, 16.minute)
+        assertM(scheduled)(equalTo(expected))
+      },
+      testM("respect Schedule.recurs even if more input is provided than needed") {
+        val schedule  = Schedule.recurs(2) && Schedule.exponential(1.minute)
+        val scheduled = schedule.simulate(1 to 10)
+        val expected  = List((0, 1.minute), (1, 2.minute), (2, 4.minute))
+        assertM(scheduled)(equalTo(expected))
+      }
+    ),
     suite("Retry on failure according to a provided strategy")(
       testM("retry 0 time for `once` when first time succeeds") {
         implicit val canFail = CanFail
