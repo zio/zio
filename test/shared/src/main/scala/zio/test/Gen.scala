@@ -714,10 +714,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def vectorOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
     listOfN(n)(g).map(_.toVector)
 
+  /**
+   * A generator which chooses one of the given generators according to their
+   * weights. For example, the following generator will generate 90% true and
+   * 10% false values.
+   * {{{
+   * val trueFalse = Gen.weighted((Gen.const(true), 9), (Gen.const(false), 1))
+   * }}}
+   */
   def weighted[R <: Random, A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
     val sum = gs.map(_._2).sum
     val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) {
-      case ((map, acc), (gen, d)) => (map.updated((acc + d) / sum, gen), acc + d)
+      case ((map, acc), (gen, d)) =>
+        if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)
+        else (map, acc)
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }

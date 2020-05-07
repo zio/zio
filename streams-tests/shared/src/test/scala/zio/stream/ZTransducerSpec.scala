@@ -2,7 +2,6 @@ package zio.stream
 
 import zio._
 import zio.test.Assertion._
-import zio.test.Assertion._
 import zio.test._
 
 object ZTransducerSpec extends ZIOBaseSpec {
@@ -10,23 +9,15 @@ object ZTransducerSpec extends ZIOBaseSpec {
 
   val initErrorParser = ZTransducer.fromEffect(IO.fail("Ouch"))
 
-  def run[R, E, I, O](parser: ZTransducer[R, E, I, O], input: List[Chunk[I]]): ZIO[R, E, List[Chunk[O]]] =
-    parser.push.use { f =>
-      def go(os0: List[Chunk[O]], i: Chunk[I]): ZIO[R, E, List[Chunk[O]]] =
-        f(Some(i)).map(os => if (os.isEmpty) os0 else os :: os0)
-
-      def finish(os0: List[Chunk[O]]): ZIO[R, E, List[Chunk[O]]] =
-        f(None).map(_ :: os0)
-
-      ZIO.foldLeft(input)(List.empty[Chunk[O]])(go).flatMap(finish).map(_.reverse)
-    }
+  def run[R, E, I, O](parser: ZTransducer[R, E, I, O], input: List[Chunk[I]]): ZIO[R, E, List[O]] =
+    ZStream.fromChunks(input: _*).transduce(parser).runCollect
 
   def spec = suite("ZTransducerSpec")(
     suite("Combinators")(
       suite("contramap")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].contramap[String](_.toInt)
-          assertM(run(parser, List(Chunk("1"))))(equalTo(List(Chunk(1), Chunk.empty)))
+          assertM(run(parser, List(Chunk("1"))))(equalTo(List(1)))
         },
         testM("error") {
           val parser = initErrorParser.contramap[String](_.toInt)
@@ -36,7 +27,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       suite("contramapM")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].contramapM[Any, Unit, String](s => UIO.succeed(s.toInt))
-          assertM(run(parser, List(Chunk("1"))))(equalTo(List(Chunk(1), Chunk.empty)))
+          assertM(run(parser, List(Chunk("1"))))(equalTo(List(1)))
         },
         testM("error") {
           val parser = initErrorParser.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
@@ -46,7 +37,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       suite("map")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].map(_.toString)
-          assertM(run(parser, List(Chunk(1))))(equalTo(List(Chunk("1"), Chunk.empty)))
+          assertM(run(parser, List(Chunk(1))))(equalTo(List("1")))
         },
         testM("error") {
           val parser = initErrorParser.map(_.toString)
@@ -62,7 +53,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       suite("mapM")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].mapM[Any, Unit, String](n => UIO.succeed(n.toString))
-          assertM(run(parser, List(Chunk(1))))(equalTo(List(Chunk("1"), Chunk.empty)))
+          assertM(run(parser, List(Chunk(1))))(equalTo(List("1")))
         },
         testM("error") {
           val parser = initErrorParser.mapM[Any, String, String](n => UIO.succeed(n.toString))
@@ -71,30 +62,15 @@ object ZTransducerSpec extends ZIOBaseSpec {
       )
     ),
     suite("Constructors")(
-      testM("chunkN") {
-        val parser = ZTransducer.chunkN[Int](5)
-        val input  = List(Chunk(1), Chunk.empty, Chunk(2, 3, 4, 5), Chunk(6, 7), Chunk.empty, Chunk(8, 9, 10), Chunk(11))
-        val result = run(parser, input)
-        assertM(result)(equalTo(List(Chunk(1, 2, 3, 4, 5), Chunk(6, 7, 8, 9, 10), Chunk(11))))
-      },
       suite("collectAllN")(
         testM("happy path") {
           val parser = ZTransducer.collectAllN[Int](3)
-          parser.push.use { push =>
-            for {
-              result1 <- push(Some(Chunk(1, 2, 3, 4)))
-              result2 <- push(None)
-            } yield assert(result1 ++ result2)(equalTo(Chunk(List(1, 2, 3), List(4))))
-          }
+          assertM(run(parser, List(Chunk(1, 2, 3, 4))))(equalTo(List(List(1, 2, 3), List(4))))
         },
         testM("empty list") {
           val parser = ZTransducer.collectAllN[Int](0)
-          assertM(parser.push.use(_(None)))(equalTo(Chunk(List())))
+          assertM(run(parser, List()))(equalTo(List(List())))
         }
-        // testM("init error") {
-        //   val parser = initErrorParser.collectAllN(1)
-        //   assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
-        // } @@ zioTag(errors)
       ),
       suite("collectAllToMapN")(
         testM("stop collecting when map size exceeds limit")(
@@ -103,7 +79,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
               ZTransducer.collectAllToMapN[Int, Int](2)(_ % 3)(_ + _),
               List(Chunk(0, 1, 2))
             )
-          )(equalTo(List(Chunk(Map(0 -> 0, 1 -> 1)), Chunk(Map(2 -> 2)))))
+          )(equalTo(List(Map(0 -> 0, 1 -> 1), Map(2 -> 2))))
         ),
         testM("keep collecting as long as map size does not exceed the limit")(
           assertM(
@@ -115,19 +91,19 @@ object ZTransducerSpec extends ZIOBaseSpec {
                 Chunk(6, 7, 8, 9)
               )
             )
-          )(equalTo(List(Chunk(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))))
+          )(equalTo(List(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15))))
         )
       ),
       testM("collectAllToSetN")(
         assertM(
           run(ZTransducer.collectAllToSetN[Int](3), List(Chunk(1, 2, 1), Chunk(2, 3, 3, 4)))
-        )(equalTo(List(Chunk(Set(1, 2, 3)), Chunk(Set(4)))))
+        )(equalTo(List(Set(1, 2, 3), Set(4))))
       ),
       testM("collectAllWhile") {
         val parser = ZTransducer.collectAllWhile[Int](_ < 5)
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = run(parser, input)
-        assertM(result)(equalTo(List(Chunk(List(3, 4)), Chunk(List(2, 3, 4)), Chunk(List(4, 3, 2)))))
+        assertM(result)(equalTo(List(List(3, 4), List(2, 3, 4), List(4, 3, 2))))
       },
       suite("fold")(
         testM("empty")(
@@ -406,11 +382,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("preserves data")(checkM(Gen.listOf(Gen.anyString.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
           val data   = lines.mkString("|")
           val parser = ZTransducer.splitOn("|")
-          assertM(run(parser, List(Chunk.single(data))).map(_.map(_.toList).flatten))(equalTo(lines))
+          assertM(run(parser, List(Chunk.single(data))))(equalTo(lines))
         }),
         testM("handles leftovers") {
           val parser = ZTransducer.splitOn("\n")
-          assertM(run(parser, List(Chunk("ab", "c\nb"), Chunk("c"))))(equalTo(List(Chunk("abc"), Chunk("bc"))))
+          assertM(run(parser, List(Chunk("ab", "c\nb"), Chunk("c"))))(equalTo(List("abc", "bc")))
         },
         testM("aggregates") {
           assertM(

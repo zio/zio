@@ -5,6 +5,7 @@ import scala.concurrent.Future
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
+import zio.test.TestAspect.timeout
 import zio.test.environment.{ TestClock, TestRandom }
 import zio.test.{ assert, assertM, suite, testM, TestResult }
 
@@ -113,6 +114,20 @@ object ScheduleSpec extends ZIOBaseSpec {
           v          <- r.get
           finalizerV <- p.poll
         } yield assert(v)(equalTo(6)) && assert(finalizerV.isDefined)(equalTo(true))
+      }
+    ),
+    suite("Simulate a schedule")(
+      testM("without timing out") {
+        val schedule  = Schedule.exponential(1.minute)
+        val scheduled = schedule.noDelay.run(List.fill(5)(()))
+        val expected  = List(1.minute, 2.minute, 4.minute, 8.minute, 16.minute)
+        assertM(scheduled)(equalTo(expected))
+      } @@ timeout(1.seconds),
+      testM("respect Schedule.recurs even if more input is provided than needed") {
+        val schedule  = Schedule.recurs(2) && Schedule.exponential(1.minute)
+        val scheduled = schedule.noDelay.run(1 to 10)
+        val expected  = List((0, 1.minute), (1, 2.minute), (2, 4.minute))
+        assertM(scheduled)(equalTo(expected))
       }
     ),
     suite("Retry on failure according to a provided strategy")(
@@ -350,19 +365,8 @@ object ScheduleSpec extends ZIOBaseSpec {
   /**
    * Run a schedule using the provided input and collect all outputs
    */
-  def run[R <: TestClock, A, B](sched: Schedule[R, A, B])(xs: Iterable[A]): ZIO[R, Nothing, List[B]] = {
-    def loop(xs: List[A], state: sched.State, acc: List[B]): ZIO[R, Nothing, List[B]] = xs match {
-      case Nil => ZIO.succeed(acc)
-      case x :: xs =>
-        sched
-          .update(x, state)
-          .foldM(
-            _ => ZIO.succeed(sched.extract(x, state) :: acc),
-            s => loop(xs, s, sched.extract(x, state) :: acc)
-          )
-    }
-    run(sched.initial.flatMap(loop(xs.toList, _, Nil)).map(_.reverse))
-  }
+  def run[R <: TestClock, A, B](sched: Schedule[R, A, B])(xs: Iterable[A]): ZIO[R, Nothing, List[B]] =
+    run(sched.run(xs))
 
   def run[R <: TestClock, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
     for {

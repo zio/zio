@@ -2009,7 +2009,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           } @@ zioTag(interruption)
         ),
         testM("toInputStream") {
-          val stream = ZStream(1, 2, 3).map(_.toByte)
+          val stream = ZStream(-3, -2, -1, 0, 1, 2, 3).map(_.toByte)
           for {
             streamResult <- stream.runCollect
             inputStreamResult <- stream.toInputStream.use { inputStream =>
@@ -2164,6 +2164,19 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
+        testM("chunkN") {
+          checkM(tinyListOf(Gen.chunkOf(Gen.anyInt)) <*> (Gen.int(1, 100))) {
+            case (list, n) =>
+              val expected = list.flatten.grouped(n).toList
+              assertM(
+                ZStream
+                  .fromChunks(list: _*)
+                  .chunkN(n)
+                  .mapChunks(ch => Chunk(ch.toList))
+                  .runCollect
+              )(equalTo(expected))
+          }
+        },
         testM("concatAll") {
           checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
             assertM(ZStream.concatAll(Chunk.fromIterable(chunks.map(ZStream.fromChunk(_)))).runCollect)(
