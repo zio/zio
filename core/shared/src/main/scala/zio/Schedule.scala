@@ -455,6 +455,20 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   }
 
   /**
+   * Returns a new schedule that will not perform any sleep calls between recurrences.
+   */
+  final def noDelay[R1 <: R](implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = {
+    def proxy(clock0: Clock.Service): Clock.Service = new Clock.Service {
+      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
+      def currentDateTime             = clock0.currentDateTime
+      val nanoTime                    = clock0.nanoTime
+      def sleep(duration: Duration)   = ZIO.unit
+    }
+
+    provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy(_)))
+  }
+
+  /**
    * A new schedule that applies the current one but runs the specified effect
    * for every decision of this schedule. This can be used to create schedules
    * that log failures, decisions, or computed values.
@@ -515,26 +529,10 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   final def right[C]: Schedule[R, Either[C, A], Either[C, B]] = Schedule.identity[C] +++ self
 
   /**
-   * Puts this schedule into the second element of a tuple, and passes along
-   * another value unchanged as the first element of the tuple.
+   * Run a schedule using the provided input and collect all outputs.
    */
-  final def second[C]: Schedule[R, (C, A), (C, B)] = Schedule.identity[C] *** self
-
-  /**
-   * Simulates a schedule by generating its output given the specified input.
-   * This function skips any sleep calls.
-   */
-  final def simulate[R1 <: R](
-    input: Iterable[A]
-  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): ZIO[R1, Nothing, List[B]] = {
-    def proxy(clock0: Clock.Service): Clock.Service = new Clock.Service {
-      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
-      def currentDateTime             = clock0.currentDateTime
-      val nanoTime                    = clock0.nanoTime
-      def sleep(duration: Duration)   = ZIO.unit
-    }
-
-    def loop(xs: List[A], state: State, acc: List[B]): ZIO[R1, Nothing, List[B]] = xs match {
+  final def run(input: Iterable[A]): ZIO[R, Nothing, List[B]] = {
+    def loop(xs: List[A], state: State, acc: List[B]): ZIO[R, Nothing, List[B]] = xs match {
       case Nil => ZIO.succeedNow(acc)
       case x :: xs =>
         update(x, state)
@@ -547,8 +545,13 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     initial
       .flatMap(loop(input.toList, _, Nil))
       .map(_.reverse)
-      .provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy(_)))
   }
+
+  /**
+   * Puts this schedule into the second element of a tuple, and passes along
+   * another value unchanged as the first element of the tuple.
+   */
+  final def second[C]: Schedule[R, (C, A), (C, B)] = Schedule.identity[C] *** self
 
   /**
    * Sends every input value to the specified sink.
