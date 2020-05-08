@@ -1574,6 +1574,31 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   }
 
   /**
+   * Intersperse stream with provided element similar to <code>List.mkString</code>.
+   */
+  final def intersperse[O1 >: O](middle: O1): ZStream[R, E, O1] =
+    ZStream {
+      for {
+        state  <- ZRef.makeManaged(false)
+        chunks <- self.process
+        pull = chunks.flatMap { os =>
+          state.modify { flag =>
+            os.foldRight(List.empty[O1] -> flag) {
+              case (o, (Nil, curr)) => List(o)              -> !curr
+              case (o, (out, curr)) => (o :: middle :: out) -> !curr
+            }
+          }.map(e => Chunk.fromIterable(e))
+        }
+      } yield pull
+    }
+
+  /**
+   * Intersperse and also add a prefix and a suffix
+   */
+  final def intersperse[O1 >: O](start: O1, middle: O1, end: O1): ZStream[R, E, O1] =
+    ZStream(start) ++ intersperse(middle) ++ ZStream(end)
+
+  /**
    * Interrupts the evaluation of this stream when the provided IO completes. The given
    * IO will be forked as part of this stream, and its success will be discarded. This
    * combinator will also interrupt any in-progress element being pulled from upstream.
