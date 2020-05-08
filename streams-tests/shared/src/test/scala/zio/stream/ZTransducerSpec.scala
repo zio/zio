@@ -86,7 +86,16 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         },
         raceChunkingDependenceSuite
-      )
+      ),
+      suite("choose") {
+        testM("works") {
+          val t1                                                                                 = ZTransducer.collectAllN[Int](4)
+          val t2                                                                                 = ZTransducer.collectAllN[String](2)
+          val input                                                                              = ZStream(Right("a"), Left(1), Right("b"), Right("c"), Left(2), Left(3), Left(4), Left(5), Left(6))
+          val t: ZTransducer[Any, Nothing, Either[Int, String], Either[List[Int], List[String]]] = t1.choose(t2)
+          assertM(input.chunkN(1).transduce(t).runCollect)(equalTo(List(Right(List("a", "b")), Left(List(5, 6)))))
+        }
+      }
     ),
     suite("Constructors")(
       suite("collectAllN")(

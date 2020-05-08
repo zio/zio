@@ -177,10 +177,12 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   def choose[R1 <: R, E1 >: E, I1, O1](
     that: ZTransducer[R1, E1, I1, O1]
   ): ZTransducer[R1, E1, Either[I, I1], Either[O, O1]] = {
+    def impossible = throw new RuntimeException("impossible")
     val lefts: ZTransducer[R1, E1, Either[I, I1], I] =
-      ZTransducer.identity[Either[I, I1]].filter(_.isLeft).map(_.left.get)
+      ZTransducer.identity[Either[I, I1]].filter(_.isLeft).map(_.left.getOrElse(impossible))
+    @com.github.ghik.silencer.silent("deprecated")
     val rights: ZTransducer[R1, E1, Either[I, I1], I1] =
-      ZTransducer.identity[Either[I, I1]].filter(_.isRight).map(_.right.get)
+      ZTransducer.identity[Either[I, I1]].filter(_.isRight).map(_.right.getOrElse(impossible))
     (lefts >>> self).raceBoth(rights >>> that)
   }
 
