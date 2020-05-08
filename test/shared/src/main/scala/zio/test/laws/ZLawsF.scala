@@ -33,7 +33,7 @@ object ZLawsF {
   /**
    * `ZLawsF` for covariant type constructors.
    */
-  sealed trait Covariant[-CapsF[_[+_]], -Caps[_], -R] { self =>
+  trait Covariant[-CapsF[_[+_]], -Caps[_], -R] { self =>
 
     /**
      * Test that values of type `F[+_]` satisfy the laws using the specified
@@ -70,6 +70,16 @@ object ZLawsF {
       def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], f: A => B, g: B => C): TestResult
       final def run[R, F[+_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
         check(genF(gen), Gen.function(gen), Gen.function(gen))(apply(_, _, _).map(_.label(label)))
+    }
+
+    /**
+     * Constructs a law from a parameterized value wrapped in two additional
+     * layers that can be flattened.
+     */
+    abstract class FlattenLaw[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
+      def apply[F[+_]: CapsF, A: Caps](fffa: F[F[F[A]]]): TestResult
+      final def run[R, F[+_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
+        check(genF(genF(genF(gen))))(apply(_).map(_.label(label)))
     }
 
     /**
@@ -130,7 +140,7 @@ object ZLawsF {
   /**
    * `ZLawsF` for contravariant type constructors.
    */
-  sealed trait Contravariant[-CapsF[_[-_]], -Caps[_], -R] { self =>
+  trait Contravariant[-CapsF[_[-_]], -Caps[_], -R] { self =>
 
     /**
      * Test that values of type `F[+_]` satisfy the laws using the specified
@@ -228,7 +238,7 @@ object ZLawsF {
   /**
    * `ZLawsF` for invariant type constructors.
    */
-  sealed trait Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
+  trait Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
 
     /**
      * Test that values of type `F[+_]` satisfy the laws using the specified

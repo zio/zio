@@ -26,7 +26,7 @@ import zio.test.{ check, checkM, Gen, TestResult }
  * Laws can be combined using `+` to produce a set of laws that require both
  * sets of laws to be satisfied.
  */
-sealed trait ZLaws[-Caps[_], -R] { self =>
+trait ZLaws[-Caps[_], -R] { self =>
 
   /**
    * Test that values of type `A` satisfy the laws using the specified
