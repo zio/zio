@@ -12,8 +12,8 @@ object TaggedSpec extends ZIOBaseSpec {
         """
             trait Producer[R, K, V]
 
-            def test[R: Tagged, K: Tagged, V: Tagged]: Boolean = {
-              val _ = implicitly[Tagged[Producer[R, K, V]]]
+            def test[R: Tag, K: Tag, V: Tag]: Boolean = {
+              val _ = implicitly[Tag[Producer[R, K, V]]]
               true
             }
             """

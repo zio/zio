@@ -19,12 +19,12 @@ package zio.test.mock
 import zio.internal.Executor
 import zio.stream.{ ZSink, ZStream }
 import zio.test.TestPlatform
-import zio.{ Has, Runtime, Tagged, URIO, URLayer, ZIO }
+import zio.{ Has, Runtime, Tag, URIO, URLayer, ZIO }
 
 /**
  * A `Mock[R]` represents a mockable environenment `R`.
  */
-abstract class Mock[R <: Has[_]: Tagged] { self =>
+abstract class Mock[R <: Has[_]: Tag] { self =>
 
   protected[test] val compose: URLayer[Has[Proxy], R]
 
@@ -41,36 +41,36 @@ abstract class Mock[R <: Has[_]: Tagged] { self =>
         }
     }
 
-  abstract class Effect[I: Tagged, E: Tagged, A: Tagged]              extends Capability[R, I, E, A](self)
-  abstract class Method[I: Tagged, E <: Throwable: Tagged, A: Tagged] extends Capability[R, I, E, A](self)
-  abstract class Sink[I: Tagged, E: Tagged, A: Tagged, B: Tagged]     extends Capability[R, I, E, ZSink[Any, E, A, B]](self)
-  abstract class Stream[I: Tagged, E: Tagged, A: Tagged]              extends Capability[R, I, Nothing, ZStream[Any, E, A]](self)
+  abstract class Effect[I: Tag, E: Tag, A: Tag]              extends Capability[R, I, E, A](self)
+  abstract class Method[I: Tag, E <: Throwable: Tag, A: Tag] extends Capability[R, I, E, A](self)
+  abstract class Sink[I: Tag, E: Tag, A: Tag, B: Tag]        extends Capability[R, I, E, ZSink[Any, E, A, B]](self)
+  abstract class Stream[I: Tag, E: Tag, A: Tag]              extends Capability[R, I, Nothing, ZStream[Any, E, A]](self)
 
   object Poly {
 
     object Effect {
-      abstract class Input[E: Tagged, A: Tagged]  extends Capability.Poly.Input[R, E, A](self)
-      abstract class Error[I: Tagged, A: Tagged]  extends Capability.Poly.Error[R, I, A, Any](self)
-      abstract class Output[I: Tagged, E: Tagged] extends Capability.Poly.Output[R, I, E, Any](self)
-      abstract class InputError[A: Tagged]        extends Capability.Poly.InputError[R, A, Any](self)
-      abstract class InputOutput[E: Tagged]       extends Capability.Poly.InputOutput[R, E, Any](self)
-      abstract class ErrorOutput[I: Tagged]       extends Capability.Poly.ErrorOutput[R, I, Any, Any](self)
-      abstract class InputErrorOutput             extends Capability.Poly.InputErrorOutput[R, Any, Any](self)
+      abstract class Input[E: Tag, A: Tag]  extends Capability.Poly.Input[R, E, A](self)
+      abstract class Error[I: Tag, A: Tag]  extends Capability.Poly.Error[R, I, A, Any](self)
+      abstract class Output[I: Tag, E: Tag] extends Capability.Poly.Output[R, I, E, Any](self)
+      abstract class InputError[A: Tag]     extends Capability.Poly.InputError[R, A, Any](self)
+      abstract class InputOutput[E: Tag]    extends Capability.Poly.InputOutput[R, E, Any](self)
+      abstract class ErrorOutput[I: Tag]    extends Capability.Poly.ErrorOutput[R, I, Any, Any](self)
+      abstract class InputErrorOutput       extends Capability.Poly.InputErrorOutput[R, Any, Any](self)
     }
 
     object Method {
-      abstract class Input[E <: Throwable: Tagged, A: Tagged]  extends Capability.Poly.Input[R, E, A](self)
-      abstract class Error[I: Tagged, A: Tagged]               extends Capability.Poly.Error[R, I, A, Throwable](self)
-      abstract class Output[I: Tagged, E <: Throwable: Tagged] extends Capability.Poly.Output[R, I, E, Any](self)
-      abstract class InputError[A: Tagged]                     extends Capability.Poly.InputError[R, A, Throwable](self)
-      abstract class InputOutput[E <: Throwable: Tagged]       extends Capability.Poly.InputOutput[R, E, Any](self)
-      abstract class ErrorOutput[I: Tagged]                    extends Capability.Poly.ErrorOutput[R, I, Throwable, Any](self)
-      abstract class InputErrorOutput                          extends Capability.Poly.InputErrorOutput[R, Throwable, Any](self)
+      abstract class Input[E <: Throwable: Tag, A: Tag]  extends Capability.Poly.Input[R, E, A](self)
+      abstract class Error[I: Tag, A: Tag]               extends Capability.Poly.Error[R, I, A, Throwable](self)
+      abstract class Output[I: Tag, E <: Throwable: Tag] extends Capability.Poly.Output[R, I, E, Any](self)
+      abstract class InputError[A: Tag]                  extends Capability.Poly.InputError[R, A, Throwable](self)
+      abstract class InputOutput[E <: Throwable: Tag]    extends Capability.Poly.InputOutput[R, E, Any](self)
+      abstract class ErrorOutput[I: Tag]                 extends Capability.Poly.ErrorOutput[R, I, Throwable, Any](self)
+      abstract class InputErrorOutput                    extends Capability.Poly.InputErrorOutput[R, Throwable, Any](self)
     }
   }
 }
 
 object Mock {
 
-  private[mock] case class Composed[R <: Has[_]: Tagged](compose: URLayer[Has[Proxy], R]) extends Mock[R]
+  private[mock] case class Composed[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R]) extends Mock[R]
 }

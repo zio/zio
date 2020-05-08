@@ -8,7 +8,7 @@ object SinkUtils {
 
   def findSink[A](a: A): ZSink[Any, Unit, A, A] =
     ZSink.fold[A, Option[A]](None)(_.isEmpty)((_, v) => if (a == v) Some(a) else None).mapM {
-      case Some(v) => IO.succeed(v)
+      case Some(v) => IO.succeedNow(v)
       case None    => IO.fail(())
     }
 
