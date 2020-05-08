@@ -1,8 +1,7 @@
 package zio.stream
 
 import scala.collection.mutable
-
-import zio._
+import zio.{ Chunk, _ }
 
 // Contract notes for transducers:
 // - When a None is received, the transducer must flush all of its internal state
@@ -98,6 +97,80 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    */
   final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
     ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
+
+  /**
+   * Runs both transducers in parallel on the input, emitting the result from the
+   * one that finishes first.
+   * If both finished simultaneously, the first one has priority.
+   *
+   * NB! Result might depend on the way how the stream is chunked.
+   * See {@link #raceBoth} for details.
+   */
+  def race[R1 <: R, E1 >: E, I1 <: I, O1 >: O](
+    that: ZTransducer[R1, E1, I1, O1]
+  ): ZTransducer[R1, E1, I1, O1] =
+    self.raceBoth(that).map(_.merge)
+
+  /**
+   * Runs both transducers in parallel on the input, emitting the result from the
+   * one that finishes first.
+   * If both finished simultaneously, the first one has priority.
+   *
+   * NB! Due to the batch nature of streams,
+   * result might depend on the way how the stream is chunked.
+   * If one of the transducers emitted a value at the moment `t1`,
+   * and then another emitted a value at the moment `t2 > t1`,
+   * the second value could be emitted instead of the first
+   * in case `t1` and `t2` belong to the same chunk.
+   *
+   * If such deviations are not tolerated,
+   * consider rechunking the stream before transducing:
+   * `stream.chunkN(1).transduce(a.raceBoth(b))`
+   */
+  def raceBoth[R1 <: R, E1 >: E, I1 <: I, O1](
+    that: ZTransducer[R1, E1, I1, O1]
+  ): ZTransducer[R1, E1, I1, Either[O, O1]] = {
+    case class State(leftDebt: Long, rightDebt: Long)
+
+    def updateState(s: State, left: Chunk[O], right: Chunk[O1]): (State, Chunk[Either[O, O1]]) = {
+      val leftsAvailable = left.size.toLong - s.leftDebt
+      if (leftsAvailable > 0) {
+        val leftWinners     = left.takeRight(leftsAvailable.toInt).map(Left(_))
+        val rightsAvailable = right.size.toLong - s.rightDebt - leftsAvailable
+        if (rightsAvailable > 0) {
+          val rightWinners = right.takeRight(rightsAvailable.toInt).map(Right(_))
+          (State(rightsAvailable, 0), leftWinners ++ rightWinners)
+        } else {
+          (State(0, -rightsAvailable), leftWinners)
+        }
+      } else {
+        val rightsAvailable = right.size - s.rightDebt
+        if (rightsAvailable > 0) {
+          val rightWinners = right.takeRight(rightsAvailable.toInt).map(Right(_))
+          (State(-leftsAvailable + rightsAvailable, 0), rightWinners)
+        } else {
+          (State(-leftsAvailable, -rightsAvailable), Chunk.empty)
+        }
+      }
+    }
+
+    ZTransducer {
+      for {
+        ref <- ZRef.make[State](State(0, 0)).toManaged_
+        p1  <- self.push
+        p2  <- that.push
+      } yield { (in: Option[Chunk[I1]]) =>
+        for {
+          st       <- ref.get
+          newState <- p1(in).zipWithPar(p2(in)) { case (lefts, rights) => updateState(st, lefts, rights) }
+          _        <- ref.set(newState._1)
+        } yield {
+          newState._2
+        }
+      }
+    }
+  }
+
 }
 
 object ZTransducer {

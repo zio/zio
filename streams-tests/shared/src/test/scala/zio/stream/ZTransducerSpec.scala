@@ -1,5 +1,7 @@
 package zio.stream
 
+import ZStreamGen._
+
 import zio._
 import zio.test.Assertion._
 import zio.test._
@@ -59,6 +61,31 @@ object ZTransducerSpec extends ZIOBaseSpec {
           val parser = initErrorParser.mapM[Any, String, String](n => UIO.succeed(n.toString))
           assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
+      ),
+      suite("race")(
+        testM("coherence") {
+          val t1 = ZTransducer.fold[Int, List[Int]](Nil)(lst => lst.sum % 3 == 0)(_ :+ _).map(_.mkString)
+          val t2 = ZTransducer.fold[Int, List[Int]](Nil)(lst => lst.sum % 2 == 0)(_ :+ _).map(_.mkString)
+          val t  = t1.race(t2)
+          checkM(
+            tinyListOf(Gen.chunkOf(Gen.anyInt))
+          ) {
+            chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
+              for {
+                lefts   <- stream.transduce(t1).runCollect
+                rights  <- stream.transduce(t2).runCollect
+                winners <- stream.transduce(t).runCollect
+              } yield {
+                val sideBySide =
+                  winners.zipAll(lefts, "dummy1", "dummy2").zipAll(rights, ("dummy3", "dummy4"), "dummy5")
+                assert(sideBySide)(forall(Assertion.assertion("winner is left or right")() {
+                  case ((winner, l), r) => winner == l || winner == r
+                }))
+              }
+          }
+        },
+        raceChunkingDependenceSuite
       )
     ),
     suite("Constructors")(
@@ -476,4 +503,23 @@ object ZTransducerSpec extends ZIOBaseSpec {
   val weirdStringGenForSplitLines = Gen
     .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
     .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
+
+  private def raceChunkingDependenceSuite = {
+    def findLetter(c: Char): ZTransducer[Any, Nothing, String, String] =
+      ZTransducer.identity[String].filter(_.contains(c))
+
+    val input: ZStream[Any, Nothing, String] = ZStream("b", "a", "a", "b", "b", "b", "a", "a", "a", "a")
+    val tr                                   = findLetter('a').race(findLetter('b'))
+    suite("Winner depends on chunking (just describing current behavior)")(
+      testM("case 1") {
+        assertM(input.chunkN(1).transduce(tr).runCollect)(equalTo(List("b", "a", "b", "b", "a", "a")))
+      },
+      testM("case 2") {
+        assertM(input.chunkN(3).transduce(tr).runCollect)(equalTo(List("a", "a", "b", "b", "a", "a")))
+      },
+      testM("case 3") {
+        assertM(input.chunkN(100).transduce(tr).runCollect)(equalTo(List("a", "a", "a", "a", "a", "a")))
+      }
+    )
+  }
 }

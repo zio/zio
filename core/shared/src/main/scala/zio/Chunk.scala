@@ -149,6 +149,8 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       }
   }
 
+  override def takeRight(n: Int): Chunk[A] = drop(length - n)
+
   /**
    * Drops all elements so long as the predicate returns true.
    */
