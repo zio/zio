@@ -1,7 +1,7 @@
 package zio.stream
 
 import scala.collection.mutable
-import zio.{ Chunk, _ }
+import zio._
 
 // Contract notes for transducers:
 // - When a None is received, the transducer must flush all of its internal state
