@@ -171,6 +171,19 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
     }
   }
 
+  /**
+   * {@link #raceBoth}, but doesn't restrict input type of `that`.
+   */
+  def choose[R1 <: R, E1 >: E, I1, O1](
+    that: ZTransducer[R1, E1, I1, O1]
+  ): ZTransducer[R1, E1, Either[I, I1], Either[O, O1]] = {
+    val lefts: ZTransducer[R1, E1, Either[I, I1], I] =
+      ZTransducer.identity[Either[I, I1]].filter(_.isLeft).map(_.left.get)
+    val rights: ZTransducer[R1, E1, Either[I, I1], I1] =
+      ZTransducer.identity[Either[I, I1]].filter(_.isRight).map(_.right.get)
+    (lefts >>> self).raceBoth(rights >>> that)
+  }
+
 }
 
 object ZTransducer {
