@@ -9,11 +9,8 @@ import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 
-abstract class ZStream[-R, +E, +O](
-  val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
-) extends ZConduit[R, E, Any, O, Any](
-      process.map(pull => _ => pull.mapError(_.fold[Either[E, Any]](Right(()))(Left(_))))
-    ) { self =>
+abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
+
   import ZStream.{ BufferedPull, Pull, Take }
 
   /**
@@ -1686,13 +1683,19 @@ abstract class ZStream[-R, +E, +O](
    * Transforms the chunks emitted by this stream.
    */
   def mapChunks[O2](f: Chunk[O] => Chunk[O2]): ZStream[R, E, O2] =
-    ZStream(self.process.map { pull =>
-      def go: ZIO[R, Option[E], Chunk[O2]] =
-        pull.flatMap { os =>
-          val o2s = f(os)
+    mapChunksM(c => UIO.succeed(f(c)))
 
-          if (o2s.isEmpty) go
-          else UIO.succeedNow(o2s)
+  /**
+   * Effectfully transforms the chunks emitted by this stream.
+   */
+  def mapChunksM[R1 <: R, E1 >: E, O2](f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]): ZStream[R1, E1, O2] =
+    ZStream(self.process.map { pull =>
+      def go: ZIO[R1, Option[E1], Chunk[O2]] =
+        pull.flatMap { os =>
+          f(os).mapError(Some(_)).flatMap { o2s =>
+            if (o2s.isEmpty) go
+            else UIO.succeedNow(o2s)
+          }
         }
 
       go
