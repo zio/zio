@@ -16,17 +16,17 @@
 
 package zio
 
-trait App extends BootstrapRuntime with AppOps {
+import scala.language.implicitConversions
 
-  /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program.
-   */
-  def run(args: List[String]): ZIO[ZEnv, Nothing, Int]
+trait AppOps {
+  self: BootstrapRuntime =>
 
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList))(_ => ())
+  implicit def mkAppOps(program: ZIO[ZEnv, Any, Any]): ZIOMain = new ZIOMain(program)
+
+  class ZIOMain(program: ZIO[ZEnv, Any, Any]) {
+    def createValueForBusiness(): ZIO[Any, Nothing, Int] = program.provide(environment).foldCause(e => {
+      System.err.println(e.prettyPrint)
+      1
+    }, _ => 0)
+  }
 }

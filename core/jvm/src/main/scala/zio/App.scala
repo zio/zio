@@ -37,7 +37,7 @@ package zio
  * }
  * }}}
  */
-trait App extends BootstrapRuntime {
+trait App extends BootstrapRuntime with AppOps {
 
   /**
    * The main function of the application, which will be passed the command-line
