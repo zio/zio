@@ -1,6 +1,7 @@
 package zio.stream
 
 import scala.collection.mutable
+
 import zio._
 
 // Contract notes for transducers:
