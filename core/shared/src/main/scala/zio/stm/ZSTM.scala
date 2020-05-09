@@ -772,7 +772,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Extracts the optional value, or returns the given 'default'.
    */
-  def someOrElse[B, B1 <: B](default: => B1)(implicit ev: A <:< Option[B]): ZSTM[R, E, B] =
+  def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZSTM[R, E, B] =
     map(_.getOrElse(default))
 
   /**
