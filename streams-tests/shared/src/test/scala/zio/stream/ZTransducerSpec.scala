@@ -3,7 +3,9 @@ package zio.stream
 import ZStreamGen._
 
 import zio._
+import zio.duration._
 import zio.test.Assertion._
+import zio.test.TestAspect.timeout
 import zio.test._
 
 object ZTransducerSpec extends ZIOBaseSpec {
@@ -85,6 +87,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
               }
           }
         },
+        testM("slow chunk doesn't ruin the show") {
+          val neverEmitting = ZTransducer.identity[Int].filter(_ => false)
+          val t             = ZTransducer.identity[Int].filter(_ > 0).race(neverEmitting)
+          assertM(ZStream(1, 0, 0, 2, 0).transduce(t).take(3).runCollect)(equalTo(List(1, 2)))
+        } @@ timeout(1.seconds),
         raceChunkingDependenceSuite
       ),
       suite("choose") {
