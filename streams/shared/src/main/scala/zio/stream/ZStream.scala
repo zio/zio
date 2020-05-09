@@ -2528,16 +2528,66 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
-   * Interrupts the stream if it does not produce a value after d duration.
+   * Ends the stream if it does not produce a value after d duration.
    */
   final def timeout(d: Duration): ZStream[R with Clock, E, O] =
     ZStream[R with Clock, E, O] {
+      for {
+        timeout <- Ref.make(false).toManaged_
+        next    <- self.process
+        pull = timeout.get.flatMap {
+          if (_) Pull.end
+          else
+            next.timeout(d).flatMap {
+              case Some(a) => Pull.emit(a)
+              case None    => timeout.set(true) *> Pull.end
+            }
+        }
+      } yield pull
+    }
+
+  /**
+   * Fails the stream with given error if it does not produce a value after d duration.
+   */
+  final def timeoutError[E1 >: E](e: E1)(d: Duration): ZStream[R with Clock, E1, O] =
+    timeoutErrorCause(Cause.fail(e))(d)
+
+  /**
+   * Halts the stream with given cause if it does not produce a value after d duration.
+   */
+  final def timeoutErrorCause[E1 >: E](cause: Cause[E1])(d: Duration): ZStream[R with Clock, E1, O] =
+    ZStream[R with Clock, E1, O] {
       self.process.map { next =>
         next.timeout(d).flatMap {
-          case Some(a) => ZIO.succeedNow(a)
-          case None    => ZIO.interrupt
+          case Some(a) => Pull.emit(a)
+          case None    => Pull.halt(cause)
         }
       }
+    }
+
+  /**
+   * Switches the stream if it does not produce a value after d duration.
+   */
+  final def timeoutTo[R1 <: R, E1 >: E, O2 >: O](
+    d: Duration
+  )(that: ZStream[R1, E1, O2]): ZStream[R1 with Clock, E1, O2] =
+    ZStream[R1 with Clock, E1, O2] {
+      for {
+        currStream   <- Ref.make[ZIO[R1, Option[E1], Chunk[O2]]](Pull.end).toManaged_
+        switchStream <- ZManaged.switchable[R1, Nothing, ZIO[R1, Option[E1], Chunk[O2]]]
+        switched     <- Ref.make(false).toManaged_
+        _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
+        pull = {
+          val effect       = currStream.get.flatten
+          lazy val switch  = switched.set(true) *> switchStream(that.process).flatMap(currStream.set) *> go
+          lazy val timeout = effect.timeout(d).flatMap(_.map(Pull.emit).getOrElse(switch))
+
+          lazy val go: ZIO[R1 with Clock, Option[E1], Chunk[O2]] =
+            switched.get.flatMap(if (_) effect else timeout)
+
+          go
+        }
+      } yield pull
     }
 
   /**

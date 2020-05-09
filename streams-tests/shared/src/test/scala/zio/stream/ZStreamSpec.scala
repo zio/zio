@@ -2145,18 +2145,84 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .runCollect
             )(equalTo(List(1)))
           },
-          testM("should interrupt stream") {
+          testM("should end stream") {
             assertM(
               ZStream
                 .range(0, 5)
                 .tap(_ => ZIO.sleep(Duration.Infinity))
                 .timeout(Duration.Zero)
-                .runDrain
-                .sandbox
-                .ignore
-                .map(_ => true)
-            )(isTrue)
-          } @@ zioTag(interruption)
+                .runCollect
+            )(isEmpty)
+          }
+        ),
+        testM("timeoutError") {
+          assertM(
+            ZStream
+              .range(0, 5)
+              .tap(_ => ZIO.sleep(Duration.Infinity))
+              .timeoutError(false)(Duration.Zero)
+              .runDrain
+              .map(_ => true)
+              .either
+              .map(_.merge)
+          )(isFalse)
+        },
+        testM("timeoutErrorCause") {
+          val throwable = new Exception("BOOM")
+          assertM(
+            ZStream
+              .range(0, 5)
+              .tap(_ => ZIO.sleep(Duration.Infinity))
+              .timeoutErrorCause(Cause.die(throwable))(Duration.Zero)
+              .runDrain
+              .sandbox
+              .either
+          )(equalTo(Left(Cause.Die(throwable))))
+        },
+        suite("timeoutTo")(
+          testM("succeed") {
+            assertM(
+              ZStream
+                .range(0, 5)
+                .timeoutTo(Duration.Infinity)(ZStream.succeed(-1))
+                .runCollect
+            )(equalTo(List(0, 1, 2, 3, 4)))
+          },
+          testM("should switch stream") {
+            assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3))) { c =>
+              assertM(
+                for {
+                  fiber <- ZStream
+                            .fromQueue(c.queue)
+                            .collectWhileSuccess
+                            .flattenChunks
+                            .timeoutTo(2.seconds)(ZStream.succeed(4))
+                            .tap(_ => c.proceed)
+                            .runCollect
+                            .fork
+                  _      <- c.offer *> TestClock.adjust(1.seconds) *> c.awaitNext
+                  _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
+                  _      <- c.offer
+                  result <- fiber.join
+                } yield result
+              )(equalTo(List(1, 2, 4)))
+            }
+          },
+          testM("should not apply timeout after switch") {
+            for {
+              queue1  <- Queue.unbounded[Int]
+              queue2  <- Queue.unbounded[Int]
+              stream1 = ZStream.fromQueue(queue1)
+              stream2 = ZStream.fromQueue(queue2)
+              fiber   <- stream1.timeoutTo(2.seconds)(stream2).runCollect.fork
+              _       <- queue1.offer(1) *> TestClock.adjust(1.second)
+              _       <- queue1.offer(2) *> TestClock.adjust(3.second)
+              _       <- queue1.offer(3)
+              _       <- queue2.offer(4) *> TestClock.adjust(3.second)
+              _       <- queue2.offer(5) *> queue2.shutdown
+              result  <- fiber.join
+            } yield assert(result)(equalTo(List(1, 2, 4, 5)))
+          }
         ),
         testM("toInputStream") {
           val stream = ZStream(-3, -2, -1, 0, 1, 2, 3).map(_.toByte)
