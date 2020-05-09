@@ -84,10 +84,9 @@ abstract class ZTransducer[-R, +E, -I, +O](
           ref.get.flatMap { excess =>
             for {
               res <- p1(in).zipWithPar(p2(in)) {
-                      case (leftUpd, rightUpd) => {
+                      case (leftUpd, rightUpd) =>
                         val (left, right) = excess.fold(l => (l ++ leftUpd, rightUpd), r => (leftUpd, r ++ rightUpd))
                         stream.internal.Utils.zipChunks(left, right, f)
-                      }
                     }
               (emit, newExcess) = res
               _                 <- if (in.isDefined) ref.set(newExcess) else ZIO.unit
