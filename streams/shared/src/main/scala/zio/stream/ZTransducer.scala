@@ -89,7 +89,7 @@ abstract class ZTransducer[-R, +E, -I, +O](
                         stream.internal.Utils.zipChunks(left, right, f)
                     }
               (emit, newExcess) = res
-              _                 <- if (in.isDefined) ref.set(newExcess) else ZIO.unit
+              _                 <- ref.set(in.fold(Left(Chunk.empty): Either[Chunk[O], Chunk[O2]])(newExcess))
             } yield {
               emit
             }
