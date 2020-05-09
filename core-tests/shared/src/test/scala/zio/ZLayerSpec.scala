@@ -332,6 +332,19 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- env.useNow
           result <- ref.get
         } yield assert(result)(equalTo(expected))
-      } @@ nonFlaky
+      } @@ nonFlaky,
+      testM("preserves identity of acquired resources") {
+        for {
+          testRef <- Ref.make(Vector[String]())
+          layer = ZLayer.fromManagedMany(
+            for {
+              ref <- Ref.make[Vector[String]](Vector()).toManaged(ref => ref.get.flatMap(testRef.set))
+              _   <- ZManaged.unit
+            } yield ref
+          )
+          _      <- layer.build.use(ref => ref.update(_ :+ "test"))
+          result <- testRef.get
+        } yield assert(result)(equalTo(Vector("test")))
+      }
     )
 }

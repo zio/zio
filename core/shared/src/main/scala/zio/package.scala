@@ -31,6 +31,8 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type UManaged[+A]      = ZManaged[Any, Nothing, A]
   type TaskManaged[+A]   = ZManaged[Any, Throwable, A]
 
+  val Managed: ZManaged.type = ZManaged
+
   type RLayer[-RIn, +ROut]  = ZLayer[RIn, Throwable, ROut]
   type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]
   type Layer[+E, +ROut]     = ZLayer[Any, E, ROut]
