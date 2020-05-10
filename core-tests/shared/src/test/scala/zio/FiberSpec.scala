@@ -1,7 +1,6 @@
 package zio
 
 import zio.LatchOps._
-import zio.duration._
 import zio.internal.FiberRenderer
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -154,31 +153,25 @@ object FiberSpec extends ZIOBaseSpec {
       suite("track blockingOn")(
         testM("in await") {
           for {
-            p    <- Promise.make[Nothing, Unit]
-            f1   <- p.await.fork
+            f1   <- ZIO.never.fork
             f1id <- f1.id
             f2   <- f1.await.fork
-            blockingOn <- (ZIO.yieldNow *> f2.dump)
-                           .map(_.status)
-                           .repeat(
-                             Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
-                               case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                             } <* Schedule.fixed(10.milli)
-                           )
-          } yield assert(blockingOn)(isSome(equalTo(List(f1id))))
+            blockingOn <- f2.status
+                           .collect(()) {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           }
+                           .eventually
+          } yield assert(blockingOn)(equalTo(List(f1id)))
         },
         testM("in race") {
           for {
-            p <- Promise.make[Nothing, Unit]
-            f <- p.await.race(p.await).fork
-            blockingOn <- (ZIO.yieldNow *> f.dump)
-                           .map(_.status)
-                           .repeat(
-                             Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
-                               case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                             } <* Schedule.fixed(10.milli)
-                           )
-          } yield assert(blockingOn)(isSome(hasSize(equalTo(2))))
+            f <- ZIO.never.race(ZIO.never).fork
+            blockingOn <- f.status
+                           .collect(()) {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           }
+                           .eventually
+          } yield assert(blockingOn)(hasSize(equalTo(2)))
         }
       )
     )
