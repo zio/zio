@@ -3207,7 +3207,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   def fromQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O]): ZStream[R, E, O] =
-    fromChunkQueue(queue.map(Chunk.single(_)))
+    repeatEffectChunkOption {
+      queue
+        .takeBetween(1, Int.MaxValue)
+        .map(Chunk.fromIterable)
+        .catchAllCause(c =>
+          queue.isShutdown.flatMap { down =>
+            if (down && c.interrupted) Pull.end
+            else Pull.halt(c)
+          }
+        )
+    }
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
