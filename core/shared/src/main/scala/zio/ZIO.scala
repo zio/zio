@@ -3042,6 +3042,52 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     else ZIO.unit
 
   /**
+   * Sequentially zips the specified effects. Specialized version of mapN.
+   */
+  def tupled[R, E, A, B](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B]): ZIO[R, E, (A, B)] =
+    mapN(zio1, zio2)((_, _))
+
+  /**
+   * Sequentially zips the specified effects. Specialized version of mapN.
+   */
+  def tupled[R, E, A, B, C](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C]): ZIO[R, E, (A, B, C)] =
+    mapN(zio1, zio2, zio3)((_, _, _))
+
+  /**
+   * Sequentially zips the specified effects. Specialized version of mapN.
+   */
+  def tupled[R, E, A, B, C, D](
+    zio1: ZIO[R, E, A],
+    zio2: ZIO[R, E, B],
+    zio3: ZIO[R, E, C],
+    zio4: ZIO[R, E, D]
+  ): ZIO[R, E, (A, B, C, D)] =
+    mapN(zio1, zio2, zio3, zio4)((_, _, _, _))
+
+  /**
+   * Zips the specified effects in parallel. Specialized version of mapParN.
+   */
+  def tupledPar[R, E, A, B](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B]): ZIO[R, E, (A, B)] =
+    mapParN(zio1, zio2)((_, _))
+
+  /**
+   * Zips the specified effects in parallel. Specialized version of mapParN.
+   */
+  def tupledPar[R, E, A, B, C](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C]): ZIO[R, E, (A, B, C)] =
+    mapParN(zio1, zio2, zio3)((_, _, _))
+
+  /**
+   * Zips the specified effects in parallel. Specialized version of mapParN.
+   */
+  def tupledPar[R, E, A, B, C, D](
+    zio1: ZIO[R, E, A],
+    zio2: ZIO[R, E, B],
+    zio3: ZIO[R, E, C],
+    zio4: ZIO[R, E, D]
+  ): ZIO[R, E, (A, B, C, D)] =
+    mapParN(zio1, zio2, zio3, zio4)((_, _, _, _))
+
+  /**
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
