@@ -182,6 +182,18 @@ object UIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectSome]]
+   */
+  def collectSome[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
+    ZIO.collectSome(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectSomePar]]
+   */
+  def collectSomePar[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
+    ZIO.collectSomePar(in)(f)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
