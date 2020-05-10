@@ -2535,14 +2535,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def toIterator: ZManaged[R, Nothing, Iterator[Either[E, O]]] =
     for {
-      pull    <- this.process.mapM(BufferedPull.make(_))
       runtime <- ZIO.runtime[R].toManaged_
+      pull    <- process
     } yield {
       new Iterator[Either[E, O]] {
+        var nextTake: Take[E, O] = null
+        var chunkIdx: Int        = 0
 
-        var nextTake: Exit[Option[E], O] = null
         def unsafeTake(): Unit =
-          nextTake = runtime.unsafeRunSync(pull.pullElement)
+          nextTake = runtime.unsafeRunSync(pull)
 
         def hasNext: Boolean = {
           if (nextTake == null) {
@@ -2555,7 +2556,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 case Left(None) => false
                 case _          => true
               }
-            case _ => true
+            case Exit.Success(chunk) => !chunk.isEmpty
           }
         }
 
@@ -2564,18 +2565,30 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             unsafeTake()
           }
 
-          val take: Either[E, O] = nextTake match {
+          nextTake match {
             case Exit.Failure(cause) =>
               cause.failureOrCause match {
                 case Left(None)    => throw new NoSuchElementException("next on empty iterator")
                 case Left(Some(e)) => Left(e)
                 case Right(c)      => throw FiberFailure(c)
               }
-            case Exit.Success(a) => Right(a)
-          }
+            case Exit.Success(chunk) =>
+              try {
+                val value = chunk(chunkIdx)
 
-          nextTake = null
-          take
+                if (chunk.size > 1) {
+                  chunkIdx = chunkIdx + 1
+                } else {
+                  chunkIdx = 0
+                  nextTake = null
+                }
+
+                Right(value)
+              } catch {
+                case _: ArrayIndexOutOfBoundsException =>
+                  throw new NoSuchElementException("next on empty iterator")
+              }
+          }
         }
       }
     }
