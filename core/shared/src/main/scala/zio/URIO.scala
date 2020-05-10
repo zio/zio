@@ -91,6 +91,12 @@ object URIO {
   def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
+   * @see See [[zio.ZIO.collect]]
+   */
+  def collect[R, A, B](in: Iterable[A])(f: A => ZIO[R, Option[Nothing], B]): URIO[R, List[B]] =
+    ZIO.collect(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[R, A](in: Iterable[URIO[R, A]]): URIO[R, List[A]] =
@@ -199,16 +205,16 @@ object URIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
-   * @see See [[zio.ZIO.collectSome]]
+   * @see See [[zio.ZIO.collectPar]]
    */
-  def collectSome[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
-    ZIO.collectSome(in)(f)
+  def collectPar[R, A, B](in: Iterable[A])(f: A => ZIO[R, Option[Nothing], B]): URIO[R, List[B]] =
+    ZIO.collectPar(in)(f)
 
   /**
-   * @see See [[zio.ZIO.collectSomePar]]
+   * @see See [[zio.ZIO.collectParN]]
    */
-  def collectSomePar[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
-    ZIO.collectSomePar(in)(f)
+  def collectParN[R, E, A, B](n: Int)(in: Iterable[A])(f: A => ZIO[R, Option[Nothing], B]): URIO[R, List[B]] =
+    ZIO.collectParN(n)(in)(f)
 
   /**
    * @see [[zio.ZIO.descriptor]]

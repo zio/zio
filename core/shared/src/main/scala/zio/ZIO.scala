@@ -2114,6 +2114,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def children: UIO[Iterable[Fiber[Any, Any]]] = descriptor.flatMap(_.children)
 
   /**
+   * Evaluate each effect in the structure from left to right, collecting the
+   * the successful values and discarding the empty cases. For a parallel version, see `collectSomePar`.
+   */
+  def collect[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
+    foreach(in)(a => f(a).optional).map(_.flatten)
+
+  /**
    * Evaluate each effect in the structure from left to right, and collect the
    * results. For a parallel version, see `collectAllPar`.
    */
@@ -2254,17 +2261,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
-   * the successful values and discarding the empty cases. For a parallel version, see `collectSomePar`.
+   * the successful values and discarding the empty cases.
    */
-  def collectSome[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
-    foreach(in)(f).optional.map(_.fold(List.empty[B])(ZIO.identityFn))
+  def collectPar[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
+    foreachPar(in)(a => f(a).optional).map(_.flatten)
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
    * the successful values and discarding the empty cases.
+   *
+   * Unlike `collectPar`, this method will use at most up to `n` fibers.
    */
-  def collectSomePar[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
-    foreachPar(in)(f).optional.map(_.fold(List.empty[B])(ZIO.identityFn))
+  def collectParN[R, E, A, B](n: Int)(in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
+    foreachParN(n)(in)(a => f(a).optional).map(_.flatten)
 
   /**
    * Returns information about the current fiber, such as its identity.
