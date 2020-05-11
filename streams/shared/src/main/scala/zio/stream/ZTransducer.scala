@@ -32,6 +32,75 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
     }
 
   /**
+   * Symbolic alias for [[ZTransducer#zip]].
+   */
+  final def <&>[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, (O, O2)] =
+    self zip that
+
+  /**
+   * Symbolic alias for [[ZTransducer#zipLeft]].
+   */
+  final def <&[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O] =
+    self zipLeft that
+
+  /**
+   * Symbolic alias for [[ZTransducer#zipRight]].
+   */
+  final def &>[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O2] =
+    self zipRight that
+
+  /**
+   * Zips this transducer with another point-wise, but keeps only the outputs of this transducer.
+   */
+  def zipLeft[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O] =
+    zipWith(that)((o, _) => o)
+
+  /**
+   * Zips this transducer with another point-wise, but keeps only the outputs of the other transducer.
+   */
+  def zipRight[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O2] =
+    zipWith(that)((_, o2) => o2)
+
+  /**
+   * Zips this transducer with another point-wise and emits tuples of elements from both transducers.
+   */
+  def zip[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, (O, O2)] =
+    zipWith(that)((_, _))
+
+  /**
+   * Zips this transducer with another point-wise and applies the function to the paired elements.
+   */
+  def zipWith[R1 <: R, E1 >: E, I1 <: I, O2, O3](
+    that: ZTransducer[R1, E1, I1, O2]
+  )(f: (O, O2) => O3): ZTransducer[R1, E1, I1, O3] = {
+    type State = Either[Chunk[O], Chunk[O2]]
+    ZTransducer {
+      for {
+        ref <- ZRef.make[State](Left(Chunk.empty)).toManaged_
+        p1  <- self.push
+        p2  <- that.push
+        push = (in: Option[Chunk[I1]]) => {
+          ref.get.flatMap { excess =>
+            for {
+              res <- p1(in).zipWithPar(p2(in)) {
+                      case (leftUpd, rightUpd) =>
+                        val (left, right) = excess.fold(l => (l ++ leftUpd, rightUpd), r => (leftUpd, r ++ rightUpd))
+                        stream.internal.Utils.zipChunks(left, right, f)
+                    }
+              (emit, newExcess) = res
+              _                 <- ref.set(in.fold(Left(Chunk.empty): Either[Chunk[O], Chunk[O2]])(_ => newExcess))
+            } yield {
+              emit
+            }
+          }
+        }
+      } yield {
+        push
+      }
+    }
+  }
+
+  /**
    * Compose this transducer with a sink, resulting in a sink that processes elements by piping
    * them through this transducer and piping the results into the sink.
    */
