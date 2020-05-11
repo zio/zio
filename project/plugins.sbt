@@ -11,7 +11,7 @@ addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies"  
 addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                    % "5.6.0")
 addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                     % "0.4.1")
 addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                      % "2.2.0")
-addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                     % "1.3.5")
+addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                     % "1.4.0")
 addSbtPlugin("org.scala-native"                  % "sbt-scala-native"              % "0.4.0-M2")
 addSbtPlugin("org.portable-scala"                % "sbt-scala-native-crossproject" % "1.0.0")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.15")
