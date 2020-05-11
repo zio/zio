@@ -2379,6 +2379,21 @@ object ZStreamSpec extends ZIOBaseSpec {
           val expected = List(1.seconds, 2.seconds, 4.seconds, 8.seconds, 16.seconds, 32.seconds)
           assertM(zio)(equalTo(expected))
         },
+        testM("fromQueue") {
+          assertWithChunkCoordination(List(Chunk(1, 2))) { c =>
+            assertM(for {
+              fiber <- ZStream
+                        .fromQueue(c.queue)
+                        .collectWhileSuccess
+                        .flattenChunks
+                        .tap(_ => c.proceed)
+                        .runCollect
+                        .fork
+              _      <- c.offer
+              result <- fiber.join
+            } yield result)(equalTo(List(1, 2)))
+          }
+        },
         testM("fromTQueue") {
           TQueue.bounded[Int](5).commit.flatMap {
             tqueue =>
