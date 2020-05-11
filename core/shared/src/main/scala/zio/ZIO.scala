@@ -308,6 +308,39 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   }
 
   /**
+   * Returns an effect that guarantees that will execute once after given duration,
+   * regardless of the amount of calls to the produced effect.
+   */
+  final def debounce(duration: Duration): URIO[R with Clock, IO[Option[E], A]] = {
+    val nanos = duration.toNanos
+
+    // Evaluate IO after expiration time, in case of time reset then sleep remaining time
+    def execute(timeRef: Ref[Long], sleepRef: Ref[Boolean], sleep: Duration): ZIO[R with Clock, E, A] =
+      for {
+        _      <- clock.sleep(sleep)
+        time   <- clock.nanoTime
+        expire <- timeRef.get
+        diff   = Duration.fromNanos(expire - time)
+        result <- if (time >= expire) self <* sleepRef.set(false) else execute(timeRef, sleepRef, diff)
+      } yield result
+
+    // Fail fast in case it's already running but reset time anyway
+    def go(timeRef: Ref[Long], sleepRef: Ref[Boolean]): ZIO[R with Clock, Option[E], A] =
+      for {
+        time   <- clock.nanoTime
+        _      <- timeRef.set(time + nanos)
+        sleep  <- sleepRef.getAndSet(true)
+        result <- if (sleep) IO.fail(None) else execute(timeRef, sleepRef, duration).asSomeError
+      } yield result
+
+    for {
+      runtime  <- ZIO.environment[R with Clock]
+      timeRef  <- Ref.make[Long](0)
+      sleepRef <- Ref.make[Boolean](false)
+    } yield go(timeRef, sleepRef).provide(runtime)
+  }
+
+  /**
    * Recovers from all errors.
    *
    * {{{

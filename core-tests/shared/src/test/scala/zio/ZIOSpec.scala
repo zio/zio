@@ -159,6 +159,32 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert((a, b, c))(equalTo((0, 0, 0)))
       }
     ),
+    suite("debounce")(
+      testM("should execute once in parallel computations") {
+        for {
+          ref     <- Ref.make[Int](0)
+          io      <- ref.update(_ + 1).debounce(1.second)
+          fiber   <- ZIO.tupledPar(io.either, io.either, io.either).fork
+          _       <- TestClock.advance(2.seconds)
+          tuple   <- fiber.join
+          success = tuple.productIterator.collect { case Right(a) => a }.length
+          count   <- ref.get
+        } yield assert(count)(equalTo(1)) && assert(success)(equalTo(1))
+      },
+      testM("should reset sleep time on every evaluation") {
+        for {
+          io      <- ZIO.unit.debounce(1.second)
+          fiber1  <- io.either.fork
+          fiber2  <- (clock.sleep(100.millis) *> io.either).fork
+          fiber3  <- (clock.sleep(400.millis) *> io.either).fork
+          _       <- TestClock.advance(1400.millis)
+          result1 <- fiber1.join
+          result2 <- fiber2.join
+          result3 <- fiber3.join
+          result  = List(result1.isRight, result2.isRight, result3.isRight)
+        } yield assert(result)(equalTo(List(true, false, false)))
+      }
+    ),
     suite("catchAllDefect")(
       testM("recovers from all defects") {
         val s   = "division by zero"
