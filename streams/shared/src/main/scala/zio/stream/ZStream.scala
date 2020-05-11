@@ -2535,49 +2535,21 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def toIterator: ZManaged[R, Nothing, Iterator[Either[E, O]]] =
     for {
-      pull    <- this.process.mapM(BufferedPull.make(_))
       runtime <- ZIO.runtime[R].toManaged_
+      pull    <- process
     } yield {
-      new Iterator[Either[E, O]] {
-
-        var nextTake: Exit[Option[E], O] = null
-        def unsafeTake(): Unit =
-          nextTake = runtime.unsafeRunSync(pull.pullElement)
-
-        def hasNext: Boolean = {
-          if (nextTake == null) {
-            unsafeTake()
-          }
-
-          nextTake match {
-            case Exit.Failure(cause) =>
-              cause.failureOrCause match {
-                case Left(None) => false
-                case _          => true
-              }
-            case _ => true
-          }
+      def unfoldPull: Iterator[Either[E, O]] =
+        runtime.unsafeRunSync(pull) match {
+          case Exit.Success(chunk) => chunk.iterator.map(Right(_)) ++ unfoldPull
+          case Exit.Failure(cause) =>
+            cause.failureOrCause match {
+              case Left(None)    => Iterator.empty
+              case Left(Some(e)) => Iterator.single(Left(e))
+              case Right(c)      => throw FiberFailure(c)
+            }
         }
 
-        def next(): Either[E, O] = {
-          if (nextTake == null) {
-            unsafeTake()
-          }
-
-          val take: Either[E, O] = nextTake match {
-            case Exit.Failure(cause) =>
-              cause.failureOrCause match {
-                case Left(None)    => throw new NoSuchElementException("next on empty iterator")
-                case Left(Some(e)) => Left(e)
-                case Right(c)      => throw FiberFailure(c)
-              }
-            case Exit.Success(a) => Right(a)
-          }
-
-          nextTake = null
-          take
-        }
-      }
+      unfoldPull
     }
 
   /**
