@@ -2538,59 +2538,18 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       runtime <- ZIO.runtime[R].toManaged_
       pull    <- process
     } yield {
-      new Iterator[Either[E, O]] {
-        var nextTake: Take[E, O] = null
-        var chunkIdx: Int        = 0
-
-        def unsafeTake(): Unit =
-          nextTake = runtime.unsafeRunSync(pull)
-
-        def hasNext: Boolean = {
-          if (nextTake == null) {
-            unsafeTake()
-          }
-
-          nextTake match {
-            case Exit.Failure(cause) =>
-              cause.failureOrCause match {
-                case Left(None) => false
-                case _          => true
-              }
-            case Exit.Success(chunk) => !chunk.isEmpty
-          }
+      def unfoldPull: Iterator[Either[E, O]] =
+        runtime.unsafeRunSync(pull) match {
+          case Exit.Success(chunk) => chunk.iterator.map(Right(_)) ++ unfoldPull
+          case Exit.Failure(cause) =>
+            cause.failureOrCause match {
+              case Left(None)    => Iterator.empty
+              case Left(Some(e)) => Iterator.single(Left(e))
+              case Right(c)      => throw FiberFailure(c)
+            }
         }
 
-        def next(): Either[E, O] = {
-          if (nextTake == null) {
-            unsafeTake()
-          }
-
-          nextTake match {
-            case Exit.Failure(cause) =>
-              cause.failureOrCause match {
-                case Left(None)    => throw new NoSuchElementException("next on empty iterator")
-                case Left(Some(e)) => Left(e)
-                case Right(c)      => throw FiberFailure(c)
-              }
-            case Exit.Success(chunk) =>
-              try {
-                val value = chunk(chunkIdx)
-
-                if (chunk.size > 1) {
-                  chunkIdx = chunkIdx + 1
-                } else {
-                  chunkIdx = 0
-                  nextTake = null
-                }
-
-                Right(value)
-              } catch {
-                case _: ArrayIndexOutOfBoundsException =>
-                  throw new NoSuchElementException("next on empty iterator")
-              }
-          }
-        }
-      }
+      unfoldPull
     }
 
   /**
