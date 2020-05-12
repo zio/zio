@@ -2267,7 +2267,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     foreachPar(in)(a => f(a).optional).map(_.flatten)
 
   /**
-   * Evaluate each effect in the structure from left to right, collecting the
+   * Evaluate each effect in the structure in parallel, collecting the
    * the successful values and discarding the empty cases.
    *
    * Unlike `collectPar`, this method will use at most up to `n` fibers.
