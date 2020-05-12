@@ -183,7 +183,7 @@ private[zio] object ChunkBuilder {
     def clear(): Unit =
       arrayBuilder.clear()
     def result(): Chunk[SChar] =
-      Chunk.fromArray(arrayBuilder.result())
+      Chunk.fromCharArray(arrayBuilder.result())
     override def ++=(as: TraversableOnce[SChar]): this.type = {
       arrayBuilder ++= as
       this
@@ -214,7 +214,7 @@ private[zio] object ChunkBuilder {
     def clear(): Unit =
       arrayBuilder.clear()
     def result(): Chunk[SDouble] =
-      Chunk.fromArray(arrayBuilder.result())
+      Chunk.fromDoubleArray(arrayBuilder.result())
     override def ++=(as: TraversableOnce[SDouble]): this.type = {
       arrayBuilder ++= as
       this
@@ -245,7 +245,7 @@ private[zio] object ChunkBuilder {
     def clear(): Unit =
       arrayBuilder.clear()
     def result(): Chunk[SFloat] =
-      Chunk.fromArray(arrayBuilder.result())
+      Chunk.fromFloatArray(arrayBuilder.result())
     override def ++=(as: TraversableOnce[SFloat]): this.type = {
       arrayBuilder ++= as
       this
@@ -275,7 +275,7 @@ private[zio] object ChunkBuilder {
     def clear(): Unit =
       arrayBuilder.clear()
     def result(): Chunk[SInt] =
-      Chunk.fromArray(arrayBuilder.result())
+      Chunk.fromIntArray(arrayBuilder.result())
     override def ++=(as: TraversableOnce[SInt]): this.type = {
       arrayBuilder ++= as
       this
@@ -305,7 +305,7 @@ private[zio] object ChunkBuilder {
     def clear(): Unit =
       arrayBuilder.clear()
     def result(): Chunk[SLong] =
-      Chunk.fromArray(arrayBuilder.result())
+      Chunk.fromLongArray(arrayBuilder.result())
     override def ++=(as: TraversableOnce[SLong]): this.type = {
       arrayBuilder ++= as
       this
@@ -336,7 +336,7 @@ private[zio] object ChunkBuilder {
     def clear(): Unit =
       arrayBuilder.clear()
     def result(): Chunk[SShort] =
-      Chunk.fromArray(arrayBuilder.result())
+      Chunk.fromShortArray(arrayBuilder.result())
     override def ++=(as: TraversableOnce[SShort]): this.type = {
       arrayBuilder ++= as
       this

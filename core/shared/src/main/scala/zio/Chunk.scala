@@ -21,6 +21,14 @@ import java.nio._
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
 
+import zio.Chunk.Byte.ByteChunkArr
+import zio.Chunk.Char.CharChunkArr
+import zio.Chunk.Double.DoubleChunkArr
+import zio.Chunk.Float.FloatChunkArr
+import zio.Chunk.Int.IntChunkArr
+import zio.Chunk.Long.LongChunkArr
+import zio.Chunk.Short.ShortChunkArr
+
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
  * are usually backed by arrays, but expose a purely functional, safe interface
@@ -756,6 +764,48 @@ object Chunk {
     if (array.isEmpty) Empty else Arr(array)
 
   /**
+   * Returns a chunk backed by an byte array.
+   */
+  def fromByteArray(array: Array[Byte]): Chunk[Byte] =
+    if (array.isEmpty) Empty else ByteChunkArr(array)
+
+  /**
+   * Returns a chunk backed by an int array.
+   */
+  def fromIntArray(array: Array[Int]): Chunk[Int] =
+    if (array.isEmpty) Empty else IntChunkArr(array)
+
+  /**
+   * Returns a chunk backed by an char array.
+   */
+  def fromCharArray(array: Array[Char]): Chunk[Char] =
+    if (array.isEmpty) Empty else CharChunkArr(array)
+
+  /**
+   * Returns a chunk backed by an double array.
+   */
+  def fromDoubleArray(array: Array[Double]): Chunk[Double] =
+    if (array.isEmpty) Empty else DoubleChunkArr(array)
+
+  /**
+   * Returns a chunk backed by an float array.
+   */
+  def fromFloatArray(array: Array[Float]): Chunk[Float] =
+    if (array.isEmpty) Empty else FloatChunkArr(array)
+
+  /**
+   * Returns a chunk backed by an long array.
+   */
+  def fromLongArray(array: Array[Long]): Chunk[Long] =
+    if (array.isEmpty) Empty else LongChunkArr(array)
+
+  /**
+   * Returns a chunk backed by an short array.
+   */
+  def fromShortArray(array: Array[Short]): Chunk[Short] =
+    if (array.isEmpty) Empty else ShortChunkArr(array)
+
+  /**
    * Returns a chunk backed by a [[java.nio.ByteBuffer]].
    */
   def fromByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
@@ -763,7 +813,7 @@ object Chunk {
     val pos  = buffer.position()
     buffer.get(dest)
     buffer.position(pos)
-    Chunk.fromArray(dest)
+    Chunk.fromByteArray(dest)
   }
 
   /**
@@ -774,7 +824,7 @@ object Chunk {
     val pos  = buffer.position()
     buffer.get(dest)
     buffer.position(pos)
-    Chunk.fromArray(dest)
+    Chunk.fromCharArray(dest)
   }
 
   /**
@@ -785,7 +835,7 @@ object Chunk {
     val pos  = buffer.position()
     buffer.get(dest)
     buffer.position(pos)
-    Chunk.fromArray(dest)
+    Chunk.fromDoubleArray(dest)
   }
 
   /**
@@ -796,7 +846,7 @@ object Chunk {
     val pos  = buffer.position()
     buffer.get(dest)
     buffer.position(pos)
-    Chunk.fromArray(dest)
+    Chunk.fromFloatArray(dest)
   }
 
   /**
@@ -807,7 +857,7 @@ object Chunk {
     val pos  = buffer.position()
     buffer.get(dest)
     buffer.position(pos)
-    Chunk.fromArray(dest)
+    Chunk.fromIntArray(dest)
   }
 
   /**
@@ -818,7 +868,7 @@ object Chunk {
     val pos  = buffer.position()
     buffer.get(dest)
     buffer.position(pos)
-    Chunk.fromArray(dest)
+    Chunk.fromLongArray(dest)
   }
 
   /**
@@ -829,7 +879,7 @@ object Chunk {
     val pos  = buffer.position()
     buffer.get(dest)
     buffer.position(pos)
-    Chunk.fromArray(dest)
+    Chunk.fromShortArray(dest)
   }
 
   /**
@@ -882,16 +932,21 @@ object Chunk {
    */
   private[zio] def classTagOf[A](chunk: Chunk[A]): ClassTag[A] =
     chunk match {
-      case x: Arr[A]         => x.classTag
-      case x: Concat[A]      => x.classTag
-      case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
-      case x: Singleton[A]   => x.classTag
-      case x: Slice[A]       => x.classTag
-      case x: VectorChunk[A] => x.classTag
-      case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
+      case x: Arr[A]          => x.classTag
+      case x: ArraySupport[A] => x.classTag
+      case x: Concat[A]       => x.classTag
+      case Empty              => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+      case x: Singleton[A]    => x.classTag
+      case x: Slice[A]        => x.classTag
+      case x: VectorChunk[A]  => x.classTag
+      case _: BitChunk        => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
-  private final case class Arr[A](private val array: Array[A]) extends Chunk[A] with Serializable { self =>
+  private final case class Arr[A](array: Array[A]) extends ArraySupport[A]
+
+  private[zio] trait ArraySupport[A] extends Chunk[A] with Serializable { self =>
+
+    val array: Array[A]
 
     implicit val classTag: ClassTag[A] =
       ClassTag(array.getClass.getComponentType)
@@ -1321,5 +1376,53 @@ object Chunk {
     private val DoubleClassBox  = classTag[java.lang.Double]
     private val CharClass       = classTag[Char]
     private val CharClassBox    = classTag[java.lang.Character]
+  }
+
+  object Byte {
+    final case class ByteChunkArr(array: Array[Byte]) extends ArraySupport[Byte] {
+      override def byte(index: Int)(implicit ev: Byte <:< Byte): Byte = array(index)
+    }
+  }
+
+  object Char {
+    final case class CharChunkArr(array: Array[Char]) extends ArraySupport[Char] {
+      override def char(index: Int)(implicit ev: Char <:< Char): Char = array(index)
+    }
+  }
+
+  object Int {
+    final case class IntChunkArr(array: Array[Int]) extends ArraySupport[Int] {
+      override def int(index: Int)(implicit ev: Int <:< Int): Int = array(index)
+    }
+  }
+
+  object Long {
+    final case class LongChunkArr(array: Array[Long]) extends ArraySupport[Long] {
+      override def long(index: Int)(implicit ev: Long <:< Long): Long = array(index)
+    }
+  }
+
+  object Double {
+    final case class DoubleChunkArr(array: Array[Double]) extends ArraySupport[Double] {
+      override def double(index: Int)(implicit ev: Double <:< Double): Double = array(index)
+    }
+  }
+
+  object Float {
+    final case class FloatChunkArr(array: Array[Float]) extends ArraySupport[Float] {
+      override def float(index: Int)(implicit ev: Float <:< Float): Float = array(index)
+    }
+  }
+
+  object Short {
+    final case class ShortChunkArr(array: Array[Short]) extends ArraySupport[Short] {
+      override def short(index: Int)(implicit ev: Short <:< Short): Short = array(index)
+    }
+  }
+
+  object Boolean {
+    final case class BooleanChunkArr(array: Array[Boolean]) extends ArraySupport[Boolean] {
+      override def boolean(index: Int)(implicit ev: Boolean <:< Boolean): Boolean = array(index)
+    }
   }
 }

@@ -34,7 +34,7 @@ package object random {
           ZIO.effectTotal {
             val array = Array.ofDim[Byte](length)
             SRandom.nextBytes(array)
-            Chunk.fromArray(array)
+            Chunk.fromByteArray(array)
           }
         val nextDouble: UIO[Double] =
           ZIO.effectTotal(SRandom.nextDouble())
