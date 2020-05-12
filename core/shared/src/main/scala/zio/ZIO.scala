@@ -2260,7 +2260,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.collectAllParN(n)(in).map(_.collect(f))
 
   /**
-   * Evaluate each effect in the structure from left to right, collecting the
+   * Evaluate each effect in the structure in parallel, collecting the
    * the successful values and discarding the empty cases.
    */
   def collectPar[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
