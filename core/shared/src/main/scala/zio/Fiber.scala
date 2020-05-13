@@ -394,7 +394,7 @@ sealed trait Fiber[+E, +A] { self =>
       final def children: UIO[Iterable[Fiber.Runtime[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
 
       final def getRef[A](ref: FiberRef[A]): UIO[A] =
-        (self.getRef(ref) zipWith that.getRef(ref))(ref.combine(_, _))
+        (self.getRef(ref) zipWith that.getRef(ref))(ref.join(_, _))
 
       final def interruptAs(id: Fiber.Id): UIO[Exit[E1, C]] =
         (self interruptAs id).zipWith(that interruptAs id)(_.zipWith(_)(f, _ && _))
@@ -566,7 +566,7 @@ object Fiber extends FiberPlatformSpecific {
       def children: UIO[Iterable[Fiber.Runtime[Any, Any]]] =
         UIO.foreach(fibers)(_.children).map(_.foldRight(Iterable.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
       def getRef[A](ref: FiberRef[A]): UIO[A] =
-        UIO.foreach(fibers)(_.getRef(ref)).map(_.foldRight(ref.initial)(ref.combine))
+        UIO.foreach(fibers)(_.getRef(ref)).map(_.foldRight(ref.initial)(ref.join))
       def inheritRefs: UIO[Unit] =
         UIO.foreach_(fibers)(_.inheritRefs)
       def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, List[A]]] =
@@ -637,7 +637,7 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * A `FiberRef` that stores the name of the fiber, which defaults to `None`.
    */
-  val fiberName: FiberRef[Option[String]] = new FiberRef(None, (old, _) => old)
+  val fiberName: FiberRef[Option[String]] = new FiberRef(None, identity, (old, _) => old)
 
   /**
    * Lifts an [[zio.IO]] into a `Fiber`.
