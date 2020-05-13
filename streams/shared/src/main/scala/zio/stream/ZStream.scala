@@ -2598,6 +2598,63 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       } yield pull
     }
 
+  final def debounce(d: Duration): ZStream[R with Clock, E, O] = {
+    type Loser = Either[Fiber[Nothing, Take[E, O]], Fiber[Nothing, Take[E, O]]]
+
+    sealed abstract class State
+    case object NotStarted                                extends State
+    case class Previous(fiber: Fiber[Nothing, Chunk[O]])  extends State
+    case class Current(fiber: Fiber[Nothing, Take[E, O]]) extends State
+    case object Done                                      extends State
+
+    def race(
+      previous: ZIO[R, Option[E], Chunk[O]],
+      current: ZIO[R, Option[E], Chunk[O]]
+    ): URIO[R, (Take[E, O], Loser)] =
+      previous.run.raceWith(current.run)(
+        (exit, current) => ZIO.done(exit).map(a => (a, Right(current))),
+        (exit, previous) => ZIO.done(exit).map(b => (b, Left(previous)))
+      )
+
+    def store(ref: Ref[State])(chunk: Chunk[O]): URIO[Clock, Chunk[O]] =
+      for {
+        fiber <- clock.sleep(d).as(chunk).fork
+        _     <- ref.set(Previous(fiber))
+        empty <- Pull.emit(Chunk.empty)
+      } yield empty
+
+    ZStream[R with Clock, E, O] {
+      for {
+        chunks <- self.process
+        ref    <- Ref.make[State](NotStarted).toManaged_
+        pull = {
+          ref.get.flatMap {
+            case Current(fiber) =>
+              fiber.join.flatMap(ZIO.done(_)) >>= store(ref)
+            case Previous(fiber) =>
+              race(fiber.join, chunks).flatMap {
+                case (Exit.Success(chunk), Left(previous)) =>
+                  previous.interrupt *> store(ref)(chunk)
+                case (Exit.Success(chunk), Right(current)) =>
+                  ref.set(Current(current)) *> Pull.emit(chunk)
+                case (Exit.Failure(cause), loser) =>
+                  Cause.sequenceCauseOption(cause) match {
+                    case Some(e) =>
+                      loser.merge.interrupt *> Pull.halt(e)
+                    case None =>
+                      loser.merge.join.flatMap(ZIO.done(_)).flatMap(Pull.emit) <* ref.set(Done)
+                  }
+              }
+            case NotStarted =>
+              chunks >>= store(ref)
+            case Done =>
+              Pull.end
+          }
+        }
+      } yield pull
+    }
+  }
+
   /**
    * Ends the stream if it does not produce a value after d duration.
    */
