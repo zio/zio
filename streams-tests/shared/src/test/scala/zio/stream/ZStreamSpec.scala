@@ -305,7 +305,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                       .runCollect
                       .map(_.flatten))
                       .fork
-                _      <- TestClock.advance(31.minutes)
+                _      <- TestClock.adjust(31.minutes)
                 result <- f.join
               } yield result
             )(equalTo(data))
@@ -1357,8 +1357,8 @@ object ZStreamSpec extends ZIOBaseSpec {
 
               assertM(for {
                 f      <- stream.runCollect.fork
-                _      <- c.offer *> TestClock.advance(2.seconds) *> c.awaitNext
-                _      <- c.offer *> TestClock.advance(2.seconds) *> c.awaitNext
+                _      <- c.offer *> TestClock.adjust(2.seconds) *> c.awaitNext
+                _      <- c.offer *> TestClock.adjust(2.seconds) *> c.awaitNext
                 _      <- c.offer
                 result <- f.join
               } yield result)(equalTo(List(List(1, 2), List(3, 4), List(5))))
@@ -2010,7 +2010,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                                 _    <- queue.offer(2)
                                 res2 <- pull
                                 _    <- TestClock.adjust(4.seconds)
-                                _    <- clock.sleep(4.seconds)
                                 _    <- queue.offer(3)
                                 res3 <- pull
                               } yield assert(List(res1, res2, res3))(equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
@@ -2165,21 +2164,15 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("zipWithLatest") {
           import zio.test.environment.TestClock
 
+          val s1 = ZStream.iterate(0)(_ + 1).fixed(100.millis)
+          val s2 = ZStream.iterate(0)(_ + 1).fixed(70.millis)
+          val s3 = s1.zipWithLatest(s2)((_, _))
+
           for {
-            q  <- Queue.unbounded[(Int, Int)]
-            s1 = ZStream.iterate(0)(_ + 1).fixed(100.millis)
-            s2 = ZStream.iterate(0)(_ + 1).fixed(70.millis)
-            s3 = s1.zipWithLatest(s2)((_, _))
-            _  <- s3.foreach(q.offer).fork
-            a  <- q.take
-            _  <- TestClock.setTime(70.millis)
-            b  <- q.take
-            _  <- TestClock.setTime(100.millis)
-            c  <- q.take
-            _  <- TestClock.setTime(140.millis)
-            d  <- q.take
-            _  <- TestClock.setTime(210.millis)
-          } yield assert(List(a, b, c, d))(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
+            fiber <- s3.take(4).runCollect.fork
+            _     <- TestClock.setTime(210.milliseconds)
+            value <- fiber.join
+          } yield assert(value)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
         }
       ),
       suite("Constructors")(
@@ -2375,7 +2368,11 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("fromSchedule") {
           val schedule = Schedule.exponential(1.second) <* Schedule.recurs(5)
           val stream   = ZStream.fromSchedule(schedule)
-          val zio      = TestClock.adjust(62.seconds) *> stream.runCollect
+          val zio = for {
+            fiber <- stream.runCollect.fork
+            _     <- TestClock.adjust(62.seconds)
+            value <- fiber.join
+          } yield value
           val expected = List(1.seconds, 2.seconds, 4.seconds, 8.seconds, 16.seconds, 32.seconds)
           assertM(zio)(equalTo(expected))
         },

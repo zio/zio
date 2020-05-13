@@ -407,14 +407,6 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isNative) identity else ignore
 
   /**
-   * An aspect that causes calls to `sleep` and methods implemented in terms
-   * of it to be executed immediately instead of requiring the `TestClock` to
-   * be adjusted.
-   */
-  val noDelay: TestAspectAtLeastR[TestClock] =
-    before(TestClock.runAll)
-
-  /**
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */

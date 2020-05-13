@@ -171,19 +171,19 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("for a given number of times with random jitter in (0, 1)") {
         val schedule  = Schedule.spaced(500.millis).jittered(0, 1)
-        val scheduled = TestClock.runAll *> (schedule >>> testElapsed).run(List.fill(5)(()))
+        val scheduled = run(schedule >>> Schedule.elapsed)(List.fill(5)(()))
         val expected  = List(0.millis, 250.millis, 500.millis, 750.millis, 1000.millis)
         assertM(TestRandom.feedDoubles(0.5, 0.5, 0.5, 0.5, 0.5) *> scheduled)(equalTo(expected))
       },
       testM("for a given number of times with random jitter in custom interval") {
         val schedule  = Schedule.spaced(500.millis).jittered(2, 4)
-        val scheduled = TestClock.runAll *> (schedule >>> testElapsed).run((List.fill(5)(())))
+        val scheduled = run(schedule >>> Schedule.elapsed)((List.fill(5)(())))
         val expected  = List(0, 1500, 3000, 5000, 7000).map(_.millis)
         assertM(TestRandom.feedDoubles(0.5, 0.5, 1, 1, 0.5) *> scheduled)(equalTo(expected))
       },
       testM("for a given number of times with random delay in custom interval") {
         val schedule  = Schedule.randomDelay(2.nanos, 4.nanos)
-        val scheduled = TestClock.runAll *> (schedule >>> testElapsed).run((List.fill(5)(())))
+        val scheduled = run(schedule >>> Schedule.elapsed)((List.fill(5)(())))
         val expected  = List(0, 3, 6, 10, 14).map(_.nanos)
         assertM(TestRandom.feedLongs(1, 1, 2, 2, 1) *> scheduled)(equalTo(expected))
       },
@@ -194,41 +194,43 @@ object ScheduleSpec extends ZIOBaseSpec {
         }
         val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
         val expected = (800.millis, "GiveUpError", 4)
-        val result   = io.retryOrElseEither(strategy, (e: String, r: Int) => TestClock.fiberTime.map((_, e, r)))
-        assertM(TestClock.runAll *> result)(isLeft(equalTo(expected)))
+        val result = io.retryOrElseEither(
+          strategy,
+          (e: String, r: Int) => clock.nanoTime.map(nanos => (Duration.fromNanos(nanos), e, r))
+        )
+        assertM(run(result))(isLeft(equalTo(expected)))
       },
       testM("fibonacci delay") {
-        assertM(
-          TestClock
-            .setTime(Duration.Infinity) *> (Schedule.fibonacci(100.millis) >>> testElapsed).run(List.fill(5)(()))
-        )(equalTo(List(0, 1, 2, 4, 7).map(i => (i * 100).millis)))
+        assertM(run(Schedule.fibonacci(100.millis) >>> Schedule.elapsed)(List.fill(5)(())))(
+          equalTo(List(0, 1, 2, 4, 7).map(i => (i * 100).millis))
+        )
       },
       testM("linear delay") {
-        assertM(
-          TestClock
-            .setTime(Duration.Infinity) *> (Schedule.linear(100.millis) >>> testElapsed).run(List.fill(5)(()))
-        )(equalTo(List(0, 1, 3, 6, 10).map(i => (i * 100).millis)))
+        assertM(run(Schedule.linear(100.millis) >>> Schedule.elapsed)(List.fill(5)(())))(
+          equalTo(List(0, 1, 3, 6, 10).map(i => (i * 100).millis))
+        )
       },
       testM("modified linear delay") {
-        assertM(TestClock.runAll *> (Schedule.linear(100.millis).modifyDelay {
-          case (_, d) => ZIO.succeed(d * 2)
-        } >>> testElapsed).run(List.fill(5)(())))(equalTo(List(0, 1, 3, 6, 10).map(i => (i * 200).millis)))
+        assertM(
+          run(Schedule.linear(100.millis).modifyDelay { case (_, d) => ZIO.succeed(d * 2) } >>> Schedule.elapsed)(
+            List.fill(5)(())
+          )
+        )(equalTo(List(0, 1, 3, 6, 10).map(i => (i * 200).millis)))
       },
       testM("exponential delay with default factor") {
-        assertM(
-          TestClock
-            .setTime(Duration.Infinity) *> (Schedule.exponential(100.millis) >>> testElapsed).run(List.fill(5)(()))
-        )(equalTo(List(0, 1, 3, 7, 15).map(i => (i * 100).millis)))
+        assertM(run(Schedule.exponential(100.millis) >>> Schedule.elapsed)(List.fill(5)(())))(
+          equalTo(List(0, 1, 3, 7, 15).map(i => (i * 100).millis))
+        )
       },
       testM("exponential delay with other factor") {
-        assertM(
-          TestClock.runAll *> (Schedule.exponential(100.millis, 3.0) >>> testElapsed).run(List.fill(5)(()))
-        )(equalTo(List(0, 1, 4, 13, 40).map(i => (i * 100).millis)))
+        assertM(run(Schedule.exponential(100.millis, 3.0) >>> Schedule.elapsed)(List.fill(5)(())))(
+          equalTo(List(0, 1, 4, 13, 40).map(i => (i * 100).millis))
+        )
       },
       testM("fromDurations") {
         val schedule = Schedule.fromDurations(4.seconds, 7.seconds, 12.seconds, 19.seconds)
         val expected = List(0.seconds, 4.seconds, 11.seconds, 23.seconds, 42.seconds)
-        val actual   = TestClock.runAll *> (schedule >>> testElapsed).run(List.fill(5)(()))
+        val actual   = run(schedule >>> Schedule.elapsed)(List.fill(5)(()))
         assertM(actual)(equalTo(expected))
       }
     ) @@ zioTag(errors),
@@ -327,11 +329,10 @@ object ScheduleSpec extends ZIOBaseSpec {
     },
     testM("either should not wait if neither schedule wants to continue") {
       assertM(
-        TestClock
-          .setTime(Duration.Infinity) *> (
-          (Schedule.stop || (Schedule.spaced(2.seconds) && Schedule.stop)) >>> testElapsed
-        ).run(List.fill(5)(()))
-      )(equalTo(List(Duration.Zero)))
+        run((Schedule.stop || (Schedule.spaced(2.seconds) && Schedule.stop)) >>> Schedule.elapsed)(List.fill(5)(()))
+      )(
+        equalTo(List(Duration.Zero))
+      )
     },
     testM("perform log for each recurrence of effect") {
       def schedule[A](ref: Ref[Int]) =
@@ -361,6 +362,19 @@ object ScheduleSpec extends ZIOBaseSpec {
       res <- ref.updateAndGet(_ + 1).repeat(schedule)
     } yield res
 
+  /**
+   * Run a schedule using the provided input and collect all outputs
+   */
+  def run[R <: TestClock, A, B](sched: Schedule[R, A, B])(xs: Iterable[A]): ZIO[R, Nothing, List[B]] =
+    run(sched.run(xs))
+
+  def run[R <: TestClock, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
+    for {
+      fiber  <- effect.fork
+      _      <- TestClock.setTime(Duration.Infinity)
+      result <- fiber.join
+    } yield result
+
   def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Any with Clock, Nothing, TestResult] =
     assertM(repeat(schedule))(equalTo(expected))
 
@@ -384,16 +398,6 @@ object ScheduleSpec extends ZIOBaseSpec {
       i <- ref.updateAndGet(_ + 1)
       x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
     } yield x
-
-  /**
-   * A schedule that tracks how much time has elapsed using TestClock#fiberTime
-   */
-  val testElapsed =
-    Schedule[TestClock, Duration, Any, Duration](
-      ZIO.succeed(Duration.Zero),
-      { case _            => TestClock.fiberTime },
-      { case (_, elapsed) => elapsed }
-    )
 
   case class ScheduleError(message: String) extends Exception
   case class ScheduleFailure(message: String)
