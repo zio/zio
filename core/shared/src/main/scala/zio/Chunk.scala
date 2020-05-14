@@ -903,7 +903,7 @@ object Chunk {
       case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
-  private[zio] abstract class Arr[A] extends Chunk[A] with Serializable { self =>
+  private[zio] sealed abstract class Arr[A] extends Chunk[A] with Serializable { self =>
 
     val array: Array[A]
 
