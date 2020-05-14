@@ -87,10 +87,10 @@ val withoutJoin =
   } yield v == 10
 ```
 
-Furthermore you can customize how the values of the two fibers will be merged. To do this you specify the desired behavior during `FiberRef#make`:
+Furthermore you can customize how, if at all, the value will be update when a fiber is forked and how values will be combined when a fiber is merged. To do this you specify the desired behavior during `FiberRef#make`:
 ```scala mdoc:silent
 for {
-  fiberRef <- FiberRef.make(0, math.max)
+  fiberRef <- FiberRef.make(initial = 0, join = math.max)
   child    <- fiberRef.update(_ + 1).fork
   _        <- fiberRef.update(_ + 2)
   _        <- child.join
