@@ -907,7 +907,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * }}}
    */
   final def drain: ZStream[R, E, Nothing] =
-    ZStream(self.process.map(_.forever))
+    mapChunks(_ => Chunk.empty)
 
   /**
    * Drains the provided stream in the background for as long as this stream is running.
@@ -1729,17 +1729,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Effectfully transforms the chunks emitted by this stream.
    */
   def mapChunksM[R1 <: R, E1 >: E, O2](f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]): ZStream[R1, E1, O2] =
-    ZStream(self.process.map { pull =>
-      def go: ZIO[R1, Option[E1], Chunk[O2]] =
-        pull.flatMap { os =>
-          f(os).mapError(Some(_)).flatMap { o2s =>
-            if (o2s.isEmpty) go
-            else UIO.succeedNow(o2s)
-          }
-        }
-
-      go
-    })
+    ZStream(self.process.map(_.flatMap(f(_).mapError(Some(_)))))
 
   /**
    * Maps each element to an iterable, and flattens the iterables into the
