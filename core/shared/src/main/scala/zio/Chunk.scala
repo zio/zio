@@ -539,7 +539,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   def materialize[A1 >: A]: Chunk[A1] =
     self.toArrayOption[A1] match {
       case None        => Chunk.Empty
-      case Some(array) => Chunk.Arr(array)
+      case Some(array) => Chunk.fromArray(array)
     }
 
   /**
@@ -753,7 +753,19 @@ object Chunk {
    * Returns a chunk backed by an array.
    */
   def fromArray[A](array: Array[A]): Chunk[A] =
-    if (array.isEmpty) Empty else Arr(array)
+    (if (array.isEmpty) Empty
+     else
+       array.asInstanceOf[AnyRef] match {
+         case x: Array[AnyRef]  => AnyRefArray(x)
+         case x: Array[Int]     => IntArray(x)
+         case x: Array[Double]  => DoubleArray(x)
+         case x: Array[Long]    => LongArray(x)
+         case x: Array[Float]   => FloatArray(x)
+         case x: Array[Char]    => CharArray(x)
+         case x: Array[Byte]    => ByteArray(x)
+         case x: Array[Short]   => ShortArray(x)
+         case x: Array[Boolean] => BooleanArray(x)
+       }).asInstanceOf[Chunk[A]]
 
   /**
    * Returns a chunk backed by a [[java.nio.ByteBuffer]].
@@ -891,7 +903,9 @@ object Chunk {
       case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
-  private final case class Arr[A](private val array: Array[A]) extends Chunk[A] with Serializable { self =>
+  private[zio] sealed abstract class Arr[A] extends Chunk[A] with Serializable { self =>
+
+    val array: Array[A]
 
     implicit val classTag: ClassTag[A] =
       ClassTag(array.getClass.getComponentType)
@@ -1321,5 +1335,39 @@ object Chunk {
     private val DoubleClassBox  = classTag[java.lang.Double]
     private val CharClass       = classTag[Char]
     private val CharClassBox    = classTag[java.lang.Character]
+  }
+
+  final case class AnyRefArray[A <: AnyRef](array: Array[A]) extends Arr[A]
+
+  final case class ByteArray(array: Array[Byte]) extends Arr[Byte] {
+    override def byte(index: Int)(implicit ev: Byte <:< Byte): Byte = array(index)
+  }
+
+  final case class CharArray(array: Array[Char]) extends Arr[Char] {
+    override def char(index: Int)(implicit ev: Char <:< Char): Char = array(index)
+  }
+
+  final case class IntArray(array: Array[Int]) extends Arr[Int] {
+    override def int(index: Int)(implicit ev: Int <:< Int): Int = array(index)
+  }
+
+  final case class LongArray(array: Array[Long]) extends Arr[Long] {
+    override def long(index: Int)(implicit ev: Long <:< Long): Long = array(index)
+  }
+
+  final case class DoubleArray(array: Array[Double]) extends Arr[Double] {
+    override def double(index: Int)(implicit ev: Double <:< Double): Double = array(index)
+  }
+
+  final case class FloatArray(array: Array[Float]) extends Arr[Float] {
+    override def float(index: Int)(implicit ev: Float <:< Float): Float = array(index)
+  }
+
+  final case class ShortArray(array: Array[Short]) extends Arr[Short] {
+    override def short(index: Int)(implicit ev: Short <:< Short): Short = array(index)
+  }
+
+  final case class BooleanArray(array: Array[Boolean]) extends Arr[Boolean] {
+    override def boolean(index: Int)(implicit ev: Boolean <:< Boolean): Boolean = array(index)
   }
 }
