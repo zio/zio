@@ -16,18 +16,9 @@
 
 package zio
 
-trait ManagedApp extends BootstrapRuntime { ma =>
+final case class ExitCode(code: Int)
 
-  /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program and has to return an `ZManaged` with the errors fully handled.
-   */
-  def run(args: List[String]): ZManaged[ZEnv, Nothing, ExitCode]
-
-  private val app = new App {
-    override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] =
-      ma.run(args).use(exit => ZIO.effectTotal(exit))
-  }
-
-  final def main(args: Array[String]): Unit = app.main(args)
+object ExitCode {
+  val success = ExitCode(0)
+  val failure = ExitCode(1)
 }

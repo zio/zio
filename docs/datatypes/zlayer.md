@@ -21,8 +21,8 @@ import zio._
 
 object Example extends zio.App {
 
-  def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
-    zio.provideLayer(nameLayer).as(0)
+  def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] =
+    zio.provideLayer(nameLayer).as(ExitCode.success)
 
   val zio = for {
     name <- ZIO.access[Has[String]](_.get)
@@ -102,7 +102,7 @@ object ZLayerApp0 extends zio.App {
     } yield ()
 
   def run(args: List[String]) =
-    program.provideLayer(env).fold(_ => 1, _ => 0)
+    program.provideLayer(env).exitCode
 
 }
 
