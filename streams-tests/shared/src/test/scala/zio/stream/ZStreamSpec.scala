@@ -1706,6 +1706,53 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
           })
         ),
+        suite("mergeTerminateLeft")(
+          testM("terminates as soon as the first stream terminates") {
+            for {
+              queue1  <- Queue.unbounded[Int]
+              queue2  <- Queue.unbounded[Int]
+              stream1 = ZStream.fromQueue(queue1)
+              stream2 = ZStream.fromQueue(queue2)
+              fiber   <- stream1.mergeTerminateLeft(stream2).runCollect.fork
+              _       <- queue1.offer(1) *> TestClock.adjust(1.second)
+              _       <- queue1.offer(2) *> TestClock.adjust(1.second)
+              _       <- queue1.shutdown *> TestClock.adjust(1.second)
+              _       <- queue2.offer(3)
+              result  <- fiber.join
+            } yield assert(result)(equalTo(List(1, 2)))
+          }
+        ),
+        suite("mergeTerminateRight")(
+          testM("terminates as soon as the second stream terminates") {
+            for {
+              queue1  <- Queue.unbounded[Int]
+              queue2  <- Queue.unbounded[Int]
+              stream1 = ZStream.fromQueue(queue1)
+              stream2 = ZStream.fromQueue(queue2)
+              fiber   <- stream1.mergeTerminateRight(stream2).runCollect.fork
+              _       <- queue2.offer(2) *> TestClock.adjust(1.second)
+              _       <- queue2.offer(3) *> TestClock.adjust(1.second)
+              _       <- queue2.shutdown *> TestClock.adjust(1.second)
+              _       <- queue1.offer(1)
+              result  <- fiber.join
+            } yield assert(result)(equalTo(List(2, 3)))
+          }
+        ),
+        suite("mergeTerminateEither")(
+          testM("terminates as soon as either stream terminates") {
+            for {
+              queue1  <- Queue.unbounded[Int]
+              queue2  <- Queue.unbounded[Int]
+              stream1 = ZStream.fromQueue(queue1)
+              stream2 = ZStream.fromQueue(queue2)
+              fiber   <- stream1.mergeTerminateEither(stream2).runCollect.fork
+              _       <- queue1.shutdown
+              _       <- TestClock.adjust(1.second)
+              _       <- queue2.offer(1)
+              result  <- fiber.join
+            } yield assert(result)(isEmpty)
+          }
+        ),
         suite("mergeWith")(
           testM("equivalence with set union")(checkM(streamOfInts, streamOfInts) {
             (s1: ZStream[Any, String, Int], s2: ZStream[Any, String, Int]) =>
