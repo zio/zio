@@ -756,15 +756,15 @@ object Chunk {
     (if (array.isEmpty) Empty
      else
        array.asInstanceOf[AnyRef] match {
-         case x: Array[AnyRef]  => RefChunkArr(x)
-         case x: Array[Int]     => IntChunkArr(x)
-         case x: Array[Double]  => DoubleChunkArr(x)
-         case x: Array[Long]    => LongChunkArr(x)
-         case x: Array[Float]   => FloatChunkArr(x)
-         case x: Array[Char]    => CharChunkArr(x)
-         case x: Array[Byte]    => ByteChunkArr(x)
-         case x: Array[Short]   => ShortChunkArr(x)
-         case x: Array[Boolean] => BooleanChunkArr(x)
+         case x: Array[AnyRef]  => AnyRefArray(x)
+         case x: Array[Int]     => IntArray(x)
+         case x: Array[Double]  => DoubleArray(x)
+         case x: Array[Long]    => LongArray(x)
+         case x: Array[Float]   => FloatArray(x)
+         case x: Array[Char]    => CharArray(x)
+         case x: Array[Byte]    => ByteArray(x)
+         case x: Array[Short]   => ShortArray(x)
+         case x: Array[Boolean] => BooleanArray(x)
        }).asInstanceOf[Chunk[A]]
 
   /**
@@ -1337,37 +1337,37 @@ object Chunk {
     private val CharClassBox    = classTag[java.lang.Character]
   }
 
-  final case class RefChunkArr[A <: AnyRef](array: Array[A]) extends Arr[A]
+  final case class AnyRefArray[A <: AnyRef](array: Array[A]) extends Arr[A]
 
-  final case class ByteChunkArr(array: Array[Byte]) extends Arr[Byte] {
+  final case class ByteArray(array: Array[Byte]) extends Arr[Byte] {
     override def byte(index: Int)(implicit ev: Byte <:< Byte): Byte = array(index)
   }
 
-  final case class CharChunkArr(array: Array[Char]) extends Arr[Char] {
+  final case class CharArray(array: Array[Char]) extends Arr[Char] {
     override def char(index: Int)(implicit ev: Char <:< Char): Char = array(index)
   }
 
-  final case class IntChunkArr(array: Array[Int]) extends Arr[Int] {
+  final case class IntArray(array: Array[Int]) extends Arr[Int] {
     override def int(index: Int)(implicit ev: Int <:< Int): Int = array(index)
   }
 
-  final case class LongChunkArr(array: Array[Long]) extends Arr[Long] {
+  final case class LongArray(array: Array[Long]) extends Arr[Long] {
     override def long(index: Int)(implicit ev: Long <:< Long): Long = array(index)
   }
 
-  final case class DoubleChunkArr(array: Array[Double]) extends Arr[Double] {
+  final case class DoubleArray(array: Array[Double]) extends Arr[Double] {
     override def double(index: Int)(implicit ev: Double <:< Double): Double = array(index)
   }
 
-  final case class FloatChunkArr(array: Array[Float]) extends Arr[Float] {
+  final case class FloatArray(array: Array[Float]) extends Arr[Float] {
     override def float(index: Int)(implicit ev: Float <:< Float): Float = array(index)
   }
 
-  final case class ShortChunkArr(array: Array[Short]) extends Arr[Short] {
+  final case class ShortArray(array: Array[Short]) extends Arr[Short] {
     override def short(index: Int)(implicit ev: Short <:< Short): Short = array(index)
   }
 
-  final case class BooleanChunkArr(array: Array[Boolean]) extends Arr[Boolean] {
+  final case class BooleanArray(array: Array[Boolean]) extends Arr[Boolean] {
     override def boolean(index: Int)(implicit ev: Boolean <:< Boolean): Boolean = array(index)
   }
 }
