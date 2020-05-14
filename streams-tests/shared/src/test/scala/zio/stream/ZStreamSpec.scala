@@ -741,12 +741,17 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           }
         ),
-        testM("drain")(
-          for {
-            ref <- Ref.make(List[Int]())
-            _   <- ZStream.range(0, 10).mapM(i => ref.update(i :: _)).drain.runDrain
-            l   <- ref.get
-          } yield assert(l.reverse)(equalTo(Range(0, 10).toList))
+        suite("drain")(
+          testM("drain")(
+            for {
+              ref <- Ref.make(List[Int]())
+              _   <- ZStream.range(0, 10).mapM(i => ref.update(i :: _)).drain.runDrain
+              l   <- ref.get
+            } yield assert(l.reverse)(equalTo(Range(0, 10).toList))
+          ),
+          testM("isn't too eager") {
+            (ZStream(1) ++ ZStream.fail("fail")).drain.process.use(pull => assertM(pull.run)(succeeds(isEmpty)))
+          }
         ),
         suite("drainFork")(
           testM("runs the other stream in the background") {
