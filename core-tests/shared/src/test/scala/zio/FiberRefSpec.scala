@@ -192,7 +192,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           value    <- fiberRef.get
         } yield assert(value)(equalTo(initial))
       } @@ zioTag(errors),
-      testM("fork function is applied on fork") {
+      testM("fork function is applied on fork - 1") {
         def increment(x: Int): Int = x + 1
         for {
           fiberRef <- FiberRef.make(initial = 0, fork = increment)
@@ -200,6 +200,15 @@ object FiberRefSpec extends ZIOBaseSpec {
           _        <- child.join
           value    <- fiberRef.get
         } yield assert(value)(equalTo(1))
+      },
+      testM("fork function is applied on fork - 2") {
+        def increment(x: Int): Int = x + 1
+        for {
+          fiberRef <- FiberRef.make(initial = 0, fork = increment)
+          child    <- ZIO.unit.fork.flatMap(_.join).fork
+          _        <- child.join
+          value    <- fiberRef.get
+        } yield assert(value)(equalTo(2))
       },
       testM("join function is applied on join - 1") {
         for {
