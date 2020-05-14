@@ -524,6 +524,23 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   }
 
   /**
+   * Switches over to the stream produced by the provided function in case this one
+   * fails with some typed error.
+   */
+  final def catchSome[R1 <: R, E1 >: E, O1 >: O](pf: PartialFunction[E, ZStream[R1, E1, O1]]): ZStream[R1, E1, O1] =
+    catchAll(pf.applyOrElse[E, ZStream[R1, E1, O1]](_, ZStream.fail(_)))
+
+  /**
+   * Switches over to the stream produced by the provided function in case this one
+   * fails with some errors. Allows recovery from all causes of failure, including interruption if the
+   * stream is uninterruptible.
+   */
+  final def catchSomeCause[R1 <: R, E1 >: E, O1 >: O](
+    pf: PartialFunction[Cause[E], ZStream[R1, E1, O1]]
+  ): ZStream[R1, E1, O1] =
+    catchAllCause(pf.applyOrElse[Cause[E], ZStream[R1, E1, O1]](_, ZStream.halt(_)))
+
+  /**
    * Re-chunks the elements of the stream into chunks of
    * `n` elements each.
    * The last chunk might contain less than `n` elements
@@ -2560,25 +2577,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def timeoutTo[R1 <: R, E1 >: E, O2 >: O](
     d: Duration
-  )(that: ZStream[R1, E1, O2]): ZStream[R1 with Clock, E1, O2] =
-    ZStream[R1 with Clock, E1, O2] {
-      for {
-        currStream   <- Ref.make[ZIO[R1, Option[E1], Chunk[O2]]](Pull.end).toManaged_
-        switchStream <- ZManaged.switchable[R1, Nothing, ZIO[R1, Option[E1], Chunk[O2]]]
-        switched     <- Ref.make(false).toManaged_
-        _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
-        pull = {
-          val effect       = currStream.get.flatten
-          lazy val switch  = switched.set(true) *> switchStream(that.process).flatMap(currStream.set) *> go
-          lazy val timeout = effect.timeout(d).flatMap(_.map(Pull.emit).getOrElse(switch))
-
-          lazy val go: ZIO[R1 with Clock, Option[E1], Chunk[O2]] =
-            switched.get.flatMap(if (_) effect else timeout)
-
-          go
-        }
-      } yield pull
-    }
+  )(that: ZStream[R1, E1, O2]): ZStream[R1 with Clock, E1, O2] = {
+    object StreamTimeout extends Throwable
+    self.timeoutErrorCause(Cause.die(StreamTimeout))(d).catchSomeCause { case Cause.Die(StreamTimeout) => that }
+  }
 
   /**
    * Converts this stream of bytes into a `java.io.InputStream` wrapped in a [[ZManaged]].
