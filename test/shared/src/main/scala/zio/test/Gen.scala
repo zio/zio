@@ -266,12 +266,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The values generated will have a precision equal to the precision of the
    * difference between `max` and `min`.
    */
-  def bigDecimal(min: BigDecimal, max: BigDecimal): Gen[Random, BigDecimal] = {
-    val difference = max - min
-    val decimals   = difference.scale max 0
-    val bigInt     = (difference * BigDecimal(10).pow(decimals)).toBigInt
-    Gen.bigInt(0, bigInt).map(bigInt => min + BigDecimal(bigInt) / BigDecimal(10).pow(decimals))
-  }
+  def bigDecimal(min: BigDecimal, max: BigDecimal): Gen[Random, BigDecimal] =
+    if (min > max)
+      Gen.fromEffect(UIO.die(new IllegalArgumentException("invalid bounds")))
+    else {
+      val difference = max - min
+      val decimals   = difference.scale max 0
+      val bigInt     = (difference * BigDecimal(10).pow(decimals)).toBigInt
+      Gen.bigInt(0, bigInt).map(bigInt => min + BigDecimal(bigInt) / BigDecimal(10).pow(decimals))
+    }
 
   /**
    * A generator of big integers inside the specified range: [start, end].
@@ -279,16 +282,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def bigInt(min: BigInt, max: BigInt): Gen[Random, BigInt] =
     Gen.fromEffectSample {
-      val bitLength  = (max - min).bitLength
-      val byteLength = ((bitLength.toLong + 7) / 8).toInt
-      val excessBits = byteLength * 8 - bitLength
-      val mask       = (1 << (8 - excessBits)) - 1
-      val effect = nextBytes(byteLength).map { bytes =>
-        val arr = bytes.toArray
-        arr(0) = (arr(0) & mask).toByte
-        min + BigInt(arr)
-      }.doUntil(n => min <= n && n <= max)
-      effect.map(Sample.shrinkIntegral(min))
+      if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
+      else {
+        val bitLength  = (max - min).bitLength
+        val byteLength = ((bitLength.toLong + 7) / 8).toInt
+        val excessBits = byteLength * 8 - bitLength
+        val mask       = (1 << (8 - excessBits)) - 1
+        val effect = nextBytes(byteLength).map { bytes =>
+          val arr = bytes.toArray
+          arr(0) = (arr(0) & mask).toByte
+          min + BigInt(arr)
+        }.doUntil(n => min <= n && n <= max)
+        effect.map(Sample.shrinkIntegral(min))
+      }
     }
 
   /**
@@ -397,10 +403,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   def double(min: Double, max: Double): Gen[Random, Double] =
-    uniform.map { r =>
-      val n = min + r * (max - min)
-      if (n < max) n else Math.nextAfter(max, Double.NegativeInfinity)
-    }
+    if (min > max)
+      Gen.fromEffect(UIO.die(new IllegalArgumentException("invalid bounds")))
+    else
+      uniform.map { r =>
+        val n = min + r * (max - min)
+        if (n < max) n else Math.nextAfter(max, Double.NegativeInfinity)
+      }
 
   def either[R <: Random, A, B](left: Gen[R, A], right: Gen[R, B]): Gen[R, Either[A, B]] =
     oneOf(left.map(Left(_)), right.map(Right(_)))
@@ -459,11 +468,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def int(min: Int, max: Int): Gen[Random, Int] =
     Gen.fromEffectSample {
-      val difference = max - min + 1
-      val effect =
-        if (difference > 0) nextIntBounded(difference).map(min + _)
-        else nextInt.doUntil(n => min <= n && n <= max)
-      effect.map(Sample.shrinkIntegral(min))
+      if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
+      else {
+        val difference = max - min + 1
+        val effect =
+          if (difference > 0) nextIntBounded(difference).map(min + _)
+          else nextInt.doUntil(n => min <= n && n <= max)
+        effect.map(Sample.shrinkIntegral(min))
+      }
     }
 
   /**
@@ -497,11 +509,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def long(min: Long, max: Long): Gen[Random, Long] =
     Gen.fromEffectSample {
-      val difference = max - min + 1
-      val effect =
-        if (difference > 0) nextLongBounded(difference).map(min + _)
-        else nextLong.doUntil(n => min <= n && n <= max)
-      effect.map(Sample.shrinkIntegral(min))
+      if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
+      else {
+        val difference = max - min + 1
+        val effect =
+          if (difference > 0) nextLongBounded(difference).map(min + _)
+          else nextLong.doUntil(n => min <= n && n <= max)
+        effect.map(Sample.shrinkIntegral(min))
+      }
     }
 
   /**
@@ -699,10 +714,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def vectorOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
     listOfN(n)(g).map(_.toVector)
 
+  /**
+   * A generator which chooses one of the given generators according to their
+   * weights. For example, the following generator will generate 90% true and
+   * 10% false values.
+   * {{{
+   * val trueFalse = Gen.weighted((Gen.const(true), 9), (Gen.const(false), 1))
+   * }}}
+   */
   def weighted[R <: Random, A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
     val sum = gs.map(_._2).sum
     val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) {
-      case ((map, acc), (gen, d)) => (map.updated((acc + d) / sum, gen), acc + d)
+      case ((map, acc), (gen, d)) =>
+        if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)
+        else (map, acc)
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }

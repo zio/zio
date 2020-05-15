@@ -140,11 +140,11 @@ object ZIOSpec extends ZIOBaseSpec {
           ref   <- Ref.make(0)
           cache <- incrementAndGet(ref).cached(60.minutes)
           a     <- cache
-          _     <- TestClock.advance(59.minutes)
+          _     <- TestClock.adjust(59.minutes)
           b     <- cache
-          _     <- TestClock.advance(1.minute)
+          _     <- TestClock.adjust(1.minute)
           c     <- cache
-          _     <- TestClock.advance(59.minutes)
+          _     <- TestClock.adjust(59.minutes)
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       },
@@ -2856,6 +2856,17 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(parentPool)(equalTo(childPool))
         io.lock(executor)
       } @@ jvm(nonFlaky(100))
+    ),
+    suite("someOrElse")(
+      testM("extracts the value from Some") {
+        assertM(UIO.succeed(Some(1)).someOrElse(2))(equalTo(1))
+      },
+      testM("falls back to the default value if None") {
+        assertM(UIO.succeed(None).someOrElse(42))(equalTo(42))
+      },
+      testM("does not change failed state") {
+        assertM(ZIO.fail(ExampleError).someOrElse(42).run)(fails(equalTo(ExampleError)))
+      } @@ zioTag(errors)
     ),
     suite("someOrFail")(
       testM("extracts the optional value") {

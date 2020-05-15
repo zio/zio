@@ -576,8 +576,8 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.FiberRefNew =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefNew[Any]]
 
-                    val fiberRef = new FiberRef[Any](zio.initialValue, zio.combine)
-                    fiberRefLocals.put(fiberRef, zio.initialValue)
+                    val fiberRef = new FiberRef[Any](zio.initial, zio.onFork, zio.onJoin)
+                    fiberRefLocals.put(fiberRef, zio.initial)
 
                     curZio = nextInstr(fiberRef)
 
@@ -672,7 +672,11 @@ private[zio] final class FiberContext[E, A](
    */
   def fork[E, A](zio: IO[E, A]): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
-    childFiberRefLocals.putAll(fiberRefLocals)
+    val locals                              = fiberRefLocals.asScala: @silent("JavaConverters")
+    locals.foreach {
+      case (fiberRef, value) =>
+        childFiberRefLocals.put(fiberRef, fiberRef.fork(value))
+    }
 
     val tracingRegion = inTracingRegion
     val ancestry =
@@ -748,7 +752,7 @@ private[zio] final class FiberContext[E, A](
       UIO.foreach_(locals) {
         case (fiberRef, value) =>
           val ref = fiberRef.asInstanceOf[FiberRef[Any]]
-          ref.update(old => ref.combine(old, value))
+          ref.update(old => ref.join(old, value))
       }
   }
 

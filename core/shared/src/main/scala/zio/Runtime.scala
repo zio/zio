@@ -247,18 +247,19 @@ object Runtime {
   ): Runtime.Managed[R] = {
     val runtime = Runtime((), platform)
     val (environment, shutdown) = runtime.unsafeRun {
-      layer.build.reserve.flatMap {
-        case Reservation(acquire, release) =>
-          Ref.make(true).flatMap { finalize =>
+      ZManaged.ReleaseMap.make.flatMap { releaseMap =>
+        layer.build.zio.provide(((), releaseMap)).flatMap {
+          case (_, acquire) =>
             val finalizer = () =>
               runtime.unsafeRun {
-                release(Exit.unit).whenM(finalize.getAndSet(false)).uninterruptible
+                releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
               }
-            UIO.effectTotal(Platform.addShutdownHook(finalizer)) *>
-              acquire.map((_, finalizer))
-          }
+
+            UIO.effectTotal(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+        }
       }
     }
+
     Runtime.Managed(environment, platform, shutdown)
   }
 }

@@ -360,6 +360,10 @@ object GenSpec extends ZIOBaseSpec {
       testM("weighted generates weighted distribution") {
         val weighted = Gen.weighted((Gen.const(true), 10), (Gen.const(false), 90))
         checkSample(weighted)(isTrue, ps => ps.count(!_) > ps.count(identity))
+      },
+      testM("weighted never chooses a generator with zero probability") {
+        val weighted = Gen.weighted((Gen.const(true), 1), (Gen.const(false), 0))
+        checkSample(weighted)(isTrue, ps => ps.forall(identity))
       }
     ),
     suite("shrinks")(
