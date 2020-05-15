@@ -622,6 +622,30 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(equalTo(List("s2", "s1")))
           }
         ),
+        suite("catchSome")(
+          testM("recovery from some errors") {
+            val s1 = ZStream(1, 2) ++ ZStream.fail("Boom")
+            val s2 = ZStream(3, 4)
+            s1.catchSome { case "Boom" => s2 }.runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4))))
+          },
+          testM("fails stream when partial function does not match") {
+            val s1 = ZStream(1, 2) ++ ZStream.fail("Boom")
+            val s2 = ZStream(3, 4)
+            s1.catchSome { case "Boomer" => s2 }.runCollect.either.map(assert(_)(isLeft(equalTo("Boom"))))
+          }
+        ),
+        suite("catchSomeCause")(
+          testM("recovery from some errors") {
+            val s1 = ZStream(1, 2) ++ ZStream.halt(Cause.Fail("Boom"))
+            val s2 = ZStream(3, 4)
+            s1.catchSomeCause { case Cause.Fail("Boom") => s2 }.runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4))))
+          },
+          testM("halts stream when partial function does not match") {
+            val s1 = ZStream(1, 2) ++ ZStream.fail("Boom")
+            val s2 = ZStream(3, 4)
+            s1.catchSomeCause { case Cause.empty => s2 }.runCollect.either.map(assert(_)(isLeft(equalTo("Boom"))))
+          }
+        ),
         testM("collect") {
           assertM(ZStream(Left(1), Right(2), Left(3)).collect {
             case Right(n) => n
