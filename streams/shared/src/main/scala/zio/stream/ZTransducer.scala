@@ -10,9 +10,8 @@ import zio._
 //
 //   Stated differently, after a first push(None), all subsequent push(None) must
 //   result in Chunk.empty.
-abstract class ZTransducer[-R, +E, -I, +O](
-  val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
-) extends ZConduit[R, E, I, O, Nothing](push.map(_.andThen(_.mapError(Left(_))))) { self =>
+abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]) {
+  self =>
 
   /**
    * Compose this transducer with another transducer, resulting in a composite transducer.
@@ -31,6 +30,75 @@ abstract class ZTransducer[-R, +E, -I, +O](
         }
       }
     }
+
+  /**
+   * Symbolic alias for [[ZTransducer#zip]].
+   */
+  final def <&>[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, (O, O2)] =
+    self zip that
+
+  /**
+   * Symbolic alias for [[ZTransducer#zipLeft]].
+   */
+  final def <&[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O] =
+    self zipLeft that
+
+  /**
+   * Symbolic alias for [[ZTransducer#zipRight]].
+   */
+  final def &>[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O2] =
+    self zipRight that
+
+  /**
+   * Zips this transducer with another point-wise, but keeps only the outputs of this transducer.
+   */
+  def zipLeft[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O] =
+    zipWith(that)((o, _) => o)
+
+  /**
+   * Zips this transducer with another point-wise, but keeps only the outputs of the other transducer.
+   */
+  def zipRight[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O2] =
+    zipWith(that)((_, o2) => o2)
+
+  /**
+   * Zips this transducer with another point-wise and emits tuples of elements from both transducers.
+   */
+  def zip[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, (O, O2)] =
+    zipWith(that)((_, _))
+
+  /**
+   * Zips this transducer with another point-wise and applies the function to the paired elements.
+   */
+  def zipWith[R1 <: R, E1 >: E, I1 <: I, O2, O3](
+    that: ZTransducer[R1, E1, I1, O2]
+  )(f: (O, O2) => O3): ZTransducer[R1, E1, I1, O3] = {
+    type State = Either[Chunk[O], Chunk[O2]]
+    ZTransducer {
+      for {
+        ref <- ZRef.make[State](Left(Chunk.empty)).toManaged_
+        p1  <- self.push
+        p2  <- that.push
+        push = (in: Option[Chunk[I1]]) => {
+          ref.get.flatMap { excess =>
+            for {
+              res <- p1(in).zipWithPar(p2(in)) {
+                      case (leftUpd, rightUpd) =>
+                        val (left, right) = excess.fold(l => (l ++ leftUpd, rightUpd), r => (leftUpd, r ++ rightUpd))
+                        stream.internal.Utils.zipChunks(left, right, f)
+                    }
+              (emit, newExcess) = res
+              _                 <- ref.set(in.fold(Left(Chunk.empty): Either[Chunk[O], Chunk[O2]])(_ => newExcess))
+            } yield {
+              emit
+            }
+          }
+        }
+      } yield {
+        push
+      }
+    }
+  }
 
   /**
    * Compose this transducer with a sink, resulting in a sink that processes elements by piping
@@ -71,6 +139,24 @@ abstract class ZTransducer[-R, +E, -I, +O](
     ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
 
   /**
+   * Transforms the chunks emitted by this transducer.
+   */
+  final def mapChunks[O2](f: Chunk[O] => Chunk[O2]): ZTransducer[R, E, I, O2] =
+    ZTransducer {
+      self.push.map(push => (input: Option[Chunk[I]]) => push(input).map(f))
+    }
+
+  /**
+   * Effectfully transforms the chunks emitted by this transducer.
+   */
+  final def mapChunksM[R1 <: R, E1 >: E, O2](
+    f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
+  ): ZTransducer[R1, E1, I, O2] =
+    ZTransducer {
+      self.push.map(push => (input: Option[Chunk[I]]) => push(input).flatMap(f))
+    }
+
+  /**
    * Transforms the outputs of this transducer.
    */
   final def mapError[E1](f: E => E1): ZTransducer[R, E1, I, O] =
@@ -81,7 +167,6 @@ abstract class ZTransducer[-R, +E, -I, +O](
    */
   final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
     ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
-
 }
 
 object ZTransducer {
@@ -103,36 +188,8 @@ object ZTransducer {
    */
   def identity[I]: ZTransducer[Any, Nothing, I, I] =
     ZTransducer.fromPush {
-      case Some(is) => ZIO.succeed(is)
-      case None     => ZIO.succeed(Chunk.empty)
-    }
-
-  /**
-   * A transducer that re-chunks the elements fed to it into chunks of up to
-   * `n` elements each.
-   */
-  def chunkN[I](n: Int): ZTransducer[Any, Nothing, I, I] =
-    ZTransducer {
-      for {
-        buffered <- ZRef.makeManaged[Chunk[I]](Chunk.empty)
-        push = { (input: Option[Chunk[I]]) =>
-          input match {
-            case None =>
-              buffered
-                .modify(buf => (if (buf.isEmpty) Push.emit(Chunk.empty) else Push.emit(buf)) -> Chunk.empty)
-                .flatten
-            case Some(is) =>
-              buffered.modify { buf0 =>
-                val buf = buf0 ++ is
-                if (buf.length >= n) {
-                  val (out, buf1) = buf.splitAt(n)
-                  Push.emit(out) -> buf1
-                } else
-                  Push.next -> buf
-              }.flatten
-          }
-        }
-      } yield push
+      case Some(is) => ZIO.succeedNow(is)
+      case None     => ZIO.succeedNow(Chunk.empty)
     }
 
   /**
@@ -537,6 +594,24 @@ object ZTransducer {
     ZTransducer(Managed.succeed(push))
 
   /**
+   * Creates a transducer that returns the first element of the stream, if it exists.
+   */
+  def head[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+    foldLeft[O, Option[O]](Option.empty[O]) {
+      case (acc, a) =>
+        acc match {
+          case Some(_) => acc
+          case None    => Some(a)
+        }
+    }
+
+  /**
+   * Creates a transducer that returns the last element of the stream, if it exists.
+   */
+  def last[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+    foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
+
+  /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
   val splitLines: ZTransducer[Any, Nothing, String, String] =
@@ -545,8 +620,8 @@ object ZTransducer {
         {
           case None =>
             stateRef.getAndSet((None, false)).flatMap {
-              case (None, _)      => ZIO.succeed(Chunk.empty)
-              case (Some(str), _) => ZIO.succeed(Chunk(str))
+              case (None, _)      => ZIO.succeedNow(Chunk.empty)
+              case (Some(str), _) => ZIO.succeedNow(Chunk(str))
             }
 
           case Some(strings) =>
@@ -597,6 +672,62 @@ object ZTransducer {
     }
 
   /**
+   * Splits strings on a delimiter.
+   */
+  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] =
+    ZTransducer {
+      ZRef.makeManaged[(Option[String], Int)](None -> 0).map { state =>
+        {
+          case None =>
+            state.modify {
+              case s @ (None, _) => Chunk.empty     -> s
+              case (Some(s), _)  => Chunk.single(s) -> (None -> 0)
+            }
+          case Some(is) =>
+            state.modify { s0 =>
+              var out: mutable.ArrayBuffer[String] = null
+              var chunkIndex                       = 0
+              var buffer                           = s0._1.getOrElse("")
+              var delimIndex                       = s0._2
+              while (chunkIndex < is.length) {
+                val in    = buffer + is(chunkIndex)
+                var index = buffer.length
+                var start = 0
+                buffer = ""
+                while (index < in.length) {
+                  while (delimIndex < delimiter.length && index < in.length && in(index) == delimiter(delimIndex)) {
+                    delimIndex += 1
+                    index += 1
+                  }
+                  if (delimIndex == delimiter.length || in == "") {
+                    if (out eq null) out = mutable.ArrayBuffer[String]()
+                    out += in.substring(start, index - delimiter.length)
+                    delimIndex = 0
+                    start = index
+                  }
+                  if (index < in.length) {
+                    delimIndex = 0
+                    while (index < in.length && in(index) != delimiter(0)) index += 1;
+                  }
+                }
+
+                if (start < in.length) {
+                  buffer = in.drop(start)
+                }
+
+                chunkIndex += 1
+              }
+
+              val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray)
+              val buf   = if (buffer == "") None else Some(buffer)
+
+              chunk -> (buf -> delimIndex)
+            }
+        }
+      }
+    }
+
+  /**
    * Decodes chunks of UTF-8 bytes into strings.
    *
    * This transducer uses the String constructor's behavior when handling malformed byte
@@ -634,8 +765,8 @@ object ZTransducer {
         {
           case None =>
             stateRef.getAndSet(Chunk.empty).flatMap { leftovers =>
-              if (leftovers.isEmpty) ZIO.succeed(Chunk.empty)
-              else ZIO.succeed(Chunk.single(new String(leftovers.toArray[Byte], "UTF-8")))
+              if (leftovers.isEmpty) ZIO.succeedNow(Chunk.empty)
+              else ZIO.succeedNow(Chunk.single(new String(leftovers.toArray[Byte], "UTF-8")))
             }
 
           case Some(bytes) =>

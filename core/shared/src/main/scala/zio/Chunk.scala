@@ -155,36 +155,29 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     drop(i)
   }
 
-  def dropWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = {
-    val len                                       = self.length
-    var dest: ZIO[R, E, (Boolean, Int, Array[A])] = UIO.succeedNow((true, 0, null.asInstanceOf[Array[A]]))
+  def dropWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
+    val len     = self.length
+    val builder = ChunkBuilder.make[A]()
+    builder.sizeHint(len)
+    var dropping: ZIO[R, E, Boolean] = UIO.succeedNow(true)
 
     var i = 0
     while (i < len) {
       val j = i
-      dest = dest.flatMap {
-        case (dropping, skip, array) =>
-          val a = self(j)
-          (if (dropping) p(a) else UIO(false)).map {
-            case true => (true, skip + 1, array)
-            case false =>
-              val array2 = if (array == null) {
-                implicit val A: ClassTag[A] = Chunk.Tags.fromValue(a)
-                Array.ofDim[A](len - skip)
-              } else array
-              array2(j - skip) = a
-              (false, skip, array2)
-          }
+      dropping = dropping.flatMap { d =>
+        val a = self(j)
+        (if (d) p(a) else UIO(false)).map {
+          case true =>
+            true
+          case false =>
+            builder += a
+            false
+        }
       }
-
       i += 1
     }
 
-    dest.map {
-      case (_, _, array) =>
-        if (array == null) Chunk.empty
-        else Chunk.fromArray(array)
-    }
+    dropping as builder.result()
   }
 
   override final def equals(that: Any): Boolean =
@@ -248,7 +241,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Filters this chunk by the specified effectful predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
-  final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = {
+  final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
     val len     = self.length
     val builder = ChunkBuilder.make[A]()
     builder.sizeHint(len)
@@ -454,33 +447,34 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Statefully and effectfully maps over the elements of this chunk to produce
    * new elements.
    */
-  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] = {
-    val len     = self.length
-    val builder = ChunkBuilder.make[B]()
-    builder.sizeHint(len)
-    var dest: ZIO[R, E, S1] = UIO.succeedNow(s1)
+  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] =
+    ZIO.effectSuspendTotal {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+      var dest: ZIO[R, E, S1] = UIO.succeedNow(s1)
 
-    var i = 0
-    while (i < len) {
-      val j = i
-      dest = dest.flatMap { state =>
-        f1(state, self(j)).map {
-          case (state2, b) =>
-            builder += b
-            state2
+      var i = 0
+      while (i < len) {
+        val j = i
+        dest = dest.flatMap { state =>
+          f1(state, self(j)).map {
+            case (state2, b) =>
+              builder += b
+              state2
+          }
         }
+
+        i += 1
       }
 
-      i += 1
+      dest.map((_, builder.result()))
     }
-
-    dest.map((_, builder.result()))
-  }
 
   /**
    * Effectfully maps the elements of this chunk.
    */
-  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
+  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = ZIO.effectSuspendTotal {
     val len     = self.length
     val builder = ChunkBuilder.make[B]()
     builder.sizeHint(len)
@@ -501,7 +495,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
     val len                        = self.length
-    var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
+    var array: ZIO[R, E, Array[B]] = IO.succeedNow(null.asInstanceOf[Array[B]])
     var i                          = 0
 
     while (i < len) {
@@ -555,7 +549,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   def materialize[A1 >: A]: Chunk[A1] =
     self.toArrayOption[A1] match {
       case None        => Chunk.Empty
-      case Some(array) => Chunk.Arr(array)
+      case Some(array) => Chunk.fromArray(array)
     }
 
   /**
@@ -575,8 +569,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def splitWhere(f: A => Boolean): (Chunk[A], Chunk[A]) = {
     var i = 0
-    while (i < length && f(self(i)))
-      i += 1
+    while (i < length && f(self(i))) i += 1
 
     splitAt(i)
   }
@@ -614,7 +607,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Converts the chunk into an array.
    */
-  override def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = {
+  override def toArray[A1 >: A: ClassTag]: Array[A1] = {
     val dest = Array.ofDim[A1](self.length)
 
     self.toArray(0, dest)
@@ -776,7 +769,19 @@ object Chunk {
    * Returns a chunk backed by an array.
    */
   def fromArray[A](array: Array[A]): Chunk[A] =
-    if (array.isEmpty) Empty else Arr(array)
+    (if (array.isEmpty) Empty
+     else
+       array.asInstanceOf[AnyRef] match {
+         case x: Array[AnyRef]  => AnyRefArray(x)
+         case x: Array[Int]     => IntArray(x)
+         case x: Array[Double]  => DoubleArray(x)
+         case x: Array[Long]    => LongArray(x)
+         case x: Array[Float]   => FloatArray(x)
+         case x: Array[Char]    => CharArray(x)
+         case x: Array[Byte]    => ByteArray(x)
+         case x: Array[Short]   => ShortArray(x)
+         case x: Array[Boolean] => BooleanArray(x)
+       }).asInstanceOf[Chunk[A]]
 
   /**
    * Returns a chunk backed by a [[java.nio.ByteBuffer]].
@@ -948,7 +953,9 @@ object Chunk {
     }
   }
 
-  private final case class Arr[A](private val array: Array[A]) extends Chunk[A] with Serializable { self =>
+  private[zio] sealed abstract class Arr[A] extends Chunk[A] with Serializable { self =>
+
+    val array: Array[A]
 
     implicit val classTag: ClassTag[A] =
       ClassTag(array.getClass.getComponentType)
@@ -965,7 +972,7 @@ object Chunk {
     override def apply(n: Int): A =
       array(n)
 
-    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
+    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = ZIO.effectSuspendTotal {
       val len     = array.length
       val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
@@ -1009,32 +1016,33 @@ object Chunk {
       builder.result()
     }
 
-    override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
-      val len     = self.length
-      val builder = ChunkBuilder.make[B]()
-      builder.sizeHint(len)
-      var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
+    override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
+      ZIO.effectSuspendTotal {
+        val len     = self.length
+        val builder = ChunkBuilder.make[B]()
+        builder.sizeHint(len)
+        var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
 
-      var i    = 0
-      var done = false
-      val orElse = (_: A) => {
-        done = true
-        UIO.succeedNow(null.asInstanceOf[B])
-      }
-
-      while (!done && i < len) {
-        val j = i
-        // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
-        val rhs = pf.applyOrElse(self(j), orElse)
-        dest = dest.zipWith(rhs) {
-          case (builder, b) =>
-            if (b != null) (builder += b) else builder
+        var i    = 0
+        var done = false
+        val orElse = (_: A) => {
+          done = true
+          UIO.succeedNow(null.asInstanceOf[B])
         }
-        i += 1
-      }
 
-      dest.map(_.result())
-    }
+        while (!done && i < len) {
+          val j = i
+          // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
+          val rhs = pf.applyOrElse(self(j), orElse)
+          dest = dest.zipWith(rhs) {
+            case (builder, b) =>
+              if (b != null) (builder += b) else builder
+          }
+          i += 1
+        }
+
+        dest.map(_.result())
+      }
 
     override def dropWhile(f: A => Boolean): Chunk[A] = {
       val self = array
@@ -1115,7 +1123,7 @@ object Chunk {
       take(i)
     }
 
-    override def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] =
+    override def toArray[A1 >: A: ClassTag]: Array[A1] =
       array.asInstanceOf[Array[A1]]
 
     override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
@@ -1334,7 +1342,7 @@ object Chunk {
     override def materialize[A1]: Chunk[A1] =
       Empty
 
-    override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] =
+    override def toArray[A1: ClassTag]: Array[A1] =
       Array.empty
   }
 
@@ -1386,5 +1394,39 @@ object Chunk {
     private val DoubleClassBox  = classTag[java.lang.Double]
     private val CharClass       = classTag[Char]
     private val CharClassBox    = classTag[java.lang.Character]
+  }
+
+  final case class AnyRefArray[A <: AnyRef](array: Array[A]) extends Arr[A]
+
+  final case class ByteArray(array: Array[Byte]) extends Arr[Byte] {
+    override def byte(index: Int)(implicit ev: Byte <:< Byte): Byte = array(index)
+  }
+
+  final case class CharArray(array: Array[Char]) extends Arr[Char] {
+    override def char(index: Int)(implicit ev: Char <:< Char): Char = array(index)
+  }
+
+  final case class IntArray(array: Array[Int]) extends Arr[Int] {
+    override def int(index: Int)(implicit ev: Int <:< Int): Int = array(index)
+  }
+
+  final case class LongArray(array: Array[Long]) extends Arr[Long] {
+    override def long(index: Int)(implicit ev: Long <:< Long): Long = array(index)
+  }
+
+  final case class DoubleArray(array: Array[Double]) extends Arr[Double] {
+    override def double(index: Int)(implicit ev: Double <:< Double): Double = array(index)
+  }
+
+  final case class FloatArray(array: Array[Float]) extends Arr[Float] {
+    override def float(index: Int)(implicit ev: Float <:< Float): Float = array(index)
+  }
+
+  final case class ShortArray(array: Array[Short]) extends Arr[Short] {
+    override def short(index: Int)(implicit ev: Short <:< Short): Short = array(index)
+  }
+
+  final case class BooleanArray(array: Array[Boolean]) extends Arr[Boolean] {
+    override def boolean(index: Int)(implicit ev: Boolean <:< Boolean): Boolean = array(index)
   }
 }
