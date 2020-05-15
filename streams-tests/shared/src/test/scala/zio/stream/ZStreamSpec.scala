@@ -1893,6 +1893,24 @@ object ZStreamSpec extends ZIOBaseSpec {
           val s2 = ZStream(4, 5, 6)
           s1.orElse(s2).runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
         },
+        testM("orElseEither") {
+          val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
+          val s2 = ZStream.succeed(2)
+          s1.orElseEither(s2).runCollect.map(assert(_)(equalTo(List(Left(1), Right(2)))))
+        },
+        testM("orElseFail") {
+          val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
+          s1.orElseFail("Boomer").runCollect.either.map(assert(_)(isLeft(equalTo("Boomer"))))
+        },
+        testM("orElseOptional") {
+          val s1 = ZStream.succeed(1) ++ ZStream.fail(None)
+          val s2 = ZStream.succeed(2)
+          s1.orElseOptional(s2).runCollect.map(assert(_)(equalTo(List(1, 2))))
+        },
+        testM("orElseSucceed") {
+          val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
+          s1.orElseSucceed(2).runCollect.map(assert(_)(equalTo(List(1, 2))))
+        },
         suite("repeat")(
           testM("repeat")(
             assertM(
@@ -1953,6 +1971,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(equalTo(List(1, 1)))
           }
         ),
+        testM("right") {
+          val s1 = ZStream.succeed(Right(1)) ++ ZStream.succeed(Left(0))
+          s1.right.runCollect.either.map(assert(_)(isLeft(equalTo(None))))
+        },
+        testM("rightOrFail") {
+          val s1 = ZStream.succeed(Right(1)) ++ ZStream.succeed(Left(0))
+          s1.rightOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))
+        },
         suite("runHead")(
           testM("nonempty stream")(
             assertM(ZStream(1, 2, 3, 4).runHead)(equalTo(Some(1)))
@@ -2024,6 +2050,18 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(List("A", "A", "B")))
           )
         ),
+        testM("some") {
+          val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
+          s1.some.runCollect.either.map(assert(_)(isLeft(equalTo(None))))
+        },
+        testM("someOrElse") {
+          val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
+          s1.someOrElse(-1).runCollect.map(assert(_)(equalTo(List(1, -1))))
+        },
+        testM("someOrFail") {
+          val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
+          s1.someOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))
+        },
         suite("take")(
           testM("take")(checkM(streamOfBytes, Gen.anyInt) { (s: ZStream[Any, String, Byte], n: Int) =>
             for {

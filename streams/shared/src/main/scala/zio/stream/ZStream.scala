@@ -1958,8 +1958,42 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * See also [[ZStream#catchAll]].
    */
-  def orElse[R1 <: R, E2, O1 >: O](that: => ZStream[R1, E2, O1])(implicit ev: CanFail[E]): ZStream[R1, E2, O1] =
+  final def orElse[R1 <: R, E2, O1 >: O](that: => ZStream[R1, E2, O1])(implicit ev: CanFail[E]): ZStream[R1, E2, O1] =
     catchAll(_ => that)
+
+  /**
+   * Switches to the provided stream in case this one fails with a typed error.
+   *
+   * See also [[ZStream#catchAll]].
+   */
+  final def orElseEither[R1 <: R, E2, O2](
+    that: => ZStream[R1, E2, O2]
+  )(implicit ev: CanFail[E]): ZStream[R1, E2, Either[O, O2]] =
+    self.map(Left(_)) orElse that.map(Right(_))
+
+  /**
+   * Fails with given error in case this one fails with a typed error.
+   *
+   * See also [[ZStream#catchAll]].
+   */
+  final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E]): ZStream[R, E1, O] =
+    orElse(ZStream.fail(e1))
+
+  /**
+   * Switches to the provided stream in case this one fails with the `None` value.
+   *
+   * See also [[ZStream#catchAll]].
+   */
+  final def orElseOptional[R1 <: R, E1, O1 >: O](
+    that: => ZStream[R1, Option[E1], O1]
+  )(implicit ev: E <:< Option[E1]): ZStream[R1, Option[E1], O1] =
+    catchAll(ev(_).fold(that)(e => ZStream.fail(Some(e))))
+
+  /**
+   * Succeeds with the specified value if this one fails with a typed error.
+   */
+  final def orElseSucceed[O1 >: O](o1: => O1)(implicit ev: CanFail[E]): ZStream[R, Nothing, O1] =
+    orElse(ZStream.succeed(o1))
 
   /**
    * Partition a stream using a predicate. The first stream will contain all element evaluated to true
@@ -2149,6 +2183,18 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         }
       } yield pull
     }
+
+  /**
+   * Fails with the error `None` if value is `Left`.
+   */
+  final def right[O1, O2](implicit ev: O <:< Either[O1, O2]): ZStream[R, Option[E], O2] =
+    self.mapError(Some(_)).rightOrFail(None)
+
+  /**
+   * Fails with fiven error 'e' if value is `Left`.
+   */
+  final def rightOrFail[O1, O2, E1 >: E](e: => E1)(implicit ev: O <:< Either[O1, O2]): ZStream[R, E1, O2] =
+    self.mapM(ev(_).fold(_ => ZIO.fail(e), ZIO.succeedNow(_)))
 
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
@@ -2341,6 +2387,24 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         }
       } yield pull
     }
+
+  /**
+   * Converts an option on values into an option on errors.
+   */
+  final def some[O2](implicit ev: O <:< Option[O2]): ZStream[R, Option[E], O2] =
+    self.mapError(Some(_)).someOrFail(None)
+
+  /**
+   * Extracts the optional value, or returns the given 'default'.
+   */
+  final def someOrElse[O2](default: => O2)(implicit ev: O <:< Option[O2]): ZStream[R, E, O2] =
+    map(_.getOrElse(default))
+
+  /**
+   * Extracts the optional value, or fails with the given error 'e'.
+   */
+  final def someOrFail[O2, E1 >: E](e: => E1)(implicit ev: O <:< Option[O2]): ZStream[R, E1, O2] =
+    self.mapM(ev(_).fold[IO[E1, O2]](ZIO.fail(e))(ZIO.succeedNow(_)))
 
   /**
    * Takes the specified number of elements from this stream.
