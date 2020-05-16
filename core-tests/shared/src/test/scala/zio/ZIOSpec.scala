@@ -907,7 +907,7 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
         } yield assert(result)(isNone)
       }
-    ) @@ zioTag(future, interruption),
+    ) @@ zioTag(future, interruption) @@ jvmOnly,
     suite("head")(
       testM("on non empty list") {
         assertM(ZIO.succeed(List(1, 2, 3)).head.either)(isRight(equalTo(1)))
@@ -2045,7 +2045,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield l
 
         assertM(Live.live(io))(hasSameElements(List("start 1", "release 1", "start 2", "release 2")))
-      } @@ zioTag(regression),
+      } @@ zioTag(regression) @@ jvmOnly,
       testM("interrupt waits for finalizer") {
         val io =
           for {
@@ -2127,7 +2127,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val io = stackIOs(procNum + 1)
 
         assertM(Live.live(io))(equalTo(42))
-      },
+      } @@ jvmOnly,
       testM("interrupt of effectAsyncM register") {
         for {
           release <- Promise.make[Nothing, Unit]
