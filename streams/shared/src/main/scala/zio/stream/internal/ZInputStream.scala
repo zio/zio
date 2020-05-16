@@ -1,8 +1,9 @@
 package zio.stream.internal
 
-import zio.{ Chunk, Exit, FiberFailure, ZIO }
-import zio.Runtime
 import scala.annotation.tailrec
+
+import zio.Runtime
+import zio.{ Chunk, Exit, FiberFailure, ZIO }
 
 private[zio] class ZInputStream(chunks: Iterator[Chunk[Byte]]) extends java.io.InputStream {
   private var current: Iterator[Byte]      = Iterator.empty

@@ -2801,7 +2801,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               val at3 = is.available()
               is.read()
               val at4 = is.available()
-              assert(cold)(equalTo(0)) && assert(at1)(equalTo(2)) && assert(at3)(equalTo(0)) && assert(at4)(equalTo(2))
+              List(assert(cold)(equalTo(0)), assert(at1)(equalTo(2)), assert(at3)(equalTo(0)), assert(at4)(equalTo(2)))
+                .reduce(_ && _)
             }
           )
       }
