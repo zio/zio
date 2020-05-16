@@ -8,6 +8,7 @@ import zio.duration.Duration
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
+import zio.stream.internal.ZInputStream
 
 abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
 
@@ -2650,48 +2651,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Converts this stream of bytes into a `java.io.InputStream` wrapped in a [[ZManaged]].
    * The returned input stream will only be valid within the scope of the ZManaged.
    */
-  def toInputStream(implicit ev0: E <:< Throwable, ev1: O <:< Byte): ZManaged[R, E, java.io.InputStream] = {
-    val (_, _) = (ev0, ev1)
-
+  def toInputStream(implicit ev0: E <:< Throwable, ev1: O <:< Byte): ZManaged[R, E, java.io.InputStream] =
     for {
       runtime <- ZIO.runtime[R].toManaged_
-      pull    <- process
-      javaStream = new java.io.InputStream {
-        val capturedPull           = pull.asInstanceOf[ZIO[R, Option[Throwable], Chunk[Byte]]]
-        var done                   = false
-        var nextIndex: Int         = -1
-        var currChunk: Chunk[Byte] = null
-
-        override def read(): Int =
-          if (done) -1
-          else {
-            if ((currChunk ne null) && nextIndex < currChunk.size) {
-              val result = currChunk(nextIndex)
-              nextIndex += 1
-              result & 0xFF
-            } else {
-              runtime.unsafeRunSync(capturedPull) match {
-                case Exit.Failure(cause) =>
-                  cause.failureOrCause match {
-                    case Left(None) =>
-                      done = true
-                      -1
-                    case Left(Some(throwable)) =>
-                      throw throwable
-                    case Right(otherCause) =>
-                      throw FiberFailure(otherCause)
-                  }
-
-                case Exit.Success(chunk) =>
-                  currChunk = chunk
-                  nextIndex = 0
-                  read()
-              }
-            }
-          }
-      }
-    } yield javaStream
-  }
+      pull    <- process.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Byte]]]]
+    } yield ZInputStream.fromPull(runtime, pull)
 
   /**
    * Converts this stream into a `scala.collection.Iterator` wrapped in a [[ZManaged]].
