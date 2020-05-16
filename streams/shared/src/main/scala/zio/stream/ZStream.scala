@@ -2599,54 +2599,44 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   final def debounce(d: Duration): ZStream[R with Clock, E, O] = {
-    type Loser = Either[Fiber[Nothing, Take[E, O]], Fiber[Nothing, Take[E, O]]]
-
     sealed abstract class State
     case object NotStarted                                extends State
     case class Previous(fiber: Fiber[Nothing, Chunk[O]])  extends State
-    case class Current(fiber: Fiber[Nothing, Take[E, O]]) extends State
+    case class Current(fiber: Fiber[Option[E], Chunk[O]]) extends State
     case object Done                                      extends State
-
-    def race(
-      previous: ZIO[R, Option[E], Chunk[O]],
-      current: ZIO[R, Option[E], Chunk[O]]
-    ): URIO[R, (Take[E, O], Loser)] =
-      previous.run.raceWith(current.run)(
-        (exit, current) => ZIO.done(exit).map(a => (a, Right(current))),
-        (exit, previous) => ZIO.done(exit).map(b => (b, Left(previous)))
-      )
-
-    def store(ref: Ref[State])(chunk: Chunk[O]): URIO[Clock, Chunk[O]] =
-      for {
-        fiber <- clock.sleep(d).as(chunk).fork
-        _     <- ref.set(Previous(fiber))
-        empty <- Pull.emit(Chunk.empty)
-      } yield empty
 
     ZStream[R with Clock, E, O] {
       for {
         chunks <- self.process
         ref    <- Ref.make[State](NotStarted).toManaged_
         pull = {
+          def store(chunk: Chunk[O]): URIO[Clock, Chunk[O]] =
+            clock.sleep(d).as(chunk).fork.flatMap(f => ref.set(Previous(f))) *> Pull.empty
+
           ref.get.flatMap {
             case Current(fiber) =>
-              fiber.join.flatMap(ZIO.done(_)) >>= store(ref)
+              fiber.join >>= store
             case Previous(fiber) =>
-              race(fiber.join, chunks).flatMap {
-                case (Exit.Success(chunk), Left(previous)) =>
-                  previous.interrupt *> store(ref)(chunk)
-                case (Exit.Success(chunk), Right(current)) =>
-                  ref.set(Current(current)) *> Pull.emit(chunk)
-                case (Exit.Failure(cause), loser) =>
-                  Cause.sequenceCauseOption(cause) match {
-                    case Some(e) =>
-                      loser.merge.interrupt *> Pull.halt(e)
-                    case None =>
-                      loser.merge.join.flatMap(ZIO.done(_)).flatMap(Pull.emit) <* ref.set(Done)
-                  }
-              }
+              fiber.join
+                .raceWith(chunks)(
+                  (exit, current) => ZIO.succeedNow((exit, Right(current))),
+                  (exit, previous) => ZIO.succeedNow((exit, Left(previous)))
+                )
+                .flatMap {
+                  case (Exit.Success(chunk), Left(previous)) =>
+                    previous.interrupt *> store(chunk)
+                  case (Exit.Success(chunk), Right(current)) =>
+                    ref.set(Current(current)) *> Pull.emit(chunk)
+                  case (Exit.Failure(cause), loser) =>
+                    Cause.sequenceCauseOption(cause) match {
+                      case Some(e) =>
+                        loser.merge.interrupt *> Pull.halt(e)
+                      case None =>
+                        loser.merge.join.flatMap(Pull.emit) <* ref.set(Done)
+                    }
+                }
             case NotStarted =>
-              chunks >>= store(ref)
+              chunks >>= store
             case Done =>
               Pull.end
           }
@@ -3749,6 +3739,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def fromTake[E, A](t: Take[E, A]): IO[Option[E], Chunk[A]]             = IO.done(t)
     def fail[E](e: E): IO[Option[E], Nothing]                              = IO.fail(Some(e))
     def halt[E](c: Cause[E]): IO[Option[E], Nothing]                       = IO.halt(c).mapError(Some(_))
+    def empty[A]: IO[Nothing, Chunk[A]]                                    = UIO(Chunk.empty)
     val end: IO[Option[Nothing], Nothing]                                  = IO.fail(None)
   }
 
