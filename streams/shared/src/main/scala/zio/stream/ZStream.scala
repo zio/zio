@@ -2598,6 +2598,53 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       } yield pull
     }
 
+  final def debounce[E1 >: E, O2 >: O](d: Duration): ZStream[R with Clock, E1, O2] = {
+    sealed abstract class State
+    case object NotStarted                                  extends State
+    case class Previous(fiber: Fiber[Nothing, Chunk[O2]])   extends State
+    case class Current(fiber: Fiber[Option[E1], Chunk[O2]]) extends State
+    case object Done                                        extends State
+
+    ZStream[R with Clock, E1, O2] {
+      for {
+        chunks <- self.process
+        ref    <- Ref.make[State](NotStarted).toManaged_
+        pull = {
+          def store(chunk: Chunk[O2]): URIO[Clock, Chunk[O2]] =
+            clock.sleep(d).as(chunk).fork.flatMap(f => ref.set(Previous(f))) *> Pull.empty
+
+          ref.get.flatMap {
+            case Previous(fiber) =>
+              fiber.join.raceWith[R with Clock, Option[E1], Option[E1], Chunk[O2], Chunk[O2]](chunks)(
+                {
+                  case (Exit.Success(chunk), current) =>
+                    ref.set(Current(current)) *> Pull.emit(chunk)
+                  case (Exit.Failure(cause), current) =>
+                    current.interrupt *> Pull.halt(cause)
+                }, {
+                  case (Exit.Success(chunk), previous) =>
+                    previous.interrupt *> store(chunk)
+                  case (Exit.Failure(cause), previous) =>
+                    Cause.sequenceCauseOption(cause) match {
+                      case Some(e) =>
+                        previous.interrupt *> Pull.halt(e)
+                      case None =>
+                        previous.join.flatMap(Pull.emit) <* ref.set(Done)
+                    }
+                }
+              )
+            case Current(fiber) =>
+              fiber.join >>= store
+            case NotStarted =>
+              chunks >>= store
+            case Done =>
+              Pull.end
+          }
+        }
+      } yield pull
+    }
+  }
+
   /**
    * Ends the stream if it does not produce a value after d duration.
    */
@@ -3692,6 +3739,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def fromTake[E, A](t: Take[E, A]): IO[Option[E], Chunk[A]]             = IO.done(t)
     def fail[E](e: E): IO[Option[E], Nothing]                              = IO.fail(Some(e))
     def halt[E](c: Cause[E]): IO[Option[E], Nothing]                       = IO.halt(c).mapError(Some(_))
+    def empty[A]: IO[Nothing, Chunk[A]]                                    = UIO(Chunk.empty)
     val end: IO[Option[Nothing], Nothing]                                  = IO.fail(None)
   }
 
