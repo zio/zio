@@ -218,7 +218,7 @@ object ZScope {
      */
     def ensure(key: K, finalizer: A => UIO[Any]): UIO[Boolean] = UIO(unsafeEnsure(key, finalizer))
 
-    private[zio] def unsafeClosed(): Boolean = Sync(finalizers)(opened.get() > 0)
+    private[zio] def unsafeClosed(): Boolean = Sync(finalizers)(opened.get() <= 0)
 
     private[zio] def unsafeClose(a0: A): UIO[Any] =
       Sync(finalizers) {

@@ -1628,6 +1628,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     } yield (f(start, end), value)
 
   /**
+   * Returns an effect with the behavior of this one, but where all child 
+   * fibers forked in the effect are reported to the specified supervisor.
+   */
+  final def supervised(supervisor: Supervisor[Any]): ZIO[R, E, A] = 
+    new ZIO.Supervise(self, supervisor)
+
+  /**
    * An integer that identifies the term in the `ZIO` sum type to which this
    * instance belongs (e.g. `IO.Tags.Succeed`).
    */
