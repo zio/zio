@@ -479,15 +479,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         ref        <- Ref.make[State[E]](NotStarted).toManaged_
         pull = {
           def use[R, E0, O](stream: ZStream[R, E0, O])(state: (ZManaged.Finalizer, Pull[R, E0, O]) => State[E]) =
-            stream.process.zio
-              .provideSome[R]((_, finalizers))
-              .flatMap { case (release, pull) => ref.set(state(release, pull)) *> pull }
-              .uninterruptible
+            ZIO.uninterruptibleMask { restore =>
+              restore(stream.process.zio)
+                .provideSome[R]((_, finalizers))
+                .flatMap { case (release, pull) => ref.set(state(release, pull)) *> restore(pull) }
+            }
 
           def switch(release: ZManaged.Finalizer, e: Cause[Option[E]]): Pull[R1, E2, O1] =
             Cause
               .sequenceCauseOption(e)
-              .map(cause => release(Exit.fail(e)) *> use(f(cause))((_, pull) => Other(pull)))
+              .map(cause => release(Exit.fail(e)).uninterruptible *> use(f(cause))((_, pull) => Other(pull)))
               .getOrElse(Pull.end)
 
           ref.get.flatMap {
