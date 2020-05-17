@@ -2598,19 +2598,19 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       } yield pull
     }
 
-  final def debounce(d: Duration): ZStream[R with Clock, E, O] = {
+  final def debounce[E1 >: E, O2 >: O](d: Duration): ZStream[R with Clock, E1, O2] = {
     sealed abstract class State
-    case object NotStarted                                extends State
-    case class Previous(fiber: Fiber[Nothing, Chunk[O]])  extends State
-    case class Current(fiber: Fiber[Option[E], Chunk[O]]) extends State
-    case object Done                                      extends State
+    case object NotStarted                                  extends State
+    case class Previous(fiber: Fiber[Nothing, Chunk[O2]])   extends State
+    case class Current(fiber: Fiber[Option[E1], Chunk[O2]]) extends State
+    case object Done                                        extends State
 
-    ZStream[R with Clock, E, O] {
+    ZStream[R with Clock, E1, O2] {
       for {
         chunks <- self.process
         ref    <- Ref.make[State](NotStarted).toManaged_
         pull = {
-          def store(chunk: Chunk[O]): URIO[Clock, Chunk[O]] =
+          def store(chunk: Chunk[O2]): URIO[Clock, Chunk[O2]] =
             clock.sleep(d).as(chunk).fork.flatMap(f => ref.set(Previous(f))) *> Pull.empty
 
           ref.get.flatMap {
