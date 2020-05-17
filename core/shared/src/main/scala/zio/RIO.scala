@@ -637,6 +637,12 @@ object RIO {
     ZIO.mapParN(rio1, rio2, rio3, rio4)(f)
 
   /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[R, A, B](f: A => RIO[R, B]): UIO[A => RIO[R, B]] =
+    ZIO.memoize(f)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   def mergeAll[R, A, B](in: Iterable[RIO[R, A]])(zero: B)(f: (B, A) => B): RIO[R, B] =

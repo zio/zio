@@ -1102,6 +1102,17 @@ object ZIOSpec extends ZIOBaseSpec {
         ioMemo
           .flatMap(io => io <*> io)
           .map(tuple => assert(tuple._1)(equalTo(tuple._2)))
+      },
+      testM("memoized function returns the same instance on repeated calls") {
+        for {
+          memoized <- ZIO.memoize((n: Int) => random.nextString(n))
+          a        <- memoized(10)
+          b        <- memoized(10)
+          c        <- memoized(11)
+          d        <- memoized(11)
+        } yield assert(a)(equalTo(b)) &&
+          assert(b)(not(equalTo(c))) &&
+          assert(c)(equalTo(d))
       }
     ),
     suite("merge")(

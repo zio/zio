@@ -3157,6 +3157,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
+   * Returns a memoized version of the specified effectual function.
+   */
+  def memoize[R, E, A, B](f: A => ZIO[R, E, B]): UIO[A => ZIO[R, E, B]] =
+    RefM.make(Map.empty[A, Promise[E, B]]).map { ref => a =>
+      for {
+        promise <- ref.modify { map =>
+                    map.get(a) match {
+                      case Some(promise) => ZIO.succeedNow((promise, map))
+                      case None =>
+                        for {
+                          promise <- Promise.make[E, B]
+                          _       <- f(a).to(promise).fork
+                        } yield (promise, map + (a -> promise))
+                    }
+                  }
+        b <- promise.await
+      } yield b
+    }
+
+  /**
    * Merges an `Iterable[IO]` to a single IO, working sequentially.
    */
   def mergeAll[R, E, A, B](

@@ -599,6 +599,12 @@ object IO {
     ZIO.mapParN(io1, io2, io3, io4)(f)
 
   /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[E, A, B](f: A => IO[E, B]): UIO[A => IO[E, B]] =
+    ZIO.memoize(f)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B)(f: (B, A) => B): IO[E, B] =
