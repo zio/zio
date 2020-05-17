@@ -29,6 +29,16 @@ To learn more about ZIO, see the following references:
 
 ---
 
+# Adopters
+
+Following is a partial list of companies happily using ZIO in
+production to craft concurrent applications.
+
+Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
+
+* [Coralogix](https://coralogix.com)
+* [Hunters.AI](https://hunters.ai)
+
 # Sponsors
 
 [![Scalac][Image-Scalac]][Link-Scalac]
