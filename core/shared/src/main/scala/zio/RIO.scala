@@ -320,6 +320,12 @@ object RIO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterNot]]
+   */
+  def filterNot[R, A](as: Iterable[A])(f: A => RIO[R, Boolean]): RIO[R, List[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
    * @see See [[zio.ZIO.first]]
    */
   def first[A, B]: RIO[(A, B), A] = ZIO.first
@@ -377,7 +383,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.foreachExec]]
    */
-  final def foreachExec[R, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => RIO[R, B]): RIO[R, List[B]] =
+  def foreachExec[R, A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
   /**
@@ -503,7 +509,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.getOrFail]]
    */
-  final def getOrFail[A](v: => Option[A]): Task[A] = ZIO.getOrFail(v)
+  def getOrFail[A](v: => Option[A]): Task[A] = ZIO.getOrFail(v)
 
   /**
    * @see See [[zio.ZIO.halt]]
@@ -631,6 +637,12 @@ object RIO {
     ZIO.mapParN(rio1, rio2, rio3, rio4)(f)
 
   /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[R, A, B](f: A => RIO[R, B]): UIO[A => RIO[R, B]] =
+    ZIO.memoize(f)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   def mergeAll[R, A, B](in: Iterable[RIO[R, A]])(zero: B)(f: (B, A) => B): RIO[R, B] =
@@ -655,13 +667,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.partition]]
    */
-  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
     ZIO.partition(in)(f)
 
   /**
    * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
     ZIO.partitionPar(in)(f)
 
   /**
@@ -669,7 +681,7 @@ object RIO {
    */
   def partitionParN[R, A, B](n: Int)(
     in: Iterable[A]
-  )(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  )(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
     ZIO.partitionParN(n)(in)(f)
 
   /**
@@ -728,6 +740,30 @@ object RIO {
    * @see See [[zio.ZIO.second]]
    */
   def second[A, B]: RIO[(A, B), B] = ZIO.second
+
+  /**
+   * @see See [[zio.ZIO.service]]
+   */
+  def service[A: Tag]: URIO[Has[A], A] =
+    ZIO.service[A]
+
+  /**
+   * @see See [[zio.ZIO.services[A,B]*]]
+   */
+  def services[A: Tag, B: Tag]: URIO[Has[A] with Has[B], (A, B)] =
+    ZIO.services[A, B]
+
+  /**
+   * @see See [[zio.ZIO.services[A,B,C]*]]
+   */
+  def services[A: Tag, B: Tag, C: Tag]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
+    ZIO.services[A, B, C]
+
+  /**
+   * @see See [[zio.ZIO.services[A,B,C,D]*]]
+   */
+  def services[A: Tag, B: Tag, C: Tag, D: Tag]: URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
+    ZIO.services[A, B, C, D]
 
   /**
    * @see See [[zio.ZIO.sleep]]

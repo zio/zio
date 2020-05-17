@@ -50,8 +50,8 @@ class QueueSequentialBenchmark {
       else task.flatMap(_ => repeat(task, max - 1))
 
     val io = for {
-      _ <- repeat(zioQ.offer(0).map(_ => ()), totalSize)
-      _ <- repeat(zioQ.take.map(_ => ()), totalSize)
+      _ <- repeat(zioQ.offer(0).unit, totalSize)
+      _ <- repeat(zioQ.take.unit, totalSize)
     } yield 0
 
     unsafeRun(io)

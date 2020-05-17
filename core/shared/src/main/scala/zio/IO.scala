@@ -296,6 +296,12 @@ object IO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterNot]]
+   */
+  def filterNot[E, A](as: Iterable[A])(f: A => IO[E, Boolean]): IO[E, List[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[E, A](
@@ -591,6 +597,12 @@ object IO {
     f: (A, B, C, D) => F
   ): IO[E, F] =
     ZIO.mapParN(io1, io2, io3, io4)(f)
+
+  /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[E, A, B](f: A => IO[E, B]): UIO[A => IO[E, B]] =
+    ZIO.memoize(f)
 
   /**
    * @see See [[zio.ZIO.mergeAll]]

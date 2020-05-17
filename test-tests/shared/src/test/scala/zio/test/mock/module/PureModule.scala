@@ -16,12 +16,22 @@
 
 package zio.test.mock.module
 
-import zio.{ IO, Tagged, ZIO }
+import scala.reflect.ClassTag
+
+import zio.{ IO, Tag, ZIO }
 
 /**
  * Example module used for testing ZIO Mock framework.
  */
 object PureModule {
+
+  // Workaround for izumi.reflect.Tag any-kindedness (probably?)  causing `Any` to be inferred on dotty
+  final class NotAnyKind[A](private val dummy: Boolean = false) extends AnyVal
+  object NotAnyKind {
+    // for some reason a ClassTag search is required, an arbitrary type like Set[A] doesn't fix inference
+    implicit def notAnyKind[A](implicit maybeClassTag: ClassTag[A] = null): NotAnyKind[A] =
+      new NotAnyKind[A]
+  }
 
   trait Service {
 
@@ -36,15 +46,15 @@ object PureModule {
     def looped(a: Int): IO[Nothing, Nothing]
     def overloaded(n: Int): IO[String, String]
     def overloaded(n: Long): IO[String, String]
-    def polyInput[I: Tagged](v: I): IO[String, String]
-    def polyError[E: Tagged](v: String): IO[E, String]
-    def polyOutput[A: Tagged](v: String): IO[String, A]
-    def polyInputError[I: Tagged, E: Tagged](v: I): IO[E, String]
-    def polyInputOutput[I: Tagged, A: Tagged](v: I): IO[String, A]
-    def polyErrorOutput[E: Tagged, A: Tagged](v: String): IO[E, A]
-    def polyInputErrorOutput[I: Tagged, E: Tagged, A: Tagged](v: I): IO[E, A]
-    def polyMixed[A: Tagged]: IO[String, (A, String)]
-    def polyBounded[A <: AnyVal: Tagged]: IO[String, A]
+    def polyInput[I: Tag](v: I): IO[String, String]
+    def polyError[E: Tag](v: String): IO[E, String]
+    def polyOutput[A: Tag](v: String): IO[String, A]
+    def polyInputError[I: Tag, E: Tag](v: I): IO[E, String]
+    def polyInputOutput[I: Tag, A: Tag](v: I): IO[String, A]
+    def polyErrorOutput[E: Tag, A: Tag](v: String): IO[E, A]
+    def polyInputErrorOutput[I: Tag, E: Tag, A: Tag](v: I): IO[E, A]
+    def polyMixed[A: Tag]: IO[String, (A, String)]
+    def polyBounded[A <: AnyVal: Tag]: IO[String, A]
     def varargs(a: Int, b: String*): IO[String, String]
     def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): IO[String, String]
     def byName(a: => Int): IO[String, String]
@@ -74,31 +84,43 @@ object PureModule {
     ): IO[String, String]
   }
 
-  val static                                           = ZIO.accessM[PureModule](_.get.static)
-  def zeroParams                                       = ZIO.accessM[PureModule](_.get.zeroParams)
-  def zeroParamsWithParens()                           = ZIO.accessM[PureModule](_.get.zeroParamsWithParens())
-  def singleParam(a: Int)                              = ZIO.accessM[PureModule](_.get.singleParam(a))
-  def manyParams(a: Int, b: String, c: Long)           = ZIO.accessM[PureModule](_.get.manyParams(a, b, c))
-  def manyParamLists(a: Int)(b: String)(c: Long)       = ZIO.accessM[PureModule](_.get.manyParamLists(a)(b)(c))
-  def command                                          = ZIO.accessM[PureModule](_.get.command)
-  def parameterizedCommand(a: Int)                     = ZIO.accessM[PureModule](_.get.parameterizedCommand(a))
-  def looped(a: Int)                                   = ZIO.accessM[PureModule](_.get.looped(a))
-  def overloaded(n: Int)                               = ZIO.accessM[PureModule](_.get.overloaded(n))
-  def overloaded(n: Long)                              = ZIO.accessM[PureModule](_.get.overloaded(n))
-  def polyInput[I: Tagged](v: I)                       = ZIO.accessM[PureModule](_.get.polyInput(v))
-  def polyError[E: Tagged](v: String)                  = ZIO.accessM[PureModule](_.get.polyError(v))
-  def polyOutput[A: Tagged](v: String)                 = ZIO.accessM[PureModule](_.get.polyOutput(v))
-  def polyInputError[I: Tagged, E: Tagged](v: I)       = ZIO.accessM[PureModule](_.get.polyInputError[I, E](v))
-  def polyInputOutput[I: Tagged, A: Tagged](v: I)      = ZIO.accessM[PureModule](_.get.polyInputOutput[I, A](v))
-  def polyErrorOutput[E: Tagged, A: Tagged](v: String) = ZIO.accessM[PureModule](_.get.polyErrorOutput[E, A](v))
-  def polyInputErrorOutput[I: Tagged, E: Tagged, A: Tagged](v: I) =
+  val static: ZIO[PureModule, String, String]                 = ZIO.accessM[PureModule](_.get.static)
+  def zeroParams: ZIO[PureModule, String, String]             = ZIO.accessM[PureModule](_.get.zeroParams)
+  def zeroParamsWithParens(): ZIO[PureModule, String, String] = ZIO.accessM[PureModule](_.get.zeroParamsWithParens())
+  def singleParam(a: Int): ZIO[PureModule, String, String]    = ZIO.accessM[PureModule](_.get.singleParam(a))
+  def manyParams(a: Int, b: String, c: Long): ZIO[PureModule, String, String] =
+    ZIO.accessM[PureModule](_.get.manyParams(a, b, c))
+  def manyParamLists(a: Int)(b: String)(c: Long): ZIO[PureModule, String, String] =
+    ZIO.accessM[PureModule](_.get.manyParamLists(a)(b)(c))
+  def command: ZIO[PureModule, Unit, Unit]                      = ZIO.accessM[PureModule](_.get.command)
+  def parameterizedCommand(a: Int): ZIO[PureModule, Unit, Unit] = ZIO.accessM[PureModule](_.get.parameterizedCommand(a))
+  def looped(a: Int): ZIO[PureModule, Nothing, Nothing]         = ZIO.accessM[PureModule](_.get.looped(a))
+  def overloaded(n: Int): ZIO[PureModule, String, String]       = ZIO.accessM[PureModule](_.get.overloaded(n))
+  def overloaded(n: Long): ZIO[PureModule, String, String]      = ZIO.accessM[PureModule](_.get.overloaded(n))
+  def polyInput[I: NotAnyKind: Tag](v: I): ZIO[PureModule, String, String] =
+    ZIO.accessM[PureModule](_.get.polyInput[I](v))
+  def polyError[E: NotAnyKind: Tag](v: String): ZIO[PureModule, E, String] =
+    ZIO.accessM[PureModule](_.get.polyError[E](v))
+  def polyOutput[A: NotAnyKind: Tag](v: String): ZIO[PureModule, String, A] =
+    ZIO.accessM[PureModule](_.get.polyOutput[A](v))
+  def polyInputError[I: NotAnyKind: Tag, E: NotAnyKind: Tag](v: I): ZIO[PureModule, E, String] =
+    ZIO.accessM[PureModule](_.get.polyInputError[I, E](v))
+  def polyInputOutput[I: NotAnyKind: Tag, A: NotAnyKind: Tag](v: I): ZIO[PureModule, String, A] =
+    ZIO.accessM[PureModule](_.get.polyInputOutput[I, A](v))
+  def polyErrorOutput[E: NotAnyKind: Tag, A: NotAnyKind: Tag](v: String): ZIO[PureModule, E, A] =
+    ZIO.accessM[PureModule](_.get.polyErrorOutput[E, A](v))
+  def polyInputErrorOutput[I: NotAnyKind: Tag, E: NotAnyKind: Tag, A: NotAnyKind: Tag](
+    v: I
+  ): ZIO[PureModule, E, A] =
     ZIO.accessM[PureModule](_.get.polyInputErrorOutput[I, E, A](v))
-  def polyMixed[A: Tagged]             = ZIO.accessM[PureModule](_.get.polyMixed[A])
-  def polyBounded[A <: AnyVal: Tagged] = ZIO.accessM[PureModule](_.get.polyBounded[A])
-  def varargs(a: Int, b: String*)      = ZIO.accessM[PureModule](_.get.varargs(a, b: _*))
-  def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*) =
+  def polyMixed[A: NotAnyKind: Tag]: ZIO[PureModule, String, (A, String)] =
+    ZIO.accessM[PureModule](_.get.polyMixed[A])
+  def polyBounded[A <: AnyVal: NotAnyKind: Tag]: ZIO[PureModule, String, A] =
+    ZIO.accessM[PureModule](_.get.polyBounded[A])
+  def varargs(a: Int, b: String*): ZIO[PureModule, String, String] = ZIO.accessM[PureModule](_.get.varargs(a, b: _*))
+  def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): ZIO[PureModule, String, String] =
     ZIO.accessM[PureModule](_.get.curriedVarargs(a, b: _*)(c, d: _*))
-  def byName(a: => Int) = ZIO.accessM[PureModule](_.get.byName(a))
+  def byName(a: => Int): ZIO[PureModule, String, String] = ZIO.accessM[PureModule](_.get.byName(a))
   def maxParams(
     a: Int,
     b: Int,
@@ -122,5 +144,6 @@ object PureModule {
     t: Int,
     u: Int,
     v: Int
-  ) = ZIO.accessM[PureModule](_.get.maxParams(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+  ): ZIO[PureModule, String, String] =
+    ZIO.accessM[PureModule](_.get.maxParams(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
 }

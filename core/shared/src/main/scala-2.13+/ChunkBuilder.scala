@@ -19,14 +19,16 @@ package zio
 import scala.collection.mutable.{ ArrayBuilder, Builder }
 import scala.{
   Boolean => SBoolean,
-  Short => SShort,
-  Int => SInt,
+  Byte => SByte,
+  Char => SChar,
   Double => SDouble,
   Float => SFloat,
+  Int => SInt,
   Long => SLong,
-  Char => SChar,
-  Byte => SByte
+  Short => SShort
 }
+
+import zio.Chunk.BitChunk
 
 /**
  * A `ChunkBuilder[A]` can build a `Chunk[A]` given elements of type `A`.
@@ -41,7 +43,7 @@ private[zio] object ChunkBuilder {
   /**
    * Constructs a generic `ChunkBuilder`.
    */
-  def make[A]: ChunkBuilder[A] =
+  def make[A](): ChunkBuilder[A] =
     new ChunkBuilder[A] {
       var arrayBuilder: ArrayBuilder[A] = null
       var size: SInt                    = -1
@@ -79,28 +81,60 @@ private[zio] object ChunkBuilder {
    * values.
    */
   final class Boolean extends ChunkBuilder[SBoolean] { self =>
-    private val arrayBuilder: ArrayBuilder[SBoolean] = {
-      new ArrayBuilder.ofBoolean
+
+    private val arrayBuilder: ArrayBuilder[SByte] = {
+      new ArrayBuilder.ofByte
     }
-    def addOne(a: SBoolean): this.type = {
-      arrayBuilder += a
+    private var lastByte: SByte   = 0.toByte
+    private var maxBitIndex: SInt = 0
+
+    def addOne(b: SBoolean): this.type = {
+      if (b) {
+        if (maxBitIndex == 8) {
+          arrayBuilder += lastByte
+          lastByte = (1 << 7).toByte
+          maxBitIndex = 1
+        } else {
+          val bitIndex = 7 - maxBitIndex
+          lastByte = (lastByte | (1 << bitIndex)).toByte
+          maxBitIndex = maxBitIndex + 1
+        }
+      } else {
+        if (maxBitIndex == 8) {
+          arrayBuilder += lastByte
+          lastByte = 0.toByte
+          maxBitIndex = 1
+        } else {
+          maxBitIndex = maxBitIndex + 1
+        }
+      }
       this
     }
-    def clear(): Unit =
+    def clear(): Unit = {
       arrayBuilder.clear()
-    def result(): Chunk[SBoolean] =
-      Chunk.fromArray(arrayBuilder.result())
+      maxBitIndex = 0
+      lastByte = 0.toByte
+    }
+    def result(): Chunk[SBoolean] = {
+      val bytes: Chunk[SByte] = Chunk.fromArray(arrayBuilder.result() :+ lastByte)
+      BitChunk(bytes, 0, 8 * (bytes.length - 1) + maxBitIndex)
+    }
     override def addAll(as: IterableOnce[SBoolean]): this.type = {
-      arrayBuilder ++= as
+      as.iterator.foreach(addOne _)
       this
+    }
+    override def sizeHint(n: SInt): Unit = {
+      val hint = if (n == 0) 0 else n / 8 + 1
+      arrayBuilder.sizeHint(hint)
     }
     override def equals(that: Any): SBoolean =
       that match {
-        case that: Boolean => self.arrayBuilder == that.arrayBuilder
-        case _             => false
+        case that: Boolean =>
+          self.arrayBuilder.equals(that.arrayBuilder) &&
+            self.maxBitIndex == that.maxBitIndex &&
+            self.lastByte == that.lastByte
+        case _ => false
       }
-    override def sizeHint(n: SInt): Unit =
-      arrayBuilder.sizeHint(n)
     override def toString: String =
       "ChunkBuilder.Boolean"
   }

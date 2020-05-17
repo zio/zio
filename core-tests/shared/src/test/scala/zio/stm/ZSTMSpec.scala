@@ -1,11 +1,9 @@
 package zio
 package stm
 
-import scala.util.Try
-
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{ jvmOnly, nonFlaky }
 import zio.test._
 import zio.test.environment.Live
 
@@ -488,12 +486,6 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.fromEither[String, Int](Right(1)).orDieWith(n => new Error(n)).commit)(equalTo(1))
         }
       ) @@ zioTag(errors),
-      testM("orElse to try another computation when the computation is failed") {
-        (for {
-          s <- STM.succeed(1) orElse STM.succeed(2)
-          f <- STM.fail("failed") orElse STM.succeed("try this")
-        } yield assert((s, f))(equalTo((1, "try this")))).commit
-      } @@ zioTag(errors),
       suite("partition")(
         testM("collects only successes") {
           implicit val canFail = CanFail
@@ -604,6 +596,17 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("lifting a value") {
           assertM(STM.some(42).commit)(isSome(equalTo(42)))
         }
+      ),
+      suite("someOrElse")(
+        testM("extracts the value from Some") {
+          assertM(STM.succeed(Some(1)).someOrElse(2).commit)(equalTo(1))
+        },
+        testM("falls back to the default value if None") {
+          assertM(STM.succeed(None).someOrElse(42).commit)(equalTo(42))
+        },
+        testM("does not change failed state") {
+          assertM(STM.fail(ExampleError).someOrElse(42).commit.run)(fails(equalTo(ExampleError)))
+        } @@ zioTag(errors)
       ),
       suite("someOrFail")(
         testM("extracts the value from Some") {
@@ -929,14 +932,14 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           it    <- UIO((1 to 100).map(TRef.make(_)))
           tvars <- STM.collectAll(it).commit
-          res   <- UIO.collectAllPar(tvars.map(_.get.commit))
+          res   <- UIO.foreachPar(tvars)(_.get.commit)
         } yield assert(res)(equalTo((1 to 100).toList))
       },
       testM("collects a chunk of transactional effects to a single transaction that produces a chunk of values") {
         for {
           it    <- UIO((1 to 100).map(TRef.make(_)))
           tvars <- STM.collectAll(Chunk.fromIterable(it)).commit
-          res   <- UIO.collectAllPar(tvars.map(_.get.commit))
+          res   <- UIO.foreachPar(tvars)(_.get.commit)
         } yield assert(res)(equalTo(Chunk.fromIterable((1 to 100).toList)))
       }
     ),
@@ -978,20 +981,6 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield assert(bs)(equalTo(as.toList))
       }
     ),
-    testM(
-      "Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed"
-    ) {
-      implicit val canFail = CanFail
-      for {
-        rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).commit
-        leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
-        leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).commit
-        failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).commit.either
-      } yield assert(rightV)(isRight(equalTo(42))) &&
-        assert(leftV1)(isLeft(equalTo(1))) &&
-        assert(leftV2)(isLeft(equalTo(2))) &&
-        assert(failedV)(isLeft(equalTo(-2)))
-    },
     suite("Failure must")(
       testM("rollback full transaction") {
         for {
@@ -1023,56 +1012,97 @@ object ZSTMSpec extends ZIOBaseSpec {
         } yield assert(e)(equalTo("Error!")) && assert(v)(isTrue)
       }
     ),
-    suite("orElse must")(
-      testM("rollback left retry") {
+    suite("orElse")(
+      testM("tries alternative once left retries") {
         for {
-          tvar  <- TRef.makeCommit(0)
-          left  = tvar.update(_ + 100) *> STM.retry
-          right = tvar.update(_ + 100).unit
+          ref   <- TRef.makeCommit(0)
+          left  = ref.update(_ + 100) *> STM.retry
+          right = ref.update(_ + 200)
           _     <- (left orElse right).commit
-          v     <- tvar.get.commit
-        } yield assert(v)(equalTo(100))
+          v     <- ref.get.commit
+        } yield assert(v)(equalTo(200))
       },
-      testM("rollback left failure") {
+      testM("tries alternative once left fails") {
         for {
-          tvar  <- TRef.makeCommit(0)
-          left  = tvar.update(_ + 100) *> STM.fail("Uh oh!")
-          right = tvar.update(_ + 100).unit
+          ref   <- TRef.makeCommit(0)
+          left  = ref.update(_ + 100) *> STM.fail("boom")
+          right = ref.update(_ + 200)
           _     <- (left orElse right).commit
-          v     <- tvar.get.commit
-        } yield assert(v)(equalTo(100))
+          res   <- ref.get.commit
+        } yield assert(res)(equalTo(200))
       },
-      testM("local reset, not global") {
-        for {
-          ref <- TRef.make(0).commit
-          result <- STM.atomically(for {
-                     _       <- ref.set(2)
-                     newVal1 <- ref.get
-                     _       <- STM.fromTry(Try(throw new RuntimeException)).orElse(STM.unit)
-                     newVal2 <- ref.get
-                   } yield (newVal1, newVal2))
-        } yield assert(result)(equalTo(2 -> 2))
+      testM("fail if alternative fails") {
+        val left  = STM.fail("left")
+        val right = STM.fail("right")
+
+        (left orElse right).commit.run.map(assert(_)(fails(equalTo("right"))))
       }
     ) @@ zioTag(errors),
+    testM("orElseEither returns result of the first successful transaction wrapped in either") {
+      for {
+        rv  <- STM.retry.orElseEither(STM.succeed(42)).commit
+        lv1 <- STM.succeed(1).orElseEither(STM.succeed("No!")).commit
+        lv2 <- STM.succeed(2).orElseEither(STM.retry).commit
+      } yield assert(rv)(isRight(equalTo(42))) && assert(lv1)(isLeft(equalTo(1))) && assert(lv2)(isLeft(equalTo(2)))
+    },
     suite("orElseFail")(
-      testM("tries this effect first") {
-        val transaction = ZSTM.succeed(true).orElseFail(false)
+      testM("tries left first") {
+        val transaction = STM.succeed(true).orElseFail(false)
         assertM(transaction.commit)(isTrue)
       },
-      testM("if it fails, fails with the specified error") {
-        val transaction = ZSTM.fail(false).orElseFail(true).fold(identity, _ => false)
-        assertM(transaction.commit)(isTrue)
+      testM("fails with the specified error once left retries") {
+        val transaction = STM.retry.orElseFail(false).either
+        assertM(transaction.commit)(isLeft(isFalse))
+      },
+      testM("fails with the specified error once left fails") {
+        val transaction = STM.fail(true).orElseFail(false).either
+        assertM(transaction.commit)(isLeft(isFalse))
       }
     ) @@ zioTag(errors),
     suite("orElseSucceed")(
-      testM("tries this effect first") {
-        val transaction = ZSTM.succeed(true).orElseSucceed(false)
+      testM("tries left first") {
+        val transaction = STM.succeed(true).orElseSucceed(false)
         assertM(transaction.commit)(isTrue)
       },
-      testM("if it succeeds, succeeds with the specified value") {
-        val transaction = ZSTM.fail(false).orElseSucceed(true)
-        assertM(transaction.commit)(isTrue)
+      testM("succeeds with the specified value if left retries") {
+        val transaction = STM.retry.orElseSucceed(false)
+        assertM(transaction.commit)(isFalse)
+      },
+      testM("succeeds with the specified value if left fails") {
+        val transaction = STM.fail(true).orElseSucceed(false)
+        assertM(transaction.commit)(isFalse)
       }
+    ),
+    suite("alternative")(
+      testM("succeeds if left succeeds") {
+        val left  = STM.succeed("left")
+        val right = STM.succeed("right")
+        (left <|> right).commit.map(assert(_)(equalTo("left")))
+      },
+      testM("succeeds if right succeeds") {
+        val left  = STM.retry
+        val right = STM.succeed("right")
+        (left <|> right).commit.map(assert(_)(equalTo("right")))
+      },
+      testM("retries left after right retries") {
+        for {
+          ref     <- TRef.makeCommit(0)
+          left    = ref.get.flatMap(v => STM.check(v > 500).as("left"))
+          right   = STM.retry
+          updater = ref.update(_ + 10).commit.forever
+          res     <- (left <|> right).commit.race(updater)
+        } yield assert(res)(equalTo("left"))
+      } @@ jvmOnly,
+      testM("fails if left fails") {
+        val left  = STM.fail("left")
+        val right = STM.succeed("right")
+        (left <|> right).commit.run.map(assert(_)(fails(equalTo("left"))))
+      } @@ zioTag(errors),
+      testM("fails if right fails") {
+        val left  = STM.retry
+        val right = STM.fail("right")
+        (left <|> right).commit.run.map(assert(_)(fails(equalTo("right"))))
+      } @@ zioTag(errors)
     ),
     suite("mergeAll")(
       testM("return zero element on empty input") {
@@ -1223,6 +1253,16 @@ object ZSTMSpec extends ZIOBaseSpec {
       } @@ nonFlaky(5000)
     },
     suite("STM stack safety")(
+      testM("long alternative chains") {
+        val tx =
+          for {
+            ref <- TRef.make(0)
+            _   <- STM.loop_(10000)(_ > 0, _ - 1)(_ => STM.retry <|> ref.getAndUpdate(_ + 1))
+            res <- ref.get
+          } yield res
+
+        assertM(tx.commit)(equalTo(10000))
+      },
       testM("long map chains") {
         assertM(chain(10000)(_.map(_ + 1)))(equalTo(10000))
       },
@@ -1255,19 +1295,14 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(chain(10000).run)(fails(equalTo(10000)))
       } @@ zioTag(errors),
       testM("long orElse chains") {
-        def chain(depth: Int): ZIO[Any, Int, Nothing] = {
-          @annotation.tailrec
-          def loop(n: Int, curr: Int, acc: STM[Int, Nothing]): ZIO[Any, Int, Nothing] =
-            if (n <= 0) acc.commit
-            else {
-              val inc = curr + 1
-              loop(n - 1, inc, acc.orElse(STM.fail(inc)))
-            }
+        val tx =
+          for {
+            ref <- TRef.make(0)
+            _   <- STM.loop_(10000)(_ > 0, _ - 1)(_ => STM.retry <> ref.getAndUpdate(_ + 1))
+            res <- ref.get
+          } yield res
 
-          loop(depth, 0, STM.fail(0))
-        }
-
-        assertM(chain(10000).run)(fails(equalTo(10000)))
+        assertM(tx.commit)(equalTo(10000))
       } @@ zioTag(errors),
       testM("long provide chains") {
         assertM(chain(10000)(_.provide(0)))(equalTo(0))

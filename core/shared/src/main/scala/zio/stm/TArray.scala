@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio.Chunk
+import zio.stm.ZSTM.internal._
 
 /**
  * Wraps array of [[TRef]] and adds methods for convenience.
@@ -27,8 +28,10 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Extracts value from ref in array.
    */
   def apply(index: Int): USTM[A] =
-    if (0 <= index && index < array.length) array(index).get
-    else STM.die(new ArrayIndexOutOfBoundsException(index))
+    if (0 <= index && index < array.length)
+      array(index).get
+    else
+      STM.die(new ArrayIndexOutOfBoundsException(index))
 
   /**
    * Finds the result of applying a partial function to the first value in its domain.
@@ -43,7 +46,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   def collectFirstM[E, B](pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     find(pf.isDefinedAt).flatMap {
       case Some(a) => pf(a).map(Some(_))
-      case _       => STM.succeedNow(None)
+      case _       => STM.none
     }
 
   /**
@@ -78,37 +81,71 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Find the first element in the array matching a predicate.
    */
   def find(p: A => Boolean): USTM[Option[A]] =
-    if (array.isEmpty) STM.succeedNow(None)
-    else
-      array.head.get.flatMap { a =>
-        if (p(a)) STM.succeedNow(Some(a))
-        else new TArray(array.tail).find(p)
+    new ZSTM((journal, _, _, _) => {
+      var i   = 0
+      var res = Option.empty[A]
+
+      while (res.isEmpty && i < array.length) {
+        val a = array(i).unsafeGet(journal)
+
+        if (p(a))
+          res = Some(a)
+
+        i += 1
       }
+
+      TExit.Succeed(res)
+    })
 
   /**
    * Find the last element in the array matching a predicate.
    */
   def findLast(p: A => Boolean): USTM[Option[A]] =
-    new TArray(array.reverse).find(p)
+    new ZSTM((journal, _, _, _) => {
+      var i   = array.length - 1
+      var res = Option.empty[A]
+
+      while (res.isEmpty && i >= 0) {
+        val a = array(i).unsafeGet(journal)
+
+        if (p(a))
+          res = Some(a)
+
+        i -= 1
+      }
+
+      TExit.Succeed(res)
+    })
 
   /**
    * Find the last element in the array matching a transactional predicate.
    */
-  def findLastM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
-    new TArray(array.reverse).findM(p)
+  def findLastM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] = {
+    val init = (Option.empty[A], array.length - 1)
+    val cont = (s: (Option[A], Int)) => s._1.isEmpty && s._2 >= 0
+
+    ZSTM
+      .iterate(init)(cont) { s =>
+        val idx = s._2
+        array(idx).get.flatMap(a => p(a).map(ok => (if (ok) Some(a) else None, idx - 1)))
+      }
+      .map(_._1)
+  }
 
   /**
    * Find the first element in the array matching a transactional predicate.
    */
-  def findM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
-    if (array.isEmpty) STM.succeedNow(None)
-    else
-      array.head.get.flatMap { a =>
-        p(a).flatMap { result =>
-          if (result) STM.succeedNow(Some(a))
-          else new TArray(array.tail).findM(p)
-        }
+  def findM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] = {
+    val init = (Option.empty[A], 0)
+    val cont = (s: (Option[A], Int)) => s._1.isEmpty && s._2 < array.length
+
+    ZSTM
+      .iterate(init)(cont) { s =>
+        val idx = s._2
+        array(idx).get.flatMap(a => p(a).map(ok => (if (ok) Some(a) else None, idx + 1)))
       }
+      .map(_._1)
+  }
 
   /**
    * The first entry of the array, if it exists.
@@ -119,17 +156,25 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Atomically folds using a pure function.
    */
-  def fold[Z](acc: Z)(op: (Z, A) => Z): USTM[Z] =
-    if (array.isEmpty) STM.succeedNow(acc)
-    else array.head.get.flatMap(a => new TArray(array.tail).fold(op(acc, a))(op))
+  def fold[Z](zero: Z)(op: (Z, A) => Z): USTM[Z] =
+    new ZSTM((journal, _, _, _) => {
+      var res = zero
+      var i   = 0
+
+      while (i < array.length) {
+        val value = array(i).unsafeGet(journal)
+        res = op(res, value)
+        i += 1
+      }
+
+      TExit.Succeed(res)
+    })
 
   /**
    * Atomically folds using a transactional function.
    */
-  def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
-    if (array.isEmpty) STM.succeedNow(acc)
-    else
-      array.head.get.flatMap(a => op(acc, a).flatMap(acc2 => new TArray(array.tail).foldM(acc2)(op)))
+  def foldM[E, Z](zero: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
+    toChunk.flatMap(STM.foldLeft(_)(zero)(op))
 
   /**
    * Atomically evaluate the conjunction of a predicate across the members
@@ -171,14 +216,22 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Get the index of the first entry in the array, starting at a specific index,
    * matching a predicate.
    */
-  def indexWhere(p: A => Boolean, from: Int): USTM[Int] = {
-    val len = array.length
-    def forIndex(i: Int): USTM[Int] =
-      if (i >= len) STM.succeedNow(-1)
-      else apply(i).flatMap(a => if (p(a)) STM.succeedNow(i) else forIndex(i + 1))
+  def indexWhere(p: A => Boolean, from: Int): USTM[Int] =
+    if (from < 0)
+      STM.succeedNow(-1)
+    else
+      new ZSTM((journal, _, _, _) => {
+        var i     = from
+        var found = false
 
-    if (from >= 0) forIndex(from) else STM.succeedNow(-1)
-  }
+        while (!found && i < array.length) {
+          val a = array(i).unsafeGet(journal)
+          found = p(a)
+          i += 1
+        }
+
+        if (found) TExit.Succeed(i - 1) else TExit.Succeed(-1)
+      })
 
   /**
    * Get the index of the first entry in the array matching a transactional
@@ -191,10 +244,11 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * a transactional predicate.
    */
   def indexWhereM[E](p: A => STM[E, Boolean], from: Int): STM[E, Int] = {
-    val len = array.length
     def forIndex(i: Int): STM[E, Int] =
-      if (i >= len) STM.succeedNow(-1)
-      else apply(i).flatMap(a => p(a).flatMap(result => if (result) STM.succeedNow(i) else forIndex(i + 1)))
+      if (i < array.length)
+        array(i).get.flatMap(p).flatMap(ok => if (ok) STM.succeedNow(i) else forIndex(i + 1))
+      else
+        STM.succeedNow(-1)
 
     if (from >= 0) forIndex(from) else STM.succeedNow(-1)
   }
@@ -209,13 +263,21 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Get the first index of a specific value in the array, bounded above by a
    * specific index, or -1 if it does not occur.
    */
-  def lastIndexOf(a: A, end: Int): USTM[Int] = {
-    def forIndex(i: Int): USTM[Int] =
-      if (i < 0) STM.succeedNow(-1)
-      else apply(i).flatMap(ai => if (ai == a) STM.succeedNow(i) else forIndex(i - 1))
+  def lastIndexOf(a: A, end: Int): USTM[Int] =
+    if (end >= array.length)
+      STM.succeedNow(-1)
+    else
+      new ZSTM((journal, _, _, _) => {
+        var i     = end
+        var found = false
 
-    if (end < array.length) forIndex(end) else STM.succeedNow(-1)
-  }
+        while (!found && i >= 0) {
+          found = array(i).unsafeGet(journal) == a
+          i -= 1
+        }
+
+        if (found) TExit.Succeed(i + 1) else TExit.Succeed(-1)
+      })
 
   /**
    * The last entry in the array, if it exists.
@@ -239,20 +301,32 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically reduce the array, if non-empty, by a binary operator.
    */
   def reduceOption(op: (A, A) => A): USTM[Option[A]] =
-    if (array.isEmpty) STM.succeedNow(None)
-    else
-      array.head.get
-        .flatMap(h => new TArray(array.tail).fold(h)((acc, a) => op(acc, a)))
-        .map(Some(_))
+    new ZSTM((journal, _, _, _) => {
+      var i   = 0
+      var res = null.asInstanceOf[A]
+
+      while (i < array.length) {
+        val a = array(i).unsafeGet(journal)
+
+        res = res match {
+          case null => a
+          case v    => op(v, a)
+        }
+
+        i += 1
+      }
+
+      TExit.Succeed(Option(res))
+    })
 
   /**
    * Atomically reduce the non-empty array using a transactional binary operator.
    */
   def reduceOptionM[E](op: (A, A) => STM[E, A]): STM[E, Option[A]] =
-    foldM[E, Option[A]](None) { (optAcc, a) =>
-      optAcc match {
+    foldM(Option.empty[A]) { (acc, a) =>
+      acc match {
         case Some(acc) => op(acc, a).map(Some(_))
-        case _         => STM.succeedNow(Some(a))
+        case _         => STM.some(a)
       }
     }
 
@@ -272,20 +346,44 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically updates all elements using a pure function.
    */
   def transform(f: A => A): USTM[Unit] =
-    array.foldLeft(STM.unit)((tx, ref) => ref.update(f) *> tx)
+    new ZSTM((journal, _, _, _) => {
+      var i = 0
+
+      while (i < array.length) {
+        val current = array(i).unsafeGet(journal)
+        array(i).unsafeSet(journal, f(current))
+        i += 1
+      }
+
+      TExit.Succeed(())
+    })
 
   /**
    * Atomically updates all elements using a transactional effect.
    */
   def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
-    array.foldLeft[STM[E, Unit]](STM.unit)((tx, ref) => ref.get.flatMap(f).flatMap(ref.set) *> tx)
+    STM.foreach(array)(_.get.flatMap(f)).flatMap { newData =>
+      new ZSTM((journal, _, _, _) => {
+        var i  = 0
+        val it = newData.iterator
+
+        while (it.hasNext) {
+          array(i).unsafeSet(journal, it.next)
+          i += 1
+        }
+
+        TExit.Succeed(())
+      })
+    }
 
   /**
    * Updates element in the array with given function.
    */
   def update(index: Int, fn: A => A): USTM[Unit] =
-    if (0 <= index && index < array.length) array(index).update(fn)
-    else STM.die(new ArrayIndexOutOfBoundsException(index))
+    if (0 <= index && index < array.length)
+      array(index).update(fn)
+    else
+      STM.die(new ArrayIndexOutOfBoundsException(index))
 
   /**
    * Atomically updates element in the array with given transactional effect.

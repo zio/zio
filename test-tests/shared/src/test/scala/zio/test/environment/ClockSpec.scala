@@ -17,58 +17,41 @@ object ClockSpec extends ZIOBaseSpec {
   def spec = suite("ClockSpec")(
     testM("sleep does not require passage of clock time") {
       for {
-        latch <- Promise.make[Nothing, Unit]
-        _     <- (sleep(10.hours) *> latch.succeed(())).fork
-        _     <- adjust(11.hours)
-        _     <- latch.await
-      } yield assertCompletes
-    } @@ after(setTime(0.hours))
-      @@ nonFlaky,
-    testM("sleep delays effect until time is adjusted") {
-      for {
-        ref    <- Ref.make(true)
-        _      <- (sleep(10.hours) *> ref.set(false)).fork
-        _      <- adjust(9.hours)
+        ref    <- Ref.make(false)
+        _      <- ref.set(true).delay(10.hours).fork
+        _      <- adjust(11.hours)
         result <- ref.get
       } yield assert(result)(isTrue)
-    } @@ after(setTime(0.hours))
-      @@ nonFlaky,
+    } @@ forked @@ nonFlaky,
+    testM("sleep delays effect until time is adjusted") {
+      for {
+        ref    <- Ref.make(false)
+        _      <- ref.set(true).delay(10.hours).fork
+        _      <- adjust(9.hours)
+        result <- ref.get
+      } yield assert(result)(isFalse)
+    } @@ forked @@ nonFlaky,
     testM("sleep correctly handles multiple sleeps") {
       for {
-        latch1 <- Promise.make[Nothing, Unit]
-        latch2 <- Promise.make[Nothing, Unit]
         ref    <- Ref.make("")
-        _      <- (sleep(3.hours) *> ref.update(_ + "World!") *> latch2.succeed(())).fork
-        _      <- (sleep(1.hours) *> ref.update(_ + "Hello, ") *> latch1.succeed(())).fork
-        _      <- adjust(2.hours)
-        _      <- latch1.await
-        _      <- adjust(2.hours)
-        _      <- latch2.await
+        _      <- ref.update(_ + "World!").delay(3.hours).fork
+        _      <- ref.update(_ + "Hello, ").delay(1.hours).fork
+        _      <- adjust(4.hours)
         result <- ref.get
       } yield assert(result)(equalTo("Hello, World!"))
-    } @@ after(setTime(0.hours))
-      @@ nonFlaky,
+    } @@ forked @@ nonFlaky,
     testM("sleep correctly handles new set time") {
       for {
-        latch <- Promise.make[Nothing, Unit]
-        _     <- (sleep(10.hours) *> latch.succeed(())).fork
-        _     <- setTime(11.hours)
-        _     <- latch.await
-      } yield assertCompletes
-    } @@ after(setTime(0.hours))
-      @@ nonFlaky,
-    testM("sleep does sleep instantly when sleep duration less than or equal to clock time") {
-      for {
-        latch <- Promise.make[Nothing, Unit]
-        _     <- (adjust(10.hours) *> latch.succeed(())).fork
-        _     <- latch.await *> sleep(10.hours)
-      } yield assertCompletes
-    } @@ nonFlaky,
+        ref    <- Ref.make(false)
+        _      <- ref.set(true).delay(10.hours).fork
+        _      <- setTime(11.hours)
+        result <- ref.get
+      } yield assert(result)(isTrue)
+    } @@ forked @@ nonFlaky,
     testM("adjust correctly advances nanotime") {
       for {
         time1 <- nanoTime
         _     <- adjust(1.millis)
-        _     <- sleep(1.millis)
         time2 <- nanoTime
       } yield assert(fromNanos(time2 - time1))(equalTo(1.millis))
     },
@@ -76,7 +59,6 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         time1 <- currentTime(TimeUnit.NANOSECONDS)
         _     <- adjust(1.millis)
-        _     <- sleep(1.millis)
         time2 <- currentTime(TimeUnit.NANOSECONDS)
       } yield assert(time2 - time1)(equalTo(1.millis.toNanos))
     },
@@ -84,63 +66,37 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         time1 <- currentDateTime
         _     <- adjust(1.millis)
-        _     <- sleep(1.millis)
         time2 <- currentDateTime
       } yield assert((time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli))(equalTo(1L))
     },
     testM("adjust does not produce sleeps") {
-      adjust(1.millis) *> assertM(sleeps)(isEmpty)
-    },
-    testM("advance correctly advances nanotime") {
       for {
-        time1 <- nanoTime
-        _     <- advance(1.millis)
-        time2 <- nanoTime
-      } yield assert(fromNanos(time2 - time1))(equalTo(1.millis))
-    },
-    testM("advance correctly advances currentTime") {
-      for {
-        time1 <- currentTime(TimeUnit.NANOSECONDS)
-        _     <- advance(1.millis)
-        time2 <- currentTime(TimeUnit.NANOSECONDS)
-      } yield assert(time2 - time1)(equalTo(1.millis.toNanos))
-    },
-    testM("advance correctly advances currentDateTime") {
-      for {
-        time1 <- currentDateTime
-        _     <- advance(1.millis)
-        time2 <- currentDateTime
-      } yield assert((time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli))(equalTo(1L))
-    },
-    testM("advance does not produce sleeps") {
-      advance(1.millis) *> assertM(sleeps)(isEmpty)
+        _      <- adjust(1.millis)
+        sleeps <- sleeps
+      } yield assert(sleeps)(isEmpty)
     },
     testM("setDateTime correctly sets currentDateTime") {
       for {
         expected <- UIO.effectTotal(OffsetDateTime.now(ZoneId.of("UTC+9")))
         _        <- setDateTime(expected)
-        _        <- sleep(Duration.fromInstant(expected.toInstant))
         actual   <- clock.currentDateTime
       } yield assert(actual.toInstant.toEpochMilli)(equalTo(expected.toInstant.toEpochMilli))
     },
     testM("setTime correctly sets nanotime") {
       for {
         _    <- setTime(1.millis)
-        _    <- sleep(1.millis)
         time <- clock.nanoTime
       } yield assert(time)(equalTo(1.millis.toNanos))
     },
     testM("setTime correctly sets currentTime") {
       for {
         _    <- setTime(1.millis)
-        _    <- sleep(1.millis)
         time <- currentTime(TimeUnit.NANOSECONDS)
       } yield assert(time)(equalTo(1.millis.toNanos))
     },
     testM("setTime correctly sets currentDateTime") {
       for {
         _    <- TestClock.setTime(1.millis)
-        _    <- sleep(1.millis)
         time <- currentDateTime
       } yield assert(time.toInstant.toEpochMilli)(equalTo(1.millis.toMillis))
     },
@@ -165,11 +121,11 @@ object ClockSpec extends ZIOBaseSpec {
         result <- fiber.join
       } yield result == None
       assertM(example)(isTrue)
-    } @@ nonFlaky,
+    } @@ forked @@ nonFlaky,
     testM("recurrence example from TestClock documentation works correctly") {
       val example = for {
         q <- Queue.unbounded[Unit]
-        _ <- (q.offer(()).delay(60.minutes)).forever.fork
+        _ <- q.offer(()).delay(60.minutes).forever.fork
         a <- q.poll.map(_.isEmpty)
         _ <- TestClock.adjust(60.minutes)
         b <- q.take.as(true)
@@ -179,36 +135,14 @@ object ClockSpec extends ZIOBaseSpec {
         e <- q.poll.map(_.isEmpty)
       } yield a && b && c && d && e
       assertM(example)(isTrue)
-    },
-    testM("fiber time is not subject to race conditions") {
+    } @@ forked @@ nonFlaky,
+    testM("clock time is always 0 at the start of a test that repeats")(
       for {
-        _        <- adjust(2.millis)
-        _        <- sleep(2.millis).zipPar(sleep(1.millis))
-        result   <- fiberTime
-        expected <- clock.currentTime(TimeUnit.MILLISECONDS)
-      } yield assert(result.toMillis)(equalTo(expected))
-    } @@ nonFlaky,
-    testM("fiber time & clock time are always 0 at the start of a test that repeats with @@ nonFlaky")(
-      for {
-        fiberTime <- TestClock.fiberTime
         clockTime <- currentTime(TimeUnit.NANOSECONDS)
+        _         <- sleep(2.nanos).fork
         _         <- adjust(3.nanos)
-        _         <- sleep(2.nanos)
-      } yield assert(fiberTime)(equalTo(0.millis)) &&
-        assert(clockTime)(equalTo(0.millis.toNanos))
-    ) @@ nonFlaky(3),
-    testM("sleeps on forks that don't rejoin does not increase fiber time") {
-      for {
-        latch1 <- Promise.make[Nothing, Unit]
-        latch2 <- Promise.make[Nothing, Unit]
-        _      <- (sleep(2.nanos) *> latch2.succeed(())).fork
-        _      <- (sleep(1.nanos) *> latch1.succeed(())).fork
-        _      <- adjust(2.nanos)
-        _      <- latch1.await
-        _      <- latch2.await
-        result <- fiberTime
-      } yield assert(result)(equalTo(0.nanos))
-    } @@ nonFlaky,
+      } yield assert(clockTime)(equalTo(0.millis.toNanos))
+    ) @@ forked @@ nonFlaky(3),
     testM("TestClock interacts correctly with Scheduled.fixed") {
       for {
         latch     <- Promise.make[Nothing, Unit]
@@ -218,12 +152,13 @@ object ClockSpec extends ZIOBaseSpec {
         _         <- TestClock.adjust(5.seconds)
         _         <- latch.await
       } yield assertCompletes
-    },
-    testM("runAll runs all scheduled effects") {
+    } @@ forked @@ nonFlaky(100),
+    testM("adjustments to time are visible on other fibers") {
       for {
-        _ <- TestClock.runAll
-        _ <- ZIO.sleep(Duration.Infinity)
-      } yield assertCompletes
+        promise <- Promise.make[Nothing, Unit]
+        effect  = adjust(1.second) *> clock.currentTime(TimeUnit.SECONDS)
+        result  <- (effect <* promise.succeed(())) <&> (promise.await *> effect)
+      } yield assert(result)(equalTo((1L, 2L)))
     }
   )
 }

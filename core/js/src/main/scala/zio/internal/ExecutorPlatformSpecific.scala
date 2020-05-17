@@ -14,27 +14,6 @@
  * limitations under the License.
  */
 
-package zio.stream
+package zio.internal
 
-import zio.Chunk
-
-package object internal {
-
-  /**
-   * Creates a single-value sink from a value.
-   */
-  def ZSinkSucceedNow[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
-    ZSink.succeedNow(b)
-
-  /**
-   * Creates a `ZStreamChunk` from an eagerly evaluated chunk
-   */
-  def ZStreamChunkSucceedNow[A](as: Chunk[A]): ZStreamChunk[Any, Nothing, A] =
-    new StreamEffectChunk(StreamEffect.succeed(as))
-
-  /**
-   * Creates a single-valued pure stream
-   */
-  def ZStreamSucceedNow[A](a: A): ZStream[Any, Nothing, A] =
-    StreamEffect.succeed(a)
-}
+trait ExecutorPlatformSpecific

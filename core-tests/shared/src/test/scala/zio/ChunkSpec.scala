@@ -30,7 +30,7 @@ object ChunkSpec extends ZIOBaseSpec {
 
   def chunkWithIndex[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, (Chunk[A], Int)] =
     for {
-      chunk <- Gen.chunkOfBounded(0, 100)(a)
+      chunk <- Gen.chunkOfBounded(1, 100)(a)
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
@@ -61,6 +61,40 @@ object ChunkSpec extends ZIOBaseSpec {
       check(chunkWithIndex(Gen.unit)) {
         case (chunk, i) =>
           assert(chunk.apply(i))(equalTo(chunk.toList.apply(i)))
+      }
+    },
+    testM("specialized accessors") {
+      check(chunkWithIndex(Gen.boolean)) {
+        case (chunk, i) =>
+          assert(chunk.boolean(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.byte(0, 127))) {
+        case (chunk, i) =>
+          assert(chunk.byte(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.char(33, 123))) {
+        case (chunk, i) =>
+          assert(chunk.char(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.short(5, 100))) {
+        case (chunk, i) =>
+          assert(chunk.short(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.int(1, 142))) {
+        case (chunk, i) =>
+          assert(chunk.int(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.long(1, 142))) {
+        case (chunk, i) =>
+          assert(chunk.long(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.double(0.0, 100.0).map(_.toFloat))) {
+        case (chunk, i) =>
+          assert(chunk.float(i))(equalTo(chunk.toList.apply(i)))
+      }
+      check(chunkWithIndex(Gen.double(1.0, 200.0))) {
+        case (chunk, i) =>
+          assert(chunk.double(i))(equalTo(chunk.toList.apply(i)))
       }
     },
     testM("corresponds") {
@@ -178,6 +212,14 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.dropWhile(p).toList)(equalTo(c.toList.dropWhile(p)))
       }
     },
+    suite("dropWhileM")(
+      testM("dropWhileM happy path") {
+        assertM(Chunk(1, 2, 3, 4, 5).dropWhileM(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(2, 3, 4, 5)))
+      },
+      testM("dropWhileM error") {
+        Chunk(1, 1, 1).dropWhileM(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
+      } @@ zioTag(errors)
+    ),
     testM("takeWhile chunk") {
       check(mediumChunks(intGen), toBoolFn[Random, Int]) { (c, p) =>
         assert(c.takeWhile(p).toList)(equalTo(c.toList.takeWhile(p)))
@@ -256,7 +298,7 @@ object ChunkSpec extends ZIOBaseSpec {
         checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
             result   <- c.collectWhileM(pf).map(_.toList)
-            expected <- UIO.collectAll(c.toList.takeWhile(pf.isDefinedAt).map(pf.apply))
+            expected <- UIO.foreach(c.toList.takeWhile(pf.isDefinedAt))(pf.apply)
           } yield assert(result)(equalTo(expected))
         }
       },
@@ -335,6 +377,12 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
       assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
+    },
+    zio.test.test("partitionMap") {
+      val as       = Chunk(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+      val (bs, cs) = as.partitionMap(n => if (n % 2 == 0) Left(n) else Right(n))
+      assert(bs)(equalTo(Chunk(0, 2, 4, 6, 8))) &&
+      assert(cs)(equalTo(Chunk(1, 3, 5, 7, 9)))
     }
   )
 }

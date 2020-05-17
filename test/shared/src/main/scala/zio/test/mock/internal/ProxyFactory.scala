@@ -20,7 +20,7 @@ import scala.util.Try
 
 import zio.test.Assertion
 import zio.test.mock.{ Capability, Expectation, Proxy }
-import zio.{ Has, IO, Tagged, UIO, ULayer, ZIO, ZLayer }
+import zio.{ Has, IO, Tag, UIO, ULayer, ZIO, ZLayer }
 
 object ProxyFactory {
 
@@ -31,7 +31,7 @@ object ProxyFactory {
   /**
    * Given initial `State[R]`, constructs a `Proxy` running that state.
    */
-  def mockProxy[R <: Has[_]: Tagged](state: State[R]): ULayer[Has[Proxy]] =
+  def mockProxy[R <: Has[_]: Tag](state: State[R]): ULayer[Has[Proxy]] =
     ZLayer.succeed(new Proxy {
       def invoke[RIn <: Has[_], ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] =
@@ -54,7 +54,7 @@ object ProxyFactory {
                           invocations = id :: invocations
                         )
 
-                      UIO.succeed(Matched[R, E, A](update(updated), result))
+                      UIO.succeedNow(Matched[R, E, A](update(updated), result))
 
                     case false =>
                       handleLeafFailure(
@@ -70,7 +70,7 @@ object ProxyFactory {
 
                   handleLeafFailure(invalidCall, nextScopes)
 
-                case self @ Chain(children, _, _, invocations) =>
+                case self @ Chain(children, _, _, invocations, _) =>
                   children.zipWithIndex.collectFirst {
                     case (child, index) if !child.saturated =>
                       Scope[R](
@@ -97,7 +97,7 @@ object ProxyFactory {
                     case Some(scope) => findMatching(scope :: nextScopes)
                   }
 
-                case self @ And(children, _, _, invocations) =>
+                case self @ And(children, _, _, invocations, _) =>
                   children.zipWithIndex.collect {
                     case (child, index) if !child.saturated =>
                       Scope[R](
@@ -124,7 +124,7 @@ object ProxyFactory {
                     case scopes => findMatching(scopes ++ nextScopes)
                   }
 
-                case self @ Or(children, _, _, invocations) =>
+                case self @ Or(children, _, _, invocations, _) =>
                   children.zipWithIndex.collect {
                     case (child, index) =>
                       Scope[R](

@@ -100,7 +100,7 @@ object Example {
     def overloaded(arg1: Int)                  : UIO[String]
     def overloaded(arg1: Long)                 : UIO[String]
     def function(arg1: Int)                    : String
-    def sink(a: Int)                           : ZSink[Any, String, Nothing, Int, List[Int]]
+    def sink(a: Int)                           : ZSink[Any, String, Int, List[Int]]
     def stream(a: Int)                         : ZStream[Any, String, Int]
   }
 }
@@ -122,7 +122,7 @@ object ExampleMock extends Mock[Example] {
     object _1 extends Effect[Long, Nothing, String]
   }
   object Function extends Method[Int, Throwable, String]
-  object Sink     extends Sink[Any, String, Nothing, Int, List[Int]]
+  object Sink     extends Sink[Any, String, Int, List[Int]]
   object Stream   extends Stream[Any, String, Int]
 
   val compose: URLayer[Has[Proxy], Example] = ???
@@ -389,7 +389,7 @@ assertM(result)(isUnit)
 
 ## Polymorphic capabilities
 
-Mocking polymorphic methods is also supported, but the interface must require `zio.Tagged` implicit evidence for each type parameter.
+Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter.
 
 ```scala mdoc:silent
 // main sources
@@ -397,10 +397,10 @@ type PolyExample = Has[PolyExample.Service]
 
 object PolyExample {
   trait Service {
-    def polyInput[I: Tagged](input: I): ZIO[Any, Throwable, String]
-    def polyError[E: Tagged](input: Int): ZIO[Any, E, String]
-    def polyOutput[A: Tagged](input: Int): ZIO[Any, Throwable, A]
-    def polyAll[I: Tagged, E: Tagged, A: Tagged](input: I): ZIO[Any, E, A]
+    def polyInput[I: Tag](input: I): ZIO[Any, Throwable, String]
+    def polyError[E: Tag](input: Int): ZIO[Any, E, String]
+    def polyOutput[A: Tag](input: Int): ZIO[Any, Throwable, A]
+    def polyAll[I: Tag, E: Tag, A: Tag](input: I): ZIO[Any, E, A]
   }
 }
 ```
@@ -422,10 +422,10 @@ object PolyExampleMock extends Mock[PolyExample] {
     ZLayer.fromServiceM { proxy =>
       withRuntime.map { rts =>
         new PolyExample.Service {
-          def polyInput[I: Tagged](input: I)                     = proxy(PolyInput.of[I], input)
-          def polyError[E: Tagged](input: Int)                   = proxy(PolyError.of[E], input)
-          def polyOutput[A: Tagged](input: Int)                  = proxy(PolyOutput.of[A], input)
-          def polyAll[I: Tagged, E: Tagged, A: Tagged](input: I) = proxy(PolyAll.of[I, E, A], input)
+          def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)
+          def polyError[E: Tag](input: Int)                   = proxy(PolyError.of[E], input)
+          def polyOutput[A: Tag](input: Int)                  = proxy(PolyOutput.of[A], input)
+          def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
         }
       }
     }

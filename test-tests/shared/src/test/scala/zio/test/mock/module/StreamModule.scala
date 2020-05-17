@@ -16,8 +16,8 @@
 
 package zio.test.mock.module
 
-import zio.ZIO
 import zio.stream.{ Sink, Stream }
+import zio.{ URIO, ZIO }
 
 /**
  * Example of ZIO Data Types module used for testing ZIO Mock framework.
@@ -25,10 +25,10 @@ import zio.stream.{ Sink, Stream }
 object StreamModule {
 
   trait Service {
-    def sink(a: Int): Sink[String, Nothing, Int, List[Int]]
+    def sink(a: Int): Sink[String, Int, List[Int]]
     def stream(a: Int): Stream[String, Int]
   }
 
-  def sink(a: Int)   = ZIO.access[StreamModule](_.get.sink(a))
-  def stream(a: Int) = ZIO.access[StreamModule](_.get.stream(a))
+  def sink(a: Int): URIO[StreamModule, Sink[String, Int, List[Int]]] = ZIO.access[StreamModule](_.get.sink(a))
+  def stream(a: Int): URIO[StreamModule, Stream[String, Int]]        = ZIO.access[StreamModule](_.get.stream(a))
 }

@@ -5,16 +5,15 @@ import zio.console.Console
 import zio.duration._
 import zio.random.Random
 import zio.system.System
-import zio.test.{ assertM, suite, testM, Assertion, TestAspect, ZIOBaseSpec }
-import zio.{ clock, console, random, system, Has, Tagged, ULayer, ZIO }
+import zio.test.{ assertM, suite, testM, Assertion, ZIOBaseSpec }
+import zio.{ clock, console, random, system, Has, Tag, ULayer, ZIO }
 
 object ComposedMockSpec extends ZIOBaseSpec {
 
   import Assertion._
   import Expectation._
-  import TestAspect._
 
-  private def testValueComposed[R1 <: Has[_]: Tagged, E, A](name: String)(
+  private def testValueComposed[R1 <: Has[_]: Tag, E, A](name: String)(
     mock: ULayer[R1],
     app: ZIO[R1, E, A],
     check: Assertion[A]
@@ -57,6 +56,6 @@ object ComposedMockSpec extends ZIOBaseSpec {
           "Random with Clock with System with Console"
         )(composed, program, isUnit)
       }
-    ) @@ exceptDotty
+    )
   )
 }

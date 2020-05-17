@@ -17,16 +17,14 @@
 package zio.internal
 
 import java.util.concurrent._
-import java.{ util => ju }
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContextExecutorService
 
 /**
  * An executor is responsible for executing actions. Each action is guaranteed
  * to begin execution on a fresh stack frame.
  */
-trait Executor { self =>
+trait Executor extends ExecutorPlatformSpecific { self =>
 
   /**
    * The number of operations a fiber should run before yielding.
@@ -64,21 +62,6 @@ trait Executor { self =>
 
       override def reportFailure(cause: Throwable): Unit =
         cause.printStackTrace
-    }
-
-  /**
-   * Views this `Executor` as a Scala `ExecutionContextExecutorService`.
-   */
-  lazy val asECES: ExecutionContextExecutorService =
-    new AbstractExecutorService with ExecutionContextExecutorService {
-      override val prepare: ExecutionContext                               = asEC
-      override val isShutdown: Boolean                                     = false
-      override val isTerminated: Boolean                                   = false
-      override val shutdown: Unit                                          = ()
-      override val shutdownNow: ju.List[Runnable]                          = ju.Collections.emptyList[Runnable]
-      override def execute(runnable: Runnable): Unit                       = asEC execute runnable
-      override def reportFailure(t: Throwable): Unit                       = asEC reportFailure t
-      override def awaitTermination(length: Long, unit: TimeUnit): Boolean = false
     }
 
 }

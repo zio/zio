@@ -29,7 +29,25 @@ To learn more about ZIO, see the following references:
 
 ---
 
+# Adopters
+
+Following is a partial list of companies happily using ZIO in
+production to craft concurrent applications.
+
+Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
+
+* [AutoScout24](https://www.autoscout24.de)
+* [Coralogix](https://coralogix.com)
+* [Hunters.AI](https://hunters.ai)
+* [Megogo](https://megogo.net)
+* [TomTom](https://tomtom.com)
+* [Wehkamp](https://www.wehkamp.nl)
+
 # Sponsors
+
+[![Scalac][Image-Scalac]][Link-Scalac]
+
+[Scalac][Link-Scalac] sponsors ZIO Hackathons and contributes work to multiple projects in ZIO ecosystem.
 
 [![Septimal Mind][Image-SeptimalMind]][Link-SeptimalMind]
 
@@ -38,6 +56,7 @@ To learn more about ZIO, see the following references:
 [![SoftwareMill][Image-SoftwareMill]][Link-SoftwareMill]
 
 [SoftwareMill][Link-SoftwareMill] generously provides ZIO with paid-for CircleCI build infrastructure.
+
 
 ---
 
@@ -68,6 +87,7 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/dev/zio/zio_2.12/ "Sonatype Releases"
 [Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio_2.12/ "Sonatype Snapshots"
 [Link-Circle]: https://circleci.com/gh/zio/zio "circleci"
+[Link-Scalac]: https://scalac.io "Scalac"
 [Link-SoftwareMill]: https://softwaremill.com "SoftwareMill"
 [Link-SeptimalMind]: https://7mind.io "Septimal Mind"
 [Link-Discord]: https://discord.gg/2ccFBr4 "Discord"
@@ -82,5 +102,6 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 [Badge-Discord]: https://img.shields.io/discord/629491597070827530?logo=discord "chat on discord"
 [Badge-Twitter]: https://img.shields.io/twitter/follow/zioscala.svg?style=plastic&label=follow&logo=twitter
 
+[Image-Scalac]: ./website/static/img/scalac.svg "Scalac"
 [Image-SoftwareMill]: ./website/static/img/softwaremill.svg "SoftwareMill"
 [Image-SeptimalMind]: ./website/static/img/septimal_mind.svg "Septimal Mind"

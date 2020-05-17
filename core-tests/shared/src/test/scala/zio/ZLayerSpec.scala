@@ -101,6 +101,12 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
+      testM("sharing itself with ++") {
+        val m1     = new Module1.Service {}
+        val layer1 = ZLayer.succeed(m1)
+        val env    = layer1 ++ (layer1 ++ layer1)
+        env.build.use(m => ZIO(assert(m.get)(equalTo(m1))))
+      } @@ nonFlaky,
       testM("sharing with >>>") {
         val expected = Vector(acquire1, release1)
         for {
@@ -296,6 +302,58 @@ object ZLayerSpec extends ZIOBaseSpec {
           s <- ZIO.environment[Has[String]].map(_.get[String])
         } yield (i, s)
         assertM(zio.provideLayer(live))(equalTo((1, "1")))
+      },
+      testM("fresh with ++") {
+        val expected = Vector(acquire1, acquire1, release1, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          env    = (layer1 ++ layer1.fresh).build
+          _      <- env.useNow
+          result <- ref.get
+        } yield assert(result)(equalTo(expected))
+      } @@ nonFlaky,
+      testM("fresh with >>>") {
+        val expected = Vector(acquire1, acquire1, release1, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          env    = (layer1 >>> layer1.fresh).build
+          _      <- env.useNow
+          result <- ref.get
+        } yield assert(result)(equalTo(expected))
+      } @@ nonFlaky,
+      testM("fresh with multiple layers") {
+        val expected = Vector(acquire1, acquire1, release1, release1)
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          env    = ((layer1 ++ layer1) ++ (layer1 ++ layer1).fresh).build
+          _      <- env.useNow
+          result <- ref.get
+        } yield assert(result)(equalTo(expected))
+      } @@ nonFlaky,
+      testM("preserves identity of acquired resources") {
+        for {
+          testRef <- Ref.make(Vector[String]())
+          layer = ZLayer.fromManagedMany(
+            for {
+              ref <- Ref.make[Vector[String]](Vector()).toManaged(ref => ref.get.flatMap(testRef.set))
+              _   <- ZManaged.unit
+            } yield ref
+          )
+          _      <- layer.build.use(ref => ref.update(_ :+ "test"))
+          result <- testRef.get
+        } yield assert(result)(equalTo(Vector("test")))
+      },
+      testM("retry") {
+        for {
+          ref    <- Ref.make(0)
+          effect = ref.update(_ + 1) *> ZIO.fail("fail")
+          layer  = ZLayer.fromEffectMany(effect).retry(Schedule.recurs(3))
+          _      <- layer.build.useNow.ignore
+          result <- ref.get
+        } yield assert(result)(equalTo(4))
       }
     )
 }

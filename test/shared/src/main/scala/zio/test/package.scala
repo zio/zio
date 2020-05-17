@@ -16,6 +16,8 @@
 
 package zio
 
+import scala.util.Try
+
 import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
@@ -49,7 +51,8 @@ package object test extends CompileVariants {
   type Sized       = Has[Sized.Service]
   type TestLogger  = Has[TestLogger.Service]
 
-  type AssertResult = BoolAlgebra[AssertionValue]
+  type AssertResultM = BoolAlgebraM[Any, Nothing, AssertionValue]
+  type AssertResult  = BoolAlgebra[AssertionValue]
 
   /**
    * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
@@ -130,24 +133,29 @@ package object test extends CompileVariants {
    */
   type Annotated[+A] = (A, TestAnnotationMap)
 
-  /**
-   * Checks the assertion holds for the given value.
-   */
-  def assert[A](value: => A)(assertion: Assertion[A]): TestResult =
-    assertion.run(value).flatMap { fragment =>
+  private def traverseResult[A](value: => A, assertResult: AssertResult, assertion: AssertionM[A]): TestResult =
+    assertResult.flatMap { fragment =>
       def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
-        if (whole.assertion == failureDetails.assertion.head.assertion)
+        if (whole.sameAssertion(failureDetails.assertion.head))
           BoolAlgebra.success(failureDetails)
         else {
-          val satisfied = whole.assertion.test(whole.value)
-          val fragment  = whole.assertion.run(whole.value)
-          val result    = if (satisfied) fragment else !fragment
+          val fragment = whole.result
+          val result   = if (fragment.isSuccess) fragment else !fragment
           result.flatMap { fragment =>
             loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
           }
         }
-      loop(fragment, FailureDetails(::(AssertionValue(assertion, value), Nil)))
+
+      loop(fragment, FailureDetails(::(AssertionValue(assertion, value, assertResult), Nil)))
     }
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
+  def assert[A](value: => A)(assertion: Assertion[A]): TestResult = {
+    lazy val tryValue = Try(value)
+    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion)
+  }
 
   /**
    * Asserts that the given test was completed.
@@ -158,8 +166,11 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  def assertM[R, E, A](value: ZIO[R, E, A])(assertion: Assertion[A]): ZIO[R, E, TestResult] =
-    value.map(assert(_)(assertion))
+  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] =
+    for {
+      value        <- effect
+      assertResult <- assertion.runM(value).run
+    } yield traverseResult(value, assertResult, assertion)
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the
@@ -433,7 +444,7 @@ package object test extends CompileVariants {
    * Builds a suite containing a number of other specs.
    */
   def suite[R, E, T](label: String)(specs: Spec[R, E, T]*): Spec[R, E, T] =
-    Spec.suite(label, ZIO.succeedNow(specs.toVector), None)
+    Spec.suite(label, ZManaged.succeedNow(specs.toVector), None)
 
   /**
    * Builds a spec with a single pure test.
@@ -646,7 +657,7 @@ package object test extends CompileVariants {
             ZIO.succeedNow {
               BoolAlgebra.success {
                 FailureDetails(
-                  ::(AssertionValue(Assertion.anything, ()), Nil)
+                  ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
                 )
               }
             }

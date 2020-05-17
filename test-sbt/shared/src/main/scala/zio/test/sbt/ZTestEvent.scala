@@ -24,7 +24,7 @@ object ZTestEvent {
   ): UIO[Seq[ZTestEvent]] =
     executedSpec.fold[UIO[Seq[ZTestEvent]]] {
       case Spec.SuiteCase(_, results, _) =>
-        results.flatMap(UIO.collectAll(_).map(_.flatten))
+        results.use(UIO.collectAll(_).map(_.flatten))
       case Spec.TestCase(label, result, _) =>
         result.map { result =>
           Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))

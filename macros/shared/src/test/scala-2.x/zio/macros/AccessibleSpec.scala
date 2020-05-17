@@ -111,7 +111,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
                 def overloaded(arg1: Int)                  : ZIO[Any, Nothing, String]
                 def overloaded(arg1: Long)                 : ZIO[Any, Nothing, String]
                 def function(arg1: Int)                    : String
-                def sink(arg1: Int)                        : ZSink[Any, Nothing, Nothing, Int, List[Int]]
+                def sink(arg1: Int)                        : ZSink[Any, Nothing, Int, List[Int]]
                 def stream(arg1: Int)                      : ZStream[Any, Nothing, Int]
               }
             }
@@ -128,7 +128,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
               def overloaded(arg1: Int)                  : ZIO[Has[Module.Service], Nothing, String] = Module.overloaded(arg1)
               def overloaded(arg1: Long)                 : ZIO[Has[Module.Service], Nothing, String] = Module.overloaded(arg1)
               def function(arg1: Int)                    : ZIO[Has[Module.Service], Throwable, String] = Module.function(arg1)
-              def sink(arg1: Int)                        : ZIO[Has[Module.Service], Nothing, ZSink[Any, Nothing, Nothing, Int, List[Int]]] = Module.sink(arg1)
+              def sink(arg1: Int)                        : ZIO[Has[Module.Service], Nothing, ZSink[Any, Nothing, Int, List[Int]]] = Module.sink(arg1)
               def stream(arg1: Int)                      : ZIO[Has[Module.Service], Nothing, ZStream[Any, Nothing, Int]] = Module.stream(arg1)
             }
           """

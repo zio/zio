@@ -45,14 +45,16 @@ object DefaultTestReporter {
       executedSpec.caseValue match {
         case c @ Spec.SuiteCase(label, executedSpecs, _) =>
           for {
-            specs <- executedSpecs
-            failures <- UIO.foreach(specs)(_.exists {
-                         case Spec.TestCase(_, test, _) => test.map(_.isLeft);
-                         case _                         => UIO.succeedNow(false)
-                       })
+            specs <- executedSpecs.useNow
+            failures <- UIO.foreach(specs) { specs =>
+                         specs.exists {
+                           case Spec.TestCase(_, test, _) => test.map(_.isLeft)
+                           case _                         => UIO.succeedNow(false)
+                         }.useNow
+                       }
             annotations <- Spec(c).fold[UIO[TestAnnotationMap]] {
                             case Spec.SuiteCase(_, specs, _) =>
-                              specs.flatMap(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
+                              specs.use(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
                             case Spec.TestCase(_, _, annotations) => UIO.succeedNow(annotations)
                           }
             hasFailures = failures.exists(identity)
@@ -107,7 +109,7 @@ object DefaultTestReporter {
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           for {
-            specs <- executedSpecs
+            specs <- executedSpecs.useNow
             stats <- UIO.foreach(specs)(loop)
           } yield stats.foldLeft((0, 0, 0)) {
             case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
@@ -263,11 +265,8 @@ object FailureRenderer {
   import FailureMessage._
 
   def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Message =
-    failureDetails match {
-      case FailureDetails(assertionFailureDetails, genFailureDetails) =>
-        renderGenFailureDetails(genFailureDetails, offset) ++
-          renderAssertionFailureDetails(assertionFailureDetails, offset)
-    }
+    renderGenFailureDetails(failureDetails.gen, offset) ++
+      renderAssertionFailureDetails(failureDetails.assertion, offset)
 
   private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
     def loop(failureDetails: List[AssertionValue], rendered: Message): Message =
@@ -303,14 +302,14 @@ object FailureRenderer {
     withOffset(offset + tabSize) {
       blue(whole.value.toString) +
         renderSatisfied(whole) ++
-        highlight(cyan(whole.assertion.toString), fragment.assertion.toString)
+        highlight(cyan(whole.printAssertion), fragment.printAssertion)
     }
 
   private def renderFragment(fragment: AssertionValue, offset: Int): Line =
     withOffset(offset + tabSize) {
       blue(fragment.value.toString) +
         renderSatisfied(fragment) +
-        cyan(fragment.assertion.toString)
+        cyan(fragment.printAssertion)
     }
 
   private def highlight(fragment: Fragment, substring: String, colorCode: String = AnsiColor.YELLOW): Line = {
@@ -325,7 +324,7 @@ object FailureRenderer {
   }
 
   private def renderSatisfied(fragment: AssertionValue): Fragment =
-    if (fragment.assertion.test(fragment.value)) Fragment(" satisfied ")
+    if (fragment.result.isSuccess) Fragment(" satisfied ")
     else Fragment(" did not satisfy ")
 
   def renderCause(cause: Cause[Any], offset: Int): Message =
@@ -402,7 +401,7 @@ object FailureRenderer {
         case Nil =>
           lines
 
-        case (ident, Expectation.And(children, false, _, _)) :: tail =>
+        case (ident, Expectation.And(children, false, _, _, _)) :: tail =>
           val title       = Line.fromString("in any order", ident)
           val unsatisfied = children.filter(!_.satisfied).map(ident + tabSize -> _)
           loop(unsatisfied ++ tail, lines :+ title)
@@ -412,12 +411,12 @@ object FailureRenderer {
             withOffset(ident)(Fragment(s"$method with arguments ") + cyan(assertion.toString))
           loop(tail, lines :+ rendered)
 
-        case (ident, Expectation.Chain(children, false, _, _)) :: tail =>
+        case (ident, Expectation.Chain(children, false, _, _, _)) :: tail =>
           val title       = Line.fromString("in sequential order", ident)
           val unsatisfied = children.filter(!_.satisfied).map(ident + tabSize -> _)
           loop(unsatisfied ++ tail, lines :+ title)
 
-        case (ident, Expectation.Or(children, false, _, _)) :: tail =>
+        case (ident, Expectation.Or(children, false, _, _, _)) :: tail =>
           val title       = Line.fromString("one of", ident)
           val unsatisfied = children.map(ident + tabSize -> _)
           loop(unsatisfied ++ tail, lines :+ title)

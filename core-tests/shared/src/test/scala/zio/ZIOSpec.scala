@@ -140,11 +140,11 @@ object ZIOSpec extends ZIOBaseSpec {
           ref   <- Ref.make(0)
           cache <- incrementAndGet(ref).cached(60.minutes)
           a     <- cache
-          _     <- TestClock.advance(59.minutes)
+          _     <- TestClock.adjust(59.minutes)
           b     <- cache
-          _     <- TestClock.advance(1.minute)
+          _     <- TestClock.adjust(1.minute)
           c     <- cache
-          _     <- TestClock.advance(59.minutes)
+          _     <- TestClock.adjust(59.minutes)
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       },
@@ -256,6 +256,15 @@ object ZIOSpec extends ZIOBaseSpec {
         val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
         val res  = IO.collectAllPar(list)
         assertM(res)(equalTo(List(1, 2, 3)))
+      },
+      testM("is referentially transparent") {
+        for {
+          counter <- Ref.make(0)
+          op      = counter.getAndUpdate(_ + 1)
+          ops3    = ZIO.collectAllPar(List(op, op, op))
+          ops6    = ops3.zipPar(ops3)
+          res     <- ops6
+        } yield assert(res._1)(not(equalTo(res._2)))
       }
     ),
     suite("collectAllParN")(
@@ -898,7 +907,7 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
         } yield assert(result)(isNone)
       }
-    ) @@ zioTag(future, interruption),
+    ) @@ zioTag(future, interruption) @@ jvmOnly,
     suite("head")(
       testM("on non empty list") {
         assertM(ZIO.succeed(List(1, 2, 3)).head.either)(isRight(equalTo(1)))
@@ -1016,6 +1025,16 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List(0, 1, 2, 3, 4)))
       }
     ),
+    suite("mapEffect")(
+      testM("returns an effect whose success is mapped by the specified side effecting function") {
+        val task = ZIO.succeed("123").mapEffect(_.toInt)
+        assertM(task)(equalTo(123))
+      },
+      testM("translates any thrown exceptions into typed failed effects") {
+        val task = ZIO.succeed("hello").mapEffect(_.toInt)
+        assertM(task.run)(fails(isSubtype[NumberFormatException](anything)))
+      }
+    ),
     suite("mapN")(
       testM("with Tuple2") {
         checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
@@ -1083,6 +1102,17 @@ object ZIOSpec extends ZIOBaseSpec {
         ioMemo
           .flatMap(io => io <*> io)
           .map(tuple => assert(tuple._1)(equalTo(tuple._2)))
+      },
+      testM("memoized function returns the same instance on repeated calls") {
+        for {
+          memoized <- ZIO.memoize((n: Int) => random.nextString(n))
+          a        <- memoized(10)
+          b        <- memoized(10)
+          c        <- memoized(11)
+          d        <- memoized(11)
+        } yield assert(a)(equalTo(b)) &&
+          assert(b)(not(equalTo(c))) &&
+          assert(c)(equalTo(d))
       }
     ),
     suite("merge")(
@@ -1627,7 +1657,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("someOrFailException")(
       testM("extracts the optional value") {
-        assertM(ZIO.succeed(Some(42)).someOrFailException)(equalTo(42))
+        assertM(ZIO.some(42).someOrFailException)(equalTo(42))
       },
       testM("fails when given a None") {
         val task = ZIO.succeed(Option.empty[Int]).someOrFailException
@@ -2026,7 +2056,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield l
 
         assertM(Live.live(io))(hasSameElements(List("start 1", "release 1", "start 2", "release 2")))
-      } @@ zioTag(regression),
+      } @@ zioTag(regression) @@ jvmOnly,
       testM("interrupt waits for finalizer") {
         val io =
           for {
@@ -2108,7 +2138,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val io = stackIOs(procNum + 1)
 
         assertM(Live.live(io))(equalTo(42))
-      },
+      } @@ jvmOnly,
       testM("interrupt of effectAsyncM register") {
         for {
           release <- Promise.make[Nothing, Unit]
@@ -2838,6 +2868,17 @@ object ZIOSpec extends ZIOBaseSpec {
         io.lock(executor)
       } @@ jvm(nonFlaky(100))
     ),
+    suite("someOrElse")(
+      testM("extracts the value from Some") {
+        assertM(UIO.succeed(Some(1)).someOrElse(2))(equalTo(1))
+      },
+      testM("falls back to the default value if None") {
+        assertM(UIO.succeed(None).someOrElse(42))(equalTo(42))
+      },
+      testM("does not change failed state") {
+        assertM(ZIO.fail(ExampleError).someOrElse(42).run)(fails(equalTo(ExampleError)))
+      } @@ zioTag(errors)
+    ),
     suite("someOrFail")(
       testM("extracts the optional value") {
         val task: Task[Int] = UIO(Some(42)).someOrFail(exampleError)
@@ -2907,8 +2948,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           effectRef      <- Ref.make(0)
           conditionRef   <- Ref.make(0)
-          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
-          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
           _              <- effectRef.set(1).unlessM(conditionTrue)
           val1           <- effectRef.get
           conditionVal1  <- conditionRef.get
@@ -3120,8 +3161,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           effectRef      <- Ref.make(0)
           conditionRef   <- Ref.make(0)
-          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
-          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
           _              <- effectRef.set(1).whenM(conditionFalse)
           val1           <- effectRef.get
           conditionVal1  <- conditionRef.get

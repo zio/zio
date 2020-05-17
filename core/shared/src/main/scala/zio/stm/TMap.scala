@@ -51,7 +51,7 @@ final class TMap[K, V] private (
         tSize.unsafeSet(journal, currSize - 1)
       }
 
-      TExit.Succeed(())
+      TExit.unit
     })
 
   /**
@@ -79,7 +79,7 @@ final class TMap[K, V] private (
    * Atomically folds using a transactional function.
    */
   def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] =
-    toChunk.flatMap(_.foldLeft[STM[E, A]](STM.succeedNow(zero))((tx, kv) => tx.flatMap(op(_, kv))))
+    toChunk.flatMap(STM.foldLeft(_)(zero)(op))
 
   /**
    * Atomically performs transactional-effect for each binding present in map.
@@ -183,7 +183,7 @@ final class TMap[K, V] private (
         }
       }
 
-      TExit.Succeed(())
+      TExit.unit
     })
   }
 
@@ -218,7 +218,7 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.Succeed(())
+      TExit.unit
     })
 
   /**
@@ -252,7 +252,7 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.Succeed(())
+      TExit.unit
     })
 
   /**
@@ -336,7 +336,7 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.Succeed(())
+      TExit.unit
     })
 
   /**
@@ -372,7 +372,7 @@ final class TMap[K, V] private (
           }
 
           tSize.unsafeSet(journal, newSize)
-          TExit.Succeed(())
+          TExit.unit
         })
       }
     }

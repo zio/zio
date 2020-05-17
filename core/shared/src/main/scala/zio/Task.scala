@@ -295,6 +295,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterNot]]
+   */
+  def filterNot[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[A](
@@ -591,6 +597,12 @@ object Task extends TaskPlatformSpecific {
     f: (A, B, C, D) => F
   ): Task[F] =
     ZIO.mapParN(task1, task2, task3, task4)(f)
+
+  /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[A, B](f: A => Task[B]): UIO[A => Task[B]] =
+    ZIO.memoize(f)
 
   /**
    * @see See [[zio.ZIO.mergeAll]]

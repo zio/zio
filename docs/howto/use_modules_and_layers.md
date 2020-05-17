@@ -107,7 +107,7 @@ We encountered two new data types `Has` and `ZLayer`, let's get familiar with th
 
 ### The `Has` data type
 
-`Has[A]` represents a dependency on a service of type `A`. Two `Has[_]` can be combined _horizontally_ through `+` and `++` operators, as in
+`Has[A]` represents a dependency on a service of type `A`. Two `Has[_]` can be combined _horizontally_ through `++` operator, as in
 
 ```scala mdoc:invisible
 object Repo {

@@ -1,7 +1,6 @@
 package zio
 
 import zio.LatchOps._
-import zio.duration._
 import zio.internal.FiberRenderer
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -32,6 +31,7 @@ object FiberSpec extends ZIOBaseSpec {
           } yield assert(value)(equalTo(update))
         },
         testM("`orElse`") {
+          implicit val canFail = CanFail
           for {
             fiberRef <- FiberRef.make(initial)
             latch1   <- Promise.make[Nothing, Unit]
@@ -153,30 +153,24 @@ object FiberSpec extends ZIOBaseSpec {
       suite("track blockingOn")(
         testM("in await") {
           for {
-            p  <- Promise.make[Nothing, Unit]
-            f1 <- p.await.fork
-            f2 <- f1.await.fork
-            blockingOn <- (ZIO.yieldNow *> f2.dump)
-                           .map(_.status)
-                           .repeat(
-                             Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
-                               case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                             } <* Schedule.fixed(10.milli)
-                           )
-          } yield assert(blockingOn)(isSome(equalTo(List(f1.id))))
+            f1   <- ZIO.never.fork
+            f2   <- f1.await.fork
+            blockingOn <- f2.status
+                           .collect(()) {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           }
+                           .eventually
+          } yield assert(blockingOn)(equalTo(List(f1.id)))
         },
         testM("in race") {
           for {
-            p <- Promise.make[Nothing, Unit]
-            f <- p.await.race(p.await).fork
-            blockingOn <- (ZIO.yieldNow *> f.dump)
-                           .map(_.status)
-                           .repeat(
-                             Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
-                               case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                             } <* Schedule.fixed(10.milli)
-                           )
-          } yield assert(blockingOn)(isSome(hasSize(equalTo(2))))
+            f <- ZIO.never.race(ZIO.never).fork
+            blockingOn <- f.status
+                           .collect(()) {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           }
+                           .eventually
+          } yield assert(blockingOn)(hasSize(equalTo(2)))
         }
       )
     )
