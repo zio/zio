@@ -2614,27 +2614,27 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             clock.sleep(d).as(chunk).fork.flatMap(f => ref.set(Previous(f))) *> Pull.empty
 
           ref.get.flatMap {
-            case Current(fiber) =>
-              fiber.join >>= store
             case Previous(fiber) =>
-              fiber.join
-                .raceWith(chunks)(
-                  (exit, current) => ZIO.succeedNow((exit, Right(current))),
-                  (exit, previous) => ZIO.succeedNow((exit, Left(previous)))
-                )
-                .flatMap {
-                  case (Exit.Success(chunk), Left(previous)) =>
-                    previous.interrupt *> store(chunk)
-                  case (Exit.Success(chunk), Right(current)) =>
+              fiber.join.raceWith[R with Clock, Option[E1], Option[E1], Chunk[O2], Chunk[O2]](chunks)(
+                {
+                  case (Exit.Success(chunk), current) =>
                     ref.set(Current(current)) *> Pull.emit(chunk)
-                  case (Exit.Failure(cause), loser) =>
+                  case (Exit.Failure(cause), current) =>
+                    current.interrupt *> Pull.halt(cause)
+                }, {
+                  case (Exit.Success(chunk), previous) =>
+                    previous.interrupt *> store(chunk)
+                  case (Exit.Failure(cause), previous) =>
                     Cause.sequenceCauseOption(cause) match {
                       case Some(e) =>
-                        loser.merge.interrupt *> Pull.halt(e)
+                        previous.interrupt *> Pull.halt(e)
                       case None =>
-                        loser.merge.join.flatMap(Pull.emit) <* ref.set(Done)
+                        previous.join.flatMap(Pull.emit) <* ref.set(Done)
                     }
                 }
+              )
+            case Current(fiber) =>
+              fiber.join >>= store
             case NotStarted =>
               chunks >>= store
             case Done =>
