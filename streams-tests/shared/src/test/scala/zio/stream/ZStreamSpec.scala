@@ -2291,7 +2291,56 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(equalTo(List(1, 2, 4, 5)))
           }
         ),
-        inputStreamSuite,
+        suite("toInputStream")(
+          testM("read one-by-one") {
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyByte))) { chunks =>
+              val content = chunks.flatMap(_.toList)
+              ZStream.fromChunks(chunks: _*).toInputStream.use[Any, Throwable, TestResult] { is =>
+                ZIO.succeedNow(
+                  assert(Iterator.continually(is.read()).takeWhile(_ != -1).map(_.toByte).toList)(equalTo(content))
+                )
+              }
+            }
+          },
+          testM("read in batches") {
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyByte))) {
+              chunks =>
+                val content = chunks.flatMap(_.toList)
+                ZStream.fromChunks(chunks: _*).toInputStream.use[Any, Throwable, TestResult] { is =>
+                  val batches: List[(Array[Byte], Int)] = Iterator.continually {
+                    val buf = new Array[Byte](10)
+                    val res = is.read(buf, 0, 4)
+                    (buf, res)
+                  }.takeWhile(_._2 != -1).toList
+                  val combined = batches.flatMap { case (buf, size) => buf.take(size) }
+                  ZIO.succeedNow(assert(combined)(equalTo(content)))
+                }
+            }
+          },
+          testM("`available` returns the size of chunk's leftover") {
+            ZStream
+              .fromIterable((1 to 10).map(_.toByte))
+              .chunkN(3)
+              .toInputStream
+              .use[Any, Throwable, TestResult](is =>
+                ZIO.effect {
+                  val cold = is.available()
+                  is.read()
+                  val at1 = is.available()
+                  is.read(new Array[Byte](2))
+                  val at3 = is.available()
+                  is.read()
+                  val at4 = is.available()
+                  List(
+                    assert(cold)(equalTo(0)),
+                    assert(at1)(equalTo(2)),
+                    assert(at3)(equalTo(0)),
+                    assert(at4)(equalTo(2))
+                  ).reduce(_ && _)
+                }
+              )
+          }
+        ),
         testM("toIterator") {
           (for {
             counter  <- Ref.make(0).toManaged_ //Increment and get the value
@@ -2759,53 +2808,4 @@ object ZStreamSpec extends ZIOBaseSpec {
       }
       testResult <- assertion(chunkCoordination)
     } yield testResult
-
-  private def inputStreamSuite = {
-    val bytes: List[Byte] = (-10 to 10).map(_.toByte).toList
-    val stream            = ZStream.fromIterable(bytes)
-
-    def testStream(assertion: java.io.InputStream => TestResult): ZIO[Any, Nothing, TestResult] =
-      ZIO
-        .foreach(List(1, 2, 5, 30)) { chunkSize =>
-          stream.chunkN(chunkSize).toInputStream.use(is => ZIO.succeedNow(assertion(is)))
-        }
-        .map(res => res.reduce(_ && _))
-
-    suite("toInputStream")(
-      testM("read one-by-one") {
-        testStream(is =>
-          assert(Iterator.continually(is.read()).takeWhile(_ != -1).map(_.toByte).toList)(equalTo(bytes))
-        )
-      },
-      testM("read in batches") {
-        testStream { is =>
-          val batches: List[(Array[Byte], Int)] = Iterator.continually {
-            val buf = new Array[Byte](10)
-            val res = is.read(buf, 0, 4)
-            (buf, res)
-          }.takeWhile(_._2 != -1).toList
-          val combined = batches.flatMap { case (buf, size) => buf.take(size) }
-          assert(combined)(equalTo(bytes))
-        }
-      },
-      testM("`available` returns the size of chunk's leftover") {
-        stream
-          .chunkN(3)
-          .toInputStream
-          .use[Any, Throwable, TestResult](is =>
-            ZIO.effect {
-              val cold = is.available()
-              is.read()
-              val at1 = is.available()
-              is.read(new Array[Byte](2))
-              val at3 = is.available()
-              is.read()
-              val at4 = is.available()
-              List(assert(cold)(equalTo(0)), assert(at1)(equalTo(2)), assert(at3)(equalTo(0)), assert(at4)(equalTo(2)))
-                .reduce(_ && _)
-            }
-          )
-      }
-    )
-  }
 }

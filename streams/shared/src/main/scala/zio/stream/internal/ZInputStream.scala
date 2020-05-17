@@ -6,15 +6,25 @@ import zio.Runtime
 import zio.{ Chunk, Exit, FiberFailure, ZIO }
 
 private[zio] class ZInputStream(chunks: Iterator[Chunk[Byte]]) extends java.io.InputStream {
-  private var current: Iterator[Byte]      = Iterator.empty
-  private var availableInCurrentChunk: Int = 0
-  private var done: Boolean                = false
+  private var current: Chunk[Byte] = Chunk.empty
+  private var currentPos: Int      = 0
+  private var currentChunkLen: Int = 0
+  private var done: Boolean        = false
+
+  @inline private def availableInCurrentChunk: Int = currentChunkLen - currentPos
+
+  @inline
+  private def readOne(): Byte = {
+    val res = current(currentPos)
+    currentPos += 1
+    res
+  }
 
   private def loadNext(): Unit =
     if (chunks.hasNext) {
-      val c = chunks.next()
-      availableInCurrentChunk = c.length
-      current = c.iterator
+      current = chunks.next()
+      currentChunkLen = current.length
+      currentPos = 0
     } else {
       done = true
     }
@@ -25,9 +35,8 @@ private[zio] class ZInputStream(chunks: Iterator[Chunk[Byte]]) extends java.io.I
       if (done) {
         -1
       } else {
-        if (current.hasNext) {
-          availableInCurrentChunk -= 1
-          current.next() & 0xFF
+        if (availableInCurrentChunk > 0) {
+          readOne() & 0xFF
         } else {
           loadNext()
           go()
@@ -53,7 +62,6 @@ private[zio] class ZInputStream(chunks: Iterator[Chunk[Byte]]) extends java.io.I
   @tailrec
   private def doRead(bytes: Array[Byte], off: Int, len: Int, written: Int): Int =
     if (len <= availableInCurrentChunk) {
-      availableInCurrentChunk -= len
       readFromCurrentChunk(bytes, off, len)
       written + len
     } else {
@@ -70,7 +78,7 @@ private[zio] class ZInputStream(chunks: Iterator[Chunk[Byte]]) extends java.io.I
   private def readFromCurrentChunk(bytes: Array[Byte], off: Int, len: Int): Unit = {
     var i: Int = 0
     while (i < len) {
-      bytes.update(off + i, current.next())
+      bytes.update(off + i, readOne())
       i += 1
     }
   }
