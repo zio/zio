@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Sink · ZIO</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="A `Sink[E, A0, A, B]` is used to consume elements produced by a stream."/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Sink · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="A `Sink[E, A0, A, B]` is used to consume elements produced by a stream."/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Sink · ZIO</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="A `ZSink[R, E, A, B]` is used to consume elements produced by a stream."/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Sink · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="A `ZSink[R, E, A, B]` is used to consume elements produced by a stream."/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
         document.addEventListener('DOMContentLoaded', function() {
           addBackToTop(
             {"zIndex":100,"cornerOffset":100}
@@ -60,88 +60,53 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Sink</h1></header><article><div><span><p>A <code>Sink[E, A0, A, B]</code> is used to consume elements produced by a stream.
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Sink</h1></header><article><div><span><p>A <code>ZSink[R, E, A, B]</code> is used to consume elements produced by a stream.
 You can think of this sink as a function that will consume a variable
 amount of <code>A</code> elements (could be 0, 1, or many!), might fail with an
 error of type <code>E</code>, and will eventually yield a value of type <code>B</code>.</p>
-<p>The <code>A0</code> parameter describes the sink's <em>leftover</em> type. Sinks might
-not consume all their inputs, and unconsumed elements are returned as
-chunks of <code>A0</code> values.</p>
-<p>A <code>Sink</code> is passed to <code>ZStream#run</code> as an argument:</p>
+<p>A <code>ZSink</code> is passed to <code>ZStream#run</code> as an argument:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
 <span class="hljs-keyword">import</span> zio.stream._
 
-<span class="hljs-keyword">val</span> stream = <span class="hljs-type">Stream</span>.fromIterable(<span class="hljs-number">1</span> to <span class="hljs-number">1000</span>)
+<span class="hljs-keyword">val</span> stream = <span class="hljs-type">ZStream</span>.fromIterable(<span class="hljs-number">1</span> to <span class="hljs-number">1000</span>)
 
-<span class="hljs-keyword">val</span> sink = <span class="hljs-type">Sink</span>.await[<span class="hljs-type">Int</span>]
+<span class="hljs-keyword">val</span> sink = <span class="hljs-type">ZSink</span>.sum[<span class="hljs-type">Int</span>]
 
 stream.run(sink)
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="creating-sinks"></a><a href="#creating-sinks" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating sinks</h2>
 <p>The <code>zio.stream</code> provides numerous kinds of sinks to use.</p>
-<p>Await where sink anticipates for first produced element and returns it:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.await[<span class="hljs-type">Int</span>]
-</code></pre>
 <p>Collecting all elements into <code>List[A]</code>:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.collectAll[<span class="hljs-type">Int</span>]
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZSink</span>.collectAll[<span class="hljs-type">Int</span>]
 </code></pre>
 <p>Collecting the first element into an option (returns <code>None</code> for empty streams):</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.identity[<span class="hljs-type">Int</span>].optional
-</code></pre>
-<p>Collecting elements until the condition is not satisfied:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.collectAllWhile[<span class="hljs-type">Int</span>](_ &gt; <span class="hljs-number">2</span>)
-</code></pre>
-<p>Ignoring incoming values unless some element satisfies the condition:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.ignoreWhile[<span class="hljs-type">Int</span>](_ &gt; <span class="hljs-number">2</span>)
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZSink</span>.head[<span class="hljs-type">Int</span>]
 </code></pre>
 <p>Ignoring all the input, used in implementation of <code>stream.runDrain</code>:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.drain
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZSink</span>.drain
 </code></pre>
 <p>Sink that intentionally fails with given type:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> sun.reflect.generics.reflectiveObjects.<span class="hljs-type">NotImplementedException</span>
-
-<span class="hljs-type">Sink</span>.fail[<span class="hljs-type">Exception</span>](<span class="hljs-keyword">new</span> <span class="hljs-type">NotImplementedException</span>)
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZSink</span>.fail(<span class="hljs-string">"Boom"</span>)
 </code></pre>
 <p>Basic fold accumulation of received elements:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.foldLeft[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)(_ + _)
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZSink</span>.foldLeft[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)(_ + _)
 </code></pre>
-<p>A fold with control over continuation and the remainder produced by the sink.
-<code>foldLeft</code> is implemented as a fold that always continues and produces no remainder.</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.fold(<span class="hljs-number">0</span>)(_ =&gt; <span class="hljs-literal">true</span>)((acc, n: <span class="hljs-type">Int</span>) =&gt; (acc + n, <span class="hljs-type">Chunk</span>.empty))
-</code></pre>
-<p>Mapping over the received input elements:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.fromFunction[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](_ * <span class="hljs-number">2</span>).collectAll
-</code></pre>
-<p><code>pull1</code> fails with given type in case of empty stream, otherwise continues with provided sink:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>
-  .pull1[<span class="hljs-type">String</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](<span class="hljs-type">IO</span>.fail(<span class="hljs-string">"Empty stream, no value to pull"</span>)) { init =&gt;
-    <span class="hljs-type">Sink</span>.foldLeft[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](init)(_ + _)
-  }
-</code></pre>
-<p><code>read1</code> tries to read head element from stream,
-fails if isn't present or doesn't satisfy given condition:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.read1[<span class="hljs-type">String</span>, <span class="hljs-type">Int</span>] {
-  <span class="hljs-keyword">case</span> <span class="hljs-type">Some</span>(_) =&gt; <span class="hljs-string">"Stream is not empty but failed condition"</span>
-  <span class="hljs-keyword">case</span> <span class="hljs-type">None</span> =&gt; <span class="hljs-string">"Stream is empty"</span>
-}(_ &gt; <span class="hljs-number">3</span>).collectAll
+<p>A fold with short circuiting:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZSink</span>.fold(<span class="hljs-number">0</span>)(sum =&gt; sum &gt;= <span class="hljs-number">10</span>)((acc, n: <span class="hljs-type">Int</span>) =&gt; acc + n)
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="transforming-sinks"></a><a href="#transforming-sinks" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Transforming sinks</h2>
-<p>Having created the sink, we can transform it with provided operations.
-One of them already appeared in previous section - <code>collectAll</code> in <code>pull1</code>.</p>
-<p>Sink that after collecting input - filters it:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.collectAll[<span class="hljs-type">Int</span>].filter(_ &gt; <span class="hljs-number">100</span>)
-</code></pre>
+<p>Having created the sink, we can transform it with provided operations.</p>
 <p>Running two sinks in parallel and returning the one that completed earlier:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.foldLeft[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)(_ + _).race(<span class="hljs-type">Sink</span>.identity[<span class="hljs-type">Int</span>])
+<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.foldLeft[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)(_ + _).race(<span class="hljs-type">Sink</span>.head[<span class="hljs-type">Int</span>])
 </code></pre>
 <p>For transforming given input into some sink we can use <code>contramap</code> which
 is <code>C =&gt; A</code> where <code>C</code> is input type and <code>A</code> is sink elements type:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.collectAll[<span class="hljs-type">String</span>].contramap[<span class="hljs-type">Int</span>](_.toString + <span class="hljs-string">"id"</span>)
 </code></pre>
 <p>A <code>dimap</code> is an extended <code>contramap</code> that additionally transforms sink's output:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.collectAll[<span class="hljs-type">String</span>].dimap[<span class="hljs-type">Int</span>, <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]](_.toString + <span class="hljs-string">"id"</span>)(_.take(<span class="hljs-number">10</span>))
+<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.collectAll[<span class="hljs-type">String</span>].dimap[<span class="hljs-type">Int</span>, <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]](_.toString + <span class="hljs-string">"id"</span>, _.take(<span class="hljs-number">10</span>))
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/datatypes/datatypes_semaphore"><span class="arrow-prev">← </span><span>Semaphore</span></a><a class="docs-next button" href="/docs/datatypes/datatypes_stream"><span>Stream</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#creating-sinks">Creating sinks</a></li><li><a href="#transforming-sinks">Transforming sinks</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/datatypes/datatypes_semaphore"><span class="arrow-prev">← </span><span>Semaphore</span></a><a class="docs-next button" href="/docs/datatypes/datatypes_stream"><span>Stream</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#creating-sinks">Creating sinks</a></li><li><a href="#transforming-sinks">Transforming sinks</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
                 document.addEventListener('keyup', function(e) {
                   if (e.target !== document.body) {
                     return;

@@ -73,10 +73,72 @@ type <code>A</code>, or potentially fail with a value of type <code>E</code>.</p
 <span class="hljs-keyword">val</span> streamFromIterable: <span class="hljs-type">Stream</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>] = <span class="hljs-type">Stream</span>.fromIterable(<span class="hljs-number">0</span> to <span class="hljs-number">100</span>)
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="transforming-a-stream"></a><a href="#transforming-a-stream" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Transforming a Stream</h2>
+<p>ZIO Stream supports many standard transforming functions like <code>map</code>, <code>partition</code>, <code>grouped</code>, <code>groupByKey</code>, <code>groupedWithin</code>
+and many others. Here are examples of how to use them.</p>
+<h3><a class="anchor" aria-hidden="true" id="map"></a><a href="#map" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>map</h3>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.stream._
 
 <span class="hljs-keyword">val</span> intStream: <span class="hljs-type">Stream</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>] = <span class="hljs-type">Stream</span>.fromIterable(<span class="hljs-number">0</span> to <span class="hljs-number">100</span>)
 <span class="hljs-keyword">val</span> stringStream: <span class="hljs-type">Stream</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">String</span>] = intStream.map(_.toString)
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="partition"></a><a href="#partition" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>partition</h3>
+<p><code>partition</code> function splits the stream into tuple of streams based on predicate. The first stream contains all
+element evaluated to true and the second one contains all element evaluated to false.
+The faster stream may advance by up to <code>buffer</code> elements further than the slower one. Two streams are
+wrapped by <code>ZManaged</code> type. In the example below, left stream consists of even numbers only.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
+<span class="hljs-keyword">import</span> zio.stream._
+
+<span class="hljs-keyword">val</span> partitionResult: <span class="hljs-type">ZManaged</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, (<span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>], <span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>])] =
+  <span class="hljs-type">Stream</span>
+    .fromIterable(<span class="hljs-number">0</span> to <span class="hljs-number">100</span>)
+    .partition(_ % <span class="hljs-number">2</span> == <span class="hljs-number">0</span>, buffer = <span class="hljs-number">50</span>)
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="grouped"></a><a href="#grouped" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>grouped</h3>
+<p>To partition the stream results with the specified chunk size, you can use <code>grouped</code> function.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
+<span class="hljs-keyword">import</span> zio.stream._
+
+<span class="hljs-keyword">val</span> groupedResult: <span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">List</span>[<span class="hljs-type">Int</span>]] =
+  <span class="hljs-type">Stream</span>
+    .fromIterable(<span class="hljs-number">0</span> to <span class="hljs-number">100</span>)
+    .grouped(<span class="hljs-number">50</span>)
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="groupbykey"></a><a href="#groupbykey" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>groupByKey</h3>
+<p>To partition the stream by function result you can use <code>groupByKey</code> or <code>groupBy</code>. In the example below
+exam results are grouped into buckets and counted.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
+<span class="hljs-keyword">import</span> zio.stream._
+
+  <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Exam</span>(<span class="hljs-params">person: <span class="hljs-type">String</span>, score: <span class="hljs-type">Int</span></span>)</span>
+
+  <span class="hljs-keyword">val</span> examResults = <span class="hljs-type">Seq</span>(
+    <span class="hljs-type">Exam</span>(<span class="hljs-string">"Alex"</span>, <span class="hljs-number">64</span>),
+    <span class="hljs-type">Exam</span>(<span class="hljs-string">"Michael"</span>, <span class="hljs-number">97</span>),
+    <span class="hljs-type">Exam</span>(<span class="hljs-string">"Bill"</span>, <span class="hljs-number">77</span>),
+    <span class="hljs-type">Exam</span>(<span class="hljs-string">"John"</span>, <span class="hljs-number">78</span>),
+    <span class="hljs-type">Exam</span>(<span class="hljs-string">"Bobby"</span>, <span class="hljs-number">71</span>)
+  )
+
+  <span class="hljs-keyword">val</span> groupByKeyResult: <span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, (<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>)] =
+    <span class="hljs-type">Stream</span>
+      .fromIterable(examResults)
+      .groupByKey(exam =&gt; exam.score / <span class="hljs-number">10</span> * <span class="hljs-number">10</span>) {
+        <span class="hljs-keyword">case</span> (k, s) =&gt; <span class="hljs-type">ZStream</span>.fromEffect(s.runCollect.map(l =&gt; k -&gt; l.size))
+      }
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="groupedwithin"></a><a href="#groupedwithin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>groupedWithin</h3>
+<p><code>groupedWithin</code> allows to group events by time or chunk size, whichever is satisfied first. In the example below
+every chunk consists of 30 elements and is produced every 3 seconds.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
+<span class="hljs-keyword">import</span> zio.stream._
+<span class="hljs-keyword">import</span> zio.duration._
+<span class="hljs-keyword">import</span> zio.clock.<span class="hljs-type">Clock</span>
+
+<span class="hljs-keyword">val</span> groupedWithinResult: <span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Clock</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">List</span>[<span class="hljs-type">Int</span>]] =
+  <span class="hljs-type">Stream</span>.fromIterable(<span class="hljs-number">0</span> to <span class="hljs-number">10</span>)
+    .repeat(<span class="hljs-type">Schedule</span>.spaced(<span class="hljs-number">1</span> seconds))
+    .groupedWithin(<span class="hljs-number">30</span>, <span class="hljs-number">10</span> seconds)
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="consuming-a-stream"></a><a href="#consuming-a-stream" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consuming a Stream</h2>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
@@ -117,7 +179,7 @@ of type <code>A0</code>.</p>
 
 <span class="hljs-keyword">val</span> reducedResult: <span class="hljs-type">UIO</span>[<span class="hljs-type">Int</span>] = zippedStream.run(<span class="hljs-type">Sink</span>.foldLeft(<span class="hljs-number">0</span>)(tupleStreamReduce))
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/datatypes/datatypes_sink"><span class="arrow-prev">← </span><span>Sink</span></a><a class="docs-next button" href="/docs/datatypes/datatypes_chunk"><span>Chunk</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#creating-a-stream">Creating a Stream</a></li><li><a href="#transforming-a-stream">Transforming a Stream</a></li><li><a href="#consuming-a-stream">Consuming a Stream</a><ul class="toc-headings"><li><a href="#using-a-sink">Using a Sink</a></li></ul></li><li><a href="#working-on-several-streams">Working on several streams</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/datatypes/datatypes_sink"><span class="arrow-prev">← </span><span>Sink</span></a><a class="docs-next button" href="/docs/datatypes/datatypes_chunk"><span>Chunk</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#creating-a-stream">Creating a Stream</a></li><li><a href="#transforming-a-stream">Transforming a Stream</a><ul class="toc-headings"><li><a href="#map">map</a></li><li><a href="#partition">partition</a></li><li><a href="#grouped">grouped</a></li><li><a href="#groupbykey">groupByKey</a></li><li><a href="#groupedwithin">groupedWithin</a></li></ul></li><li><a href="#consuming-a-stream">Consuming a Stream</a><ul class="toc-headings"><li><a href="#using-a-sink">Using a Sink</a></li></ul></li><li><a href="#working-on-several-streams">Working on several streams</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
                 document.addEventListener('keyup', function(e) {
                   if (e.target !== document.body) {
                     return;
