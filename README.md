@@ -36,9 +36,10 @@ production to craft concurrent applications.
 
 Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
 
+* [AutoScout24](https://www.autoscout24.de)
 * [Coralogix](https://coralogix.com)
 * [Hunters.AI](https://hunters.ai)
-* [AutoScout24](https://www.autoscout24.de)
+* [TomTom](https://tomtom.com)
 
 # Sponsors
 
