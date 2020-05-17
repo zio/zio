@@ -468,17 +468,17 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * stream is uninterruptible.
    */
   final def catchAllCause[R1 <: R, E2, O1 >: O](f: Cause[E] => ZStream[R1, E2, O1]): ZStream[R1, E2, O1] = {
-    sealed abstract class State
-    case object NotStarted                                              extends State
-    case class Self(finalizer: ZManaged.Finalizer, pull: Pull[R, E, O]) extends State
-    case class Other(pull: Pull[R1, E2, O1])                            extends State
+    sealed abstract class State[+E]
+    case object NotStarted                                                   extends State[Nothing]
+    case class Self[E](finalizer: ZManaged.Finalizer, pull: Pull[R1, E, O1]) extends State[E]
+    case class Other(pull: Pull[R1, E2, O1])                                 extends State[Nothing]
 
     ZStream {
       for {
         finalizers <- ZManaged.releaseMap
-        ref        <- Ref.make[State](NotStarted).toManaged_
+        ref        <- Ref.make[State[E]](NotStarted).toManaged_
         pull = {
-          def use[R, E, O](stream: ZStream[R, E, O])(state: (ZManaged.Finalizer, Pull[R, E, O]) => State) =
+          def use[R, E0, O](stream: ZStream[R, E0, O])(state: (ZManaged.Finalizer, Pull[R, E0, O]) => State[E]) =
             stream.process.zio
               .provideSome[R]((_, finalizers))
               .flatMap { case (release, pull) => ref.set(state(release, pull)) *> pull }
