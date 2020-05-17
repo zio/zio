@@ -153,10 +153,9 @@ object FiberSpec extends ZIOBaseSpec {
       suite("track blockingOn")(
         testM("in await") {
           for {
-            p    <- Promise.make[Nothing, Unit]
-            f1   <- p.await.fork
-            f1id <- f1.id
-            f2   <- f1.await.fork
+            p  <- Promise.make[Nothing, Unit]
+            f1 <- p.await.fork
+            f2 <- f1.await.fork
             blockingOn <- (ZIO.yieldNow *> f2.dump)
                            .map(_.status)
                            .repeat(
@@ -164,7 +163,7 @@ object FiberSpec extends ZIOBaseSpec {
                                case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
                              } <* Schedule.fixed(10.milli)
                            )
-          } yield assert(blockingOn)(isSome(equalTo(List(f1id))))
+          } yield assert(blockingOn)(isSome(equalTo(List(f1.id))))
         },
         testM("in race") {
           for {

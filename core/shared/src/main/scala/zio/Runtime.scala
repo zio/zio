@@ -101,7 +101,8 @@ trait Runtime[+R] {
       InitialInterruptStatus,
       None,
       PlatformConstants.tracingSupported,
-      Platform.newWeakHashMap()
+      Platform.newWeakHashMap(),
+      Supervisor.none
     )
 
     Fiber.track(context)

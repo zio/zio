@@ -2595,7 +2595,7 @@ object ZIOSpec extends ZIOBaseSpec {
           p1 <- Promise.make[Nothing, Boolean]
           c  <- Promise.make[Nothing, Unit]
           f1 <- (c.succeed(()) *> ZIO.never)
-                 .ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interruptors.nonEmpty)))
+                 .ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interrupters.nonEmpty)))
                  .fork
           _   <- c.await
           _   <- f1.interrupt

@@ -832,7 +832,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * executor. The specified effect will always run on the specified executor,
    * even in the presence of asynchronous boundaries.
    *
-   * This is useful when an effect must be executued somewhere, for example:
+   * This is useful when an effect must be executed somewhere, for example:
    * on a UI thread, inside a client library's thread pool, inside a blocking
    * thread pool, inside a low-latency thread pool, or elsewhere.
    *
@@ -1050,7 +1050,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
-   * otherwise suceeds with the specified value.
+   * otherwise succeeds with the specified value.
    */
   final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E]): URIO[R, A1] =
     orElse(ZIO.succeedNow(a1))
@@ -1169,7 +1169,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
-   * Returns a succesful effect if the value is `Right`, or fails with the error `None`.
+   * Returns a successful effect if the value is `Right`, or fails with the error `None`.
    */
   final def right[B, C](implicit ev: A <:< Either[B, C]): ZIO[R, Option[E], C] =
     self.foldM(
@@ -1510,7 +1510,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.Fold[R, E, Nothing, A, Exit[E, A]](
       self,
       cause => ZIO.succeedNow(Exit.halt(cause)),
-      succ => ZIO.succeedNow(Exit.succeed(succ))
+      success => ZIO.succeedNow(Exit.succeed(success))
     )
 
   /**
@@ -1777,7 +1777,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   private[this] final def tryOrElse[R1 <: R, E2, B](
     that: => ZIO[R1, E2, B],
-    succ: A => ZIO[R1, E2, B]
+    success: A => ZIO[R1, E2, B]
   ): ZIO[R1, E2, B] =
     new ZIO.Fold[R1, E, E2, A, B](
       self,
@@ -1787,7 +1787,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
           case Some(c) => ZIO.halt(c)
         }
       },
-      succ
+      success
     )
 
   /**
@@ -1991,7 +1991,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * so, performs self-interruption
    */
   def allowInterrupt: UIO[Unit] =
-    descriptorWith(d => if (d.interruptors.nonEmpty) interrupt else ZIO.unit)
+    descriptorWith(d => if (d.interrupters.nonEmpty) interrupt else ZIO.unit)
 
   /**
    * Awaits all child fibers of the fiber executing the effect.
@@ -3428,7 +3428,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] val unitFn: Any => Unit = (_: Any) => ()
 
-  implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
+  implicit final class ZIOAutoCloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
     /**
      * Like `bracket`, safely wraps a use and release of a resource.
@@ -3675,6 +3675,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val RaceWith                 = 22
     final val Disown                   = 23
     final val Adopt                    = 24
+    final val Supervise                = 25
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -3802,6 +3803,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class Adopt(val fiber: Fiber[Any, Any]) extends UIO[Boolean] {
     override def tag = Tags.Adopt
+  }
+
+  private[zio] final class Supervise[R, E, A](val zio: ZIO[R, E, A], val supervisor: Supervisor[Any])
+      extends ZIO[R, E, A] {
+    override def tag = Tags.Supervise
   }
 
   private val debug = new java.util.concurrent.atomic.AtomicReference[Set[String]](Set())

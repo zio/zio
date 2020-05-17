@@ -170,7 +170,7 @@ sealed trait Fiber[+E, +A] { self =>
 
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the
-   * fiber has been determined. Attempting to join a fiber that has errored will
+   * fiber has been determined. Attempting to join a fiber that has erred will
    * result in a catchable error. Joining an interrupted fiber will result in an
    * "inner interruption" of this fiber, unlike interruption triggered by another
    * fiber, "inner interruption" can be caught and recovered.
@@ -406,22 +406,21 @@ object Fiber extends FiberPlatformSpecific {
     final def dumpWith(withTrace: Boolean): UIO[Fiber.Dump] =
       for {
         name       <- self.getRef(Fiber.fiberName)
-        id         <- self.id
         status     <- self.status
         trace      <- if (withTrace) self.trace.map(Some(_)) else UIO(None)
         ch         <- self.children
         childDumps <- ZIO.foreach(ch)(_.dumpWith(withTrace))
-      } yield Fiber.Dump(id, name, status, childDumps, trace)
+      } yield Fiber.Dump(self.id, name, status, childDumps, trace)
 
     /**
-     * Generates a fiber dump with optionally excluded stacktraces.
+     * Generates a fiber dump with optionally excluded stack traces.
      */
     final def dump: UIO[Fiber.Dump] = dumpWith(true)
 
     /**
      * The identity of the fiber.
      */
-    def id: UIO[Fiber.Id]
+    def id: Fiber.Id
 
     /**
      * The status of the fiber.
@@ -452,14 +451,14 @@ object Fiber extends FiberPlatformSpecific {
    * A record containing information about a [[Fiber]].
    *
    * @param id            The fiber's unique identifier
-   * @param interruptors  The set of fibers attempting to interrupt the fiber or its ancestors.
+   * @param interrupters  The set of fibers attempting to interrupt the fiber or its ancestors.
    * @param executor      The [[zio.internal.Executor]] executing this fiber
    * @param children      The fiber's forked children.
    */
   final case class Descriptor(
     id: Fiber.Id,
     status: Status,
-    interruptors: Set[Fiber.Id],
+    interrupters: Set[Fiber.Id],
     interruptStatus: InterruptStatus,
     children: UIO[Iterable[Fiber.Runtime[Any, Any]]],
     executor: Executor
@@ -697,7 +696,7 @@ object Fiber extends FiberPlatformSpecific {
 
   /**
    * Joins all fibers, awaiting their _successful_ completion.
-   * Attempting to join a fiber that has errored will result in
+   * Attempting to join a fiber that has erred will result in
    * a catchable error, _if_ that error does not result from interruption.
    *
    * @param fs `Iterable` of fibers to be joined
@@ -759,16 +758,24 @@ object Fiber extends FiberPlatformSpecific {
 
   private[zio] def newFiberId(): Fiber.Id = Fiber.Id(System.currentTimeMillis(), _fiberCounter.getAndIncrement())
 
-  private[zio] def untrack[E, A](context: internal.FiberContext[E, A]): Boolean =
+  private[zio] def untrack(context: internal.FiberContext[_, _]): Boolean =
     if (context ne null) Fiber.rootFibers.remove(context)
     else false
 
-  private[zio] def track[E, A](context: internal.FiberContext[E, A]): Unit =
+  private[zio] def track(context: internal.FiberContext[_, _]): Unit =
     if (context ne null) {
       Fiber.rootFibers.add(context)
 
       // On the JVM, rely on garbage collection of the weak set to clean things up:
       if (!internal.Platform.isJVM) context.onDone(_ => Fiber.rootFibers.remove(context))
+    }
+
+  private[zio] def trackAll(contexts: Iterable[internal.FiberContext[_, _]]): Unit =
+    if (contexts ne null) {
+      Fiber.rootFibers.addAll(contexts.asJavaCollection)
+
+      // On the JVM, rely on garbage collection of the weak set to clean things up:
+      if (!internal.Platform.isJVM) contexts.foreach(untrack(_))
     }
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
