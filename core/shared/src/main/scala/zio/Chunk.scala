@@ -546,7 +546,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Partitions the elements of this chunk into two chunks using the specified
    * function.
    */
-  def partitionMap[B, C](f: A => Either[B, C]): (Chunk[B], Chunk[C]) = {
+  override final def partitionMap[B, C](f: A => Either[B, C]): (Chunk[B], Chunk[C]) = {
     val bs = ChunkBuilder.make[B]()
     val cs = ChunkBuilder.make[C]()
     foreach { a =>
