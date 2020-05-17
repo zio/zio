@@ -730,7 +730,7 @@ object StreamSpec extends ZIOBaseSpec {
         } yield assert(fin)(isTrue)
       }
     ),
-    suite("Stream.flatMapPar / flattenPar / mergeAll")(
+    suite("Stream.flatMapPar / flattenPar / flatten / mergeAll")(
       testM("guarantee ordering")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { (m: List[Int]) =>
         for {
           flatMap    <- Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect
@@ -742,7 +742,10 @@ object StreamSpec extends ZIOBaseSpec {
           for {
             flatMap    <- Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect.map(_.toSet)
             flatMapPar <- Stream.fromIterable(m).flatMapPar(n)(i => Stream(i, i)).runCollect.map(_.toSet)
-          } yield assert(n)(isGreaterThan(0)) implies assert(flatMap)(equalTo(flatMapPar))
+            flatten    <- Stream(Stream.fromIterable(m)).flatten.runCollect
+          } yield assert(n)(isGreaterThan(0)) implies assert(flatMap)(equalTo(flatMapPar)) && assert(flatten)(
+            equalTo(m)
+          )
       }),
       testM("short circuiting") {
         assertM(

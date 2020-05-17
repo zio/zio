@@ -1462,6 +1462,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   /**
+   * Flattens nested streams
+   */
+  def flatten[R1 <: R, E1 >: E, B](implicit ev: A <:< ZStream[R1, E1, B]): ZStream[R1, E1, B] =
+    self.flatMap(ev)
+
+  /**
    * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
    */
   final def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
