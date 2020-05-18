@@ -1202,17 +1202,37 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def flatMap[R1 <: R, E1 >: E, O2](f0: O => ZStream[R1, E1, O2]): ZStream[R1, E1, O2] = {
     def go(
       outerStream: ZIO[R1, Option[E1], Chunk[O]],
-      switchInner: ZManaged[R1, Nothing, ZIO[R1, Option[E1], Chunk[O2]]] => ZIO[
-        R1,
-        Nothing,
-        ZIO[R1, Option[E1], Chunk[O2]]
-      ],
-      currInnerStream: Ref[ZIO[R1, Option[E1], Chunk[O2]]]
+      currOuterChunk: Ref[(Chunk[O], Int)],
+      currInnerStream: Ref[ZIO[R1, Option[E1], Chunk[O2]]],
+      innerFinalizer: Ref[ZManaged.Finalizer]
     ): ZIO[R1, Option[E1], Chunk[O2]] = {
+      def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
+        pull.flatMap(os => if (os.nonEmpty) UIO.succeed(os) else pullNonEmpty(pull))
+
+      def closeInner =
+        innerFinalizer.getAndSet(ZManaged.Finalizer.noop).flatMap(_.apply(Exit.unit))
+
       def pullOuter: ZIO[R1, Option[E1], Unit] =
-        outerStream
-          .flatMap(os => switchInner(ZStream.concatAll(os.map(f0)).process))
-          .flatMap(currInnerStream.set)
+        currOuterChunk.modify {
+          case (chunk, nextIdx) =>
+            if (nextIdx < chunk.size) (UIO.succeed(chunk(nextIdx)), (chunk, nextIdx + 1))
+            else
+              (
+                pullNonEmpty(outerStream)
+                  .tap(os => currOuterChunk.set((os, 1)))
+                  .map(_.apply(0)),
+                (chunk, nextIdx)
+              )
+        }.flatten.flatMap { o =>
+          ZIO.uninterruptibleMask { restore =>
+            for {
+              releaseMap <- ZManaged.ReleaseMap.make
+              pull       <- restore(f0(o).process.zio.provideSome[R1]((_, releaseMap)).map(_._2))
+              _          <- currInnerStream.set(pull)
+              _          <- innerFinalizer.set(releaseMap.releaseAll(_, ExecutionStrategy.Sequential))
+            } yield ()
+          }
+        }
 
       currInnerStream.get.flatten.catchAllCause { c =>
         Cause.sequenceCauseOption(c) match {
@@ -1220,19 +1240,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           case None    =>
             // The additional switch is needed to eagerly run the finalizer
             // *before* pulling another element from the outer stream.
-            switchInner(ZManaged.succeed(Pull.end)) *>
+            closeInner *>
               pullOuter *>
-              go(outerStream, switchInner, currInnerStream)
+              go(outerStream, currOuterChunk, currInnerStream, innerFinalizer)
         }
       }
     }
 
     ZStream {
       for {
-        currInnerStream <- Ref.make[ZIO[R1, Option[E1], Chunk[O2]]](Pull.end).toManaged_
-        switchInner     <- ZManaged.switchable[R1, Nothing, ZIO[R1, Option[E1], Chunk[O2]]]
         outerStream     <- self.process
-      } yield go(outerStream, switchInner, currInnerStream)
+        currOuterChunk  <- Ref.make[(Chunk[O], Int)](Chunk.empty -> 0).toManaged_
+        currInnerStream <- Ref.make[ZIO[R1, Option[E1], Chunk[O2]]](Pull.end).toManaged_
+        innerFinalizer  <- ZManaged.finalizerRef(ZManaged.Finalizer.noop)
+      } yield go(outerStream, currOuterChunk, currInnerStream, innerFinalizer)
     }
   }
 
