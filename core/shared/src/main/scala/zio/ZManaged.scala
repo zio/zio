@@ -2153,7 +2153,6 @@ object ZManaged {
             a     <- restore(newResource.zio.provide((r, inner)))
             _ <- releaseMap
                   .replace(key, inner.releaseAll(_, ExecutionStrategy.Sequential))
-                  .flatMap(_.map(_.apply(Exit.unit)).getOrElse(ZIO.unit))
           } yield a._2
         }
     } yield switch
