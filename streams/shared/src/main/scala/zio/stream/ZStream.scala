@@ -3481,7 +3481,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, _]): ZStream[R, E, A] =
     fromEffect(schedule.initial).flatMap { initial =>
-      unfoldM(initial)(state => effect.flatMap(value => schedule.update(value, state).option.map(_.map((value, _)))))
+      unfoldM(initial) { state =>
+        effect.flatMap(value => schedule.update(value, state).fold(_ => None, state => Some((value, state))))
+      }
     }
 
   /**

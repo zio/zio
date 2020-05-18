@@ -2818,15 +2818,13 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- ref.get
             } yield assert(result)(equalTo(List(1, 1)))
           ),
-          testM("allow schedule rely on effect value")(checkM(Gen.int(1, 100)) { (length: Int) =>
-            var x        = length
-            val effect   = UIO(if (x <= 0) 0 else { val y = x; x -= 1; y })
-            val schedule = Schedule.identity.addDelay((i: Int) => (if (i == 0) 1 else 0).seconds).forever
+          testM("allow schedule rely on effect value")(checkNM(10)(Gen.int(1, 100)) { (length: Int) =>
             for {
-              fiber  <- ZStream.repeatEffectWith(effect, schedule).take(length + 1L).runCollect.fork
-              _      <- TestClock.adjust(1.second)
-              result <- fiber.join
-            } yield assert(result)(equalTo((length to 0 by -1).toList))
+              ref      <- Ref.make(0)
+              effect   = ref.getAndUpdate(_ + 1).filterOrFail(_ <= length + 1)(())
+              schedule = Schedule.identity[Int].whileOutput(_ <= length)
+              result   <- ZStream.repeatEffectWith(effect, schedule).runCollect
+            } yield assert(result)(equalTo((0 to length).toList))
           })
         ),
         testM("unfold") {
