@@ -627,7 +627,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s = ZStream.finalizer(fins.update(1 :: _)) *>
                 ZStream.finalizer(fins.update(2 :: _)) *>
                 ZStream.finalizer(fins.update(3 :: _)) *>
-                ZStream.unit.mapM(_ => ZIO.fail("boom"))
+                ZStream.fail("boom")
               result <- s.drain.catchAllCause(_ => ZStream.fromEffect(fins.get)).runCollect
             } yield assert(result.flatten)(equalTo(List(1, 2, 3)))
           },

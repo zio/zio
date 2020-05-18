@@ -486,10 +486,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             ZIO.uninterruptibleMask { restore =>
               ZManaged.ReleaseMap.make.flatMap { releaseMap =>
                 finalizerRef.set(releaseMap.releaseAll(_, ExecutionStrategy.Sequential)) *>
-                restore(stream.process.zio)
-                  .provideSome[R]((_, releaseMap))
-                  .map(_._2)
-                  .tap(pull => ref.set(asState(pull)))
+                  restore(stream.process.zio)
+                    .provideSome[R]((_, releaseMap))
+                    .map(_._2)
+                    .tap(pull => ref.set(asState(pull)))
               }
             }
 
@@ -501,7 +501,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             }
 
           ref.get.flatMap {
-            case NotStarted => open(self)(Self(_)).flatten.catchAllCause(failover)
+            case NotStarted  => open(self)(Self(_)).flatten.catchAllCause(failover)
             case Self(pull)  => pull.catchAllCause(failover)
             case Other(pull) => pull
           }
