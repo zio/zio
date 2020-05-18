@@ -2737,6 +2737,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def via[R2, E2, O2](f: ZStream[R, E, O] => ZStream[R2, E2, O2]): ZStream[R2, E2, O2] = f(self)
 
   /**
+   * Equivalent to [[filter]] but enables the use of filter clauses in for-comprehensions
+   */
+  def withFilter(predicate: O => Boolean): ZStream[R, E, O] =
+    filter(predicate)
+
+  /**
    * Zips this stream with another point-wise, but keeps only the outputs of this stream.
    *
    * The new stream will end when one of the sides ends.
