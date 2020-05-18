@@ -4,11 +4,31 @@ import zio.test.Assertion._
 import zio.test.mock.Expectation.{ value, valueF }
 import zio.test.mock.{ MockClock, MockConsole, MockRandom }
 import zio.test.{ assertM, suite, testM, DefaultRunnableSpec }
-import zio.{ clock, console, random }
+import zio.{ clock, console, random, ZIO }
 
 object MockExampleSpec extends DefaultRunnableSpec {
 
   def spec = suite("suite with mocks")(
+    testM("expect no calls") {
+      val app = console.getStrLn.either.flatMap {
+        case Right(msg) => ZIO.succeed(msg)
+        case Left(_)    => random.nextString(10)
+      }
+      val env = MockConsole.GetStrLn(value("it works"))
+      val out = app.provideLayer(MockRandom.empty ++ env)
+      assertM(out)(equalTo("it works"))
+    },
+    testM("expect no calls for negative inputs") {
+      val app = random.nextInt.flatMap {
+        case i if i < 0 => ZIO.unit
+        case _          => console.putStrLn("positive")
+      }
+      val env = MockRandom.NextInt(value(-4)) andThen MockConsole.PutStrLn(equalTo("positive")).filter {
+        case (_, arg: Int) => arg >= 0
+      }
+      val out = app.provideLayer(env)
+      assertM(out)(isUnit)
+    },
     testM("expect call returning output") {
       val app = clock.nanoTime
       val env = MockClock.NanoTime(value(1000L))

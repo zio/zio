@@ -165,7 +165,7 @@ object Has {
   /**
    * Constructs a new environment holding the single service.
    */
-  def apply[A: Tag](a: A): Has[A] = new Has[AnyRef](Map(), Map(taggedTagType(TaggedAnyRef) -> (()))).add(a)
+  def apply[A: Tag](a: A): Has[A] = empty().add(a)
 
   /**
    * Constructs a new environment holding the specified services.
@@ -571,6 +571,11 @@ object Has {
     def apply[R <: Has[M], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       ZIO.environment[R].flatMap(env => zio.provide(env.update(f)))
   }
+
+  /**
+   * Creates a new empty environment map.
+   */
+  private[zio] def empty(): Has[AnyRef] = new Has[AnyRef](Map(), Map(taggedTagType(TaggedAnyRef) -> (())))
 
   /**
    * Filters a map by retaining only keys satisfying a predicate.

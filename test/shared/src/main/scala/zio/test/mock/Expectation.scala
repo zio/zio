@@ -19,10 +19,10 @@ package zio.test.mock
 import scala.language.implicitConversions
 
 import zio.test.Assertion
-import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
+import zio.test.mock.Expectation.{ And, Chain, Filter, Or, Repeated }
 import zio.test.mock.Result.{ Fail, Succeed }
 import zio.test.mock.internal.{ MockException, ProxyFactory, State }
-import zio.{ Has, IO, Managed, Tag, ULayer, URLayer, ZLayer }
+import zio.{ Has, IO, LightTypeTag, Managed, Tag, ULayer, URLayer, ZLayer }
 
 /**
  * An `Expectation[R]` is an immutable tree structure that represents
@@ -58,12 +58,17 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   def and[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
       case (And.Items(xs1), And.Items(xs2)) =>
-        And(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2).asInstanceOf[Expectation[R with R0]]
+        And(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(xs1 ++ xs2)
+          .asInstanceOf[Expectation[R with R0]]
       case (And.Items(xs), _) =>
-        And(self.mock.compose ++ that.mock.compose)(xs :+ that).asInstanceOf[Expectation[R with R0]]
+        And(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(xs :+ that)
+          .asInstanceOf[Expectation[R with R0]]
       case (_, And.Items(xs)) =>
-        And(self.mock.compose ++ that.mock.compose)(self :: xs).asInstanceOf[Expectation[R with R0]]
-      case _ => And(self.mock.compose ++ that.mock.compose)(self :: that :: Nil).asInstanceOf[Expectation[R with R0]]
+        And(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(self :: xs)
+          .asInstanceOf[Expectation[R with R0]]
+      case _ =>
+        And(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(self :: that :: Nil)
+          .asInstanceOf[Expectation[R with R0]]
     }
 
   /**
@@ -76,12 +81,17 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   def andThen[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
       case (Chain.Items(xs1), Chain.Items(xs2)) =>
-        Chain(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2).asInstanceOf[Expectation[R with R0]]
+        Chain(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(xs1 ++ xs2)
+          .asInstanceOf[Expectation[R with R0]]
       case (Chain.Items(xs), _) =>
-        Chain(self.mock.compose ++ that.mock.compose)(xs :+ that).asInstanceOf[Expectation[R with R0]]
+        Chain(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(xs :+ that)
+          .asInstanceOf[Expectation[R with R0]]
       case (_, Chain.Items(xs)) =>
-        Chain(self.mock.compose ++ that.mock.compose)(self :: xs).asInstanceOf[Expectation[R with R0]]
-      case _ => Chain(self.mock.compose ++ that.mock.compose)(self :: that :: Nil).asInstanceOf[Expectation[R with R0]]
+        Chain(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(self :: xs)
+          .asInstanceOf[Expectation[R with R0]]
+      case _ =>
+        Chain(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(self :: that :: Nil)
+          .asInstanceOf[Expectation[R with R0]]
     }
 
   /**
@@ -99,6 +109,20 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
     Repeated(self, 0 to max)
 
   /**
+   * Filter expectation, producing a new expectation that will short-circuit the search for match,
+   * if the invocation does not satisfy the predicate.
+   *
+   * {{
+   * val mockEnv =
+   *   MockRandom.NextIntBounded(anything, valueF(_ + 41)).filter {
+   *     case (_, arg: Int) => arg > 5
+   *   }
+   * }}
+   */
+  def filter(predicate: Filter.Predicate[R]): Expectation[R] =
+    Filter(self, predicate)
+
+  /**
    * Alias for `atMost(1)`, produces a new expectation to satisfy itself at most once.
    */
   def optional: Expectation[R] =
@@ -114,12 +138,17 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   def or[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
       case (Or.Items(xs1), Or.Items(xs2)) =>
-        Or(self.mock.compose ++ that.mock.compose)(xs1 ++ xs2).asInstanceOf[Expectation[R with R0]]
+        Or(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(xs1 ++ xs2)
+          .asInstanceOf[Expectation[R with R0]]
       case (Or.Items(xs), _) =>
-        Or(self.mock.compose ++ that.mock.compose)(xs :+ that).asInstanceOf[Expectation[R with R0]]
+        Or(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(xs :+ that)
+          .asInstanceOf[Expectation[R with R0]]
       case (_, Or.Items(xs)) =>
-        Or(self.mock.compose ++ that.mock.compose)(self :: xs).asInstanceOf[Expectation[R with R0]]
-      case _ => Or(self.mock.compose ++ that.mock.compose)(self :: that :: Nil).asInstanceOf[Expectation[R with R0]]
+        Or(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(self :: xs)
+          .asInstanceOf[Expectation[R with R0]]
+      case _ =>
+        Or(self.mock.compose ++ that.mock.compose, self.mock.envTags ++ that.mock.envTags)(self :: that :: Nil)
+          .asInstanceOf[Expectation[R with R0]]
     }
 
   /**
@@ -176,8 +205,10 @@ object Expectation {
 
   private[test] object And {
 
-    def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): And[R] =
-      And(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose))
+    def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R], envTags: Set[LightTypeTag])(
+      children: List[Expectation[_]]
+    ): And[R] =
+      And(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose, envTags))
 
     object Items {
 
@@ -224,14 +255,44 @@ object Expectation {
 
   private[test] object Chain {
 
-    def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Chain[R] =
-      Chain(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose))
+    def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R], envTags: Set[LightTypeTag])(
+      children: List[Expectation[_]]
+    ): Chain[R] =
+      Chain(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose, envTags))
 
     object Items {
 
       private[test] def unapply[R <: Has[_]](chain: Chain[R]): Option[(List[Expectation[R]])] =
         Some(chain.children)
     }
+  }
+
+  /**
+   * Models filtering expectations on capabilities from environment `R` and/or their inputs.
+   * If the filter matches, the search for match continues in this branch of expectation tree,
+   * otherwise the search moves on to the next branch.
+   */
+  private[test] case class Filter[R <: Has[_]: Tag](
+    child: Expectation[R],
+    predicate: Filter.Predicate[R]
+  ) extends Expectation[R] {
+    val satisfied   = true
+    val saturated   = child.saturated
+    val invocations = child.invocations
+    val mock        = child.mock
+  }
+
+  private[test] object Filter {
+    type Predicate[R <: Has[_]] = PartialFunction[(Capability[R, _, _, _], Any), Boolean]
+  }
+
+  /**
+   * Models expectation that no calls on environment `R` are made.
+   */
+  private[test] case class NoCalls[R <: Has[_]: Tag](mock: Mock[R]) extends Expectation[R] {
+    val satisfied   = true
+    val saturated   = false
+    val invocations = Nil
   }
 
   /**
@@ -248,8 +309,10 @@ object Expectation {
 
   private[test] object Or {
 
-    def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Or[R] =
-      Or(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose))
+    def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R], envTags: Set[LightTypeTag])(
+      children: List[Expectation[_]]
+    ): Or[R] =
+      Or(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose, envTags))
 
     object Items {
 

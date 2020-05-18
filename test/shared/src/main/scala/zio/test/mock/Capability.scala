@@ -36,6 +36,7 @@ import zio.{ =!=, taggedIsSubtype, taggedTagType, Has, IO, LightTypeTag, Tag }
 protected[mock] abstract class Capability[R <: Has[_]: Tag, I: Tag, E: Tag, A: Tag](val mock: Mock[R])
     extends Capability.Base[R] { self =>
 
+  val envTag: LightTypeTag    = taggedTagType(implicitly[Tag[R]])
   val inputTag: LightTypeTag  = taggedTagType(implicitly[Tag[I]])
   val errorTag: LightTypeTag  = taggedTagType(implicitly[Tag[E]])
   val outputTag: LightTypeTag = taggedTagType(implicitly[Tag[A]])
