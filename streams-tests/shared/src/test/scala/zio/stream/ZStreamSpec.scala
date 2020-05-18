@@ -2431,8 +2431,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.empty.zipWithNext.runCollect)(isEmpty)
           },
           testM("should output same values as zipping with tail plus last element") {
-            checkM(Gen.listOfBounded(0, 20)(Gen.anyInt)) { iterable =>
-              val stream = ZStream.fromIterable(iterable)
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
               for {
                 result0 <- stream.zipWithNext.runCollect
                 result1 <- stream.zipAll(stream.drop(1).map(Option(_)))(0, None).runCollect
@@ -2455,11 +2455,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.empty.zipWithPrevious.runCollect)(isEmpty)
           },
           testM("should output same values as first element plus zipping with init") {
-            checkM(Gen.listOfBounded(1, 20)(Gen.anyInt)) { iterable =>
-              val stream = ZStream.fromIterable(iterable)
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
               for {
                 result0 <- stream.zipWithPrevious.runCollect
-                result1 <- ZStream.fromIterable(None :: iterable.init.map(Some(_))).zip(stream).runCollect
+                result1 <- (ZStream(None) ++ stream.map(Some(_))).zip(stream).runCollect
               } yield assert(result0)(equalTo(result1))
             }
           }
@@ -2472,11 +2472,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result0)(equalTo(result))
           },
           testM("should output same values as zipping with both previous and next element") {
-            checkM(Gen.listOfBounded(1, 20)(Gen.anyInt)) { iterable =>
-              val stream = ZStream.fromIterable(iterable)
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
               for {
                 result0  <- stream.zipWithPreviousAndNext.runCollect
-                previous = ZStream.fromIterable(None :: iterable.init.map(Some(_)))
+                previous = ZStream(None) ++ stream.map(Some(_))
                 next     = stream.drop(1).map(Some(_)) ++ ZStream(None)
                 result1  <- previous.zip(stream).zip(next).map { case ((p, c), n) => (p, c, n) }.runCollect
               } yield assert(result0)(equalTo(result1))
