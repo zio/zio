@@ -469,20 +469,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * stream is uninterruptible.
    */
   final def catchAllCause[R1 <: R, E2, O1 >: O](f: Cause[E] => ZStream[R1, E2, O1]): ZStream[R1, E2, O1] = {
-    sealed abstract class State
-    case object NotStarted                   extends State
-    case class Self(pull: Pull[R1, E, O1])   extends State
-    case class Other(pull: Pull[R1, E2, O1]) extends State
+    sealed abstract class State[+E0]
+    case object NotStarted                      extends State[Nothing]
+    case class Self[E0](pull: Pull[R1, E0, O1]) extends State[E0]
+    case class Other(pull: Pull[R1, E2, O1])    extends State[Nothing]
 
     ZStream {
       for {
         finalizerRef <- ZManaged.finalizerRef(ZManaged.Finalizer.noop)
-        ref          <- Ref.make[State](NotStarted).toManaged_
+        ref          <- Ref.make[State[E]](NotStarted).toManaged_
         pull = {
           def closeCurrent(cause: Cause[Any]) =
             finalizerRef.getAndSet(ZManaged.Finalizer.noop).flatMap(_.apply(Exit.halt(cause))).uninterruptible
 
-          def open[R, E0, O](stream: ZStream[R, E0, O])(asState: Pull[R, E0, O] => State) =
+          def open[R, E0, O](stream: ZStream[R, E0, O])(asState: Pull[R, E0, O] => State[E]) =
             ZIO.uninterruptibleMask { restore =>
               ZManaged.ReleaseMap.make.flatMap { releaseMap =>
                 finalizerRef.set(releaseMap.releaseAll(_, ExecutionStrategy.Sequential)) *>
