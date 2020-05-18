@@ -1878,6 +1878,35 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def untraced: ZIO[R, E, A] = tracingStatus(TracingStatus.Untraced)
 
   /**
+   * Sequentially zips the this result with the specified result. Combines both
+   * `Cause[E1]` when both both effects fail.
+   */
+  final def validate[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    validateWith(that)((_, _))
+
+  /**
+   * Returns an effect that executes both this effect and the specified effect,
+   * in parallel. Combines both Cause[E1]` when both both effects fail.
+   */
+  final def validatePar[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    validateWithPar(that)((_, _))
+
+  /**
+   * Sequentially zips this effect with the specified effect using the
+   * specified combiner function. Combines the causes in case both effect fail.
+   */
+  final def validateWith[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
+    self.run.zipWith(that.run)(_ zip _).flatMap(ZIO.done(_)).map(f.tupled)
+
+  /**
+   * Returns an effect that executes both this effect and the specified effect,
+   * in parallel, combining their results with the specified `f` function. If
+   * both sides fail, then the cause will be combined.
+   */
+  final def validateWithPar[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
+    self.run.zipWithPar(that.run)(_ zip _).flatMap(ZIO.done(_)).map(f.tupled)
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
   final def when(b: => Boolean): ZIO[R, E, Unit] =

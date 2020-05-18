@@ -3112,6 +3112,19 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(6))
       }
     ),
+    suite("validateWith")(
+      testM("succeeds") {
+        assertM(ZIO(1).validateWith(ZIO(2))(_ + _))(equalTo(3))
+      },
+      testM("fails") {
+        assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2))))
+      },
+      testM("combines both cause") {
+        assertM(ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either)(
+          isLeft(equalTo(Cause.Then(Cause.Fail(1), Cause.Fail(2))))
+        )
+      }
+    ),
     suite("when")(
       testM("executes correct branch only") {
         for {
