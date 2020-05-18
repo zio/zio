@@ -1001,6 +1001,26 @@ object ZStreamSpec extends ZIOBaseSpec {
               _   <- ZStream.succeed(()).flatMap(_ => inner).runDrain.either.unit
               fin <- ref.get
             } yield assert(fin)(isTrue)
+          },
+          testM("finalizers are registered in the proper order") {
+            for {
+              fins <- Ref.make(List[Int]())
+              s = ZStream.finalizer(fins.update(1 :: _)) *>
+                ZStream.finalizer(fins.update(2 :: _))
+              _      <- s.process.withEarlyRelease.use(_._2)
+              result <- fins.get
+            } yield assert(result)(equalTo(List(1, 2)))
+          },
+          testM("early release finalizer concatenation is preserved") {
+            for {
+              fins <- Ref.make(List[Int]())
+              s = ZStream.finalizer(fins.update(1 :: _)) *>
+                ZStream.finalizer(fins.update(2 :: _))
+              result <- s.process.withEarlyRelease.use {
+                         case (release, pull) =>
+                           pull *> release *> fins.get
+                       }
+            } yield assert(result)(equalTo(List(1, 2)))
           }
         ),
         suite("flatMapPar")(

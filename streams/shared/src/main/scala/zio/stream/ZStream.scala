@@ -3174,16 +3174,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromEffect(ZIO.fail(error))
 
   /**
-   * Creates an empty stream that never fails and executes the finalizer when it ends.
+   * Creates a one-element stream that never fails and executes the finalizer when it ends.
    */
-  def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Nothing] =
-    ZStream {
-      for {
-        finalizers <- ZManaged.releaseMap
-        r          <- ZManaged.environment[R]
-        pull       = (finalizers.add(_ => finalizer.provide(r)) *> Pull.end).uninterruptible
-      } yield pull
-    }
+  def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Any] =
+    bracket[R, Nothing, Unit](UIO.unit)(_ => finalizer)
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values
@@ -3415,7 +3409,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream {
       for {
         doneRef   <- Ref.make(false).toManaged_
-        finalizer <- ZManaged.releaseMap
+        finalizer <- ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential)
         pull = ZIO.uninterruptibleMask { restore =>
           doneRef.get.flatMap { done =>
             if (done) Pull.end
