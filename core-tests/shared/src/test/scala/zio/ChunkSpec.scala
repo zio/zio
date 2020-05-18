@@ -212,6 +212,14 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.dropWhile(p).toList)(equalTo(c.toList.dropWhile(p)))
       }
     },
+    suite("dropWhileM")(
+      testM("dropWhileM happy path") {
+        assertM(Chunk(1, 2, 3, 4, 5).dropWhileM(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(2, 3, 4, 5)))
+      },
+      testM("dropWhileM error") {
+        Chunk(1, 1, 1).dropWhileM(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
+      } @@ zioTag(errors)
+    ),
     testM("takeWhile chunk") {
       check(mediumChunks(intGen), toBoolFn[Random, Int]) { (c, p) =>
         assert(c.takeWhile(p).toList)(equalTo(c.toList.takeWhile(p)))
@@ -369,6 +377,12 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
       assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
+    },
+    zio.test.test("partitionMap") {
+      val as       = Chunk(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+      val (bs, cs) = as.partitionMap(n => if (n % 2 == 0) Left(n) else Right(n))
+      assert(bs)(equalTo(Chunk(0, 2, 4, 6, 8))) &&
+      assert(cs)(equalTo(Chunk(1, 3, 5, 7, 9)))
     }
   )
 }

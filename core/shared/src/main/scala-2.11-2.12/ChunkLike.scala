@@ -117,6 +117,12 @@ private[zio] trait ChunkLike[+A] extends IndexedSeq[A] with IndexedSeqLike[A, Ch
     length > 0
 
   /**
+   * Partitions the elements of this chunk into two chunks using the specified
+   * function.
+   */
+  def partitionMap[B, C](f: A => Either[B, C]): (Chunk[B], Chunk[C])
+
+  /**
    * The number of elements in the chunk.
    */
   override final def size: Int =

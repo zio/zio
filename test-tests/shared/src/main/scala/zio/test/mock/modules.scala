@@ -1,6 +1,6 @@
 package zio.test.mock
 
-import zio.{ Has, IO, Tagged, ZIO }
+import zio.{ Has, IO, Tag, ZIO }
 
 /**
  * https://github.com/scalamacros/paradise/issues/75
@@ -62,30 +62,30 @@ object modules {
   type PolyPureDefsModule = Has[PolyPureDefsModule.Service]
   object PolyPureDefsModule {
     trait Service {
-      def polyInput[I: Tagged](v: I): IO[String, String]
-      def polyError[E: Tagged](v: String): IO[E, String]
-      def polyOutput[A: Tagged](v: String): IO[String, A]
-      def polyInputError[I: Tagged, E: Tagged](v: I): IO[E, String]
-      def polyInputOutput[I: Tagged, A: Tagged](v: I): IO[String, A]
-      def polyErrorOutput[E: Tagged, A: Tagged](v: String): IO[E, A]
-      def polyInputErrorOutput[I: Tagged, E: Tagged, A: Tagged](v: I): IO[E, A]
-      def polyMixed[A: Tagged]: IO[String, (A, String)]
-      def polyBounded[A <: AnyVal: Tagged]: IO[String, A]
+      def polyInput[I: Tag](v: I): IO[String, String]
+      def polyError[E: Tag](v: String): IO[E, String]
+      def polyOutput[A: Tag](v: String): IO[String, A]
+      def polyInputError[I: Tag, E: Tag](v: I): IO[E, String]
+      def polyInputOutput[I: Tag, A: Tag](v: I): IO[String, A]
+      def polyErrorOutput[E: Tag, A: Tag](v: String): IO[E, A]
+      def polyInputErrorOutput[I: Tag, E: Tag, A: Tag](v: I): IO[E, A]
+      def polyMixed[A: Tag]: IO[String, (A, String)]
+      def polyBounded[A <: AnyVal: Tag]: IO[String, A]
     }
   }
 
   type PolyImpureDefsModule = Has[PolyImpureDefsModule.Service]
   object PolyImpureDefsModule {
     trait Service {
-      def polyInput[I: Tagged](v: I): String
-      def polyError[E <: Throwable: Tagged](v: String): String
-      def polyOutput[A: Tagged](v: String): A
-      def polyInputError[I: Tagged, E <: Throwable: Tagged](v: I): String
-      def polyInputOutput[I: Tagged, A: Tagged](v: I): A
-      def polyErrorOutput[E <: Throwable: Tagged, A: Tagged](v: String): A
-      def polyInputErrorOutput[I: Tagged, E <: Throwable: Tagged, A: Tagged](v: I): A
-      def polyMixed[A: Tagged]: (A, String)
-      def polyBounded[A <: AnyVal: Tagged]: A
+      def polyInput[I: Tag](v: I): String
+      def polyError[E <: Throwable: Tag](v: String): String
+      def polyOutput[A: Tag](v: String): A
+      def polyInputError[I: Tag, E <: Throwable: Tag](v: I): String
+      def polyInputOutput[I: Tag, A: Tag](v: I): A
+      def polyErrorOutput[E <: Throwable: Tag, A: Tag](v: String): A
+      def polyInputErrorOutput[I: Tag, E <: Throwable: Tag, A: Tag](v: I): A
+      def polyMixed[A: Tag]: (A, String)
+      def polyBounded[A <: AnyVal: Tag]: A
     }
   }
 

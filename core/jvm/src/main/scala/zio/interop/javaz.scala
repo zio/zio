@@ -29,7 +29,7 @@ private[zio] object javaz {
     Task.effectSuspendTotalWith[T] { (p, _) =>
       Task.effectAsync { k =>
         val handler = new CompletionHandler[T, Any] {
-          def completed(result: T, u: Any): Unit = k(Task.succeed(result))
+          def completed(result: T, u: Any): Unit = k(Task.succeedNow(result))
 
           def failed(t: Throwable, u: Any): Unit = t match {
             case e if !p.fatal(e) => k(Task.fail(e))

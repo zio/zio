@@ -292,6 +292,12 @@ object URIO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterNot]]
+   */
+  def filterNot[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, List[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
    * @see [[zio.ZIO.first]]
    */
   def first[A, B]: URIO[(A, B), A] = ZIO.first
@@ -576,6 +582,12 @@ object URIO {
     ZIO.mapParN(urio1, urio2, urio3, urio4)(f)
 
   /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[R, A, B](f: A => URIO[R, B]): UIO[A => URIO[R, B]] =
+    ZIO.memoize(f)
+
+  /**
    * @see [[zio.ZIO.mergeAll]]
    */
   def mergeAll[R, A, B](in: Iterable[URIO[R, A]])(zero: B)(f: (B, A) => B): URIO[R, B] =
@@ -651,26 +663,25 @@ object URIO {
   /**
    * @see See [[zio.ZIO.service]]
    */
-  def service[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
+  def service[A: Tag]: URIO[Has[A], A] =
     ZIO.service[A]
 
   /**
    * @see See [[zio.ZIO.services[A,B]*]]
    */
-  def services[A: Tagged, B: Tagged]: URIO[Has[A] with Has[B], (A, B)] =
+  def services[A: Tag, B: Tag]: URIO[Has[A] with Has[B], (A, B)] =
     ZIO.services[A, B]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C]*]]
    */
-  def services[A: Tagged, B: Tagged, C: Tagged]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
     ZIO.services[A, B, C]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C,D]*]]
    */
-  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
-    : URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
+  def services[A: Tag, B: Tag, C: Tag, D: Tag]: URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
     ZIO.services[A, B, C, D]
 
   /**

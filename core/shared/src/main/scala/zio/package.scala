@@ -31,13 +31,19 @@ package object zio extends EitherCompat with PlatformSpecific with VersionSpecif
   type UManaged[+A]      = ZManaged[Any, Nothing, A]
   type TaskManaged[+A]   = ZManaged[Any, Throwable, A]
 
+  val Managed: ZManaged.type = ZManaged
+
   type RLayer[-RIn, +ROut]  = ZLayer[RIn, Throwable, ROut]
   type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]
   type Layer[+E, +ROut]     = ZLayer[Any, E, ROut]
   type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
-  type Queue[A]    = ZQueue[Any, Any, Nothing, Nothing, A, A]
+  type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
+
+  /**
+   * A queue that can only be dequeued.
+   */
   type Dequeue[+A] = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
 
   type Ref[A]      = ZRef[Nothing, Nothing, A, A]

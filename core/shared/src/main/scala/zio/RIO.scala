@@ -320,6 +320,12 @@ object RIO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterNot]]
+   */
+  def filterNot[R, A](as: Iterable[A])(f: A => RIO[R, Boolean]): RIO[R, List[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
    * @see See [[zio.ZIO.first]]
    */
   def first[A, B]: RIO[(A, B), A] = ZIO.first
@@ -631,6 +637,12 @@ object RIO {
     ZIO.mapParN(rio1, rio2, rio3, rio4)(f)
 
   /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[R, A, B](f: A => RIO[R, B]): UIO[A => RIO[R, B]] =
+    ZIO.memoize(f)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   def mergeAll[R, A, B](in: Iterable[RIO[R, A]])(zero: B)(f: (B, A) => B): RIO[R, B] =
@@ -655,13 +667,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.partition]]
    */
-  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
     ZIO.partition(in)(f)
 
   /**
    * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
     ZIO.partitionPar(in)(f)
 
   /**
@@ -669,7 +681,7 @@ object RIO {
    */
   def partitionParN[R, A, B](n: Int)(
     in: Iterable[A]
-  )(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  )(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
     ZIO.partitionParN(n)(in)(f)
 
   /**
@@ -732,26 +744,25 @@ object RIO {
   /**
    * @see See [[zio.ZIO.service]]
    */
-  def service[A](implicit tagged: Tagged[A]): URIO[Has[A], A] =
+  def service[A: Tag]: URIO[Has[A], A] =
     ZIO.service[A]
 
   /**
    * @see See [[zio.ZIO.services[A,B]*]]
    */
-  def services[A: Tagged, B: Tagged]: URIO[Has[A] with Has[B], (A, B)] =
+  def services[A: Tag, B: Tag]: URIO[Has[A] with Has[B], (A, B)] =
     ZIO.services[A, B]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C]*]]
    */
-  def services[A: Tagged, B: Tagged, C: Tagged]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
     ZIO.services[A, B, C]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C,D]*]]
    */
-  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
-    : URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
+  def services[A: Tag, B: Tag, C: Tag, D: Tag]: URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
     ZIO.services[A, B, C, D]
 
   /**

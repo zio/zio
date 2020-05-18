@@ -234,6 +234,45 @@ object ZQueueSpec extends ZIOBaseSpec {
         _      <- f.interrupt
       } yield assert(l)(equalTo(List(1, 2, 3, 4)))
     },
+    suite("takeBetween")(
+      testM("returns immediately if there is enough elements") {
+        for {
+          queue <- Queue.bounded[Int](100)
+          _     <- queue.offer(10)
+          _     <- queue.offer(20)
+          _     <- queue.offer(30)
+          res   <- queue.takeBetween(2, 5)
+        } yield assert(res)(equalTo(List(10, 20, 30)))
+      },
+      testM("returns an empty list if boundaries are inverted") {
+        for {
+          queue <- Queue.bounded[Int](100)
+          _     <- queue.offer(10)
+          _     <- queue.offer(20)
+          _     <- queue.offer(30)
+          res   <- queue.takeBetween(5, 2)
+        } yield assert(res)(isEmpty)
+      },
+      testM("returns an empty list if boundaries are negative") {
+        for {
+          queue <- Queue.bounded[Int](100)
+          _     <- queue.offer(10)
+          _     <- queue.offer(20)
+          _     <- queue.offer(30)
+          res   <- queue.takeBetween(-5, -2)
+        } yield assert(res)(isEmpty)
+      },
+      testM("blocks until a required minimum of elements is collected") {
+        for {
+          queue   <- Queue.bounded[Int](100)
+          counter <- Ref.make(0)
+          updater = (queue.offer(10) *> counter.update(_ + 1)).forever
+          getter  = queue.takeBetween(5, 10)
+          _       <- getter.race(updater)
+          count   <- counter.get
+        } yield assert(count > 5)(isTrue)
+      }
+    ),
     testM("offerAll with takeAll") {
       for {
         queue  <- Queue.bounded[Int](10)
@@ -756,6 +795,6 @@ object ZQueueSpecUtil {
   def waitForValue[T](ref: UIO[T], value: T): URIO[Live, T] =
     Live.live((ref <* clock.sleep(10.millis)).repeat(Schedule.doWhile(_ != value)))
 
-  def waitForSize[A](queue: Queue[A], size: Int): URIO[Live, Int] =
+  def waitForSize[RA, EA, RB, EB, A, B](queue: ZQueue[RA, EA, RB, EB, A, B], size: Int): URIO[Live, Int] =
     waitForValue(queue.size, size)
 }

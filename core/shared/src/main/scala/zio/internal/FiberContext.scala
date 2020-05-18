@@ -169,8 +169,9 @@ private[zio] final class FiberContext[E, A](
    * Unwinds the stack, looking for the first error handler, and exiting
    * interruptible / uninterruptible regions.
    */
-  private[this] def unwindStack(): Unit = {
-    var unwinding = true
+  private[this] def unwindStack(): Boolean = {
+    var unwinding      = true
+    var discardedFolds = false
 
     // Unwind the stack, looking for an error handler:
     while (unwinding && !stack.isEmpty) {
@@ -192,10 +193,16 @@ private[zio] final class FiberContext[E, A](
 
           unwinding = false
 
+        case _: ZIO.Fold[_, _, _, _, _] =>
+          if (traceStack && inTracingRegion) popStackTrace()
+          discardedFolds = true
+
         case _ =>
           if (traceStack && inTracingRegion) popStackTrace()
       }
     }
+
+    discardedFolds
   }
 
   private[this] def executor: Executor = executors.peekOrElse(platform.executor)
@@ -393,15 +400,26 @@ private[zio] final class FiberContext[E, A](
 
                     val cause0 = zio.fill(() => captureTrace(fastPathTrace))
 
-                    unwindStack()
+                    val discardedFolds = unwindStack()
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
                       val cause = {
-                        // Add interruption information into the cause, if it's not already there:
                         val interrupted = state.get.interrupted
 
-                        if (!cause0.contains(interrupted)) cause0 ++ interrupted else cause0
+                        // Add interruption information into the cause, if it's not already there:
+                        val causeAndInterrupt =
+                          if (!cause0.contains(interrupted)) cause0 ++ interrupted
+                          else cause0
+
+                        if (discardedFolds)
+                          // We threw away some error handlers while unwinding the stack because
+                          // we got interrupted during this instruction. So it's not safe to return
+                          // typed failures from cause0, because they might not be typed correctly.
+                          // Instead, we strip the typed failures, and return the remainders and
+                          // the interruption.
+                          causeAndInterrupt.stripFailures
+                        else causeAndInterrupt
                       }
 
                       curZio = done(Exit.halt(cause))
@@ -558,8 +576,8 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.FiberRefNew =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefNew[Any]]
 
-                    val fiberRef = new FiberRef[Any](zio.initialValue, zio.combine)
-                    fiberRefLocals.put(fiberRef, zio.initialValue)
+                    val fiberRef = new FiberRef[Any](zio.initial, zio.onFork, zio.onJoin)
+                    fiberRefLocals.put(fiberRef, zio.initial)
 
                     curZio = nextInstr(fiberRef)
 
@@ -654,7 +672,11 @@ private[zio] final class FiberContext[E, A](
    */
   def fork[E, A](zio: IO[E, A]): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
-    childFiberRefLocals.putAll(fiberRefLocals)
+    val locals                              = fiberRefLocals.asScala: @silent("JavaConverters")
+    locals.foreach {
+      case (fiberRef, value) =>
+        childFiberRefLocals.put(fiberRef, fiberRef.fork(value))
+    }
 
     val tracingRegion = inTracingRegion
     val ancestry =
@@ -730,7 +752,7 @@ private[zio] final class FiberContext[E, A](
       UIO.foreach_(locals) {
         case (fiberRef, value) =>
           val ref = fiberRef.asInstanceOf[FiberRef[Any]]
-          ref.update(old => ref.combine(old, value))
+          ref.update(old => ref.join(old, value))
       }
   }
 

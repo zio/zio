@@ -140,11 +140,11 @@ object ZIOSpec extends ZIOBaseSpec {
           ref   <- Ref.make(0)
           cache <- incrementAndGet(ref).cached(60.minutes)
           a     <- cache
-          _     <- TestClock.advance(59.minutes)
+          _     <- TestClock.adjust(59.minutes)
           b     <- cache
-          _     <- TestClock.advance(1.minute)
+          _     <- TestClock.adjust(1.minute)
           c     <- cache
-          _     <- TestClock.advance(59.minutes)
+          _     <- TestClock.adjust(59.minutes)
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       },
@@ -907,7 +907,7 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
         } yield assert(result)(isNone)
       }
-    ) @@ zioTag(future, interruption),
+    ) @@ zioTag(future, interruption) @@ jvmOnly,
     suite("head")(
       testM("on non empty list") {
         assertM(ZIO.succeed(List(1, 2, 3)).head.either)(isRight(equalTo(1)))
@@ -1102,6 +1102,17 @@ object ZIOSpec extends ZIOBaseSpec {
         ioMemo
           .flatMap(io => io <*> io)
           .map(tuple => assert(tuple._1)(equalTo(tuple._2)))
+      },
+      testM("memoized function returns the same instance on repeated calls") {
+        for {
+          memoized <- ZIO.memoize((n: Int) => random.nextString(n))
+          a        <- memoized(10)
+          b        <- memoized(10)
+          c        <- memoized(11)
+          d        <- memoized(11)
+        } yield assert(a)(equalTo(b)) &&
+          assert(b)(not(equalTo(c))) &&
+          assert(c)(equalTo(d))
       }
     ),
     suite("merge")(
@@ -2045,7 +2056,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield l
 
         assertM(Live.live(io))(hasSameElements(List("start 1", "release 1", "start 2", "release 2")))
-      } @@ zioTag(regression),
+      } @@ zioTag(regression) @@ jvmOnly,
       testM("interrupt waits for finalizer") {
         val io =
           for {
@@ -2127,7 +2138,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val io = stackIOs(procNum + 1)
 
         assertM(Live.live(io))(equalTo(42))
-      },
+      } @@ jvmOnly,
       testM("interrupt of effectAsyncM register") {
         for {
           release <- Promise.make[Nothing, Unit]
@@ -2856,6 +2867,17 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(parentPool)(equalTo(childPool))
         io.lock(executor)
       } @@ jvm(nonFlaky(100))
+    ),
+    suite("someOrElse")(
+      testM("extracts the value from Some") {
+        assertM(UIO.succeed(Some(1)).someOrElse(2))(equalTo(1))
+      },
+      testM("falls back to the default value if None") {
+        assertM(UIO.succeed(None).someOrElse(42))(equalTo(42))
+      },
+      testM("does not change failed state") {
+        assertM(ZIO.fail(ExampleError).someOrElse(42).run)(fails(equalTo(ExampleError)))
+      } @@ zioTag(errors)
     ),
     suite("someOrFail")(
       testM("extracts the optional value") {

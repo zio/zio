@@ -19,7 +19,7 @@ package zio.test.laws
 import zio.ZIO
 import zio.test.{ check, Gen, TestResult }
 
-sealed trait ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
+trait ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
 
   def run[R1 <: R, A: CapsLeft, B: CapsRight](left: Gen[R1, A], right: Gen[R1, B])(
     implicit CapsBoth: CapsBoth[A, B]

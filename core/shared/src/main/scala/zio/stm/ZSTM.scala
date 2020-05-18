@@ -117,6 +117,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self zip that
 
   /**
+   * A symbolic alias for `orElseEither`.
+   */
+  def <+>[R1 <: R, E1, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, Either[A, B]] =
+    self.orElseEither(that)
+
+  /**
    * Propagates self environment to that.
    */
   def <<<[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
@@ -764,6 +770,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
+   * Extracts the optional value, or returns the given 'default'.
+   */
+  def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZSTM[R, E, B] =
+    map(_.getOrElse(default))
+
+  /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
   def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZSTM[R, E1, B] =
@@ -1043,6 +1055,13 @@ object ZSTM {
     as.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil)) { (a, zio) =>
       f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
     }
+
+  /**
+   * Filters the collection using the specified effectual predicate, removing
+   * all elements that satisfy the predicate.
+   */
+  def filterNot[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, List[A]] =
+    filter(as)(f(_).map(!_))
 
   /**
    * Returns an effectful function that extracts out the first element of a
@@ -1350,25 +1369,25 @@ object ZSTM {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A](implicit tagged: Tagged[A]): ZSTM[Has[A], Nothing, A] =
+  def service[A: Tag]: ZSTM[Has[A], Nothing, A] =
     ZSTM.access(_.get[A])
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
-  def services[A: Tagged, B: Tagged]: ZSTM[Has[A] with Has[B], Nothing, (A, B)] =
+  def services[A: Tag, B: Tag]: ZSTM[Has[A] with Has[B], Nothing, (A, B)] =
     ZSTM.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
-  def services[A: Tagged, B: Tagged, C: Tagged]: ZSTM[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag]: ZSTM[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
-  def services[A: Tagged, B: Tagged, C: Tagged, D: Tagged]
+  def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZSTM[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
@@ -1774,6 +1793,8 @@ object ZSTM {
 
     sealed trait TExit[+A, +B] extends Serializable with Product
     object TExit {
+      val unit: TExit[Nothing, Unit] = Succeed(())
+
       final case class Fail[+A](value: A)    extends TExit[A, Nothing]
       final case class Succeed[+B](value: B) extends TExit[Nothing, B]
       case object Retry                      extends TExit[Nothing, Nothing]

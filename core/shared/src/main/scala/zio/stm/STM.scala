@@ -100,6 +100,12 @@ object STM {
     ZSTM.filter(as)(f)
 
   /**
+   * @see [[zio.stm.ZSTM.filterNot]]
+   */
+  def filterNot[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, List[A]] =
+    ZSTM.filterNot(as)(f)
+
+  /**
    * @see See [[zio.stm.ZSTM.flatten]]
    */
   def flatten[E, A](task: STM[E, STM[E, A]]): STM[E, A] =

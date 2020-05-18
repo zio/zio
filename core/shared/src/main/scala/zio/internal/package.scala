@@ -30,7 +30,7 @@ package object internal {
    * Lifts an eager, pure value into a Managed.
    */
   def ZManagedSucceedNow[A](r: A): ZManaged[Any, Nothing, A] =
-    ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
+    ZManaged.succeedNow(r)
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.

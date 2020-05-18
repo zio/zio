@@ -64,7 +64,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * Acquires `n` permits in a [[zio.ZManaged]] and releases the permits in the finalizer.
    */
   def withPermitsManaged[R, E](n: Long): ZManaged[R, E, Unit] =
-    ZManaged(prepare(n).map(a => Reservation(a.awaitAcquire, _ => a.release)))
+    ZManaged.makeReserve(prepare(n).map(a => Reservation(a.awaitAcquire, _ => a.release)))
 
   /**
    * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
