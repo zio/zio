@@ -2804,18 +2804,30 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(res)(equalTo(List(1, 2, 3, 4)))
           )
         ),
-        testM("repeatEffectWith")(
-          for {
-            ref <- Ref.make[List[Int]](Nil)
-            fiber <- ZStream
-                      .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
-                      .take(2)
-                      .runDrain
-                      .fork
-            _      <- TestClock.adjust(50.millis)
-            _      <- fiber.join
-            result <- ref.get
-          } yield assert(result)(equalTo(List(1, 1)))
+        suite("repeatEffectWith")(
+          testM("succeed")(
+            for {
+              ref <- Ref.make[List[Int]](Nil)
+              fiber <- ZStream
+                        .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
+                        .take(2)
+                        .runDrain
+                        .fork
+              _      <- TestClock.adjust(50.millis)
+              _      <- fiber.join
+              result <- ref.get
+            } yield assert(result)(equalTo(List(1, 1)))
+          ),
+          testM("allow schedule rely on effect value")(checkM(Gen.int(1, 100)) { (length: Int) =>
+            var x        = length
+            val effect   = UIO(if (x <= 0) 0 else { val y = x; x -= 1; y })
+            val schedule = Schedule.identity.addDelay((i: Int) => (if (i == 0) 1 else 0).seconds).forever
+            for {
+              fiber  <- ZStream.repeatEffectWith(effect, schedule).take(length + 1L).runCollect.fork
+              _      <- TestClock.adjust(1.second)
+              result <- fiber.join
+            } yield assert(result)(equalTo((length to 0 by -1).toList))
+          })
         ),
         testM("unfold") {
           assertM(
