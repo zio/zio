@@ -620,6 +620,28 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- s1.catchAllCause(_ => s2).runCollect.run
               result <- fins.get
             } yield assert(result)(equalTo(List("s2", "s1")))
+          },
+          testM("releases all resources by the time the failover stream has started") {
+            for {
+              fins <- Ref.make(List[Int]())
+              s = ZStream.finalizer(fins.update(1 :: _)) *>
+                ZStream.finalizer(fins.update(2 :: _)) *>
+                ZStream.finalizer(fins.update(3 :: _)) *>
+                ZStream.unit.mapM(_ => ZIO.fail("boom"))
+              result <- s.drain.catchAllCause(_ => ZStream.fromEffect(fins.get)).runCollect
+            } yield assert(result.flatten)(equalTo(List(1, 2, 3)))
+          },
+          testM("propagates the right Exit value to the failing stream (#3609)") {
+            for {
+              ref <- Ref.make[Exit[Any, Any]](Exit.unit)
+              _ <- ZStream
+                    .bracketExit(UIO.unit)((_, exit) => ref.set(exit))
+                    .flatMap(_ => ZStream.fail("boom"))
+                    .either
+                    .runDrain
+                    .run
+              result <- ref.get
+            } yield assert(result)(fails(equalTo("boom")))
           }
         ),
         suite("catchSome")(

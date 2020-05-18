@@ -469,33 +469,41 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * stream is uninterruptible.
    */
   final def catchAllCause[R1 <: R, E2, O1 >: O](f: Cause[E] => ZStream[R1, E2, O1]): ZStream[R1, E2, O1] = {
-    sealed abstract class State[+E]
-    case object NotStarted                                                   extends State[Nothing]
-    case class Self[E](finalizer: ZManaged.Finalizer, pull: Pull[R1, E, O1]) extends State[E]
-    case class Other(pull: Pull[R1, E2, O1])                                 extends State[Nothing]
+    sealed abstract class State
+    case object NotStarted                   extends State
+    case class Self(pull: Pull[R1, E, O1])   extends State
+    case class Other(pull: Pull[R1, E2, O1]) extends State
 
     ZStream {
       for {
-        finalizers <- ZManaged.releaseMap
-        ref        <- Ref.make[State[E]](NotStarted).toManaged_
+        finalizerRef <- ZManaged.finalizerRef(ZManaged.Finalizer.noop)
+        ref          <- Ref.make[State](NotStarted).toManaged_
         pull = {
-          def use[R, E0, O](stream: ZStream[R, E0, O])(state: (ZManaged.Finalizer, Pull[R, E0, O]) => State[E]) =
+          def closeCurrent(cause: Cause[Any]) =
+            finalizerRef.getAndSet(ZManaged.Finalizer.noop).flatMap(_.apply(Exit.halt(cause))).uninterruptible
+
+          def open[R, E0, O](stream: ZStream[R, E0, O])(asState: Pull[R, E0, O] => State) =
             ZIO.uninterruptibleMask { restore =>
-              restore(stream.process.zio)
-                .provideSome[R]((_, finalizers))
-                .flatMap { case (release, pull) => ref.set(state(release, pull)) *> restore(pull) }
+              ZManaged.ReleaseMap.make.flatMap { releaseMap =>
+                finalizerRef.set(releaseMap.releaseAll(_, ExecutionStrategy.Sequential)) *>
+                restore(stream.process.zio)
+                  .provideSome[R]((_, releaseMap))
+                  .map(_._2)
+                  .tap(pull => ref.set(asState(pull)))
+              }
             }
 
-          def switch(release: ZManaged.Finalizer, e: Cause[Option[E]]): Pull[R1, E2, O1] =
-            Cause
-              .sequenceCauseOption(e)
-              .map(cause => release(Exit.fail(e)).uninterruptible *> use(f(cause))((_, pull) => Other(pull)))
-              .getOrElse(Pull.end)
+          def failover(cause: Cause[Option[E]]) =
+            Cause.sequenceCauseOption(cause) match {
+              case None => ZIO.fail(None)
+              case Some(cause) =>
+                closeCurrent(cause) *> open(f(cause))(Other(_)).flatten
+            }
 
           ref.get.flatMap {
-            case NotStarted          => use(self)(Self(_, _)).catchAllCause(switch(ZManaged.Finalizer.noop, _))
-            case Self(release, pull) => pull.catchAllCause(switch(release, _))
-            case Other(pull)         => pull
+            case NotStarted => open(self)(Self(_)).flatten.catchAllCause(failover)
+            case Self(pull)  => pull.catchAllCause(failover)
+            case Other(pull) => pull
           }
         }
       } yield pull
