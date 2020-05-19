@@ -114,6 +114,9 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     },
+    zio.test.test("splitWhere") {
+      assert(Chunk(1, 2, 3, 4).splitWhere(_ == 2))(equalTo((Chunk(1), Chunk(2, 3, 4))))
+    },
     testM("length") {
       check(largeChunks(intGen))(chunk => assert(chunk.length)(equalTo(chunk.toList.length)))
     },

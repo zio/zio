@@ -569,7 +569,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def splitWhere(f: A => Boolean): (Chunk[A], Chunk[A]) = {
     var i = 0
-    while (i < length && f(self(i))) i += 1
+    while (i < length && !f(self(i))) i += 1
 
     splitAt(i)
   }
