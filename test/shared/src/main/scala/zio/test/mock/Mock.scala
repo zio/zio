@@ -19,16 +19,13 @@ package zio.test.mock
 import zio.internal.Executor
 import zio.stream.{ ZSink, ZStream }
 import zio.test.TestPlatform
-import zio.{ taggedIsSubtype, taggedTagType, Has, LightTypeTag, Runtime, Tag, ULayer, URIO, URLayer, ZIO }
+import zio.{ Has, Runtime, Tag, ULayer, URIO, URLayer, ZIO }
 
 /**
  * A `Mock[R]` represents a mockable environenment `R`.
  */
 abstract class Mock[R <: Has[_]: Tag] { self =>
 
-  import Expectation._
-
-  protected[test] val envTags: Set[LightTypeTag] = Set(taggedTagType(implicitly[Tag[R]]))
   protected[test] val compose: URLayer[Has[Proxy], R]
 
   /**
@@ -36,13 +33,7 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
    * Any calls to `R` will fail with `UnexpectedCallExpection`.
    */
   def empty: ULayer[R] =
-    NoCalls(self)
-
-  /**
-   * Tests wheather given capability is provided by mocked environment `R`.
-   */
-  def provides[R1 <: Has[_]: Tag, I, E, A](capability: Capability[R1, I, E, A]): Boolean =
-    envTags.exists(envTag => taggedIsSubtype(envTag, capability.envTag))
+    Expectation.NoCalls(self)
 
   /**
    * Replaces Runtime on JS platform to one with unyielding executor.
@@ -88,8 +79,5 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
 
 object Mock {
 
-  private[mock] case class Composed[R <: Has[_]: Tag](
-    compose: URLayer[Has[Proxy], R],
-    override val envTags: Set[LightTypeTag]
-  ) extends Mock[R]
+  private[mock] case class Composed[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R]) extends Mock[R]
 }

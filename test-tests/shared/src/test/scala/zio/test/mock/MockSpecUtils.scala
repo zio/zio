@@ -17,11 +17,15 @@ package zio.test.mock
 
 import zio.duration._
 import zio.test.environment.Live
+import zio.test.mock.internal.{ InvalidCall, MockException }
 import zio.test.mock.module.T22
 import zio.test.{ assertM, testM, Assertion, ZSpec }
-import zio.{ ULayer, ZIO }
+import zio.{ Has, ULayer, ZIO }
 
-trait MockSpecUtils[R] {
+trait MockSpecUtils[R <: Has[_]] {
+
+  import Assertion._
+  import MockException._
 
   lazy val intTuple22: T22[Int] =
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
@@ -73,4 +77,30 @@ trait MockSpecUtils[R] {
 
     assertM(result)(check)
   }
+
+  private[mock] def hasFailedMatches[T <: InvalidCall](failedMatches: T*): Assertion[Throwable] = {
+    val zero = hasSize(equalTo(failedMatches.length))
+    isSubtype[InvalidCallException](
+      hasField[InvalidCallException, List[InvalidCall]](
+        "failedMatches",
+        _.failedMatches,
+        failedMatches.zipWithIndex.foldLeft[Assertion[List[InvalidCall]]](zero) {
+          case (acc, (failure, idx)) => acc && hasAt(idx)(equalTo(failure))
+        }
+      )
+    )
+  }
+
+  private[mock] def hasUnexpectedCall[I, E, A](capability: Capability[R, I, E, A], args: I): Assertion[Throwable] =
+    isSubtype[UnexpectedCallExpection[R, I, E, A]](
+      hasField[UnexpectedCallExpection[R, I, E, A], Capability[R, I, E, A]](
+        "capability",
+        _.capability,
+        equalTo(capability)
+      ) &&
+        hasField[UnexpectedCallExpection[R, I, E, A], Any]("args", _.args, equalTo(args))
+    )
+
+  private[mock] def hasUnsatisfiedExpectations: Assertion[Throwable] =
+    isSubtype[UnsatisfiedExpectationsException[R]](anything)
 }

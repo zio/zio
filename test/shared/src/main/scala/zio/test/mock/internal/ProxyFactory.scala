@@ -46,23 +46,6 @@ object ProxyFactory {
                 case NoCalls(_) =>
                   findMatching(nextScopes)
 
-                case self @ Filter(child, predicate) =>
-                  val passes: Boolean =
-                    predicate
-                      .lift(invoked.asInstanceOf[Capability[R, _, _, _]] -> args)
-                      .getOrElse(false)
-
-                  if (!passes) findMatching(nextScopes)
-                  else {
-                    val scope = Scope[R](
-                      child.asInstanceOf[Expectation[R]],
-                      id,
-                      updatedChild => update(self.copy(child = updatedChild))
-                    )
-
-                    findMatching(scope :: nextScopes)
-                  }
-
                 case call @ Call(capability, assertion, returns, _, _, invocations) if invoked isEqual capability =>
                   assertion.asInstanceOf[Assertion[I]].test(args) match {
                     case true =>
@@ -227,9 +210,6 @@ object ProxyFactory {
         def resetTree(expectation: Expectation[R]): Expectation[R] =
           expectation match {
             case self: NoCalls[R] => self
-
-            case self: Filter[R] =>
-              self.copy(child = resetTree(self.child.asInstanceOf[Expectation[R]]))
 
             case self: Call[R, _, _, _] =>
               self.copy(

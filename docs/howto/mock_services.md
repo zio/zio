@@ -387,6 +387,24 @@ val result = combinedApp.provideLayer(combinedEnv)
 assertM(result)(isUnit)
 ```
 
+## Mocks expecting no calls
+
+In some scenarios we'd like to assert that a collaborator is not called. The simplest example is when some calls are optional, based in the inputs:
+
+```scala mdoc:silent
+def maybeConsole(invokeConsole: Boolean) =
+  ZIO.when(invokeConsole)(console.putStrLn("foo"))
+```
+
+To test this program we can use `Mock#empty`:
+
+```scala mdoc:silent
+val maybeTest1 = maybeConsole(false).provideLayer(MockConsole.empty)
+val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.putStrLn(equalTo("foo"))
+
+assertM(maybeTest1)(isUnit) && assertM(maybeTest2)(isUnit)
+```
+
 ## Polymorphic capabilities
 
 Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter.

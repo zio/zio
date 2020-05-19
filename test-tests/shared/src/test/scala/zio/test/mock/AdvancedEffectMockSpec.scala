@@ -1,7 +1,7 @@
 package zio.test.mock
 
 import zio.ZIO
-import zio.test.mock.internal.{ InvalidCall, MockException }
+import zio.test.mock.internal.InvalidCall
 import zio.test.mock.module.{ PureModule, PureModuleMock }
 import zio.test.{ suite, Assertion, ZIOBaseSpec }
 
@@ -10,7 +10,6 @@ object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule]
   import Assertion._
   import Expectation._
   import InvalidCall._
-  import MockException._
 
   val cmdA = PureModuleMock.SingleParam
   val cmdB = PureModuleMock.Overloaded._0
@@ -23,31 +22,6 @@ object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule]
   val a = PureModule.singleParam(1)
   val b = PureModule.overloaded(2)
   val c = PureModule.zeroParams
-
-  type E = InvalidCallException
-  type L = List[InvalidCall]
-
-  def hasFailedMatches[T <: InvalidCall](failedMatches: T*): Assertion[Throwable] = {
-    val zero = hasSize(equalTo(failedMatches.length))
-    isSubtype[E](
-      hasField[E, L]("failedMatches", _.failedMatches, failedMatches.zipWithIndex.foldLeft[Assertion[L]](zero) {
-        case (acc, (failure, idx)) => acc && hasAt(idx)(equalTo(failure))
-      })
-    )
-  }
-
-  def hasUnexpectedCall[I, E, A](capability: Capability[PureModule, I, E, A], args: I): Assertion[Throwable] =
-    isSubtype[UnexpectedCallExpection[PureModule, I, E, A]](
-      hasField[UnexpectedCallExpection[PureModule, I, E, A], Capability[PureModule, I, E, A]](
-        "capability",
-        _.capability,
-        equalTo(capability)
-      ) &&
-        hasField[UnexpectedCallExpection[PureModule, I, E, A], Any]("args", _.args, equalTo(args))
-    )
-
-  def hasUnsatisfiedExpectations: Assertion[Throwable] =
-    isSubtype[UnsatisfiedExpectationsException[PureModule]](anything)
 
   def spec = suite("AdvancedEffectMockSpec")(
     suite("expectations composition")(

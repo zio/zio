@@ -5,10 +5,11 @@ import zio.console.Console
 import zio.duration._
 import zio.random.Random
 import zio.system.System
+import zio.test.mock.module.{ PureModule, PureModuleMock }
 import zio.test.{ assertM, suite, testM, Assertion, ZIOBaseSpec }
 import zio.{ clock, console, random, system, Has, Tag, ULayer, ZIO }
 
-object ComposedMockSpec extends ZIOBaseSpec {
+object ComposedMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
 
   import Assertion._
   import Expectation._
@@ -56,6 +57,20 @@ object ComposedMockSpec extends ZIOBaseSpec {
           "Random with Clock with System with Console"
         )(composed, program, isUnit)
       }
+    ),
+    suite("empty mocks")(
+      testM("can construct and provide") {
+        val app = ZIO.when(false)(console.putStrLn("foo"))
+        val env = MockConsole.empty
+        val out = app.provideLayer(env)
+
+        assertM(out)(isUnit)
+      },
+      testDied("expect no calls")(
+        PureModuleMock.empty,
+        PureModule.singleParam(1),
+        hasUnexpectedCall(PureModuleMock.SingleParam, 1)
+      )
     )
   )
 }

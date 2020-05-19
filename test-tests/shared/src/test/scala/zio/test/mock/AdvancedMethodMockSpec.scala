@@ -1,7 +1,7 @@
 package zio.test.mock
 
 import zio.ZIO
-import zio.test.mock.internal.{ InvalidCall, MockException }
+import zio.test.mock.internal.InvalidCall
 import zio.test.mock.module.{ ImpureModule, ImpureModuleMock }
 import zio.test.{ suite, Assertion, ZIOBaseSpec }
 
@@ -10,7 +10,6 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
   import Assertion._
   import Expectation._
   import InvalidCall._
-  import MockException._
 
   val cmdA = ImpureModuleMock.SingleParam
   val cmdB = ImpureModuleMock.Overloaded._0
@@ -23,31 +22,6 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
   val a = ImpureModule.singleParam(1)
   val b = ImpureModule.overloaded(2)
   val c = ImpureModule.zeroParams
-
-  type E = InvalidCallException
-  type L = List[InvalidCall]
-
-  def hasFailedMatches[T <: InvalidCall](failedMatches: T*): Assertion[Throwable] = {
-    val zero = hasSize(equalTo(failedMatches.length))
-    isSubtype[E](
-      hasField[E, L]("failedMatches", _.failedMatches, failedMatches.zipWithIndex.foldLeft[Assertion[L]](zero) {
-        case (acc, (failure, idx)) => acc && hasAt(idx)(equalTo(failure))
-      })
-    )
-  }
-
-  def hasUnexpectedCall[I, E, A](capability: Capability[ImpureModule, I, E, A], args: I): Assertion[Throwable] =
-    isSubtype[UnexpectedCallExpection[ImpureModule, I, E, A]](
-      hasField[UnexpectedCallExpection[ImpureModule, I, E, A], Capability[ImpureModule, I, E, A]](
-        "capability",
-        _.capability,
-        equalTo(capability)
-      ) &&
-        hasField[UnexpectedCallExpection[ImpureModule, I, E, A], Any]("args", _.args, equalTo(args))
-    )
-
-  def hasUnsatisfiedExpectations: Assertion[Throwable] =
-    isSubtype[UnsatisfiedExpectationsException[ImpureModule]](anything)
 
   def spec =
     suite("AdvancedMethodMockSpec")(
