@@ -514,6 +514,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldM(ZIO.succeedLeft, ZIO.succeedRight)
 
   /**
+   * Maps this effect to the default exit codes.
+   */
+  final def exitCode: URIO[R with console.Console, ExitCode] =
+    self.foldCauseM(
+      cause => console.putStrLn(cause.prettyPrint) as ExitCode.failure,
+      _ => ZIO.succeedNow(ExitCode.success)
+    )
+
+  /**
    * Returns an effect that, if this effect _starts_ execution, then the
    * specified `finalizer` is guaranteed to begin execution, whether this effect
    * succeeds, fails, or is interrupted.
@@ -3154,6 +3163,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(f: (A, B, C, D) => F): ZIO[R, E, F] =
     (zio1 <&> zio2 <&> zio3 <&> zio4).map {
       case (((a, b), c), d) => f(a, b, c, d)
+    }
+
+  /**
+   * Returns a memoized version of the specified effectual function.
+   */
+  def memoize[R, E, A, B](f: A => ZIO[R, E, B]): UIO[A => ZIO[R, E, B]] =
+    RefM.make(Map.empty[A, Promise[E, B]]).map { ref => a =>
+      for {
+        promise <- ref.modify { map =>
+                    map.get(a) match {
+                      case Some(promise) => ZIO.succeedNow((promise, map))
+                      case None =>
+                        for {
+                          promise <- Promise.make[E, B]
+                          _       <- f(a).to(promise).fork
+                        } yield (promise, map + (a -> promise))
+                    }
+                  }
+        b <- promise.await
+      } yield b
     }
 
   /**

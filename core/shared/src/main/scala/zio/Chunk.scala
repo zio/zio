@@ -553,6 +553,22 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     }
 
   /**
+   * Partitions the elements of this chunk into two chunks using the specified
+   * function.
+   */
+  override final def partitionMap[B, C](f: A => Either[B, C]): (Chunk[B], Chunk[C]) = {
+    val bs = ChunkBuilder.make[B]()
+    val cs = ChunkBuilder.make[C]()
+    foreach { a =>
+      f(a) match {
+        case Left(b)  => bs += b
+        case Right(c) => cs += c
+      }
+    }
+    (bs.result(), cs.result())
+  }
+
+  /**
    * Get the element at the specified index.
    */
   def short(index: Int)(implicit ev: A <:< Short): Short =
@@ -569,7 +585,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   final def splitWhere(f: A => Boolean): (Chunk[A], Chunk[A]) = {
     var i = 0
-    while (i < length && f(self(i))) i += 1
+    while (i < length && !f(self(i))) i += 1
 
     splitAt(i)
   }

@@ -29,6 +29,26 @@ To learn more about ZIO, see the following references:
 
 ---
 
+# Adopters
+
+Following is a partial list of companies happily using ZIO in
+production to craft concurrent applications.
+
+Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
+
+* [adsquare](https://www.adsquare.com/)
+* [AutoScout24](https://www.autoscout24.de)
+* [Coralogix](https://coralogix.com)
+* [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
+* [Hunters.AI](https://hunters.ai)
+* [Megogo](https://megogo.net)
+* [Mylivn](https://www.mylivn.com/)
+* [Optrak](https://optrak.com)
+* [Performance Immo](https://www.performance-immo.com/)
+* [Risk Ident](https://riskident.com/)
+* [TomTom](https://tomtom.com)
+* [Wehkamp](https://www.wehkamp.nl)
+
 # Sponsors
 
 [![Scalac][Image-Scalac]][Link-Scalac]

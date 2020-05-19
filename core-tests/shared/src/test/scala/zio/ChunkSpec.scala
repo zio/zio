@@ -161,6 +161,9 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     },
+    zio.test.test("splitWhere") {
+      assert(Chunk(1, 2, 3, 4).splitWhere(_ == 2))(equalTo((Chunk(1), Chunk(2, 3, 4))))
+    },
     testM("length") {
       check(largeChunks(intGen))(chunk => assert(chunk.length)(equalTo(chunk.toList.length)))
     },
@@ -424,6 +427,12 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
       assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
+    },
+    zio.test.test("partitionMap") {
+      val as       = Chunk(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+      val (bs, cs) = as.partitionMap(n => if (n % 2 == 0) Left(n) else Right(n))
+      assert(bs)(equalTo(Chunk(0, 2, 4, 6, 8))) &&
+      assert(cs)(equalTo(Chunk(1, 3, 5, 7, 9)))
     }
   )
 }

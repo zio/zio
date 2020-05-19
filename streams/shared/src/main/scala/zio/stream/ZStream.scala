@@ -8,6 +8,7 @@ import zio.duration.Duration
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
+import zio.stream.internal.ZInputStream
 
 abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
 
@@ -468,60 +469,63 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * stream is uninterruptible.
    */
   final def catchAllCause[R1 <: R, E2, O1 >: O](f: Cause[E] => ZStream[R1, E2, O1]): ZStream[R1, E2, O1] = {
-    sealed abstract class State
-    object State {
-      case object NotStarted                         extends State
-      case class Self(finalizer: ZManaged.Finalizer) extends State
-      case object Other                              extends State
-    }
+    sealed abstract class State[+E0]
+    case object NotStarted                      extends State[Nothing]
+    case class Self[E0](pull: Pull[R1, E0, O1]) extends State[E0]
+    case class Other(pull: Pull[R1, E2, O1])    extends State[Nothing]
 
     ZStream {
       for {
-        finalizers <- ZManaged.releaseMap
-        selfPull   <- Ref.make[ZIO[R, Option[E], Chunk[O]]](Pull.end).toManaged_
-        otherPull  <- Ref.make[ZIO[R1, Option[E2], Chunk[O1]]](Pull.end).toManaged_
-        stateRef   <- Ref.make[State](State.NotStarted).toManaged_
+        finalizerRef <- ZManaged.finalizerRef(ZManaged.Finalizer.noop)
+        ref          <- Ref.make[State[E]](NotStarted).toManaged_
         pull = {
-          def switch(releasePrev: ZManaged.Finalizer, e: Cause[Option[E]]): ZIO[R1, Option[E2], Chunk[O1]] = {
-            def next(e: Cause[E]) = ZIO.uninterruptible {
-              for {
-                _             <- releasePrev(Exit.fail(e))
-                tp            <- f(e).process.zio.provideSome[R1]((_, finalizers))
-                (release, as) = tp
-                _             <- otherPull.set(as)
-                _             <- stateRef.set(State.Other)
-                a             <- as
-              } yield a
+          def closeCurrent(cause: Cause[Any]) =
+            finalizerRef.getAndSet(ZManaged.Finalizer.noop).flatMap(_.apply(Exit.halt(cause))).uninterruptible
+
+          def open[R, E0, O](stream: ZStream[R, E0, O])(asState: Pull[R, E0, O] => State[E]) =
+            ZIO.uninterruptibleMask { restore =>
+              ZManaged.ReleaseMap.make.flatMap { releaseMap =>
+                finalizerRef.set(releaseMap.releaseAll(_, ExecutionStrategy.Sequential)) *>
+                  restore(stream.process.zio)
+                    .provideSome[R]((_, releaseMap))
+                    .map(_._2)
+                    .tap(pull => ref.set(asState(pull)))
+              }
             }
 
-            Cause.sequenceCauseOption(e) match {
-              case None    => Pull.end
-              case Some(c) => next(c)
+          def failover(cause: Cause[Option[E]]) =
+            Cause.sequenceCauseOption(cause) match {
+              case None => ZIO.fail(None)
+              case Some(cause) =>
+                closeCurrent(cause) *> open(f(cause))(Other(_)).flatten
             }
-          }
 
-          stateRef.get.flatMap {
-            case State.NotStarted =>
-              ZIO.uninterruptible {
-                for {
-                  tp            <- self.process.zio.provideSome[R1]((_, finalizers))
-                  (release, as) = tp
-                  _             <- selfPull.set(as)
-                  _             <- stateRef.set(State.Self(release))
-                  a             <- as
-                } yield a
-              }.catchAllCause(switch(ZManaged.Finalizer.noop, _))
-
-            case State.Self(release) =>
-              selfPull.get.flatten.catchAllCause(switch(release, _))
-
-            case State.Other =>
-              otherPull.get.flatten
+          ref.get.flatMap {
+            case NotStarted  => open(self)(Self(_)).flatten.catchAllCause(failover)
+            case Self(pull)  => pull.catchAllCause(failover)
+            case Other(pull) => pull
           }
         }
       } yield pull
     }
   }
+
+  /**
+   * Switches over to the stream produced by the provided function in case this one
+   * fails with some typed error.
+   */
+  final def catchSome[R1 <: R, E1 >: E, O1 >: O](pf: PartialFunction[E, ZStream[R1, E1, O1]]): ZStream[R1, E1, O1] =
+    catchAll(pf.applyOrElse[E, ZStream[R1, E1, O1]](_, ZStream.fail(_)))
+
+  /**
+   * Switches over to the stream produced by the provided function in case this one
+   * fails with some errors. Allows recovery from all causes of failure, including interruption if the
+   * stream is uninterruptible.
+   */
+  final def catchSomeCause[R1 <: R, E1 >: E, O1 >: O](
+    pf: PartialFunction[Cause[E], ZStream[R1, E1, O1]]
+  ): ZStream[R1, E1, O1] =
+    catchAllCause(pf.applyOrElse[Cause[E], ZStream[R1, E1, O1]](_, ZStream.halt(_)))
 
   /**
    * Re-chunks the elements of the stream into chunks of
@@ -1198,17 +1202,37 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def flatMap[R1 <: R, E1 >: E, O2](f0: O => ZStream[R1, E1, O2]): ZStream[R1, E1, O2] = {
     def go(
       outerStream: ZIO[R1, Option[E1], Chunk[O]],
-      switchInner: ZManaged[R1, Nothing, ZIO[R1, Option[E1], Chunk[O2]]] => ZIO[
-        R1,
-        Nothing,
-        ZIO[R1, Option[E1], Chunk[O2]]
-      ],
-      currInnerStream: Ref[ZIO[R1, Option[E1], Chunk[O2]]]
+      currOuterChunk: Ref[(Chunk[O], Int)],
+      currInnerStream: Ref[ZIO[R1, Option[E1], Chunk[O2]]],
+      innerFinalizer: Ref[ZManaged.Finalizer]
     ): ZIO[R1, Option[E1], Chunk[O2]] = {
+      def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
+        pull.flatMap(os => if (os.nonEmpty) UIO.succeed(os) else pullNonEmpty(pull))
+
+      def closeInner =
+        innerFinalizer.getAndSet(ZManaged.Finalizer.noop).flatMap(_.apply(Exit.unit))
+
       def pullOuter: ZIO[R1, Option[E1], Unit] =
-        outerStream
-          .flatMap(os => switchInner(ZStream.concatAll(os.map(f0)).process))
-          .flatMap(currInnerStream.set)
+        currOuterChunk.modify {
+          case (chunk, nextIdx) =>
+            if (nextIdx < chunk.size) (UIO.succeed(chunk(nextIdx)), (chunk, nextIdx + 1))
+            else
+              (
+                pullNonEmpty(outerStream)
+                  .tap(os => currOuterChunk.set((os, 1)))
+                  .map(_.apply(0)),
+                (chunk, nextIdx)
+              )
+        }.flatten.flatMap { o =>
+          ZIO.uninterruptibleMask { restore =>
+            for {
+              releaseMap <- ZManaged.ReleaseMap.make
+              pull       <- restore(f0(o).process.zio.provideSome[R1]((_, releaseMap)).map(_._2))
+              _          <- currInnerStream.set(pull)
+              _          <- innerFinalizer.set(releaseMap.releaseAll(_, ExecutionStrategy.Sequential))
+            } yield ()
+          }
+        }
 
       currInnerStream.get.flatten.catchAllCause { c =>
         Cause.sequenceCauseOption(c) match {
@@ -1216,19 +1240,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           case None    =>
             // The additional switch is needed to eagerly run the finalizer
             // *before* pulling another element from the outer stream.
-            switchInner(ZManaged.succeed(Pull.end)) *>
+            closeInner *>
               pullOuter *>
-              go(outerStream, switchInner, currInnerStream)
+              go(outerStream, currOuterChunk, currInnerStream, innerFinalizer)
         }
       }
     }
 
     ZStream {
       for {
-        currInnerStream <- Ref.make[ZIO[R1, Option[E1], Chunk[O2]]](Pull.end).toManaged_
-        switchInner     <- ZManaged.switchable[R1, Nothing, ZIO[R1, Option[E1], Chunk[O2]]]
         outerStream     <- self.process
-      } yield go(outerStream, switchInner, currInnerStream)
+        currOuterChunk  <- Ref.make[(Chunk[O], Int)](Chunk.empty -> 0).toManaged_
+        currInnerStream <- Ref.make[ZIO[R1, Option[E1], Chunk[O2]]](Pull.end).toManaged_
+        innerFinalizer  <- ZManaged.finalizerRef(ZManaged.Finalizer.noop)
+      } yield go(outerStream, currOuterChunk, currInnerStream, innerFinalizer)
     }
   }
 
@@ -1941,8 +1966,42 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * See also [[ZStream#catchAll]].
    */
-  def orElse[R1 <: R, E2, O1 >: O](that: => ZStream[R1, E2, O1])(implicit ev: CanFail[E]): ZStream[R1, E2, O1] =
+  final def orElse[R1 <: R, E2, O1 >: O](that: => ZStream[R1, E2, O1])(implicit ev: CanFail[E]): ZStream[R1, E2, O1] =
     catchAll(_ => that)
+
+  /**
+   * Switches to the provided stream in case this one fails with a typed error.
+   *
+   * See also [[ZStream#catchAll]].
+   */
+  final def orElseEither[R1 <: R, E2, O2](
+    that: => ZStream[R1, E2, O2]
+  )(implicit ev: CanFail[E]): ZStream[R1, E2, Either[O, O2]] =
+    self.map(Left(_)) orElse that.map(Right(_))
+
+  /**
+   * Fails with given error in case this one fails with a typed error.
+   *
+   * See also [[ZStream#catchAll]].
+   */
+  final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E]): ZStream[R, E1, O] =
+    orElse(ZStream.fail(e1))
+
+  /**
+   * Switches to the provided stream in case this one fails with the `None` value.
+   *
+   * See also [[ZStream#catchAll]].
+   */
+  final def orElseOptional[R1 <: R, E1, O1 >: O](
+    that: => ZStream[R1, Option[E1], O1]
+  )(implicit ev: E <:< Option[E1]): ZStream[R1, Option[E1], O1] =
+    catchAll(ev(_).fold(that)(e => ZStream.fail(Some(e))))
+
+  /**
+   * Succeeds with the specified value if this one fails with a typed error.
+   */
+  final def orElseSucceed[O1 >: O](o1: => O1)(implicit ev: CanFail[E]): ZStream[R, Nothing, O1] =
+    orElse(ZStream.succeed(o1))
 
   /**
    * Partition a stream using a predicate. The first stream will contain all element evaluated to true
@@ -2132,6 +2191,18 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         }
       } yield pull
     }
+
+  /**
+   * Fails with the error `None` if value is `Left`.
+   */
+  final def right[O1, O2](implicit ev: O <:< Either[O1, O2]): ZStream[R, Option[E], O2] =
+    self.mapError(Some(_)).rightOrFail(None)
+
+  /**
+   * Fails with fiven error 'e' if value is `Left`.
+   */
+  final def rightOrFail[O1, O2, E1 >: E](e: => E1)(implicit ev: O <:< Either[O1, O2]): ZStream[R, E1, O2] =
+    self.mapM(ev(_).fold(_ => ZIO.fail(e), ZIO.succeedNow(_)))
 
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
@@ -2326,6 +2397,24 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
+   * Converts an option on values into an option on errors.
+   */
+  final def some[O2](implicit ev: O <:< Option[O2]): ZStream[R, Option[E], O2] =
+    self.mapError(Some(_)).someOrFail(None)
+
+  /**
+   * Extracts the optional value, or returns the given 'default'.
+   */
+  final def someOrElse[O2](default: => O2)(implicit ev: O <:< Option[O2]): ZStream[R, E, O2] =
+    map(_.getOrElse(default))
+
+  /**
+   * Extracts the optional value, or fails with the given error 'e'.
+   */
+  final def someOrFail[O2, E1 >: E](e: => E1)(implicit ev: O <:< Option[O2]): ZStream[R, E1, O2] =
+    self.mapM(ev(_).fold[IO[E1, O2]](ZIO.fail(e))(ZIO.succeedNow(_)))
+
+  /**
    * Takes the specified number of elements from this stream.
    */
   def take(n: Long): ZStream[R, E, O] =
@@ -2517,6 +2606,53 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       } yield pull
     }
 
+  final def debounce[E1 >: E, O2 >: O](d: Duration): ZStream[R with Clock, E1, O2] = {
+    sealed abstract class State
+    case object NotStarted                                  extends State
+    case class Previous(fiber: Fiber[Nothing, Chunk[O2]])   extends State
+    case class Current(fiber: Fiber[Option[E1], Chunk[O2]]) extends State
+    case object Done                                        extends State
+
+    ZStream[R with Clock, E1, O2] {
+      for {
+        chunks <- self.process
+        ref    <- Ref.make[State](NotStarted).toManaged_
+        pull = {
+          def store(chunk: Chunk[O2]): URIO[Clock, Chunk[O2]] =
+            clock.sleep(d).as(chunk).fork.flatMap(f => ref.set(Previous(f))) *> Pull.empty
+
+          ref.get.flatMap {
+            case Previous(fiber) =>
+              fiber.join.raceWith[R with Clock, Option[E1], Option[E1], Chunk[O2], Chunk[O2]](chunks)(
+                {
+                  case (Exit.Success(chunk), current) =>
+                    ref.set(Current(current)) *> Pull.emit(chunk)
+                  case (Exit.Failure(cause), current) =>
+                    current.interrupt *> Pull.halt(cause)
+                }, {
+                  case (Exit.Success(chunk), previous) =>
+                    previous.interrupt *> store(chunk)
+                  case (Exit.Failure(cause), previous) =>
+                    Cause.sequenceCauseOption(cause) match {
+                      case Some(e) =>
+                        previous.interrupt *> Pull.halt(e)
+                      case None =>
+                        previous.join.flatMap(Pull.emit) <* ref.set(Done)
+                    }
+                }
+              )
+            case Current(fiber) =>
+              fiber.join >>= store
+            case NotStarted =>
+              chunks >>= store
+            case Done =>
+              Pull.end
+          }
+        }
+      } yield pull
+    }
+  }
+
   /**
    * Ends the stream if it does not produce a value after d duration.
    */
@@ -2560,72 +2696,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def timeoutTo[R1 <: R, E1 >: E, O2 >: O](
     d: Duration
-  )(that: ZStream[R1, E1, O2]): ZStream[R1 with Clock, E1, O2] =
-    ZStream[R1 with Clock, E1, O2] {
-      for {
-        currStream   <- Ref.make[ZIO[R1, Option[E1], Chunk[O2]]](Pull.end).toManaged_
-        switchStream <- ZManaged.switchable[R1, Nothing, ZIO[R1, Option[E1], Chunk[O2]]]
-        switched     <- Ref.make(false).toManaged_
-        _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
-        pull = {
-          val effect       = currStream.get.flatten
-          lazy val switch  = switched.set(true) *> switchStream(that.process).flatMap(currStream.set) *> go
-          lazy val timeout = effect.timeout(d).flatMap(_.map(Pull.emit).getOrElse(switch))
-
-          lazy val go: ZIO[R1 with Clock, Option[E1], Chunk[O2]] =
-            switched.get.flatMap(if (_) effect else timeout)
-
-          go
-        }
-      } yield pull
-    }
+  )(that: ZStream[R1, E1, O2]): ZStream[R1 with Clock, E1, O2] = {
+    object StreamTimeout extends Throwable
+    self.timeoutErrorCause(Cause.die(StreamTimeout))(d).catchSomeCause { case Cause.Die(StreamTimeout) => that }
+  }
 
   /**
    * Converts this stream of bytes into a `java.io.InputStream` wrapped in a [[ZManaged]].
    * The returned input stream will only be valid within the scope of the ZManaged.
    */
-  def toInputStream(implicit ev0: E <:< Throwable, ev1: O <:< Byte): ZManaged[R, E, java.io.InputStream] = {
-    val (_, _) = (ev0, ev1)
-
+  def toInputStream(implicit ev0: E <:< Throwable, ev1: O <:< Byte): ZManaged[R, E, java.io.InputStream] =
     for {
       runtime <- ZIO.runtime[R].toManaged_
-      pull    <- process
-      javaStream = new java.io.InputStream {
-        val capturedPull           = pull.asInstanceOf[ZIO[R, Option[Throwable], Chunk[Byte]]]
-        var done                   = false
-        var nextIndex: Int         = -1
-        var currChunk: Chunk[Byte] = null
-
-        override def read(): Int =
-          if (done) -1
-          else {
-            if ((currChunk ne null) && nextIndex < currChunk.size) {
-              val result = currChunk(nextIndex)
-              nextIndex += 1
-              result & 0xFF
-            } else {
-              runtime.unsafeRunSync(capturedPull) match {
-                case Exit.Failure(cause) =>
-                  cause.failureOrCause match {
-                    case Left(None) =>
-                      done = true
-                      -1
-                    case Left(Some(throwable)) =>
-                      throw throwable
-                    case Right(otherCause) =>
-                      throw FiberFailure(otherCause)
-                  }
-
-                case Exit.Success(chunk) =>
-                  currChunk = chunk
-                  nextIndex = 0
-                  read()
-              }
-            }
-          }
-      }
-    } yield javaStream
-  }
+      pull    <- process.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Byte]]]]
+    } yield ZInputStream.fromPull(runtime, pull)
 
   /**
    * Converts this stream into a `scala.collection.Iterator` wrapped in a [[ZManaged]].
@@ -2680,6 +2764,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Threads the stream through the transformation function `f`.
    */
   final def via[R2, E2, O2](f: ZStream[R, E, O] => ZStream[R2, E2, O2]): ZStream[R2, E2, O2] = f(self)
+
+  /**
+   * Equivalent to [[filter]] but enables the use of filter clauses in for-comprehensions
+   */
+  def withFilter(predicate: O => Boolean): ZStream[R, E, O] =
+    filter(predicate)
 
   /**
    * Zips this stream with another point-wise, but keeps only the outputs of this stream.
@@ -3090,16 +3180,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromEffect(ZIO.fail(error))
 
   /**
-   * Creates an empty stream that never fails and executes the finalizer when it ends.
+   * Creates a one-element stream that never fails and executes the finalizer when it ends.
    */
-  def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Nothing] =
-    ZStream {
-      for {
-        finalizers <- ZManaged.releaseMap
-        r          <- ZManaged.environment[R]
-        pull       = (finalizers.add(_ => finalizer.provide(r)) *> Pull.end).uninterruptible
-      } yield pull
-    }
+  def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Any] =
+    bracket[R, Nothing, Unit](UIO.unit)(_ => finalizer)
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values
@@ -3331,7 +3415,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream {
       for {
         doneRef   <- Ref.make(false).toManaged_
-        finalizer <- ZManaged.releaseMap
+        finalizer <- ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential)
         pull = ZIO.uninterruptibleMask { restore =>
           doneRef.get.flatMap { done =>
             if (done) Pull.end
@@ -3619,6 +3703,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
+  type Pull[-R, +E, +O] = ZIO[R, Option[E], Chunk[O]]
+
   private[zio] object Pull {
     def emit[A](a: A): IO[Nothing, Chunk[A]]                               = UIO(Chunk.single(a))
     def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]                       = UIO(as)
@@ -3626,6 +3712,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def fromTake[E, A](t: Take[E, A]): IO[Option[E], Chunk[A]]             = IO.done(t)
     def fail[E](e: E): IO[Option[E], Nothing]                              = IO.fail(Some(e))
     def halt[E](c: Cause[E]): IO[Option[E], Nothing]                       = IO.halt(c).mapError(Some(_))
+    def empty[A]: IO[Nothing, Chunk[A]]                                    = UIO(Chunk.empty)
     val end: IO[Option[Nothing], Nothing]                                  = IO.fail(None)
   }
 

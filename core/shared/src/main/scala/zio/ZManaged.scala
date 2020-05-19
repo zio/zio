@@ -397,7 +397,7 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
           tp                   <- ZIO.environment[(R, ReleaseMap)]
           (r, outerReleaseMap) = tp
           innerReleaseMap      <- ReleaseMap.make
-          fiber                <- restore(zio.map(_._2).fork.provide(r -> innerReleaseMap))
+          fiber                <- restore(zio.map(_._2).forkDaemon.provide(r -> innerReleaseMap))
           releaseMapEntry <- outerReleaseMap.add(e =>
                               fiber.interrupt *> innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential)
                             )
@@ -1131,10 +1131,6 @@ object ZManaged {
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
-  trait PreallocationScope {
-    def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
-  }
-
   final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
@@ -1321,10 +1317,6 @@ object ZManaged {
         }
       }
     }
-  }
-
-  trait Scope {
-    def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, (ZManaged.Finalizer, A)]
   }
 
   /**
@@ -1948,6 +1940,15 @@ object ZManaged {
   lazy val never: ZManaged[Any, Nothing, Nothing] = ZManaged.fromEffect(ZIO.never)
 
   /**
+   * A scope in which resources can be safely preallocated. Passing a [[ZManaged]]
+   * to the `apply` method will create (inside an effect) a managed resource which
+   * is already acquired and cannot fail.
+   */
+  trait PreallocationScope {
+    def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
+  }
+
+  /**
    * Creates a scope in which resources can be safely preallocated.
    */
   lazy val preallocationScope: Managed[Nothing, PreallocationScope] =
@@ -2024,9 +2025,18 @@ object ZManaged {
     v.sandbox
 
   /**
+   * A scope in which [[ZManaged]] values can be safely allocated. Passing a managed
+   * resource to the `apply` method will return an effect that allocates the resource
+   * and returns it with an early-release handle.
+   */
+  trait Scope {
+    def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, (ZManaged.Finalizer, A)]
+  }
+
+  /**
    * Creates a scope in which resources can be safely allocated into together with a release action.
    */
-  def scope: Managed[Nothing, Scope] =
+  lazy val scope: Managed[Nothing, Scope] =
     ZManaged.releaseMap.map { finalizers =>
       new Scope {
         override def apply[R, E, A](managed: ZManaged[R, E, A]) =
@@ -2132,19 +2142,19 @@ object ZManaged {
                 case None      => ZIO.interrupt
               }
               .toManaged_
-      switch = { (newResource: ZManaged[R, E, A]) =>
-        for {
-          _ <- releaseMap
-                .replace(key, _ => UIO.unit)
-                .flatMap(_.map(_.apply(Exit.unit)).getOrElse(ZIO.unit))
-          r     <- ZIO.environment[R]
-          inner <- ReleaseMap.make
-          a     <- newResource.zio.provide((r, inner))
-          _ <- releaseMap
-                .replace(key, inner.releaseAll(_, ExecutionStrategy.Sequential))
-                .flatMap(_.map(_.apply(Exit.unit)).getOrElse(ZIO.unit))
-        } yield a._2
-      }
+      switch = (newResource: ZManaged[R, E, A]) =>
+        ZIO.uninterruptibleMask { restore =>
+          for {
+            _ <- releaseMap
+                  .replace(key, _ => UIO.unit)
+                  .flatMap(_.map(_.apply(Exit.unit)).getOrElse(ZIO.unit))
+            r     <- ZIO.environment[R]
+            inner <- ReleaseMap.make
+            a     <- restore(newResource.zio.provide((r, inner)))
+            _ <- releaseMap
+                  .replace(key, inner.releaseAll(_, ExecutionStrategy.Sequential))
+          } yield a._2
+        }
     } yield switch
 
   /**
