@@ -101,6 +101,14 @@ object ZSinkSpec extends ZIOBaseSpec {
         suite("zipWith")(testM("happy path") {
           assertM(ZStream(1, 2, 3).run(ZSink.head.zipParLeft(ZSink.succeed("Hello"))))(equalTo(Some(1)))
         })
+      ),
+      suite("flatMap")(
+        testM("non-empty input") {
+          assertM(ZStream(1, 2, 3).run(ZSink.head[Int].flatMap(ZSink.succeed(_))))(equalTo(Some(1)))
+        },
+        testM("empty input") {
+          assertM(ZStream.empty.run(ZSink.head[Int].flatMap(ZSink.succeed(_))))(equalTo(None))
+        }
       )
     )
   )
