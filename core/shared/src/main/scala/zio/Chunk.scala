@@ -17,6 +17,7 @@
 package zio
 
 import java.nio._
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
@@ -32,46 +33,6 @@ import scala.reflect.{ classTag, ClassTag }
  * types.
  */
 sealed trait Chunk[+A] extends ChunkLike[A] { self =>
-
-  /**
-   * Get the element at the specified index.
-   */
-  def boolean(index: Int)(implicit ev: A <:< Boolean): Boolean = ev(apply(index))
-
-  /**
-   * Get the element at the specified index.
-   */
-  def byte(index: Int)(implicit ev: A <:< Byte): Byte = ev(apply(index))
-
-  /**
-   * Get the element at the specified index.
-   */
-  def char(index: Int)(implicit ev: A <:< Char): Char = ev(apply(index))
-
-  /**
-   * Get the element at the specified index.
-   */
-  def short(index: Int)(implicit ev: A <:< Short): Short = ev(apply(index))
-
-  /**
-   * Get the element at the specified index.
-   */
-  def int(index: Int)(implicit ev: A <:< Int): Int = ev(apply(index))
-
-  /**
-   * Get the element at the specified index.
-   */
-  def long(index: Int)(implicit ev: A <:< Long): Long = ev(apply(index))
-
-  /**
-   * Get the element at the specified index.
-   */
-  def float(index: Int)(implicit ev: A <:< Float): Float = ev(apply(index))
-
-  /**
-   * Get the element at the specified index.
-   */
-  def double(index: Int)(implicit ev: A <:< Double): Double = ev(apply(index))
 
   /**
    * Appends an element to the chunk
@@ -92,10 +53,35 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     that.prepend(self)
 
   /**
+   * Appends an element to the chunk
+   */
+  protected def append[A1 >: A](a: A1): Chunk[A1] =
+    if (self.length == 0) Chunk.single(a)
+    else Chunk.Concat(self, Chunk.single(a))
+
+  /**
    * Converts a chunk of bytes to a chunk of bits.
    */
   final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
     Chunk.BitChunk(self.map(ev), 0, length << 3)
+
+  /**
+   * Get the element at the specified index.
+   */
+  def boolean(index: Int)(implicit ev: A <:< Boolean): Boolean =
+    ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def byte(index: Int)(implicit ev: A <:< Byte): Byte =
+    ev(apply(index))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def char(index: Int)(implicit ev: A <:< Char): Char =
+    ev(apply(index))
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a .
@@ -130,6 +116,12 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       }
       corresponds
     }
+
+  /**
+   * Get the element at the specified index.
+   */
+  def double(index: Int)(implicit ev: A <:< Double): Double =
+    ev(apply(index))
 
   /**
    * Drops the first `n` elements of the chunk.
@@ -291,6 +283,12 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     flatMap(ev(_))
 
   /**
+   * Get the element at the specified index.
+   */
+  def float(index: Int)(implicit ev: A <:< Float): Float =
+    ev(apply(index))
+
+  /**
    * Folds over the elements in this chunk from the left.
    */
   override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
@@ -400,6 +398,12 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
+   * Get the element at the specified index.
+   */
+  def int(index: Int)(implicit ev: A <:< Int): Int =
+    ev(apply(index))
+
+  /**
    * Determines if the chunk is empty.
    */
   override final def isEmpty: Boolean =
@@ -410,6 +414,12 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    */
   override final def lastOption: Option[A] =
     if (isEmpty) None else Some(self(self.length - 1))
+
+  /**
+   * Get the element at the specified index.
+   */
+  def long(index: Int)(implicit ev: A <:< Long): Long =
+    ev(apply(index))
 
   /**
    * Statefully maps over the chunk, producing new elements of type `B`.
@@ -557,6 +567,12 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     }
     (bs.result(), cs.result())
   }
+
+  /**
+   * Get the element at the specified index.
+   */
+  def short(index: Int)(implicit ev: A <:< Short): Short =
+    ev(apply(index))
 
   /**
    * Returns two splits of this chunk at the specified index.
@@ -910,6 +926,7 @@ object Chunk {
    */
   private[zio] def classTagOf[A](chunk: Chunk[A]): ClassTag[A] =
     chunk match {
+      case x: AppendN[A]     => x.classTag
       case x: Arr[A]         => x.classTag
       case x: Concat[A]      => x.classTag
       case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
@@ -918,6 +935,39 @@ object Chunk {
       case x: VectorChunk[A] => x.classTag
       case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
+
+  /**
+   * The maximum number of elements in the buffer for fast append.
+   */
+  private val BufferSize: Int =
+    64
+
+  private final case class AppendN[A](start: Chunk[A], buffer: Array[AnyRef], bufferUsed: Int, chain: AtomicInteger)
+      extends Chunk[A] { self =>
+
+    implicit val classTag: ClassTag[A] = classTagOf(start)
+
+    val length: Int =
+      start.length + bufferUsed
+
+    override protected def append[A1 >: A](a1: A1): Chunk[A1] =
+      if (bufferUsed < buffer.length && chain.compareAndSet(bufferUsed, bufferUsed + 1)) {
+        buffer(bufferUsed) = a1.asInstanceOf[AnyRef]
+        AppendN(start, buffer, bufferUsed + 1, chain)
+      } else {
+        val buffer = Array.ofDim[AnyRef](BufferSize)
+        buffer(0) = a1.asInstanceOf[AnyRef]
+        AppendN(self, buffer, 1, new AtomicInteger(1))
+      }
+
+    def apply(n: Int): A =
+      if (n < start.length) start(n) else buffer(n - start.length).asInstanceOf[A]
+
+    override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
+      start.toArray(n, dest)
+      val _ = buffer.asInstanceOf[Array[A]].copyToArray(dest, n + start.length, bufferUsed)
+    }
+  }
 
   private[zio] sealed abstract class Arr[A] extends Chunk[A] with Serializable { self =>
 
@@ -928,6 +978,12 @@ object Chunk {
 
     override val length: Int =
       array.length
+
+    override protected def append[A1 >: A](a1: A1): Chunk[A] = {
+      val buffer = Array.ofDim[AnyRef](BufferSize)
+      buffer(0) = a1.asInstanceOf[AnyRef]
+      AppendN(self, buffer, 1, new AtomicInteger(1))
+    }
 
     override def apply(n: Int): A =
       array(n)
@@ -1131,6 +1187,9 @@ object Chunk {
 
     override val length: Int =
       l.length + r.length
+
+    override protected def append[A1 >: A](a1: A1): Chunk[A1] =
+      Concat(l, r :+ a1)
 
     override def apply(n: Int): A =
       if (n < l.length) l(n) else r(n - l.length)
