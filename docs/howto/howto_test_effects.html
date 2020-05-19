@@ -78,7 +78,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
   }
 )
 <span class="hljs-comment">// clockSuite: Spec[zio.clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("clock", zio.ZManaged@763dda1b, None)</span>
+<span class="hljs-comment">//   SuiteCase("clock", zio.ZManaged@7a94758b, None)</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <p>As you can see the whole suit was assigned to <code>clockSuite</code> val. As it was said suites can contain other suites so we can aggregate them as much as needed. Example, we can have multiple suites that test external HTTP apis and one big suite that will aggregate them all.</p>
@@ -87,15 +87,15 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 
 <span class="hljs-keyword">val</span> paymentProviderABCSuite  = suite(<span class="hljs-string">"ABC payment provider tests"</span>) {test(<span class="hljs-string">"Your test"</span>)(assert(<span class="hljs-string">"Your value"</span>)(<span class="hljs-type">Assertion</span>.isNonEmptyString))}
 <span class="hljs-comment">// paymentProviderABCSuite: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("ABC payment provider tests", zio.ZManaged@14f8f108, None)</span>
+<span class="hljs-comment">//   SuiteCase("ABC payment provider tests", zio.ZManaged@4a292350, None)</span>
 <span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> paymentProviderXYZSuite  = suite(<span class="hljs-string">"XYZ payment provider tests"</span>) {test(<span class="hljs-string">"Your other test"</span>)(assert(<span class="hljs-string">"Your other value"</span>)(<span class="hljs-type">Assertion</span>.isNonEmptyString))}
 <span class="hljs-comment">// paymentProviderXYZSuite: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("XYZ payment provider tests", zio.ZManaged@608ff0b3, None)</span>
+<span class="hljs-comment">//   SuiteCase("XYZ payment provider tests", zio.ZManaged@689e7cd2, None)</span>
 <span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> allPaymentProvidersTests = suite(<span class="hljs-string">"All payment providers tests"</span>)(paymentProviderABCSuite, paymentProviderXYZSuite)
 <span class="hljs-comment">// allPaymentProvidersTests: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("All payment providers tests", zio.ZManaged@68bfac01, None)</span>
+<span class="hljs-comment">//   SuiteCase("All payment providers tests", zio.ZManaged@15950895, None)</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <p>Real tests that run some logic and return testing result are created mostly with <code>testM</code> function. It expects two arguments, first one that will be the label of test
@@ -122,7 +122,7 @@ test(<span class="hljs-string">"Check assertions"</span>) {
   assert(<span class="hljs-type">Right</span>(<span class="hljs-type">Some</span>(<span class="hljs-number">2</span>)))(isRight(isSome(equalTo(<span class="hljs-number">2</span>))))
 }
 <span class="hljs-comment">// res0: ZSpec[Any, Nothing] = Spec(</span>
-<span class="hljs-comment">//   TestCase("Check assertions", &lt;function1&gt;, zio.test.TestAnnotationMap@704a4e0f)</span>
+<span class="hljs-comment">//   TestCase("Check assertions", &lt;function1&gt;, zio.test.TestAnnotationMap@4c740f81)</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <p>Here we're checking deeply nested values inside an <code>Either</code> and <code>Option</code>. Because <code>Assertion</code>s compose this is not a problem
@@ -144,7 +144,7 @@ test(<span class="hljs-string">"Rich checking"</span>) {
   )
 }
 <span class="hljs-comment">// res2: ZSpec[Any, Nothing] = Spec(</span>
-<span class="hljs-comment">//   TestCase("Rich checking", &lt;function1&gt;, zio.test.TestAnnotationMap@704a4e0f)</span>
+<span class="hljs-comment">//   TestCase("Rich checking", &lt;function1&gt;, zio.test.TestAnnotationMap@4c740f81)</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <p>There is also an easy way to test object's data for certain assertions with <code>hasField</code> which accepts besides a name, a mapping function from object to its tested property and <code>Assertion</code> object which will validate this property. Here our test checks if a person has at least 18 years and is not from USA. What is nice about those tests is that, test reporters will tell you exactly which assertion was broken. Let's say we would change <code>isGreaterThanEqualTo(18)</code> to <code>isGreaterThanEqualTo(40)</code> which will fail. Printout
@@ -168,7 +168,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
 <span class="hljs-comment">//   TestCase(</span>
 <span class="hljs-comment">//     "Semaphore should expose available number of permits",</span>
 <span class="hljs-comment">//     &lt;function1&gt;,</span>
-<span class="hljs-comment">//     zio.test.TestAnnotationMap@704a4e0f</span>
+<span class="hljs-comment">//     zio.test.TestAnnotationMap@4c740f81</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -183,7 +183,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
   testM(<span class="hljs-string">"s1.t2"</span>) {assertM(nanoTime)(isGreaterThanEqualTo(<span class="hljs-number">0</span>L))}
 )
 <span class="hljs-comment">// suite1: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("suite1", zio.ZManaged@23e981bf, None)</span>
+<span class="hljs-comment">//   SuiteCase("suite1", zio.ZManaged@4f4496fc, None)</span>
 <span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> suite2 = suite(<span class="hljs-string">"suite2"</span>) (
   testM(<span class="hljs-string">"s2.t1"</span>) {assertM(nanoTime)(isGreaterThanEqualTo(<span class="hljs-number">0</span>L))},
@@ -191,13 +191,13 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
   testM(<span class="hljs-string">"s2.t3"</span>) {assertM(nanoTime)(isGreaterThanEqualTo(<span class="hljs-number">0</span>L))}
 )
 <span class="hljs-comment">// suite2: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("suite2", zio.ZManaged@3cfcf719, None)</span>
+<span class="hljs-comment">//   SuiteCase("suite2", zio.ZManaged@54a70b2a, None)</span>
 <span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> suite3 = suite(<span class="hljs-string">"suite3"</span>) (
   testM(<span class="hljs-string">"s3.t1"</span>) {assertM(nanoTime)(isGreaterThanEqualTo(<span class="hljs-number">0</span>L))}
 )
 <span class="hljs-comment">// suite3: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("suite3", zio.ZManaged@29b69b23, None)</span>
+<span class="hljs-comment">//   SuiteCase("suite3", zio.ZManaged@694b608b, None)</span>
 <span class="hljs-comment">// )</span>
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">AllSuites</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">DefaultRunnableSpec</span> </span>{
@@ -286,7 +286,7 @@ testM(<span class="hljs-string">"Use setSeed to generate stable values"</span>) 
 <span class="hljs-comment">//   TestCase(</span>
 <span class="hljs-comment">//     "Use setSeed to generate stable values",</span>
 <span class="hljs-comment">//     &lt;function1&gt;,</span>
-<span class="hljs-comment">//     zio.test.TestAnnotationMap@704a4e0f</span>
+<span class="hljs-comment">//     zio.test.TestAnnotationMap@4c740f81</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -312,7 +312,7 @@ testM(<span class="hljs-string">"One can provide its own list of ints"</span>) {
 <span class="hljs-comment">//   TestCase(</span>
 <span class="hljs-comment">//     "One can provide its own list of ints",</span>
 <span class="hljs-comment">//     &lt;function1&gt;,</span>
-<span class="hljs-comment">//     zio.test.TestAnnotationMap@704a4e0f</span>
+<span class="hljs-comment">//     zio.test.TestAnnotationMap@4c740f81</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -343,7 +343,7 @@ testM(<span class="hljs-string">"One can move time very fast"</span>) {
 <span class="hljs-comment">//   TestCase(</span>
 <span class="hljs-comment">//     "One can move time very fast",</span>
 <span class="hljs-comment">//     &lt;function1&gt;,</span>
-<span class="hljs-comment">//     zio.test.TestAnnotationMap@704a4e0f</span>
+<span class="hljs-comment">//     zio.test.TestAnnotationMap@4c740f81</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -366,7 +366,7 @@ testM(<span class="hljs-string">"One can control time as he see fit"</span>) {
 <span class="hljs-comment">//   TestCase(</span>
 <span class="hljs-comment">//     "One can control time as he see fit",</span>
 <span class="hljs-comment">//     &lt;function1&gt;,</span>
-<span class="hljs-comment">//     zio.test.TestAnnotationMap@704a4e0f</span>
+<span class="hljs-comment">//     zio.test.TestAnnotationMap@4c740f81</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -400,7 +400,7 @@ testM(<span class="hljs-string">"zipWithLatest"</span>) {
       assert(d)(equalTo(<span class="hljs-number">1</span> -&gt; <span class="hljs-number">2</span>))
 }
 <span class="hljs-comment">// res9: ZSpec[Any with Clock with TestClock, Nothing] = Spec(</span>
-<span class="hljs-comment">//   TestCase("zipWithLatest", &lt;function1&gt;, zio.test.TestAnnotationMap@704a4e0f)</span>
+<span class="hljs-comment">//   TestCase("zipWithLatest", &lt;function1&gt;, zio.test.TestAnnotationMap@4c740f81)</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="testing-console"></a><a href="#testing-console" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Testing Console</h3>
@@ -429,7 +429,7 @@ as writing and reading to and from internal buffers.</p>
   }
 )
 <span class="hljs-comment">// consoleSuite: Spec[console.package.Console with TestConsole, TestFailure[java.io.IOException], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("ConsoleTest", zio.ZManaged@69de4fe1, None)</span>
+<span class="hljs-comment">//   SuiteCase("ConsoleTest", zio.ZManaged@de7bf8f, None)</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <p>Above code simulates an application that will ask for name and age of the user. To test it we prefill buffers with answers
@@ -448,7 +448,7 @@ like in the code below:</p>
   _      &lt;- <span class="hljs-type">TestSystem</span>.putProperty(<span class="hljs-string">"java.vm.name"</span>, <span class="hljs-string">"VM"</span>)
   result &lt;- system.property(<span class="hljs-string">"java.vm.name"</span>)
 } <span class="hljs-keyword">yield</span> assert(result)(equalTo(<span class="hljs-type">Some</span>(<span class="hljs-string">"VM"</span>)))
-<span class="hljs-comment">// res10: zio.ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@3dbf2ac9</span>
+<span class="hljs-comment">// res10: zio.ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@4e61c87</span>
 </code></pre>
 <p>It is worth noticing that no actual environment variables or properties will be set during testing so there will be
 no impact on other parts of the system.</p>
