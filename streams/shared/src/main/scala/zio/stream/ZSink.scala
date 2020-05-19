@@ -195,7 +195,7 @@ abstract class ZSink[-R, +E, -I, +Z] private (
         openThatPush <- ZManaged.switchable[R1, Nothing, Push[R1, E2, I2, Z2]]
         push = (inputs: Option[Chunk[I2]]) =>
           switched.get.flatMap { alreadySwitched =>
-            if (alreadySwitched)
+            if (!alreadySwitched)
               inputs match {
                 case None =>
                   // If upstream has ended, we want to make sure that we propagate the `None`
