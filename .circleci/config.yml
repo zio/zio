@@ -77,6 +77,8 @@ install_yarn: &install_yarn
   - run:
       name: Install Yarn
       command: |
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 78BD65473CB3BD13
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5DC22404A6F9F1CA
         curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
         sudo bash -c 'echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list'
         sudo apt update && sudo apt install yarn -y
