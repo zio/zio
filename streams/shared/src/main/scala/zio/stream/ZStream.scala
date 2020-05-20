@@ -12,7 +12,7 @@ import zio.stream.internal.ZInputStream
 
 abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
 
-  import ZStream.{ BufferedPull, Pull, Take, TerminationStrategy }
+  import ZStream.{ BufferedPull, Pull, TakeExit, TerminationStrategy }
 
   /**
    * Symbolic alias for [[ZStream#cross]].
@@ -179,9 +179,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       for {
         pull         <- self.process
         push         <- transducer.push
-        handoff      <- ZStream.Handoff.make[Take[E1, O]].toManaged_
+        handoff      <- ZStream.Handoff.make[TakeExit[E1, O]].toManaged_
         raceNextTime <- ZRef.makeManaged(false)
-        waitingFiber <- ZRef.makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
+        waitingFiber <- ZRef.makeManaged[Option[Fiber[Nothing, TakeExit[E1, O]]]](None)
         scheduleState <- schedule.initial
                           .flatMap(i => ZRef.make[(Chunk[P], schedule.State)](Chunk.empty -> i))
                           .toManaged_
@@ -198,7 +198,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             scheduleState.get.flatMap(state => schedule.update(state._1, state._2).option)
 
           // Waiting for the normal output of the producer
-          val waitForProducer: ZIO[R1, Nothing, Take[E1, O]] =
+          val waitForProducer: ZIO[R1, Nothing, TakeExit[E1, O]] =
             waitingFiber.getAndSet(None).flatMap {
               case None      => handoff.take
               case Some(fib) => fib.join
@@ -210,7 +210,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case _                   => ZIO.unit
             }
 
-          def handleTake(take: Take[E1, O]) =
+          def handleTake(take: TakeExit[E1, O]) =
             take
               .foldM(
                 Cause.sequenceCauseOption(_) match {
@@ -224,11 +224,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               )
               .mapError(Some(_))
 
-          def go(race: Boolean): ZIO[R1, Option[E1], Chunk[Take[E1, Either[Q, P]]]] =
+          def go(race: Boolean): ZIO[R1, Option[E1], Chunk[TakeExit[E1, Either[Q, P]]]] =
             if (!race)
               waitForProducer.flatMap(handleTake) <* raceNextTime.set(true)
             else
-              updateSchedule.raceWith[R1, Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
+              updateSchedule.raceWith[R1, Nothing, Option[E1], TakeExit[E1, O], Chunk[TakeExit[E1, Either[Q, P]]]](
                 waitForProducer
               )(
                 (scheduleDone, producerWaiting) =>
@@ -363,7 +363,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   private final def bufferSignal[E1 >: E, O1 >: O](
-    queue: Queue[(Take[E1, O1], Promise[Nothing, Unit])]
+    queue: Queue[(TakeExit[E1, O1], Promise[Nothing, Unit])]
   ): ZManaged[R, Nothing, ZIO[R, Option[E1], Chunk[O1]]] =
     for {
       as    <- self.process
@@ -372,7 +372,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       ref   <- Ref.make(start).toManaged_
       done  <- Ref.make(false).toManaged_
       upstream = {
-        def offer(take: Take[E1, O1]): UIO[Unit] =
+        def offer(take: TakeExit[E1, O1]): UIO[Unit] =
           take.fold(
             _ =>
               for {
@@ -392,7 +392,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           )
 
         def go: URIO[R, Unit] =
-          as.run.flatMap(take => offer(take) *> go.when(take != Take.End))
+          as.run.flatMap(take => offer(take) *> go.when(take != TakeExit.End))
 
         go
       }
@@ -402,7 +402,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         else
           queue.take.flatMap {
             case (take, p) =>
-              p.succeed(()) *> done.set(true).when(take == Take.End) *> Pull.fromTake(take)
+              p.succeed(()) *> done.set(true).when(take == TakeExit.End) *> Pull.fromTake(take)
           }
       }
     } yield pull
@@ -416,7 +416,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def bufferDropping(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.dropping[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        queue <- Queue.dropping[(TakeExit[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
         pull  <- bufferSignal(queue)
       } yield pull
     }
@@ -430,7 +430,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def bufferSliding(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.sliding[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        queue <- Queue.sliding[(TakeExit[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
         pull  <- bufferSignal(queue)
       } yield pull
     }
@@ -1298,7 +1298,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         //   - On completion, the driver stream tries to acquire all permits to verify
         //     that all inner fibers have finished.
         //     - If one of them failed (signalled by a promise), all other fibers are interrupted
-        //     - If they all succeeded, Take.End is enqueued
+        //     - If they all succeeded, TakeExit.End is enqueued
         //   - On error, the driver stream interrupts all inner fibers and emits a
         //     Take.Fail value
         //   - Interruption is handled by running the finalizers which take care of cleanup
@@ -1940,11 +1940,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     that: ZStream[R1, E1, O2],
     strategy: TerminationStrategy = TerminationStrategy.Both
   )(l: O => O3, r: O2 => O3): ZStream[R1, E1, O3] = {
-    type Candidate[E, O] = Fiber[Nothing, Take[E, O]]
+    type Candidate[E, O] = Fiber[Nothing, TakeExit[E, O]]
     type Loser           = Either[Candidate[E, O], Candidate[E1, O2]]
 
-    def race(left: URIO[R, Take[E, O]], right: URIO[R1, Take[E1, O2]]): URIO[R1, (Take[E1, O3], Loser)] =
-      left.raceWith[R1, Nothing, Nothing, Take[E1, O2], (Take[E1, O3], Loser)](right)(
+    def race(left: URIO[R, TakeExit[E, O]], right: URIO[R1, TakeExit[E1, O2]]): URIO[R1, (TakeExit[E1, O3], Loser)] =
+      left.raceWith[R1, Nothing, Nothing, TakeExit[E1, O2], (TakeExit[E1, O3], Loser)](right)(
         (exit, right) => ZIO.done(exit).map(a => (a.map(_.map(l)), Right(right))),
         (exit, left) => ZIO.done(exit).map(b => (b.map(_.map(r)), Left(left)))
       )
@@ -1952,11 +1952,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     def termination[E, O](left: Boolean, right: Boolean, mapper: O => O3)(fiber: Candidate[E, O]) =
       strategy match {
         case TerminationStrategy.Either =>
-          fiber.interrupt.as(Take.End)
+          fiber.interrupt.as(TakeExit.End)
         case TerminationStrategy.Left if left =>
-          fiber.interrupt.as(Take.End)
+          fiber.interrupt.as(TakeExit.End)
         case TerminationStrategy.Right if right =>
-          fiber.interrupt.as(Take.End)
+          fiber.interrupt.as(TakeExit.End)
         case _ =>
           fiber.join.map(_.map(_.map(mapper))).map(_.map((_, (left, right, None))))
       }
@@ -3737,20 +3737,50 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   type Pull[-R, +E, +O] = ZIO[R, Option[E], Chunk[O]]
 
   private[zio] object Pull {
-    def emit[A](a: A): IO[Nothing, Chunk[A]]                               = UIO(Chunk.single(a))
-    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]                       = UIO(as)
-    def fromDequeue[E, A](d: Dequeue[Take[E, A]]): IO[Option[E], Chunk[A]] = d.take.flatMap(IO.done(_))
-    def fromTake[E, A](t: Take[E, A]): IO[Option[E], Chunk[A]]             = IO.done(t)
-    def fail[E](e: E): IO[Option[E], Nothing]                              = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): IO[Option[E], Nothing]                       = IO.halt(c).mapError(Some(_))
-    def empty[A]: IO[Nothing, Chunk[A]]                                    = UIO(Chunk.empty)
-    val end: IO[Option[Nothing], Nothing]                                  = IO.fail(None)
+    def emit[A](a: A): IO[Nothing, Chunk[A]]                                   = UIO(Chunk.single(a))
+    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]                           = UIO(as)
+    def fromDequeue[E, A](d: Dequeue[TakeExit[E, A]]): IO[Option[E], Chunk[A]] = d.take.flatMap(IO.done(_))
+    def fromTake[E, A](t: TakeExit[E, A]): IO[Option[E], Chunk[A]]             = IO.done(t)
+    def fail[E](e: E): IO[Option[E], Nothing]                                  = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): IO[Option[E], Nothing]                           = IO.halt(c).mapError(Some(_))
+    def empty[A]: IO[Nothing, Chunk[A]]                                        = UIO(Chunk.empty)
+    val end: IO[Option[Nothing], Nothing]                                      = IO.fail(None)
   }
 
-  type Take[+E, +A] = Exit[Option[E], Chunk[A]]
+  // TODO: Remove in favor of Take
+  type TakeExit[+E, +A] = Exit[Option[E], Chunk[A]]
+
+  // TODO: Remove in favor of Take
+  object TakeExit {
+    val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
+  }
+
+  case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
+    def done: IO[Option[E], Chunk[A]] =
+      IO.done(exit)
+
+    def fold[Z](end: => Z, error: Cause[E] => Z, value: Chunk[A] => Z): Z =
+      exit.fold(Cause.sequenceCauseOption(_).fold(end)(error), value)
+
+    def foldM[R, E1, Z](end: => ZIO[R, E1, Z], error: Cause[E] => ZIO[R, E1, Z], value: Chunk[A] => ZIO[R, E1, Z]): ZIO[R, E1, Z] =
+      exit.foldM(Cause.sequenceCauseOption(_).fold(end)(error), value)
+
+    def map[B](f: A => B): Take[E, B] =
+      Take(exit.map(_.map(f)))
+
+    def tap[R, E1](f: Chunk[A] => ZIO[R, E1, Any]): ZIO[R, E1, Unit] =
+      exit.foreach(f).unit
+  }
 
   object Take {
-    val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
+    def succeed[A](a: A): Take[Nothing, A]              = Take(Exit.succeed(Chunk.single(a)))
+    def succeed[A](as: Chunk[A]): Take[Nothing, A]      = Take(Exit.succeed(as))
+    def fail[E](e: E): Take[E, Nothing]                 = Take(Exit.fail(Some(e)))
+    def halt[E](c: Cause[E]): Take[E, Nothing]          = Take(Exit.halt(c.map(Some(_))))
+    def die(t: Throwable): Take[Nothing, Nothing]       = Take(Exit.die(t))
+    def dieMessage(msg: String): Take[Nothing, Nothing] = Take(Exit.die(new RuntimeException(msg)))
+    def done[E, A](exit: Exit[E, A]): Take[E, A]        = Take(exit.mapError[Option[E]](Some(_)).map(Chunk.single))
+    val end: Take[Nothing, Nothing]                     = Take(Exit.fail(None))
   }
 
   private[zio] case class BufferedPull[R, E, A](

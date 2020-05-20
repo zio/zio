@@ -17,7 +17,7 @@ import zio.test.environment.TestClock
 
 object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
-  import ZStream.Take
+  import ZStream.TakeExit
 
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
@@ -2963,7 +2963,7 @@ object ZStreamSpec extends ZIOBaseSpec {
     ) @@ TestAspect.timed
 
   trait ChunkCoordination[A] {
-    def queue: Queue[Take[Nothing, A]]
+    def queue: Queue[TakeExit[Nothing, A]]
     def offer: UIO[Boolean]
     def proceed: UIO[Unit]
     def awaitNext: UIO[Unit]
@@ -2973,13 +2973,13 @@ object ZStreamSpec extends ZIOBaseSpec {
     chunks: List[Chunk[A]]
   )(assertion: ChunkCoordination[A] => ZIO[Clock with TestClock, Nothing, TestResult]) =
     for {
-      q  <- Queue.unbounded[Take[Nothing, A]]
+      q  <- Queue.unbounded[TakeExit[Nothing, A]]
       ps <- Queue.unbounded[Unit]
       ref <- Ref
-              .make[List[List[Take[Nothing, A]]]](
+              .make[List[List[TakeExit[Nothing, A]]]](
                 chunks.init.map { chunk =>
                   List(Exit.succeed(chunk))
-                } ++ chunks.lastOption.map(chunk => List(Exit.succeed(chunk), Take.End))
+                } ++ chunks.lastOption.map(chunk => List(Exit.succeed(chunk), TakeExit.End))
               )
       chunkCoordination = new ChunkCoordination[A] {
         val queue = q
