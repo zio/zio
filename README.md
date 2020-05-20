@@ -48,6 +48,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Risk Ident](https://riskident.com/)
 * [TomTom](https://tomtom.com)
 * [Wehkamp](https://www.wehkamp.nl)
+* [LeadIQ](https://leadiq.com)
 
 # Sponsors
 
