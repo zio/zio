@@ -1267,6 +1267,32 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")))
           }
         ),
+        suite("flattenTake")(
+          testM("happy path")(checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+            assertM(
+              ZStream
+                .fromChunks(chunks: _*)
+                .mapChunks(chunk => Chunk.single(Exit.succeed(chunk)))
+                .flattenTake
+                .runCollect
+            )(equalTo(chunks.fold(Chunk.empty)(_ ++ _).toList))
+          }),
+          testM("stop collecting on Exit.Failure") {
+            assertM(
+              ZStream(
+                Exit.succeed(Chunk(1, 2)),
+                Exit.succeed(Chunk.single(3)),
+                Exit.fail(Option.empty[Unit])
+              ).flattenTake.runCollect
+            )(equalTo(List(1, 2, 3)))
+          },
+          testM("work with empty chunks") {
+            assertM(ZStream(Exit.succeed(Chunk.empty), Exit.succeed(Chunk.empty)).flattenTake.runCollect)(isEmpty)
+          },
+          testM("work with empty streams") {
+            assertM(ZStream.fromIterable[Exit[Option[Nothing], Chunk[Nothing]]](Nil).flattenTake.runCollect)(isEmpty)
+          }
+        ),
         suite("foreach")(
           testM("foreach") {
             for {

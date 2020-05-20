@@ -1406,6 +1406,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     flattenPar[R1, E1, O1](Int.MaxValue, outputBuffer)
 
   /**
+   * Unwraps [[Exit]] values and flatten chunks that also signify end-of-stream by failing with `None`.
+   */
+  final def flattenTake[E1 >: E, O1](implicit ev: O <:< Exit[Option[E1], Chunk[O1]]): ZStream[R, E1, O1] =
+    collectWhileSuccess[E1, Chunk[O1]].flattenChunks
+
+  /**
    * More powerful version of [[ZStream.groupByKey]]
    */
   final def groupBy[R1 <: R, E1 >: E, K, V](
