@@ -213,7 +213,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns a new effect that will not succeed with its value before first
    * waiting for the end of all child fibers forked by the effect.
    */
-  final def awaitAllChildren: ZIO[R, E, A] = (self <* ZIO.awaitAllChildren).fork.flatMap(_.join)
+  final def awaitAllChildren: ZIO[R, E, A] = ensuringChildren(Fiber.interruptAll(_))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
@@ -547,14 +547,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * this effect succeeds.
    */
   final def ensuringChild[R1 <: R](f: Fiber[Any, List[Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
-    ensuringChildren(children => f(Fiber.collectAll(children)))
+    ensuringChildren(children => f(Fiber.collectAll[Any, Any](children)))
 
   /**
    * Acts on the children of this fiber, guaranteeing the specified callback
    * will be invoked, whether or not this effect succeeds.
    */
-  final def ensuringChildren[R1 <: R](f: Iterable[Fiber[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
-    self.ensuring(ZIO.children.flatMap(f))
+  def ensuringChildren[R1 <: R](children: Chunk[Fiber.Runtime[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
+    Supervisor.track(true).flatMap(supervisor => self.supervised(supervisor).ensuring(supervisor.value >>= children))
 
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
@@ -772,13 +772,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.absolve(self.mapError(ev1)(CanFail).map(ev2(_).toRight(())))
 
   /**
-   * Returns a new effect that, on exit of this effect, invokes the specified
-   * handler with all forked (non-daemon) children of this effect.
-   */
-  final def handleChildrenWith[R1 <: R](f: Iterable[Fiber[Any, Any]] => URIO[R1, Any]): ZIO[R1, E, A] =
-    self.ensuring(ZIO.children.flatMap(f))
-
-  /**
    * Returns a successful effect with the head of the list if the list is
    * non-empty or fails with the error `None` if the list is empty.
    */
@@ -797,7 +790,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns a new effect that will not succeed with its value before first
    * interrupting all child fibers forked by the effect.
    */
-  final def interruptAllChildren: ZIO[R, E, A] = (self <* ZIO.interruptAllChildren).fork.flatMap(_.join)
+  final def interruptAllChildren: ZIO[R, E, A] = ensuringChildren(Fiber.interruptAll(_))
 
   /**
    * Returns a new effect that performs the same operations as this effect, but
@@ -1628,10 +1621,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     } yield (f(start, end), value)
 
   /**
-   * Returns an effect with the behavior of this one, but where all child 
+   * Returns an effect with the behavior of this one, but where all child
    * fibers forked in the effect are reported to the specified supervisor.
    */
-  final def supervised(supervisor: Supervisor[Any]): ZIO[R, E, A] = 
+  final def supervised(supervisor: Supervisor[Any]): ZIO[R, E, A] =
     new ZIO.Supervise(self, supervisor)
 
   /**
@@ -2024,6 +2017,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Awaits all child fibers of the fiber executing the effect.
    */
+  // @deprecated("1.0.0", "Use ZIO#awaitAllChildren")
   def awaitAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.awaitAll(_))
 
   /**
@@ -2118,6 +2112,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Provides access to the list of child fibers supervised by this fiber.
    */
+  // @deprecated("1.0.0", "There is no alternative for this, but you can install a local supervisor")
   def children: UIO[Iterable[Fiber[Any, Any]]] = descriptor.flatMap(_.children)
 
   /**
@@ -2293,12 +2288,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * fibers, and are not terminated automatically when any other fibers ends.
    */
   def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = new ZIO.Disown(fiber)
-
-  /**
-   * Disowns all children.
-   */
-  val disownChildren: UIO[Boolean] =
-    ZIO.children.flatMap(children => ZIO.foreach(children)(disown(_)).map(_.exists(a => a)))
 
   /**
    * Returns an effect from a [[zio.Exit]] value.
@@ -2954,6 +2943,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Interrupts all child fibers of the fiber executing the effect.
    */
+  // @deprecated("1.0.0", "Use ZIO#interruptAllChildren")
   def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
 
   /**

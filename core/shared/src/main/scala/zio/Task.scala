@@ -30,11 +30,6 @@ object Task extends TaskPlatformSpecific {
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
-   * @see [[zio.ZIO.awaitAllChildren]]
-   */
-  val awaitAllChildren: UIO[Unit] = ZIO.awaitAllChildren
-
-  /**
    * @see See bracket [[zio.ZIO]]
    */
   def bracket[A](acquire: Task[A]): ZIO.BracketAcquire[Any, Throwable, A] =
@@ -73,11 +68,6 @@ object Task extends TaskPlatformSpecific {
    */
   def checkTraced[A](f: TracingStatus => Task[A]): Task[A] =
     ZIO.checkTraced(f)
-
-  /**
-   * @see See [[zio.ZIO.children]]
-   */
-  def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
@@ -506,11 +496,6 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
-
-  /**
-   * @see See [zio.ZIO.interruptAllChildren]
-   */
-  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
 
   /**
    * @see See [[zio.ZIO.interruptAs]]

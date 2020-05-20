@@ -28,11 +28,6 @@ object UIO {
   def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
-   * @see [[zio.ZIO.awaitAllChildren]]
-   */
-  val awaitAllChildren: UIO[Unit] = ZIO.awaitAllChildren
-
-  /**
    * @see See bracket [[zio.ZIO]]
    */
   def bracket[A](acquire: UIO[A]): ZIO.BracketAcquire[Any, Nothing, A] =
@@ -67,11 +62,6 @@ object UIO {
    */
   def checkTraced[A](f: TracingStatus => UIO[A]): UIO[A] =
     ZIO.checkTraced(f)
-
-  /**
-   * @see See [[zio.ZIO.children]]
-   */
-  def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
@@ -446,11 +436,6 @@ object UIO {
    * @see See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
-
-  /**
-   * @see See [zio.ZIO.interruptAllChildren]
-   */
-  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
 
   /**
    * @see See [[zio.ZIO.interruptAs]]

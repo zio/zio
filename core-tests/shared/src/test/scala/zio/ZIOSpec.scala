@@ -2324,7 +2324,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val io =
           for {
             counter <- Ref.make(0)
-            _ <- (makeChild(1) *> makeChild(2)).handleChildrenWith { fs =>
+            _ <- (makeChild(1) *> makeChild(2)).ensuringChildren { fs =>
                   fs.foldLeft(IO.unit)((acc, f) => acc *> f.interrupt *> counter.update(_ + 1))
                 }
             value <- counter.get

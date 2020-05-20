@@ -32,11 +32,6 @@ object RIO {
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
-   * @see See [[zio.ZIO.awaitAllChildren]]
-   */
-  val awaitAllChildren = ZIO.awaitAllChildren
-
-  /**
    * @see See [[zio.ZIO.access]]
    */
   def access[R]: ZIO.AccessPartiallyApplied[R] =
@@ -90,11 +85,6 @@ object RIO {
    */
   def checkTraced[R, A](f: TracingStatus => RIO[R, A]): RIO[R, A] =
     ZIO.checkTraced(f)
-
-  /**
-   * @see See [[zio.ZIO.children]]
-   */
-  def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
@@ -542,11 +532,6 @@ object RIO {
    * @see See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
-
-  /**
-   * @see See [zio.ZIO.interruptAllChildren]
-   */
-  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
 
   /**
    * @see See [[zio.ZIO.interruptAs]]

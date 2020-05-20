@@ -624,7 +624,10 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Supervise =>
                     val zio = curZio.asInstanceOf[ZIO.Supervise[Any, E, Any]]
 
-                    val push = ZIO.effectTotal(supervisors.push(zio.supervisor || supervisors.pop()))
+                    val lastSupervisor = supervisors.pop()
+                    val newSupervisor  = zio.supervisor && lastSupervisor
+
+                    val push = ZIO.effectTotal(supervisors.push(newSupervisor))
                     val pop  = ZIO.effectTotal(supervisors.pop())
 
                     curZio = push.bracket_(pop, zio.zio)
