@@ -12,7 +12,7 @@ import zio.stream.internal.ZInputStream
 
 abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
 
-  import ZStream.{ BufferedPull, Pull, Take, TakeExit, TerminationStrategy }
+  import ZStream.{ BufferedPull, Pull, Take, TerminationStrategy }
 
   /**
    * Symbolic alias for [[ZStream#cross]].
@@ -1923,54 +1923,47 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     that: ZStream[R1, E1, O2],
     strategy: TerminationStrategy = TerminationStrategy.Both
   )(l: O => O3, r: O2 => O3): ZStream[R1, E1, O3] = {
-    type Candidate[E, O] = Fiber[Nothing, TakeExit[E, O]]
+    type Candidate[E, O] = Fiber[Nothing, Take[E, O]]
     type Loser           = Either[Candidate[E, O], Candidate[E1, O2]]
 
-    def race(left: URIO[R, TakeExit[E, O]], right: URIO[R1, TakeExit[E1, O2]]): URIO[R1, (TakeExit[E1, O3], Loser)] =
-      left.raceWith[R1, Nothing, Nothing, TakeExit[E1, O2], (TakeExit[E1, O3], Loser)](right)(
-        (exit, right) => ZIO.done(exit).map(a => (a.map(_.map(l)), Right(right))),
-        (exit, left) => ZIO.done(exit).map(b => (b.map(_.map(r)), Left(left)))
+    def race(left: Pull[R, E, O], right: Pull[R1, E1, O2]): URIO[R1, (Take[E1, O3], Loser)] =
+      Take.fromPull(left).raceWith(Take.fromPull(right))(
+        (exit, right) => ZIO.done(exit).map(take => (take.map(l), Right(right))),
+        (exit, left) => ZIO.done(exit).map(take => (take.map(r), Left(left)))
       )
 
     def termination[E, O](left: Boolean, right: Boolean, mapper: O => O3)(fiber: Candidate[E, O]) =
       strategy match {
         case TerminationStrategy.Either =>
-          fiber.interrupt.as(TakeExit.End)
+          fiber.interrupt.as(Exit.fail(None))
         case TerminationStrategy.Left if left =>
-          fiber.interrupt.as(TakeExit.End)
+          fiber.interrupt.as(Exit.fail(None))
         case TerminationStrategy.Right if right =>
-          fiber.interrupt.as(TakeExit.End)
+          fiber.interrupt.as(Exit.fail(None))
         case _ =>
-          fiber.join.map(_.map(_.map(mapper))).map(_.map((_, (left, right, None))))
+          fiber.join.map(_.map(mapper).exit.map((_, (left, right, None))))
       }
 
     combineChunks(that)((false, false, Option.empty[Loser])) {
+      case ((true, rightDone, _), _, right) =>
+        right.map(c => (c.map(r), (true, rightDone, None))).run
+
+      case ((leftDone, true, _), left, _) =>
+        left.map(c => (c.map(l), (leftDone, true, None))).run
+
       case ((leftDone, rightDone, loser), left, right) =>
-        if (leftDone) {
-          right.map(c => (c.map(r), (leftDone, rightDone, None))).run
-        } else if (rightDone) {
-          left.map(c => (c.map(l), (leftDone, rightDone, None))).run
-        } else {
-          val result = loser match {
-            case None               => race(left.run, right.run)
-            case Some(Left(loser))  => race(loser.join, right.run)
-            case Some(Right(loser)) => race(left.run, loser.join)
-          }
-          result.flatMap {
-            case (exit, loser) =>
-              exit.foldM(
-                Cause.sequenceCauseOption(_) match {
-                  case Some(e) =>
-                    loser.merge.interrupt.as(Exit.halt(e.map(Some(_))))
-                  case None =>
-                    loser.fold(
-                      termination[E, O](leftDone, true, l),
-                      termination[E1, O2](true, rightDone, r)
-                    )
-                },
-                chunk => ZIO.succeedNow(Exit.succeed((chunk, (leftDone, rightDone, Some(loser)))))
-              )
-          }
+        val result = loser match {
+          case None               => race(left, right)
+          case Some(Left(loser))  => race(loser.join.flatMap(_.done), right)
+          case Some(Right(loser)) => race(left, loser.join.flatMap(_.done))
+        }
+        result.flatMap {
+          case (take, loser) =>
+            take.foldM(
+              loser.fold(termination[E, O](leftDone, true, l), termination[E1, O2](true, rightDone, r)),
+              cause => loser.merge.interrupt.as(Exit.halt(cause).mapError(Some(_))),
+              chunk => ZIO.succeedNow(Exit.succeed((chunk, (leftDone, rightDone, Some(loser)))))
+            )
         }
     }
   }
@@ -3739,7 +3732,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
-    def done: IO[Option[E], Chunk[A]] =
+    def done[R]: ZIO[R, Option[E], Chunk[A]] =
       IO.done(exit)
 
     def fold[Z](end: => Z, error: Cause[E] => Z, value: Chunk[A] => Z): Z =
