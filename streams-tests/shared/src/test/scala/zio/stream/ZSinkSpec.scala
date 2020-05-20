@@ -102,6 +102,11 @@ object ZSinkSpec extends ZIOBaseSpec {
       )
     ),
     suite("Combinators")(
+      testM("untilOutputM") {
+        val sink: ZSink[Any, Nothing, Int, Option[Option[Int]]] =
+          ZSink.head[Int].untilOutputM(h => ZIO.succeed(h.fold(false)(_ > 10)))
+        assertM(Stream.fromIterable(1 to 100).chunkN(3).run(sink))(equalTo(Some(Some(13))))
+      },
       testM("raceBoth") {
         checkM(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
           val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)

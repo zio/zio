@@ -413,30 +413,10 @@ abstract class ZSink[-R, +E, -I, +Z] private (
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
-  def untilOutputM[R1 <: R, E1 >: E](f: Z => ZIO[R1, E1, Boolean]): ZSink[R1, E1, I, Option[Z]] =
-    ZSink {
-      Push.restartable(push).map {
-        case (push, restart) =>
-          (is: Option[Chunk[I]]) => {
-            val shouldRestart =
-              is match {
-                case None    => false
-                case Some(_) => true
-              }
-
-            push(is).catchAll {
-              case Left(e) => ZIO.fail(Left(e))
-              case Right(z) =>
-                f(z).mapError(Left(_)) flatMap { predicateSatisfied =>
-                  if (predicateSatisfied) ZIO.fail(Right(Some(z)))
-                  else if (shouldRestart) restart
-                  else ZIO.fail(Right(None))
-                }
-
-            }
-          }
-      }
-    }
+  def untilOutputM[R1 <: R, E1 >: E](f: Z => ZIO[R1, E1, Boolean]): ZSink[R1, E1, I, Option[Z]] = {
+    val t: ZTransducer[R1, E1, I, (Z, Boolean)] = self.toTransducer.mapM(z => f(z).map((z, _)))
+    t.filter(_._2).map(_._1) >>> ZSink.head[Z]
+  }
 }
 
 object ZSink extends ZSinkPlatformSpecificConstructors {
