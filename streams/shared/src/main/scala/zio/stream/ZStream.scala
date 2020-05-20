@@ -342,7 +342,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = done.get.flatMap {
           if (_) Pull.end
           else
-            queue.take.flatMap(ZIO.done(_)).catchSome {
+            queue.take.flatMap(_.done).catchSome {
               case None => done.set(true) *> Pull.end
             }
         }
@@ -434,11 +434,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = done.get.flatMap {
           if (_) Pull.end
           else
-            queue.take
-              .flatMap(Pull.fromTake(_))
-              .catchAllCause(
-                Cause.sequenceCauseOption(_).fold[ZIO[R, Option[E], Chunk[O]]](done.set(true) *> Pull.end)(Pull.halt(_))
-              )
+            queue.take.flatMap(_.foldM(done.set(true) *> Pull.end, Pull.halt, Pull.emit(_)))
         }
       } yield pull
     }
@@ -1699,7 +1695,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * signalled.
    */
   final def into[R1 <: R, E1 >: E, O1 >: O](
-    queue: ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], Chunk[O1]], Any]
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O1], Any]
   ): ZIO[R1, E1, Unit] =
     intoManaged(queue).use_(UIO.unit)
 
@@ -1708,7 +1704,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * composition.
    */
   final def intoManaged[R1 <: R, E1 >: E, O1 >: O](
-    queue: ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], Chunk[O1]], Any]
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O1], Any]
   ): ZManaged[R1, E1, Unit] =
     for {
       as <- self.process
@@ -1717,10 +1713,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           as.foldCauseM(
             Cause
               .sequenceCauseOption(_)
-              .fold[ZIO[R1, Nothing, Unit]](queue.offer(Exit.fail(None)).unit)(c =>
-                queue.offer(Exit.halt(c.map(Some(_)))) *> go
+              .fold[ZIO[R1, Nothing, Unit]](queue.offer(Take.end).unit)(c =>
+                queue.offer(Take.halt(c)) *> go
               ),
-            a => queue.offer(Exit.succeed(a)) *> go
+            a => queue.offer(Take.chunk(a)) *> go
           )
 
         go
@@ -2756,9 +2752,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Converts the stream to a managed queue of chunks. After the managed queue is used,
    * the queue will never again produce values and should be discarded.
    */
-  final def toQueue(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Exit[Option[E], Chunk[O]]]] =
+  final def toQueue(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, O]]] =
     for {
-      queue <- Queue.bounded[Exit[Option[E], Chunk[O]]](capacity).toManaged(_.shutdown)
+      queue <- Queue.bounded[Take[E, O]](capacity).toManaged(_.shutdown)
       _     <- self.intoManaged(queue).fork
     } yield queue
 
@@ -2766,9 +2762,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Converts the stream into an unbounded managed queue. After the managed queue
    * is used, the queue will never again produce values and should be discarded.
    */
-  final def toQueueUnbounded: ZManaged[R, Nothing, Dequeue[Exit[Option[E], Chunk[O]]]] =
+  final def toQueueUnbounded: ZManaged[R, Nothing, Dequeue[Take[E, O]]] =
     for {
-      queue <- Queue.unbounded[Exit[Option[E], Chunk[O]]].toManaged(_.shutdown)
+      queue <- Queue.unbounded[Take[E, O]].toManaged(_.shutdown)
       _     <- self.intoManaged(queue).fork
     } yield queue
 

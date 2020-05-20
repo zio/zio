@@ -755,7 +755,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream
                 .range(0, 10)
                 .toQueue(1)
-                .use(q => ZStream.fromQueue(q).collectWhileSuccess.runCollect)
+                .use(q => ZStream.fromQueue(q).map(_.exit).collectWhileSuccess.runCollect)
                 .map(_.flatMap(_.toList))
             )(equalTo(Range(0, 10).toList))
           },
@@ -764,7 +764,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               (ZStream.range(0, 10) ++ ZStream.fail(e))
                 .toQueue(1)
-                .use(q => ZStream.fromQueue(q).collectWhileSuccess.runCollect)
+                .use(q => ZStream.fromQueue(q).map(_.exit).collectWhileSuccess.runCollect)
                 .run
             )(fails(equalTo(e)))
           } @@ zioTag(errors)
@@ -2546,7 +2546,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s.toQueue(1000)
                 .use(queue => queue.size.repeat(Schedule.doWhile(_ != c.size + 1)) *> queue.takeAll)
             )(
-              equalTo(c.toSeq.toList.map(i => Exit.succeed(Chunk(i))) :+ Exit.fail(None))
+              equalTo(c.toSeq.toList.map(Take.single) :+ Take.end)
             )
           }),
           testM("toQueueUnbounded")(checkM(Gen.chunkOfBounded(0, 3)(Gen.anyInt)) { (c: Chunk[Int]) =>
@@ -2554,7 +2554,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               s.toQueueUnbounded.use(queue => queue.size.repeat(Schedule.doWhile(_ != c.size + 1)) *> queue.takeAll)
             )(
-              equalTo(c.toSeq.toList.map(i => Exit.succeed(Chunk(i))) :+ Exit.fail(None))
+              equalTo(c.toSeq.toList.map(Take.single) :+ Take.end)
             )
           })
         ),
@@ -2861,8 +2861,8 @@ object ZStreamSpec extends ZIOBaseSpec {
                   first  <- ZStream.fromQueue(queue).take(3).runCollect
                   _      <- tqueue.offerAll(List(4, 5)).commit
                   second <- ZStream.fromQueue(queue).take(2).runCollect
-                } yield assert(first)(equalTo(List(1, 2, 3).map(i => Exit.succeed(Chunk.single(i))))) &&
-                  assert(second)(equalTo(List(4, 5).map(i => Exit.succeed(Chunk.single(i)))))
+                } yield assert(first)(equalTo(List(1, 2, 3).map(Take.single))) &&
+                  assert(second)(equalTo(List(4, 5).map(Take.single)))
               }
           }
         } @@ flaky,
