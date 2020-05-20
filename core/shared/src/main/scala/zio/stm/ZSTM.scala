@@ -979,6 +979,13 @@ object ZSTM {
     suspend(if (p) STM.unit else retry)
 
   /**
+   * Evaluate each effect in the structure from left to right, collecting the
+   * the successful values and discarding the empty cases.
+   */
+  def collect[R, E, A, B](in: Iterable[A])(f: A => ZSTM[R, Option[E], B]): ZSTM[R, E, List[B]] =
+    foreach(in)(a => f(a).optional).map(_.flatten)
+
+  /**
    * Collects all the transactional effects in a list, returning a single
    * transactional effect that produces a list of values.
    */
