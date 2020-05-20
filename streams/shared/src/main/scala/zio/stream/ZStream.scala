@@ -350,7 +350,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   private final def bufferSignal[E1 >: E, O1 >: O](
-    queue: Queue[(TakeExit[E1, O1], Promise[Nothing, Unit])]
+    queue: Queue[(Take[E1, O1], Promise[Nothing, Unit])]
   ): ZManaged[R, Nothing, ZIO[R, Option[E1], Chunk[O1]]] =
     for {
       as    <- self.process
@@ -359,8 +359,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       ref   <- Ref.make(start).toManaged_
       done  <- Ref.make(false).toManaged_
       upstream = {
-        def offer(take: TakeExit[E1, O1]): UIO[Unit] =
-          take.fold(
+        def offer(take: Take[E1, O1]): UIO[Unit] =
+          take.exit.fold(
             _ =>
               for {
                 latch <- ref.get
@@ -379,7 +379,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           )
 
         def go: URIO[R, Unit] =
-          as.run.flatMap(take => offer(take) *> go.when(take != TakeExit.End))
+          Take.fromPull(as).flatMap(take => offer(take) *> go.when(take != Take.end))
 
         go
       }
@@ -389,7 +389,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         else
           queue.take.flatMap {
             case (take, p) =>
-              p.succeed(()) *> done.set(true).when(take == TakeExit.End) *> Pull.fromTake(take)
+              p.succeed(()) *> done.set(true).when(take == Take.end) *> take.done
           }
       }
     } yield pull
@@ -403,7 +403,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def bufferDropping(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.dropping[(TakeExit[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        queue <- Queue.dropping[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
         pull  <- bufferSignal(queue)
       } yield pull
     }
@@ -417,7 +417,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def bufferSliding(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.sliding[(TakeExit[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        queue <- Queue.sliding[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
         pull  <- bufferSignal(queue)
       } yield pull
     }
