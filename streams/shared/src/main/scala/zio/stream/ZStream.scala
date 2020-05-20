@@ -588,7 +588,19 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Performs an effectful filter and map in a single step.
    */
   final def collectM[R1 <: R, E1 >: E, O1](pf: PartialFunction[O, ZIO[R1, E1, O1]]): ZStream[R1, E1, O1] =
-    ZStream(self.process.map(_.flatMap(_.collectM(pf).mapError(Some(_)))))
+    ZStream {
+      for {
+        os     <- self.process.mapM(BufferedPull.make(_))
+        pfSome = pf.andThen(_.bimap(Some(_), Chunk.single(_)))
+        pull = {
+          def go: ZIO[R1, Option[E1], Chunk[O1]] =
+            os.pullElement.flatMap(o => pfSome.applyOrElse(o, (_: O) => go))
+
+          go
+        }
+
+      } yield pull
+    }
 
   /**
    * Transforms all elements of the stream for as long as the specified partial function is defined.
@@ -616,16 +628,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def collectWhileM[R1 <: R, E1 >: E, O2](pf: PartialFunction[O, ZIO[R1, E1, O2]]): ZStream[R1, E1, O2] =
     ZStream {
       for {
-        chunks <- self.process
-        done   <- Ref.make(false).toManaged_
+        os   <- self.process.mapM(BufferedPull.make(_))
+        done <- Ref.make(false).toManaged_
+        pfIO = pf.andThen(_.bimap(Some(_), Chunk.single(_)))
         pull = done.get.flatMap {
           if (_) Pull.end
           else
-            for {
-              chunk     <- chunks
-              remaining <- chunk.collectWhileM(pf).mapError(Some(_))
-              _         <- done.set(true).when(remaining.length < chunk.length)
-            } yield remaining
+            os.pullElement.flatMap(a => pfIO.applyOrElse(a, (_: O) => done.set(true) *> Pull.end))
         }
       } yield pull
     }
@@ -1178,7 +1187,19 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Effectfully filters the elements emitted by this stream.
    */
   def filterM[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZStream[R1, E1, O] =
-    ZStream(self.process.map(_.flatMap(_.filterM(f).mapError(Some(_)))))
+    ZStream {
+      self.process.mapM(BufferedPull.make(_)).map { os =>
+        def pull: Pull[R1, E1, O] =
+          os.pullElement.flatMap { o =>
+            f(o).mapError(Some(_)).flatMap {
+              if (_) UIO.succeed(Chunk.single(o))
+              else pull
+            }
+          }
+
+        pull
+      }
+    }
 
   /**
    * Filters this stream by the specified predicate, removing all elements for
@@ -1740,13 +1761,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream {
       for {
         state <- Ref.make(s).toManaged_
-        pull  <- self.process
-      } yield pull.flatMap { as =>
+        pull  <- self.process.mapM(BufferedPull.make(_))
+      } yield pull.pullElement.flatMap { o =>
         (for {
           s <- state.get
-          t <- as.mapAccumM(s)(f)
+          t <- f(s, o)
           _ <- state.set(t._1)
-        } yield t._2).mapError(Some(_))
+        } yield Chunk.single(t._2)).mapError(Some(_))
       }
     }
 
@@ -1815,7 +1836,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Maps over elements of the stream with the specified effectful function.
    */
   def mapM[R1 <: R, E1 >: E, O2](f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
-    ZStream(self.process.map(_.flatMap(_.mapM(f).mapError(Some(_)))))
+    ZStream {
+      self.process.mapM(BufferedPull.make(_)).map { pull =>
+        pull.pullElement.flatMap(f(_).bimap(Some(_), Chunk.single(_)))
+      }
+    }
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -2493,7 +2518,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Adds an effect to consumption of every element of the stream.
    */
   final def tap[R1 <: R, E1 >: E](f0: O => ZIO[R1, E1, Any]): ZStream[R1, E1, O] =
-    ZStream(self.process.map(_.tap(_.mapM_(f0).mapError(Some(_)))))
+    mapM(o => f0(o).as(o))
 
   /**
    * Throttles the chunks of this stream according to the given bandwidth parameters using the token bucket
