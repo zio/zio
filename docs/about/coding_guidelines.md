@@ -4,7 +4,7 @@ title:  "ZIO Coding Guidelines"
 ---
 
 These are coding guidelines strictly for ZIO contributors for ZIO projects and 
-not general conventions to be applied by the Scala community.
+not general conventions to be applied by the Scala community at large.
 
 Additionally, bear in mind that, although we try to enforce these rules to the 
 best of our ability, both via automated rules (scalafix) and strict reviewing 
@@ -17,15 +17,21 @@ refer to them once in a while when in doubt.
 
 ### Defining classes and traits
 
-1. Value classes must be final and extend `AnyVal`;
+1. Value classes must be final and extend `AnyVal`. 
+This is done to avoid allocating runtime objects; 
 
 2. Method extension classes must be final and extend `AnyVal`;
 
-3. Sealed traits that are ADTs (Algebraic data types) should extend `Product` and `Serializable`;
+3. Avoid overloading standard interfaces. When creating services avoid using the same names as well known standard interfaces.
+Example: Instead of having a service `Random` with methods `nextLong(n)` and `nextInt(n)` consider choosing something like 
+`nextLongBounded(n)` and `nextIntBounded(n)`.
 
-4. Regular traits and sealed trait that do not form ADTs should extend `Serializable` but not `Product`;
+4. Sealed traits that are ADTs (Algebraic data types) should extend `Product` and `Serializable`. 
+This is done to help the compiler infer types;
 
-5. Traits should always extends `Serializable`. (i.e. `ZIO`).
+5. Regular traits and sealed trait that do not form ADTs should extend `Serializable` but not `Product`;
+
+6. Traits should always extend `Serializable`. (i.e. `ZIO`).
 
 ### Final and private modifiers 
 
@@ -35,20 +41,18 @@ refer to them once in a while when in doubt.
 
 3. No methods on final classes declared `final`, because they are `final` by default;
 
-4. All classes inside objects should be defined `final`;
+4. All classes inside objects should be defined `final`, because otherwise they could still be extended;
 
 5. In general, classes that are not case classes have their constructors & constructor parameters private. 
    Typically it is not good practice to expose constructors and constructor parameters but exceptions apply (i.e. `Assertion` and `TestAnnotation`);
 
 6. All `vals` declared `final`, even in objects or `final classes`, if they are constant expressions and without type annotations;
 
-7. Private methods and `vals` are not declared `final` since they are already final;
-
-8. Package-private `vals` and methods should be declared `final`.
+7. Package-private `vals` and methods should be declared `final`.
 
 ### Refactoring
 
-1. If a class has all `final` members, the class should be declared `final` and `final` member annotations should be removed except constant expressions;
+1. If a class has all its members `final`, the class should be declared `final` and `final` member annotations should be removed except constant expressions;
 
 2. All type annotations should use the least powerful type alias. This means, that, let us say, a `ZIO` effect that has 
    no dependencies but throws an arbitrary error, should be defined as `IO`.
@@ -79,7 +83,7 @@ Naming expectations can be helpful in understanding the role of certain paramete
 7. Be mindful of using by-name parameters. Mind the `Function[0]` extra allocation and loss of clean syntax when invoking the method.
    Loss of syntax means that instead of being able to do something like `f.flatMap(ZIO.success)` you require to explicitly do `f.flatMap(ZIO.success(_))`;
    
-8. Fold or fold variants initial value are called `zero`.
+8. Fold or fold variants initial values are called `zero`.
 
 ### Understanding naming of methods
 
@@ -118,7 +122,8 @@ The following rules are good to have in mind when adding new `types`, `traits` o
 
 ### Method alphabetization
 
-In general the following rules should be applied regarding method alphabetization. To fix forward references of values we recommend the programmer to make them lazy (`lazy val`).
+In general the following rules should be applied regarding method alphabetization. 
+To fix forward references of values we recommend the programmer to make them lazy (`lazy val`).
 Operators are any methods that only have non-letter characters (i.e. `<*>` , `<>`, `*>`).
 
 1. Public abstract defs / vals listed first, and alphabetized, with operators appearing before names.
@@ -126,3 +131,19 @@ Operators are any methods that only have non-letter characters (i.e. `<*>` , `<>
 2. Public concrete defs / vals listed second, and alphabetized, with operators appearing before names.
 
 3. Private implementation details listed third, and alphabetized, with operators appearing before names.
+
+### Scala documentation
+
+It is strongly recommended to use scala doc links when referring to other members. 
+This both makes it easier for users to navigate the documentation and enforces that the references are accurate.
+A good example of this are `ZIO` type aliases that are extremely pervasive in the codebase: `UIO`, `Task`, `RIO`, `URIO` and `UIO`.
+To make it easy for developers to see the implementation scala doc links are used, for example:
+
+```
+  /**
+   * @see See [[zio.ZIO.absolve]]
+   */
+  def absolve[R, A](v: RIO[R, Either[Throwable, A]]): RIO[R, A] =
+    ZIO.absolve(v)
+```
+
