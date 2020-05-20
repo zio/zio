@@ -78,27 +78,13 @@ abstract class ZSink[-R, +E, -I, +Z] private (
    * using the stepping function `f`.
    */
   def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S): ZSink[R, E, I, S] =
-    ZSink {
-      Push.restartable(push).flatMap {
-        case (push, restart) =>
-          Ref.make(z).toManaged_.map { state => (input: Option[Chunk[I]]) =>
-            input match {
-              case None => state.get.map(Right(_)).flip
-              case is @ Some(_) =>
-                push(is).catchAll {
-                  case Left(e) => ZIO.fail(Left(e))
-                  case Right(z) =>
-                    state
-                      .updateAndGet(f(_, z))
-                      .flatMap(s =>
-                        if (p(z)) restart
-                        else ZIO.fail(Right(s))
-                      )
-                }
-            }
-          }
+    self.toTransducer >>> ZSink
+      .fold[Z, (S, Boolean)]((z, true))(_._2) {
+        case ((st, _), v) => {
+          if (p(v)) (f(st, v), true) else (st, false)
+        }
       }
-    }
+      .map(_._1)
 
   /**
    * Transforms this sink's input elements.
