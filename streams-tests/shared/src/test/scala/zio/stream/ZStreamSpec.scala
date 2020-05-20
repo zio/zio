@@ -1298,7 +1298,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream
                 .fromChunks(chunks: _*)
-                .mapChunks(chunk => Chunk.single(Take.succeed(chunk)))
+                .mapChunks(chunk => Chunk.single(Take.chunk(chunk)))
                 .flattenTake
                 .runCollect
             )(equalTo(chunks.fold(Chunk.empty)(_ ++ _).toList))
@@ -1306,14 +1306,14 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("stop collecting on Exit.Failure") {
             assertM(
               ZStream(
-                Take.succeed(Chunk(1, 2)),
-                Take.succeed(Chunk.single(3)),
+                Take.chunk(Chunk(1, 2)),
+                Take.single(3),
                 Take.end
               ).flattenTake.runCollect
             )(equalTo(List(1, 2, 3)))
           },
           testM("work with empty chunks") {
-            assertM(ZStream(Take.succeed(Chunk.empty), Take.succeed(Chunk.empty)).flattenTake.runCollect)(isEmpty)
+            assertM(ZStream(Take.chunk(Chunk.empty), Take.chunk(Chunk.empty)).flattenTake.runCollect)(isEmpty)
           },
           testM("work with empty streams") {
             assertM(ZStream.fromIterable[Take[Nothing, Nothing]](Nil).flattenTake.runCollect)(isEmpty)

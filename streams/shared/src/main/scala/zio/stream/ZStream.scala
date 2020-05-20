@@ -204,7 +204,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           def handleTake(take: Take[E1, O]): Pull[R1, E1, Take[E1, Either[Nothing, P]]] =
             take
               .foldM(
-                push(None).map(ps => Chunk(Take.succeed(ps.map(Right(_))), Take.end)),
+                push(None).map(ps => Chunk(Take.chunk(ps.map(Right(_))), Take.end)),
                 cause => ZIO.halt(cause),
                 os => Take.fromPull(push(Some(os)).asSomeError).flatMap(take => updateLastChunk(take).as(Chunk.single(take.map(Right(_)))))
               )
@@ -223,7 +223,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       for {
                         init           <- schedule.initial
                         state          <- scheduleState.getAndSet(Chunk.empty -> init)
-                        scheduleResult = Take.succeed(Chunk.single(Left(schedule.extract(state._1, state._2))))
+                        scheduleResult = Take.single(Left(schedule.extract(state._1, state._2)))
                         take           <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
                         _              <- raceNextTime.set(false)
                         _              <- waitingFiber.set(Some(producerWaiting))
@@ -3763,20 +3763,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   object Take {
-    def succeed[A](a: A): Take[Nothing, A] =
+    def single[A](a: A): Take[Nothing, A] =
       Take(Exit.succeed(Chunk.single(a)))
 
-    def succeed[A](as: Chunk[A]): Take[Nothing, A] =
+    def chunk[A](as: Chunk[A]): Take[Nothing, A] =
       Take(Exit.succeed(as))
 
     def fail[E](e: E): Take[E, Nothing] =
       Take(Exit.fail(Some(e)))
 
     def fromEffect[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
-      zio.foldCause(halt(_), succeed(_))
+      zio.foldCause(halt, single)
 
     def fromPull[R, E, A](pull: Pull[R, E, A]): URIO[R, Take[E, A]] =
-      pull.foldCause(Cause.sequenceCauseOption(_).fold[Take[E, Nothing]](end)(halt), succeed(_))
+      pull.foldCause(Cause.sequenceCauseOption(_).fold[Take[E, Nothing]](end)(halt), chunk)
 
     def halt[E](c: Cause[E]): Take[E, Nothing] =
       Take(Exit.halt(c.map(Some(_))))
