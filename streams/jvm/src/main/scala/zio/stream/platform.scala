@@ -1,9 +1,13 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream, OutputStream }
-import java.nio.ByteBuffer
+
 import java.nio.channels.FileChannel
 import java.nio.file.Path
+import java.net.InetSocketAddress
+import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler }
+import java.nio.{ Buffer, ByteBuffer }
+
 import java.{ util => ju }
 
 import zio._
@@ -261,4 +265,85 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    */
   final def fromJavaStreamTotal[A](stream: => ju.stream.Stream[A]): ZStream[Any, Nothing, A] =
     ZStream.fromJavaIteratorTotal(stream.iterator())
+
+  /**
+   * Create a stream of accepted connection from server socket
+   * Emit socket `Connection` from which you can read / write and ensure it is closed after it is used
+   */
+  def fromSocketServer(
+    port: Int,
+    host: Option[String] = None
+  ): ZStream[Blocking, Throwable, Connection] =
+    for {
+      server <- ZStream.managed(ZManaged.fromAutoCloseable(blocking.effectBlocking {
+                 AsynchronousServerSocketChannel
+                   .open()
+                   .bind(
+                     host.fold(new InetSocketAddress(port))(new InetSocketAddress(_, port))
+                   )
+               }))
+
+      conn <- ZStream.repeatEffect {
+               IO.effectAsync[Throwable, UManaged[Connection]] { callback =>
+                 server.accept(
+                   null,
+                   new CompletionHandler[AsynchronousSocketChannel, Void]() {
+                     self =>
+                     override def completed(socket: AsynchronousSocketChannel, attachment: Void): Unit =
+                       callback(ZIO.succeed(Connection.make(socket)))
+
+                     override def failed(exc: Throwable, attachment: Void): Unit = callback(ZIO.fail(exc))
+                   }
+                 )
+               }
+             } >>= (ZStream.managed(_))
+
+    } yield conn
+
+  class Connection(socket: AsynchronousSocketChannel) {
+    def read: Stream[Throwable, Byte] =
+      ZStream.unfoldChunkM(0) {
+        case -1 => ZIO.succeed(Option.empty)
+        case _ =>
+          val buff = ByteBuffer.allocate(ZStream.DefaultChunkSize)
+
+          IO.effectAsync[Throwable, Option[(Chunk[Byte], Int)]] { callback =>
+            socket.read(
+              buff,
+              null,
+              new CompletionHandler[Integer, Void] {
+                override def completed(bytesRead: Integer, attachment: Void): Unit = {
+                  (buff: Buffer).flip()
+                  callback(ZIO.succeed(Option(Chunk.fromByteBuffer(buff) -> bytesRead.toInt)))
+                }
+
+                override def failed(error: Throwable, attachment: Void): Unit = callback(ZIO.fail(error))
+              }
+            )
+          }
+      }
+
+    def write: Sink[Throwable, Byte, Int] =
+      ZSink.foldLeftChunksM(0) {
+        case (_, c) =>
+          IO.effectAsync[Throwable, Int] { callback =>
+            socket.write(
+              ByteBuffer.wrap(c.toArray),
+              null,
+              new CompletionHandler[Integer, Void] {
+                override def completed(result: Integer, attachment: Void): Unit = callback(ZIO.succeed(result.toInt))
+
+                override def failed(error: Throwable, attachment: Void): Unit = callback(ZIO.fail(error))
+              }
+            )
+          }
+      }
+
+    def close(): UIO[Unit] = ZIO.effectTotal(socket.close())
+  }
+
+  object Connection {
+    def make(socket: AsynchronousSocketChannel): UManaged[Connection] =
+      Managed.make(ZIO.succeed(new Connection(socket)))(_.close())
+  }
 }
