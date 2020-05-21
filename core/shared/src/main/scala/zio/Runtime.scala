@@ -93,6 +93,8 @@ trait Runtime[+R] {
 
     val fiberId = Fiber.newFiberId()
 
+    val scope = ZScope.unsafeMake[Any, Exit[E, A]](true)
+
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       platform,
@@ -102,7 +104,8 @@ trait Runtime[+R] {
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap(),
-      Supervisor.none
+      Supervisor.none,
+      scope
     )
 
     Fiber.track(context)

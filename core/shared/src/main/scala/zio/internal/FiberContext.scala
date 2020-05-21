@@ -41,7 +41,8 @@ private[zio] final class FiberContext[E, A](
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals,
-  supervisor0: Supervisor[Any]
+  supervisor0: Supervisor[Any],
+  openScope: ZScope.Open[Any, Exit[E, A]]
 ) extends Fiber.Runtime.Internal[E, A] { self =>
 
   import FiberContext._
@@ -596,31 +597,6 @@ private[zio] final class FiberContext[E, A](
                     val zio = curZio.asInstanceOf[ZIO.RaceWith[Any, Any, Any, Any, Any, Any, Any]]
                     curZio = raceWithImpl(zio).asInstanceOf[IO[E, Any]]
 
-                  case ZIO.Tags.Disown =>
-                    val zio = curZio.asInstanceOf[ZIO.Disown]
-
-                    curZio = nextInstr {
-                      val removed = _children.remove(zio.fiber)
-
-                      if (removed) Fiber.track(zio.fiber.asInstanceOf[FiberContext[Any, Any]])
-
-                      removed
-                    }
-
-                  case ZIO.Tags.Adopt =>
-                    val zio = curZio.asInstanceOf[ZIO.Adopt]
-
-                    curZio = nextInstr {
-                      zio.fiber match {
-                        case fiber: FiberContext[Any, Any] =>
-                          val removed = Fiber.untrack(fiber.asInstanceOf[FiberContext[Any, Any]])
-
-                          if (removed) _children.add(fiber) else false
-
-                        case _ => false
-                      }
-                    }
-
                   case ZIO.Tags.Supervise =>
                     val zio = curZio.asInstanceOf[ZIO.Supervise[Any, E, Any]]
 
@@ -677,7 +653,8 @@ private[zio] final class FiberContext[E, A](
       state.get.interrupted.interruptors,
       InterruptStatus.fromBoolean(isInterruptible()),
       children,
-      executor
+      executor,
+      scope
     )
 
   /**
@@ -699,6 +676,8 @@ private[zio] final class FiberContext[E, A](
     val currentEnv = environments.peek()
     val currentSup = supervisors.peek()
 
+    val childScope = ZScope.unsafeMake[Any, Exit[E, A]](true)
+
     val childContext = new FiberContext[E, A](
       Fiber.newFiberId(),
       platform,
@@ -708,7 +687,8 @@ private[zio] final class FiberContext[E, A](
       ancestry,
       tracingRegion,
       childFiberRefLocals,
-      currentSup
+      currentSup,
+      childScope
     )
 
     if (currentSup ne Supervisor.none) {
@@ -718,6 +698,9 @@ private[zio] final class FiberContext[E, A](
     }
 
     addChild(childContext.asInstanceOf[FiberContext[Any, Any]])
+
+    // Ensure that when this fiber's scope ends, the child fiber is interrupted:
+    scope.ensure(childContext, _ => childContext.interruptAs(fiberId))
 
     if (!Platform.isJVM) {
       // On all platforms except the JVM, we must remove the child from the
@@ -778,6 +761,8 @@ private[zio] final class FiberContext[E, A](
           ref.update(old => ref.join(old, value))
       }
   }
+
+  def scope: ZScope[Any, Exit[E, A]] = openScope.scope
 
   def status: UIO[Fiber.Status] = UIO(state.get.status)
 
@@ -887,7 +872,7 @@ private[zio] final class FiberContext[E, A](
 
     oldState match {
       case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], _)
-          if _children.isEmpty => // TODO: Dotty doesn't infer this properly
+          if openScope.scope.unsafeEmpty() => // TODO: Dotty doesn't infer this properly
 
         /*
          * We are truly "done" because all the children of this fiber have terminated,
@@ -908,23 +893,10 @@ private[zio] final class FiberContext[E, A](
           ) => // TODO: Dotty doesn't infer this properly
 
         /*
-         * We are not done yet, because there are children to interrupt, or
-         * because there are effects to execute on the fiber.
+         * We are not done yet, because we have to close the scope of the fiber.
          */
         if (!state.compareAndSet(oldState, Executing(oldStatus.toFinishing, observers, interrupted))) done(v)
-        else {
-          // Create an effect to interrupt all children, making sure to clear
-          // out the child list:
-          val completeAll = UIO.effectSuspendTotal {
-            val children = childrenToScala()
-
-            _children.clear()
-
-            ZIO.foreach_(children)(_.interruptAs(fiberId))
-          }
-
-          completeAll *> ZIO.done(v)
-        }
+        else openScope.close(v) *> ZIO.done(v)
 
       case Done(_) => null // Already done
     }

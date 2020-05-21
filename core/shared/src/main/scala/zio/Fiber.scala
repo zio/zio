@@ -439,6 +439,8 @@ object Fiber extends FiberPlatformSpecific {
      */
     def id: Fiber.Id
 
+    def scope: ZScope[Any, Exit[E, A]]
+
     /**
      * The status of the fiber.
      */
@@ -478,7 +480,8 @@ object Fiber extends FiberPlatformSpecific {
     interrupters: Set[Fiber.Id],
     interruptStatus: InterruptStatus,
     children: UIO[Iterable[Fiber.Runtime[Any, Any]]],
-    executor: Executor
+    executor: Executor,
+    scope: ZScope[Any, Exit[Any, Any]]
   )
 
   final case class Dump(

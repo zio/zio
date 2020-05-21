@@ -1995,19 +1995,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.AccessMPartiallyApplied[R]
 
   /**
-   * Returns an effect that adopts the specified fiber as a child of the fiber
-   * running this effect. Note that adoption will succeed only if the specified
-   * fiber is not a child of any other fiber.
-   *
-   * The returned effect will succeed with true if the fiber has been adopted,
-   * and false otherwise.
-   *
-   * See also [[zio.ZIO.disown]].
-   */
-  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
-    new ZIO.Adopt(fiber)
-
-  /**
    * Makes an explicit check to see if the fiber has been interrupted, and if
    * so, performs self-interruption
    */
@@ -2287,7 +2274,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified fiber will not be interrupted. Disowned fibers become new root
    * fibers, and are not terminated automatically when any other fibers ends.
    */
-  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = new ZIO.Disown(fiber)
+  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = ZIO.descriptorWith(d => d.scope.deny(fiber))
 
   /**
    * Returns an effect from a [[zio.Exit]] value.
@@ -3818,9 +3805,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val CheckTracing             = 20
     final val EffectSuspendTotalWith   = 21
     final val RaceWith                 = 22
-    final val Disown                   = 23
-    final val Adopt                    = 24
-    final val Supervise                = 25
+    final val Supervise                = 23
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -3941,14 +3926,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C]
   ) extends ZIO[R, E, C] {
     override def tag: Int = Tags.RaceWith
-  }
-
-  private[zio] final class Disown(val fiber: Fiber[Any, Any]) extends UIO[Boolean] {
-    override def tag = Tags.Disown
-  }
-
-  private[zio] final class Adopt(val fiber: Fiber[Any, Any]) extends UIO[Boolean] {
-    override def tag = Tags.Adopt
   }
 
   private[zio] final class Supervise[R, E, A](val zio: ZIO[R, E, A], val supervisor: Supervisor[Any])

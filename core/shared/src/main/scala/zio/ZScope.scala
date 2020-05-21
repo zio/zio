@@ -35,9 +35,9 @@ sealed trait ZScope[-K, +A] { self =>
   def closed: UIO[Boolean]
 
   /**
-   * Unensures a finalizer runs when the scope is closed. The returned effect
-   * will succeed with `true` if the finalizer will not be run by this scope,
-   * and `false` otherwise.
+   * Prevents a previously added finalizer from being executed when the scope 
+   * is closed. The returned effect will succeed with `true` if the finalizer 
+   * will not be run by this scope, and `false` otherwise.
    */
   def deny(k: K): UIO[Boolean]
 
@@ -81,7 +81,7 @@ sealed trait ZScope[-K, +A] { self =>
     (self, that) match {
       case (ZScope.global, ZScope.global) => UIO(true)
 
-      case (ZScope.global, child @ ZScope.Local(_, _, _)) =>
+      case (ZScope.global, child : ZScope.Local[Any, Nothing]) =>
         Sync(child.finalizers) {
           if (child.unsafeClosed()) UIO(false)
           else {
@@ -90,13 +90,15 @@ sealed trait ZScope[-K, +A] { self =>
           }
         }
 
-      case (ZScope.Local(_, _, _), ZScope.global) => UIO(true)
+      case (_ : ZScope.Local[a, b], ZScope.global) => UIO(true)
 
-      case (parent @ ZScope.Local(_, _, _), child @ ZScope.Local(_, _, _)) =>
+      case (parent : ZScope.Local[a, b], child : ZScope.Local[Any, Nothing]) =>
         Sync(child.finalizers) {
           Sync(parent.finalizers) {
             if (child.unsafeAddRef()) {
-              if (parent.unsafeEnsure(new {}, _ => Sync(child.finalizers)(child.unsafeRelease()))) UIO(true)
+              val newKey = new {}.asInstanceOf[a]
+
+              if (parent.unsafeEnsure(newKey, _ => Sync(child.finalizers)(child.unsafeRelease()))) UIO(true)
               else {
                 val effect = child.unsafeRelease()
 
@@ -119,7 +121,7 @@ object ZScope {
 
   /**
    * The global scope, which is entirely stateless. Finalizers added to the
-   * global scope will never be executed.
+   * global scope will never be executed (nor kept in memory).
    */
   object global extends ZScope[Any, Nothing] {
     def closed: UIO[Boolean] = UIO(false)
@@ -132,29 +134,22 @@ object ZScope {
   }
 
   /**
-   * A tuple that contains a scope, together with an effect that closes the scope.
+   * A tuple that contains an open scope, together with a function that closes 
+   * the scope.
    */
-  final case class Open[K, A](close: A => UIO[Boolean], scope: ZScope[K, A])
+  final case class Open[K, A](close: A => UIO[Boolean], scope: Local[K, A])
 
   /**
    * An effect that makes a new open scope, which provides not just the scope,
    * but also a way to close the scope.
    *
-   * The scope is backed by a weak map, meaning that if the keys are garbage
-   * collected (on the JVM), the finalizers will be garbage collected too.
+   * The scope is backed by a weak map or a strong map, depending on the value 
+   * of the `weakKeys` parameter. For weka maps, if the keys are collected, 
+   * then the finalizers will be garbage collected too, without being run.
    */
-  def weakKeys[K, A]: UIO[Open[K, A]] = UIO(unsafeMake(true))
+  def make[K, A](weakKeys: Boolean): UIO[Open[K, A]] = UIO(unsafeMake(weakKeys))
 
-  /**
-   * An effect that makes a new open scope, which provides not just the scope,
-   * but also a way to close the scope.
-   *
-   * The scope is backed by a strong map, and finalizers will never be garbage
-   * collected so long as a reference is held to the scope.
-   */
-  def strongKeys[K, A]: UIO[Open[K, A]] = UIO(unsafeMake(false))
-
-  private def unsafeMake[K, A](weakKeys: Boolean): Open[K, A] = {
+  private[zio] def unsafeMake[K, A](weakKeys: Boolean): Open[K, A] = {
     val nullA: A = null.asInstanceOf[A]
 
     val exitValue = new AtomicReference(nullA)
@@ -165,7 +160,7 @@ object ZScope {
       if (weakKeys) internal.Platform.newWeakHashMap[Any, Any => UIO[Any]]()
       else new java.util.HashMap[Any, Any => UIO[Any]]()
 
-    val scope0 = Local[K, A](exitValue, opened, finalizers)
+    val scope0 = new Local[K, A](exitValue, opened, finalizers)
 
     Open[K, A](
       (a: A) =>
@@ -181,19 +176,19 @@ object ZScope {
     )
   }
 
-  private final case class Local[K, A](
+  final class Local[K, A](
     /**
      * The value that a scope is closed with (or `null`).
      */
-    exitValue: AtomicReference[A],
+    private[zio] val exitValue: AtomicReference[A],
     /**
      * The number of references to the scope, which defaults to 1.
      */
-    opened: AtomicInteger,
+    private[zio] val opened: AtomicInteger,
     /**
      * The finalizers attached to the scope.
      */
-    finalizers: Map[Any, Any => UIO[Any]]
+    private[zio] val finalizers: Map[Any, Any => UIO[Any]]
   ) extends ZScope[K, A] { self =>
 
     /**
