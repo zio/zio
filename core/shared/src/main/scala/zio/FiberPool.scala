@@ -23,10 +23,10 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
    *
    * If the pool is already shutdown, this method will interrupt its caller.
    */
-  def submit[R](task: URIO[R, Any]): URIO[R, Any] =
+  def submit[R](task: URIO[R, Any]): URIO[R, Unit] =
     ZIO.environment[R].flatMap { r =>
       Promise.make[Nothing, Unit].flatMap { taskReceived =>
-        val wrappedTask = task.catchAllCause(defectHandler(_).sandbox.ignore).provide(r)
+        val wrappedTask = task.catchAllCause(defectHandler(_).run).provide(r)
 
         state.modify {
           case s @ State(workerCount, freeWorkers, pendingTasks, shutdownType, workers) =>
@@ -70,7 +70,7 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
                     )
                   )
                 }
-              case _ => (ZIO.interrupt, s)
+              case _ => (ZIO.interrupt.unit, s)
             }
         }.flatten
       }
@@ -80,7 +80,7 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
   /**
    * Shuts down the fiber pool. Behavior is dependent on the specified [[Shutdown]].
    */
-  def shutdown(shutdownType: Shutdown): UIO[Any] =
+  def shutdown(shutdownType: Shutdown): UIO[Unit] =
     state.modify { s =>
       shutdownType match {
         case Shutdown.Immediate =>
@@ -93,11 +93,11 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
       }
     }.flatten
 
-  private def addWorker(task: UIO[Any]): UIO[Any] =
-    (task *> workerLoop).forkDaemon.tap { worker =>
+  private def addWorker(task: UIO[Any]): UIO[Unit] =
+    (task *> workerLoop).forkDaemon.flatMap { worker =>
       state.modify { s =>
         s.shutdown match {
-          case Some(Shutdown.Immediate) => (worker.interrupt, s)
+          case Some(Shutdown.Immediate) => (worker.interrupt.unit, s)
           case _                        => (UIO.unit, s.copy(workers = worker :: s.workers))
         }
       }.flatten
@@ -117,7 +117,7 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
                 } else
                   (
                     nextTask.await.flatten,
-                    State(workerCount, freeWorkers.enqueue(nextTask.succeed(_)), pendingTasks, shutdownType, workers)
+                    State(workerCount, freeWorkers.enqueue(nextTask.succeed(_).unit), pendingTasks, shutdownType, workers)
                   )
 
               case Some(Shutdown.DrainPending) =>
@@ -152,7 +152,7 @@ object FiberPool {
 
   private case class State(
     workerCount: Long,
-    freeWorkers: IQueue[UIO[Any] => UIO[Any]],
+    freeWorkers: IQueue[UIO[Any] => UIO[Unit]],
     pendingTasks: IQueue[UIO[UIO[Any]]],
     shutdown: Option[Shutdown],
     workers: List[Fiber[Nothing, Nothing]]
