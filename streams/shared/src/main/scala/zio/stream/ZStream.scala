@@ -3713,22 +3713,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   type Pull[-R, +E, +O] = ZIO[R, Option[E], Chunk[O]]
 
   private[zio] object Pull {
-    def emit[A](a: A): IO[Nothing, Chunk[A]]                                   = UIO(Chunk.single(a))
-    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]                           = UIO(as)
-    def fromDequeue[E, A](d: Dequeue[TakeExit[E, A]]): IO[Option[E], Chunk[A]] = d.take.flatMap(IO.done(_))
-    def fromTake[E, A](t: TakeExit[E, A]): IO[Option[E], Chunk[A]]             = IO.done(t)
-    def fail[E](e: E): IO[Option[E], Nothing]                                  = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): IO[Option[E], Nothing]                           = IO.halt(c).mapError(Some(_))
-    def empty[A]: IO[Nothing, Chunk[A]]                                        = UIO(Chunk.empty)
-    val end: IO[Option[Nothing], Nothing]                                      = IO.fail(None)
-  }
-
-  // TODO: Remove in favor of Take
-  type TakeExit[+E, +A] = Exit[Option[E], Chunk[A]]
-
-  // TODO: Remove in favor of Take
-  object TakeExit {
-    val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
+    def emit[A](a: A): IO[Nothing, Chunk[A]]                               = UIO(Chunk.single(a))
+    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]                       = UIO(as)
+    def fromDequeue[E, A](d: Dequeue[Take[E, A]]): IO[Option[E], Chunk[A]] = d.take.flatMap(_.done)
+    def fail[E](e: E): IO[Option[E], Nothing]                              = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): IO[Option[E], Nothing]                       = IO.halt(c).mapError(Some(_))
+    def empty[A]: IO[Nothing, Chunk[A]]                                    = UIO(Chunk.empty)
+    val end: IO[Option[Nothing], Nothing]                                  = IO.fail(None)
   }
 
   case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {

@@ -56,12 +56,12 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[TakeExit[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         eitherStream <- ZManaged.effectTotal {
                          register(k =>
                            try {
-                             runtime.unsafeRun(k.run.flatMap(output.offer))
+                             runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
                              ()
                            } catch {
                              case FiberFailure(c) if c.interrupted =>
@@ -75,7 +75,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                    } yield done.get.flatMap {
                      if (_) Pull.end
                      else
-                       output.take.flatMap(Pull.fromTake).onError(_ => done.set(true) *> output.shutdown)
+                       output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                    }).ensuring(canceler)
                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
                }
@@ -93,11 +93,11 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     managed {
       for {
-        output  <- Queue.bounded[TakeExit[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register { k =>
               try {
-                runtime.unsafeRun(k.run.flatMap(output.offer))
+                runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
                 ()
               } catch {
                 case FiberFailure(c) if c.interrupted =>
@@ -108,7 +108,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
           if (_)
             Pull.end
           else
-            output.take.flatMap(Pull.fromTake).onError(_ => done.set(true) *> output.shutdown)
+            output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
         }
       } yield pull
     }.flatMap(repeatEffectChunkOption(_))
@@ -125,12 +125,12 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[TakeExit[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         maybeStream <- ZManaged.effectTotal {
                         register { k =>
                           try {
-                            runtime.unsafeRun(k.run.flatMap(output.offer))
+                            runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
                             ()
                           } catch {
                             case FiberFailure(c) if c.interrupted =>
@@ -146,7 +146,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                      if (_)
                        Pull.end
                      else
-                       output.take.flatMap(Pull.fromTake).onError(_ => done.set(true) *> output.shutdown)
+                       output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                    }
                }
       } yield pull
