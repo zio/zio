@@ -35,8 +35,8 @@ sealed trait ZScope[-K, +A] { self =>
   def closed: UIO[Boolean]
 
   /**
-   * Prevents a previously added finalizer from being executed when the scope 
-   * is closed. The returned effect will succeed with `true` if the finalizer 
+   * Prevents a previously added finalizer from being executed when the scope
+   * is closed. The returned effect will succeed with `true` if the finalizer
    * will not be run by this scope, and `false` otherwise.
    */
   def deny(k: K): UIO[Boolean]
@@ -77,11 +77,11 @@ sealed trait ZScope[-K, +A] { self =>
    * Scope extension does not result in changes to the scope contract: open
    * scopes must always be closed.
    */
-  def extend(that: ZScope[Any, Nothing]): UIO[Boolean] = UIO.effectSuspendTotal {
+  def extend[K1](that: ZScope[K1, Any]): UIO[Boolean] = UIO.effectSuspendTotal {
     (self, that) match {
       case (ZScope.global, ZScope.global) => UIO(true)
 
-      case (ZScope.global, child : ZScope.Local[Any, Nothing]) =>
+      case (ZScope.global, child: ZScope.Local[K1, Any]) =>
         Sync(child.finalizers) {
           if (child.unsafeClosed()) UIO(false)
           else {
@@ -90,9 +90,9 @@ sealed trait ZScope[-K, +A] { self =>
           }
         }
 
-      case (_ : ZScope.Local[a, b], ZScope.global) => UIO(true)
+      case (_: ZScope.Local[a, b], ZScope.global) => UIO(true)
 
-      case (parent : ZScope.Local[a, b], child : ZScope.Local[Any, Nothing]) =>
+      case (parent: ZScope.Local[a, b], child: ZScope.Local[K1, Any]) =>
         Sync(child.finalizers) {
           Sync(parent.finalizers) {
             if (child.unsafeAddRef()) {
@@ -134,7 +134,7 @@ object ZScope {
   }
 
   /**
-   * A tuple that contains an open scope, together with a function that closes 
+   * A tuple that contains an open scope, together with a function that closes
    * the scope.
    */
   final case class Open[K, A](close: A => UIO[Boolean], scope: Local[K, A])
@@ -143,24 +143,24 @@ object ZScope {
    * An effect that makes a new open scope, which provides not just the scope,
    * but also a way to close the scope.
    *
-   * The scope is backed by a weak map or a strong map, depending on the value 
-   * of the `weakKeys` parameter. For weka maps, if the keys are collected, 
+   * The scope is backed by a weak map or a strong map, depending on the value
+   * of the `weakKeys` parameter. For weak maps, if the keys are collected,
    * then the finalizers will be garbage collected too, without being run.
    */
   def make[K, A](weakKeys: Boolean): UIO[Open[K, A]] = UIO(unsafeMake(weakKeys))
+
+  private[ZScope] final case class OrderedFinalizer(order: Int, finalizer: Any => UIO[Any])
 
   private[zio] def unsafeMake[K, A](weakKeys: Boolean): Open[K, A] = {
     val nullA: A = null.asInstanceOf[A]
 
     val exitValue = new AtomicReference(nullA)
 
-    val opened = new AtomicInteger(1)
-
     val finalizers =
-      if (weakKeys) internal.Platform.newWeakHashMap[Any, Any => UIO[Any]]()
-      else new java.util.HashMap[Any, Any => UIO[Any]]()
+      if (weakKeys) internal.Platform.newWeakHashMap[Any, OrderedFinalizer]()
+      else new java.util.HashMap[Any, OrderedFinalizer]()
 
-    val scope0 = new Local[K, A](exitValue, opened, finalizers)
+    val scope0 = new Local[K, A](new AtomicInteger(Int.MinValue), exitValue, new AtomicInteger(1), finalizers)
 
     Open[K, A](
       (a: A) =>
@@ -177,6 +177,7 @@ object ZScope {
   }
 
   final class Local[K, A](
+    private[zio] val finalizerCount: AtomicInteger,
     /**
      * The value that a scope is closed with (or `null`).
      */
@@ -188,7 +189,7 @@ object ZScope {
     /**
      * The finalizers attached to the scope.
      */
-    private[zio] val finalizers: Map[Any, Any => UIO[Any]]
+    private[zio] val finalizers: Map[Any, OrderedFinalizer]
   ) extends ZScope[K, A] { self =>
 
     /**
@@ -236,7 +237,7 @@ object ZScope {
         else {
           if (finalizers.containsKey(key)) false
           else {
-            finalizers.put(key, coerce(finalizer))
+            finalizers.put(key, OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer)))
 
             true
           }
@@ -260,29 +261,17 @@ object ZScope {
     private[zio] def unsafeRelease(): UIO[Any] =
       Sync(finalizers) {
         if (opened.decrementAndGet() == 0) {
-          val iterator = finalizers.entrySet.iterator()
+          val array = finalizers.entrySet().toArray(Array[java.util.Map.Entry[Any, OrderedFinalizer]]())
 
-          val effect = if (iterator.hasNext()) {
-            val a = exitValue.get()
+          finalizers.clear()
 
-            val value = iterator.next().getValue()
+          val a = exitValue.get()
 
-            var effect = if (value eq null) IO.unit else value(a)
-
-            while (iterator.hasNext()) {
-              val value = iterator.next().getValue()
-
-              val next = if (value eq null) IO.unit else value(a)
-
-              effect = effect *> next
-            }
-
-            finalizers.clear()
-
-            effect
-          } else ZIO.unit
-
-          effect
+          // TODO: Sort in place
+          array.sortBy(_.getValue().order).foldLeft[UIO[Any]](ZIO.unit) {
+            case (acc, entry) =>
+              acc *> entry.getValue().finalizer(a)
+          }
         } else null
       }
   }

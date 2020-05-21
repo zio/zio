@@ -213,7 +213,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns a new effect that will not succeed with its value before first
    * waiting for the end of all child fibers forked by the effect.
    */
-  final def awaitAllChildren: ZIO[R, E, A] = ensuringChildren(Fiber.interruptAll(_))
+  final def awaitAllChildren: ZIO[R, E, A] = ensuringChildren(Fiber.awaitAll(_))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
