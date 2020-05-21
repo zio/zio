@@ -24,6 +24,11 @@ import zio.internal.Sync
 /**
  * A `ZScope[K, A]` is a value that allows adding finalizers identified by `K`
  * up until the point where the scope is closed by a value of type `A`.
+ *
+ * For safety reasons, this interface has no method to close a scope. Rather,
+ * an open scope may be required with `ZScope.make`, which returns a function
+ * that can close a scope. This allows scopes to be safely passed around
+ * without fear they will be accidentally closed.
  */
 sealed trait ZScope[-K, +A] { self =>
 
@@ -72,10 +77,10 @@ sealed trait ZScope[-K, +A] { self =>
   /**
    * Extends the specified scope so that it will not be closed until this
    * scope is closed. Note that extending a scope into the global scope
-   * will result in the scope never being closed!
+   * will result in the scope *never* being closed!
    *
    * Scope extension does not result in changes to the scope contract: open
-   * scopes must always be closed.
+   * scopes must *always* be closed.
    */
   def extend[K1](that: ZScope[K1, Any]): UIO[Boolean] = UIO.effectSuspendTotal {
     (self, that) match {
@@ -177,6 +182,9 @@ object ZScope {
   }
 
   final class Local[K, A](
+    /**
+     * A counter for finalizers, which is used for ordering purposes.
+     */
     private[zio] val finalizerCount: AtomicInteger,
     /**
      * The value that a scope is closed with (or `null`).
