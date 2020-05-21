@@ -24,55 +24,70 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
    * If the pool is already shutdown, this method will interrupt its caller.
    */
   def submit[R](task: URIO[R, Any]): URIO[R, Unit] =
-    ZIO.environment[R].flatMap { r =>
-      Promise.make[Nothing, Unit].flatMap { taskReceived =>
-        val wrappedTask = task.catchAllCause(defectHandler(_).run).provide(r)
+    ZIO.uninterruptibleMask { restore =>
+      ZIO.environment[R].flatMap { r =>
+        Promise.make[Nothing, Unit].flatMap { taskReceived =>
+          val wrappedTask = task.catchAllCause(defectHandler(_).run).provide(r)
 
-        state.modify {
-          case s @ State(workerCount, freeWorkers, pendingTasks, shutdownType, workers) =>
-            shutdownType match {
-              case None =>
-                if (pendingTasks.nonEmpty) {
-                  // To ensure fairness, we always queue up behind tasks that are
-                  // already pending.
-                  (
-                    taskReceived.await,
-                    State(
-                      workerCount,
-                      freeWorkers,
-                      pendingTasks.enqueue(taskReceived.succeed(()).as(wrappedTask)),
-                      shutdownType,
-                      workers
+          state.modify {
+            case s @ State(workerCount, freeWorkers, pendingTasks, shutdownType, workers) =>
+              shutdownType match {
+                case None =>
+                  if (pendingTasks.nonEmpty) {
+                    // To ensure fairness, we always queue up behind tasks that are
+                    // already pending.
+                    (
+                      restore(taskReceived.await),
+                      State(
+                        workerCount,
+                        freeWorkers,
+                        pendingTasks.enqueue(taskReceived.succeed(()).as(wrappedTask)),
+                        shutdownType,
+                        workers
+                      )
                     )
-                  )
 
-                } else if (freeWorkers.nonEmpty) {
-                  // There were no pending tasks, but we did find an existing
-                  // free worker. So hand off the task to it.
-                  val (worker, rest) = freeWorkers.dequeue
+                  } else if (freeWorkers.nonEmpty) {
+                    // There were no pending tasks, but we did find an existing
+                    // free worker. So hand off the task to it.
+                    val (worker, rest) = freeWorkers.dequeue
 
-                  (worker(wrappedTask), State(workerCount, rest, pendingTasks, shutdownType, workers))
-                } else if (workerCount < workerLimit) {
-                  // No pending tasks, no free workers, but the number of workers
-                  // is below the limit. So launch a new worker.
-                  (addWorker(wrappedTask), State(workerCount + 1, freeWorkers, pendingTasks, shutdownType, workers))
-                } else {
-                  // No free resources, so queue up the task in the pending tasks
-                  // queue.
-                  (
-                    taskReceived.await,
-                    State(
-                      workerCount,
-                      freeWorkers,
-                      pendingTasks.enqueue(taskReceived.succeed(()).as(wrappedTask)),
-                      shutdownType,
-                      workers
+                    (worker(wrappedTask), State(workerCount, rest, pendingTasks, shutdownType, workers))
+                  } else if (workerCount < workerLimit) {
+                    def addWorker(task: UIO[Any]): UIO[Unit] =
+                      restore(task *> workerLoop).forkDaemon.flatMap { worker =>
+                        state.modify { s =>
+                          // Verify that we're not already shutting down by the time we add
+                          // the worker to the fiber list.
+                          s.shutdown match {
+                            case Some(Shutdown.Immediate) => (worker.interrupt.unit, s)
+                            case _                        => (UIO.unit, s.copy(workers = worker :: s.workers))
+                          }
+                        }.flatten
+                      }
+
+                    // No pending tasks, no free workers, but the number of workers
+                    // is below the limit. So launch a new worker.
+                    (addWorker(wrappedTask), State(workerCount + 1, freeWorkers, pendingTasks, shutdownType, workers))
+                  } else {
+                    // No free resources, so queue up the task in the pending tasks
+                    // queue.
+                    (
+                      restore(taskReceived.await),
+                      State(
+                        workerCount,
+                        freeWorkers,
+                        pendingTasks.enqueue(taskReceived.succeed(()).as(wrappedTask)),
+                        shutdownType,
+                        workers
+                      )
                     )
-                  )
-                }
-              case _ => (ZIO.interrupt.unit, s)
-            }
-        }.flatten
+                  }
+                case _ => (ZIO.interrupt.unit, s)
+              }
+          }.flatten
+        }
+
       }
 
     }
@@ -87,21 +102,11 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
           (Fiber.interruptAll(s.workers), s.copy(shutdown = Some(shutdownType)))
         case Shutdown.DrainRunning | Shutdown.DrainPending =>
           (
-            ZIO.foreach(s.freeWorkers)(_.apply(ZIO.interrupt)) *> Fiber.awaitAll(s.workers),
+            ZIO.foreach_(s.freeWorkers)(_.apply(ZIO.interrupt)) *> Fiber.awaitAll(s.workers),
             s.copy(shutdown = Some(shutdownType))
           )
       }
     }.flatten
-
-  private def addWorker(task: UIO[Any]): UIO[Unit] =
-    (task *> workerLoop).forkDaemon.flatMap { worker =>
-      state.modify { s =>
-        s.shutdown match {
-          case Some(Shutdown.Immediate) => (worker.interrupt.unit, s)
-          case _                        => (UIO.unit, s.copy(workers = worker :: s.workers))
-        }
-      }.flatten
-    }
 
   private val workerLoop: UIO[Nothing] =
     Promise
@@ -117,7 +122,13 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
                 } else
                   (
                     nextTask.await.flatten,
-                    State(workerCount, freeWorkers.enqueue(nextTask.succeed(_).unit), pendingTasks, shutdownType, workers)
+                    State(
+                      workerCount,
+                      freeWorkers.enqueue(nextTask.succeed(_).unit),
+                      pendingTasks,
+                      shutdownType,
+                      workers
+                    )
                   )
 
               case Some(Shutdown.DrainPending) =>
