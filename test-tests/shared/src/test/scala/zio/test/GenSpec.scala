@@ -3,7 +3,7 @@ package zio.test
 import java.time._
 
 import scala.math.Numeric.DoubleIsFractional
-
+import zio.NonEmptyChunk._
 import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._

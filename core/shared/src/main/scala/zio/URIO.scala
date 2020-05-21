@@ -3,6 +3,7 @@ package zio
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.{ Executor, Platform }
+import NonEmptyChunk._
 
 object URIO {
 

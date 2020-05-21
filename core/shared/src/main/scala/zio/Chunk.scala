@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
+import NonEmptyChunk._
+import zio.NonEmptyChunk.NonEmptyChunkSyntax
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -470,54 +472,6 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
       dest.map((_, builder.result()))
     }
-
-  /**
-   * Effectfully maps the elements of this chunk.
-   */
-  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = ZIO.effectSuspendTotal {
-    val len     = self.length
-    val builder = ChunkBuilder.make[B]()
-    builder.sizeHint(len)
-    var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
-
-    var i = 0
-    while (i < len) {
-      val j = i
-      dest = dest.zipWith(f(self(j)))(_ += _)
-      i += 1
-    }
-
-    dest.map(_.result())
-  }
-
-  /**
-   * Effectfully maps the elements of this chunk in parallel.
-   */
-  final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
-    val len                        = self.length
-    var array: ZIO[R, E, Array[B]] = IO.succeedNow(null.asInstanceOf[Array[B]])
-    var i                          = 0
-
-    while (i < len) {
-      val j = i
-      array = array.zipWithPar(f(self(j))) { (array, b) =>
-        val array2 = if (array == null) {
-          implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-          Array.ofDim[B](len)
-        } else array
-
-        array2(j) = b
-        array2
-      }
-
-      i += 1
-    }
-
-    array.map(array =>
-      if (array == null) Chunk.empty
-      else Chunk.fromArray(array)
-    )
-  }
 
   /**
    * Effectfully maps the elements of this chunk in parallel purely for the effects.
@@ -1447,4 +1401,56 @@ object Chunk {
   final case class BooleanArray(array: Array[Boolean]) extends Arr[Boolean] {
     override def boolean(index: Int)(implicit ev: Boolean <:< Boolean): Boolean = array(index)
   }
+
+  implicit class ChunkSyntax[+A](private val self: Chunk[A]) extends AnyVal {
+
+    /**
+     * Effectfully maps the elements of this chunk.
+     */
+    final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = ZIO.effectSuspendTotal {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+      var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
+
+      var i = 0
+      while (i < len) {
+        val j = i
+        dest = dest.zipWith(f(self(j)))(_ += _)
+        i += 1
+      }
+
+      dest.map(_.result())
+    }
+
+    /**
+     * Effectfully maps the elements of this chunk in parallel.
+     */
+    final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
+      val len                        = self.length
+      var array: ZIO[R, E, Array[B]] = IO.succeedNow(null.asInstanceOf[Array[B]])
+      var i                          = 0
+
+      while (i < len) {
+        val j = i
+        array = array.zipWithPar(f(self(j))) { (array, b) =>
+          val array2 = if (array == null) {
+            implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+            Array.ofDim[B](len)
+          } else array
+
+          array2(j) = b
+          array2
+        }
+
+        i += 1
+      }
+
+      array.map(array =>
+        if (array == null) Chunk.empty
+        else Chunk.fromArray(array)
+      )
+    }
+  }
+
 }

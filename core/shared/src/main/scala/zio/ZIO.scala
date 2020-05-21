@@ -19,7 +19,8 @@ package zio
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
-
+import NonEmptyChunk._
+import zio.NonEmptyChunk.NonEmptyChunkSyntax
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
@@ -2647,7 +2648,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * For a sequential version of this method, see `foreach`.
    */
   final def foreachPar[R, E, A, B](as: NonEmptyChunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    as.mapMPar(fn)
+    new NonEmptyChunkSyntax(as).mapMPar(fn)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs

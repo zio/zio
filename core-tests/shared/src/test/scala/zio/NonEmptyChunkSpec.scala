@@ -2,6 +2,7 @@ package zio
 
 import zio.test.Assertion._
 import zio.test._
+import NonEmptyChunk._
 
 object NonEmptyChunkSpec extends ZIOBaseSpec {
 

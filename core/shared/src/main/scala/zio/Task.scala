@@ -1,6 +1,7 @@
 package zio
 
 import scala.concurrent.ExecutionContext
+import NonEmptyChunk._
 
 import zio.internal.{ Executor, Platform }
 

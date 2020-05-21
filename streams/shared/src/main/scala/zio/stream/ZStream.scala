@@ -2,6 +2,7 @@ package zio.stream
 
 import java.{ util => ju }
 
+import zio.NonEmptyChunk._
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
@@ -3015,11 +3016,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             }
           }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
         case LeftDone(excessL) => {
-            p2.optional.map(handleSuccess(None, _, Left(excessL)))
+            p2.optional.map(handleSuccess(None, _, Left((excessL).toChunk)))
           }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
         case RightDone(excessR) => {
           p1.optional
-            .map(handleSuccess(_, None, Right(excessR)))
+            .map(handleSuccess(_, None, Right((excessR).toChunk)))
             .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
         }
         case End => {

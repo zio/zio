@@ -18,9 +18,10 @@ package zio.test
 
 import java.util.UUID
 
+import zio.NonEmptyChunk._
+
 import scala.collection.immutable.SortedMap
 import scala.math.Numeric.DoubleIsFractional
-
 import zio.random._
 import zio.stream.{ Stream, ZStream }
 import zio.{ Chunk, NonEmptyChunk, UIO, ZIO }
