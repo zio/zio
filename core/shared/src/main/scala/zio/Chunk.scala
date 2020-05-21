@@ -767,6 +767,8 @@ object Chunk {
 
   /**
    * Returns a chunk backed by an array.
+   *
+   * WARNING: The array must not be mutated after creating the chunk.
    */
   def fromArray[A](array: Array[A]): Chunk[A] =
     (if (array.isEmpty) Empty
