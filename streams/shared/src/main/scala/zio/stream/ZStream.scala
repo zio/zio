@@ -10,6 +10,51 @@ import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.ZInputStream
 
+/**
+ * A `ZStream[R, E, O]` is a description of a program that, when evaluated,
+ * may emit 0 or more values of type `O`, may fail with errors of type `E`
+ * and uses an environment of type `R`. One way to think of `ZStream` is as a
+ * `ZIO` program that could emit multiple values.
+ *
+ * Another analogue to `ZStream` is an imperative iterator:
+ * {{{
+ * trait Iterator[A] {
+ *   def next: A
+ * }
+ * }}}
+ *
+ * This data type can emit multiple `A` values through multiple calls to `next`.
+ * Similarly, embedded inside every `ZStream` is a ZIO program: `ZIO[R, Option[E], Chunk[O]]`.
+ * This program will be repeatedly evaluated as part of the stream execution. For
+ * every evaluation, it will emit a chunk of values or end with an optional failure.
+ * A failure of type `None` signals the end of the stream.
+ *
+ * `ZStream` is a purely functional *pull* based stream. Pull based streams offer
+ * inherent laziness and backpressure, relieving users of the need to manage buffers
+ * between operators. As an optimization, `ZStream` does not emit single values, but
+ * rather [[zio.Chunk]] values. This allows the cost of effect evaluation to be
+ * amortized and most importantly, keeps primitives unboxed. This allows `ZStream`
+ * to model network and file-based stream processing extremely efficiently.
+ *
+ * The last important attribute of `ZStream` is resource management: it makes
+ * heavy use of [[ZManaged]] to manage resources that are acquired
+ * and released during the stream's lifetime.
+ *
+ * `ZStream` forms a monad on its `O` type parameter, and has error management
+ * facilities for its `E` type parameter, modeled similarly to [[ZIO]] (with some
+ * adjustments for the multiple-valued nature of `ZStream`). These aspects allow
+ * for rich and expressive composition of streams.
+ *
+ * The current encoding of `ZStream` is *not* safe for recursion. `ZStream` programs
+ * that are defined in terms of themselves will leak memory. For example, the following
+ * implementation of [[ZStream#forever]] is not heap-safe:
+ * {{{
+ * def forever = self ++ forever
+ * }}}
+ *
+ * Instead, recursive operators must be defined explicitly. See the definition of
+ * [[ZStream#forever]] for an example. This limitation will be lifted in the future.
+ */
 abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
 
   import ZStream.{ BufferedPull, Pull, Take, TerminationStrategy }
@@ -1166,7 +1211,25 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Repeats this stream forever.
    */
   def forever: ZStream[R, E, O] =
-    self ++ forever
+    ZStream {
+      for {
+        currStream   <- Ref.make[ZIO[R, Option[E], Chunk[O]]](Pull.end).toManaged_
+        switchStream <- ZManaged.switchable[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
+        _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
+        pull = {
+          def go: ZIO[R, Option[E], Chunk[O]] =
+            currStream.get.flatten.catchAllCause {
+              Cause.sequenceCauseOption(_) match {
+                case Some(e) => Pull.halt(e)
+                case None =>
+                  switchStream(self.process).flatMap(currStream.set) *> go
+              }
+            }
+
+          go
+        }
+      } yield pull
+    }
 
   /**
    * Filters the elements emitted by this stream using the provided function.
