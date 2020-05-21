@@ -1827,10 +1827,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 _ <- out.offer(p.await.mapError(Some(_)))
                 _ <- pool.submit(f(a).to(p))
               } yield ()
-            }.ensuringFirst(pool.shutdown(FiberPool.ShutdownType.ShutdownNow))
+            }.ensuringFirst(pool.shutdown(FiberPool.Shutdown.Immediate))
               .foldCauseM(
                 c => out.offer(Pull.halt(c)).unit.toManaged_,
-                _ => (out.offer(Pull.end) <* pool.shutdown(FiberPool.ShutdownType.DrainPending)).unit.toManaged_
+                _ => (out.offer(Pull.end) <* pool.shutdown(FiberPool.Shutdown.DrainPending)).unit.toManaged_
               )
               .fork
       } yield out.take.flatten.map(Chunk.single(_))

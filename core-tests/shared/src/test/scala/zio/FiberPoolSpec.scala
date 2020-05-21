@@ -12,7 +12,7 @@ object FiberPoolSpec extends ZIOBaseSpec {
           pool   <- FiberPool.make(limit.toLong)
           tasks  = ZIO.replicate(target)(ref.updateAndGet(_ + 1))
           _      <- ZIO.foreach(tasks)(task => pool.submit(task))
-          _      <- pool.shutdown(FiberPool.ShutdownType.DrainPending)
+          _      <- pool.shutdown(FiberPool.Shutdown.DrainPending)
           result <- ref.get
         } yield assert(result)(equalTo(target))
       }
@@ -24,7 +24,7 @@ object FiberPoolSpec extends ZIOBaseSpec {
           ref       <- Ref.make(0)
           tasks      = ZIO.replicate(parallelism)(random.nextBoolean.flatMap(if (_) ZIO.never else ref.update(_ + 1)))
           submitter <- ZIO.foreachPar(tasks)(pool.submit(_)).fork
-          _         <- pool.shutdown(FiberPool.ShutdownType.ShutdownNow)
+          _         <- pool.shutdown(FiberPool.Shutdown.Immediate)
           _         <- submitter.await
         } yield assertCompletes
       }

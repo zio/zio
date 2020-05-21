@@ -1,6 +1,6 @@
 package zio
 
-import FiberPool.{ ShutdownType, State }
+import FiberPool.{ Shutdown, State }
 
 import scala.collection.immutable.{ Queue => IQueue }
 
@@ -78,14 +78,14 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
     }
 
   /**
-   * Shuts down the fiber pool. Behavior is dependent on the specified [[ShutdownType]].
+   * Shuts down the fiber pool. Behavior is dependent on the specified [[Shutdown]].
    */
-  def shutdown(shutdownType: ShutdownType): UIO[Any] =
+  def shutdown(shutdownType: Shutdown): UIO[Any] =
     state.modify { s =>
       shutdownType match {
-        case ShutdownType.ShutdownNow =>
+        case Shutdown.Immediate =>
           (Fiber.interruptAll(s.workers), s.copy(shutdown = Some(shutdownType)))
-        case ShutdownType.DrainRunning | ShutdownType.DrainPending =>
+        case Shutdown.DrainRunning | Shutdown.DrainPending =>
           (
             ZIO.foreach(s.freeWorkers)(_.apply(ZIO.interrupt)) *> Fiber.awaitAll(s.workers),
             s.copy(shutdown = Some(shutdownType))
@@ -97,7 +97,7 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
     (task *> workerLoop).forkDaemon.tap { worker =>
       state.modify { s =>
         s.shutdown match {
-          case Some(ShutdownType.ShutdownNow) => (worker.interrupt, s)
+          case Some(Shutdown.Immediate) => (worker.interrupt, s)
           case _                              => (UIO.unit, s.copy(workers = worker :: s.workers))
         }
       }.flatten
@@ -120,7 +120,7 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
                     State(workerCount, freeWorkers.enqueue(nextTask.succeed(_)), pendingTasks, shutdownType, workers)
                   )
 
-              case Some(ShutdownType.DrainPending) =>
+              case Some(Shutdown.DrainPending) =>
                 if (pendingTasks.nonEmpty) {
                   val (task, rest) = pendingTasks.dequeue
                   (
@@ -154,7 +154,7 @@ object FiberPool {
     workerCount: Long,
     freeWorkers: IQueue[UIO[Any] => UIO[Any]],
     pendingTasks: IQueue[UIO[UIO[Any]]],
-    shutdown: Option[ShutdownType],
+    shutdown: Option[Shutdown],
     workers: List[Fiber[Nothing, Nothing]]
   )
 
@@ -162,23 +162,23 @@ object FiberPool {
    * Specifies the behavior when shutting down a [[FiberPool]]. See the individual
    * subtypes for details on behavior.
    */
-  sealed trait ShutdownType
-  object ShutdownType {
+  sealed trait Shutdown
+  object Shutdown {
 
     /**
      * Immediately shuts down the pool by interrupting all of its fibers, regardless
      * if they are executing a task or not.
      */
-    case object ShutdownNow extends ShutdownType
+    case object Immediate extends Shutdown
 
     /**
      * Shuts the pool down and waits for currently running tasks to finish.
      */
-    case object DrainRunning extends ShutdownType
+    case object DrainRunning extends Shutdown
 
     /**
      * Shuts the pool down and waits for currently running and pending tasks to finish.
      */
-    case object DrainPending extends ShutdownType
+    case object DrainPending extends Shutdown
   }
 }
