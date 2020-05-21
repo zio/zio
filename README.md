@@ -42,6 +42,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Evolution Gaming](https://www.evolutiongaming.com/)
 * [Hunters.AI](https://hunters.ai)
+* [Kensu](https://kensu.io)
 * [Megogo](https://megogo.net)
 * [Mylivn](https://www.mylivn.com/)
 * [Optrak](https://optrak.com)
