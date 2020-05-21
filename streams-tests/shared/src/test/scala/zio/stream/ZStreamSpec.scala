@@ -2635,7 +2635,74 @@ object ZStreamSpec extends ZIOBaseSpec {
             _     <- TestClock.setTime(210.milliseconds)
             value <- fiber.join
           } yield assert(value)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
-        }
+        },
+        suite("zipWithNext")(
+          testM("should zip with next element for a single chunk") {
+            for {
+              result <- ZStream(1, 2, 3).zipWithNext.runCollect
+            } yield assert(result)(equalTo(List(1 -> Some(2), 2 -> Some(3), 3 -> None)))
+          },
+          testM("should work with multiple chunks") {
+            for {
+              result <- ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3)).zipWithNext.runCollect
+            } yield assert(result)(equalTo(List(1 -> Some(2), 2 -> Some(3), 3 -> None)))
+          },
+          testM("should play well with empty streams") {
+            assertM(ZStream.empty.zipWithNext.runCollect)(isEmpty)
+          },
+          testM("should output same values as zipping with tail plus last element") {
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
+              for {
+                result0 <- stream.zipWithNext.runCollect
+                result1 <- stream.zipAll(stream.drop(1).map(Option(_)))(0, None).runCollect
+              } yield assert(result0)(equalTo(result1))
+            }
+          }
+        ),
+        suite("zipWithPrevious")(
+          testM("should zip with previous element for a single chunk") {
+            for {
+              result <- ZStream(1, 2, 3).zipWithPrevious.runCollect
+            } yield assert(result)(equalTo(List(None -> 1, Some(1) -> 2, Some(2) -> 3)))
+          },
+          testM("should work with multiple chunks") {
+            for {
+              result <- ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3)).zipWithPrevious.runCollect
+            } yield assert(result)(equalTo(List(None -> 1, Some(1) -> 2, Some(2) -> 3)))
+          },
+          testM("should play well with empty streams") {
+            assertM(ZStream.empty.zipWithPrevious.runCollect)(isEmpty)
+          },
+          testM("should output same values as first element plus zipping with init") {
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
+              for {
+                result0 <- stream.zipWithPrevious.runCollect
+                result1 <- (ZStream(None) ++ stream.map(Some(_))).zip(stream).runCollect
+              } yield assert(result0)(equalTo(result1))
+            }
+          }
+        ),
+        suite("zipWithPreviousAndNext")(
+          testM("succeed") {
+            for {
+              result0 <- ZStream(1, 2, 3).zipWithPreviousAndNext.runCollect
+              result  = List((None, 1, Some(2)), (Some(1), 2, Some(3)), (Some(2), 3, None))
+            } yield assert(result0)(equalTo(result))
+          },
+          testM("should output same values as zipping with both previous and next element") {
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
+              for {
+                result0  <- stream.zipWithPreviousAndNext.runCollect
+                previous = ZStream(None) ++ stream.map(Some(_))
+                next     = stream.drop(1).map(Some(_)) ++ ZStream(None)
+                result1  <- previous.zip(stream).zip(next).map { case ((p, c), n) => (p, c, n) }.runCollect
+              } yield assert(result0)(equalTo(result1))
+            }
+          }
+        )
       ),
       suite("Constructors")(
         testM("access") {

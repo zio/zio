@@ -3024,6 +3024,37 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       } yield pull
     }
   }
+
+  /**
+   * Zips each element with the next element if present.
+   */
+  final def zipWithNext: ZStream[R, E, (O, Option[O])] =
+    ZStream {
+      for {
+        chunks <- self.process
+        ref    <- Ref.make[Option[O]](None).toManaged_
+        last   = ref.getAndSet(None).some.map((_, None)).map(Chunk.single)
+        pull = for {
+          prev   <- ref.get
+          chunk  <- chunks
+          (s, c) = chunk.mapAccum(prev)((prev, curr) => (Some(curr), prev.map((_, curr))))
+          _      <- ref.set(s)
+          result <- Pull.emit(c.collect { case Some((prev, curr)) => (prev, Some(curr)) })
+        } yield result
+      } yield pull.orElseOptional(last)
+    }
+
+  /**
+   * Zips each element with the previous element. Initially accompanied by `None`.
+   */
+  final def zipWithPrevious: ZStream[R, E, (Option[O], O)] =
+    mapAccum[Option[O], (Option[O], O)](None)((prev, next) => (Some(next), (prev, next)))
+
+  /**
+   * Zips each element with both the previous and next element.
+   */
+  final def zipWithPreviousAndNext: ZStream[R, E, (Option[O], O, Option[O])] =
+    zipWithPrevious.zipWithNext.map { case ((prev, curr), next) => (prev, curr, next.map(_._2)) }
 }
 
 object ZStream extends ZStreamPlatformSpecificConstructors {
