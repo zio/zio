@@ -2,10 +2,11 @@ package zio
 
 import scala.concurrent.ExecutionContext
 
+import NonEmptyChunk._
+
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.{ Executor, Platform }
-import NonEmptyChunk._
 
 object RIO {
 

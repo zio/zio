@@ -21,7 +21,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
+
 import NonEmptyChunk._
+
 import zio.NonEmptyChunk.NonEmptyChunkSyntax
 
 /**

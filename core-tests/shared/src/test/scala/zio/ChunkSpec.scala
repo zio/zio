@@ -1,10 +1,11 @@
 package zio
 
+import NonEmptyChunk._
+
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.exceptScala211
 import zio.test._
-import NonEmptyChunk._
 
 object ChunkSpec extends ZIOBaseSpec {
 

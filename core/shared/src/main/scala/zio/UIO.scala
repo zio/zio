@@ -1,7 +1,8 @@
 package zio
 
-import zio.internal.{ Executor, Platform }
 import NonEmptyChunk._
+
+import zio.internal.{ Executor, Platform }
 
 object UIO {
 

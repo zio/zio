@@ -82,7 +82,8 @@ object NonEmptyChunk extends LowPriorityChunkImplicit {
   def fromIterable[A](a: A, as: Iterable[A]): NonEmptyChunk[A] =
     nonEmpty(Chunk.single(a) ++ Chunk.fromIterable(as))
 
-  def fold[A, B](chunk: Chunk[A])(ifEmpty: => B)(fn: NonEmptyChunk[A] => B): B = if(chunk.isEmpty) ifEmpty else fn(nonEmpty(chunk))
+  def fold[A, B](chunk: Chunk[A])(ifEmpty: => B)(fn: NonEmptyChunk[A] => B): B =
+    if (chunk.isEmpty) ifEmpty else fn(nonEmpty(chunk))
 
   /**
    * Constructs a `NonEmptyChunk` from a single value.

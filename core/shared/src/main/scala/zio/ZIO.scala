@@ -19,7 +19,9 @@ package zio
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
+
 import NonEmptyChunk._
+
 import zio.NonEmptyChunk.NonEmptyChunkSyntax
 import zio.clock.Clock
 import zio.duration._
