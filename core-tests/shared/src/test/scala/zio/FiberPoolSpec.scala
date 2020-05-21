@@ -6,17 +6,16 @@ import zio.test._
 object FiberPoolSpec extends ZIOBaseSpec {
   def spec = suite("FiberPool")(
     testM("executes tasks") {
-      checkM(Gen.int(10, 250).noShrink, Gen.int(10, 250).noShrink) {
-        (target, limit) =>
-          for {
-            ref         <- Ref.make(0)
-            interrupted <- Ref.make(false)
-            pool        <- FiberPool.make(limit.toLong)
-            tasks = ZIO.replicate(target)(ref.updateAndGet(_ + 1).onInterrupt(interrupted.set(true)))
-            _      <- ZIO.foreach(tasks)(task => pool.submit(task))
-            _      <- pool.shutdown(FiberPool.Shutdown.DrainPending)
-            result <- ref.get
-          } yield assert(result)(equalTo(target))
+      checkM(Gen.int(10, 250).noShrink, Gen.int(10, 250).noShrink) { (target, limit) =>
+        for {
+          ref         <- Ref.make(0)
+          interrupted <- Ref.make(false)
+          pool        <- FiberPool.make(limit.toLong)
+          tasks       = ZIO.replicate(target)(ref.updateAndGet(_ + 1).onInterrupt(interrupted.set(true)))
+          _           <- ZIO.foreach(tasks)(task => pool.submit(task))
+          _           <- pool.shutdown(FiberPool.Shutdown.DrainPending)
+          result      <- ref.get
+        } yield assert(result)(equalTo(target))
       }
     } @@ TestAspect.nonFlaky(200),
     testM("interrupts stuck fibers") {
