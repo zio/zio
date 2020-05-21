@@ -2934,18 +2934,28 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(res)(equalTo(List(1, 2, 3, 4)))
           )
         ),
-        testM("repeatEffectWith")(
-          for {
-            ref <- Ref.make[List[Int]](Nil)
-            fiber <- ZStream
-                      .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
-                      .take(2)
-                      .runDrain
-                      .fork
-            _      <- TestClock.adjust(50.millis)
-            _      <- fiber.join
-            result <- ref.get
-          } yield assert(result)(equalTo(List(1, 1)))
+        suite("repeatEffectWith")(
+          testM("succeed")(
+            for {
+              ref <- Ref.make[List[Int]](Nil)
+              fiber <- ZStream
+                        .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
+                        .take(2)
+                        .runDrain
+                        .fork
+              _      <- TestClock.adjust(50.millis)
+              _      <- fiber.join
+              result <- ref.get
+            } yield assert(result)(equalTo(List(1, 1)))
+          ),
+          testM("allow schedule rely on effect value")(checkNM(10)(Gen.int(1, 100)) { (length: Int) =>
+            for {
+              ref      <- Ref.make(0)
+              effect   = ref.getAndUpdate(_ + 1).filterOrFail(_ <= length + 1)(())
+              schedule = Schedule.identity[Int].whileOutput(_ <= length)
+              result   <- ZStream.repeatEffectWith(effect, schedule).runCollect
+            } yield assert(result)(equalTo((0 to length).toList))
+          })
         ),
         testM("unfold") {
           assertM(
