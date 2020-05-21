@@ -106,16 +106,15 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    */
   def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, Z](that: ZSink[R1, E1, O2, Z]): ZSink[R1, E1, I1, Z] =
     ZSink {
-      self.push.zipWith(that.push) { (pushSelf, pushThat) =>
+      self.push.zipWith(that.push) { (pushSelf, pushThat) => inputs =>
         {
-          case None =>
-            pushSelf(None)
-              .mapError(Left(_))
-              .flatMap(chunk => pushThat(Some(chunk)) *> pushThat(None))
-          case inputs @ Some(_) =>
-            pushSelf(inputs)
-              .mapError(Left(_))
-              .flatMap(chunk => pushThat(Some(chunk)))
+          pushSelf(inputs)
+            .mapError(Left(_))
+            .flatMap { chunk =>
+              val update      = if (chunk.isEmpty) ZIO.unit else pushThat(Some(chunk))
+              val termination = if (inputs.isEmpty) pushThat(None) else ZIO.unit
+              update *> termination
+            }
         }
       }
     }
