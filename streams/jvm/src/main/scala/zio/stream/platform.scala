@@ -164,14 +164,13 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     ZStream {
       for {
         done       <- Ref.make(false).toManaged_
-        buf        <- Ref.make(Array.ofDim[Byte](chunkSize)).toManaged_
         capturedIs <- Managed.effectTotal(is)
         pull = {
           def go: ZIO[Blocking, Option[IOException], Chunk[Byte]] = done.get.flatMap {
             if (_) Pull.end
             else
               for {
-                bufArray <- buf.get
+                bufArray <- UIO(Array.ofDim[Byte](chunkSize))
                 bytesRead <- blocking
                               .effectBlocking(capturedIs.read(bufArray))
                               .refineToOrDie[IOException]

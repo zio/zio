@@ -1,5 +1,6 @@
 package zio.stream
 
+import java.io.ByteArrayInputStream
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.ExecutionContext
@@ -2741,13 +2742,20 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.fromEffectOption(fa).runCollect)(equalTo(List()))
           }
         ),
-        testM("fromInputStream") {
-          import java.io.ByteArrayInputStream
-          val chunkSize = ZStream.DefaultChunkSize
-          val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
-          def is        = new ByteArrayInputStream(data)
-          ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
-        },
+        suite("fromInputStream")(
+          testM("example 1") {
+            val chunkSize = ZStream.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            def is        = new ByteArrayInputStream(data)
+            ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
+          },
+          testM("example 2") {
+            checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
+              val is = new ByteArrayInputStream(bytes.toArray)
+              ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
+            }
+          }
+        ),
         testM("fromIterable")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
           def lazyL = l
           assertM(ZStream.fromIterable(lazyL).runCollect)(equalTo(l))
