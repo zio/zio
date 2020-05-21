@@ -2853,17 +2853,16 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         },
         testM("fromTQueue") {
-          TQueue.bounded[Int](5).commit.flatMap {
-            tqueue =>
-              ZStream.fromTQueue(tqueue).toQueueUnbounded.use { queue =>
-                for {
-                  _      <- tqueue.offerAll(List(1, 2, 3)).commit
-                  first  <- ZStream.fromQueue(queue).take(3).runCollect
-                  _      <- tqueue.offerAll(List(4, 5)).commit
-                  second <- ZStream.fromQueue(queue).take(2).runCollect
-                } yield assert(first)(equalTo(List(1, 2, 3).map(Take.single))) &&
-                  assert(second)(equalTo(List(4, 5).map(Take.single)))
-              }
+          TQueue.bounded[Int](5).commit.flatMap { tqueue =>
+            ZStream.fromTQueue(tqueue).toQueueUnbounded.use { queue =>
+              for {
+                _      <- tqueue.offerAll(List(1, 2, 3)).commit
+                first  <- ZStream.fromQueue(queue).take(3).runCollect
+                _      <- tqueue.offerAll(List(4, 5)).commit
+                second <- ZStream.fromQueue(queue).take(2).runCollect
+              } yield assert(first)(equalTo(List(1, 2, 3).map(Take.single))) &&
+                assert(second)(equalTo(List(4, 5).map(Take.single)))
+            }
           }
         } @@ flaky,
         testM("iterate")(

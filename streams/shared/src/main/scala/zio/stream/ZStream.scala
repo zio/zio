@@ -206,7 +206,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               .foldM(
                 push(None).map(ps => Chunk(Take.chunk(ps.map(Right(_))), Take.end)),
                 cause => ZIO.halt(cause),
-                os => Take.fromPull(push(Some(os)).asSomeError).flatMap(take => updateLastChunk(take).as(Chunk.single(take.map(Right(_)))))
+                os =>
+                  Take
+                    .fromPull(push(Some(os)).asSomeError)
+                    .flatMap(take => updateLastChunk(take).as(Chunk.single(take.map(Right(_)))))
               )
               .mapError(Some(_))
 
@@ -1713,9 +1716,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           as.foldCauseM(
             Cause
               .sequenceCauseOption(_)
-              .fold[ZIO[R1, Nothing, Unit]](queue.offer(Take.end).unit)(c =>
-                queue.offer(Take.halt(c)) *> go
-              ),
+              .fold[ZIO[R1, Nothing, Unit]](queue.offer(Take.end).unit)(c => queue.offer(Take.halt(c)) *> go),
             a => queue.offer(Take.chunk(a)) *> go
           )
 
@@ -1927,10 +1928,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     type Loser           = Either[Candidate[E, O], Candidate[E1, O2]]
 
     def race(left: Pull[R, E, O], right: Pull[R1, E1, O2]): URIO[R1, (Take[E1, O3], Loser)] =
-      Take.fromPull(left).raceWith(Take.fromPull(right))(
-        (exit, right) => ZIO.done(exit).map(take => (take.map(l), Right(right))),
-        (exit, left) => ZIO.done(exit).map(take => (take.map(r), Left(left)))
-      )
+      Take
+        .fromPull(left)
+        .raceWith(Take.fromPull(right))(
+          (exit, right) => ZIO.done(exit).map(take => (take.map(l), Right(right))),
+          (exit, left) => ZIO.done(exit).map(take => (take.map(r), Left(left)))
+        )
 
     def termination[E, O](left: Boolean, right: Boolean, mapper: O => O3)(fiber: Candidate[E, O]) =
       strategy match {
@@ -3729,7 +3732,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def fold[Z](end: => Z, error: Cause[E] => Z, value: Chunk[A] => Z): Z =
       exit.fold(Cause.sequenceCauseOption(_).fold(end)(error), value)
 
-    def foldM[R, E1, Z](end: => ZIO[R, E1, Z], error: Cause[E] => ZIO[R, E1, Z], value: Chunk[A] => ZIO[R, E1, Z]): ZIO[R, E1, Z] =
+    def foldM[R, E1, Z](
+      end: => ZIO[R, E1, Z],
+      error: Cause[E] => ZIO[R, E1, Z],
+      value: Chunk[A] => ZIO[R, E1, Z]
+    ): ZIO[R, E1, Z] =
       exit.foldM(Cause.sequenceCauseOption(_).fold(end)(error), value)
 
     def isDone: Boolean =
