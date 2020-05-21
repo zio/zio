@@ -1,8 +1,8 @@
 package zio
 
-import FiberPool.{ Shutdown, State }
-
 import scala.collection.immutable.{ Queue => IQueue }
+
+import FiberPool.{ Shutdown, State }
 
 /**
  * A fiber-based equivalent of an ExecutorService. A fiber pool lazily spawns fibers that
@@ -98,7 +98,7 @@ class FiberPool(state: Ref[State], workerLimit: Long, defectHandler: Cause[Nothi
       state.modify { s =>
         s.shutdown match {
           case Some(Shutdown.Immediate) => (worker.interrupt, s)
-          case _                              => (UIO.unit, s.copy(workers = worker :: s.workers))
+          case _                        => (UIO.unit, s.copy(workers = worker :: s.workers))
         }
       }.flatten
     }

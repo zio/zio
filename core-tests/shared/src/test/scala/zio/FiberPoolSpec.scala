@@ -1,7 +1,7 @@
 package zio
 
+import zio.test.Assertion.equalTo
 import zio.test._
-import Assertion._
 
 object FiberPoolSpec extends ZIOBaseSpec {
   def spec = suite("FiberPool")(
@@ -22,7 +22,7 @@ object FiberPoolSpec extends ZIOBaseSpec {
         for {
           pool      <- FiberPool.make(limit.toLong)
           ref       <- Ref.make(0)
-          tasks      = ZIO.replicate(parallelism)(random.nextBoolean.flatMap(if (_) ZIO.never else ref.update(_ + 1)))
+          tasks     = ZIO.replicate(parallelism)(random.nextBoolean.flatMap(if (_) ZIO.never else ref.update(_ + 1)))
           submitter <- ZIO.foreachPar(tasks)(pool.submit(_)).fork
           _         <- pool.shutdown(FiberPool.Shutdown.Immediate)
           _         <- submitter.await
