@@ -24,7 +24,7 @@ import zio.ZQueue.internal._
 import zio.internal.MutableConcurrentQueue
 
 /**
- * A `ZQueue[RA, EA, RB, EB, A, B]` is a lightweight, asynchronous queue into which values of
+ * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of
  * type `A` can be enqueued and of which elements of type `B` can be dequeued. The queue's
  * enqueueing operations may utilize an environment of type `RA` and may fail with errors of
  * type `EA`. The dequeueing operations may utilize an environment of type `RB` and may fail
