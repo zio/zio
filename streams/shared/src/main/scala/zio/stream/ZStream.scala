@@ -1819,19 +1819,18 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def mapMPar[R1 <: R, E1 >: E, O2](n: Int)(f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
     ZStream[R1, E1, O2] {
       for {
-        out     <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
-        permits <- Semaphore.make(n.toLong).toManaged_
+        out  <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
+        pool <- FiberPool.make(n.toLong).toManaged_
         _ <- self.foreachManaged { a =>
               for {
-                p     <- Promise.make[E1, O2]
-                latch <- Promise.make[Nothing, Unit]
-                _     <- out.offer(p.await.mapError(Some(_)))
-                _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork
-                _     <- latch.await
+                p <- Promise.make[E1, O2]
+                _ <- out.offer(p.await.mapError(Some(_)))
+                _ <- pool.submit(f(a).to(p))
               } yield ()
-            }.foldCauseM(
+            }.ensuringFirst(pool.shutdown(FiberPool.ShutdownType.ShutdownNow))
+              .foldCauseM(
                 c => out.offer(Pull.halt(c)).unit.toManaged_,
-                _ => (out.offer(Pull.end) <* ZIO.awaitAllChildren).unit.toManaged_
+                _ => (out.offer(Pull.end) <* pool.shutdown(FiberPool.ShutdownType.DrainPending)).unit.toManaged_
               )
               .fork
       } yield out.take.flatten.map(Chunk.single(_))
