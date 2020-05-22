@@ -553,6 +553,12 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     }
 
   /**
+   * Runs `fn` if a `chunk` is not empty or returns default value
+   */
+  def nonEmptyOrElse[B](ifEmpty: => B)(fn: NonEmptyChunk[A] => B): B =
+    if (isEmpty) ifEmpty else fn(NonEmptyChunk.nonEmpty(self))
+
+  /**
    * Partitions the elements of this chunk into two chunks using the specified
    * function.
    */

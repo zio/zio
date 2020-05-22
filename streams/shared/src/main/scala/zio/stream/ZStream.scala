@@ -2999,8 +2999,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         case (false, false) => Exit.fail(None)
         case _ => {
           val newState = newExcess match {
-            case Left(l)  => NonEmptyChunk.fromChunk(l).fold[State[O, O2]](End)(LeftDone(_))
-            case Right(r) => NonEmptyChunk.fromChunk(r).fold[State[O, O2]](End)(RightDone(_))
+            case Left(l)  => l.nonEmptyOrElse[State[O, O2]](End)(LeftDone(_))
+            case Right(r) => r.nonEmptyOrElse[State[O, O2]](End)(RightDone(_))
           }
           Exit.succeed((emit, newState))
         }
