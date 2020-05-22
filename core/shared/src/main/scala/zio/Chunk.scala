@@ -24,8 +24,6 @@ import scala.reflect.{ classTag, ClassTag }
 
 import NonemptyChunkModule._
 
-import zio.NonemptyChunkModule.NonEmptyChunk
-
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
  * are usually backed by arrays, but expose a purely functional, safe interface
