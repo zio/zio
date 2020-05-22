@@ -1284,7 +1284,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         //   - On completion, the driver stream tries to acquire all permits to verify
         //     that all inner fibers have finished.
         //     - If one of them failed (signalled by a promise), all other fibers are interrupted
-        //     - If they all succeeded, TakeExit.End is enqueued
+        //     - If they all succeeded, Take.End is enqueued
         //   - On error, the driver stream interrupts all inner fibers and emits a
         //     Take.Fail value
         //   - Interruption is handled by running the finalizers which take care of cleanup
@@ -1930,7 +1930,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     def race(left: Pull[R, E, O], right: Pull[R1, E1, O2]): URIO[R1, (Take[E1, O3], Loser)] =
       Take
         .fromPull(left)
-        .raceWith(Take.fromPull(right))(
+        .raceWith[R1, Nothing, Nothing, Take[E1, O2], (Take[E1, O3], Loser)](Take.fromPull(right))(
           (exit, right) => ZIO.done(exit).map(take => (take.map(l), Right(right))),
           (exit, left) => ZIO.done(exit).map(take => (take.map(r), Left(left)))
         )
