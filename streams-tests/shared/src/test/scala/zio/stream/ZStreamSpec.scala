@@ -12,7 +12,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.stm.TQueue
 import zio.test.Assertion._
-import zio.test.TestAspect.flaky
+import zio.test.TestAspect.{ flaky, timeout }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1519,7 +1519,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result <- f.join
               } yield result)(equalTo(List(List(1, 2), List(3, 4), List(5))))
             }
-          },
+          } @@ timeout(10.seconds) @@ flaky,
           testM("group immediately when chunk size is reached") {
             assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
           }
@@ -1682,7 +1682,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- queue.offer(1)
               result <- fiber.join
             } yield assert(result)(isEmpty)
-          }
+          } @@ timeout(10.seconds) @@ flaky
         ) @@ zioTag(interruption),
         suite("managed")(
           testM("preserves interruptibility of effect") {
