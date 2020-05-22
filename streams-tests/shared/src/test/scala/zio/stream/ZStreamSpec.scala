@@ -2379,6 +2379,13 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield result)(hasSize(equalTo(1)))
             }
           },
+          testM("should handle empty chunks properly") {
+            for {
+              fiber  <- ZStream(1, 2, 3).fixed[Any](500.millis).debounce(1.second).runCollect.fork
+              _      <- TestClock.adjust(3.seconds)
+              result <- fiber.join
+            } yield assert(result)(equalTo(List(3)))
+          },
           testM("should fail immediately") {
             val stream = ZStream.fromEffect(IO.fail(None)).debounce(Duration.Infinity)
             assertM(stream.runCollect.either)(isLeft(equalTo(None)))

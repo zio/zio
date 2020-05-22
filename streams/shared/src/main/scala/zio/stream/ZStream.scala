@@ -2724,6 +2724,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   case (Exit.Failure(cause), current) =>
                     current.interrupt *> Pull.halt(cause)
                 }, {
+                  case (Exit.Success(chunk), _) if chunk.isEmpty =>
+                    Pull.empty
                   case (Exit.Success(chunk), previous) =>
                     previous.interrupt *> store(chunk)
                   case (Exit.Failure(cause), previous) =>
