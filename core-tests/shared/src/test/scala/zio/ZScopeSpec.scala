@@ -68,12 +68,14 @@ object ZScopeSpec extends ZIOBaseSpec {
     testScope("100 finalizers in order", List.empty[String]) { (ref, scope) =>
       val range = 0 to 100
 
-      val expected = 
-        range.foldLeft(List.empty[String]) { 
-          case (acc, int) => int.toString :: acc
-        }.reverse
+      val expected =
+        range
+          .foldLeft(List.empty[String]) {
+            case (acc, int) => int.toString :: acc
+          }
+          .reverse
 
-      val effect = 
+      val effect =
         range.foldLeft(IO.unit) {
           case (acc, int) => acc *> ref.update(_ :+ int.toString).unit
         }
@@ -87,7 +89,7 @@ object ZScopeSpec extends ZIOBaseSpec {
         child  <- ZScope.make[Any, Unit](false).tap(_.scope.ensure(_ => ref.update(_ + 1)))
         _      <- parent.scope.extend(child.scope)
         _      <- child.close(())
-        before <- ref.get 
+        before <- ref.get
         _      <- parent.close(())
         after  <- ref.get
       } yield assert(before)(equalTo(0)) && assert(after)(equalTo(1))
