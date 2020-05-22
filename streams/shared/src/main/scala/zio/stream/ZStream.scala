@@ -12,7 +12,7 @@ import zio.stream.internal.ZInputStream
 
 abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
 
-  import ZStream.{ BufferedPull, Pull, Take, TerminationStrategy }
+  import ZStream.{ BufferedPull, Pull, TerminationStrategy }
 
   /**
    * Symbolic alias for [[ZStream#cross]].
@@ -3716,69 +3716,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   type Pull[-R, +E, +O] = ZIO[R, Option[E], Chunk[O]]
 
   private[zio] object Pull {
-    def emit[A](a: A): IO[Nothing, Chunk[A]]                               = UIO(Chunk.single(a))
-    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]                       = UIO(as)
-    def fromDequeue[E, A](d: Dequeue[Take[E, A]]): IO[Option[E], Chunk[A]] = d.take.flatMap(_.done)
-    def fail[E](e: E): IO[Option[E], Nothing]                              = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): IO[Option[E], Nothing]                       = IO.halt(c).mapError(Some(_))
-    def empty[A]: IO[Nothing, Chunk[A]]                                    = UIO(Chunk.empty)
-    val end: IO[Option[Nothing], Nothing]                                  = IO.fail(None)
+    def emit[A](a: A): IO[Nothing, Chunk[A]]                                      = UIO(Chunk.single(a))
+    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]                              = UIO(as)
+    def fromDequeue[E, A](d: Dequeue[stream.Take[E, A]]): IO[Option[E], Chunk[A]] = d.take.flatMap(_.done)
+    def fail[E](e: E): IO[Option[E], Nothing]                                     = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): IO[Option[E], Nothing]                              = IO.halt(c).mapError(Some(_))
+    def empty[A]: IO[Nothing, Chunk[A]]                                           = UIO(Chunk.empty)
+    val end: IO[Option[Nothing], Nothing]                                         = IO.fail(None)
   }
 
-  case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
-    def done[R]: ZIO[R, Option[E], Chunk[A]] =
-      IO.done(exit)
-
-    def fold[Z](end: => Z, error: Cause[E] => Z, value: Chunk[A] => Z): Z =
-      exit.fold(Cause.sequenceCauseOption(_).fold(end)(error), value)
-
-    def foldM[R, E1, Z](
-      end: => ZIO[R, E1, Z],
-      error: Cause[E] => ZIO[R, E1, Z],
-      value: Chunk[A] => ZIO[R, E1, Z]
-    ): ZIO[R, E1, Z] =
-      exit.foldM(Cause.sequenceCauseOption(_).fold(end)(error), value)
-
-    def isDone: Boolean =
-      exit.fold(Cause.sequenceCauseOption(_).isEmpty, _ => false)
-
-    def map[B](f: A => B): Take[E, B] =
-      Take(exit.map(_.map(f)))
-
-    def tap[R, E1](f: Chunk[A] => ZIO[R, E1, Any]): ZIO[R, E1, Unit] =
-      exit.foreach(f).unit
-  }
+  @deprecated("use zio.stream.Take instead", "1.0.0")
+  type Take[+E, +A] = Exit[Option[E], Chunk[A]]
 
   object Take {
-    def single[A](a: A): Take[Nothing, A] =
-      Take(Exit.succeed(Chunk.single(a)))
-
-    def chunk[A](as: Chunk[A]): Take[Nothing, A] =
-      Take(Exit.succeed(as))
-
-    def fail[E](e: E): Take[E, Nothing] =
-      Take(Exit.fail(Some(e)))
-
-    def fromEffect[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
-      zio.foldCause(halt, single)
-
-    def fromPull[R, E, A](pull: Pull[R, E, A]): URIO[R, Take[E, A]] =
-      pull.foldCause(Cause.sequenceCauseOption(_).fold[Take[E, Nothing]](end)(halt), chunk)
-
-    def halt[E](c: Cause[E]): Take[E, Nothing] =
-      Take(Exit.halt(c.map(Some(_))))
-
-    def die(t: Throwable): Take[Nothing, Nothing] =
-      Take(Exit.die(t))
-
-    def dieMessage(msg: String): Take[Nothing, Nothing] =
-      Take(Exit.die(new RuntimeException(msg)))
-
-    def done[E, A](exit: Exit[E, A]): Take[E, A] =
-      Take(exit.mapError[Option[E]](Some(_)).map(Chunk.single))
-
-    val end: Take[Nothing, Nothing] =
-      Take(Exit.fail(None))
+    val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
   }
 
   private[zio] case class BufferedPull[R, E, A](

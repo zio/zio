@@ -56,12 +56,12 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         eitherStream <- ZManaged.effectTotal {
                          register(k =>
                            try {
-                             runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+                             runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                              ()
                            } catch {
                              case FiberFailure(c) if c.interrupted =>
@@ -93,11 +93,11 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     managed {
       for {
-        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register { k =>
               try {
-                runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+                runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                 ()
               } catch {
                 case FiberFailure(c) if c.interrupted =>
@@ -125,12 +125,12 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         maybeStream <- ZManaged.effectTotal {
                         register { k =>
                           try {
-                            runtime.unsafeRun(Take.fromPull(k).flatMap(output.offer))
+                            runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                             ()
                           } catch {
                             case FiberFailure(c) if c.interrupted =>

@@ -17,7 +17,6 @@ import zio.test.environment.TestClock
 
 object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
-  import ZStream.Take
 
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
