@@ -362,6 +362,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
             )(equalTo("bc"))
           }
         },
+        testM("handles leftovers 2") {
+          assertM(
+            ZStream
+              .fromChunks(Chunk("aa", "bb"), Chunk("\nbbc\n", "ddb", "bd"), Chunk("abc", "\n"), Chunk("abc"))
+              .transduce(ZTransducer.splitLines)
+              .runCollect
+          )(equalTo(List("aabb", "bbc", "ddbbdabc", "abc")))
+        },
         testM("aggregates chunks") {
           ZTransducer.splitLines.push.use { push =>
             for {
