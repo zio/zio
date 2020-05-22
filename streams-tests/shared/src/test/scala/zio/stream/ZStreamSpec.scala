@@ -1868,7 +1868,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("interrupts pulling on finish") {
             val s1 = ZStream(1, 2, 3)
             val s2 = ZStream.fromEffect(clock.sleep(5.seconds).as(4))
-            assertM(s1.mergeTerminateLeft(s2).runCollect)(equalTo(List(1, 2, 3)))
+            assertM(s1.mergeTerminateLeft(s2).runCollect)(equalTo(Chunk(1, 2, 3)))
           }
         ),
         suite("mergeTerminateRight")(

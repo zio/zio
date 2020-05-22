@@ -7,7 +7,7 @@ import zio._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isTrue, succeeds }
-import zio.test._
+import zio.test.{ assertM, _ }
 
 object ZSinkSpec extends ZIOBaseSpec {
   def spec = suite("ZSinkSpec")(

@@ -488,9 +488,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that collects all of its inputs into a chunk.
    */
-  def collectAll[A]: ZSink[Any, Nothing, A, Chunk[A]] =
-    foldLeftChunks[A, ChunkBuilder[A]](ChunkBuilder.make[A]())((b, chunk) => b ++= chunk)
-      .map(_.result())
+  def collectAll[A]: ZSink[Any, Nothing, A, Chunk[A]] = ZSink {
+    for {
+      builder     <- UIO(ChunkBuilder.make[A]()).toManaged_
+      foldingSink = foldLeftChunks(builder)((b, chunk: Chunk[A]) => b ++= chunk).map(_.result())
+      push        <- foldingSink.push
+    } yield push
+  }
 
   /**
    * A sink that collects all of its inputs into a map. The keys are extracted from inputs
