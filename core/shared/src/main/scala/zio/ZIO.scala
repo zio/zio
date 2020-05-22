@@ -2650,7 +2650,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * For a sequential version of this method, see `foreach`.
    */
   final def foreachPar[R, E, A, B](as: NonEmptyChunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    new NonEmptyChunkSyntax(as).mapMPar(fn)
+    as.mapMPar(fn)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
