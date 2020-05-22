@@ -1896,7 +1896,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * specified combiner function. Combines the causes in case both effect fail.
    */
   final def validateWith[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
-    self.run.zipWith(that.run)(_ zip _).flatMap(ZIO.done(_)).map(f.tupled)
+    self.run.zipWith(that.run)(_.zipWith(_)(f, _ ++ _)).flatMap(ZIO.done(_))
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
@@ -1904,7 +1904,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * both sides fail, then the cause will be combined.
    */
   final def validateWithPar[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
-    self.run.zipWithPar(that.run)(_ zip _).flatMap(ZIO.done(_)).map(f.tupled)
+    self.run.zipWithPar(that.run)(_.zipWith(_)(f, _ && _)).flatMap(ZIO.done(_))
 
   /**
    * The moral equivalent of `if (p) exp`
