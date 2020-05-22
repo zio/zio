@@ -2,7 +2,7 @@ package zio
 
 import scala.concurrent.ExecutionContext
 
-import NonEmptyChunk._
+import NonemptyChunkModule._
 
 import zio.clock.Clock
 import zio.duration.Duration

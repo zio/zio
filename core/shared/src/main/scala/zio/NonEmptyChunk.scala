@@ -16,7 +16,8 @@
 
 package zio
 
-import zio.NonEmptyChunk.{ NonEmptyChunk, NonEmptyChunkSyntax }
+import zio.NonemptyChunkModule.NonEmptyChunk.nonEmpty
+import zio.NonemptyChunkModule.{ newtype, NonEmptyChunk }
 
 /**
  * A `NonEmptyChunk` is a `Chunk` that is guaranteed to contain at least one
@@ -29,14 +30,15 @@ private[zio] trait NonEmpty[F[+_]] {
   type Type[+A] //<: F[A]
 
   def wrap[A](chunk: F[A]): Type[A]
+  def unwrap[A](chunk: Type[A]): F[A]
 }
 
 private[zio] trait LowPriorityChunkImplicit {
   import scala.language.implicitConversions
-  implicit def toChunk0[A](c: NonEmptyChunk[A]): Chunk[A] = new NonEmptyChunkSyntax[A](c).chunk
+  implicit def toChunk0[A](c: NonEmptyChunk[A]): Chunk[A] = newtype.unwrap(c)
 }
 
-object NonEmptyChunk extends LowPriorityChunkImplicit {
+object NonemptyChunkModule extends LowPriorityChunkImplicit {
 
   private[zio] val newtype: NonEmpty[Chunk] =
     new NonEmpty[Chunk] {
@@ -44,52 +46,59 @@ object NonEmptyChunk extends LowPriorityChunkImplicit {
 
       def wrap[A](chunk: Chunk[A]): Type[A] =
         chunk
-    }
 
-  type NonEmptyChunk[+A] = newtype.Type[A]
+      def unwrap[A](chunk: Chunk[A]): Chunk[A] =
+        chunk
+    }
 
   /**
    * Constructs a `NonEmptyChunk` from a `Chunk`. This should only be used
    * when it is statically known that the `Chunk` must have at least one
    * element.
    */
-  private[zio] def nonEmpty[A](chunk: Chunk[A]): NonEmptyChunk[A] =
-    newtype.wrap(chunk)
+  type NonEmptyChunk[+A] = newtype.Type[A]
 
-  def apply[A](a: A, as: Chunk[A]): NonEmptyChunk[A] =
-    nonEmpty(Chunk.single(a) ++ as)
+  object NonEmptyChunk {
 
-  def apply[A](a: A): NonEmptyChunk[A] =
-    nonEmpty(Chunk.single(a))
+    private[zio] def nonEmpty[A](chunk: Chunk[A]): NonEmptyChunk[A] =
+      newtype.wrap(chunk)
 
-  /**
-   * Checks if a `chunk` is not empty and constructs a `NonEmptyChunk` from it.
-   */
-  def fromChunk[A](chunk: Chunk[A]): Option[NonEmptyChunk[A]] =
-    fold[A, Option[NonEmptyChunk[A]]](chunk)(None)(Some(_))
+    def apply[A](a: A, as: Chunk[A]): NonEmptyChunk[A] =
+      nonEmpty(Chunk.single(a) ++ as)
 
-  /**
-   * Constructs a `NonEmptyChunk` from the `::` case of a `List`.
-   */
-  def fromCons[A](as: ::[A]): NonEmptyChunk[A] =
-    as match {
-      case h :: t => fromIterable(h, t)
-    }
+    def apply[A](a: A): NonEmptyChunk[A] =
+      nonEmpty(Chunk.single(a))
 
-  /**
-   * Constructs a `NonEmptyChunk` from an `Iterable`.
-   */
-  def fromIterable[A](a: A, as: Iterable[A]): NonEmptyChunk[A] =
-    nonEmpty(Chunk.single(a) ++ Chunk.fromIterable(as))
+    /**
+     * Checks if a `chunk` is not empty and constructs a `NonEmptyChunk` from it.
+     */
+    def fromChunk[A](chunk: Chunk[A]): Option[NonEmptyChunk[A]] =
+      fold[A, Option[NonEmptyChunk[A]]](chunk)(None)(Some(_))
 
-  def fold[A, B](chunk: Chunk[A])(ifEmpty: => B)(fn: NonEmptyChunk[A] => B): B =
-    if (chunk.isEmpty) ifEmpty else fn(nonEmpty(chunk))
+    /**
+     * Constructs a `NonEmptyChunk` from the `::` case of a `List`.
+     */
+    def fromCons[A](as: ::[A]): NonEmptyChunk[A] =
+      as match {
+        case h :: t => fromIterable(h, t)
+      }
 
-  /**
-   * Constructs a `NonEmptyChunk` from a single value.
-   */
-  def single[A](a: A): NonEmptyChunk[A] =
-    nonEmpty(Chunk.single(a))
+    /**
+     * Constructs a `NonEmptyChunk` from an `Iterable`.
+     */
+    def fromIterable[A](a: A, as: Iterable[A]): NonEmptyChunk[A] =
+      nonEmpty(Chunk.single(a) ++ Chunk.fromIterable(as))
+
+    def fold[A, B](chunk: Chunk[A])(ifEmpty: => B)(fn: NonEmptyChunk[A] => B): B =
+      if (chunk.isEmpty) ifEmpty else fn(nonEmpty(chunk))
+
+    /**
+     * Constructs a `NonEmptyChunk` from a single value.
+     */
+    def single[A](a: A): NonEmptyChunk[A] =
+      nonEmpty(Chunk.single(a))
+
+  }
 
   implicit class NonEmptyChunkSyntax[+A](private val self: NonEmptyChunk[A]) extends AnyVal {
     @inline def chunk: Chunk[A] = self.asInstanceOf[Chunk[A]]
@@ -144,7 +153,9 @@ object NonEmptyChunk extends LowPriorityChunkImplicit {
      * along the way.
      */
     def mapAccum[S, B](s: S)(f: (S, A) => (S, B)): (S, NonEmptyChunk[B]) =
-      chunk.mapAccum(s)(f) match { case (s, chunk) => (s, nonEmpty(chunk)) }
+      chunk.mapAccum(s)(f) match {
+        case (s, chunk) => (s, nonEmpty(chunk))
+      }
 
     /**
      * Effectfully maps over the elements of this `NonEmptyChunk`, maintaining

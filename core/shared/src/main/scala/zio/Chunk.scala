@@ -22,9 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
 
-import NonEmptyChunk._
+import NonemptyChunkModule._
 
-import zio.NonEmptyChunk.NonEmptyChunkSyntax
+import zio.NonemptyChunkModule.NonEmptyChunk
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed

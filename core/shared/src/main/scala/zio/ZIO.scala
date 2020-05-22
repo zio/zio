@@ -20,9 +20,9 @@ import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
 
-import NonEmptyChunk._
+import NonemptyChunkModule._
 
-import zio.NonEmptyChunk.NonEmptyChunkSyntax
+import zio.NonemptyChunkModule.NonEmptyChunk
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }

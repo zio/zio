@@ -2,7 +2,8 @@ package zio.stream
 
 import java.{ util => ju }
 
-import zio.NonEmptyChunk._
+import zio.NonemptyChunkModule.NonEmptyChunk
+import zio.NonemptyChunkModule._
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration

@@ -21,10 +21,10 @@ import java.util.UUID
 import scala.collection.immutable.SortedMap
 import scala.math.Numeric.DoubleIsFractional
 
-import zio.NonEmptyChunk._
+import zio.NonemptyChunkModule._
 import zio.random._
 import zio.stream.{ Stream, ZStream }
-import zio.{ Chunk, NonEmptyChunk, UIO, ZIO }
+import zio.{ Chunk, UIO, ZIO }
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires

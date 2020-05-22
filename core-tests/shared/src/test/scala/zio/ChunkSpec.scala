@@ -1,6 +1,6 @@
 package zio
 
-import NonEmptyChunk._
+import NonemptyChunkModule._
 
 import zio.random.Random
 import zio.test.Assertion._

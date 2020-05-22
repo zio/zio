@@ -1,6 +1,6 @@
 package zio
 
-import NonEmptyChunk._
+import NonemptyChunkModule._
 
 import zio.internal.{ Executor, Platform }
 
