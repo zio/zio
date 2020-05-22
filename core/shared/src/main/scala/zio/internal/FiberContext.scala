@@ -42,7 +42,8 @@ private[zio] final class FiberContext[E, A](
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals,
   supervisor0: Supervisor[Any],
-  openScope: ZScope.Open[Any, Exit[E, A]]
+  openScope: ZScope.Open[Any, Exit[E, A]],
+  scopeExtender: ZScope[Any, Any]
 ) extends Fiber.Runtime.Internal[E, A] { self =>
 
   import FiberContext._
@@ -69,6 +70,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
   private[this] val _children       = Platform.newConcurrentWeakSet[FiberContext[Any, Any]]()
   private[this] val supervisors     = Stack[Supervisor[Any]](supervisor0)
+  private[this] val extenders       = Stack[ZScope[Any, Any]](scopeExtender)
 
   private[this] val tracingStatus =
     if (traceExec || traceStack) StackBool()
@@ -607,6 +609,14 @@ private[zio] final class FiberContext[E, A](
                     val pop  = ZIO.effectTotal(supervisors.pop())
 
                     curZio = push.bracket_(pop, zio.zio)
+
+                  case ZIO.Tags.ExtendScope =>
+                    val zio = curZio.asInstanceOf[ZIO.ExtendScope[Any, E, Any]]
+
+                    val push = ZIO.effectTotal(extenders.push(scope))
+                    val pop  = ZIO.effectTotal(extenders.pop())
+
+                    curZio = push.bracket_(pop, zio.zio)
                 }
               }
             } else {
@@ -678,6 +688,11 @@ private[zio] final class FiberContext[E, A](
 
     val childScope = ZScope.unsafeMake[Any, Exit[E, A]](true)
 
+    val currentExtender = extenders.peekOrElse(null)
+
+    // If we're in a region of scope extension, be sure to extend the scope of the child:
+    if (currentExtender ne null) currentExtender.extend(childScope.scope)
+
     val childContext = new FiberContext[E, A](
       Fiber.newFiberId(),
       platform,
@@ -688,7 +703,8 @@ private[zio] final class FiberContext[E, A](
       tracingRegion,
       childFiberRefLocals,
       currentSup,
-      childScope
+      childScope,
+      currentExtender
     )
 
     if (currentSup ne Supervisor.none) {

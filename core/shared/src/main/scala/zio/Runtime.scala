@@ -105,7 +105,8 @@ trait Runtime[+R] {
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap(),
       Supervisor.none,
-      scope
+      scope,
+      null
     )
 
     Fiber.track(context)

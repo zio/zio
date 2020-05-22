@@ -2445,6 +2445,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def environment[R]: URIO[R, R] = access(r => r)
 
   /**
+   * Extends the scope of all fibers forked within the effect to the scope of
+   * the fiber that executes the returned effect.
+   */
+  def extendScope[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.ExtendScope(zio)
+
+  /**
    * Returns an effect that models failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
@@ -2706,7 +2713,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     as.mapMPar_(f)
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` in parallel,
+   * Applies the functionw `f` to each element of the `Iterable[A]` in parallel,
    * and returns the results in a new `List[B]`.
    *
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
@@ -2719,8 +2726,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       .bracket(_.shutdown) { q =>
         for {
           pairs <- ZIO.foreach(as)(a => Promise.make[E, B].map(p => (p, a)))
-          _     <- ZIO.foreach(pairs)(pair => q.offer(pair)).fork
-          _ <- ZIO.collectAll(List.fill(n.toInt)(q.take.flatMap {
+          _     <- ZIO.foreach_(pairs)(pair => q.offer(pair)).fork
+          _ <- ZIO.collectAll_(List.fill(n.toInt)(q.take.flatMap {
                 case (p, a) => fn(a).foldCauseM(c => ZIO.foreach(pairs)(_._1.halt(c)), b => p.succeed(b))
               }.forever.fork))
           res <- ZIO.foreach(pairs)(_._1.await)
@@ -3806,6 +3813,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val EffectSuspendTotalWith   = 21
     final val RaceWith                 = 22
     final val Supervise                = 23
+    final val ExtendScope              = 24
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -3933,15 +3941,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Supervise
   }
 
-  private val debug = new java.util.concurrent.atomic.AtomicReference[Set[String]](Set())
-
-  private[zio] def isDebug(name: String): Boolean = debug.get.contains(name)
-
-  private[zio] def withDebug[R, E, A](name: String)(zio: => ZIO[R, E, A]): ZIO[R, E, A] = {
-    val before = UIO(debug.updateAndGet(_ + name))
-    val after  = UIO(debug.updateAndGet(_ - name))
-
-    (before *> zio).ensuring(after)
+  private[zio] final class ExtendScope[R, E, A](val zio: ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.ExtendScope
   }
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)
