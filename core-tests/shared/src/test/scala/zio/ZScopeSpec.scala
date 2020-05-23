@@ -54,38 +54,65 @@ object ZScopeSpec extends ZIOBaseSpec {
       } yield assert(empty)(isTrue) && assert(value)(isNone)
     },
     testScope("one finalizer", 0)((ref, scope) => scope.ensure(_ => ref.update(_ + 1)) as 1),
-    testScope("two finalizers in order", List.empty[String]) { (ref, scope) =>
-      scope.ensure(_ => ref.update(_ :+ "foo")) *>
-        scope.ensure(_ => ref.update(_ :+ "bar")) as (List("foo", "bar"))
-    },
-    testScope("100 finalizers in order", List.empty[String]) { (ref, scope) =>
-      val range = 0 to 100
+    suite("finalizer removal")(
+      testM("removal of one finalizer") {
+        for {
+          ref  <- Ref.make[Int](0)
+          open <- ZScope.make[Unit]
+          key  <- open.scope.ensure(_ => ref.update(_ + 1))
+          _    <- key.fold[UIO[Any]](IO.unit)(_.remove)
+          _    <- open.close(())
+          v    <- ref.get
+        } yield assert(v)(equalTo(0))
+      }
+    ),
+    suite("finalizer ordering")(
+      testM("ordering of interleaved weak and strong finalizers") {
+        for {
+          ref  <- Ref.make[Chunk[String]](Chunk.empty)
+          open <- ZScope.make[Unit]
+          key1 <- open.scope.ensure(_ => ref.update(_ :+ "1"), false)
+          key2 <- open.scope.ensure(_ => ref.update(_ :+ "2"), true)
+          key3 <- open.scope.ensure(_ => ref.update(_ :+ "3"), false)
+          key4 <- open.scope.ensure(_ => ref.update(_ :+ "4"), true)
+          _    <- open.close(())
+          _    <- ZIO.succeed(s"${key1} ${key2} ${key3} ${key4}")
+          v    <- ref.get
+        } yield assert(v)(equalTo(Chunk("1", "2", "3", "4")))
+      },
+      testScope("ordering of two finalizers", List.empty[String]) { (ref, scope) =>
+        scope.ensure(_ => ref.update(_ :+ "foo")) *>
+          scope.ensure(_ => ref.update(_ :+ "bar")) as (List("foo", "bar"))
+      },
+      testScope("ordering of 100 finalizers", List.empty[String]) { (ref, scope) =>
+        val range = 0 to 100
 
-      val expected =
-        range
-          .foldLeft(List.empty[String]) {
-            case (acc, int) => int.toString :: acc
+        val expected =
+          range
+            .foldLeft(List.empty[String]) {
+              case (acc, int) => int.toString :: acc
+            }
+            .reverse
+
+        val effect =
+          range.foldLeft(IO.unit) {
+            case (acc, int) => acc *> ref.update(_ :+ int.toString).unit
           }
-          .reverse
 
-      val effect =
-        range.foldLeft(IO.unit) {
-          case (acc, int) => acc *> ref.update(_ :+ int.toString).unit
-        }
-
-      scope.ensure(_ => effect) as expected
-    },
-    testM("scope extension") {
-      for {
-        ref    <- Ref.make(0)
-        parent <- ZScope.make[Unit]
-        child  <- ZScope.make[Unit].tap(_.scope.ensure(_ => ref.update(_ + 1)))
-        _      <- parent.scope.extend(child.scope)
-        _      <- child.close(())
-        before <- ref.get
-        _      <- parent.close(())
-        after  <- ref.get
-      } yield assert(before)(equalTo(0)) && assert(after)(equalTo(1))
-    }
+        scope.ensure(_ => effect) as expected
+      },
+      testM("scope extension") {
+        for {
+          ref    <- Ref.make(0)
+          parent <- ZScope.make[Unit]
+          child  <- ZScope.make[Unit].tap(_.scope.ensure(_ => ref.update(_ + 1)))
+          _      <- parent.scope.extend(child.scope)
+          _      <- child.close(())
+          before <- ref.get
+          _      <- parent.close(())
+          after  <- ref.get
+        } yield assert(before)(equalTo(0)) && assert(after)(equalTo(1))
+      }
+    )
   )
 }
