@@ -18,7 +18,6 @@ import zio.test.environment.TestClock
 
 object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
-  import ZStream.Take
 
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
@@ -756,7 +755,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream
                 .range(0, 10)
                 .toQueue(1)
-                .use(q => ZStream.fromQueue(q).collectWhileSuccess.runCollect)
+                .use(q => ZStream.fromQueue(q).map(_.exit).collectWhileSuccess.runCollect)
                 .map(_.flatMap(_.toList))
             )(equalTo(Range(0, 10).toList))
           },
@@ -765,7 +764,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               (ZStream.range(0, 10) ++ ZStream.fail(e))
                 .toQueue(1)
-                .use(q => ZStream.fromQueue(q).collectWhileSuccess.runCollect)
+                .use(q => ZStream.fromQueue(q).map(_.exit).collectWhileSuccess.runCollect)
                 .run
             )(fails(equalTo(e)))
           } @@ zioTag(errors)
@@ -1299,7 +1298,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream
                 .fromChunks(chunks: _*)
-                .mapChunks(chunk => Chunk.single(Exit.succeed(chunk)))
+                .mapChunks(chunk => Chunk.single(Take.chunk(chunk)))
                 .flattenTake
                 .runCollect
             )(equalTo(chunks.fold(Chunk.empty)(_ ++ _).toList))
@@ -1307,17 +1306,17 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("stop collecting on Exit.Failure") {
             assertM(
               ZStream(
-                Exit.succeed(Chunk(1, 2)),
-                Exit.succeed(Chunk.single(3)),
-                Exit.fail(Option.empty[Unit])
+                Take.chunk(Chunk(1, 2)),
+                Take.single(3),
+                Take.end
               ).flattenTake.runCollect
             )(equalTo(List(1, 2, 3)))
           },
           testM("work with empty chunks") {
-            assertM(ZStream(Exit.succeed(Chunk.empty), Exit.succeed(Chunk.empty)).flattenTake.runCollect)(isEmpty)
+            assertM(ZStream(Take.chunk(Chunk.empty), Take.chunk(Chunk.empty)).flattenTake.runCollect)(isEmpty)
           },
           testM("work with empty streams") {
-            assertM(ZStream.fromIterable[Exit[Option[Nothing], Chunk[Nothing]]](Nil).flattenTake.runCollect)(isEmpty)
+            assertM(ZStream.fromIterable[Take[Nothing, Nothing]](Nil).flattenTake.runCollect)(isEmpty)
           }
         ),
         suite("foreach")(
@@ -2561,7 +2560,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s.toQueue(1000)
                 .use(queue => queue.size.repeat(Schedule.doWhile(_ != c.size + 1)) *> queue.takeAll)
             )(
-              equalTo(c.toSeq.toList.map(i => Exit.succeed(Chunk(i))) :+ Exit.fail(None))
+              equalTo(c.toSeq.toList.map(Take.single) :+ Take.end)
             )
           }),
           testM("toQueueUnbounded")(checkM(Gen.chunkOfBounded(0, 3)(Gen.anyInt)) { (c: Chunk[Int]) =>
@@ -2569,7 +2568,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               s.toQueueUnbounded.use(queue => queue.size.repeat(Schedule.doWhile(_ != c.size + 1)) *> queue.takeAll)
             )(
-              equalTo(c.toSeq.toList.map(i => Exit.succeed(Chunk(i))) :+ Exit.fail(None))
+              equalTo(c.toSeq.toList.map(Take.single) :+ Take.end)
             )
           })
         ),
@@ -2942,17 +2941,16 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         },
         testM("fromTQueue") {
-          TQueue.bounded[Int](5).commit.flatMap {
-            tqueue =>
-              ZStream.fromTQueue(tqueue).toQueueUnbounded.use { queue =>
-                for {
-                  _      <- tqueue.offerAll(List(1, 2, 3)).commit
-                  first  <- ZStream.fromQueue(queue).take(3).runCollect
-                  _      <- tqueue.offerAll(List(4, 5)).commit
-                  second <- ZStream.fromQueue(queue).take(2).runCollect
-                } yield assert(first)(equalTo(List(1, 2, 3).map(i => Exit.succeed(Chunk.single(i))))) &&
-                  assert(second)(equalTo(List(4, 5).map(i => Exit.succeed(Chunk.single(i)))))
-              }
+          TQueue.bounded[Int](5).commit.flatMap { tqueue =>
+            ZStream.fromTQueue(tqueue).toQueueUnbounded.use { queue =>
+              for {
+                _      <- tqueue.offerAll(List(1, 2, 3)).commit
+                first  <- ZStream.fromQueue(queue).take(3).runCollect
+                _      <- tqueue.offerAll(List(4, 5)).commit
+                second <- ZStream.fromQueue(queue).take(2).runCollect
+              } yield assert(first)(equalTo(List(1, 2, 3).map(Take.single))) &&
+                assert(second)(equalTo(List(4, 5).map(Take.single)))
+            }
           }
         } @@ flaky,
         testM("iterate")(
@@ -3062,7 +3060,7 @@ object ZStreamSpec extends ZIOBaseSpec {
     ) @@ TestAspect.timed
 
   trait ChunkCoordination[A] {
-    def queue: Queue[Take[Nothing, A]]
+    def queue: Queue[Exit[Option[Nothing], Chunk[A]]]
     def offer: UIO[Boolean]
     def proceed: UIO[Unit]
     def awaitNext: UIO[Unit]
@@ -3072,13 +3070,13 @@ object ZStreamSpec extends ZIOBaseSpec {
     chunks: List[Chunk[A]]
   )(assertion: ChunkCoordination[A] => ZIO[Clock with TestClock, Nothing, TestResult]) =
     for {
-      q  <- Queue.unbounded[Take[Nothing, A]]
+      q  <- Queue.unbounded[Exit[Option[Nothing], Chunk[A]]]
       ps <- Queue.unbounded[Unit]
       ref <- Ref
-              .make[List[List[Take[Nothing, A]]]](
+              .make[List[List[Exit[Option[Nothing], Chunk[A]]]]](
                 chunks.init.map { chunk =>
                   List(Exit.succeed(chunk))
-                } ++ chunks.lastOption.map(chunk => List(Exit.succeed(chunk), Take.End))
+                } ++ chunks.lastOption.map(chunk => List(Exit.succeed(chunk), Exit.fail(None)))
               )
       chunkCoordination = new ChunkCoordination[A] {
         val queue = q
