@@ -1995,7 +1995,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         done    <- RefM.makeManaged[Option[Boolean]](None)
         chunksL <- self.process
         chunksR <- that.process
-        handler = (pull: Pull[R1, E1, O3], terminate: Boolean) => {
+        handler = (pull: Pull[R1, E1, O3], terminate: Boolean) =>
           done.get.flatMap {
             case Some(true) =>
               ZIO.succeedNow(false)
@@ -2017,9 +2017,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 }
               }
           }.repeat(Schedule.doWhileEquals(true))
-        }
-        _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy)).forkManaged
-        _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy)).forkManaged
+        _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy)).fork.toManaged_
+        _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy)).fork.toManaged_
       } yield handoff.take.flatMap(_.done)
     }
 
