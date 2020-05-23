@@ -25,7 +25,7 @@ stream.run(sink)
 
 The `zio.stream` provides numerous kinds of sinks to use.
 
-Collecting all elements into `List[A]`:
+Collecting all elements into `Chunk[A]`:
 
 ```scala mdoc:silent
 ZSink.collectAll[Int]
@@ -80,5 +80,5 @@ Sink.collectAll[String].contramap[Int](_.toString + "id")
 A `dimap` is an extended `contramap` that additionally transforms sink's output:
 
 ```scala mdoc:silent
-Sink.collectAll[String].dimap[Int, List[String]](_.toString + "id", _.take(10))
+Sink.collectAll[String].dimap[Int, Chunk[String]](_.toString + "id", _.take(10))
 ```
