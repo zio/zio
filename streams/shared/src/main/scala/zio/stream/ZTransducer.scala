@@ -631,7 +631,7 @@ object ZTransducer {
                 var inCRLF = wasSplitCRLF
                 var carry  = leftover getOrElse ""
 
-                (Chunk.fromIterable(leftover) ++ strings).foreach { string =>
+                strings.foreach { string =>
                   val concat = carry + string
 
                   if (concat.length() > 0) {
@@ -775,8 +775,8 @@ object ZTransducer {
 
               val (toConvert, newLeftovers) = concat.splitAt(computeSplit(concat))
 
-              if (toConvert.isEmpty) (Chunk.empty, newLeftovers)
-              else (Chunk.single(new String(toConvert.toArray[Byte], "UTF-8")), newLeftovers)
+              if (toConvert.isEmpty) (Chunk.empty, newLeftovers.materialize)
+              else (Chunk.single(new String(toConvert.toArray[Byte], "UTF-8")), newLeftovers.materialize)
             }
         }
       }
