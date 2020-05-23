@@ -61,7 +61,7 @@ sealed trait ZScope[+A] { self =>
    * The returned effect will succeed with a key if the finalizer was added
    * to the scope, and `None` if the scope is already closed.
    */
-  def ensure(finalizer: A => UIO[Any], weakly: Boolean = false): UIO[Option[ZScope.Key]]
+  def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Option[ZScope.Key]]
 
   /**
    * Extends the specified scope so that it will not be closed until this
@@ -90,7 +90,7 @@ sealed trait ZScope[+A] { self =>
         Sync(child) {
           Sync(parent) {
             if (child.unsafeAddRef()) {
-              val key = parent.unsafeEnsure(_ => child.unsafeRelease(), false)
+              val key = parent.unsafeEnsure(_ => child.unsafeRelease(), ZScope.Mode.Strong)
 
               if (key.isDefined) UIO(true)
               else {
@@ -111,10 +111,28 @@ sealed trait ZScope[+A] { self =>
    */
   def open: UIO[Boolean] = closed.map(!_)
 
-  private[zio] def unsafeEnsure(finalizer: A => UIO[Any], weakly: Boolean): Option[ZScope.Key]
+  private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[ZScope.Key]
 }
 object ZScope {
+  sealed trait Mode 
+  object Mode {
+    case object Weak extends Mode 
+    case object Strong extends Mode
+  }
+
+  /**
+   * Represents a key in a scope, which is associated with a single finalizer.
+   */
   sealed trait Key {
+    /**
+      * Attempts to remove the finalizer associated with this key from the 
+      * scope. The returned effect will succeed with a boolean, which indicates
+      * whether the attempt was successful. A value of `true` indicates the 
+      * finalizer will not be executed, while a value of `false` indicates the
+      * finalizer was already executed.
+      *
+      * @return
+      */
     def remove: UIO[Boolean]
   }
   object Key {
@@ -135,9 +153,9 @@ object ZScope {
 
     def empty: UIO[Boolean] = UIO(false)
 
-    def ensure(finalizer: Nothing => UIO[Any], weakly: Boolean = false): UIO[Option[Key]] = ensureResult
+    def ensure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Option[Key]] = ensureResult
 
-    private[zio] def unsafeEnsure(finalizer: Nothing => UIO[Any], weakly: Boolean): Option[Key] = unsafeEnsureResult
+    private[zio] def unsafeEnsure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode): Option[Key] = unsafeEnsureResult
   }
 
   /**
@@ -209,11 +227,11 @@ object ZScope {
      * scope exits, the finalizer will be run, assuming the key has not been
      * garbage collected.
      */
-    def ensure(finalizer: A => UIO[Any], weakly: Boolean = false): UIO[Option[Key]] =
-      UIO(unsafeEnsure(finalizer, weakly))
+    def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Option[Key]] =
+      UIO(unsafeEnsure(finalizer, mode))
 
-    private def finalizers(weakly: Boolean): Map[Key, OrderedFinalizer] =
-      if (weakly) weakFinalizers else strongFinalizers
+    private[this] def finalizers(mode: ZScope.Mode): Map[Key, OrderedFinalizer] =
+      if (mode == ZScope.Mode.Weak) weakFinalizers else strongFinalizers
 
     private[zio] def unsafeClosed(): Boolean = Sync(self)(opened.get() <= 0)
 
@@ -230,7 +248,7 @@ object ZScope {
         else (weakFinalizers.remove(key) ne null) || (strongFinalizers.remove(key) ne null)
       }
 
-    private[zio] def unsafeEnsure(finalizer: A => UIO[Any], weakly: Boolean): Option[Key] =
+    private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[Key] =
       Sync(self) {
         def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
 
@@ -238,7 +256,7 @@ object ZScope {
         else {
           lazy val key: Key = Key(deny(key))
 
-          finalizers(weakly).put(key, OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer)))
+          finalizers(mode).put(key, OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer)))
 
           Some(key)
         }

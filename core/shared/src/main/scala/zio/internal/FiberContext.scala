@@ -718,7 +718,7 @@ private[zio] final class FiberContext[E, A](
     addChild(childContext.asInstanceOf[FiberContext[Any, Any]])
 
     // Ensure that when the fiber's parent scope ends, the child fiber is interrupted:
-    val key = parentScope.unsafeEnsure(_ => childContext.interruptAs(fiberId), true)
+    val key = parentScope.unsafeEnsure(_ => childContext.interruptAs(fiberId), ZScope.Mode.Weak)
 
     // FIXME: Add key to child
     val _ = key

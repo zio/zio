@@ -68,13 +68,15 @@ object ZScopeSpec extends ZIOBaseSpec {
     ),
     suite("finalizer ordering")(
       testM("ordering of interleaved weak and strong finalizers") {
+        import ZScope.Mode._
+
         for {
           ref  <- Ref.make[Chunk[String]](Chunk.empty)
           open <- ZScope.make[Unit]
-          key1 <- open.scope.ensure(_ => ref.update(_ :+ "1"), false)
-          key2 <- open.scope.ensure(_ => ref.update(_ :+ "2"), true)
-          key3 <- open.scope.ensure(_ => ref.update(_ :+ "3"), false)
-          key4 <- open.scope.ensure(_ => ref.update(_ :+ "4"), true)
+          key1 <- open.scope.ensure(_ => ref.update(_ :+ "1"), Strong)
+          key2 <- open.scope.ensure(_ => ref.update(_ :+ "2"), Weak)
+          key3 <- open.scope.ensure(_ => ref.update(_ :+ "3"), Strong)
+          key4 <- open.scope.ensure(_ => ref.update(_ :+ "4"), Weak)
           _    <- open.close(())
           _    <- ZIO.succeed(s"${key1} ${key2} ${key3} ${key4}")
           v    <- ref.get
