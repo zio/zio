@@ -1992,7 +1992,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
       for {
         handoff <- ZStream.Handoff.make[Take[E1, O3]].toManaged_
-        done    <- Ref.makeManaged[Option[Boolean]](None)
+        done    <- RefM.makeManaged[Option[Boolean]](None)
         chunksL <- self.process
         chunksR <- that.process
         handler = (pull: Pull[R1, E1, O3], terminate: Boolean) =>
@@ -2004,22 +2004,28 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 done.modify {
                   (_, exit.fold(c => Left(Cause.sequenceCauseOption(c)), Right(_))) match {
                     case (state @ Some(true), _) =>
-                      ZIO.succeedNow(false) -> state
+                      ZIO.succeedNow((false, state))
                     case (state, Right(chunk)) =>
-                      handoff.offer(Take.chunk(chunk)).as(true) -> state
+                      handoff.offer(Take.chunk(chunk)).as((true, state))
                     case (_, Left(Some(cause))) =>
-                      handoff.offer(Take.halt(cause)).as(false) -> Some(true)
+                      handoff.offer(Take.halt(cause)).as((false, Some(true)))
                     case (option, Left(None)) if terminate || option.isDefined =>
-                      handoff.offer(Take.end).as(false) -> Some(true)
+                      handoff.offer(Take.end).as((false, Some(true)))
                     case (None, Left(None)) =>
-                      ZIO.succeedNow(false) -> Some(false)
+                      ZIO.succeedNow((false, Some(false)))
                   }
-                }.flatten
+                }
               }
           }.repeat(Schedule.doWhileEquals(true))
         _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy)).fork.toManaged_
         _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy)).fork.toManaged_
-      } yield handoff.take.flatMap(_.done)
+      } yield {
+        for {
+          done   <- done.get
+          take   <- if (done.contains(true)) handoff.poll.some else handoff.take
+          result <- take.done
+        } yield result
+      }
     }
 
   /**
@@ -3892,6 +3898,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         ref.modify {
           case Handoff.State.Full(a, notifyProducer)   => (notifyProducer.succeed(()).as(a), Handoff.State.Empty(p))
           case s @ Handoff.State.Empty(notifyConsumer) => (notifyConsumer.await *> take, s)
+        }.flatten
+      }
+
+    def poll: UIO[Option[A]] =
+      Promise.make[Nothing, Unit].flatMap { p =>
+        ref.modify {
+          case Handoff.State.Full(a, notifyProducer) => (notifyProducer.succeed(()).as(Some(a)), Handoff.State.Empty(p))
+          case s @ Handoff.State.Empty(_)            => (ZIO.succeedNow(None), s)
         }.flatten
       }
   }
