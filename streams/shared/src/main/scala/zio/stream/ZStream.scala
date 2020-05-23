@@ -2016,9 +2016,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             }
             .repeat(Schedule.doWhileEquals(true))
         }
-        fiberL <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy)).forkManaged
-        fiberR <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy)).forkManaged
-      } yield queue.take.flatMap(_.done).tapError(_ => fiberL.interrupt *> fiberR.interrupt)
+        _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy)).forkManaged
+        _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy)).forkManaged
+      } yield queue.take.flatMap(_.done)
     }
 
   /**
