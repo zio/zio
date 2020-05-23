@@ -93,7 +93,7 @@ trait Runtime[+R] {
 
     val fiberId = Fiber.newFiberId()
 
-    val scope = ZScope.unsafeMake[Any, Exit[E, A]](true)
+    val scope = ZScope.unsafeMake[Exit[E, A]]()
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,

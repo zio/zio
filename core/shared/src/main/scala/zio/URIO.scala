@@ -204,11 +204,6 @@ object URIO {
   def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
 
   /**
-   * @see See [[zio.ZIO.disown]]
-   */
-  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = ZIO.disown(fiber)
-
-  /**
    * @see [[zio.ZIO.done]]
    */
   def done[A](r: => Exit[Nothing, A]): UIO[A] = ZIO.done(r)

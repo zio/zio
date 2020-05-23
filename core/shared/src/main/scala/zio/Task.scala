@@ -182,11 +182,6 @@ object Task extends TaskPlatformSpecific {
   def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
 
   /**
-   * @see See [[zio.ZIO.disown]]
-   */
-  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = ZIO.disown(fiber)
-
-  /**
    * @see See [[zio.ZIO.done]]
    */
   def done[A](r: => Exit[Throwable, A]): Task[A] = ZIO.done(r)

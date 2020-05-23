@@ -705,15 +705,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def forever: ZIO[R, E, Nothing] = self *> self.forever
 
   /**
-   * Returns an effect that forks this effect into its own separate fiber,
-   * returning the fiber immediately, without waiting for it to begin
-   * executing the effect.
+   * The `fork` method can be used to launch a new "child" fiber, which executes
+   * this effect concurrently. Instead of using this method directly, look for
+   * other higher-level methods, such as `raceWith`, `zipPar`, and so forth.
+   *
+   * The `fork` method returns an effect that forks this effect into its own
+   * separate "child" , returning the fiber immediately, without waiting for it
+   * to begin executing the effect.
    *
    * The returned fiber can be used to interrupt the forked fiber, await its
    * result, or join the fiber. See [[zio.Fiber]] for more information.
    *
-   * The fiber is forked with interrupt supervision mode, meaning that when the
-   * fiber that forks the child exits, the child will be interrupted.
+   * The newly-launched child fiber is attached to the parent fiber's scope.
+   * This means when the parent fiber terminates, the child fiber will be
+   * terminated as well, ensuring that no fibers leak. This behavior is called
+   * "auto supervision", and if this behavior is not desired, you may use the
+   * [[forkDaemon]] or [[forkIn]] methods.
    *
    * {{{
    * for {
@@ -723,7 +730,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * } yield a
    * }}}
    */
-  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self)
+  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, None)
+
+  final def forkIn(scope: ZScope[Any]): URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, Some(scope))
 
   /**
    * Forks the effect into a new independent fiber, with the specified name.
@@ -732,12 +741,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.uninterruptibleMask(restore => (Fiber.fiberName.set(Some(name)) *> restore(self)).fork)
 
   /**
-   * Forks the effect into a new fiber, but immediately disowns the fiber, so
-   * that when the fiber executing this effect exits, the forked fiber will not
-   * automatically be terminated. Disowned fibers become new root fibers.
+   * Forks the effect into a new fiber attached to the global scope. Because the
+   * new fiber is attached to the global scope, when the fiber executing the
+   * returned effect terminates, the forked fiber will continue running.
    */
-  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] =
-    ZIO.uninterruptibleMask(restore => restore(self).fork.tap(ZIO.disown))
+  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = forkIn(ZScope.global)
 
   /**
    * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
@@ -1216,7 +1224,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * resume until the loser has been cleanly terminated. If early return is
    * desired, then instead of performing `l race r`, perform
    * `l.disconnect race r.disconnect`, which disconnects left and right
-   * interrupt signal, allowing a fast return, with interruption performed
+   * interruption signals, allowing a fast return, with interruption performed
    * in the background.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
@@ -2268,13 +2276,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def dieMessage(message: => String): UIO[Nothing] =
     die(new RuntimeException(message))
-
-  /**
-   * Disowns the specified fiber, which means that when this fiber exits, the
-   * specified fiber will not be interrupted. Disowned fibers become new root
-   * fibers, and are not terminated automatically when any other fibers ends.
-   */
-  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = ZIO.descriptorWith(d => d.scope.deny(fiber))
 
   /**
    * Returns an effect from a [[zio.Exit]] value.
@@ -3854,7 +3855,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply(v: A): ZIO[R, E2, B] = success(v)
   }
 
-  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A]) extends URIO[R, Fiber.Runtime[E, A]] {
+  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A], val scope: Option[ZScope[Any]])
+      extends URIO[R, Fiber.Runtime[E, A]] {
     override def tag = Tags.Fork
   }
 

@@ -122,11 +122,6 @@ sealed trait Fiber[+E, +A] { self =>
     children.flatMap(children => ZIO.foreach(children)(_.descendants).map(collected => children ++ collected.flatten))
 
   /**
-   * Disowns the fiber from the fiber calling this method.
-   */
-  final def disown: UIO[Boolean] = ZIO.disown(self)
-
-  /**
    * Folds over the runtime or synthetic fiber.
    */
   final def fold[Z](
@@ -439,7 +434,7 @@ object Fiber extends FiberPlatformSpecific {
      */
     def id: Fiber.Id
 
-    def scope: ZScope[Any, Exit[E, A]]
+    def scope: ZScope[Exit[E, A]]
 
     /**
      * The status of the fiber.
@@ -481,7 +476,7 @@ object Fiber extends FiberPlatformSpecific {
     interruptStatus: InterruptStatus,
     children: UIO[Iterable[Fiber.Runtime[Any, Any]]],
     executor: Executor,
-    scope: ZScope[Any, Exit[Any, Any]]
+    scope: ZScope[Exit[Any, Any]]
   )
 
   final case class Dump(
