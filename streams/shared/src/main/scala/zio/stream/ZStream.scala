@@ -3729,6 +3729,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   type Take[+E, +A] = Exit[Option[E], Chunk[A]]
 
   object Take {
+    @deprecated("use zio.stream.Take.end instead", "1.0.0")
     val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
   }
 
