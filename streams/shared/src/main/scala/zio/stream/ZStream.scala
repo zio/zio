@@ -1991,7 +1991,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       import TerminationStrategy.{ Left => L, Right => R, Either => E }
 
       for {
-        queue   <- Queue.unbounded[Take[E1, O3]].toManaged(_.shutdown)
+        handoff <- ZStream.Handoff.make[Take[E1, O3]].toManaged_
         done    <- RefM.makeManaged[Option[Boolean]](None)
         chunksL <- self.process
         chunksR <- that.process
@@ -2006,11 +2006,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                     case (state @ Some(true), _) =>
                       ZIO.succeedNow((false, state))
                     case (state, Right(chunk)) =>
-                      queue.offer(Take.chunk(chunk)).as((true, state))
+                      handoff.offer(Take.chunk(chunk)).as((true, state))
                     case (_, Left(Some(cause))) =>
-                      queue.offer(Take.halt(cause)).as((false, Some(true)))
+                      handoff.offer(Take.halt(cause)).as((false, Some(true)))
                     case (option, Left(None)) if terminate || option.isDefined =>
-                      queue.offer(Take.end).as((false, Some(true)))
+                      handoff.offer(Take.end).as((false, Some(true)))
                     case (None, Left(None)) =>
                       ZIO.succeedNow((false, Some(false)))
                   }
@@ -2020,7 +2020,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         }
         _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy)).forkManaged
         _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy)).forkManaged
-      } yield queue.take.flatMap(_.done)
+      } yield handoff.take.flatMap(_.done)
     }
 
   /**
