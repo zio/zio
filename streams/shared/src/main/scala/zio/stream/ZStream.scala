@@ -2703,7 +2703,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def debounce[E1 >: E, O2 >: O](d: Duration): ZStream[R with Clock, E1, O2] = {
     sealed abstract class State
     case object NotStarted                                  extends State
-    case class Previous(fiber: Fiber[Nothing, Chunk[O2]])   extends State
+    case class Previous(fiber: Fiber[Nothing, O2])          extends State
     case class Current(fiber: Fiber[Option[E1], Chunk[O2]]) extends State
     case object Done                                        extends State
 
@@ -2713,14 +2713,17 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         ref    <- Ref.make[State](NotStarted).toManaged_
         pull = {
           def store(chunk: Chunk[O2]): URIO[Clock, Chunk[O2]] =
-            clock.sleep(d).as(chunk).fork.flatMap(f => ref.set(Previous(f))) *> Pull.empty
+            chunk.lastOption
+              .map(last => clock.sleep(d).as(last).fork.flatMap(f => ref.set(Previous(f))))
+              .getOrElse(ref.set(NotStarted))
+              .as(Chunk.empty)
 
           ref.get.flatMap {
             case Previous(fiber) =>
               fiber.join.raceWith[R with Clock, Option[E1], Option[E1], Chunk[O2], Chunk[O2]](chunks)(
                 {
-                  case (Exit.Success(chunk), current) =>
-                    ref.set(Current(current)) *> Pull.emit(chunk)
+                  case (Exit.Success(value), current) =>
+                    ref.set(Current(current)).as(Chunk.single(value))
                   case (Exit.Failure(cause), current) =>
                     current.interrupt *> Pull.halt(cause)
                 }, {
@@ -2733,7 +2736,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       case Some(e) =>
                         previous.interrupt *> Pull.halt(e)
                       case None =>
-                        previous.join.flatMap(Pull.emit) <* ref.set(Done)
+                        previous.join.map(Chunk.single) <* ref.set(Done)
                     }
                 }
               )

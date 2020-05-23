@@ -2393,6 +2393,13 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("should work with empty streams") {
             val stream = ZStream.empty.debounce(5.seconds)
             assertM(stream.runCollect)(isEmpty)
+          },
+          testM("should pick last element from every chunk") {
+            assertM(for {
+              fiber  <- ZStream(1, 2, 3).debounce(1.second).runCollect.fork
+              _      <- TestClock.adjust(1.second)
+              result <- fiber.join
+            } yield result)(equalTo(List(3)))
           }
         ),
         suite("timeout")(
