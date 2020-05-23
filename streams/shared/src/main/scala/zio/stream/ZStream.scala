@@ -1992,7 +1992,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
       for {
         handoff <- ZStream.Handoff.make[Take[E1, O3]].toManaged_
-        done    <- RefM.makeManaged[Option[Boolean]](None)
+        done    <- Ref.makeManaged[Option[Boolean]](None)
         chunksL <- self.process
         chunksR <- that.process
         handler = (pull: Pull[R1, E1, O3], terminate: Boolean) =>
@@ -2004,17 +2004,17 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 done.modify {
                   (_, exit.fold(c => Left(Cause.sequenceCauseOption(c)), Right(_))) match {
                     case (state @ Some(true), _) =>
-                      ZIO.succeedNow((false, state))
+                      ZIO.succeedNow(false) -> state
                     case (state, Right(chunk)) =>
-                      handoff.offer(Take.chunk(chunk)).as((true, state))
+                      handoff.offer(Take.chunk(chunk)).as(true) -> state
                     case (_, Left(Some(cause))) =>
-                      handoff.offer(Take.halt(cause)).as((false, Some(true)))
+                      handoff.offer(Take.halt(cause)).as(false) -> Some(true)
                     case (option, Left(None)) if terminate || option.isDefined =>
-                      handoff.offer(Take.end).as((false, Some(true)))
+                      handoff.offer(Take.end).as(false) -> Some(true)
                     case (None, Left(None)) =>
-                      ZIO.succeedNow((false, Some(false)))
+                      ZIO.succeedNow(false) -> Some(false)
                   }
-                }
+                }.flatten
               }
           }.repeat(Schedule.doWhileEquals(true))
         _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy)).fork.toManaged_
