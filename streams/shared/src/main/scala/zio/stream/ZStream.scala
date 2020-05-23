@@ -1996,25 +1996,22 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         chunksL <- self.process
         chunksR <- that.process
         handler = (pull: Pull[R1, E1, O3], terminate: Boolean) => {
-          pull
-            .foldCause(c => Left(Cause.sequenceCauseOption(c)), Right(_))
-            .flatMap { either =>
-              done.modify {
-                (_, either) match {
-                  case (state @ Some(true), _) =>
-                    ZIO.succeedNow((false, state))
-                  case (state, Right(chunk)) =>
-                    queue.offer(Take.chunk(chunk)).as((true, state))
-                  case (_, Left(Some(cause))) =>
-                    queue.offer(Take.halt(cause)).as((false, Some(true)))
-                  case (option, Left(None)) if terminate || option.isDefined =>
-                    queue.offer(Take.end).as((false, Some(true)))
-                  case (None, Left(None)) =>
-                    ZIO.succeedNow((false, Some(false)))
-                }
+          pull.run.flatMap { exit =>
+            done.modify {
+              (_, exit.fold(c => Left(Cause.sequenceCauseOption(c)), Right(_))) match {
+                case (state @ Some(true), _) =>
+                  ZIO.succeedNow((false, state))
+                case (state, Right(chunk)) =>
+                  queue.offer(Take.chunk(chunk)).as((true, state))
+                case (_, Left(Some(cause))) =>
+                  queue.offer(Take.halt(cause)).as((false, Some(true)))
+                case (option, Left(None)) if terminate || option.isDefined =>
+                  queue.offer(Take.end).as((false, Some(true)))
+                case (None, Left(None)) =>
+                  ZIO.succeedNow((false, Some(false)))
               }
             }
-            .repeat(Schedule.doWhileEquals(true))
+          }.repeat(Schedule.doWhileEquals(true))
         }
         _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy)).forkManaged
         _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy)).forkManaged
