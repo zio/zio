@@ -12,53 +12,6 @@ object SpecSpec extends ZIOBaseSpec {
     ZLayer.succeed(())
 
   def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
-    suite("only")(
-      testM("ignores all tests except one tagged") {
-        val spec = suite("suite1")(
-          suite("suite2")(
-            zio.test.test("test1") {
-              assert(1)(equalTo(2))
-            }
-          ),
-          suite("suite3")(
-            zio.test.test("test2") {
-              assert(1)(equalTo(1))
-            } @@ only
-          )
-        )
-        assertM(succeeded(spec))(isTrue)
-      },
-      testM("ignores all tests except ones in the tagged suite") {
-        val spec = suite("suite1")(
-          suite("suite2")(
-            zio.test.test("test1") {
-              assert(1)(equalTo(2))
-            }
-          ),
-          suite("suite3")(
-            zio.test.test("test3") {
-              assert(1)(equalTo(1))
-            }
-          ) @@ only
-        )
-        assertM(succeeded(spec))(isTrue)
-      },
-      testM("runs everything if no tests are tagged") {
-        val spec = suite("suite1")(
-          suite("suite2")(
-            zio.test.test("test1") {
-              assert(1)(equalTo(2))
-            }
-          ),
-          suite("suite3")(
-            zio.test.test("test2") {
-              assert(1)(equalTo(1))
-            }
-          )
-        )
-        assertM(succeeded(spec))(isFalse)
-      }
-    ),
     suite("provideCustomLayer")(
       testM("provides the part of the environment that is not part of the `TestEnvironment`") {
         for {
@@ -164,6 +117,53 @@ object SpecSpec extends ZIOBaseSpec {
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           }
         ).provideSomeLayerShared[TestEnvironment](layer) @@ silent
+        assertM(succeeded(spec))(isTrue)
+      },
+      testM("releases resources as soon as possible") {
+        for {
+          ref     <- Ref.make[List[String]](List.empty)
+          acquire = ref.update("Acquiring" :: _)
+          release = ref.update("Releasing" :: _)
+          update  = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
+          layer   = ZLayer.fromAcquireRelease(acquire *> Ref.make(0))(_ => release)
+          spec = suite("spec")(
+            suite("suite1")(
+              testM("test1") {
+                assertM(update)(equalTo(1))
+              },
+              testM("test2") {
+                assertM(update)(equalTo(2))
+              }
+            ).provideCustomLayerShared(layer),
+            suite("suite2")(
+              testM("test1") {
+                assertM(update)(equalTo(1))
+              },
+              testM("test2") {
+                assertM(update)(equalTo(2))
+              }
+            ).provideCustomLayerShared(layer)
+          ) @@ sequential
+          succeeded <- succeeded(spec)
+          log       <- ref.get.map(_.reverse)
+        } yield assert(succeeded)(isTrue) &&
+          assert(log)(equalTo(List("Acquiring", "Releasing", "Acquiring", "Releasing")))
+      },
+      testM("correctly handles nested suites") {
+        val spec =
+          suite("a")(
+            suite("b")(
+              suite("c")(
+                suite("d") {
+                  testM("test") {
+                    for {
+                      n <- ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
+                    } yield assert(n)(equalTo(1))
+                  }
+                }
+              )
+            )
+          ).provideCustomLayerShared(ZLayer.fromAcquireRelease(Ref.make(0))(_.set(-1)))
         assertM(succeeded(spec))(isTrue)
       }
     )
