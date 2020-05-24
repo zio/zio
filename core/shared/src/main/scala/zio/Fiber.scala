@@ -420,9 +420,7 @@ object Fiber extends FiberPlatformSpecific {
         name       <- self.getRef(Fiber.fiberName)
         status     <- self.status
         trace      <- if (withTrace) self.trace.asSome else UIO.none
-        ch         <- self.children
-        childDumps <- ZIO.foreach(ch)(_.dumpWith(withTrace))
-      } yield Fiber.Dump(self.id, name, status, childDumps, trace)
+      } yield Fiber.Dump(self.id, name, status, trace)
 
     /**
      * Generates a fiber dump with optionally excluded stack traces.
@@ -448,6 +446,10 @@ object Fiber extends FiberPlatformSpecific {
   }
 
   private[zio] object Runtime {
+
+    implicit def fiberOrdering[E, A]: Ordering[Fiber.Runtime[E, A]] =
+      Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeMillis, fiber.id.seqNumber))
+
     trait Internal[+E, +A] extends Runtime[E, A]
   }
 
@@ -483,7 +485,6 @@ object Fiber extends FiberPlatformSpecific {
     fiberId: Fiber.Id,
     fiberName: Option[String],
     status: Status,
-    children: Iterable[Dump],
     trace: Option[ZTrace]
   ) extends Serializable {
 

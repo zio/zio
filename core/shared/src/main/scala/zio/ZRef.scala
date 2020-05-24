@@ -317,6 +317,17 @@ object ZRef extends Serializable {
         }
         next
       }
+
+    def unsafeUpdate(f: A => A): Unit = {
+      var loop    = true
+      var next: A = null.asInstanceOf[A]
+      while (loop) {
+        val current = value.get
+        next = f(current)
+        loop = !value.compareAndSet(current, next)
+      }
+    }
+
   }
 
   private trait Derived[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
@@ -575,6 +586,19 @@ object ZRef extends Serializable {
             val result = pf.applyOrElse[A, A](v, identity)
             (result, result)
           }
+      }
+
+  }
+
+  private[zio] implicit class UnsafeSyntax[A](private val self: Ref[A]) extends AnyVal {
+
+    private[zio] def unsafeUpdate(f: A => A): Unit =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeUpdate(f)
+        case derived: Derived[Nothing, Nothing, A, A] =>
+          derived.value.unsafeUpdate(s => derived.setEither(f(derived.getEither(s).merge)).merge)
+        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
+          derivedAll.value.unsafeUpdate(s => derivedAll.setEither(f(derivedAll.getEither(s).merge))(s).merge)
       }
   }
 

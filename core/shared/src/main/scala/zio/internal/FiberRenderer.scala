@@ -1,7 +1,5 @@
 package zio.internal
 
-import scala.annotation.tailrec
-
 import zio.Fiber.Dump
 import zio.Fiber.Status.{ Done, Finishing, Running, Suspended }
 import zio.{ Fiber, UIO, ZIO }
@@ -57,41 +55,21 @@ private[zio] object FiberRenderer {
 
   def renderHierarchy(trees: Iterable[Dump]): String =
     zipWithHasNext(trees).map {
-      case (tree, hasNext) => renderOne(tree, hasNext)
+      case (tree, _) => renderOne(tree)
     }.mkString
 
-  def renderOne(tree: Dump, hasNextSibling: Boolean): String = {
-    def go(t: Dump, prefix: String, hasNext: Boolean): String = {
-      val childrenResults = {
-        val prefixUpdate = if (hasNext) "|   " else "    "
-        val newPrefix    = prefix + prefixUpdate
-        zipWithHasNext(t.children).map {
-          case (c, nxt) => go(c, newPrefix, nxt)
-        }
-      }
-      val nodeString = {
-        val nameStr   = t.fiberName.fold("")(n => "\"" + n + "\" ")
-        val statusMsg = renderStatus(t.status)
-        s"${prefix}+---${nameStr}#${t.fiberId.seqNumber} Status: $statusMsg\n"
-      }
-
-      nodeString + childrenResults.mkString
-
+  def renderOne(tree: Dump): String = {
+    def go(t: Dump, prefix: String): String = {
+      val nameStr   = t.fiberName.fold("")(n => "\"" + n + "\" ")
+      val statusMsg = renderStatus(t.status)
+      s"${prefix}+---${nameStr}#${t.fiberId.seqNumber} Status: $statusMsg\n"
     }
 
-    go(tree, "", hasNextSibling)
+    go(tree, "")
   }
 
-  @tailrec
-  private def collectTraces(dumps: Iterable[Dump], acc: Vector[String], now: Long): Vector[String] = {
-    val rootTraces = dumps.map(prettyPrint(_, now))
-    val children   = dumps.flatMap(_.children)
-    if (children.isEmpty) {
-      acc
-    } else {
-      collectTraces(children, Vector.concat(rootTraces, acc), now)
-    }
-  }
+  private def collectTraces(dumps: Iterable[Dump], now: Long): Vector[String] =
+    dumps.map(prettyPrint(_, now)).toVector
 
   def dumpStr(fibers: Seq[Fiber.Runtime[_, _]], withTrace: Boolean): UIO[String] =
     for {
@@ -99,7 +77,7 @@ private[zio] object FiberRenderer {
       now   <- UIO(System.currentTimeMillis())
     } yield {
       val treeString  = renderHierarchy(dumps)
-      val dumpStrings = if (withTrace) collectTraces(dumps, Vector.empty, now) else Seq.empty
+      val dumpStrings = if (withTrace) collectTraces(dumps, now) else Seq.empty
       (treeString +: dumpStrings).mkString("\n")
     }
 
