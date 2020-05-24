@@ -2016,9 +2016,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   }
                 }
               }
-          }.repeat(Schedule.doWhileEquals(true))
-        _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy)).fork.toManaged_
-        _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy)).fork.toManaged_
+          }.repeat(Schedule.doWhileEquals(true)).fork.interruptible.toManaged(_.interrupt)
+        _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy))
+        _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy))
       } yield {
         for {
           done   <- done.get
