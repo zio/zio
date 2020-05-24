@@ -102,8 +102,10 @@ object ZScopeSpec extends ZIOBaseSpec {
           }
 
         scope.ensure(_ => effect) as expected
-      },
-      testM("scope extension") {
+      }
+    ),
+    suite("scope extension")(
+      testM("single extension") {
         for {
           ref    <- Ref.make(0)
           parent <- ZScope.make[Unit]
@@ -114,6 +116,19 @@ object ZScopeSpec extends ZIOBaseSpec {
           _      <- parent.close(())
           after  <- ref.get
         } yield assert(before)(equalTo(0)) && assert(after)(equalTo(1))
+      },
+      testM("one parent, two children") {
+        for {
+          ref    <- Ref.make(0)
+          parent <- ZScope.make[Unit]
+          child1 <- ZScope.make[Unit].tap(_.scope.ensure(_ => ref.update(_ + 1)))
+          child2 <- ZScope.make[Unit].tap(_.scope.ensure(_ => ref.update(_ + 1)))
+          _      <- parent.scope.extend(child1.scope) *> parent.scope.extend(child2.scope)
+          _      <- child1.close(()) *> child2.close(())
+          before <- ref.get
+          _      <- parent.close(())
+          after  <- ref.get
+        } yield assert(before)(equalTo(0)) && assert(after)(equalTo(2))
       }
     )
   )

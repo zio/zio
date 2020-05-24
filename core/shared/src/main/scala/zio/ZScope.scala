@@ -73,6 +73,8 @@ sealed trait ZScope[+A] { self =>
    */
   def extend(that: ZScope[Any]): UIO[Boolean] = UIO.effectSuspendTotal {
     (self, that) match {
+      case (x, y) if x eq y => UIO(true)
+
       case (ZScope.global, ZScope.global) => UIO(true)
 
       case (ZScope.global, child: ZScope.Local[Any]) =>
@@ -114,9 +116,9 @@ sealed trait ZScope[+A] { self =>
   private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[ZScope.Key]
 }
 object ZScope {
-  sealed trait Mode 
+  sealed trait Mode
   object Mode {
-    case object Weak extends Mode 
+    case object Weak   extends Mode
     case object Strong extends Mode
   }
 
@@ -124,15 +126,16 @@ object ZScope {
    * Represents a key in a scope, which is associated with a single finalizer.
    */
   sealed trait Key {
+
     /**
-      * Attempts to remove the finalizer associated with this key from the 
-      * scope. The returned effect will succeed with a boolean, which indicates
-      * whether the attempt was successful. A value of `true` indicates the 
-      * finalizer will not be executed, while a value of `false` indicates the
-      * finalizer was already executed.
-      *
-      * @return
-      */
+     * Attempts to remove the finalizer associated with this key from the
+     * scope. The returned effect will succeed with a boolean, which indicates
+     * whether the attempt was successful. A value of `true` indicates the
+     * finalizer will not be executed, while a value of `false` indicates the
+     * finalizer was already executed.
+     *
+     * @return
+     */
     def remove: UIO[Boolean]
   }
   object Key {
