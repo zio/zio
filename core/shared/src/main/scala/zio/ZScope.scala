@@ -91,15 +91,13 @@ sealed trait ZScope[+A] { self =>
       case (parent: ZScope.Local[A], child: ZScope.Local[Any]) =>
         Sync(child) {
           Sync(parent) {
-            if (child.unsafeAddRef()) {
+            if (!parent.unsafeClosed() && !child.unsafeClosed()) {
+              // If parent and child scopes are both open:
+              child.unsafeAddRef()
+
               val key = parent.unsafeEnsure(_ => child.unsafeRelease(), ZScope.Mode.Strong)
 
-              if (key.isDefined) UIO(true)
-              else {
-                val effect = child.unsafeRelease()
-
-                if (effect eq null) UIO(false) else effect as false
-              }
+              UIO(key.isDefined)
             } else UIO(false)
           }
         }
@@ -279,12 +277,12 @@ object ZScope {
         (weakFinalizers.size() == 0) && (strongFinalizers.size() == 0)
       }
 
-    private[zio] def unsafeRelease(): UIO[Any] =
+    private[zio] def unsafeRelease(): UIO[Unit] =
       Sync(self) {
         if (opened.decrementAndGet() == 0) {
           val totalSize = weakFinalizers.size() + strongFinalizers.size()
 
-          if (totalSize == 0) IO.unit
+          if (totalSize == 0) ZIO.unit
           else {
             val array = Array.ofDim[OrderedFinalizer](totalSize)
 
@@ -314,13 +312,18 @@ object ZScope {
 
             val a = exitValue.get()
 
-            array.foldLeft[UIO[Any]](ZIO.unit) {
-              case (acc, o) =>
-                if (o ne null) acc *> o.finalizer(a)
-                else acc
-            }
+            array
+              .foldLeft[UIO[Cause[Nothing]]](noCauseEffect) {
+                case (acc, o) =>
+                  if (o ne null) acc.zipWith(o.finalizer(a).cause)(_ ++ _)
+                  else acc
+              }
+              .uncause[Nothing]
           }
-        } else IO.unit
+        } else ZIO.unit
       }
   }
+
+  private val noCause: Cause[Nothing]            = Cause.empty
+  private val noCauseEffect: UIO[Cause[Nothing]] = UIO.succeedNow(noCause)
 }

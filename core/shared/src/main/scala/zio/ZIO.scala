@@ -420,6 +420,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     unrefineWith(pf)(ZIO.fail(_)).catchAll(identity)
 
   /**
+   * Returns an effect that succeeds with the cause of failure of this effect,
+   * or `Cause.empty` if the effect did not succeed.
+   */
+  final def cause: URIO[R, Cause[E]] = self.foldCause(c => c, _ => Cause.empty)
+
+  /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
    * succeed with the returned value.
    */
@@ -1818,6 +1824,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       },
       success
     )
+
+  /**
+   * When this effect succeeds with a cause, then this method returns a new
+   * effect that either fails with the cause that this effect succeeded with,
+   * or succeeds with unit, depending on whether the cause is empty.
+   *
+   * This operation is the opposite of [[cause]].
+   */
+  final def uncause[E1 >: E](implicit ev: A <:< Cause[E1]): ZIO[R, E1, Unit] =
+    self.flatMap { a =>
+      val cause = ev(a)
+
+      if (cause.isEmpty) ZIO.unit
+      else ZIO.halt(cause)
+    }
 
   /**
    * Performs this effect uninterruptibly. This will prevent the effect from
