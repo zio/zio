@@ -12,7 +12,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.stm.TQueue
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, timeout }
+import zio.test.TestAspect.{ flaky, nonFlaky, timeout }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1864,6 +1864,11 @@ object ZStreamSpec extends ZIOBaseSpec {
               _       <- queue2.offer(3)
               result  <- fiber.join
             } yield assert(result)(equalTo(List(1, 2)))
+          },
+          testM("interrupts pulling on finish") {
+            val s1 = ZStream(1, 2, 3)
+            val s2 = ZStream.fromEffect(clock.sleep(5.seconds).as(4))
+            assertM(s1.mergeTerminateLeft(s2).runCollect)(equalTo(List(1, 2, 3)))
           }
         ),
         suite("mergeTerminateRight")(
@@ -1910,6 +1915,9 @@ object ZStreamSpec extends ZIOBaseSpec {
                 equalTo(mergedLists)
               )
           }),
+          testM("fail as soon as one stream fails") {
+            assertM(ZStream(1, 2, 3).merge(ZStream.fail(())).runCollect.run.map(_.succeeded))(equalTo(false))
+          } @@ nonFlaky(20),
           testM("prioritizes failure") {
             val s1 = ZStream.never
             val s2 = ZStream.fail("Ouch")

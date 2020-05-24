@@ -1986,53 +1986,47 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def mergeWith[R1 <: R, E1 >: E, O2, O3](
     that: ZStream[R1, E1, O2],
     strategy: TerminationStrategy = TerminationStrategy.Both
-  )(l: O => O3, r: O2 => O3): ZStream[R1, E1, O3] = {
-    type Candidate[E, O] = Fiber[Nothing, Take[E, O]]
-    type Loser           = Either[Candidate[E, O], Candidate[E1, O2]]
+  )(l: O => O3, r: O2 => O3): ZStream[R1, E1, O3] =
+    ZStream {
+      import TerminationStrategy.{ Left => L, Right => R, Either => E }
 
-    def race(left: Pull[R, E, O], right: Pull[R1, E1, O2]): URIO[R1, (Take[E1, O3], Loser)] =
-      Take
-        .fromPull(left)
-        .raceWith[R1, Nothing, Nothing, Take[E1, O2], (Take[E1, O3], Loser)](Take.fromPull(right))(
-          (exit, right) => ZIO.done(exit).map(take => (take.map(l), Right(right))),
-          (exit, left) => ZIO.done(exit).map(take => (take.map(r), Left(left)))
-        )
-
-    def termination[E, O](left: Boolean, right: Boolean, mapper: O => O3)(fiber: Candidate[E, O]) =
-      strategy match {
-        case TerminationStrategy.Either =>
-          fiber.interrupt.as(Exit.fail(None))
-        case TerminationStrategy.Left if left =>
-          fiber.interrupt.as(Exit.fail(None))
-        case TerminationStrategy.Right if right =>
-          fiber.interrupt.as(Exit.fail(None))
-        case _ =>
-          fiber.join.map(_.map(mapper).exit.map((_, (left, right, None))))
+      for {
+        handoff <- ZStream.Handoff.make[Take[E1, O3]].toManaged_
+        done    <- RefM.makeManaged[Option[Boolean]](None)
+        chunksL <- self.process
+        chunksR <- that.process
+        handler = (pull: Pull[R1, E1, O3], terminate: Boolean) =>
+          done.get.flatMap {
+            case Some(true) =>
+              ZIO.succeedNow(false)
+            case _ =>
+              pull.run.flatMap { exit =>
+                done.modify {
+                  (_, exit.fold(c => Left(Cause.sequenceCauseOption(c)), Right(_))) match {
+                    case (state @ Some(true), _) =>
+                      ZIO.succeedNow((false, state))
+                    case (state, Right(chunk)) =>
+                      handoff.offer(Take.chunk(chunk)).as((true, state))
+                    case (_, Left(Some(cause))) =>
+                      handoff.offer(Take.halt(cause)).as((false, Some(true)))
+                    case (option, Left(None)) if terminate || option.isDefined =>
+                      handoff.offer(Take.end).as((false, Some(true)))
+                    case (None, Left(None)) =>
+                      ZIO.succeedNow((false, Some(false)))
+                  }
+                }
+              }
+          }.repeat(Schedule.doWhileEquals(true)).fork.interruptible.toManaged(_.interrupt)
+        _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy))
+        _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy))
+      } yield {
+        for {
+          done   <- done.get
+          take   <- if (done.contains(true)) handoff.poll.some else handoff.take
+          result <- take.done
+        } yield result
       }
-
-    combineChunks(that)((false, false, Option.empty[Loser])) {
-      case ((true, rightDone, _), _, right) =>
-        right.map(c => (c.map(r), (true, rightDone, None))).run
-
-      case ((leftDone, true, _), left, _) =>
-        left.map(c => (c.map(l), (leftDone, true, None))).run
-
-      case ((leftDone, rightDone, loser), left, right) =>
-        val result = loser match {
-          case None               => race(left, right)
-          case Some(Left(loser))  => race(loser.join.flatMap(_.done), right)
-          case Some(Right(loser)) => race(left, loser.join.flatMap(_.done))
-        }
-        result.flatMap {
-          case (take, loser) =>
-            take.foldM(
-              loser.fold(termination[E, O](leftDone, true, l), termination[E1, O2](true, rightDone, r)),
-              cause => loser.merge.interrupt.as(Exit.halt(cause).mapError(Some(_))),
-              chunk => ZIO.succeedNow(Exit.succeed((chunk, (leftDone, rightDone, Some(loser)))))
-            )
-        }
     }
-  }
 
   /**
    * Switches to the provided stream in case this one fails with a typed error.
@@ -3904,6 +3898,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         ref.modify {
           case Handoff.State.Full(a, notifyProducer)   => (notifyProducer.succeed(()).as(a), Handoff.State.Empty(p))
           case s @ Handoff.State.Empty(notifyConsumer) => (notifyConsumer.await *> take, s)
+        }.flatten
+      }
+
+    def poll: UIO[Option[A]] =
+      Promise.make[Nothing, Unit].flatMap { p =>
+        ref.modify {
+          case Handoff.State.Full(a, notifyProducer) => (notifyProducer.succeed(()).as(Some(a)), Handoff.State.Empty(p))
+          case s @ Handoff.State.Empty(_)            => (ZIO.succeedNow(None), s)
         }.flatten
       }
   }
