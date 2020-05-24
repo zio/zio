@@ -72,6 +72,8 @@ private[zio] final class FiberContext[E, A](
   private[this] val supervisors     = Stack[Supervisor[Any]](supervisor0)
   private[this] val extenders       = Stack[ZScope[Any]](scopeExtender)
 
+  var scopeKey: ZScope.Key = null
+
   private[this] val tracingStatus =
     if (traceExec || traceStack) StackBool()
     else null
@@ -717,11 +719,30 @@ private[zio] final class FiberContext[E, A](
 
     addChild(childContext.asInstanceOf[FiberContext[Any, Any]])
 
-    // Ensure that when the fiber's parent scope ends, the child fiber is interrupted:
-    val key = parentScope.unsafeEnsure(_ => childContext.interruptAs(fiberId), ZScope.Mode.Weak)
+    if (parentScope ne ZScope.global) {
+      // Create a weak reference to the child fiber, so that we don't prevent it
+      // from being garbage collected:
+      val childContextRef = Platform.newWeakReference[FiberContext[E, A]](childContext)
 
-    // FIXME: Add key to child
-    val _ = key
+      // Ensure that when the fiber's parent scope ends, the child fiber is
+      // interrupted, but do so using a weak finalizer, which will be removed
+      // as soon as the key is garbage collected:
+      val key = parentScope.unsafeEnsure(
+        _ =>
+          UIO.effectSuspendTotal {
+            val childContext = childContextRef()
+
+            if (childContext ne null) childContext.interruptAs(fiberId) else ZIO.unit
+          },
+        ZScope.Mode.Weak
+      )
+
+      // Add the finalizer key to the child fiber, so that if it happens to be
+      // garbage collected, then its finalizer will be garbage collected too:
+      childContext.scopeKey = key.getOrElse(
+        throw new IllegalStateException("Defect: The fiber's scope has ended before the fiber itself has ended")
+      )
+    }
 
     if (!Platform.isJVM) {
       // On all platforms except the JVM, we must remove the child from the
