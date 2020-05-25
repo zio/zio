@@ -103,6 +103,6 @@ private[zio] object ZInputStream {
             case Right(c)      => throw FiberFailure(c)
           }
       }
-    new ZInputStream(unfoldPull)
+    new ZInputStream(Iterator.empty ++ unfoldPull)
   }
 }
