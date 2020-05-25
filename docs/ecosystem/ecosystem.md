@@ -34,6 +34,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [scanamo](https://github.com/scanamo/scanamo): Simpler DynamoDB access for Scala
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
+- [tranzactio](https://github.com/gaelrenoux/tranzactio): ZIO wrapper for data access libraries like Doobie or Anorm
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
 - [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [zio-easymock](https://github.com/egast/zio-easymock): EasyMock mocking for zio-test
