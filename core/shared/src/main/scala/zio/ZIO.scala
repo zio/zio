@@ -3554,7 +3554,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def withChildren[R, E, A](get: UIO[Chunk[Fiber.Runtime[Any, Any]]] => ZIO[R, E, A]): ZIO[R, E, A] =
     Supervisor.track(true).flatMap { supervisor =>
       // Filter out the fiber id of whoever is calling this:
-      get(supervisor.value.flatMap { children => ZIO.descriptor.map { d => children.filter(_.id != d.id) } })
+      get(supervisor.value.flatMap(children => ZIO.descriptor.map(d => children.filter(_.id != d.id))))
     }
 
   /**
