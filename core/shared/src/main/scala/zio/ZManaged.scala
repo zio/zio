@@ -1360,6 +1360,13 @@ object ZManaged {
     new ZManaged(run)
 
   /**
+   * Evaluate each effect in the structure from left to right, collecting the
+   * the successful values and discarding the empty cases. For a parallel version, see `collectPar`.
+   */
+  def collect[R, E, A, B](in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
+    foreach(in)(a => f(a).optional).map(_.flatten)
+
+  /**
    * Evaluate each effect in the structure from left to right, and collect the
    * results. For a parallel version, see `collectAllPar`.
    */
@@ -1404,6 +1411,22 @@ object ZManaged {
    */
   def collectAllParN_[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
     foreachParN_(n)(as)(ZIO.identityFn)
+
+  /**
+   * Evaluate each effect in the structure in parallel, collecting the
+   * the successful values and discarding the empty cases.
+   */
+  def collectPar[R, E, A, B](in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
+    foreachPar(in)(a => f(a).optional).map(_.flatten)
+
+  /**
+   * Evaluate each effect in the structure in parallel, collecting the
+   * the successful values and discarding the empty cases.
+   *
+   * Unlike `collectPar`, this method will use at most up to `n` fibers.
+   */
+  def collectParN[R, E, A, B](n: Int)(in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
+    foreachParN(n)(in)(a => f(a).optional).map(_.flatten)
 
   /**
    * Returns an effect that dies with the specified `Throwable`.

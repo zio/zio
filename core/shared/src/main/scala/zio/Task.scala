@@ -80,6 +80,12 @@ object Task extends TaskPlatformSpecific {
   def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
+   * @see See [[zio.ZIO.collect]]
+   */
+  def collect[R, A, B](in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+    ZIO.collect(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[A](in: Iterable[Task[A]]): Task[List[A]] =
@@ -186,6 +192,18 @@ object Task extends TaskPlatformSpecific {
    */
   def collectAllWithParN[A, B](n: Int)(as: Iterable[Task[A]])(f: PartialFunction[A, B]): Task[List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectPar]]
+   */
+  def collectPar[R, A, B](in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+    ZIO.collectPar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectParN]]
+   */
+  def collectParN[R, A, B](n: Int)(in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+    ZIO.collectParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.die]]

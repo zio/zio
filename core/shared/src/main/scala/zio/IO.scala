@@ -80,6 +80,12 @@ object IO {
   def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
+   * @see See [[zio.ZIO.collect]]
+   */
+  def collect[R, E, A, B](in: Iterable[A])(f: A => IO[Option[E], B]): IO[E, List[B]] =
+    ZIO.collect(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
@@ -186,6 +192,18 @@ object IO {
    */
   def collectAllWithParN[E, A, B](n: Int)(as: Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectPar]]
+   */
+  def collectPar[R, E, A, B](in: Iterable[A])(f: A => IO[Option[E], B]): IO[E, List[B]] =
+    ZIO.collectPar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectParN]]
+   */
+  def collectParN[R, E, A, B](n: Int)(in: Iterable[A])(f: A => IO[Option[E], B]): IO[E, List[B]] =
+    ZIO.collectParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
