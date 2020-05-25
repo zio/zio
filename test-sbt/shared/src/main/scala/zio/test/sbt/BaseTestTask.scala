@@ -27,9 +27,9 @@ abstract class BaseTestTask(
   protected def run(eventHandler: EventHandler): ZIO[TestLogger with Clock, Throwable, Unit] =
     for {
       spec    <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
-      summary <- SummaryBuilder.buildSummary(spec)
+      summary = SummaryBuilder.buildSummary(spec)
       _       <- sendSummary.provide(summary)
-      events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
+      events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
       _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
