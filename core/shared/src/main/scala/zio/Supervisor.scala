@@ -17,6 +17,7 @@
 package zio
 
 import internal.{ Platform, Sync }
+import scala.collection.immutable.SortedSet
 
 /**
  * A `Supervisor[A]` is allowed to supervise the launching and termination of
@@ -158,6 +159,39 @@ object Supervisor {
       }
     }
   }
+
+  /**
+   * Creates a new supervisor that tracks children in a set.
+   *
+   * @param weak Whether or not to track the children in a weak set, if
+   *             possible (platform-dependent).
+   */
+  def fibersIn(ref: Ref[SortedSet[Fiber.Runtime[Any, Any]]]): UIO[Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]] =
+    UIO {
+
+      new Supervisor[SortedSet[Fiber.Runtime[Any, Any]]] {
+        def value: UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
+          ref.get
+
+        def unsafeOnStart[R, E, A](
+          environment: R,
+          effect: ZIO[R, E, A],
+          parent: Option[Fiber.Runtime[Any, Any]],
+          fiber: Fiber.Runtime[E, A]
+        ): Propagation = {
+          ref.unsafeUpdate(_ + fiber)
+          // println("supervisor set value of Ref to " + ref)
+
+          Propagation.Continue
+        }
+
+        def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Propagation = {
+          ref.unsafeUpdate(_ - fiber)
+
+          Propagation.Continue
+        }
+      }
+    }
 
   /**
    * A supervisor that doesn't do anything in response to supervision events.

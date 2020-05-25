@@ -20,7 +20,7 @@ import java.io.{ EOFException, IOException }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
-import scala.collection.immutable.Queue
+import scala.collection.immutable.{ Queue, SortedSet }
 import scala.math.{ log, sqrt }
 
 import zio.clock.Clock
@@ -249,6 +249,7 @@ package object environment extends PlatformSpecific {
     final case class Test(
       clockState: Ref[TestClock.Data],
       live: Live.Service,
+      annotations: Annotations.Service,
       warningState: RefM[TestClock.WarningData]
     ) extends Clock.Service
         with TestClock.Service {
@@ -372,17 +373,6 @@ package object environment extends PlatformSpecific {
         else live.provide(ZIO.sleep(1.millisecond))
 
       /**
-       * Provides access to the list of descendants of this fiber (children and
-       * their children, recursively).
-       */
-      private def descendants: UIO[Iterable[Fiber.Runtime[Any, Any]]] =
-        for {
-          descriptor <- ZIO.descriptor
-          children   <- descriptor.children
-          collected  <- ZIO.foreach(children)(_.descendants)
-        } yield children ++ collected.flatten
-
-      /**
        * Captures a "snapshot" of the status of all descendants of this fiber.
        * Fails with the `Unit` value if any descendant of this fiber is not
        * done or suspended. Note that because we cannot synchronize on the
@@ -390,7 +380,7 @@ package object environment extends PlatformSpecific {
        * fully consistent.
        */
       private lazy val freeze: IO[Unit, Set[Fiber.Status]] =
-        descendants.flatMap { fibers =>
+        supervisedFibers.flatMap { fibers =>
           ZIO
             .foreach(fibers)(_.status.filterOrFail {
               case Fiber.Status.Done                     => true
@@ -398,6 +388,21 @@ package object environment extends PlatformSpecific {
               case _                                     => false
             }(()))
             .map(_.toSet)
+        }
+
+      /**
+       * Returns a set of all fibers in this test.
+       */
+      def supervisedFibers: UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
+        ZIO.descriptorWith { descriptor =>
+          annotations.get(TestAnnotation.fibers).flatMap {
+            case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
+            case Right(refs) =>
+              ZIO
+                .foreach(refs)(_.get)
+                .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
+                .map(_.filter(_.id != descriptor.id))
+          } //.tap(result => UIO(println("TestClock got fibers equal to " + result)))
         }
 
       /**
@@ -458,19 +463,20 @@ package object environment extends PlatformSpecific {
      * interface. This can be useful for mixing in with implementations of
      * other interfaces.
      */
-    def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
-      ZLayer.fromServiceManyManaged { (live: Live.Service) =>
-        for {
-          ref  <- Ref.make(data).toManaged_
-          refM <- RefM.make(WarningData.start).toManaged_
-          test <- Managed.make(UIO(Test(ref, live, refM)))(_.warningDone)
-        } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
+    def live(data: Data): ZLayer[Live with Annotations, Nothing, Clock with TestClock] =
+      ZLayer.fromServicesManyManaged[Live.Service, Annotations.Service, Any, Nothing, Clock with TestClock] {
+        (live: Live.Service, annotations: Annotations.Service) =>
+          for {
+            ref  <- Ref.make(data).toManaged_
+            refM <- RefM.make(WarningData.start).toManaged_
+            test <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
+          } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
       }
 
     val any: ZLayer[Clock with TestClock, Nothing, Clock with TestClock] =
       ZLayer.requires[Clock with TestClock]
 
-    val default: ZLayer[Live, Nothing, Clock with TestClock] =
+    val default: ZLayer[Live with Annotations, Nothing, Clock with TestClock] =
       live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))
 
     /**
