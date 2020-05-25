@@ -1699,7 +1699,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         suite("mapMPar")(
           testM("foreachParN equivalence") {
-            checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
+            checkNM(10)(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
               val s = ZStream.fromIterable(data)
 
               for {
@@ -1733,7 +1733,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               mapM    <- ZStream.fromIterable(m).mapM(UIO.succeedNow).runCollect
               mapMPar <- ZStream.fromIterable(m).mapMPar(n)(UIO.succeedNow).runCollect
             } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
-          })
+          })  @@ TestAspect.diagnose(10.seconds)
         ),
         suite("mergeTerminateLeft")(
           testM("terminates as soon as the first stream terminates") {

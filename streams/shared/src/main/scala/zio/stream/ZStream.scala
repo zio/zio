@@ -1795,25 +1795,23 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def mapMPar[R1 <: R, E1 >: E, O2](n: Int)(f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
     ZStream[R1, E1, O2] {
-      ZManaged.withChildren { getChildren =>
-        for {
-          out     <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
-          permits <- Semaphore.make(n.toLong).toManaged_
-          _ <- self.foreachManaged { a =>
-                for {
-                  p     <- Promise.make[E1, O2]
-                  latch <- Promise.make[Nothing, Unit]
-                  _     <- out.offer(p.await.mapError(Some(_)))
-                  _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork
-                  _     <- latch.await
-                } yield ()
-              }.foldCauseM(
-                  c => out.offer(Pull.halt(c)).unit.toManaged_,
-                  _ => (out.offer(Pull.end) <* getChildren.flatMap(Fiber.awaitAll(_))).unit.toManaged_
-                )
-                .fork
-        } yield out.take.flatten.map(Chunk.single(_))
-      }
+      for {
+        out     <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
+        permits <- Semaphore.make(n.toLong).toManaged_
+        _ <- self.foreachManaged { a =>
+              for {
+                p     <- Promise.make[E1, O2]
+                latch <- Promise.make[Nothing, Unit]
+                _     <- out.offer(p.await.mapError(Some(_)))
+                _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork
+                _     <- latch.await
+              } yield ()
+            }.foldCauseM(
+                c => out.offer(Pull.halt(c)).unit.toManaged_,
+                _ => (permits.withPermits(n.toLong)(ZIO.unit).interruptible *> out.offer(Pull.end)).toManaged_
+              )
+              .fork
+      } yield out.take.flatten.map(Chunk.single(_))
     }
 
   /**
