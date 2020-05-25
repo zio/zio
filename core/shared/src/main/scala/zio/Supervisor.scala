@@ -16,8 +16,9 @@
 
 package zio
 
-import internal.{ Platform, Sync }
 import scala.collection.immutable.SortedSet
+
+import internal.{ Platform, Sync }
 
 /**
  * A `Supervisor[A]` is allowed to supervise the launching and termination of

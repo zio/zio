@@ -16,6 +16,7 @@
 
 package zio.internal
 
+import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
 
@@ -25,7 +26,6 @@ import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import java.lang.ref.WeakReference
 
 private[internal] trait PlatformSpecific {
 

@@ -2031,12 +2031,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     descriptorWith(d => if (d.interrupters.nonEmpty) interrupt else ZIO.unit)
 
   /**
-   * Awaits all child fibers of the fiber executing the effect.
-   */
-  // @deprecated("1.0.0", "Use ZIO#awaitAllChildren")
-  def awaitAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.awaitAll(_))
-
-  /**
    * When this effect represents acquisition of a resource (for example,
    * opening a file, launching a thread, etc.), `bracket` can be used to ensure
    * the acquisition is not interrupted and the resource is always released.
@@ -2124,12 +2118,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def checkTraced[R, E, A](f: TracingS => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.CheckTracing(f)
-
-  /**
-   * Provides access to the list of child fibers supervised by this fiber.
-   */
-  // @deprecated("1.0.0", "There is no alternative for this, but you can install a local supervisor")
-  def children: UIO[Iterable[Fiber[Any, Any]]] = descriptor.flatMap(_.children)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect the
@@ -2957,12 +2945,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   val interrupt: UIO[Nothing] = ZIO.fiberId.flatMap(fiberId => interruptAs(fiberId))
 
   /**
-   * Interrupts all child fibers of the fiber executing the effect.
-   */
-  // @deprecated("1.0.0", "Use ZIO#interruptAllChildren")
-  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
-
-  /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
   def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] =
@@ -3564,6 +3546,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def whenM[R, E](b: ZIO[R, E, Boolean])(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     b.flatMap(b => if (b) zio.unit else unit)
+
+  /**
+   * Locally installs a supervisor and an effect that succeeds with all the
+   * children that have been forked in the returned effect.
+   */
+  def withChildren[R, E, A](get: UIO[Chunk[Fiber.Runtime[Any, Any]]] => ZIO[R, E, A]): ZIO[R, E, A] =
+    Supervisor.track(true).flatMap { supervisor =>
+      ZIO.descriptorWith { d =>
+        // Filter out the fiber id of whoever is calling this:
+        get(supervisor.value.map(_.filter(_.id != d.id)))
+      }
+    }
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh

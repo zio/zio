@@ -16,8 +16,8 @@
 
 package zio.test
 
-import zio.{ Chunk, Fiber, Tag }
 import zio.duration._
+import zio.{ Chunk, Fiber, Tag }
 
 /**
  * A type of annotation.
@@ -77,6 +77,7 @@ object TestAnnotation {
     TestAnnotation("timing", Duration.Zero, _ + _)
 
   import scala.collection.immutable.SortedSet
+
   import zio.Ref
 
   val fibers: TestAnnotation[Either[Int, Chunk[Ref[SortedSet[Fiber.Runtime[Any, Any]]]]]] =

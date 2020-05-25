@@ -855,24 +855,6 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(name)(isNone)
       }
     ),
-    suite("forkDaemon")(
-      testM("child is unsupervised by parent") {
-        for {
-          p        <- Promise.make[Nothing, Unit]
-          _        <- (p.succeed(()) *> ZIO.never).forkDaemon
-          _        <- p.await
-          children <- ZIO.children
-        } yield assert(children)(isEmpty)
-      },
-      testM("grandchild is supervised by child") {
-        for {
-          p        <- Promise.make[Nothing, Unit]
-          _        <- (p.succeed(()) *> ZIO.never).fork
-          _        <- p.await
-          children <- ZIO.children
-        } yield assert(children)(hasSize(equalTo(1)))
-      } @@ flaky
-    ) @@ zioTag(supervision),
     suite("forkWithErrorHandler")(
       testM("calls provided function when task fails") {
         for {
@@ -2279,11 +2261,14 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(42))
       } @@ zioTag(interruption),
       testM("daemon fiber is unsupervised") {
+        def child(ref: Ref[Boolean]) = withLatch(release => (release *> UIO.never).ensuring(ref.set(true)))
+
         for {
-          ref  <- Ref.make(Option.empty[Fiber[Any, Any]])
-          _    <- withLatch(release => (release *> UIO.never).forkDaemon.tap(fiber => ref.set(Some(fiber))))
-          fibs <- ZIO.children
-        } yield assert(fibs)(isEmpty)
+          ref   <- Ref.make[Boolean](false)
+          fiber <- child(ref).forkDaemon.fork
+          _     <- fiber.join
+          b     <- ref.get
+        } yield assert(b)(isFalse)
       } @@ zioTag(supervision),
       testM("daemon fiber race interruption") {
         def plus1(latch: Promise[Nothing, Unit], finalizer: UIO[Any]) =

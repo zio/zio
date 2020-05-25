@@ -604,7 +604,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Supervise =>
                     val zio = curZio.asInstanceOf[ZIO.Supervise[Any, E, Any]]
 
-                    val lastSupervisor = supervisors.pop()
+                    val lastSupervisor = supervisors.peek()
                     val newSupervisor  = zio.supervisor && lastSupervisor
 
                     val push = ZIO.effectTotal(supervisors.push(newSupervisor))
@@ -664,7 +664,6 @@ private[zio] final class FiberContext[E, A](
       state.get.status,
       state.get.interrupted.interruptors,
       InterruptStatus.fromBoolean(isInterruptible()),
-      children,
       executor,
       scope
     )
@@ -770,12 +769,6 @@ private[zio] final class FiberContext[E, A](
     if (child ne null) _children.add(child)
 
   final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
-
-  final def children: UIO[Iterable[Fiber.Runtime[Any, Any]]] = UIO(childrenToScala())
-
-  @silent("JavaConverters")
-  private def childrenToScala(): Iterable[FiberContext[Any, Any]] =
-    Sync(_children)(_children.asScala.toArray.filter(_ ne null))
 
   def await: UIO[Exit[E, A]] =
     ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]](

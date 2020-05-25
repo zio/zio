@@ -2213,6 +2213,13 @@ object ZManaged {
   def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     b.flatMap(b => if (b) zManaged.unit else unit)
 
+  /**
+   * Locally installs a supervisor and an effect that succeeds with all the
+   * children that have been forked in the returned effect.
+   */
+  def withChildren[R, E, A](get: UIO[Chunk[Fiber.Runtime[Any, Any]]] => ZManaged[R, E, A]): ZManaged[R, E, A] =
+    ZManaged.unwrap(Supervisor.track(true).map(supervisor => get(supervisor.value)))
+
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow((Finalizer.noop, r)))
 }
