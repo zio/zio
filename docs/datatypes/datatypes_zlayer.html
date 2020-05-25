@@ -18,8 +18,8 @@ way in ZIO to create services that depend on other services.</p>
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Example</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">zio</span>.<span class="hljs-title">App</span> </span>{
 
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">ZIO</span>[<span class="hljs-type">ZEnv</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>] =
-    zio.provideLayer(nameLayer).as(<span class="hljs-number">0</span>)
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">ZIO</span>[<span class="hljs-type">ZEnv</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">ExitCode</span>] =
+    zio.provideLayer(nameLayer).as(<span class="hljs-type">ExitCode</span>.success)
 
   <span class="hljs-keyword">val</span> zio = <span class="hljs-keyword">for</span> {
     name &lt;- <span class="hljs-type">ZIO</span>.access[<span class="hljs-type">Has</span>[<span class="hljs-type">String</span>]](_.get)
@@ -97,7 +97,7 @@ way in ZIO to create services that depend on other services.</p>
     } <span class="hljs-keyword">yield</span> ()
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]) =
-    program.provideLayer(env).fold(_ =&gt; <span class="hljs-number">1</span>, _ =&gt; <span class="hljs-number">0</span>)
+    program.provideLayer(env).exitCode
 
 }
 

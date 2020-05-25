@@ -70,7 +70,7 @@
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">zio</span>.<span class="hljs-title">App</span> </span>{
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]) =
-    myAppLogic.fold(_ =&gt; <span class="hljs-number">1</span>, _ =&gt; <span class="hljs-number">0</span>)
+    myAppLogic.exitCode
 
   <span class="hljs-keyword">val</span> myAppLogic =
     <span class="hljs-keyword">for</span> {

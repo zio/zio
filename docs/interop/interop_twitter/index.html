@@ -77,7 +77,7 @@
         _        &lt;- putStrLn(greeting)
       } <span class="hljs-keyword">yield</span> ()
 
-    program.fold(_ =&gt; <span class="hljs-number">1</span>, _ =&gt; <span class="hljs-number">0</span>)
+    program.exitCode
   }
 
   <span class="hljs-keyword">private</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">greet</span></span>(name: <span class="hljs-type">String</span>): <span class="hljs-type">Future</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">Future</span>.value(<span class="hljs-string">s"Hello, <span class="hljs-subst">$name</span>!"</span>)
