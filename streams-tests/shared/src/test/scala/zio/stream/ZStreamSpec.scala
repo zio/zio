@@ -2545,6 +2545,49 @@ object ZStreamSpec extends ZIOBaseSpec {
                   ).reduce(_ && _)
                 }
               )
+          },
+          testM("Preserves errors") {
+            assertM(
+              ZStream
+                .fail(new Exception("boom"))
+                .toInputStream
+                .use(is =>
+                  Task {
+                    is.read
+                  }
+                )
+                .run
+            )(
+              fails(hasMessage(equalTo("boom")))
+            )
+          },
+          testM("Preserves errors in the middle") {
+            val bytes: Seq[Byte]                   = (1 to 5).map(_.toByte)
+            val str: ZStream[Any, Throwable, Byte] = ZStream.fromIterable(bytes) ++ ZStream.fail(new Exception("boom"))
+            assertM(
+              str.toInputStream
+                .use(is =>
+                  Task {
+                    val buf = new Array[Byte](50)
+                    is.read(buf)
+                    "ok"
+                  }
+                )
+                .run
+            )(fails(hasMessage(equalTo("boom"))))
+          },
+          testM("Allows reading something even in case of error") {
+            val bytes: Seq[Byte]                   = (1 to 5).map(_.toByte)
+            val str: ZStream[Any, Throwable, Byte] = ZStream.fromIterable(bytes) ++ ZStream.fail(new Exception("boom"))
+            assertM(
+              str.toInputStream.use(is =>
+                Task {
+                  val buf = new Array[Byte](5)
+                  is.read(buf)
+                  buf.toList
+                }
+              )
+            )(equalTo(bytes))
           }
         ),
         testM("toIterator") {
