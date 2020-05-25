@@ -2781,8 +2781,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     for {
       runtime <- ZIO.runtime[R].toManaged_
       pull    <- process.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Byte]]]]
-      is      <- Task(ZInputStream.fromPull(runtime, pull)).asInstanceOf[ZIO[R, E, java.io.InputStream]].toManaged_
-    } yield is
+    } yield ZInputStream.fromPull(runtime, pull)
 
   /**
    * Converts this stream into a `scala.collection.Iterator` wrapped in a [[ZManaged]].
