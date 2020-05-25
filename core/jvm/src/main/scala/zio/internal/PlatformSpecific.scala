@@ -22,10 +22,10 @@ import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
 
 import scala.concurrent.ExecutionContext
 
-import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
+import zio.{ Cause, Supervisor }
 
 private[internal] trait PlatformSpecific {
 
@@ -97,6 +97,8 @@ private[internal] trait PlatformSpecific {
       def reportFailure(cause: Cause[Any]): Unit =
         if (cause.died)
           System.err.println(cause.prettyPrint)
+
+      val supervisor = Supervisor.none
 
     }
 

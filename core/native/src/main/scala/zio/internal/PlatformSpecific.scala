@@ -21,7 +21,7 @@ import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
 import scala.concurrent.ExecutionContext
 
 import com.github.ghik.silencer.silent
-import zio.Cause
+import zio.{ Cause, Supervisor }
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
 
@@ -86,6 +86,8 @@ private[internal] trait PlatformSpecific {
           println(cause.prettyPrint)
 
       val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
+
+      val supervisor = Supervisor.none
     }
 
   /**

@@ -68,7 +68,6 @@ private[zio] final class FiberContext[E, A](
   private[this] val environments    = Stack[AnyRef](startEnv)
   private[this] val executors       = Stack[Executor](startExec)
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
-  private[this] val _children       = Platform.newConcurrentWeakSet[FiberContext[Any, Any]]()
   private[this] val supervisors     = Stack[Supervisor[Any]](supervisor0)
   private[this] val extenders       = Stack[ZScope[Any]](scopeExtender)
 
@@ -716,8 +715,6 @@ private[zio] final class FiberContext[E, A](
       childContext.onDone(exit => currentSup.unsafeOnEnd(exit, childContext))
     }
 
-    addChild(childContext.asInstanceOf[FiberContext[Any, Any]])
-
     if (parentScope ne ZScope.global) {
       // Create a weak reference to the child fiber, so that we don't prevent it
       // from being garbage collected:
@@ -743,13 +740,6 @@ private[zio] final class FiberContext[E, A](
       )
     }
 
-    if (!Platform.isJVM) {
-      // On all platforms except the JVM, we must remove the child from the
-      // parent when the child is done. On the JVM, we rely on garbage
-      // collection to remove the child from the weak set.
-      childContext.onDone(_ => _children.remove(childContext))
-    }
-
     executor.submitOrThrow(() => childContext.evaluateNow(zio))
 
     childContext
@@ -764,9 +754,6 @@ private[zio] final class FiberContext[E, A](
    * @param value The value produced by the asynchronous computation.
    */
   private[this] def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio => if (exitAsync(epoch)) evaluateLater(zio) }
-
-  private def addChild(child: FiberContext[Any, Any]): Any =
-    if (child ne null) _children.add(child)
 
   final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
 
@@ -907,11 +894,10 @@ private[zio] final class FiberContext[E, A](
 
     oldState match {
       case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], _)
-          if openScope.scope.unsafeEmpty() => // TODO: Dotty doesn't infer this properly
+          if openScope.scope.unsafeClosed() => // TODO: Dotty doesn't infer this properly
 
         /*
-         * We are truly "done" because all the children of this fiber have terminated,
-         * and there are no more pending effects that we have to execute on the fiber.
+         * We are truly "done" because the scope has been closed.
          */
         if (!state.compareAndSet(oldState, Done(v))) done(v)
         else {
@@ -931,6 +917,7 @@ private[zio] final class FiberContext[E, A](
          * We are not done yet, because we have to close the scope of the fiber.
          */
         if (!state.compareAndSet(oldState, Executing(oldStatus.toFinishing, observers, interrupted))) done(v)
+        else if (openScope.scope.unsafeEmpty()) ZIO.done(v)
         else openScope.close(v) *> ZIO.done(v)
 
       case Done(_) => null // Already done

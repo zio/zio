@@ -104,12 +104,10 @@ trait Runtime[+R] {
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap(),
-      Supervisor.none,
+      platform.supervisor,
       scope,
       null
     )
-
-    Fiber.track(context)
 
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)

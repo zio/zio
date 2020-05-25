@@ -16,10 +16,7 @@
 
 package zio
 
-import scala.collection.JavaConverters._
 import scala.concurrent.Future
-
-import com.github.ghik.silencer.silent
 
 import zio.console.Console
 import zio.internal.stacktracer.ZTraceElement
@@ -579,17 +576,6 @@ object Fiber extends FiberPlatformSpecific {
     }
 
   /**
-   * Collects a complete dump of all fibers. This could potentially be quite large.
-   *
-   * TODO: Switch to "streaming lazy" version.
-   */
-  @silent("JavaConverters")
-  val dumpAll: UIO[Iterable[Dump]] =
-    UIO.effectSuspendTotal {
-      dump(internal.Sync(rootFibers)(rootFibers.asScala.toList): _*)
-    }
-
-  /**
    * Collects a complete dump of the specified fibers and all children of the
    * fibers.
    */
@@ -719,13 +705,6 @@ object Fiber extends FiberPlatformSpecific {
     dumpStr(fibers: _*).flatMap(str => console.putStrLn(s"$label: ${str}"))
 
   /**
-   * The root fibers.
-   */
-  val roots: UIO[Set[Fiber[Any, Any]]] = UIO {
-    internal.Sync(rootFibers)(rootFibers.asScala.toSet[Fiber[Any, Any]].filterNot(_ eq null): @silent("JavaConverters"))
-  }
-
-  /**
    * Returns a fiber that has already succeeded with the specified value.
    *
    * @param a success value
@@ -751,33 +730,8 @@ object Fiber extends FiberPlatformSpecific {
 
   private[zio] def newFiberId(): Fiber.Id = Fiber.Id(System.currentTimeMillis(), _fiberCounter.getAndIncrement())
 
-  private[zio] def untrack(context: internal.FiberContext[_, _]): Boolean =
-    if (context ne null) Fiber.rootFibers.remove(context)
-    else false
-
-  private[zio] def track(context: internal.FiberContext[_, _]): Unit =
-    if (context ne null) {
-      Fiber.rootFibers.add(context)
-
-      // On the JVM, rely on garbage collection of the weak set to clean things up:
-      if (!internal.Platform.isJVM) context.onDone(_ => Fiber.rootFibers.remove(context))
-    }
-
-  private[zio] def trackAll(contexts: Iterable[internal.FiberContext[_, _]]): Unit =
-    if (contexts ne null) {
-      Fiber.rootFibers.addAll(contexts.asJavaCollection)
-
-      // On the JVM, rely on garbage collection of the weak set to clean things up:
-      if (!internal.Platform.isJVM) contexts.foreach(untrack(_))
-    }
-
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
-
-  private type RootFibers = java.util.Set[internal.FiberContext[_, _]]
-
-  private val rootFibers: RootFibers =
-    internal.Platform.newConcurrentWeakSet[internal.FiberContext[_, _]]()
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicLong(0)
 }
