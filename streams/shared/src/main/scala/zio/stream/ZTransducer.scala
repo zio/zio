@@ -10,7 +10,9 @@ import zio._
 //
 //   Stated differently, after a first push(None), all subsequent push(None) must
 //   result in Chunk.empty.
-abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]) {
+abstract class ZTransducer[-R, +E, -I, +O](
+  val push: ZManaged[R, Nothing, Option[NonEmptyChunk[I]] => ZIO[R, E, Chunk[O]]]
+) {
   self =>
 
   /**
@@ -18,16 +20,11 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    */
   def >>>[R1 <: R, E1 >: E, O2 >: O, O3](that: ZTransducer[R1, E1, O2, O3]): ZTransducer[R1, E1, I, O3] =
     ZTransducer {
-      self.push.zipWith(that.push) { (pushLeft, pushRight) =>
-        {
-          case None =>
-            pushLeft(None).flatMap(cl =>
-              if (cl.isEmpty) pushRight(None)
-              else pushRight(Some(cl)).zipWith(pushRight(None))(_ ++ _)
-            )
-          case inputs @ Some(_) =>
-            pushLeft(inputs).flatMap(cl => pushRight(Some(cl)))
-        }
+      self.push.zipWith(that.push) { (pushLeft, pushRight) => in =>
+        val c: ZIO[R1, E1, Chunk[O3]] = pushLeft(in).flatMap(cl =>
+          cl.nonEmptyOrElse[ZIO[R1, E1, Chunk[O3]]](ZIO.succeed(Chunk.empty))(c => pushRight(Some(c)))
+        )
+        if (in.isDefined) c else c.zipWith(pushRight(None))(_ ++ _)
       }
     }
 
@@ -79,7 +76,7 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
         ref <- ZRef.make[State](Left(Chunk.empty)).toManaged_
         p1  <- self.push
         p2  <- that.push
-        push = (in: Option[Chunk[I1]]) => {
+        push = (in: Option[NonEmptyChunk[I1]]) => {
           ref.get.flatMap { excess =>
             for {
               res <- p1(in).zipWithPar(p2(in)) {
@@ -106,16 +103,15 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    */
   def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, Z](that: ZSink[R1, E1, O2, Z]): ZSink[R1, E1, I1, Z] =
     ZSink {
-      self.push.zipWith(that.push) { (pushSelf, pushThat) =>
+      self.push.zipWith(that.push) { (pushSelf, pushThat) => inputs =>
         {
-          case None =>
-            pushSelf(None)
-              .mapError(Left(_))
-              .flatMap(chunk => pushThat(Some(chunk)) *> pushThat(None))
-          case inputs @ Some(_) =>
-            pushSelf(inputs)
-              .mapError(Left(_))
-              .flatMap(chunk => pushThat(Some(chunk)))
+          pushSelf(inputs)
+            .mapError(Left(_))
+            .flatMap { chunk =>
+              val update      = chunk.nonEmptyOrElse[ZIO[R1, Either[E1, Z], Unit]](ZIO.unit)(c => pushThat(Some(c)))
+              val termination = if (inputs.isEmpty) pushThat(None) else ZIO.unit
+              update *> termination
+            }
         }
       }
     }
@@ -141,19 +137,21 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   /**
    * Transforms the chunks emitted by this transducer.
    */
-  final def mapChunks[O2](f: Chunk[O] => Chunk[O2]): ZTransducer[R, E, I, O2] =
+  final def mapChunks[O2](f: NonEmptyChunk[O] => Chunk[O2]): ZTransducer[R, E, I, O2] =
     ZTransducer {
-      self.push.map(push => (input: Option[Chunk[I]]) => push(input).map(f))
+      self.push.map(p => input => p(input).map(c => c.nonEmptyOrElse[Chunk[O2]](Chunk.empty)(f)))
     }
 
   /**
    * Effectfully transforms the chunks emitted by this transducer.
    */
   final def mapChunksM[R1 <: R, E1 >: E, O2](
-    f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
+    f: NonEmptyChunk[O] => ZIO[R1, E1, Chunk[O2]]
   ): ZTransducer[R1, E1, I, O2] =
     ZTransducer {
-      self.push.map(push => (input: Option[Chunk[I]]) => push(input).flatMap(f))
+      self.push.map { p => (input: Option[NonEmptyChunk[I]]) =>
+        p(input).flatMap((c: Chunk[O]) => c.nonEmptyOrElse[ZIO[R1, E1, Chunk[O2]]](ZIO.succeed(Chunk.empty))(f))
+      }
     }
 
   /**
@@ -171,7 +169,7 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
 
 object ZTransducer {
   def apply[R, E, I, O](
-    push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
+    push: ZManaged[R, Nothing, Option[NonEmptyChunk[I]] => ZIO[R, E, Chunk[O]]]
   ): ZTransducer[R, E, I, O] =
     new ZTransducer(push) {}
 
@@ -247,15 +245,15 @@ object ZTransducer {
     ZTransducer {
       for {
         dropping <- ZRef.makeManaged(true)
-        push = { (is: Option[Chunk[I]]) =>
+        push = { (is: Option[NonEmptyChunk[I]]) =>
           is match {
             case None => UIO(Chunk.empty)
             case Some(is) =>
               dropping.modify {
-                case false => is -> false
+                case false => is.toChunk -> false
                 case true =>
                   val is1 = is.dropWhile(p)
-                  is1 -> (is1.length == 0)
+                  is1 -> is1.isEmpty
               }
           }
         }
@@ -270,13 +268,13 @@ object ZTransducer {
     ZTransducer {
       for {
         dropping <- ZRef.makeManaged(true)
-        push = { (is: Option[Chunk[I]]) =>
+        push = { (is: Option[NonEmptyChunk[I]]) =>
           is match {
             case None => UIO(Chunk.empty)
-            case Some(is) =>
+            case Some(is: NonEmptyChunk[I]) =>
               dropping.get.flatMap {
-                case false => UIO(is -> false)
-                case true  => is.dropWhileM(p).map(is1 => is1 -> (is1.length == 0))
+                case false => UIO(is.toChunk -> false)
+                case true  => is.dropWhileM(p).map(is1 => is1 -> is1.isEmpty)
               }.flatMap { case (is, pt) => dropping.set(pt) as is }
           }
         }
@@ -590,7 +588,7 @@ object ZTransducer {
   /**
    * Creates a transducer from a chunk processing function.
    */
-  def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]]): ZTransducer[R, E, I, O] =
+  def fromPush[R, E, I, O](push: Option[NonEmptyChunk[I]] => ZIO[R, E, Chunk[O]]): ZTransducer[R, E, I, O] =
     ZTransducer(Managed.succeed(push))
 
   /**

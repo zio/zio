@@ -17,7 +17,7 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
   final def fromOutputStream(
     os: OutputStream
   ): ZSink[Blocking, IOException, Byte, Long] =
-    ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+    ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: NonEmptyChunk[Byte]) =>
       blocking.effectBlockingInterrupt {
         val bytes = byteChunk.toArray
         os.write(bytes)

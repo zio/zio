@@ -139,9 +139,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def aggregate[R1 <: R, E1 >: E, P](sink: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
     ZStream {
       for {
-        pull <- self.process
-        push <- sink.push
-        done <- ZRef.makeManaged(false)
+        pull0 <- self.process
+        pull  = ZStream.pullNonEmpty(pull0)
+        push  <- sink.push
+        done  <- ZRef.makeManaged(false)
         run = {
           def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
             if (_)
@@ -251,10 +252,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               .foldM(
                 push(None).map(ps => Chunk(Take.chunk(ps.map(Right(_))), Take.end)),
                 cause => ZIO.halt(cause),
-                os =>
+                os => {
+                  val pull = os.nonEmptyOrElse[ZIO[R1, E1, Chunk[P]]](ZIO.succeed(Chunk.empty))(c => push(Some(c)))
                   Take
-                    .fromPull(push(Some(os)).asSomeError)
+                    .fromPull(pull.asSomeError)
                     .flatMap(take => updateLastChunk(take).as(Chunk.single(take.map(Right(_)))))
+                }
               )
               .mapError(Some(_))
 
@@ -1276,9 +1279,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       currInnerStream: Ref[ZIO[R1, Option[E1], Chunk[O2]]],
       innerFinalizer: Ref[ZManaged.Finalizer]
     ): ZIO[R1, Option[E1], Chunk[O2]] = {
-      def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
-        pull.flatMap(os => if (os.nonEmpty) UIO.succeed(os) else pullNonEmpty(pull))
-
       def closeInner =
         innerFinalizer.getAndSet(ZManaged.Finalizer.noop).flatMap(_.apply(Exit.unit))
 
@@ -1288,7 +1288,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             if (nextIdx < chunk.size) (UIO.succeed(chunk(nextIdx)), (chunk, nextIdx + 1))
             else
               (
-                pullNonEmpty(outerStream)
+                ZStream
+                  .pullNonEmpty(outerStream)
                   .tap(os => currOuterChunk.set((os, 1)))
                   .map(_.apply(0)),
                 (chunk, nextIdx)
@@ -2282,7 +2283,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def run[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, B]): ZIO[R1, E1, B] =
     (process <*> sink.push).use {
-      case (pull, push) =>
+      case (pull0, push) =>
+        val pull = ZStream.pullNonEmpty(pull0)
         def go: ZIO[R1, E1, B] = pull.foldCauseM(
           Cause
             .sequenceCauseOption(_)
@@ -3028,14 +3030,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def zipWithLatest[R1 <: R, E1 >: E, O2, O3](
     that: ZStream[R1, E1, O2]
-  )(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
-    def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
-      pull.flatMap(chunk => if (chunk.isEmpty) pull else UIO.succeedNow(chunk))
-
+  )(f: (O, O2) => O3): ZStream[R1, E1, O3] =
     ZStream {
       for {
-        left  <- self.process.map(pullNonEmpty(_))
-        right <- that.process.map(pullNonEmpty(_))
+        left  <- self.process.map(ZStream.pullNonEmpty(_))
+        right <- that.process.map(ZStream.pullNonEmpty(_))
         pull <- (ZStream.fromEffectOption {
                  left.raceWith(right)(
                    (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
@@ -3070,7 +3069,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
       } yield pull
     }
-  }
 
   /**
    * Zips each element with the next element if present.
@@ -3583,6 +3581,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         case None    => Pull.end
       }
     }
+
+  def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], NonEmptyChunk[O]] =
+    pull.flatMap(os => os.nonEmptyOrElse[ZIO[R, Option[E], NonEmptyChunk[O]]](pullNonEmpty(pull))(c => UIO.succeed(c)))
 
   /**
    * Constructs a stream from a range of integers (lower bound included, upper bound not included)
