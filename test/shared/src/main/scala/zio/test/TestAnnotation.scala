@@ -47,12 +47,6 @@ object TestAnnotation {
     TestAnnotation("ignored", 0, _ + _)
 
   /**
-   * An annotation which tags tests to be the only ones evaluated.
-   */
-  val only: TestAnnotation[Boolean] =
-    TestAnnotation("only", false, _ || _)
-
-  /**
    * An annotation which counts repeated tests.
    */
   val repeated: TestAnnotation[Int] =

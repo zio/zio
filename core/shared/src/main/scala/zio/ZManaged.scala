@@ -773,6 +773,15 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     }
 
   /**
+   * Runs all the finalizers associated with this scope. This is useful to
+   * conceptually "close" a scope when composing multiple managed effects.
+   * Note that this is only safe if the result of this managed effect is valid
+   * outside its scope.
+   */
+  def release: ZManaged[R, E, A] =
+    ZManaged.fromEffect(useNow)
+
+  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
