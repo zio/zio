@@ -2218,7 +2218,12 @@ object ZManaged {
    * children that have been forked in the returned effect.
    */
   def withChildren[R, E, A](get: UIO[Chunk[Fiber.Runtime[Any, Any]]] => ZManaged[R, E, A]): ZManaged[R, E, A] =
-    ZManaged.unwrap(Supervisor.track(true).map(supervisor => get(supervisor.value)))
+    ZManaged.unwrap(Supervisor.track(true).map { supervisor =>
+      ZManaged.unwrap(ZIO.descriptor.map { d =>
+        // Filter out the fiber id of whoever is calling this:
+        get(supervisor.value.map(_.filter(_.id != d.id)))
+      })
+    })
 
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow((Finalizer.noop, r)))
