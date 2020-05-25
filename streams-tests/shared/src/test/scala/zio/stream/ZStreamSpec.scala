@@ -1848,7 +1848,18 @@ object ZStreamSpec extends ZIOBaseSpec {
               mapM    <- ZStream.fromIterable(m).mapM(UIO.succeedNow).runCollect
               mapMPar <- ZStream.fromIterable(m).mapMPar(n)(UIO.succeedNow).runCollect
             } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
-          })
+          }),
+          testM("awaits children fibers properly") {
+            assertM(
+              ZStream
+                .fromIterable((0 to 100))
+                .interruptWhen(ZIO.never)
+                .mapMPar(8)(_ => ZIO(1).repeat(Schedule.recurs(2000)))
+                .runDrain
+                .run
+                .map(_.interrupted)
+            )(equalTo(false))
+          } @@ nonFlaky(10)
         ),
         suite("mergeTerminateLeft")(
           testM("terminates as soon as the first stream terminates") {

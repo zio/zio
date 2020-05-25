@@ -1909,7 +1909,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               } yield ()
             }.foldCauseM(
                 c => out.offer(Pull.halt(c)).unit.toManaged_,
-                _ => (out.offer(Pull.end) <* ZIO.awaitAllChildren).unit.toManaged_
+                _ => (permits.withPermits(n.toLong)(ZIO.unit).interruptible *> out.offer(Pull.end)).toManaged_
               )
               .fork
       } yield out.take.flatten.map(Chunk.single(_))
