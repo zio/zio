@@ -83,10 +83,12 @@ private[zio] object javaz {
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
   def fromFutureJava[A](future: => Future[A]): RIO[Blocking, A] =
     RIO.effectSuspendTotalWith { (p, _) =>
-      if (future.isDone) {
-        unwrapDone(p.fatal)(future)
+      lazy val lazyFuture: Future[A] = future
+
+      if (lazyFuture.isDone) {
+        unwrapDone(p.fatal)(lazyFuture)
       } else {
-        blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
+        blocking(Task.effectSuspend(unwrapDone(p.fatal)(lazyFuture)))
       }
     }
 

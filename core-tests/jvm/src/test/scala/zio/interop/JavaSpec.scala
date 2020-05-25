@@ -21,6 +21,11 @@ object JavaSpec extends ZIOBaseSpec {
         def ftr: Future[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
         assertM(ZIO.fromFutureJava(ftr).when(false).as(evaluated))(isFalse)
       },
+      testM("execute the `Future` parameter only once") {
+        var count            = 0
+        def ftr: Future[Int] = CompletableFuture.supplyAsync { () => count += 1; count }
+        assertM(ZIO.fromFutureJava(ftr).run)(succeeds(equalTo(1)))
+      },
       testM("catch exceptions thrown by lazy block") {
         val ex                          = new Exception("no future for you!")
         lazy val noFuture: Future[Unit] = throw ex
