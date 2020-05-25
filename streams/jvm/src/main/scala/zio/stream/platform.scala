@@ -1,6 +1,9 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream, OutputStream }
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.Path
 import java.{ util => ju }
 
 import zio._
@@ -151,6 +154,29 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                }
       } yield pull
     }
+
+  /**
+   * Creates a stream of bytes from a file at the specified path.
+   */
+  def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, Throwable, Byte] =
+    ZStream
+      .bracket(blocking.effectBlockingInterrupt(FileChannel.open(path)))(chan =>
+        blocking.effectBlocking(chan.close()).orDie
+      )
+      .flatMap { channel =>
+        ZStream.fromEffect(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
+          ZStream.repeatEffectChunkOption(
+            for {
+              bytesRead <- blocking.effectBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
+              _         <- ZIO.fail(None).when(bytesRead == -1)
+              chunk <- UIO {
+                        reusableBuffer.flip()
+                        Chunk.fromByteBuffer(reusableBuffer)
+                      }
+            } yield chunk
+          )
+        }
+      }
 
   /**
    * Creates a stream from a [[java.io.InputStream]]

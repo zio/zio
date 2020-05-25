@@ -1,11 +1,12 @@
 package zio.stream
 
+import java.nio.file.{ Files, NoSuchFileException, Paths }
+
 import scala.concurrent.ExecutionContext.global
 
-import zio.ZQueueSpecUtil.waitForSize
+import zio._
 import zio.test.Assertion._
-import zio.test.{ testM, _ }
-import zio.{ Chunk, _ }
+import zio.test._
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
   def spec = suite("ZStream JVM")(
@@ -174,22 +175,23 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
         }
       ),
-      testM("fromQueue")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { c =>
-        for {
-          queue <- Queue.unbounded[Int]
-          _     <- queue.offerAll(c.toSeq)
-          fiber <- ZStream
-                    .fromQueue(queue)
-                    .foldWhileM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) =>
-                      IO.succeedNow(el :: acc)
-                    )
-                    .map(_.reverse)
-                    .fork
-          _     <- waitForSize(queue, -1)
-          _     <- queue.shutdown
-          items <- fiber.join
-        } yield assert(items)(equalTo(c.toSeq.toList))
-      })
+      suite("fromFile")(
+        testM("reads from an existing file") {
+          val data = (0 to 100).mkString
+
+          Task(Files.createTempFile("stream", "fromFile")).bracket(path => Task(Files.delete(path)).orDie) { path =>
+            Task(Files.write(path, data.getBytes("UTF-8"))) *>
+              assertM(ZStream.fromFile(path, 24).transduce(ZTransducer.utf8Decode).runCollect.map(_.mkString))(
+                equalTo(data)
+              )
+          }
+        },
+        testM("fails on a nonexistent file") {
+          assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.run)(
+            fails(isSubtype[NoSuchFileException](anything))
+          )
+        }
+      )
     )
   )
 }
