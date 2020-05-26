@@ -2572,6 +2572,14 @@ object ZStreamSpec extends ZIOBaseSpec {
               fails(hasMessage(equalTo("boom")))
             )
           },
+          testM("Be completely lazy") {
+            assertM(
+              ZStream
+                .fail(new Exception("boom"))
+                .toInputStream
+                .use(_ => ZIO.succeed("ok"))
+            )(equalTo("ok"))
+          },
           testM("Preserves errors in the middle") {
             val bytes: Seq[Byte]                   = (1 to 5).map(_.toByte)
             val str: ZStream[Any, Throwable, Byte] = ZStream.fromIterable(bytes) ++ ZStream.fail(new Exception("boom"))
