@@ -3,7 +3,7 @@ package zio.stream
 import java.io.{ IOException, InputStream, OutputStream }
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.{ Files, OpenOption, Path }
+import java.nio.file.{ OpenOption, Path }
 import java.nio.file.StandardOpenOption._
 import java.{ util => ju }
 
@@ -53,12 +53,10 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
             case None => state.get.flatMap(Push.emit)
             case Some(byteChunk) =>
               for {
-                bytesWritten <- state.get
                 justWritten <- blocking.effectBlockingInterrupt {
-                                Files.write(path, byteChunk.toArray)
                                 channel.write(ByteBuffer.wrap(byteChunk.toArray))
                               }.mapError(Left(_))
-                more <- state.set(bytesWritten + justWritten) *> Push.more
+                more <- state.update(_ + justWritten) *> Push.more
               } yield more
           }
       } yield push
