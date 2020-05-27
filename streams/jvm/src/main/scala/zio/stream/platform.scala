@@ -3,14 +3,14 @@ package zio.stream
 import java.io.{ IOException, InputStream, OutputStream }
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.{ OpenOption, Path }
 import java.nio.file.StandardOpenOption._
+import java.nio.file.{ OpenOption, Path }
 import java.{ util => ju }
+
+import scala.collection.JavaConverters._
 
 import zio._
 import zio.blocking.Blocking
-
-import scala.collection.JavaConverters._
 
 trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
 
