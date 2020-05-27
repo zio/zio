@@ -3,8 +3,8 @@ package zio.stream
 import java.nio.file.Files
 
 import zio._
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
   override def spec = suite("ZSink JVM")(
