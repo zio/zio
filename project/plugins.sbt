@@ -14,5 +14,5 @@ addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                   
 addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                     % "1.4.1")
 addSbtPlugin("org.scala-native"                  % "sbt-scala-native"              % "0.4.0-M2")
 addSbtPlugin("org.portable-scala"                % "sbt-scala-native-crossproject" % "1.0.0")
-addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.15")
+addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.16")
 addSbtPlugin("com.geirsson"                      % "sbt-ci-release"                % "1.5.3")
