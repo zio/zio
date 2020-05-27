@@ -28,10 +28,14 @@ trait RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
 
   private def run(spec: ZSpec[Environment, Failure]): URIO[TestLogger with Clock, Int] =
     for {
-      executedSpec <- runSpec(spec)
-      summary      = SummaryBuilder.buildSummary(executedSpec)
-      _            <- TestLogger.logLine(summary.summary)
-    } yield if (executedSpec.hasFailures) 1 else 0
+      results <- runSpec(spec)
+      hasFailures = results.exists {
+        case ExecutedSpec.TestCase(_, test, _) => test.isLeft
+        case _                                 => false
+      }
+      summary = SummaryBuilder.buildSummary(results)
+      _       <- TestLogger.logLine(summary.summary)
+    } yield if (hasFailures) 1 else 0
 
   /**
    * A simple main function that can be used to run the spec.

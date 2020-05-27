@@ -2,79 +2,106 @@ package zio.test
 
 import zio.test.ExecutedSpec._
 
-sealed trait ExecutedSpec[+E] { self =>
+/**
+ * An `ExecutedSpec` is a spec that has been run to produce test results.
+ */
+final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { self =>
 
-  def annotationsMap: TestAnnotationMap =
-    self match {
-      case Suite(_, specs) =>
-        specs.foldLeft(TestAnnotationMap.empty)((annotations, spec) => annotations ++ spec.annotationsMap)
-      case Test(_, _, annotations) => annotations
+  /**
+   * Determines if any node in the spec is satisfied by the given predicate.
+   */
+  def exists(f: SpecCase[E, Boolean] => Boolean): Boolean =
+    fold[Boolean] {
+      case c @ SuiteCase(_, specs) => specs.exists(identity) || f(c)
+      case c @ TestCase(_, _, _)   => f(c)
     }
 
-  def countFailures: Int =
-    self match {
-      case Suite(_, specs)  => specs.foldLeft(0)((n, spec) => n + spec.countFailures)
-      case Test(_, test, _) => test.fold(_ => 1, _ => 0)
+  /**
+   * Folds over all nodes to produce a final result.
+   */
+  def fold[Z](f: SpecCase[E, Z] => Z): Z =
+    caseValue match {
+      case SuiteCase(label, specs) => f(SuiteCase(label, specs.map(_.fold(f))))
+      case t @ TestCase(_, _, _)   => f(t)
     }
 
-  def countIgnored: Int =
-    self match {
-      case Suite(_, specs)  => specs.foldLeft(0)((n, spec) => n + spec.countIgnored)
-      case Test(_, test, _) => test.fold(_ => 0, { case TestSuccess.Ignored => 1; case _ => 0 })
+  /**
+   * Determines if all nodes in the spec are satisfied by the given predicate.
+   */
+  def forall(f: SpecCase[E, Boolean] => Boolean): Boolean =
+    fold[Boolean] {
+      case c @ SuiteCase(_, specs) => specs.forall(identity) && f(c)
+      case c @ TestCase(_, _, _)   => f(c)
     }
 
-  def countSuccesses: Int =
-    self match {
-      case Suite(_, specs)  => specs.foldLeft(0)((n, spec) => n + spec.countSuccesses)
-      case Test(_, test, _) => test.fold(_ => 0, { case TestSuccess.Succeeded(_) => 1; case _ => 0 })
+  /**
+   * Computes the size of the spec, i.e. the number of tests in the spec.
+   */
+  def size: Int =
+    fold[Int] {
+      case SuiteCase(_, counts) => counts.sum
+      case TestCase(_, _, _)    => 1
     }
 
-  def failures: Seq[ExecutedSpec[E]] =
-    self match {
-      case Suite(label, specs) =>
-        val failures = specs.flatMap(_.failures)
-        if (failures.isEmpty) Seq.empty else Seq(Suite(label, failures))
-      case c @ Test(_, test, _) => if (test.isLeft) Seq(c) else Seq.empty
+  /**
+   * Transforms the spec one layer at a time.
+   */
+  def transform[E1](f: SpecCase[E, ExecutedSpec[E1]] => SpecCase[E1, ExecutedSpec[E1]]): ExecutedSpec[E1] =
+    caseValue match {
+      case SuiteCase(label, specs) => ExecutedSpec(f(SuiteCase(label, specs.map(_.transform(f)))))
+      case t @ TestCase(_, _, _)   => ExecutedSpec(f(t))
     }
 
-  def flattenTests[Z](f: Test[E] => Z): Seq[Z] =
-    self match {
-      case Suite(_, specs)   => specs.flatMap(_.flattenTests((f)))
-      case c @ Test(_, _, _) => Seq(f(c))
-    }
+  /**
+   * Transforms the spec statefully, one layer at a time.
+   */
+  def transformAccum[E1, Z](
+    z0: Z
+  )(f: (Z, SpecCase[E, ExecutedSpec[E1]]) => (Z, SpecCase[E1, ExecutedSpec[E1]])): (Z, ExecutedSpec[E1]) =
+    caseValue match {
+      case SuiteCase(label, specs) =>
+        val (z, specs1) =
+          specs.foldLeft(z0 -> Vector.empty[ExecutedSpec[E1]]) {
+            case ((z, vector), spec) =>
+              val (z1, spec1) = spec.transformAccum(z)(f)
 
-  def forAllTests(f: Either[TestFailure[E], TestSuccess] => Boolean): Boolean =
-    self match {
-      case Suite(_, specs)  => specs.forall(_.forAllTests(f))
-      case Test(_, test, _) => f(test)
-    }
+              z1 -> (vector :+ spec1)
+          }
 
-  def hasFailures: Boolean =
-    self match {
-      case Suite(_, specs)  => specs.exists(_.hasFailures)
-      case Test(_, test, _) => test.isLeft
-    }
+        val (z1, caseValue) = f(z, SuiteCase(label, specs1))
 
-  def isEmpty: Boolean =
-    self match {
-      case Suite(_, specs) => specs.forall(_.isEmpty)
-      case Test(_, _, _)   => false
+        z1 -> ExecutedSpec(caseValue)
+      case t @ TestCase(_, _, _) =>
+        val (z, caseValue) = f(z0, t)
+        z -> ExecutedSpec(caseValue)
     }
 }
 
 object ExecutedSpec {
 
-  final case class Suite[+E](label: String, specs: Vector[ExecutedSpec[E]]) extends ExecutedSpec[E]
-  final case class Test[+E](label: String, test: Either[TestFailure[E], TestSuccess], annotations: TestAnnotationMap)
-      extends ExecutedSpec[E]
+  trait SpecCase[+E, +A] { self =>
+    def map[B](f: A => B): SpecCase[E, B] =
+      self match {
+        case SuiteCase(label, specs)            => SuiteCase(label, specs.map(f))
+        case TestCase(label, test, annotations) => TestCase(label, test, annotations)
+      }
+  }
+
+  final case class SuiteCase[+A](label: String, specs: Vector[A]) extends SpecCase[Nothing, A]
+
+  final case class TestCase[+E](
+    label: String,
+    test: Either[TestFailure[E], TestSuccess],
+    annotations: TestAnnotationMap
+  ) extends SpecCase[E, Nothing]
 
   def suite[E](label: String, specs: Vector[ExecutedSpec[E]]): ExecutedSpec[E] =
-    Suite(label, specs)
+    ExecutedSpec(SuiteCase(label, specs))
 
   def test[E](
     label: String,
     test: Either[TestFailure[E], TestSuccess],
     annotations: TestAnnotationMap
   ): ExecutedSpec[E] =
-    Test(label, test, annotations)
+    ExecutedSpec(TestCase(label, test, annotations))
 }

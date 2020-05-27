@@ -21,9 +21,10 @@ object ZTestEvent {
     fullyQualifiedName: String,
     fingerprint: Fingerprint
   ): Seq[ZTestEvent] =
-    executedSpec.flattenTests {
-      case ExecutedSpec.Test(label, result, _) =>
-        ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint)
+    executedSpec.fold[Seq[ZTestEvent]] {
+      case ExecutedSpec.SuiteCase(_, results) => results.flatten
+      case ExecutedSpec.TestCase(label, result, _) =>
+        Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
     }
 
   private def toStatus[E](result: Either[TestFailure[E], TestSuccess]) = result match {
