@@ -16,6 +16,8 @@
 
 package zio
 
+import scala.concurrent.Future
+
 import zio.internal.Tracing
 import zio.internal.tracing.{ TracingConfig, ZIOFn }
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
@@ -89,6 +91,18 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Unit = {
+    unsafeRunAsyncCancelable(zio)(k)
+    ()
+  }
+
+  /**
+   * Executes the effect asynchronously,
+   * eventually passing the exit value to the specified callback.
+   * It returns a callback, which can be used to interrupt the running execution.
+   *
+   * This method is effectful and should only be invoked at the edges of your program.
+   */
+  final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
     val InitialInterruptStatus = InterruptStatus.Interruptible
 
     val fiberId = Fiber.newFiberId()
@@ -109,7 +123,7 @@ trait Runtime[+R] {
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
 
-    ()
+    fiberId => unsafeRun(context.interruptAs(fiberId))
   }
 
   /**
@@ -125,8 +139,13 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be used at the edges of your program.
    */
-  final def unsafeRunToFuture[E <: Throwable, A](zio: ZIO[R, E, A]): CancelableFuture[A] =
-    unsafeRun(zio.forkDaemon >>= (_.toFuture))
+  final def unsafeRunToFuture[E <: Throwable, A](zio: ZIO[R, E, A]): CancelableFuture[A] = {
+    val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
+    val canceler                 = unsafeRunAsyncCancelable(zio)(_.fold(cause => p.failure(cause.squashTraceWith(identity)), p.success))
+    new CancelableFuture[A](p.future) {
+      def cancel(): Future[Exit[Throwable, A]] = Future.successful(canceler(Fiber.Id.None))
+    }
+  }
 
   /**
    * Constructs a new `Runtime` with the specified new environment.
