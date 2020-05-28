@@ -518,7 +518,7 @@ object IO {
    * @see [[zio.ZIO.ifM]]
    */
   def ifM[E](b: IO[E, Boolean]): ZIO.IfM[Any, E] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see See [[zio.ZIO.interrupt]]
@@ -759,8 +759,8 @@ object IO {
   /**
    * @see See [[zio.ZIO.unlessM]]
    */
-  def unlessM[E](b: IO[E, Boolean])(zio: => IO[E, Any]): IO[E, Unit] =
-    ZIO.unlessM(b)(zio)
+  def unlessM[E](b: IO[E, Boolean]): ZIO.UnlessM[Any, E] =
+    ZIO.unlessM(b)
 
   /**
    * @see See [[zio.ZIO.unsandbox]]
@@ -817,8 +817,8 @@ object IO {
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  def whenM[E](b: IO[E, Boolean])(io: => IO[E, Any]): IO[E, Unit] =
-    ZIO.whenM(b)(io)
+  def whenM[E](b: IO[E, Boolean]): ZIO.WhenM[Any, E] =
+    ZIO.whenM(b)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

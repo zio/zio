@@ -518,7 +518,7 @@ object Task extends TaskPlatformSpecific {
    * @see [[zio.ZIO.ifM]]
    */
   def ifM(b: Task[Boolean]): ZIO.IfM[Any, Throwable] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see See [[zio.ZIO.interrupt]]
@@ -754,8 +754,8 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.unlessM]]
    */
-  def unlessM(b: Task[Boolean])(zio: => Task[Any]): Task[Unit] =
-    ZIO.unlessM(b)(zio)
+  def unlessM(b: Task[Boolean]): ZIO.UnlessM[Any, Throwable] =
+    ZIO.unlessM(b)
 
   /**
    * @see [[zio.ZIO.unsandbox]]
@@ -788,8 +788,8 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  def whenM(b: Task[Boolean])(task: => Task[Any]): Task[Unit] =
-    ZIO.whenM(b)(task)
+  def whenM(b: Task[Boolean]): ZIO.WhenM[Any, Throwable] =
+    ZIO.whenM(b)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

@@ -1147,6 +1147,16 @@ object ZManaged {
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
+  final class UnlessM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](managed: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
+      b.flatMap(b => if (b) unit else managed.unit)
+  }
+
+  final class WhenM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](managed: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
+      b.flatMap(b => if (b) managed.unit else unit)
+  }
+
   /**
    * A `ReleaseMap` represents the finalizers associated with a scope.
    *
@@ -2203,8 +2213,8 @@ object ZManaged {
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessM[R, E](b: ZManaged[R, E, Boolean])(zio: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    b.flatMap(b => if (b) unit else zio.unit)
+  def unlessM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.UnlessM[R, E] =
+    new ZManaged.UnlessM(b)
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
@@ -2241,8 +2251,8 @@ object ZManaged {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    b.flatMap(b => if (b) zManaged.unit else unit)
+  def whenM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.WhenM[R, E] =
+    new ZManaged.WhenM(b)
 
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow((Finalizer.noop, r)))
