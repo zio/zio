@@ -67,7 +67,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
               )
             ).unsafeRun(tst)
           )
-      } @@ timeout(1.second),
+      } @@ timeout(1.second) @@ jvmOnly,
       testM("unsafeRunToFuture interruptibility") {
         for {
           runtime <- ZIO.runtime[Any]
