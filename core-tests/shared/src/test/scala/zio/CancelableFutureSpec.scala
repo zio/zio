@@ -44,30 +44,6 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         assertM(Live.live(result.timeout(1.seconds)))(isNone)
       } @@ zioTag(supervision, regression),
-      testM("fromFuture/unsafeRunToFuture doesn't deadlock") {
-        import java.util.concurrent.Executors
-
-        import scala.concurrent.ExecutionContext
-
-        import zio.internal.Executor
-
-        val tst =
-          for {
-            runtime <- ZIO.runtime[Any]
-            r       <- ZIO.fromFuture(_ => runtime.unsafeRunToFuture(UIO.succeedNow(0)))
-          } yield assert(r)(equalTo(0))
-        ZIO
-          .runtime[Any]
-          .map(
-            _.mapPlatform(
-              _.withExecutor(
-                Executor.fromExecutionContext(1)(
-                  ExecutionContext.fromExecutor(Executors.newSingleThreadScheduledExecutor())
-                )
-              )
-            ).unsafeRun(tst)
-          )
-      } @@ timeout(1.second) @@ jvmOnly,
       testM("unsafeRunToFuture interruptibility") {
         for {
           runtime <- ZIO.runtime[Any]
@@ -75,7 +51,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           _       <- UIO(f.cancel())
           r       <- ZIO.fromFuture(_ => f).run
         } yield assert(r.succeeded)(isFalse)
-      } @@ zioTag(interruption),
+      } @@ timeout(1.second) @@ zioTag(interruption),
       testM("roundtrip preserves interruptibility") {
         for {
           start <- Promise.make[Nothing, Unit]
