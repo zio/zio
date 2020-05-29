@@ -3521,8 +3521,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessM[R, E](b: ZIO[R, E, Boolean])(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    b.flatMap(b => if (b) unit else zio.unit)
+  def unlessM[R, E](b: ZIO[R, E, Boolean]): ZIO.UnlessM[R, E] =
+    new ZIO.UnlessM(b)
 
   /**
    * The inverse operation `IO.sandboxed`
@@ -3610,8 +3610,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZIO[R, E, Boolean])(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    b.flatMap(b => if (b) zio.unit else unit)
+  def whenM[R, E](b: ZIO[R, E, Boolean]): ZIO.WhenM[R, E] =
+    new ZIO.WhenM(b)
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh
@@ -3705,6 +3705,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class IfM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZIO[R1, E1, A], onFalse: => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
+  }
+
+  final class UnlessM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](zio: => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
+      b.flatMap(b => if (b) unit else zio.unit)
+  }
+
+  final class WhenM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](zio: => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
+      b.flatMap(b => if (b) zio.unit else unit)
   }
 
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: B) {
