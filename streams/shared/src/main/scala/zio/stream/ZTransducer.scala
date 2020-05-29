@@ -728,6 +728,12 @@ object ZTransducer {
     }
 
   /**
+   * Creates a transducer that limits byte chunks to the given size.
+   */
+  def throttleBytes(limit: Int): ZTransducer[Any, Nothing, Byte, Byte] =
+    throttleChunks[Byte](limit)
+
+  /**
    * Creates a transducer that limits chunks to the given size.
    */
   def throttleChunks[A](limit: Int): ZTransducer[Any, Nothing, A, A] =
