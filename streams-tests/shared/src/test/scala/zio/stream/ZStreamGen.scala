@@ -8,6 +8,9 @@ object ZStreamGen extends GenZIO {
   def tinyListOf[R <: Random, A](g: Gen[R, A]): Gen[R, List[A]] =
     Gen.listOfBounded(0, 5)(g)
 
+  def tinyChunkOf[R <: Random, A](g: Gen[R, A]): Gen[R, Chunk[A]] =
+    Gen.chunkOfBounded(0, 5)(g)
+
   def streamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
     Gen.oneOf(failingStreamGen(a, max), pureStreamGen(a, max))
 
