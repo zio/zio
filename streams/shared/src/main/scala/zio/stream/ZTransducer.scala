@@ -594,14 +594,6 @@ object ZTransducer {
     ZTransducer(Managed.succeed(push))
 
   /**
-   * Creates a transducer that regroups chunks with a limit on the size of individual chunks.
-   */
-  def groupChunks[A](limit: Int): ZTransducer[Any, Nothing, A, A] =
-    identity[A].mapChunks(chunk =>
-      if (chunk.length <= limit) chunk else Chunk.fromArray(chunk.grouped(limit).toArray).flatten
-    )
-
-  /**
    * Creates a transducer that returns the first element of the stream, if it exists.
    */
   def head[O]: ZTransducer[Any, Nothing, O, Option[O]] =
@@ -734,6 +726,14 @@ object ZTransducer {
         }
       }
     }
+
+  /**
+   * Creates a transducer that limits chunks to the given size.
+   */
+  def throttleChunks[A](limit: Int): ZTransducer[Any, Nothing, A, A] =
+    identity[A].mapChunks(chunk =>
+      if (chunk.length <= limit) chunk else Chunk.fromArray(chunk.grouped(limit).toArray).flatten
+    )
 
   /**
    * Decodes chunks of UTF-8 bytes into strings.
