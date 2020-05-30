@@ -1626,7 +1626,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runCollect
               .map(result => assert(result)(equalTo(Chunk("[", "1", "]"))))
           },
-          testM("mkString equivalence") {
+          testM("mkString(Sep) equivalence") {
             checkM(
               Gen
                 .int(0, 10)
@@ -1637,6 +1637,20 @@ object ZStreamSpec extends ZIOBaseSpec {
               for {
                 interspersed <- stream.map(_.toString).intersperse("@").runCollect.map(_.mkString)
                 regular      <- stream.map(_.toString).runCollect.map(_.mkString("@"))
+              } yield assert(interspersed)(equalTo(regular))
+            }
+          },
+          testM("mkString(Before, Sep, After) equivalence") {
+            checkM(
+              Gen
+                .int(0, 10)
+                .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))))
+            ) { chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
+
+              for {
+                interspersed <- stream.map(_.toString).intersperse("[", "@", "]").runCollect.map(_.mkString)
+                regular      <- stream.map(_.toString).runCollect.map(_.mkString("[", "@", "]"))
               } yield assert(interspersed)(equalTo(regular))
             }
           },
