@@ -3606,7 +3606,19 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing chunks of `A` values until it fails with None.
    */
   def repeatEffectChunkOption[R, E, A](fa: ZIO[R, Option[E], Chunk[A]]): ZStream[R, E, A] =
-    ZStream(ZManaged.succeedNow(fa))
+    ZStream {
+      for {
+        done <- Ref.make(false).toManaged_
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else
+            fa.tapError {
+              case None    => done.set(true)
+              case Some(_) => ZIO.unit
+            }
+        }
+      } yield pull
+    }
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
