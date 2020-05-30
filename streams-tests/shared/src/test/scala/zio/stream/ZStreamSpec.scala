@@ -1625,6 +1625,52 @@ object ZStreamSpec extends ZIOBaseSpec {
               .intersperse("[", "@", "]")
               .runCollect
               .map(result => assert(result)(equalTo(Chunk("[", "1", "]"))))
+          },
+          testM("mkString(Sep) equivalence") {
+            checkM(
+              Gen
+                .int(0, 10)
+                .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))))
+            ) { chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
+
+              for {
+                interspersed <- stream.map(_.toString).intersperse("@").runCollect.map(_.mkString)
+                regular      <- stream.map(_.toString).runCollect.map(_.mkString("@"))
+              } yield assert(interspersed)(equalTo(regular))
+            }
+          },
+          testM("mkString(Before, Sep, After) equivalence") {
+            checkM(
+              Gen
+                .int(0, 10)
+                .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))))
+            ) { chunks =>
+              val stream = ZStream.fromChunks(chunks: _*)
+
+              for {
+                interspersed <- stream.map(_.toString).intersperse("[", "@", "]").runCollect.map(_.mkString)
+                regular      <- stream.map(_.toString).runCollect.map(_.mkString("[", "@", "]"))
+              } yield assert(interspersed)(equalTo(regular))
+            }
+          },
+          testM("intersperse several from repeat effect (#3729)") {
+            Stream
+              .repeatEffect(ZIO.succeed(42))
+              .map(_.toString)
+              .take(4)
+              .intersperse("@")
+              .runCollect
+              .map(result => assert(result)(equalTo(Chunk("42", "@", "42", "@", "42", "@", "42"))))
+          },
+          testM("intersperse several from repeat effect chunk single element (#3729)") {
+            Stream
+              .repeatEffectChunk(ZIO.succeed(Chunk(42)))
+              .map(_.toString)
+              .intersperse("@")
+              .take(4)
+              .runCollect
+              .map(result => assert(result)(equalTo(Chunk("42", "@", "42", "@"))))
           }
         ),
         suite("interruptWhen")(
