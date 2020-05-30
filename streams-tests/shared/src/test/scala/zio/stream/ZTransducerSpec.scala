@@ -443,6 +443,17 @@ object ZTransducerSpec extends ZIOBaseSpec {
           )(equalTo(Chunk("abc", "abc")))
         }
       ),
+      suite("throttleChunks")(
+        testM("limits chunks by size") {
+          assertM(
+            Stream
+              .fromChunks(Chunk(0), Chunk(1, 2, 3), Chunk.empty, Chunk(4, 5), Chunk(6), Chunk.empty)
+              .aggregate(ZTransducer.throttleChunks(2))
+              .mapChunks(Chunk.single)
+              .runCollect
+          )(equalTo(Chunk(Chunk(0), Chunk(1, 2), Chunk(3), Chunk(4, 5), Chunk(6))))
+        }
+      ),
       suite("utf8DecodeChunk")(
         testM("regular strings")(checkM(Gen.anyString) { s =>
           ZTransducer.utf8Decode.push.use { push =>
