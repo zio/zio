@@ -3195,7 +3195,16 @@ object ZStreamSpec extends ZIOBaseSpec {
                       .take(10)
                       .runCollect
             } yield assert(res)(equalTo(Chunk(1, 2, 3, 4)))
-          )
+          ),
+          testM("stops evaluating the effect once it fails with None") {
+            for {
+              ref <- Ref.make(0)
+              _ <- ZStream.repeatEffectOption(ref.updateAndGet(_ + 1) *> ZIO.fail(None)).process.use { pull =>
+                    pull.ignore *> pull.ignore
+                  }
+              result <- ref.get
+            } yield assert(result)(equalTo(1))
+          }
         ),
         suite("repeatEffectWith")(
           testM("succeed")(
