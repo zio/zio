@@ -1692,11 +1692,21 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         chunks <- self.process
         pull = chunks.flatMap { os =>
           state.modify { flag =>
-            os.foldRight(List.empty[O1] -> flag) {
-              case (o, (Nil, curr)) => List(o)              -> !curr
-              case (o, (out, curr)) => (o :: middle :: out) -> !curr
+            val builder = ChunkBuilder.make[O1]()
+
+            val flagResult = os.foldLeft(flag) { (flag, o) =>
+              if (!flag) {
+                builder += o
+                !flag
+              } else {
+                builder += middle
+                builder += o
+                flag
+              }
             }
-          }.map(e => Chunk.fromIterable(e))
+
+            (builder.result(), flagResult)
+          }
         }
       } yield pull
     }
