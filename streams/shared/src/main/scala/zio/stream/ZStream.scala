@@ -1688,20 +1688,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def intersperse[O1 >: O](middle: O1): ZStream[R, E, O1] =
     ZStream {
       for {
-        state  <- ZRef.makeManaged(false)
+        state  <- ZRef.makeManaged(true)
         chunks <- self.process
         pull = chunks.flatMap { os =>
-          state.modify { flag =>
-            val builder = ChunkBuilder.make[O1]()
+          state.modify { first =>
+            val builder    = ChunkBuilder.make[O1]()
+            var flagResult = first
 
-            val flagResult = os.foldLeft(flag) { (flag, o) =>
-              if (!flag) {
+            os.foreach { o =>
+              if (flagResult) {
+                flagResult = false
                 builder += o
-                !flag
               } else {
                 builder += middle
                 builder += o
-                flag
               }
             }
 
