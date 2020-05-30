@@ -730,26 +730,19 @@ object ZTransducer {
   /**
    * Creates a transducer that limits byte chunks to the given size.
    */
-  def throttleBytes(limit: Int): ZTransducer[Any, Nothing, Byte, Byte] =
+  def throttleBytes(limit: Int): ZTransducer[Any, Nothing, Byte, Chunk[Byte]] =
     throttleChunks[Byte](limit)
 
   /**
    * Creates a transducer that limits chunks to the given size.
    */
-  def throttleChunks[A](limit: Int): ZTransducer[Any, Nothing, A, A] =
-    ZTransducer(
-      ZRefM
-        .makeManaged[Chunk[A]](Chunk.empty)
-        .map(ref =>
-          _.fold(ref.getAndSet(Chunk.empty))(chunk =>
-            ref.modify(state =>
-              if (state.isEmpty) ZIO.succeedNow(chunk.splitAt(limit))
-              else if (state.length <= limit) ZIO.succeedNow(state -> chunk)
-              else ZIO.succeedNow((state ++ chunk).splitAt(limit))
-            )
-          )
-        )
-    )
+  def throttleChunks[A](limit: Int): ZTransducer[Any, Nothing, A, Chunk[A]] = {
+    @scala.annotation.tailrec
+    def go(z: Chunk[Chunk[A]], chunk: Chunk[A]): Chunk[Chunk[A]] =
+      if (chunk.length <= limit) z + chunk else go(z + chunk.take(limit), chunk.drop(limit))
+
+    ZTransducer.identity[A].mapChunks(go(Chunk.empty, _))
+  }
 
   /**
    * Decodes chunks of UTF-8 bytes into strings.

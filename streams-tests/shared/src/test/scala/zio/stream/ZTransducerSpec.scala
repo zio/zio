@@ -447,11 +447,10 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("limits chunks by size") {
           assertM(
             Stream
-              .fromChunks(Chunk(0), Chunk(1, 2, 3), Chunk.empty, Chunk(4, 5), Chunk(6), Chunk.empty)
+              .fromChunks(Chunk.empty, Chunk(0), Chunk(1, 2, 3), Chunk(4, 5, 6, 7, 8, 9))
               .aggregate(ZTransducer.throttleChunks(2))
-              .mapChunks(Chunk.single)
               .runCollect
-          )(equalTo(Chunk(Chunk(0), Chunk(1, 2), Chunk(3), Chunk(4, 5), Chunk(6))))
+          )(equalTo(Chunk(Chunk(0), Chunk(1, 2), Chunk(3), Chunk(4, 5), Chunk(6, 7), Chunk(8, 9), Chunk.empty)))
         }
       ),
       suite("utf8DecodeChunk")(
