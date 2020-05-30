@@ -737,8 +737,18 @@ object ZTransducer {
    * Creates a transducer that limits chunks to the given size.
    */
   def throttleChunks[A](limit: Int): ZTransducer[Any, Nothing, A, A] =
-    identity[A].mapChunks(chunk =>
-      if (chunk.length <= limit) chunk else Chunk.fromArray(chunk.grouped(limit).toArray).flatten
+    ZTransducer(
+      ZRefM
+        .makeManaged[Chunk[A]](Chunk.empty)
+        .map(ref =>
+          _.fold(ref.getAndSet(Chunk.empty))(chunk =>
+            ref.modify(state =>
+              if (state.isEmpty) ZIO.succeedNow(chunk.splitAt(limit))
+              else if (state.length <= limit) ZIO.succeedNow(state -> chunk)
+              else ZIO.succeedNow((state ++ chunk).splitAt(limit))
+            )
+          )
+        )
     )
 
   /**
