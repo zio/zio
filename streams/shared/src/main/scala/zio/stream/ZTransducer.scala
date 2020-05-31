@@ -739,9 +739,7 @@ object ZTransducer {
   def throttleChunks[A](limit: Int): ZTransducer[Any, Nothing, A, Chunk[A]] = {
     @scala.annotation.tailrec
     def go(z: Chunk[Chunk[A]], chunk: Chunk[A]): Chunk[Chunk[A]] =
-      if (chunk.isEmpty) z
-      else if (chunk.length <= limit) z + chunk
-      else go(z + chunk.take(limit), chunk.drop(limit))
+      if (chunk.isEmpty) z else go(z + chunk.take(limit), chunk.drop(limit))
 
     ZTransducer.identity[A].mapChunks(go(Chunk.empty, _))
   }
