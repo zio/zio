@@ -193,6 +193,24 @@ object ZTransducer {
     }
 
   /**
+   * Creates a transducer that limits chunks to the given size.
+   */
+  def chunkLimit[A](max: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] = {
+
+    def mk(chunk: Chunk[A], z: Chunk[Chunk[A]]): Chunk[Chunk[A]] =
+      if (chunk.isEmpty) z else chunk.take(max) +: mk(chunk.drop(max), z)
+
+    def go(chunk: Chunk[Chunk[A]]): Chunk[Chunk[A]] =
+      (chunk.length: @scala.annotation.switch) match {
+        case 0 => Chunk.empty
+        case 1 => if (chunk.head.length <= max) chunk else chunk.flatMap(mk(_, Chunk.empty))
+        case _ => chunk.flatMap(mk(_, Chunk.empty))
+      }
+
+    ZTransducer.identity[Chunk[A]].mapChunks(go)
+  }
+
+  /**
    * Creates a transducer accumulating incoming values into lists of maximum size `n`.
    */
   def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
@@ -726,17 +744,6 @@ object ZTransducer {
         }
       }
     }
-
-  /**
-   * Creates a transducer that limits chunks to the given size.
-   */
-  def throttleChunks[A](limit: Int): ZTransducer[Any, Nothing, A, Chunk[A]] = {
-    @scala.annotation.tailrec
-    def go(z: Chunk[Chunk[A]], chunk: Chunk[A]): Chunk[Chunk[A]] =
-      if (chunk.isEmpty) z else go(z + chunk.take(limit), chunk.drop(limit))
-
-    ZTransducer.identity[A].mapChunks(go(Chunk.empty, _))
-  }
 
   /**
    * Decodes chunks of UTF-8 bytes into strings.

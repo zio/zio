@@ -79,6 +79,15 @@ object ZTransducerSpec extends ZIOBaseSpec {
       )
     ),
     suite("Constructors")(
+      suite("chunkLimit")(
+        testM("limits chunks by size") {
+          val max  = 64
+          val push = ZTransducer.chunkLimit[Byte](max).push
+          checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyByte)))(bytes =>
+            push.use(_.apply(Some(bytes)).map(chunk => assert(chunk.forall(_.length <= max))(equalTo(true))))
+          )
+        }
+      ),
       suite("collectAllN")(
         testM("happy path") {
           val parser = ZTransducer.collectAllN[Int](3)
@@ -441,16 +450,6 @@ object ZTransducerSpec extends ZIOBaseSpec {
               .aggregate(ZTransducer.splitOn("<>"))
               .runCollect
           )(equalTo(Chunk("abc", "abc")))
-        }
-      ),
-      suite("throttleChunks")(
-        testM("limits chunks by size") {
-          assertM(
-            Stream
-              .fromChunks(Chunk.empty, Chunk(0), Chunk(1, 2, 3), Chunk(4, 5, 6, 7, 8, 9))
-              .aggregate(ZTransducer.throttleChunks(2))
-              .runCollect
-          )(equalTo(Chunk(Chunk(0), Chunk(1, 2), Chunk(3), Chunk(4, 5), Chunk(6, 7), Chunk(8, 9))))
         }
       ),
       suite("utf8DecodeChunk")(
