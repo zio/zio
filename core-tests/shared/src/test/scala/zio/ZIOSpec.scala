@@ -3285,10 +3285,10 @@ object ZIOSpec extends ZIOBaseSpec {
         val e1: UIO[Unit]                 = ZIO.fail(error1).unit.orDieWith(new Exception(_))
         val t1: IO[String, Unit]          = e1
         val e2: IO[String, Unit]          = t1.orElse(ZIO.fail(error2))
-        val res: Task[Unit]               = e2.resurrectWith(new Exception(_))
-        val e3: UIO[Either[String, Unit]] = res.mapError(_.getMessage).either
+        val e3: IO[String, Unit]          = e2.resurrectWith(_.getMessage)
+        val e4: UIO[Either[String, Unit]] = e3.either
 
-        assertM(e3)(isLeft(equalTo(error1)))
+        assertM(e4)(isLeft(equalTo(error1)))
       }
     )
   )
