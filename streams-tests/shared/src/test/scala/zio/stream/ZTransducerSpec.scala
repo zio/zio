@@ -83,7 +83,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("chunks individual chunks") {
           val push = ZTransducer.chunkChunks[Byte].push
           checkM(Gen.chunkOf(Gen.anyByte))(bytes =>
-            push.use(_.apply(Some(bytes)).map(chunk => assert(chunk.forall(_.length == bytes.length))(equalTo(true))))
+            push.use(_.apply(Some(bytes)).map(chunk => assert(chunk.flatten)(equalTo(bytes))))
           )
         }
       ),
@@ -92,7 +92,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
           val max  = 64
           val push = ZTransducer.chunkLimit[Byte](max).push
           checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyByte)))(bytes =>
-            push.use(_.apply(Some(bytes)).map(chunk => assert(chunk.forall(_.length <= max))(equalTo(true))))
+            push.use(
+              _.apply(Some(bytes)).map(chunk =>
+                assert(chunk.forall(_.length <= max))(equalTo(true)) && assert(chunk.flatten)(equalTo(bytes.flatten))
+              )
+            )
           )
         }
       ),
