@@ -1,13 +1,11 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream, OutputStream }
-
-import java.nio.channels.FileChannel
-import java.nio.file.Path
 import java.net.InetSocketAddress
+import java.nio.channels.FileChannel
 import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler }
+import java.nio.file.Path
 import java.nio.{ Buffer, ByteBuffer }
-
 import java.{ util => ju }
 
 import zio._
@@ -300,7 +298,15 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
 
     } yield conn
 
+  /**
+   * Accepted connection made to a specific channel `AsynchronousServerSocketChannel`
+   */
   class Connection(socket: AsynchronousSocketChannel) {
+
+    /**
+     * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`
+     * The caller of this function is NOT responsible for closing the `AsynchronousSocketChannel`.
+     */
     def read: Stream[Throwable, Byte] =
       ZStream.unfoldChunkM(0) {
         case -1 => ZIO.succeed(Option.empty)
@@ -323,15 +329,22 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
           }
       }
 
+    /**
+     * Write the entire Chuck[Byte] to the socket channel.
+     * The caller of this function is NOT responsible for closing the `AsynchronousSocketChannel`.
+     *
+     * The sink will yield the count of bytes written.
+     */
     def write: Sink[Throwable, Byte, Int] =
       ZSink.foldLeftChunksM(0) {
-        case (_, c) =>
+        case (nbBytesWritten, c) =>
           IO.effectAsync[Throwable, Int] { callback =>
             socket.write(
               ByteBuffer.wrap(c.toArray),
               null,
               new CompletionHandler[Integer, Void] {
-                override def completed(result: Integer, attachment: Void): Unit = callback(ZIO.succeed(result.toInt))
+                override def completed(result: Integer, attachment: Void): Unit =
+                  callback(ZIO.succeed(nbBytesWritten + result.toInt))
 
                 override def failed(error: Throwable, attachment: Void): Unit = callback(ZIO.fail(error))
               }
@@ -339,10 +352,17 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
           }
       }
 
+    /**
+     * Close the underlying socket
+     */
     def close(): UIO[Unit] = ZIO.effectTotal(socket.close())
   }
 
   object Connection {
+
+    /**
+     * Create a `Managed` connection
+     */
     def make(socket: AsynchronousSocketChannel): UManaged[Connection] =
       Managed.make(ZIO.succeed(new Connection(socket)))(_.close())
   }
