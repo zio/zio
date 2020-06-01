@@ -99,21 +99,24 @@ package object laws {
     type Invariant[-CapsF[_[_]], -Caps[_]]      = ZLawsF.Invariant[CapsF, Caps, Any]
 
     object Covariant {
-      type Law1[-CapsF[_[+_]], -Caps[_]]  = ZLawsF.Covariant.Law1[CapsF, Caps]
-      type Law1M[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.Law1M[CapsF, Caps, Any]
-      type Law2[-CapsF[_[+_]], -Caps[_]]  = ZLawsF.Covariant.Law2[CapsF, Caps]
-      type Law2M[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.Law2M[CapsF, Caps, Any]
-      type Law3[-CapsF[_[+_]], -Caps[_]]  = ZLawsF.Covariant.Law3[CapsF, Caps]
-      type Law3M[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.Law3M[CapsF, Caps, Any]
+      type ComposeLaw[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.ComposeLaw[CapsF, Caps]
+      type FlattenLaw[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.FlattenLaw[CapsF, Caps]
+      type Law1[-CapsF[_[+_]], -Caps[_]]       = ZLawsF.Covariant.Law1[CapsF, Caps]
+      type Law1M[-CapsF[_[+_]], -Caps[_]]      = ZLawsF.Covariant.Law1M[CapsF, Caps, Any]
+      type Law2[-CapsF[_[+_]], -Caps[_]]       = ZLawsF.Covariant.Law2[CapsF, Caps]
+      type Law2M[-CapsF[_[+_]], -Caps[_]]      = ZLawsF.Covariant.Law2M[CapsF, Caps, Any]
+      type Law3[-CapsF[_[+_]], -Caps[_]]       = ZLawsF.Covariant.Law3[CapsF, Caps]
+      type Law3M[-CapsF[_[+_]], -Caps[_]]      = ZLawsF.Covariant.Law3M[CapsF, Caps, Any]
     }
 
     object Contravariant {
-      type Law1[-CapsF[_[-_]], -Caps[_]]  = ZLawsF.Contravariant.Law1[CapsF, Caps]
-      type Law1M[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.Law1M[CapsF, Caps, Any]
-      type Law2[-CapsF[_[-_]], -Caps[_]]  = ZLawsF.Contravariant.Law2[CapsF, Caps]
-      type Law2M[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.Law2M[CapsF, Caps, Any]
-      type Law3[-CapsF[_[-_]], -Caps[_]]  = ZLawsF.Contravariant.Law3[CapsF, Caps]
-      type Law3M[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.Law3M[CapsF, Caps, Any]
+      type ComposeLaw[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.ComposeLaw[CapsF, Caps]
+      type Law1[-CapsF[_[-_]], -Caps[_]]       = ZLawsF.Contravariant.Law1[CapsF, Caps]
+      type Law1M[-CapsF[_[-_]], -Caps[_]]      = ZLawsF.Contravariant.Law1M[CapsF, Caps, Any]
+      type Law2[-CapsF[_[-_]], -Caps[_]]       = ZLawsF.Contravariant.Law2[CapsF, Caps]
+      type Law2M[-CapsF[_[-_]], -Caps[_]]      = ZLawsF.Contravariant.Law2M[CapsF, Caps, Any]
+      type Law3[-CapsF[_[-_]], -Caps[_]]       = ZLawsF.Contravariant.Law3[CapsF, Caps]
+      type Law3M[-CapsF[_[-_]], -Caps[_]]      = ZLawsF.Contravariant.Law3M[CapsF, Caps, Any]
     }
 
     object Invariant {
