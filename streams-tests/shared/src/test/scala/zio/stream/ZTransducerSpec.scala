@@ -79,6 +79,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
       )
     ),
     suite("Constructors")(
+      suite("chunkChunks")(
+        testM("chunks individual chunks") {
+          val push = ZTransducer.chunkChunks[Byte].push
+          checkM(Gen.chunkOf(Gen.anyByte))(bytes =>
+            push.use(_.apply(Some(bytes)).map(chunk => assert(chunk.forall(_.length == bytes.length))(equalTo(true))))
+          )
+        }
+      ),
       suite("chunkLimit")(
         testM("limits chunks by size") {
           val max  = 64

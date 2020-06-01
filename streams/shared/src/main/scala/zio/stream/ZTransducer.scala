@@ -193,6 +193,12 @@ object ZTransducer {
     }
 
   /**
+   * Creates a transducer that chunks individual chunks.
+   */
+  def chunkChunks[A]: ZTransducer[Any, Nothing, A, Chunk[A]] =
+    identity[A].mapChunks(chunk => if (chunk.isEmpty) Chunk.empty else Chunk.single(chunk))
+
+  /**
    * Creates a transducer that limits chunks to the given size.
    */
   def chunkLimit[A](max: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] = {
