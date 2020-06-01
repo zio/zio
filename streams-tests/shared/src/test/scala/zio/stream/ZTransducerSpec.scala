@@ -1,7 +1,5 @@
 package zio.stream
 
-import ZStreamGen._
-
 import zio._
 import zio.test.Assertion._
 import zio.test._
@@ -61,21 +59,6 @@ object ZTransducerSpec extends ZIOBaseSpec {
           val parser = initErrorParser.mapM[Any, String, String](n => UIO.succeed(n.toString))
           assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
-      ),
-      suite("zipWith")(
-        testM("coherence with List#zip") {
-          val t1: ZTransducer[Any, Nothing, Int, List[Int]] = Transducer.collectAllN(2)
-          val t2: ZTransducer[Any, Nothing, Int, List[Int]] = Transducer.collectAllN(3)
-          def f(l: List[Int], r: List[Int]): List[Int]      = l ++ r
-          val t3                                            = t1.zipWith(t2)(f)
-          checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
-            for {
-              lefts  <- ZStream.fromChunks(chunks: _*).transduce(t1).runCollect
-              rights <- ZStream.fromChunks(chunks: _*).transduce(t2).runCollect
-              zipped <- ZStream.fromChunks(chunks: _*).transduce(t3).runCollect
-            } yield assert(zipped)(equalTo(lefts.zip(rights).map(e => f(e._1, e._2))))
-          }
-        }
       )
     ),
     suite("Constructors")(
