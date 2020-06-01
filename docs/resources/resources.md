@@ -3,6 +3,8 @@ id: resources
 title:  "Resources"
 ---
 
+### If you find a new great library, talk, resource, slides or project, related to ZIO, consider adding to the list with your PR
+
 ## Blog Articles
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
@@ -60,6 +62,9 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [ZIO Schedule: Conquering Flakiness and Recurrence with Pure Functional Programming](https://www.youtube.com/watch?v=onQSHiafAY8&t=1s) by John De Goes (October 2018)
 - [ZIO: Next-Generation Effects in Scala](https://www.youtube.com/watch?v=mkSHhsJXjdc&t=6s) by John De Goes (October 2018)
 - [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
+
+## Cookbooks 
+- [ZIO Cookbook](https://github.com/Neurodyne/zio-cookbook) A beginners' tour to ZIO by Boris V.Kuznetsov
 
 ## Cheat Sheet
 
