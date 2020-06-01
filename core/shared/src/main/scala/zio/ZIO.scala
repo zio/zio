@@ -1062,7 +1062,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *   val f3: IO[String, Unit] = f2.resurrectWith(_.getMessage)
    * }}}
    */
-  final def resurrectWith[E1 >: E](f: Throwable => E1)(implicit ev: CanFail[E]): ZIO[R, E1, A] =
+  final def resurrectWith[E1 >: E](f: Throwable => E1): ZIO[R, E1, A] =
     self.sandbox.mapError(_.failureOrCause.map(c => f(c.squash)).merge)
 
   /**
