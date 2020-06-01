@@ -1042,6 +1042,30 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     (self mapError f) catchAll (IO.die(_))
 
   /**
+   * Unearth the unchecked failure of the effect. (opposite of `orDie`)
+   * {{{
+   *  val f0: Task[Unit] = ZIO.fail(new Exception("failing")).unit
+   *  val f1: UIO[Unit]  = f0.orDie
+   *  val f2: Task[Unit] = f1.resurrect
+   * }}}
+   */
+  final def resurrect(implicit ev1: E <:< Throwable): RIO[R, A] =
+    sandbox.mapError(_.squash)
+
+  /**
+   * Unearth the unchecked failure of the effect. (symmetrical with `orDieWith`)
+   * {{{
+   *   val f0: IO[String, Unit] = ZIO.fail("err 0").unit
+   *   val f1: UIO[Unit]        = f0.orDieWith(msg => new Exception(msg))
+   *   val ft: Task[Unit]       = ft
+   *   val f2: IO[String, Unit] = ft.orElse(ZIO.fail("err 1"))
+   *   val f3: Task[Unit]       = f2.resurrectWith(msg => new Exception(msg))
+   * }}}
+   */
+  final def resurrectWith(f: E => Throwable)(implicit ev: CanFail[E]): RIO[R, A] =
+    self.mapError(f).resurrect
+
+  /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise executes the specified effect.
    */

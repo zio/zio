@@ -3269,7 +3269,28 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- ZIO.fromFuture(_ => future).either
         } yield assert(result)(isLeft(hasThrowableCause(hasThrowableCause(hasMessage(containsString("Fiber:Id("))))))
       }
-    ) @@ zioTag(future)
+    ) @@ zioTag(future),
+    suite("resurrect")(
+      testM("should fail checked") {
+        val error: Exception   = new Exception("msg")
+        val effect: Task[Unit] = ZIO.fail(error).unit.orDie.resurrect
+        assertM(effect.either)(isLeft(equalTo(error)))
+      }
+    ),
+    suite("resurrect with")(
+      testM("should fail checked") {
+        val error1 = "msg1"
+        val error2 = "msg2"
+
+        val e1: UIO[Unit]                 = ZIO.fail(error1).unit.orDieWith(new Exception(_))
+        val t1: IO[String, Unit]          = e1
+        val e2: IO[String, Unit]          = t1.orElse(ZIO.fail(error2))
+        val res: Task[Unit]               = e2.resurrectWith(new Exception(_))
+        val e3: UIO[Either[String, Unit]] = res.mapError(_.getMessage).either
+
+        assertM(e3)(isLeft(equalTo(error1)))
+      }
+    )
   )
 
   def functionIOGen: Gen[Random with Sized, String => Task[Int]] =
