@@ -1442,6 +1442,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(zio2)(anything)
       }
     ),
+    suite("provideCustom")(
+      testM("provides the part ot the environment that is not part of the `ZEnv`") {
+        val logging: Logging                           = Has(new Logging.Service {})
+        val zio: ZIO[ZEnv with Logging, Nothing, Unit] = ZIO.unit
+        val zio2: ZIO[ZEnv, Nothing, Unit]             = zio.provideCustom(logging)
+        assertM(zio2)(anything)
+      }
+    ),
     suite("provideSomeLayer")(
       testM("can split environment into two parts") {
         val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
