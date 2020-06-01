@@ -52,6 +52,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Wehkamp](https://www.wehkamp.nl)
 * [LeadIQ](https://leadiq.com)
 * [Call Handling](https://www.callhandling.co.uk/)
+* [Univalence](https://univalence.io)
 
 # Sponsors
 
