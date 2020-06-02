@@ -171,18 +171,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
   .dependsOn(core)
   .settings(stdSettings("zio-streams"))
-  .settings(
-    Compile / unmanagedSourceDirectories ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, x)) if x <= 12 =>
-          Seq(file(sourceDirectory.value.getPath + "/main/scala-2.11-2.12"))
-        case x if x.exists(_._2 == 13) || isDotty.value =>
-          Seq(file(sourceDirectory.value.getPath + "/main/scala-2.13"))
-        case _ =>
-          Nil
-      }
-    }
-  )
+  .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
