@@ -35,13 +35,6 @@ import scala.reflect.{ classTag, ClassTag }
 sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
   /**
-   * Appends an element to the chunk
-   */
-  final def +[A1 >: A](a: A1): Chunk[A1] =
-    if (self.length == 0) Chunk.single(a)
-    else Chunk.Concat(self, Chunk.single(a))
-
-  /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
   final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
@@ -51,13 +44,6 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
     that.prepend(self)
-
-  /**
-   * Appends an element to the chunk
-   */
-  protected def append[A1 >: A](a: A1): Chunk[A1] =
-    if (self.length == 0) Chunk.single(a)
-    else Chunk.Concat(self, Chunk.single(a))
 
   /**
    * Converts a chunk of bytes to a chunk of bits.
@@ -730,6 +716,20 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     if (isEmpty) () else materialize.toArray(n, dest)
 
   /**
+   * Appends an element to the chunk.
+   */
+  protected def append[A1 >: A](a: A1): Chunk[A1] =
+    if (self.length == 0) Chunk.single(a)
+    else Chunk.Concat(self, Chunk.single(a))
+
+  /**
+   * Prepends an element to the chunk.
+   */
+  protected def prepend[A1 >: A](a: A1): Chunk[A1] =
+    if (self.length == 0) Chunk.single(a)
+    else Chunk.Concat(Chunk.single(a), self)
+
+  /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
   protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] =
@@ -938,6 +938,7 @@ object Chunk {
       case x: Arr[A]         => x.classTag
       case x: Concat[A]      => x.classTag
       case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+      case x: PrependN[A]    => x.classTag
       case x: Singleton[A]   => x.classTag
       case x: Slice[A]       => x.classTag
       case x: VectorChunk[A] => x.classTag
@@ -977,6 +978,34 @@ object Chunk {
     }
   }
 
+  private final case class PrependN[A](end: Chunk[A], buffer: Array[AnyRef], bufferUsed: Int, chain: AtomicInteger)
+      extends Chunk[A] { self =>
+
+    implicit val classTag: ClassTag[A] = classTagOf(end)
+
+    val length: Int =
+      end.length + bufferUsed
+
+    override protected def prepend[A1 >: A](a1: A1): Chunk[A1] =
+      if (bufferUsed < buffer.length && chain.compareAndSet(bufferUsed, bufferUsed + 1)) {
+        buffer(BufferSize - bufferUsed - 1) = a1.asInstanceOf[AnyRef]
+        PrependN(end, buffer, bufferUsed + 1, chain)
+      } else {
+        val buffer = Array.ofDim[AnyRef](BufferSize)
+        buffer(BufferSize - 1) = a1.asInstanceOf[AnyRef]
+        PrependN(self, buffer, 1, new AtomicInteger(1))
+      }
+
+    def apply(n: Int): A =
+      if (n < bufferUsed) buffer(BufferSize - bufferUsed + n).asInstanceOf[A] else end(n - bufferUsed)
+
+    override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
+      val length = math.min(bufferUsed, math.max(dest.length - n, 0))
+      Array.copy(buffer, BufferSize - bufferUsed, dest, n, length)
+      val _ = end.toArray(n + length, dest)
+    }
+  }
+
   private[zio] sealed abstract class Arr[A] extends Chunk[A] with Serializable { self =>
 
     val array: Array[A]
@@ -986,12 +1015,6 @@ object Chunk {
 
     override val length: Int =
       array.length
-
-    override protected def append[A1 >: A](a1: A1): Chunk[A] = {
-      val buffer = Array.ofDim[AnyRef](BufferSize)
-      buffer(0) = a1.asInstanceOf[AnyRef]
-      AppendN(self, buffer, 1, new AtomicInteger(1))
-    }
 
     override def apply(n: Int): A =
       array(n)
@@ -1131,6 +1154,18 @@ object Chunk {
 
     override def materialize[A1 >: A]: Chunk[A1] =
       self
+
+    override protected def append[A1 >: A](a1: A1): Chunk[A] = {
+      val buffer = Array.ofDim[AnyRef](BufferSize)
+      buffer(0) = a1.asInstanceOf[AnyRef]
+      AppendN(self, buffer, 1, new AtomicInteger(1))
+    }
+
+    override protected def prepend[A1 >: A](a1: A1): Chunk[A] = {
+      val buffer = Array.ofDim[AnyRef](BufferSize)
+      buffer(BufferSize - 1) = a1.asInstanceOf[AnyRef]
+      PrependN(self, buffer, 1, new AtomicInteger(1))
+    }
 
     /**
      * Takes all elements so long as the predicate returns true.

@@ -876,9 +876,9 @@ object ZManagedSpec extends ZIOBaseSpec {
         val expected = Chunk("acquiring a", "acquiring b", "releasing b", "acquiring c", "releasing c", "releasing a")
         for {
           ref     <- Ref.make[Chunk[String]](Chunk.empty)
-          a       = Managed.make(ref.update(_ + "acquiring a"))(_ => ref.update(_ + "releasing a"))
-          b       = Managed.make(ref.update(_ + "acquiring b"))(_ => ref.update(_ + "releasing b"))
-          c       = Managed.make(ref.update(_ + "acquiring c"))(_ => ref.update(_ + "releasing c"))
+          a       = Managed.make(ref.update(_ :+ "acquiring a"))(_ => ref.update(_ :+ "releasing a"))
+          b       = Managed.make(ref.update(_ :+ "acquiring b"))(_ => ref.update(_ :+ "releasing b"))
+          c       = Managed.make(ref.update(_ :+ "acquiring c"))(_ => ref.update(_ :+ "releasing c"))
           managed = a *> b.release *> c
           _       <- managed.useNow
           log     <- ref.get
