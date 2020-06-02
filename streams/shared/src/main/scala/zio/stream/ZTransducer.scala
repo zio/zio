@@ -196,28 +196,30 @@ object ZTransducer {
    * Creates a transducer that emits non-empty chunks of size bounded by `max`.
    */
   def chunkLimit[A](max: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
-    ZTransducer
-      .identity[Chunk[A]]
-      .mapChunks(in =>
-        (in.length: @scala.annotation.switch) match {
-          case 0                          => Chunk.empty
-          case 1 if in.head.length <= max => in
-          case l =>
-            val cb = ChunkBuilder.make[Chunk[A]]()
-            var hd = in.head
-            var i  = 1
-            while (hd.nonEmpty || i < l) {
-              if (hd.isEmpty) {
-                hd = in(i)
-                i += 1
-              } else {
-                cb += hd.take(max)
-                hd = hd.drop(max)
+    if (max <= 0) die(new IllegalArgumentException(s"cannot limit chunks for size $max"))
+    else
+      ZTransducer
+        .identity[Chunk[A]]
+        .mapChunks(in =>
+          (in.length: @scala.annotation.switch) match {
+            case 0                          => Chunk.empty
+            case 1 if in.head.length <= max => in
+            case l =>
+              val cb = ChunkBuilder.make[Chunk[A]]()
+              var hd = in.head
+              var i  = 1
+              while (hd.nonEmpty || i < l) {
+                if (hd.isEmpty) {
+                  hd = in(i)
+                  i += 1
+                } else {
+                  cb += hd.take(max)
+                  hd = hd.drop(max)
+                }
               }
-            }
-            cb.result()
-        }
-      )
+              cb.result()
+          }
+        )
 
   /**
    * Creates a transducer that emits chunks of a fixed `size`.
@@ -227,38 +229,40 @@ object ZTransducer {
     size: Int,
     pad: Chunk[A] => Chunk[A] = (c: Chunk[A]) => c
   ): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
-    apply(ZRef.make[Chunk[A]](Chunk.empty).toManaged_.map { ref =>
-      def push(option: Option[Chunk[Chunk[A]]]): UIO[Chunk[Chunk[A]]] =
-        option.fold(
-          ref
-            .getAndSet(Chunk.empty)
-            .map(as =>
-              as.length match {
-                case 0      => Chunk.empty
-                case `size` => Chunk.single(as)
-                case _      => Chunk.single(pad(as))
+    if (size <= 0) die(new IllegalArgumentException(s"cannot create chunks for size $size"))
+    else
+      apply(ZRef.make[Chunk[A]](Chunk.empty).toManaged_.map { ref =>
+        def push(option: Option[Chunk[Chunk[A]]]): UIO[Chunk[Chunk[A]]] =
+          option.fold(
+            ref
+              .getAndSet(Chunk.empty)
+              .map(as =>
+                as.length match {
+                  case 0      => Chunk.empty
+                  case `size` => Chunk.single(as)
+                  case _      => Chunk.single(pad(as))
+                }
+              )
+          )(in =>
+            ref.modify { as =>
+              val cb  = ChunkBuilder.make[Chunk[A]]()
+              var rem = as
+              var i   = 0
+              while (rem.length >= size || i < in.length) {
+                if (rem.length >= size) {
+                  cb += rem.take(size)
+                  rem = rem.drop(size)
+                } else {
+                  rem = rem ++ in(i)
+                  i += 1
+                }
               }
-            )
-        )(in =>
-          ref.modify { as =>
-            val cb  = ChunkBuilder.make[Chunk[A]]()
-            var rem = as
-            var i   = 0
-            while (rem.length >= size || i < in.length) {
-              if (rem.length >= size) {
-                cb += rem.take(size)
-                rem = rem.drop(size)
-              } else {
-                rem = rem ++ in(i)
-                i += 1
-              }
+              (cb.result(), rem)
             }
-            (cb.result(), rem)
-          }
-        )
+          )
 
-      push
-    })
+        push
+      })
 
   /**
    * Creates a transducer that chunks individual chunks.
