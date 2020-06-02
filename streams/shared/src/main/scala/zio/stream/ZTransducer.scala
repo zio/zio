@@ -217,6 +217,35 @@ object ZTransducer {
   }
 
   /**
+   * Creates a transducer that emits chunks of a fixed `size`.
+   * The `pad` function is called on the last chunk if it does not have sufficient elements.
+   */
+  def chunkN[A](size: Int, pad: Chunk[A] => Chunk[A]): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
+    apply(ZRefM.make[Chunk[A]](Chunk.empty).toManaged_.map { ref =>
+      @scala.annotation.tailrec
+      def go(as: Chunk[A], in: Chunk[Chunk[A]], out: Chunk[Chunk[A]]): (Chunk[Chunk[A]], Chunk[A]) =
+        if (in.isEmpty)
+          if (as.length < size) (out, as) else go(as.drop(size), in, out + as.take(size))
+        else if (as.length < size) go(as ++ in.head, in.tail, out)
+        else go(as.drop(size), in, out + as.take(size))
+
+      def push(option: Option[Chunk[Chunk[A]]]): UIO[Chunk[Chunk[A]]] =
+        option.fold(
+          ref
+            .getAndSet(Chunk.empty)
+            .map(as =>
+              as.length match {
+                case 0      => Chunk.empty
+                case `size` => Chunk.single(as)
+                case _      => Chunk.single(pad(as))
+              }
+            )
+        )(in => ref.modify(as => ZIO.succeedNow(go(as, in, Chunk.empty))))
+
+      push
+    })
+
+  /**
    * Creates a transducer accumulating incoming values into lists of maximum size `n`.
    */
   def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =

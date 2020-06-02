@@ -100,6 +100,37 @@ object ZTransducerSpec extends ZIOBaseSpec {
           )
         }
       ),
+      suite("chunkN")(
+        testM("emits chunks of a fixed size") {
+          val size = 4
+          checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyInt)))(bytes =>
+            ZTransducer
+              .chunkN[Int](size, identity)
+              .push
+              .use(
+                _.apply(Some(bytes)).map { chunk =>
+                  val bs = bytes.flatten
+                  assert(chunk.forall(_.length == size))(equalTo(true)) &&
+                  assert(chunk.flatten)(equalTo(bs.take(bs.length / size * size)))
+                }
+              )
+          )
+        },
+        testM("pads last chunk") {
+          val size = 4
+          checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyInt))) { bytes =>
+            val count = bytes.foldLeft(0)(_ + _.length)
+            val pad   = count % size
+            assertM(
+              ZStream
+                .fromChunks(bytes)
+                .aggregate(ZTransducer.chunkN[Int](size, _.padTo(size, 0)))
+                .flattenChunks
+                .runCollect
+            )(equalTo(bytes.flatten.padTo(count + (if (pad == 0) 0 else size - pad), 0)))
+          }
+        }
+      ),
       suite("collectAllN")(
         testM("happy path") {
           val parser = ZTransducer.collectAllN[Int](3)
