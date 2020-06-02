@@ -3595,6 +3595,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     iterate(min)(_ + 1).takeWhile(_ < max)
 
   /**
+   * Repeats the provided value infinitely.
+   */
+  def repeat[A](a: => A): ZStream[Any, Nothing, A] =
+    repeatEffect(UIO.succeed(a))
+
+  /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever.
    */
   def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
@@ -3641,6 +3647,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
+   * Repeats the value using the provided schedule.
+   */
+  def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R, Nothing, A] =
+    repeatEffectWith(UIO.succeed(a), schedule)
+
+  /**
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag]: ZStream[Has[A], Nothing, A] =
@@ -3670,6 +3682,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def succeed[A](a: => A): ZStream[Any, Nothing, A] =
     fromChunk(Chunk.single(a))
+
+  /**
+   * A stream that emits Unit values spaced by the specified duration.
+   */
+  def tick(interval: Duration): ZStream[Clock, Nothing, Unit] =
+    repeatWith((), Schedule.spaced(interval))
 
   /**
    * A stream that contains a single `Unit` value.
