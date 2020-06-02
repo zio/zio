@@ -193,24 +193,31 @@ object ZTransducer {
     }
 
   /**
-   * Creates a transducer that limits chunks to the given size.
+   * Creates a transducer that emits non-empty chunks of size bounded by `max`.
    */
-  def chunkLimit[A](max: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] = {
-
-    @scala.annotation.tailrec
-    def make(in: Chunk[A], out: Chunk[Chunk[A]]): Chunk[Chunk[A]] =
-      if (in.length <= max) out + in else make(in.drop(max), out + in.take(max))
-
-    @scala.annotation.tailrec
-    def go(in: Chunk[Chunk[A]], out: Chunk[Chunk[A]]): Chunk[Chunk[A]] =
-      (in.length: @scala.annotation.switch) match {
-        case 0                          => out
-        case 1 if in.head.length <= max => out ++ in
-        case _                          => go(in.tail, make(in.head, out))
-      }
-
-    ZTransducer.identity[Chunk[A]].mapChunks(go(_, Chunk.empty))
-  }
+  def chunkLimit[A](max: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
+    ZTransducer
+      .identity[Chunk[A]]
+      .mapChunks(in =>
+        (in.length: @scala.annotation.switch) match {
+          case 0                          => Chunk.empty
+          case 1 if in.head.length <= max => in
+          case l =>
+            val cb = ChunkBuilder.make[Chunk[A]]()
+            var hd = in.head
+            var i  = 1
+            while (hd.nonEmpty || i < l) {
+              if (hd.isEmpty) {
+                hd = in(i)
+                i += 1
+              } else {
+                cb += hd.take(max)
+                hd = hd.drop(max)
+              }
+            }
+            cb.result()
+        }
+      )
 
   /**
    * Creates a transducer that emits chunks of a fixed `size`.
