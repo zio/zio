@@ -35,6 +35,13 @@ import scala.reflect.{ classTag, ClassTag }
 sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
   /**
+   * Appends an element to the chunk
+   */
+  @deprecated("use :+", "1.0.0")
+  final def +[A1 >: A](a: A1): Chunk[A1] =
+    self :+ a
+
+  /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
   final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
