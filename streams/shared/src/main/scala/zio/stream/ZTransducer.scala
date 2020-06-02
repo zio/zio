@@ -221,13 +221,6 @@ object ZTransducer {
     pad: Chunk[A] => Chunk[A] = (c: Chunk[A]) => c
   ): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
     apply(ZRef.make[Chunk[A]](Chunk.empty).toManaged_.map { ref =>
-      @scala.annotation.tailrec
-      def go(as: Chunk[A], in: Chunk[Chunk[A]], out: Chunk[Chunk[A]]): (Chunk[Chunk[A]], Chunk[A]) =
-        if (in.isEmpty)
-          if (as.length < size) (out, as) else go(as.drop(size), in, out + as.take(size))
-        else if (as.length < size) go(as ++ in.head, in.tail, out)
-        else go(as.drop(size), in, out + as.take(size))
-
       def push(option: Option[Chunk[Chunk[A]]]): UIO[Chunk[Chunk[A]]] =
         option.fold(
           ref
@@ -239,7 +232,23 @@ object ZTransducer {
                 case _      => Chunk.single(pad(as))
               }
             )
-        )(in => ref.modify(as => go(as, in, Chunk.empty)))
+        )(in =>
+          ref.modify { as =>
+            val cb  = ChunkBuilder.make[Chunk[A]]()
+            var rem = as
+            var i   = 0
+            while (rem.length >= size || i < in.length) {
+              if (rem.length >= size) {
+                cb += rem.take(size)
+                rem = rem.drop(size)
+              } else {
+                rem = rem ++ in(i)
+                i += 1
+              }
+            }
+            (cb.result(), rem)
+          }
+        )
 
       push
     })
