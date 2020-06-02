@@ -97,7 +97,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           val size = 4
           checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyInt)))(bytes =>
             ZTransducer
-              .chunkN[Int](size, identity)
+              .chunkN[Int](size)
               .push
               .use(
                 _.apply(Some(bytes)).map { chunk =>
