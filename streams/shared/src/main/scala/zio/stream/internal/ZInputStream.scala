@@ -5,7 +5,7 @@ import scala.annotation.tailrec
 import zio.Runtime
 import zio.{ Chunk, Exit, FiberFailure, ZIO }
 
-private[zio] class ZInputStream(chunks: Iterator[Chunk[Byte]]) extends java.io.InputStream {
+private[zio] class ZInputStream(private var chunks: Iterator[Chunk[Byte]]) extends java.io.InputStream {
   private var current: Chunk[Byte] = Chunk.empty
   private var currentPos: Int      = 0
   private var currentChunkLen: Int = 0
@@ -84,6 +84,11 @@ private[zio] class ZInputStream(chunks: Iterator[Chunk[Byte]]) extends java.io.I
   }
 
   override def available(): Int = availableInCurrentChunk
+
+  override def close(): Unit = {
+    chunks = Iterator.empty
+    loadNext()
+  }
 }
 
 private[zio] object ZInputStream {
@@ -98,6 +103,6 @@ private[zio] object ZInputStream {
             case Right(c)      => throw FiberFailure(c)
           }
       }
-    new ZInputStream(unfoldPull)
+    new ZInputStream(Iterator.empty ++ unfoldPull)
   }
 }

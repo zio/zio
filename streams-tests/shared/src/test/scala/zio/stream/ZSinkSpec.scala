@@ -7,7 +7,7 @@ import zio._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isTrue, succeeds }
-import zio.test._
+import zio.test.{ assertM, _ }
 
 object ZSinkSpec extends ZIOBaseSpec {
   def spec = suite("ZSinkSpec")(
@@ -24,6 +24,29 @@ object ZSinkSpec extends ZIOBaseSpec {
             .range(0, 10)
             .run(ZSink.collectAllToMap((_: Int) % 3)(_ + _))
         )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
+      ),
+      suite("collectAllWhileWith")(
+        testM("example 1") {
+          ZIO
+            .foreach(List(1, 3, 20)) { chunkSize =>
+              assertM(
+                Stream
+                  .fromIterable(1 to 10)
+                  .chunkN(chunkSize)
+                  .run(ZSink.sum[Int].collectAllWhileWith(-1)((s: Int) => s == s)(_ + _))
+              )(equalTo(54))
+            }
+            .map(_.reduce(_ && _))
+        },
+        testM("example 2") {
+          val sink: ZSink[Any, Nothing, Int, List[Int]] = ZSink
+            .head[Int]
+            .collectAllWhileWith[List[Int]](Nil)((a: Option[Int]) => a.fold(true)(_ < 15))(
+              (a: List[Int], b: Option[Int]) => a ++ b
+            )
+          val stream = Stream.fromIterable(1 to 100)
+          assertM((stream ++ stream).chunkN(3).run(sink))(equalTo(List(1, 4, 7, 10, 13)))
+        }
       ),
       testM("head")(
         checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) { chunks =>
@@ -101,6 +124,14 @@ object ZSinkSpec extends ZIOBaseSpec {
         suite("zipWith")(testM("happy path") {
           assertM(ZStream(1, 2, 3).run(ZSink.head.zipParLeft(ZSink.succeed("Hello"))))(equalTo(Some(1)))
         })
+      ),
+      suite("flatMap")(
+        testM("non-empty input") {
+          assertM(ZStream(1, 2, 3).run(ZSink.head[Int].flatMap(ZSink.succeed(_))))(equalTo(Some(1)))
+        },
+        testM("empty input") {
+          assertM(ZStream.empty.run(ZSink.head[Int].flatMap(ZSink.succeed(_))))(equalTo(None))
+        }
       )
     )
   )

@@ -1,6 +1,9 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream, OutputStream }
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.Path
 import java.{ util => ju }
 
 import zio._
@@ -16,8 +19,8 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
    */
   final def fromOutputStream(
     os: OutputStream
-  ): ZSink[Blocking, IOException, Byte, Int] =
-    ZSink.foldLeftChunksM(0) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+  ): ZSink[Blocking, IOException, Byte, Long] =
+    ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
       blocking.effectBlockingInterrupt {
         val bytes = byteChunk.toArray
         os.write(bytes)
@@ -56,12 +59,12 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         eitherStream <- ZManaged.effectTotal {
                          register(k =>
                            try {
-                             runtime.unsafeRun(k.run.flatMap(output.offer))
+                             runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                              ()
                            } catch {
                              case FiberFailure(c) if c.interrupted =>
@@ -75,7 +78,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                    } yield done.get.flatMap {
                      if (_) Pull.end
                      else
-                       output.take.flatMap(Pull.fromTake).onError(_ => done.set(true) *> output.shutdown)
+                       output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                    }).ensuring(canceler)
                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
                }
@@ -93,11 +96,11 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     managed {
       for {
-        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register { k =>
               try {
-                runtime.unsafeRun(k.run.flatMap(output.offer))
+                runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                 ()
               } catch {
                 case FiberFailure(c) if c.interrupted =>
@@ -108,7 +111,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
           if (_)
             Pull.end
           else
-            output.take.flatMap(Pull.fromTake).onError(_ => done.set(true) *> output.shutdown)
+            output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
         }
       } yield pull
     }.flatMap(repeatEffectChunkOption(_))
@@ -125,12 +128,12 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         maybeStream <- ZManaged.effectTotal {
                         register { k =>
                           try {
-                            runtime.unsafeRun(k.run.flatMap(output.offer))
+                            runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                             ()
                           } catch {
                             case FiberFailure(c) if c.interrupted =>
@@ -146,11 +149,34 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                      if (_)
                        Pull.end
                      else
-                       output.take.flatMap(Pull.fromTake).onError(_ => done.set(true) *> output.shutdown)
+                       output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                    }
                }
       } yield pull
     }
+
+  /**
+   * Creates a stream of bytes from a file at the specified path.
+   */
+  def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, Throwable, Byte] =
+    ZStream
+      .bracket(blocking.effectBlockingInterrupt(FileChannel.open(path)))(chan =>
+        blocking.effectBlocking(chan.close()).orDie
+      )
+      .flatMap { channel =>
+        ZStream.fromEffect(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
+          ZStream.repeatEffectChunkOption(
+            for {
+              bytesRead <- blocking.effectBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
+              _         <- ZIO.fail(None).when(bytesRead == -1)
+              chunk <- UIO {
+                        reusableBuffer.flip()
+                        Chunk.fromByteBuffer(reusableBuffer)
+                      }
+            } yield chunk
+          )
+        }
+      }
 
   /**
    * Creates a stream from a [[java.io.InputStream]]
@@ -164,14 +190,13 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     ZStream {
       for {
         done       <- Ref.make(false).toManaged_
-        buf        <- Ref.make(Array.ofDim[Byte](chunkSize)).toManaged_
         capturedIs <- Managed.effectTotal(is)
         pull = {
           def go: ZIO[Blocking, Option[IOException], Chunk[Byte]] = done.get.flatMap {
             if (_) Pull.end
             else
               for {
-                bufArray <- buf.get
+                bufArray <- UIO(Array.ofDim[Byte](chunkSize))
                 bytesRead <- blocking
                               .effectBlocking(capturedIs.read(bufArray))
                               .refineToOrDie[IOException]

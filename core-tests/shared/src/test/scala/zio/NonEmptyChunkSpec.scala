@@ -17,7 +17,7 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
 
   def spec = suite("NonEmptyChunkSpec")(
     testM("+") {
-      check(genNonEmptyChunk, genInt)((as, a) => assert((as + a).toChunk)(equalTo(as.toChunk + a)))
+      check(genNonEmptyChunk, genInt)((as, a) => assert((as :+ a).toChunk)(equalTo(as.toChunk :+ a)))
     },
     suite("++")(
       testM("Chunk with NonEmptyChunk") {

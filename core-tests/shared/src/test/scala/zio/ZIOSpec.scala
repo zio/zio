@@ -2951,6 +2951,17 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(conditionVal2)(equalTo(2)) &&
           assert(failed)(isLeft(equalTo(failure)))
         }
+      },
+      testM("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
+        val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
+        val _                     = ZIO.unlessM(b)(zio)
+        ZIO.succeed(assertCompletes)
       }
     ),
     suite("unrefine")(
@@ -3097,6 +3108,19 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(6))
       }
     ),
+    suite("validateWith")(
+      testM("succeeds") {
+        assertM(ZIO(1).validateWith(ZIO(2))(_ + _))(equalTo(3))
+      },
+      testM("fails") {
+        assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2))))
+      },
+      testM("combines both cause") {
+        assertM(ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either)(
+          isLeft(equalTo(Cause.Then(Cause.Fail(1), Cause.Fail(2))))
+        )
+      }
+    ),
     suite("when")(
       testM("executes correct branch only") {
         for {
@@ -3164,6 +3188,17 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(conditionVal2)(equalTo(2)) &&
           assert(failed)(isLeft(equalTo(failure)))
         }
+      },
+      testM("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
+        val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
+        val _                     = ZIO.whenM(b)(zio)
+        ZIO.succeed(assertCompletes)
       }
     ),
     suite("withFilter")(

@@ -120,14 +120,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect: ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).runCollect
+    sample.map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect
+    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.

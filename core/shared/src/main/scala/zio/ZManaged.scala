@@ -773,6 +773,15 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     }
 
   /**
+   * Runs all the finalizers associated with this scope. This is useful to
+   * conceptually "close" a scope when composing multiple managed effects.
+   * Note that this is only safe if the result of this managed effect is valid
+   * outside its scope.
+   */
+  def release: ZManaged[R, E, A] =
+    ZManaged.fromEffect(useNow)
+
+  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
@@ -1138,6 +1147,16 @@ object ZManaged {
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
+  final class UnlessM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](managed: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
+      b.flatMap(b => if (b) unit else managed.unit)
+  }
+
+  final class WhenM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](managed: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
+      b.flatMap(b => if (b) managed.unit else unit)
+  }
+
   /**
    * A `ReleaseMap` represents the finalizers associated with a scope.
    *
@@ -1360,6 +1379,13 @@ object ZManaged {
     new ZManaged(run)
 
   /**
+   * Evaluate each effect in the structure from left to right, collecting the
+   * the successful values and discarding the empty cases. For a parallel version, see `collectPar`.
+   */
+  def collect[R, E, A, B](in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
+    foreach(in)(a => f(a).optional).map(_.flatten)
+
+  /**
    * Evaluate each effect in the structure from left to right, and collect the
    * results. For a parallel version, see `collectAllPar`.
    */
@@ -1404,6 +1430,22 @@ object ZManaged {
    */
   def collectAllParN_[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
     foreachParN_(n)(as)(ZIO.identityFn)
+
+  /**
+   * Evaluate each effect in the structure in parallel, collecting the
+   * the successful values and discarding the empty cases.
+   */
+  def collectPar[R, E, A, B](in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
+    foreachPar(in)(a => f(a).optional).map(_.flatten)
+
+  /**
+   * Evaluate each effect in the structure in parallel, collecting the
+   * the successful values and discarding the empty cases.
+   *
+   * Unlike `collectPar`, this method will use at most up to `n` fibers.
+   */
+  def collectParN[R, E, A, B](n: Int)(in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
+    foreachParN(n)(in)(a => f(a).optional).map(_.flatten)
 
   /**
    * Returns an effect that dies with the specified `Throwable`.
@@ -2153,7 +2195,6 @@ object ZManaged {
             a     <- restore(newResource.zio.provide((r, inner)))
             _ <- releaseMap
                   .replace(key, inner.releaseAll(_, ExecutionStrategy.Sequential))
-                  .flatMap(_.map(_.apply(Exit.unit)).getOrElse(ZIO.unit))
           } yield a._2
         }
     } yield switch
@@ -2172,8 +2213,8 @@ object ZManaged {
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessM[R, E](b: ZManaged[R, E, Boolean])(zio: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    b.flatMap(b => if (b) unit else zio.unit)
+  def unlessM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.UnlessM[R, E] =
+    new ZManaged.UnlessM(b)
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
@@ -2210,8 +2251,8 @@ object ZManaged {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    b.flatMap(b => if (b) zManaged.unit else unit)
+  def whenM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.WhenM[R, E] =
+    new ZManaged.WhenM(b)
 
   /**
    * Locally installs a supervisor and an effect that succeeds with all the

@@ -3,6 +3,8 @@ id: resources
 title:  "Resources"
 ---
 
+### If you find a new great library, talk, resource, slides or project, related to ZIO, consider adding to the list with your PR
+
 ## Blog Articles
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
@@ -61,6 +63,9 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [ZIO: Next-Generation Effects in Scala](https://www.youtube.com/watch?v=mkSHhsJXjdc&t=6s) by John De Goes (October 2018)
 - [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
 
+## Cookbooks 
+- [ZIO Cookbook](https://github.com/Neurodyne/zio-cookbook) A beginners' tour to ZIO by Boris V.Kuznetsov
+
 ## Cheat Sheet
 
 - [ZIO Cheat Sheet](https://github.com/ghostdogpr/zio-cheatsheet)
@@ -68,6 +73,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
+- [ZIO Production Ready Microservice](https://github.com/saraiva132/zio-cats-backend) by [Rafael Figueiredo](https://github.com/saraiva132)
 - [ZIO Modern Backend giter8 Template - Tapir, sttp, http4s](https://github.com/Anadyne/zio-full-backend.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [ZIO CRUD sample - Code for the 'Spring to ZIO 101' blog post 03/2020](https://github.com/adrianfilip/zio-crud-sample) by [Adrian Filip](https://github.com/adrianfilip)
 - [ZIO modules with different implementations - Code for the 'Decouple the Program from its Implementation...' blog post 12/2019](https://github.com/pme123/zio-comps-module) by [pme123](https://github.com/pme123)

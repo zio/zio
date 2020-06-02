@@ -467,12 +467,6 @@ object TestAspect extends TimeoutVariants {
     before(Live.live(clock.nanoTime).flatMap(TestRandom.setSeed(_)))
 
   /**
-   * Annotates tests to be the only ones evaluated.
-   */
-  val only: TestAspectPoly =
-    annotate(TestAnnotation.only, true)
-
-  /**
    * An aspect that executes the members of a suite in parallel.
    */
   val parallel: TestAspectPoly =

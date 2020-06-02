@@ -81,6 +81,12 @@ object RIO {
     ZIO.checkTraced(f)
 
   /**
+   * @see See [[zio.ZIO.collect]]
+   */
+  def collect[R, A, B](in: Iterable[A])(f: A => ZIO[R, Option[Throwable], B]): RIO[R, List[B]] =
+    ZIO.collect(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[R, A](in: Iterable[RIO[R, A]]): RIO[R, List[A]] =
@@ -187,6 +193,18 @@ object RIO {
    */
   def collectAllWithParN[R, A, B](n: Int)(as: Iterable[RIO[R, A]])(f: PartialFunction[A, B]): RIO[R, List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectPar]]
+   */
+  def collectPar[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[Throwable], B]): RIO[R, List[B]] =
+    ZIO.collectPar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectParN]]
+   */
+  def collectParN[R, E, A, B](n: Int)(in: Iterable[A])(f: A => ZIO[R, Option[Throwable], B]): RIO[R, List[B]] =
+    ZIO.collectParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -510,7 +528,7 @@ object RIO {
    * @see [[zio.ZIO.ifM]]
    */
   def ifM[R](b: RIO[R, Boolean]): ZIO.IfM[R, Throwable] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see [[zio.ZIO.infinity]]
@@ -797,8 +815,8 @@ object RIO {
   /**
    * @see See [[zio.ZIO.unlessM]]
    */
-  def unlessM[R](b: RIO[R, Boolean])(zio: => RIO[R, Any]): RIO[R, Unit] =
-    ZIO.unlessM(b)(zio)
+  def unlessM[R](b: RIO[R, Boolean]): ZIO.UnlessM[R, Throwable] =
+    ZIO.unlessM(b)
 
   /**
    * @see See [[zio.ZIO.unsandbox]]
@@ -831,8 +849,8 @@ object RIO {
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  def whenM[R](b: RIO[R, Boolean])(rio: => RIO[R, Any]): RIO[R, Unit] =
-    ZIO.whenM(b)(rio)
+  def whenM[R](b: RIO[R, Boolean]): ZIO.WhenM[R, Throwable] =
+    ZIO.whenM(b)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

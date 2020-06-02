@@ -58,6 +58,12 @@ object UIO {
     ZIO.checkTraced(f)
 
   /**
+   * @see See [[zio.ZIO.collect]]
+   */
+  def collect[R, E, A, B](in: Iterable[A])(f: A => ZIO[Any, Option[Nothing], B]): UIO[List[B]] =
+    ZIO.collect(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[A](in: Iterable[UIO[A]]): UIO[List[A]] =
@@ -164,6 +170,18 @@ object UIO {
    */
   def collectAllWithParN[A, B](n: Int)(as: Iterable[UIO[A]])(f: PartialFunction[A, B]): UIO[List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectPar]]
+   */
+  def collectPar[R, E, A, B](in: Iterable[A])(f: A => ZIO[Any, Option[Nothing], B]): UIO[List[B]] =
+    ZIO.collectPar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectParN]]
+   */
+  def collectParN[R, A, B](n: Int)(in: Iterable[A])(f: A => ZIO[Any, Option[Nothing], B]): UIO[List[B]] =
+    ZIO.collectParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -419,7 +437,7 @@ object UIO {
    * @see [[zio.ZIO.ifM]]
    */
   def ifM(b: UIO[Boolean]): ZIO.IfM[Any, Nothing] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see See [[zio.ZIO.interrupt]]
@@ -624,8 +642,8 @@ object UIO {
   /**
    * @see See [[zio.ZIO.unlessM]]
    */
-  def unlessM(b: UIO[Boolean])(zio: => UIO[Any]): UIO[Unit] =
-    ZIO.unlessM(b)(zio)
+  def unlessM(b: UIO[Boolean]): ZIO.UnlessM[Any, Nothing] =
+    ZIO.unlessM(b)
 
   /**
    * @see [[zio.ZIO.unsandbox]]
@@ -658,8 +676,8 @@ object UIO {
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  def whenM(b: UIO[Boolean])(uio: => UIO[Any]): UIO[Unit] =
-    ZIO.whenM(b)(uio)
+  def whenM(b: UIO[Boolean]): ZIO.WhenM[Any, Nothing] =
+    ZIO.whenM(b)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

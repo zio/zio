@@ -159,7 +159,7 @@ val composite = action.ensuring(cleanupAction)
 ### A full working example on using brackets
 ```scala mdoc:silent
 
-import zio.{ Task, UIO }
+import zio.{ ExitCode, Task, UIO }
 import java.io.{ File, FileInputStream }
 import java.nio.charset.StandardCharsets
 
@@ -167,7 +167,7 @@ object Main extends App {
 
   // run my bracket
   def run(args: List[String]) =
-    mybracket.orDie.as(0)
+    mybracket.orDie.as(ExitCode.success)
 
   def closeStream(is: FileInputStream) =
     UIO(is.close())

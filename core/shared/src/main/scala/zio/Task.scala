@@ -64,6 +64,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.checkTraced(f)
 
   /**
+   * @see See [[zio.ZIO.collect]]
+   */
+  def collect[R, A, B](in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+    ZIO.collect(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
   def collectAll[A](in: Iterable[Task[A]]): Task[List[A]] =
@@ -170,6 +176,18 @@ object Task extends TaskPlatformSpecific {
    */
   def collectAllWithParN[A, B](n: Int)(as: Iterable[Task[A]])(f: PartialFunction[A, B]): Task[List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectPar]]
+   */
+  def collectPar[R, A, B](in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+    ZIO.collectPar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectParN]]
+   */
+  def collectParN[R, A, B](n: Int)(in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+    ZIO.collectParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.die]]
@@ -479,7 +497,7 @@ object Task extends TaskPlatformSpecific {
    * @see [[zio.ZIO.ifM]]
    */
   def ifM(b: Task[Boolean]): ZIO.IfM[Any, Throwable] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see See [[zio.ZIO.interrupt]]
@@ -710,8 +728,8 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.unlessM]]
    */
-  def unlessM(b: Task[Boolean])(zio: => Task[Any]): Task[Unit] =
-    ZIO.unlessM(b)(zio)
+  def unlessM(b: Task[Boolean]): ZIO.UnlessM[Any, Throwable] =
+    ZIO.unlessM(b)
 
   /**
    * @see [[zio.ZIO.unsandbox]]
@@ -744,8 +762,8 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  def whenM(b: Task[Boolean])(task: => Task[Any]): Task[Unit] =
-    ZIO.whenM(b)(task)
+  def whenM(b: Task[Boolean]): ZIO.WhenM[Any, Throwable] =
+    ZIO.whenM(b)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

@@ -23,7 +23,7 @@ object Example extends App {
         _        <- putStrLn(greeting)
       } yield ()
 
-    program.fold(_ => 1, _ => 0)
+    program.exitCode
   }
 
   private def greet(name: String): Future[String] = Future.value(s"Hello, $name!")
