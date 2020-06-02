@@ -217,7 +217,7 @@ object ZTransducer {
    * The `pad` function is called on the last chunk if it does not have sufficient elements.
    */
   def chunkN[A](size: Int, pad: Chunk[A] => Chunk[A]): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
-    apply(ZRefM.make[Chunk[A]](Chunk.empty).toManaged_.map { ref =>
+    apply(ZRef.make[Chunk[A]](Chunk.empty).toManaged_.map { ref =>
       @scala.annotation.tailrec
       def go(as: Chunk[A], in: Chunk[Chunk[A]], out: Chunk[Chunk[A]]): (Chunk[Chunk[A]], Chunk[A]) =
         if (in.isEmpty)
@@ -236,7 +236,7 @@ object ZTransducer {
                 case _      => Chunk.single(pad(as))
               }
             )
-        )(in => ref.modify(as => ZIO.succeedNow(go(as, in, Chunk.empty))))
+        )(in => ref.modify(as => go(as, in, Chunk.empty)))
 
       push
     })
