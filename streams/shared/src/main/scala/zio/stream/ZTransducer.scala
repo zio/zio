@@ -203,17 +203,19 @@ object ZTransducer {
    */
   def chunkLimit[A](max: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] = {
 
-    def mk(chunk: Chunk[A], z: Chunk[Chunk[A]]): Chunk[Chunk[A]] =
-      if (chunk.isEmpty) z else chunk.take(max) +: mk(chunk.drop(max), z)
+    @scala.annotation.tailrec
+    def make(in: Chunk[A], out: Chunk[Chunk[A]]): Chunk[Chunk[A]] =
+      if (in.length <= max) out + in else make(in.drop(max), out + in.take(max))
 
-    def go(chunk: Chunk[Chunk[A]]): Chunk[Chunk[A]] =
-      (chunk.length: @scala.annotation.switch) match {
-        case 0 => Chunk.empty
-        case 1 => if (chunk.head.length <= max) chunk else chunk.flatMap(mk(_, Chunk.empty))
-        case _ => chunk.flatMap(mk(_, Chunk.empty))
+    @scala.annotation.tailrec
+    def go(in: Chunk[Chunk[A]], out: Chunk[Chunk[A]]): Chunk[Chunk[A]] =
+      (in.length: @scala.annotation.switch) match {
+        case 0                          => out
+        case 1 if in.head.length <= max => out ++ in
+        case _                          => go(in.tail, make(in.head, out))
       }
 
-    ZTransducer.identity[Chunk[A]].mapChunks(go)
+    ZTransducer.identity[Chunk[A]].mapChunks(go(_, Chunk.empty))
   }
 
   /**
