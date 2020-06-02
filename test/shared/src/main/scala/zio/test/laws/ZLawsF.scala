@@ -175,9 +175,9 @@ object ZLawsF {
      */
     abstract class ComposeLaw[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] {
       self =>
-      def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], f: A => B, g: B => C): TestResult
+      def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], f: B => A, g: C => B): TestResult
       final def run[R, F[-_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A]): ZIO[R, Nothing, TestResult] =
-        check(genF(gen), Gen.function(gen), Gen.function(gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), Gen.function[R, A, A](gen), Gen.function[R, A, A](gen))(apply(_, _, _).map(_.label(label)))
     }
 
     /**
