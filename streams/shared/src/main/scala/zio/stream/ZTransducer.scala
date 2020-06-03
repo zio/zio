@@ -209,12 +209,12 @@ object ZTransducer {
               var hd = in.head
               var i  = 1
               while (hd.nonEmpty || i < l) {
-                if (hd.isEmpty) {
-                  hd = in(i)
-                  i += 1
-                } else {
+                if (hd.nonEmpty) {
                   cb += hd.take(max)
                   hd = hd.drop(max)
+                } else {
+                  hd = in(i)
+                  i += 1
                 }
               }
               cb.result()
