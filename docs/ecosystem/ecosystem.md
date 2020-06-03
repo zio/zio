@@ -21,11 +21,6 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 - [ZIO Telemetry](https://github.com/zio/zio-telemetry): A ZIO-powered OpenTelemetry library 
 
 
-## Powered by ZIO
-
-- [ZIO IntelliJ](https://github.com/zio/zio-intellij): A complimentary, community-developed plugin for IntelliJ IDEA, brings enhancements when using ZIO in your projects
-
-
 ## Libraries with Direct ZIO Support
 
 If you know a useful library that has direct support for ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
@@ -53,6 +48,12 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [zio-saga](https://github.com/VladKopanev/zio-saga): Purely functional transaction management with Saga pattern
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
 - [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
+
+
+## Tools for ZIO
+
+- [ZIO IntelliJ](https://github.com/zio/zio-intellij): A complimentary, community-developed plugin for IntelliJ IDEA, brings enhancements when using ZIO in your projects
+
 
 ## ZIO Interoperability Libraries
 
