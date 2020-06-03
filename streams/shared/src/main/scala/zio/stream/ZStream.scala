@@ -297,7 +297,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }.flattenTake
 
   /**
-   * Applies an aggregator to the stream, which converts one or more chunks of type `A` into elements of type `B`.
+   * Applies an aggregator to the stream, which converts chunks of type `O` into elements of type `O1`.
    */
   def aggregateChunks[R1 <: R, E1 >: E, O1](transducer: ZTransducer[R1, E1, Chunk[O], O1]): ZStream[R1, E1, O1] =
     aggregate(ZTransducer.chunks[O] >>> transducer)
