@@ -1339,8 +1339,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       self,
       that,
-      (exit, fiber) => leftDone(exit, fiber),
-      (exit, fiber) => rightDone(exit, fiber)
+      (leftExit, rightFiber) => leftDone(leftExit, rightFiber),
+      (rightExit, leftFiber) => rightDone(rightExit, leftFiber)
     )
 
   /**
