@@ -44,6 +44,9 @@ trait ChunkLike[+A]
   override final def appended[A1 >: A](a1: A1): Chunk[A1] =
     append(a1)
 
+  override final def prepended[A1 >: A](a1: A1): Chunk[A1] =
+    prepend(a1)
+
   /**
    * Returns a filtered, mapped subset of the elements of this `Chunk`.
    */
