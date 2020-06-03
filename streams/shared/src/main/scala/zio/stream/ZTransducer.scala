@@ -222,25 +222,25 @@ object ZTransducer {
         )
 
   /**
-   * Creates a transducer that emits chunks of a fixed `size`.
+   * Creates a transducer that emits non-empty chunks of a fixed `size`.
    * The `pad` function is called on the last chunk if it does not have sufficient elements.
    */
-  def chunkN[A](
+  def chunkN[R, E, A](
     size: Int,
-    pad: Chunk[A] => Chunk[A] = (c: Chunk[A]) => c
-  ): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
+    pad: Chunk[A] => ZIO[R, E, Chunk[A]] = (c: Chunk[A]) => ZIO.succeedNow(c)
+  ): ZTransducer[R, E, Chunk[A], Chunk[A]] =
     if (size <= 0) die(new IllegalArgumentException(s"cannot create chunks for size $size"))
     else
       apply(ZRef.make[Chunk[A]](Chunk.empty).toManaged_.map { ref =>
-        def push(option: Option[Chunk[Chunk[A]]]): UIO[Chunk[Chunk[A]]] =
+        def push(option: Option[Chunk[Chunk[A]]]): ZIO[R, E, Chunk[Chunk[A]]] =
           option.fold(
             ref
               .getAndSet(Chunk.empty)
-              .map(as =>
+              .flatMap(as =>
                 as.length match {
-                  case 0      => Chunk.empty
-                  case `size` => Chunk.single(as)
-                  case _      => Chunk.single(pad(as))
+                  case 0      => ZIO.succeedNow(Chunk.empty)
+                  case `size` => ZIO.succeedNow(Chunk.single(as))
+                  case _      => pad(as).map(Chunk.single)
                 }
               )
           )(in =>

@@ -95,31 +95,30 @@ object ZTransducerSpec extends ZIOBaseSpec {
       suite("chunkN")(
         testM("emits chunks of a fixed size") {
           val size = 4
+          val push = ZTransducer.chunkN[Any, Nothing, Int](size).push
           checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyInt)))(bytes =>
-            ZTransducer
-              .chunkN[Int](size)
-              .push
-              .use(
-                _.apply(Some(bytes)).map { chunk =>
-                  val bs = bytes.flatten
-                  assert(chunk.forall(_.length == size))(equalTo(true)) &&
-                  assert(chunk.flatten)(equalTo(bs.take(bs.length / size * size)))
-                }
-              )
+            push.use(
+              _.apply(Some(bytes)).map { chunk =>
+                val bs = bytes.flatten
+                assert(chunk.forall(_.length == size))(equalTo(true)) &&
+                assert(chunk.flatten)(equalTo(bs.take(bs.length / size * size)))
+              }
+            )
           )
         },
         testM("pads last chunk") {
           val size = 4
+          val pad  = 0
           checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyInt))) { bytes =>
-            val count = bytes.foldLeft(0)(_ + _.length)
-            val pad   = count % size
+            val bs = bytes.flatten
+            val ds = bs.length % size
             assertM(
               ZStream
                 .fromChunks(bytes)
-                .aggregate(ZTransducer.chunkN[Int](size, _.padTo(size, 0)))
+                .aggregate(ZTransducer.chunkN(size, (chunk: Chunk[Int]) => ZIO.succeedNow(chunk.padTo(size, pad))))
                 .flattenChunks
                 .runCollect
-            )(equalTo(bytes.flatten.padTo(count + (if (pad == 0) 0 else size - pad), 0)))
+            )(equalTo(bs.padTo(bs.length + (if (ds == 0) 0 else size - ds), 0)))
           }
         }
       ),
