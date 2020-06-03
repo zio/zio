@@ -572,12 +572,25 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
   /**
    * Re-chunks the chunks of the stream into non-empty chunks of a fixed `size`.
+   * The last chunk may have less than `size` elements.
+   */
+  def chunkN(size: Int): ZStream[R, E, Chunk[O]] =
+    aggregateChunks(ZTransducer.chunkN(size))
+
+  /**
+   * Re-chunks the chunks of the stream into non-empty chunks of a fixed `size`.
+   * The `pad` element is used to pad the last chunk to `size`.
+   */
+  def chunkN[O1 >: O](size: Int, pad: O1): ZStream[R, E, Chunk[O1]] =
+    aggregateChunks(ZTransducer.chunkN(size, pad))
+
+  /**
+   * Re-chunks the chunks of the stream into non-empty chunks of a fixed `size`.
    * The `pad` function is called on the last chunk if it does not have sufficient elements.
    */
   def chunkN[R1 <: R, E1 >: E, O1 >: O](
     size: Int,
-    pad: Chunk[O1] => ZIO[R1, E1, Chunk[O1]] = (c: Chunk[O1]) => ZIO.succeedNow(c)
-  ): ZStream[R1, E1, Chunk[O1]] =
+    pad: Chunk[O1] => ZIO[R1, E1, Chunk[Chunk[O1]]]): ZStream[R1, E1, Chunk[O1]] =
     aggregateChunks(ZTransducer.chunkN(size, pad))
 
   /**

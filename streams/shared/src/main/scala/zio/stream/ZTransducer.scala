@@ -223,11 +223,25 @@ object ZTransducer {
 
   /**
    * Creates a transducer that emits non-empty chunks of a fixed `size`.
+   * The last chunk may have less than `size` elements.
+   */
+  def chunkN[A](size: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
+    chunkN(size, (c: Chunk[A]) => Push.emit(c))
+
+  /**
+   * Creates a transducer that emits non-empty chunks of a fixed `size`.
+   * The `pad` element is used to pad the last chunk to `size`.
+   */
+  def chunkN[A](size: Int, pad: A): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
+    chunkN(size, (c: Chunk[A]) => Push.emit(c.padTo(size, pad)))
+
+  /**
+   * Creates a transducer that emits non-empty chunks of a fixed `size`.
    * The `pad` function is called on the last chunk if it does not have sufficient elements.
    */
   def chunkN[R, E, A](
     size: Int,
-    pad: Chunk[A] => ZIO[R, E, Chunk[A]] = (c: Chunk[A]) => ZIO.succeedNow(c)
+    pad: Chunk[A] => ZIO[R, E, Chunk[Chunk[A]]]
   ): ZTransducer[R, E, Chunk[A], Chunk[A]] =
     if (size <= 0) die(new IllegalArgumentException(s"cannot create chunks for size $size"))
     else
@@ -240,7 +254,7 @@ object ZTransducer {
                 as.length match {
                   case 0      => ZIO.succeedNow(Chunk.empty)
                   case `size` => ZIO.succeedNow(Chunk.single(as))
-                  case _      => pad(as).map(Chunk.single)
+                  case _      => pad(as)
                 }
               )
           )(in =>

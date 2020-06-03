@@ -79,56 +79,63 @@ object ZTransducerSpec extends ZIOBaseSpec {
       )
     ),
     suite("Constructors")(
-      suite("chunkLimit")(
-        testM("limits chunks by size") {
-          val max  = 64
-          val push = ZTransducer.chunkLimit[Byte](max).push
-          checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyByte)))(bytes =>
-            push.use(
-              _.apply(Some(bytes)).map(chunk =>
-                assert(chunk.forall(_.length <= max))(equalTo(true)) && assert(chunk.flatten)(equalTo(bytes.flatten))
-              )
+      suite("chunk*")(
+        suite("chunkLimit")(
+          testM("limits chunks by size") {
+            checkM(tinyChunkOf(Gen.chunkOf(Gen.anyByte)), Gen.int(1, 100))((bytes, max) =>
+              ZTransducer
+                .chunkLimit[Byte](max)
+                .push
+                .use(
+                  _.apply(Some(bytes))
+                    .map(chunk =>
+                      assert(chunk.forall(_.length <= max))(equalTo(true)) &&
+                        assert(chunk.flatten)(equalTo(bytes.flatten))
+                    )
+                )
             )
-          )
-        }
-      ),
-      suite("chunkN")(
-        testM("emits chunks of a fixed size") {
-          val size = 4
-          val push = ZTransducer.chunkN[Any, Nothing, Int](size).push
-          checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyInt)))(bytes =>
-            push.use(
-              _.apply(Some(bytes)).map { chunk =>
+          }
+        ),
+        suite("chunkN")(
+          testM("emits chunks of a fixed size") {
+            checkM(tinyChunkOf(Gen.chunkOf(Gen.anyByte)), Gen.int(1, 100)) {
+              case (bytes, size) =>
                 val bs = bytes.flatten
-                assert(chunk.forall(_.length == size))(equalTo(true)) &&
-                assert(chunk.flatten)(equalTo(bs.take(bs.length / size * size)))
-              }
-            )
-          )
-        },
-        testM("pads last chunk") {
-          val size = 4
-          val pad  = 0
-          checkM(Gen.chunkOf(Gen.chunkOf(Gen.anyInt))) { bytes =>
-            val bs = bytes.flatten
-            val ds = bs.length % size
-            assertM(
+                ZTransducer
+                  .chunkN[Byte](size)
+                  .push
+                  .use(
+                    _.apply(Some(bytes))
+                      .map(chunk =>
+                        assert(chunk.forall(_.length == size))(equalTo(true)) &&
+                          assert(chunk.flatten)(equalTo(bs.take(bs.length / size * size)))
+                      )
+                  )
+            }
+          },
+          testM("pads last chunk") {
+            val pad = 0.toByte
+            checkM(tinyChunkOf(Gen.chunkOf(Gen.anyByte)), Gen.int(1, 100))((bytes, size) =>
               ZStream
-                .fromChunks(bytes)
-                .aggregate(ZTransducer.chunkN(size, (chunk: Chunk[Int]) => ZIO.succeedNow(chunk.padTo(size, pad))))
+                .fromChunks(bytes: _*)
+                .chunkN(size, pad)
                 .flattenChunks
                 .runCollect
-            )(equalTo(bs.padTo(bs.length + (if (ds == 0) 0 else size - ds), 0)))
+                .map(chunk => assert(chunk)(equalTo(bytes.flatten.padTo(chunk.length, pad))))
+            )
           }
-        }
-      ),
-      suite("chunks")(
-        testM("chunks individual chunks") {
-          val push = ZTransducer.chunks[Byte].push
-          checkM(Gen.chunkOf(Gen.anyByte))(bytes =>
-            push.use(_.apply(Some(bytes)).map(chunk => assert(chunk.flatten)(equalTo(bytes))))
-          )
-        }
+        ),
+        suite("chunks")(
+          testM("chunks individual chunks") {
+            val push = ZTransducer.chunks[Byte].push
+            checkM(Gen.chunkOf(Gen.anyByte))(bytes =>
+              push.use(
+                _.apply(Some(bytes))
+                  .map(chunk => assert(chunk.headOption)(equalTo(Some(bytes).filter(_.nonEmpty))))
+              )
+            )
+          }
+        )
       ),
       suite("collectAllN")(
         testM("happy path") {

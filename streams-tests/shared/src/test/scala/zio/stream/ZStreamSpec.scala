@@ -304,29 +304,35 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("aggregateChunks")(
           testM("chunkLimit") {
-            checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt)) <*> Gen.int(1, 100)) {
-              case (chunk, n) =>
-                val sink = ZSink.foldLeft[Chunk[Int], Boolean](true)(_ && _.length <= n)
-                assertM(
-                  ZStream
-                    .fromChunks(chunk: _*)
-                    .chunkLimit(n)
-                    .run(sink)
-                )(equalTo(true))
-            }
+            checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt)), Gen.int(1, 100))((chunk, n) =>
+              ZStream
+                .fromChunks(chunk: _*)
+                .chunkLimit(n)
+                .runCollect
+                .map(chunk => assert(chunk.forall(_.length <= n))(equalTo(true)))
+            )
           },
-          testM("chunkN") {
-            checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt)) <*> Gen.int(1, 100)) {
-              case (chunk, n) =>
-                val expected = Chunk.fromIterable(chunk.flatten.grouped(n).toList)
-                assertM(
-                  ZStream
-                    .fromChunks(chunk: _*)
-                    .chunkN(n)
-                    .runCollect
-                )(equalTo(expected))
+          suite("chunkN")(
+            testM("groups chunks to size") {
+              checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt)), Gen.int(1, 100))((chunk, n) =>
+                ZStream
+                  .fromChunks(chunk: _*)
+                  .chunkN(n)
+                  .runCollect
+                  .map(assert(_)(equalTo(Chunk.fromIterable(chunk.flatten.grouped(n).toList))))
+              )
+            },
+            testM("pads last chunk") {
+              checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt)), Gen.int(1, 100))((chunk, n) =>
+                ZStream
+                  .fromChunks(chunk: _*)
+                  .chunkN(n, 0)
+                  .flattenChunks
+                  .runCollect
+                  .map(xs => assert(xs)(equalTo(chunk.flatten.padTo(xs.length, 0))))
+              )
             }
-          }
+          )
         ),
         suite("bracket")(
           testM("bracket")(
