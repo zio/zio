@@ -33,6 +33,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                 Stream
                   .fromIterable(1 to 10)
                   .chunkN(chunkSize)
+                  .flattenChunks
                   .run(ZSink.sum[Int].collectAllWhileWith(-1)((s: Int) => s == s)(_ + _))
               )(equalTo(54))
             }
@@ -44,8 +45,8 @@ object ZSinkSpec extends ZIOBaseSpec {
             .collectAllWhileWith[List[Int]](Nil)((a: Option[Int]) => a.fold(true)(_ < 15))(
               (a: List[Int], b: Option[Int]) => a ++ b
             )
-          val stream = Stream.fromIterable(1 to 100)
-          assertM((stream ++ stream).chunkN(3).run(sink))(equalTo(List(1, 4, 7, 10, 13)))
+          val stream = Stream.fromChunks(1 to 100 map Chunk.single: _*)
+          assertM((stream ++ stream).chunkN(3).flattenChunks.run(sink))(equalTo(List(1, 4, 7, 10, 13)))
         }
       ),
       testM("head")(

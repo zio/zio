@@ -297,6 +297,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }.flattenTake
 
   /**
+   * Applies an aggregator to the stream, which converts one or more chunks of type `A` into elements of type `B`.
+   */
+  def aggregateChunks[R1 <: R, E1 >: E, O1](transducer: ZTransducer[R1, E1, Chunk[O], O1]): ZStream[R1, E1, O1] =
+    aggregate(ZTransducer.chunks[O] >>> transducer)
+
+  /**
    * Maps the success values of this stream to the specified constant value.
    */
   def as[O2](o2: => O2): ZStream[R, E, O2] =
@@ -559,47 +565,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     catchAllCause(pf.applyOrElse[Cause[E], ZStream[R1, E1, O1]](_, ZStream.halt(_)))
 
   /**
-   * Re-chunks the elements of the stream into chunks of
-   * `n` elements each.
-   * The last chunk might contain less than `n` elements
+   * Re-chunks the chunks of the stream into non-empty chunks of size bounded by `max`.
    */
-  def chunkN(n: Int): ZStream[R, E, O] = {
-    case class State[X](buffer: Chunk[X], done: Boolean)
+  def chunkLimit(max: Int): ZStream[R, E, Chunk[O]] =
+    aggregateChunks(ZTransducer.chunkLimit(max))
 
-    def emitOrAccumulate(
-      buffer: Chunk[O],
-      done: Boolean,
-      ref: Ref[State[O]],
-      pull: ZIO[R, Option[E], Chunk[O]]
-    ): ZIO[R, Option[E], Chunk[O]] =
-      if (buffer.size < n) {
-        if (done) {
-          if (buffer.isEmpty)
-            Pull.end
-          else
-            ref.set(State(Chunk.empty, true)) *> Pull.emit(buffer)
-        } else
-          pull.foldM({
-            case Some(e) => Pull.fail(e)
-            case None    => emitOrAccumulate(buffer, true, ref, pull)
-          }, ch => emitOrAccumulate(buffer ++ ch, false, ref, pull))
-      } else {
-        val (chunk, leftover) = buffer.splitAt(n)
-        ref.set(State(leftover, done)) *> Pull.emit(chunk)
-      }
-
-    if (n < 1)
-      ZStream.halt(Cause.die(new IllegalArgumentException("chunkN: n must be at least 1")))
-    else
-      ZStream {
-        for {
-          ref  <- ZRef.make[State[O]](State(Chunk.empty, false)).toManaged_
-          p    <- self.process
-          pull = ref.get.flatMap(s => emitOrAccumulate(s.buffer, s.done, ref, p))
-        } yield pull
-
-      }
-  }
+  /**
+   * Re-chunks the chunks of the stream into non-empty chunks of a fixed `size`.
+   * The `pad` function is called on the last chunk if it does not have sufficient elements.
+   */
+  def chunkN[R1 <: R, E1 >: E, O1 >: O](
+    size: Int,
+    pad: Chunk[O1] => ZIO[R1, E1, Chunk[O1]] = (c: Chunk[O1]) => ZIO.succeedNow(c)
+  ): ZStream[R1, E1, Chunk[O1]] =
+    aggregateChunks(ZTransducer.chunkN(size, pad))
 
   /**
    * Performs a filter and map in a single step.

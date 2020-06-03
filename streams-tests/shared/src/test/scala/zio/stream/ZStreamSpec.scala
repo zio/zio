@@ -302,6 +302,32 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(List(2, 1, 1, 1, 1), List(2))))
           }
         ),
+        suite("aggregateChunks")(
+          testM("chunkLimit") {
+            checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt)) <*> Gen.int(1, 100)) {
+              case (chunk, n) =>
+                val sink = ZSink.foldLeft[Chunk[Int], Boolean](true)(_ && _.length <= n)
+                assertM(
+                  ZStream
+                    .fromChunks(chunk: _*)
+                    .chunkLimit(n)
+                    .run(sink)
+                )(equalTo(true))
+            }
+          },
+          testM("chunkN") {
+            checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt)) <*> Gen.int(1, 100)) {
+              case (chunk, n) =>
+                val expected = Chunk.fromIterable(chunk.flatten.grouped(n).toList)
+                assertM(
+                  ZStream
+                    .fromChunks(chunk: _*)
+                    .chunkN(n)
+                    .runCollect
+                )(equalTo(expected))
+            }
+          }
+        ),
         suite("bracket")(
           testM("bracket")(
             for {
@@ -2618,7 +2644,6 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("`available` returns the size of chunk's leftover") {
             ZStream
               .fromIterable((1 to 10).map(_.toByte))
-              .chunkN(3)
               .toInputStream
               .use[Any, Throwable, TestResult](is =>
                 ZIO.effect {
@@ -2631,9 +2656,9 @@ object ZStreamSpec extends ZIOBaseSpec {
                   val at4 = is.available()
                   List(
                     assert(cold)(equalTo(0)),
-                    assert(at1)(equalTo(2)),
-                    assert(at3)(equalTo(0)),
-                    assert(at4)(equalTo(2))
+                    assert(at1)(equalTo(9)),
+                    assert(at3)(equalTo(7)),
+                    assert(at4)(equalTo(6))
                   ).reduce(_ && _)
                 }
               )
@@ -2921,19 +2946,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        testM("chunkN") {
-          checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt)) <*> (Gen.int(1, 100))) {
-            case (chunk, n) =>
-              val expected = Chunk.fromIterable(chunk.flatten.grouped(n).toList)
-              assertM(
-                ZStream
-                  .fromChunks(chunk: _*)
-                  .chunkN(n)
-                  .mapChunks(ch => Chunk(ch))
-                  .runCollect
-              )(equalTo(expected))
-          }
-        },
         testM("concatAll") {
           checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
             assertM(
