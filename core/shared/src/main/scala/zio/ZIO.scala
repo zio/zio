@@ -1039,7 +1039,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * the specified function to convert the `E` into a `Throwable`.
    */
   final def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): URIO[R, A] =
-    (self mapError f) catchAll (IO.die(_))
+    self.foldM(e => ZIO.die(f(e)), ZIO.succeedNow)
 
   /**
    * Unearth the unchecked failure of the effect. (opposite of `orDie`)
@@ -1050,7 +1050,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   final def resurrect(implicit ev1: E <:< Throwable): RIO[R, A] =
-    self.sandbox.mapError(_.squash)
+    self.foldCauseM(cause => ZIO.fail(cause.squash), ZIO.succeedNow)
 
   /**
    * Unearth the unchecked failure of the effect. (symmetrical with `orDieWith`)
@@ -1063,12 +1063,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   final def resurrectWith[E1 >: E](pf: PartialFunction[Throwable, E1]): ZIO[R, E1, A] =
-    self.sandbox
-      .mapError({
-        case cause if cause.failed => cause
-        case cause                 => cause.defects.headOption.collect(pf).map(Cause.fail).getOrElse(cause)
-      })
-      .unsandbox
+    self.unrefine(pf)
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
