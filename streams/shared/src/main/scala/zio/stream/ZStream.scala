@@ -590,7 +590,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def chunkN[R1 <: R, E1 >: E, O1 >: O](
     size: Int,
-    pad: Chunk[O1] => ZIO[R1, E1, Chunk[Chunk[O1]]]): ZStream[R1, E1, Chunk[O1]] =
+    pad: Chunk[O1] => ZIO[R1, E1, Chunk[Chunk[O1]]]
+  ): ZStream[R1, E1, Chunk[O1]] =
     aggregateChunks(ZTransducer.chunkN(size, pad))
 
   /**
