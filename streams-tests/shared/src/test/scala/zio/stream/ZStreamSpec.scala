@@ -2650,6 +2650,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("`available` returns the size of chunk's leftover") {
             ZStream
               .fromIterable((1 to 10).map(_.toByte))
+              .chunkN(3)
+              .flatMap(ZStream.fromChunk(_))
               .toInputStream
               .use[Any, Throwable, TestResult](is =>
                 ZIO.effect {
@@ -2662,9 +2664,9 @@ object ZStreamSpec extends ZIOBaseSpec {
                   val at4 = is.available()
                   List(
                     assert(cold)(equalTo(0)),
-                    assert(at1)(equalTo(9)),
-                    assert(at3)(equalTo(7)),
-                    assert(at4)(equalTo(6))
+                    assert(at1)(equalTo(2)),
+                    assert(at3)(equalTo(0)),
+                    assert(at4)(equalTo(2))
                   ).reduce(_ && _)
                 }
               )
