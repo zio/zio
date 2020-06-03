@@ -3282,13 +3282,34 @@ object ZIOSpec extends ZIOBaseSpec {
         val error1 = "msg1"
         val error2 = "msg2"
 
-        val e1: UIO[Unit]                 = ZIO.fail(error1).unit.orDieWith(msg => new Exception(msg))
-        val t1: Task[Unit]                = e1
-        val e2: IO[String, Unit]          = t1.orElse(ZIO.fail(error2))
-        val e3: IO[String, Unit]          = e2.resurrectWith(_.getMessage)
-        val e4: UIO[Either[String, Unit]] = e3.either
+        val e1: UIO[Unit]        = ZIO.fail(error1).unit.orDieWith(msg => new Exception(msg))
+        val t1: Task[Unit]       = e1
+        val e2: IO[String, Unit] = t1.orElse(ZIO.fail(error2))
+        val e3: IO[String, Unit] = e2.resurrectWith({ case e => e.getMessage })
 
-        assertM(e4)(isLeft(equalTo(error1)))
+        assertM(e3.either)(isLeft(equalTo(error1)))
+      },
+      testM("should resurrect on matching case") {
+        assertM(
+          ZIO
+            .fail(new Exception("hello"))
+            .orDie
+            .resurrectWith({
+              case e: Exception => e
+            })
+            .foldCause(_.failed, identity)
+        )(isTrue)
+      },
+      testM("should stay dead on non-matching case") {
+        assertM(
+          ZIO
+            .fail(new Throwable("hello"))
+            .orDie
+            .resurrectWith({
+              case e: Exception => e
+            })
+            .foldCause(_.died, identity)
+        )(isTrue)
       }
     )
   )

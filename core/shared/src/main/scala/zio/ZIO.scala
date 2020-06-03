@@ -1062,8 +1062,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *   val f3: IO[String, Unit] = f2.resurrectWith(_.getMessage)
    * }}}
    */
-  final def resurrectWith[E1 >: E](f: Throwable => E1): ZIO[R, E1, A] =
-    self.sandbox.mapError(_.failureOrCause.map(c => f(c.squash)).merge)
+  final def resurrectWith[E1 >: E](pf: PartialFunction[Throwable, E1]): ZIO[R, E1, A] =
+    self.sandbox
+      .mapError({
+        case cause if cause.failed => cause
+        case cause                 => cause.defects.headOption.collect(pf).map(Cause.fail).getOrElse(cause)
+      })
+      .unsandbox
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
