@@ -226,7 +226,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         push         <- transducer.push
         handoff      <- ZStream.Handoff.make[Take[E1, O]].toManaged_
         raceNextTime <- ZRef.makeManaged(false)
-        waitingFiber <- ZRef.makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
+        waitingFiber <- ZRef
+                         .make[Option[Fiber[Nothing, Take[E1, O]]]](None)
+                         .toManaged(_.get.flatMap(_.map(_.join).getOrElse(ZIO.unit)))
         scheduleState <- schedule.initial
                           .flatMap(i => ZRef.make[(Chunk[P], schedule.State)](Chunk.empty -> i))
                           .toManaged_
