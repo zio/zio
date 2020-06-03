@@ -226,14 +226,14 @@ object ZTransducer {
    * The last chunk may have less than `size` elements.
    */
   def chunkN[A](size: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
-    chunkN(size, (c: Chunk[A]) => Push.emit(c))
+    chunkN(size, (c: Chunk[A]) => ZIO.succeedNow(Chunk.single(c)))
 
   /**
    * Creates a transducer that emits non-empty chunks of a fixed `size`.
    * The `pad` element is used to pad the last chunk to `size`.
    */
   def chunkN[A](size: Int, pad: A): ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
-    chunkN(size, (c: Chunk[A]) => Push.emit(c.padTo(size, pad)))
+    chunkN(size, (c: Chunk[A]) => ZIO.succeedNow(Chunk.single(c.padTo(size, pad))))
 
   /**
    * Creates a transducer that emits non-empty chunks of a fixed `size`.
