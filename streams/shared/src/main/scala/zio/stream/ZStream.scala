@@ -240,12 +240,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
           // Waiting for the normal output of the producer
           val waitForProducer: ZIO[R1, Nothing, Take[E1, O]] =
-            waitingFiber
-              .getAndSet(None)
-              .flatMap {
-                case None      => handoff.take
-                case Some(fib) => fib.join
-              }
+            waitingFiber.getAndSet(None).flatMap {
+              case None      => handoff.take
+              case Some(fib) => fib.join
+            }
 
           def updateLastChunk(take: Take[_, P]): UIO[Unit] =
             take.tap(chunk => scheduleState.update(_.copy(_1 = chunk)))
@@ -3917,8 +3915,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       Promise.make[Nothing, Unit].flatMap { p =>
         ref.modify {
           case s @ Handoff.State.Full(_, notifyProducer) => (notifyProducer.await *> offer(a), s)
-          case Handoff.State.Empty(notifyConsumer) =>
-            (notifyConsumer.succeed(()) *> p.await, Handoff.State.Full(a, p))
+          case Handoff.State.Empty(notifyConsumer)       => (notifyConsumer.succeed(()) *> p.await, Handoff.State.Full(a, p))
         }.flatten
       }
 
