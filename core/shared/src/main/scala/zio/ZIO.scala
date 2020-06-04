@@ -1050,7 +1050,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   final def resurrect(implicit ev1: E <:< Throwable): RIO[R, A] =
-    self.foldCauseM(cause => ZIO.fail(cause.squash), ZIO.succeedNow)
+    self.unrefineWith({ case e => e })(ev1)
 
   /**
    * Unearth the unchecked failure of the effect. (symmetrical with `orDieWith`)
