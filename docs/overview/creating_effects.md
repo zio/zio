@@ -6,7 +6,7 @@ title:  "Creating Effects"
 This section explores some of the common ways to create ZIO effects from values, from common Scala types, and from both synchronous and asynchronous side-effects.
 
 ```scala mdoc:invisible
-import zio.{ ZIO, Task, UIO, IO }
+import zio.{ ZIO, Task, UIO, URIO, IO }
 ```
 
 ## From Success Values

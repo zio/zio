@@ -15,7 +15,7 @@ To access the DB we need a `DBConnection`, and each step in our program represen
 The result is a program that, in turn, depends on the `DBConnection`.
 
 ```scala mdoc:invisible
-import zio.{ Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }
+import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
@@ -90,7 +90,7 @@ object UserRepo {
 ```
 
 ```scala mdoc:reset:invisible
-import zio.{ Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }
+import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
