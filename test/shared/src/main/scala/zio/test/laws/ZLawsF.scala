@@ -16,8 +16,8 @@
 
 package zio.test.laws
 
-import zio.ZIO
 import zio.test.{ check, checkM, Gen, TestResult }
+import zio.{ URIO, ZIO }
 
 /**
  * `ZLaws[CapsF, Caps, R]` describes a set of laws that a parameterized type

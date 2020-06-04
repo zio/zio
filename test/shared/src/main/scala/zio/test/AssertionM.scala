@@ -18,6 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 import scala.util.Try
+
 import zio.{ UIO, ZIO }
 
 /**

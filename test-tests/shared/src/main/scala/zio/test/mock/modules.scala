@@ -1,6 +1,6 @@
 package zio.test.mock
 
-import zio.{ Has, IO, Tag, ZIO }
+import zio.{ Has, IO, Tag, UIO }
 
 /**
  * https://github.com/scalamacros/paradise/issues/75

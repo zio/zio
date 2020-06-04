@@ -16,8 +16,8 @@
 
 package zio.test.laws
 
-import zio.ZIO
 import zio.test.{ check, Gen, TestResult }
+import zio.{ URIO, ZIO }
 
 trait ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
 

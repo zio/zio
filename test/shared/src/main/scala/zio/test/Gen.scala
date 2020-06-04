@@ -23,7 +23,7 @@ import scala.math.Numeric.DoubleIsFractional
 
 import zio.random._
 import zio.stream.{ Stream, ZStream }
-import zio.{ Chunk, NonEmptyChunk, UIO, ZIO }
+import zio.{ Chunk, NonEmptyChunk, UIO, URIO, ZIO }
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
