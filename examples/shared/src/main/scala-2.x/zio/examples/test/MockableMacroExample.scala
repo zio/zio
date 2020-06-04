@@ -1,8 +1,7 @@
 package zio.examples.test
 
 import zio.test.mock.mockable
-import zio.{ Tag, UIO }
-import zio.{ IO, Tag, Task, UIO, URIO, ZIO }
+import zio.{ IO, Tag, Task, UIO, URIO }
 
 object DiffrentScopeExample {
 
