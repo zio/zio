@@ -472,7 +472,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
      */
     def restartable[R, E, I, Z](
       sink: ZManaged[R, Nothing, Push[R, E, I, Z]]
-    ): ZManaged[R, Nothing, (Push[R, E, I, Z], ZIO[R, Nothing, Unit])] =
+    ): ZManaged[R, Nothing, (Push[R, E, I, Z], URIO[R, Unit])] =
       for {
         switchSink  <- ZManaged.switchable[R, Nothing, Push[R, E, I, Z]]
         initialSink <- switchSink(sink).toManaged_

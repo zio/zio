@@ -296,7 +296,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.environment]]
    */
-  def environment[R]: ZIO[R, Nothing, R] = ZIO.environment
+  def environment[R]: URIO[R, R] = ZIO.environment
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -439,7 +439,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.forkAll_]]
    */
-  def forkAll_[R, A](as: Iterable[URIO[R, A]]): ZIO[R, Nothing, Unit] =
+  def forkAll_[R, A](as: Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.forkAll_(as)
 
   /**

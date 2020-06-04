@@ -82,13 +82,13 @@ trait GenZIO {
   /**
    * A generator of effects that have died with a `Throwable`.
    */
-  final def died[R](gen: Gen[R, Throwable]): Gen[R, ZIO[Any, Nothing, Nothing]] =
+  final def died[R](gen: Gen[R, Throwable]): Gen[R, UIO[Nothing]] =
     gen.map(ZIO.die(_))
 
   /**
    * A generator of effects that have failed with an error.
    */
-  final def failures[R, E](gen: Gen[R, E]): Gen[R, ZIO[Any, E, Nothing]] =
+  final def failures[R, E](gen: Gen[R, E]): Gen[R, IO[E, Nothing]] =
     gen.map(ZIO.fail(_))
 
   /**
@@ -102,6 +102,6 @@ trait GenZIO {
   /**
    * A generator of successful effects.
    */
-  final def successes[R, A](gen: Gen[R, A]): Gen[R, ZIO[Any, Nothing, A]] =
+  final def successes[R, A](gen: Gen[R, A]): Gen[R, UIO[A]] =
     gen.map(ZIO.succeedNow)
 }

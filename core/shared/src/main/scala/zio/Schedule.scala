@@ -51,7 +51,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   /**
    * The initial state of the schedule.
    */
-  val initial: ZIO[R, Nothing, State]
+  val initial: URIO[R, State]
 
   /**
    * Extract the B from the schedule
@@ -671,8 +671,8 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
 object Schedule {
 
   def apply[R, S, A, B](
-    initial0: ZIO[R, Nothing, S],
-    update0: (A, S) => ZIO[R, Nothing, S],
+    initial0: URIO[R, S],
+    update0: (A, S) => URIO[R, S],
     extract0: (A, S) => B
   ): Schedule[R, A, B] =
     new Schedule[R, A, B] {
@@ -959,14 +959,14 @@ object Schedule {
    * A schedule that recurs forever, dumping input values to the specified
    * sink, and returning those same values unmodified.
    */
-  def tapInput[R, A](f: A => ZIO[R, Nothing, Unit]): Schedule[R, A, A] =
+  def tapInput[R, A](f: A => URIO[R, Unit]): Schedule[R, A, A] =
     identity[A].tapInput(f)
 
   /**
    * A schedule that recurs forever, dumping output values to the specified
    * sink, and returning those same values unmodified.
    */
-  def tapOutput[R, A](f: A => ZIO[R, Nothing, Unit]): Schedule[R, A, A] =
+  def tapOutput[R, A](f: A => URIO[R, Unit]): Schedule[R, A, A] =
     identity[A].tapOutput(f)
 
   /**
@@ -980,6 +980,6 @@ object Schedule {
    * A schedule that always recurs without delay, and computes the output
    * through recured application of a function to a base value.
    */
-  def unfoldM[R, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): Schedule[R, Any, A] =
+  def unfoldM[R, A](a: URIO[R, A])(f: A => URIO[R, A]): Schedule[R, Any, A] =
     Schedule[R, A, Any, A](a, (_, a) => f(a), (_, a) => a)
 }
