@@ -3244,7 +3244,9 @@ object ZIOSpec extends ZIOBaseSpec {
             } yield n
               """
         }
-        val expected = "Cannot prove that NoSuchElementException <:< String."
+
+        val expected =
+          "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has String for the error type."
         if (TestVersion.isScala2) assertM(result)(isLeft(equalTo(expected)))
         else assertM(result)(isLeft(anything))
       }
