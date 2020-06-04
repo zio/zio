@@ -48,7 +48,6 @@ class ChunkConcatBenchmarks {
   }
 
   @Benchmark
-  def balancedConcat(): Chunk[Int] = {
+  def balancedConcat(): Chunk[Int] =
     concatBalanced(size)
-  }
 }
