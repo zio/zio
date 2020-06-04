@@ -66,8 +66,8 @@ object AccessibleMacroExample {
   def _poly[A](a: A)                  : ZIO[AccessibleMacroExample, Long, A]                                               = AccessibleMacroExample.poly(a)
   def _poly2[A <: Foo](a: Wrapped[A]) : ZIO[AccessibleMacroExample, String, List[A]]                                       = AccessibleMacroExample.poly2(a)
   def _dependent(n: Int)              : ZIO[AccessibleMacroExample with Random, Long, Int]                                 = AccessibleMacroExample.dependent(n)
-  def _value                          : ZIO[AccessibleMacroExample, Throwable, String]                                     = AccessibleMacroExample.value
-  def _function(n: Int)               : ZIO[AccessibleMacroExample, Throwable, String]                                     = AccessibleMacroExample.function(n)
+  def _value                          : RIO[AccessibleMacroExample, String]                                     = AccessibleMacroExample.value
+  def _function(n: Int)               : RIO[AccessibleMacroExample, String]                                     = AccessibleMacroExample.function(n)
   def _stream(n: Int)                 : ZIO[AccessibleMacroExample, Nothing, ZStream[Any, String, Int]]                    = AccessibleMacroExample.stream(n)
   def _sink(n: Int)                   : ZIO[AccessibleMacroExample, Nothing, ZSink[Any, Nothing, Int, Chunk[Int]]] = AccessibleMacroExample.sink(n)
 

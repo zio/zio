@@ -179,7 +179,7 @@ package object blocking {
   /**
    * Retrieves the executor for all blocking tasks.
    */
-  def effectBlocking[A](effect: => A): ZIO[Blocking, Throwable, A] =
+  def effectBlocking[A](effect: => A): RIO[Blocking, A] =
     ZIO.accessM(_.get.effectBlocking(effect))
 
   /**
@@ -189,7 +189,7 @@ package object blocking {
    * If the returned `ZIO` is interrupted, the blocked thread running the
    * synchronous effect will be interrupted via the cancel effect.
    */
-  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[Blocking, Throwable, A] =
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): RIO[Blocking, A] =
     ZIO.accessM(_.get.effectBlockingCancelable(effect)(cancel))
 
   /**
@@ -201,7 +201,7 @@ package object blocking {
    * Note that this adds significant overhead. For performance sensitive
    * applications consider using `effectBlocking` or `effectBlockingCancel`.
    */
-  def effectBlockingInterrupt[A](effect: => A): ZIO[Blocking, Throwable, A] =
+  def effectBlockingInterrupt[A](effect: => A): RIO[Blocking, A] =
     ZIO.accessM(_.get.effectBlockingInterrupt(effect))
 
   /**

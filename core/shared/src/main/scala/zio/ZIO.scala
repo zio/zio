@@ -169,14 +169,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  final def absorb(implicit ev: E <:< Throwable): ZIO[R, Throwable, A] =
+  final def absorb(implicit ev: E <:< Throwable): RIO[R, A] =
     absorbWith(ev)
 
   /**
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  final def absorbWith(f: E => Throwable): ZIO[R, Throwable, A] =
+  final def absorbWith(f: E => Throwable): RIO[R, A] =
     self.sandbox
       .foldM(
         cause => ZIO.fail(cause.squashWith(f)),
@@ -872,7 +872,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect whose success is mapped by the specified side effecting
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
-  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): ZIO[R, Throwable, B] =
+  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): RIO[R, B] =
     foldM(e => ZIO.fail(ev(e)), a => ZIO.effect(f(a)))
 
   /**

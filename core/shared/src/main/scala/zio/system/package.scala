@@ -149,7 +149,7 @@ package object system {
    * Retrieves the value of a system property or else return the specified
    * fallback value.
    **/
-  def propertyOrElse(prop: String, alt: => String): ZIO[System, Throwable, String] =
+  def propertyOrElse(prop: String, alt: => String): RIO[System, String] =
     ZIO.accessM(_.get.propertyOrElse(prop, alt))
 
   /**

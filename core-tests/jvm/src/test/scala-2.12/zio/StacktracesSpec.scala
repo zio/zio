@@ -165,7 +165,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       }
     },
     testM("blocking trace") {
-      val io: ZIO[Blocking, Throwable, Unit] = for {
+      val io: RIO[Blocking, Unit] = for {
         trace <- blockingTrace
       } yield trace
 
