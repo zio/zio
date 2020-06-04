@@ -22,8 +22,9 @@ import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
 import zio.internal.Sync
 
 /**
- * A `ZScope[K, A]` is a value that allows adding finalizers identified by `K`
- * up until the point where the scope is closed by a value of type `A`.
+ * A `ZScope[K, A]` is a value that allows adding finalizers identified by `K`.
+ * Scopes are closed with a value of type `A`, which is provided to all the 
+ * finalizers when the scope is released.
  *
  * For safety reasons, this interface has no method to close a scope. Rather,
  * an open scope may be required with `ZScope.make`, which returns a function
@@ -80,6 +81,13 @@ sealed trait ZScope[+A] { self =>
    */
   def open: UIO[Boolean] = closed.map(!_)
 
+  /**
+    * Determines if the scope has been released at the moment the effect is 
+    * executed executed. A scope can be closed yet unreleased, if it has been 
+    * extended by another scope which is not yet released.
+    */
+  def released: UIO[Boolean]
+
   private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[ZScope.Key]
   private[zio] def unsafeExtend(that: ZScope[Any]): Boolean
 }
@@ -125,6 +133,8 @@ object ZScope {
     def empty: UIO[Boolean] = UIO(false)
 
     def ensure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Option[Key]] = ensureResult
+
+    def released: UIO[Boolean] = UIO(false)
 
     private[zio] def unsafeEnsure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode): Option[Key] = unsafeEnsureResult
     private[zio] def unsafeExtend(that: ZScope[Any]): Boolean = that match {
@@ -175,35 +185,29 @@ object ZScope {
     // The value that a scope is closed with (or `null`).
     private[zio] val exitValue: AtomicReference[A],
     // The number of references to the scope, which defaults to 1.
-    private[zio] val opened: AtomicInteger,
+    private[zio] val references: AtomicInteger,
     // The weak finalizers attached to the scope.
     private[zio] val weakFinalizers: Map[Key, OrderedFinalizer],
     // The strong finalizers attached to the scope.
     private[zio] val strongFinalizers: Map[Key, OrderedFinalizer]
   ) extends ZScope[A] { self =>
 
-    /**
-     * Determines if the scope is closed at the instant the effect executes.
-     */
     def closed: UIO[Boolean] = UIO(unsafeClosed())
 
-    /**
-     * Unensures a finalizer runs when the scope is closed.
-     */
     def deny(key: => Key): UIO[Boolean] = UIO(unsafeDeny(key))
 
-    /**
-     * Determines if the scope is empty at the instant the effect executes.
-     */
     def empty: UIO[Boolean] = UIO(Sync(self)(weakFinalizers.size() == 0 && strongFinalizers.size() == 0))
 
-    /**
-     * Adds a finalizer to the scope. If successful, this ensures that when the
-     * scope exits, the finalizer will be run, assuming the key has not been
-     * garbage collected.
-     */
     def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Option[Key]] =
       UIO(unsafeEnsure(finalizer, mode))
+
+    def release: UIO[Boolean] = UIO.effectSuspendTotal {
+      val result = unsafeRelease()
+      
+      if (result eq null) UIO(false) else result as true
+    }
+
+    def released: UIO[Boolean] = UIO(unsafeReleased())
 
     private[this] def finalizers(mode: ZScope.Mode): Map[Key, OrderedFinalizer] =
       if (mode == ZScope.Mode.Weak) weakFinalizers else strongFinalizers
@@ -241,7 +245,7 @@ object ZScope {
       Sync(self) {
         if (unsafeClosed()) false
         else {
-          opened.incrementAndGet()
+          references.incrementAndGet()
           true
         }
       }
@@ -264,7 +268,7 @@ object ZScope {
                   // If parent and child scopes are both open:
                   child.unsafeAddRef()
 
-                  self.unsafeEnsure(_ => UIO(child.unsafeRelease()), ZScope.Mode.Strong)
+                  self.unsafeEnsure(_ => child.release, ZScope.Mode.Strong)
 
                   true
                 } else false
@@ -274,10 +278,10 @@ object ZScope {
 
     private[zio] def unsafeRelease(): UIO[Unit] =
       Sync(self) {
-        if (opened.decrementAndGet() == 0) {
+        if (references.decrementAndGet() == 0) {
           val totalSize = weakFinalizers.size() + strongFinalizers.size()
 
-          if (totalSize == 0) ZIO.unit
+          if (totalSize == 0) null
           else {
             val array = Array.ofDim[OrderedFinalizer](totalSize)
 
@@ -317,6 +321,8 @@ object ZScope {
           }
         } else null
       }
+
+      private[zio] def unsafeReleased(): Boolean = references.get() <= 0
   }
 
   private val noCause: Cause[Nothing]            = Cause.empty
