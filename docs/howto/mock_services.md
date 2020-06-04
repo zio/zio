@@ -200,8 +200,8 @@ type AccountObserver = Has[AccountObserver.Service]
 
 object AccountObserver {
   trait Service {
-    def processEvent(event: AccountEvent): ZIO[Any, Nothing, Unit]
-    def runCommand(): ZIO[Any, Nothing, Unit]
+    def processEvent(event: AccountEvent): UIO[Unit]
+    def runCommand(): UIO[Unit]
   }
 
   def processEvent(event: AccountEvent) =

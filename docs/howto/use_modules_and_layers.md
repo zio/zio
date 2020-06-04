@@ -46,7 +46,7 @@ To run the program we must supply a `DBConnection` through `provide`, before fee
 
 ```scala
 val dbConnection: DBConnection = ???
-val runnable: ZIO[Any, Nothing, Boolean] = created.provide(dbConnection)
+val runnable: UIO[Boolean] = created.provide(dbConnection)
 
 val finallyCreated  = runtime.unsafeRun(runnable)
 ```

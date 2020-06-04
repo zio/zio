@@ -1581,7 +1581,7 @@ package object environment extends PlatformSpecific {
       /**
        * Returns the system line separator.
        */
-      val lineSeparator: ZIO[Any, Nothing, String] =
+      val lineSeparator: UIO[String] =
         systemState.get.map(_.lineSeparator)
 
       val properties: ZIO[Any, Throwable, Map[String, String]] =

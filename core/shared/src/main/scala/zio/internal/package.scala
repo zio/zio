@@ -23,7 +23,7 @@ package object internal {
   /**
    * Returns an effect that models success with the specified value.
    */
-  def ZIOSucceedNow[A](a: A): ZIO[Any, Nothing, A] =
+  def ZIOSucceedNow[A](a: A): UIO[A] =
     ZIO.succeedNow(a)
 
   /**

@@ -16,7 +16,7 @@ object modules {
   type SinglePureValModule = Has[SinglePureValModule.Service]
   object SinglePureValModule {
     trait Service {
-      val foo: ZIO[Any, Nothing, Unit]
+      val foo: UIO[Unit]
     }
   }
 

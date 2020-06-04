@@ -11,8 +11,8 @@ object DiffrentScopeExample {
   case class Wrapped[T](value: T)
 
   trait Service {
-    def get(key: String): ZIO[Any, Nothing, Int]
-    def set(key: String, value: Int): ZIO[Any, Nothing, Unit]
+    def get(key: String): UIO[Int]
+    def set(key: String, value: Int): UIO[Unit]
     def reset: UIO[Unit]
     def io: IO[String, Long]
     def task: Task[Long]

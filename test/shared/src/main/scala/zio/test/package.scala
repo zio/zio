@@ -427,7 +427,7 @@ package object test extends CompileVariants {
   /**
    * Creates an ignored test result.
    */
-  val ignored: ZIO[Any, Nothing, TestSuccess] =
+  val ignored: UIO[TestSuccess] =
     ZIO.succeedNow(TestSuccess.Ignored)
 
   /**
