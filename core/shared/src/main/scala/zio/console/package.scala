@@ -61,7 +61,7 @@ package object console {
         /**
          * Retrieves a line of input from the console.
          */
-        final val getStrLn: ZIO[Any, IOException, String] =
+        final val getStrLn: IO[IOException, String] =
           getStrLn(SConsole.in)
 
         /**

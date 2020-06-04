@@ -1284,9 +1284,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(chain(10000)(_.foldM(_ => STM.succeed(0), a => STM.succeed(a + 1))))(equalTo(10000))
       },
       testM("long mapError chains") {
-        def chain(depth: Int): ZIO[Any, Int, Nothing] = {
+        def chain(depth: Int): IO[Int, Nothing] = {
           @annotation.tailrec
-          def loop(n: Int, acc: STM[Int, Nothing]): ZIO[Any, Int, Nothing] =
+          def loop(n: Int, acc: STM[Int, Nothing]): IO[Int, Nothing] =
             if (n <= 0) acc.commit else loop(n - 1, acc.mapError(_ + 1))
 
           loop(depth, STM.fail(0))

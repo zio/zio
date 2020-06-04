@@ -1509,7 +1509,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZManaged.succeed(42).collectM("Oh No!") {
           case 42 => ZManaged.succeed(84)
         }
-        val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed(_))
+        val effect: IO[String, Int] = managed.use(ZIO.succeed(_))
 
         assertM(effect)(equalTo(84))
       },
@@ -1517,7 +1517,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZManaged.succeed(42).collectM("Oh No!") {
           case 43 => ZManaged.succeed(84)
         }
-        val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed(_))
+        val effect: IO[String, Int] = managed.use(ZIO.succeed(_))
 
         assertM(effect.run)(fails(equalTo("Oh No!")))
       }

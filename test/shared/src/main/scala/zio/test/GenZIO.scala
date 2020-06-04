@@ -88,7 +88,7 @@ trait GenZIO {
   /**
    * A generator of effects that have failed with an error.
    */
-  final def failures[R, E](gen: Gen[R, E]): Gen[R, ZIO[Any, E, Nothing]] =
+  final def failures[R, E](gen: Gen[R, E]): Gen[R, IO[E, Nothing]] =
     gen.map(ZIO.fail(_))
 
   /**

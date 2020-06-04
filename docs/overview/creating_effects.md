@@ -58,13 +58,13 @@ Scala's standard library contains a number of data types that can be converted i
 An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 
 ```scala mdoc:silent
-val zoption: ZIO[Any, Unit, Int] = ZIO.fromOption(Some(2))
+val zoption: IO[Unit, Int] = ZIO.fromOption(Some(2))
 ```
 
 The error type of the resulting effect is `Unit`, because the `None` case of `Option` provides no information on why the value is not there. You can change the `Unit` into a more specific error type using `ZIO#mapError`:
 
 ```scala mdoc:silent
-val zoption2: ZIO[Any, String, Int] = zoption.mapError(_ => "It wasn't there!")
+val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
 ```
 
 ### Either

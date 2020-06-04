@@ -64,7 +64,7 @@ trait MockSpecUtils[R] {
     app: ZIO[R, E, A],
     check: Assertion[Throwable]
   ): ZSpec[Any, Any] = testM(name) {
-    val result: ZIO[Any, Any, Throwable] =
+    val result: IO[Any, Throwable] =
       mock.build
         .use(app.provide _)
         .orElse(ZIO.unit)
