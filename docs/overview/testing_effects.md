@@ -166,7 +166,7 @@ We can now provide the live database module to our application, using `ZIO.provi
 ```scala mdoc:silent
 def main: ZIO[Database, Throwable, Unit] = ???
 
-def main2: ZIO[Any, Throwable, Unit] = 
+def main2: Task[Unit] = 
   main.provide(DatabaseLive)
 ```
 
@@ -209,7 +209,7 @@ To test code that requires the database, we need only provide it with our test d
 ```scala mdoc:silent
 def code: ZIO[Database, Throwable, Unit] = ???
 
-def code2: ZIO[Any, Throwable, Unit] = 
+def code2: Task[Unit] = 
   code.provide(TestDatabase)
 ```
 

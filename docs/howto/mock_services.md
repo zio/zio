@@ -397,9 +397,9 @@ type PolyExample = Has[PolyExample.Service]
 
 object PolyExample {
   trait Service {
-    def polyInput[I: Tag](input: I): ZIO[Any, Throwable, String]
+    def polyInput[I: Tag](input: I): Task[String]
     def polyError[E: Tag](input: Int): ZIO[Any, E, String]
-    def polyOutput[A: Tag](input: Int): ZIO[Any, Throwable, A]
+    def polyOutput[A: Tag](input: Int): Task[A]
     def polyAll[I: Tag, E: Tag, A: Tag](input: I): ZIO[Any, E, A]
   }
 }
