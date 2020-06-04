@@ -176,13 +176,13 @@ package object test extends CompileVariants {
    * Checks the test passes for "sufficient" numbers of samples from the
    * given random variable.
    */
-  def check[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
+  def check[R, A](rv: Gen[R, A])(test: A => TestResult): URIO[R, TestResult] =
     checkN(200)(rv)(test)
 
   /**
    * A version of `check` that accepts two random variables.
    */
-  def check[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZIO[R, Nothing, TestResult] =
+  def check[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): URIO[R, TestResult] =
     check(rv1 <*> rv2)(test.tupled)
 
   /**
@@ -190,7 +190,7 @@ package object test extends CompileVariants {
    */
   def check[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => TestResult
-  ): ZIO[R, Nothing, TestResult] =
+  ): URIO[R, TestResult] =
     check(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
@@ -198,7 +198,7 @@ package object test extends CompileVariants {
    */
   def check[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => TestResult
-  ): ZIO[R, Nothing, TestResult] =
+  ): URIO[R, TestResult] =
     check(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
@@ -206,7 +206,7 @@ package object test extends CompileVariants {
    */
   def check[R, A, B, C, D, F](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D], rv5: Gen[R, F])(
     test: (A, B, C, D, F) => TestResult
-  ): ZIO[R, Nothing, TestResult] =
+  ): URIO[R, TestResult] =
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
 
   /**
@@ -221,7 +221,7 @@ package object test extends CompileVariants {
     rv6: Gen[R, G]
   )(
     test: (A, B, C, D, F, G) => TestResult
-  ): ZIO[R, Nothing, TestResult] =
+  ): URIO[R, TestResult] =
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
@@ -289,13 +289,13 @@ package object test extends CompileVariants {
    * is useful for deterministic `Gen` that comprehensively explore all
    * possibilities in a given domain.
    */
-  def checkAll[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
+  def checkAll[R, A](rv: Gen[R, A])(test: A => TestResult): URIO[R, TestResult] =
     checkAllM(rv)(test andThen ZIO.succeedNow)
 
   /**
    * A version of `checkAll` that accepts two random variables.
    */
-  def checkAll[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZIO[R, Nothing, TestResult] =
+  def checkAll[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): URIO[R, TestResult] =
     checkAll(rv1 <*> rv2)(test.tupled)
 
   /**
@@ -303,7 +303,7 @@ package object test extends CompileVariants {
    */
   def checkAll[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => TestResult
-  ): ZIO[R, Nothing, TestResult] =
+  ): URIO[R, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
@@ -311,7 +311,7 @@ package object test extends CompileVariants {
    */
   def checkAll[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => TestResult
-  ): ZIO[R, Nothing, TestResult] =
+  ): URIO[R, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
@@ -319,7 +319,7 @@ package object test extends CompileVariants {
    */
   def checkAll[R, A, B, C, D, F](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D], rv5: Gen[R, F])(
     test: (A, B, C, D, F) => TestResult
-  ): ZIO[R, Nothing, TestResult] =
+  ): URIO[R, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
 
   /**
@@ -334,7 +334,7 @@ package object test extends CompileVariants {
     rv6: Gen[R, G]
   )(
     test: (A, B, C, D, F, G) => TestResult
-  ): ZIO[R, Nothing, TestResult] =
+  ): URIO[R, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
@@ -488,14 +488,14 @@ package object test extends CompileVariants {
      * Accesses an `Annotations` instance in the environment and appends the
      * specified annotation to the annotation map.
      */
-    def annotate[V](key: TestAnnotation[V], value: V): ZIO[Annotations, Nothing, Unit] =
+    def annotate[V](key: TestAnnotation[V], value: V): URIO[Annotations, Unit] =
       ZIO.accessM(_.get.annotate(key, value))
 
     /**
      * Accesses an `Annotations` instance in the environment and retrieves the
      * annotation of the specified type, or its default value if there is none.
      */
-    def get[V](key: TestAnnotation[V]): ZIO[Annotations, Nothing, V] =
+    def get[V](key: TestAnnotation[V]): URIO[Annotations, V] =
       ZIO.accessM(_.get.get(key))
 
     /**
@@ -540,7 +540,7 @@ package object test extends CompileVariants {
         }
       })
 
-    def size: ZIO[Sized, Nothing, Int] =
+    def size: URIO[Sized, Int] =
       ZIO.accessM[Sized](_.get.size)
 
     def withSize[R <: Sized, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
@@ -566,21 +566,21 @@ package object test extends CompileVariants {
   object CheckVariants {
 
     final class CheckN(private val n: Int) extends AnyVal {
-      def apply[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
+      def apply[R, A](rv: Gen[R, A])(test: A => TestResult): URIO[R, TestResult] =
         checkNM(n)(rv)(test andThen ZIO.succeedNow)
-      def apply[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZIO[R, Nothing, TestResult] =
+      def apply[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): URIO[R, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
       def apply[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => TestResult
-      ): ZIO[R, Nothing, TestResult] =
+      ): URIO[R, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
       def apply[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => TestResult
-      ): ZIO[R, Nothing, TestResult] =
+      ): URIO[R, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
       def apply[R, A, B, C, D, F](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D], rv5: Gen[R, F])(
         test: (A, B, C, D, F) => TestResult
-      ): ZIO[R, Nothing, TestResult] =
+      ): URIO[R, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
       def apply[R, A, B, C, D, F, G](
         rv1: Gen[R, A],
@@ -591,7 +591,7 @@ package object test extends CompileVariants {
         rv6: Gen[R, G]
       )(
         test: (A, B, C, D, F, G) => TestResult
-      ): ZIO[R, Nothing, TestResult] =
+      ): URIO[R, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
     }
 

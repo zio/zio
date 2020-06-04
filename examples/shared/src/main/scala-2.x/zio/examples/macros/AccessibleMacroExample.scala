@@ -60,8 +60,8 @@ object AccessibleMacroExample {
     } yield (v1, v2, v3, v4, v5, v6, v7, v8, v9)
 
   // sanity check
-  val _foo                            : ZIO[AccessibleMacroExample, Nothing, Unit]                                         = AccessibleMacroExample.foo
-  def _bar(n: Int)                    : ZIO[AccessibleMacroExample, Nothing, Unit]                                         = AccessibleMacroExample.bar(n)
+  val _foo                            : URIO[AccessibleMacroExample, Unit]                                         = AccessibleMacroExample.foo
+  def _bar(n: Int)                    : URIO[AccessibleMacroExample, Unit]                                         = AccessibleMacroExample.bar(n)
   def _baz(x: Int, y: Int)            : ZIO[AccessibleMacroExample, String, Int]                                           = AccessibleMacroExample.baz(x, y)
   def _poly[A](a: A)                  : ZIO[AccessibleMacroExample, Long, A]                                               = AccessibleMacroExample.poly(a)
   def _poly2[A <: Foo](a: Wrapped[A]) : ZIO[AccessibleMacroExample, String, List[A]]                                       = AccessibleMacroExample.poly2(a)

@@ -430,7 +430,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Constructs a generator from an effect that constructs a value.
    */
-  def fromEffect[R, A](effect: ZIO[R, Nothing, A]): Gen[R, A] =
+  def fromEffect[R, A](effect: URIO[R, A]): Gen[R, A] =
     Gen(ZStream.fromEffect(effect.map(Sample.noShrink)))
 
   /**

@@ -62,7 +62,7 @@ trait TimeoutVariants {
     suiteLabels: List[String],
     testLabel: String,
     duration: Duration
-  ): ZIO[Live, Nothing, Unit] =
+  ): URIO[Live, Unit] =
     Live.live(console.putStrLn(renderWarning(suiteLabels, testLabel, duration)))
 
   private def renderWarning(suiteLabels: List[String], testLabel: String, duration: Duration): String =

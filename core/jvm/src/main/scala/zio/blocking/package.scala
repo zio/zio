@@ -173,7 +173,7 @@ package object blocking {
   /**
    * Retrieves the executor for all blocking tasks.
    */
-  def blockingExecutor: ZIO[Blocking, Nothing, Executor] =
+  def blockingExecutor: URIO[Blocking, Executor] =
     ZIO.access(_.get.blockingExecutor)
 
   /**

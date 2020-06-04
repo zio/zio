@@ -32,7 +32,7 @@ When the environment is a type with fields, then the `ZIO.access` method can be 
 ```scala mdoc:silent:nest
 final case class Config(server: String, port: Int)
 
-val configString: ZIO[Config, Nothing, String] = 
+val configString: URIO[Config, String] = 
   for {
     server <- ZIO.access[Config](_.server)
     port   <- ZIO.access[Config](_.port)
@@ -65,7 +65,7 @@ Effects that require an environment cannot be run without first _providing_ thei
 The simplest way to provide an effect the environment that it requires is to use the `ZIO#provide` method:
 
 ```scala mdoc:silent
-val square: ZIO[Int, Nothing, Int] = 
+val square: URIO[Int, Int] = 
   for {
     env <- ZIO.environment[Int]
   } yield env * env

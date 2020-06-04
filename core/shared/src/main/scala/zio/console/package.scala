@@ -91,13 +91,13 @@ package object console {
   /**
    * Prints text to the console.
    */
-  def putStr(line: => String): ZIO[Console, Nothing, Unit] =
+  def putStr(line: => String): URIO[Console, Unit] =
     ZIO.accessM(_.get putStr line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def putStrLn(line: => String): ZIO[Console, Nothing, Unit] =
+  def putStrLn(line: => String): URIO[Console, Unit] =
     ZIO.accessM(_.get putStrLn line)
 
   /**

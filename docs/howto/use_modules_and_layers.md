@@ -33,10 +33,10 @@ case class User(id: UserId, name: String)
 
 ```scala mdoc:silent
 def getUser(userId: UserId): ZIO[DBConnection, Nothing, Option[User]] = UIO(???)
-def createUser(user: User): ZIO[DBConnection, Nothing, Unit] = UIO(???)
+def createUser(user: User): URIO[DBConnection, Unit] = UIO(???)
 
 val user: User = User(UserId(1234), "Chet")
-val created: ZIO[DBConnection, Nothing, Boolean] = for {
+val created: URIO[DBConnection, Boolean] = for {
   maybeUser <- getUser(user.id)
   res       <- maybeUser.fold(createUser(user).as(true))(_ => ZIO.succeed(false))
 } yield res
@@ -211,10 +211,10 @@ object Logging {
   )
 
   //accessor methods
-  def info(s: String): ZIO[Logging, Nothing, Unit] =
+  def info(s: String): URIO[Logging, Unit] =
     ZIO.accessM(_.get.info(s))
 
-  def error(s: String): ZIO[Logging, Nothing, Unit] =
+  def error(s: String): URIO[Logging, Unit] =
     ZIO.accessM(_.get.error(s))
 }
 ```
@@ -224,9 +224,9 @@ The accessor methods are provided so that we can build programs without botherin
 ```scala mdoc:silent
 val user2: User = User(UserId(123), "Tommy")
 val makeUser: ZIO[Logging with UserRepo, DBError, Unit] = for {
-  _ <- Logging.info(s"inserting user")  // ZIO[Logging, Nothing, Unit]
+  _ <- Logging.info(s"inserting user")  // URIO[Logging, Unit]
   _ <- UserRepo.createUser(user2)       // ZIO[UserRepo, DBError, Unit]
-  _ <- Logging.info(s"user inserted")   // ZIO[Logging, Nothing, Unit]
+  _ <- Logging.info(s"user inserted")   // URIO[Logging, Unit]
 } yield ()
 ```
 

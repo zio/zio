@@ -1438,7 +1438,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: ZIO[ZEnv, Nothing, Unit]              = zio.provideCustomLayer(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]              = zio.provideCustomLayer(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -1446,7 +1446,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("can split environment into two parts") {
         val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: ZIO[Random, Nothing, Unit]           = zio.provideSomeLayer[Random](clockLayer)
+        val zio2: URIO[Random, Unit]           = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),

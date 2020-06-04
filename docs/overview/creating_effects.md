@@ -94,7 +94,7 @@ The error type of the resulting effect will always be `Throwable`, because `Try`
 A function `A => B` can be converted into a ZIO effect with `ZIO.fromFunction`:
 
 ```scala mdoc:silent
-val zfun: ZIO[Int, Nothing, Int] =
+val zfun: URIO[Int, Int] =
   ZIO.fromFunction((i: Int) => i * i)
 ```
 

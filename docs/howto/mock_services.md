@@ -48,7 +48,7 @@ trait Event
 import zio._
 import zio.console.Console
 
-def processEvent(event: Event): ZIO[Console, Nothing, Unit] =
+def processEvent(event: Event): URIO[Console, Unit] =
   console.putStrLn(s"Got $event")
 ```
 
@@ -61,7 +61,7 @@ With ZIO, we've regained to ability to reason about the effects called. We know 
 However, the same method could be implemented as:
 
 ```scala mdoc:silent
-def processEvent2(event: Event): ZIO[Console, Nothing, Unit] =
+def processEvent2(event: Event): URIO[Console, Unit] =
   ZIO.unit
 ```
 

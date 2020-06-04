@@ -832,13 +832,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns whether this effect is a failure.
    */
-  final def isFailure: ZIO[R, Nothing, Boolean] =
+  final def isFailure: URIO[R, Boolean] =
     fold(_ => true, _ => false)
 
   /**
    * Returns whether this effect is a success.
    */
-  final def isSuccess: ZIO[R, Nothing, Boolean] =
+  final def isSuccess: URIO[R, Boolean] =
     fold(_ => false, _ => true)
 
   /**

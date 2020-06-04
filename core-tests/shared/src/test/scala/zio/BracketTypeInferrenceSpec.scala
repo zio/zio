@@ -11,14 +11,14 @@ object BracketTypeInferenceSpec {
 
   def infersEType1: ZIO[R, E, B] = {
     val acquire: ZIO[R, E, A]              = ???
-    val release: A => ZIO[R, Nothing, Any] = ???
+    val release: A => URIO[R, Any] = ???
     val use: A => ZIO[R, E1, B]            = ???
     acquire.bracket(release)(use)
   }
 
   def infersEType2: ZIO[R, E, B] = {
     val acquire: ZIO[R, E1, A]             = ???
-    val release: A => ZIO[R, Nothing, Any] = ???
+    val release: A => URIO[R, Any] = ???
     val use: A => ZIO[R, E, B]             = ???
     acquire.bracket(release, use)
   }
