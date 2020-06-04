@@ -227,8 +227,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         handoff      <- ZStream.Handoff.make[Take[E1, O]].toManaged_
         raceNextTime <- ZRef.makeManaged(false)
         waitingFiber <- ZRef
-                         .make[Option[Fiber[Nothing, Take[E1, O]]]](None)
-                         .toManaged(_.get.flatMap(_.map(_.join).getOrElse(ZIO.unit)))
+                         .makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
         scheduleState <- schedule.initial
                           .flatMap(i => ZRef.make[(Chunk[P], schedule.State)](Chunk.empty -> i))
                           .toManaged_
@@ -292,7 +291,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit)))
               )
 
-          raceNextTime.get.flatMap(go)
+          raceNextTime.get
+            .flatMap(go)
+            .onInterrupt(waitingFiber.get.flatMap(_.map(_.interrupt).getOrElse(ZIO.unit)))
 
         }
 
