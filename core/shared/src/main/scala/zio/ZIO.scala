@@ -1053,19 +1053,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.unrefineWith({ case e => e })(ev1)
 
   /**
-   * Unearth the unchecked failure of the effect. (symmetrical with `orDieWith`)
-   * {{{
-   *   val f0: IO[String, Unit] = ZIO.fail("err 0").unit
-   *   val f1: UIO[Unit]        = f0.orDieWith(msg => new Exception(msg))
-   *   val ft: Task[Unit]       = ft
-   *   val f2: IO[String, Unit] = ft.orElse(ZIO.fail("err 1"))
-   *   val f3: IO[String, Unit] = f2.resurrectWith(_.getMessage)
-   * }}}
-   */
-  final def resurrectWith[E1 >: E](pf: PartialFunction[Throwable, E1]): ZIO[R, E1, A] =
-    self.unrefine(pf)
-
-  /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise executes the specified effect.
    */
