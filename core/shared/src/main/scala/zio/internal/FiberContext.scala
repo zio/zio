@@ -688,15 +688,19 @@ private[zio] final class FiberContext[E, A](
     val currentEnv = environments.peek()
     val currentSup = supervisors.peek()
 
+    val childId = Fiber.newFiberId()
+
     val childScope = ZScope.unsafeMake[Exit[E, A]]()
 
     val currentExtender = extenders.peekOrElse(null)
 
     // If we're in a region of scope extension, be sure to extend the scope of the child:
-    if (currentExtender ne null) currentExtender.extend(childScope.scope)
+    if (currentExtender ne null) {
+      currentExtender.unsafeExtend(childScope.scope)
+    }
 
     val childContext = new FiberContext[E, A](
-      Fiber.newFiberId(),
+      childId,
       platform,
       currentEnv,
       executors.peek(),

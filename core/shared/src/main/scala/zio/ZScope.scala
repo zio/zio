@@ -71,38 +71,7 @@ sealed trait ZScope[+A] { self =>
    * Scope extension does not result in changes to the scope contract: open
    * scopes must *always* be closed.
    */
-  def extend(that: ZScope[Any]): UIO[Boolean] = UIO.effectSuspendTotal {
-    (self, that) match {
-      case (x, y) if x eq y => UIO(true)
-
-      case (ZScope.global, ZScope.global) => UIO(true)
-
-      case (ZScope.global, child: ZScope.Local[Any]) =>
-        Sync(child) {
-          if (child.unsafeClosed()) UIO(false)
-          else {
-            child.unsafeAddRef()
-            UIO(true)
-          }
-        }
-
-      case (_: ZScope.Local[A], ZScope.global) => UIO(true)
-
-      case (parent: ZScope.Local[A], child: ZScope.Local[Any]) =>
-        Sync(child) {
-          Sync(parent) {
-            if (!parent.unsafeClosed() && !child.unsafeClosed()) {
-              // If parent and child scopes are both open:
-              child.unsafeAddRef()
-
-              val key = parent.unsafeEnsure(_ => child.unsafeRelease(), ZScope.Mode.Strong)
-
-              UIO(key.isDefined)
-            } else UIO(false)
-          }
-        }
-    }
-  }
+  final def extend(that: ZScope[Any]): UIO[Boolean] = UIO(unsafeExtend(that))
 
   /**
    * Determines if the scope is open at the moment the effect is executed.
@@ -112,6 +81,7 @@ sealed trait ZScope[+A] { self =>
   def open: UIO[Boolean] = closed.map(!_)
 
   private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[ZScope.Key]
+  private[zio] def unsafeExtend(that: ZScope[Any]): Boolean
 }
 object ZScope {
   sealed trait Mode
@@ -157,6 +127,10 @@ object ZScope {
     def ensure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Option[Key]] = ensureResult
 
     private[zio] def unsafeEnsure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode): Option[Key] = unsafeEnsureResult
+    private[zio] def unsafeExtend(that: ZScope[Any]): Boolean = that match {
+      case local: Local[_] => local.unsafeAddRef()
+      case _               => true
+    }
   }
 
   /**
@@ -234,7 +208,7 @@ object ZScope {
     private[this] def finalizers(mode: ZScope.Mode): Map[Key, OrderedFinalizer] =
       if (mode == ZScope.Mode.Weak) weakFinalizers else strongFinalizers
 
-    private[zio] def unsafeClosed(): Boolean = Sync(self)(opened.get() <= 0)
+    private[zio] def unsafeClosed(): Boolean = Sync(self)(exitValue.get() != null)
 
     private[zio] def unsafeClose(a0: A): UIO[Any] =
       Sync(self) {
@@ -276,6 +250,27 @@ object ZScope {
       Sync(self) {
         (weakFinalizers.size() == 0) && (strongFinalizers.size() == 0)
       }
+
+    private[zio] def unsafeExtend(that: ZScope[Any]): Boolean =
+      if (self eq that) true
+      else
+        that match {
+          case ZScope.global => true
+
+          case child: ZScope.Local[Any] =>
+            Sync(child) {
+              Sync(self) {
+                if (!self.unsafeClosed() && !child.unsafeClosed()) {
+                  // If parent and child scopes are both open:
+                  child.unsafeAddRef()
+
+                  self.unsafeEnsure(_ => UIO(child.unsafeRelease()), ZScope.Mode.Strong)
+
+                  true
+                } else false
+              }
+            }
+        }
 
     private[zio] def unsafeRelease(): UIO[Unit] =
       Sync(self) {
@@ -320,7 +315,7 @@ object ZScope {
               }
               .uncause[Nothing]
           }
-        } else ZIO.unit
+        } else null
       }
   }
 

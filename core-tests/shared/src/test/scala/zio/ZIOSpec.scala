@@ -2371,19 +2371,6 @@ object ZIOSpec extends ZIOBaseSpec {
           b      <- effect.await
         } yield assert(b)(equalTo(42))
       } @@ zioTag(interruption),
-      testM("par regression") {
-        val io =
-          IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
-        assertM(io)(isTrue)
-      } @@ zioTag(regression) @@ jvm(nonFlaky),
-      testM("par of now values") {
-        def countdown(n: Int): UIO[Int] =
-          if (n == 0) IO.succeed(0)
-          else
-            IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
-
-        assertM(countdown(50))(equalTo(150))
-      },
       testM("mergeAll") {
         val io = IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeed[String](_)))(0)((b, a) => b + a.length)
 
@@ -3245,8 +3232,54 @@ object ZIOSpec extends ZIOBaseSpec {
         val io          = ZIO.interrupt.zipPar(IO.succeed(1))
         val interrupted = io.sandbox.either.map(_.left.map(_.interrupted))
         assertM(interrupted)(isLeft(isTrue))
-      } @@ zioTag(interruption)
+      } @@ zioTag(interruption),
+      testM("passes regression 1") {
+        val io =
+          IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
+        assertM(io)(isTrue)
+      } @@ zioTag(regression) @@ jvm(nonFlaky),
+      testM("paralellizes simple success values") {
+        def countdown(n: Int): UIO[Int] =
+          if (n == 0) IO.succeed(0)
+          else
+            IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
+
+        assertM(countdown(50))(equalTo(150))
+      },
+      testM("does not kill forked fibers") {
+
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          latch3 <- Promise.make[Nothing, Unit]
+          ref1   <- Ref.make(false)
+          left = ZIO
+            .uninterruptibleMask(restore => latch2.succeed(()) *> restore(latch1.await *> ZIO.succeed("foo")))
+            .onInterrupt(ref1.set(true))
+          right                         = latch3.succeed(()).as(42)
+          result                        <- (left.fork zipPar right).fork
+          _                             <- latch2.await *> latch3.await *> latch1.succeed(())
+          tuple                         <- result.join
+          (leftInnerFiber, rightResult) = tuple
+          leftResult                    <- leftInnerFiber.join
+          interrupted                   <- ref1.get
+        } yield assert(interrupted)(isFalse) && assert(leftResult)(equalTo("foo")) && assert(rightResult)(equalTo(42))
+      }
     ),
+    suite("extendScope") {
+      testM("should extend scope of child") {
+        val isSuspended: Fiber.Status => Option[Fiber.Status.Suspended] = {
+          case s: Fiber.Status.Suspended => Some(s)
+          case _                         => None
+        }
+        for {
+          latch  <- Promise.make[Nothing, Unit]
+          fiber  <- ZIO.extendScope(latch.await.fork.fork)
+          inner  <- fiber.join
+          status <- inner.status
+        } yield assert(status)(isCase("Suspended", isSuspended, anything))
+      }
+    },
     suite("toFuture")(
       testM("should fail with ZTrace attached") {
         for {

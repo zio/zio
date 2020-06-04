@@ -2026,14 +2026,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       }
 
     val g = (b: B, a: A) => f(a, b)
-    ZIO.fiberId.flatMap(parentFiberId =>
-      (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false)).fork.flatMap { f =>
-        f.await.flatMap { exit =>
-          if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
-          else ZIO.done(exit)
+
+    ZIO.extendScope {
+      ZIO.effectSuspendTotalWith((_, parentFiberId) =>
+        (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false)).fork.flatMap {
+          f =>
+            f.await.flatMap { exit =>
+              if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
+              else ZIO.done(exit)
+            }
         }
-      }
-    )
+      )
+    }
   }
 }
 
