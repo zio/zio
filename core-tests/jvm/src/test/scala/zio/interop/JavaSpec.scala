@@ -59,7 +59,7 @@ object JavaSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                                   = new Exception("no future for you!")
         lazy val noFuture: CompletionStage[Unit] = throw ex
-        assertM(ZIO.fromCompletionStage(noFuture).run)(dies(equalTo(ex)))
+        assertM(ZIO.fromCompletionStage(noFuture).run)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                                  = new Exception("no value for you!")
@@ -78,7 +78,15 @@ object JavaSpec extends ZIOBaseSpec {
       testM("handle null produced by the completed `Future`") {
         lazy val someValue: CompletionStage[String] = CompletableFuture.completedFuture[String](null)
         assertM(ZIO.fromCompletionStage(someValue).map(Option(_)))(isNone)
-      } @@ zioTag(errors)
+      } @@ zioTag(errors),
+      testM("be referentially transparent") {
+        var n    = 0
+        val task = ZIO.fromCompletionStage(CompletableFuture.supplyAsync(() => n += 1))
+        for {
+          _ <- task
+          _ <- task
+        } yield assert(n)(equalTo(2))
+      }
     ) @@ zioTag(future),
     suite("`Task.toCompletableFuture` must")(
       testM("produce always a successful `IO` of `Future`") {
@@ -123,7 +131,7 @@ object JavaSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                              = new Exception("no future for you!")
         def noFuture: CompletionStage[Unit] = throw ex
-        assertM(Fiber.fromCompletionStage(noFuture).join.run)(dies(equalTo(ex)))
+        assertM(Fiber.fromCompletionStage(noFuture).join.run)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                             = new Exception("no value for you!")
