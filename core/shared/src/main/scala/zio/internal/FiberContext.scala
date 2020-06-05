@@ -235,8 +235,8 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], None)
-    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], None)
+    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], None, scope)
+    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], None, scope)
 
     ZIO
       .effectAsync[R, E, C](
@@ -513,7 +513,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = nextInstr(fork(zio.value, zio.scope))
+                    curZio = nextInstr(fork(zio.value, zio.scope, zio.extender.orNull))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
@@ -670,7 +670,11 @@ private[zio] final class FiberContext[E, A](
   /**
    * Forks an `IO` with the specified failure handler.
    */
-  def fork[E, A](zio: IO[E, A], forkScope: Option[ZScope[Any]]): FiberContext[E, A] = {
+  def fork[E, A](
+    zio: IO[E, A],
+    forkScope: Option[ZScope[Any]] = None,
+    overrideExtender: ZScope[Any] = null
+  ): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
     val locals                              = fiberRefLocals.asScala: @silent("JavaConverters")
     locals.foreach {
@@ -692,12 +696,10 @@ private[zio] final class FiberContext[E, A](
 
     val childScope = ZScope.unsafeMake[Exit[E, A]]()
 
-    val currentExtender = extenders.peekOrElse(null)
+    val currentExtender = if (overrideExtender ne null) overrideExtender else extenders.peekOrElse(null)
 
     // If we're in a region of scope extension, be sure to extend the scope of the child:
-    if (currentExtender ne null) {
-      currentExtender.unsafeExtend(childScope.scope)
-    }
+    if (currentExtender ne null) currentExtender.unsafeExtend(childScope.scope)
 
     val childContext = new FiberContext[E, A](
       childId,

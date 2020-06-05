@@ -746,9 +746,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * } yield a
    * }}}
    */
-  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, None)
+  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, None, None)
 
-  final def forkIn(scope: ZScope[Any]): URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, Some(scope))
+  final def forkIn(scope: ZScope[Any]): URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, Some(scope), None)
 
   /**
    * Forks the effect into a new independent fiber, with the specified name.
@@ -3969,8 +3969,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply(v: A): ZIO[R, E2, B] = success(v)
   }
 
-  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A], val scope: Option[ZScope[Any]])
-      extends URIO[R, Fiber.Runtime[E, A]] {
+  private[zio] final class Fork[R, E, A](
+    val value: ZIO[R, E, A],
+    val scope: Option[ZScope[Any]],
+    val extender: Option[ZScope[Any]]
+  ) extends URIO[R, Fiber.Runtime[E, A]] {
     override def tag = Tags.Fork
   }
 

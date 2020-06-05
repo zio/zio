@@ -2337,6 +2337,19 @@ object ZIOSpec extends ZIOBaseSpec {
         val effect = (ZIO.unit.race(ZIO.infinity)).uninterruptible
         assertM(effect)(isUnit)
       },
+      testM("race of two forks does not interrupt winner") {
+        for {
+          ref    <- Ref.make(0)
+          fibers <- Ref.make(Set.empty[Fiber[Any, Any]])
+          latch  <- Promise.make[Nothing, Unit]
+          effect = ZIO.uninterruptibleMask { restore =>
+            restore(latch.await.onInterrupt(ref.update(_ + 1))).fork.tap(f => fibers.update(_ + f))
+          }
+          awaitAll = fibers.get.flatMap(Fiber.awaitAll(_))
+          _        <- effect race effect
+          value2   <- latch.succeed(()) *> awaitAll *> ref.get
+        } yield assert(value2)(isLessThanEqualTo(1))
+      },
       testM("firstSuccessOf of values") {
         val io = IO.firstSuccessOf(IO.fail(0), List(IO.succeed(100))).either
         assertM(io)(isRight(equalTo(100)))
