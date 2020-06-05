@@ -1,6 +1,6 @@
 package zio.stream.experimental
 
-import zio.{ Chunk, ZIOBaseSpec }
+import zio._
 import zio.test.Assertion.equalTo
 import zio.test._
 
