@@ -3257,40 +3257,33 @@ object ZIOSpec extends ZIOBaseSpec {
             .uninterruptibleMask(restore => latch2.succeed(()) *> restore(latch1.await *> ZIO.succeed("foo")))
             .onInterrupt(ref1.set(true))
           right                         = latch3.succeed(()).as(42)
-          result                        <- (left.fork zipPar right).fork
-          _                             <- latch2.await *> latch3.await *> latch1.succeed(())
-          tuple                         <- result.join
-          (leftInnerFiber, rightResult) = tuple
+          _                             <- (latch2.await *> latch3.await *> latch1.succeed(())).fork
+          result                        <- left.fork zipPar right
+          (leftInnerFiber, rightResult) = result
           leftResult                    <- leftInnerFiber.await
           interrupted                   <- ref1.get
-        } yield assert(interrupted)(isFalse) && assert(leftResult)(succeeds(equalTo("foo"))) && assert(rightResult)(equalTo(42))
+        } yield assert(interrupted)(isFalse) && assert(leftResult)(succeeds(equalTo("foo"))) && assert(rightResult)(
+          equalTo(42)
+        )
       }
     ),
     suite("extendScope")(
       testM("should extend scope of child") {
-        val isSuspended: Fiber.Status => Option[Fiber.Status.Suspended] = {
-          case s: Fiber.Status.Suspended => Some(s)
-          case _                         => None
-        }
         for {
           latch  <- Promise.make[Nothing, Unit]
           fiber  <- ZIO.extendScope(latch.await.fork.fork)
           inner  <- fiber.join
           status <- inner.status
-        } yield assert(status)(isCase("Suspended", isSuspended, anything))
+        } yield assert(status.isDone)(isFalse)
       },
       testM("should extend scope of grandchild") {
-        val isSuspended: Fiber.Status => Option[Fiber.Status.Suspended] = {
-          case s: Fiber.Status.Suspended => Some(s)
-          case _                         => None
-        }
         for {
           latch  <- Promise.make[Nothing, Unit]
           fiber  <- ZIO.extendScope(latch.await.fork.fork.fork)
           inner1 <- fiber.join
           inner2 <- inner1.join
           status <- inner2.status
-        } yield assert(status)(isCase("Suspended", isSuspended, anything))
+        } yield assert(status.isDone)(isFalse)
       }
     ),
     suite("toFuture")(

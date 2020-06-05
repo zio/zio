@@ -23,7 +23,7 @@ import zio.internal.Sync
 
 /**
  * A `ZScope[K, A]` is a value that allows adding finalizers identified by `K`.
- * Scopes are closed with a value of type `A`, which is provided to all the 
+ * Scopes are closed with a value of type `A`, which is provided to all the
  * finalizers when the scope is released.
  *
  * For safety reasons, this interface has no method to close a scope. Rather,
@@ -82,10 +82,10 @@ sealed trait ZScope[+A] { self =>
   def open: UIO[Boolean] = closed.map(!_)
 
   /**
-    * Determines if the scope has been released at the moment the effect is 
-    * executed executed. A scope can be closed yet unreleased, if it has been 
-    * extended by another scope which is not yet released.
-    */
+   * Determines if the scope has been released at the moment the effect is
+   * executed executed. A scope can be closed yet unreleased, if it has been
+   * extended by another scope which is not yet released.
+   */
   def released: UIO[Boolean]
 
   private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[ZScope.Key]
@@ -203,7 +203,7 @@ object ZScope {
 
     def release: UIO[Boolean] = UIO.effectSuspendTotal {
       val result = unsafeRelease()
-      
+
       if (result eq null) UIO(false) else result as true
     }
 
@@ -322,7 +322,7 @@ object ZScope {
         } else null
       }
 
-      private[zio] def unsafeReleased(): Boolean = references.get() <= 0
+    private[zio] def unsafeReleased(): Boolean = references.get() <= 0
   }
 
   private val noCause: Cause[Nothing]            = Cause.empty
