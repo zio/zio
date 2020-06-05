@@ -161,5 +161,5 @@ object ClockSpec extends ZIOBaseSpec {
           result  <- (effect <* promise.succeed(())) <&> (promise.await *> effect)
         } yield assert(result)(equalTo((1L, 2L)))
       }
-    ) @@ timeout(10.seconds)
+    )
 }
