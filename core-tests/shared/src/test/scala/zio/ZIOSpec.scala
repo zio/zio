@@ -3265,11 +3265,17 @@ object ZIOSpec extends ZIOBaseSpec {
           (leftInnerFiber, rightResult) = tuple
           leftResult                    <- leftInnerFiber.await
           interrupted                   <- ref1.get
-        } yield assert(interrupted)(isFalse) && assert(leftResult)(succeeds(equalTo("foo"))) && assert(rightResult)(equalTo(42))
+        } yield assert(interrupted)(isFalse) && assert(leftResult)(succeeds(equalTo("foo"))) && assert(rightResult)(
+          equalTo(42)
+        )
       } @@ ignore
     ),
     suite("extendScope")(
       testM("should extend scope of child") {
+        val isRunning: Fiber.Status => Option[Fiber.Status.Running] = {
+          case s: Fiber.Status.Running => Some(s)
+          case _                       => None
+        }
         val isSuspended: Fiber.Status => Option[Fiber.Status.Suspended] = {
           case s: Fiber.Status.Suspended => Some(s)
           case _                         => None
@@ -3279,9 +3285,14 @@ object ZIOSpec extends ZIOBaseSpec {
           fiber  <- ZIO.extendScope(latch.await.fork.fork)
           inner  <- fiber.join
           status <- inner.status
-        } yield assert(status)(isCase("Suspended", isSuspended, anything))
+        } yield assert(status)(isCase("Running", isRunning, anything)) ||
+          assert(status)(isCase("Suspended", isSuspended, anything))
       },
       testM("should extend scope of grandchild") {
+        val isRunning: Fiber.Status => Option[Fiber.Status.Running] = {
+          case s: Fiber.Status.Running => Some(s)
+          case _                       => None
+        }
         val isSuspended: Fiber.Status => Option[Fiber.Status.Suspended] = {
           case s: Fiber.Status.Suspended => Some(s)
           case _                         => None
@@ -3292,7 +3303,8 @@ object ZIOSpec extends ZIOBaseSpec {
           inner1 <- fiber.join
           inner2 <- inner1.join
           status <- inner2.status
-        } yield assert(status)(isCase("Suspended", isSuspended, anything))
+        } yield assert(status)(isCase("Running", isRunning, anything)) ||
+          assert(status)(isCase("Suspended", isSuspended, anything))
       }
     ),
     suite("toFuture")(

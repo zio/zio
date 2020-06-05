@@ -107,11 +107,11 @@ object ZScopeSpec extends ZIOBaseSpec {
     suite("scope extension")(
       testM("closed is true but released is false for extended child") {
         for {
-          parent <- ZScope.make[Any] 
-          child  <- ZScope.make[Any] 
-          _      <- parent.scope.extend(child.scope)
-          _      <- child.close(())
-          closed <- child.scope.closed
+          parent   <- ZScope.make[Any]
+          child    <- ZScope.make[Any]
+          _        <- parent.scope.extend(child.scope)
+          _        <- child.close(())
+          closed   <- child.scope.closed
           released <- child.scope.released
         } yield assert(closed)(isTrue ?? "closed") && assert(released)(isFalse ?? "released")
       },
