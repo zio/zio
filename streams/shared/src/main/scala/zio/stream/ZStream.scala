@@ -2734,13 +2734,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               chunks >>= store
             case Done =>
               Pull.end
-          }.tapCause { cause =>
+          }.onInterrupt(
             ref.get.flatMap {
               case Previous(fiber) => fiber.interrupt
               case Current(fiber)  => fiber.interrupt
               case _               => ZIO.unit
-            }.when(cause.died || cause.interrupted || cause.failureOption.flatten.isDefined)
-          }
+            }
+          )
         }
       } yield pull
     }
