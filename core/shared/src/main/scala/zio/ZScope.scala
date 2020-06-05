@@ -322,7 +322,7 @@ object ZScope {
         } else null
       }
 
-      private[zio] def unsafeReleased(): Boolean = references.get() <= 0
+    private[zio] def unsafeReleased(): Boolean = references.get() <= 0
   }
 
   private val noCause: Cause[Nothing]            = Cause.empty
