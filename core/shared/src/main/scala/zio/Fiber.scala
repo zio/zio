@@ -497,6 +497,11 @@ object Fiber extends FiberPlatformSpecific {
   sealed trait Status extends Serializable with Product { self =>
     import Status._
 
+    final def isDone: Boolean = self match {
+      case Done => true
+      case _    => false
+    }
+
     final def toFinishing: Status = self match {
       case Done                            => Done
       case Finishing(interrupting)         => Finishing(interrupting)
