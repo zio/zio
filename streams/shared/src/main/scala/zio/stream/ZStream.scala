@@ -3040,7 +3040,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     that: ZStream[R1, E1, O2]
   )(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
     def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
-      pull.flatMap(chunk => if (chunk.isEmpty) pull else UIO.succeedNow(chunk))
+      pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else UIO.succeedNow(chunk))
 
     ZStream {
       for {
@@ -3167,7 +3167,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a single value that will get cleaned up after the
    * stream is consumed
    */
-  def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any]): ZStream[R, E, A] =
+  def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZStream[R, E, A] =
     managed(ZManaged.make(acquire)(release))
 
   /**
@@ -3176,7 +3176,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def bracketExit[R, E, A](
     acquire: ZIO[R, E, A]
-  )(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any]): ZStream[R, E, A] =
+  )(release: (A, Exit[Any, Any]) => URIO[R, Any]): ZStream[R, E, A] =
     managed(ZManaged.makeExit(acquire)(release))
 
   /**
@@ -3301,7 +3301,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a one-element stream that never fails and executes the finalizer when it ends.
    */
-  def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Any] =
+  def finalizer[R](finalizer: URIO[R, Any]): ZStream[R, Nothing, Any] =
     bracket[R, Nothing, Unit](UIO.unit)(_ => finalizer)
 
   /**
@@ -3601,6 +3601,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     iterate(min)(_ + 1).takeWhile(_ < max)
 
   /**
+   * Repeats the provided value infinitely.
+   */
+  def repeat[A](a: => A): ZStream[Any, Nothing, A] =
+    repeatEffect(UIO.succeed(a))
+
+  /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever.
    */
   def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
@@ -3647,6 +3653,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
+   * Repeats the value using the provided schedule.
+   */
+  def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R, Nothing, A] =
+    repeatEffectWith(UIO.succeed(a), schedule)
+
+  /**
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag]: ZStream[Has[A], Nothing, A] =
@@ -3676,6 +3688,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def succeed[A](a: => A): ZStream[Any, Nothing, A] =
     fromChunk(Chunk.single(a))
+
+  /**
+   * A stream that emits Unit values spaced by the specified duration.
+   */
+  def tick(interval: Duration): ZStream[Clock, Nothing, Unit] =
+    repeatWith((), Schedule.spaced(interval))
 
   /**
    * A stream that contains a single `Unit` value.

@@ -484,7 +484,7 @@ package object environment extends PlatformSpecific {
      * time by the specified duration, running any actions scheduled for on or
      * before the new time in order.
      */
-    def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
+    def adjust(duration: => Duration): URIO[TestClock, Unit] =
       ZIO.accessM(_.get.adjust(duration))
 
     /**
@@ -500,7 +500,7 @@ package object environment extends PlatformSpecific {
      * time to the specified `OffsetDateTime`, running any actions scheduled
      * for on or before the new time in order.
      */
-    def setDateTime(dateTime: => OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
+    def setDateTime(dateTime: => OffsetDateTime): URIO[TestClock, Unit] =
       ZIO.accessM(_.get.setDateTime(dateTime))
 
     /**
@@ -508,7 +508,7 @@ package object environment extends PlatformSpecific {
      * time to the specified time in terms of duration since the epoch,
      * running any actions scheduled for on or before the new time in order.
      */
-    def setTime(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
+    def setTime(duration: => Duration): URIO[TestClock, Unit] =
       ZIO.accessM(_.get.setTime(duration))
 
     /**
@@ -517,7 +517,7 @@ package object environment extends PlatformSpecific {
      * since the epoch will not be altered and no scheduled actions will be
      * run as a result of this effect.
      */
-    def setTimeZone(zone: => ZoneId): ZIO[TestClock, Nothing, Unit] =
+    def setTimeZone(zone: => ZoneId): URIO[TestClock, Unit] =
       ZIO.accessM(_.get.setTimeZone(zone))
 
     /**
@@ -531,7 +531,7 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestClock` instance in the environment and returns the current
      * time zone.
      */
-    val timeZone: ZIO[TestClock, Nothing, ZoneId] =
+    val timeZone: URIO[TestClock, ZoneId] =
       ZIO.accessM(_.get.timeZone)
 
     /**
@@ -685,7 +685,7 @@ package object environment extends PlatformSpecific {
        * Takes the first value from the input buffer, if one exists, or else
        * fails with an `EOFException`.
        */
-      val getStrLn: ZIO[Any, IOException, String] = {
+      val getStrLn: IO[IOException, String] = {
         for {
           input <- consoleState.get.flatMap(d =>
                     IO.fromOption(d.input.headOption)
@@ -764,14 +764,14 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestConsole` instance in the environment and clears the input
      * buffer.
      */
-    val clearInput: ZIO[TestConsole, Nothing, Unit] =
+    val clearInput: URIO[TestConsole, Unit] =
       ZIO.accessM(_.get.clearInput)
 
     /**
      * Accesses a `TestConsole` instance in the environment and clears the output
      * buffer.
      */
-    val clearOutput: ZIO[TestConsole, Nothing, Unit] =
+    val clearOutput: URIO[TestConsole, Unit] =
       ZIO.accessM(_.get.clearOutput)
 
     /**
@@ -787,7 +787,7 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestConsole` instance in the environment and writes the
      * specified sequence of strings to the input buffer.
      */
-    def feedLines(lines: String*): ZIO[TestConsole, Nothing, Unit] =
+    def feedLines(lines: String*): URIO[TestConsole, Unit] =
       ZIO.accessM(_.get.feedLines(lines: _*))
 
     /**
@@ -1347,118 +1347,118 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of booleans.
      */
-    val clearBooleans: ZIO[TestRandom, Nothing, Unit] =
+    val clearBooleans: URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.clearBooleans)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of bytes.
      */
-    val clearBytes: ZIO[TestRandom, Nothing, Unit] =
+    val clearBytes: URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.clearBytes)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of characters.
      */
-    val clearChars: ZIO[TestRandom, Nothing, Unit] =
+    val clearChars: URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.clearChars)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of doubles.
      */
-    val clearDoubles: ZIO[TestRandom, Nothing, Unit] =
+    val clearDoubles: URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.clearDoubles)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of floats.
      */
-    val clearFloats: ZIO[TestRandom, Nothing, Unit] =
+    val clearFloats: URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.clearFloats)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of integers.
      */
-    val clearInts: ZIO[TestRandom, Nothing, Unit] =
+    val clearInts: URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.clearInts)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of longs.
      */
-    val clearLongs: ZIO[TestRandom, Nothing, Unit] =
+    val clearLongs: URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.clearLongs)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of strings.
      */
-    val clearStrings: ZIO[TestRandom, Nothing, Unit] =
+    val clearStrings: URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.clearStrings)
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of booleans.
      */
-    def feedBooleans(booleans: Boolean*): ZIO[TestRandom, Nothing, Unit] =
+    def feedBooleans(booleans: Boolean*): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.feedBooleans(booleans: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of chunks of bytes.
      */
-    def feedBytes(bytes: Chunk[Byte]*): ZIO[TestRandom, Nothing, Unit] =
+    def feedBytes(bytes: Chunk[Byte]*): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.feedBytes(bytes: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of characters.
      */
-    def feedChars(chars: Char*): ZIO[TestRandom, Nothing, Unit] =
+    def feedChars(chars: Char*): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.feedChars(chars: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of doubles.
      */
-    def feedDoubles(doubles: Double*): ZIO[TestRandom, Nothing, Unit] =
+    def feedDoubles(doubles: Double*): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.feedDoubles(doubles: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of floats.
      */
-    def feedFloats(floats: Float*): ZIO[TestRandom, Nothing, Unit] =
+    def feedFloats(floats: Float*): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.feedFloats(floats: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of integers.
      */
-    def feedInts(ints: Int*): ZIO[TestRandom, Nothing, Unit] =
+    def feedInts(ints: Int*): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.feedInts(ints: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of longs.
      */
-    def feedLongs(longs: Long*): ZIO[TestRandom, Nothing, Unit] =
+    def feedLongs(longs: Long*): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.feedLongs(longs: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of strings.
      */
-    def feedStrings(strings: String*): ZIO[TestRandom, Nothing, Unit] =
+    def feedStrings(strings: String*): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.feedStrings(strings: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and gets the seed.
      */
-    val getSeed: ZIO[TestRandom, Nothing, Long] =
+    val getSeed: URIO[TestRandom, Long] =
       ZIO.accessM(_.get.getSeed)
 
     /**
@@ -1513,7 +1513,7 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestRandom` instance in the environment and sets the seed to
      * the specified value.
      */
-    def setSeed(seed: => Long): ZIO[TestRandom, Nothing, Unit] =
+    def setSeed(seed: => Long): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.setSeed(seed))
 
     /**
@@ -1587,7 +1587,7 @@ package object environment extends PlatformSpecific {
       /**
        * Returns the system line separator.
        */
-      val lineSeparator: ZIO[Any, Nothing, String] =
+      val lineSeparator: UIO[String] =
         systemState.get.map(_.lineSeparator)
 
       val properties: ZIO[Any, Throwable, Map[String, String]] =
@@ -1683,14 +1683,14 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of environment variables.
      */
-    def putEnv(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
+    def putEnv(name: => String, value: => String): URIO[TestSystem, Unit] =
       ZIO.accessM(_.get.putEnv(name, value))
 
     /**
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of system properties.
      */
-    def putProperty(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
+    def putProperty(name: => String, value: => String): URIO[TestSystem, Unit] =
       ZIO.accessM(_.get.putProperty(name, value))
 
     /**
@@ -1704,21 +1704,21 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and sets the line
      * separator to the specified value.
      */
-    def setLineSeparator(lineSep: => String): ZIO[TestSystem, Nothing, Unit] =
+    def setLineSeparator(lineSep: => String): URIO[TestSystem, Unit] =
       ZIO.accessM(_.get.setLineSeparator(lineSep))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of environment variables.
      */
-    def clearEnv(variable: => String): ZIO[TestSystem, Nothing, Unit] =
+    def clearEnv(variable: => String): URIO[TestSystem, Unit] =
       ZIO.accessM(_.get.clearEnv(variable))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of system properties.
      */
-    def clearProperty(prop: => String): ZIO[TestSystem, Nothing, Unit] =
+    def clearProperty(prop: => String): URIO[TestSystem, Unit] =
       ZIO.accessM(_.get.clearProperty(prop))
 
     /**

@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
 import zio.internal.Sync
 
 /**
- * A `ZScope[K, A]` is a value that allows adding finalizers identified by `K`.
+ * A `ZScope[A]` is a value that allows adding finalizers identified by a key.
  * Scopes are closed with a value of type `A`, which is provided to all the
  * finalizers when the scope is released.
  *

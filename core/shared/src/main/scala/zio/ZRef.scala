@@ -590,7 +590,7 @@ object ZRef extends Serializable {
 
   }
 
-  private[zio] implicit class UnsafeSyntax[A](private val self: Ref[A]) extends AnyVal {
+  implicit class UnsafeSyntax[A](private val self: Ref[A]) extends AnyVal {
 
     private[zio] def unsafeUpdate(f: A => A): Unit =
       self match {

@@ -178,7 +178,7 @@ object TestAspect extends TimeoutVariants {
               (_, _) => dump(label) *> fiber.join
             )
           }
-        def dump[E, A](label: String): ZIO[Live with Annotations, Nothing, Unit] =
+        def dump[E, A](label: String): URIO[Live with Annotations, Unit] =
           Annotations.supervisedFibers.flatMap(fibers => Live.live(Fiber.putDumpStr(label, fibers.toSeq: _*)))
         spec.transform[R, TestFailure[E], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c

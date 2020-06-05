@@ -48,7 +48,7 @@ object RIO {
    */
   def bracket[R, A, B](
     acquire: RIO[R, A],
-    release: A => ZIO[R, Nothing, Any],
+    release: A => URIO[R, Any],
     use: A => RIO[R, B]
   ): RIO[R, B] = ZIO.bracket(acquire, release, use)
 
@@ -63,7 +63,7 @@ object RIO {
    */
   def bracketExit[R, A, B](
     acquire: RIO[R, A],
-    release: (A, Exit[Throwable, B]) => ZIO[R, Nothing, Any],
+    release: (A, Exit[Throwable, B]) => URIO[R, Any],
     use: A => RIO[R, B]
   ): RIO[R, B] =
     ZIO.bracketExit(acquire, release, use)
@@ -298,7 +298,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.environment]]
    */
-  def environment[R]: ZIO[R, Nothing, R] = ZIO.environment
+  def environment[R]: URIO[R, R] = ZIO.environment
 
   /**
    * @see See [[zio.ZIO.fail]]
@@ -446,7 +446,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.forkAll_]]
    */
-  def forkAll_[R, A](as: Iterable[RIO[R, A]]): ZIO[R, Nothing, Unit] =
+  def forkAll_[R, A](as: Iterable[RIO[R, A]]): URIO[R, Unit] =
     ZIO.forkAll_(as)
 
   /**

@@ -1420,7 +1420,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: ZIO[ZEnv, Nothing, Unit]              = zio.provideCustomLayer(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomLayer(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -1428,7 +1428,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("can split environment into two parts") {
         val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: ZIO[Random, Nothing, Unit]           = zio.provideSomeLayer[Random](clockLayer)
+        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -3216,7 +3216,9 @@ object ZIOSpec extends ZIOBaseSpec {
             } yield n
               """
         }
-        val expected = "Cannot prove that NoSuchElementException <:< String."
+
+        val expected =
+          "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has String for the error type."
         if (TestVersion.isScala2) assertM(result)(isLeft(equalTo(expected)))
         else assertM(result)(isLeft(anything))
       }
@@ -3293,7 +3295,14 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- ZIO.fromFuture(_ => future).either
         } yield assert(result)(isLeft(hasThrowableCause(hasThrowableCause(hasMessage(containsString("Fiber:Id("))))))
       }
-    ) @@ zioTag(future)
+    ) @@ zioTag(future),
+    suite("resurrect")(
+      testM("should fail checked") {
+        val error: Exception   = new Exception("msg")
+        val effect: Task[Unit] = ZIO.fail(error).unit.orDie.resurrect
+        assertM(effect.either)(isLeft(equalTo(error)))
+      }
+    )
   )
 
   def functionIOGen: Gen[Random with Sized, String => Task[Int]] =

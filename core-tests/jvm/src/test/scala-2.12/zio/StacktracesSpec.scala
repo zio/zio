@@ -165,7 +165,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       }
     },
     testM("blocking trace") {
-      val io: ZIO[Blocking, Throwable, Unit] = for {
+      val io: RIO[Blocking, Unit] = for {
         trace <- blockingTrace
       } yield trace
 
@@ -310,13 +310,13 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
   def show(cause: Cause[Any]): Unit = if (debug) println(cause.prettyPrint)
 
-  def basicTest: ZIO[Any, Nothing, ZTrace] =
+  def basicTest: UIO[ZTrace] =
     for {
       _     <- ZIO.unit
       trace <- ZIO.trace
     } yield trace
 
-  def foreachTest: ZIO[Any, Nothing, ZTrace] = {
+  def foreachTest: UIO[ZTrace] = {
     import foreachTraceFixture._
     for {
       _     <- effectTotal
@@ -342,7 +342,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       t2 <- ZIO.trace
     } yield (t1, t2)
 
-  def foreachParFail: ZIO[Any, Nothing, Unit] =
+  def foreachParFail: UIO[Unit] =
     for {
       _ <- ZIO.foreachPar(1 to 10)(i => (if (i >= 7) UIO(i / 0) else UIO(i / 10)))
     } yield ()
@@ -352,7 +352,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       _ <- ZIO.foreachParN(4)(1 to 10)(i => (if (i >= 7) UIO(i / 0) else UIO(i / 10)))
     } yield ()
 
-  def leftAssociativeFold(n: Int): ZIO[Any, Nothing, ZTrace] =
+  def leftAssociativeFold(n: Int): UIO[ZTrace] =
     (1 to n)
       .foldLeft(ZIO.unit *> ZIO.unit) { (acc, _) =>
         acc *> UIO(())

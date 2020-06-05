@@ -23,7 +23,7 @@ object ManagedSpec extends ZIOBaseSpec {
         }
       }
 
-    val incrementAndGet: ZIO[Counter, Nothing, Int] =
+    val incrementAndGet: URIO[Counter, Int] =
       ZIO.accessM[Counter](_.get[Counter.Service].incrementAndGet)
   }
 

@@ -30,7 +30,7 @@ import zio.duration.Duration
  *
  * See [[ZManaged#reserve]] and [[ZIO#reserve]] for details of usage.
  */
-final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[Any, Any] => ZIO[R, Nothing, Any])
+final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[Any, Any] => URIO[R, Any])
 
 /**
  * A `ZManaged[R, E, A]` is a managed resource of type `A`, which may be used by
@@ -1504,14 +1504,14 @@ object ZManaged {
    * Creates an effect that only executes the provided finalizer as its
    * release action.
    */
-  def finalizer[R](f: ZIO[R, Nothing, Any]): ZManaged[R, Nothing, Unit] =
+  def finalizer[R](f: URIO[R, Any]): ZManaged[R, Nothing, Unit] =
     finalizerExit(_ => f)
 
   /**
    * Creates an effect that only executes the provided function as its
    * release action.
    */
-  def finalizerExit[R](f: Exit[Any, Any] => ZIO[R, Nothing, Any]): ZManaged[R, Nothing, Unit] =
+  def finalizerExit[R](f: Exit[Any, Any] => URIO[R, Any]): ZManaged[R, Nothing, Unit] =
     makeExit(ZIO.unit)((_, e) => f(e))
 
   /**
@@ -1826,7 +1826,7 @@ object ZManaged {
    */
   def makeInterruptible[R, E, A](
     acquire: ZIO[R, E, A]
-  )(release: A => ZIO[R, Nothing, Any]): ZManaged[R, E, A] =
+  )(release: A => URIO[R, Any]): ZManaged[R, E, A] =
     ZManaged.fromEffect(acquire).onExitFirst(_.foreach(release))
 
   /**

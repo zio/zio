@@ -19,7 +19,7 @@ class TReentrantLockBenchmark {
 
   val javaLock = new StampedLock()
 
-  val zioLock: ZIO[Any, Nothing, TReentrantLock] = TReentrantLock.make.commit
+  val zioLock: UIO[TReentrantLock] = TReentrantLock.make.commit
 
   @Benchmark
   @Group("ZioLockBasic")

@@ -25,7 +25,7 @@ trait ManagedApp extends BootstrapRuntime { ma =>
   def run(args: List[String]): ZManaged[ZEnv, Nothing, ExitCode]
 
   private val app = new App {
-    override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] =
+    override def run(args: List[String]): URIO[ZEnv, ExitCode] =
       ma.run(args).use(exit => ZIO.effectTotal(exit))
   }
 
