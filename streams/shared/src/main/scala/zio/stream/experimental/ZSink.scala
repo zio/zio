@@ -160,7 +160,7 @@ object ZSink {
   /**
    * A sink that executes the provided effectful function for every element fed to it.
    */
-  def fromFunctionM[R, E, A](f: A => ZIO[R, E, Unit]): ZSink[R, E, A, Unit] =
+  def foreach[R, E, A](f: A => ZIO[R, E, Unit]): ZSink[R, E, A, Unit] =
     succeed(f(_).mapError(Left(_)), ZIO.unit)
 
   /**
@@ -189,7 +189,7 @@ object ZSink {
    * A sink prints every input string to the console (including a newline character).
    */
   val putStrLn: ZSink[console.Console, Nothing, String, Unit] =
-    fromFunctionM(console.putStrLn(_))
+    foreach(console.putStrLn(_))
 
   /**
    * A sink that consumes values using `push` yields the value from `done`.
