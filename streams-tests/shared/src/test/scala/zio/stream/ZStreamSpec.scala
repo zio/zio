@@ -2555,6 +2555,17 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- TestClock.adjust(1.second)
               result <- fiber.join
             } yield result)(equalTo(Chunk(3)))
+          },
+          testM("should interrupt fibers properly") {
+            assertM(
+              ZStream
+                .fromSchedule(Schedule.fixed(100.millis))
+                .tap(_ => TestClock.adjust(100.millis))
+                .debounce(50.millis)
+                .interruptWhen(ZIO.never)
+                .take(5)
+                .runCollect
+            )(equalTo(Chunk(0, 1, 2, 3, 4)))
           }
         ),
         suite("timeout")(

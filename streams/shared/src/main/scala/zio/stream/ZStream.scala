@@ -2702,7 +2702,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = {
           def store(chunk: Chunk[O2]): URIO[Clock, Chunk[O2]] =
             chunk.lastOption
-              .map(last => clock.sleep(d).as(last).fork.flatMap(f => ref.set(Previous(f))))
+              .map(last => clock.sleep(d).as(last).forkDaemon.flatMap(f => ref.set(Previous(f))))
               .getOrElse(ref.set(NotStarted))
               .as(Chunk.empty)
 
@@ -2711,7 +2711,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               fiber.join.raceWith[R with Clock, Option[E1], Option[E1], Chunk[O2], Chunk[O2]](chunks)(
                 {
                   case (Exit.Success(value), current) =>
-                    ref.set(Current(current)).as(Chunk.single(value))
+                    current.disown *> ref.set(Current(current)).as(Chunk.single(value))
                   case (Exit.Failure(cause), current) =>
                     current.interrupt *> Pull.halt(cause)
                 }, {
@@ -2734,6 +2734,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               chunks >>= store
             case Done =>
               Pull.end
+          }.tapCause { cause =>
+            ref.get.flatMap {
+              case Previous(fiber) => fiber.interrupt
+              case Current(fiber)  => fiber.interrupt
+              case _               => ZIO.unit
+            }.when(cause.died || cause.interrupted || cause.failureOption.flatten.isDefined)
           }
         }
       } yield pull
