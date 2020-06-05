@@ -176,7 +176,7 @@ object ZSink {
     ZSink(
       ZRef
         .makeManaged(Option.empty[A])
-        .zipWith(ZRef.makeManaged(true))((ref, empty) => (a => ref.set(Some(a)).whenM(empty.get), ref.get))
+        .map(ref => (a => ref.update(o => if (o.isEmpty) Some(a) else o), ref.get))
     )
 
   /**
