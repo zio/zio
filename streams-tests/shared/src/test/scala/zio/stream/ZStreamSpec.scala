@@ -261,6 +261,18 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- cancelled.get
             } yield assert(result)(isTrue)
           } @@ zioTag(interruption),
+          testM("child fiber handling") {
+            assertM(
+              ZStream
+                .fromSchedule(Schedule.fixed(100.millis))
+                .tap(_ => TestClock.adjust(100.millis))
+                .aggregateAsyncWithin(ZTransducer.last, Schedule.fixed(500.millis))
+                .interruptWhen(ZIO.never)
+                .take(5)
+                .someOrFail(None)
+                .runCollect
+            )(equalTo(Chunk(3, 8, 13, 18, 23)))
+          } @@ zioTag(interruption),
           testM("aggregateAsyncWithinEitherLeftoverHandling") {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
