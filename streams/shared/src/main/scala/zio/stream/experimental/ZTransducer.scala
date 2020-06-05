@@ -65,7 +65,7 @@ object ZTransducer {
   /**
    * A transducer that divides chunks into chunks with a length bounded by `max`.
    */
-  def limitAll[A](max: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
+  def chunkLimit[A](max: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
     succeed(chunk =>
       ZIO.succeedNow(
         if (chunk.length <= max) Chunk.single(chunk)
