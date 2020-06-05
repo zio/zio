@@ -3632,6 +3632,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     Supervisor.track(true).flatMap { supervisor =>
       // Filter out the fiber id of whoever is calling this:
       get(supervisor.value.flatMap(children => ZIO.descriptor.map(d => children.filter(_.id != d.id))))
+        .supervised(supervisor)
     }
 
   /**
