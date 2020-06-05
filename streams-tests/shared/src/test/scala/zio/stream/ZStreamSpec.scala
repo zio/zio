@@ -2839,19 +2839,30 @@ object ZStreamSpec extends ZIOBaseSpec {
             res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
           } yield assert(res1)(equalTo(res2))
         }),
-        testM("zipWithLatest") {
-          import zio.test.environment.TestClock
+        suite("zipWithLatest")(
+          testM("succeed") {
+            val s1 = ZStream.iterate(0)(_ + 1).fixed(100.millis)
+            val s2 = ZStream.iterate(0)(_ + 1).fixed(70.millis)
+            val s3 = s1.zipWithLatest(s2)((_, _))
 
-          val s1 = ZStream.iterate(0)(_ + 1).fixed(100.millis)
-          val s2 = ZStream.iterate(0)(_ + 1).fixed(70.millis)
-          val s3 = s1.zipWithLatest(s2)((_, _))
-
-          for {
-            fiber <- s3.take(4).runCollect.fork
-            _     <- TestClock.setTime(210.milliseconds)
-            value <- fiber.join
-          } yield assert(value)(equalTo(Chunk(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
-        },
+            for {
+              fiber <- s3.take(4).runCollect.fork
+              _     <- TestClock.setTime(210.milliseconds)
+              value <- fiber.join
+            } yield assert(value)(equalTo(Chunk(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
+          },
+          testM("handle empty pulls properly") {
+            assertM(
+              ZStream
+                .unfold(0)(n => Some((if (n < 3) Chunk.empty else Chunk.single(2), n + 1)))
+                .flattenChunks
+                .forever
+                .zipWithLatest(ZStream(1).forever)((_, x) => x)
+                .take(3)
+                .runCollect
+            )(equalTo(Chunk(1, 1, 1)))
+          }
+        ),
         suite("zipWithNext")(
           testM("should zip with next element for a single chunk") {
             for {

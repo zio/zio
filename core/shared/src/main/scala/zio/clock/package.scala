@@ -70,7 +70,7 @@ package object clock {
   /**
    * Returns the current time, relative to the Unix epoch.
    */
-  def currentTime(unit: => TimeUnit): ZIO[Clock, Nothing, Long] =
+  def currentTime(unit: => TimeUnit): URIO[Clock, Long] =
     ZIO.accessM(_.get.currentTime(unit))
 
   /**
@@ -82,13 +82,13 @@ package object clock {
   /**
    * Returns the system nano time, which is not relative to any date.
    */
-  val nanoTime: ZIO[Clock, Nothing, Long] =
+  val nanoTime: URIO[Clock, Long] =
     ZIO.accessM(_.get.nanoTime)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  def sleep(duration: => Duration): ZIO[Clock, Nothing, Unit] =
+  def sleep(duration: => Duration): URIO[Clock, Unit] =
     ZIO.accessM(_.get.sleep(duration))
 
 }

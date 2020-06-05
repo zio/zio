@@ -60,7 +60,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         def acquire1: ZIO[R, E, A]               = ???
         def acquire2: ZIO[R1, E, A]              = ???
         def acquire3: ZIO[R2, E, A]              = ???
-        def release1: A => ZIO[R, Nothing, Any]  = ???
+        def release1: A => URIO[R, Any]          = ???
         def release2: A => ZIO[R1, Nothing, Any] = ???
         def release3: A => ZIO[R2, Nothing, Any] = ???
         def managed1: ZManaged[R with R1, E, A]  = ZManaged.make(acquire1)(release2)
@@ -876,9 +876,9 @@ object ZManagedSpec extends ZIOBaseSpec {
         val expected = Chunk("acquiring a", "acquiring b", "releasing b", "acquiring c", "releasing c", "releasing a")
         for {
           ref     <- Ref.make[Chunk[String]](Chunk.empty)
-          a       = Managed.make(ref.update(_ + "acquiring a"))(_ => ref.update(_ + "releasing a"))
-          b       = Managed.make(ref.update(_ + "acquiring b"))(_ => ref.update(_ + "releasing b"))
-          c       = Managed.make(ref.update(_ + "acquiring c"))(_ => ref.update(_ + "releasing c"))
+          a       = Managed.make(ref.update(_ :+ "acquiring a"))(_ => ref.update(_ :+ "releasing a"))
+          b       = Managed.make(ref.update(_ :+ "acquiring b"))(_ => ref.update(_ :+ "releasing b"))
+          c       = Managed.make(ref.update(_ :+ "acquiring c"))(_ => ref.update(_ :+ "releasing c"))
           managed = a *> b.release *> c
           _       <- managed.useNow
           log     <- ref.get
@@ -1509,7 +1509,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZManaged.succeed(42).collectM("Oh No!") {
           case 42 => ZManaged.succeed(84)
         }
-        val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed(_))
+        val effect: IO[String, Int] = managed.use(ZIO.succeed(_))
 
         assertM(effect)(equalTo(84))
       },
@@ -1517,7 +1517,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZManaged.succeed(42).collectM("Oh No!") {
           case 43 => ZManaged.succeed(84)
         }
-        val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed(_))
+        val effect: IO[String, Int] = managed.use(ZIO.succeed(_))
 
         assertM(effect.run)(fails(equalTo("Oh No!")))
       }

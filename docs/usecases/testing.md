@@ -26,7 +26,7 @@ import zio.test.environment._
 import HelloWorld._
 
 object HelloWorld {
-  def sayHello: ZIO[Console, Nothing, Unit] =
+  def sayHello: URIO[Console, Unit] =
     console.putStrLn("Hello, World!")
 }
 

@@ -44,6 +44,12 @@ private[zio] trait ChunkLike[+A] extends IndexedSeq[A] with IndexedSeqLike[A, Ch
       case _                        => super.:+(a1)
     }
 
+  override final def +:[A1 >: A, That](a1: A1)(implicit bf: CanBuildFrom[Chunk[A], A1, That]): That =
+    bf match {
+      case _: ChunkCanBuildFrom[A1] => prepend(a1)
+      case _                        => super.:+(a1)
+    }
+
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */

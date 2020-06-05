@@ -48,7 +48,7 @@ trait Event
 import zio._
 import zio.console.Console
 
-def processEvent(event: Event): ZIO[Console, Nothing, Unit] =
+def processEvent(event: Event): URIO[Console, Unit] =
   console.putStrLn(s"Got $event")
 ```
 
@@ -61,7 +61,7 @@ With ZIO, we've regained to ability to reason about the effects called. We know 
 However, the same method could be implemented as:
 
 ```scala mdoc:silent
-def processEvent2(event: Event): ZIO[Console, Nothing, Unit] =
+def processEvent2(event: Event): URIO[Console, Unit] =
   ZIO.unit
 ```
 
@@ -200,8 +200,8 @@ type AccountObserver = Has[AccountObserver.Service]
 
 object AccountObserver {
   trait Service {
-    def processEvent(event: AccountEvent): ZIO[Any, Nothing, Unit]
-    def runCommand(): ZIO[Any, Nothing, Unit]
+    def processEvent(event: AccountEvent): UIO[Unit]
+    def runCommand(): UIO[Unit]
   }
 
   def processEvent(event: AccountEvent) =
@@ -397,10 +397,10 @@ type PolyExample = Has[PolyExample.Service]
 
 object PolyExample {
   trait Service {
-    def polyInput[I: Tag](input: I): ZIO[Any, Throwable, String]
-    def polyError[E: Tag](input: Int): ZIO[Any, E, String]
-    def polyOutput[A: Tag](input: Int): ZIO[Any, Throwable, A]
-    def polyAll[I: Tag, E: Tag, A: Tag](input: I): ZIO[Any, E, A]
+    def polyInput[I: Tag](input: I): Task[String]
+    def polyError[E: Tag](input: Int): IO[E, String]
+    def polyOutput[A: Tag](input: Int): Task[A]
+    def polyAll[I: Tag, E: Tag, A: Tag](input: I): IO[E, A]
   }
 }
 ```

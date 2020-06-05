@@ -1,6 +1,9 @@
 package zio.stream
 
+import scala.io.Source
+
 import zio._
+import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
 
@@ -324,66 +327,26 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("preserves data in chunks") {
           checkM(weirdStringGenForSplitLines) { xs =>
             val data = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
-            val ys   = xs.headOption.map(_ :: xs.drop(1).sliding(2, 2).toList.map(_.mkString)).getOrElse(Nil)
-
-            ZTransducer.splitLines.push.use { push =>
-              for {
-                result   <- push(Some(data))
-                leftover <- push(None)
-              } yield assert((result ++ leftover).toArray[String].toList)(equalTo(ys))
-
-            }
+            testSplitLines(Seq(data))
           }
         },
         testM("handles leftovers") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              result   <- push(Some(Chunk("abc\nbc")))
-              leftover <- push(None)
-            } yield assert(result.toArray[String].mkString("\n"))(equalTo("abc")) && assert(
-              leftover.toArray[String].mkString
-            )(equalTo("bc"))
-          }
+          testSplitLines(Seq(Chunk("abc\nbc")))
         },
         testM("handles leftovers 2") {
-          assertM(
-            ZStream
-              .fromChunks(Chunk("aa", "bb"), Chunk("\nbbc\n", "ddb", "bd"), Chunk("abc", "\n"), Chunk("abc"))
-              .transduce(ZTransducer.splitLines)
-              .runCollect
-          )(equalTo(Chunk("aabb", "bbc", "ddbbdabc", "abc")))
+          testSplitLines(Seq(Chunk("aa", "bb"), Chunk("\nbbc\n", "ddb", "bd"), Chunk("abc", "\n"), Chunk("abc")))
         },
         testM("aggregates chunks") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              part1 <- push(Some(Chunk("abc", "\n", "bc", "\n", "bcd", "bcd")))
-              part2 <- push(None)
-            } yield assert(part1 ++ part2)(equalTo(Chunk("abc", "bc", "bcdbcd")))
-          }
+          testSplitLines(Seq(Chunk("abc", "\n", "bc", "\n", "bcd", "bcd")))
         },
         testM("single newline edgecase") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              part1 <- push(Some(Chunk("\n")))
-              part2 <- push(None)
-            } yield assert(part1 ++ part2)(equalTo(Chunk("")))
-          }
+          testSplitLines(Seq(Chunk("\n")))
         },
         testM("no newlines in data") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              part1 <- push(Some(Chunk("abc", "abc", "abc")))
-              part2 <- push(None)
-            } yield assert(part1 ++ part2)(equalTo(Chunk("abcabcabc")))
-          }
+          testSplitLines(Seq(Chunk("abc", "abc", "abc")))
         },
         testM("\\r\\n on the boundary") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              part1 <- push(Some(Chunk("abc\r", "\nabc")))
-              part2 <- push(None)
-            } yield assert(part1 ++ part2)(equalTo(Chunk("abc", "abc")))
-          }
+          testSplitLines(Seq(Chunk("abc\r", "\nabc")))
         }
       ),
       suite("splitOn")(
@@ -482,7 +445,15 @@ object ZTransducerSpec extends ZIOBaseSpec {
     )
   )
 
-  val weirdStringGenForSplitLines = Gen
-    .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
+  val weirdStringGenForSplitLines: Gen[Random with Sized, Chunk[String]] = Gen
+    .chunkOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
     .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
+
+  def testSplitLines(input: Seq[Chunk[String]]): ZIO[Any, Nothing, TestResult] = {
+    val str      = input.flatMap(_.mkString).mkString
+    val expected = Chunk.fromIterable(Source.fromString(str).getLines().toList)
+    ZStream.fromChunks(input: _*).transduce(ZTransducer.splitLines).runCollect.map { res =>
+      assert(res)(equalTo(expected))
+    }
+  }
 }

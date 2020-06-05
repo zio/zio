@@ -17,7 +17,7 @@ To begin contributing, please follow these steps:
 
 ### Get The Project
 
-If you don't already have one, sign up for a free [GitHub Account](https://github.com/join?source=header-home).
+If you do not already have one, sign up for a free [GitHub Account](https://github.com/join?source=header-home).
 
 After you [log into](https://github.com/login) GitHub using your account, go to the [ZIO Project Page](https://github.com/zio/zio), and click on [Fork](https://github.com/zio/zio/fork) to fork the ZIO repository into your own account.
 

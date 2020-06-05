@@ -67,7 +67,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be done at the edges of your program.
    */
-  final def unsafeRunTask[A](task: => ZIO[R, Throwable, A]): A =
+  final def unsafeRunTask[A](task: => RIO[R, A]): A =
     unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
 
   /**
