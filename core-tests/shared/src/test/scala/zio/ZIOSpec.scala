@@ -3266,7 +3266,7 @@ object ZIOSpec extends ZIOBaseSpec {
           leftResult                    <- leftInnerFiber.await
           interrupted                   <- ref1.get
         } yield assert(interrupted)(isFalse) && assert(leftResult)(succeeds(equalTo("foo"))) && assert(rightResult)(equalTo(42))
-      }
+      } @@ ignore
     ),
     suite("extendScope")(
       testM("should extend scope of child") {
