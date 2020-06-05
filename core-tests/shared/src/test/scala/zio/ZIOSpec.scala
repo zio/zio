@@ -3261,12 +3261,12 @@ object ZIOSpec extends ZIOBaseSpec {
           _                             <- latch2.await *> latch3.await *> latch1.succeed(())
           tuple                         <- result.join
           (leftInnerFiber, rightResult) = tuple
-          leftResult                    <- leftInnerFiber.join
+          leftResult                    <- leftInnerFiber.await
           interrupted                   <- ref1.get
-        } yield assert(interrupted)(isFalse) && assert(leftResult)(equalTo("foo")) && assert(rightResult)(equalTo(42))
+        } yield assert(interrupted)(isFalse) && assert(leftResult)(succeeds(equalTo("foo"))) && assert(rightResult)(equalTo(42))
       }
     ),
-    suite("extendScope") {
+    suite("extendScope")(
       testM("should extend scope of child") {
         val isSuspended: Fiber.Status => Option[Fiber.Status.Suspended] = {
           case s: Fiber.Status.Suspended => Some(s)
@@ -3278,8 +3278,21 @@ object ZIOSpec extends ZIOBaseSpec {
           inner  <- fiber.join
           status <- inner.status
         } yield assert(status)(isCase("Suspended", isSuspended, anything))
+      },
+      testM("should extend scope of grandchild") {
+        val isSuspended: Fiber.Status => Option[Fiber.Status.Suspended] = {
+          case s: Fiber.Status.Suspended => Some(s)
+          case _                         => None
+        }
+        for {
+          latch  <- Promise.make[Nothing, Unit]
+          fiber  <- ZIO.extendScope(latch.await.fork.fork.fork)
+          inner1 <- fiber.join
+          inner2 <- inner1.join
+          status <- inner2.status
+        } yield assert(status)(isCase("Suspended", isSuspended, anything))
       }
-    },
+    ),
     suite("toFuture")(
       testM("should fail with ZTrace attached") {
         for {
