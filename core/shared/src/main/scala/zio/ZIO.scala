@@ -27,6 +27,11 @@ import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
 import zio.{ TracingStatus => TracingS }
 
+object Evidences {
+  @implicitNotFound("provideCustomLayer expects providing all environment layers (${R}) except those already provided by ZIO (ZEnv), but it only got ${R1}.\nPlease provide the missing layer(s) or instead use provideSomeLayer if you actually intend to only provide some of layers.") 
+  type ProvideCustomLayer[-R1, +R] = ZEnv with R1 <:< R
+}
+
 /**
  * A `ZIO[R, E, A]` value is an immutable value that lazily describes a
  * workflow or job. The workflow requires some environment `R`, and may fail
@@ -1125,7 +1130,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
-  )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZIO[ZEnv, E1, A] =
+  )(implicit ev: Evidences.ProvideCustomLayer[R1, R], tagged: Tag[R1]): ZIO[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
 
   /**
