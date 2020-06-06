@@ -1125,7 +1125,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
-  )(implicit @implicitNotFound("provideCustomLayer expects providing all environment layers (${R}) except those already provided by ZIO (ZEnv), but it only got ${R1}.\nPlease provide the missing layer(s) or instead use provideSomeLayer if you actually intend to only provide some of layers.") ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZIO[ZEnv, E1, A] =
+  )(implicit @implicitNotFound("provideCustomLayer expects providing all environment layers except those already provided by ZIO (ZEnv).\nPlease provide the missing layer(s) or instead use provideSomeLayer if you actually intend to only provide some of layers.") ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZIO[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
 
   /**
