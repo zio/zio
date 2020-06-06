@@ -48,6 +48,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Talks
 
+- [FP to the Max](https://www.youtube.com/watch?v=sxudIMiOo68) by John De Goes (July 2018)
 - [Modern Data Driven Applications with ZIO Streams](https://youtu.be/bbss7elSfxs) by Itamar Ravid (December 2019)
 - Systematic error management in application - We ported Rudder to ZIO: [video in French](https://www.youtube.com/watch?v=q0PlcgR5M1Q), [slides in English](https://speakerdeck.com/fanf42/systematic-error-management-we-ported-rudder-to-zio) by François Armand (Scala.io, October 2019)
 - [Upgrade Your Future](https://www.youtube.com/watch?v=USgfku1h7Hw) by John De Goes (September 2019)
@@ -63,6 +64,13 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [ZIO Schedule: Conquering Flakiness and Recurrence with Pure Functional Programming](https://www.youtube.com/watch?v=onQSHiafAY8&t=1s) by John De Goes (October 2018)
 - [ZIO: Next-Generation Effects in Scala](https://www.youtube.com/watch?v=mkSHhsJXjdc&t=6s) by John De Goes (October 2018)
 - [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
+
+## Conferences 
+###  Scala in the City Conference by Signify Technologies, May 2020
+- [0 to 100 with ZIO Test](https://www.youtube.com/watch?v=qDFfVinjDPQ) by Adam Fraser
+- [The Joys of (Z)Streams](https://www.youtube.com/watch?v=XIIX2YSg7M0) by Itamar Ravid 
+- [FP to the Min](https://www.youtube.com/watch?v=mrHphQT4RpU) by John De Goes 
+- [Functional Effects in ZIO](https://www.youtube.com/watch?v=4EeL8-chAR8) by  Wiem Zine El Abidine
 
 ## Cookbooks 
 - [ZIO Cookbook](https://github.com/Neurodyne/zio-cookbook) A beginners' tour to ZIO by Boris V.Kuznetsov
