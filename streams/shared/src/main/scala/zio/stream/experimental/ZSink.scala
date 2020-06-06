@@ -1,12 +1,11 @@
 package zio.stream.experimental
 
 import zio._
-import zio.stream.experimental.ZSink.Push
 
 /**
  * A `ZSink` is a process that aggregate values of type `I` and to a value of type `Z`.
  */
-final class ZSink[-R, +E, -I, +Z] private (val process: URManaged[R, (Push[R, E, I, Z], ZIO[R, E, Z])]) {
+final class ZSink[-R, +E, -I, +Z] private (val process: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]) {
 
   /**
    * Returns a sink that applies this sink's process to multiple input values.
@@ -27,7 +26,7 @@ final class ZSink[-R, +E, -I, +Z] private (val process: URManaged[R, (Push[R, E,
    * Effectfully transforms this sink's input elements.
    */
   def contramapM[R1 <: R, E1 >: E, A](f: A => ZIO[R1, E1, I]): ZSink[R1, E1, A, Z] =
-    ZSink(process.map { case (push, done) => (f(_).mapError(Left.apply).flatMap(push), done) })
+    ZSink(process.map { case (push, done) => (a => Pull(f(a)).flatMap(push), done) })
 
   /**
    * Runs this sink until it yields a result, then uses that result to create another
@@ -43,20 +42,22 @@ final class ZSink[-R, +E, -I, +Z] private (val process: URManaged[R, (Push[R, E,
     success: Z => ZSink[R1, E1, I1, A]
   ): ZSink[R1, E1, I1, A] =
     ZSink(for {
-      switch <- ZManaged.switchable[R1, Nothing, (Push[R1, E1, I1, A], ZIO[R1, E1, A])]
+      switch <- ZManaged.switchable[R1, Nothing, (I1 => Pull[R1, E1, Any], ZIO[R1, E1, A])]
       outer  <- process
-      inner  <- Promise.make[Nothing, (Push[R1, E1, I1, A], ZIO[R1, E1, A])].toManaged_
+      inner  <- Promise.make[Nothing, (I1 => Pull[R1, E1, Any], ZIO[R1, E1, A])].toManaged_
     } yield {
 
       def open(sink: ZSink[R1, E1, I1, A]): ZIO[R1, Nothing, Boolean] =
         switch(sink.process).to(inner)
 
-      def push(i: I1): ZIO[R1, Either[E1, A], Unit] =
+      def push(i: I1): Pull[R1, E1, Any] =
         ZIO.ifM(inner.isDone)(
           inner.await.flatMap { case (push, _) => push(i) },
           outer
             ._1(i)
-            .catchAllCause(Cause.sequenceCauseEither(_).fold(c => open(failure(c)), z => open(success(z))).unit)
+            .catchAllCause(
+              Cause.sequenceCauseOption(_).fold(Pull(outer._2).flatMap(z => open(success(z))))(c => open(failure(c)))
+            )
         )
 
       val done = ZIO.ifM(inner.isDone)(
@@ -71,45 +72,27 @@ final class ZSink[-R, +E, -I, +Z] private (val process: URManaged[R, (Push[R, E,
    * Transforms this sink's result.
    */
   def map[A](f: Z => A): ZSink[R, E, I, A] =
-    ZSink(process.map { case (push, done) => (push(_).mapError(_.map(f)), done.map(f)) })
+    ZSink(process.map { case (push, done) => (push, done.map(f)) })
 
   /**
    * Transforms the errors emitted by this sink using `f`.
    */
   def mapError[E1](f: E => E1): ZSink[R, E1, I, Z] =
-    ZSink(process.map {
-      case (push, done) =>
-        (push.andThen(_.mapError(_.fold(f.andThen(Left(_)), Right(_)))), done.mapError(f))
-    })
+    ZSink(process.map { case (push, done) => (i => push(i).mapError(_.map(f)), done.mapError(f)) })
 
   /**
    * Effectfully transforms this sink's result.
    */
   def mapM[R1 <: R, E1 >: E, A](f: Z => ZIO[R1, E1, A]): ZSink[R1, E1, I, A] =
-    ZSink(process.map {
-      case (push, done) =>
-        (
-          push(_).catchAllCause(
-            Cause
-              .sequenceCauseEither(_)
-              .fold(
-                c => ZIO.halt(c.map(Left(_))),
-                f(_).foldCauseM(c => ZIO.halt(c.map(Left(_))), a => ZIO.fail(Right(a)))
-              )
-          ),
-          done.flatMap(f)
-        )
-    })
+    ZSink(process.map { case (push, done) => (push, done.flatMap(f)) })
 }
 
 object ZSink {
 
-  type Push[-R, +E, -I, +Z] = I => ZIO[R, Either[E, Z], Unit]
-
   /**
    * A sink that aggregates values using the given `process`.
    */
-  def apply[R, E, I, Z](process: URManaged[R, (Push[R, E, I, Z], ZIO[R, E, Z])]): ZSink[R, E, I, Z] =
+  def apply[R, E, I, Z](process: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]): ZSink[R, E, I, Z] =
     new ZSink(process)
 
   /**
@@ -122,9 +105,7 @@ object ZSink {
    * A sink that effectfully folds its inputs with the provided function and initial state.
    */
   def foldLeftM[R, E, I, Z](z: Z)(f: (I, Z) => ZIO[R, E, Z]): ZSink[R, E, I, Z] =
-    ZSink(
-      ZRef.makeManaged(z).map(ref => ((i: I) => ref.get.flatMap(f(i, _).mapError(Left(_)).flatMap(ref.set)), ref.get))
-    )
+    ZSink(ZRef.makeManaged(z).map(ref => ((i: I) => ref.get.flatMap(z => Pull(f(i, z)).flatMap(ref.set)), ref.get)))
 
   /**
    * A sink that collects all of its inputs into a chunk.
@@ -161,13 +142,13 @@ object ZSink {
    * A sink that executes the provided effectful function for every element fed to it.
    */
   def foreach[R, E, A](f: A => ZIO[R, E, Unit]): ZSink[R, E, A, Unit] =
-    succeed(f(_).mapError(Left(_)), ZIO.unit)
+    succeed(a => Pull(f(a)), ZIO.unit)
 
   /**
    * A sink that halts with the given cause.
    */
   def halt[E](cause: Cause[E]): ZSink[Any, E, Any, Nothing] =
-    succeed(_ => ZIO.halt(cause.map(Left(_))), ZIO.halt(cause))
+    succeed(_ => ZIO.halt(cause.map(Option(_))), ZIO.halt(cause))
 
   /**
    * A sink that yields the first value it receives.
@@ -194,6 +175,6 @@ object ZSink {
   /**
    * A sink that consumes values using `push` yields the value from `done`.
    */
-  def succeed[R, E, I, Z](push: Push[R, E, I, Z], done: ZIO[R, E, Z]): ZSink[R, E, I, Z] =
+  def succeed[R, E, I, Z](push: I => Pull[R, E, Any], done: ZIO[R, E, Z]): ZSink[R, E, I, Z] =
     ZSink(ZManaged.succeedNow(push -> done))
 }

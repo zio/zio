@@ -3,21 +3,20 @@ package zio.stream.experimental
 import java.nio.charset.StandardCharsets
 
 import zio._
-import zio.stream.experimental.ZTransducer.Step
 
 /**
  * A `ZTransducer` is a process that transforms values of type `I` and into values of type `O`.
  *
  * @note The process may optionally retain some value of type `O` for subsequent steps.
  */
-final class ZTransducer[-R, +E, -I, +O] private (val process: URManaged[R, (Step[R, E, I, O], ZIO[R, E, Option[O]])]) {
+final class ZTransducer[-R, +E, -I, +O] private (val process: URManaged[R, (I => Pull[R, E, O], Pull[R, E, O])]) {
 
   /**
    * Compose this transducer with another transducer, resulting in a composite transducer.
    */
   def >>>[R1 <: R, E1 >: E, A](transducer: ZTransducer[R1, E1, O, A]): ZTransducer[R1, E1, I, A] =
     ZTransducer(process.zipWith(transducer.process) {
-      case ((ls, lo), (rs, ro)) => (ls(_) >>= rs, lo.flatMap(_.fold(ro)(rs(_) *> ro)))
+      case ((s1, p1), (s2, p2)) => (s1(_) >>= s2, p1.foldCauseM(Pull.recover(p2), s2(_) *> p2))
     })
 
   /**
@@ -26,11 +25,12 @@ final class ZTransducer[-R, +E, -I, +O] private (val process: URManaged[R, (Step
    */
   def >>>[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, O, Z]): ZSink[R1, E1, I, Z] =
     ZSink(process.zipWith(sink.process) {
-      case ((step, last), (push, done)) =>
+      case ((s1, p1), (s2, p2)) =>
         (
-          step(_).mapError(Left(_)) >>= push,
-          last.flatMap(
-            _.fold(done)(push(_).catchAllCause(Cause.sequenceCauseEither(_).fold(ZIO.halt(_), ZIO.succeedNow)) *> done)
+          s1(_) >>= s2,
+          p1.foldCauseM(
+            Cause.sequenceCauseOption(_).fold(p2)(ZIO.halt(_)),
+            s2(_).foldCauseM(Cause.sequenceCauseOption(_).fold(p2)(ZIO.halt(_)), _ => p2)
           )
         )
     })
@@ -42,24 +42,23 @@ final class ZTransducer[-R, +E, -I, +O] private (val process: URManaged[R, (Step
    */
   def chunked: ZTransducer[R, E, Chunk[I], Chunk[O]] =
     ZTransducer(process.map {
-      case (step, last) => (ZIO.foreach(_)(step), last.map(_.map(Chunk.single)))
+      case (step, last) =>
+        (ZIO.foreach(_)(step), last.foldCauseM(Pull.recover(Pull.emit(Chunk.empty)), o => Pull.emit(Chunk.single(o))))
     })
 
   /**
    * Transforms the outputs of this transducer.
    */
   def map[A](f: O => A): ZTransducer[R, E, I, A] =
-    ZTransducer(process.map { case (step, last) => (step(_).map(f), last.map(_.map(f))) })
+    ZTransducer(process.map { case (step, last) => (step(_).map(f), last.map(f)) })
 }
 
 object ZTransducer {
 
-  type Step[-R, +E, -I, +O] = I => ZIO[R, E, O]
-
   /**
    * A transducer that transforms values of type `I` to values of type `O`.
    */
-  def apply[R, E, I, O](step: URManaged[R, (Step[R, E, I, O], ZIO[R, E, Option[O]])]): ZTransducer[R, E, I, O] =
+  def apply[R, E, I, O](step: URManaged[R, (I => Pull[R, E, O], Pull[R, E, O])]): ZTransducer[R, E, I, O] =
     new ZTransducer(step)
 
   /**
@@ -86,10 +85,7 @@ object ZTransducer {
    * The `pad` element is used to pad the last leftover to `size`, when the transducer process ends.
    */
   def chunkN[A](size: Int, pad: A): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
-    chunkN(
-      size,
-      (chunk: Chunk[A]) => if (chunk.isEmpty) ZIO.none else ZIO.succeedNow(Some(Chunk.single(chunk.padTo(size, pad))))
-    )
+    chunkN(size, (chunk: Chunk[A]) => Pull.emit(Chunk.single(chunk.padTo(size, pad))))
 
   /**
    * A transducer that transforms chunks into a chunk of chunks where each chunk has exactly `size` elements.
@@ -97,9 +93,9 @@ object ZTransducer {
    */
   def chunkN[R, E, A](
     size: Int,
-    pad: Chunk[A] => ZIO[R, E, Option[Chunk[Chunk[A]]]]
+    pad: Chunk[A] => Pull[R, E, Chunk[Chunk[A]]]
   ): ZTransducer[R, E, Chunk[A], Chunk[Chunk[A]]] =
-    apply(
+    ZTransducer(
       ZRef
         .makeManaged(Chunk.empty: Chunk[A])
         .map(ref =>
@@ -117,7 +113,7 @@ object ZTransducer {
             ref
               .getAndSet(Chunk.empty)
               .flatMap(rem =>
-                if (rem.isEmpty) ZIO.none
+                if (rem.isEmpty) Pull.end
                 else pad(rem)
               )
           )
@@ -137,7 +133,7 @@ object ZTransducer {
     succeed(a => ZIO.succeedNow(f(a)))
 
   /**
-   * A transducer that divides strings on the system line separator.
+   * A transducer that divides input strings on the system line separator.
    */
   val newLines: ZTransducer[system.System, Nothing, String, Chunk[String]] =
     apply(
@@ -162,18 +158,18 @@ object ZTransducer {
               ),
             ref
               .getAndSet("")
-              .map(s =>
-                if (s.isEmpty) None
-                else Option(Chunk.single(s))
+              .flatMap(s =>
+                if (s.isEmpty) Pull.end
+                else Pull.emit(Chunk.single(s))
               )
           )
         }
     )
 
   /**
-   * A transducer that applies `step` to input values and with leftover `last`.
+   * A transducer that applies `step` to input values and yields `last` on completion.
    */
-  def succeed[R, E, I, O](step: Step[R, E, I, O], last: ZIO[R, E, Option[O]] = ZIO.none): ZTransducer[R, E, I, O] =
+  def succeed[R, E, I, O](step: I => Pull[R, E, O], last: Pull[R, E, O] = Pull.end): ZTransducer[R, E, I, O] =
     ZTransducer(ZManaged.succeedNow(step -> last))
 
   /**
