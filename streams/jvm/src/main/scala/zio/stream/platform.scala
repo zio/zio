@@ -378,7 +378,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
      *
      * The sink will yield the count of bytes written.
      */
-    def write: Sink[Throwable, Byte, Int] =
+    def write: Sink[Throwable, Byte, Nothing, Int] =
       ZSink.foldLeftChunksM(0) {
         case (nbBytesWritten, c) =>
           IO.effectAsync[Throwable, Int] { callback =>
