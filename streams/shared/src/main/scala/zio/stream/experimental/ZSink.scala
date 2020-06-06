@@ -122,15 +122,17 @@ object ZSink {
    * A sink that collects all of its inputs into a chunk.
    */
   def collect[A]: ZSink[Any, Nothing, A, Chunk[A]] =
-    foldLeft[A, ChunkBuilder[A]](ChunkBuilder.make[A]())(_ += _).map(_.result())
+    new ZSink[Any, Nothing, A, Chunk[A]] {
+      val builder: UManaged[ChunkBuilder[A]] = ZManaged.succeed(ChunkBuilder.make[A]())
+      val process: URManaged[Any, (A => Pull[Any, Nothing, Any], ZIO[Any, Nothing, Chunk[A]])] =
+        builder.map(b => ((a: A) => ZIO.succeedNow(b += a), ZIO.succeedNow(b.result())))
 
-  /**
-   * A sink that collects all of its input collections into a chunk.
-   *
-   * @note This is a more efficient version of `ZSink.collect[A].chunked`.
-   */
-  def collectChunks[A]: ZSink[Any, Nothing, Chunk[A], Chunk[A]] =
-    foldLeft[Chunk[A], ChunkBuilder[A]](ChunkBuilder.make[A]())(_ ++= _).map(_.result())
+      override def chunked: ZSink[Any, Nothing, Chunk[A], Chunk[A]] =
+        ZSink(builder.map(b => ((a: Chunk[A]) => ZIO.succeedNow(b ++= a), ZIO.succeedNow(b.result()))))
+
+      override def forall: ZSink[Any, Nothing, Iterable[A], Chunk[A]] =
+        ZSink(builder.map(b => ((a: Iterable[A]) => ZIO.succeedNow(b ++= a), ZIO.succeedNow(b.result()))))
+    }
 
   /**
    * A sink that collects all of its inputs into a map. The keys are extracted from inputs
