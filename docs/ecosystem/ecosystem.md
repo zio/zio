@@ -3,6 +3,8 @@ id: ecosystem
 title:  "Ecosystem"
 ---
 
+### If you find a new great library, talk, resource, slides or project, related to ZIO, consider adding to the list with your PR
+
 ## Official ZIO Libraries
 
 These libraries are hosted in the [ZIO organization](https://github.com/zio/) on Github, and are generally maintained by core contributors to ZIO.
@@ -25,7 +27,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 
 - [cakeless](https://github.com/itkpi/cakeless): Wire your cakes automatically into zio environment
 - [caliban](https://github.com/ghostdogpr/caliban): Functional GraphQL backend in Scala
-- [d4s](https://github.com/PlayQ/d4s): "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way.
+- [d4s](https://github.com/PlayQ/d4s): "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way
 - [distage](https://github.com/7mind/izumi): Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
 - [elastic4s](https://github.com/sksamuel/elastic4s): Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client
 - [idealingua](https://github.com/7mind/izumi): API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
@@ -40,11 +42,18 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [zio-easymock](https://github.com/egast/zio-easymock): EasyMock mocking for zio-test
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client
 - [zio-event-sourcing](https://github.com/holinov/zio-event-sourcing): Purely functional concurent and scalable persistance layer
+- [zio-grpc](https://github.com/scalapb/zio-grpc): A native gRPC support for ZIO
 - [zio-interop-log4j2](https://github.com/mlangc/zio-interop-log4j2): Fiber aware MDC logging for Log4j 2
 - [zio-kinesis](https://github.com/svroonland/zio-kinesis): ZIO Streams based AWS Kinesis client
 - [zio-saga](https://github.com/VladKopanev/zio-saga): Purely functional transaction management with Saga pattern
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
 - [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
+
+
+## Tools for ZIO
+
+- [ZIO IntelliJ](https://github.com/zio/zio-intellij): A complimentary, community-developed plugin for IntelliJ IDEA, brings enhancements when using ZIO in your projects
+
 
 ## ZIO Interoperability Libraries
 

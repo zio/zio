@@ -61,7 +61,7 @@ The `IO` error model is simple, consistent, permits both typed errors and termin
 An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable by using the `either` method.  The resulting effect cannot fail, because the failure case bas been exposed as part of the `Either` success case.  
 
 ```scala mdoc:silent
-val error: ZIO[Any, Throwable, String] = IO.fail(new RuntimeException("Some Error"))
+val error: Task[String] = IO.fail(new RuntimeException("Some Error"))
 val errorEither: ZIO[Any, Nothing, Either[Throwable, String]] = error.either
 ```
 

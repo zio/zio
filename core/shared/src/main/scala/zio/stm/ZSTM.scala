@@ -1436,8 +1436,8 @@ object ZSTM {
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessM[R, E](b: ZSTM[R, E, Boolean])(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    b.flatMap(b => if (b) unit else stm.unit)
+  def unlessM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessM[R, E] =
+    new ZSTM.UnlessM(b)
 
   /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error
@@ -1484,8 +1484,8 @@ object ZSTM {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    b.flatMap(b => if (b) stm.unit else unit)
+  def whenM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenM[R, E] =
+    new ZSTM.WhenM(b)
 
   private[zio] def succeedNow[A](a: A): USTM[A] =
     succeed(a)
@@ -1503,6 +1503,16 @@ object ZSTM {
   final class IfM[R, E](private val b: ZSTM[R, E, Boolean]) {
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZSTM[R1, E1, A], onFalse: => ZSTM[R1, E1, A]): ZSTM[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
+  }
+
+  final class UnlessM[R, E](private val b: ZSTM[R, E, Boolean]) {
+    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
+      b.flatMap(b => if (b) unit else stm.unit)
+  }
+
+  final class WhenM[R, E](private val b: ZSTM[R, E, Boolean]) {
+    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
+      b.flatMap(b => if (b) stm.unit else unit)
   }
 
   private final class Resumable[E, E1, A, B](

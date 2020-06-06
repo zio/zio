@@ -186,7 +186,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @tparam E1 error type
    * @tparam O1 type of the values consumed by the given transducer
    * @tparam P type of the value produced by the given transducer and consumed by the given schedule
-   * @return `ZStream[R1, E1, B]`
+   * @return `ZStream[R1, E1, P]`
    */
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, P](
     transducer: ZTransducer[R1, E1, O, P],
@@ -226,7 +226,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         push         <- transducer.push
         handoff      <- ZStream.Handoff.make[Take[E1, O]].toManaged_
         raceNextTime <- ZRef.makeManaged(false)
-        waitingFiber <- ZRef.makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
+        waitingFiber <- ZRef
+                         .makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
         scheduleState <- schedule.initial
                           .flatMap(i => ZRef.make[(Chunk[P], schedule.State)](Chunk.empty -> i))
                           .toManaged_
@@ -274,6 +275,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         scheduleResult = Take.single(Left(schedule.extract(state._1, state._2)))
                         take           <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
                         _              <- raceNextTime.set(false)
+                        _              <- producerWaiting.disown // To avoid interruption when this fiber is joined
                         _              <- waitingFiber.set(Some(producerWaiting))
                       } yield Chunk(scheduleResult, take.map(Right(_)))
                     case Some(nextState) =>
@@ -281,6 +283,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         _  <- scheduleState.update(_.copy(_2 = nextState))
                         ps <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
                         _  <- raceNextTime.set(false)
+                        _  <- producerWaiting.disown // To avoid interruption when this fiber is joined
                         _  <- waitingFiber.set(Some(producerWaiting))
                       } yield Chunk.single(ps.map(Right(_)))
                   },
@@ -288,7 +291,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit)))
               )
 
-          raceNextTime.get.flatMap(go)
+          raceNextTime.get
+            .flatMap(go)
+            .onInterrupt(waitingFiber.get.flatMap(_.map(_.interrupt).getOrElse(ZIO.unit)))
 
         }
 
@@ -1688,15 +1693,25 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def intersperse[O1 >: O](middle: O1): ZStream[R, E, O1] =
     ZStream {
       for {
-        state  <- ZRef.makeManaged(false)
+        state  <- ZRef.makeManaged(true)
         chunks <- self.process
         pull = chunks.flatMap { os =>
-          state.modify { flag =>
-            os.foldRight(List.empty[O1] -> flag) {
-              case (o, (Nil, curr)) => List(o)              -> !curr
-              case (o, (out, curr)) => (o :: middle :: out) -> !curr
+          state.modify { first =>
+            val builder    = ChunkBuilder.make[O1]()
+            var flagResult = first
+
+            os.foreach { o =>
+              if (flagResult) {
+                flagResult = false
+                builder += o
+              } else {
+                builder += middle
+                builder += o
+              }
             }
-          }.map(e => Chunk.fromIterable(e))
+
+            (builder.result(), flagResult)
+          }
         }
       } yield pull
     }
@@ -1909,7 +1924,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               } yield ()
             }.foldCauseM(
                 c => out.offer(Pull.halt(c)).unit.toManaged_,
-                _ => (out.offer(Pull.end) <* ZIO.awaitAllChildren).unit.toManaged_
+                _ => (permits.withPermits(n.toLong)(ZIO.unit).interruptible *> out.offer(Pull.end)).toManaged_
               )
               .fork
       } yield out.take.flatten.map(Chunk.single(_))
@@ -2295,7 +2310,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Runs the stream and collects all of its elements to a list.
    */
-  def runCollect: ZIO[R, E, List[O]] = run(ZSink.collectAll[O])
+  def runCollect: ZIO[R, E, Chunk[O]] = run(ZSink.collectAll[O])
 
   /**
    * Runs the stream and emits the number of elements processed
@@ -2781,8 +2796,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     for {
       runtime <- ZIO.runtime[R].toManaged_
       pull    <- process.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Byte]]]]
-      is      <- Task(ZInputStream.fromPull(runtime, pull)).asInstanceOf[ZIO[R, E, java.io.InputStream]].toManaged_
-    } yield is
+    } yield ZInputStream.fromPull(runtime, pull)
 
   /**
    * Converts this stream into a `scala.collection.Iterator` wrapped in a [[ZManaged]].
@@ -3025,7 +3039,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     that: ZStream[R1, E1, O2]
   )(f: (O, O2) => O3): ZStream[R1, E1, O3] = {
     def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
-      pull.flatMap(chunk => if (chunk.isEmpty) pull else UIO.succeedNow(chunk))
+      pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else UIO.succeedNow(chunk))
 
     ZStream {
       for {
@@ -3152,7 +3166,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a single value that will get cleaned up after the
    * stream is consumed
    */
-  def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any]): ZStream[R, E, A] =
+  def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZStream[R, E, A] =
     managed(ZManaged.make(acquire)(release))
 
   /**
@@ -3161,7 +3175,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def bracketExit[R, E, A](
     acquire: ZIO[R, E, A]
-  )(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any]): ZStream[R, E, A] =
+  )(release: (A, Exit[Any, Any]) => URIO[R, Any]): ZStream[R, E, A] =
     managed(ZManaged.makeExit(acquire)(release))
 
   /**
@@ -3286,7 +3300,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a one-element stream that never fails and executes the finalizer when it ends.
    */
-  def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Any] =
+  def finalizer[R](finalizer: URIO[R, Any]): ZStream[R, Nothing, Any] =
     bracket[R, Nothing, Unit](UIO.unit)(_ => finalizer)
 
   /**
@@ -3586,6 +3600,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     iterate(min)(_ + 1).takeWhile(_ < max)
 
   /**
+   * Repeats the provided value infinitely.
+   */
+  def repeat[A](a: => A): ZStream[Any, Nothing, A] =
+    repeatEffect(UIO.succeed(a))
+
+  /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever.
    */
   def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
@@ -3607,7 +3627,19 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing chunks of `A` values until it fails with None.
    */
   def repeatEffectChunkOption[R, E, A](fa: ZIO[R, Option[E], Chunk[A]]): ZStream[R, E, A] =
-    ZStream(ZManaged.succeedNow(fa))
+    ZStream {
+      for {
+        done <- Ref.make(false).toManaged_
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else
+            fa.tapError {
+              case None    => done.set(true)
+              case Some(_) => ZIO.unit
+            }
+        }
+      } yield pull
+    }
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
@@ -3618,6 +3650,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         effect.flatMap(value => schedule.update(value, state).fold(_ => None, state => Some((value, state))))
       }
     }
+
+  /**
+   * Repeats the value using the provided schedule.
+   */
+  def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R, Nothing, A] =
+    repeatEffectWith(UIO.succeed(a), schedule)
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -3649,6 +3687,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def succeed[A](a: => A): ZStream[Any, Nothing, A] =
     fromChunk(Chunk.single(a))
+
+  /**
+   * A stream that emits Unit values spaced by the specified duration.
+   */
+  def tick(interval: Duration): ZStream[Clock, Nothing, Unit] =
+    repeatWith((), Schedule.spaced(interval))
 
   /**
    * A stream that contains a single `Unit` value.

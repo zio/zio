@@ -1,8 +1,9 @@
 package zio.stream
 
-import ZStreamGen._
+import scala.io.Source
 
 import zio._
+import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
 
@@ -11,7 +12,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
 
   val initErrorParser = ZTransducer.fromEffect(IO.fail("Ouch"))
 
-  def run[R, E, I, O](parser: ZTransducer[R, E, I, O], input: List[Chunk[I]]): ZIO[R, E, List[O]] =
+  def run[R, E, I, O](parser: ZTransducer[R, E, I, O], input: List[Chunk[I]]): ZIO[R, E, Chunk[O]] =
     ZStream.fromChunks(input: _*).transduce(parser).runCollect
 
   def spec = suite("ZTransducerSpec")(
@@ -19,7 +20,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       suite("contramap")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].contramap[String](_.toInt)
-          assertM(run(parser, List(Chunk("1"))))(equalTo(List(1)))
+          assertM(run(parser, List(Chunk("1"))))(equalTo(Chunk(1)))
         },
         testM("error") {
           val parser = initErrorParser.contramap[String](_.toInt)
@@ -29,7 +30,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       suite("contramapM")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].contramapM[Any, Unit, String](s => UIO.succeed(s.toInt))
-          assertM(run(parser, List(Chunk("1"))))(equalTo(List(1)))
+          assertM(run(parser, List(Chunk("1"))))(equalTo(Chunk(1)))
         },
         testM("error") {
           val parser = initErrorParser.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
@@ -39,7 +40,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       suite("map")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].map(_.toString)
-          assertM(run(parser, List(Chunk(1))))(equalTo(List("1")))
+          assertM(run(parser, List(Chunk(1))))(equalTo(Chunk("1")))
         },
         testM("error") {
           val parser = initErrorParser.map(_.toString)
@@ -55,38 +56,23 @@ object ZTransducerSpec extends ZIOBaseSpec {
       suite("mapM")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].mapM[Any, Unit, String](n => UIO.succeed(n.toString))
-          assertM(run(parser, List(Chunk(1))))(equalTo(List("1")))
+          assertM(run(parser, List(Chunk(1))))(equalTo(Chunk("1")))
         },
         testM("error") {
           val parser = initErrorParser.mapM[Any, String, String](n => UIO.succeed(n.toString))
           assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
-      ),
-      suite("zipWith")(
-        testM("coherence with List#zip") {
-          val t1: ZTransducer[Any, Nothing, Int, List[Int]] = Transducer.collectAllN(2)
-          val t2: ZTransducer[Any, Nothing, Int, List[Int]] = Transducer.collectAllN(3)
-          def f(l: List[Int], r: List[Int]): List[Int]      = l ++ r
-          val t3                                            = t1.zipWith(t2)(f)
-          checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
-            for {
-              lefts  <- ZStream.fromChunks(chunks: _*).transduce(t1).runCollect
-              rights <- ZStream.fromChunks(chunks: _*).transduce(t2).runCollect
-              zipped <- ZStream.fromChunks(chunks: _*).transduce(t3).runCollect
-            } yield assert(zipped)(equalTo(lefts.zip(rights).map(e => f(e._1, e._2))))
-          }
-        }
       )
     ),
     suite("Constructors")(
       suite("collectAllN")(
         testM("happy path") {
           val parser = ZTransducer.collectAllN[Int](3)
-          assertM(run(parser, List(Chunk(1, 2, 3, 4))))(equalTo(List(List(1, 2, 3), List(4))))
+          assertM(run(parser, List(Chunk(1, 2, 3, 4))))(equalTo(Chunk(List(1, 2, 3), List(4))))
         },
         testM("empty list") {
           val parser = ZTransducer.collectAllN[Int](0)
-          assertM(run(parser, List()))(equalTo(List(List())))
+          assertM(run(parser, List()))(equalTo(Chunk(List())))
         }
       ),
       suite("collectAllToMapN")(
@@ -96,7 +82,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
               ZTransducer.collectAllToMapN[Int, Int](2)(_ % 3)(_ + _),
               List(Chunk(0, 1, 2))
             )
-          )(equalTo(List(Map(0 -> 0, 1 -> 1), Map(2 -> 2))))
+          )(equalTo(Chunk(Map(0 -> 0, 1 -> 1), Map(2 -> 2))))
         ),
         testM("keep collecting as long as map size does not exceed the limit")(
           assertM(
@@ -108,19 +94,19 @@ object ZTransducerSpec extends ZIOBaseSpec {
                 Chunk(6, 7, 8, 9)
               )
             )
-          )(equalTo(List(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15))))
+          )(equalTo(Chunk(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15))))
         )
       ),
       testM("collectAllToSetN")(
         assertM(
           run(ZTransducer.collectAllToSetN[Int](3), List(Chunk(1, 2, 1), Chunk(2, 3, 3, 4)))
-        )(equalTo(List(Set(1, 2, 3), Set(4))))
+        )(equalTo(Chunk(Set(1, 2, 3), Set(4))))
       ),
       testM("collectAllWhile") {
         val parser = ZTransducer.collectAllWhile[Int](_ < 5)
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = run(parser, input)
-        assertM(result)(equalTo(List(List(3, 4), List(2, 3, 4), List(4, 3, 2))))
+        assertM(result)(equalTo(Chunk(List(3, 4), List(2, 3, 4), List(4, 3, 2))))
       },
       suite("fold")(
         testM("empty")(
@@ -128,7 +114,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             ZStream.empty
               .aggregate(ZTransducer.fold[Int, Int](0)(_ => true)(_ + _))
               .runCollect
-          )(equalTo(List(0)))
+          )(equalTo(Chunk(0)))
         ),
         testM("short circuits") {
           val empty: ZStream[Any, Nothing, Int]     = ZStream.empty
@@ -147,9 +133,9 @@ object ZTransducerSpec extends ZIOBaseSpec {
               result <- effects.get
             } yield (exit, result)).run
 
-          (assertM(run(empty))(succeeds(equalTo((List(0), Nil)))) <*>
-            assertM(run(single))(succeeds(equalTo((List(30), List(1))))) <*>
-            assertM(run(double))(succeeds(equalTo((List(30), List(2, 1))))) <*>
+          (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
+            assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
+            assertM(run(double))(succeeds(equalTo((Chunk(30), List(2, 1))))) <*>
             assertM(run(failed))(fails(equalTo("Ouch")))).map {
             case (((r1, r2), r3), r4) => r1 && r2 && r3 && r4
           }
@@ -163,7 +149,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                 ZTransducer.foldM(0)(_ => true)((x, y: Int) => ZIO.succeed(x + y))
               )
               .runCollect
-          )(equalTo(List(0)))
+          )(equalTo(Chunk(0)))
         ),
         testM("short circuits") {
           val empty: ZStream[Any, Nothing, Int]     = ZStream.empty
@@ -182,9 +168,9 @@ object ZTransducerSpec extends ZIOBaseSpec {
               result <- effects.get
             } yield exit -> result).run
 
-          (assertM(run(empty))(succeeds(equalTo((List(0), Nil)))) <*>
-            assertM(run(single))(succeeds(equalTo((List(30), List(1))))) <*>
-            assertM(run(double))(succeeds(equalTo((List(30), List(2, 1))))) <*>
+          (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
+            assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
+            assertM(run(double))(succeeds(equalTo((Chunk(30), List(2, 1))))) <*>
             assertM(run(failed))(fails(equalTo("Ouch")))).map {
             case (((r1, r2), r3), r4) => r1 && r2 && r3 && r4
           }
@@ -198,7 +184,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                 ZTransducer.foldWeighted(List[Long]())((_, x: Long) => x * 2, 12)((acc, el) => el :: acc).map(_.reverse)
               )
               .runCollect
-          )(equalTo(List(List(1L, 5L), List(2L, 3L))))
+          )(equalTo(Chunk(List(1L, 5L), List(2L, 3L))))
         ),
         suite("foldWeightedDecompose")(
           testM("foldWeightedDecompose")(
@@ -216,7 +202,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                     .map(_.reverse)
                 )
                 .runCollect
-            )(equalTo(List(List(1, 3), List(1, 1, 1))))
+            )(equalTo(Chunk(List(1, 3), List(1, 1, 1))))
           ),
           testM("empty")(
             assertM(
@@ -225,7 +211,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                   ZTransducer.foldWeightedDecompose[Int, Int](0)((_, x) => x.toLong, 1000, Chunk.single(_))(_ + _)
                 )
                 .runCollect
-            )(equalTo(List(0)))
+            )(equalTo(Chunk(0)))
           )
         ),
         testM("foldWeightedM")(
@@ -239,7 +225,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                   .map(_.reverse)
               )
               .runCollect
-          )(equalTo(List(List(1L, 5L), List(2L, 3L))))
+          )(equalTo(Chunk(List(1L, 5L), List(2L, 3L))))
         ),
         suite("foldWeightedDecomposeM")(
           testM("foldWeightedDecomposeM")(
@@ -255,7 +241,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                     .map(_.reverse)
                 )
                 .runCollect
-            )(equalTo(List(List(1, 3), List(1, 1, 1))))
+            )(equalTo(Chunk(List(1, 3), List(1, 1, 1))))
           ),
           testM("empty")(
             assertM(
@@ -268,7 +254,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                   )((x, y) => ZIO.succeed(x + y))
                 )
                 .runCollect
-            )(equalTo(List(0)))
+            )(equalTo(Chunk(0)))
           )
         ),
         testM("foldUntil")(
@@ -276,14 +262,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
             ZStream[Long](1, 1, 1, 1, 1, 1)
               .aggregate(ZTransducer.foldUntil(0L, 3)(_ + _))
               .runCollect
-          )(equalTo(List(3L, 3L)))
+          )(equalTo(Chunk(3L, 3L)))
         ),
         testM("foldUntilM")(
           assertM(
             ZStream[Long](1, 1, 1, 1, 1, 1)
               .aggregate(ZTransducer.foldUntilM(0L, 3)((s, a) => UIO.succeedNow(s + a)))
               .runCollect
-          )(equalTo(List(3L, 3L)))
+          )(equalTo(Chunk(3L, 3L)))
         )
       ),
       testM("dropWhile")(
@@ -291,7 +277,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
             .aggregate(ZTransducer.dropWhile(_ < 3))
             .runCollect
-        )(equalTo(List(3, 4, 5, 1, 2, 3, 4, 5)))
+        )(equalTo(Chunk(3, 4, 5, 1, 2, 3, 4, 5)))
       ),
       suite("dropWhileM")(
         testM("happy path")(
@@ -299,7 +285,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
               .aggregate(ZTransducer.dropWhileM(x => UIO(x < 3)))
               .runCollect
-          )(equalTo(List(3, 4, 5, 1, 2, 3, 4, 5)))
+          )(equalTo(Chunk(3, 4, 5, 1, 2, 3, 4, 5)))
         )
         // testM("error")(
         //   assertM {
@@ -307,7 +293,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         //       .aggregate(ZTransducer.dropWhileM(x => UIO(x < 3)))
         //       .either
         //       .runCollect
-        //   }(equalTo(List(Right(3),Left("Aie"),Right(5),Right(1),Right(2),Right(3),Right(4),Right(5))))
+        //   }(equalTo(Chunk(Right(3),Left("Aie"),Right(5),Right(1),Right(2),Right(3),Right(4),Right(5))))
         // )
       ),
       testM("fromFunction")(
@@ -315,14 +301,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
           ZStream(1, 2, 3, 4, 5)
             .aggregate(ZTransducer.fromFunction[Int, String](_.toString))
             .runCollect
-        )(equalTo(List("1", "2", "3", "4", "5")))
+        )(equalTo(Chunk("1", "2", "3", "4", "5")))
       ),
       testM("fromFunctionM")(
         assertM(
           ZStream("1", "2", "3", "4", "5")
             .transduce(ZTransducer.fromFunctionM[Any, Throwable, String, Int](s => Task(s.toInt)))
             .runCollect
-        )(equalTo(List(1, 2, 3, 4, 5)))
+        )(equalTo(Chunk(1, 2, 3, 4, 5)))
       ),
       suite("splitLines")(
         testM("preserves data")(
@@ -341,105 +327,66 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("preserves data in chunks") {
           checkM(weirdStringGenForSplitLines) { xs =>
             val data = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
-            val ys   = xs.headOption.map(_ :: xs.drop(1).sliding(2, 2).toList.map(_.mkString)).getOrElse(Nil)
-
-            ZTransducer.splitLines.push.use { push =>
-              for {
-                result   <- push(Some(data))
-                leftover <- push(None)
-              } yield assert((result ++ leftover).toArray[String].toList)(equalTo(ys))
-
-            }
+            testSplitLines(Seq(data))
           }
         },
         testM("handles leftovers") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              result   <- push(Some(Chunk("abc\nbc")))
-              leftover <- push(None)
-            } yield assert(result.toArray[String].mkString("\n"))(equalTo("abc")) && assert(
-              leftover.toArray[String].mkString
-            )(equalTo("bc"))
-          }
+          testSplitLines(Seq(Chunk("abc\nbc")))
         },
         testM("handles leftovers 2") {
-          assertM(
-            ZStream
-              .fromChunks(Chunk("aa", "bb"), Chunk("\nbbc\n", "ddb", "bd"), Chunk("abc", "\n"), Chunk("abc"))
-              .transduce(ZTransducer.splitLines)
-              .runCollect
-          )(equalTo(List("aabb", "bbc", "ddbbdabc", "abc")))
+          testSplitLines(Seq(Chunk("aa", "bb"), Chunk("\nbbc\n", "ddb", "bd"), Chunk("abc", "\n"), Chunk("abc")))
         },
         testM("aggregates chunks") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              part1 <- push(Some(Chunk("abc", "\n", "bc", "\n", "bcd", "bcd")))
-              part2 <- push(None)
-            } yield assert(part1 ++ part2)(equalTo(Chunk("abc", "bc", "bcdbcd")))
-          }
+          testSplitLines(Seq(Chunk("abc", "\n", "bc", "\n", "bcd", "bcd")))
         },
         testM("single newline edgecase") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              part1 <- push(Some(Chunk("\n")))
-              part2 <- push(None)
-            } yield assert(part1 ++ part2)(equalTo(Chunk("")))
-          }
+          testSplitLines(Seq(Chunk("\n")))
         },
         testM("no newlines in data") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              part1 <- push(Some(Chunk("abc", "abc", "abc")))
-              part2 <- push(None)
-            } yield assert(part1 ++ part2)(equalTo(Chunk("abcabcabc")))
-          }
+          testSplitLines(Seq(Chunk("abc", "abc", "abc")))
         },
         testM("\\r\\n on the boundary") {
-          ZTransducer.splitLines.push.use { push =>
-            for {
-              part1 <- push(Some(Chunk("abc\r", "\nabc")))
-              part2 <- push(None)
-            } yield assert(part1 ++ part2)(equalTo(Chunk("abc", "abc")))
-          }
+          testSplitLines(Seq(Chunk("abc\r", "\nabc")))
         }
       ),
       suite("splitOn")(
-        testM("preserves data")(checkM(Gen.listOf(Gen.anyString.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
-          val data   = lines.mkString("|")
-          val parser = ZTransducer.splitOn("|")
-          assertM(run(parser, List(Chunk.single(data))))(equalTo(lines))
+        testM("preserves data")(checkM(Gen.chunkOf(Gen.anyString.filter(!_.contains("|")).filter(_.nonEmpty))) {
+          lines =>
+            val data   = lines.mkString("|")
+            val parser = ZTransducer.splitOn("|")
+            assertM(run(parser, List(Chunk.single(data))))(equalTo(lines))
         }),
         testM("handles leftovers") {
           val parser = ZTransducer.splitOn("\n")
-          assertM(run(parser, List(Chunk("ab", "c\nb"), Chunk("c"))))(equalTo(List("abc", "bc")))
+          assertM(run(parser, List(Chunk("ab", "c\nb"), Chunk("c"))))(equalTo(Chunk("abc", "bc")))
         },
         testM("aggregates") {
           assertM(
             Stream("abc", "delimiter", "bc", "delimiter", "bcd", "bcd")
               .aggregate(ZTransducer.splitOn("delimiter"))
               .runCollect
-          )(equalTo(List("abc", "bc", "bcdbcd")))
+          )(equalTo(Chunk("abc", "bc", "bcdbcd")))
         },
         testM("single newline edgecase") {
           assertM(
             Stream("test")
               .aggregate(ZTransducer.splitOn("test"))
               .runCollect
-          )(equalTo(List("")))
+          )(equalTo(Chunk("")))
         },
         testM("no delimiter in data") {
           assertM(
             Stream("abc", "abc", "abc")
               .aggregate(ZTransducer.splitOn("hello"))
               .runCollect
-          )(equalTo(List("abcabcabc")))
+          )(equalTo(Chunk("abcabcabc")))
         },
         testM("delimiter on the boundary") {
           assertM(
             Stream("abc<", ">abc")
               .aggregate(ZTransducer.splitOn("<>"))
               .runCollect
-          )(equalTo(List("abc", "abc")))
+          )(equalTo(Chunk("abc", "abc")))
         }
       ),
       suite("utf8DecodeChunk")(
@@ -498,7 +445,15 @@ object ZTransducerSpec extends ZIOBaseSpec {
     )
   )
 
-  val weirdStringGenForSplitLines = Gen
-    .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
+  val weirdStringGenForSplitLines: Gen[Random with Sized, Chunk[String]] = Gen
+    .chunkOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
     .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
+
+  def testSplitLines(input: Seq[Chunk[String]]): ZIO[Any, Nothing, TestResult] = {
+    val str      = input.flatMap(_.mkString).mkString
+    val expected = Chunk.fromIterable(Source.fromString(str).getLines().toList)
+    ZStream.fromChunks(input: _*).transduce(ZTransducer.splitLines).runCollect.map { res =>
+      assert(res)(equalTo(expected))
+    }
+  }
 }

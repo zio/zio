@@ -43,7 +43,7 @@ trait App extends BootstrapRuntime {
    * The main function of the application, which will be passed the command-line
    * arguments to the program and has to return an `IO` with the errors fully handled.
    */
-  def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode]
+  def run(args: List[String]): URIO[ZEnv, ExitCode]
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.

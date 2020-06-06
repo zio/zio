@@ -3,10 +3,13 @@ id: resources
 title:  "Resources"
 ---
 
+### If you find a new great library, talk, resource, slides or project, related to ZIO, consider adding to the list with your PR
+
 ## Blog Articles
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Building a cool CLI with Decline for my ZIO App](https://medium.com/@pascal.mengelt/building-a-cool-cli-with-decline-for-my-zio-app-80e095b2899a) by Pascal Mengelt (May 2020)
 - [uzhttp + sttp for light-weight http and websockets](https://timpigden.github.io/_pages/zio-uzhttp-sttp/uzhttp-sttp.html) by Tim Pigden (April 2020)
 - [Effective testing with ZIO Test (RC18)](https://scala.monster/zio-test/) by Pavels Sisojevs (April 2020)
 - [ZIO with http4s, Auth, Codecs and zio-tests (RC18)](https://timpigden.github.io/_pages/zio-http4s/intro.html) by Tim Pigden (April 2020)
@@ -60,6 +63,9 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [ZIO Schedule: Conquering Flakiness and Recurrence with Pure Functional Programming](https://www.youtube.com/watch?v=onQSHiafAY8&t=1s) by John De Goes (October 2018)
 - [ZIO: Next-Generation Effects in Scala](https://www.youtube.com/watch?v=mkSHhsJXjdc&t=6s) by John De Goes (October 2018)
 - [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
+
+## Cookbooks 
+- [ZIO Cookbook](https://github.com/Neurodyne/zio-cookbook) A beginners' tour to ZIO by Boris V.Kuznetsov
 
 ## Cheat Sheet
 

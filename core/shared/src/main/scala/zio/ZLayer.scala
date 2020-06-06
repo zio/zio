@@ -2161,14 +2161,14 @@ object ZLayer {
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: Tag](a: => A): Layer[Nothing, Has[A]] =
+  def succeed[A: Tag](a: => A): ULayer[Has[A]] =
     ZLayer(ZManaged.succeed(Has(a)))
 
   /**
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
-  def succeedMany[A](a: => A): Layer[Nothing, A] =
+  def succeedMany[A](a: => A): ULayer[A] =
     ZLayer(ZManaged.succeed(a))
 
   implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {

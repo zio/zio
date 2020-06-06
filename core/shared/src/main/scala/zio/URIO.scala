@@ -296,7 +296,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.environment]]
    */
-  def environment[R]: ZIO[R, Nothing, R] = ZIO.environment
+  def environment[R]: URIO[R, R] = ZIO.environment
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -439,7 +439,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.forkAll_]]
    */
-  def forkAll_[R, A](as: Iterable[URIO[R, A]]): ZIO[R, Nothing, Unit] =
+  def forkAll_[R, A](as: Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.forkAll_(as)
 
   /**
@@ -492,7 +492,7 @@ object URIO {
    * @see [[zio.ZIO.ifM]]
    */
   def ifM[R](b: URIO[R, Boolean]): ZIO.IfM[R, Nothing] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see [[zio.ZIO.infinity]]
@@ -757,8 +757,8 @@ object URIO {
   /**
    * @see See [[zio.ZIO.unlessM]]
    */
-  def unlessM[R](b: URIO[R, Boolean])(zio: => URIO[R, Any]): URIO[R, Unit] =
-    ZIO.unlessM(b)(zio)
+  def unlessM[R](b: URIO[R, Boolean]): ZIO.UnlessM[R, Nothing] =
+    ZIO.unlessM(b)
 
   /**
    * @see [[zio.ZIO.unsandbox]]
@@ -790,7 +790,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.whenM]]
    */
-  def whenM[R](b: URIO[R, Boolean])(rio: => URIO[R, Any]): URIO[R, Unit] = ZIO.whenM(b)(rio)
+  def whenM[R](b: URIO[R, Boolean]): ZIO.WhenM[R, Nothing] =
+    ZIO.whenM(b)
 
   /**
    * @see [[zio.ZIO.yieldNow]]

@@ -16,6 +16,7 @@
 
 package zio
 
+import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
@@ -169,14 +170,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  final def absorb(implicit ev: E <:< Throwable): ZIO[R, Throwable, A] =
+  final def absorb(implicit ev: E <:< Throwable): RIO[R, A] =
     absorbWith(ev)
 
   /**
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  final def absorbWith(f: E => Throwable): ZIO[R, Throwable, A] =
+  final def absorbWith(f: E => Throwable): RIO[R, A] =
     self.sandbox
       .foldM(
         cause => ZIO.fail(cause.squashWith(f)),
@@ -832,13 +833,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns whether this effect is a failure.
    */
-  final def isFailure: ZIO[R, Nothing, Boolean] =
+  final def isFailure: URIO[R, Boolean] =
     fold(_ => true, _ => false)
 
   /**
    * Returns whether this effect is a success.
    */
-  final def isSuccess: ZIO[R, Nothing, Boolean] =
+  final def isSuccess: URIO[R, Boolean] =
     fold(_ => false, _ => true)
 
   /**
@@ -872,7 +873,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect whose success is mapped by the specified side effecting
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
-  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): ZIO[R, Throwable, B] =
+  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): RIO[R, B] =
     foldM(e => ZIO.fail(ev(e)), a => ZIO.effect(f(a)))
 
   /**
@@ -1039,7 +1040,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * the specified function to convert the `E` into a `Throwable`.
    */
   final def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): URIO[R, A] =
-    (self mapError f) catchAll (IO.die(_))
+    self.foldM(e => ZIO.die(f(e)), ZIO.succeedNow)
+
+  /**
+   * Unearth the unchecked failure of the effect. (opposite of `orDie`)
+   * {{{
+   *  val f0: Task[Unit] = ZIO.fail(new Exception("failing")).unit
+   *  val f1: UIO[Unit]  = f0.orDie
+   *  val f2: Task[Unit] = f1.resurrect
+   * }}}
+   */
+  final def resurrect(implicit ev1: E <:< Throwable): RIO[R, A] =
+    self.unrefineWith({ case e => e })(ev1)
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
@@ -1339,8 +1351,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       self,
       that,
-      (exit, fiber) => leftDone(exit, fiber),
-      (exit, fiber) => rightDone(exit, fiber)
+      (leftExit, rightFiber) => leftDone(leftExit, rightFiber),
+      (rightExit, leftFiber) => rightDone(rightExit, leftFiber)
     )
 
   /**
@@ -3521,8 +3533,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessM[R, E](b: ZIO[R, E, Boolean])(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    b.flatMap(b => if (b) unit else zio.unit)
+  def unlessM[R, E](b: ZIO[R, E, Boolean]): ZIO.UnlessM[R, E] =
+    new ZIO.UnlessM(b)
 
   /**
    * The inverse operation `IO.sandboxed`
@@ -3610,8 +3622,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZIO[R, E, Boolean])(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    b.flatMap(b => if (b) zio.unit else unit)
+  def whenM[R, E](b: ZIO[R, E, Boolean]): ZIO.WhenM[R, E] =
+    new ZIO.WhenM(b)
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh
@@ -3669,6 +3681,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
+  @implicitNotFound(
+    "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has ${E} for the error type."
+  )
+  sealed trait CanFilter[+E] {
+    def apply(t: NoSuchElementException): E
+  }
+
+  object CanFilter {
+    implicit def canFilter[E >: NoSuchElementException]: CanFilter[E] =
+      new CanFilter[E] {
+        def apply(t: NoSuchElementException): E = t
+      }
+  }
+
   implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
 
     /**
@@ -3680,10 +3706,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      *   positive <- io2 if positive > 0
      *  } yield ()
      */
-    def withFilter(predicate: A => Boolean)(implicit ev: NoSuchElementException <:< E): ZIO[R, E, A] =
+    def withFilter(predicate: A => Boolean)(implicit ev: CanFilter[E]): ZIO[R, E, A] =
       self.flatMap { a =>
         if (predicate(a)) ZIO.succeedNow(a)
-        else ZIO.fail(new NoSuchElementException("The value doesn't satisfy the predicate"))
+        else ZIO.fail(ev(new NoSuchElementException("The value doesn't satisfy the predicate")))
       }
   }
 
@@ -3705,6 +3731,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class IfM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZIO[R1, E1, A], onFalse: => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
+  }
+
+  final class UnlessM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](zio: => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
+      b.flatMap(b => if (b) unit else zio.unit)
+  }
+
+  final class WhenM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](zio: => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
+      b.flatMap(b => if (b) zio.unit else unit)
   }
 
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: B) {

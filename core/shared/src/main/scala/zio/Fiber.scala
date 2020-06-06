@@ -412,7 +412,7 @@ sealed trait Fiber[+E, +A] { self =>
 object Fiber extends FiberPlatformSpecific {
 
   /**
-   * A runtime fiber that is executing an effect. Runtime fibers ave an
+   * A runtime fiber that is executing an effect. Runtime fibers have an
    * identity and a trace.
    */
   sealed trait Runtime[+E, +A] extends Fiber[E, A] { self =>
