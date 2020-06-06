@@ -1,14 +1,26 @@
 package zio.stream
 
+import java.net.InetSocketAddress
+import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{ Files, NoSuchFileException, Paths }
+import java.nio.{ Buffer, ByteBuffer }
 
 import scala.concurrent.ExecutionContext.global
 
 import zio._
+import zio.blocking.effectBlockingIO
 import zio.test.Assertion._
 import zio.test._
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
+
+  def socketClient(port: Int) =
+    ZManaged.make(effectBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
+      ZIO
+        .fromFutureJava(client.connect(new InetSocketAddress("localhost", port)))
+        .map(_ => client)
+    })(c => ZIO.effectTotal(c.close()))
+
   def spec = suite("ZStream JVM")(
     suite("Constructors")(
       testM("effectAsync")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
@@ -191,6 +203,58 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             fails(isSubtype[NoSuchFileException](anything))
           )
         }
+      ),
+      suite("fromSocketServer")(
+        testM("read data")(checkM(Gen.anyString.filter(_.nonEmpty)) { message =>
+          for {
+            refOut <- Ref.make("")
+
+            server <- ZStream
+                       .fromSocketServer(8886)
+                       .foreach { c =>
+                         c.read
+                           .transduce(ZTransducer.utf8Decode)
+                           .runCollect
+                           .map(_.mkString)
+                           .flatMap(s => refOut.update(_ + s))
+                       }
+                       .fork
+
+            _ <- socketClient(8886)
+                  .use(c => ZIO.fromFutureJava(c.write(ByteBuffer.wrap(message.getBytes))))
+                  .retry(Schedule.forever)
+
+            receive <- refOut.get.doWhileM(s => ZIO.succeed(s.isEmpty))
+
+            _ <- server.interrupt
+          } yield assert(receive)(equalTo(message))
+        }),
+        testM("write data")(checkM(Gen.anyString.filter(_.nonEmpty)) { message =>
+          (for {
+            refOut <- Ref.make("")
+
+            server <- ZStream
+                       .fromSocketServer(8887)
+                       .foreach(c => ZStream.fromIterable(message.getBytes).run(c.write))
+                       .fork
+
+            _ <- socketClient(8887).use { c =>
+                  val buffer = ByteBuffer.allocate(message.getBytes.length)
+
+                  ZIO
+                    .fromFutureJava(c.read(buffer))
+                    .repeat(Schedule.doUntil(_ < 1))
+                    .flatMap { _ =>
+                      (buffer: Buffer).flip()
+                      refOut.update(_ => new String(buffer.array))
+                    }
+                }.retry(Schedule.forever)
+
+            receive <- refOut.get.doWhileM(s => ZIO.succeed(s.isEmpty))
+
+            _ <- server.interrupt
+          } yield assert(receive)(equalTo(message)))
+        })
       )
     )
   )
