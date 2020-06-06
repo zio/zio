@@ -70,6 +70,14 @@ trait ZSink[-R, +E, -I, +Z] {
     })
 
   /**
+   * Returns a sink that applies this sink's process to a multiple input values.
+   *
+   * @note If this sink applies a pure transformation, better efficiency can be achieved by overriding this method.
+   */
+  def forall: ZSink[R, E, Iterable[I], Z] =
+    ZSink(process.map { case (push, done) => (ZIO.foreach_(_)(push), done) })
+
+  /**
    * Transforms this sink's result.
    */
   def map[A](f: Z => A): ZSink[R, E, I, A] =
