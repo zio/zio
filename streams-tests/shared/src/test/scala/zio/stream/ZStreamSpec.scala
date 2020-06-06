@@ -2218,7 +2218,19 @@ object ZStreamSpec extends ZIOBaseSpec {
           ),
           testM("empty stream")(
             assertM(ZStream.empty.runHead)(equalTo(None))
-          )
+          ),
+          testM("Pulls up to the first non-empty chunk") {
+            for {
+              ref <- Ref.make[List[Int]](Nil)
+              head <- ZStream(
+                       ZStream.fromEffect(ref.update(1 :: _)).drain,
+                       ZStream.fromEffect(ref.update(2 :: _)).drain,
+                       ZStream(1),
+                       ZStream.fromEffect(ref.update(3 :: _))
+                     ).flatten.runHead
+              result <- ref.get
+            } yield assert(head)(isSome(equalTo(1))) && assert(result)(equalTo(List(2, 1)))
+          }
         ),
         suite("runLast")(
           testM("nonempty stream")(
