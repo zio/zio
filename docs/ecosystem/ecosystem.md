@@ -11,6 +11,7 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 
 - [ZIO Actors](https://github.com/zio/zio-actors): A high-performance, purely-functional library for building, composing, and supervising typed actors based on ZIO
 - [ZIO Akka Cluster](https://github.com/zio/zio-akka-cluster): A ZIO wrapper for Akka Cluster
+- [ZIO Arrow](https://github.com/Neurodyne/zio-arrow) : Haskell Arrow meets ZIO. A deep composition and high performance applications
 - [ZIO Config](https://github.com/zio/zio-config): A ZIO based configuration parsing library
 - [ZIO HTTP](https://github.com/zio/zio-http): A ZIO-powered HTTP server and client
 - [ZIO Kafka](https://github.com/zio/zio-kafka): A Kafka client for ZIO and ZIO Streams
