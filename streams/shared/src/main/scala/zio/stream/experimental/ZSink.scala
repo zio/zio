@@ -2,6 +2,8 @@ package zio.stream.experimental
 
 import zio._
 
+import scala.collection.mutable
+
 /**
  * A `ZSink` is a process that aggregate values of type `I` and to a value of type `Z`.
  */
@@ -98,10 +100,12 @@ trait ZSink[-R, +E, -I, +Z] {
 
 object ZSink {
 
+  type Process[-R, +E, -I, +Z] = URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]
+
   /**
    * A sink that aggregates values using the given process.
    */
-  def apply[R, E, I, Z](p: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]): ZSink[R, E, I, Z] =
+  def apply[R, E, I, Z](p: Process[R, E, I, Z]): ZSink[R, E, I, Z] =
     new ZSink[R, E, I, Z] {
       val process: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])] = p
     }
@@ -124,7 +128,7 @@ object ZSink {
   def collect[A]: ZSink[Any, Nothing, A, Chunk[A]] =
     new ZSink[Any, Nothing, A, Chunk[A]] {
       val builder: UManaged[ChunkBuilder[A]] = ZManaged.succeed(ChunkBuilder.make[A]())
-      val process: URManaged[Any, (A => Pull[Any, Nothing, Any], ZIO[Any, Nothing, Chunk[A]])] =
+      val process: Process[Any, Nothing, A, Chunk[A]] =
         builder.map(b => ((a: A) => ZIO.succeedNow(b += a), ZIO.succeedNow(b.result())))
 
       override def chunked: ZSink[Any, Nothing, Chunk[A], Chunk[A]] =
@@ -140,16 +144,41 @@ object ZSink {
    * using the `f` function.
    */
   def collectMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Map[K, A]] =
-    foldLeft(Map.empty[K, A]) { (z, a) =>
-      val k = key(a)
-      z.updated(k, if (z.contains(k)) f(z(k), a) else a)
+    new ZSink[Any, Nothing, A, Map[K, A]] {
+      val builder: Managed[Nothing, Ref[Map[K, A]]] = ZRef.makeManaged(Map.empty[K, A])
+      val process: Process[Any, Nothing, A, Map[K, A]] =
+        builder.map(ref => ((a: A) => ref.update(put(_, a)), ref.get))
+
+      override def chunked: ZSink[Any, Nothing, Chunk[A], Map[K, A]] =
+        ZSink(builder.map(ref => ((a: Chunk[A]) => ref.update(putAll(_, a)), ref.get)))
+
+      override def forall: ZSink[Any, Nothing, Iterable[A], Map[K, A]] =
+        ZSink(builder.map(ref => ((a: Iterable[A]) => ref.update(putAll(_, a)), ref.get)))
+
+      private def put(z: Map[K, A], a: A): Map[K, A] = {
+        val k = key(a)
+        z.updated(k, if (z.contains(k)) f(z(k), a) else a)
+      }
+
+      private def putAll(z: Map[K, A], a: Iterable[A]): Map[K, A] =
+        a.foldLeft(z)(put)
     }
 
   /**
    * A sink that collects all of its inputs into a set.
    */
   def collectSet[A]: ZSink[Any, Nothing, A, Set[A]] =
-    foldLeft(Set.empty[A])(_ + _)
+    new ZSink[Any, Nothing, A, Set[A]] {
+      val builder: Managed[Nothing, Ref[mutable.Builder[A, Set[A]]]] = ZRef.makeManaged(Set.newBuilder[A])
+      val process: Process[Any, Nothing, A, Set[A]] =
+        builder.map(ref => ((a: A) => ref.update(_ += a), ref.get.map(_.result())))
+
+      override def chunked: ZSink[Any, Nothing, Chunk[A], Set[A]] =
+        ZSink(builder.map(ref => ((a: Chunk[A]) => ref.update(_ ++= a), ref.get.map(_.result()))))
+
+      override def forall: ZSink[Any, Nothing, Iterable[A], Set[A]] =
+        ZSink(builder.map(ref => ((a: Iterable[A]) => ref.update(_ ++= a), ref.get.map(_.result()))))
+    }
 
   /**
    * A sink that executes the provided effectful function for every element fed to it.
