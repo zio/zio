@@ -11,6 +11,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration._
 import zio.stm.TQueue
+import zio.stream.ZSink.Push
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, nonFlaky, timeout }
 import zio.test._
@@ -2118,10 +2119,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         testM("peel") {
-          val sink: ZSink[Any, Nothing, Int, Chunk[Int]] = ZSink {
+          val sink: ZSink[Any, Nothing, Int, Nothing, Chunk[Int]] = ZSink {
             ZManaged.succeed {
-              case Some(inputs) => ZIO.fail(Right(inputs))
-              case None         => ZIO.fail(Right(Chunk.empty))
+              case Some(inputs) => Push.emit(inputs, Chunk.empty)
+              case None         => Push.emit(Chunk.empty, Chunk.empty)
             }
           }
 
