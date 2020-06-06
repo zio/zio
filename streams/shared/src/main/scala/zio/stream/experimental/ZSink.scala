@@ -115,8 +115,8 @@ object ZSink {
   /**
    * A sink that effectfully folds its inputs with the provided function and initial state.
    */
-  def foldLeftM[R, E, I, Z](z: Z)(f: (I, Z) => ZIO[R, E, Z]): ZSink[R, E, I, Z] =
-    ZSink(ZRef.makeManaged(z).map(ref => ((i: I) => ref.get.flatMap(z => Pull(f(i, z)).flatMap(ref.set)), ref.get)))
+  def foldLeftM[R, E, I, Z](z: Z)(f: (Z, I) => ZIO[R, E, Z]): ZSink[R, E, I, Z] =
+    ZSink(ZRef.makeManaged(z).map(ref => ((i: I) => ref.get.flatMap(z => Pull(f(z, i)).flatMap(ref.set)), ref.get)))
 
   /**
    * A sink that collects all of its inputs into a chunk.
