@@ -20,7 +20,7 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
    */
   final def fromOutputStream(
     os: OutputStream
-  ): ZSink[Blocking, IOException, Byte, Long] =
+  ): ZSink[Blocking, IOException, Byte, Nothing, Long] =
     ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
       blocking.effectBlockingInterrupt {
         val bytes = byteChunk.toArray
@@ -39,7 +39,7 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
     path: => Path,
     position: Long = 0L,
     options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
-  ): ZSink[Blocking, Throwable, Byte, Long] =
+  ): ZSink[Blocking, Throwable, Byte, Nothing, Long] =
     ZSink {
       for {
         state <- Ref.make(0L).toManaged_
@@ -59,12 +59,12 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
                   )(chan => blocking.effectBlocking(chan.close()).orDie)
         push = (is: Option[Chunk[Byte]]) =>
           is match {
-            case None => state.get.flatMap(Push.emit)
+            case None => state.get.flatMap(w => Push.emit(w, Chunk.empty))
             case Some(byteChunk) =>
               for {
                 justWritten <- blocking.effectBlockingInterrupt {
                                 channel.write(ByteBuffer.wrap(byteChunk.toArray))
-                              }.mapError(Left(_))
+                              }.mapError(e => (Left(e), Chunk.empty))
                 more <- state.update(_ + justWritten) *> Push.more
               } yield more
           }
