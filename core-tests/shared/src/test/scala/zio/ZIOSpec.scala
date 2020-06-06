@@ -3282,25 +3282,6 @@ object ZIOSpec extends ZIOBaseSpec {
         )
       }
     ),
-    suite("extendScope")(
-      testM("should extend scope of child") {
-        for {
-          latch  <- Promise.make[Nothing, Unit]
-          fiber  <- ZIO.extendScope(latch.await.fork.fork)
-          inner  <- fiber.join
-          status <- inner.status
-        } yield assert(status.isDone)(isFalse)
-      },
-      testM("should extend scope of grandchild") {
-        for {
-          latch  <- Promise.make[Nothing, Unit]
-          fiber  <- ZIO.extendScope(latch.await.fork.fork.fork)
-          inner1 <- fiber.join
-          inner2 <- inner1.join
-          status <- inner2.status
-        } yield assert(status.isDone)(isFalse)
-      }
-    ),
     suite("toFuture")(
       testM("should fail with ZTrace attached") {
         for {
