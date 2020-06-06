@@ -2342,8 +2342,9 @@ object ZIOSpec extends ZIOBaseSpec {
           ref    <- Ref.make(0)
           fibers <- Ref.make(Set.empty[Fiber[Any, Any]])
           latch  <- Promise.make[Nothing, Unit]
+          scope  <- ZIO.descriptor.map(_.scope)
           effect = ZIO.uninterruptibleMask { restore =>
-            restore(latch.await.onInterrupt(ref.update(_ + 1))).fork.tap(f => fibers.update(_ + f))
+            restore(latch.await.onInterrupt(ref.update(_ + 1))).forkIn(scope).tap(f => fibers.update(_ + f))
           }
           awaitAll = fibers.get.flatMap(Fiber.awaitAll(_))
           _        <- effect race effect
@@ -3261,7 +3262,7 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertM(countdown(50))(equalTo(150))
       },
-      testM("does not kill forked fibers") {
+      testM("does not kill fiber when forked on parent scope") {
 
         for {
           latch1 <- Promise.make[Nothing, Unit]
@@ -3273,7 +3274,7 @@ object ZIOSpec extends ZIOBaseSpec {
             .onInterrupt(ref1.set(true))
           right                         = latch3.succeed(()).as(42)
           _                             <- (latch2.await *> latch3.await *> latch1.succeed(())).fork
-          result                        <- left.fork zipPar right
+          result                        <- ZIO.scopeWith(scope => left.forkIn(scope) zipPar right)
           (leftInnerFiber, rightResult) = result
           leftResult                    <- leftInnerFiber.await
           interrupted                   <- ref1.get

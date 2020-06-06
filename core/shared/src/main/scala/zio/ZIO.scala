@@ -1253,9 +1253,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * `l.disconnect race r.disconnect`, which disconnects left and right
    * interruption signals, allowing a fast return, with interruption performed
    * in the background.
-   * 
-   * Note that if the `race` is embedded into an uninterruptible region, then 
-   * because the loser cannot be interrupted, it will be allowed to continue 
+   *
+   * Note that if the `race` is embedded into an uninterruptible region, then
+   * because the loser cannot be interrupted, it will be allowed to continue
    * executing in the background, without delaying the return of the race.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
@@ -1358,14 +1358,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def raceWith[R1 <: R, E1, E2, B, C](that: ZIO[R1, E1, B])(
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
-    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C], 
+    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C],
     scope: Option[ZScope[Any]] = None
   ): ZIO[R1, E2, C] =
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       self,
       that,
       (exit, fiber) => leftDone(exit, fiber),
-      (exit, fiber) => rightDone(exit, fiber), 
+      (exit, fiber) => rightDone(exit, fiber),
       scope
     )
 
@@ -2046,15 +2046,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     val g = (b: B, a: A) => f(a, b)
 
-    ZIO.scopeWith { scope => 
+    ZIO.scopeWith { scope =>
       ZIO.effectSuspendTotalWith((_, parentFiberId) =>
-        (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false), Some(scope)).forkIn(scope).flatMap {
-          f =>
+        (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false), Some(scope))
+          .forkIn(scope)
+          .flatMap { f =>
             f.await.flatMap { exit =>
               if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
               else ZIO.done(exit)
             }
-        }
+          }
       )
     }
   }
@@ -3437,10 +3438,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     } yield Runtime(environment, platform)
 
   /**
-   * Passes the fiber's scope to the specified function, which creates an effect 
+   * Passes the fiber's scope to the specified function, which creates an effect
    * that will be returned from this method.
    */
-  def scopeWith[R, E, A](f: ZScope[Exit[Any, Any]] => ZIO[R, E, A]): ZIO[R, E, A] = 
+  def scopeWith[R, E, A](f: ZScope[Exit[Any, Any]] => ZIO[R, E, A]): ZIO[R, E, A] =
     descriptorWith(d => f(d.scope))
 
   /**
@@ -4056,7 +4057,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val left: ZIO[R, EL, A],
     val right: ZIO[R, ER, B],
     val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
-    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C], 
+    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
     val scope: Option[ZScope[Any]]
   ) extends ZIO[R, E, C] {
     override def tag: Int = Tags.RaceWith
