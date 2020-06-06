@@ -5,13 +5,14 @@ import zio._
 /**
  * A `ZSink` is a process that aggregate values of type `I` and to a value of type `Z`.
  */
-final class ZSink[-R, +E, -I, +Z] private (val process: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]) {
+trait ZSink[-R, +E, -I, +Z] {
+
+  def process: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]
 
   /**
-   * Returns a sink that applies this sink's process to multiple input values.
+   * Returns a sink that applies this sink's process to a chunk of input values.
    *
-   * @note If this sink applies a pure transformation, better efficiency can be achieved by mapping individual
-   *       collections using `ZTransducer.map` and then aggregating with this sink.
+   * @note If this sink applies a pure transformation, better efficiency can be achieved by overriding this method.
    */
   def chunked: ZSink[R, E, Chunk[I], Z] =
     ZSink(process.map { case (push, done) => (ZIO.foreach_(_)(push), done) })
@@ -90,10 +91,12 @@ final class ZSink[-R, +E, -I, +Z] private (val process: URManaged[R, (I => Pull[
 object ZSink {
 
   /**
-   * A sink that aggregates values using the given `process`.
+   * A sink that aggregates values using the given process.
    */
-  def apply[R, E, I, Z](process: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]): ZSink[R, E, I, Z] =
-    new ZSink(process)
+  def apply[R, E, I, Z](p: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]): ZSink[R, E, I, Z] =
+    new ZSink[R, E, I, Z] {
+      val process: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])] = p
+    }
 
   /**
    * A sink that folds its inputs with the provided function and initial state.
