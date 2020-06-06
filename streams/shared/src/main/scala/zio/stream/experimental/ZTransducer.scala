@@ -9,7 +9,9 @@ import zio._
  *
  * @note The process may optionally retain some value of type `O` for subsequent steps.
  */
-final class ZTransducer[-R, +E, -I, +O] private (val process: URManaged[R, (I => Pull[R, E, O], Pull[R, E, O])]) {
+trait ZTransducer[-R, +E, -I, +O] {
+
+  def process: URManaged[R, (I => Pull[R, E, O], Pull[R, E, O])]
 
   /**
    * Compose this transducer with another transducer, resulting in a composite transducer.
@@ -38,9 +40,22 @@ final class ZTransducer[-R, +E, -I, +O] private (val process: URManaged[R, (I =>
   /**
    * Returns a transducer that applies this transducer's process to multiple input values.
    *
-   * @note If this transducer applies a pure transformation, better efficiency can be achieved by using `map`.
+   * @note If this transducer applies a pure transformation, better efficiency can be achieved by overriding this
+   *       method.
    */
   def chunked: ZTransducer[R, E, Chunk[I], Chunk[O]] =
+    ZTransducer(process.map {
+      case (step, last) =>
+        (ZIO.foreach(_)(step), last.foldCauseM(Pull.recover(Pull.emit(Chunk.empty)), o => Pull.emit(Chunk.single(o))))
+    })
+
+  /**
+   * Returns a transducer that applies this transducer's process to multiple input values.
+   *
+   * @note If this transducer applies a pure transformation, better efficiency can be achieved by overriding this
+   *       method.
+   */
+  def forall: ZTransducer[R, E, Iterable[I], Iterable[O]] =
     ZTransducer(process.map {
       case (step, last) =>
         (ZIO.foreach(_)(step), last.foldCauseM(Pull.recover(Pull.emit(Chunk.empty)), o => Pull.emit(Chunk.single(o))))
@@ -55,11 +70,15 @@ final class ZTransducer[-R, +E, -I, +O] private (val process: URManaged[R, (I =>
 
 object ZTransducer {
 
+  type Process[-R, +E, -I, +O] = URManaged[R, (I => Pull[R, E, O], Pull[R, E, O])]
+
   /**
    * A transducer that transforms values of type `I` to values of type `O`.
    */
-  def apply[R, E, I, O](step: URManaged[R, (I => Pull[R, E, O], Pull[R, E, O])]): ZTransducer[R, E, I, O] =
-    new ZTransducer(step)
+  def apply[R, E, I, O](p: Process[R, E, I, O]): ZTransducer[R, E, I, O] =
+    new ZTransducer[R, E, I, O] {
+      val process: URManaged[R, (I => Pull[R, E, O], Pull[R, E, O])] = p
+    }
 
   /**
    * A transducer that divides chunks into chunks with a length bounded by `max`.
@@ -136,35 +155,38 @@ object ZTransducer {
    * A transducer that divides input strings on the system line separator.
    */
   val newLines: ZTransducer[system.System, Nothing, String, Chunk[String]] =
-    apply(
-      ZRef
-        .makeManaged("")
-        .zipWith(ZIO.accessM[system.System](_.get.lineSeparator).toManaged_) { (ref, sep) =>
-          val di = sep.length
-          (
-            (s: String) =>
-              ref.get.flatMap(l =>
-                ZIO.effectSuspendTotal {
-                  val cb  = ChunkBuilder.make[String]()
-                  var rem = l ++ s
-                  var i   = rem.indexOf(sep)
-                  while (i != -1) {
-                    cb += rem.take(i)
-                    rem = rem.drop(i + di)
-                    i = rem.indexOf(sep)
+    new ZTransducer[system.System, Nothing, String, Chunk[String]] {
+      val builder: ZManaged[system.System, Nothing, (Ref[String], String)] =
+        ZRef.makeManaged("").zip(ZIO.accessM[system.System](_.get.lineSeparator).toManaged_)
+
+      val process: Process[system.System, Nothing, String, Chunk[String]] =
+        builder.map {
+          case (ref, sep) =>
+            val di = sep.length
+            (
+              (s: String) =>
+                ref.get.flatMap(l =>
+                  ZIO.effectSuspendTotal {
+                    val cb  = ChunkBuilder.make[String]()
+                    var rem = l ++ s
+                    var i   = rem.indexOf(sep)
+                    while (i != -1) {
+                      cb += rem.take(i)
+                      rem = rem.drop(i + di)
+                      i = rem.indexOf(sep)
+                    }
+                    ref.set(rem).as(cb.result())
                   }
-                  ref.set(rem).as(cb.result())
-                }
-              ),
-            ref
-              .getAndSet("")
-              .flatMap(s =>
-                if (s.isEmpty) Pull.end
-                else Pull.emit(Chunk.single(s))
-              )
-          )
+                ),
+              ref
+                .getAndSet("")
+                .flatMap(s =>
+                  if (s.isEmpty) Pull.end
+                  else Pull.emit(Chunk.single(s))
+                )
+            )
         }
-    )
+    }
 
   /**
    * A transducer that applies `step` to input values and yields `last` on completion.
@@ -176,5 +198,34 @@ object ZTransducer {
    * A transducer that decodes a chunk of bytes to a UTF-8 string.
    */
   val utf8Decode: ZTransducer[Any, Nothing, Chunk[Byte], String] =
-    succeed(chunk => ZIO.succeedNow(new String(chunk.toArray, StandardCharsets.UTF_8)))
+    new ZTransducer[Any, Nothing, Chunk[Byte], String] {
+      val process: Process[Any, Nothing, Chunk[Byte], String] =
+        ZManaged.succeedNow(
+          ((c: Chunk[Byte]) => ZIO.succeedNow(new String(c.toArray, StandardCharsets.UTF_8)), Pull.end)
+        )
+
+      override def chunked: ZTransducer[Any, Nothing, Chunk[Chunk[Byte]], Chunk[String]] =
+        ZTransducer(
+          ZManaged.succeedNow(
+            (c: Chunk[Chunk[Byte]]) =>
+              ZIO.succeedNow {
+                val f = c.flatten
+                if (f.isEmpty) Chunk.empty else Chunk.single(new String(f.toArray, StandardCharsets.UTF_8))
+              },
+            Pull.end
+          )
+        )
+
+      override def forall: ZTransducer[Any, Nothing, Iterable[Chunk[Byte]], Iterable[String]] =
+        ZTransducer(
+          ZManaged.succeedNow(
+            (c: Iterable[Chunk[Byte]]) =>
+              ZIO.succeedNow {
+                val f = c.flatten
+                if (f.isEmpty) Chunk.empty else Chunk.single(new String(f.toArray, StandardCharsets.UTF_8))
+              },
+            Pull.end
+          )
+        )
+    }
 }
