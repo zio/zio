@@ -11,7 +11,6 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 
 - [ZIO Actors](https://github.com/zio/zio-actors): A high-performance, purely-functional library for building, composing, and supervising typed actors based on ZIO
 - [ZIO Akka Cluster](https://github.com/zio/zio-akka-cluster): A ZIO wrapper for Akka Cluster
-- [ZIO Arrow](https://github.com/Neurodyne/zio-arrow) : Haskell Arrow meets ZIO. A deep composition and high performance applications
 - [ZIO Config](https://github.com/zio/zio-config): A ZIO based configuration parsing library
 - [ZIO HTTP](https://github.com/zio/zio-http): A ZIO-powered HTTP server and client
 - [ZIO Kafka](https://github.com/zio/zio-kafka): A Kafka client for ZIO and ZIO Streams
@@ -38,6 +37,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
 - [tranzactio](https://github.com/gaelrenoux/tranzactio): ZIO wrapper for data access libraries like Doobie or Anorm
+- [ZIO Arrow](https://github.com/Neurodyne/zio-arrow) : Haskell Arrow meets ZIO. A deep composition and high performance applications
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
 - [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [zio-easymock](https://github.com/egast/zio-easymock): EasyMock mocking for zio-test
