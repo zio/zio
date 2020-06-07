@@ -1148,25 +1148,26 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Consumes all elements of the stream, passing them to the specified callback.
    */
   final def foreach[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
-    foreachWhile(f.andThen(_.as(true)))
+    run(ZSink.foreach(f))
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
    */
   final def foreachChunk[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
-    foreachChunkWhile(f.andThen(_.as(true)))
+    run(ZSink.foreachChunk(f))
 
   /**
    * Like [[ZStream#foreachChunk]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
   final def foreachChunkManaged[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Any]): ZManaged[R1, E1, Unit] =
-    foreachChunkWhileManaged(f.andThen(_.as(true)))
+    runManaged(ZSink.foreachChunk(f))
 
   /**
    * Consumes chunks of the stream, passing them to the specified callback,
    * and terminating consumption when the callback returns `false`.
    */
+  @deprecated("Use `foreachWhile`", "1.0.0-RC21")
   final def foreachChunkWhile[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
     foreachChunkWhileManaged(f).use_(ZIO.unit)
 
@@ -1174,6 +1175,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Like [[ZStream#foreachChunkWhile]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
+  @deprecated("use `foreachWhileManaged`", "1.0.0-RC21")
   final def foreachChunkWhileManaged[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
     for {
       chunks <- self.process
@@ -1191,21 +1193,21 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * can be controlled.
    */
   final def foreachManaged[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Any]): ZManaged[R1, E1, Unit] =
-    foreachWhileManaged(f.andThen(_.as(true)))
+    runManaged(ZSink.foreach(f))
 
   /**
    * Consumes elements of the stream, passing them to the specified callback,
    * and terminating consumption when the callback returns `false`.
    */
   final def foreachWhile[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
-    foreachWhileManaged(f).use_(ZIO.unit)
+    run(ZSink.foreachWhile(f))
 
   /**
    * Like [[ZStream#foreachWhile]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
   final def foreachWhileManaged[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
-    foreachChunkWhileManaged(_.foldWhileM(true)(identity)((_, a) => f(a)))
+    runManaged(ZSink.foreachWhile(f))
 
   /**
    * Repeats this stream forever.
@@ -2292,7 +2294,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
   def run[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, Any, B]): ZIO[R1, E1, B] =
-    (process <*> sink.push).use {
+    runManaged(sink).useNow
+
+  def runManaged[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, Any, B]): ZManaged[R1, E1, B] =
+    (process <*> sink.push).flatMap {
       case (pull, push) =>
         def go: ZIO[R1, E1, B] = pull.foldCauseM(
           Cause
@@ -2308,7 +2313,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               .foldCauseM(c => Cause.sequenceCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow), _ => go)
         )
 
-        go
+        go.toManaged_
     }
 
   /**
