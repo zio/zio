@@ -543,6 +543,12 @@ object ZTransducer {
     foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
 
   /**
+   * Creates a transducer that takes every `n`'th value
+   */
+  def sample[I](n: Long): ZTransducer[Any, Nothing, I, Option[I]] =
+    foldUntil[I, Option[I]](None, n)((_, element) => Some(element))
+
+  /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
   val splitLines: ZTransducer[Any, Nothing, String, String] =
