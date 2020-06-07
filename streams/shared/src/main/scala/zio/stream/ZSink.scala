@@ -425,24 +425,21 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     ZSink {
       Push.restartable(push).map {
         case (push, restart) =>
-          (is: Option[Chunk[I]]) => {
-            val shouldRestart =
-              is match {
-                case None    => false
-                case Some(_) => true
-              }
-
-            push(is).catchAll {
+          def go(in: Option[Chunk[I]], end: Boolean): ZIO[R1, (Either[E1, Option[Z]], Chunk[L]), Unit] =
+            push(in).catchAll {
               case (Left(e), leftover) => Push.fail(e, leftover)
               case (Right(z), leftover) =>
-                f(z).mapError(e => (Left(e), leftover)) flatMap { predicateSatisfied =>
-                  if (predicateSatisfied) Push.emit(Some(z), leftover)
-                  else if (shouldRestart) restart
-                  else Push.emit(None, leftover)
+                f(z).mapError(err => (Left(err), leftover)).flatMap { satisfied =>
+                  if (satisfied)
+                    Push.emit(Some(z), leftover)
+                  else if (leftover.isEmpty)
+                    if (end) Push.emit(None, Chunk.empty) else restart *> Push.more
+                  else
+                    go(Some(leftover.asInstanceOf[Chunk[I]]), end)
                 }
-
             }
-          }
+
+          (is: Option[Chunk[I]]) => go(is, is.isEmpty)
       }
     }
 }
