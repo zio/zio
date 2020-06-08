@@ -5,7 +5,7 @@ import zio._
 /**
  * A `ZStream` is a process that produces values of type `I`.
  */
-abstract class ZStream[-R, +E, +I] private (val process: URManaged[R, Pull[R, E, I]]) {
+abstract class ZStream[-R, +E, +I] private (val process: ZStream.Process[R, E, I]) {
 
   /**
    * Alias for [[pipe]].
@@ -93,7 +93,9 @@ abstract class ZStream[-R, +E, +I] private (val process: URManaged[R, Pull[R, E,
 
 object ZStream {
 
-  def apply[R, E, I](process: URManaged[R, Pull[R, E, I]]): ZStream[R, E, I] =
+  type Process[-R, +E, +I] = URManaged[R, Pull[R, E, I]]
+
+  def apply[R, E, I](process: Process[R, E, I]): ZStream[R, E, I] =
     new ZStream(process) {}
 
   def apply[I](i: I*): ZStream[Any, Nothing, I] =
@@ -109,11 +111,8 @@ object ZStream {
   def fromEffect[R, E, I](z: ZIO[R, E, I]): ZStream[R, E, I] =
     apply(ZRef.makeManaged(false).map(_.getAndSet(true).flatMap(if (_) Pull.end else Pull(z))))
 
-  def fromProcess[R, E, I](process: Pull[R, E, I]): ZStream[R, E, I] =
-    apply(ZManaged.succeedNow(process))
-
   def fromPull[R, E, I](p: Pull[R, E, I]): ZStream[R, E, I] =
-    fromProcess(p)
+    apply(ZManaged.succeedNow(p))
 
   def repeatEffect[R, E, I](z: ZIO[R, E, I]): ZStream[R, E, I] =
     fromPull(Pull(z))
