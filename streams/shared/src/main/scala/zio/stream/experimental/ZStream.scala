@@ -5,26 +5,26 @@ import zio._
 /**
  * A `ZStream` is a process that produces values of type `I`.
  */
-final class ZStream[-R, +E, +O] private (val process: URManaged[R, Pull[R, E, O]]) {
+abstract class ZStream[-R, +E, +I] private (val process: URManaged[R, Pull[R, E, I]]) {
 
   /**
    * Alias for [[pipe]].
    */
-  def >>>[R1 <: R, E1 >: E, I1 >: O, A](transducer: ZTransducer[R1, E1, I1, A]): ZStream[R1, E1, A] =
+  def >>>[R1 <: R, E1 >: E, I1 >: I, A](transducer: ZTransducer[R1, E1, I1, A]): ZStream[R1, E1, A] =
     pipe(transducer)
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
    * produced by passing each element of this stream to `f`.
    */
-  def flatMap[R1 <: R, E1 >: E, A](f: O => ZStream[R1, E1, A]): ZStream[R1, E1, A] = {
+  def flatMap[R1 <: R, E1 >: E, A](f: I => ZStream[R1, E1, A]): ZStream[R1, E1, A] = {
     def go(
-      outer: Pull[R1, E1, O],
+      outer: Pull[R1, E1, I],
       inner: Pull[R1, E1, A],
       finalizer: Ref[ZManaged.Finalizer]
     ): Pull[R1, E1, A] = {
 
-      def next: ZIO[R1, Option[E1], Pull[R1, E1, A]] =
+      def next: Pull[R1, E1, Pull[R1, E1, A]] =
         finalizer.getAndSet(ZManaged.Finalizer.noop).flatMap(_.apply(Exit.unit)) *>
           outer.flatMap(i =>
             ZIO.uninterruptibleMask { restore =>
@@ -36,7 +36,7 @@ final class ZStream[-R, +E, +O] private (val process: URManaged[R, Pull[R, E, O]
             }
           )
 
-      inner.catchAllCause(Cause.sequenceCauseOption(_).fold(next.flatMap(go(outer, _, finalizer)))(Pull.halt))
+      inner.catchAllCause(Pull.recover(next.flatMap(go(outer, _, finalizer))))
     }
 
     ZStream {
@@ -53,19 +53,19 @@ final class ZStream[-R, +E, +O] private (val process: URManaged[R, Pull[R, E, O]
    *
    * @note This is, in some sense. equivalent to `Seq.head`.
    */
-  def head: ZIO[R, Option[E], O] =
+  def head: ZIO[R, Option[E], I] =
     process.use(identity)
 
   /**
    * Transforms the elements of this stream using the supplied function.
    */
-  def map[A](f: O => A): ZStream[R, E, A] =
+  def map[A](f: I => A): ZStream[R, E, A] =
     ZStream(process.map(_.map(f)))
 
   /**
    * Applies a transducer to the stream, which converts one or more elements of type `A` into elements of type `B`.
    */
-  def pipe[R1 <: R, E1 >: E, O1 >: O, A](transducer: ZTransducer[R1, E1, O1, A]): ZStream[R1, E1, A] =
+  def pipe[R1 <: R, E1 >: E, I1 >: I, O](transducer: ZTransducer[R1, E1, I1, O]): ZStream[R1, E1, O] =
     ZStream(process.zipWith(transducer.process) {
       case (pull, (step, last)) =>
         (pull >>= step).catchAllCause(Pull.recover(last))
@@ -74,80 +74,43 @@ final class ZStream[-R, +E, +O] private (val process: URManaged[R, Pull[R, E, O]
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  def run[R1 <: R, E1 >: E, O1 >: O, Z](sink: ZSink[R1, E1, O1, Z]): ZIO[R1, E1, Z] =
+  def run[R1 <: R, E1 >: E, O1 >: I, O](sink: ZSink[R1, E1, O1, O]): ZIO[R1, E1, O] =
     (process <*> sink.process).use {
-      case (pull, (push, done)) =>
-        (pull >>= push).forever.catchAllCause(Cause.sequenceCauseOption(_).fold(done)(ZIO.halt(_)))
+      case (pull, (step, done)) =>
+        (pull >>= step).forever.catchAllCause(Cause.sequenceCauseOption(_).fold(done)(ZIO.halt(_)))
     }
 
   /**
    * Runs the stream and collects all of its elements in to a chunk.
    */
-  def runCollect: ZIO[R, E, Chunk[O]] =
-    run(ZSink.collect[O])
-
-  /**
-   * A stream that emits values from this stream until the specified predicate evaluates to `true`.
-   */
-  def takeUntil(p: O => Boolean): ZStream[R, E, O] =
-    ZStream(
-      ZRef
-        .makeManaged(false)
-        .zipWith(process)((done, outer) =>
-          ZIO.ifM(done.get)(
-            Pull.end,
-            outer.foldCauseM(
-              Pull.recover(Pull.end),
-              i =>
-                if (p(i)) done.set(true).as(i)
-                else Pull.emit(i)
-            )
-          )
-        )
-    )
-
-  /**
-   * A stream that emits values from this stream while the specified predicate evaluates to `true`.
-   */
-  def takeWhile(p: O => Boolean): ZStream[R, E, O] =
-    ZStream(
-      ZRef
-        .makeManaged(false)
-        .zipWith(process)((done, outer) =>
-          ZIO.ifM(done.get)(
-            Pull.end,
-            outer.foldCauseM(
-              Pull.recover(Pull.end),
-              i =>
-                if (p(i)) Pull.emit(i)
-                else done.set(true) *> Pull.end
-            )
-          )
-        )
-    )
+  def runCollect: ZIO[R, E, Chunk[I]] =
+    run(ZSink.collect[I])
 }
 
 object ZStream {
 
-  def apply[R, E, O](process: URManaged[R, Pull[R, E, O]]): ZStream[R, E, O] =
-    new ZStream(process)
+  def apply[R, E, I](process: URManaged[R, Pull[R, E, I]]): ZStream[R, E, I] =
+    new ZStream(process) {}
 
-  def apply[O](i: O*): ZStream[Any, Nothing, O] =
+  def apply[I](i: I*): ZStream[Any, Nothing, I] =
     fromChunk(Chunk.fromIterable(i))
 
-  def fromChunk[O](chunk: Chunk[O]): ZStream[Any, Nothing, O] =
+  def fromChunk[I](chunk: Chunk[I]): ZStream[Any, Nothing, I] =
     ZStream(
       ZRef
         .makeManaged(chunk)
         .map(ref => ref.modify(rem => if (rem.isEmpty) (Pull.end, rem) else (Pull.emit(rem.head), rem.tail)).flatten)
     )
 
-  def fromEffect[R, E, O](z: ZIO[R, E, O]): ZStream[R, E, O] =
+  def fromEffect[R, E, I](z: ZIO[R, E, I]): ZStream[R, E, I] =
     apply(ZRef.makeManaged(false).map(_.getAndSet(true).flatMap(if (_) Pull.end else Pull(z))))
 
-  def repeatEffect[R, E, O](z: ZIO[R, E, O]): ZStream[R, E, O] =
-    succeed(z.mapError(Some(_)))
-
-  def succeed[R, E, O](process: Pull[R, E, O]): ZStream[R, E, O] =
+  def fromProcess[R, E, I](process: Pull[R, E, I]): ZStream[R, E, I] =
     apply(ZManaged.succeedNow(process))
+
+  def fromPull[R, E, I](p: Pull[R, E, I]): ZStream[R, E, I] =
+    fromProcess(p)
+
+  def repeatEffect[R, E, I](z: ZIO[R, E, I]): ZStream[R, E, I] =
+    fromPull(Pull(z))
 }

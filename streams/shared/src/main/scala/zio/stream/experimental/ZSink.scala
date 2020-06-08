@@ -5,31 +5,31 @@ import zio._
 import scala.collection.mutable
 
 /**
- * A `ZSink` is a process that aggregate values of type `I` and to a value of type `Z`.
+ * A `ZSink` is a process that aggregate values of type `I` in to a value of type `O`.
  */
-trait ZSink[-R, +E, -I, +Z] {
+abstract class ZSink[-R, +E, -I, +O] {
 
-  def process: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]
+  val process: ZSink.Process[R, E, I, O]
 
   /**
    * Returns a sink that applies this sink's process to a chunk of input values.
    *
    * @note If this sink applies a pure transformation, better efficiency can be achieved by overriding this method.
    */
-  def chunked: ZSink[R, E, Chunk[I], Z] =
-    ZSink(process.map { case (push, done) => (ZIO.foreach_(_)(push), done) })
+  def chunked: ZSink[R, E, Chunk[I], O] =
+    ZSink(process.map { case (step, done) => (ZIO.foreach_(_)(step), done) })
 
   /**
    * Transforms this sink's input elements.
    */
-  def contramap[A](f: A => I): ZSink[R, E, A, Z] =
-    ZSink(process.map { case (push, done) => (push compose f, done) })
+  def contramap[A](f: A => I): ZSink[R, E, A, O] =
+    ZSink(process.map { case (step, done) => (a => step(f(a)), done) })
 
   /**
    * Effectfully transforms this sink's input elements.
    */
-  def contramapM[R1 <: R, E1 >: E, A](f: A => ZIO[R1, E1, I]): ZSink[R1, E1, A, Z] =
-    ZSink(process.map { case (push, done) => (a => Pull(f(a)).flatMap(push), done) })
+  def contramapM[R1 <: R, E1 >: E, A](f: A => ZIO[R1, E1, I]): ZSink[R1, E1, A, O] =
+    ZSink[R1, E1, A, O](process.map { case (step, done) => (a => Pull(f(a)).flatMap(step), done) })
 
   /**
    * Runs this sink until it yields a result, then uses that result to create another
@@ -37,12 +37,12 @@ trait ZSink[-R, +E, -I, +Z] {
    *
    * This function essentially runs sinks in sequence.
    */
-  def flatMap[R1 <: R, E1 >: E, I1 <: I, A](f: Z => ZSink[R1, E1, I1, A]): ZSink[R1, E1, I1, A] =
+  def flatMap[R1 <: R, E1 >: E, I1 <: I, A](f: O => ZSink[R1, E1, I1, A]): ZSink[R1, E1, I1, A] =
     foldCauseM(ZSink.halt[E1], f)
 
   def foldCauseM[R1 <: R, E1 >: E, I1 <: I, A](
     failure: Cause[E1] => ZSink[R1, E1, I1, A],
-    success: Z => ZSink[R1, E1, I1, A]
+    success: O => ZSink[R1, E1, I1, A]
   ): ZSink[R1, E1, I1, A] =
     ZSink(for {
       switch <- ZManaged.switchable[R1, Nothing, (I1 => Pull[R1, E1, Any], ZIO[R1, E1, A])]
@@ -72,58 +72,58 @@ trait ZSink[-R, +E, -I, +Z] {
     })
 
   /**
-   * Returns a sink that applies this sink's process to a multiple input values.
+   * Returns a sink that applies this sink's process to multiple input values.
    *
    * @note If this sink applies a pure transformation, better efficiency can be achieved by overriding this method.
    */
-  def foreach: ZSink[R, E, Iterable[I], Z] =
-    ZSink(process.map { case (push, done) => (ZIO.foreach_(_)(push), done) })
+  def foreach: ZSink[R, E, Iterable[I], O] =
+    ZSink(process.map { case (step, done) => (ZIO.foreach_(_)(step), done) })
 
   /**
    * Transforms this sink's result.
    */
-  def map[A](f: Z => A): ZSink[R, E, I, A] =
-    ZSink(process.map { case (push, done) => (push, done.map(f)) })
+  def map[A](f: O => A): ZSink[R, E, I, A] =
+    ZSink(process.map { case (step, done) => (step, done.map(f)) })
 
   /**
    * Transforms the errors emitted by this sink using `f`.
    */
-  def mapError[E1](f: E => E1): ZSink[R, E1, I, Z] =
-    ZSink(process.map { case (push, done) => (i => push(i).mapError(_.map(f)), done.mapError(f)) })
+  def mapError[E1](f: E => E1): ZSink[R, E1, I, O] =
+    ZSink(process.map { case (step, done) => (i => step(i).mapError(_.map(f)), done.mapError(f)) })
 
   /**
    * Effectfully transforms this sink's result.
    */
-  def mapM[R1 <: R, E1 >: E, A](f: Z => ZIO[R1, E1, A]): ZSink[R1, E1, I, A] =
-    ZSink(process.map { case (push, done) => (push, done.flatMap(f)) })
+  def mapM[R1 <: R, E1 >: E, A](f: O => ZIO[R1, E1, A]): ZSink[R1, E1, I, A] =
+    ZSink(process.map { case (step, done) => (step, done.flatMap(f)) })
 }
 
 object ZSink {
 
-  type Process[-R, +E, -I, +Z] = URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])]
+  type Process[-R, +E, -I, +O] = URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, O])]
 
   /**
    * A sink that aggregates values using the given process.
    */
-  def apply[R, E, I, Z](p: Process[R, E, I, Z]): ZSink[R, E, I, Z] =
-    new ZSink[R, E, I, Z] {
-      val process: URManaged[R, (I => Pull[R, E, Any], ZIO[R, E, Z])] = p
+  def apply[R, E, I, O](p: Process[R, E, I, O]): ZSink[R, E, I, O] =
+    new ZSink[R, E, I, O] {
+      val process: Process[R, E, I, O] = p
     }
 
   /**
-   * A sink that folds its inputs with the provided function and initial state.
+   * A continuous sink that folds its inputs with the provided function and initial state.
    */
   def foldLeft[I, Z](z: Z)(f: (Z, I) => Z): ZSink[Any, Nothing, I, Z] =
     ZSink(ZRef.makeManaged(z).map(ref => ((i: I) => ref.update(f(_, i)), ref.get)))
 
   /**
-   * A sink that effectfully folds its inputs with the provided function and initial state.
+   * A continuous sink that effectfully folds its inputs with the provided function and initial state.
    */
   def foldLeftM[R, E, I, Z](z: Z)(f: (Z, I) => ZIO[R, E, Z]): ZSink[R, E, I, Z] =
     ZSink(ZRef.makeManaged(z).map(ref => ((i: I) => ref.get.flatMap(z => Pull(f(z, i)).flatMap(ref.set)), ref.get)))
 
   /**
-   * A sink that collects all of its inputs into a chunk.
+   * A continuous sink that collects all of its inputs into a chunk.
    */
   def collect[A]: ZSink[Any, Nothing, A, Chunk[A]] =
     new ZSink[Any, Nothing, A, Chunk[A]] {
@@ -139,7 +139,7 @@ object ZSink {
     }
 
   /**
-   * A sink that collects all of its inputs into a map. The keys are extracted from inputs
+   * A continuous sink that collects all of its inputs into a map. The keys are extracted from inputs
    * using the keying function `key`; if multiple inputs use the same key, they are merged
    * using the `f` function.
    */
@@ -165,7 +165,7 @@ object ZSink {
     }
 
   /**
-   * A sink that collects all of its inputs into a set.
+   * A continuous sink that collects all of its inputs into a set.
    */
   def collectSet[A]: ZSink[Any, Nothing, A, Set[A]] =
     new ZSink[Any, Nothing, A, Set[A]] {
@@ -181,19 +181,22 @@ object ZSink {
     }
 
   /**
-   * A sink that executes the provided effectful function for every element fed to it.
+   * A continuous sink that executes the provided effectful function for every element fed to it.
    */
   def foreach[R, E, A](f: A => ZIO[R, E, Unit]): ZSink[R, E, A, Unit] =
-    succeed(a => Pull(f(a)), ZIO.unit)
+    push(a => Pull(f(a)), ZIO.unit)
+
+  def fromEffect[R, E, A](z: ZIO[R, E, A]): ZSink[R, E, Any, A] =
+    push(_ => Pull.end, z)
 
   /**
    * A sink that halts with the given cause.
    */
   def halt[E](cause: Cause[E]): ZSink[Any, E, Any, Nothing] =
-    succeed(_ => ZIO.halt(cause.map(Option(_))), ZIO.halt(cause))
+    push(_ => Pull.halt(cause), ZIO.halt(cause))
 
   /**
-   * A sink that yields the first value it receives.
+   * A continuous sink that consumes all input values and yields the first one.
    */
   def head[A]: ZSink[Any, Nothing, A, Option[A]] =
     ZSink(
@@ -203,20 +206,23 @@ object ZSink {
     )
 
   /**
-   * A sink that yields the last value it receives.
+   * A continuous sink that yields the last input value.
    */
   def last[A]: ZSink[Any, Nothing, A, Option[A]] =
     ZSink(ZRef.makeManaged(Option.empty[A]).map(ref => (a => ref.set(Some(a)), ref.get)))
 
   /**
-   * A sink prints every input string to the console (including a newline character).
+   * A sink that consumes input values using `step` yields the value from `done`.
+   */
+  def push[R, E, I, Z](step: I => Pull[R, E, Any], done: ZIO[R, E, Z]): ZSink[R, E, I, Z] =
+    ZSink(ZManaged.succeedNow(step -> done))
+
+  /**
+   * A continuous sink that prints every input string to the console (including a newline character).
    */
   val putStrLn: ZSink[console.Console, Nothing, String, Unit] =
     foreach(console.putStrLn(_))
 
-  /**
-   * A sink that consumes values using `push` yields the value from `done`.
-   */
-  def succeed[R, E, I, Z](push: I => Pull[R, E, Any], done: ZIO[R, E, Z]): ZSink[R, E, I, Z] =
-    ZSink(ZManaged.succeedNow(push -> done))
+  def succeed[A](a: A): ZSink[Any, Nothing, Any, A] =
+    fromEffect(ZIO.succeedNow(a))
 }
