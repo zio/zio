@@ -169,6 +169,14 @@ object ZSinkSpec extends ZIOBaseSpec {
           )
         })
       ),
+      testM("untilOutputM") {
+        val sink: ZSink[Any, Nothing, Int, Int, Option[Option[Int]]] =
+          ZSink.head[Int].untilOutputM(h => ZIO.succeed(h.fold(false)(_ >= 10)))
+        val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
+          assertM(Stream.fromIterable(1 to 100).chunkN(n).run(sink))(equalTo(Some(Some(10))))
+        }
+        assertions.map(tst => tst.reduce(_ && _))
+      },
       suite("flatMap")(
         testM("non-empty input") {
           assertM(
