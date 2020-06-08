@@ -145,15 +145,15 @@ object ZSink {
    */
   def collectMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Map[K, A]] =
     new ZSink[Any, Nothing, A, Map[K, A]] {
-      val builder: Managed[Nothing, Ref[Map[K, A]]] = ZRef.makeManaged(Map.empty[K, A])
+      val builder: Managed[Nothing, Map[K, A]] = ZManaged.succeed(Map.empty[K, A])
       val process: Process[Any, Nothing, A, Map[K, A]] =
-        builder.map(ref => ((a: A) => ref.update(put(_, a)), ref.get))
+        builder.map(z => ((a: A) => ZIO.succeedNow(put(z, a)), ZIO.succeed(z)))
 
       override def chunked: ZSink[Any, Nothing, Chunk[A], Map[K, A]] =
-        ZSink(builder.map(ref => ((a: Chunk[A]) => ref.update(putAll(_, a)), ref.get)))
+        ZSink(builder.map(z => ((a: Chunk[A]) => ZIO.succeedNow(putAll(z, a)), ZIO.succeed(z))))
 
       override def forall: ZSink[Any, Nothing, Iterable[A], Map[K, A]] =
-        ZSink(builder.map(ref => ((a: Iterable[A]) => ref.update(putAll(_, a)), ref.get)))
+        ZSink(builder.map(z => ((a: Iterable[A]) => ZIO.succeedNow(putAll(z, a)), ZIO.succeed(z))))
 
       private def put(z: Map[K, A], a: A): Map[K, A] = {
         val k = key(a)
