@@ -994,6 +994,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(UIO(Right(12)).leftOrFail(ExampleError).flip)(equalTo(ExampleError))
       } @@ zioTag(errors)
     ),
+    suite("leftOrFailWith")(
+      testM("on Left value") {
+        assertM(Task(Left(42)).leftOrFailWith((x: Throwable) => x))(equalTo(42))
+      },
+      testM("on Right value") {
+        assertM(Task(Right(ExampleError)).leftOrFailWith((x: Throwable) => x).flip)(equalTo(ExampleError))
+      } @@ zioTag(errors)
+    ),
     suite("leftOrFailException")(
       testM("on Left value") {
         assertM(ZIO.succeed(Left(42)).leftOrFailException)(equalTo(42))
@@ -1624,6 +1632,14 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("on Left value") {
         assertM(UIO(Left(1)).rightOrFail(ExampleError).flip)(equalTo(ExampleError))
+      } @@ zioTag(errors)
+    ),
+    suite("rightOrFailWith")(
+      testM("on Right value") {
+        assertM(Task(Right(42)).rightOrFailWith((x: Throwable) => x))(equalTo(42))
+      },
+      testM("on Left value") {
+        assertM(Task(Left(ExampleError)).rightOrFailWith((x: Throwable) => x).flip)(equalTo(ExampleError))
       } @@ zioTag(errors)
     ),
     suite("rightOrFailException")(
