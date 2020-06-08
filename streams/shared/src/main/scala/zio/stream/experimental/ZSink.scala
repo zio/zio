@@ -76,7 +76,7 @@ trait ZSink[-R, +E, -I, +Z] {
    *
    * @note If this sink applies a pure transformation, better efficiency can be achieved by overriding this method.
    */
-  def forall: ZSink[R, E, Iterable[I], Z] =
+  def foreach: ZSink[R, E, Iterable[I], Z] =
     ZSink(process.map { case (push, done) => (ZIO.foreach_(_)(push), done) })
 
   /**
@@ -134,7 +134,7 @@ object ZSink {
       override def chunked: ZSink[Any, Nothing, Chunk[A], Chunk[A]] =
         ZSink(builder.map(b => ((a: Chunk[A]) => ZIO.succeedNow(b ++= a), ZIO.succeed(b.result()))))
 
-      override def forall: ZSink[Any, Nothing, Iterable[A], Chunk[A]] =
+      override def foreach: ZSink[Any, Nothing, Iterable[A], Chunk[A]] =
         ZSink(builder.map(b => ((a: Iterable[A]) => ZIO.succeedNow(b ++= a), ZIO.succeed(b.result()))))
     }
 
@@ -152,7 +152,7 @@ object ZSink {
       override def chunked: ZSink[Any, Nothing, Chunk[A], Map[K, A]] =
         ZSink(builder.map(z => ((a: Chunk[A]) => ZIO.succeedNow(putAll(z, a)), ZIO.succeed(z))))
 
-      override def forall: ZSink[Any, Nothing, Iterable[A], Map[K, A]] =
+      override def foreach: ZSink[Any, Nothing, Iterable[A], Map[K, A]] =
         ZSink(builder.map(z => ((a: Iterable[A]) => ZIO.succeedNow(putAll(z, a)), ZIO.succeed(z))))
 
       private def put(z: Map[K, A], a: A): Map[K, A] = {
@@ -176,7 +176,7 @@ object ZSink {
       override def chunked: ZSink[Any, Nothing, Chunk[A], Set[A]] =
         ZSink(builder.map(b => ((a: Chunk[A]) => ZIO.succeedNow(b ++= a), ZIO.succeed(b.result()))))
 
-      override def forall: ZSink[Any, Nothing, Iterable[A], Set[A]] =
+      override def foreach: ZSink[Any, Nothing, Iterable[A], Set[A]] =
         ZSink(builder.map(b => ((a: Iterable[A]) => ZIO.succeedNow(b ++= a), ZIO.succeed(b.result()))))
     }
 

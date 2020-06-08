@@ -62,7 +62,7 @@ trait ZTransducer[-R, +E, -I, +O] {
    * @note If this transducer applies a pure transformation, better efficiency can be achieved by overriding this
    *       method.
    */
-  def forall: ZTransducer[R, E, Iterable[I], Iterable[O]] =
+  def foreach: ZTransducer[R, E, Iterable[I], Iterable[O]] =
     ZTransducer(process.map {
       case (step, last) =>
         (ZIO.foreach(_)(step), last.foldCauseM(Pull.recover(Pull.emit(Chunk.empty)), o => Pull.emit(Chunk.single(o))))
@@ -239,7 +239,7 @@ object ZTransducer {
           )
         )
 
-      override def forall: ZTransducer[Any, Nothing, Iterable[Chunk[Byte]], Iterable[String]] =
+      override def foreach: ZTransducer[Any, Nothing, Iterable[Chunk[Byte]], Iterable[String]] =
         ZTransducer(
           ZManaged.succeedNow(
             (
