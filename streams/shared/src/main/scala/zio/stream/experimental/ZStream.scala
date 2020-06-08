@@ -64,11 +64,15 @@ abstract class ZStream[-R, +E, +I] private (val process: URManaged[R, Pull[R, E,
 
   /**
    * Applies a transducer to the stream, which converts one or more elements of type `A` into elements of type `B`.
+   * The `leftover` flag controls whether remainders are pulled when the transducer process ends.
    */
-  def pipe[R1 <: R, E1 >: E, I1 >: I, O](transducer: ZTransducer[R1, E1, I1, O]): ZStream[R1, E1, O] =
+  def pipe[R1 <: R, E1 >: E, I1 >: I, O](
+    transducer: ZTransducer[R1, E1, I1, O],
+    leftover: Boolean = false
+  ): ZStream[R1, E1, O] =
     ZStream(process.zipWith(transducer.process) {
       case (pull, (step, last)) =>
-        (pull >>= step).catchAllCause(Pull.recover(last))
+        (pull >>= step).catchAllCause(Pull.recover(if (leftover) last else Pull.end))
     })
 
   /**
