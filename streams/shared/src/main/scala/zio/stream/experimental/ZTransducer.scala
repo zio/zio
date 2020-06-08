@@ -14,25 +14,22 @@ trait ZTransducer[-R, +E, -I, +O] {
   def process: URManaged[R, (I => Pull[R, E, O], Pull[R, E, O])]
 
   /**
-   * Compose this transducer with another transducer, resulting in a composite transducer.
+   * Alias for [[aggregate]].
+   */
+  def >>>[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, O, Z]): ZSink[R1, E1, I, Z] =
+    aggregate(sink)
+
+  /**
+   * Alias for [[pipe]].
    */
   def >>>[R1 <: R, E1 >: E, A](transducer: ZTransducer[R1, E1, O, A]): ZTransducer[R1, E1, I, A] =
-    ZTransducer(process.zip(ZRef.makeManaged(false)).zipWith(transducer.process) {
-      case (((s1, p1), ref), (s2, p2)) =>
-        (
-          i => (s1(i) >>= s2).catchAllCause(Pull.recover(Pull.end.ensuring(ref.set(true)))),
-          ZIO.ifM(ref.get)(
-            p2,
-            p1.foldCauseM(Pull.recover(p2.ensuring(ref.set(true))), s2(_) *> p2)
-          )
-        )
-    })
+    pipe(transducer)
 
   /**
    * Compose this transducer with a sink, resulting in a sink that processes elements by piping
    * them through this transducer and piping the results into the sink.
    */
-  def >>>[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, O, Z]): ZSink[R1, E1, I, Z] =
+  def aggregate[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, O, Z]): ZSink[R1, E1, I, Z] =
     ZSink(process.zip(ZRef.makeManaged(false)).zipWith(sink.process) {
       case (((s1, p1), ref), (s2, p2)) =>
         (
@@ -69,6 +66,20 @@ trait ZTransducer[-R, +E, -I, +O] {
     ZTransducer(process.map {
       case (step, last) =>
         (ZIO.foreach(_)(step), last.foldCauseM(Pull.recover(Pull.emit(Chunk.empty)), o => Pull.emit(Chunk.single(o))))
+    })
+  /**
+   * Compose this transducer with another transducer, resulting in a composite transducer.
+   */
+  def pipe[R1 <: R, E1 >: E, A](transducer: ZTransducer[R1, E1, O, A]): ZTransducer[R1, E1, I, A] =
+    ZTransducer(process.zip(ZRef.makeManaged(false)).zipWith(transducer.process) {
+      case (((s1, p1), ref), (s2, p2)) =>
+        (
+          i => (s1(i) >>= s2).catchAllCause(Pull.recover(Pull.end.ensuring(ref.set(true)))),
+          ZIO.ifM(ref.get)(
+            p2,
+            p1.foldCauseM(Pull.recover(p2.ensuring(ref.set(true))), s2(_) *> p2)
+          )
+        )
     })
 
   /**
