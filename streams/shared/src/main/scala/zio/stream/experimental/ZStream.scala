@@ -143,7 +143,7 @@ object ZStream {
     )
 
   def fromEffect[R, E, O](z: ZIO[R, E, O]): ZStream[R, E, O] =
-    apply(ZRef.makeManaged(false).map(done => ZIO.ifM(done.get)(Pull.end, Pull(z.ensuring(done.set(true))))))
+    apply(ZRef.makeManaged(false).map(_.getAndSet(true).flatMap(if (_) Pull.end else Pull(z))))
 
   def repeatEffect[R, E, O](z: ZIO[R, E, O]): ZStream[R, E, O] =
     succeed(z.mapError(Some(_)))
