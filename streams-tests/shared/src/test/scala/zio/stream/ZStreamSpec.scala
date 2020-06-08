@@ -2566,6 +2566,18 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(5)
                 .runCollect
             )(equalTo(Chunk(0, 1, 2, 3, 4)))
+          },
+          testM("should interrupt children fiber on stream interruption") {
+            for {
+              ref <- Ref.make(false)
+              fiber <- (ZStream.fromEffect(ZIO.unit) ++ ZStream.fromEffect(ZIO.never.onInterrupt(ref.set(true))))
+                        .debounce(800.millis)
+                        .runDrain
+                        .fork
+              _     <- TestClock.adjust(1.minute)
+              _     <- fiber.interrupt
+              value <- ref.get
+            } yield assert(value)(equalTo(true))
           }
         ),
         suite("timeout")(

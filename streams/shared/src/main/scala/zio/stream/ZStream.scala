@@ -2698,7 +2698,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream[R with Clock, E1, O2] {
       for {
         chunks <- self.process
-        ref    <- Ref.make[State](NotStarted).toManaged_
+        ref <- Ref.make[State](NotStarted).toManaged {
+                _.get.flatMap {
+                  case Previous(fiber) => fiber.interrupt
+                  case Current(fiber)  => fiber.interrupt
+                  case _               => ZIO.unit
+                }
+              }
         pull = {
           def store(chunk: Chunk[O2]): URIO[Clock, Chunk[O2]] =
             chunk.lastOption
@@ -2734,13 +2740,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               chunks >>= store
             case Done =>
               Pull.end
-          }.onInterrupt(
-            ref.get.flatMap {
-              case Previous(fiber) => fiber.interrupt
-              case Current(fiber)  => fiber.interrupt
-              case _               => ZIO.unit
-            }
-          )
+          }
         }
       } yield pull
     }
