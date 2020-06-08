@@ -129,13 +129,13 @@ object ZSink {
     new ZSink[Any, Nothing, A, Chunk[A]] {
       val builder: UManaged[ChunkBuilder[A]] = ZManaged.succeed(ChunkBuilder.make[A]())
       val process: Process[Any, Nothing, A, Chunk[A]] =
-        builder.map(b => ((a: A) => ZIO.succeedNow(b += a), ZIO.succeedNow(b.result())))
+        builder.map(b => ((a: A) => ZIO.succeedNow(b += a), ZIO.succeed(b.result())))
 
       override def chunked: ZSink[Any, Nothing, Chunk[A], Chunk[A]] =
-        ZSink(builder.map(b => ((a: Chunk[A]) => ZIO.succeedNow(b ++= a), ZIO.succeedNow(b.result()))))
+        ZSink(builder.map(b => ((a: Chunk[A]) => ZIO.succeedNow(b ++= a), ZIO.succeed(b.result()))))
 
       override def forall: ZSink[Any, Nothing, Iterable[A], Chunk[A]] =
-        ZSink(builder.map(b => ((a: Iterable[A]) => ZIO.succeedNow(b ++= a), ZIO.succeedNow(b.result()))))
+        ZSink(builder.map(b => ((a: Iterable[A]) => ZIO.succeedNow(b ++= a), ZIO.succeed(b.result()))))
     }
 
   /**
