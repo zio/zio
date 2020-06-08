@@ -13,15 +13,9 @@ ZIO holds onto errors, that would otherwise be lost, using `try finally`. If the
 
 Whereas, ZIO guarantees that no errors are lost. This guarantee is provided via a hierarchy of supervisors and information made available via datatypes such as `Exit` & `Cause`. All errors will be reported. If there's a bug in the code, zio enables us to find about it.
 
-## Transform (or lift) `Option` and `Either` values
+## Transform `Option` and `Either` values
 
-It's typical that you work with `Option` and `Either` values inside your application. You either fetch a record from the database which might be there or not (`Option`) or parse a file which might return decode errors `Either`.
-
-ZIO has already combinatiors built-in to transfor or lift these values into `ZIO` values.
-
-Here's a overview:
-
-
+It's typical that you work with `Option` and `Either` values inside your application. You either fetch a record from the database which might be there or not (`Option`) or parse a file which might return decode errors `Either`. ZIO has already functions built-in to transform these values into `ZIO` values.
 
 ### Either
 
