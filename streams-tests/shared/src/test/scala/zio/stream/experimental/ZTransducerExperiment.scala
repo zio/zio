@@ -18,7 +18,7 @@ object ZTransducerExperiment extends ZIOBaseSpec {
               assertM(
                 ZStream
                   .fromChunk(c)
-                  .aggregate(ZTransducer.chunkN(i, 0))
+                  .pipe(ZTransducer.chunkN(i, 0))
                   .run(ZSink.collect[Chunk[Int]].chunked)
                   .map(_.forall(_.length == i))
               )(equalTo(true))

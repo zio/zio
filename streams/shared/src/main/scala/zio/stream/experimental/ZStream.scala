@@ -7,20 +7,11 @@ import zio._
  */
 final class ZStream[-R, +E, +O] private (val process: URManaged[R, Pull[R, E, O]]) {
 
-  def >>>[R1 <: R, E1 >: E, I1 >: O, A](transducer: ZTransducer[R1, E1, I1, A]): ZStream[R1, E1, A] =
-    aggregate(transducer)
-
   /**
-   * Applies an aggregator to the stream, which converts one or more elements of type `A` into elements of type `B`.
+   * Alias for [[pipe]].
    */
-  def aggregate[R1 <: R, E1 >: E, O1 >: O, A](transducer: ZTransducer[R1, E1, O1, A]): ZStream[R1, E1, A] =
-    ZStream(process.zip(ZRef.makeManaged(false)).zipWith(transducer.process) {
-      case ((pull, done), (step, last)) =>
-        ZIO.ifM(done.get)(
-          Pull.end,
-          (pull >>= step).catchAllCause(Pull.recover(last.ensuring(done.set(true))))
-        )
-    })
+  def >>>[R1 <: R, E1 >: E, I1 >: O, A](transducer: ZTransducer[R1, E1, I1, A]): ZStream[R1, E1, A] =
+    pipe(transducer)
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
@@ -70,6 +61,15 @@ final class ZStream[-R, +E, +O] private (val process: URManaged[R, Pull[R, E, O]
    */
   def map[A](f: O => A): ZStream[R, E, A] =
     ZStream(process.map(_.map(f)))
+
+  /**
+   * Applies a transducer to the stream, which converts one or more elements of type `A` into elements of type `B`.
+   */
+  def pipe[R1 <: R, E1 >: E, O1 >: O, A](transducer: ZTransducer[R1, E1, O1, A]): ZStream[R1, E1, A] =
+    ZStream(process.zipWith(transducer.process) {
+      case (pull, (step, last)) =>
+        (pull >>= step).catchAllCause(Pull.recover(last))
+    })
 
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
