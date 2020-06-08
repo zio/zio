@@ -169,15 +169,15 @@ object ZSink {
    */
   def collectSet[A]: ZSink[Any, Nothing, A, Set[A]] =
     new ZSink[Any, Nothing, A, Set[A]] {
-      val builder: Managed[Nothing, Ref[mutable.Builder[A, Set[A]]]] = ZRef.makeManaged(Set.newBuilder[A])
+      val builder: Managed[Nothing, mutable.Builder[A, Set[A]]] = ZManaged.succeed(Set.newBuilder[A])
       val process: Process[Any, Nothing, A, Set[A]] =
-        builder.map(ref => ((a: A) => ref.update(_ += a), ref.get.map(_.result())))
+        builder.map(b => ((a: A) => ZIO.succeedNow(b += a), ZIO.succeed(b.result())))
 
       override def chunked: ZSink[Any, Nothing, Chunk[A], Set[A]] =
-        ZSink(builder.map(ref => ((a: Chunk[A]) => ref.update(_ ++= a), ref.get.map(_.result()))))
+        ZSink(builder.map(b => ((a: Chunk[A]) => ZIO.succeedNow(b ++= a), ZIO.succeed(b.result()))))
 
       override def forall: ZSink[Any, Nothing, Iterable[A], Set[A]] =
-        ZSink(builder.map(ref => ((a: Iterable[A]) => ref.update(_ ++= a), ref.get.map(_.result()))))
+        ZSink(builder.map(b => ((a: Iterable[A]) => ZIO.succeedNow(b ++= a), ZIO.succeed(b.result()))))
     }
 
   /**
