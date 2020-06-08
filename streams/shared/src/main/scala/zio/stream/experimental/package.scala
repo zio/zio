@@ -4,5 +4,5 @@ import zio.ZIO
 
 package object experimental {
 
-  type Pull[-R, +E, +O] = ZIO[R, Option[E], O]
+  type Pull[-R, +E, +I] = ZIO[R, Option[E], I]
 }

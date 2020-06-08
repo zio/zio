@@ -10,14 +10,11 @@ object Pull {
   def emit[A](a: A): Pull[Any, Nothing, A] =
     ZIO.succeedNow(a)
 
-  val end: Pull[Any, Nothing, Nothing] =
-    ZIO.fail(None)
+  val end: Pull[Any, Nothing, Nothing] = ZIO.fail(None)
 
-  def halt[E](cause: Cause[E]): Pull[Any, E, Nothing] =
-    ZIO.halt(cause.map(Option.apply))
+  def halt[E](c: Cause[E]): Pull[Any, E, Nothing] =
+    ZIO.halt(c.map(Option.apply))
 
-  def recover[R, E, A](z: Pull[R, E, A]): Cause[Option[E]] => Pull[R, E, A] =
-    Cause.sequenceCauseOption(_).fold(z)(halt)
-
-  val unit: Pull[Any, Nothing, Unit] = ZIO.unit
+  def recover[R, E, A](p: Pull[R, E, A]): Cause[Option[E]] => Pull[R, E, A] =
+    Cause.sequenceCauseOption(_).fold(p)(halt)
 }

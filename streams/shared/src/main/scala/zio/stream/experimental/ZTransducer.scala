@@ -17,8 +17,15 @@ trait ZTransducer[-R, +E, -I, +O] {
    * Compose this transducer with another transducer, resulting in a composite transducer.
    */
   def >>>[R1 <: R, E1 >: E, A](transducer: ZTransducer[R1, E1, O, A]): ZTransducer[R1, E1, I, A] =
-    ZTransducer(process.zipWith(transducer.process) {
-      case ((s1, p1), (s2, p2)) => (s1(_) >>= s2, p1.foldCauseM(Pull.recover(p2), s2(_) *> p2))
+    ZTransducer(process.zip(ZRef.makeManaged(false)).zipWith(transducer.process) {
+      case (((s1, p1), ref), (s2, p2)) =>
+        (
+          i => (s1(i) >>= s2).catchAllCause(Pull.recover(Pull.end.ensuring(ref.set(true)))),
+          ZIO.ifM(ref.get)(
+            p2,
+            p1.foldCauseM(Pull.recover(p2.ensuring(ref.set(true))), s2(_) *> p2)
+          )
+        )
     })
 
   /**
@@ -26,13 +33,16 @@ trait ZTransducer[-R, +E, -I, +O] {
    * them through this transducer and piping the results into the sink.
    */
   def >>>[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, O, Z]): ZSink[R1, E1, I, Z] =
-    ZSink(process.zipWith(sink.process) {
-      case ((s1, p1), (s2, p2)) =>
+    ZSink(process.zip(ZRef.makeManaged(false)).zipWith(sink.process) {
+      case (((s1, p1), ref), (s2, p2)) =>
         (
-          s1(_) >>= s2,
-          p1.foldCauseM(
-            Cause.sequenceCauseOption(_).fold(p2)(ZIO.halt(_)),
-            s2(_).foldCauseM(Cause.sequenceCauseOption(_).fold(p2)(ZIO.halt(_)), _ => p2)
+          i => (s1(i) >>= s2).catchAllCause(Pull.recover(Pull.end.ensuring(ref.set(true)))),
+          ZIO.ifM(ref.get)(
+            p2,
+            p1.foldCauseM(
+              Cause.sequenceCauseOption(_).fold(p2)(ZIO.halt(_)),
+              s2(_).foldCauseM(Cause.sequenceCauseOption(_).fold(p2.ensuring(ref.set(true)))(ZIO.halt(_)), _ => p2)
+            )
           )
         )
     })
@@ -207,24 +217,28 @@ object ZTransducer {
       override def chunked: ZTransducer[Any, Nothing, Chunk[Chunk[Byte]], Chunk[String]] =
         ZTransducer(
           ZManaged.succeedNow(
-            (c: Chunk[Chunk[Byte]]) =>
+            (
+              (c: Chunk[Chunk[Byte]]) =>
               ZIO.succeedNow {
                 val f = c.flatten
                 if (f.isEmpty) Chunk.empty else Chunk.single(new String(f.toArray, StandardCharsets.UTF_8))
               },
             Pull.end
+            )
           )
         )
 
       override def forall: ZTransducer[Any, Nothing, Iterable[Chunk[Byte]], Iterable[String]] =
         ZTransducer(
           ZManaged.succeedNow(
-            (c: Iterable[Chunk[Byte]]) =>
+            (
+              (c: Iterable[Chunk[Byte]]) =>
               ZIO.succeedNow {
                 val f = c.flatten
                 if (f.isEmpty) Chunk.empty else Chunk.single(new String(f.toArray, StandardCharsets.UTF_8))
               },
             Pull.end
+            )
           )
         )
     }
