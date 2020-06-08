@@ -125,6 +125,15 @@ object ZSinkSpec extends ZIOBaseSpec {
           }
         }
       ),
+      suite("foreachWhile")(
+        testM("handles leftovers") {
+          val leftover = ZStream
+            .fromIterable(1 to 5)
+            .run(ZSink.foreachWhile((n: Int) => ZIO.succeed(n <= 3)).exposeLeftover)
+            .map(_._2)
+          assertM(leftover)(equalTo(Chunk(4, 5)))
+        }
+      ),
       suite("fromEffect")(
         testM("handles leftovers (happy)") {
           val s = ZSink.fromEffect[Any, Nothing, Int, String](ZIO.succeed("ok"))

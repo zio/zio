@@ -743,6 +743,35 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
+   * A sink that executes the provided effectful function for every chunk fed to it.
+   */
+  def foreachChunk[R, E, I](f: Chunk[I] => ZIO[R, E, Any]): ZSink[R, E, I, I, Unit] =
+    ZSink.fromPush[R, E, I, I, Unit] {
+      case Some(is) => f(is).mapError(e => (Left(e), Chunk.empty)) *> Push.more
+      case None     => Push.emit((), Chunk.empty)
+    }
+
+  /**
+   * A sink that executes the provided effectful function for every element fed to it
+   * until `f` evaluates to `false`.
+   */
+  final def foreachWhile[R, E, I](f: I => ZIO[R, E, Boolean]): ZSink[R, E, I, I, Unit] = {
+    def go(chunk: Chunk[I], idx: Int, len: Int): ZIO[R, (Either[E, Unit], Chunk[I]), Unit] =
+      if (idx == len)
+        Push.more
+      else
+        f(chunk(idx)).foldM(
+          e => Push.fail(e, chunk.drop(idx + 1)),
+          b => if (b) go(chunk, idx + 1, len) else Push.emit((), chunk.drop(idx))
+        )
+
+    ZSink.fromPush[R, E, I, I, Unit] {
+      case Some(is) => go(is, 0, is.length)
+      case None     => Push.emit((), Chunk.empty)
+    }
+  }
+
+  /**
    * Creates a single-value sink produced from an effect
    */
   def fromEffect[R, E, I, Z](b: => ZIO[R, E, Z]): ZSink[R, E, I, I, Z] =

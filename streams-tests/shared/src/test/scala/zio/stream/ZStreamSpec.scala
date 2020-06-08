@@ -2253,6 +2253,23 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.empty.runLast)(equalTo(None))
           )
         ),
+        suite("runManaged")(
+          testM("properly closes the resources")(
+            for {
+              closed <- Ref.make[Boolean](false)
+              res    = ZManaged.make(ZIO.succeed(1))(_ => closed.set(true))
+              stream = ZStream.managed(res).flatMap(a => ZStream(a, a, a))
+              collectAndCheck <- stream
+                                  .runManaged(ZSink.collectAll)
+                                  .flatMap(r => closed.get.toManaged_.map((r, _)))
+                                  .useNow
+              (result, state) = collectAndCheck
+              finalState      <- closed.get
+            } yield {
+              assert(result)(equalTo(Chunk(1, 1, 1))) && assert(state)(isFalse) && assert(finalState)(isTrue)
+            }
+          )
+        ),
         suite("schedule")(
           testM("scheduleWith")(
             assertM(
