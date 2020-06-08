@@ -77,6 +77,38 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     map(_ => z)
 
   /**
+   * Repeatedly runs the sink for as long as its results satisfy
+   * the predicate `p`. The sink's results will be accumulated
+   * using the stepping function `f`.
+   */
+  def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit ev: L <:< I): ZSink[R, E, I, L, S] =
+    ZSink {
+      Ref.makeManaged(z).flatMap { acc =>
+        Push.restartable(push).map {
+          case (push, restart) =>
+            def go(s: S, in: Option[Chunk[I]], end: Boolean): ZIO[R, (Either[E, S], Chunk[L]), S] =
+              push(in)
+                .as(s)
+                .catchAll({
+                  case (Left(e), leftover) => Push.fail(e, leftover)
+                  case (Right(z), leftover) =>
+                    if (p(z)) {
+                      val s1 = f(s, z)
+                      if (leftover.isEmpty)
+                        if (end) Push.emit(s1, Chunk.empty) else restart.as(s1)
+                      else
+                        restart *> go(s1, Some(leftover.asInstanceOf[Chunk[I]]), end)
+                    } else {
+                      Push.emit(s, leftover)
+                    }
+                })
+
+            (in: Option[Chunk[I]]) => acc.get.flatMap(s => go(s, in, in.isEmpty).flatMap(s1 => acc.set(s1)))
+        }
+      }
+    }
+
+  /**
    * Transforms this sink's input elements.
    */
   def contramap[I2](f: I2 => I): ZSink[R, E, I2, L, Z] =

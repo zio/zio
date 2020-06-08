@@ -25,7 +25,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             .run(ZSink.collectAllToMap((_: Int) % 3)(_ + _))
         )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
       ),
-      /*suite("collectAllWhileWith")(
+      suite("collectAllWhileWith")(
         testM("example 1") {
           ZIO
             .foreach(List(1, 3, 20)) { chunkSize =>
@@ -47,7 +47,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           val stream = Stream.fromIterable(1 to 100)
           assertM((stream ++ stream).chunkN(3).run(sink))(equalTo(List(1, 2, 3, 4)))
         }
-      ),*/
+      ),
       testM("head")(
         checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) { chunks =>
           val headOpt = ZStream.fromChunks(chunks: _*).run(ZSink.head[Int])
