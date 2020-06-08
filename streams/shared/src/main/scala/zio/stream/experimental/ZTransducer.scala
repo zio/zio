@@ -72,14 +72,11 @@ abstract class ZTransducer[-R, +E, -I, +O] {
    * Compose this transducer with another transducer, resulting in a composite transducer.
    */
   def pipe[R1 <: R, E1 >: E, A](transducer: ZTransducer[R1, E1, O, A]): ZTransducer[R1, E1, I, A] =
-    ZTransducer(process.zip(ZRef.makeManaged(false)).zipWith(transducer.process) {
-      case (((s1, p1), ref), (s2, p2)) =>
+    ZTransducer(process.zipWith(transducer.process) {
+      case ((s1, p1), (s2, p2)) =>
         (
-          i => (s1(i) >>= s2).catchAllCause(Pull.recover(Pull.end.ensuring(ref.set(true)))),
-          ZIO.ifM(ref.get)(
-            p2,
-            p1.foldCauseM(Pull.recover(p2.ensuring(ref.set(true))), s2(_) *> p2)
-          )
+          s1(_) >>= s2,
+          p1.foldCauseM(Pull.recover(p2), s2(_) *> p2)
         )
     })
 
