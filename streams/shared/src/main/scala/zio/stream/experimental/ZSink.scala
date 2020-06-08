@@ -12,6 +12,12 @@ abstract class ZSink[-R, +E, -I, +O] {
   val process: ZSink.Process[R, E, I, O]
 
   /**
+   * Alias for [[pipe]].
+   */
+  def <<<[R1 <: R, E1 >: E, A](transducer: ZTransducer[R1, E1, A, I]): ZSink[R1, E1, A, O] =
+    pipe(transducer)
+
+  /**
    * Returns a sink that applies this sink's process to a chunk of input values.
    *
    * @note If this sink applies a pure transformation, better efficiency can be achieved by overriding this method.
@@ -96,6 +102,24 @@ abstract class ZSink[-R, +E, -I, +O] {
    */
   def mapM[R1 <: R, E1 >: E, A](f: O => ZIO[R1, E1, A]): ZSink[R1, E1, I, A] =
     ZSink(process.map { case (step, done) => (step, done.flatMap(f)) })
+
+  /**
+   * A sink that passes input values through `transducer` and then passes the output through this sink.
+   */
+  def pipe[R1 <: R, E1 >: E, A](transducer: ZTransducer[R1, E1, A, I]): ZSink[R1, E1, A, O] =
+    ZSink(transducer.process.zip(ZRef.makeManaged(false)).zipWith(process) {
+      case (((p1, z1), ref), (p2, z2)) =>
+        (
+          i => (p1(i) >>= p2).catchAllCause(Pull.recover(Pull.end.ensuring(ref.set(true)))),
+          ZIO.ifM(ref.get)(
+            z2,
+            z1.foldCauseM(
+              Cause.sequenceCauseOption(_).fold[ZIO[R1, E1, O]](z2)(ZIO.halt(_)),
+              p2(_).foldCauseM(Cause.sequenceCauseOption(_).fold(z2.ensuring(ref.set(true)))(ZIO.halt(_)), _ => z2)
+            )
+          )
+        )
+    })
 }
 
 object ZSink {

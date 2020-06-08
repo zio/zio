@@ -5,42 +5,17 @@ import java.nio.charset.StandardCharsets
 import zio._
 
 /**
- * A `ZTransducer` is a process that transforms values of type `I` and into values of type `O`.
+ * A `ZTransducer` is a process that transforms values of type `I` into values of type `O`.
  */
 abstract class ZTransducer[-R, +E, -I, +O] {
 
   val process: ZTransducer.Process[R, E, I, O]
 
   /**
-   * Alias for [[aggregate]].
-   */
-  def >>>[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, O, Z]): ZSink[R1, E1, I, Z] =
-    aggregate(sink)
-
-  /**
    * Alias for [[pipe]].
    */
   def >>>[R1 <: R, E1 >: E, A](transducer: ZTransducer[R1, E1, O, A]): ZTransducer[R1, E1, I, A] =
     pipe(transducer)
-
-  /**
-   * Compose this transducer with a sink, resulting in a sink that processes elements by piping
-   * them through this transducer and piping the results into the sink.
-   */
-  def aggregate[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, O, Z]): ZSink[R1, E1, I, Z] =
-    ZSink(process.zip(ZRef.makeManaged(false)).zipWith(sink.process) {
-      case (((p1, z1), ref), (p2, z2)) =>
-        (
-          i => (p1(i) >>= p2).catchAllCause(Pull.recover(Pull.end.ensuring(ref.set(true)))),
-          ZIO.ifM(ref.get)(
-            z2,
-            z1.foldCauseM(
-              Cause.sequenceCauseOption(_).fold(z2)(ZIO.halt(_)),
-              p2(_).foldCauseM(Cause.sequenceCauseOption(_).fold(z2.ensuring(ref.set(true)))(ZIO.halt(_)), _ => z2)
-            )
-          )
-        )
-    })
 
   /**
    * Returns a transducer that applies this transducer's process to a chunk of input values.
