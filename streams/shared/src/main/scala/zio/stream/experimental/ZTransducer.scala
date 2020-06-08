@@ -91,10 +91,10 @@ object ZTransducer {
 
   /**
    * A transducer that divides input chunks into fixed `size` chunks.
-   * Any leftover chunk is dropped, when the transducer process ends.
+   * The `leftover` flag whether any remainder is propagated downstream, when the transducer process ends.
    */
-  def chunkN[A](size: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
-    chunkN(size, (_: Chunk[A]) => Pull.end)
+  def chunkN[A](size: Int, leftover: Boolean = false): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
+    chunkN(size, (as: Chunk[A]) => if (leftover) Pull.emit(Chunk.single(as)) else Pull.end)
 
   /**
    * A transducer that divides input chunks into fixed `size` chunks.
