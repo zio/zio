@@ -638,7 +638,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _ <- ZStream
                     .bracketExit(UIO.unit)((_, exit) => ref.set(exit))
                     .flatMap(_ => ZStream.fail("boom"))
-                    .either
+                    .catchAll(e => ZStream.fail(e))
                     .runDrain
                     .run
               result <- ref.get
@@ -751,7 +751,9 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream(1, 2, 3, 4).collectWhileM {
                 case 3 => ZIO.fail("boom")
                 case x => UIO.succeed(x)
-              }.either.runCollect
+              }.map(Right(_))
+                .catchAll(e => ZStream(Left(e)))
+                .runCollect
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
@@ -894,9 +896,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         testM("either") {
-          val s = ZStream(1, 2, 3) ++ ZStream.fail("Boom")
+          val s = ZStream(1, 2, 3) ++ ZStream.fail("Boom") ++ ZStream(4)
           s.either.runCollect
-            .map(assert(_)(equalTo(Chunk(Right(1), Right(2), Right(3), Left("Boom")))))
+            .map(assert(_)(equalTo(Chunk(Right(1), Right(2), Right(3), Left("Boom"), Right(4)))))
         },
         testM("ensuring") {
           for {

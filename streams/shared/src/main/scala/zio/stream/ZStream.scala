@@ -1033,11 +1033,19 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Returns a stream whose failures and successes have been lifted into an
    * `Either`. The resulting stream cannot fail, because the failures have
    * been exposed as part of the `Either` success case.
-   *
-   * @note the stream will end as soon as the first error occurs.
    */
   final def either(implicit ev: CanFail[E]): ZStream[R, Nothing, Either[E, O]] =
-    self.map(Right(_)).catchAll(e => ZStream(Left(e)))
+    ZStream {
+      self.process.map { pull =>
+        pull.foldM(
+          {
+            case None    => ZIO.fail(None)
+            case Some(e) => ZIO.succeedNow(Chunk.single(Left(e)))
+          },
+          chunk => ZIO.succeedNow(chunk.map(Right(_)))
+        )
+      }
+    }
 
   /**
    * Executes the provided finalizer after this stream's finalizers run.
