@@ -18,6 +18,8 @@ package zio.stm
 
 import scala.collection.immutable.SortedMap
 
+import zio.Chunk
+
 /**
  * A simple `TPriorityQueue` implementation. A `TPriorityQueue` contains values
  * of type `V`. Each value is associated with a key of type `K` that an
@@ -62,10 +64,28 @@ final class TPriorityQueue[K, V] private (private val tref: TRef[SortedMap[K, ::
    * `None` if there is not a value in the queue.
    */
   def peekOption: USTM[Option[V]] =
-    tref.get.map { map =>
-      map.headOption match {
-        case None                  => None
-        case Some((_, value :: _)) => Some(value)
+    tref.get.map(_.headOption.map { case (_, vs) => vs.head })
+
+  /**
+   * Removes all elements from the queue matching the specified predicate.
+   */
+  def removeIf(p: (K, V) => Boolean): USTM[Unit] =
+    retainIf(!p(_, _))
+
+  /**
+   * Retains only elements from the queue matching the specified predicate.
+   */
+  def retainIf(p: (K, V) => Boolean): USTM[Unit] =
+    tref.update { map =>
+      map.keys.foldLeft(map) { (map, key) =>
+        map.get(key) match {
+          case None => map
+          case Some(vs) =>
+            vs.filter(p(key, _)) match {
+              case Nil    => map - key
+              case h :: t => map + (key -> ::(h, t))
+            }
+        }
       }
     }
 
@@ -107,10 +127,22 @@ final class TPriorityQueue[K, V] private (private val tref: TRef[SortedMap[K, ::
     }
 
   /**
+   * Collects all values into a chunk.
+   */
+  def toChunk: USTM[Chunk[V]] =
+    tref.get.map(map => Chunk.fromIterable(map.values.flatten))
+
+  /**
    * Collects all values into a list.
    */
   def toList: USTM[List[V]] =
-    tref.get.map(map => map.values.flatten.toList)
+    tref.get.map(_.values.flatten.toList)
+
+  /**
+   * Collects all values into a vector.
+   */
+  def toVector: USTM[Vector[V]] =
+    tref.get.map(_.values.flatten.toVector)
 }
 
 object TPriorityQueue {
@@ -120,4 +152,16 @@ object TPriorityQueue {
    */
   def empty[K, V](implicit ord: Ordering[K]): USTM[TPriorityQueue[K, V]] =
     TRef.make(SortedMap.empty[K, ::[V]]).map(tref => new TPriorityQueue(tref))
+
+  /**
+   * Makes a new `TPriorityQueue` initialized with provided iterable.
+   */
+  def fromIterable[K, V](data: Iterable[(K, V)])(implicit ord: Ordering[K]): USTM[TPriorityQueue[K, V]] =
+    empty[K, V].flatMap(queue => queue.offerAll(data).as(queue))
+
+  /**
+   * Makes a new `TPriorityQueue` that is initialized with specified values.
+   */
+  def make[K, V](data: (K, V)*)(implicit ord: Ordering[K]): USTM[TPriorityQueue[K, V]] =
+    fromIterable(data)
 }
