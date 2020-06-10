@@ -188,6 +188,12 @@ final class TMap[K, V] private (
   }
 
   /**
+   * Stores new binding in the map if it does not already exist.
+   */
+  def putIfAbsent(k: K, v: V): USTM[Unit] =
+    get(k).flatMap(_.fold(put(k, v))(_ => STM.unit))
+
+  /**
    * Removes bindings matching predicate.
    */
   def removeIf(p: (K, V) => Boolean): USTM[Unit] =
