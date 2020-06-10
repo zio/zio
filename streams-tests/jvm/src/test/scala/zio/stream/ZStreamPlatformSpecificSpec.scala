@@ -60,13 +60,8 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             refDone <- Ref.make[Boolean](false)
             stream = ZStream.effectAsyncMaybe[Any, Throwable, Int](
               cb => {
-                if (zio.internal.Platform.isJVM) {
-                  global.execute { () =>
-                    // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
-                    (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
-                    cb(refDone.set(true) *> ZIO.fail(None))
-                  }
-                } else {
+                global.execute { () =>
+                  // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
                   (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
                   cb(refDone.set(true) *> ZIO.fail(None))
                 }
