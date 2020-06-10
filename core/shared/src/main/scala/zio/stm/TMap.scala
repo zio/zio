@@ -256,6 +256,12 @@ final class TMap[K, V] private (
     })
 
   /**
+   * Returns the number of bindings.
+   */
+  val size: USTM[Int] =
+    tSize.get
+
+  /**
    * Collects all bindings into a list.
    */
   def toList: USTM[List[(K, V)]] =
