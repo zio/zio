@@ -132,6 +132,16 @@ object TMapSpec extends ZIOBaseSpec {
       }
     ),
     suite("transformations")(
+      testM("size") {
+        val elems = List("a" -> 1, "b" -> 2)
+        val tx =
+          for {
+            tmap <- TMap.fromIterable(elems)
+            size <- tmap.size
+          } yield size
+
+        assertM(tx.commit)(equalTo(2))
+      },
       testM("toList") {
         val elems = List("a" -> 1, "b" -> 2)
         val tx =
