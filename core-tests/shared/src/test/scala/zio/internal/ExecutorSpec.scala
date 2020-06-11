@@ -55,6 +55,9 @@ object ExecutorSpec extends ZIOBaseSpec {
     suite("Create an executor that cannot have tasks submitted to and check that:")(
       test("It throws an exception upon submission") {
         assert(TestExecutor.failing.submitOrThrow(TestExecutor.runnable))(throwsA[RejectedExecutionException])
+      },
+      test("When converted to Java, it throws an exception upon calling execute") {
+        assert(TestExecutor.failing.asJava.execute(TestExecutor.runnable))(throwsA[RejectedExecutionException])
       }
     ),
     suite("Create a yielding executor and check that:")(
@@ -68,6 +71,9 @@ object ExecutorSpec extends ZIOBaseSpec {
         assert(Executor.fromExecutionContext(1)(TestExecutor.ec).submit(TestExecutor.runnable))(
           not(throwsA[RejectedExecutionException])
         )
+      },
+      test("When converted to Java, it accepts Runnables") {
+        assert(TestExecutor.y.asJava.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       }
     ),
     suite("Create an unyielding executor and check that:")(
@@ -76,6 +82,9 @@ object ExecutorSpec extends ZIOBaseSpec {
       },
       test("When converted to an ExecutionContext, it accepts Runnables") {
         assert(TestExecutor.u.asEC.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
+      },
+      test("When converted to Java, it accepts Runnables") {
+        assert(TestExecutor.u.asJava.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       }
     )
   )

@@ -1,6 +1,6 @@
 package zio.test.mock
 
-import zio.{ Has, IO, Tag, ZIO }
+import zio.{ Has, IO, Tag, UIO }
 
 /**
  * https://github.com/scalamacros/paradise/issues/75
@@ -16,7 +16,7 @@ object modules {
   type SinglePureValModule = Has[SinglePureValModule.Service]
   object SinglePureValModule {
     trait Service {
-      val foo: ZIO[Any, Nothing, Unit]
+      val foo: UIO[Unit]
     }
   }
 

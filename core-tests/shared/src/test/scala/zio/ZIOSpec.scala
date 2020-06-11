@@ -1438,7 +1438,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: ZIO[ZEnv, Nothing, Unit]              = zio.provideCustomLayer(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomLayer(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -1446,7 +1446,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("can split environment into two parts") {
         val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: ZIO[Random, Nothing, Unit]           = zio.provideSomeLayer[Random](clockLayer)
+        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -3244,7 +3244,9 @@ object ZIOSpec extends ZIOBaseSpec {
             } yield n
               """
         }
-        val expected = "Cannot prove that NoSuchElementException <:< String."
+
+        val expected =
+          "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has String for the error type."
         if (TestVersion.isScala2) assertM(result)(isLeft(equalTo(expected)))
         else assertM(result)(isLeft(anything))
       }
@@ -3275,20 +3277,6 @@ object ZIOSpec extends ZIOBaseSpec {
         val error: Exception   = new Exception("msg")
         val effect: Task[Unit] = ZIO.fail(error).unit.orDie.resurrect
         assertM(effect.either)(isLeft(equalTo(error)))
-      }
-    ),
-    suite("resurrect with")(
-      testM("should fail checked") {
-        val error1 = "msg1"
-        val error2 = "msg2"
-
-        val e1: UIO[Unit]                 = ZIO.fail(error1).unit.orDieWith(msg => new Exception(msg))
-        val t1: Task[Unit]                = e1
-        val e2: IO[String, Unit]          = t1.orElse(ZIO.fail(error2))
-        val e3: IO[String, Unit]          = e2.resurrectWith(_.getMessage)
-        val e4: UIO[Either[String, Unit]] = e3.either
-
-        assertM(e4)(isLeft(equalTo(error1)))
       }
     )
   )

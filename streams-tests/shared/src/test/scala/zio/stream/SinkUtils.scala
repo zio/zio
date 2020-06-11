@@ -2,21 +2,21 @@ package zio.stream
 
 import zio.test.Assertion.equalTo
 import zio.test.{ assert, Assertion, TestResult }
-import zio.{ IO, ZIO }
+import zio.{ IO, UIO }
 
 object SinkUtils {
 
-  def findSink[A](a: A): ZSink[Any, Unit, A, A] =
+  def findSink[A](a: A): ZSink[Any, Unit, A, A, A] =
     ZSink.fold[A, Option[A]](None)(_.isEmpty)((_, v) => if (a == v) Some(a) else None).mapM {
       case Some(v) => IO.succeedNow(v)
       case None    => IO.fail(())
     }
 
-  def sinkRaceLaw[E, A](
+  def sinkRaceLaw[E, A, L](
     stream: ZStream[Any, Nothing, A],
-    s1: ZSink[Any, E, A, A],
-    s2: ZSink[Any, E, A, A]
-  ): ZIO[Any, Nothing, TestResult] =
+    s1: ZSink[Any, E, A, L, A],
+    s2: ZSink[Any, E, A, L, A]
+  ): UIO[TestResult] =
     for {
       r1 <- stream.run(s1).either
       r2 <- stream.run(s2).either
@@ -33,11 +33,11 @@ object SinkUtils {
       }
     }
 
-  def zipParLaw[A, B, C, E](
+  def zipParLaw[A, B, C, L, E](
     s: ZStream[Any, Nothing, A],
-    sink1: ZSink[Any, E, A, B],
-    sink2: ZSink[Any, E, A, C]
-  ): ZIO[Any, Nothing, TestResult] =
+    sink1: ZSink[Any, E, A, L, B],
+    sink2: ZSink[Any, E, A, L, C]
+  ): UIO[TestResult] =
     for {
       zb  <- s.run(sink1).either
       zc  <- s.run(sink2).either

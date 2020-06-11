@@ -87,6 +87,7 @@
   "about-sidebar": {
       "About": [
           "about/about_index",
+          "about/about_coding_guidelines",
           "about/about_contributing",
           "about/about_coc"
       ]

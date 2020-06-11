@@ -16,6 +16,7 @@
 
 package zio
 
+import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
@@ -169,14 +170,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  final def absorb(implicit ev: E <:< Throwable): ZIO[R, Throwable, A] =
+  final def absorb(implicit ev: E <:< Throwable): RIO[R, A] =
     absorbWith(ev)
 
   /**
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  final def absorbWith(f: E => Throwable): ZIO[R, Throwable, A] =
+  final def absorbWith(f: E => Throwable): RIO[R, A] =
     self.sandbox
       .foldM(
         cause => ZIO.fail(cause.squashWith(f)),
@@ -832,13 +833,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns whether this effect is a failure.
    */
-  final def isFailure: ZIO[R, Nothing, Boolean] =
+  final def isFailure: URIO[R, Boolean] =
     fold(_ => true, _ => false)
 
   /**
    * Returns whether this effect is a success.
    */
-  final def isSuccess: ZIO[R, Nothing, Boolean] =
+  final def isSuccess: URIO[R, Boolean] =
     fold(_ => false, _ => true)
 
   /**
@@ -872,7 +873,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect whose success is mapped by the specified side effecting
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
-  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): ZIO[R, Throwable, B] =
+  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): RIO[R, B] =
     foldM(e => ZIO.fail(ev(e)), a => ZIO.effect(f(a)))
 
   /**
@@ -1039,7 +1040,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * the specified function to convert the `E` into a `Throwable`.
    */
   final def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): URIO[R, A] =
-    (self mapError f) catchAll (IO.die(_))
+    self.foldM(e => ZIO.die(f(e)), ZIO.succeedNow)
 
   /**
    * Unearth the unchecked failure of the effect. (opposite of `orDie`)
@@ -1050,20 +1051,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   final def resurrect(implicit ev1: E <:< Throwable): RIO[R, A] =
-    self.sandbox.mapError(_.squash)
-
-  /**
-   * Unearth the unchecked failure of the effect. (symmetrical with `orDieWith`)
-   * {{{
-   *   val f0: IO[String, Unit] = ZIO.fail("err 0").unit
-   *   val f1: UIO[Unit]        = f0.orDieWith(msg => new Exception(msg))
-   *   val ft: Task[Unit]       = ft
-   *   val f2: IO[String, Unit] = ft.orElse(ZIO.fail("err 1"))
-   *   val f3: IO[String, Unit] = f2.resurrectWith(_.getMessage)
-   * }}}
-   */
-  final def resurrectWith[E1 >: E](f: Throwable => E1): ZIO[R, E1, A] =
-    self.sandbox.mapError(_.failureOrCause.map(c => f(c.squash)).merge)
+    self.unrefineWith({ case e => e })(ev1)
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
@@ -1363,8 +1351,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       self,
       that,
-      (exit, fiber) => leftDone(exit, fiber),
-      (exit, fiber) => rightDone(exit, fiber)
+      (leftExit, rightFiber) => leftDone(leftExit, rightFiber),
+      (rightExit, leftFiber) => rightDone(rightExit, leftFiber)
     )
 
   /**
@@ -3693,6 +3681,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
+  @implicitNotFound(
+    "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has ${E} for the error type."
+  )
+  sealed trait CanFilter[+E] {
+    def apply(t: NoSuchElementException): E
+  }
+
+  object CanFilter {
+    implicit def canFilter[E >: NoSuchElementException]: CanFilter[E] =
+      new CanFilter[E] {
+        def apply(t: NoSuchElementException): E = t
+      }
+  }
+
   implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
 
     /**
@@ -3704,10 +3706,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      *   positive <- io2 if positive > 0
      *  } yield ()
      */
-    def withFilter(predicate: A => Boolean)(implicit ev: NoSuchElementException <:< E): ZIO[R, E, A] =
+    def withFilter(predicate: A => Boolean)(implicit ev: CanFilter[E]): ZIO[R, E, A] =
       self.flatMap { a =>
         if (predicate(a)) ZIO.succeedNow(a)
-        else ZIO.fail(new NoSuchElementException("The value doesn't satisfy the predicate"))
+        else ZIO.fail(ev(new NoSuchElementException("The value doesn't satisfy the predicate")))
       }
   }
 

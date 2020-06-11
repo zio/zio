@@ -49,7 +49,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
             @accessible
             object Module {
               trait Service {
-                val foo: ZIO[Any, Nothing, Unit]
+                val foo: UIO[Unit]
               }
             }
 
@@ -66,7 +66,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
             @accessible
             object Module {
               trait Service {
-                def foo(i: Int): ZIO[Any, Nothing, Unit]
+                def foo(i: Int): UIO[Unit]
               }
             }
 
@@ -83,7 +83,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
             @accessible
             object Module {
               trait Service {
-                def varargsFoo(a: Int, b: Int*): ZIO[Any, Nothing, Unit]
+                def varargsFoo(a: Int, b: Int*): UIO[Unit]
               }
             }
 
@@ -100,18 +100,18 @@ object AccessibleSpec extends DefaultRunnableSpec {
             @accessible
             object Module {
               trait Service {
-                val static                                 : ZIO[Any, Nothing, String]
-                def zeroArgs                               : ZIO[Any, Nothing, Int]
-                def zeroArgsWithParens()                   : ZIO[Any, Nothing, Long]
-                def singleArg(arg1: Int)                   : ZIO[Any, Nothing, String]
-                def multiArgs(arg1: Int, arg2: Long)       : ZIO[Any, Nothing, String]
-                def multiParamLists(arg1: Int)(arg2: Long) : ZIO[Any, Nothing, String]
-                def typedVarargs[T](arg1: Int, arg2: T*)   : ZIO[Any, Nothing, T]
-                def command(arg1: Int)                     : ZIO[Any, Nothing, Unit]
-                def overloaded(arg1: Int)                  : ZIO[Any, Nothing, String]
-                def overloaded(arg1: Long)                 : ZIO[Any, Nothing, String]
+                val static                                 : UIO[String]
+                def zeroArgs                               : UIO[Int]
+                def zeroArgsWithParens()                   : UIO[Long]
+                def singleArg(arg1: Int)                   : UIO[String]
+                def multiArgs(arg1: Int, arg2: Long)       : UIO[String]
+                def multiParamLists(arg1: Int)(arg2: Long) : UIO[String]
+                def typedVarargs[T](arg1: Int, arg2: T*)   : UIO[T]
+                def command(arg1: Int)                     : UIO[Unit]
+                def overloaded(arg1: Int)                  : UIO[String]
+                def overloaded(arg1: Long)                 : UIO[String]
                 def function(arg1: Int)                    : String
-                def sink(arg1: Int)                        : ZSink[Any, Nothing, Int, List[Int]]
+                def sink(arg1: Int)                        : ZSink[Any, Nothing, Int, Int, List[Int]]
                 def stream(arg1: Int)                      : ZStream[Any, Nothing, Int]
               }
             }
@@ -128,7 +128,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
               def overloaded(arg1: Int)                  : ZIO[Has[Module.Service], Nothing, String] = Module.overloaded(arg1)
               def overloaded(arg1: Long)                 : ZIO[Has[Module.Service], Nothing, String] = Module.overloaded(arg1)
               def function(arg1: Int)                    : ZIO[Has[Module.Service], Throwable, String] = Module.function(arg1)
-              def sink(arg1: Int)                        : ZIO[Has[Module.Service], Nothing, ZSink[Any, Nothing, Int, List[Int]]] = Module.sink(arg1)
+              def sink(arg1: Int)                        : ZIO[Has[Module.Service], Nothing, ZSink[Any, Nothing, Int, Int, List[Int]]] = Module.sink(arg1)
               def stream(arg1: Int)                      : ZIO[Has[Module.Service], Nothing, ZStream[Any, Nothing, Int]] = Module.stream(arg1)
             }
           """

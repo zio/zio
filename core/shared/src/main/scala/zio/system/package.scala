@@ -149,7 +149,7 @@ package object system {
    * Retrieves the value of a system property or else return the specified
    * fallback value.
    **/
-  def propertyOrElse(prop: String, alt: => String): ZIO[System, Throwable, String] =
+  def propertyOrElse(prop: String, alt: => String): RIO[System, String] =
     ZIO.accessM(_.get.propertyOrElse(prop, alt))
 
   /**
@@ -162,6 +162,6 @@ package object system {
   /**
    * Retrieves the value of the system-specific line separator.
    **/
-  val lineSeparator: ZIO[System, Nothing, String] =
+  val lineSeparator: URIO[System, String] =
     ZIO.accessM(_.get.lineSeparator)
 }

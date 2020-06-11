@@ -480,6 +480,11 @@ object ChunkSpec extends ZIOBaseSpec {
       val (bs, cs) = as.partitionMap(n => if (n % 2 == 0) Left(n) else Right(n))
       assert(bs)(equalTo(Chunk(0, 2, 4, 6, 8))) &&
       assert(cs)(equalTo(Chunk(1, 3, 5, 7, 9)))
+    },
+    zio.test.test("stack safety") {
+      val n  = 100000
+      val as = List.range(0, n).foldRight[Chunk[Int]](Chunk.empty)((a, as) => Chunk(a) ++ as)
+      assert(as.toArray)(equalTo(Array.range(0, n)))
     }
   )
 }
