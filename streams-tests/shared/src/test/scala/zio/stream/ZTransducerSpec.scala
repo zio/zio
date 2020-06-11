@@ -1,5 +1,7 @@
 package zio.stream
 
+import java.util.UUID
+
 import scala.io.Source
 
 import zio._
@@ -26,6 +28,61 @@ object ZTransducerSpec extends ZIOBaseSpec {
           val parser = initErrorParser.contramap[String](_.toInt)
           assertM(run(parser, List(Chunk("1"))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
+      ),
+      suite("choice")(
+        testM("content coherence") {
+          val t1: ZTransducer[Any, Nothing, Int, List[Int]]       = Transducer.collectAllN(2)
+          val t2: ZTransducer[Any, Nothing, String, List[String]] = Transducer.collectAllN(3)
+          val t                                                   = t1.choose(t2)
+          checkM(Gen.listOf(Gen.chunkOf(Gen.either(Gen.anyInt, Gen.anyString)))) { chunks =>
+            val stream = ZStream.fromChunks(chunks: _*)
+            val lefts  = stream.collect { case Left(l) => l }
+            val rights = stream.collect { case Right(r) => r }
+            for {
+              expectedL <- lefts.transduce(t1).runCollect
+              expectedR <- rights.transduce(t2).runCollect
+              res       <- stream.transduce(t).runCollect
+            } yield assert(res)(Assertion.hasSameElements(expectedL.map(Left(_)) ++ expectedR.map(Right(_))))
+          }
+        },
+        testM("best-effort order preservation") {
+          val t = Transducer.identity[Int].choose(Transducer.identity[UUID])
+          checkM(Gen.chunkOf(Gen.chunkOf(Gen.either(Gen.anyInt, Gen.anyUUID)))) { chunks =>
+            val content = chunks.flatMap(_.toList)
+            val stream  = ZStream.fromChunks(chunks: _*)
+            stream.transduce(t).runCollect.map(assert(_)(equalTo(content)))
+          }
+        },
+        testM("chunking-independence") {
+          val t1: ZTransducer[Any, Nothing, Int, List[Int]]       = Transducer.collectAllN(2)
+          val t2: ZTransducer[Any, Nothing, String, List[String]] = Transducer.collectAllN(3)
+          val t                                                   = t1.choose(t2)
+          checkM(Gen.listOf(Gen.chunkOf(Gen.either(Gen.anyInt, Gen.anyString)))) { chunks =>
+            val stream = ZStream.fromChunks(chunks: _*)
+            for {
+              res          <- stream.transduce(t).runCollect
+              canonicalRes <- stream.chunkN(1).transduce(t).runCollect
+            } yield assert(res)(equalTo(canonicalRes))
+          }
+        },
+        testM("`choose` and `>>>` distributivity") {
+          val f: ZTransducer[Any, Nothing, Int, List[Int]]       = Transducer.collectAllN(2)
+          val g: ZTransducer[Any, Nothing, String, List[String]] = Transducer.collectAllN(3)
+          val h: ZTransducer[Any, Nothing, List[Int], Int]       = Transducer.identity.map(_.sum)
+          val i: ZTransducer[Any, Nothing, List[String], String] = Transducer.collectAllN(2).map(e => e.mkString)
+          val t1                                                 = (f.choose(g)) >>> (h.choose(i))
+          val t2                                                 = (f >>> h).choose(g >>> i)
+
+          checkM(Gen.listOf(Gen.chunkOf(Gen.either(Gen.anyInt, Gen.anyString)))) { chunks =>
+            val stream = ZStream.fromChunks(chunks: _*)
+            stream
+              .transduce(t1)
+              .runCollect
+              .zipWith(stream.transduce(t2).runCollect) {
+                case (res1, res2) => assert(res1)(equalTo(res2))
+              }
+          }
+        }
       ),
       suite("contramapM")(
         testM("happy path") {
@@ -298,14 +355,6 @@ object ZTransducerSpec extends ZIOBaseSpec {
               .runCollect
           )(equalTo(Chunk(3, 4, 5, 1, 2, 3, 4, 5)))
         )
-        // testM("error")(
-        //   assertM {
-        //     (ZStream(1,2,3) ++ ZStream.fail("Aie") ++ ZStream(5,1,2,3,4,5))
-        //       .aggregate(ZTransducer.dropWhileM(x => UIO(x < 3)))
-        //       .either
-        //       .runCollect
-        //   }(equalTo(Chunk(Right(3),Left("Aie"),Right(5),Right(1),Right(2),Right(3),Right(4),Right(5))))
-        // )
       ),
       testM("fromFunction")(
         assertM(

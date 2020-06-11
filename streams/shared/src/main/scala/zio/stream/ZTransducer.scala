@@ -51,6 +51,90 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
       }
     }
 
+  /**
+   * Accepts elements of two different types
+   * and runs each through the matching transducer.
+   */
+  def choose[R1 <: R, E1 >: E, I1, O1](
+    that: ZTransducer[R1, E1, I1, O1]
+  ): ZTransducer[R1, E1, Either[I, I1], Either[O, O1]] = {
+
+    class Builder {
+      private var isLeft: Boolean                                               = true
+      private var current: ChunkBuilder[Any]                                    = ChunkBuilder.make()
+      private val result: ChunkBuilder[Either[Some[Chunk[I]], Some[Chunk[I1]]]] = ChunkBuilder.make()
+
+      private def switchover(): Unit = {
+        val chunk = current.result()
+        if (chunk.nonEmpty) {
+          if (isLeft)
+            result += Left(Some(chunk.asInstanceOf[Chunk[I]]))
+          else
+            result += Right(Some(chunk.asInstanceOf[Chunk[I1]]))
+        }
+        isLeft = !isLeft
+      }
+      def add(v: Either[I, I1]): Unit = {
+        if (isLeft) {
+          v match {
+            case Left(l) =>
+              current += l
+            case Right(r) => {
+              switchover()
+              //it's tempting to call `current.clear` and reuse the buffer
+              //but doing so causes ClassCastExceptions in underlying java arrays
+              current = ChunkBuilder.make[Any]()
+              current += r
+            }
+          }
+        } else {
+          v match {
+            case Right(r) =>
+              current += r
+            case Left(l) => {
+              switchover()
+              current = ChunkBuilder.make[Any]()
+              current += l
+            }
+          }
+        }
+        ()
+      }
+      def getResult(): Chunk[Either[Some[Chunk[I]], Some[Chunk[I1]]]] = {
+        switchover()
+        result.result()
+      }
+    }
+
+    ZTransducer {
+      for {
+        p1 <- self.map(Left(_)).push
+        p2 <- that.map(Right(_)).push
+      } yield { (in: Option[Chunk[Either[I, I1]]]) =>
+        val groups: Chunk[Either[Option[Chunk[I]], Option[Chunk[I1]]]] = in match {
+          case Some(chunk) => {
+            if (chunk.isEmpty) {
+              Chunk.empty
+            } else {
+              val builder = new Builder
+              chunk.foreach(builder.add)
+              builder.getResult()
+            }
+          }
+          case None => Chunk(Left(None), Right(None))
+        }
+        ZIO.foldLeft(groups)(Chunk.empty: Chunk[Either[O, O1]]) {
+          case (acc: Chunk[Either[O, O1]], group: Either[Option[Chunk[I]], Option[Chunk[I1]]]) => {
+            group match {
+              case Left(l)  => p1(l).map(acc ++ _)
+              case Right(r) => p2(r).map(acc ++ _)
+            }
+          }
+        }
+      }
+    }
+  }
+
   final def contramap[J](f: J => I): ZTransducer[R, E, J, O] =
     ZTransducer(self.push.map(push => is => push(is.map(_.map(f)))))
 
@@ -122,6 +206,12 @@ object ZTransducer {
       case Some(is) => ZIO.succeedNow(is)
       case None     => ZIO.succeedNow(Chunk.empty)
     }
+
+  /**
+   * Applies the partial function to the stream
+   */
+  def collect[I, O](f: PartialFunction[I, O]): ZTransducer[Any, Nothing, I, O] =
+    ZTransducer.identity.mapChunks(_.collect(f))
 
   /**
    * Creates a transducer accumulating incoming values into lists of maximum size `n`.
