@@ -68,11 +68,15 @@ abstract class ZStream[-R, +E, +I] private (val process: ZStream.Process[R, E, I
    */
   def pipe[R1 <: R, E1 >: E, I1 >: I, O](
     transducer: ZTransducer[R1, E1, I1, O],
-    leftover: Boolean = false
+    strict: Boolean = true
   ): ZStream[R1, E1, O] =
     ZStream(process.zipWith(transducer.process) {
-      case (pull, (step, last)) =>
-        (pull >>= step).catchAllCause(Pull.recover(if (leftover) last else Pull.end))
+      case (pull, (push, read)) =>
+        (pull >>= push)
+          .catchAllCause(
+            Pull
+              .recover(if (strict) Pull.end else Pull(read(None)).flatMap(_.fold[Pull[R1, E1, O]](Pull.end)(Pull.emit)))
+          )
     })
 
   /**
@@ -80,8 +84,8 @@ abstract class ZStream[-R, +E, +I] private (val process: ZStream.Process[R, E, I
    */
   def run[R1 <: R, E1 >: E, O1 >: I, O](sink: ZSink[R1, E1, O1, O]): ZIO[R1, E1, O] =
     (process <*> sink.process).use {
-      case (pull, (step, done)) =>
-        (pull >>= step).forever.catchAllCause(Cause.sequenceCauseOption(_).fold(done)(ZIO.halt(_)))
+      case (pull, (push, read)) =>
+        (pull >>= push).forever.catchAllCause(Cause.sequenceCauseOption(_).fold(read(None))(ZIO.halt(_)))
     }
 
   /**
