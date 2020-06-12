@@ -77,7 +77,7 @@ object ZTransducer {
       val process: Process[R, E, I, O] = p
     }
 
-  def chunk[A]: ZTransducer[Any, Nothing, A, Chunk[A]] =
+  def chunked[A]: ZTransducer[Any, Nothing, A, Chunk[A]] =
     map(Chunk.single)
 
   /**
