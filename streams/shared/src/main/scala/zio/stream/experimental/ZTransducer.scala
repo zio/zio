@@ -107,14 +107,15 @@ object ZTransducer {
 
   /**
    * A transducer that divides input chunks into fixed `size` chunks.
-   * The `pad` element is used to pad the transducer's leftover if it does not have `size` elements.
+   * Leftovers are also resized and the the last leftover is padded with `pad` if it does not have `size` elements.
    */
   def chunkN[A](size: Int, pad: A): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
     chunkN(size, (c: Chunk[A]) => c.padTo(size, pad))
 
   /**
    * A transducer that divides input chunks into fixed `size` chunks.
-   * The `pad` function is called on the transducer's leftovers if it does not have `size` elements.
+   * Leftovers are also resized and the `pad` function is called on the last leftover if it does not have `size`
+   * elements.
    */
   def chunkN[A](size: Int, pad: Chunk[A] => Chunk[A]): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] = {
 
@@ -138,7 +139,7 @@ object ZTransducer {
         var rem     = state
         leftover.foreach(xs => rem = step(builder, xs))
         if (rem.nonEmpty) builder += pad(rem)
-        (Chunk.single(builder.result()), rem)
+        (Chunk.single(builder.result()), Chunk.empty)
       }
     )
   }
@@ -241,9 +242,9 @@ object ZTransducer {
 
   object Process {
 
-    def fold[R, E, I, O, S](
+    def fold[I, O, S](
       init: => S
-    )(push: (S, I) => (O, S), read: (S, Chunk[I]) => (Chunk[O], S)): Process[R, E, I, O] =
+    )(push: (S, I) => (O, S), read: (S, Chunk[I]) => (Chunk[O], S)): Process[Any, Nothing, I, O] =
       ZRef
         .makeManaged(init)
         .map(ref => (i => ref.modify(push(_, i)), l => ref.modify(read(_, l))))

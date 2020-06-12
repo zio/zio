@@ -100,15 +100,14 @@ object ZSink {
     }
 
   /**
-   * A continuous sink that collects all of its inputs into a chunk.
+   * A continuous sink that collects all inputs into a chunk.
    */
   def collect[A]: ZSink[Any, Nothing, A, Chunk[A]] =
     fold[A, ChunkBuilder[A]](ChunkBuilder.make[A]())(_ += _)(_ ++= _).map(_.result())
 
   /**
-   * A continuous sink that collects all of its inputs into a map. The keys are extracted from inputs
-   * using the keying function `key`; if multiple inputs use the same key, they are merged
-   * using the `f` function.
+   * A continuous sink that collects all inputs into a map. The keys are extracted from inputs using the keying function
+   * `key`; if multiple inputs use the same key, they are merged using the `f` function.
    */
   def collectMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Map[K, A]] = {
 
@@ -124,17 +123,17 @@ object ZSink {
   }
 
   /**
-   * A continuous sink that collects all of its inputs into a set.
+   * A continuous sink that collects all inputs into a set.
    */
   def collectSet[A]: ZSink[Any, Nothing, A, Set[A]] =
     fold[A, scala.collection.mutable.Builder[A, Set[A]]](Set.newBuilder[A])(_ += _)(_ ++= _).map(_.result())
 
-  def fold[I, O](z: => O)(f: (O, I) => O)(fs: (O, Chunk[I]) => O): ZSink[Any, Nothing, I, O] =
+  def fold[I, O](z: => O)(push: (O, I) => O)(read: (O, Chunk[I]) => O): ZSink[Any, Nothing, I, O] =
     new ZSink[Any, Nothing, I, O] {
-      val process: Process[Any, Nothing, I, O] = Process.fold(z)(f, fs)
+      val process: Process[Any, Nothing, I, O] = Process.fold(z)(push, read)
 
       override def chunked: ZSink[Any, Nothing, Chunk[I], O] =
-        ZSink(Process.fold(z)(fs, (s, ls) => fs(s, ls.flatten)))
+        ZSink(Process.fold(z)((s, i) => i.foldLeft(s)(push), (s, l) => l.foldLeft(s)(read)))
     }
 
   /**
