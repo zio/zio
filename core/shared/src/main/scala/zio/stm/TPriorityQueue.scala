@@ -16,6 +16,7 @@
 
 package zio.stm
 
+import scala.annotation.tailrec
 import scala.collection.immutable.SortedMap
 
 import zio.Chunk
@@ -85,6 +86,23 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
    */
   def takeAll: USTM[List[A]] =
     ref.modify(map => (map.flatMap { case (a, n) => List.fill(n)(a) }.toList, map.empty))
+
+  /**
+   * Takes up to the specified maximum number of elements from the queue.
+   */
+  def takeUpTo(n: Int): USTM[List[A]] = {
+
+    @tailrec
+    def loop[A](i: Int, list: List[A], map: SortedMap[A, Int]): (List[A], SortedMap[A, Int]) =
+      if (i <= 0 || map.isEmpty) (list.reverse, map)
+      else {
+        val (a, j) = map.head
+        if (j <= i) loop(i - j, List.fill(j)(a) ::: list, map.tail)
+        else loop(0, List.fill(i)(a) ::: list, map + (a -> (j - i)))
+      }
+
+    ref.modify(loop(n, List.empty, _))
+  }
 
   /**
    * Takes a value from the queue, returning `None` if there is not a value in

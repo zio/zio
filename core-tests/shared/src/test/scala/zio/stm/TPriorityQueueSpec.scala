@@ -35,6 +35,21 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         } yield list
         assertM(transaction.commit)(equalTo(as.filter(f).sorted))
       }
+    },
+    testM("takeUpTo") {
+      val gen = for {
+        as <- Gen.listOf(Gen.int(1, 10))
+        n  <- Gen.int(0, as.length)
+      } yield (as, n)
+      checkM(gen) {
+        case (as, n) =>
+          val transaction = for {
+            queue <- TPriorityQueue.fromIterable(as)
+            left  <- queue.takeUpTo(n)
+            right <- queue.takeAll
+          } yield (left, right)
+          assertM(transaction.commit)(equalTo((as.sorted.take(n), as.sorted.drop(n))))
+      }
     }
   )
 }
