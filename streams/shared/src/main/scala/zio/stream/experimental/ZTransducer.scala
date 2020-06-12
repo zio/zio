@@ -84,19 +84,21 @@ object ZTransducer {
    * A transducer that divides input chunks into chunks with a length bounded by `max`.
    */
   def chunkLimit[A](max: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
-    map(chunk =>
-      if (chunk.isEmpty) Chunk.empty
-      else if (chunk.length <= max) Chunk.single(chunk)
-      else {
-        val builder = ChunkBuilder.make[Chunk[A]]()
-        var rem     = chunk
-        do {
-          builder += rem.take(max)
-          rem = rem.drop(max)
-        } while (rem.nonEmpty)
-        builder.result()
-      }
-    )
+    if (max <= 0) dieMessage(s"cannot limit chunks for size $max")
+    else
+      map(chunk =>
+        if (chunk.isEmpty) Chunk.empty
+        else if (chunk.length <= max) Chunk.single(chunk)
+        else {
+          val builder = ChunkBuilder.make[Chunk[A]]()
+          var rem     = chunk
+          do {
+            builder += rem.take(max)
+            rem = rem.drop(max)
+          } while (rem.nonEmpty)
+          builder.result()
+        }
+      )
 
   /**
    * A transducer that divides input chunks into fixed `size` chunks.
@@ -117,32 +119,43 @@ object ZTransducer {
    * Leftovers are also resized and the `pad` function is called on the last leftover if it does not have `size`
    * elements.
    */
-  def chunkN[A](size: Int, pad: Chunk[A] => Chunk[A]): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] = {
+  def chunkN[A](size: Int, pad: Chunk[A] => Chunk[A]): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
+    if (size <= 0) dieMessage(s"cannot create $size sized chunks")
+    else {
 
-    def step(b: ChunkBuilder[Chunk[A]], as: Chunk[A]): Chunk[A] = {
-      var rem = as
-      while (rem.length >= size) {
-        b += rem.take(size)
-        rem = rem.drop(size)
+      def step(b: ChunkBuilder[Chunk[A]], as: Chunk[A]): Chunk[A] = {
+        var rem = as
+        while (rem.length >= size) {
+          b += rem.take(size)
+          rem = rem.drop(size)
+        }
+        rem
       }
-      rem
+
+      fold[Chunk[A], Chunk[Chunk[A]], Chunk[A]](Chunk.empty)(
+        (state, chunk) => {
+          val builder = ChunkBuilder.make[Chunk[A]]()
+          val rem     = step(builder, state ++ chunk)
+          (builder.result(), rem)
+        },
+        (state, leftover) => {
+          val builder = ChunkBuilder.make[Chunk[A]]()
+          var rem     = state
+          leftover.foreach(xs => rem = step(builder, xs))
+          if (rem.nonEmpty) builder += pad(rem)
+          (Chunk.single(builder.result()), Chunk.empty)
+        }
+      )
     }
 
-    fold[Chunk[A], Chunk[Chunk[A]], Chunk[A]](Chunk.empty)(
-      (state, chunk) => {
-        val builder = ChunkBuilder.make[Chunk[A]]()
-        val rem     = step(builder, state ++ chunk)
-        (builder.result(), rem)
-      },
-      (state, leftover) => {
-        val builder = ChunkBuilder.make[Chunk[A]]()
-        var rem     = state
-        leftover.foreach(xs => rem = step(builder, xs))
-        if (rem.nonEmpty) builder += pad(rem)
-        (Chunk.single(builder.result()), Chunk.empty)
-      }
-    )
-  }
+  def die(t: Throwable): ZTransducer[Any, Nothing, Any, Nothing] =
+    halt(Cause.die(t))
+
+  def dieMessage(s: String): ZTransducer[Any, Nothing, Any, Nothing] =
+    die(new IllegalArgumentException(s))
+
+  def halt[E](cause: Cause[E]): ZTransducer[Any, E, Any, Nothing] =
+    ZTransducer(Process.halt(cause))
 
   def fold[I, O, S](
     init: => S
@@ -202,37 +215,38 @@ object ZTransducer {
    * A transducer that divides an input string on `separator`.
    * The `retain` flag controls whether `separator` is retained in the output.
    */
-  def separate(separator: String, retain: Boolean = false): ZTransducer[Any, Nothing, String, Chunk[String]] = {
+  def separate(separator: String, retain: Boolean = false): ZTransducer[Any, Nothing, String, Chunk[String]] =
+    if (separator.isEmpty) dieMessage("cannot separate with empty separator")
+    else {
+      val di: Int = if (retain) 0 else separator.length
 
-    val di: Int = if (retain) 0 else separator.length
-
-    def step(builder: ChunkBuilder[String], state: String): String = {
-      var rem = state
-      var i   = rem.indexOf(separator)
-      while (i != -1) {
-        i = i + di
-        builder += rem.take(i)
-        rem = rem.drop(i)
-        i = rem.indexOf(separator)
+      def step(builder: ChunkBuilder[String], state: String): String = {
+        var rem = state
+        var i   = rem.indexOf(separator)
+        while (i != -1) {
+          i = i + di
+          builder += rem.take(i)
+          rem = rem.drop(i)
+          i = rem.indexOf(separator)
+        }
+        rem
       }
-      rem
+
+      fold("")(
+        (state, s: String) => {
+          val builder = ChunkBuilder.make[String]()
+          val rem     = step(builder, state + s)
+          (builder.result(), rem)
+        },
+        (state, leftover) => {
+          val builder = ChunkBuilder.make[String]()
+          var rem     = state
+          leftover.foreach(xs => rem = step(builder, xs))
+          if (rem.nonEmpty) builder += rem
+          (Chunk.single(builder.result()), "")
+        }
+      )
     }
-
-    fold("")(
-      (state, s: String) => {
-        val builder = ChunkBuilder.make[String]()
-        val rem     = step(builder, state + s)
-        (builder.result(), rem)
-      },
-      (state, leftover) => {
-        val builder = ChunkBuilder.make[String]()
-        var rem     = state
-        leftover.foreach(xs => rem = step(builder, xs))
-        if (rem.nonEmpty) builder += rem
-        (Chunk.single(builder.result()), "")
-      }
-    )
-  }
 
   /**
    * A transducer that decodes a chunk of bytes to a UTF-8 string.
@@ -248,6 +262,9 @@ object ZTransducer {
       ZRef
         .makeManaged(init)
         .map(ref => (i => ref.modify(push(_, i)), l => ref.modify(read(_, l))))
+
+    def halt[E](c: Cause[E]): Process[Any, E, Any, Nothing] =
+      ZManaged.succeedNow((_ => Pull.halt(c), _ => ZIO.halt(c)))
 
     def map[I, O](f: I => O): Process[Any, Nothing, I, O] =
       ZManaged.succeedNow((i => Pull.emit(f(i)), l => ZIO.succeedNow(l.map(f))))
