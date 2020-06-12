@@ -16,137 +16,105 @@
 
 package zio.stm
 
+import scala.collection.immutable.SortedMap
+
 import zio.Chunk
 
 /**
  * A simple `TPriorityQueue` implementation. A `TPriorityQueue` contains values
- * of type `V`. Each value is associated with a key of type `K` that an
- * `Ordering` is defined on. Unlike a `TQueue`, `take` returns the highest
- * priority value (the value that is first in the specified ordering) as
- * opposed to the first value offered to the queue. The ordering that elements
- * with the same priority will be taken from the queue is not guaranteed.
+ * of type `A` that an `Ordering` is defined on. Unlike a `TQueue`, `take`
+ * returns the highest priority value (the value that is first in the specified
+ * ordering) as opposed to the first value offered to the queue. The ordering
+ * that elements with the same priority will be taken from the queue is not
+ * guaranteed.
  */
-final class TPriorityQueue[A] private (private val map: TMap[Int, A], private val ord: Ordering[A]) {
+final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]]) extends AnyVal {
 
   /**
-   * Offers the specified value to the queue with the specified priority.
+   * Offers the specified value to the queue.
    */
   def offer(a: A): USTM[Unit] =
-    map.size.flatMap(n => map.put(n, a) *> bubbleUp(n))
+    ref.update(map => map + (a -> map.get(a).fold(1)(_ + 1)))
 
   /**
    * Offers all of the elements in the specified collection to the queue.
    */
   def offerAll(values: Iterable[A]): USTM[Unit] =
-    ZSTM.foreach_(values)(offer)
+    ref.update(map => values.foldLeft(map)((map, a) => map + (a -> map.get(a).fold(1)(_ + 1))))
 
   /**
    * Peeks at the first value in the queue without removing it, retrying until
    * a value is in the queue.
    */
   def peek: USTM[A] =
-    peekOption.collect { case Some(a) => a }
+    peekOption.get.orElse(ZSTM.retry)
 
   /**
    * Peeks at the first value in the queue without removing it, returning
    * `None` if there is not a value in the queue.
    */
   def peekOption: USTM[Option[A]] =
-    map.get(0)
+    ref.get.map(_.headOption.map(_._1))
+
+  /**
+   * Removes all elements from the queue matching the specified predicate.
+   */
+  def removeIf(f: A => Boolean): USTM[Unit] =
+    retainIf(!f(_))
+
+  /**
+   * Retains only elements from the queue matching the specified predicate.
+   */
+  def retainIf(f: A => Boolean): USTM[Unit] =
+    ref.update(_.filter { case (a, _) => f(a) })
 
   /**
    * Returns the size of the queue.
    */
   def size: USTM[Int] =
-    map.size
+    ref.get.map(_.values.sum)
 
   /**
    * Takes a value from the queue, retrying until a value is in the queue.
    */
   def take: USTM[A] =
-    takeOption.collect { case Some(a) => a }
+    takeOption.get.orElse(STM.retry)
 
   /**
    * Takes all values from the queue.
    */
   def takeAll: USTM[List[A]] =
-    map.size.flatMap(n => STM.collectAll(STM.replicate(n)(take)))
+    ref.modify(map => (map.flatMap { case (k, v) => List.fill(v)(k) }.toList, map.empty))
 
   /**
    * Takes a value from the queue, returning `None` if there is not a value in
    * the queue.
    */
   def takeOption: USTM[Option[A]] =
-    map.get(0).flatMap {
-      case None => STM.succeed(None)
-      case Some(v) =>
-        for {
-          size <- map.size
-          a    <- map.get(size - 1)
-          _    <- map.delete(size - 1)
-          _    <- map.put(0, a.get)
-          _    <- bubbleDown(0)
-        } yield Some(v)
+    ref.get.flatMap { map =>
+      map.headOption match {
+        case None         => STM.succeed(None)
+        case Some((a, n)) => ref.update(map => if (n == 1) map - a else map + (a -> (n - 1))).as(Some(a))
+      }
     }
 
   /**
    * Collects all values into a chunk.
    */
   def toChunk: USTM[Chunk[A]] =
-    takeAll.map(Chunk.fromIterable)
+    ref.get.map(map => Chunk.fromIterable(map.flatMap { case (a, n) => Chunk.fill(n)(a) }))
 
   /**
    * Collects all values into a list.
    */
   def toList: USTM[List[A]] =
-    takeAll
+    ref.get.map(_.flatMap { case (a, n) => List.fill(n)(a) }.toList)
 
   /**
    * Collects all values into a vector.
    */
   def toVector: USTM[Vector[A]] =
-    takeAll.map(_.toVector)
-
-  private def parent0(n: Int): Int =
-    if (n == 0) 0
-    else (n - 1) / 2
-
-  private def bubbleUp(n: Int): USTM[Unit] =
-    for {
-      child  <- map.get(n)
-      parent <- map.get(parent0(n))
-      _      <- if (ord.gteq(child.get, parent.get)) STM.unit else swap(n, parent0(n)) *> bubbleUp(parent0(n))
-    } yield ()
-
-  private def bubbleDown(n: Int): USTM[Unit] =
-    size.flatMap { size =>
-      if (2 * n + 1 >= size) STM.unit
-      else if (2 * n + 2 == size)
-        for {
-          x <- map.get(n)
-          y <- map.get(2 * n + 1)
-          _ <- if (ord.gt(x.get, y.get)) swap(n, 2 * n + 1) *> bubbleDown(2 * n + 1) else STM.unit
-        } yield ()
-      else {
-        for {
-          parent     <- map.get(n)
-          leftChild  <- map.get(2 * n + 1)
-          rightChild <- map.get(2 * n + 2)
-          _ <- if (ord.lteq(parent.get, leftChild.get) && ord.lteq(parent.get, rightChild.get)) STM.unit
-              else if (ord.lteq(leftChild.get, rightChild.get))
-                swap(n, 2 * n + 1) *> bubbleDown(2 * n + 1)
-              else swap(n, 2 * n + 2) *> bubbleDown(2 * n + 2)
-        } yield ()
-      }
-    }
-
-  private def swap(i: Int, j: Int): USTM[Unit] =
-    for {
-      x <- map.get(i)
-      y <- map.get(j)
-      _ <- map.put(i, y.get)
-      _ <- map.put(j, x.get)
-    } yield ()
+    ref.get.map(_.flatMap { case (a, n) => Vector.fill(n)(a) }.toVector)
 }
 
 object TPriorityQueue {
@@ -155,13 +123,15 @@ object TPriorityQueue {
    * Constructs a new empty `TPriorityQueue` with the specified `Ordering`.
    */
   def empty[A](implicit ord: Ordering[A]): USTM[TPriorityQueue[A]] =
-    TMap.empty[Int, A].map(map => new TPriorityQueue(map, ord))
+    TRef.make(SortedMap.empty[A, Int]).map(ref => new TPriorityQueue(ref))
 
   /**
    * Makes a new `TPriorityQueue` initialized with provided iterable.
    */
   def fromIterable[A](data: Iterable[A])(implicit ord: Ordering[A]): USTM[TPriorityQueue[A]] =
-    empty[A].flatMap(queue => queue.offerAll(data).as(queue))
+    TRef
+      .make(data.foldLeft(SortedMap.empty[A, Int])((map, a) => map + (a -> map.get(a).fold(1)(_ + 1))))
+      .map(ref => new TPriorityQueue(ref))
 
   /**
    * Makes a new `TPriorityQueue` that is initialized with specified values.
