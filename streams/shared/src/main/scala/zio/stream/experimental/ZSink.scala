@@ -16,12 +16,12 @@ abstract class ZSink[-R, +E, -I, +O] {
    */
   def chunked: ZSink[R, E, Chunk[I], O] =
     ZSink(process.map {
-      case (push, read) => (ZIO.foreach_(_)(push), Read.chunked(read))
+      case (push, read) => (ZIO.foreach_(_)(push), l => read(l.flatten))
     })
 
-  def discard[R1 <: R, E1 >: E, I1 <: I](f: I1 => ZIO[R1, E1, Any]): ZSink[R1, E1, I1, O] =
+  def discard[R1 <: R, E1 >: E, I1 <: I](f: Chunk[I1] => ZIO[R1, E1, Any]): ZSink[R1, E1, I1, O] =
     ZSink(process.map {
-      case (push, read) => (push, ZIO.foreach_(_)(f) *> read(None))
+      case (push, read) => (push, f(_) *> read(Chunk.empty))
     })
 
   def discard_ : ZSink[R, E, I, O] =
@@ -41,12 +41,12 @@ abstract class ZSink[-R, +E, -I, +O] {
     success: O => ZSink[R1, E1, I1, A]
   ): ZSink[R1, E1, I1, A] =
     ZSink(for {
-      switch <- ZManaged.switchable[R1, Nothing, (Push[R1, E1, I1, Any], Read[R1, E1, Option[I1], A])]
+      switch <- ZManaged.switchable[R1, Nothing, (Push[R1, E1, I1, Any], Read[R1, E1, Chunk[I1], A])]
       outer  <- process
-      inner  <- ZRef.makeManaged(Option.empty[(Push[R1, E1, I1, Any], Read[R1, E1, Option[I1], A])])
+      inner  <- ZRef.makeManaged(Option.empty[(Push[R1, E1, I1, Any], Read[R1, E1, Chunk[I1], A])])
     } yield {
 
-      def open(sink: ZSink[R1, E1, I1, A]): URIO[R1, (Push[R1, E1, I1, Any], Read[R1, E1, Option[I1], A])] =
+      def open(sink: ZSink[R1, E1, I1, A]): URIO[R1, (Push[R1, E1, I1, Any], Read[R1, E1, Chunk[I1], A])] =
         switch(sink.process).tap(p => inner.set(Some(p)))
 
       def push(i: I1): Pull[R1, E1, Any] =
@@ -57,25 +57,15 @@ abstract class ZSink[-R, +E, -I, +O] {
               .catchAllCause(
                 Cause
                   .sequenceCauseOption(_)
-                  .fold(Pull(outer._2(None)).flatMap(z => open(success(z))))(c => open(failure(c)))
+                  .fold(Pull(outer._2(Chunk.empty)).flatMap(z => open(success(z))))(c => open(failure(c)))
               )
           )(_._1(i))
         )
 
-      def read(l: Option[I1]): ZIO[R1, E1, A] =
-        inner.get.flatMap(_.fold(outer._2(None).flatMap(z => open(success(z)).flatMap(_._2(l))))(_._2(l)))
+      def read(l: Chunk[I1]): ZIO[R1, E1, A] =
+        inner.get.flatMap(_.fold(outer._2(Chunk.empty).flatMap(z => open(success(z)).flatMap(_._2(l))))(_._2(l)))
 
       (push _, read _)
-    })
-
-  /**
-   * Returns a sink that applies this sink's process to multiple input values.
-   *
-   * @note If this sink applies a pure transformation, better efficiency can be achieved by overriding this method.
-   */
-  def foreach: ZSink[R, E, Iterable[I], O] =
-    ZSink(process.map {
-      case (push, read) => (ZIO.foreach_(_)(push), Read.foreach(read))
     })
 
   /**
@@ -99,7 +89,7 @@ abstract class ZSink[-R, +E, -I, +O] {
 
 object ZSink {
 
-  type Process[-R, +E, -I, +O] = URManaged[R, (Push[R, E, I, Any], Read[R, E, Option[I], O])]
+  type Process[-R, +E, -I, +O] = URManaged[R, (Push[R, E, I, Any], Read[R, E, Chunk[I], O])]
 
   /**
    * A sink that aggregates values using the given process.
@@ -113,73 +103,45 @@ object ZSink {
    * A continuous sink that collects all of its inputs into a chunk.
    */
   def collect[A]: ZSink[Any, Nothing, A, Chunk[A]] =
-    new ZSink[Any, Nothing, A, Chunk[A]] {
-      val process: Process[Any, Nothing, A, Chunk[A]] =
-        Process.fold(make)(_ += _, (s, l) => ((s ++= l).result(), s))
-
-      override def chunked: ZSink[Any, Nothing, Chunk[A], Chunk[A]] =
-        ZSink(Process.fold(make)(_ ++= _, (s, l) => (l.foldLeft(s)(_ ++= _).result(), s)))
-
-      override def foreach: ZSink[Any, Nothing, Iterable[A], Chunk[A]] =
-        ZSink(Process.fold(make)(_ ++= _, (s, l) => (l.foldLeft(s)(_ ++= _).result(), s)))
-
-      private def make: ChunkBuilder[A] = ChunkBuilder.make[A]()
-    }
+    fold[A, ChunkBuilder[A]](ChunkBuilder.make[A]())(_ += _)(_ ++= _).map(_.result())
 
   /**
    * A continuous sink that collects all of its inputs into a map. The keys are extracted from inputs
    * using the keying function `key`; if multiple inputs use the same key, they are merged
    * using the `f` function.
    */
-  def collectMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Map[K, A]] =
-    new ZSink[Any, Nothing, A, Map[K, A]] {
-      val process: Process[Any, Nothing, A, Map[K, A]] =
-        Process.fold(make)(put, (s, l) => (putAll(s, l), s))
+  def collectMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Map[K, A]] = {
 
-      override def chunked: ZSink[Any, Nothing, Chunk[A], Map[K, A]] =
-        ZSink(Process.fold(make)(putAll, (s, l) => (l.foldLeft(s)(putAll), s)))
-
-      override def foreach: ZSink[Any, Nothing, Iterable[A], Map[K, A]] =
-        ZSink(Process.fold(make)(putAll, (s, l) => (l.foldLeft(s)(putAll), s)))
-
-      private def make: Map[K, A] = Map.empty[K, A]
-
-      private def put(z: Map[K, A], a: A): Map[K, A] = {
-        val k = key(a)
-        z.updated(k, if (z.contains(k)) f(z(k), a) else a)
-      }
-
-      private def putAll(z: Map[K, A], a: Iterable[A]): Map[K, A] = a.foldLeft(z)(put)
+    def put(z: Map[K, A], a: A): Map[K, A] = {
+      val k = key(a)
+      z.updated(k, if (z.contains(k)) f(z(k), a) else a)
     }
+
+    def putAll(z: Map[K, A], a: Chunk[A]): Map[K, A] =
+      a.foldLeft(z)(put)
+
+    fold(Map.empty[K, A])(put)(putAll)
+  }
 
   /**
    * A continuous sink that collects all of its inputs into a set.
    */
   def collectSet[A]: ZSink[Any, Nothing, A, Set[A]] =
-    new ZSink[Any, Nothing, A, Set[A]] {
-      val process: Process[Any, Nothing, A, Set[A]] =
-        Process.fold(make)(_ += _, (s, l) => (l.foldLeft(s)(_ += _).result(), s))
+    fold[A, scala.collection.mutable.Builder[A, Set[A]]](Set.newBuilder[A])(_ += _)(_ ++= _).map(_.result())
 
-      override def chunked: ZSink[Any, Nothing, Chunk[A], Set[A]] =
-        ZSink(Process.fold(make)(_ ++= _, (s, l) => ((l.foldLeft(s)(_ ++= _)).result(), s)))
+  def fold[I, O](z: => O)(f: (O, I) => O)(fs: (O, Chunk[I]) => O): ZSink[Any, Nothing, I, O] =
+    new ZSink[Any, Nothing, I, O] {
+      val process: Process[Any, Nothing, I, O] = Process.fold(z)(f, fs)
 
-      override def foreach: ZSink[Any, Nothing, Iterable[A], Set[A]] =
-        ZSink(Process.fold(make)(_ ++= _, (s, l) => (l.foldLeft(s)(_ ++= _).result(), s)))
-
-      private def make: scala.collection.mutable.Builder[A, Set[A]] = Set.newBuilder[A]
+      override def chunked: ZSink[Any, Nothing, Chunk[I], O] =
+        ZSink(Process.fold(z)(fs, (s, ls) => fs(s, ls.flatten)))
     }
-
-  /**
-   * A continuous sink that folds its inputs with the provided function and initial state.
-   */
-  def fold[I, Z](z: Z)(f: (Z, I) => Z): ZSink[Any, Nothing, I, Z] =
-    ZSink(Process.fold(z)(f, (s, l) => l.foldLeft(s)(f) -> z))
 
   /**
    * A continuous sink that effectfully folds its inputs with the provided function and initial state.
    */
-  def foldM[R, E, I, Z](z: Z)(f: (Z, I) => ZIO[R, E, Z]): ZSink[R, E, I, Z] =
-    ZSink(Process.foldM(z)((s, i) => Pull(f(s, i)), (s, l) => ZIO.foldLeft(l)(s)(f) -> z))
+  def foldM[R, E, I, Z](z: => Z)(f: (Z, I) => ZIO[R, E, Z]): ZSink[R, E, I, Z] =
+    ZSink(Process.foldM(z)((s, i) => Pull(f(s, i)), (s, l) => ZIO.foldLeft(l)(s)(f)))
 
   def fromEffect[R, E, A](z: ZIO[R, E, A]): ZSink[R, E, Any, A] =
     ZSink(Process.succeed(z))
@@ -200,13 +162,13 @@ object ZSink {
    * A continuous sink that consumes all input values and yields the first one.
    */
   def head[A]: ZSink[Any, Nothing, A, Option[A]] =
-    ZSink(Process.fold(Option.empty[A])((s, a) => if (s.isEmpty) Some(a) else s, (s, l) => (s.orElse(l), None)))
+    fold[A, Option[A]](Option.empty)((s, a) => if (s.isEmpty) Some(a) else s)((s, l) => s.orElse(l.headOption))
 
   /**
    * A continuous sink that yields the last input value.
    */
   def last[A]: ZSink[Any, Nothing, A, Option[A]] =
-    ZSink(Process.fold(Option.empty[A])((_, a) => Some(a), (s, l) => (l.orElse(s), None)))
+    fold[A, Option[A]](Option.empty)((_, a) => Some(a))((s, l) => s.orElse(l.lastOption))
 
   /**
    * A continuous sink that prints every input string to the console (including a newline character).
@@ -219,15 +181,15 @@ object ZSink {
 
   object Process {
 
-    def fold[I, O, S](init: S)(push: (S, I) => S, read: (S, Option[I]) => (O, S)): Process[Any, Nothing, I, O] =
-      ZRef.makeManaged(init).map(ref => (i => ref.update(push(_, i)), l => ref.modify(read(_, l))))
+    def fold[I, O, S](init: => S)(push: (S, I) => S, read: (S, Chunk[I]) => O): Process[Any, Nothing, I, O] =
+      ZRef.makeManaged(init).map(ref => (i => ref.update(push(_, i)), l => ref.get.map(read(_, l))))
 
     def foldM[R, E, I, O, S](
-      init: S
-    )(push: (S, I) => Pull[R, E, S], read: (S, Option[I]) => (ZIO[R, E, O], S)): Process[R, E, I, O] =
+      init: => S
+    )(push: (S, I) => Pull[R, E, S], read: (S, Chunk[I]) => ZIO[R, E, O]): Process[R, E, I, O] =
       ZRef
         .makeManaged(init)
-        .map(ref => (i => ref.get.flatMap(push(_, i) >>= ref.set), l => ref.modify(read(_, l)).flatten))
+        .map(ref => (i => ref.get.flatMap(push(_, i) >>= ref.set), l => ref.get.flatMap(read(_, l))))
 
     def foreach[R, E, A](f: A => ZIO[R, E, Any]): Process[R, E, A, Unit] =
       ZManaged.succeedNow((a => Pull(f(a)), _ => ZIO.unit))

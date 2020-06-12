@@ -32,24 +32,20 @@ abstract class ZTransducer[-R, +E, -I, +O] {
    */
   def chunked: ZTransducer[R, E, Chunk[I], Chunk[O]] =
     ZTransducer(process.map {
-      case (push, read) => (ZIO.foreach(_)(push), Read.sequence(read))
+      case (push, read) => (ZIO.foreach(_)(push), ZIO.foreach(_)(read))
     })
 
-  def discard[R1 <: R, E1 >: E, I1 <: I](f: I1 => ZIO[R1, E1, Any]): ZTransducer[R1, E1, I1, O] =
-    ZTransducer(process.map { case (push, read) => (push, _.fold[ZIO[R1, E1, Any]](ZIO.unit)(f) *> read(None)) })
+  def discard[R1 <: R, E1 >: E, I1 <: I](f: Chunk[I1] => ZIO[R1, E1, Any]): ZTransducer[R1, E1, I1, O] =
+    ZTransducer(process.map {
+      case (push, read) => (push, f(_) *> read(Chunk.empty))
+    })
 
   def discard_ : ZTransducer[R, E, I, O] =
     discard(_ => ZIO.unit)
 
-  /**
-   * Returns a transducer that applies this transducer's process to multiple input values.
-   *
-   * @note If this transducer applies a pure transformation, better efficiency can be achieved by overriding this
-   *       method.
-   */
-  def foreach: ZTransducer[R, E, Iterable[I], Iterable[O]] =
+  def mapError[F](f: E => F): ZTransducer[R, F, I, O] =
     ZTransducer(process.map {
-      case (push, read) => (ZIO.foreach(_)(push), Read.sequence(read))
+      case (push, read) => (push(_).mapError(_.map(f)), read(_).mapError(f))
     })
 
   /**
@@ -71,7 +67,7 @@ abstract class ZTransducer[-R, +E, -I, +O] {
 
 object ZTransducer {
 
-  type Process[-R, +E, -I, +O] = URManaged[R, (Push[R, E, I, O], Read[R, E, Option[I], Option[O]])]
+  type Process[-R, +E, -I, +O] = URManaged[R, (Push[R, E, I, O], Read[R, E, Chunk[I], Chunk[O]])]
 
   /**
    * A transducer that transforms values of type `I` to values of type `O`.
@@ -118,51 +114,49 @@ object ZTransducer {
 
   /**
    * A transducer that divides input chunks into fixed `size` chunks.
-   * The `pad` function is called on the transducer's leftover if it does not have `size` elements.
+   * The `pad` function is called on the transducer's leftovers if it does not have `size` elements.
    */
-  def chunkN[A](size: Int, pad: Chunk[A] => Chunk[A]): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
+  def chunkN[A](size: Int, pad: Chunk[A] => Chunk[A]): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] = {
+
+    def step(b: ChunkBuilder[Chunk[A]], as: Chunk[A]): Chunk[A] = {
+      var rem = as
+      while (rem.length >= size) {
+        b += rem.take(size)
+        rem = rem.drop(size)
+      }
+      rem
+    }
+
     fold[Chunk[A], Chunk[Chunk[A]], Chunk[A]](Chunk.empty)(
       (state, chunk) => {
-        var rem = state ++ chunk
-        if (rem.length < size) (Chunk.empty, rem)
-        else {
-          val builder = ChunkBuilder.make[Chunk[A]]()
-          do {
-            builder += rem.take(size)
-            rem = rem.drop(size)
-          } while (rem.length >= size)
-          (builder.result(), rem)
-        }
+        val builder = ChunkBuilder.make[Chunk[A]]()
+        val rem     = step(builder, state ++ chunk)
+        (builder.result(), rem)
       },
-      (state, l) => {
-        var rem = l.fold(state)(state ++ _)
-        if (rem.isEmpty) (None, Chunk.empty)
-        else {
-          val builder = ChunkBuilder.make[Chunk[A]]()
-          do {
-            builder += rem.take(size)
-            rem = rem.drop(size)
-          } while (rem.length >= size)
-          if (rem.nonEmpty) builder += pad(rem)
-          (Some(builder.result()), Chunk.empty)
-        }
+      (state, leftover) => {
+        val builder = ChunkBuilder.make[Chunk[A]]()
+        var rem     = state
+        leftover.foreach(xs => rem = step(builder, xs))
+        if (rem.nonEmpty) builder += pad(rem)
+        (Chunk.single(builder.result()), rem)
       }
     )
+  }
 
-  def fold[I, O, Z](
-    init: Z
-  )(push: (Z, I) => (O, Z), read: (Z, Option[I]) => (Option[O], Z)): ZTransducer[Any, Nothing, I, O] =
+  def fold[I, O, S](
+    init: => S
+  )(push: (S, I) => (O, S), read: (S, Chunk[I]) => (Chunk[O], S)): ZTransducer[Any, Nothing, I, O] =
     new ZTransducer[Any, Nothing, I, O] {
-      val process: Process[Any, Nothing, I, O] =
-        Process.fold(init)(push, read)
+
+      val process: Process[Any, Nothing, I, O] = Process.fold(init)(push, read)
 
       override def chunked: ZTransducer[Any, Nothing, Chunk[I], Chunk[O]] =
         ZTransducer(
           Process.fold(init)(
-            (s, is: Chunk[I]) => {
+            (s, i) => {
               val b = ChunkBuilder.make[O]()
               var z = s
-              is.foreach { i =>
+              i.foreach { i =>
                 val os = push(z, i)
                 b += os._1
                 z = os._2
@@ -170,42 +164,8 @@ object ZTransducer {
               (b.result(), z)
             },
             (s, l) => {
-              val b = ChunkBuilder.make[O]()
-              var z = s
-              l.foreach(_.foreach { i =>
-                val os = read(z, Some(i))
-                os._1.foreach(b += _)
-                z = os._2
-              })
-              val ls = b.result()
-              (if (ls.isEmpty) None else Option(ls), z)
-            }
-          )
-        )
-
-      override def foreach: ZTransducer[Any, Nothing, Iterable[I], Iterable[O]] =
-        ZTransducer(
-          Process.fold(init)(
-            (s, is: Iterable[I]) => {
-              val b = ChunkBuilder.make[O]()
-              var z = s
-              is.foreach { i =>
-                val os = push(z, i)
-                b += os._1
-                z = os._2
-              }
-              (b.result(), z)
-            },
-            (s, l) => {
-              val b = ChunkBuilder.make[O]()
-              var z = s
-              l.foreach(_.foreach { i =>
-                val os = read(z, Some(i))
-                os._1.foreach(b += _)
-                z = os._2
-              })
-              val ls = b.result()
-              (if (ls.isEmpty) None else Option(ls), z)
+              val (o, z) = read(s, l.flatten)
+              (if (o.isEmpty) Chunk.empty else Chunk.single(o), z)
             }
           )
         )
@@ -222,14 +182,10 @@ object ZTransducer {
    */
   def map[A, B](f: A => B): ZTransducer[Any, Nothing, A, B] =
     new ZTransducer[Any, Nothing, A, B] {
-      val process: Process[Any, Nothing, A, B] =
-        Process.map(f)
 
-      override def chunked: ZTransducer[Any, Nothing, Chunk[A], Chunk[B]] =
-        ZTransducer(Process.map(_.map(f)))
+      val process: Process[Any, Nothing, A, B] = Process.map(f)
 
-      override def foreach: ZTransducer[Any, Nothing, Iterable[A], Iterable[B]] =
-        ZTransducer(Process.map(_.map(f)))
+      override def chunked: ZTransducer[Any, Nothing, Chunk[A], Chunk[B]] = ZTransducer(Process.map(_.map(f)))
     }
 
   def mapM[R, E, I, O](f: I => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
@@ -239,42 +195,43 @@ object ZTransducer {
    * A transducer that divides input strings on the system line separator.
    */
   val newLines: ZTransducer[system.System, Nothing, String, Chunk[String]] =
-    ZTransducer(ZIO.accessM[system.System](_.get.lineSeparator).toManaged_.flatMap(split(_).process))
+    ZTransducer(ZIO.accessM[system.System](_.get.lineSeparator).toManaged_.flatMap(separate(_).process))
 
   /**
-   * A transducer that divides an input string on the given `separator` (and discards it).
+   * A transducer that divides an input string on `separator`.
+   * The `retain` flag controls whether `separator` is retained in the output.
    */
-  def split(separator: String): ZTransducer[Any, Nothing, String, Chunk[String]] =
-    new ZTransducer[Any, Nothing, String, Chunk[String]] {
-      val di: Int = separator.length
+  def separate(separator: String, retain: Boolean = false): ZTransducer[Any, Nothing, String, Chunk[String]] = {
 
-      val process: Process[Any, Nothing, String, Chunk[String]] =
-        Process.fold("")(
-          (state, s: String) => {
-            val builder = ChunkBuilder.make[String]()
-            val rem     = step(builder, state + s)
-            (builder.result(), rem)
-          },
-          (state, s) => {
-            val builder = ChunkBuilder.make[String]()
-            val rem     = step(builder, state + s)
-            if (rem.nonEmpty) builder += rem
-            (Option(builder.result()), "")
-          }
-        )
+    val di: Int = if (retain) 0 else separator.length
 
-      private def step(builder: ChunkBuilder[String], state: String): String = {
-        var rem = state
-        var i   = rem.indexOf(separator)
-        while (i != -1) {
-          i = i + di
-          builder += rem.take(i)
-          rem = rem.drop(i)
-          i = rem.indexOf(separator)
-        }
-        rem
+    def step(builder: ChunkBuilder[String], state: String): String = {
+      var rem = state
+      var i   = rem.indexOf(separator)
+      while (i != -1) {
+        i = i + di
+        builder += rem.take(i)
+        rem = rem.drop(i)
+        i = rem.indexOf(separator)
       }
+      rem
     }
+
+    fold("")(
+      (state, s: String) => {
+        val builder = ChunkBuilder.make[String]()
+        val rem     = step(builder, state + s)
+        (builder.result(), rem)
+      },
+      (state, leftover) => {
+        val builder = ChunkBuilder.make[String]()
+        var rem     = state
+        leftover.foreach(xs => rem = step(builder, xs))
+        if (rem.nonEmpty) builder += rem
+        (Chunk.single(builder.result()), "")
+      }
+    )
+  }
 
   /**
    * A transducer that decodes a chunk of bytes to a UTF-8 string.
@@ -284,19 +241,17 @@ object ZTransducer {
 
   object Process {
 
-    def fold[R, E, I, O, Z](
-      init: Z
-    )(push: (Z, I) => (O, Z), read: (Z, Option[I]) => (Option[O], Z)): Process[R, E, I, O] =
+    def fold[R, E, I, O, S](
+      init: => S
+    )(push: (S, I) => (O, S), read: (S, Chunk[I]) => (Chunk[O], S)): Process[R, E, I, O] =
       ZRef
         .makeManaged(init)
-        .map(ref => (i => ref.modify(push(_, i)).flatMap(Pull.emit), l => ref.modify(read(_, l))))
+        .map(ref => (i => ref.modify(push(_, i)), l => ref.modify(read(_, l))))
 
     def map[I, O](f: I => O): Process[Any, Nothing, I, O] =
       ZManaged.succeedNow((i => Pull.emit(f(i)), l => ZIO.succeedNow(l.map(f))))
 
     def mapM[R, E, I, O](f: I => ZIO[R, E, O]): Process[R, E, I, O] =
-      ZManaged.succeedNow(
-        (i => Pull(f(i)), l => l.fold[ZIO[R, E, Option[O]]](ZIO.none)(f(_).map(Some(_))))
-      )
+      ZManaged.succeedNow((i => Pull(f(i)), _.mapM(f)))
   }
 }

@@ -64,19 +64,12 @@ abstract class ZStream[-R, +E, +I] private (val process: ZStream.Process[R, E, I
 
   /**
    * Applies a transducer to the stream, which converts one or more elements of type `A` into elements of type `B`.
-   * The `leftover` flag controls whether remainders are pulled when the transducer process ends.
    */
   def pipe[R1 <: R, E1 >: E, I1 >: I, O](
-    transducer: ZTransducer[R1, E1, I1, O],
-    strict: Boolean = true
+    transducer: ZTransducer[R1, E1, I1, O]
   ): ZStream[R1, E1, O] =
     ZStream(process.zipWith(transducer.process) {
-      case (pull, (push, read)) =>
-        (pull >>= push)
-          .catchAllCause(
-            Pull
-              .recover(if (strict) Pull.end else Pull(read(None)).flatMap(_.fold[Pull[R1, E1, O]](Pull.end)(Pull.emit)))
-          )
+      case (pull, (push, _)) => pull >>= push
     })
 
   /**
@@ -85,7 +78,7 @@ abstract class ZStream[-R, +E, +I] private (val process: ZStream.Process[R, E, I
   def run[R1 <: R, E1 >: E, O1 >: I, O](sink: ZSink[R1, E1, O1, O]): ZIO[R1, E1, O] =
     (process <*> sink.process).use {
       case (pull, (push, read)) =>
-        (pull >>= push).forever.catchAllCause(Cause.sequenceCauseOption(_).fold(read(None))(ZIO.halt(_)))
+        (pull >>= push).forever.catchAllCause(Cause.sequenceCauseOption(_).fold(read(Chunk.empty))(ZIO.halt(_)))
     }
 
   /**
