@@ -16,10 +16,10 @@
 
 package zio.stm
 
-import scala.annotation.tailrec
 import scala.collection.immutable.SortedMap
 
-import zio.Chunk
+import zio.stm.ZSTM.internal._
+import zio.{ Chunk, ChunkBuilder }
 
 /**
  * A simple `TPriorityQueue` implementation. A `TPriorityQueue` contains values
@@ -48,14 +48,19 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
    * a value is in the queue.
    */
   def peek: USTM[A] =
-    peekOption.get.orElse(ZSTM.retry)
+    new ZSTM((journal, _, _, _) =>
+      ref.unsafeGet(journal).headOption match {
+        case None         => TExit.Retry
+        case Some((a, _)) => TExit.Succeed(a)
+      }
+    )
 
   /**
    * Peeks at the first value in the queue without removing it, returning
    * `None` if there is not a value in the queue.
    */
   def peekOption: USTM[Option[A]] =
-    ref.get.map(_.headOption.map(_._1))
+    ref.modify(map => (map.headOption.map(_._1), map))
 
   /**
    * Removes all elements from the queue matching the specified predicate.
@@ -73,66 +78,106 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
    * Returns the size of the queue.
    */
   def size: USTM[Int] =
-    ref.get.map(_.values.sum)
+    ref.modify(map => (map.values.sum, map))
 
   /**
    * Takes a value from the queue, retrying until a value is in the queue.
    */
   def take: USTM[A] =
-    takeOption.get.orElse(STM.retry)
+    new ZSTM((journal, _, _, _) => {
+      val map = ref.unsafeGet(journal)
+      map.headOption match {
+        case None => TExit.Retry
+        case Some((a, n)) =>
+          ref.unsafeSet(journal, if (n == 1) map - a else map + (a -> (n - 1)))
+          TExit.Succeed(a)
+      }
+    })
 
   /**
    * Takes all values from the queue.
    */
-  def takeAll: USTM[List[A]] =
-    ref.modify(map => (map.flatMap { case (a, n) => List.fill(n)(a) }.toList, map.empty))
+  def takeAll: USTM[Chunk[A]] =
+    ref.modify { map =>
+      val builder = ChunkBuilder.make[A]()
+      var updated = map
+      map.foreach {
+        case (a, n) =>
+          var i = 0
+          while (i < n) {
+            builder += a
+            i += 1
+          }
+          updated -= a
+      }
+      (builder.result, updated)
+    }
 
   /**
    * Takes up to the specified maximum number of elements from the queue.
    */
-  def takeUpTo(n: Int): USTM[List[A]] = {
-
-    @tailrec
-    def loop[A](i: Int, list: List[A], map: SortedMap[A, Int]): (List[A], SortedMap[A, Int]) =
-      if (i <= 0 || map.isEmpty) (list.reverse, map)
-      else {
-        val (a, j) = map.head
-        if (j <= i) loop(i - j, List.fill(j)(a) ::: list, map.tail)
-        else loop(0, List.fill(i)(a) ::: list, map + (a -> (j - i)))
+  def takeUpTo(n: Int): USTM[Chunk[A]] =
+    ref.modify { map =>
+      val builder  = ChunkBuilder.make[A]()
+      val iterator = map.iterator
+      var updated  = map
+      var i        = 0
+      while (iterator.hasNext && i < n) {
+        val (a, j) = iterator.next()
+        var k      = 0
+        while (i < n && k < j) {
+          builder += a
+          i += 1
+          k += 1
+        }
+        if (k == j) updated -= a else updated += (a -> (j - k))
       }
-
-    ref.modify(loop(n, List.empty, _))
-  }
+      (builder.result, updated)
+    }
 
   /**
    * Takes a value from the queue, returning `None` if there is not a value in
    * the queue.
    */
   def takeOption: USTM[Option[A]] =
-    ref.get.flatMap { map =>
+    new ZSTM((journal, _, _, _) => {
+      val map = ref.unsafeGet(journal)
       map.headOption match {
-        case None         => STM.succeed(None)
-        case Some((a, n)) => ref.update(map => if (n == 1) map - a else map + (a -> (n - 1))).as(Some(a))
+        case None => TExit.Succeed(None)
+        case Some((a, n)) =>
+          ref.unsafeSet(journal, if (n == 1) map - a else map + (a -> (n - 1)))
+          TExit.Succeed(Some(a))
       }
-    }
+    })
 
   /**
    * Collects all values into a chunk.
    */
   def toChunk: USTM[Chunk[A]] =
-    ref.get.map(map => Chunk.fromIterable(map.flatMap { case (a, n) => Chunk.fill(n)(a) }))
+    ref.modify { map =>
+      val builder = ChunkBuilder.make[A]()
+      map.foreach {
+        case (a, n) =>
+          var i = 0
+          while (i < n) {
+            builder += a
+            i += 1
+          }
+      }
+      (builder.result, map)
+    }
 
   /**
    * Collects all values into a list.
    */
   def toList: USTM[List[A]] =
-    ref.get.map(_.flatMap { case (a, n) => List.fill(n)(a) }.toList)
+    toChunk.map(_.toList)
 
   /**
    * Collects all values into a vector.
    */
   def toVector: USTM[Vector[A]] =
-    ref.get.map(_.flatMap { case (a, n) => Vector.fill(n)(a) }.toVector)
+    toChunk.map(_.toVector)
 }
 
 object TPriorityQueue {
