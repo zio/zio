@@ -248,6 +248,42 @@ object ZTransducer {
       )
     }
 
+  def take[A](n: Long, strict: Boolean = false): ZTransducer[Any, Nothing, A, A] =
+    new ZTransducer[Any, Nothing, A, A] {
+
+      val process: Process[Any, Nothing, A, A] =
+        if (strict)
+          Process.foldM(n -> Option.empty[A])(
+            (s, i) => if (s._1 <= 0) (Pull.end, (0, Some(i))) else (Pull.emit(i), (s._1 - 1, None)),
+            (s, l) => (l ++ s._2, (s._1, None))
+          )
+        else
+          Process.foldM(n)((s, i) => if (s <= 0) (Pull.end, 0) else (Pull.emit(i), s - 1), (s, l) => (l, s))
+
+      override def chunked: ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
+        ZTransducer(
+          if (strict)
+            Process.foldM(n -> (Chunk.empty: Chunk[A]))(
+              (s, i) =>
+                if (s._1 <= 0) (Pull.end, s)
+                else if (i.length <= s._1) (Pull.emit(i), (s._1 - i.length, Chunk.empty))
+                else {
+                  val (l, r) = i.splitAt(s._1.toInt)
+                  (Pull.emit(l), (0, r))
+                },
+              (s, l) => (l + s._2, (0, Chunk.empty))
+            )
+          else
+            Process.foldM(n)(
+              (s, i) =>
+                if (s <= 0) (Pull.end, 0)
+                else if (i.length <= s) (Pull.emit(i), s - i.length)
+                else (Pull.emit(i.take(s.toInt)), 0),
+              (s, l) => (l, s)
+            )
+        )
+    }
+
   /**
    * A transducer that decodes a chunk of bytes to a UTF-8 string.
    */
@@ -262,6 +298,13 @@ object ZTransducer {
       ZRef
         .makeManaged(init)
         .map(ref => (i => ref.modify(push(_, i)), l => ref.modify(read(_, l))))
+
+    def foldM[R, E, I, O, S](
+      init: => S
+    )(push: (S, I) => (Pull[R, E, O], S), read: (S, Chunk[I]) => (Chunk[O], S)): Process[R, E, I, O] =
+      ZRef
+        .makeManaged(init)
+        .map(ref => (i => ref.modify(push(_, i)).flatten, l => ref.modify(read(_, l))))
 
     def halt[E](c: Cause[E]): Process[Any, E, Any, Nothing] =
       ZManaged.succeedNow((_ => Pull.halt(c), _ => ZIO.halt(c)))
