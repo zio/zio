@@ -17,22 +17,24 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
       }
     },
     testM("removeIf") {
-      val elems = List(2, 4, 6, 3, 5, 6)
-      val transaction = for {
-        queue <- TPriorityQueue.fromIterable(elems)
-        _     <- queue.removeIf(_ % 2 == 0)
-        list  <- queue.toList
-      } yield list
-      assertM(transaction.commit)(equalTo(List(3, 5)))
+      checkM(Gen.listOf(Gen.anyInt), Gen.function(Gen.boolean)) { (as, f) =>
+        val transaction = for {
+          queue <- TPriorityQueue.fromIterable(as)
+          _     <- queue.removeIf(f)
+          list  <- queue.toList
+        } yield list
+        assertM(transaction.commit)(equalTo(as.filterNot(f).sorted))
+      }
     },
     testM("retainIf") {
-      val elems = List(2, 4, 6, 3, 5, 6)
-      val transaction = for {
-        queue <- TPriorityQueue.fromIterable(elems)
-        _     <- queue.retainIf(_ % 2 == 0)
-        list  <- queue.toList
-      } yield list
-      assertM(transaction.commit)(equalTo(List(2, 4, 6, 6)))
+      checkM(Gen.listOf(Gen.anyInt), Gen.function(Gen.boolean)) { (as, f) =>
+        val transaction = for {
+          queue <- TPriorityQueue.fromIterable(as)
+          _     <- queue.retainIf(f)
+          list  <- queue.toList
+        } yield list
+        assertM(transaction.commit)(equalTo(as.filter(f).sorted))
+      }
     }
   )
 }

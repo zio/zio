@@ -84,7 +84,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
    * Takes all values from the queue.
    */
   def takeAll: USTM[List[A]] =
-    ref.modify(map => (map.flatMap { case (k, v) => List.fill(v)(k) }.toList, map.empty))
+    ref.modify(map => (map.flatMap { case (a, n) => List.fill(n)(a) }.toList, map.empty))
 
   /**
    * Takes a value from the queue, returning `None` if there is not a value in
