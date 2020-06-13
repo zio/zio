@@ -838,4 +838,28 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def sum[A](implicit A: Numeric[A]): ZSink[Any, Nothing, A, Nothing, A] =
     foldLeft(A.zero)(A.plus)
+
+  /**
+   * A sink that offers values to a given queue. Shuts down the queue if specified.
+   */
+  def toQueue[R, I](
+    queue: ZQueue[R, Nothing, Nothing, Any, Chunk[I], Any],
+    shutdown: Boolean
+  ): ZSink[R, Nothing, I, I, Unit] =
+    ZSink {
+      for {
+        state <- Ref.make[Chunk[I]](Chunk.empty).toManaged_
+        push = (is: Option[Chunk[I]]) =>
+          is match {
+            case Some(ch) =>
+              queue.offer(ch) *> state.update(_ ++ ch) *> Push.more
+            case None =>
+              for {
+                _     <- queue.shutdown.when(shutdown)
+                chunk <- state.get
+                value <- Push.emit((), chunk)
+              } yield value
+          }
+      } yield push
+    }
 }

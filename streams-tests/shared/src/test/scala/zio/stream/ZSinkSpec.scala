@@ -148,6 +148,24 @@ object ZSinkSpec extends ZIOBaseSpec {
             equalTo(("ok", Chunk(1, 2, 3)))
           )
         }
+      ),
+      suite("toQueue")(
+        testM("fills a queue") {
+          assertM(
+            for {
+              queue  <- Queue.unbounded[Chunk[Int]]
+              _      <- ZStream(1, 2, 3).run(ZSink.toQueue(queue, false))
+              values <- queue.takeAll
+            } yield values
+          )(equalTo(List(Chunk(1, 2, 3))))
+        },
+        testM("composes well") {
+          for {
+            queue <- Queue.unbounded[Chunk[Int]]
+            n     <- ZStream(1, 2, 3).run(ZSink.toQueue(queue, true) *> ZSink.head)
+            down  <- queue.isShutdown
+          } yield assert(n)(equalTo(Some(1))) && assert(down)(isTrue)
+        }
       )
     ),
     suite("Combinators")(
