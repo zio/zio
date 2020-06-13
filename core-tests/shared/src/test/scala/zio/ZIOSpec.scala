@@ -3278,7 +3278,21 @@ object ZIOSpec extends ZIOBaseSpec {
         val effect: Task[Unit] = ZIO.fail(error).unit.orDie.resurrect
         assertM(effect.either)(isLeft(equalTo(error)))
       }
-    )
+    ),
+    suite("effectAsyncM") {
+      testM("should not leak internal errors") {
+        val program =  ZIO.effectAsyncM[Any, Throwable, String](register =>
+            for {
+              _ <- UIO(register(UIO("SUCCEED")))
+              _ <- ZIO.fail(new Throwable("FAIL"))
+            } yield ()
+          )
+
+        for {
+          actual <- program.catchAll(cause => ZIO.succeed(cause.getMessage()))
+        } yield assert(actual)(equalTo("FAIL"))
+      }
+    }
   )
 
   def functionIOGen: Gen[Random with Sized, String => Task[Int]] =
