@@ -474,12 +474,48 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(l.reverse)(equalTo((1 to 4).toList))
           }
         ),
-        suite("bufferDropping")(
+        suite("bufferChunks")(
+          testM("maintains chunks and ordering")(checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt))) { chunk =>
+            assertM(
+              ZStream
+                .fromChunks(chunk: _*)
+                .bufferChunks(2)
+                .runCollect
+            )(equalTo(chunk.flatten))
+          }),
+          testM("buffer the Stream with Error") {
+            val e = new RuntimeException("boom")
+            assertM(
+              (ZStream.range(0, 10) ++ ZStream.fail(e))
+                .bufferChunks(2)
+                .runCollect
+                .run
+            )(fails(equalTo(e)))
+          },
+          testM("fast producer progress independently") {
+            for {
+              ref   <- Ref.make(List[Int]())
+              latch <- Promise.make[Nothing, Unit]
+              s = ZStream
+                .range(1, 5)
+                .tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4))
+                .bufferChunks(2)
+              l <- s.process.use { as =>
+                    for {
+                      _ <- as
+                      _ <- latch.await
+                      l <- ref.get
+                    } yield l
+                  }
+            } yield assert(l.reverse)(equalTo((1 to 4).toList))
+          }
+        ),
+        suite("bufferChunksDropping")(
           testM("buffer the Stream with Error") {
             val e = new RuntimeException("boom")
             assertM(
               (ZStream.range(1, 1000) ++ ZStream.fail(e) ++ ZStream.range(1001, 2000))
-                .bufferDropping(2)
+                .bufferChunksDropping(2)
                 .runCollect
                 .run
             )(fails(equalTo(e)))
@@ -497,7 +533,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s2 = ZStream
                 .fromEffect(latch3.await)
                 .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
-              s = (s1 ++ s2).bufferDropping(8)
+              s = (s1 ++ s2).bufferChunksDropping(8)
               snapshots <- s.process.use { as =>
                             for {
                               zero      <- as
@@ -519,12 +555,12 @@ object ZStreamSpec extends ZIOBaseSpec {
               )
           }
         ),
-        suite("bufferSliding")(
+        suite("bufferChunksSliding")(
           testM("buffer the Stream with Error") {
             val e = new RuntimeException("boom")
             assertM(
               (ZStream.range(1, 1000) ++ ZStream.fail(e) ++ ZStream.range(1001, 2000))
-                .bufferSliding(2)
+                .bufferChunksSliding(2)
                 .runCollect
                 .run
             )(fails(equalTo(e)))
@@ -542,7 +578,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s2 = ZStream
                 .fromEffect(latch3.await)
                 .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
-              s = (s1 ++ s2).bufferSliding(8)
+              s = (s1 ++ s2).bufferChunksSliding(8)
               snapshots <- s.process.use { as =>
                             for {
                               zero      <- as

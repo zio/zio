@@ -381,13 +381,41 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     distributedWithDynamic(maximumLag, _ => decider, _ => ZIO.unit).map(_.map(_._2))
   }
 
+  private final def bufferElement[E1 >: E, O1 >: O](queue: Queue[Exit[Option[E1], O1]]): URManaged[R, Pull[R, E1, O1]] =
+    for {
+      done <- Ref.makeManaged(false)
+      os   <- self.process.mapM(BufferedPull.make(_))
+      _    <- os.pullElement.run.flatMap(e => queue.offer(e).as(e)).doWhile(_.succeeded).forkManaged
+      pull = done.get.flatMap {
+        if (_) Pull.end
+        else
+          queue.take.flatMap(exit => ZIO.done(exit.map(Chunk.single))).catchSome {
+            case None => done.set(true) *> Pull.end
+          }
+      }
+    } yield pull
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` elements in a queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def buffer(capacity: Int): ZStream[R, E, O] =
+    ZStream {
+      for {
+        queue <- Queue.bounded[Exit[Option[E], O]](capacity).toManaged(_.shutdown)
+        pull  <- bufferElement(queue)
+      } yield pull
+    }
+
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` chunks in a queue.
    *
    * @note Prefer capacities that are powers of 2 for better performance.
    */
-  final def buffer(capacity: Int): ZStream[R, E, O] =
+  final def bufferChunks(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
         done  <- Ref.make(false).toManaged_
@@ -404,7 +432,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
   private final def bufferSignal[E1 >: E, O1 >: O](
     queue: Queue[(Take[E1, O1], Promise[Nothing, Unit])]
-  ): ZManaged[R, Nothing, ZIO[R, Option[E1], Chunk[O1]]] =
+  ): URManaged[R, Pull[R, E1, O1]] =
     for {
       as    <- self.process
       start <- Promise.make[Nothing, Unit].toManaged_
@@ -449,6 +477,34 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` chunks in a dropping queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferChunksDropping(capacity: Int): ZStream[R, E, O] =
+    ZStream {
+      for {
+        queue <- Queue.dropping[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        pull  <- bufferSignal(queue)
+      } yield pull
+    }
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` chunks in a sliding queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferChunksSliding(capacity: Int): ZStream[R, E, O] =
+    ZStream {
+      for {
+        queue <- Queue.sliding[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        pull  <- bufferSignal(queue)
+      } yield pull
+    }
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a dropping queue.
    *
    * @note Prefer capacities that are powers of 2 for better performance.
@@ -456,8 +512,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def bufferDropping(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.dropping[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
-        pull  <- bufferSignal(queue)
+        queue <- Queue.dropping[Exit[Option[E], O]](capacity).toManaged(_.shutdown)
+        pull  <- bufferElement(queue)
       } yield pull
     }
 
@@ -470,8 +526,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def bufferSliding(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.sliding[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
-        pull  <- bufferSignal(queue)
+        queue <- Queue.sliding[Exit[Option[E], O]](capacity).toManaged(_.shutdown)
+        pull  <- bufferElement(queue)
       } yield pull
     }
 
