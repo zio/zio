@@ -52,6 +52,7 @@ private[macros] class AccessibleMacro(val c: Context) {
     sealed trait Capability
     object Capability {
       case class Effect(r: Tree, e: Tree, a: Tree)                 extends Capability
+      case class Managed(r: Tree, e: Tree, a: Tree)                extends Capability
       case class Method(a: Tree)                                   extends Capability
       case class Sink(r: Tree, e: Tree, a: Tree, l: Tree, b: Tree) extends Capability
       case class Stream(r: Tree, e: Tree, a: Tree)                 extends Capability
@@ -61,6 +62,7 @@ private[macros] class AccessibleMacro(val c: Context) {
 
       val r: Tree = capability match {
         case Capability.Effect(r, _, _)     => r
+        case Capability.Managed(r, _, _)    => r
         case Capability.Sink(r, _, _, _, _) => r
         case Capability.Stream(r, _, _)     => r
         case Capability.Method(_)           => any
@@ -68,6 +70,7 @@ private[macros] class AccessibleMacro(val c: Context) {
 
       val e: Tree = capability match {
         case Capability.Effect(_, e, _)     => e
+        case Capability.Managed(_, e, _)    => e
         case Capability.Sink(_, e, _, _, _) => e
         case Capability.Stream(_, e, _)     => e
         case Capability.Method(_)           => throwable
@@ -75,6 +78,7 @@ private[macros] class AccessibleMacro(val c: Context) {
 
       val a: Tree = capability match {
         case Capability.Effect(_, _, a)     => a
+        case Capability.Managed(_, _, a)    => a
         case Capability.Sink(_, e, a, l, b) => tq"_root_.zio.stream.ZSink[$any, $e, $a, $l, $b]"
         case Capability.Stream(_, e, a)     => tq"_root_.zio.stream.ZStream[$any, $e, $a]"
         case Capability.Method(a)           => a
@@ -98,6 +102,7 @@ private[macros] class AccessibleMacro(val c: Context) {
 
           (dealiased.typeSymbol.fullName, typeArgTrees) match {
             case ("zio.ZIO", r :: e :: a :: Nil)                    => TypeInfo(Capability.Effect(r, e, a))
+            case ("zio.ZManaged", r :: e :: a :: Nil)               => TypeInfo(Capability.Managed(r, e, a))
             case ("zio.stream.ZSink", r :: e :: a :: l :: b :: Nil) => TypeInfo(Capability.Sink(r, e, a, l, b))
             case ("zio.stream.ZStream", r :: e :: a :: Nil)         => TypeInfo(Capability.Stream(r, e, a))
             case _                                                  => TypeInfo(Capability.Method(tree))
@@ -120,6 +125,9 @@ private[macros] class AccessibleMacro(val c: Context) {
         case Capability.Effect(r, e, a) =>
           if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $a]"
           else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $a]"
+        case Capability.Managed(r, e, a) =>
+          if (r != any) tq"_root_.zio.ZManaged[_root_.zio.Has[Service] with $r, $e, $a]"
+          else tq"_root_.zio.ZManaged[_root_.zio.Has[Service], $e, $a]"
         case Capability.Stream(r, e, a) =>
           val value = tq"_root_.zio.stream.ZStream[$r, $e, $a]"
           if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $nothing, $value]"
@@ -148,6 +156,14 @@ private[macros] class AccessibleMacro(val c: Context) {
           q"_root_.zio.ZIO.accessM(_.get[Service].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Effect, _) =>
           q"_root_.zio.ZIO.accessM(_.get[Service].$name)"
+        case (_: Capability.Managed, argLists) if argLists.flatten.nonEmpty =>
+          val argNames = argLists.map(_.map { arg =>
+            if (isRepeatedParamType(arg)) q"${arg.name}: _*"
+            else q"${arg.name}"
+          })
+          q"_root_.zio.ZManaged.service[Service].flatMap(_.$name[..$typeArgs](...$argNames))"
+        case (_: Capability.Managed, _) =>
+          q"_root_.zio.ZManaged.service[Service].flatMap(_.$name[..$typeArgs])"
         case (_, argLists) if argLists.flatten.nonEmpty =>
           val argNames = argLists.map(_.map(_.name))
           q"_root_.zio.ZIO.access(_.get[Service].$name[..$typeArgs](...$argNames))"
