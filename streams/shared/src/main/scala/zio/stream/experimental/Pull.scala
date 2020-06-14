@@ -12,6 +12,9 @@ object Pull {
 
   val end: Pull[Any, Nothing, Nothing] = ZIO.fail(None)
 
+  def fail[E](e: E): Pull[Any, E, Nothing] =
+    halt(Cause.fail(e))
+
   def halt[E](c: Cause[E]): Pull[Any, E, Nothing] =
     ZIO.halt(c.map(Option.apply))
 

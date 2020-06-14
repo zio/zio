@@ -128,6 +128,9 @@ object ZSink {
   def collectSet[A]: ZSink[Any, Nothing, A, Set[A]] =
     fold[A, scala.collection.mutable.Builder[A, Set[A]]](Set.newBuilder[A])(_ += _)(_ ++= _).map(_.result())
 
+  def drain[A]: ZSink[Any, Nothing, A, Unit] =
+    ZSink(Process.drain)
+
   def fold[I, O](z: => O)(push: (O, I) => O)(read: (O, Chunk[I]) => O): ZSink[Any, Nothing, I, O] =
     new ZSink[Any, Nothing, I, O] {
       val process: Process[Any, Nothing, I, O] = Process.fold(z)(push, read)
@@ -142,14 +145,14 @@ object ZSink {
   def foldM[R, E, I, Z](z: => Z)(f: (Z, I) => ZIO[R, E, Z]): ZSink[R, E, I, Z] =
     ZSink(Process.foldM(z)((s, i) => Pull(f(s, i)), (s, l) => ZIO.foldLeft(l)(s)(f)))
 
-  def fromEffect[R, E, A](z: ZIO[R, E, A]): ZSink[R, E, Any, A] =
-    ZSink(Process.succeed(z))
-
   /**
    * A continuous sink that executes the provided effectful function for every element fed to it.
    */
   def foreach[R, E, A](f: A => ZIO[R, E, Any]): ZSink[R, E, A, Unit] =
     ZSink(Process.foreach(f))
+
+  def fromEffect[R, E, A](z: ZIO[R, E, A]): ZSink[R, E, Any, A] =
+    ZSink(Process.succeed(z))
 
   /**
    * A sink that halts with the given cause.
@@ -179,6 +182,9 @@ object ZSink {
     ZSink(Process.succeed(ZIO.succeedNow(a)))
 
   object Process {
+
+    def drain[I]: Process[Any, Nothing, I, Unit] =
+      ZManaged.succeedNow(((_: I) => ZIO.unit, _ => ZIO.unit))
 
     def fold[I, O, S](init: => S)(push: (S, I) => S, read: (S, Chunk[I]) => O): Process[Any, Nothing, I, O] =
       ZRef.makeManaged(init).map(ref => (i => ref.update(push(_, i)), l => ref.get.map(read(_, l))))
