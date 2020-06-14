@@ -143,7 +143,8 @@ object ZTransducer {
           var rem     = state
           leftover.foreach(xs => rem = step(builder, xs))
           if (rem.nonEmpty) builder += pad(rem)
-          (Chunk.single(builder.result()), Chunk.empty)
+          val chunk = builder.result()
+          (if (chunk.isEmpty) Chunk.empty else Chunk.single(chunk), Chunk.empty)
         }
       )
     }
@@ -243,44 +244,101 @@ object ZTransducer {
           var rem     = state
           leftover.foreach(xs => rem = step(builder, xs))
           if (rem.nonEmpty) builder += rem
-          (Chunk.single(builder.result()), "")
+          val chunk = builder.result()
+          (if (chunk.isEmpty) Chunk.empty else Chunk.single(chunk), "")
         }
       )
     }
 
-  def take[A](n: Long, strict: Boolean = false): ZTransducer[Any, Nothing, A, A] =
-    new ZTransducer[Any, Nothing, A, A] {
+  def take[I](n: Long): ZTransducer[Any, Nothing, I, I] =
+    if (n <= 0) dieMessage(s"cannot take $n elements")
+    else
+      new ZTransducer[Any, Nothing, I, I] {
 
-      val process: Process[Any, Nothing, A, A] =
-        if (strict)
-          Process.foldM(n -> Option.empty[A])(
-            (s, i) => if (s._1 <= 0) (Pull.end, (0, Some(i))) else (Pull.emit(i), (s._1 - 1, None)),
-            (s, l) => (l ++ s._2, (s._1, None))
+        val process: Process[Any, Nothing, I, I] =
+          ZRef
+            .makeManaged(Option.empty[I])
+            .flatMap(ref =>
+              Process.foldM(n)(
+                (s, i) => if (s <= 0) (ref.set(Some(i)) *> Pull.end, 0) else (Pull.emit(i), s - 1),
+                (s, l) => (ref.modify(i => (i.fold(l)(_ +: l), None)), s)
+              )
+            )
+
+        override def chunked: ZTransducer[Any, Nothing, Chunk[I], Chunk[I]] =
+          ZTransducer(
+            ZRef
+              .makeManaged(Chunk.empty: Chunk[I])
+              .flatMap(ref =>
+                Process.foldM(n)(
+                  (s, i) =>
+                    if (s <= 0) (ref.update(_ ++ i) *> Pull.end, 0)
+                    else if (i.length <= s) (Pull.emit(i), s - i.length)
+                    else {
+                      val (take, drop) = i.splitAt(s.toInt)
+                      (ref.set(drop) *> Pull.emit(take), 0)
+                    },
+                  (s, l) => (ref.modify(i => (if (i.isEmpty) l else i +: l, Chunk.empty)), s)
+                )
+              )
           )
-        else
-          Process.foldM(n)((s, i) => if (s <= 0) (Pull.end, 0) else (Pull.emit(i), s - 1), (s, l) => (l, s))
+      }
 
-      override def chunked: ZTransducer[Any, Nothing, Chunk[A], Chunk[A]] =
+  def takeUntil[I](p: I => Boolean): ZTransducer[Any, Nothing, I, I] =
+    new ZTransducer[Any, Nothing, I, I] {
+
+      val process: Process[Any, Nothing, I, I] =
+        ZRef
+          .makeManaged(Option.empty[I])
+          .flatMap(ref =>
+            Process.foldM(false)(
+              (s, i) => if (s) (ref.set(Some(i)) *> Pull.end, s) else (Pull.emit(i), p(i)),
+              (s, l) => (ref.modify(i => (i.fold(l)(_ +: l), None)), s)
+            )
+          )
+
+      override def chunked: ZTransducer[Any, Nothing, Chunk[I], Chunk[I]] =
         ZTransducer(
-          if (strict)
-            Process.foldM(n -> (Chunk.empty: Chunk[A]))(
-              (s, i) =>
-                if (s._1 <= 0) (Pull.end, s)
-                else if (i.length <= s._1) (Pull.emit(i), (s._1 - i.length, Chunk.empty))
-                else {
-                  val (l, r) = i.splitAt(s._1.toInt)
-                  (Pull.emit(l), (0, r))
-                },
-              (s, l) => (l + s._2, (0, Chunk.empty))
+          ZRef
+            .makeManaged(Chunk.empty: Chunk[I])
+            .flatMap(ref =>
+              Process.foldM(false)(
+                (s, i) =>
+                  if (s) (ref.update(_ ++ i) *> Pull.end, s)
+                  else {
+                    val j = i.indexWhere(p)
+                    if (j == -1) (Pull.emit(i), false)
+                    else {
+                      val (take, drop) = i.splitAt(j + 1)
+                      (ref.set(drop) *> Pull.emit(take), true)
+                    }
+                  },
+                (s, l) => (ref.modify(i => (if (i.isEmpty) i +: l else l, Chunk.empty)), s)
+              )
             )
-          else
-            Process.foldM(n)(
-              (s, i) =>
-                if (s <= 0) (Pull.end, 0)
-                else if (i.length <= s) (Pull.emit(i), s - i.length)
-                else (Pull.emit(i.take(s.toInt)), 0),
-              (s, l) => (l, s)
-            )
+        )
+    }
+
+  def takeWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, I] =
+    new ZTransducer[Any, Nothing, I, I] {
+
+      val process: Process[Any, Nothing, I, I] =
+        Process.foldM(Option.empty[I])(
+          (_, i) => if (p(i)) (Pull.emit(i), None) else (Pull.end, Some(i)),
+          (s, l) => (ZIO.succeedNow(s.fold(l)(_ +: l)), None)
+        )
+
+      override def chunked: ZTransducer[Any, Nothing, Chunk[I], Chunk[I]] =
+        ZTransducer(
+          Process.foldM(Chunk.empty: Chunk[I])(
+            (s, i) =>
+              if (s.nonEmpty) (Pull.end, s ++ i)
+              else {
+                val take = i.takeWhile(p)
+                if (take.isEmpty) (Pull.end, i) else (Pull.emit(take), i.drop(take.length))
+              },
+            (s, l) => (ZIO.succeedNow(if (s.isEmpty) l else s +: l), Chunk.empty)
+          )
         )
     }
 
@@ -301,10 +359,10 @@ object ZTransducer {
 
     def foldM[R, E, I, O, S](
       init: => S
-    )(push: (S, I) => (Pull[R, E, O], S), read: (S, Chunk[I]) => (Chunk[O], S)): Process[R, E, I, O] =
+    )(push: (S, I) => (Pull[R, E, O], S), read: (S, Chunk[I]) => (ZIO[R, E, Chunk[O]], S)): Process[R, E, I, O] =
       ZRef
         .makeManaged(init)
-        .map(ref => (i => ref.modify(push(_, i)).flatten, l => ref.modify(read(_, l))))
+        .map(ref => (i => ref.modify(push(_, i)).flatten, l => ref.modify(read(_, l)).flatten))
 
     def halt[E](c: Cause[E]): Process[Any, E, Any, Nothing] =
       ZManaged.succeedNow((_ => Pull.halt(c), _ => ZIO.halt(c)))
