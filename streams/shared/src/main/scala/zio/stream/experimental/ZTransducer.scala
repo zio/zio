@@ -35,14 +35,6 @@ abstract class ZTransducer[-R, +E, -I, +O] {
       case (push, read) => (ZIO.foreach(_)(push), ZIO.foreach(_)(read))
     })
 
-  def discard[R1 <: R, E1 >: E, I1 <: I](f: Chunk[I1] => ZIO[R1, E1, Any]): ZTransducer[R1, E1, I1, O] =
-    ZTransducer(process.map {
-      case (push, read) => (push, f(_) *> read(Chunk.empty))
-    })
-
-  def discard_ : ZTransducer[R, E, I, O] =
-    discard(_ => ZIO.unit)
-
   def mapError[F](f: E => F): ZTransducer[R, F, I, O] =
     ZTransducer(process.map {
       case (push, read) => (push(_).mapError(_.map(f)), read(_).mapError(f))
@@ -63,6 +55,14 @@ abstract class ZTransducer[-R, +E, -I, +O] {
     ZSink(process.zipWith(sink.process) {
       case ((p1, r1), (p2, r2)) => (p1(_) >>= p2, r1(_) >>= r2)
     })
+
+  def sanitize[R1 <: R, E1 >: E, I1 <: I](f: Chunk[I1] => ZIO[R1, E1, Any]): ZTransducer[R1, E1, I1, O] =
+    ZTransducer(process.map {
+      case (push, read) => (push, f(_) *> read(Chunk.empty))
+    })
+
+  def sanitize_ : ZTransducer[R, E, I, O] =
+    sanitize(_ => ZIO.unit)
 }
 
 object ZTransducer {

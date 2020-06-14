@@ -19,14 +19,6 @@ abstract class ZSink[-R, +E, -I, +O] {
       case (push, read) => (ZIO.foreach_(_)(push), l => read(l.flatten))
     })
 
-  def discard[R1 <: R, E1 >: E, I1 <: I](f: Chunk[I1] => ZIO[R1, E1, Any]): ZSink[R1, E1, I1, O] =
-    ZSink(process.map {
-      case (push, read) => (push, f(_) *> read(Chunk.empty))
-    })
-
-  def discard_ : ZSink[R, E, I, O] =
-    discard(_ => ZIO.unit)
-
   /**
    * Runs this sink until it yields a result, then uses that result to create another
    * sink from the provided function which will continue to run until it yields a result.
@@ -85,6 +77,14 @@ abstract class ZSink[-R, +E, -I, +O] {
    */
   def mapM[R1 <: R, E1 >: E, A](f: O => ZIO[R1, E1, A]): ZSink[R1, E1, I, A] =
     ZSink(process.map { case (push, read) => (push, l => read(l).flatMap(f)) })
+
+  def sanitize[R1 <: R, E1 >: E, I1 <: I](f: Chunk[I1] => ZIO[R1, E1, Any]): ZSink[R1, E1, I1, O] =
+    ZSink(process.map {
+      case (push, read) => (push, f(_) *> read(Chunk.empty))
+    })
+
+  def sanitize_ : ZSink[R, E, I, O] =
+    sanitize(_ => ZIO.unit)
 }
 
 object ZSink {
