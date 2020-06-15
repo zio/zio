@@ -286,7 +286,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       } yield Chunk.single(ps.map(Right(_)))
                   },
                 (producerDone, scheduleWaiting) =>
-                  scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit)))
+                  scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit))),
+                Some(ZScope.global)
               )
 
           raceNextTime.get
@@ -2732,7 +2733,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       case None =>
                         previous.join.map(Chunk.single) <* ref.set(Done)
                     }
-                }
+                },
+                Some(ZScope.global)
               )
             case Current(fiber) =>
               fiber.join >>= store
