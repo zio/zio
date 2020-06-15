@@ -29,12 +29,12 @@ object ZStreamExperiment extends ZIOBaseSpec {
               push    = (i: Int) => effects.update(i :: _)
               latch   <- Promise.make[Nothing, Unit]
               fiber <- ZStream(
-                ZStream.bracket(push(1))(_ => push(1)),
-                ZStream.fromEffect(push(2)),
-                ZStream.bracket(push(3))(_ => push(3)) *> ZStream.fromEffect(
-                  latch.succeed(()) *> ZIO.never
-                )
-              ).flatMap(identity).runDrain.fork
+                        ZStream.bracket(push(1))(_ => push(1)),
+                        ZStream.fromEffect(push(2)),
+                        ZStream.bracket(push(3))(_ => push(3)) *> ZStream.fromEffect(
+                          latch.succeed(()) *> ZIO.never
+                        )
+                      ).flatMap(identity).runDrain.fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- effects.get
@@ -47,12 +47,12 @@ object ZStreamExperiment extends ZIOBaseSpec {
               stream = for {
                 _ <- ZStream.bracket(push("open1"))(_ => push("close1"))
                 _ <- ZStream(1, 2)
-                  .tap(_ => push("use2"))
-                  .ensuring(push("close2"))
+                      .tap(_ => push("use2"))
+                      .ensuring(push("close2"))
                 _ <- ZStream.bracket(push("open3"))(_ => push("close3"))
                 _ <- ZStream(3, 4)
-                  .tap(_ => push("use4"))
-                  .ensuring(push("close4"))
+                      .tap(_ => push("use4"))
+                      .ensuring(push("close4"))
               } yield ()
               _      <- stream.runDrain
               result <- effects.get
@@ -108,9 +108,9 @@ object ZStreamExperiment extends ZIOBaseSpec {
               s = ZStream.finalizer(fins.update(1 :: _)) *>
                 ZStream.finalizer(fins.update(2 :: _))
               result <- s.process.withEarlyRelease.use {
-                case (release, pull) =>
-                  pull *> release *> fins.get
-              }
+                         case (release, pull) =>
+                           pull *> release *> fins.get
+                       }
             } yield assert(result)(equalTo(List(1, 2)))
           }
         )

@@ -2,10 +2,10 @@ package zio.stream
 
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Param, Scope, State}
+import org.openjdk.jmh.annotations.{ Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Param, Scope, State }
 import zio.Chunk
 import zio.IOBenchmarks.unsafeRun
-import zio.stream.experimental.{ZSink => XSink, ZStream => XStream, ZTransducer => XTransducer}
+import zio.stream.experimental.{ ZSink => XSink, ZStream => XStream, ZTransducer => XTransducer }
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
