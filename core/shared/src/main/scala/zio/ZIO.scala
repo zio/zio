@@ -1193,6 +1193,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     })
 
   /**
+   * Returns a successful effect if the value is `Left`, or fails with the given error function 'e'.
+   */
+  final def leftOrFailWith[B, C, E1 >: E](e: C => E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, B] =
+    self.flatMap(ev(_) match {
+      case Left(value) => ZIO.succeedNow(value)
+      case Right(err)  => ZIO.fail(e(err))
+    })
+
+  /**
    * Returns a successful effect if the value is `Left`, or fails with a [[java.util.NoSuchElementException]].
    */
   final def leftOrFailException[B, C, E1 >: NoSuchElementException](
@@ -1220,6 +1229,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(ev(_) match {
       case Right(value) => ZIO.succeedNow(value)
       case Left(_)      => ZIO.fail(e)
+    })
+
+  /**
+   * Returns a successful effect if the value is `Right`, or fails with the given error function 'e'.
+   */
+  final def rightOrFailWith[B, C, E1 >: E](e: B => E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, C] =
+    self.flatMap(ev(_) match {
+      case Right(value) => ZIO.succeedNow(value)
+      case Left(err)    => ZIO.fail(e(err))
     })
 
   /**
