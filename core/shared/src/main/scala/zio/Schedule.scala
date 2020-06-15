@@ -623,6 +623,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     )
 
   /**
+   * Updates a service in the environment of this effect.
+   */
+  final def updateService[M] =
+    new Schedule.UpdateService[R, A, B, M](self)
+
+  /**
    * Returns a new schedule that continues this schedule so long as the
    * predicate is satisfied on the input of the schedule.
    */
@@ -982,4 +988,9 @@ object Schedule {
    */
   def unfoldM[R, A](a: URIO[R, A])(f: A => URIO[R, A]): Schedule[R, Any, A] =
     Schedule[R, A, Any, A](a, (_, a) => f(a), (_, a) => a)
+
+  final class UpdateService[-R, -A, +B, M](private val self: Schedule[R, A, B]) extends AnyVal {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): Schedule[R1, A, B] =
+      self.provideSome(ev.update(_, f))
+  }
 }
