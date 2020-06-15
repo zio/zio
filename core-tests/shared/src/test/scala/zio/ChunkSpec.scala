@@ -470,6 +470,23 @@ object ChunkSpec extends ZIOBaseSpec {
     zio.test.test("filterConstFalseResultsInEmptyChunk") {
       assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false))(equalTo(Chunk.empty))
     },
+    testM("zip") {
+      check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+        val actual   = as.zip(bs).toList
+        val expected = as.toList.zip(bs.toList)
+        assert(actual)(equalTo(expected))
+      }
+    },
+    zio.test.test("zipAll") {
+      val a = Chunk(1, 2, 3)
+      val b = Chunk(1, 2)
+      val c = Chunk((Some(1), Some(1)), (Some(2), Some(2)), (Some(3), Some(3)))
+      val d = Chunk((Some(1), Some(1)), (Some(2), Some(2)), (Some(3), None))
+      val e = Chunk((Some(1), Some(1)), (Some(2), Some(2)), (None, Some(3)))
+      assert(a.zipAll(a))(equalTo(c)) &&
+      assert(a.zipAll(b))(equalTo(d)) &&
+      assert(b.zipAll(a))(equalTo(e))
+    },
     zio.test.test("zipAllWith") {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
@@ -480,6 +497,11 @@ object ChunkSpec extends ZIOBaseSpec {
       val (bs, cs) = as.partitionMap(n => if (n % 2 == 0) Left(n) else Right(n))
       assert(bs)(equalTo(Chunk(0, 2, 4, 6, 8))) &&
       assert(cs)(equalTo(Chunk(1, 3, 5, 7, 9)))
+    },
+    zio.test.test("stack safety") {
+      val n  = 100000
+      val as = List.range(0, n).foldRight[Chunk[Int]](Chunk.empty)((a, as) => Chunk(a) ++ as)
+      assert(as.toArray)(equalTo(Array.range(0, n)))
     }
   )
 }

@@ -51,33 +51,33 @@ private[macros] class AccessibleMacro(val c: Context) {
 
     sealed trait Capability
     object Capability {
-      case class Effect(r: Tree, e: Tree, a: Tree)        extends Capability
-      case class Method(a: Tree)                          extends Capability
-      case class Sink(r: Tree, e: Tree, a: Tree, b: Tree) extends Capability
-      case class Stream(r: Tree, e: Tree, a: Tree)        extends Capability
+      case class Effect(r: Tree, e: Tree, a: Tree)                 extends Capability
+      case class Method(a: Tree)                                   extends Capability
+      case class Sink(r: Tree, e: Tree, a: Tree, l: Tree, b: Tree) extends Capability
+      case class Stream(r: Tree, e: Tree, a: Tree)                 extends Capability
     }
 
     case class TypeInfo(capability: Capability) {
 
       val r: Tree = capability match {
-        case Capability.Effect(r, _, _)  => r
-        case Capability.Sink(r, _, _, _) => r
-        case Capability.Stream(r, _, _)  => r
-        case Capability.Method(_)        => any
+        case Capability.Effect(r, _, _)     => r
+        case Capability.Sink(r, _, _, _, _) => r
+        case Capability.Stream(r, _, _)     => r
+        case Capability.Method(_)           => any
       }
 
       val e: Tree = capability match {
-        case Capability.Effect(_, e, _)  => e
-        case Capability.Sink(_, e, _, _) => e
-        case Capability.Stream(_, e, _)  => e
-        case Capability.Method(_)        => throwable
+        case Capability.Effect(_, e, _)     => e
+        case Capability.Sink(_, e, _, _, _) => e
+        case Capability.Stream(_, e, _)     => e
+        case Capability.Method(_)           => throwable
       }
 
       val a: Tree = capability match {
-        case Capability.Effect(_, _, a)  => a
-        case Capability.Sink(_, e, a, b) => tq"_root_.zio.stream.ZSink[$any, $e, $a, $b]"
-        case Capability.Stream(_, e, a)  => tq"_root_.zio.stream.ZStream[$any, $e, $a]"
-        case Capability.Method(a)        => a
+        case Capability.Effect(_, _, a)     => a
+        case Capability.Sink(_, e, a, l, b) => tq"_root_.zio.stream.ZSink[$any, $e, $a, $l, $b]"
+        case Capability.Stream(_, e, a)     => tq"_root_.zio.stream.ZStream[$any, $e, $a]"
+        case Capability.Method(a)           => a
       }
     }
 
@@ -97,10 +97,10 @@ private[macros] class AccessibleMacro(val c: Context) {
           }
 
           (dealiased.typeSymbol.fullName, typeArgTrees) match {
-            case ("zio.ZIO", r :: e :: a :: Nil)               => TypeInfo(Capability.Effect(r, e, a))
-            case ("zio.stream.ZSink", r :: e :: a :: b :: Nil) => TypeInfo(Capability.Sink(r, e, a, b))
-            case ("zio.stream.ZStream", r :: e :: a :: Nil)    => TypeInfo(Capability.Stream(r, e, a))
-            case _                                             => TypeInfo(Capability.Method(tree))
+            case ("zio.ZIO", r :: e :: a :: Nil)                    => TypeInfo(Capability.Effect(r, e, a))
+            case ("zio.stream.ZSink", r :: e :: a :: l :: b :: Nil) => TypeInfo(Capability.Sink(r, e, a, l, b))
+            case ("zio.stream.ZStream", r :: e :: a :: Nil)         => TypeInfo(Capability.Stream(r, e, a))
+            case _                                                  => TypeInfo(Capability.Method(tree))
           }
       }
 
@@ -124,8 +124,8 @@ private[macros] class AccessibleMacro(val c: Context) {
           val value = tq"_root_.zio.stream.ZStream[$r, $e, $a]"
           if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $nothing, $value]"
           else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $nothing, $value]"
-        case Capability.Sink(r, e, a, b) =>
-          val value = tq"_root_.zio.stream.ZSink[$r, $e, $a, $b]"
+        case Capability.Sink(r, e, a, l, b) =>
+          val value = tq"_root_.zio.stream.ZSink[$r, $e, $a, $l, $b]"
           if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $value]"
           else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $value]"
         case Capability.Method(a) =>

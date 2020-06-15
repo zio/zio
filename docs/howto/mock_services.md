@@ -100,7 +100,7 @@ object Example {
     def overloaded(arg1: Int)                  : UIO[String]
     def overloaded(arg1: Long)                 : UIO[String]
     def function(arg1: Int)                    : String
-    def sink(a: Int)                           : ZSink[Any, String, Int, List[Int]]
+    def sink(a: Int)                           : ZSink[Any, String, Int, Int, List[Int]]
     def stream(a: Int)                         : ZStream[Any, String, Int]
   }
 }
@@ -122,7 +122,7 @@ object ExampleMock extends Mock[Example] {
     object _1 extends Effect[Long, Nothing, String]
   }
   object Function extends Method[Int, Throwable, String]
-  object Sink     extends Sink[Any, String, Int, List[Int]]
+  object Sink     extends Sink[Any, String, Int, Int, List[Int]]
   object Stream   extends Stream[Any, String, Int]
 
   val compose: URLayer[Has[Proxy], Example] = ???
@@ -169,7 +169,7 @@ val compose: URLayer[Has[Proxy], Example] =
         def overloaded(arg1: Int)                  = proxy(Overloaded._0, arg1)
         def overloaded(arg1: Long)                 = proxy(Overloaded._1, arg1)
         def function(arg1: Int)                    = rts.unsafeRunTask(proxy(Function, arg1))
-        def sink(a: Int)                           = rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail(error))))
+        def sink(a: Int)                           = rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail[String, Int](error))))
         def stream(a: Int)                         = rts.unsafeRun(proxy(Stream, a))
       }
     }

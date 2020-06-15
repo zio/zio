@@ -129,9 +129,32 @@ object TMapSpec extends ZIOBaseSpec {
           } yield e
 
         assertM(tx.commit)(hasSameElements(expected))
+      },
+      testM("putIfAbsent") {
+        val expected = List("a" -> 1, "b" -> 2)
+
+        val tx =
+          for {
+            tmap <- TMap.make("a" -> 1)
+            _    <- tmap.putIfAbsent("b", 2)
+            _    <- tmap.putIfAbsent("a", 10)
+            e    <- tmap.toList
+          } yield e
+
+        assertM(tx.commit)(hasSameElements(expected))
       }
     ),
     suite("transformations")(
+      testM("size") {
+        val elems = List("a" -> 1, "b" -> 2)
+        val tx =
+          for {
+            tmap <- TMap.fromIterable(elems)
+            size <- tmap.size
+          } yield size
+
+        assertM(tx.commit)(equalTo(2))
+      },
       testM("toList") {
         val elems = List("a" -> 1, "b" -> 2)
         val tx =

@@ -873,7 +873,15 @@ object TArraySpec extends ZIOBaseSpec {
           result <- tArray.toChunk.commit
         } yield assert(result)(equalTo(Chunk(1, 2, 3, 4)))
       }
-    )
+    ),
+    suite("size") {
+      testM("returns the size of the array") {
+        checkM(Gen.listOf(Gen.anyInt)) { as =>
+          val size = TArray.fromIterable(as).map(_.size)
+          assertM(size.commit)(equalTo(as.size))
+        }
+      }
+    }
   )
 
   val N    = 1000
