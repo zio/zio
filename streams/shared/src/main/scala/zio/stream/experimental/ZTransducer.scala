@@ -221,20 +221,20 @@ object ZTransducer {
 
   /**
    * A transducer that divides an input string on `separator`.
-   * The `retain` flag controls whether `separator` is retained in the output.
    */
   def separate(separator: String, retain: Boolean = false): ZTransducer[Any, Nothing, String, Chunk[String]] =
     if (separator.isEmpty) dieMessage("cannot separate with empty separator")
     else {
-      val di: Int = if (retain) 0 else separator.length
+      val d1: Int = if (retain) separator.length else 0
+      val d2: Int = if (retain) 0 else separator.length
 
       def step(builder: ChunkBuilder[String], state: String): String = {
         var rem = state
         var i   = rem.indexOf(separator)
         while (i != -1) {
-          i = i + di
+          i = i + d1
           builder += rem.take(i)
-          rem = rem.drop(i)
+          rem = rem.drop(i + d2)
           i = rem.indexOf(separator)
         }
         rem
