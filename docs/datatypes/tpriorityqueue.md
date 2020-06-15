@@ -3,7 +3,7 @@ id: datatypes_tpriorityqueue
 title:  "TPriorityQueue"
 ---
 
-A `TPriorityQueue[A]` is a mutable queue that can participate in STM transactions. A `TPriorityQueue` contains values of type `A` that an `Ordering` is defined on. Unlike a `TQueue`, `take` returns the highest priority value (the value that is first in the specified ordering) as opposed to the first value offered to the queue. The ordering that elements with the same priority will be taken from the queue is not guaranteed.
+A `TPriorityQueue[A]` is a mutable queue that can participate in STM transactions. A `TPriorityQueue` contains values of type `A` for which an `Ordering` is defined. Unlike a `TQueue`, `take` returns the highest priority value (the value that is first in the specified ordering) as opposed to the first value offered to the queue. The ordering of elements sharing the same priority when taken from the queue is not guaranteed.
 
 ## Creating a TPriorityQueue
 
@@ -51,7 +51,7 @@ val sorted: STM[Nothing, Chunk[Int]] =
   } yield sorted
 ```
 
-You can also use `takeOption` method to take the first value from the queue if it exists without suspending or the `poll` method to observe the first element of the queue if it exists without removing it from the queue.
+You can also use `takeOption` method to take the first value from the queue if it exists without suspending or the `peek` method to observe the first element of the queue if it exists without removing it from the queue.
 
 Sometimes you want to take a snapshot of the current state of the queue without modifying it. For this the `toChunk` combinator or its variants `toList` or `toVector` are extremely helpful. These will return an immutable collection that consists of all of the elements currently in the queue, leaving the state of the queue unchanged.
 
