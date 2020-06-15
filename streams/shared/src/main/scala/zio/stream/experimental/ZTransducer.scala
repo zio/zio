@@ -102,7 +102,7 @@ object ZTransducer {
 
   /**
    * A transducer that divides input chunks into fixed `size` chunks.
-   * If the last chunk does not have `size` elements, it is dropped.
+   * If the last leftover does not have `size` elements, it is dropped.
    */
   def chunkN[A](size: Int): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
     chunkN(size, (_: Chunk[A]) => Chunk.empty)
@@ -112,14 +112,14 @@ object ZTransducer {
    * Leftovers are also resized and the the last leftover is padded with `pad` if it does not have `size` elements.
    */
   def chunkN[A](size: Int, pad: A): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
-    chunkN(size, (c: Chunk[A]) => c.padTo(size, pad))
+    chunkN(size, (c: Chunk[A]) => Chunk.single(c.padTo(size, pad)))
 
   /**
    * A transducer that divides input chunks into fixed `size` chunks.
    * Leftovers are also resized and the `pad` function is called on the last leftover if it does not have `size`
    * elements.
    */
-  def chunkN[A](size: Int, pad: Chunk[A] => Chunk[A]): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
+  def chunkN[A](size: Int, pad: Chunk[A] => Chunk[Chunk[A]]): ZTransducer[Any, Nothing, Chunk[A], Chunk[Chunk[A]]] =
     if (size <= 0) dieMessage(s"cannot create $size sized chunks")
     else {
 
@@ -139,12 +139,19 @@ object ZTransducer {
           (builder.result(), rem)
         },
         (state, leftover) => {
-          val builder = ChunkBuilder.make[Chunk[A]]()
+          val outer = ChunkBuilder.make[Chunk[Chunk[A]]]()
           var rem     = state
-          leftover.foreach(xs => rem = step(builder, xs))
-          if (rem.nonEmpty) builder += pad(rem)
-          val chunk = builder.result()
-          (if (chunk.isEmpty) Chunk.empty else Chunk.single(chunk), Chunk.empty)
+          leftover.foreach { xs =>
+            val inner = ChunkBuilder.make[Chunk[A]]()
+            rem = step(inner, xs)
+            val result = inner.result()
+            if (result.nonEmpty) outer += result
+          }
+          if (rem.nonEmpty) {
+            val padded = pad(rem)
+            if (padded.nonEmpty) outer += padded
+          }
+          (outer.result(), Chunk.empty)
         }
       )
     }
@@ -240,12 +247,16 @@ object ZTransducer {
           (builder.result(), rem)
         },
         (state, leftover) => {
-          val builder = ChunkBuilder.make[String]()
+          val outer = ChunkBuilder.make[Chunk[String]]()
           var rem     = state
-          leftover.foreach(xs => rem = step(builder, xs))
-          if (rem.nonEmpty) builder += rem
-          val chunk = builder.result()
-          (if (chunk.isEmpty) Chunk.empty else Chunk.single(chunk), "")
+          leftover.foreach { xs =>
+            val inner = ChunkBuilder.make[String]()
+            rem = step(inner, xs)
+            val result = inner.result()
+            if (result.nonEmpty) outer += result
+          }
+          if (rem.nonEmpty) outer += Chunk.single(rem)
+          (outer.result(), "")
         }
       )
     }
