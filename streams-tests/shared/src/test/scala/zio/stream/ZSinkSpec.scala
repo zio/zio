@@ -210,6 +210,18 @@ object ZSinkSpec extends ZIOBaseSpec {
         }
         assertions.map(tst => tst.reduce(_ && _))
       },
+      suite("either")(
+        testM("happy path") {
+          assertM(ZStream(1, 2, 3).run(ZSink.head.either.exposeLeftover))(
+            equalTo((Right(Some(1)), Chunk(2, 3)))
+          )
+        },
+        testM("failure") {
+          assertM(ZStream(1, 2, 3).run(ZSink.fail("fail").either.exposeLeftover))(
+            equalTo((Left("fail"), Chunk(1, 2, 3)))
+          )
+        }
+      ),
       suite("flatMap")(
         testM("non-empty input") {
           assertM(

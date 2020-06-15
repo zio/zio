@@ -177,6 +177,19 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     contramapChunksM(f).mapM(g)
 
   /**
+   * Catches potential error into `Either`
+   */
+  def either: ZSink[R, Nothing, I, L, Either[E, Z]] = ZSink {
+    self.push.map(p =>
+      in => {
+        p(in).catchAll {
+          case (e, leftover) => Push.emit(e, leftover)
+        }
+      }
+    )
+  }
+
+  /**
    * Runs this sink until it yields a result, then uses that result to create another
    * sink from the provided function which will continue to run until it yields a result.
    *
