@@ -140,7 +140,7 @@ object ZTransducer {
         },
         (state, leftover) => {
           val outer = ChunkBuilder.make[Chunk[Chunk[A]]]()
-          var rem     = state
+          var rem   = state
           leftover.foreach { xs =>
             val inner = ChunkBuilder.make[Chunk[A]]()
             rem = step(inner, xs)
@@ -164,6 +164,9 @@ object ZTransducer {
 
   def halt[E](cause: Cause[E]): ZTransducer[Any, E, Any, Nothing] =
     ZTransducer(Process.halt(cause))
+
+  def filter[I](p: I => Boolean): ZTransducer[Any, Nothing, Chunk[I], Chunk[I]] =
+    map(_.filter(p))
 
   def fold[I, O, S](
     init: => S
@@ -248,7 +251,7 @@ object ZTransducer {
         },
         (state, leftover) => {
           val outer = ChunkBuilder.make[Chunk[String]]()
-          var rem     = state
+          var rem   = state
           leftover.foreach { xs =>
             val inner = ChunkBuilder.make[String]()
             rem = step(inner, xs)

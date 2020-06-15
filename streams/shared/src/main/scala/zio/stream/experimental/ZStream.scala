@@ -56,6 +56,13 @@ abstract class ZStream[-R, +E, +I] private (val process: ZStream.Process[R, E, I
   final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, I] =
     ZStream(self.process.ensuringFirst(fin))
 
+  def filter(p: I => Boolean): ZStream[R, E, I] =
+    ZStream(process.map { pull =>
+      def go: Pull[R, E, I] =
+        pull.flatMap(i => if (p(i)) Pull.emit(i) else go)
+      go
+    })
+
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
    * produced by passing each element of this stream to `f`.
@@ -91,6 +98,18 @@ abstract class ZStream[-R, +E, +I] private (val process: ZStream.Process[R, E, I
       } yield go(outer, inner, finalizer)
     }
   }
+
+  def forever: ZStream[R, E, I] =
+    ZStream(
+      for {
+        current <- ZRef.makeManaged(Pull.end: Pull[R, E, I])
+        switch  <- ZManaged.switchable[R, Nothing, Pull[R, E, I]]
+      } yield {
+        def go: Pull[R, E, I] =
+          current.get.flatten.catchAllCause(Pull.recover(switch(process).flatMap(current.set) *> go))
+        go
+      }
+    )
 
   /**
    * Pulls and returns one element from this stream, without running the entire stream.
@@ -140,6 +159,13 @@ abstract class ZStream[-R, +E, +I] private (val process: ZStream.Process[R, E, I
   def runDrain: ZIO[R, E, Unit] =
     run(ZSink.drain)
 
+  def take(n: Long): ZStream[R, E, I] =
+    ZStream(
+      ZRef
+        .makeManaged(n)
+        .zipWith(process)((ref, pull) => ref.modify(i => if (i <= 0) (Pull.end, 0) else (pull, i - 1)).flatten)
+    )
+
   def tap[R1 <: R, E1 >: E](f: I => ZIO[R1, E1, Any]): ZStream[R1, E1, I] =
     mapM(i => f(i).as(i))
 }
@@ -180,6 +206,13 @@ object ZStream {
 
   def fromEffect[R, E, I](z: ZIO[R, E, I]): ZStream[R, E, I] =
     apply(ZRef.makeManaged(false).map(_.getAndSet(true).flatMap(if (_) Pull.end else Pull(z))))
+
+  def fromIterable[I](is: Iterable[I]): ZStream[Any, Nothing, I] =
+    ZStream(
+      ZRef
+        .makeManaged(is)
+        .map(ref => ref.modify(rem => if (rem.isEmpty) (Pull.end, rem) else (Pull.emit(rem.head), rem.tail)).flatten)
+    )
 
   def fromPull[R, E, I](p: Pull[R, E, I]): ZStream[R, E, I] =
     apply(ZManaged.succeedNow(p))

@@ -181,6 +181,9 @@ object ZSink {
   def succeed[A](a: A): ZSink[Any, Nothing, Any, A] =
     ZSink(Process.succeed(ZIO.succeedNow(a)))
 
+  def sum[N](implicit N: Numeric[N]): ZSink[Any, Nothing, N, N] =
+    fold(N.zero)(N.plus)((s, a) => N.plus(s, a.sum))
+
   object Process {
 
     def drain[I]: Process[Any, Nothing, I, Unit] =
