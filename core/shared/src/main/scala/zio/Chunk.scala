@@ -28,6 +28,11 @@ import scala.reflect.{ classTag, ClassTag }
  * to the underlying elements, and they become lazy on operations that would be
  * costly with arrays, such as repeated concatenation.
  *
+ * The implementation of balanced concatenation is based on the one for
+ * Conc-Trees in "Conc-Trees for Functional and Parallel Programming" by
+ * Aleksandar Prokopec and Martin Odersky.
+ * [[http://aleksandar-prokopec.com/resources/docs/lcpc-conc-trees.pdf]]
+ *
  * NOTE: For performance reasons `Chunk` does not box primitive types. As a
  * result, it is not safe to construct chunks from heteregenous primitive
  * types.
@@ -44,10 +49,39 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
-  final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
-    if (self.length == 0) that
-    else if (that.length == 0) self
-    else Chunk.Concat(self, that)
+  final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] = {
+    val diff = that.depth - self.depth
+    if (math.abs(diff) <= 1) Chunk.Concat(self, that)
+    else if (diff < -1) {
+      if (self.left.depth >= self.right.depth) {
+        val nr = self.right ++ that
+        Chunk.Concat(self.left, nr)
+      } else {
+        val nrr = self.right.right ++ that
+        if (nrr.depth == self.depth - 3) {
+          val nr = Chunk.Concat(self.right.left, nrr)
+          Chunk.Concat(self.left, nr)
+        } else {
+          val nl = Chunk.Concat(self.left, self.right.left)
+          Chunk.Concat(nl, nrr)
+        }
+      }
+    } else {
+      if (that.right.depth >= that.left.depth) {
+        val nl = self ++ that.left
+        Chunk.Concat(nl, that.right)
+      } else {
+        val nll = self ++ that.left.left
+        if (nll.depth == that.depth - 3) {
+          val nl = Chunk.Concat(nll, that.left.right)
+          Chunk.Concat(nl, that.right)
+        } else {
+          val nr = Chunk.Concat(that.left.right, that.right)
+          Chunk.Concat(nll, nr)
+        }
+      }
+    }
+  }
 
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
     that.prepend(self)
@@ -653,7 +687,31 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   override final def toString: String =
     toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
 
-  def zipAllWith[B, C](
+  /**
+   * Zips this chunk with the specified chunk to produce a new chunk with
+   * pairs of elements from each chunk. The returned chunk will have the
+   * length of the shorter chunk.
+   */
+  final def zip[B](that: Chunk[B]): Chunk[(A, B)] =
+    zipWith(that)((_, _))
+
+  /**
+   * Zips this chunk with the specified chunk to produce a new chunk with
+   * pairs of elements from each chunk, filling in missing values from the
+   * shorter chunk with `None`. The returned chunk will have the length of the
+   * longer chunk.
+   */
+  final def zipAll[B](that: Chunk[B]): Chunk[(Option[A], Option[B])] =
+    zipAllWith(that)(a => (Some(a), None), b => (None, Some(b)))((a, b) => (Some(a), Some(b)))
+
+  /**
+   * Zips with chunk with the specified chunk to produce a new chunk with
+   * pairs of elements from each chunk combined using the specified function
+   * `both`. If one chunk is shorter than the other uses the specified
+   * function `left` or `right` to map the element that does exist to the
+   * result type.
+   */
+  final def zipAllWith[B, C](
     that: Chunk[B]
   )(left: A => C, right: B => C)(both: (A, B) => C): Chunk[C] = {
 
@@ -725,22 +783,32 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Appends an element to the chunk.
    */
-  protected def append[A1 >: A](a: A1): Chunk[A1] =
-    if (self.length == 0) Chunk.single(a)
-    else Chunk.Concat(self, Chunk.single(a))
+  protected def append[A1 >: A](a1: A1): Chunk[A1] = {
+    val buffer = Array.ofDim[AnyRef](Chunk.BufferSize)
+    buffer(0) = a1.asInstanceOf[AnyRef]
+    Chunk.AppendN(self, buffer, 1, new AtomicInteger(1))
+  }
 
   /**
    * Prepends an element to the chunk.
    */
-  protected def prepend[A1 >: A](a: A1): Chunk[A1] =
-    if (self.length == 0) Chunk.single(a)
-    else Chunk.Concat(Chunk.single(a), self)
+  protected def prepend[A1 >: A](a1: A1): Chunk[A1] = {
+    val buffer = Array.ofDim[AnyRef](Chunk.BufferSize)
+    buffer(Chunk.BufferSize - 1) = a1.asInstanceOf[AnyRef]
+    Chunk.PrependN(self, buffer, 1, new AtomicInteger(1))
+  }
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
   protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] =
     if (isEmpty) Chunk.empty else self.materialize.collectChunk(pf)
+
+  protected def depth: Int =
+    0
+
+  protected def left: Chunk[A] =
+    Chunk.empty
 
   /**
    * Returns a chunk with the elements mapped by the specified function.
@@ -757,6 +825,9 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
 
     builder.result()
   }
+
+  protected def right: Chunk[A] =
+    Chunk.empty
 
   private final def fromBuilder[A1 >: A, B[_]](builder: Builder[A1, B[A1]]): B[A1] = {
     val c   = materialize
@@ -1162,18 +1233,6 @@ object Chunk {
     override def materialize[A1 >: A]: Chunk[A1] =
       self
 
-    override protected def append[A1 >: A](a1: A1): Chunk[A] = {
-      val buffer = Array.ofDim[AnyRef](BufferSize)
-      buffer(0) = a1.asInstanceOf[AnyRef]
-      AppendN(self, buffer, 1, new AtomicInteger(1))
-    }
-
-    override protected def prepend[A1 >: A](a1: A1): Chunk[A] = {
-      val buffer = Array.ofDim[AnyRef](BufferSize)
-      buffer(BufferSize - 1) = a1.asInstanceOf[AnyRef]
-      PrependN(self, buffer, 1, new AtomicInteger(1))
-    }
-
     /**
      * Takes all elements so long as the predicate returns true.
      */
@@ -1227,31 +1286,33 @@ object Chunk {
     }
   }
 
-  private final case class Concat[A](l: Chunk[A], r: Chunk[A]) extends Chunk[A] { self =>
+  private final case class Concat[A](override protected val left: Chunk[A], override protected val right: Chunk[A])
+      extends Chunk[A] {
+    self =>
 
     implicit val classTag: ClassTag[A] =
-      l match {
-        case Empty => classTagOf(r)
-        case _     => classTagOf(l)
+      left match {
+        case Empty => classTagOf(right)
+        case _     => classTagOf(left)
       }
 
-    override val length: Int =
-      l.length + r.length
+    override val depth: Int =
+      1 + math.max(left.depth, right.depth)
 
-    override protected def append[A1 >: A](a1: A1): Chunk[A1] =
-      Concat(l, r :+ a1)
+    override val length: Int =
+      left.length + right.length
 
     override def apply(n: Int): A =
-      if (n < l.length) l(n) else r(n - l.length)
+      if (n < left.length) left(n) else right(n - left.length)
 
     override def foreach[B](f: A => B): Unit = {
-      l.foreach(f)
-      r.foreach(f)
+      left.foreach(f)
+      right.foreach(f)
     }
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
-      l.toArray(n, dest)
-      r.toArray(n + l.length, dest)
+      left.toArray(n, dest)
+      right.toArray(n + left.length, dest)
     }
   }
 

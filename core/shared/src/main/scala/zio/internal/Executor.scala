@@ -64,6 +64,14 @@ trait Executor extends ExecutorPlatformSpecific { self =>
         cause.printStackTrace
     }
 
+  /**
+   * Views this `Executor` as a Java `Executor`.
+   */
+  lazy val asJava: java.util.concurrent.Executor =
+    command =>
+      if (submit(command)) ()
+      else throw new java.util.concurrent.RejectedExecutionException
+
 }
 
 object Executor extends DefaultExecutors with Serializable {

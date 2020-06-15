@@ -11,6 +11,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration._
 import zio.stm.TQueue
+import zio.stream.ZSink.Push
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, nonFlaky, timeout }
 import zio.test._
@@ -260,6 +261,18 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- fiber.interrupt
               result <- cancelled.get
             } yield assert(result)(isTrue)
+          } @@ zioTag(interruption),
+          testM("child fiber handling") {
+            assertM(
+              ZStream
+                .fromSchedule(Schedule.fixed(100.millis))
+                .tap(_ => TestClock.adjust(100.millis))
+                .aggregateAsyncWithin(ZTransducer.last, Schedule.fixed(500.millis))
+                .interruptWhen(ZIO.never)
+                .take(5)
+                .someOrFail(None)
+                .runCollect
+            )(equalTo(Chunk(3, 8, 13, 18, 23)))
           } @@ zioTag(interruption),
           testM("aggregateAsyncWithinEitherLeftoverHandling") {
             val data = List(1, 2, 2, 3, 2, 3)
@@ -2106,10 +2119,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         testM("peel") {
-          val sink: ZSink[Any, Nothing, Int, Chunk[Int]] = ZSink {
+          val sink: ZSink[Any, Nothing, Int, Nothing, Chunk[Int]] = ZSink {
             ZManaged.succeed {
-              case Some(inputs) => ZIO.fail(Right(inputs))
-              case None         => ZIO.fail(Right(Chunk.empty))
+              case Some(inputs) => Push.emit(inputs, Chunk.empty)
+              case None         => Push.emit(Chunk.empty, Chunk.empty)
             }
           }
 
@@ -2218,7 +2231,19 @@ object ZStreamSpec extends ZIOBaseSpec {
           ),
           testM("empty stream")(
             assertM(ZStream.empty.runHead)(equalTo(None))
-          )
+          ),
+          testM("Pulls up to the first non-empty chunk") {
+            for {
+              ref <- Ref.make[List[Int]](Nil)
+              head <- ZStream(
+                       ZStream.fromEffect(ref.update(1 :: _)).drain,
+                       ZStream.fromEffect(ref.update(2 :: _)).drain,
+                       ZStream(1),
+                       ZStream.fromEffect(ref.update(3 :: _))
+                     ).flatten.runHead
+              result <- ref.get
+            } yield assert(head)(isSome(equalTo(1))) && assert(result)(equalTo(List(2, 1)))
+          }
         ),
         suite("runLast")(
           testM("nonempty stream")(
@@ -2226,6 +2251,23 @@ object ZStreamSpec extends ZIOBaseSpec {
           ),
           testM("empty stream")(
             assertM(ZStream.empty.runLast)(equalTo(None))
+          )
+        ),
+        suite("runManaged")(
+          testM("properly closes the resources")(
+            for {
+              closed <- Ref.make[Boolean](false)
+              res    = ZManaged.make(ZIO.succeed(1))(_ => closed.set(true))
+              stream = ZStream.managed(res).flatMap(a => ZStream(a, a, a))
+              collectAndCheck <- stream
+                                  .runManaged(ZSink.collectAll)
+                                  .flatMap(r => closed.get.toManaged_.map((r, _)))
+                                  .useNow
+              (result, state) = collectAndCheck
+              finalState      <- closed.get
+            } yield {
+              assert(result)(equalTo(Chunk(1, 1, 1))) && assert(state)(isFalse) && assert(finalState)(isTrue)
+            }
           )
         ),
         suite("schedule")(
@@ -2543,6 +2585,29 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- TestClock.adjust(1.second)
               result <- fiber.join
             } yield result)(equalTo(Chunk(3)))
+          },
+          testM("should interrupt fibers properly") {
+            assertM(
+              ZStream
+                .fromSchedule(Schedule.fixed(100.millis))
+                .tap(_ => TestClock.adjust(100.millis))
+                .debounce(50.millis)
+                .interruptWhen(ZIO.never)
+                .take(5)
+                .runCollect
+            )(equalTo(Chunk(0, 1, 2, 3, 4)))
+          },
+          testM("should interrupt children fiber on stream interruption") {
+            for {
+              ref <- Ref.make(false)
+              fiber <- (ZStream.fromEffect(ZIO.unit) ++ ZStream.fromEffect(ZIO.never.onInterrupt(ref.set(true))))
+                        .debounce(800.millis)
+                        .runDrain
+                        .fork
+              _     <- TestClock.adjust(1.minute)
+              _     <- fiber.interrupt
+              value <- ref.get
+            } yield assert(value)(equalTo(true))
           }
         ),
         suite("timeout")(
