@@ -437,7 +437,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     } yield push)
   }
 
-  def exposeLeftover: ZSink[R, E, I, Nothing, (Z, Chunk[L])] = ZSink {
+  private[zio] def exposeLeftover: ZSink[R, E, I, Nothing, (Z, Chunk[L])] = ZSink {
     self.push.map { p => (in: Option[Chunk[I]]) =>
       p(in).mapError { case (v, leftover) => (v.map(z => (z, leftover)), Chunk.empty) }
     }
