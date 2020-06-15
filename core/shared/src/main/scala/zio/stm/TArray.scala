@@ -331,6 +331,12 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     }
 
   /**
+   * Returns the size of the array.
+   */
+  def size: Int =
+    array.size
+
+  /**
    * Collects all elements into a list.
    */
   def toList: USTM[List[A]] =
