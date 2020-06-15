@@ -687,7 +687,31 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   override final def toString: String =
     toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
 
-  def zipAllWith[B, C](
+  /**
+   * Zips this chunk with the specified chunk to produce a new chunk with
+   * pairs of elements from each chunk. The returned chunk will have the
+   * length of the shorter chunk.
+   */
+  final def zip[B](that: Chunk[B]): Chunk[(A, B)] =
+    zipWith(that)((_, _))
+
+  /**
+   * Zips this chunk with the specified chunk to produce a new chunk with
+   * pairs of elements from each chunk, filling in missing values from the
+   * shorter chunk with `None`. The returned chunk will have the length of the
+   * longer chunk.
+   */
+  final def zipAll[B](that: Chunk[B]): Chunk[(Option[A], Option[B])] =
+    zipAllWith(that)(a => (Some(a), None), b => (None, Some(b)))((a, b) => (Some(a), Some(b)))
+
+  /**
+   * Zips with chunk with the specified chunk to produce a new chunk with
+   * pairs of elements from each chunk combined using the specified function
+   * `both`. If one chunk is shorter than the other uses the specified
+   * function `left` or `right` to map the element that does exist to the
+   * result type.
+   */
+  final def zipAllWith[B, C](
     that: Chunk[B]
   )(left: A => C, right: B => C)(both: (A, B) => C): Chunk[C] = {
 
