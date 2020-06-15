@@ -2981,6 +2981,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
 
   /**
+   * Lifts an `Option` into a `ZIO` but preserves the error as an option in the error channel, making it easier to compose
+   * in some scenarios.
+   */
+  def fromOptionError[A](v: => Option[A]): IO[Option[Nothing], A] =
+    effectTotal(v).flatMap(_.fold[IO[Option[Nothing], A]](fail(None))(succeedNow))
+
+  /**
    * Lifts a `Try` into a `ZIO`.
    */
   def fromTry[A](value: => scala.util.Try[A]): Task[A] =
