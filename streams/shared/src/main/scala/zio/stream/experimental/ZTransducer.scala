@@ -220,12 +220,12 @@ object ZTransducer {
    * A transducer that divides input strings on the system line separator.
    */
   val newLines: ZTransducer[system.System, Nothing, String, Chunk[String]] =
-    ZTransducer(ZIO.accessM[system.System](_.get.lineSeparator).toManaged_.flatMap(separate(_).process))
+    ZTransducer(ZIO.accessM[system.System](_.get.lineSeparator).toManaged_.flatMap(splitOn(_).process))
 
   /**
    * A transducer that divides an input string on `separator`.
    */
-  def separate(separator: String, retain: Boolean = false): ZTransducer[Any, Nothing, String, Chunk[String]] =
+  def splitOn(separator: String, retain: Boolean = false): ZTransducer[Any, Nothing, String, Chunk[String]] =
     if (separator.isEmpty) dieMessage("cannot separate with empty separator")
     else {
       val d1: Int = if (retain) separator.length else 0
