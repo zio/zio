@@ -986,6 +986,12 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     ZManaged.unsandbox(mapError(ev))
 
   /**
+   * Updates a service in the environment of this effect.
+   */
+  final def updateService[M] =
+    new ZManaged.UpdateService[R, E, A, M](self)
+
+  /**
    * Run an effect while acquiring the resource before and releasing it after
    */
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
@@ -1150,6 +1156,11 @@ object ZManaged {
   final class UnlessM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E](managed: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
       b.flatMap(b => if (b) unit else managed.unit)
+  }
+
+  final class UpdateService[-R, +E, +A, M](private val self: ZManaged[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZManaged[R1, E, A] =
+      self.provideSome(ev.update(_, f))
   }
 
   final class WhenM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {

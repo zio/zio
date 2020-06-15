@@ -1901,6 +1901,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     }
 
   /**
+   * Updates a service in the environment of this effect.
+   */
+  final def updateService[M] =
+    new ZIO.UpdateService[R, E, A, M](self)
+
+  /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[E1](implicit ev: E <:< Cause[E1]): ZIO[R, E1, A] =
@@ -3697,6 +3703,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZIO[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+  }
+
+  final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZIO[R1, E, A] =
+      self.provideSome(ev.update(_, f))
   }
 
   @implicitNotFound(

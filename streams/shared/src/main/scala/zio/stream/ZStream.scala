@@ -2850,6 +2850,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     aggregate(transducer)
 
   /**
+   * Updates a service in the environment of this effect.
+   */
+  final def updateService[M] =
+    new ZStream.UpdateService[R, E, O, M](self)
+
+  /**
    * Threads the stream through the transformation function `f`.
    */
   final def via[R2, E2, O2](f: ZStream[R, E, O] => ZStream[R2, E2, O2]): ZStream[R2, E2, O2] = f(self)
@@ -3852,6 +3858,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZStream[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+  }
+
+  final class UpdateService[-R, +E, +O, M](private val self: ZStream[R, E, O]) extends AnyVal {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZStream[R1, E, O] =
+      self.provideSome(ev.update(_, f))
   }
 
   type Pull[-R, +E, +O] = ZIO[R, Option[E], Chunk[O]]

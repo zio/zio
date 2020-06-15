@@ -3063,6 +3063,15 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("updateService")(
+      testM("updates a service in the environment") {
+        val zio = for {
+          a <- ZIO.service[Int].updateService[Int](_ + 1)
+          b <- ZIO.service[Int]
+        } yield (a, b)
+        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo((1, 0)))
+      }
+    ),
     suite("validate")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)

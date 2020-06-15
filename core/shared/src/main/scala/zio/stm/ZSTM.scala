@@ -843,6 +843,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     ZSTM.unlessM(b)(self)
 
   /**
+   * Updates a service in the environment of this effect.
+   */
+  final def updateService[M] =
+    new ZSTM.UpdateService[R, E, A, M](self)
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
   def when(b: => Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
@@ -1508,6 +1514,11 @@ object ZSTM {
   final class UnlessM[R, E](private val b: ZSTM[R, E, Boolean]) {
     def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
       b.flatMap(b => if (b) unit else stm.unit)
+  }
+
+  final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZSTM[R1, E, A] =
+      self.provideSome(ev.update(_, f))
   }
 
   final class WhenM[R, E](private val b: ZSTM[R, E, Boolean]) {
