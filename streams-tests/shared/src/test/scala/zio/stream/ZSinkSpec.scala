@@ -177,16 +177,18 @@ object ZSinkSpec extends ZIOBaseSpec {
     suite("Combinators")(
       testM("raceBoth") {
         checkM(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
-          val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
-          sinkRaceLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
+          val stream   = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
+          val shuffled = Random.shuffle(stream)
+          sinkRaceLaw(ZStream.fromIterable(shuffled), findSink(20), findSink(40))
         }
       },
       suite("zipWithPar")(
         testM("coherence") {
           checkM(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
-            val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
+            val stream   = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
+            val shuffled = Random.shuffle(stream)
             SinkUtils
-              .zipParLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
+              .zipParLaw(ZStream.fromIterable(shuffled), findSink(20), findSink(40))
           }
         },
         suite("zipRight (*>)")(

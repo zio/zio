@@ -12,25 +12,30 @@ object SinkUtils {
       case None    => IO.fail(())
     }
 
-  def sinkRaceLaw[E, A, L](
+  def sinkRaceLaw[E, A, B, C, L](
     stream: ZStream[Any, Nothing, A],
-    s1: ZSink[Any, E, A, L, A],
-    s2: ZSink[Any, E, A, L, A]
+    s1: ZSink[Any, E, A, L, B],
+    s2: ZSink[Any, E, A, L, C]
   ): UIO[TestResult] =
     for {
-      r1 <- stream.run(s1).either
-      r2 <- stream.run(s2).either
-      r  <- stream.run(s1.raceBoth(s2)).either
+      x        <- stream.run(s1.either.exposeLeftover)
+      (zb, l1) = x
+      y        <- stream.run(s2.either.exposeLeftover)
+      (zc, l2) = y
+      z        <- stream.run(s1.raceBoth(s2).either.exposeLeftover)
+      (zbc, l) = z
     } yield {
-      r match {
-        case Left(_) => assert(r1)(Assertion.isLeft) && assert(r2)(Assertion.isLeft)
+      val valueCheck = zbc match {
+        case Left(_) => assert(zb)(Assertion.isLeft) && assert(zc)(Assertion.isLeft)
         case Right(v) => {
           v match {
-            case Left(w)  => assert(Right(w))(equalTo(r1))
-            case Right(w) => assert(Right(w))(equalTo(r2))
+            case Left(w)  => assert(Right(w))(equalTo(zb))
+            case Right(w) => assert(Right(w))(equalTo(zc))
           }
         }
       }
+      val leftoverCheck = assert(l1)(Assertion.endsWith(l)) || assert(l2)(Assertion.endsWith(l))
+      valueCheck && leftoverCheck
     }
 
   def zipParLaw[A, B, C, L, E](
@@ -39,14 +44,19 @@ object SinkUtils {
     sink2: ZSink[Any, E, A, L, C]
   ): UIO[TestResult] =
     for {
-      zb  <- s.run(sink1).either
-      zc  <- s.run(sink2).either
-      zbc <- s.run(sink1.zipPar(sink2)).either
+      x        <- s.run(sink1.either.exposeLeftover)
+      (zb, l1) = x
+      y        <- s.run(sink2.either.exposeLeftover)
+      (zc, l2) = y
+      z        <- s.run(sink1.zipPar(sink2).either.exposeLeftover)
+      (zbc, l) = z
     } yield {
-      zbc match {
+      val valueCheck = zbc match {
         case Left(e)       => assert(zb)(equalTo(Left(e))) || assert(zc)(equalTo(Left(e)))
         case Right((b, c)) => assert(zb)(equalTo(Right(b))) && assert(zc)(equalTo(Right(c)))
       }
+      val leftoverCheck = assert(l)(equalTo(l1)) || assert(l)(equalTo(l2))
+      valueCheck && leftoverCheck
     }
 
 }
