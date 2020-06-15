@@ -1,7 +1,7 @@
 package zio.stream.experimental
 
-import zio.{Chunk, Exit, Promise, Ref, UIO, ZIO, ZIOBaseSpec}
-import zio.test.Assertion.{equalTo, isTrue}
+import zio._
+import zio.test.Assertion._
 import zio.test._
 
 object ZStreamExperiment extends ZIOBaseSpec {
