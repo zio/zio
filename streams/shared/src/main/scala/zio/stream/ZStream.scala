@@ -275,7 +275,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         scheduleResult = Take.single(Left(schedule.extract(state._1, state._2)))
                         take           <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
                         _              <- raceNextTime.set(false)
-                        _              <- producerWaiting.disown // To avoid interruption when this fiber is joined
                         _              <- waitingFiber.set(Some(producerWaiting))
                       } yield Chunk(scheduleResult, take.map(Right(_)))
                     case Some(nextState) =>
@@ -283,7 +282,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         _  <- scheduleState.update(_.copy(_2 = nextState))
                         ps <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
                         _  <- raceNextTime.set(false)
-                        _  <- producerWaiting.disown // To avoid interruption when this fiber is joined
                         _  <- waitingFiber.set(Some(producerWaiting))
                       } yield Chunk.single(ps.map(Right(_)))
                   },
@@ -2719,7 +2717,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               fiber.join.raceWith[R with Clock, Option[E1], Option[E1], Chunk[O2], Chunk[O2]](chunks)(
                 {
                   case (Exit.Success(value), current) =>
-                    current.disown *> ref.set(Current(current)).as(Chunk.single(value))
+                    ref.set(Current(current)).as(Chunk.single(value))
                   case (Exit.Failure(cause), current) =>
                     current.interrupt *> Pull.halt(cause)
                 }, {

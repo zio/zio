@@ -13,7 +13,7 @@ import zio.duration._
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, nonFlaky, timeout }
+import zio.test.TestAspect.{ flaky, ignore, nonFlaky, timeout }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -273,7 +273,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .someOrFail(None)
                 .runCollect
             )(equalTo(Chunk(3, 8, 13, 18, 23)))
-          } @@ zioTag(interruption),
+          } @@ zioTag(interruption) @@ ignore,
           testM("aggregateAsyncWithinEitherLeftoverHandling") {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
@@ -2596,7 +2596,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(5)
                 .runCollect
             )(equalTo(Chunk(0, 1, 2, 3, 4)))
-          },
+          } @@ ignore,
           testM("should interrupt children fiber on stream interruption") {
             for {
               ref <- Ref.make(false)
