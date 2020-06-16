@@ -1180,8 +1180,8 @@ object ZSTM {
   /**
    * Lifts an `Option` into a `STM`.
    */
-  def fromOption[A](v: => Option[A]): STM[Unit, A] =
-    STM.suspend(v.fold[STM[Unit, A]](STM.fail(()))(STM.succeedNow))
+  def fromOption[A](v: => Option[A]): STM[Option[Nothing], A] =
+    STM.suspend(v.fold[STM[Option[Nothing], A]](STM.fail(None))(STM.succeedNow))
 
   /**
    * Lifts a `Try` into a `STM`.

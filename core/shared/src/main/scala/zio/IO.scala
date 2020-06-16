@@ -490,7 +490,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.fromOption]]
    */
-  def fromOption[A](v: => Option[A]): IO[Unit, A] = ZIO.fromOption(v)
+  def fromOption[A](v: => Option[A]): IO[Option[Nothing], A] = ZIO.fromOption(v)
 
   /**
    * @see See [[zio.ZIO.fromTry]]

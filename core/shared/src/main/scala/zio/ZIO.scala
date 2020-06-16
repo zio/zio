@@ -2975,16 +2975,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Lifts an `Option` into a `ZIO`.
-   */
-  def fromOption[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
-
-  /**
    * Lifts an `Option` into a `ZIO` but preserves the error as an option in the error channel, making it easier to compose
    * in some scenarios.
    */
-  def fromOptionError[A](v: => Option[A]): IO[Option[Nothing], A] =
+  def fromOption[A](v: => Option[A]): IO[Option[Nothing], A] =
     effectTotal(v).flatMap(_.fold[IO[Option[Nothing], A]](fail(None))(succeedNow))
 
   /**
