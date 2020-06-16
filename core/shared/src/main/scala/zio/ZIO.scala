@@ -721,22 +721,26 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def forever: ZIO[R, E, Nothing] = self *> self.forever
 
   /**
-   * The `fork` method can be used to launch a new "child" fiber, which executes
-   * this effect concurrently. Instead of using this method directly, look for
-   * other higher-level methods, such as `raceWith`, `zipPar`, and so forth.
+   * Returns an effect that forks this effect into its own separate fiber,
+   * returning the fiber immediately, without waiting for it to begin executing
+   * the effect.
    *
-   * The `fork` method returns an effect that forks this effect into its own
-   * separate "child" , returning the fiber immediately, without waiting for it
-   * to begin executing the effect.
+   * You can use the `fork` method whenever you want to execute an effect in a
+   * new fiber, concurrently and without "blocking" the fiber executing other
+   * effects. Using fibers can be tricky, so instead of using this method
+   * directly, consider other higher-level methods, such as `raceWith`,
+   * `zipPar`, and so forth.
    *
-   * The returned fiber can be used to interrupt the forked fiber, await its
-   * result, or join the fiber. See [[zio.Fiber]] for more information.
+   * The fiber returned by this method has methods interrupt the fiber and to
+   * wait for it to finish executing the effect. See [[zio.Fiber]] for more
+   * information.
    *
-   * The newly-launched child fiber is attached to the parent fiber's scope.
-   * This means when the parent fiber terminates, the child fiber will be
-   * terminated as well, ensuring that no fibers leak. This behavior is called
-   * "auto supervision", and if this behavior is not desired, you may use the
-   * [[forkDaemon]] or [[forkIn]] methods.
+   * Whenever you use this method to launch a new fiber, the new fiber is
+   * attached to the parent fiber's scope. This means when the parent fiber
+   * terminates, the child fiber will be terminated as well, ensuring that no
+   * fibers leak. This behavior is called "auto supervision", and if this
+   * behavior is not desired, you may use the [[forkDaemon]] or [[forkIn]]
+   * methods.
    *
    * {{{
    * for {
@@ -1291,8 +1295,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
           exit.foldM[Any, E1, A1](
             cause => left.join mapErrorCause (_ && cause),
             a => (left interruptAs parentFiberId) as a
-          ),
-        Some(descriptor.scope)
+          )
       )
     }.refailWithTrace
 
@@ -2064,18 +2067,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     val g = (b: B, a: A) => f(a, b)
 
-    ZIO.scopeWith { scope =>
-      ZIO.effectSuspendTotalWith((_, parentFiberId) =>
-        (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false), Some(scope))
-          .forkIn(scope)
-          .flatMap { f =>
-            f.await.flatMap { exit =>
-              if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
-              else ZIO.done(exit)
-            }
+    ZIO.effectSuspendTotalWith((_, parentFiberId) =>
+      (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false)).forkDaemon.flatMap {
+        f =>
+          f.await.flatMap { exit =>
+            if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
+            else ZIO.done(exit)
           }
-      )
-    }
+      }
+    )
   }
 }
 
