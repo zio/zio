@@ -385,10 +385,10 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
-  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Unit, B] =
+  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Option[Nothing], B] =
     foldM(
       ev1,
-      ev2(_).fold[ZSTM[R, Unit, B]](ZSTM.fail(()))(ZSTM.succeedNow(_))
+      ev2(_).fold[ZSTM[R, Option[Nothing], B]](ZSTM.fail(None))(ZSTM.succeedNow(_))
     )(CanFail)
 
   /**

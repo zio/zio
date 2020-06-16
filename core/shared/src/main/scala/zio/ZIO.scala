@@ -778,8 +778,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
-  final def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZIO[R, Unit, B] =
-    ZIO.absolve(self.mapError(ev1)(CanFail).map(ev2(_).toRight(())))
+  final def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZIO[R, Option[Nothing], B] =
+    ZIO.absolve(self.mapError(ev1)(CanFail).map(ev2(_).toRight(None)))
 
   /**
    * Returns a new effect that, on exit of this effect, invokes the specified
