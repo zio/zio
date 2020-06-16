@@ -1540,8 +1540,13 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(equalTo(Chunk(1)))
           }
         ),
-        testM("grouped")(
-          assertM(ZStream(1, 2, 3, 4).grouped(2).runCollect)(equalTo(Chunk(List(1, 2), List(3, 4))))
+        suite("grouped")(
+          testM("sanity") {
+            assertM(ZStream(1, 2, 3, 4, 5).grouped(2).runCollect)(equalTo(Chunk(List(1, 2), List(3, 4), List(5))))
+          },
+          testM("doesn't emit empty chunks") {
+            assertM(ZStream.fromIterable(List.empty[Int]).grouped(5).runCollect)(equalTo(Chunk.empty))
+          }
         ),
         suite("groupedWithin")(
           testM("group based on time passed") {
