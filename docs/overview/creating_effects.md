@@ -75,7 +75,7 @@ def getUser(userId: String): IO[Throwable, Option[User]] = ???
 def getTeam(teamId: String): IO[Throwable, Team] = ???
 
 
-val result: IO[Throwable, Option[(User, Team)] = (for {
+val result: IO[Throwable, Option[(User, Team)]] = (for {
   id   <- maybeId
   user <- getUser(id).some
   team <- getTeam(user.teamId).asSomeError 
