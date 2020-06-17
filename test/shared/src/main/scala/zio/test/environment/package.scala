@@ -360,7 +360,7 @@ package object environment extends PlatformSpecific {
       private lazy val awaitSuspended: UIO[Unit] =
         live.provide {
           suspended.repeat {
-            Schedule.doUntilEquals(true) && Schedule.fixed(1.millisecond)
+            Schedule.doUntilEquals(true) && Schedule.fixed(5.milliseconds)
           }
         }.unit
 
@@ -369,7 +369,7 @@ package object environment extends PlatformSpecific {
        */
       private lazy val delay: UIO[Unit] =
         if (TestPlatform.isJS) ZIO.yieldNow
-        else live.provide(ZIO.sleep(1.millisecond))
+        else live.provide(ZIO.sleep(5.milliseconds))
 
       /**
        * Provides access to the list of descendants of this fiber (children and
