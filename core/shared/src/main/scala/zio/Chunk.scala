@@ -1186,10 +1186,7 @@ object Chunk {
       case chunk: Chunk[A]              => chunk
       case iterable if iterable.isEmpty => Empty
       case vector: Vector[A]            => VectorChunk(vector)
-      case iterable =>
-        val first                   = iterable.head
-        implicit val A: ClassTag[A] = Tags.fromValue(first)
-        fromArray(it.toArray)
+      case iterable                     => (ChunkBuilder.make[A]() ++= iterable).result()
     }
 
   def fill[A](n: Int)(elem: => A): Chunk[A] =

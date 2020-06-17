@@ -502,6 +502,13 @@ object ChunkSpec extends ZIOBaseSpec {
       val n  = 100000
       val as = List.range(0, n).foldRight[Chunk[Int]](Chunk.empty)((a, as) => Chunk(a) ++ as)
       assert(as.toArray)(equalTo(Array.range(0, n)))
+    },
+    zio.test.test("fromIterable mutable should not lose elements") {
+      val painters         = List("Frida Kahlo", "Xul Solar", "Remedios Varo")
+      val paintersIterator = painters.toIterator
+      val iterable         = new Iterable[String] { override def iterator: Iterator[String] = paintersIterator }
+      val chunk            = Chunk.fromIterable(iterable)
+      assert(iterable)(isEmpty) && assert(chunk.toList)(equalTo(painters))
     }
   )
 }
