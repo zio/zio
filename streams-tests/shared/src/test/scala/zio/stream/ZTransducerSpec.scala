@@ -67,12 +67,13 @@ object ZTransducerSpec extends ZIOBaseSpec {
     suite("Constructors")(
       suite("collectAllN")(
         testM("happy path") {
-          val parser = ZTransducer.collectAllN[Int](3)
-          assertM(run(parser, List(Chunk(1, 2, 3, 4))))(equalTo(Chunk(List(1, 2, 3), List(4))))
+          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3, 4))))(equalTo(Chunk(List(1, 2, 3), List(4))))
         },
         testM("empty list") {
-          val parser = ZTransducer.collectAllN[Int](0)
-          assertM(run(parser, List()))(equalTo(Chunk(List())))
+          assertM(run(ZTransducer.collectAllN[Int](3), List()))(equalTo(Chunk.empty))
+        },
+        testM("doesn't emit empty trailing chunks") {
+          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3))))(equalTo(Chunk(List(1, 2, 3))))
         }
       ),
       suite("collectAllToMapN")(
@@ -95,12 +96,22 @@ object ZTransducerSpec extends ZIOBaseSpec {
               )
             )
           )(equalTo(Chunk(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15))))
-        )
+        ),
+        testM("doesn't emit empty trailing chunks") {
+          assertM(run(ZTransducer.collectAllToMapN[Int, Int](3)(identity[Int])(_ + _), List(Chunk(1, 2, 3))))(
+            equalTo(Chunk(Map(1 -> 1, 2 -> 2, 3 -> 3)))
+          )
+        }
       ),
-      testM("collectAllToSetN")(
-        assertM(
-          run(ZTransducer.collectAllToSetN[Int](3), List(Chunk(1, 2, 1), Chunk(2, 3, 3, 4)))
-        )(equalTo(Chunk(Set(1, 2, 3), Set(4))))
+      suite("collectAllToSetN")(
+        testM("happy path")(
+          assertM(
+            run(ZTransducer.collectAllToSetN[Int](3), List(Chunk(1, 2, 1), Chunk(2, 3, 3, 4)))
+          )(equalTo(Chunk(Set(1, 2, 3), Set(4))))
+        ),
+        testM("doesn't emit empty trailing chunks") {
+          assertM(run(ZTransducer.collectAllToSetN[Int](3), List(Chunk(1, 2, 3))))(equalTo(Chunk(Set(1, 2, 3))))
+        }
       ),
       testM("collectAllWhile") {
         val parser = ZTransducer.collectAllWhile[Int](_ < 5)

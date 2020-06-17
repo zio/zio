@@ -127,7 +127,7 @@ object ZTransducer {
    * Creates a transducer accumulating incoming values into lists of maximum size `n`.
    */
   def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
-    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse)
+    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse).filter(_.nonEmpty)
 
   /**
    * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
@@ -140,13 +140,13 @@ object ZTransducer {
 
       if (acc contains k) acc.updated(k, f(acc(k), i))
       else acc.updated(k, i)
-    }
+    }.filter(_.nonEmpty)
 
   /**
    * Creates a transducer accumulating incoming values into sets of maximum size `n`.
    */
   def collectAllToSetN[I](n: Long): ZTransducer[Any, Nothing, I, Set[I]] =
-    foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _)
+    foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _).filter(_.nonEmpty)
 
   /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.

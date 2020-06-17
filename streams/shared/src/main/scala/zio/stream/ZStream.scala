@@ -1589,7 +1589,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @param chunkSize size of the chunk
    */
   def grouped(chunkSize: Long): ZStream[R, E, List[O]] =
-    aggregate(ZTransducer.collectAllN(chunkSize)).filter(_.nonEmpty)
+    aggregate(ZTransducer.collectAllN(chunkSize))
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified
