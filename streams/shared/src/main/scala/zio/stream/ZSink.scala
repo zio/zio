@@ -745,8 +745,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that executes the provided effectful function for every chunk fed to it.
    */
-  def foreachChunk[R, E, I](f: Chunk[I] => ZIO[R, E, Any]): ZSink[R, E, I, I, Unit] =
-    ZSink.fromPush[R, E, I, I, Unit] {
+  def foreachChunk[R, E, I](f: Chunk[I] => ZIO[R, E, Any]): ZSink[R, E, I, Nothing, Unit] =
+    ZSink.fromPush[R, E, I, Nothing, Unit] {
       case Some(is) => f(is).mapError(e => (Left(e), Chunk.empty)) *> Push.more
       case None     => Push.emit((), Chunk.empty)
     }
@@ -823,6 +823,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           }
       } yield push
     }
+
+  /**
+   * A sink that depends on another managed value
+   * `resource` will be finalized after the processing.
+   */
+  def managed[R, E, I, A, L <: I, Z](resource: ZManaged[R, E, A])(fn: A => ZSink[R, E, I, L, Z]): ZSink[R, E, I, I, Z] =
+    ZSink(resource.fold[ZSink[R, E, I, I, Z]](err => ZSink.fail[E, I](err), m => fn(m)).flatMap(_.push))
 
   /**
    * A sink that immediately ends with the specified value.

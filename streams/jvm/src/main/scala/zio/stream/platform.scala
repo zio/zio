@@ -22,14 +22,26 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
    */
   final def fromOutputStream(
     os: OutputStream
-  ): ZSink[Blocking, IOException, Byte, Nothing, Long] =
-    ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
-      blocking.effectBlockingInterrupt {
-        val bytes = byteChunk.toArray
-        os.write(bytes)
-        bytesWritten + bytes.length
-      }.refineOrDie {
-        case e: IOException => e
+  ): ZSink[Blocking, IOException, Byte, Byte, Long] = fromOutputStreamManaged(ZManaged.succeedNow(os))
+
+  /**
+   * Uses the provided `OutputStream` resource to create a [[ZSink]] that consumes byte chunks
+   * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
+   *
+   * The `OutputStream` will be automatically closed after the stream is finished or an error occurred.
+   */
+  final def fromOutputStreamManaged(
+    os: ZManaged[Blocking, IOException, OutputStream]
+  ): ZSink[Blocking, IOException, Byte, Byte, Long] =
+    ZSink.managed(os) { out =>
+      ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+        blocking.effectBlockingInterrupt {
+          val bytes = byteChunk.toArray
+          out.write(bytes)
+          bytesWritten + bytes.length
+        }.refineOrDie {
+          case e: IOException => e
+        }
       }
     }
 
@@ -41,37 +53,30 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
     path: => Path,
     position: Long = 0L,
     options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
-  ): ZSink[Blocking, Throwable, Byte, Nothing, Long] =
-    ZSink {
-      for {
-        state <- Ref.make(0L).toManaged_
-        channel <- ZManaged.make(
-                    blocking
-                      .effectBlockingInterrupt(
-                        FileChannel
-                          .open(
-                            path,
-                            options.foldLeft(new ju.HashSet[OpenOption]()) { (acc, op) =>
-                              acc.add(op); acc
-                            } // for avoiding usage of different Java collection converters for different scala versions
-                          )
-                          .position(position)
-                      )
-                      .orDie
-                  )(chan => blocking.effectBlocking(chan.close()).orDie)
-        push = (is: Option[Chunk[Byte]]) =>
-          is match {
-            case None => state.get.flatMap(w => Push.emit(w, Chunk.empty))
-            case Some(byteChunk) =>
-              for {
-                justWritten <- blocking.effectBlockingInterrupt {
-                                channel.write(ByteBuffer.wrap(byteChunk.toArray))
-                              }.mapError(e => (Left(e), Chunk.empty))
-                more <- state.update(_ + justWritten) *> Push.more
-              } yield more
-          }
-      } yield push
+  ): ZSink[Blocking, Throwable, Byte, Byte, Long] = {
+    val managedChannel = ZManaged.make(
+      blocking
+        .effectBlockingInterrupt(
+          FileChannel
+            .open(
+              path,
+              options.foldLeft(new ju.HashSet[OpenOption]()) { (acc, op) =>
+                acc.add(op); acc
+              } // for avoiding usage of different Java collection converters for different scala versions
+            )
+            .position(position)
+        )
+    )(chan => blocking.effectBlocking(chan.close()).orDie)
+
+    val writer: ZSink[Blocking, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
+      ZSink.foreachChunk[Blocking, Throwable, Byte](byteChunk =>
+        blocking.effectBlockingInterrupt {
+          chan.write(ByteBuffer.wrap(byteChunk.toArray))
+        }
+      )
     }
+    writer &> ZSink.count
+  }
 }
 
 trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
