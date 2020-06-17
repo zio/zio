@@ -42,7 +42,8 @@ private[zio] final class FiberContext[E, A](
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals,
   supervisor0: Supervisor[Any],
-  openScope: ZScope.Open[Exit[E, A]]
+  openScope: ZScope.Open[Exit[E, A]],
+  superviseMode0: ForkSuperviseMode
 ) extends Fiber.Runtime.Internal[E, A] { self =>
 
   import FiberContext._
@@ -68,6 +69,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val executors       = Stack[Executor](startExec)
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
   private[this] val supervisors     = Stack[Supervisor[Any]](supervisor0)
+  private[this] val superviseMode   = Stack[ForkSuperviseMode](superviseMode0)
 
   var scopeKey: ZScope.Key = null
 
@@ -608,6 +610,19 @@ private[zio] final class FiberContext[E, A](
                     val pop  = ZIO.effectTotal(supervisors.pop())
 
                     curZio = push.bracket_(pop, zio.zio)
+
+                  case ZIO.Tags.GetForkSupervision =>
+                    val zio = curZio.asInstanceOf[ZIO.GetForkSupervision[Any, E, Any]]
+
+                    curZio = zio.f(superviseMode.peek())
+
+                  case ZIO.Tags.SetForkSupervision =>
+                    val zio = curZio.asInstanceOf[ZIO.SetForkSupervision[Any, E, Any]]
+
+                    val push = ZIO.effectTotal(superviseMode.push(zio.superviseMode))
+                    val pop  = ZIO.effectTotal(superviseMode.pop())
+
+                    curZio = push.bracket_(pop, zio.zio)
                 }
               }
             } else {
@@ -662,7 +677,7 @@ private[zio] final class FiberContext[E, A](
    */
   def fork[E, A](
     zio: IO[E, A],
-    forkScope: Option[ZScope[Any]] = None
+    forkScope: Option[ZScope[Exit[Any, Any]]] = None
   ): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
     val locals                              = fiberRefLocals.asScala: @silent("JavaConverters")
@@ -685,6 +700,8 @@ private[zio] final class FiberContext[E, A](
 
     val childScope = ZScope.unsafeMake[Exit[E, A]]()
 
+    val currentSuperviseMode = superviseMode.peek()
+
     val childContext = new FiberContext[E, A](
       childId,
       platform,
@@ -695,7 +712,8 @@ private[zio] final class FiberContext[E, A](
       tracingRegion,
       childFiberRefLocals,
       currentSup,
-      childScope
+      childScope,
+      currentSuperviseMode
     )
 
     if (currentSup ne Supervisor.none) {
@@ -713,11 +731,18 @@ private[zio] final class FiberContext[E, A](
       // interrupted, but do so using a weak finalizer, which will be removed
       // as soon as the key is garbage collected:
       val key = parentScope.unsafeEnsure(
-        _ =>
+        exit =>
           UIO.effectSuspendTotal {
             val childContext = childContextRef()
 
-            if (childContext ne null) childContext.interruptAs(fiberId) else ZIO.unit
+            if (childContext ne null) {
+              currentSuperviseMode match {
+                case ForkSuperviseMode.Auto =>
+                  if (exit.interrupted) childContext.interruptAs(fiberId) else childContext.await
+                case ForkSuperviseMode.Interrupt => childContext.interruptAs(fiberId)
+                case ForkSuperviseMode.Await     => childContext.await
+              }
+            } else ZIO.unit
           },
         ZScope.Mode.Weak
       )

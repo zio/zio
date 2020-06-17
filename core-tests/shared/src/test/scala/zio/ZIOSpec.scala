@@ -3290,7 +3290,7 @@ object ZIOSpec extends ZIOBaseSpec {
             .onInterrupt(ref1.set(true))
           right                         = latch3.succeed(()).as(42)
           _                             <- (latch2.await *> latch3.await *> latch1.succeed(())).fork
-          result                        <- ZIO.scopeWith(scope => left.forkIn(scope) zipPar right)
+          result                        <- left.fork zipPar right
           (leftInnerFiber, rightResult) = result
           leftResult                    <- leftInnerFiber.await
           interrupted                   <- ref1.get

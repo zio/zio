@@ -119,7 +119,8 @@ trait Runtime[+R] {
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap(),
       platform.supervisor,
-      scope
+      scope,
+      ForkSuperviseMode.Interrupt
     )
 
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))

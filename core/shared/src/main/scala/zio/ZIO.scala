@@ -752,7 +752,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, None)
 
-  final def forkIn(scope: ZScope[Any]): URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self, Some(scope))
+  final def forkIn(scope: ZScope[Exit[Any, Any]]): URIO[R, Fiber.Runtime[E, A]] =
+    new ZIO.Fork(self, Some(scope))
 
   /**
    * Forks the effect into a new independent fiber, with the specified name.
@@ -1380,7 +1381,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def raceWith[R1 <: R, E1, E2, B, C](that: ZIO[R1, E1, B])(
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
     rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C],
-    scope: Option[ZScope[Any]] = None
+    scope: Option[ZScope[Exit[Any, Any]]] = None
   ): ZIO[R1, E2, C] =
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       self,
@@ -2055,7 +2056,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       leftWinner: Boolean
     )(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
       winner match {
-        case Exit.Success(a) => loser.join.map(f(a, _))
+        case Exit.Success(a) => loser.join.map(f(a, _)) <* loser.inheritRefs
         case Exit.Failure(cause) =>
           loser.interruptAs(fiberId).flatMap {
             case Exit.Success(_) => ZIO.halt(cause)
@@ -2067,15 +2068,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     val g = (b: B, a: A) => f(a, b)
 
-    ZIO.effectSuspendTotalWith((_, parentFiberId) =>
-      (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false)).forkDaemon.flatMap {
-        f =>
-          f.await.flatMap { exit =>
-            if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
-            else ZIO.done(exit)
-          }
+    ZIO.forkSupervisionMask(ForkSuperviseMode.Auto) { restore =>
+      ZIO.descriptorWith { d =>
+        (restore(self) raceWith restore(that))(coordinate(d.id, f, true), coordinate(d.id, g, false), Some(d.scope))
       }
-    )
+    }
   }
 }
 
@@ -2873,6 +2870,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def forkAll_[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Unit] =
     as.foldRight[URIO[R, Unit]](ZIO.unit)(_.fork *> _)
+
+  def forkSupervisionMask[R, E, A](
+    superviseMode: ForkSuperviseMode
+  )(f: ForkSupervisionRestore => ZIO[R, E, A]): ZIO[R, E, A] =
+    new GetForkSupervision(restoreMode =>
+      new SetForkSupervision(f(new ForkSupervisionRestore(restoreMode)), superviseMode)
+    )
+
+  class ForkSupervisionRestore(restoreMode: ForkSuperviseMode) {
+    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      new SetForkSupervision(zio, restoreMode)
+  }
 
   /**
    * Lifts an `Either` into a `ZIO` value.
@@ -3955,6 +3964,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val EffectSuspendTotalWith   = 21
     final val RaceWith                 = 22
     final val Supervise                = 23
+    final val GetForkSupervision       = 24
+    final val SetForkSupervision       = 25
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -3997,7 +4008,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class Fork[R, E, A](
     val value: ZIO[R, E, A],
-    val scope: Option[ZScope[Any]]
+    val scope: Option[ZScope[Exit[Any, Any]]]
   ) extends URIO[R, Fiber.Runtime[E, A]] {
     override def tag = Tags.Fork
   }
@@ -4076,7 +4087,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val right: ZIO[R, ER, B],
     val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
     val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
-    val scope: Option[ZScope[Any]]
+    val scope: Option[ZScope[Exit[Any, Any]]]
   ) extends ZIO[R, E, C] {
     override def tag: Int = Tags.RaceWith
   }
@@ -4084,6 +4095,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class Supervise[R, E, A](val zio: ZIO[R, E, A], val supervisor: Supervisor[Any])
       extends ZIO[R, E, A] {
     override def tag = Tags.Supervise
+  }
+
+  private[zio] final class GetForkSupervision[R, E, A](val f: ForkSuperviseMode => ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.GetForkSupervision
+  }
+
+  private[zio] final class SetForkSupervision[R, E, A](val zio: ZIO[R, E, A], val superviseMode: ForkSuperviseMode)
+      extends ZIO[R, E, A] {
+    override def tag = Tags.SetForkSupervision
   }
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)
