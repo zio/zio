@@ -521,15 +521,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldM(ZIO.succeedLeft, ZIO.succeedRight)
 
   /**
-   * Maps this effect to the default exit codes.
-   */
-  final def exitCode: URIO[R with console.Console, ExitCode] =
-    self.foldCauseM(
-      cause => console.putStrLn(cause.prettyPrint) as ExitCode.failure,
-      _ => ZIO.succeedNow(ExitCode.success)
-    )
-
-  /**
    * Returns an effect that, if this effect _starts_ execution, then the
    * specified `finalizer` is guaranteed to begin execution, whether this effect
    * succeeds, fails, or is interrupted.
@@ -577,6 +568,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def eventually(implicit ev: CanFail[E]): URIO[R, A] =
     self orElse eventually
+
+  /**
+   * Maps this effect to the default exit codes.
+   */
+  final def exitCode: URIO[R with console.Console, ExitCode] =
+    self.foldCauseM(
+      cause => console.putStrLn(cause.prettyPrint) as ExitCode.failure,
+      _ => ZIO.succeedNow(ExitCode.success)
+    )
 
   /**
    * Dies with specified `Throwable` if the predicate fails.
@@ -814,6 +814,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns a new effect that ignores the success or failure of this effect.
    */
   final def ignore: URIO[R, Unit] = self.fold(ZIO.unitFn, ZIO.unitFn)
+
+  /**
+   * Returns a new effect whose scope will be extended by the specified scope.
+   * This means any finalizers associated with the effect will not be executed
+   * until the specified scope is closed.
+   */
+  final def in(scope: ZScope[Any]): ZIO[R, E, A] =
+    ZIO.uninterruptibleMask { restore =>
+      self.forkDaemon.flatMap { fiber =>
+        scope.extend(fiber.scope) *> restore(fiber.join).onInterrupt(ids =>
+          ids.headOption.fold(fiber.interrupt)(id => fiber.interruptAs(id))
+        )
+      }
+    }
 
   /**
    * Returns a new effect that will not succeed with its value before first
@@ -2068,10 +2082,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     val g = (b: B, a: A) => f(a, b)
 
-    ZIO.forkSupervisionMask(ForkSuperviseMode.Auto) { restore =>
-      ZIO.descriptorWith { d =>
-        (restore(self) raceWith restore(that))(coordinate(d.id, f, true), coordinate(d.id, g, false), Some(d.scope))
-      }
+    ZIO.descriptorWith { d =>
+      ((self in d.scope) raceWith (that in d.scope))(coordinate(d.id, f, true), coordinate(d.id, g, false))
     }
   }
 }
