@@ -1,10 +1,8 @@
 package zio.stream
 
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.util.zip.Deflater
-import java.util.zip.DeflaterInputStream
-import java.util.zip.GZIPOutputStream
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
+import java.util.Arrays
+import java.util.zip.{ Deflater, DeflaterInputStream, GZIPOutputStream }
 
 import TestData._
 
@@ -102,10 +100,17 @@ object CompressionSpec extends DefaultRunnableSpec {
 object TestData {
 
   def deflatedStream(bytes: Array[Byte]) =
-    ZStream.fromIterable(new DeflaterInputStream(new ByteArrayInputStream(bytes)).readAllBytes())
+    deflatedWith(bytes, new Deflater())
 
   def noWrapDeflatedStream(bytes: Array[Byte]) =
-    ZStream.fromIterable(new DeflaterInputStream(new ByteArrayInputStream(bytes), new Deflater(9, true)).readAllBytes())
+    deflatedWith(bytes, new Deflater(9, true))
+
+  def deflatedWith(bytes: Array[Byte], deflater: Deflater) = {
+    val bigBuffer = new Array[Byte](1024 * 1024)
+    val dif       = new DeflaterInputStream(new ByteArrayInputStream(bytes), deflater)
+    val read      = dif.read(bigBuffer, 0, bigBuffer.length)
+    ZStream.fromIterable(Arrays.copyOf(bigBuffer, read))
+  }
 
   def gzippedStream(bytes: Array[Byte], syncFlush: Boolean = true) = {
     val baos = new ByteArrayOutputStream(1024)
