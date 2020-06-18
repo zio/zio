@@ -2082,8 +2082,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     val g = (b: B, a: A) => f(a, b)
 
-    ZIO.descriptorWith { d =>
-      ((self in d.scope) raceWith (that in d.scope))(coordinate(d.id, f, true), coordinate(d.id, g, false))
+    ZIO.transplantDescriptor { (d, graft) =>
+      (graft(self) raceWith graft(that))(coordinate(d.id, f, true), coordinate(d.id, g, false))
     }
   }
 }
@@ -3549,13 +3549,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def traced[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.traced
 
+  /**
+   * Transplants specified effects so that when those effects fork other
+   * effects, the forked effects will be governed by the scope of the
+   * fiber that executes this effect.
+   *
+   * This can be used to "graft" deep grandchildren onto a higher-level
+   * scope, effectively extending their lifespans into the parent scope.
+   */
   def transplant[R, E, A](f: Grafter => ZIO[R, E, A]): ZIO[R, E, A] =
     ZIO.descriptorWith(d => f(new Grafter(d.scope)))
 
-  class Grafter(scope: ZScope[Exit[Any, Any]]) {
-    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      new ZIO.SetForkScopeOverride(zio, Some(scope))
-  }
+  /**
+   * The same as [[ZIO.transplant]], but also passes the fiber descriptor.
+   */
+  def transplantDescriptor[R, E, A](f: (Fiber.Descriptor, Grafter) => ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.descriptorWith(d => f(d, new Grafter(d.scope)))
 
   /**
    * An effect that succeeds with a unit value.
@@ -3776,6 +3785,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         if (predicate(a)) ZIO.succeedNow(a)
         else ZIO.fail(ev(new NoSuchElementException("The value doesn't satisfy the predicate")))
       }
+  }
+
+  final class Grafter(private val scope: ZScope[Exit[Any, Any]]) extends AnyVal {
+    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      new ZIO.SetForkScopeOverride(zio, Some(scope))
   }
 
   final class InterruptStatusRestore(private val flag: zio.InterruptStatus) extends AnyVal {
