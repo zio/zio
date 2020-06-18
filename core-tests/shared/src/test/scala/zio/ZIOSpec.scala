@@ -684,7 +684,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("runs effects in parallel for Chunk") {
         assertM(for {
           p <- Promise.make[Nothing, Unit]
-          _ <- UIO.foreachPar(Chunk(UIO.never, p.succeed(()), UIO.never))(a => a).fork
+          _ <- UIO.foreachPar(Chunk(UIO.never, p.succeed(()), UIO.never))(a => a).forkDaemon
           _ <- p.await
         } yield true)(isTrue)
       },
@@ -819,7 +819,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           fiber1 <- ZIO.forkAll(List(die))
           fiber2 <- ZIO.forkAll(List(die, ZIO.succeed(42)))
-          fiber3 <- ZIO.forkAll(List(die, ZIO.succeed(42), ZIO.never))
+          fiber3 <- ZIO.forkAll(List(die, ZIO.succeed(42), ZIO.never)).forkDaemon.flatMap(_.join)
 
           result1 <- joinDefect(fiber1)
           result2 <- joinDefect(fiber2)
