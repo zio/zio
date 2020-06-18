@@ -822,7 +822,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def in(scope: ZScope[Any]): ZIO[R, E, A] =
     ZIO.uninterruptibleMask { restore =>
-      self.forkDaemon.flatMap { fiber =>
+      restore(self).forkDaemon.flatMap { fiber =>
         scope.extend(fiber.scope) *> restore(fiber.join).onInterrupt(ids =>
           ids.headOption.fold(fiber.interrupt)(id => fiber.interruptAs(id))
         )
