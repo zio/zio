@@ -1654,6 +1654,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     map(_.getOrElse(default))
 
   /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  final def someOrElseM[B, R1 <: R, E1 >: E](default: ZIO[R1, E1, B])(implicit ev: A <:< Option[B]): ZIO[R1, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZIO.succeedNow(value)
+      case None        => default
+    })
+
+  /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
   final def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZIO[R, E1, B] =
