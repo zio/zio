@@ -1118,6 +1118,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     orElse(ZIO.succeedNow(a1))
 
   /**
+   * Returns a new effect that will utilize the specified scope to supervise
+   * any fibers forked within the original effect.
+   */
+  final def overrideForkScope(scope: ZScope[Exit[Any, Any]]): ZIO[R, E, A] =
+    new ZIO.OverrideForkScope(self, Some(scope))
+
+  /**
    * Exposes all parallel errors in a single call
    *
    */
@@ -1238,6 +1245,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       e => ZIO.fail(ev2(e)),
       a => ev(a).fold(ZIO.succeedNow(_), _ => ZIO.fail(new NoSuchElementException("Either.left.get on Right")))
     )
+
+  /**
+   * Returns a new effect that will utilize the default scope (fiber scope) to
+   * supervise any fibers forked within the original effect.
+   */
+  final def resetForkScope: ZIO[R, E, A] =
+    new ZIO.OverrideForkScope(self, None)
 
   /**
    * Returns a successful effect if the value is `Right`, or fails with the error `None`.
@@ -2082,8 +2096,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     val g = (b: B, a: A) => f(a, b)
 
-    ZIO.transplantDescriptor { (d, graft) =>
-      (graft(self) raceWith graft(that))(coordinate(d.id, f, true), coordinate(d.id, g, false))
+    ZIO.transplant { graft =>
+      ZIO.descriptorWith { d =>
+        (graft(self) raceWith graft(that))(coordinate(d.id, f, true), coordinate(d.id, g, false))
+      }
     }
   }
 }
@@ -3016,6 +3032,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
+   * Retrieves the scope that will be used to supervise forked effects.
+   */
+  def forkScope: UIO[ZScope[Exit[Any, Any]]] =
+    new ZIO.GetForkScope(ZIO.succeed(_))
+
+  /**
+   * Captures the fork scope, before overriding it with the specified new
+   * scope, passing a function that allows restoring the fork scope to
+   * what it was originally.
+   */
+  def forkScopeMask[R, E, A](newScope: ZScope[Exit[Any, Any]])(f: ForkScopeRestore => ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.forkScopeWith(scope => f(new ForkScopeRestore(scope)).overrideForkScope(newScope))
+
+  /**
+   * Retrieves the scope that will be used to supervise forked effects.
+   */
+  def forkScopeWith[R, E, A](f: ZScope[Exit[Any, Any]] => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.GetForkScope(f)
+
+  /**
    * Lifts an Option into a ZIO, if the option is not defined it fails with NoSuchElementException.
    */
   final def getOrFail[A](v: => Option[A]): Task[A] =
@@ -3558,13 +3594,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * scope, effectively extending their lifespans into the parent scope.
    */
   def transplant[R, E, A](f: Grafter => ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.descriptorWith(d => f(new Grafter(d.scope)))
-
-  /**
-   * The same as [[ZIO.transplant]], but also passes the fiber descriptor.
-   */
-  def transplantDescriptor[R, E, A](f: (Fiber.Descriptor, Grafter) => ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.descriptorWith(d => f(d, new Grafter(d.scope)))
+    ZIO.forkScopeWith(scope => f(new Grafter(scope)))
 
   /**
    * An effect that succeeds with a unit value.
@@ -3789,7 +3819,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class Grafter(private val scope: ZScope[Exit[Any, Any]]) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      new ZIO.SetForkScopeOverride(zio, Some(scope))
+      new ZIO.OverrideForkScope(zio, Some(scope))
   }
 
   final class InterruptStatusRestore(private val flag: zio.InterruptStatus) extends AnyVal {
@@ -3912,6 +3942,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
   }
 
+  final class ForkScopeRestore(private val scope: ZScope[Exit[Any, Any]]) extends AnyVal {
+    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      zio.overrideForkScope(scope)
+  }
+
   final class ConstFn[A, B](override val underlying: () => B) extends ZIOFn1[A, B] {
     def apply(a: A): B = {
       val _ = a
@@ -4000,8 +4035,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val Supervise                = 23
     final val GetForkSupervision       = 24
     final val SetForkSupervision       = 25
-    final val GetForkScopeOverride     = 26
-    final val SetForkScopeOverride     = 27
+    final val GetForkScope             = 26
+    final val OverrideForkScope        = 27
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -4142,16 +4177,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.SetForkSupervision
   }
 
-  private[zio] final class GetForkScopeOverride[R, E, A](val f: Option[ZScope[Exit[Any, Any]]] => ZIO[R, E, A])
-      extends ZIO[R, E, A] {
-    override def tag = Tags.GetForkScopeOverride
+  private[zio] final class GetForkScope[R, E, A](val f: ZScope[Exit[Any, Any]] => ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.GetForkScope
   }
 
-  private[zio] final class SetForkScopeOverride[R, E, A](
+  private[zio] final class OverrideForkScope[R, E, A](
     val zio: ZIO[R, E, A],
     val forkScope: Option[ZScope[Exit[Any, Any]]]
   ) extends ZIO[R, E, A] {
-    override def tag = Tags.SetForkScopeOverride
+    override def tag = Tags.OverrideForkScope
   }
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)

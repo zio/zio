@@ -625,13 +625,13 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = push.bracket_(pop, zio.zio)
 
-                  case ZIO.Tags.GetForkScopeOverride =>
-                    val zio = curZio.asInstanceOf[ZIO.GetForkScopeOverride[Any, E, Any]]
+                  case ZIO.Tags.GetForkScope =>
+                    val zio = curZio.asInstanceOf[ZIO.GetForkScope[Any, E, Any]]
 
-                    curZio = zio.f(forkScopeOverride.peekOrElse(None))
+                    curZio = zio.f(forkScopeOverride.peekOrElse(None).getOrElse(scope))
 
-                  case ZIO.Tags.SetForkScopeOverride =>
-                    val zio = curZio.asInstanceOf[ZIO.SetForkScopeOverride[Any, E, Any]]
+                  case ZIO.Tags.OverrideForkScope =>
+                    val zio = curZio.asInstanceOf[ZIO.OverrideForkScope[Any, E, Any]]
 
                     val push = ZIO.effectTotal(forkScopeOverride.push(zio.forkScope))
                     val pop  = ZIO.effectTotal(forkScopeOverride.pop())
