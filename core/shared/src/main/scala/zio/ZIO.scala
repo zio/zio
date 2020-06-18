@@ -3549,6 +3549,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def traced[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.traced
 
+  def transplant[R, E, A](f: Grafter => ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.descriptorWith(d => f(new Grafter(d.scope)))
+
+  class Grafter(scope: ZScope[Exit[Any, Any]]) {
+    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      new ZIO.SetForkScopeOverride(zio, Some(scope))
+  }
+
   /**
    * An effect that succeeds with a unit value.
    */
@@ -3978,6 +3986,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val Supervise                = 23
     final val GetForkSupervision       = 24
     final val SetForkSupervision       = 25
+    final val GetForkScopeOverride     = 26
+    final val SetForkScopeOverride     = 27
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -4116,6 +4126,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class SetForkSupervision[R, E, A](val zio: ZIO[R, E, A], val superviseMode: ForkSuperviseMode)
       extends ZIO[R, E, A] {
     override def tag = Tags.SetForkSupervision
+  }
+
+  private[zio] final class GetForkScopeOverride[R, E, A](val f: Option[ZScope[Exit[Any, Any]]] => ZIO[R, E, A])
+      extends ZIO[R, E, A] {
+    override def tag = Tags.GetForkScopeOverride
+  }
+
+  private[zio] final class SetForkScopeOverride[R, E, A](
+    val zio: ZIO[R, E, A],
+    val forkScope: Option[ZScope[Exit[Any, Any]]]
+  ) extends ZIO[R, E, A] {
+    override def tag = Tags.SetForkScopeOverride
   }
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)

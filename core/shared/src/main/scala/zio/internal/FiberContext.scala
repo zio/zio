@@ -64,12 +64,13 @@ private[zio] final class FiberContext[E, A](
   private[this] val traceEffects: Boolean =
     traceExec && platform.tracing.tracingConfig.traceEffectOpsInExecution
 
-  private[this] val stack           = Stack[Any => IO[Any, Any]]()
-  private[this] val environments    = Stack[AnyRef](startEnv)
-  private[this] val executors       = Stack[Executor](startExec)
-  private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
-  private[this] val supervisors     = Stack[Supervisor[Any]](supervisor0)
-  private[this] val superviseMode   = Stack[ForkSuperviseMode](superviseMode0)
+  private[this] val stack             = Stack[Any => IO[Any, Any]]()
+  private[this] val environments      = Stack[AnyRef](startEnv)
+  private[this] val executors         = Stack[Executor](startExec)
+  private[this] val interruptStatus   = StackBool(startIStatus.toBoolean)
+  private[this] val supervisors       = Stack[Supervisor[Any]](supervisor0)
+  private[this] val superviseMode     = Stack[ForkSuperviseMode](superviseMode0)
+  private[this] val forkScopeOverride = Stack[Option[ZScope[Exit[Any, Any]]]]()
 
   var scopeKey: ZScope.Key = null
 
@@ -623,6 +624,19 @@ private[zio] final class FiberContext[E, A](
                     val pop  = ZIO.effectTotal(superviseMode.pop())
 
                     curZio = push.bracket_(pop, zio.zio)
+
+                  case ZIO.Tags.GetForkScopeOverride =>
+                    val zio = curZio.asInstanceOf[ZIO.GetForkScopeOverride[Any, E, Any]]
+
+                    curZio = zio.f(forkScopeOverride.peekOrElse(None))
+
+                  case ZIO.Tags.SetForkScopeOverride =>
+                    val zio = curZio.asInstanceOf[ZIO.SetForkScopeOverride[Any, E, Any]]
+
+                    val push = ZIO.effectTotal(forkScopeOverride.push(zio.forkScope))
+                    val pop  = ZIO.effectTotal(forkScopeOverride.pop())
+
+                    curZio = push.bracket_(pop, zio.zio)
                 }
               }
             } else {
@@ -691,7 +705,7 @@ private[zio] final class FiberContext[E, A](
       if ((traceExec || traceStack) && tracingRegion) Some(cutAncestryTrace(captureTrace(null)))
       else None
 
-    val parentScope = forkScope.getOrElse(scope)
+    val parentScope = (forkScope orElse forkScopeOverride.peekOrElse(None)).getOrElse(scope)
 
     val currentEnv = environments.peek()
     val currentSup = supervisors.peek()
