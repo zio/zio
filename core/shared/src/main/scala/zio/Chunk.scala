@@ -319,8 +319,18 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Folds over the elements in this chunk from the left.
    */
   override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
-    var s = s0
-    foreach(a => s = f(s, a))
+    var s             = s0
+    val arrayIterator = self.arrayIterator
+    while (arrayIterator.hasNext) {
+      val array  = arrayIterator.next()
+      val length = array.length
+      var i      = 0
+      while (i < length) {
+        val a = array(i)
+        s = f(s, a)
+        i += 1
+      }
+    }
     s
   }
 
@@ -783,13 +793,12 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Prepends an element to the chunk.
+   * Returns an `Iterator` that iterates over the arrays underlying this
+   * `Chunk`. Note that this method is side effecting because it allocates
+   * mutable state and should only be used internally.
    */
-  protected def prepend[A1 >: A](a1: A1): Chunk[A1] = {
-    val buffer = Array.ofDim[AnyRef](Chunk.BufferSize)
-    buffer(Chunk.BufferSize - 1) = a1.asInstanceOf[AnyRef]
-    Chunk.PrependN(self, buffer, 1, new AtomicInteger(1))
-  }
+  protected def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
+    materialize.arrayIterator
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
@@ -809,8 +818,28 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   protected def mapChunk[B](f: A => B): Chunk[B] = {
     val builder = ChunkBuilder.make[B]()
     builder.sizeHint(length)
-    foreach(a => builder += f(a))
+    val arrayIterator = self.arrayIterator
+    while (arrayIterator.hasNext) {
+      val array  = arrayIterator.next()
+      val length = array.length
+      var i      = 0
+      while (i < length) {
+        val a = array(i)
+        val b = f(a)
+        builder += b
+        i += 1
+      }
+    }
     builder.result()
+  }
+
+  /**
+   * Prepends an element to the chunk.
+   */
+  protected def prepend[A1 >: A](a1: A1): Chunk[A1] = {
+    val buffer = Array.ofDim[AnyRef](Chunk.BufferSize)
+    buffer(Chunk.BufferSize - 1) = a1.asInstanceOf[AnyRef]
+    Chunk.PrependN(self, buffer, 1, new AtomicInteger(1))
   }
 
   protected def right: Chunk[A] =
@@ -1241,6 +1270,9 @@ object Chunk {
     override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       Array.copy(array, 0, dest, n, length)
 
+    override protected def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
+      Iterator.single(array.asInstanceOf[Array[A1]])
+
     override protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val len     = self.length
       val builder = ChunkBuilder.make[B]()
@@ -1301,6 +1333,9 @@ object Chunk {
       left.toArray(n, dest)
       right.toArray(n + left.length, dest)
     }
+
+    override protected def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
+      (left.arrayIterator ++ right.arrayIterator).asInstanceOf[Iterator[Array[A1]]]
   }
 
   private final case class Singleton[A](a: A) extends Chunk[A] {
@@ -1458,6 +1493,9 @@ object Chunk {
 
     override def toArray[A1: ClassTag]: Array[A1] =
       Array.empty
+
+    override protected def arrayIterator[A]: Iterator[Array[A]] =
+      Iterator.empty
   }
 
   private[zio] object Tags {

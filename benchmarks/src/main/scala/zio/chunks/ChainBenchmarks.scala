@@ -10,6 +10,8 @@ import zio.Chunk
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Warmup(iterations = 0)
+@Measurement(iterations = 1)
 class ChainBenchmarks {
 
   val largeChain: Chain[Int] =
