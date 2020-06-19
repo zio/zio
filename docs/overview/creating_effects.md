@@ -61,7 +61,7 @@ An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 val zoption: IO[Option[Nothing], Int] = ZIO.fromOption(Some(2))
 ```
 
-The error type of the resulting effect is `Option[Nothing]`, because the `None` case of `Option` provides no information on why the value is not there. You can change the `Option[Nothing]` into a more specific error type using `ZIO#mapError`:
+The error type of the resulting effect is `Option[Nothing]`, which provides no information on why the value is not there. You can change the `Option[Nothing]` into a more specific error type using `ZIO#mapError`:
 
 ```scala mdoc:silent
 val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
