@@ -69,6 +69,10 @@ val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
 
 You can also readily compose it with other operators while preserving the optional nature of the result (similar to an `OptionT`)
 
+```scala mdoc:invisible
+trait Team
+```
+
 ```scala mdoc:silent
 val maybeId: IO[Option[Nothing], String] = ZIO.fromOption(Some("abc123"))
 def getUser(userId: String): IO[Throwable, Option[User]] = ???
@@ -176,7 +180,9 @@ val getStrLn2: IO[IOException, String] =
 An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.effectAsync`:
 
 ```scala mdoc:invisible
-trait User
+trait User { 
+  def teamId: String
+}
 trait AuthError
 ```
 

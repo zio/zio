@@ -383,7 +383,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def forever: ZSTM[R, E, Nothing] = self *> self.forever
 
   /**
-   * Unwraps the optional success of this effect, but can fail with unit value.
+   * Unwraps the optional success of this effect, but can fail with None value.
    */
   def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Option[Nothing], B] =
     foldM(
