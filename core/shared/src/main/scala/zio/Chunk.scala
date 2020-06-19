@@ -319,15 +319,8 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Folds over the elements in this chunk from the left.
    */
   override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
-    val len = self.length
-    var s   = s0
-
-    var i = 0
-    while (i < len) {
-      s = f(s, self(i))
-      i += 1
-    }
-
+    var s = s0
+    foreach(a => s = f(s, a))
     s
   }
 
@@ -814,15 +807,9 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Returns a chunk with the elements mapped by the specified function.
    */
   protected def mapChunk[B](f: A => B): Chunk[B] = {
-    val len     = self.length
     val builder = ChunkBuilder.make[B]()
-
-    var i = 0
-    while (i < len) {
-      builder += f(self(i))
-      i += 1
-    }
-
+    builder.sizeHint(length)
+    foreach(a => builder += f(a))
     builder.result()
   }
 
