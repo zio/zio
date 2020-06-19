@@ -121,7 +121,7 @@ If you don't want to suspend and you only want to query the state of whether or 
 you can use <code>poll</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> ioPromise4: <span class="hljs-type">UIO</span>[<span class="hljs-type">Promise</span>[<span class="hljs-type">Exception</span>, <span class="hljs-type">String</span>]] = <span class="hljs-type">Promise</span>.make[<span class="hljs-type">Exception</span>, <span class="hljs-type">String</span>]
 <span class="hljs-keyword">val</span> ioIsItDone: <span class="hljs-type">UIO</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">IO</span>[<span class="hljs-type">Exception</span>, <span class="hljs-type">String</span>]]] = ioPromise4.flatMap(p =&gt; p.poll)
-<span class="hljs-keyword">val</span> ioIsItDone2: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>, <span class="hljs-type">IO</span>[<span class="hljs-type">Exception</span>, <span class="hljs-type">String</span>]] = ioPromise4.flatMap(p =&gt; p.poll.get)
+<span class="hljs-keyword">val</span> ioIsItDone2: <span class="hljs-type">IO</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">Nothing</span>], <span class="hljs-type">IO</span>[<span class="hljs-type">Exception</span>, <span class="hljs-type">String</span>]] = ioPromise4.flatMap(p =&gt; p.poll.get)
 </code></pre>
 <p>If the Promise was not completed when you called <code>poll</code> then the IO will fail with the <code>Unit</code> value otherwise,
 you obtain an <code>IO[E, A]</code>, where <code>E</code> represents if the Promise completed with an error and <code>A</code> indicates

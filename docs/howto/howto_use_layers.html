@@ -70,17 +70,17 @@ To access the DB we need a <code>DBConnection</code>, and each step in our progr
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">User</span>(<span class="hljs-params">id: <span class="hljs-type">UserId</span>, name: <span class="hljs-type">String</span></span>)</span>
 </code></pre>
 <pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getUser</span></span>(userId: <span class="hljs-type">UserId</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">DBConnection</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">User</span>]] = <span class="hljs-type">UIO</span>(???)
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">DBConnection</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-type">UIO</span>(???)
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">createUser</span></span>(user: <span class="hljs-type">User</span>): <span class="hljs-type">URIO</span>[<span class="hljs-type">DBConnection</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-type">UIO</span>(???)
 
 <span class="hljs-keyword">val</span> user: <span class="hljs-type">User</span> = <span class="hljs-type">User</span>(<span class="hljs-type">UserId</span>(<span class="hljs-number">1234</span>), <span class="hljs-string">"Chet"</span>)
-<span class="hljs-keyword">val</span> created: <span class="hljs-type">ZIO</span>[<span class="hljs-type">DBConnection</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Boolean</span>] = <span class="hljs-keyword">for</span> {
+<span class="hljs-keyword">val</span> created: <span class="hljs-type">URIO</span>[<span class="hljs-type">DBConnection</span>, <span class="hljs-type">Boolean</span>] = <span class="hljs-keyword">for</span> {
   maybeUser &lt;- getUser(user.id)
   res       &lt;- maybeUser.fold(createUser(user).as(<span class="hljs-literal">true</span>))(_ =&gt; <span class="hljs-type">ZIO</span>.succeed(<span class="hljs-literal">false</span>))
 } <span class="hljs-keyword">yield</span> res
 </code></pre>
 <p>To run the program we must supply a <code>DBConnection</code> through <code>provide</code>, before feeding it to ZIO runtime.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> dbConnection: <span class="hljs-type">DBConnection</span> = ???
-<span class="hljs-keyword">val</span> runnable: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Boolean</span>] = created.provide(dbConnection)
+<span class="hljs-keyword">val</span> runnable: <span class="hljs-type">UIO</span>[<span class="hljs-type">Boolean</span>] = created.provide(dbConnection)
 
 <span class="hljs-keyword">val</span> finallyCreated  = runtime.unsafeRun(runnable)
 </code></pre>
@@ -190,19 +190,19 @@ Usually we don't create a <code>Has</code> directly, but we do that through <cod
   )
 
   <span class="hljs-comment">//accessor methods</span>
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">info</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Logging</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">info</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">URIO</span>[<span class="hljs-type">Logging</span>, <span class="hljs-type">Unit</span>] =
     <span class="hljs-type">ZIO</span>.accessM(_.get.info(s))
 
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">error</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Logging</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">error</span></span>(s: <span class="hljs-type">String</span>): <span class="hljs-type">URIO</span>[<span class="hljs-type">Logging</span>, <span class="hljs-type">Unit</span>] =
     <span class="hljs-type">ZIO</span>.accessM(_.get.error(s))
 }
 </code></pre>
 <p>The accessor methods are provided so that we can build programs without bothering about the implementation details of the required modules, the compiler will infer fully all the required modules to complete the task</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> user2: <span class="hljs-type">User</span> = <span class="hljs-type">User</span>(<span class="hljs-type">UserId</span>(<span class="hljs-number">123</span>), <span class="hljs-string">"Tommy"</span>)
 <span class="hljs-keyword">val</span> makeUser: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Logging</span> <span class="hljs-keyword">with</span> <span class="hljs-type">UserRepo</span>, <span class="hljs-type">DBError</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-keyword">for</span> {
-  _ &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"inserting user"</span>)  <span class="hljs-comment">// ZIO[Logging, Nothing, Unit]</span>
+  _ &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"inserting user"</span>)  <span class="hljs-comment">// URIO[Logging, Unit]</span>
   _ &lt;- <span class="hljs-type">UserRepo</span>.createUser(user2)       <span class="hljs-comment">// ZIO[UserRepo, DBError, Unit]</span>
-  _ &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"user inserted"</span>)   <span class="hljs-comment">// ZIO[Logging, Nothing, Unit]</span>
+  _ &lt;- <span class="hljs-type">Logging</span>.info(<span class="hljs-string">s"user inserted"</span>)   <span class="hljs-comment">// URIO[Logging, Unit]</span>
 } <span class="hljs-keyword">yield</span> ()
 </code></pre>
 <p>Given a program with these requirements, we can build the required layer:</p>

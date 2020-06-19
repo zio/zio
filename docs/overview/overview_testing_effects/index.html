@@ -74,7 +74,7 @@
 <p>When the environment is a type with fields, then the <code>ZIO.access</code> method can be used to access a given part of the environment in a single method call:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">final</span> <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Config</span>(<span class="hljs-params">server: <span class="hljs-type">String</span>, port: <span class="hljs-type">Int</span></span>)</span>
 
-<span class="hljs-keyword">val</span> configString: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Config</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">String</span>] = 
+<span class="hljs-keyword">val</span> configString: <span class="hljs-type">URIO</span>[<span class="hljs-type">Config</span>, <span class="hljs-type">String</span>] = 
   <span class="hljs-keyword">for</span> {
     server &lt;- <span class="hljs-type">ZIO</span>.access[<span class="hljs-type">Config</span>](_.server)
     port   &lt;- <span class="hljs-type">ZIO</span>.access[<span class="hljs-type">Config</span>](_.port)
@@ -97,7 +97,7 @@
 <h3><a class="anchor" aria-hidden="true" id="providing-environments"></a><a href="#providing-environments" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Providing Environments</h3>
 <p>Effects that require an environment cannot be run without first <em>providing</em> their environment to them.</p>
 <p>The simplest way to provide an effect the environment that it requires is to use the <code>ZIO#provide</code> method:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> square: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Int</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>] = 
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> square: <span class="hljs-type">URIO</span>[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>] = 
   <span class="hljs-keyword">for</span> {
     env &lt;- <span class="hljs-type">ZIO</span>.environment[<span class="hljs-type">Int</span>]
   } <span class="hljs-keyword">yield</span> env * env
@@ -126,17 +126,17 @@
 <h3><a class="anchor" aria-hidden="true" id="provide-helpers"></a><a href="#provide-helpers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Provide Helpers</h3>
 <p>In order to make it easier to access the database service as an environmental effect, we will define helper functions that use <code>ZIO.accessM</code>.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">db</span> </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">lookup</span></span>(id: <span class="hljs-type">UserID</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">UserProfile</span>] =
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">lookup</span></span>(id: <span class="hljs-type">UserID</span>): <span class="hljs-type">RIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">UserProfile</span>] =
     <span class="hljs-type">ZIO</span>.accessM(_.database.lookup(id))
 
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">update</span></span>(id: <span class="hljs-type">UserID</span>, profile: <span class="hljs-type">UserProfile</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">Unit</span>] =
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">update</span></span>(id: <span class="hljs-type">UserID</span>, profile: <span class="hljs-type">UserProfile</span>): <span class="hljs-type">RIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">Unit</span>] =
     <span class="hljs-type">ZIO</span>.accessM(_.database.update(id, profile))
 }
 </code></pre>
 <p>While these helpers are not required, because we can access the database module directly through <code>ZIO.accessM</code>, the helpers are easy to write and make use-site code simpler.</p>
 <h3><a class="anchor" aria-hidden="true" id="use-the-service"></a><a href="#use-the-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use the Service</h3>
 <p>Now that we have defined a module and helper functions, we are now ready to build an example that uses the database service:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> lookedupProfile: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">UserProfile</span>] = 
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> lookedupProfile: <span class="hljs-type">RIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">UserProfile</span>] = 
   <span class="hljs-keyword">for</span> {
     profile &lt;- db.lookup(userId)
   } <span class="hljs-keyword">yield</span> profile
@@ -158,9 +158,9 @@
 <h3><a class="anchor" aria-hidden="true" id="run-the-database-effect"></a><a href="#run-the-database-effect" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run the Database Effect</h3>
 <p>We now have a database module, helpers to interact with the database module, and a live implementation of the database module.</p>
 <p>We can now provide the live database module to our application, using <code>ZIO.provide</code>:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">main</span></span>: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">Unit</span>] = ???
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">main</span></span>: <span class="hljs-type">RIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">Unit</span>] = ???
 
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">main2</span></span>: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">Unit</span>] = 
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">main2</span></span>: <span class="hljs-type">Task</span>[<span class="hljs-type">Unit</span>] = 
   main.provide(<span class="hljs-type">DatabaseLive</span>)
 </code></pre>
 <p>The resulting effect has no requirements, so it can now be executed with a ZIO runtime.</p>
@@ -190,9 +190,9 @@
 <p>Because this module will only be used in tests, it simulates interaction with a database by extracting and updating data in a hard-coded map. To make this module fiber-safe, you could instead use a <code>Ref</code> and not a <code>var</code> to hold the map.</p>
 <h3><a class="anchor" aria-hidden="true" id="test-database-code"></a><a href="#test-database-code" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Test Database Code</h3>
 <p>To test code that requires the database, we need only provide it with our test database module:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">code</span></span>: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">Unit</span>] = ???
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">code</span></span>: <span class="hljs-type">RIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">Unit</span>] = ???
 
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">code2</span></span>: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">Unit</span>] = 
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">code2</span></span>: <span class="hljs-type">Task</span>[<span class="hljs-type">Unit</span>] = 
   code.provide(<span class="hljs-type">TestDatabase</span>)
 </code></pre>
 <p>Our application code can work with either our production database module, or the test database module.</p>

@@ -84,7 +84,7 @@ not the one you expected.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
 <span class="hljs-keyword">import</span> zio.console.<span class="hljs-type">Console</span>
 
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">processEvent</span></span>(event: <span class="hljs-type">Event</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">processEvent</span></span>(event: <span class="hljs-type">Event</span>): <span class="hljs-type">URIO</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Unit</span>] =
   console.putStrLn(<span class="hljs-string">s"Got <span class="hljs-subst">$event</span>"</span>)
 </code></pre>
 <p>With ZIO, we've regained to ability to reason about the effects called. We know that <code>processEvent</code> can only call on <em>capabilities</em> of <code>Console</code>, so even though we still have <code>Unit</code> as the result, we have narrowed the possible effects space to a few.</p>
@@ -94,7 +94,7 @@ There is no way (at the moment) to enforce this by the compiler. There is some r
 will enable us to further constrain side effects.</p>
 </blockquote>
 <p>However, the same method could be implemented as:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">processEvent2</span></span>(event: <span class="hljs-type">Event</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">processEvent2</span></span>(event: <span class="hljs-type">Event</span>): <span class="hljs-type">URIO</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Unit</span>] =
   <span class="hljs-type">ZIO</span>.unit
 </code></pre>
 <p>How can we test it did exactly what we expected it to do?</p>
@@ -126,7 +126,7 @@ will enable us to further constrain side effects.</p>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">overloaded</span></span>(arg1: <span class="hljs-type">Int</span>)                  : <span class="hljs-type">UIO</span>[<span class="hljs-type">String</span>]
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">overloaded</span></span>(arg1: <span class="hljs-type">Long</span>)                 : <span class="hljs-type">UIO</span>[<span class="hljs-type">String</span>]
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">function</span></span>(arg1: <span class="hljs-type">Int</span>)                    : <span class="hljs-type">String</span>
-    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sink</span></span>(a: <span class="hljs-type">Int</span>)                           : <span class="hljs-type">ZSink</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">String</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">List</span>[<span class="hljs-type">Int</span>]]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sink</span></span>(a: <span class="hljs-type">Int</span>)                           : <span class="hljs-type">ZSink</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">String</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">List</span>[<span class="hljs-type">Int</span>]]
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">stream</span></span>(a: <span class="hljs-type">Int</span>)                         : <span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">String</span>, <span class="hljs-type">Int</span>]
   }
 }
@@ -146,7 +146,7 @@ will enable us to further constrain side effects.</p>
     <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">_1</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Effect</span>[<span class="hljs-type">Long</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">String</span>]</span>
   }
   <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Function</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Method</span>[<span class="hljs-type">Int</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">String</span>]</span>
-  <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Sink</span>     <span class="hljs-keyword">extends</span> <span class="hljs-title">Sink</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">String</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">List</span>[<span class="hljs-type">Int</span>]]</span>
+  <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Sink</span>     <span class="hljs-keyword">extends</span> <span class="hljs-title">Sink</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">String</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">List</span>[<span class="hljs-type">Int</span>]]</span>
   <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Stream</span>   <span class="hljs-keyword">extends</span> <span class="hljs-title">Stream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">String</span>, <span class="hljs-type">Int</span>]</span>
 
   <span class="hljs-keyword">val</span> compose: <span class="hljs-type">URLayer</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">Proxy</span>], <span class="hljs-type">Example</span>] = ???
@@ -187,7 +187,7 @@ A <code>Proxy</code> holds the mock state and serves predefined responses to cal
         <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">overloaded</span></span>(arg1: <span class="hljs-type">Int</span>)                  = proxy(<span class="hljs-type">Overloaded</span>._0, arg1)
         <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">overloaded</span></span>(arg1: <span class="hljs-type">Long</span>)                 = proxy(<span class="hljs-type">Overloaded</span>._1, arg1)
         <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">function</span></span>(arg1: <span class="hljs-type">Int</span>)                    = rts.unsafeRunTask(proxy(<span class="hljs-type">Function</span>, arg1))
-        <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sink</span></span>(a: <span class="hljs-type">Int</span>)                           = rts.unsafeRun(proxy(<span class="hljs-type">Sink</span>, a).catchAll(error =&gt; <span class="hljs-type">UIO</span>(<span class="hljs-type">ZSink</span>.fail(error))))
+        <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sink</span></span>(a: <span class="hljs-type">Int</span>)                           = rts.unsafeRun(proxy(<span class="hljs-type">Sink</span>, a).catchAll(error =&gt; <span class="hljs-type">UIO</span>(<span class="hljs-type">ZSink</span>.fail[<span class="hljs-type">String</span>, <span class="hljs-type">Int</span>](error))))
         <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">stream</span></span>(a: <span class="hljs-type">Int</span>)                         = rts.unsafeRun(proxy(<span class="hljs-type">Stream</span>, a))
       }
     }
@@ -212,8 +212,8 @@ multiple services.</p>
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">AccountObserver</span> </span>{
   <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Service</span> </span>{
-    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">processEvent</span></span>(event: <span class="hljs-type">AccountEvent</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>]
-    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">runCommand</span></span>(): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">processEvent</span></span>(event: <span class="hljs-type">AccountEvent</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">runCommand</span></span>(): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>]
   }
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">processEvent</span></span>(event: <span class="hljs-type">AccountEvent</span>) =
@@ -363,10 +363,10 @@ assertM(result)(isUnit)
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">PolyExample</span> </span>{
   <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Service</span> </span>{
-    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">polyInput</span></span>[<span class="hljs-type">I</span>: <span class="hljs-type">Tag</span>](input: <span class="hljs-type">I</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">String</span>]
-    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">polyError</span></span>[<span class="hljs-type">E</span>: <span class="hljs-type">Tag</span>](input: <span class="hljs-type">Int</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">E</span>, <span class="hljs-type">String</span>]
-    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">polyOutput</span></span>[<span class="hljs-type">A</span>: <span class="hljs-type">Tag</span>](input: <span class="hljs-type">Int</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>]
-    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">polyAll</span></span>[<span class="hljs-type">I</span>: <span class="hljs-type">Tag</span>, <span class="hljs-type">E</span>: <span class="hljs-type">Tag</span>, <span class="hljs-type">A</span>: <span class="hljs-type">Tag</span>](input: <span class="hljs-type">I</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">E</span>, <span class="hljs-type">A</span>]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">polyInput</span></span>[<span class="hljs-type">I</span>: <span class="hljs-type">Tag</span>](input: <span class="hljs-type">I</span>): <span class="hljs-type">Task</span>[<span class="hljs-type">String</span>]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">polyError</span></span>[<span class="hljs-type">E</span>: <span class="hljs-type">Tag</span>](input: <span class="hljs-type">Int</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">E</span>, <span class="hljs-type">String</span>]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">polyOutput</span></span>[<span class="hljs-type">A</span>: <span class="hljs-type">Tag</span>](input: <span class="hljs-type">Int</span>): <span class="hljs-type">Task</span>[<span class="hljs-type">A</span>]
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">polyAll</span></span>[<span class="hljs-type">I</span>: <span class="hljs-type">Tag</span>, <span class="hljs-type">E</span>: <span class="hljs-type">Tag</span>, <span class="hljs-type">A</span>: <span class="hljs-type">Tag</span>](input: <span class="hljs-type">I</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">E</span>, <span class="hljs-type">A</span>]
   }
 }
 </code></pre>

@@ -78,7 +78,7 @@ testFrameworks += <span class="hljs-keyword">new</span> <span class="hljs-type">
 <span class="hljs-keyword">import</span> <span class="hljs-type">HelloWorld</span>._
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">HelloWorld</span> </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sayHello</span></span>: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sayHello</span></span>: <span class="hljs-type">URIO</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Unit</span>] =
     console.putStrLn(<span class="hljs-string">"Hello, World!"</span>)
 }
 
