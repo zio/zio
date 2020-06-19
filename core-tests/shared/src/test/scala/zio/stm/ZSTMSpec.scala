@@ -264,8 +264,8 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("extracts the value from Some") {
           assertM(STM.succeed(Some(1)).get.commit)(equalTo(1))
         },
-        testM("fails with Unit on None") {
-          assertM(STM.succeed(None).get.commit.run)(fails(isUnit))
+        testM("fails with None on None") {
+          assertM(STM.succeed(None).get.commit.run)(fails(isNone))
         }
       ),
       suite("head")(

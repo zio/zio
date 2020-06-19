@@ -406,10 +406,10 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     }
 
   /**
-   * Unwraps the optional success of this effect, but can fail with unit value.
+   * Unwraps the optional success of this effect, but can fail with None value.
    */
-  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZManaged[R, Unit, B] =
-    ZManaged.absolve(mapError(ev1)(CanFail).map(ev2(_).toRight(())))
+  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZManaged[R, Option[Nothing], B] =
+    ZManaged.absolve(mapError(ev1)(CanFail).map(ev2(_).toRight(None)))
 
   /**
    * Returns a new effect that ignores the success or failure of this effect.

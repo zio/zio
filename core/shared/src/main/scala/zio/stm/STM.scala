@@ -168,7 +168,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fromOption]]
    */
-  def fromOption[A](v: => Option[A]): STM[Unit, A] =
+  def fromOption[A](v: => Option[A]): STM[Option[Nothing], A] =
     ZSTM.fromOption(v)
 
   /**
