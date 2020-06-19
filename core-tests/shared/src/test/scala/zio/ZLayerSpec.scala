@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.{ ignore, nonFlaky }
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment._
 
@@ -257,7 +257,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
         } yield assertCompletes
-      } @@ ignore,
+      },
       testM("map can map the output of a layer to an unrelated type") {
         case class A(name: String, value: Int)
         case class B(name: String)
