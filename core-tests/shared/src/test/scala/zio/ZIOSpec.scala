@@ -2927,6 +2927,26 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(isNone)
       }
     ),
+    suite("transplant")(
+      testM("preserves supervision relationship of nested fibers") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber <- ZIO.transplant { grafter =>
+                    grafter {
+                      val zio = for {
+                        _ <- (latch1.succeed(()) *> ZIO.infinity.onInterrupt(latch2.succeed(()))).fork
+                        _ <- ZIO.infinity
+                      } yield ()
+                      zio.fork
+                    }
+                  }
+          _ <- latch1.await
+          _ <- fiber.interrupt
+          _ <- latch2.await
+        } yield assertCompletes
+      }
+    ),
     suite("unless")(
       testM("executes correct branch only") {
         for {
