@@ -269,7 +269,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
       case ZLayer.Managed(self) =>
         Managed.succeed(_ => self)
       case ZLayer.ZipWithPar(self, that, f) =>
-        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))
+        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWithPar(memoMap.getOrElseMemoize(that))(f))
     }
 }
 
