@@ -275,7 +275,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         scheduleResult = Take.single(Left(schedule.extract(state._1, state._2)))
                         take           <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
                         _              <- raceNextTime.set(false)
-                        _              <- producerWaiting.disown // To avoid interruption when this fiber is joined
                         _              <- waitingFiber.set(Some(producerWaiting))
                       } yield Chunk(scheduleResult, take.map(Right(_)))
                     case Some(nextState) =>
@@ -283,12 +282,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         _  <- scheduleState.update(_.copy(_2 = nextState))
                         ps <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
                         _  <- raceNextTime.set(false)
-                        _  <- producerWaiting.disown // To avoid interruption when this fiber is joined
                         _  <- waitingFiber.set(Some(producerWaiting))
                       } yield Chunk.single(ps.map(Right(_)))
                   },
                 (producerDone, scheduleWaiting) =>
-                  scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit)))
+                  scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit))),
+                Some(ZScope.global)
               )
 
           raceNextTime.get
@@ -1344,61 +1343,64 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     f: O => ZStream[R1, E1, O2]
   ): ZStream[R1, E1, O2] =
     ZStream[R1, E1, O2] {
-      for {
-        out          <- Queue.bounded[ZIO[R1, Option[E1], Chunk[O2]]](outputBuffer).toManaged(_.shutdown)
-        permits      <- Semaphore.make(n.toLong).toManaged_
-        innerFailure <- Promise.make[Cause[E1], Nothing].toManaged_
+      ZManaged.withChildren { getChildren =>
+        for {
+          out          <- Queue.bounded[ZIO[R1, Option[E1], Chunk[O2]]](outputBuffer).toManaged(_.shutdown)
+          permits      <- Semaphore.make(n.toLong).toManaged_
+          innerFailure <- Promise.make[Cause[E1], Nothing].toManaged_
 
-        // - The driver stream forks an inner fiber for each stream created
-        //   by f, with an upper bound of n concurrent fibers, enforced by the semaphore.
-        //   - On completion, the driver stream tries to acquire all permits to verify
-        //     that all inner fibers have finished.
-        //     - If one of them failed (signalled by a promise), all other fibers are interrupted
-        //     - If they all succeeded, Take.End is enqueued
-        //   - On error, the driver stream interrupts all inner fibers and emits a
-        //     Take.Fail value
-        //   - Interruption is handled by running the finalizers which take care of cleanup
-        // - Inner fibers enqueue Take values from their streams to the output queue
-        //   - On error, an inner fiber enqueues a Take.Fail value and signals its failure
-        //     with a promise. The driver will pick that up and interrupt all other fibers.
-        //   - On interruption, an inner fiber does nothing
-        //   - On completion, an inner fiber does nothing
-        _ <- self.foreachManaged { a =>
-              for {
-                latch <- Promise.make[Nothing, Unit]
-                innerStream = ZStream
-                  .managed(permits.withPermitManaged)
-                  .tap(_ => latch.succeed(()))
-                  .flatMap(_ => f(a))
-                  .foreachChunk(b => out.offer(UIO.succeedNow(b)).unit)
-                  .foldCauseM(
-                    cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause).unit,
-                    _ => ZIO.unit
-                  )
-                _ <- innerStream.fork
-                // Make sure that the current inner stream has actually succeeded in acquiring
-                // a permit before continuing. Otherwise we could reach the end of the stream and
-                // acquire the permits ourselves before the inners had a chance to start.
-                _ <- latch.await
-              } yield ()
-            }.foldCauseM(
-                cause => (ZIO.interruptAllChildren *> out.offer(Pull.halt(cause)).unit).toManaged_,
-                _ =>
-                  innerFailure.await.interruptible
-                  // Important to use `withPermits` here because the ZManaged#fork below may interrupt
-                  // the driver, and we want the permits to be released in that case
-                    .raceWith(permits.withPermits(n.toLong)(ZIO.unit).interruptible)(
-                      // One of the inner fibers failed. It already enqueued its failure, so we
-                      // interrupt the inner fibers. The finalizer below will make sure
-                      // that they actually end.
-                      leftDone = (_, permitAcquisition) => ZIO.interruptAllChildren *> permitAcquisition.interrupt.unit,
-                      // All fibers completed successfully, so we signal that we're done.
-                      rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
+          // - The driver stream forks an inner fiber for each stream created
+          //   by f, with an upper bound of n concurrent fibers, enforced by the semaphore.
+          //   - On completion, the driver stream tries to acquire all permits to verify
+          //     that all inner fibers have finished.
+          //     - If one of them failed (signalled by a promise), all other fibers are interrupted
+          //     - If they all succeeded, Take.End is enqueued
+          //   - On error, the driver stream interrupts all inner fibers and emits a
+          //     Take.Fail value
+          //   - Interruption is handled by running the finalizers which take care of cleanup
+          // - Inner fibers enqueue Take values from their streams to the output queue
+          //   - On error, an inner fiber enqueues a Take.Fail value and signals its failure
+          //     with a promise. The driver will pick that up and interrupt all other fibers.
+          //   - On interruption, an inner fiber does nothing
+          //   - On completion, an inner fiber does nothing
+          _ <- self.foreachManaged { a =>
+                for {
+                  latch <- Promise.make[Nothing, Unit]
+                  innerStream = ZStream
+                    .managed(permits.withPermitManaged)
+                    .tap(_ => latch.succeed(()))
+                    .flatMap(_ => f(a))
+                    .foreachChunk(b => out.offer(UIO.succeedNow(b)).unit)
+                    .foldCauseM(
+                      cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause).unit,
+                      _ => ZIO.unit
                     )
-                    .toManaged_
-              )
-              .fork
-      } yield out.take.flatten
+                  _ <- innerStream.fork
+                  // Make sure that the current inner stream has actually succeeded in acquiring
+                  // a permit before continuing. Otherwise we could reach the end of the stream and
+                  // acquire the permits ourselves before the inners had a chance to start.
+                  _ <- latch.await
+                } yield ()
+              }.foldCauseM(
+                  cause => (getChildren.flatMap(Fiber.interruptAll(_)) *> out.offer(Pull.halt(cause)).unit).toManaged_,
+                  _ =>
+                    innerFailure.await.interruptible
+                    // Important to use `withPermits` here because the ZManaged#fork below may interrupt
+                    // the driver, and we want the permits to be released in that case
+                      .raceWith(permits.withPermits(n.toLong)(ZIO.unit).interruptible)(
+                        // One of the inner fibers failed. It already enqueued its failure, so we
+                        // interrupt the inner fibers. The finalizer below will make sure
+                        // that they actually end.
+                        leftDone = (_, permitAcquisition) =>
+                          getChildren.flatMap(Fiber.interruptAll(_)) *> permitAcquisition.interrupt.unit,
+                        // All fibers completed successfully, so we signal that we're done.
+                        rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
+                      )
+                      .toManaged_
+                )
+                .fork
+        } yield out.take.flatten
+      }
     }
 
   /**
@@ -1411,44 +1413,47 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     f: O => ZStream[R1, E1, O2]
   ): ZStream[R1, E1, O2] =
     ZStream[R1, E1, O2] {
-      for {
-        // Modeled after flatMapPar.
-        out          <- Queue.bounded[ZIO[R1, Option[E1], Chunk[O2]]](bufferSize).toManaged(_.shutdown)
-        permits      <- Semaphore.make(n.toLong).toManaged_
-        innerFailure <- Promise.make[Cause[E1], Nothing].toManaged_
-        cancelers    <- Queue.bounded[Promise[Nothing, Unit]](n).toManaged(_.shutdown)
-        _ <- self.foreachManaged { a =>
-              for {
-                canceler <- Promise.make[Nothing, Unit]
-                latch    <- Promise.make[Nothing, Unit]
-                size     <- cancelers.size
-                _ <- if (size < n) UIO.unit
-                    else cancelers.take.flatMap(_.succeed(())).unit
-                _ <- cancelers.offer(canceler)
-                innerStream = ZStream
-                  .managed(permits.withPermitManaged)
-                  .tap(_ => latch.succeed(()))
-                  .flatMap(_ => f(a))
-                  .foreachChunk(o2s => out.offer(UIO.succeedNow(o2s)).unit)
-                  .foldCauseM(
-                    cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause).unit,
-                    _ => UIO.unit
-                  )
-                _ <- (innerStream race canceler.await).fork
-                _ <- latch.await
-              } yield ()
-            }.foldCauseM(
-                cause => (ZIO.interruptAllChildren *> out.offer(Pull.halt(cause))).unit.toManaged_,
-                _ =>
-                  innerFailure.await
-                    .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
-                      leftDone = (_, permitAcquisition) => ZIO.interruptAllChildren *> permitAcquisition.interrupt.unit,
-                      rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
+      ZManaged.withChildren { getChildren =>
+        for {
+          // Modeled after flatMapPar.
+          out          <- Queue.bounded[ZIO[R1, Option[E1], Chunk[O2]]](bufferSize).toManaged(_.shutdown)
+          permits      <- Semaphore.make(n.toLong).toManaged_
+          innerFailure <- Promise.make[Cause[E1], Nothing].toManaged_
+          cancelers    <- Queue.bounded[Promise[Nothing, Unit]](n).toManaged(_.shutdown)
+          _ <- self.foreachManaged { a =>
+                for {
+                  canceler <- Promise.make[Nothing, Unit]
+                  latch    <- Promise.make[Nothing, Unit]
+                  size     <- cancelers.size
+                  _ <- if (size < n) UIO.unit
+                      else cancelers.take.flatMap(_.succeed(())).unit
+                  _ <- cancelers.offer(canceler)
+                  innerStream = ZStream
+                    .managed(permits.withPermitManaged)
+                    .tap(_ => latch.succeed(()))
+                    .flatMap(_ => f(a))
+                    .foreachChunk(o2s => out.offer(UIO.succeedNow(o2s)).unit)
+                    .foldCauseM(
+                      cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause).unit,
+                      _ => UIO.unit
                     )
-                    .toManaged_
-              )
-              .fork
-      } yield out.take.flatten
+                  _ <- (innerStream race canceler.await).fork
+                  _ <- latch.await
+                } yield ()
+              }.foldCauseM(
+                  cause => (getChildren.flatMap(Fiber.interruptAll(_)) *> out.offer(Pull.halt(cause))).unit.toManaged_,
+                  _ =>
+                    innerFailure.await
+                      .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
+                        leftDone = (_, permitAcquisition) =>
+                          getChildren.flatMap(Fiber.interruptAll(_)) *> permitAcquisition.interrupt.unit,
+                        rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
+                      )
+                      .toManaged_
+                )
+                .fork
+        } yield out.take.flatten
+      }
     }
 
   /**
@@ -2713,7 +2718,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               fiber.join.raceWith[R with Clock, Option[E1], Option[E1], Chunk[O2], Chunk[O2]](chunks)(
                 {
                   case (Exit.Success(value), current) =>
-                    current.disown *> ref.set(Current(current)).as(Chunk.single(value))
+                    ref.set(Current(current)).as(Chunk.single(value))
                   case (Exit.Failure(cause), current) =>
                     current.interrupt *> Pull.halt(cause)
                 }, {
@@ -2728,7 +2733,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       case None =>
                         previous.join.map(Chunk.single) <* ref.set(Done)
                     }
-                }
+                },
+                Some(ZScope.global)
               )
             case Current(fiber) =>
               fiber.join >>= store

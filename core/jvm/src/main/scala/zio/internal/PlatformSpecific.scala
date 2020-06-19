@@ -16,15 +16,16 @@
 
 package zio.internal
 
+import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
 
 import scala.concurrent.ExecutionContext
 
-import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
+import zio.{ Cause, Supervisor }
 
 private[internal] trait PlatformSpecific {
 
@@ -97,6 +98,8 @@ private[internal] trait PlatformSpecific {
         if (cause.died)
           System.err.println(cause.prettyPrint)
 
+      val supervisor = Supervisor.none
+
     }
 
   /**
@@ -136,6 +139,12 @@ private[internal] trait PlatformSpecific {
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
   final def newConcurrentSet[A](): JSet[A] = ConcurrentHashMap.newKeySet[A]()
+
+  final def newWeakReference[A](value: A): () => A = {
+    val ref = new WeakReference[A](value)
+
+    () => ref.get()
+  }
 
   /**
    * calling `initCause()` on [[java.lang.Throwable]] may fail on the JVM if `newCause != this`,

@@ -16,6 +16,7 @@
 
 package zio
 
+import scala.collection.immutable.SortedSet
 import scala.util.Try
 
 import zio.console.Console
@@ -482,6 +483,7 @@ package object test extends CompileVariants {
       def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit]
       def get[V](key: TestAnnotation[V]): UIO[V]
       def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]]
+      def supervisedFibers: UIO[SortedSet[Fiber.Runtime[Any, Any]]]
     }
 
     /**
@@ -499,9 +501,15 @@ package object test extends CompileVariants {
       ZIO.accessM(_.get.get(key))
 
     /**
+     * Returns a set of all fibers in this test.
+     */
+    def supervisedFibers: ZIO[Annotations, Nothing, SortedSet[Fiber.Runtime[Any, Any]]] =
+      ZIO.accessM(_.get.supervisedFibers)
+
+    /**
      * Constructs a new `Annotations` service.
      */
-    def live: Layer[Nothing, Annotations] =
+    val live: Layer[Nothing, Annotations] =
       ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
         new Annotations.Service {
           def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
@@ -511,6 +519,17 @@ package object test extends CompileVariants {
           def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =
             fiberRef.locally(TestAnnotationMap.empty) {
               zio.foldM(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
+            }
+          def supervisedFibers: UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
+            ZIO.descriptorWith { descriptor =>
+              get(TestAnnotation.fibers).flatMap {
+                case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
+                case Right(refs) =>
+                  ZIO
+                    .foreach(refs)(_.get)
+                    .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
+                    .map(_.filter(_.id != descriptor.id))
+              }
             }
         }
       })

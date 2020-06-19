@@ -42,8 +42,6 @@ private[zio] trait FiberPlatformSpecific {
           }
         }
 
-      final def children: UIO[Iterable[Fiber.Runtime[Any, Any]]] = UIO(Nil)
-
       final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 
       final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
@@ -71,8 +69,6 @@ private[zio] trait FiberPlatformSpecific {
             UIO.none
           }
         }
-
-      def children: UIO[Iterable[Fiber.Runtime[Any, Any]]] = UIO(Nil)
 
       def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 

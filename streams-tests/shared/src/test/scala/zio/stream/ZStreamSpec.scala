@@ -1148,7 +1148,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          },
+          } @@ nonFlaky,
           testM("inner defects interrupt all fibers") {
             val ex = new RuntimeException("Ouch")
 
@@ -1180,7 +1180,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .run
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-          },
+          } @@ nonFlaky,
           testM("finalizer ordering") {
             for {
               execution <- Ref.make[List[String]](Nil)
@@ -1283,7 +1283,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          },
+          } @@ nonFlaky,
           testM("inner defects interrupt all fibers") {
             val ex = new RuntimeException("Ouch")
 
@@ -1315,7 +1315,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .run
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-          },
+          } @@ nonFlaky,
           testM("finalizer ordering") {
             for {
               execution <- Ref.make(List.empty[String])
@@ -1918,7 +1918,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("mapMPar")(
           testM("foreachParN equivalence") {
-            checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
+            checkNM(10)(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
               val s = ZStream.fromIterable(data)
 
               for {

@@ -2265,6 +2265,19 @@ object ZManaged {
   def whenM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.WhenM[R, E] =
     new ZManaged.WhenM(b)
 
+  /**
+   * Locally installs a supervisor and an effect that succeeds with all the
+   * children that have been forked in the returned effect.
+   */
+  def withChildren[R, E, A](get: UIO[Chunk[Fiber.Runtime[Any, Any]]] => ZManaged[R, E, A]): ZManaged[R, E, A] =
+    ZManaged.unwrap(Supervisor.track(true).map { supervisor =>
+      // Filter out the fiber id of whoever is calling this:
+      ZManaged(
+        get(supervisor.value.flatMap(children => ZIO.descriptor.map(d => children.filter(_.id != d.id)))).zio
+          .supervised(supervisor)
+      )
+    })
+
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow((Finalizer.noop, r)))
 }

@@ -21,7 +21,7 @@ import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
 import scala.concurrent.ExecutionContext
 
 import com.github.ghik.silencer.silent
-import zio.Cause
+import zio.{ Cause, Supervisor }
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
 
@@ -86,6 +86,8 @@ private[internal] trait PlatformSpecific {
           println(cause.prettyPrint)
 
       val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
+
+      val supervisor = Supervisor.none
     }
 
   /**
@@ -122,6 +124,8 @@ private[internal] trait PlatformSpecific {
   final def newConcurrentWeakSet[A](): JSet[A] = new HashSet[A]()
 
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
+
+  final def newWeakReference[A](value: A): () => A = { () => value }
 
   @silent("is never used")
   final def forceThrowableCause(throwable: => Throwable, newCause: => Throwable): Unit = ()

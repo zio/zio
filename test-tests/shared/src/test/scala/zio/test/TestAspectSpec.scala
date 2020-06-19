@@ -128,12 +128,6 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("flaky retries a test with a limit") {
       assert(true)(isFalse)
     } @@ flaky @@ failing,
-    testM("forked runs each test on its own separate fiber") {
-      for {
-        _        <- ZIO.infinity.fork
-        children <- ZIO.children
-      } yield assert(children)(hasSize(equalTo(1)))
-    } @@ forked @@ nonFlaky,
     test("ifEnv runs a test if environment variable satisfies assertion") {
       assert(true)(isTrue)
     } @@ ifEnv("PATH", containsString("bin")) @@ success @@ jvmOnly,

@@ -107,6 +107,8 @@ trait Runtime[+R] {
 
     val fiberId = Fiber.newFiberId()
 
+    val scope = ZScope.unsafeMake[Exit[E, A]]()
+
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       platform,
@@ -115,10 +117,11 @@ trait Runtime[+R] {
       InitialInterruptStatus,
       None,
       PlatformConstants.tracingSupported,
-      Platform.newWeakHashMap()
+      Platform.newWeakHashMap(),
+      platform.supervisor,
+      scope,
+      ForkSuperviseMode.Interrupt
     )
-
-    Fiber.track(context)
 
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
