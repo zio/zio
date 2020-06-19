@@ -88,14 +88,14 @@ trait Supervisor[+A] { self =>
         self.unsafeOnEnd(value, fiber) || that.unsafeOnEnd(value, fiber)
     }
 
-  def unsafeOnStart[R, E, A](
+  private[zio] def unsafeOnStart[R, E, A](
     environment: R,
     effect: ZIO[R, E, A],
     parent: Option[Fiber.Runtime[Any, Any]],
     fiber: Fiber.Runtime[E, A]
   ): Propagation
 
-  def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Propagation
+  private[zio] def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Propagation
 }
 object Supervisor {
 

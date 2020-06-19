@@ -2905,18 +2905,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def forkAll_[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Unit] =
     as.foldRight[URIO[R, Unit]](ZIO.unit)(_.fork *> _)
 
-  def forkSupervisionMask[R, E, A](
-    superviseMode: ForkSuperviseMode
-  )(f: ForkSupervisionRestore => ZIO[R, E, A]): ZIO[R, E, A] =
-    new GetForkSupervision(restoreMode =>
-      new SetForkSupervision(f(new ForkSupervisionRestore(restoreMode)), superviseMode)
-    )
-
-  class ForkSupervisionRestore(restoreMode: ForkSuperviseMode) {
-    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      new SetForkSupervision(zio, restoreMode)
-  }
-
   /**
    * Lifts an `Either` into a `ZIO` value.
    */
@@ -4177,15 +4165,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class Supervise[R, E, A](val zio: ZIO[R, E, A], val supervisor: Supervisor[Any])
       extends ZIO[R, E, A] {
     override def tag = Tags.Supervise
-  }
-
-  private[zio] final class GetForkSupervision[R, E, A](val f: ForkSuperviseMode => ZIO[R, E, A]) extends ZIO[R, E, A] {
-    override def tag = Tags.GetForkSupervision
-  }
-
-  private[zio] final class SetForkSupervision[R, E, A](val zio: ZIO[R, E, A], val superviseMode: ForkSuperviseMode)
-      extends ZIO[R, E, A] {
-    override def tag = Tags.SetForkSupervision
   }
 
   private[zio] final class GetForkScope[R, E, A](val f: ZScope[Exit[Any, Any]] => ZIO[R, E, A]) extends ZIO[R, E, A] {
