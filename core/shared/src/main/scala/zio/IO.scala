@@ -668,7 +668,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.require]]
    */
-  def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
+  def require[E, A](error: => E): IO[E, Option[A]] => IO[E, A] =
     ZIO.require[Any, E, A](error)
 
   /**

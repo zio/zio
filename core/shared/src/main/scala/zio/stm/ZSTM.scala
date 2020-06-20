@@ -336,7 +336,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Unwraps the optional error, defaulting to the provided value.
    */
-  def flattenErrorOption[E1, E2 <: E1](default: E2)(implicit ev: E <:< Option[E1]): ZSTM[R, E1, A] =
+  def flattenErrorOption[E1, E2 <: E1](default: => E2)(implicit ev: E <:< Option[E1]): ZSTM[R, E1, A] =
     mapError(e => ev(e).getOrElse(default))
 
   /**
