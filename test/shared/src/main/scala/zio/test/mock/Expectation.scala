@@ -123,7 +123,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
     }
 
   /**
-   * Repeates this expectation withing given bounds, producing a new expectation to
+   * Repeats this expectation withing given bounds, producing a new expectation to
    * satisfy itself sequentially given number of times.
    *
    * {{
