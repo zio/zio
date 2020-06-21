@@ -2290,7 +2290,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     self.mapError(Some(_)).rightOrFail(None)
 
   /**
-   * Fails with fiven error 'e' if value is `Left`.
+   * Fails with given error 'e' if value is `Left`.
    */
   final def rightOrFail[O1, O2, E1 >: E](e: => E1)(implicit ev: O <:< Either[O1, O2]): ZStream[R, E1, O2] =
     self.mapM(ev(_).fold(_ => ZIO.fail(e), ZIO.succeedNow(_)))
