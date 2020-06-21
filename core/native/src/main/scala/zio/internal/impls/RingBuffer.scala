@@ -76,7 +76,7 @@ final class RingBuffer[A](override final val capacity: Int) extends MutableConcu
           // This means that the consumer moved the head of the queue
           // (i.e. reserved a place to dequeue from), but hasn't yet
           // loaded an element from `buf` and hasn't updated the
-          // `seq`. However, this should happen momentarity, so we can
+          // `seq`. However, this should happen momentarily, so we can
           // just spin for a little while.
           state = STATE_LOOP
         }
