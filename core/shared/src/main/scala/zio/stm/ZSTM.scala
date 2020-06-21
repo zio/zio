@@ -1317,7 +1317,7 @@ object ZSTM {
     in.foldLeft[ZSTM[R, E, B]](succeedNow(zero))(_.zipWith(_)(f))
 
   /**
-   * Returns an effect wth the empty value.
+   * Returns an effect with the empty value.
    */
   val none: USTM[Option[Nothing]] = succeedNow(None)
 
