@@ -34,7 +34,7 @@ There are many rates which you can use such as `spaced`, `exponential`, `fibonac
 import zio.duration._
 Schedule.spaced(1.second)
 ```
-You can compose the schedules using operators to create a more compelx schedule:
+You can compose the schedules using operators to create a more complex schedule:
 ```
 def schedule = Schedule.recurs(4) && Schedule.spaced(1.second)
 ```
