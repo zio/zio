@@ -1986,7 +1986,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
   /**
    * Merges this stream and the specified stream together. New produced stream will
-   * terminate when the specefied stream terminates.
+   * terminate when the specified stream terminates.
    */
   final def mergeTerminateRight[R1 <: R, E1 >: E, O1 >: O](that: ZStream[R1, E1, O1]): ZStream[R1, E1, O1] =
     self.merge[R1, E1, O1](that, TerminationStrategy.Right)
