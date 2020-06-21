@@ -282,17 +282,17 @@ object FailureRenderer {
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Message =
     failureDetails match {
       case Some(details) =>
-        val shrinked = details.shrinkedInput.toString
+        val shrunken = details.shrunkenInput.toString
         val initial  = details.initialInput.toString
-        val renderShrinked = withOffset(offset + tabSize)(
+        val renderShrunken = withOffset(offset + tabSize)(
           Fragment(
             s"Test failed after ${details.iterations + 1} iteration${if (details.iterations > 0) "s" else ""} with input: "
           ) +
-            red(shrinked)
+            red(shrunken)
         )
-        if (initial == shrinked) renderShrinked.toMessage
+        if (initial == shrunken) renderShrunken.toMessage
         else
-          renderShrinked + withOffset(offset + tabSize)(
+          renderShrunken + withOffset(offset + tabSize)(
             Fragment(s"Original input before shrinking was: ") + red(initial)
           )
       case None => Message.empty
