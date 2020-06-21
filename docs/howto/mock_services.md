@@ -432,7 +432,7 @@ object PolyExampleMock extends Mock[PolyExample] {
 }
 ```
 
-Simiralily, we use the same `of` combinator to refer to concrete monomorphic call in our test suite when building expectations:
+Similarly, we use the same `of` combinator to refer to concrete monomorphic call in our test suite when building expectations:
 
 ```scala mdoc:silent
 import PolyExampleMock._
