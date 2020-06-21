@@ -52,7 +52,7 @@ object ZLawfulF {
   }
 
   /**
-   * `ZLawful` for invariant type construtors.
+   * `ZLawful` for invariant type constructors.
    */
   trait Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
     def laws: ZLawsF.Invariant[CapsF, Caps, R]
