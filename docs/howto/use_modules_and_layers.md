@@ -64,7 +64,7 @@ This formulation of module pattern is _the way_ ZIO manages dependencies between
 A module is a group of functions that deals with only one concern. Keeping the scope of a module limited improves our ability to understand code, in that we need to focus
  only on one topic at a time without juggling with too many concepts together in our head.
 
-`ZIO` iself provides the basic capabilities through modules, e.g. see how `ZEnv` is defined.
+`ZIO` itself provides the basic capabilities through modules, e.g. see how `ZEnv` is defined.
 
 ### The module recipe
 Let's build a module for user data access, following these simple steps:
