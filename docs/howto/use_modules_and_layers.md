@@ -56,7 +56,7 @@ Notice that the act of `provide`ing an effect with its environment eliminates th
 In general we need more than just a DB connection though. We need components that enable us to perform different operations, and we need to be able to wire them together. This is what _modules_ are for.
 
 ## Our first ZIO module
-We will see now how to define modules and use them to create different application layers relying on each other. The core idea is that a layer depends on the layers imediately below but it is completely agnostic about their internal implementation.
+We will see now how to define modules and use them to create different application layers relying on each other. The core idea is that a layer depends on the layers immediately below but it is completely agnostic about their internal implementation.
 
 This formulation of module pattern is _the way_ ZIO manages dependencies between application components, giving extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during the testing/mocking phase.
 
