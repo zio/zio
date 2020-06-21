@@ -91,7 +91,7 @@ object Take {
     Take(Exit.fail(Some(e)))
 
   /**
-   * Creates an effect from `ZIO[R, E,A]` that does not fail, but suceeds with the `Take[E, A]`.
+   * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with the `Take[E, A]`.
    * Error from stream when pulling is converted to `Take.halt`. Creates a singleton chunk.
    */
   def fromEffect[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
