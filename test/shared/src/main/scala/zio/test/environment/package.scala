@@ -535,7 +535,7 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.timeZone)
 
     /**
-     * `Data` represents the state of the `TestClock`, incuding the clock time
+     * `Data` represents the state of the `TestClock`, including the clock time
      * and time zone.
      */
     final case class Data(
