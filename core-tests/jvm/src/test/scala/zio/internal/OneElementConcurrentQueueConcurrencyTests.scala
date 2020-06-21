@@ -134,7 +134,7 @@ object OneElementConcurrentQueueConcurrencyTests {
       p2 = q.poll(-20)
 
     @Arbiter
-    def artiber(r: II_Result): Unit = {
+    def arbiter(r: II_Result): Unit = {
       r.r1 = p1
       r.r2 = p2
     }
@@ -192,7 +192,7 @@ object OneElementConcurrentQueueConcurrencyTests {
       p2 = q.poll(-4)
 
     @Arbiter
-    def artiber(r: IIII_Result): Unit = {
+    def arbiter(r: IIII_Result): Unit = {
       r.r1 = o1
       r.r2 = o2
       r.r3 = p1
