@@ -12,11 +12,10 @@ package object compression {
   /**
    * Decompresses deflated stream. Compression method is described in https://tools.ietf.org/html/rfc1951.
    *
-   * @param noWrap  wheater wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
-   *                For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616
-   * @param bufferSize size of buffer used internally
-   * HTTP 'deflate' content-encoding should use nowrap = false. See .
-   * */
+   * @param noWrap  Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
+   *                For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+   * @param bufferSize Size of buffer used internally, affects performance.
+   **/
   def inflate(
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false
@@ -30,52 +29,68 @@ package object compression {
         }
         .map {
           case (buffer, inflater) => {
-            case None => ZIO.succeed(Chunk.empty)
+            case None =>
+              ZIO.succeed {
+                //No need to pull, because after `pullAllOutput` there is nothing left in inflater.
+                inflater.reset
+                Chunk.empty
+              }
             case Some(chunk) =>
-              ZIO.effectTotal(inflater.setInput(chunk.toArray)) *> pullOutput(inflater, buffer, chunk)
+              ZIO.effect {
+                inflater.setInput(chunk.toArray)
+                pullAllOutput(inflater, buffer, chunk)
+              }.refineOrDie {
+                case e: DataFormatException => CompressionException(e)
+              }
           }
         }
 
-    def pullOutput(
+    // Pulls all available output from the inflater.
+    def pullAllOutput(
       inflater: Inflater,
       buffer: Array[Byte],
       input: Chunk[Byte]
-    ): ZIO[Any, CompressionException, Chunk[Byte]] =
-      ZIO.effect {
-        @tailrec
-        def next(prev: Chunk[Byte]): Chunk[Byte] = {
-          val read      = inflater.inflate(buffer)
-          val remaining = inflater.getRemaining()
-          val current   = Chunk.fromArray(ju.Arrays.copyOf(buffer, read))
-          if (remaining > 0) {
-            if (read > 0) next(prev ++ current)
-            else if (inflater.finished()) {
-              val leftover = input.takeRight(remaining)
-              inflater.reset()
-              inflater.setInput(leftover.toArray)
-              next(prev ++ current)
-            } else {
-              // Impossible happened (aka programmer error). Die.
-              throw new Exception("read = 0, remaining > 0, not finished")
-            }
-          } else prev ++ current
-        }
-
-        if (inflater.needsInput()) Chunk.empty else next(Chunk.empty)
-      }.refineOrDie {
-        case e: DataFormatException => new CompressionException(e)
+    ): Chunk[Byte] = {
+      @tailrec
+      def next(acc: Chunk[Byte]): Chunk[Byte] = {
+        val read      = inflater.inflate(buffer)
+        val remaining = inflater.getRemaining()
+        val current   = Chunk.fromArray(ju.Arrays.copyOf(buffer, read))
+        if (remaining > 0) {
+          if (read > 0) next(acc ++ current)
+          else if (inflater.finished()) {
+            val leftover = input.takeRight(remaining)
+            inflater.reset()
+            inflater.setInput(leftover.toArray)
+            next(acc ++ current)
+          } else {
+            // Impossible happened (aka programmer error). Die.
+            throw new Exception("read = 0, remaining > 0, not finished")
+          }
+        } else acc ++ current
       }
+      if (inflater.needsInput()) Chunk.empty else next(Chunk.empty)
+    }
 
     ZTransducer(makeInflater(bufferSize))
   }
 
-  def gunzip(bufferSize: Int = 64 * 1024): ZTransducer[Any, Throwable, Byte, Byte] =
+  /**
+   * Decompresses gzipped stream. Compression method is described in https://tools.ietf.org/html/rfc1952.
+   *
+   * @param bufferSize Size of buffer used internally, affects performance.
+   **/
+  def gunzip(bufferSize: Int = 64 * 1024): ZTransducer[Any, CompressionException, Byte, Byte] =
     ZTransducer(
       ZManaged
-        .make(Gunzipper.make(bufferSize))(_.close)
+        .make(Gunzipper.make(bufferSize))(gunzipper => ZIO.effectTotal(gunzipper.close))
         .map { gunzipper =>
           {
-            case None        => ZIO.succeed(Chunk.empty)
+            case None =>
+              ZIO.succeed {
+                gunzipper.reset
+                Chunk.empty
+              }
             case Some(chunk) => gunzipper.onChunk(chunk)
           }
         }
