@@ -795,10 +795,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.mapError(e => ev(e).getOrElse(default))
 
   /**
-   * Unwraps the optional success of this effect, but can fail with unit value.
+   * Unwraps the optional success of this effect, but can fail with an None value.
    */
-  final def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZIO[R, Unit, B] =
-    ZIO.absolve(self.mapError(ev1)(CanFail).map(ev2(_).toRight(())))
+  final def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZIO[R, Option[Nothing], B] =
+    ZIO.absolve(self.mapError(ev1)(CanFail).map(ev2(_).toRight(None)))
 
   /**
    * Returns a successful effect with the head of the list if the list is
@@ -3011,10 +3011,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Lifts an `Option` into a `ZIO`.
+   * Lifts an `Option` into a `ZIO` but preserves the error as an option in the error channel, making it easier to compose
+   * in some scenarios.
    */
-  def fromOption[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
+  def fromOption[A](v: => Option[A]): IO[Option[Nothing], A] =
+    effectTotal(v).flatMap(_.fold[IO[Option[Nothing], A]](fail(None))(succeedNow))
 
   /**
    * Lifts a `Try` into a `ZIO`.

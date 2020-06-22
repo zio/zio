@@ -383,12 +383,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def forever: ZSTM[R, E, Nothing] = self *> self.forever
 
   /**
-   * Unwraps the optional success of this effect, but can fail with unit value.
+   * Unwraps the optional success of this effect, but can fail with None value.
    */
-  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Unit, B] =
+  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Option[Nothing], B] =
     foldM(
       ev1,
-      ev2(_).fold[ZSTM[R, Unit, B]](ZSTM.fail(()))(ZSTM.succeedNow(_))
+      ev2(_).fold[ZSTM[R, Option[Nothing], B]](ZSTM.fail(None))(ZSTM.succeedNow(_))
     )(CanFail)
 
   /**
@@ -1186,8 +1186,8 @@ object ZSTM {
   /**
    * Lifts an `Option` into a `STM`.
    */
-  def fromOption[A](v: => Option[A]): STM[Unit, A] =
-    STM.suspend(v.fold[STM[Unit, A]](STM.fail(()))(STM.succeedNow))
+  def fromOption[A](v: => Option[A]): STM[Option[Nothing], A] =
+    STM.suspend(v.fold[STM[Option[Nothing], A]](STM.fail(None))(STM.succeedNow))
 
   /**
    * Lifts a `Try` into a `STM`.
