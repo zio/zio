@@ -102,6 +102,10 @@ object ChunkSpec extends ZIOBaseSpec {
           val expected = (as ++ bs).length
           assert(actual)(equalTo(expected))
         }
+      },
+      zio.test.test("returns most specific type") {
+        val seq = (zio.Chunk("foo"): Seq[String]) :+ "post1"
+        assert(seq)(isSubtype[Chunk[String]](equalTo(Chunk("foo", "post1"))))
       }
     ),
     suite("prepend")(
@@ -149,6 +153,10 @@ object ChunkSpec extends ZIOBaseSpec {
           val expected = (as ++ bs).length
           assert(actual)(equalTo(expected))
         }
+      },
+      zio.test.test("returns most specific type") {
+        val seq = "pre1" +: (zio.Chunk("foo"): Seq[String])
+        assert(seq)(isSubtype[Chunk[String]](equalTo(Chunk("pre1", "foo"))))
       }
     ),
     testM("apply") {
