@@ -6,7 +6,7 @@ import java.util.zip.{ Deflater, DeflaterInputStream, GZIPOutputStream }
 
 import TestData._
 
-import zio.Chunk
+import zio._
 import zio.stream.compression.{ gunzip, inflate }
 import zio.test.Assertion._
 import zio.test._
@@ -49,6 +49,24 @@ object CompressionSpec extends DefaultRunnableSpec {
           assertM(
             Stream.fromIterable(Seq(1, 2, 3, 4, 5).map(_.toByte)).transduce(inflate()).runCollect.run
           )(fails(anything))
+        ),
+        testM("inflate what JDK deflated")(
+          checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+            case ((chunk, n), bufferSize) =>
+              assertM(for {
+                deflated <- ZIO.effectTotal(deflatedStream(chunk.toArray))
+                out      <- deflated.chunkN(n).transduce(inflate(bufferSize)).runCollect
+              } yield out.toList)(equalTo(chunk))
+          }
+        ),
+        testM("inflate what JDK deflated, nowrap")(
+          checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+            case ((chunk, n), bufferSize) =>
+              assertM(for {
+                deflated <- ZIO.effectTotal(noWrapDeflatedStream(chunk.toArray))
+                out      <- deflated.chunkN(n).transduce(inflate(bufferSize, true)).runCollect
+              } yield out.toList)(equalTo(chunk))
+          }
         )
       ),
       suite("gunzip")(
@@ -91,6 +109,15 @@ object CompressionSpec extends DefaultRunnableSpec {
           assertM(
             Stream.fromIterable(1 to 5).map(_.toByte).transduce(gunzip()).runCollect
           )(isEmpty)
+        ),
+        testM("gunzip what JDK gzipped, nowrap")(
+          checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+            case ((chunk, n), bufferSize) =>
+              assertM(for {
+                deflated <- ZIO.effectTotal(gzippedStream(chunk.toArray))
+                out      <- deflated.chunkN(n).transduce(gunzip(bufferSize)).runCollect
+              } yield out.toList)(equalTo(chunk))
+          }
         )
       )
     )
@@ -124,5 +151,5 @@ object TestData {
   val shortText      = "abcdefg1234567890".getBytes
   val otherShortText = "AXXX\u0000XXXA".getBytes
   val longText       = Array.fill(1000)(shortText).flatten
-
+  val `1K`           = 1024
 }

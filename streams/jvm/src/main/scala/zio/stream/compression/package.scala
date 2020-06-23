@@ -32,7 +32,7 @@ package object compression {
             case None =>
               ZIO.succeed {
                 //No need to pull, because after `pullAllOutput` there is nothing left in inflater.
-                inflater.reset
+                inflater.reset()
                 Chunk.empty
               }
             case Some(chunk) =>
@@ -83,12 +83,12 @@ package object compression {
   def gunzip(bufferSize: Int = 64 * 1024): ZTransducer[Any, CompressionException, Byte, Byte] =
     ZTransducer(
       ZManaged
-        .make(Gunzipper.make(bufferSize))(gunzipper => ZIO.effectTotal(gunzipper.close))
+        .make(Gunzipper.make(bufferSize))(gunzipper => ZIO.effectTotal(gunzipper.close()))
         .map { gunzipper =>
           {
             case None =>
               ZIO.succeed {
-                gunzipper.reset
+                gunzipper.reset()
                 Chunk.empty
               }
             case Some(chunk) => gunzipper.onChunk(chunk)
