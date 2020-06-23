@@ -7,7 +7,9 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
 
   def spec = suite("BoolAlgebraSpec")(
     test("all returns conjunction of values") {
-      assert(BoolAlgebra.all(List(success1, failure1, failure2)))(isSome(isFailure))
+      assert(BoolAlgebra.all(List(success1, failure1, failure2)))(isSome(isFailure)) &&
+      assert(BoolAlgebra.all(success1, failure1, failure2))(isFailure) &&
+      assert(BoolAlgebra.all(success1, success2))(isSuccess)
     },
     testM("and distributes over or") {
       check(boolAlgebra, boolAlgebra, boolAlgebra)((a, b, c) => assert(a && (b || c))(equalTo((a && b) || (a && c))))
