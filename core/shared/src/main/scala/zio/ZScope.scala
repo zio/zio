@@ -227,19 +227,18 @@ object ZScope {
         else (weakFinalizers.remove(key) ne null) || (strongFinalizers.remove(key) ne null)
       }
 
-    private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[Key] =
-      Sync(self) {
-        def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
+    private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[Key] = {
+      def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
 
-        if (unsafeClosed()) None
-        else {
-          lazy val key: Key = Key(deny(key))
+      if (unsafeClosed()) None
+      else {
+        lazy val key: Key = Key(deny(key))
 
-          finalizers(mode).put(key, OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer)))
+        finalizers(mode).put(key, OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer)))
 
-          Some(key)
-        }
+        Some(key)
       }
+    }
 
     private[zio] def unsafeAddRef(): Boolean =
       Sync(self) {
