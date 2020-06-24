@@ -19,6 +19,8 @@ package zio
 import java.util.Map
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
 
+import zio.ZScope.Mode.Strong
+import zio.ZScope.Mode.Weak
 import zio.internal.Sync
 
 /**
@@ -166,7 +168,14 @@ object ZScope {
     val strongFinalizers = new java.util.HashMap[Key, OrderedFinalizer]()
 
     val scope0 =
-      new Local[A](new AtomicInteger(Int.MinValue), exitValue, new AtomicInteger(1), weakFinalizers, strongFinalizers)
+      new Local[A](
+        new AtomicInteger(Int.MinValue),
+        exitValue,
+        new AtomicInteger(1),
+        weakFinalizers,
+        strongFinalizers,
+        new AtomicReference[State](State.Open(Set.empty, Set.empty))
+      )
 
     Open[A](
       (a: A) =>
@@ -189,7 +198,9 @@ object ZScope {
     // The weak finalizers attached to the scope.
     private[zio] val weakFinalizers: Map[Key, OrderedFinalizer],
     // The strong finalizers attached to the scope.
-    private[zio] val strongFinalizers: Map[Key, OrderedFinalizer]
+    private[zio] val strongFinalizers: Map[Key, OrderedFinalizer],
+    // The state of pending finalizers
+    private[zio] val state: AtomicReference[State]
   ) extends ZScope[A] { self =>
 
     def closed: UIO[Boolean] = UIO(unsafeClosed())
@@ -230,13 +241,29 @@ object ZScope {
     private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[Key] = {
       def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
 
-      if (unsafeClosed()) None
-      else {
-        lazy val key: Key = Key(deny(key))
-
-        finalizers(mode).put(key, OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer)))
-
-        Some(key)
+      val orderedFinalizer = OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer))
+      state.getAndUpdate {
+        case State.Open(weakFinalizers, strongFinalizers) =>
+          mode match {
+            case Weak   => State.Open(weakFinalizers + orderedFinalizer, strongFinalizers)
+            case Strong => State.Open(weakFinalizers, strongFinalizers + orderedFinalizer)
+          }
+        case State.Closed => State.Closed
+      } match {
+        case State.Open(_, _) =>
+          lazy val key: Key = Key(deny(key))
+          finalizers(mode).put(key, orderedFinalizer)
+          state.updateAndGet {
+            case State.Open(weakFinalizers, strongFinalizers) =>
+              mode match {
+                case Weak   => State.Open(weakFinalizers - orderedFinalizer, strongFinalizers)
+                case Strong => State.Open(weakFinalizers, strongFinalizers - orderedFinalizer)
+              }
+            case State.Closed => State.Closed
+          }
+          Some(key)
+        case State.Closed =>
+          None
       }
     }
 
@@ -275,53 +302,70 @@ object ZScope {
             }
         }
 
-    private[zio] def unsafeRelease(): UIO[Unit] =
-      Sync(self) {
-        if (references.decrementAndGet() == 0) {
-          val totalSize = weakFinalizers.size() + strongFinalizers.size()
-
-          if (totalSize == 0) null
-          else {
-            val array = Array.ofDim[OrderedFinalizer](totalSize)
-
-            var i        = 0
-            var iterator = weakFinalizers.entrySet().iterator()
-
-            while (iterator.hasNext()) {
-              array(i) = iterator.next().getValue()
-              i = i + 1
-            }
-
-            iterator = strongFinalizers.entrySet().iterator()
-
-            while (iterator.hasNext()) {
-              array(i) = iterator.next().getValue()
-              i = i + 1
-            }
-
-            weakFinalizers.clear()
-            strongFinalizers.clear()
-
-            java.util.Arrays.sort(
-              array,
-              (l: OrderedFinalizer, r: OrderedFinalizer) =>
-                if (l eq null) -1 else if (r eq null) 1 else l.order - r.order
-            )
-
-            val a = exitValue.get()
-
-            array
-              .foldLeft[UIO[Cause[Nothing]]](noCauseEffect) {
-                case (acc, o) =>
-                  if (o ne null) acc.zipWith(o.finalizer(a).cause)(_ ++ _)
-                  else acc
-              }
-              .uncause[Nothing]
+    private[zio] def unsafeRelease(): UIO[Unit] = {
+      state.getAndSet(State.Closed) match {
+        case State.Open(weakFinalizers, strongFinalizers) =>
+          weakFinalizers.foreach { orderedFinalizer =>
+            lazy val key: Key = Key(deny(key))
+            finalizers(Mode.Weak).put(key, orderedFinalizer)
           }
-        } else null
+          strongFinalizers.foreach { orderedFinalizer =>
+            lazy val key: Key = Key(deny(key))
+            finalizers(Mode.Strong).put(key, orderedFinalizer)
+          }
+        case State.Closed => ()
       }
+      if (references.decrementAndGet() == 0) {
+        val totalSize = weakFinalizers.size() + strongFinalizers.size()
+
+        if (totalSize == 0) null
+        else {
+          val array = Array.ofDim[OrderedFinalizer](totalSize)
+
+          var i        = 0
+          var iterator = weakFinalizers.entrySet().iterator()
+
+          while (iterator.hasNext()) {
+            array(i) = iterator.next().getValue()
+            i = i + 1
+          }
+
+          iterator = strongFinalizers.entrySet().iterator()
+
+          while (iterator.hasNext()) {
+            array(i) = iterator.next().getValue()
+            i = i + 1
+          }
+
+          weakFinalizers.clear()
+          strongFinalizers.clear()
+
+          java.util.Arrays.sort(
+            array,
+            (l: OrderedFinalizer, r: OrderedFinalizer) => if (l eq null) -1 else if (r eq null) 1 else l.order - r.order
+          )
+
+          val a = exitValue.get()
+
+          array
+            .foldLeft[UIO[Cause[Nothing]]](noCauseEffect) {
+              case (acc, o) =>
+                if (o ne null) acc.zipWith(o.finalizer(a).cause)(_ ++ _)
+                else acc
+            }
+            .uncause[Nothing]
+        }
+      } else null
+    }
 
     private[zio] def unsafeReleased(): Boolean = references.get() <= 0
+  }
+
+  sealed trait State
+
+  object State {
+    final case class Open(weakFinalizers: Set[OrderedFinalizer], strongFinalizers: Set[OrderedFinalizer]) extends State
+    case object Closed                                                                                    extends State
   }
 
   private val noCause: Cause[Nothing]            = Cause.empty
