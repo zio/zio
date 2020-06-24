@@ -242,7 +242,7 @@ object ZScope {
       def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
 
       val orderedFinalizer = OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer))
-      state.getAndUpdate {
+      getAndUpdate(state) {
         case State.Open(weakFinalizers, strongFinalizers) =>
           mode match {
             case Weak   => State.Open(weakFinalizers + orderedFinalizer, strongFinalizers)
@@ -253,7 +253,7 @@ object ZScope {
         case State.Open(_, _) =>
           lazy val key: Key = Key(deny(key))
           finalizers(mode).put(key, orderedFinalizer)
-          state.updateAndGet {
+          getAndUpdate(state) {
             case State.Open(weakFinalizers, strongFinalizers) =>
               mode match {
                 case Weak   => State.Open(weakFinalizers - orderedFinalizer, strongFinalizers)
@@ -370,4 +370,16 @@ object ZScope {
 
   private val noCause: Cause[Nothing]            = Cause.empty
   private val noCauseEffect: UIO[Cause[Nothing]] = UIO.succeedNow(noCause)
+
+  private def getAndUpdate[A](value: AtomicReference[A])(f: A => A): A = {
+    var loop       = true
+    var current: A = null.asInstanceOf[A]
+    while (loop) {
+      current = value.get
+      val next = f(current)
+      loop = !value.compareAndSet(current, next)
+    }
+    current
+  }
+
 }
