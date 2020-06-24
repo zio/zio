@@ -15,7 +15,7 @@ import zio.internal.WeakMap.{ WeakIterator, WeakKey }
  * requiring concurrent access while still preventing memory leaks by allowing
  * the keys to be garbage collected if there are no references to them.
  */
-final class WeakMap[K, V](
+final class WeakMap[K, V] private (
   private val map: ConcurrentHashMap[WeakKey[K], V],
   private val queue: ReferenceQueue[Any],
   private val garbageCollecting: AtomicBoolean
@@ -120,11 +120,47 @@ final class WeakMap[K, V](
   }
 
   /**
+   * Puts the specified key and value into the map if the key does not already
+   * exist in the map.
+   */
+  override def putIfAbsent(key: K, value: V): V = {
+    garbageCollect()
+    map.putIfAbsent(newWeakKey(key), value)
+  }
+
+  /**
    * Removes the associated key from the map.
    */
   def remove(key: Any): V = {
     garbageCollect()
     map.remove(newWeakKey(key))
+  }
+
+  /**
+   * Removes the specified key from the map if the value associated with the
+   * key equals the specified value.
+   */
+  override def remove(key: Any, value: Any): Boolean = {
+    garbageCollect()
+    map.remove(newWeakKey(key), value)
+  }
+
+  /**
+   * Replaces the value associated with the specified key with `newValue` if
+   * the value currently associated with the key is equal to `oldValue`.
+   */
+  override def replace(key: K, oldValue: V, newValue: V): Boolean = {
+    garbageCollect()
+    map.replace(newWeakKey(key), oldValue, newValue)
+  }
+
+  /**
+   * Replaces the value associated with the specified key with the specified
+   * value if the key exists in the map.
+   */
+  override def replace(key: K, value: V): V = {
+    garbageCollect()
+    map.replace(newWeakKey(key), value)
   }
 
   /**
