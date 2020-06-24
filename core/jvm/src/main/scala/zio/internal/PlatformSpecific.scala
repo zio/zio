@@ -130,7 +130,7 @@ private[internal] trait PlatformSpecific {
     fromExecutor(Executor.makeDefault(yieldOpCount))
 
   final def newWeakHashMap[A, B](): JMap[A, B] =
-    Collections.synchronizedMap(new WeakHashMap[A, B]())
+    new WeakMap[A, B]()
 
   final def newConcurrentWeakSet[A](): JSet[A] =
     Collections.synchronizedSet(newWeakSet[A]())

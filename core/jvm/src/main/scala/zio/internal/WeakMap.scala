@@ -180,9 +180,14 @@ object WeakMap {
    * A `WeakKey[K]` is a weak reference to a key of type `K` with a hashcode
    * equal to the hashcode of the key.
    */
-  private final class WeakKey[K](key: K, queue: ReferenceQueue[_ >: K]) extends WeakReference[K](key, queue) {
-    override final def hashCode: Int =
-      get.hashCode
+  private final class WeakKey[K](key: K, queue: ReferenceQueue[_ >: K]) extends WeakReference[K](key, queue) { self =>
+    override def equals(that: Any): Boolean =
+      that match {
+        case weakKey: WeakKey[_] => self.get == weakKey.get
+        case _                   => false
+      }
+    override val hashCode: Int =
+      key.hashCode
   }
 
   /**
