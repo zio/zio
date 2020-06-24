@@ -3589,7 +3589,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * scope, effectively extending their lifespans into the parent scope.
    */
   def transplant[R, E, A](f: Grafter => ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.forkScopeWith(scope => f(new Grafter(scope)))
+    ZIO.forkScopeWith { scope =>
+      for {
+        local <- ZScope.make[Exit[Any, Any]]
+        _     <- scope.extend(local.scope)
+        a     <- f(new Grafter(local.scope))
+      } yield a
+    }
 
   /**
    * An effect that succeeds with a unit value.
