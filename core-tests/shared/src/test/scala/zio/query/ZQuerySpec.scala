@@ -12,6 +12,25 @@ object ZQuerySpec extends ZIOBaseSpec {
 
   override def spec: ZSpec[TestEnvironment, Any] =
     suite("ZQuerySpec")(
+      testM("efficiency of large queries") {
+        val query = for {
+          users <- ZQuery.fromEffect(
+                    ZIO.succeed(
+                      List.tabulate(Sources.totalCount)(id => User(id, "user name", id, id))
+                    )
+                  )
+          richUsers <- ZQuery.foreachPar(users) { user =>
+                        Sources
+                          .getPayment(user.paymentId)
+                          .zipPar(Sources.getAddress(user.addressId))
+                          .map {
+                            case (payment, address) =>
+                              (user, payment, address)
+                          }
+                      }
+        } yield richUsers.size
+        assertM(query.run)(equalTo(Sources.totalCount))
+      },
       testM("N + 1 selects problem") {
         for {
           _   <- getAllUserNames.run
@@ -142,25 +161,6 @@ object ZQuerySpec extends ZIOBaseSpec {
           _   <- ZQuery.collectAllPar(List(getFoo, getBar)).run
           log <- TestConsole.output
         } yield assert(log)(hasSize(equalTo(2)))
-      },
-      testM("efficiency of large queries") {
-        val query = for {
-          users <- ZQuery.fromEffect(
-                    ZIO.succeed(
-                      List.tabulate(Sources.totalCount)(id => User(id, "user name", id, id))
-                    )
-                  )
-          richUsers <- ZQuery.foreachPar(users) { user =>
-                        Sources
-                          .getPayment(user.paymentId)
-                          .zipPar(Sources.getAddress(user.addressId))
-                          .map {
-                            case (payment, address) =>
-                              (user, payment, address)
-                          }
-                      }
-        } yield richUsers.size
-        assertM(query.run)(equalTo(Sources.totalCount))
       }
     ) @@ silent @@ TestAspect.timed @@ TestAspect.sequential
 
