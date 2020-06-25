@@ -185,14 +185,14 @@ final class WeakMap[K, V] private (
    */
   private def garbageCollect(): Unit =
     ()
-    // if (garbageCollecting.compareAndSet(false, true)) {
-    //   var key = queue.poll()
-    //   while (key ne null) {
-    //     map.remove(key)
-    //     key = queue.poll()
-    //   }
-    //   garbageCollecting.set(false)
-    // }
+  // if (garbageCollecting.compareAndSet(false, true)) {
+  //   var key = queue.poll()
+  //   while (key ne null) {
+  //     map.remove(key)
+  //     key = queue.poll()
+  //   }
+  //   garbageCollecting.set(false)
+  // }
 
   /**
    * Constructs a `java.util.Iterator` that is safe to use with a weak
