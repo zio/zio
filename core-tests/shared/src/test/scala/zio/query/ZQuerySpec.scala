@@ -162,7 +162,7 @@ object ZQuerySpec extends ZIOBaseSpec {
           log <- TestConsole.output
         } yield assert(log)(hasSize(equalTo(2)))
       }
-    ) @@ silent @@ TestAspect.timed @@ TestAspect.sequential
+    ) @@ silent @@ TestAspect.timed
 
   val userIds: List[Int]          = (1 to 26).toList
   val userNames: Map[Int, String] = userIds.zip(('a' to 'z').map(_.toString)).toMap
