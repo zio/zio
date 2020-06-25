@@ -162,7 +162,7 @@ object ZQuerySpec extends ZIOBaseSpec {
         } yield richUsers.size
         assertM(query.run)(equalTo(Sources.totalCount))
       }
-    ) @@ silent @@ TestAspect.timed
+    ) @@ silent @@ TestAspect.timed @@ TestAspect.sequential
 
   val userIds: List[Int]          = (1 to 26).toList
   val userNames: Map[Int, String] = userIds.zip(('a' to 'z').map(_.toString)).toMap
