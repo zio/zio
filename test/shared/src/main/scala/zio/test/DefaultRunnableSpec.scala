@@ -39,5 +39,5 @@ trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]
   ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
-    runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
+    runner.run(aspects.foldLeft(spec)(_ @@ _))
 }
