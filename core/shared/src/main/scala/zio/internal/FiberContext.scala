@@ -427,6 +427,8 @@ private[zio] final class FiberContext[E, A](
                         else causeAndInterrupt
                       }
 
+                      setInterrupting(true)
+
                       curZio = done(Exit.halt(cause))
                     } else {
                       setInterrupting(false)
