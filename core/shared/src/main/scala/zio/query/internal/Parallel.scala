@@ -1,13 +1,12 @@
 package zio.query.internal
 
-import zio.Chunk
 import zio.query.DataSource
 
 /**
  * A `Parallel[R]` maintains a mapping from data sources to requests from
  * those data sources that can be executed in parallel.
  */
-private[query] final class Parallel[-R](private val map: Map[DataSource[Any, Any], Chunk[BlockedRequest[Any]]]) {
+private[query] final class Parallel[-R](private val map: Map[DataSource[Any, Any], Vector[BlockedRequest[Any]]]) {
   self =>
 
   /**
@@ -19,7 +18,7 @@ private[query] final class Parallel[-R](private val map: Map[DataSource[Any, Any
     new Parallel(
       self.map.foldLeft(that.map) {
         case (map, (k, v)) =>
-          map + (k -> map.get(k).fold[Chunk[BlockedRequest[Any]]](v)(_ ++ v))
+          map + (k -> map.get(k).fold[Vector[BlockedRequest[Any]]](v)(_ ++ v))
       }
     )
 
@@ -42,14 +41,14 @@ private[query] final class Parallel[-R](private val map: Map[DataSource[Any, Any
    * sequentially.
    */
   def sequential: Sequential[R] =
-    new Sequential(map.map { case (k, v) => (k, Chunk(v)) })
+    new Sequential(map.map { case (k, v) => (k, Vector(v)) })
 
   /**
    * Converts this collection of requests that can be executed in parallel to
    * an `Iterable` containing mappings from data sources to requests from
    * those data sources.
    */
-  def toIterable: Iterable[(DataSource[R, Any], Chunk[BlockedRequest[Any]])] =
+  def toIterable: Iterable[(DataSource[R, Any], Vector[BlockedRequest[Any]])] =
     map
 }
 
@@ -60,7 +59,7 @@ private[query] object Parallel {
    * specified data source to the specified request.
    */
   def apply[R, E, A](dataSource: DataSource[R, A], blockedRequest: BlockedRequest[A]): Parallel[R] =
-    new Parallel(Map(dataSource.asInstanceOf[DataSource[Any, Any]] -> Chunk(blockedRequest)))
+    new Parallel(Map(dataSource.asInstanceOf[DataSource[Any, Any]] -> Vector(blockedRequest)))
 
   /**
    * The empty collection of requests.

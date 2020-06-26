@@ -3,10 +3,10 @@ package zio.query
 import zio.console.Console
 import zio.query.DataSourceAspect._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ after, nonFlaky, silent }
+import zio.test.TestAspect.{ after, nonFlaky, silent, timed }
 import zio.test._
 import zio.test.environment.{ TestConsole, TestEnvironment }
-import zio.{ console, Chunk, Has, Promise, Ref, ZIO, ZLayer }
+import zio.{ console, Has, Promise, Ref, ZIO, ZLayer }
 
 object ZQuerySpec extends ZIOBaseSpec {
 
@@ -162,7 +162,7 @@ object ZQuerySpec extends ZIOBaseSpec {
         } yield richUsers.size
         assertM(query.run)(equalTo(Sources.totalCount))
       }
-    ) @@ silent @@ TestAspect.timed @@ TestAspect.sequential
+    ) @@ silent @@ timed
 
   val userIds: List[Int]          = (1 to 26).toList
   val userNames: Map[Int, String] = userIds.zip(('a' to 'z').map(_.toString)).toMap
@@ -255,7 +255,7 @@ object ZQuerySpec extends ZIOBaseSpec {
             ref.get
           val identifier: String =
             "CacheDataSource"
-          def runAll(requests: Chunk[Chunk[CacheRequest[Any]]]): ZIO[Any, Nothing, CompletedRequestMap] =
+          def runAll(requests: Vector[Vector[CacheRequest[Any]]]): ZIO[Any, Nothing, CompletedRequestMap] =
             ref.update(requests.map(_.toSet).toList :: _) *>
               ZIO
                 .foreach(requests) { requests =>
@@ -310,7 +310,7 @@ object ZQuerySpec extends ZIOBaseSpec {
 
     case class GetPayment(id: Int) extends Request[Nothing, Payment]
     val paymentSource: DataSource[Any, GetPayment] =
-      DataSource.fromFunctionBatchedOptionM("PaymentSource") { requests: Chunk[GetPayment] =>
+      DataSource.fromFunctionBatchedOptionM("PaymentSource") { requests: Vector[GetPayment] =>
         ZIO
           .succeed(
             List.tabulate(totalCount)(Payment(_, "payment name"))
@@ -323,7 +323,7 @@ object ZQuerySpec extends ZIOBaseSpec {
 
     case class GetAddress(id: Int) extends Request[Nothing, Address]
     val addressSource: DataSource[Any, GetAddress] =
-      DataSource.fromFunctionBatchedOptionM("AddressSource") { requests: Chunk[GetAddress] =>
+      DataSource.fromFunctionBatchedOptionM("AddressSource") { requests: Vector[GetAddress] =>
         ZIO
           .succeed(
             List.tabulate(totalCount)(Address(_, "street"))
