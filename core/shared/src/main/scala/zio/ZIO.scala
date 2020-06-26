@@ -2102,9 +2102,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     val g = (b: B, a: A) => f(a, b)
 
-    // ZIO.transplant { graft =>
-    ZIO.descriptorWith(d => (self raceWith that)(coordinate(d.id, f, true), coordinate(d.id, g, false)))
-    // }
+    ZIO.transplant { graft =>
+      ZIO.descriptorWith { d =>
+        (graft(self) raceWith graft(that))(coordinate(d.id, f, true), coordinate(d.id, g, false))
+      }
+    }
   }
 }
 
@@ -3587,13 +3589,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * scope, effectively extending their lifespans into the parent scope.
    */
   def transplant[R, E, A](f: Grafter => ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.forkScopeWith { scope =>
-      for {
-        local <- ZScope.make[Exit[Any, Any]]
-        _     <- scope.extend(local.scope)
-        a     <- f(new Grafter(local.scope))
-      } yield a
-    }
+    ZIO.forkScopeWith(scope => f(new Grafter(scope)))
 
   /**
    * An effect that succeeds with a unit value.

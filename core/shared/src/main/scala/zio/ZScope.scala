@@ -19,8 +19,6 @@ package zio
 import java.util.Map
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
 
-import zio.internal.Sync
-
 /**
  * A `ZScope[A]` is a value that allows adding finalizers identified by a key.
  * Scopes are closed with a value of type `A`, which is provided to all the
@@ -162,8 +160,8 @@ object ZScope {
 
     val exitValue = new AtomicReference(nullA)
 
-    val weakFinalizers   = internal.Platform.newWeakHashMap[Key, OrderedFinalizer]()
-    val strongFinalizers = new java.util.HashMap[Key, OrderedFinalizer]()
+    val weakFinalizers   = new java.util.concurrent.ConcurrentHashMap[Key, OrderedFinalizer]()
+    val strongFinalizers = new java.util.concurrent.ConcurrentHashMap[Key, OrderedFinalizer]()
 
     val scope0 =
       new Local[A](new AtomicInteger(Int.MinValue), exitValue, new AtomicInteger(1), weakFinalizers, strongFinalizers)
@@ -196,7 +194,7 @@ object ZScope {
 
     def deny(key: => Key): UIO[Boolean] = UIO(unsafeDeny(key))
 
-    def empty: UIO[Boolean] = UIO(Sync(self)(weakFinalizers.size() == 0 && strongFinalizers.size() == 0))
+    def empty: UIO[Boolean] = UIO((weakFinalizers.size() == 0 && strongFinalizers.size() == 0))
 
     def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Option[Key]] =
       UIO(unsafeEnsure(finalizer, mode))
@@ -212,48 +210,40 @@ object ZScope {
     private[this] def finalizers(mode: ZScope.Mode): Map[Key, OrderedFinalizer] =
       if (mode == ZScope.Mode.Weak) weakFinalizers else strongFinalizers
 
-    private[zio] def unsafeClosed(): Boolean = Sync(self)(exitValue.get() != null)
+    private[zio] def unsafeClosed(): Boolean = (exitValue.get() != null)
 
-    private[zio] def unsafeClose(a0: A): UIO[Any] =
-      Sync(self) {
-        exitValue.compareAndSet(null.asInstanceOf[A], a0)
+    private[zio] def unsafeClose(a0: A): UIO[Any] = {
+      exitValue.compareAndSet(null.asInstanceOf[A], a0)
 
-        unsafeRelease()
-      }
+      unsafeRelease()
+    }
 
     private[zio] def unsafeDeny(key: Key): Boolean =
-      Sync(self) {
-        if (unsafeClosed()) false
-        else (weakFinalizers.remove(key) ne null) || (strongFinalizers.remove(key) ne null)
+      if (unsafeClosed()) false
+      else (weakFinalizers.remove(key) ne null) || (strongFinalizers.remove(key) ne null)
+
+    private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[Key] = {
+      def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
+
+      if (unsafeClosed()) None
+      else {
+        lazy val key: Key = Key(deny(key))
+
+        finalizers(mode).put(key, OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer)))
+
+        Some(key)
       }
-
-    private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[Key] =
-      Sync(self) {
-        def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
-
-        if (unsafeClosed()) None
-        else {
-          lazy val key: Key = Key(deny(key))
-
-          finalizers(mode).put(key, OrderedFinalizer(finalizerCount.incrementAndGet(), coerce(finalizer)))
-
-          Some(key)
-        }
-      }
+    }
 
     private[zio] def unsafeAddRef(): Boolean =
-      Sync(self) {
-        if (unsafeClosed()) false
-        else {
-          references.incrementAndGet()
-          true
-        }
+      if (unsafeClosed()) false
+      else {
+        references.incrementAndGet()
+        true
       }
 
     private[zio] def unsafeEmpty(): Boolean =
-      Sync(self) {
-        (weakFinalizers.size() == 0) && (strongFinalizers.size() == 0)
-      }
+      (weakFinalizers.size() == 0) && (strongFinalizers.size() == 0)
 
     private[zio] def unsafeExtend(that: ZScope[Any]): Boolean =
       if (self eq that) true
@@ -261,66 +251,62 @@ object ZScope {
         that match {
           case ZScope.global => true
 
-          case child: ZScope.Local[Any] =>
-            Sync(child) {
-              Sync(self) {
-                if (!self.unsafeClosed() && !child.unsafeClosed()) {
-                  // If parent and child scopes are both open:
-                  child.unsafeAddRef()
+          case child: ZScope.Local[Any] => {
+            {
+              if (!self.unsafeClosed() && !child.unsafeClosed()) {
+                // If parent and child scopes are both open:
+                child.unsafeAddRef()
 
-                  self.unsafeEnsure(_ => child.release, ZScope.Mode.Strong)
+                self.unsafeEnsure(_ => child.release, ZScope.Mode.Strong)
 
-                  true
-                } else false
-              }
+                true
+              } else false
             }
+          }
         }
 
     private[zio] def unsafeRelease(): UIO[Unit] =
-      Sync(self) {
-        if (references.decrementAndGet() == 0) {
-          val totalSize = weakFinalizers.size() + strongFinalizers.size()
+      if (references.decrementAndGet() == 0) {
+        val totalSize = weakFinalizers.size() + strongFinalizers.size()
 
-          if (totalSize == 0) null
-          else {
-            val array = Array.ofDim[OrderedFinalizer](totalSize)
+        if (totalSize == 0) null
+        else {
+          val array = Array.ofDim[OrderedFinalizer](totalSize)
 
-            var i        = 0
-            var iterator = weakFinalizers.entrySet().iterator()
+          var i        = 0
+          var iterator = weakFinalizers.entrySet().iterator()
 
-            while (iterator.hasNext()) {
-              array(i) = iterator.next().getValue()
-              i = i + 1
-            }
-
-            iterator = strongFinalizers.entrySet().iterator()
-
-            while (iterator.hasNext()) {
-              array(i) = iterator.next().getValue()
-              i = i + 1
-            }
-
-            weakFinalizers.clear()
-            strongFinalizers.clear()
-
-            java.util.Arrays.sort(
-              array,
-              (l: OrderedFinalizer, r: OrderedFinalizer) =>
-                if (l eq null) -1 else if (r eq null) 1 else l.order - r.order
-            )
-
-            val a = exitValue.get()
-
-            array
-              .foldLeft[UIO[Cause[Nothing]]](noCauseEffect) {
-                case (acc, o) =>
-                  if (o ne null) acc.zipWith(o.finalizer(a).cause)(_ ++ _)
-                  else acc
-              }
-              .uncause[Nothing]
+          while (iterator.hasNext()) {
+            array(i) = iterator.next().getValue()
+            i = i + 1
           }
-        } else null
-      }
+
+          iterator = strongFinalizers.entrySet().iterator()
+
+          while (iterator.hasNext()) {
+            array(i) = iterator.next().getValue()
+            i = i + 1
+          }
+
+          weakFinalizers.clear()
+          strongFinalizers.clear()
+
+          java.util.Arrays.sort(
+            array,
+            (l: OrderedFinalizer, r: OrderedFinalizer) => if (l eq null) -1 else if (r eq null) 1 else l.order - r.order
+          )
+
+          val a = exitValue.get()
+
+          array
+            .foldLeft[UIO[Cause[Nothing]]](noCauseEffect) {
+              case (acc, o) =>
+                if (o ne null) acc.zipWith(o.finalizer(a).cause)(_ ++ _)
+                else acc
+            }
+            .uncause[Nothing]
+        }
+      } else null
 
     private[zio] def unsafeReleased(): Boolean = references.get() <= 0
   }
