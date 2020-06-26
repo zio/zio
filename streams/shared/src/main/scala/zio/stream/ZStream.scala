@@ -8,7 +8,7 @@ import zio.duration.Duration
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
-import zio.stream.internal.ZInputStream
+import zio.stream.internal.{ ZInputStream, ZReader }
 
 /**
  * A `ZStream[R, E, O]` is a description of a program that, when evaluated,
@@ -2828,6 +2828,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
       unfoldPull
     }
+
+  /**
+   * Converts this stream of chars into a `java.io.Reader` wrapped in a [[ZManaged]].
+   * The returned reader will only be valid within the scope of the ZManaged.
+   */
+  def toReader(implicit ev0: E <:< Throwable, ev1: O <:< Char): ZManaged[R, E, java.io.Reader] =
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- process.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Char]]]]
+    } yield ZReader.fromPull(runtime, pull)
 
   /**
    * Converts the stream to a managed queue of chunks. After the managed queue is used,
