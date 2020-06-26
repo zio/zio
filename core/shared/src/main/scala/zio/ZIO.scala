@@ -2103,9 +2103,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     val g = (b: B, a: A) => f(a, b)
 
     // ZIO.transplant { graft =>
-      ZIO.descriptorWith { d =>
-        (self raceWith that)(coordinate(d.id, f, true), coordinate(d.id, g, false))
-      }
+    ZIO.descriptorWith(d => (self raceWith that)(coordinate(d.id, f, true), coordinate(d.id, g, false)))
     // }
   }
 }
