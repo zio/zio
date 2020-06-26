@@ -86,6 +86,7 @@ sealed trait ZScope[+A] { self =>
    */
   def released: UIO[Boolean]
 
+  private[zio] def unsafeDeny(key: ZScope.Key): Boolean
   private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[ZScope.Key]
   private[zio] def unsafeExtend(that: ZScope[Any]): Boolean
 }
@@ -134,6 +135,7 @@ object ZScope {
 
     def released: UIO[Boolean] = UIO(false)
 
+    private[zio] def unsafeDeny(key: Key): Boolean                                                = true
     private[zio] def unsafeEnsure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode): Option[Key] = unsafeEnsureResult
     private[zio] def unsafeExtend(that: ZScope[Any]): Boolean = that match {
       case local: Local[_] => local.unsafeAddRef()
@@ -272,6 +274,7 @@ object ZScope {
         if (totalSize == 0) null
         else {
           val array = Array.ofDim[OrderedFinalizer](totalSize)
+          println(totalSize)
 
           var i        = 0
           var iterator = weakFinalizers.entrySet().iterator()
@@ -291,10 +294,10 @@ object ZScope {
           weakFinalizers.clear()
           strongFinalizers.clear()
 
-          // java.util.Arrays.sort(
-          //   array,
-          //   (l: OrderedFinalizer, r: OrderedFinalizer) => if (l eq null) -1 else if (r eq null) 1 else l.order - r.order
-          // )
+          java.util.Arrays.sort(
+            array,
+            (l: OrderedFinalizer, r: OrderedFinalizer) => if (l eq null) -1 else if (r eq null) 1 else l.order - r.order
+          )
 
           val a = exitValue.get()
 
