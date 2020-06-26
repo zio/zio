@@ -124,10 +124,10 @@ object ZTransducer {
     }
 
   /**
-   * Creates a transducer accumulating incoming values into lists of maximum size `n`.
+   * Creates a transducer accumulating incoming values into chunks of maximum size `n`.
    */
-  def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
-    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse).filter(_.nonEmpty)
+  def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, Chunk[I]] =
+    foldUntil[I, Chunk[I]](Chunk[I](), n)((chunk, element) => chunk :+ element).filter(_.nonEmpty)
 
   /**
    * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
@@ -149,20 +149,20 @@ object ZTransducer {
     foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _).filter(_.nonEmpty)
 
   /**
-   * Accumulates incoming elements into a list as long as they verify predicate `p`.
+   * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
-  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
-    fold[I, (List[I], Boolean)]((Nil, true))(_._2) {
-      case ((as, _), a) => if (p(a)) (a :: as, true) else (as, false)
-    }.map(_._1.reverse).filter(_.nonEmpty)
+  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, Chunk[I]] =
+    fold[I, (Chunk[I], Boolean)]((Chunk[I](), true))(_._2) {
+      case ((as, _), a) => if (p(a)) (as :+ a, true) else (as, false)
+    }.map(_._1).filter(_.nonEmpty)
 
   /**
-   * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
+   * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
-  def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
-    foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) {
-      case ((as, _), a) => p(a).map(if (_) (a :: as, true) else (as, false))
-    }.map(_._1.reverse).filter(_.nonEmpty)
+  def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, Chunk[I]] =
+    foldM[R, E, I, (Chunk[I], Boolean)]((Chunk[I](), true))(_._2) {
+      case ((as, _), a) => p(a).map(if (_) (as :+ a, true) else (as, false))
+    }.map(_._1).filter(_.nonEmpty)
 
   /**
    * Creates a transducer that always dies with the specified exception.

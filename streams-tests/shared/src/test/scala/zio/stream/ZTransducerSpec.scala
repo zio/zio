@@ -67,7 +67,9 @@ object ZTransducerSpec extends ZIOBaseSpec {
     suite("Constructors")(
       suite("collectAllN")(
         testM("happy path") {
-          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3, 4))))(equalTo(Chunk(List(1, 2, 3), List(4))))
+          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3, 4))))(
+            equalTo(Chunk(Chunk(1, 2, 3), Chunk(4)))
+          )
         },
         testM("empty list") {
           assertM(run(ZTransducer.collectAllN[Int](3), List()))(equalTo(Chunk.empty))
@@ -122,7 +124,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         val parser = ZTransducer.collectAllWhile[Int](_ < 5)
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = run(parser, input)
-        assertM(result)(equalTo(Chunk(List(3, 4), List(2, 3, 4), List(4, 3, 2))))
+        assertM(result)(equalTo(Chunk(Chunk(3, 4), Chunk(2, 3, 4), Chunk(4, 3, 2))))
       },
       suite("fold")(
         testM("empty")(
