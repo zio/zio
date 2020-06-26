@@ -7,7 +7,7 @@ import zio.test._
 
 trait ZIOBaseSpec extends DefaultRunnableSpec {
 
-  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
+  override def aspects =
     List(TestAspect.timeout(600.seconds))
 
   // override def runner: TestRunner[TestEnvironment, Any] =
