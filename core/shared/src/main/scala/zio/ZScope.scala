@@ -291,10 +291,10 @@ object ZScope {
           weakFinalizers.clear()
           strongFinalizers.clear()
 
-          java.util.Arrays.sort(
-            array,
-            (l: OrderedFinalizer, r: OrderedFinalizer) => if (l eq null) -1 else if (r eq null) 1 else l.order - r.order
-          )
+          // java.util.Arrays.sort(
+          //   array,
+          //   (l: OrderedFinalizer, r: OrderedFinalizer) => if (l eq null) -1 else if (r eq null) 1 else l.order - r.order
+          // )
 
           val a = exitValue.get()
 
