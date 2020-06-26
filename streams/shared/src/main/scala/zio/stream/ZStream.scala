@@ -1919,18 +1919,25 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def mapMPar[R1 <: R, E1 >: E, O2](n: Int)(f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
     ZStream[R1, E1, O2] {
       for {
-        out     <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
-        permits <- Semaphore.make(n.toLong).toManaged_
+        out         <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
+        errorSignal <- Promise.make[E1, Nothing].toManaged_
+        permits     <- Semaphore.make(n.toLong).toManaged_
         _ <- self.foreachManaged { a =>
               for {
                 p     <- Promise.make[E1, O2]
                 latch <- Promise.make[Nothing, Unit]
                 _     <- out.offer(p.await.mapError(Some(_)))
-                _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork
-                _     <- latch.await
+                _ <- permits.withPermit {
+                      latch.succeed(()) *> // Make sure we start evaluation before moving on to the next element
+                        (errorSignal.await // Interrupt evaluation if another task fails
+                          raceFirst f(a))
+                          .tapCause(errorSignal.halt) // Notify other tasks of a failure
+                          .to(p)                      // Transfer the result to the consuming stream
+                    }.fork
+                _ <- latch.await
               } yield ()
             }.foldCauseM(
-                c => out.offer(Pull.halt(c)).unit.toManaged_,
+                c => out.offer(Pull.halt(c)).toManaged_,
                 _ => (permits.withPermits(n.toLong)(ZIO.unit).interruptible *> out.offer(Pull.end)).toManaged_
               )
               .fork

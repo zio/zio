@@ -1963,7 +1963,20 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .run
                 .map(_.interrupted)
             )(equalTo(false))
-          } @@ nonFlaky(10)
+          } @@ nonFlaky(10),
+          testM("interrupts pending tasks when one of the tasks fails") {
+            for {
+              interrupted <- Ref.make(0)
+              latch1      <- Promise.make[Nothing, Unit]
+              latch2      <- Promise.make[Nothing, Unit]
+              _ <- ZStream(
+                    latch1.succeed(()) *> ZIO.never.onInterrupt(interrupted.update(_ + 1)),
+                    latch2.succeed(()) *> ZIO.never.onInterrupt(interrupted.update(_ + 1)),
+                    latch1.await *> latch2.await *> ZIO.fail("Boom")
+                  ).mapMPar(3)(identity).runDrain.run
+              count <- interrupted.get
+            } yield assert(count)(equalTo(2))
+          }
         ),
         suite("mergeTerminateLeft")(
           testM("terminates as soon as the first stream terminates") {
