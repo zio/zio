@@ -1464,9 +1464,6 @@ object Chunk {
       take(i)
     }
 
-    override def toArray[A1 >: A: ClassTag]: Array[A1] =
-      array.asInstanceOf[Array[A1]]
-
     override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       Array.copy(array, 0, dest, n, length)
 
