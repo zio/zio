@@ -75,11 +75,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(run(ZTransducer.collectAllN[Int](3), List()))(equalTo(Chunk.empty))
         },
         testM("doesn't emit empty trailing chunks") {
-          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3))))(equalTo(Chunk(List(1, 2, 3))))
+          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3))))(equalTo(Chunk(Chunk(1, 2, 3))))
         },
         testM("emits chunks when exactly N elements received") {
           ZTransducer.collectAllN[Int](4).push.use { push =>
-            push(Some(Chunk(1, 2, 3, 4))).map(result => assert(result)(equalTo(Chunk(List(1, 2, 3, 4)))))
+            push(Some(Chunk(1, 2, 3, 4))).map(result => assert(result)(equalTo(Chunk(Chunk(1, 2, 3, 4)))))
           }
         }
       ),
