@@ -430,10 +430,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               } yield ()
           )
 
-        def go: URIO[R, Unit] =
-          Take.fromPull(as).flatMap(take => offer(take) *> go.when(take != Take.end))
-
-        go
+        Take.fromPull(as).tap(take => offer(take)).doWhile(_ != Take.end).unit
       }
       _ <- upstream.toManaged_.fork
       pull = done.get.flatMap {
