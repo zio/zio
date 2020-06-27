@@ -127,9 +127,34 @@ object ZTransducer {
    * Creates a transducer accumulating incoming values into chunks of maximum size `n`.
    */
   def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, Chunk[I]] =
-    foldUntil[I, UIO[ChunkBuilder[I]]](UIO(ChunkBuilder.make[I](n.toInt)), n) {
-      case (b, element) => b.map(_ += element)
-    }.mapM(_.map(_.result())).filter(_.nonEmpty)
+    ZTransducer {
+
+      def go(in: Chunk[I], builder: ChunkBuilder[I], size: Long): (ChunkBuilder[Chunk[I]], ChunkBuilder[I], Long) =
+        in.foldLeft[(ChunkBuilder[Chunk[I]], ChunkBuilder[I], Long)]((ChunkBuilder.make(), builder, size)) {
+          case ((out, chunkBuilder, chunkSize), i) =>
+            if (chunkSize + 1 == n) (out += (chunkBuilder += i).result(), ChunkBuilder.make(n.toInt), 0)
+            else (out, chunkBuilder += i, chunkSize + 1)
+        }
+
+      ZRef.makeManaged[(ChunkBuilder[I], Long)]((ChunkBuilder.make[I](n.toInt), 0L)).map { stateRef =>
+        {
+          case Some(in) =>
+            stateRef.modify { state =>
+              val (out, chunkBuilder, chunkSize) = go(in, state._1, state._2)
+              out.result() -> ((chunkBuilder, chunkSize))
+            }
+
+          case None =>
+            stateRef
+              .getAndSet((ChunkBuilder.make[I](n.toInt), 0L))
+              .map {
+                case (chunkBuilder, chunkSize) =>
+                  if (chunkSize == 0) Chunk.empty
+                  else Chunk(chunkBuilder.result())
+              }
+        }
+      }
+    }
 
   /**
    * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
@@ -209,7 +234,7 @@ object ZTransducer {
             case Some(is) =>
               dropping.get.flatMap {
                 case false => UIO(is -> false)
-                case true  => is.dropWhileM(p).map(is1 => is1 -> (is1.length == 0))
+                case true  => is.dropWhileM(p).map(is1 => is1 -> is1.isEmpty)
               }.flatMap { case (is, pt) => dropping.set(pt) as is }
           }
         }
