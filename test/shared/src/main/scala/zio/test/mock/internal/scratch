@@ -1,0 +1,71 @@
+
+Or(
+    Chain(
+        Call(A, equalTo(1), satisfied = false, saturated = false, invocations = Nil),
+        Call(B, equalTo(2), satisfied = false, saturated = false, invocations = Nil),
+        satisfied = false,
+        saturated = false,
+        invocations = Nil
+    ),
+    Chain(
+        Call(B, equalTo(2), satisfied = true,  saturated = true,  invocations = List(1)),
+        Call(A, equalTo(1), satisfied = false, saturated = false, invocations = Nil),
+        satisfied = false,
+        saturated = false,
+        invocations = List(1)
+    ),
+    satisfied = false,
+    saturated = false,
+    invocations = List(1)
+)
+
+Or(
+    Chain(
+        Call(A, equalTo(1), state = Unsatisfied, invocations = Nil),
+        Call(B, equalTo(2), state = Unsatisfied, invocations = Nil),
+        state       = Unsatisfied,
+        invocations = Nil
+    ),
+    Chain(
+        Call(B, equalTo(2), state = Saturated,   invocations = List(1)),
+        Call(A, equalTo(1), state = Unsatisfied, invocations = Nil),
+        state       = Unsatisfied,
+        invocations = List(1)
+    ),
+    state       = Unsatisfied,
+    invocations = List(1)
+)
+
+Or(
+    Chain(
+        Call(A, Unsatisfied, Nil),
+        Call(B, Unsatisfied, Nil),
+        Unsatisfied,
+        Nil
+    ),
+    Chain(
+        Call(B, Saturated, List(1)),
+        Call(A, Unsatisfied, Nil),
+        Unsatisfied,
+        List(1),
+    ),
+    Unsatisfied,
+    List(1)
+)
+
+Or(
+    Chain(
+        Call(A, Unsatisfied, Nil),
+        Call(B, Unsatisfied, Nil),
+        Unsatisfied,
+        Nil
+    ),
+    Chain(
+        Call(B, Saturated, List(1)),
+        Call(A, Unsatisfied, Nil),
+        PartiallySatisfied,
+        List(1)
+    ),
+    Unsatisfied,
+    List(1)
+ )

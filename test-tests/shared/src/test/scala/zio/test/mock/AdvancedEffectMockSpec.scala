@@ -107,6 +107,10 @@ object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule]
         testValue("A passes")(A || B || C, a, equalTo("A")),
         testValue("B passes")(A || B || C, b, equalTo("B")),
         testValue("C passes")(A || B || C, c, equalTo("C"))
+      ),
+      suite("(A andThen B) or (B andThen A)")(
+        testValue("A->B passes")((A ++ B) || (B ++ A), a *> b, equalTo("B")),
+        testValue("B->A passes")((A ++ B) || (B ++ A), b *> a, equalTo("A"))
       ), {
         val expectation = A repeats (1 to 3)
 

@@ -1,6 +1,6 @@
 package zio.test.mock
 
-import zio.test.mock.internal.{ InvalidCall, MockException }
+import zio.test.mock.internal.{ ExpectationState, InvalidCall, MockException }
 import zio.test.mock.module.{ ImpureModule, ImpureModuleMock }
 import zio.test.{ suite, Assertion, ZIOBaseSpec }
 import zio.{ IO, UIO }
@@ -9,6 +9,7 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
 
   import Assertion._
   import Expectation._
+  import ExpectationState._
   import InvalidCall._
   import MockException._
 
@@ -409,11 +410,10 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
 
           def cmd(n: Int) = ImpureModuleMock.ParameterizedCommand(equalTo(n))
 
-          def hasCall(index: Int, satisfied: Boolean, saturated: Boolean, invocations: List[Int]) =
+          def hasCall(index: Int, state: ExpectationState, invocations: List[Int]) =
             hasAt(index)(
               isSubtype[E1](
-                hasField[E1, Boolean]("satisfied", _.satisfied, equalTo(satisfied)) &&
-                  hasField[E1, Boolean]("saturated", _.saturated, equalTo(saturated)) &&
+                hasField[E1, ExpectationState]("state", _.state, equalTo(state)) &&
                   hasField[E1, List[Int]]("invocations", _.invocations, equalTo(invocations))
               )
             )
@@ -430,13 +430,12 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
                     "children",
                     _.children,
                     isSubtype[L](
-                      hasCall(0, true, true, List(1)) &&
-                        hasCall(1, false, false, List.empty) &&
-                        hasCall(2, false, false, List.empty)
+                      hasCall(0, Saturated, List(1)) &&
+                        hasCall(1, Unsatisfied, List.empty) &&
+                        hasCall(2, Unsatisfied, List.empty)
                     )
                   ) &&
-                    hasField[E0, Boolean]("satisfied", _.satisfied, equalTo(false)) &&
-                    hasField[E0, Boolean]("saturated", _.saturated, equalTo(false)) &&
+                    hasField[E0, ExpectationState]("state", _.state, equalTo(PartiallySatisfied)) &&
                     hasField[E0, List[Int]]("invocations", _.invocations, equalTo(List(1)))
                 )
               )
