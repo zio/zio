@@ -14,7 +14,7 @@ import zio.duration._
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, nonFlaky, timeout }
+import zio.test.TestAspect.{ exceptDotty, exceptJS, flaky, nonFlaky, timeout }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1977,7 +1977,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                   ).mapMPar(3)(identity).runDrain.run
               count <- interrupted.get
             } yield assert(count)(equalTo(2))
-          }
+          } @@ exceptDotty
         ),
         suite("mergeTerminateLeft")(
           testM("terminates as soon as the first stream terminates") {
@@ -2014,7 +2014,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _       <- queue1.offer(1)
               result  <- fiber.join
             } yield assert(result)(equalTo(Chunk(2, 3)))
-          }
+          } @@ exceptJS
         ),
         suite("mergeTerminateEither")(
           testM("terminates as soon as either stream terminates") {

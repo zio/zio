@@ -2881,6 +2881,17 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail(ExampleError).someOrElse(42).run)(fails(equalTo(ExampleError)))
       } @@ zioTag(errors)
     ),
+    suite("someOrElseM")(
+      testM("extracts the value from Some") {
+        assertM(UIO.succeed(Some(1)).someOrElseM(UIO.succeed(2)))(equalTo(1))
+      },
+      testM("falls back to the default effect if None") {
+        assertM(UIO.succeed(None).someOrElseM(UIO.succeed(42)))(equalTo(42))
+      },
+      testM("does not change failed state") {
+        assertM(ZIO.fail(ExampleError).someOrElseM(UIO.succeed(42)).run)(fails(equalTo(ExampleError)))
+      } @@ zioTag(errors)
+    ),
     suite("someOrFail")(
       testM("extracts the optional value") {
         val task: Task[Int] = UIO(Some(42)).someOrFail(exampleError)
