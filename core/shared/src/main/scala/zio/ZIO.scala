@@ -422,7 +422,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Returns an effect that succeeds with the cause of failure of this effect,
-   * or `Cause.empty` if the effect did not succeed.
+   * or `Cause.empty` if the effect did succeed.
    */
   final def cause: URIO[R, Cause[E]] = self.foldCause(c => c, _ => Cause.empty)
 

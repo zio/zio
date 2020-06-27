@@ -324,6 +324,7 @@ jobs:
   test_211_jdk8_js:
     <<: *testJS211
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_211
       - <<: *jdk_8
@@ -331,6 +332,7 @@ jobs:
   test_212_jdk8_js:
     <<: *testJS
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_212
       - <<: *jdk_8
@@ -338,6 +340,7 @@ jobs:
   test_213_jdk8_js:
     <<: *testJS
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_213
       - <<: *jdk_8

@@ -45,7 +45,7 @@ sealed trait ZScope[+A] { self =>
    * is closed. The returned effect will succeed with `true` if the finalizer
    * will not be run by this scope, and `false` otherwise.
    */
-  def deny(key: => ZScope.Key): UIO[Boolean]
+  def deny(key: => ZScope.Key): UIO[Boolean] = UIO(unsafeDeny(key))
 
   /**
    * Determines if the scope is empty (has no finalizers) at the instant the
@@ -88,6 +88,7 @@ sealed trait ZScope[+A] { self =>
    */
   def released: UIO[Boolean]
 
+  private[zio] def unsafeDeny(key: ZScope.Key): Boolean
   private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Option[ZScope.Key]
   private[zio] def unsafeExtend(that: ZScope[Any]): Boolean
 }
@@ -128,14 +129,13 @@ object ZScope {
 
     def closed: UIO[Boolean] = UIO(false)
 
-    def deny(key: => Key): UIO[Boolean] = UIO(true)
-
     def empty: UIO[Boolean] = UIO(false)
 
     def ensure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Option[Key]] = ensureResult
 
     def released: UIO[Boolean] = UIO(false)
 
+    private[zio] def unsafeDeny(key: Key): Boolean                                                = true
     private[zio] def unsafeEnsure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode): Option[Key] = unsafeEnsureResult
     private[zio] def unsafeExtend(that: ZScope[Any]): Boolean = that match {
       case local: Local[_] => local.unsafeAddRef()
@@ -193,8 +193,6 @@ object ZScope {
   ) extends ZScope[A] { self =>
 
     def closed: UIO[Boolean] = UIO(unsafeClosed())
-
-    def deny(key: => Key): UIO[Boolean] = UIO(unsafeDeny(key))
 
     def empty: UIO[Boolean] = UIO(Sync(self)(weakFinalizers.size() == 0 && strongFinalizers.size() == 0))
 

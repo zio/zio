@@ -744,6 +744,10 @@ private[zio] final class FiberContext[E, A](
       childContext.scopeKey = key.getOrElse(
         throw new IllegalStateException("Defect: The fiber's scope has ended before the fiber itself has ended")
       )
+
+      // Remove the finalizer key from the parent scope when the child fiber
+      // terminates:
+      childContext.onDone(_ => key.foreach(parentScope.unsafeDeny))
     }
 
     executor.submitOrThrow(() => childContext.evaluateNow(zio))

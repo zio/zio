@@ -307,7 +307,9 @@ object ZTransducer {
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
   def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
-    foldWeighted[I, O](z)((_, _) => 1, max)(f)
+    fold[I, (O, Long)]((z, 0))(_._2 < max) {
+      case ((o, count), i) => (f(o, i), count + 1)
+    }.map(_._1)
 
   /**
    * Creates a transducer that effectfully folds elements of type `I` into a structure
@@ -316,7 +318,9 @@ object ZTransducer {
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
   def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldWeightedM[R, E, I, O](z)((_, _) => UIO.succeedNow(1), max)(f)
+    foldM[R, E, I, (O, Long)]((z, 0))(_._2 < max) {
+      case ((o, count), i) => f(o, i).map((_, count + 1))
+    }.map(_._1)
 
   /**
    * Creates a transducer that folds elements of type `I` into a structure

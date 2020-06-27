@@ -510,6 +510,11 @@ object ChunkSpec extends ZIOBaseSpec {
       val n  = 100000
       val as = List.range(0, n).foldRight[Chunk[Int]](Chunk.empty)((a, as) => Chunk(a) ++ as)
       assert(as.toArray)(equalTo(Array.range(0, n)))
+    },
+    zio.test.test("toArray does not throw ClassCastException") {
+      val chunk = Chunk("a")
+      val array = chunk.toArray
+      assert(array)(anything)
     }
   )
 }
