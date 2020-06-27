@@ -14,7 +14,7 @@ import zio.duration._
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.test.Assertion._
-import zio.test.TestAspect.{ exceptDotty, exceptJS, flaky, nonFlaky, timeout }
+import zio.test.TestAspect.{ exceptJS, flaky, nonFlaky, timeout }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1970,14 +1970,17 @@ object ZStreamSpec extends ZIOBaseSpec {
               interrupted <- Ref.make(0)
               latch1      <- Promise.make[Nothing, Unit]
               latch2      <- Promise.make[Nothing, Unit]
-              _ <- ZStream(
-                    latch1.succeed(()) *> ZIO.never.onInterrupt(interrupted.update(_ + 1)),
-                    latch2.succeed(()) *> ZIO.never.onInterrupt(interrupted.update(_ + 1)),
-                    latch1.await *> latch2.await *> ZIO.fail("Boom")
-                  ).mapMPar(3)(identity).runDrain.run
+              result <- ZStream(1, 2, 3)
+                         .mapMPar(3) {
+                           case 1 => (latch1.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                           case 2 => (latch2.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                           case 3 => latch1.await *> latch2.await *> ZIO.fail("Boom")
+                         }
+                         .runDrain
+                         .run
               count <- interrupted.get
-            } yield assert(count)(equalTo(2))
-          } @@ exceptDotty
+            } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
+          } @@ nonFlaky
         ),
         suite("mergeTerminateLeft")(
           testM("terminates as soon as the first stream terminates") {

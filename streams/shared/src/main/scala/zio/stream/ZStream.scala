@@ -1928,11 +1928,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 latch <- Promise.make[Nothing, Unit]
                 _     <- out.offer(p.await.mapError(Some(_)))
                 _ <- permits.withPermit {
-                      latch.succeed(()) *> // Make sure we start evaluation before moving on to the next element
-                        (errorSignal.await // Interrupt evaluation if another task fails
-                          raceFirst f(a))
-                          .tapCause(errorSignal.halt) // Notify other tasks of a failure
-                          .to(p)                      // Transfer the result to the consuming stream
+                      latch.succeed(()) *>                 // Make sure we start evaluation before moving on to the next element
+                        (errorSignal.await raceFirst f(a)) // Interrupt evaluation if another task fails
+                          .tapCause(errorSignal.halt)      // Notify other tasks of a failure
+                          .to(p)                           // Transfer the result to the consuming stream
                     }.fork
                 _ <- latch.await
               } yield ()
@@ -1941,7 +1940,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 _ => (permits.withPermits(n.toLong)(ZIO.unit).interruptible *> out.offer(Pull.end)).toManaged_
               )
               .fork
-      } yield out.take.flatten.map(Chunk.single(_))
+        consumer = out.take.flatten.map(Chunk.single(_))
+      } yield consumer
     }
 
   /**
