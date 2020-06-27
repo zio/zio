@@ -33,6 +33,11 @@ object BasicStreamMockSpec extends ZIOBaseSpec with MockSpecUtils[StreamModule] 
             StreamModuleMock.Stream(equalTo(1), value(A)),
             StreamModule.stream(1).flatMap(_.runCollect),
             equalTo(Chunk(1, 2, 3))
+          ),
+          testError("error")(
+            StreamModuleMock.Stream(equalTo(1), value(ZStream.fail("foo"))),
+            StreamModule.stream(1).flatMap(_.runCollect),
+            equalTo("foo")
           )
         )
       )

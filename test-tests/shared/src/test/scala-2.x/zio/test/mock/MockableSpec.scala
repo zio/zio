@@ -108,6 +108,25 @@ object MockableSpec extends DefaultRunnableSpec {
           Check
         })(anything)
       },
+      test("generates mocks for simple stream methods") {
+        assert({
+          @mockable[SimpleStreamDefsModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[SimpleStreamDefsModule] = ModuleMock
+
+            val Static: ModuleMock.Stream[Unit, String, Int]                        = ModuleMock.Static
+            val ZeroParams: ModuleMock.Stream[Unit, String, Int]                    = ModuleMock.ZeroParams
+            val ZeroParamsWithParens: ModuleMock.Stream[Unit, String, Int]          = ModuleMock.ZeroParamsWithParens
+            val SingleParam: ModuleMock.Stream[Int, String, Int]                    = ModuleMock.SingleParam
+            val ManyParams: ModuleMock.Stream[(Int, String, Long), String, Int]     = ModuleMock.ManyParams
+            val ManyParamLists: ModuleMock.Stream[(Int, String, Long), String, Int] = ModuleMock.ManyParamLists
+          }
+
+          Check
+        })(anything)
+      },
       test("generates mocks for overloaded pure methods") {
         assert({
           @mockable[OverloadedPureDefsModule.Service]
@@ -133,6 +152,21 @@ object MockableSpec extends DefaultRunnableSpec {
 
             val Overloaded_0: ModuleMock.Method[Int, Throwable, String]  = ModuleMock.Overloaded._0
             val Overloaded_1: ModuleMock.Method[Long, Throwable, String] = ModuleMock.Overloaded._1
+          }
+
+          Check
+        })(anything)
+      },
+      test("generates mocks for overloaded stream methods") {
+        assert({
+          @mockable[OverloadedStreamDefsModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[OverloadedStreamDefsModule] = ModuleMock
+
+            val Overloaded_0: ModuleMock.Stream[Int, String, Int]  = ModuleMock.Overloaded._0
+            val Overloaded_1: ModuleMock.Stream[Long, String, Int] = ModuleMock.Overloaded._1
           }
 
           Check
@@ -182,6 +216,28 @@ object MockableSpec extends DefaultRunnableSpec {
           Check
         })(anything)
       },
+      test("generates mocks for poly stream methods") {
+        assert({
+          @mockable[PolyStreamDefsModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[PolyStreamDefsModule] = ModuleMock
+
+            val PolyInput: ModuleMock.Poly.Stream.Input[String, Int]          = ModuleMock.PolyInput
+            val PolyError: ModuleMock.Poly.Stream.Error[Long, Int]            = ModuleMock.PolyError
+            val PolyOutput: ModuleMock.Poly.Stream.Output[Long, String]       = ModuleMock.PolyOutput
+            val PolyInputError: ModuleMock.Poly.Stream.InputError[Int]        = ModuleMock.PolyInputError
+            val PolyInputOutput: ModuleMock.Poly.Stream.InputOutput[String]   = ModuleMock.PolyInputOutput
+            val PolyErrorOutput: ModuleMock.Poly.Stream.ErrorOutput[Long]     = ModuleMock.PolyErrorOutput
+            val PolyInputErrorOutput: ModuleMock.Poly.Stream.InputErrorOutput = ModuleMock.PolyInputErrorOutput
+            val PolyMixed: ModuleMock.Poly.Stream.Output[Unit, String]        = ModuleMock.PolyMixed
+            val PolyBounded: ModuleMock.Poly.Stream.Output[Unit, String]      = ModuleMock.PolyBounded
+          }
+
+          Check
+        })(anything)
+      },
       test("generates mocks for varargs pure methods") {
         assert({
           @mockable[VarargsPureDefsModule.Service]
@@ -208,6 +264,22 @@ object MockableSpec extends DefaultRunnableSpec {
 
             val SimpleVarargs: ModuleMock.Method[(Int, Seq[String]), Throwable, String] = ModuleMock.SimpleVarargs
             val CurriedVarargs: ModuleMock.Method[(Int, Seq[String], Long, Seq[Double]), Throwable, String] =
+              ModuleMock.CurriedVarargs
+          }
+
+          Check
+        })(anything)
+      },
+      test("generates mocks for varargs stream methods") {
+        assert({
+          @mockable[VarargsStreamDefsModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[VarargsStreamDefsModule] = ModuleMock
+
+            val SimpleVarargs: ModuleMock.Stream[(Int, Seq[String]), String, Int] = ModuleMock.SimpleVarargs
+            val CurriedVarargs: ModuleMock.Stream[(Int, Seq[String], Long, Seq[Double]), String, Int] =
               ModuleMock.CurriedVarargs
           }
 

@@ -104,9 +104,11 @@ private[mock] object MockableMacro {
 
       val a: Type = capability match {
         case Capability.Effect(_, _, a)      => a
-        case Capability.Sink(_, e, a0, a, b) => tq"_root_.zio.stream.ZSink[$any, $e, $a0, $a, $b]".tpe
-        case Capability.Stream(_, e, a)      => tq"_root_.zio.stream.ZStream[$any, $e, $a]".tpe
-        case Capability.Method(a)            => a
+        case Capability.Sink(_, e, a0, a, b) =>
+          // fixme: this breaks poly check in `val polyA: Boolean`
+          c.typecheck(tq"_root_.zio.stream.ZSink[$any, $e, $a0, $a, $b]", c.TYPEmode).tpe
+        case Capability.Stream(_, _, a) => a
+        case Capability.Method(a)       => a
       }
 
       val polyI: Boolean = typeParams.exists(ts => i.contains(ts))
@@ -171,6 +173,7 @@ private[mock] object MockableMacro {
           q"case object $tagName extends Poly.Method.ErrorOutput[$i]"
         case (_: Capability.Method, true, true, true) =>
           q"case object $tagName extends Poly.Method.InputErrorOutput"
+
         case (_: Capability.Effect, false, false, false) =>
           q"case object $tagName extends Effect[$i, $e, $a]"
         case (_: Capability.Effect, true, false, false) =>
@@ -187,6 +190,23 @@ private[mock] object MockableMacro {
           q"case object $tagName extends Poly.Effect.ErrorOutput[$i]"
         case (_: Capability.Effect, true, true, true) =>
           q"case object $tagName extends Poly.Effect.InputErrorOutput"
+
+        case (_: Capability.Stream, false, false, false) =>
+          q"case object $tagName extends Stream[$i, $e, $a]"
+        case (_: Capability.Stream, true, false, false) =>
+          q"case object $tagName extends Poly.Stream.Input[$e, $a]"
+        case (_: Capability.Stream, false, true, false) =>
+          q"case object $tagName extends Poly.Stream.Error[$i, $a]"
+        case (_: Capability.Stream, false, false, true) =>
+          q"case object $tagName extends Poly.Stream.Output[$i, $e]"
+        case (_: Capability.Stream, true, true, false) =>
+          q"case object $tagName extends Poly.Stream.InputError[$a]"
+        case (_: Capability.Stream, true, false, true) =>
+          q"case object $tagName extends Poly.Stream.InputOutput[$e]"
+        case (_: Capability.Stream, false, true, true) =>
+          q"case object $tagName extends Poly.Stream.ErrorOutput[$i]"
+        case (_: Capability.Stream, true, true, true) =>
+          q"case object $tagName extends Poly.Stream.InputErrorOutput"
       }
     }
 
@@ -219,8 +239,9 @@ private[mock] object MockableMacro {
         else Modifiers(Flag.FINAL | Flag.OVERRIDE)
 
       val returnType = info.capability match {
-        case Capability.Method(t) => tq"$t"
-        case _                    => tq"_root_.zio.ZIO[$r, $e, $a]"
+        case Capability.Method(t)       => tq"$t"
+        case Capability.Stream(r, e, a) => tq"_root_.zio.stream.ZStream[$r, $e, $a]"
+        case _                          => tq"_root_.zio.ZIO[$r, $e, $a]"
       }
       val returnValue =
         (info.capability, info.params.map(_.name)) match {

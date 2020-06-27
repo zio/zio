@@ -121,47 +121,59 @@ object Capability {
      */
     protected[mock] abstract class Error[R <: Has[_]: Tag, I: Tag, A: Tag, E1](val mock: Mock[R])
         extends Poly[R, I, Unknown, A] { self =>
+      type Output[Error]
 
-      def of[E <: E1: Tag]: Capability[R, I, E, A] =
-        toMethod[R, I, E, A](self)
-
-      @silent("is never used")
-      def of[E <: E1: Tag](assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion)
+      def of[E <: E1: Tag](implicit outputTag: Tag[Output[E]]): Capability[R, I, E, Output[E]] =
+        toMethod[R, I, E, Output[E]](self)
 
       @silent("is never used")
-      def of[E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
-        ev: I =!= Unit
-      ): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion, result)
+      def of[E <: E1: Tag](
+        assertion: Assertion[I]
+      )(implicit ev1: I =!= Unit, ev2: Output[E] <:< Unit, outputTag: Tag[Output[E]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E]](self, assertion)
 
       @silent("is never used")
-      def of[E <: E1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, returns)
+      def of[E <: E1: Tag](
+        assertion: Assertion[I],
+        result: Result[I, E, Output[E]]
+      )(implicit ev: I =!= Unit, outputTag: Tag[Output[E]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E]](self, assertion, result)
+
+      @silent("is never used")
+      def of[E <: E1: Tag](
+        returns: Result[I, E, Output[E]]
+      )(implicit ev: I <:< Unit, outputTag: Tag[Output[E]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E]](self, returns)
     }
 
     /**
      * Represents capability of environment `R` polymorphic in its output type.
      */
-    protected[mock] abstract class Output[R <: Has[_]: Tag, I: Tag, E: Tag, A1](val mock: Mock[R])
+    protected[mock] abstract class Output[R <: Has[_]: Tag, I: Tag, E: Tag](val mock: Mock[R])
         extends Poly[R, I, E, Unknown] { self =>
+      type Output[A]
 
-      def of[A <: A1: Tag]: Capability[R, I, E, A] =
-        toMethod[R, I, E, A](self)
-
-      @silent("is never used")
-      def of[A <: A1: Tag](assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion)
+      def of[A: Tag](implicit outputTag: Tag[Output[A]]): Capability[R, I, E, Output[A]] =
+        toMethod[R, I, E, Output[A]](self)
 
       @silent("is never used")
-      def of[A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
-        ev: I =!= Unit
-      ): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion, result)
+      def of[A: Tag](
+        assertion: Assertion[I]
+      )(implicit ev1: I =!= Unit, ev2: Output[A] <:< Unit, outputTag: Tag[Output[A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[A]](self, assertion)
 
       @silent("is never used")
-      def of[A <: A1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, returns)
+      def of[A: Tag](
+        assertion: Assertion[I],
+        result: Result[I, E, Output[A]]
+      )(implicit ev: I =!= Unit, outputTag: Tag[Output[A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[A]](self, assertion, result)
+
+      @silent("is never used")
+      def of[A: Tag](
+        returns: Result[I, E, Output[A]]
+      )(implicit ev: I <:< Unit, outputTag: Tag[Output[A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[A]](self, returns)
     }
 
     /**
@@ -169,105 +181,117 @@ object Capability {
      */
     protected[mock] abstract class InputError[R <: Has[_]: Tag, A: Tag, E1](val mock: Mock[R])
         extends Poly[R, Unknown, Unknown, A] { self =>
+      type Output[Error]
 
-      def of[I: Tag, E <: E1: Tag]: Capability[R, I, E, A] =
-        toMethod[R, I, E, A](self)
+      def of[I: Tag, E <: E1: Tag](implicit outputTag: Tag[Output[E]]): Capability[R, I, E, Output[E]] =
+        toMethod[R, I, E, Output[E]](self)
 
       @silent("is never used")
       def of[I: Tag, E <: E1: Tag](
         assertion: Assertion[I]
-      )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion)
+      )(implicit ev1: I =!= Unit, ev2: Output[E] <:< Unit, outputTag: Tag[Output[E]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E]](self, assertion)
 
       @silent("is never used")
-      def of[I: Tag, E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
-        ev: I =!= Unit
-      ): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion, result)
+      def of[I: Tag, E <: E1: Tag](
+        assertion: Assertion[I],
+        result: Result[I, E, Output[E]]
+      )(implicit ev: I =!= Unit, outputTag: Tag[Output[E]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E]](self, assertion, result)
 
       @silent("is never used")
-      def of[I: Tag, E <: E1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, returns)
+      def of[I: Tag, E <: E1: Tag](
+        returns: Result[I, E, Output[E]]
+      )(implicit ev: I <:< Unit, outputTag: Tag[Output[E]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E]](self, returns)
     }
 
     /**
      * Represents capability of environment `R` polymorphic in its input and output types.
      */
-    protected[mock] abstract class InputOutput[R <: Has[_]: Tag, E: Tag, A1](val mock: Mock[R])
+    protected[mock] abstract class InputOutput[R <: Has[_]: Tag, E: Tag](val mock: Mock[R])
         extends Poly[R, Unknown, E, Unknown] { self =>
+      type Output[A]
 
-      def of[I: Tag, A <: A1: Tag]: Capability[R, I, E, A] =
-        toMethod[R, I, E, A](self)
+      def of[I: Tag, A: Tag](implicit outputTag: Tag[Output[A]]): Capability[R, I, E, Output[A]] =
+        toMethod[R, I, E, Output[A]](self)
 
       @silent("is never used")
-      def of[I: Tag, A <: A1: Tag](
+      def of[I: Tag, A: Tag](
         assertion: Assertion[I]
-      )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion)
+      )(implicit ev1: I =!= Unit, ev2: Output[A] <:< Unit, outputTag: Tag[Output[A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[A]](self, assertion)
 
       @silent("is never used")
-      def of[I: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
-        ev: I =!= Unit
-      ): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion, result)
+      def of[I: Tag, A: Tag](
+        assertion: Assertion[I],
+        result: Result[I, E, Output[A]]
+      )(implicit ev: I =!= Unit, outputTag: Tag[Output[A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[A]](self, assertion, result)
 
       @silent("is never used")
-      def of[I: Tag, A <: A1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, returns)
+      def of[I: Tag, A: Tag](returns: Result[I, E, Output[A]])(implicit ev: I <:< Unit): Expectation[R] =
+        toExpectation[R, I, E, Output[A]](self, returns)
     }
 
     /**
      * Represents capability of environment `R` polymorphic in its error and output types.
      */
-    protected[mock] abstract class ErrorOutput[R <: Has[_]: Tag, I: Tag, E1, A1](val mock: Mock[R])
+    protected[mock] abstract class ErrorOutput[R <: Has[_]: Tag, I: Tag, E1](val mock: Mock[R])
         extends Poly[R, I, Unknown, Unknown] { self =>
+      type Output[E, A]
 
-      def of[E <: E1: Tag, A <: A1: Tag]: Capability[R, I, E, A] =
-        toMethod[R, I, E, A](self)
+      def of[E <: E1: Tag, A: Tag](implicit outputTag: Tag[Output[E, A]]): Capability[R, I, E, Output[E, A]] =
+        toMethod[R, I, E, Output[E, A]](self)
 
       @silent("is never used")
-      def of[E <: E1: Tag, A <: A1: Tag](
+      def of[E <: E1: Tag, A: Tag](
         assertion: Assertion[I]
-      )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion)
+      )(implicit ev1: I =!= Unit, ev2: Output[E, A] <:< Unit, outputTag: Tag[Output[E, A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E, A]](self, assertion)
 
       @silent("is never used")
-      def of[E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
-        ev: I =!= Unit
-      ): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion, result)
+      def of[E <: E1: Tag, A: Tag](
+        assertion: Assertion[I],
+        result: Result[I, E, Output[E, A]]
+      )(implicit ev: I =!= Unit, outputTag: Tag[Output[E, A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E, A]](self, assertion, result)
 
       @silent("is never used")
-      def of[E <: E1: Tag, A <: A1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, returns)
+      def of[E <: E1: Tag, A: Tag](
+        returns: Result[I, E, Output[E, A]]
+      )(implicit ev: I <:< Unit, outputTag: Tag[Output[E, A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E, A]](self, returns)
     }
 
     /**
      * Represents capability of environment `R` polymorphic in its input, error and output types.
      */
-    protected[mock] abstract class InputErrorOutput[R <: Has[_]: Tag, E1, A1](val mock: Mock[R])
+    protected[mock] abstract class InputErrorOutput[R <: Has[_]: Tag, E1](val mock: Mock[R])
         extends Poly[R, Unknown, Unknown, Unknown] { self =>
+      type Output[E, A]
 
-      def of[I: Tag, E <: E1: Tag, A <: A1: Tag]: Capability[R, I, E, A] =
-        toMethod[R, I, E, A](self)
+      def of[I: Tag, E <: E1: Tag, A: Tag](implicit outputTag: Tag[Output[E, A]]): Capability[R, I, E, Output[E, A]] =
+        toMethod[R, I, E, Output[E, A]](self)
 
       @silent("is never used")
-      def of[I: Tag, E <: E1: Tag, A <: A1: Tag](
+      def of[I: Tag, E <: E1: Tag, A: Tag](
         assertion: Assertion[I]
-      )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion)
+      )(implicit ev1: I =!= Unit, ev2: Output[E, A] <:< Unit, outputTag: Tag[Output[E, A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E, A]](self, assertion)
 
       @silent("is never used")
-      def of[I: Tag, E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
-        ev: I =!= Unit
-      ): Expectation[R] =
-        toExpectation[R, I, E, A](self, assertion, result)
+      def of[I: Tag, E <: E1: Tag, A: Tag](
+        assertion: Assertion[I],
+        result: Result[I, E, Output[E, A]]
+      )(implicit ev: I =!= Unit, outputTag: Tag[Output[E, A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E, A]](self, assertion, result)
 
       @silent("is never used")
-      def of[I: Tag, E <: E1: Tag, A <: A1: Tag](
-        returns: Result[I, E, A]
-      )(implicit ev: I <:< Unit): Expectation[R] =
-        toExpectation[R, I, E, A](self, returns)
+      def of[I: Tag, E <: E1: Tag, A: Tag](
+        returns: Result[I, E, Output[E, A]]
+      )(implicit ev: I <:< Unit, outputTag: Tag[Output[E, A]]): Expectation[R] =
+        toExpectation[R, I, E, Output[E, A]](self, returns)
     }
 
     @silent("is never used")

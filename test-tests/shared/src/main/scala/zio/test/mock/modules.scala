@@ -1,6 +1,7 @@
 package zio.test.mock
 
-import zio.{ Has, IO, Tag, UIO }
+import zio._
+import zio.stream.Stream
 
 /**
  * https://github.com/scalamacros/paradise/issues/75
@@ -43,6 +44,18 @@ object modules {
     }
   }
 
+  type SimpleStreamDefsModule = Has[SimpleStreamDefsModule.Service]
+  object SimpleStreamDefsModule {
+    trait Service {
+      val static: Stream[String, Int]
+      def zeroParams: Stream[String, Int]
+      def zeroParamsWithParens(): Stream[String, Int]
+      def singleParam(a: Int): Stream[String, Int]
+      def manyParams(a: Int, b: String, c: Long): Stream[String, Int]
+      def manyParamLists(a: Int)(b: String)(c: Long): Stream[String, Int]
+    }
+  }
+
   type OverloadedPureDefsModule = Has[OverloadedPureDefsModule.Service]
   object OverloadedPureDefsModule {
     trait Service {
@@ -56,6 +69,14 @@ object modules {
     trait Service {
       def overloaded(n: Int): String
       def overloaded(n: Long): String
+    }
+  }
+
+  type OverloadedStreamDefsModule = Has[OverloadedStreamDefsModule.Service]
+  object OverloadedStreamDefsModule {
+    trait Service {
+      def overloaded(n: Int): Stream[String, Int]
+      def overloaded(n: Long): Stream[String, Int]
     }
   }
 
@@ -89,6 +110,21 @@ object modules {
     }
   }
 
+  type PolyStreamDefsModule = Has[PolyStreamDefsModule.Service]
+  object PolyStreamDefsModule {
+    trait Service {
+      def polyInput[I: Tag](v: I): Stream[String, Int]
+      def polyError[E: Tag](v: Long): Stream[E, Int]
+      def polyOutput[A: Tag](v: Long): Stream[String, A]
+      def polyInputError[I: Tag, E: Tag](v: I): Stream[E, Int]
+      def polyInputOutput[I: Tag, A: Tag](v: I): Stream[String, A]
+      def polyErrorOutput[E: Tag, A: Tag](v: Long): Stream[E, A]
+      def polyInputErrorOutput[I: Tag, E: Tag, A: Tag](v: I): Stream[E, A]
+      def polyMixed[A: Tag]: Stream[String, (A, Int)]
+      def polyBounded[A <: AnyVal: Tag]: Stream[String, A]
+    }
+  }
+
   type VarargsPureDefsModule = Has[VarargsPureDefsModule.Service]
   object VarargsPureDefsModule {
     trait Service {
@@ -102,6 +138,14 @@ object modules {
     trait Service {
       def simpleVarargs(a: Int, b: String*): String
       def curriedVarargs(a: Int, b: String*)(c: Long, d: Double*): String
+    }
+  }
+
+  type VarargsStreamDefsModule = Has[VarargsStreamDefsModule.Service]
+  object VarargsStreamDefsModule {
+    trait Service {
+      def simpleVarargs(a: Int, b: String*): Stream[String, Int]
+      def curriedVarargs(a: Int, b: String*)(c: Long, d: Double*): Stream[String, Int]
     }
   }
 
@@ -120,4 +164,5 @@ object modules {
       def bar(s: String): String
     }
   }
+
 }

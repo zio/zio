@@ -49,23 +49,69 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
   object Poly {
 
     object Effect {
-      abstract class Input[E: Tag, A: Tag]  extends Capability.Poly.Input[R, E, A](self)
-      abstract class Error[I: Tag, A: Tag]  extends Capability.Poly.Error[R, I, A, Any](self)
-      abstract class Output[I: Tag, E: Tag] extends Capability.Poly.Output[R, I, E, Any](self)
-      abstract class InputError[A: Tag]     extends Capability.Poly.InputError[R, A, Any](self)
-      abstract class InputOutput[E: Tag]    extends Capability.Poly.InputOutput[R, E, Any](self)
-      abstract class ErrorOutput[I: Tag]    extends Capability.Poly.ErrorOutput[R, I, Any, Any](self)
-      abstract class InputErrorOutput       extends Capability.Poly.InputErrorOutput[R, Any, Any](self)
+      abstract class Input[E: Tag, A: Tag] extends Capability.Poly.Input[R, E, A](self)
+      abstract class Error[I: Tag, A: Tag] extends Capability.Poly.Error[R, I, A, Any](self) {
+        override type Output[E] = A
+      }
+      abstract class Output[I: Tag, E: Tag] extends Capability.Poly.Output[R, I, E](self) {
+        override type Output[A] = A
+      }
+      abstract class InputError[A: Tag] extends Capability.Poly.InputError[R, A, Any](self) {
+        override type Output[E] = A
+      }
+      abstract class InputOutput[E: Tag] extends Capability.Poly.InputOutput[R, E](self) {
+        override type Output[A] = A
+      }
+      abstract class ErrorOutput[I: Tag] extends Capability.Poly.ErrorOutput[R, I, Any](self) {
+        override type Output[E, A] = A
+      }
+      abstract class InputErrorOutput extends Capability.Poly.InputErrorOutput[R, Any](self) {
+        override type Output[E, A] = A
+      }
     }
 
     object Method {
-      abstract class Input[E <: Throwable: Tag, A: Tag]  extends Capability.Poly.Input[R, E, A](self)
-      abstract class Error[I: Tag, A: Tag]               extends Capability.Poly.Error[R, I, A, Throwable](self)
-      abstract class Output[I: Tag, E <: Throwable: Tag] extends Capability.Poly.Output[R, I, E, Any](self)
-      abstract class InputError[A: Tag]                  extends Capability.Poly.InputError[R, A, Throwable](self)
-      abstract class InputOutput[E <: Throwable: Tag]    extends Capability.Poly.InputOutput[R, E, Any](self)
-      abstract class ErrorOutput[I: Tag]                 extends Capability.Poly.ErrorOutput[R, I, Throwable, Any](self)
-      abstract class InputErrorOutput                    extends Capability.Poly.InputErrorOutput[R, Throwable, Any](self)
+      abstract class Input[E <: Throwable: Tag, A: Tag] extends Capability.Poly.Input[R, E, A](self)
+      abstract class Error[I: Tag, A: Tag] extends Capability.Poly.Error[R, I, A, Throwable](self) {
+        override type Output[E] = A
+      }
+      abstract class Output[I: Tag, E <: Throwable: Tag] extends Capability.Poly.Output[R, I, E](self) {
+        override type Output[A] = A
+      }
+      abstract class InputError[A: Tag] extends Capability.Poly.InputError[R, A, Throwable](self) {
+        override type Output[E] = A
+      }
+      abstract class InputOutput[E <: Throwable: Tag] extends Capability.Poly.InputOutput[R, E](self) {
+        override type Output[A] = A
+      }
+      abstract class ErrorOutput[I: Tag] extends Capability.Poly.ErrorOutput[R, I, Throwable](self) {
+        override type Output[E, A] = A
+      }
+      abstract class InputErrorOutput extends Capability.Poly.InputErrorOutput[R, Throwable](self) {
+        override type Output[E, A] = A
+      }
+    }
+
+    object Stream {
+      abstract class Input[E: Tag, A: Tag] extends Capability.Poly.Input[R, Nothing, ZStream[Any, E, A]](self)
+      abstract class Error[I: Tag, A: Tag] extends Capability.Poly.Error[R, I, A, Any](self) {
+        override type Output[E] = ZStream[Any, E, A]
+      }
+      abstract class Output[I: Tag, E: Tag] extends Capability.Poly.Output[R, I, E](self) {
+        override type Output[A] = ZStream[Any, E, A]
+      }
+      abstract class InputError[A: Tag] extends Capability.Poly.InputError[R, A, Any](self) {
+        override type Output[E] = ZStream[Any, E, A]
+      }
+      abstract class InputOutput[E: Tag] extends Capability.Poly.InputOutput[R, E](self) {
+        override type Output[A] = ZStream[Any, E, A]
+      }
+      abstract class ErrorOutput[I: Tag] extends Capability.Poly.ErrorOutput[R, I, Any](self) {
+        override type Output[E, A] = ZStream[Any, E, A]
+      }
+      abstract class InputErrorOutput extends Capability.Poly.InputErrorOutput[R, Any](self) {
+        override type Output[E, A] = ZStream[Any, E, A]
+      }
     }
   }
 }
