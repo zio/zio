@@ -78,7 +78,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
   }
 )
 <span class="hljs-comment">// clockSuite: Spec[zio.clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("clock", zio.ZManaged@4a09a0ed, None)</span>
+<span class="hljs-comment">//   SuiteCase("clock", zio.ZManaged@36dc0748, None)</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <p>As you can see the whole suit was assigned to <code>clockSuite</code> val. As it was said suites can contain other suites so we can aggregate them as much as needed. Example, we can have multiple suites that test external HTTP apis and one big suite that will aggregate them all.</p>
@@ -87,15 +87,15 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 
 <span class="hljs-keyword">val</span> paymentProviderABCSuite  = suite(<span class="hljs-string">"ABC payment provider tests"</span>) {test(<span class="hljs-string">"Your test"</span>)(assert(<span class="hljs-string">"Your value"</span>)(<span class="hljs-type">Assertion</span>.isNonEmptyString))}
 <span class="hljs-comment">// paymentProviderABCSuite: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("ABC payment provider tests", zio.ZManaged@db4472f, None)</span>
+<span class="hljs-comment">//   SuiteCase("ABC payment provider tests", zio.ZManaged@f8b7c2a, None)</span>
 <span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> paymentProviderXYZSuite  = suite(<span class="hljs-string">"XYZ payment provider tests"</span>) {test(<span class="hljs-string">"Your other test"</span>)(assert(<span class="hljs-string">"Your other value"</span>)(<span class="hljs-type">Assertion</span>.isNonEmptyString))}
 <span class="hljs-comment">// paymentProviderXYZSuite: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("XYZ payment provider tests", zio.ZManaged@73ce2a03, None)</span>
+<span class="hljs-comment">//   SuiteCase("XYZ payment provider tests", zio.ZManaged@2f501357, None)</span>
 <span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> allPaymentProvidersTests = suite(<span class="hljs-string">"All payment providers tests"</span>)(paymentProviderABCSuite, paymentProviderXYZSuite)
 <span class="hljs-comment">// allPaymentProvidersTests: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("All payment providers tests", zio.ZManaged@293a699d, None)</span>
+<span class="hljs-comment">//   SuiteCase("All payment providers tests", zio.ZManaged@212b1d4b, None)</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <p>Real tests that run some logic and return testing result are created mostly with <code>testM</code> function. It expects two arguments, first one that will be the label of test
@@ -183,7 +183,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
   testM(<span class="hljs-string">"s1.t2"</span>) {assertM(nanoTime)(isGreaterThanEqualTo(<span class="hljs-number">0</span>L))}
 )
 <span class="hljs-comment">// suite1: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("suite1", zio.ZManaged@2e33ba9f, None)</span>
+<span class="hljs-comment">//   SuiteCase("suite1", zio.ZManaged@771bb861, None)</span>
 <span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> suite2 = suite(<span class="hljs-string">"suite2"</span>) (
   testM(<span class="hljs-string">"s2.t1"</span>) {assertM(nanoTime)(isGreaterThanEqualTo(<span class="hljs-number">0</span>L))},
@@ -191,13 +191,13 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
   testM(<span class="hljs-string">"s2.t3"</span>) {assertM(nanoTime)(isGreaterThanEqualTo(<span class="hljs-number">0</span>L))}
 )
 <span class="hljs-comment">// suite2: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("suite2", zio.ZManaged@1911d49, None)</span>
+<span class="hljs-comment">//   SuiteCase("suite2", zio.ZManaged@2325e084, None)</span>
 <span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> suite3 = suite(<span class="hljs-string">"suite3"</span>) (
   testM(<span class="hljs-string">"s3.t1"</span>) {assertM(nanoTime)(isGreaterThanEqualTo(<span class="hljs-number">0</span>L))}
 )
 <span class="hljs-comment">// suite3: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("suite3", zio.ZManaged@38da14a, None)</span>
+<span class="hljs-comment">//   SuiteCase("suite3", zio.ZManaged@c40951c, None)</span>
 <span class="hljs-comment">// )</span>
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">AllSuites</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">DefaultRunnableSpec</span> </span>{
@@ -413,7 +413,7 @@ as writing and reading to and from internal buffers.</p>
   }
 )
 <span class="hljs-comment">// consoleSuite: Spec[console.package.Console with TestConsole, TestFailure[java.io.IOException], TestSuccess] = Spec(</span>
-<span class="hljs-comment">//   SuiteCase("ConsoleTest", zio.ZManaged@5b3b33b2, None)</span>
+<span class="hljs-comment">//   SuiteCase("ConsoleTest", zio.ZManaged@11a3945d, None)</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <p>Above code simulates an application that will ask for name and age of the user. To test it we prefill buffers with answers
@@ -432,7 +432,7 @@ like in the code below:</p>
   _      &lt;- <span class="hljs-type">TestSystem</span>.putProperty(<span class="hljs-string">"java.vm.name"</span>, <span class="hljs-string">"VM"</span>)
   result &lt;- system.property(<span class="hljs-string">"java.vm.name"</span>)
 } <span class="hljs-keyword">yield</span> assert(result)(equalTo(<span class="hljs-type">Some</span>(<span class="hljs-string">"VM"</span>)))
-<span class="hljs-comment">// res10: zio.ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@174c8e94</span>
+<span class="hljs-comment">// res10: zio.ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@409c3cd0</span>
 </code></pre>
 <p>It is worth noticing that no actual environment variables or properties will be set during testing so there will be
 no impact on other parts of the system.</p>

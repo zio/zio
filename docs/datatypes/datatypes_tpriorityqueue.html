@@ -4,7 +4,63 @@
             {"zIndex":100,"cornerOffset":100}
           )
         });
-        </script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/howto/howto_index" target="_self">How to</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li><li class=""><a href="/docs/about/about_index" target="_self">About</a></li><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">TPriorityQueue</h1></header><article><div><span><p>A <code>TPriorityQueue[A]</code> is a mutable queue that can participate in STM transactions. A <code>TPriorityQueue</code> contains values of type <code>A</code> for which an <code>Ordering</code> is defined. Unlike a <code>TQueue</code>, <code>take</code> returns the highest priority value (the value that is first in the specified ordering) as opposed to the first value offered to the queue. The ordering of elements sharing the same priority when taken from the queue is not guaranteed.</p>
+        </script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class="siteNavGroupActive"><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/howto/howto_index" target="_self">How to</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li><li class=""><a href="/docs/about/about_index" target="_self">About</a></li><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Data Types</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Data Types</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_index">Summary</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_fiber">Fiber</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_fiberref">FiberRef</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_io">IO</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_managed">Managed</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_promise">Promise</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_queue">Queue</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_schedule">Schedule</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_semaphore">Semaphore</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_sink">Sink</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_stream">Stream</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_chunk">Chunk</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_tarray">TArray</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_tmap">TMap</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/datatypes/datatypes_tpriorityqueue">TPriorityQueue</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_tpromise">TPromise</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_tqueue">TQueue</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_tref">TRef</a></li><li class="navListItem"><a class="navItem" href="/docs/datatypes/datatypes_tset">TSet</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">TPriorityQueue</h1></header><article><div><span><p>A <code>TPriorityQueue[A]</code> is a mutable queue that can participate in STM transactions. A <code>TPriorityQueue</code> contains values of type <code>A</code> for which an <code>Ordering</code> is defined. Unlike a <code>TQueue</code>, <code>take</code> returns the highest priority value (the value that is first in the specified ordering) as opposed to the first value offered to the queue. The ordering of elements sharing the same priority when taken from the queue is not guaranteed.</p>
 <h2><a class="anchor" aria-hidden="true" id="creating-a-tpriorityqueue"></a><a href="#creating-a-tpriorityqueue" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating a TPriorityQueue</h2>
 <p>You can create an empty <code>TPriorityQueue</code> using the <code>empty</code> constructor:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
@@ -47,7 +103,7 @@
     size  &lt;- queue.size
   } <span class="hljs-keyword">yield</span> size
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#creating-a-tpriorityqueue">Creating a TPriorityQueue</a></li><li><a href="#offering-elements-to-a-tpriorityqueue">Offering elements to a TPriorityQueue</a></li><li><a href="#taking-elements-from-a-tpriorityqueue">Taking elements from a TPriorityQueue</a></li><li><a href="#size-of-a-tpriorityqueue">Size of a TPriorityQueue</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/datatypes/datatypes_tmap"><span class="arrow-prev">← </span><span>TMap</span></a><a class="docs-next button" href="/docs/datatypes/datatypes_tpromise"><span>TPromise</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#creating-a-tpriorityqueue">Creating a TPriorityQueue</a></li><li><a href="#offering-elements-to-a-tpriorityqueue">Offering elements to a TPriorityQueue</a></li><li><a href="#taking-elements-from-a-tpriorityqueue">Taking elements from a TPriorityQueue</a></li><li><a href="#size-of-a-tpriorityqueue">Size of a TPriorityQueue</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
                 document.addEventListener('keyup', function(e) {
                   if (e.target !== document.body) {
                     return;
