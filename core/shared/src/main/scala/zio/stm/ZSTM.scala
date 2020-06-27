@@ -776,6 +776,15 @@ final class ZSTM[-R, +E, +A] private[stm] (
     map(_.getOrElse(default))
 
   /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  def someOrElseM[B, R1 <: R, E1 >: E](default: ZSTM[R1, E1, B])(implicit ev: A <:< Option[B]): ZSTM[R1, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZSTM.succeedNow(value)
+      case None        => default
+    })
+
+  /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
   def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZSTM[R, E1, B] =

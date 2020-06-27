@@ -838,6 +838,17 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     map(_.getOrElse(default))
 
   /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  final def someOrElseM[B, R1 <: R, E1 >: E](
+    default: ZManaged[R1, E1, B]
+  )(implicit ev: A <:< Option[B]): ZManaged[R1, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZManaged.succeedNow(value)
+      case None        => default
+    })
+
+  /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
   final def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZManaged[R, E1, B] =
