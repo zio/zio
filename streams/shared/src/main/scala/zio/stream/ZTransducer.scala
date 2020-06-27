@@ -127,9 +127,9 @@ object ZTransducer {
    * Creates a transducer accumulating incoming values into chunks of maximum size `n`.
    */
   def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, Chunk[I]] =
-    foldUntil[I, ChunkBuilder[I]](ChunkBuilder.make[I](n.toInt), n)((builder, element) => builder += element)
-      .map(_.result())
-      .filter(_.nonEmpty)
+    foldUntil[I, UIO[ChunkBuilder[I]]](UIO(ChunkBuilder.make[I](n.toInt)), n) {
+      case (b, element) => b.map(_ += element)
+    }.mapM(_.map(_.result())).filter(_.nonEmpty)
 
   /**
    * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
@@ -154,17 +154,17 @@ object ZTransducer {
    * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
   def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, Chunk[I]] =
-    fold[I, (ChunkBuilder[I], Boolean)]((ChunkBuilder.make[I](), true))(_._2) {
-      case ((as, _), a) => if (p(a)) (as += a, true) else (as, false)
-    }.map(_._1.result()).filter(_.nonEmpty)
+    fold[I, (UIO[ChunkBuilder[I]], Boolean)]((UIO(ChunkBuilder.make[I]()), true))(_._2) {
+      case ((as, _), a) => if (p(a)) (as.map(_ += a), true) else (as, false)
+    }.mapM(_._1.map(_.result())).filter(_.nonEmpty)
 
   /**
    * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
   def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, Chunk[I]] =
-    foldM[R, E, I, (ChunkBuilder[I], Boolean)]((ChunkBuilder.make[I](), true))(_._2) {
-      case ((as, _), a) => p(a).map(if (_) (as += a, true) else (as, false))
-    }.map(_._1.result()).filter(_.nonEmpty)
+    foldM[R, E, I, (UIO[ChunkBuilder[I]], Boolean)]((UIO(ChunkBuilder.make[I]()), true))(_._2) {
+      case ((as, _), a) => p(a).map(if (_) (as.map(_ += a), true) else (as, false))
+    }.mapM(_._1.map(_.result())).filter(_.nonEmpty)
 
   /**
    * Creates a transducer that always dies with the specified exception.
@@ -227,7 +227,7 @@ object ZTransducer {
    * `contFn` results in `true`. The transducer will emit a value when `contFn`
    * evaluates to `false` and then restart the folding.
    */
-  def fold[I, O](z: => O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+  def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
       def go(in: Chunk[I], state: O, progress: Boolean): (Chunk[O], O, Boolean) =
         in.foldLeft[(Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) {
@@ -308,7 +308,7 @@ object ZTransducer {
    *
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
-  def foldUntil[I, O](z: => O, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+  def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     fold[I, (O, Long)]((z, 0))(_._2 < max) {
       case ((o, count), i) => (f(o, i), count + 1)
     }.map(_._1)
