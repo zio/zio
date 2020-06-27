@@ -57,7 +57,7 @@ To partition the stream results with the specified chunk size, you can use `grou
 import zio._
 import zio.stream._
 
-val groupedResult: ZStream[Any, Nothing, List[Int]] =
+val groupedResult: ZStream[Any, Nothing, Chunk[Int]] =
   Stream
     .fromIterable(0 to 100)
     .grouped(50)
@@ -99,7 +99,7 @@ import zio.stream._
 import zio.duration._
 import zio.clock.Clock
 
-val groupedWithinResult: ZStream[Any with Clock, Nothing, List[Int]] =
+val groupedWithinResult: ZStream[Any with Clock, Nothing, Chunk[Int]] =
   Stream.fromIterable(0 to 10)
     .repeat(Schedule.spaced(1 seconds))
     .groupedWithin(30, 10 seconds)
