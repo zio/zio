@@ -9,6 +9,8 @@ import zio.test.Assertion._
 
 object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 
+  val target = new ZManagedPlatformSpecific{}
+
   def spec = suite("ZManagedPlatformSpecificSpec")(
     testM("writeFile & readFile & FileOutputStream.write & FileInputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
@@ -18,8 +20,8 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .mapEffect(f => f.toPath())
                        .use { path =>
                          for {
-                           _      <- ZManagedPlatformSpecific.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManagedPlatformSpecific.readFile(path).use(fis => fis.readAll)
+                           _      <- target.writeFile(path).use(fos => fos.write(fixture))
+                           result <- target.readFile(path).use(fis => fis.readAll)
                          } yield result
                        }
       } yield assert(readResult)(equalTo(Some(fixture)))
@@ -33,8 +35,8 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .mapEffect(f => f.toPath())
                        .use { path =>
                          for {
-                           _      <- ZManagedPlatformSpecific.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManagedPlatformSpecific.readFile(path).use(fis => fis.skip(2) *> fis.readAll)
+                           _      <- target.writeFile(path).use(fos => fos.write(fixture))
+                           result <- target.readFile(path).use(fis => fis.skip(2) *> fis.readAll)
                          } yield result
                        }
       } yield assert(readResult)(equalTo(Some(skipped2Bytes)))
@@ -48,8 +50,8 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .mapEffect(f => f.toPath())
                        .use { path =>
                          for {
-                           _      <- ZManagedPlatformSpecific.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManagedPlatformSpecific.readFile(path).use(fis => fis.readN(4))
+                           _      <- target.writeFile(path).use(fos => fos.write(fixture))
+                           result <- target.readFile(path).use(fis => fis.readN(4))
                          } yield result
                        }
       } yield assert(readResult)(equalTo(Some(read4Bytes)))
@@ -62,8 +64,8 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .mapEffect(f => f.toPath())
                        .use { path =>
                          for {
-                           _      <- ZManagedPlatformSpecific.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManagedPlatformSpecific.readURI(path.toUri()).use(is => is.readAll)
+                           _      <- target.writeFile(path).use(fos => fos.write(fixture))
+                           result <- target.readURI(path.toUri()).use(is => is.readAll)
                          } yield result
                        }
       } yield assert(readResult)(equalTo(Some(fixture)))
@@ -77,8 +79,8 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .mapEffect(f => f.toPath())
                        .use { path =>
                          for {
-                           _      <- ZManagedPlatformSpecific.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManagedPlatformSpecific.readURI(path.toUri()).use(is => is.readN(4))
+                           _      <- target.writeFile(path).use(fos => fos.write(fixture))
+                           result <- target.readURI(path.toUri()).use(is => is.readN(4))
                          } yield result
                        }
       } yield assert(readResult)(equalTo(Some(read4Bytes)))
@@ -92,8 +94,8 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .mapEffect(f => f.toPath())
                        .use { path =>
                          for {
-                           _      <- ZManagedPlatformSpecific.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManagedPlatformSpecific.readURI(path.toUri()).use(is => is.skip(2) *> is.readAll)
+                           _      <- target.writeFile(path).use(fos => fos.write(fixture))
+                           result <- target.readURI(path.toUri()).use(is => is.skip(2) *> is.readAll)
                          } yield result
                        }
       } yield assert(readResult)(equalTo(Some(read4Bytes)))
@@ -106,8 +108,8 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .mapEffect(f => f.toPath())
                        .use { path =>
                          for {
-                           _ <- ZManagedPlatformSpecific.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManagedPlatformSpecific
+                           _ <- target.writeFile(path).use(fos => fos.write(fixture))
+                           result <- target
                                       .readURL(s"file://${path.toString()}")
                                       .use(is => is.readAll)
                          } yield result
@@ -123,8 +125,8 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .mapEffect(f => f.toPath())
                        .use { path =>
                          for {
-                           _ <- ZManagedPlatformSpecific.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManagedPlatformSpecific
+                           _ <- target.writeFile(path).use(fos => fos.write(fixture))
+                           result <- target
                                       .readURL(s"file://${path.toString()}")
                                       .use(is => is.readN(4))
                          } yield result
@@ -140,8 +142,8 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .mapEffect(f => f.toPath())
                        .use { path =>
                          for {
-                           _ <- ZManagedPlatformSpecific.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManagedPlatformSpecific
+                           _ <- target.writeFile(path).use(fos => fos.write(fixture))
+                           result <- target
                                       .readURL(s"file://${path.toString()}")
                                       .use(is => is.skip(2) *> is.readAll)
                          } yield result

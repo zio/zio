@@ -23,7 +23,7 @@ import java.nio.file.Path
 
 import zio.blocking.{ Blocking, _ }
 
-object  ZManagedPlatformSpecific {
+private[zio] trait ZManagedPlatformSpecific {
 
   /**
    * A functional wrapper over a java.io.FileInputStream.
