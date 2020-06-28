@@ -758,11 +758,6 @@ private[zio] final class FiberContext[E, A](
   private[this] def evaluateLater(zio: IO[E, Any]): Unit =
     executor.submitOrThrow(() => evaluateNow(zio))
 
-  /**
-   * Resumes an asynchronous computation.
-   *
-   * @param value The value produced by the asynchronous computation.
-   */
   private[this] def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio => if (exitAsync(epoch)) evaluateLater(zio) }
 
   final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
