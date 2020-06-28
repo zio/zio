@@ -2410,6 +2410,44 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
+   * When the stream fails, retry it according to the given schedule
+   *
+   * This retries the entire stream, so will re-execute all of the stream's acquire operations.
+   *
+   * The schedule is reset as soon as the first element passes through the stream again.
+   *
+   * @param schedule Schedule receiving as input the errors of the stream
+   * @return Stream outputting elements of all attempts of the stream
+   */
+  def retry[R1 <: R](schedule: Schedule[R1, E, _]): ZStream[R1, E, O] =
+    ZStream.unwrap {
+      for {
+        s0    <- schedule.initial
+        state <- Ref.make[schedule.State](s0)
+      } yield {
+        def go: ZStream[R1, E, O] =
+          self
+            .catchAll(e =>
+              ZStream.unwrap {
+                (for {
+                  s        <- state.get
+                  newState <- schedule.update(e, s)
+                } yield newState).fold(
+                  _ => ZStream.fail(e), // Failure of the schedule indicates it doesn't accept the input
+                  newState =>
+                    ZStream.fromEffect(state.set(newState)) *> go.mapChunksM { chunk =>
+                      // Reset the schedule to its initial state when a chunk is successfully pulled
+                      state.set(s0).as(chunk)
+                    }
+                )
+              }
+            )
+
+        go
+      }
+    }
+
+  /**
    * Fails with the error `None` if value is `Left`.
    */
   final def right[O1, O2](implicit ev: O <:< Either[O1, O2]): ZStream[R, Option[E], O2] =
