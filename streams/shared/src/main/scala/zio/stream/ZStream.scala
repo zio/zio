@@ -109,7 +109,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Symbolic alias for [[[zio.stream.ZStream!.run[R1<:R,E1>:E,B]*]]].
    */
-  def >>>[R1 <: R, E1 >: E, O2 >: O, Z](sink: ZSink[R1, E1, O2, Any, Z]): ZIO[R1, E1, Z] =
+  def >>>[R1 <: R, E1 >: E, O2 >: O, Z](sink: ZSink[R1, E1, O2, Z]): ZIO[R1, E1, Z] =
     self.run(sink)
 
   /**
@@ -1198,15 +1198,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Consumes elements of the stream, passing them to the specified callback,
    * and terminating consumption when the callback returns `false`.
    */
-  final def foreachWhile[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
-    run(ZSink.foreachWhile(f))
+ // final def foreachWhile[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+ //   run(ZSink.foreachWhile(f))
 
   /**
    * Like [[ZStream#foreachWhile]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
-  final def foreachWhileManaged[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
-    runManaged(ZSink.foreachWhile(f))
+//  final def foreachWhileManaged[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
+  //  runManaged(ZSink.foreachWhile(f))
 
   /**
    * Repeats this stream forever.
@@ -2137,14 +2137,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * [[ZStream]] in a managed resource. Like all [[ZManaged]] values, the provided
    * stream is valid only within the scope of [[ZManaged]].
    */
-  def peel[R1 <: R, E1 >: E, O1 >: O, Z, J](
+  /*def peel[R1 <: R, E1 >: E, O1 >: O, Z, J](
     sink: ZSink[R1, E1, O1, O1, Z]
   ): ZManaged[R1, E1, (Z, ZStream[R1, E1, O1])] =
     self.process.flatMap { pull =>
       val stream = ZStream.repeatEffectChunkOption(pull)
       val s      = sink.exposeLeftover
       stream.run(s).toManaged_.map(e => (e._1, ZStream.fromChunk(e._2) ++ stream))
-    }
+    }*/
 
   /**
    * Provides the stream with its required environment, which eliminates
@@ -2305,11 +2305,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  def run[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, Any, B]): ZIO[R1, E1, B] =
+  def run[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, B]): ZIO[R1, E1, B] =
     runManaged(sink).useNow
 
-  def runManaged[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, Any, B]): ZManaged[R1, E1, B] =
-    (process <*> sink.push).mapM {
+  def runManaged[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, B]): ZManaged[R1, E1, B] =
+    (process <*> sink.push(identity[O])).mapM {
       case (pull, push) =>
         def go: ZIO[R1, E1, B] = pull.foldCauseM(
           Cause
@@ -2331,14 +2331,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Runs the stream and collects all of its elements to a list.
    */
-  def runCollect: ZIO[R, E, Chunk[O]] = run(ZSink.collectAll[O])
+ // def runCollect: ZIO[R, E, Chunk[O]] = run(ZSink.collectAll[O])
 
   /**
    * Runs the stream and emits the number of elements processed
    *
    * Equivalent to `run(ZSink.count)`
    */
-  final def runCount: ZIO[R, E, Long] = self.run(ZSink.count)
+ // final def runCount: ZIO[R, E, Long] = self.run(ZSink.count)
 
   /**
    * Runs the stream only for its effects. The emitted elements are discarded.
@@ -2350,22 +2350,22 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Runs the stream to completion and yields the first value emitted by it,
    * discarding the rest of the elements.
    */
-  def runHead: ZIO[R, E, Option[O]] =
-    run(ZSink.head)
+//  def runHead: ZIO[R, E, Option[O]] =
+//    run(ZSink.head)
 
   /**
    * Runs the stream to completion and yields the last value emitted by it,
    * discarding the rest of the elements.
    */
-  def runLast: ZIO[R, E, Option[O]] =
-    run(ZSink.last)
+ // def runLast: ZIO[R, E, Option[O]] =
+ //   run(ZSink.last)
 
   /**
    * Runs the stream to a sink which sums elements, provided they are Numeric.
    *
    * Equivalent to `run(Sink.sum[A])`
    */
-  final def runSum[O1 >: O](implicit ev: Numeric[O1]): ZIO[R, E, O1] = run(ZSink.sum[O1])
+ // final def runSum[O1 >: O](implicit ev: Numeric[O1]): ZIO[R, E, O1] = run(ZSink.sum[O1])
 
   /**
    * Schedules the output of the stream using the provided `schedule`.

@@ -13,12 +13,12 @@ import zio._
 // - Sinks should always end when receiving a `None`. It is a defect to not end with some
 //   sort of result (even a failure) when receiving a `None`.
 // - Sinks can assume they will not be pushed again after emitting a value.
-abstract class ZSink[-R, +E, -I, +L, +Z] private (
-  val push: ZManaged[R, Nothing, ZSink.Push[R, E, I, L, Z]]
-) { self =>
+abstract class ZSink[-R, +E, -I, +Z] { self =>
   import ZSink.Push
 
-  /**
+  def push[I0](invert: I0 => I): ZManaged[R, Nothing, ZSink.Push[R, E, I0, Z]]
+
+ /* /**
    * Operator alias for [[race]].
    */
   final def |[R1 <: R, E1 >: E, A0, I1 <: I, L1 >: L, Z1 >: Z](
@@ -68,12 +68,12 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    * Operator alias for [[zipParLeft]].
    */
   final def <&[R1 <: R, E1 >: E, I1 <: I, L1 >: L](that: ZSink[R1, E1, I1, L1, Any]): ZSink[R1, E1, I1, L1, Z] =
-    self.zipParLeft(that)
+    self.zipParLeft(that)*/
 
   /**
    * Replaces this sink's result with the provided value.
    */
-  def as[Z2](z: => Z2): ZSink[R, E, I, L, Z2] =
+  def as[Z2](z: => Z2): ZSink[R, E, I, Z2] =
     map(_ => z)
 
   /**
@@ -81,7 +81,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    * the predicate `p`. The sink's results will be accumulated
    * using the stepping function `f`.
    */
-  def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit ev: L <:< I): ZSink[R, E, I, L, S] =
+ /* def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit ev: L <:< I): ZSink[R, E, I, L, S] =
     ZSink {
       Ref.makeManaged(z).flatMap { acc =>
         Push.restartable(push).map {
@@ -106,32 +106,47 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
             (in: Option[Chunk[I]]) => acc.get.flatMap(s => go(s, in, in.isEmpty).flatMap(s1 => acc.set(s1)))
         }
       }
-    }
+    }*/
 
   /**
    * Transforms this sink's input elements.
    */
-  def contramap[I2](f: I2 => I): ZSink[R, E, I2, L, Z] =
-    contramapChunks(_.map(f))
+  def contramap[I2](f: I2 => I): ZSink[R, E, I2, Z] =
+    new ZSink[R, E, I2, Z] {
+      override def push[I0](invert: I0 => I2): ZManaged[R, Nothing, Push[R, E, I0, Z]] = {
+        self.push(f.compose(invert))
+      }
+    }
 
   /**
    * Effectfully transforms this sink's input elements.
    */
-  def contramapM[R1 <: R, E1 >: E, I2](f: I2 => ZIO[R1, E1, I]): ZSink[R1, E1, I2, L, Z] =
-    contramapChunksM(_.mapM(f))
+  //TODO: impossible?
+  /*def contramapM[R1 <: R, E1 >: E, I2](f: I2 => ZIO[R1, E1, I]): ZSink[R1, E1, I2, Z] =
+    new ZSink[R, E, I2, Z] {
+      override def push[I0](invert: I0 => I2): ZManaged[R, Nothing, Push[R, E, I0, Z]] = {
+        self.push(f.compose(invert))
+      }
+    }*/
 
   /**
    * Transforms this sink's input chunks.
    * `f` must preserve chunking-invariance
    */
-  def contramapChunks[I2](f: Chunk[I2] => Chunk[I]): ZSink[R, E, I2, L, Z] =
-    ZSink(self.push.map(push => input => push(input.map(f))))
+  //TODO: leverage chunking
+  /*def contramapChunks[I2](f: Chunk[I2] => Chunk[I]): ZSink[R, E, I2, Z] =
+    new ZSink[R, E, I2, Z] {
+      override def push[I0](invert: I0 => I2): ZManaged[R, Nothing, Push[R, E, I0, Z]] = {
+        self.push(invert.c)
+      }
+    }*/
 
   /**
    * Effectfully transforms this sink's input chunks.
    * `f` must preserve chunking-invariance
    */
-  def contramapChunksM[R1 <: R, E1 >: E, I2](
+  //TODO: impossible?
+/*  def contramapChunksM[R1 <: R, E1 >: E, I2](
     f: Chunk[I2] => ZIO[R1, E1, Chunk[I]]
   ): ZSink[R1, E1, I2, L, Z] =
     ZSink[R1, E1, I2, L, Z](
@@ -143,12 +158,12 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
             case None => push(None)
           }
       )
-    )
+    )*/
 
   /**
    * Transforms both inputs and result of this sink using the provided functions.
    */
-  def dimap[I2, Z2](f: I2 => I, g: Z => Z2): ZSink[R, E, I2, L, Z2] =
+ /* def dimap[I2, Z2](f: I2 => I, g: Z => Z2): ZSink[R, E, I2, L, Z2] =
     contramap(f).map(g)
 
   /**
@@ -174,7 +189,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     f: Chunk[I2] => ZIO[R1, E1, Chunk[I]],
     g: Z => ZIO[R1, E1, Z2]
   ): ZSink[R1, E1, I2, L, Z2] =
-    contramapChunksM(f).mapM(g)
+    contramapChunksM(f).mapM(g)*/
 
   /**
    * Runs this sink until it yields a result, then uses that result to create another
@@ -182,16 +197,46 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    *
    * This function essentially runs sinks in sequence.
    */
-  def flatMap[R1 <: R, E1 >: E, I2 <: I, L2, Z2](
-    f: Z => ZSink[R1, E1, I2, L2, Z2]
-  )(implicit ev: L <:< I2): ZSink[R1, E1, I2, L2, Z2] =
-    foldM(e => ZSink.fail(e).asInstanceOf[ZSink[R1, E1, I2, L2, Z2]], f)
+  def flatMap[R1 <: R, E1 >: E, I2 <: I, Z2](
+    f: Z => ZSink[R1, E1, I2, Z2]
+  ): ZSink[R1, E1, I2, Z2] =
+    foldM(e => ZSink.fail(e), f)
 
-  def foldM[R1 <: R, E2, I2 <: I, L2, Z2](
-    failure: E => ZSink[R1, E2, I2, L2, Z2],
-    success: Z => ZSink[R1, E2, I2, L2, Z2]
-  )(implicit ev: L <:< I2): ZSink[R1, E2, I2, L2, Z2] =
-    ZSink {
+  def foldM[R1 <: R, E2, I2 <: I, Z2](
+    failure: E => ZSink[R1, E2, I2, Z2],
+    success: Z => ZSink[R1, E2, I2, Z2]
+  ): ZSink[R1, E2, I2, Z2] =
+    new ZSink[R1, E2, I2, Z2] {
+      override def push[I0](invert: I0 => I2): ZManaged[R1, Nothing, Push[R1, E2, I0, Z2]] = {
+        for {
+          switched     <- Ref.make(false).toManaged_
+          thisPush     <- self.push(invert)
+          thatPush     <- Ref.make[Push[R1, E2, I0, Z2]](_ => ZIO.unit).toManaged_
+          openThatPush <- ZManaged.switchable[R1, Nothing, Push[R1, E2, I0, Z2]]
+          push = (in: Option[Chunk[I0]]) => {
+            switched.get.flatMap { sw =>
+              if (!sw) {
+                thisPush(in).catchAll { v =>
+                  val leftover = v._2
+                  val nextSink = v._1.fold(failure, success)
+                  openThatPush(nextSink.push(invert)).tap(thatPush.set).flatMap { p =>
+                    switched.set(true) *> {
+                      if (in.isDefined)
+                        p(Some(leftover)).when(leftover.nonEmpty)
+                      else
+                        p(Some(leftover)).when(leftover.nonEmpty) *> p(None)
+                    }
+                  }
+                }
+              } else {
+                thatPush.get.flatMap(p => p(in))
+              }
+            }
+          }
+        } yield push
+      }
+    }
+    /*ZSink {
       for {
         switched     <- Ref.make(false).toManaged_
         thisPush     <- self.push
@@ -218,24 +263,32 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
           }
         }
       } yield push
-    }
+    }*/
 
   /**
    * Transforms this sink's result.
    */
-  def map[Z2](f: Z => Z2): ZSink[R, E, I, L, Z2] =
-    ZSink(self.push.map(sink => (inputs: Option[Chunk[I]]) => sink(inputs).mapError(e => (e._1.map(f), e._2))))
+  def map[Z2](f: Z => Z2): ZSink[R, E, I, Z2] =
+    new ZSink[R,E,I,Z2] {
+      override def push[I0](invert: I0 => I): ZManaged[R, Nothing, Push[R, E, I0, Z2]] = self.push(invert).map(p => {
+        (inputs: Option[Chunk[I0]]) => p(inputs).mapError(e => (e._1.map(f), e._2))
+      })
+    }
 
   /**
    * Transforms the errors emitted by this sink using `f`.
    */
-  def mapError[E2](f: E => E2): ZSink[R, E2, I, L, Z] =
-    ZSink(self.push.map(p => (in: Option[Chunk[I]]) => p(in).mapError(e => (e._1.left.map(f), e._2))))
+  def mapError[E2](f: E => E2): ZSink[R, E2, I, Z] =
+    new ZSink[R,E2,I,Z] {
+      override def push[I0](invert: I0 => I): ZManaged[R, Nothing, Push[R, E2, I0, Z]] = self.push(invert).map(p => {
+        (inputs: Option[Chunk[I0]]) => p(inputs).mapError(e => (e._1.left.map(f), e._2))
+      })
+    }
 
   /**
    * Effectfully transforms this sink's result.
    */
-  def mapM[R1 <: R, E1 >: E, Z2](f: Z => ZIO[R1, E1, Z2]): ZSink[R1, E1, I, L, Z2] =
+  /*def mapM[R1 <: R, E1 >: E, Z2](f: Z => ZIO[R1, E1, Z2]): ZSink[R1, E1, I, L, Z2] =
     ZSink(
       self.push.map(push =>
         (inputs: Option[Chunk[I]]) =>
@@ -244,14 +297,14 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
             case (Right(z), left) => f(z).foldM(e => Push.fail(e, left), z2 => Push.emit(z2, left))
           }
       )
-    )
+    )*/
 
   /**
    * Converts this sink to a transducer that feeds incoming elements to the sink
    * and emits the sink's results as outputs. The sink will be restarted when
    * it ends.
    */
-  def toTransducer(implicit ev: L <:< I): ZTransducer[R, E, I, Z] =
+  /*def toTransducer(implicit ev: L <:< I): ZTransducer[R, E, I, Z] =
     ZTransducer {
       ZSink.Push.restartable(push).map {
         case (push, restart) =>
@@ -273,13 +326,13 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
 
           (input: Option[Chunk[I]]) => go(input)
       }
-    }
+    }*/
 
   /**
    * Runs both sinks in parallel on the input, , returning the result or the error from the
    * one that finishes first.
    */
-  final def race[R1 <: R, E1 >: E, A0, I1 <: I, L1 >: L, Z1 >: Z](
+ /* final def race[R1 <: R, E1 >: E, A0, I1 <: I, L1 >: L, Z1 >: Z](
     that: ZSink[R1, E1, I1, L1, Z1]
   ): ZSink[R1, E1, I1, L1, Z1] =
     self.raceBoth(that).map(_.merge)
@@ -445,13 +498,13 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
 
   def dropLeftover: ZSink[R, E, I, Nothing, Z] = ZSink {
     self.push.map(p => (in: Option[Chunk[I]]) => p(in).mapError { case (v, _) => (v, Chunk.empty) })
-  }
+  }*/
 
   /**
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
-  def untilOutputM[R1 <: R, E1 >: E](
+ /* def untilOutputM[R1 <: R, E1 >: E](
     f: Z => ZIO[R1, E1, Boolean]
   )(implicit ev: L <:< I): ZSink[R1, E1, I, L, Option[Z]] =
     ZSink {
@@ -473,11 +526,13 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
 
           (is: Option[Chunk[I]]) => go(is, is.isEmpty)
       }
-    }
+    }*/
 }
 
 object ZSink extends ZSinkPlatformSpecificConstructors {
-  type Push[-R, +E, -I, +L, +Z] = Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
+  type Push[-R, +E, I, +Z] = Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[I]), Unit]
+
+ // type Push[-R, +E, -I, +L, +Z] = Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
 
   object Push {
     def emit[I, Z](z: Z, leftover: Chunk[I]): IO[(Right[Nothing, Z], Chunk[I]), Nothing] = IO.fail((Right(z), leftover))
@@ -489,7 +544,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     /**
      * Decorates a Push with a ZIO value that re-initializes it with a fresh state.
      */
-    def restartable[R, E, I, L, Z](
+   /* def restartable[R, E, I, L, Z](
       sink: ZManaged[R, Nothing, Push[R, E, I, L, Z]]
     ): ZManaged[R, Nothing, (Push[R, E, I, L, Z], URIO[R, Unit])] =
       for {
@@ -498,16 +553,20 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         currSink    <- Ref.make(initialSink).toManaged_
         restart     = switchSink(sink).flatMap(currSink.set)
         newPush     = (input: Option[Chunk[I]]) => currSink.get.flatMap(_.apply(input))
-      } yield (newPush, restart)
+      } yield (newPush, restart)*/
   }
 
-  def apply[R, E, I, L, Z](push: ZManaged[R, Nothing, Push[R, E, I, L, Z]]) =
-    new ZSink(push) {}
+  /*def apply[R, E, I, L, Z](push: () ZManaged[R, Nothing, Push[R, E, I, Z]]) =
+    new ZSink {
+      override def push[I0](invert: I0 => Any): ZManaged[Any, Nothing, Push[Any, Nothing, I0, Nothing]] = {
+        se
+      }
+    }*/
 
   /**
    * A sink that collects all of its inputs into a chunk.
    */
-  def collectAll[A]: ZSink[Any, Nothing, A, Nothing, Chunk[A]] = ZSink {
+  /*def collectAll[A]: ZSink[Any, Nothing, A, Nothing, Chunk[A]] = ZSink {
     for {
       builder     <- UIO(ChunkBuilder.make[A]()).toManaged_
       foldingSink = foldLeftChunks(builder)((b, chunk: Chunk[A]) => b ++= chunk).map(_.result())
@@ -564,16 +623,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   val drain: ZSink[Any, Nothing, Any, Nothing, Unit] =
     foreach[Any, Nothing, Any](_ => ZIO.unit).dropLeftover
-
+*/
   /**
    * A sink that always fails with the specified error.
    */
-  def fail[E, I](e: => E): ZSink[Any, E, I, I, Nothing] =
-    fromPush[Any, E, I, I, Nothing] { c =>
-      val leftover = c.fold[Chunk[I]](Chunk.empty)(identity)
-      Push.fail(e, leftover)
+  def fail[E, I](e: => E): ZSink[Any, E, I, Nothing] =
+    new ZSink[Any, E, I, Nothing]  {
+      override def push[I0](invert: I0 => I): ZManaged[Any, Nothing, Push[Any, E, I0, Nothing]] =
+        ZManaged.succeed(in => {
+          val l = in.fold[Chunk[I0]](Chunk.empty)(identity)
+          Push.fail(e, l)
+        })
     }
-
+/*
   /**
    * A sink that folds its inputs with the provided function, termination predicate and initial state.
    */
@@ -726,31 +788,42 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def foldLeftM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
     foldM[R, E, I, S](z: S)(_ => true)(f)
 
+
+ */
   /**
    * A sink that executes the provided effectful function for every element fed to it.
    */
-  def foreach[R, E, I](f: I => ZIO[R, E, Any]): ZSink[R, E, I, I, Unit] = {
-    def go(chunk: Chunk[I], idx: Int, len: Int): ZIO[R, (Left[E, Nothing], Chunk[I]), Unit] =
-      if (idx == len)
-        Push.more
-      else
-        f(chunk(idx)).foldM(e => Push.fail(e, chunk.drop(idx + 1)), _ => go(chunk, idx + 1, len))
+  def foreach[R, E, I](f: I => ZIO[R, E, Any]): ZSink[R, E, I, Unit] = {
+    new ZSink[R, E, I, Unit] {
+      override def push[I0](invert: I0 => I): ZManaged[R, Nothing, Push[R, E, I0, Unit]] =
+        ZManaged.succeed{
+          def go(chunk: Chunk[I0], idx: Int, len: Int): ZIO[R, (Left[E, Nothing], Chunk[I0]), Unit] =
+            if (idx == len)
+              Push.more
+            else
+              f(invert(chunk(idx))).foldM(e => Push.fail(e, chunk.drop(idx + 1)), _ => go(chunk, idx + 1, len))
 
-    ZSink.fromPush[R, E, I, I, Unit] {
-      case Some(is) => go(is, 0, is.length)
-      case None     => Push.emit((), Chunk.empty)
+          (in: Option[Chunk[I0]]) => {
+          in match {
+            case Some(ch) => go(ch, 0, ch.length)
+            case None => Push.emit((), Chunk.empty)
+          }
+        }}
     }
   }
 
   /**
    * A sink that executes the provided effectful function for every chunk fed to it.
    */
-  def foreachChunk[R, E, I](f: Chunk[I] => ZIO[R, E, Any]): ZSink[R, E, I, Nothing, Unit] =
-    ZSink.fromPush[R, E, I, Nothing, Unit] {
-      case Some(is) => f(is).mapError(e => (Left(e), Chunk.empty)) *> Push.more
-      case None     => Push.emit((), Chunk.empty)
+  def foreachChunk[R, E, I](f: Chunk[I] => ZIO[R, E, Any]): ZSink[R, E, I, Unit] =
+    new ZSink[R, E, I, Unit] {
+      override def push[I0](invert: I0 => I): ZManaged[R, Nothing, Push[R, E, I0, Unit]] =
+        ZManaged.succeed({
+            case Some(is) =>  f(is.map(invert)).mapError(e => (Left(e), Chunk.empty)) *> Push.more
+            case None => Push.emit((), Chunk.empty)
+        })
     }
-
+/*
   /**
    * A sink that executes the provided effectful function for every element fed to it
    * until `f` evaluates to `false`.
@@ -779,10 +852,10 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       val leftover = in.fold[Chunk[I]](Chunk.empty)(identity)
       b.foldM(Push.fail(_, leftover), z => Push.emit(z, leftover))
     }
-
-  def fromPush[R, E, I, L, Z](sink: Push[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
-    ZSink(Managed.succeed(sink))
-
+*/
+ // def fromPush[R, E, I, L, Z](sink: Push[R, E, I, Z]): ZSink[R, E, I, Z] =
+  //  ZSink(Managed.succeed(sink))
+/*
   /**
    * Creates a sink halting with a specified cause.
    */
@@ -844,5 +917,5 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that sums incoming numeric values.
    */
   def sum[A](implicit A: Numeric[A]): ZSink[Any, Nothing, A, Nothing, A] =
-    foldLeft(A.zero)(A.plus)
+    foldLeft(A.zero)(A.plus)*/
 }
