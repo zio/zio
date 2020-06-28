@@ -9,7 +9,7 @@ import zio.test.Assertion._
 
 object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 
-  val target = new ZManagedPlatformSpecific{}
+  val target = new ZManagedPlatformSpecific {}
 
   def spec = suite("ZManagedPlatformSpecificSpec")(
     testM("writeFile & readFile & OutputStream.write & InputStream.readAll") {
