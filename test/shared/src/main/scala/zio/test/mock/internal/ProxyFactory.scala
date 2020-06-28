@@ -16,14 +16,15 @@
 
 package zio.test.mock.internal
 
-import scala.util.{ Properties, Try }
+import scala.util.Try
 
 import zio.test.Assertion
-import zio.test.mock.{ Capability, DebugProperties, Expectation, Proxy }
+import zio.test.mock.{ Capability, Expectation, Proxy }
 import zio.{ Has, IO, Tag, UIO, ULayer, ZIO, ZLayer }
 
 object ProxyFactory {
 
+  import Debug._
   import Expectation._
   import ExpectationState._
   import InvalidCall._
@@ -36,22 +37,22 @@ object ProxyFactory {
     ZLayer.succeed(new Proxy {
       def invoke[RIn <: Has[_], ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] = {
-          Debug.print(s"::: invoked $invoked\n${Debug.prettify(scopes)}")
+          debug(s"::: invoked $invoked\n${prettify(scopes)}")
           scopes match {
             case Nil => ZIO.die(UnexpectedCallExpection(invoked, args))
             case Scope(expectation, id, update0) :: nextScopes =>
               val update: Expectation[R] => Expectation[R] = updated => {
-                Debug.print(s"::: updated state to: ${updated.state}")
+                debug(s"::: updated state to: ${updated.state}")
                 update0(updated)
               }
 
               expectation match {
                 case anyExpectation if anyExpectation.state == Saturated =>
-                  Debug.print("::: skipping saturated expectation")
+                  debug("::: skipping saturated expectation")
                   findMatching(nextScopes)
 
                 case call @ Call(capability, assertion, returns, _, invocations) if invoked isEqual capability =>
-                  Debug.print(s"::: matched call $capability")
+                  debug(s"::: matched call $capability")
                   assertion.asInstanceOf[Assertion[I]].test(args) match {
                     case true =>
                       val result = returns.asInstanceOf[I => IO[E, A]](args)
@@ -72,7 +73,7 @@ object ProxyFactory {
                   }
 
                 case Call(capability, assertion, _, _, _) =>
-                  Debug.print(s"::: invalid call $capability")
+                  debug(s"::: invalid call $capability")
                   val invalidCall =
                     if (invoked.id == capability.id) InvalidPolyType(invoked, args, capability, assertion)
                     else InvalidCapability(invoked, capability, assertion)
@@ -273,65 +274,10 @@ object ProxyFactory {
           root    <- state.expectationRef.get
           scope   = Scope[R](root, id, identity)
           matched <- findMatching(scope :: Nil)
-          _       = Debug.print(s"::: setting root to\n${Debug.prettify(matched.expectation)}")
+          _       = debug(s"::: setting root to\n${prettify(matched.expectation)}")
           _       <- state.expectationRef.set(matched.expectation)
           output  <- matched.result
         } yield output
       }
     })
-
-  private[ProxyFactory] object Debug {
-
-    val enabled: Boolean = Properties.propIsSetTo(DebugProperties.`zio.test.mock.debug`, "true")
-
-    def print(message: => String): Unit =
-      if (enabled) println(message)
-
-    def prettify[R <: Has[_]](expectation: Expectation[R], identSize: Int = 1): String = {
-      val ident   = " " * 4 * identSize
-      val state   = s"state = ${expectation.state}"
-      val invoked = s"""invocations = [${expectation.invocations.mkString(", ")}]"""
-
-      def renderRoot(name: String, children: List[Expectation[R]]): String = {
-        val header    = (s"$name(" :: s"$state," :: s"$invoked," :: Nil).mkString(s"\n$ident")
-        val content   = renderChildren(children).mkString("\n")
-        val prevIdent = " " * 4 * (identSize - 1)
-        s"$header,\n$content\n$prevIdent)"
-      }
-
-      def renderChildren(list: List[Expectation[R]]): List[String] =
-        list.map { child =>
-          val rendered = prettify(child, identSize + 1)
-          s"$ident$rendered"
-        }
-
-      expectation match {
-        case Expectation.Call(capability, assertion, _, _, _) =>
-          s"Call($state, $invoked, $capability, $assertion)"
-        case Expectation.And(children, _, _, _) =>
-          renderRoot("And", children)
-        case Expectation.Chain(children, _, _, _) =>
-          renderRoot("Chain", children)
-        case Expectation.Or(children, _, _, _) =>
-          renderRoot("Or", children)
-        case Expectation.Repeated(child, range, _, _, started, completed) =>
-          val progress = s"progress = $started out of $completed,"
-          ("Repeated(" :: state :: s"range = $range," :: progress :: invoked :: prettify(child) :: ")" :: Nil)
-            .mkString(s"\n$ident")
-      }
-    }
-
-    def prettify[R <: Has[_]](scopes: List[Scope[R]]): String =
-      scopes.map {
-        case Scope(expectation, id, _) =>
-          val rendered = prettify(expectation)
-          s">>>\nInvocation ID: $id\n$rendered"
-      } match {
-        case Nil         => ""
-        case head :: Nil => s"[Head]:\n$head"
-        case head :: tail =>
-          val renderedTail = tail.mkString("\n")
-          s"[Head]:\n$head\n[Tail]:\n$renderedTail"
-      }
-  }
 }
