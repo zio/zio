@@ -53,7 +53,7 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
     path: => Path,
     position: Long = 0L,
     options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
-  ): ZSink[Blocking, Throwable, Byte, Byte, Long] = {
+  ): ZSink[Blocking, Throwable, Byte, Long] = {
     val managedChannel = ZManaged.make(
       blocking
         .effectBlockingInterrupt(
@@ -68,7 +68,7 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
         )
     )(chan => blocking.effectBlocking(chan.close()).orDie)
 
-    val writer: ZSink[Blocking, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
+    val writer: ZSink[Blocking, Throwable, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
       ZSink.foreachChunk[Blocking, Throwable, Byte](byteChunk =>
         blocking.effectBlockingInterrupt {
           chan.write(ByteBuffer.wrap(byteChunk.toArray))

@@ -869,21 +869,35 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       } yield push
     }
 
+
+ */
   /**
    * A sink that depends on another managed value
    * `resource` will be finalized after the processing.
    */
-  def managed[R, E, I, A, L <: I, Z](resource: ZManaged[R, E, A])(fn: A => ZSink[R, E, I, L, Z]): ZSink[R, E, I, I, Z] =
-    ZSink(resource.fold[ZSink[R, E, I, I, Z]](err => ZSink.fail[E, I](err), m => fn(m)).flatMap(_.push))
+  def managed[R, E, I, A, Z](resource: ZManaged[R, E, A])(fn: A => ZSink[R, E, I, Z]): ZSink[R, E, I, Z] =
+    new ZSink[R, E, I, Z]{
+      override def push[I0](invert: I0 => I): ZManaged[R, Nothing, Push[R, E, I0, Z]] =
+        resource.fold[ZSink[R, E, I, Z]](err => ZSink.fail[E, I](err),
+          m => fn(m)).flatMap(_.push(invert))
+    }
+
 
   /**
    * A sink that immediately ends with the specified value.
    */
-  def succeed[I, Z](z: => Z): ZSink[Any, Nothing, I, I, Z] =
-    fromPush[Any, Nothing, I, I, Z] { c =>
-      val leftover = c.fold[Chunk[I]](Chunk.empty)(identity)
-      Push.emit(z, leftover)
+  def succeed[I, Z](z: => Z): ZSink[Any, Nothing, I, Z] =
+    new ZSink[Any, Nothing, I, Z] {
+      override def push[I0](invert: I0 => I): ZManaged[Any, Nothing, Push[Any, Nothing, I0, Z]] =
+        ZManaged.succeed(
+          (c: Option[Chunk[I0]]) => {
+            val leftover = c.fold[Chunk[I0]](Chunk.empty)(identity)
+            Push.emit(z, leftover)
+          }
+        )
     }
+
+  /*
 
   /**
    * A sink that sums incoming numeric values.
