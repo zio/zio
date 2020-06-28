@@ -12,7 +12,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
   val target = new ZManagedPlatformSpecific{}
 
   def spec = suite("ZManagedPlatformSpecificSpec")(
-    testM("writeFile & readFile & FileOutputStream.write & FileInputStream.readAll") {
+    testM("writeFile & readFile & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
@@ -26,7 +26,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        }
       } yield assert(readResult)(equalTo(Some(fixture)))
     },
-    testM("writeFile & readFile & FileOutputStream.write & FileInputStream.skip & FileInputStream.readAll") {
+    testM("writeFile & readFile & OutputStream.write & InputStream.skip & InputStream.readAll") {
       val fixture       = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val skipped2Bytes = Chunk[Byte](3, 6, 5, 4)
       for {
@@ -41,7 +41,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        }
       } yield assert(readResult)(equalTo(Some(skipped2Bytes)))
     },
-    testM("writeFile & readFile & FileOutputStream.write & FileInputStream.readN") {
+    testM("writeFile & readFile & OutputStream.write & InputStream.readN") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](1, 2, 3, 6)
       for {
@@ -56,7 +56,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        }
       } yield assert(readResult)(equalTo(Some(read4Bytes)))
     },
-    testM("writeFile & readURI & FileOutputStream.write & InputStream.readAll") {
+    testM("writeFile & readURI & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
@@ -70,7 +70,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        }
       } yield assert(readResult)(equalTo(Some(fixture)))
     },
-    testM("writeFile & readURI & FileOutputStream.write & InputStream.readN") {
+    testM("writeFile & readURI & OutputStream.write & InputStream.readN") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](1, 2, 3, 6)
       for {
@@ -85,7 +85,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        }
       } yield assert(readResult)(equalTo(Some(read4Bytes)))
     },
-    testM("writeFile & readURI & FileOutputStream.write & InputStream.skip & InputStream.readAll") {
+    testM("writeFile & readURI & OutputStream.write & InputStream.skip & InputStream.readAll") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](3, 6, 5, 4)
       for {
@@ -100,7 +100,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        }
       } yield assert(readResult)(equalTo(Some(read4Bytes)))
     },
-    testM("writeFile & readURL & FileOutputStream.write & InputStream.readAll") {
+    testM("writeFile & readURL & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
@@ -116,7 +116,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        }
       } yield assert(readResult)(equalTo(Some(fixture)))
     },
-    testM("writeFile & readURL & FileOutputStream.write & InputStream.readN") {
+    testM("writeFile & readURL & OutputStream.write & InputStream.readN") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](1, 2, 3, 6)
       for {
@@ -133,7 +133,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        }
       } yield assert(readResult)(equalTo(Some(read4Bytes)))
     },
-    testM("writeFile & readURL & FileOutputStream.write & InputStream.skip & InputStream.readAll") {
+    testM("writeFile & readURL & OutputStream.write & InputStream.skip & InputStream.readAll") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](3, 6, 5, 4)
       for {

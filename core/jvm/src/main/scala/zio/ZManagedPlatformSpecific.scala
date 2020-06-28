@@ -23,63 +23,38 @@ import java.nio.file.Path
 
 import zio.blocking.{ Blocking, _ }
 
-private[zio] trait ZManagedPlatformSpecific {
+private[zio] trait ZInputStream {
+  def readN(n: Int): ZIO[Blocking, IOException, Option[Chunk[Byte]]]
+  def skip(n: Long): ZIO[Blocking, IOException, Long]
+  def readAll: ZIO[Blocking, IOException, Option[Chunk[Byte]]]
+  def close(): ZIO[Blocking, Nothing, Unit]
+}
 
-  /**
-   * A functional wrapper over a java.io.FileInputStream.
-   */
-  case class FileInputStream private (private val fis: java.io.FileInputStream) {
+private[zio] trait ZOutputStream {
+  def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit]
+  def close(): ZIO[Blocking, Nothing, Unit]
+}
 
-    def readN(n: Int): ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
-      effectBlocking {
-        val available = fis.available()
-        available match {
-          case 0 => None
-          case _ =>
-            val b: Array[Byte] = new Array[Byte](n)
-            fis.read(b)
-            Some(Chunk.fromArray(b))
-        }
-      }.refineToOrDie[IOException]
+/**
+ * A functional wrapper over a java.io.InputStream.
+ */
+private[zio] case class InputStream private (private val is: java.io.InputStream) extends ZInputStream {
+  def readN(n: Int): ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
+    effectBlocking {
+      val available = is.available()
+      available match {
+        case 0 => None
+        case _ =>
+          val b: Array[Byte] = new Array[Byte](n)
+          is.read(b)
+          Some(Chunk.fromArray(b))
+      }
+    }.refineToOrDie[IOException]
 
-    def readAll: ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
-      readAllBytes(fis)
+  def skip(n: Long): ZIO[Blocking, IOException, Long] =
+    effectBlocking(is.skip(n)).refineToOrDie[IOException]
 
-    def skip(n: Long): ZIO[Blocking, IOException, Long] =
-      effectBlocking(fis.skip(n)).refineToOrDie[IOException]
-
-    def close(): ZIO[Blocking, Nothing, Unit] =
-      effectBlocking(fis.close()).orDie
-
-  }
-
-  /**
-   * A functional wrapper over a java.io.InputStream.
-   */
-  case class InputStream private (private val is: java.io.InputStream) {
-    def readN(n: Int): ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
-      effectBlocking {
-        val available = is.available()
-        available match {
-          case 0 => None
-          case _ =>
-            val b: Array[Byte] = new Array[Byte](n)
-            is.read(b)
-            Some(Chunk.fromArray(b))
-        }
-      }.refineToOrDie[IOException]
-
-    def skip(n: Long): ZIO[Blocking, IOException, Long] =
-      effectBlocking(is.skip(n)).refineToOrDie[IOException]
-
-    def readAll: ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
-      readAllBytes(is)
-
-    def close(): ZIO[Blocking, Nothing, Unit] =
-      effectBlocking(is.close()).orDie
-  }
-
-  private def readAllBytes(is: java.io.InputStream): ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
+  def readAll: ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
     effectBlocking(is.available())
       .flatMap(available =>
         effectBlocking {
@@ -101,57 +76,57 @@ private[zio] trait ZManagedPlatformSpecific {
       )
       .refineToOrDie[IOException]
 
-  /**
-   * A functional wrapper over a java.io.OutputStream.
-   */
-  case class FileOutputStream private (private val os: java.io.OutputStream) {
-    def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit] =
-      effectBlocking {
-        os.write(chunk.toArray)
-        os.flush()
-      }.refineToOrDie[IOException]
+  def close(): ZIO[Blocking, Nothing, Unit] =
+    effectBlocking(is.close()).orDie
+}
 
-    def close(): ZIO[Blocking, Nothing, Unit] =
-      effectBlocking(os.close()).orDie
-  }
+/**
+ * A functional wrapper over a java.io.OutputStream.
+ */
+private[zio] case class OutputStream private (private val os: java.io.OutputStream) extends ZOutputStream {
+  def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit] =
+    effectBlocking {
+      os.write(chunk.toArray)
+      os.flush()
+    }.refineToOrDie[IOException]
 
-  def readFile(path: Path): ZManaged[Blocking, IOException, FileInputStream] =
+  def close(): ZIO[Blocking, Nothing, Unit] =
+    effectBlocking(os.close()).orDie
+}
+
+private[zio] trait ZManagedPlatformSpecific {
+
+  def readFile(path: Path): ZManaged[Blocking, IOException, ZInputStream] =
     readFile(path.toString())
 
-  def readFile(path: String): ZManaged[Blocking, IOException, FileInputStream] =
-    ZManaged.make(
-      effectBlocking(FileInputStream(new io.FileInputStream(path)))
-        .refineToOrDie[IOException]
-    )(_.close())
-
-  def readFileInputStream(path: String): ZManaged[Blocking, IOException, InputStream] =
+  def readFile(path: String): ZManaged[Blocking, IOException, ZInputStream] =
     ZManaged.make(
       effectBlocking(InputStream(new io.FileInputStream(path)))
         .refineToOrDie[IOException]
     )(_.close())
 
-  def readURL(url: URL): ZManaged[Blocking, IOException, InputStream] =
+  def readURL(url: URL): ZManaged[Blocking, IOException, ZInputStream] =
     ZManaged.make(
       effectBlocking(InputStream(url.openStream()))
         .refineToOrDie[IOException]
     )(_.close())
 
-  def readURL(url: String): ZManaged[Blocking, IOException, InputStream] =
+  def readURL(url: String): ZManaged[Blocking, IOException, ZInputStream] =
     ZManaged.fromEffect(ZIO.effect(new URL(url))).orDie.flatMap(readURL)
 
-  def readURI(uri: URI): ZManaged[Blocking, IOException, InputStream] =
+  def readURI(uri: URI): ZManaged[Blocking, IOException, ZInputStream] =
     for {
       isAbsolute <- ZManaged.fromEffect(effectBlocking(uri.isAbsolute()).refineToOrDie[IOException])
-      is         <- if (isAbsolute) readURL(uri.toURL()) else readFileInputStream(uri.toString())
+      is         <- if (isAbsolute) readURL(uri.toURL()) else readFile(uri.toString())
     } yield is
 
-  def writeFile(path: String): ZManaged[Blocking, IOException, FileOutputStream] =
+  def writeFile(path: String): ZManaged[Blocking, IOException, ZOutputStream] =
     ZManaged.make(
-      effectBlocking(FileOutputStream(new io.FileOutputStream(path)))
+      effectBlocking(OutputStream(new io.FileOutputStream(path)))
         .refineToOrDie[IOException]
     )(_.close())
 
-  def writeFile(path: Path): ZManaged[Blocking, IOException, FileOutputStream] =
+  def writeFile(path: Path): ZManaged[Blocking, IOException, ZOutputStream] =
     writeFile(path.toString())
 
 }
