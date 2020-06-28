@@ -1,11 +1,12 @@
 package zio
 
-import zio.test._
-import java.io.IOException
 import java.io.File
-import java.{ util => ju }
+import java.io.IOException
 import java.nio.file.Files
+import java.{ util => ju }
+
 import zio.test.Assertion._
+import zio.test._
 
 object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 
