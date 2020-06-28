@@ -236,34 +236,6 @@ abstract class ZSink[-R, +E, -I, +Z] { self =>
         } yield push
       }
     }
-    /*ZSink {
-      for {
-        switched     <- Ref.make(false).toManaged_
-        thisPush     <- self.push
-        thatPush     <- Ref.make[Push[R1, E2, I2, L2, Z2]](_ => ZIO.unit).toManaged_
-        openThatPush <- ZManaged.switchable[R1, Nothing, Push[R1, E2, I2, L2, Z2]]
-        push = (in: Option[Chunk[I2]]) => {
-          switched.get.flatMap { sw =>
-            if (!sw) {
-              thisPush(in).catchAll { v =>
-                val leftover = v._2
-                val nextSink = v._1.fold(failure, success)
-                openThatPush(nextSink.push).tap(thatPush.set).flatMap { p =>
-                  switched.set(true) *> {
-                    if (in.isDefined)
-                      p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty)
-                    else
-                      p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty) *> p(None)
-                  }
-                }
-              }
-            } else {
-              thatPush.get.flatMap(p => p(in))
-            }
-          }
-        }
-      } yield push
-    }*/
 
   /**
    * Transforms this sink's result.
