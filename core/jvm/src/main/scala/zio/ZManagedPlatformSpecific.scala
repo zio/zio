@@ -38,7 +38,7 @@ private[zio] trait ZOutputStream {
 /**
  * A functional wrapper over a java.io.InputStream.
  */
-private[zio] case class InputStream private (private val is: java.io.InputStream) extends ZInputStream {
+private[zio] case class InputStream(private val is: java.io.InputStream) extends ZInputStream {
   def readN(n: Int): ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
     effectBlocking {
       val available = is.available()
@@ -83,7 +83,7 @@ private[zio] case class InputStream private (private val is: java.io.InputStream
 /**
  * A functional wrapper over a java.io.OutputStream.
  */
-private[zio] case class OutputStream private (private val os: java.io.OutputStream) extends ZOutputStream {
+private[zio] case class OutputStream(private val os: java.io.OutputStream) extends ZOutputStream {
   def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit] =
     effectBlocking {
       os.write(chunk.toArray)
