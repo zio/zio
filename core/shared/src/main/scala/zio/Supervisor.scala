@@ -181,8 +181,6 @@ object Supervisor {
           fiber: Fiber.Runtime[E, A]
         ): Propagation = {
           ref.unsafeUpdate(_ + fiber)
-          // println("supervisor set value of Ref to " + ref)
-
           Propagation.Continue
         }
 

@@ -3430,10 +3430,8 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         testM("range") {
           val right = Chunk.fromIterable(Range(0, 10))
-          println(right)
-          val left = UIO(println("Starting")) *> ZStream.range(0, 10).runCollect <* UIO(println("Done"))
+          val left  = ZStream.range(0, 10).runCollect
           assertM(left)(equalTo(right))
-          //assertM(ZStream.range(0, 10).runCollect)(equalTo(Chunk.fromIterable(Range(0, 10))))
         },
         testM("repeatEffect")(
           assertM(
