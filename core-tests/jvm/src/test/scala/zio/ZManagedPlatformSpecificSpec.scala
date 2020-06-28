@@ -1,7 +1,6 @@
 package zio
 
-import java.io.File
-import java.io.IOException
+import java.io.{ File, IOException }
 import java.nio.file.Files
 import java.{ util => ju }
 
@@ -22,10 +21,10 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .use { path =>
                          for {
                            _      <- target.writeFile(path).use(fos => fos.write(fixture))
-                           result <- target.readFile(path).use(fis => fis.readAll)
+                           result <- target.readFile(path).use(fis => fis.readAll(4096))
                          } yield result
                        }
-      } yield assert(readResult)(equalTo(Some(fixture)))
+      } yield assert(readResult)(equalTo(fixture))
     },
     testM("writeFile & readFile & OutputStream.write & InputStream.skip & InputStream.readAll") {
       val fixture       = Chunk[Byte](1, 2, 3, 6, 5, 4)
@@ -37,10 +36,10 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .use { path =>
                          for {
                            _      <- target.writeFile(path).use(fos => fos.write(fixture))
-                           result <- target.readFile(path).use(fis => fis.skip(2) *> fis.readAll)
+                           result <- target.readFile(path).use(fis => fis.skip(2) *> fis.readAll(4096))
                          } yield result
                        }
-      } yield assert(readResult)(equalTo(Some(skipped2Bytes)))
+      } yield assert(readResult)(equalTo(skipped2Bytes))
     },
     testM("writeFile & readFile & OutputStream.write & InputStream.readN") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
@@ -55,7 +54,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                            result <- target.readFile(path).use(fis => fis.readN(4))
                          } yield result
                        }
-      } yield assert(readResult)(equalTo(Some(read4Bytes)))
+      } yield assert(readResult)(equalTo(read4Bytes))
     },
     testM("writeFile & readURI & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
@@ -66,10 +65,10 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .use { path =>
                          for {
                            _      <- target.writeFile(path).use(fos => fos.write(fixture))
-                           result <- target.readURI(path.toUri()).use(is => is.readAll)
+                           result <- target.readURI(path.toUri()).use(is => is.readAll(4096))
                          } yield result
                        }
-      } yield assert(readResult)(equalTo(Some(fixture)))
+      } yield assert(readResult)(equalTo(fixture))
     },
     testM("writeFile & readURI & OutputStream.write & InputStream.readN") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
@@ -84,7 +83,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                            result <- target.readURI(path.toUri()).use(is => is.readN(4))
                          } yield result
                        }
-      } yield assert(readResult)(equalTo(Some(read4Bytes)))
+      } yield assert(readResult)(equalTo(read4Bytes))
     },
     testM("writeFile & readURI & OutputStream.write & InputStream.skip & InputStream.readAll") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
@@ -96,10 +95,10 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                        .use { path =>
                          for {
                            _      <- target.writeFile(path).use(fos => fos.write(fixture))
-                           result <- target.readURI(path.toUri()).use(is => is.skip(2) *> is.readAll)
+                           result <- target.readURI(path.toUri()).use(is => is.skip(2) *> is.readAll(4096))
                          } yield result
                        }
-      } yield assert(readResult)(equalTo(Some(read4Bytes)))
+      } yield assert(readResult)(equalTo(read4Bytes))
     },
     testM("writeFile & readURL & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
@@ -112,10 +111,10 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                            _ <- target.writeFile(path).use(fos => fos.write(fixture))
                            result <- target
                                       .readURL(s"file://${path.toString()}")
-                                      .use(is => is.readAll)
+                                      .use(is => is.readAll(4096))
                          } yield result
                        }
-      } yield assert(readResult)(equalTo(Some(fixture)))
+      } yield assert(readResult)(equalTo(fixture))
     },
     testM("writeFile & readURL & OutputStream.write & InputStream.readN") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
@@ -132,7 +131,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                                       .use(is => is.readN(4))
                          } yield result
                        }
-      } yield assert(readResult)(equalTo(Some(read4Bytes)))
+      } yield assert(readResult)(equalTo(read4Bytes))
     },
     testM("writeFile & readURL & OutputStream.write & InputStream.skip & InputStream.readAll") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
@@ -146,10 +145,10 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                            _ <- target.writeFile(path).use(fos => fos.write(fixture))
                            result <- target
                                       .readURL(s"file://${path.toString()}")
-                                      .use(is => is.skip(2) *> is.readAll)
+                                      .use(is => is.skip(2) *> is.readAll(4096))
                          } yield result
                        }
-      } yield assert(readResult)(equalTo(Some(read4Bytes)))
+      } yield assert(readResult)(equalTo(read4Bytes))
     }
   )
 

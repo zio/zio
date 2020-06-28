@@ -23,77 +23,6 @@ import java.nio.file.Path
 
 import zio.blocking.{ Blocking, _ }
 
-private[zio] trait ZInputStream {
-  def readN(n: Int): ZIO[Blocking, IOException, Option[Chunk[Byte]]]
-  def skip(n: Long): ZIO[Blocking, IOException, Long]
-  def readAll: ZIO[Blocking, IOException, Option[Chunk[Byte]]]
-  def close(): ZIO[Blocking, Nothing, Unit]
-}
-
-private[zio] trait ZOutputStream {
-  def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit]
-  def close(): ZIO[Blocking, Nothing, Unit]
-}
-
-/**
- * A functional wrapper over a java.io.InputStream.
- */
-private[zio] case class InputStream(private val is: java.io.InputStream) extends ZInputStream {
-  def readN(n: Int): ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
-    effectBlocking {
-      val available = is.available()
-      available match {
-        case 0 => None
-        case _ =>
-          val b: Array[Byte] = new Array[Byte](n)
-          is.read(b)
-          Some(Chunk.fromArray(b))
-      }
-    }.refineToOrDie[IOException]
-
-  def skip(n: Long): ZIO[Blocking, IOException, Long] =
-    effectBlocking(is.skip(n)).refineToOrDie[IOException]
-
-  def readAll: ZIO[Blocking, IOException, Option[Chunk[Byte]]] =
-    effectBlocking(is.available())
-      .flatMap(available =>
-        effectBlocking {
-          available match {
-            case 0 => None
-            case _ => {
-              val buffer = new java.io.ByteArrayOutputStream();
-              val data   = new Array[Byte](4096);
-              var nRead  = is.read(data, 0, data.length)
-              while (nRead != -1) {
-                buffer.write(data, 0, nRead);
-                nRead = is.read(data, 0, data.length)
-              }
-              buffer.flush()
-              Some(Chunk.fromArray(buffer.toByteArray()))
-            }
-          }
-        }
-      )
-      .refineToOrDie[IOException]
-
-  def close(): ZIO[Blocking, Nothing, Unit] =
-    effectBlocking(is.close()).orDie
-}
-
-/**
- * A functional wrapper over a java.io.OutputStream.
- */
-private[zio] case class OutputStream(private val os: java.io.OutputStream) extends ZOutputStream {
-  def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit] =
-    effectBlocking {
-      os.write(chunk.toArray)
-      os.flush()
-    }.refineToOrDie[IOException]
-
-  def close(): ZIO[Blocking, Nothing, Unit] =
-    effectBlocking(os.close()).orDie
-}
-
 private[zio] trait ZManagedPlatformSpecific {
 
   def readFile(path: Path): ZManaged[Blocking, IOException, ZInputStream] =
@@ -101,13 +30,13 @@ private[zio] trait ZManagedPlatformSpecific {
 
   def readFile(path: String): ZManaged[Blocking, IOException, ZInputStream] =
     ZManaged.make(
-      effectBlocking(InputStream(new io.FileInputStream(path)))
+      effectBlocking(ZInputStream.fromInputStream(new io.FileInputStream(path)))
         .refineToOrDie[IOException]
     )(_.close())
 
   def readURL(url: URL): ZManaged[Blocking, IOException, ZInputStream] =
     ZManaged.make(
-      effectBlocking(InputStream(url.openStream()))
+      effectBlocking(ZInputStream.fromInputStream(url.openStream()))
         .refineToOrDie[IOException]
     )(_.close())
 
@@ -122,7 +51,7 @@ private[zio] trait ZManagedPlatformSpecific {
 
   def writeFile(path: String): ZManaged[Blocking, IOException, ZOutputStream] =
     ZManaged.make(
-      effectBlocking(OutputStream(new io.FileOutputStream(path)))
+      effectBlocking(ZOutputStream.fromOutputStream(new io.FileOutputStream(path)))
         .refineToOrDie[IOException]
     )(_.close())
 
