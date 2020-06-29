@@ -326,6 +326,12 @@ object BoolAlgebra {
     if (as.isEmpty) None else Some(as.reduce(_ || _))
 
   /**
+   * Returns a result that is the logical disjunction of all of the results
+   */
+  def any[A](a: BoolAlgebra[A], as: BoolAlgebra[A]*): BoolAlgebra[A] =
+    as.foldLeft(a)(_ || _)
+
+  /**
    * Combines a collection of results to create a single result that succeeds
    * if all of the results succeed.
    */
