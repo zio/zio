@@ -741,9 +741,7 @@ private[zio] final class FiberContext[E, A](
 
       // Add the finalizer key to the child fiber, so that if it happens to be
       // garbage collected, then its finalizer will be garbage collected too:
-      childContext.scopeKey = key.getOrElse(
-        throw new IllegalStateException("Defect: The fiber's scope has ended before the fiber itself has ended")
-      )
+      key.foreach(childContext.scopeKey = _)
 
       // Remove the finalizer key from the parent scope when the child fiber
       // terminates:
