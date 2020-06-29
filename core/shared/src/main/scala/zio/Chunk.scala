@@ -1067,7 +1067,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     }
 }
 
-object Chunk {
+object Chunk extends ChunkFactory {
 
   /**
    * Returns the empty chunk.
@@ -1078,7 +1078,7 @@ object Chunk {
   /**
    * Returns a chunk from a number of values.
    */
-  def apply[A](as: A*): Chunk[A] =
+  override def apply[A](as: A*): Chunk[A] =
     fromIterable(as)
 
   /**
@@ -1192,7 +1192,7 @@ object Chunk {
         fromArray(it.toArray)
     }
 
-  def fill[A](n: Int)(elem: => A): Chunk[A] =
+  override def fill[A](n: Int)(elem: => A): Chunk[A] =
     if (n <= 0) Chunk.empty
     else {
       val builder = ChunkBuilder.make[A]()
