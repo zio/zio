@@ -1,6 +1,7 @@
 package zio.stream
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 import zio._
 
@@ -513,7 +514,7 @@ object ZTransducer {
   /**
    * Creates a transducer that purely transforms incoming values.
    */
-  def fromFunction[I, O](f: I => O): ZTransducer[Any, Unit, I, O] =
+  def fromFunction[I, O](f: I => O): ZTransducer[Any, Nothing, I, O] =
     identity.map(f)
 
   /**
@@ -609,58 +610,66 @@ object ZTransducer {
   /**
    * Splits strings on a delimiter.
    */
-  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] =
-    ZTransducer {
-      ZRef.makeManaged[(Option[String], Int)](None -> 0).map { state =>
-        {
-          case None =>
-            state.modify {
-              case s @ (None, _) => Chunk.empty     -> s
-              case (Some(s), _)  => Chunk.single(s) -> (None -> 0)
-            }
-          case Some(is) =>
-            state.modify { s0 =>
-              var out: mutable.ArrayBuffer[String] = null
-              var chunkIndex                       = 0
-              var buffer                           = s0._1.getOrElse("")
-              var delimIndex                       = s0._2
-              while (chunkIndex < is.length) {
-                val in    = buffer + is(chunkIndex)
-                var index = buffer.length
-                var start = 0
-                buffer = ""
-                while (index < in.length) {
-                  while (delimIndex < delimiter.length && index < in.length && in(index) == delimiter(delimIndex)) {
-                    delimIndex += 1
-                    index += 1
-                  }
-                  if (delimIndex == delimiter.length || in == "") {
-                    if (out eq null) out = mutable.ArrayBuffer[String]()
-                    out += in.substring(start, index - delimiter.length)
-                    delimIndex = 0
-                    start = index
-                  }
-                  if (index < in.length) {
-                    delimIndex = 0
-                    while (index < in.length && in(index) != delimiter(0)) index += 1;
-                  }
-                }
+  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] = {
+    val chars = ZTransducer.fromFunction[String, Chunk[Char]](s => Chunk.fromArray(s.toArray)).mapChunks(_.flatten)
+    val split = splitOnChunk[Char, String](Chunk.fromArray(delimiter.toArray), _.mkString(""))
+    chars >>> split
+  }
 
-                if (start < in.length) {
-                  buffer = in.drop(start)
+  /**
+   * Splits elements on a delimiter and transforms the splits into desired output.
+   */
+  def splitOnChunk[A, O: ClassTag](delimiter: Chunk[A], fn: Chunk[A] => O): ZTransducer[Any, Nothing, A, O] = ZTransducer {
+    ZRef.makeManaged[(Option[Chunk[A]], Int)](None -> 0).map {
+      state => {
+        case None =>
+          state.modify {
+            case s@(None, _) => Chunk.empty -> s
+            case (Some(chunk), _) => Chunk.single(fn(chunk)) -> (None -> 0)
+          }
+        case Some(inputChunk: Chunk[A]) =>
+          state.modify { s0 =>
+            var out: mutable.ArrayBuffer[Chunk[A]] = null
+            var chunkIndex = 0
+            var buffer: Chunk[A] = s0._1.getOrElse(Chunk.empty)
+            var delimIndex = s0._2
+            while (chunkIndex < inputChunk.length) {
+              val in = buffer :+ inputChunk(chunkIndex)
+              var index = buffer.length
+              var start = 0
+              buffer = Chunk.empty
+              while (index < in.length) {
+                while (delimIndex < delimiter.length && index < in.length && in(index) == delimiter(delimIndex)) {
+                  delimIndex += 1
+                  index += 1
                 }
-
-                chunkIndex += 1
+                if (delimIndex == delimiter.length || in.isEmpty) {
+                  if (out eq null) out = mutable.ArrayBuffer[Chunk[A]]()
+                  val slice = in.slice(start, index - delimiter.length)
+                  out += slice
+                  delimIndex = 0
+                  start = index
+                }
+                if (index < in.length) {
+                  delimIndex = 0
+                  while (index < in.length && in(index) != delimiter(0)) index += 1
+                }
               }
 
-              val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray)
-              val buf   = if (buffer == "") None else Some(buffer)
+              if (start < in.length) {
+                buffer = in.drop(start)
+              }
 
-              chunk -> (buf -> delimIndex)
+              chunkIndex += 1
             }
-        }
+
+            val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray.map(fn))
+            val buf = if (buffer.isEmpty) None else Some(buffer)
+            chunk -> (buf -> delimIndex)
+          }
       }
     }
+  }
 
   /**
    * Decodes chunks of UTF-8 bytes into strings.
