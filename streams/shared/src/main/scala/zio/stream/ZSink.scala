@@ -34,13 +34,17 @@ abstract class ZSink[-R, +E, -I, +Z] { self =>
   )(implicit ev: L <:< I1): ZSink[R1, E1, I1, L1, (Z, Z1)] =
     zip(that)
 
+
+  */
   /**
    * Operator alias for [[zipPar]].
    */
-  final def <&>[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1](
-    that: ZSink[R1, E1, I1, L1, Z1]
-  ): ZSink[R1, E1, I1, L1, (Z, Z1)] =
+  final def <&>[R1 <: R, E1 >: E, I1 <: I, Z1](
+    that: ZSink[R1, E1, I1, Z1]
+  ): ZSink[R1, E1, I1, (Z, Z1)] =
     self.zipPar(that)
+
+  /*
 
   /**
    * Operator alias for [[zipRight]].
@@ -50,11 +54,14 @@ abstract class ZSink[-R, +E, -I, +Z] { self =>
   )(implicit ev: L <:< I1): ZSink[R1, E1, I1, L1, Z1] =
     zipRight(that)
 
+
+   */
   /**
    * Operator alias for [[zipParRight]].
    */
-  final def &>[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1](that: ZSink[R1, E1, I1, L1, Z1]): ZSink[R1, E1, I1, L1, Z1] =
+  final def &>[R1 <: R, E1 >: E, I1 <: I, Z1](that: ZSink[R1, E1, I1, Z1]): ZSink[R1, E1, I1, Z1] =
     self.zipParRight(that)
+/*
 
   /**
    * Operator alias for [[zipLeft]].
@@ -354,30 +361,33 @@ abstract class ZSink[-R, +E, -I, +Z] { self =>
   )(implicit ev: L <:< I1): ZSink[R1, E1, I1, L1, Z] =
     zipWith(that)((z, _) => z)
 
+
+  */
   /**
    * Runs both sinks in parallel on the input and combines the results in a tuple.
    */
-  final def zipPar[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1](
-    that: ZSink[R1, E1, I1, L1, Z1]
-  ): ZSink[R1, E1, I1, L1, (Z, Z1)] =
+  final def zipPar[R1 <: R, E1 >: E, I1 <: I, Z1](
+    that: ZSink[R1, E1, I1, Z1]
+  ): ZSink[R1, E1, I1, (Z, Z1)] =
     zipWithPar(that)((_, _))
 
   /**
    * Like [[zipPar]], but keeps only the result from this sink.
    */
-  final def zipParLeft[R1 <: R, E1 >: E, I1 <: I, L1 >: L](
-    that: ZSink[R1, E1, I1, L1, Any]
-  ): ZSink[R1, E1, I1, L1, Z] =
+  final def zipParLeft[R1 <: R, E1 >: E, I1 <: I](
+    that: ZSink[R1, E1, I1, Any]
+  ): ZSink[R1, E1, I1, Z] =
     zipWithPar(that)((b, _) => b)
 
   /**
    * Like [[zipPar]], but keeps only the result from the `that` sink.
    */
-  final def zipParRight[R1 <: R, E1 >: E, I1 <: I, Z1, L1 >: L](
-    that: ZSink[R1, E1, I1, L1, Z1]
-  ): ZSink[R1, E1, I1, L1, Z1] =
+  final def zipParRight[R1 <: R, E1 >: E, I1 <: I, Z1](
+    that: ZSink[R1, E1, I1,Z1]
+  ): ZSink[R1, E1, I1, Z1] =
     zipWithPar(that)((_, c) => c)
 
+  /*
   /**
    * Like [[zip]], but keeps only the result from this sink.
    */
@@ -588,12 +598,15 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def collectAllToSet[A]: ZSink[Any, Nothing, A, Nothing, Set[A]] =
     foldLeftChunks(Set[A]())((acc, as) => as.foldLeft(acc)(_ + _))
 
+
+ */
   /**
    * A sink that counts the number of elements fed to it.
    */
-  val count: ZSink[Any, Nothing, Any, Nothing, Long] =
+  val count: ZSink[Any, Nothing, Any, Long] =
     foldLeft(0L)((s, _) => s + 1)
 
+  /*
   /**
    * Creates a sink halting with the specified `Throwable`.
    */
