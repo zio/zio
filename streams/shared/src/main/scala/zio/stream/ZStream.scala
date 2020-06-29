@@ -136,11 +136,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Applies an aggregator to the stream, which converts one or more elements
    * of type `A` into elements of type `B`.
    */
-  def aggregate[R1 <: R, E1 >: E, P](sink: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
+  def aggregate[R1 <: R, E1 >: E, P](transducer: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
     ZStream {
       for {
         pull <- self.process
-        push <- sink.push
+        push <- transducer.push
         done <- ZRef.makeManaged(false)
         run = {
           def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
@@ -184,7 +184,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @param schedule signalling for when to stop the aggregation
    * @tparam R1 environment type
    * @tparam E1 error type
-   * @tparam O1 type of the values consumed by the given transducer
    * @tparam P type of the value produced by the given transducer and consumed by the given schedule
    * @return `ZStream[R1, E1, P]`
    */
@@ -211,7 +210,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @param schedule signalling for when to stop the aggregation
    * @tparam R1 environment type
    * @tparam E1 error type
-   * @tparam O1 type of the values consumed by the given transducer
    * @tparam P type of the value produced by the given transducer and consumed by the given schedule
    * @tparam Q type of the value produced by the given schedule
    * @return `ZStream[R1, E1, Either[Q, P]]`
@@ -3337,7 +3335,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a [[zio.Chunk]] of values
    *
-   * @tparam A the value type
    * @param c a chunk of values
    * @return a finite stream of values
    */

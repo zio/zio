@@ -163,9 +163,6 @@ object Supervisor {
 
   /**
    * Creates a new supervisor that tracks children in a set.
-   *
-   * @param weak Whether or not to track the children in a weak set, if
-   *             possible (platform-dependent).
    */
   def fibersIn(ref: Ref[SortedSet[Fiber.Runtime[Any, Any]]]): UIO[Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]] =
     UIO {
