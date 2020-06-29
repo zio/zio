@@ -5,7 +5,7 @@ title:  "Macros"
 
 ## Scrapping the boilerplate with macros
 
-Many libraries come together with usage best practices and repeatable code, ZIO is no diffrent. Fortunately ZIO provides macros
+Many libraries come together with usage best practices and repeatable code, ZIO is no different. Fortunately ZIO provides macros
 to perform these repetitive tasks for you. At the moment these are only available for Scala versions `2.x`, however their equivalents
 for Dotty are on our roadmap.
 
