@@ -22,13 +22,9 @@ import zio.test.mock.Expectation
 private[mock] object Debug {
 
   /**
-   * To see mock debug output during test execution, set `ZIO_TEST_MOCK_DEBUG=true` environment variable.
-   *
-   * {{{
-   *   ZIO_TEST_MOCK_DEBUG=true sbt test
-   * }}}
+   * To see mock debug output during test execution, flip this flag to `true`.
    */
-  final val enabled = System.getenv("ZIO_TEST_MOCK_DEBUG") == "true"
+  final val enabled = false
 
   def debug(message: => String): Unit =
     if (enabled) println(message)
