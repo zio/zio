@@ -7,7 +7,7 @@ ZIO has full interoperability with foreign Java code. Let me show you how it wor
 
 ## From Java CompletionStage and back
 
-`CompletionStage` is the interface that comes closest to emulate a functional asynchronous effects API like ZIO's, so with start with it. It's a breeze:
+`CompletionStage` is the interface that comes closest to emulate a functional asynchronous effects API like ZIO's, so we start with it. It's a breeze:
 
 ```scala
 def loggedStage[A](stage: => CompletionStage[A]): Task[A] =
@@ -35,7 +35,7 @@ def taskToStage[A](task: Task[A]): UIO[CompletableFuture[A]] =
     task.toCompletableFuture
 ```
 
-As you can see, it commits to a concrete class implementing the `CompletionStage` interface, i.e. `CompletableFuture`. It is worth point out that any `IO[E, A]` can be turned into a completable future provided you can turn a value of type `E` into a `Throwable`:
+As you can see, it commits to a concrete class implementing the `CompletionStage` interface, i.e. `CompletableFuture`. It is worth to point out that any `IO[E, A]` can be turned into a completable future provided you can turn a value of type `E` into a `Throwable`:
 
 ```scala
 def ioToStage[E, A](io: IO[E, A])(toThrowable: E => Throwable): UIO[CompletableFuture[A]] =

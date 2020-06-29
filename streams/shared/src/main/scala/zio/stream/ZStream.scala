@@ -8,7 +8,7 @@ import zio.duration.Duration
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
-import zio.stream.internal.ZInputStream
+import zio.stream.internal.{ ZInputStream, ZReader }
 
 /**
  * A `ZStream[R, E, O]` is a description of a program that, when evaluated,
@@ -136,11 +136,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Applies an aggregator to the stream, which converts one or more elements
    * of type `A` into elements of type `B`.
    */
-  def aggregate[R1 <: R, E1 >: E, P](sink: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
+  def aggregate[R1 <: R, E1 >: E, P](transducer: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
     ZStream {
       for {
         pull <- self.process
-        push <- sink.push
+        push <- transducer.push
         done <- ZRef.makeManaged(false)
         run = {
           def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
@@ -184,7 +184,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @param schedule signalling for when to stop the aggregation
    * @tparam R1 environment type
    * @tparam E1 error type
-   * @tparam O1 type of the values consumed by the given transducer
    * @tparam P type of the value produced by the given transducer and consumed by the given schedule
    * @return `ZStream[R1, E1, P]`
    */
@@ -211,7 +210,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @param schedule signalling for when to stop the aggregation
    * @tparam R1 environment type
    * @tparam E1 error type
-   * @tparam O1 type of the values consumed by the given transducer
    * @tparam P type of the value produced by the given transducer and consumed by the given schedule
    * @tparam Q type of the value produced by the given schedule
    * @return `ZStream[R1, E1, Either[Q, P]]`
@@ -1919,22 +1917,29 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def mapMPar[R1 <: R, E1 >: E, O2](n: Int)(f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
     ZStream[R1, E1, O2] {
       for {
-        out     <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
-        permits <- Semaphore.make(n.toLong).toManaged_
+        out         <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
+        errorSignal <- Promise.make[E1, Nothing].toManaged_
+        permits     <- Semaphore.make(n.toLong).toManaged_
         _ <- self.foreachManaged { a =>
               for {
                 p     <- Promise.make[E1, O2]
                 latch <- Promise.make[Nothing, Unit]
                 _     <- out.offer(p.await.mapError(Some(_)))
-                _     <- permits.withPermit(latch.succeed(()) *> f(a).to(p)).fork
-                _     <- latch.await
+                _ <- permits.withPermit {
+                      latch.succeed(()) *>                 // Make sure we start evaluation before moving on to the next element
+                        (errorSignal.await raceFirst f(a)) // Interrupt evaluation if another task fails
+                          .tapCause(errorSignal.halt)      // Notify other tasks of a failure
+                          .to(p)                           // Transfer the result to the consuming stream
+                    }.fork
+                _ <- latch.await
               } yield ()
             }.foldCauseM(
-                c => out.offer(Pull.halt(c)).unit.toManaged_,
+                c => out.offer(Pull.halt(c)).toManaged_,
                 _ => (permits.withPermits(n.toLong)(ZIO.unit).interruptible *> out.offer(Pull.end)).toManaged_
               )
               .fork
-      } yield out.take.flatten.map(Chunk.single(_))
+        consumer = out.take.flatten.map(Chunk.single(_))
+      } yield consumer
     }
 
   /**
@@ -2830,6 +2835,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
+   * Converts this stream of chars into a `java.io.Reader` wrapped in a [[ZManaged]].
+   * The returned reader will only be valid within the scope of the ZManaged.
+   */
+  def toReader(implicit ev0: E <:< Throwable, ev1: O <:< Char): ZManaged[R, E, java.io.Reader] =
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- process.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Char]]]]
+    } yield ZReader.fromPull(runtime, pull)
+
+  /**
    * Converts the stream to a managed queue of chunks. After the managed queue is used,
    * the queue will never again produce values and should be discarded.
    */
@@ -3320,7 +3335,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a [[zio.Chunk]] of values
    *
-   * @tparam A the value type
    * @param c a chunk of values
    * @return a finite stream of values
    */

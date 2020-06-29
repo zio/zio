@@ -677,7 +677,6 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that times out tests using the specified duration.
    * @param duration maximum test duration
-   * @param interruptDuration after test timeout will wait given duration for successful interruption
    */
   def timeout(
     duration: Duration

@@ -422,7 +422,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Returns an effect that succeeds with the cause of failure of this effect,
-   * or `Cause.empty` if the effect did not succeed.
+   * or `Cause.empty` if the effect did succeed.
    */
   final def cause: URIO[R, Cause[E]] = self.foldCause(c => c, _ => Cause.empty)
 
@@ -1652,6 +1652,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZIO[R, E, B] =
     map(_.getOrElse(default))
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  final def someOrElseM[B, R1 <: R, E1 >: E](default: ZIO[R1, E1, B])(implicit ev: A <:< Option[B]): ZIO[R1, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZIO.succeedNow(value)
+      case None        => default
+    })
 
   /**
    * Extracts the optional value, or fails with the given error 'e'.
