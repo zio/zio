@@ -461,16 +461,24 @@ abstract class ZSink[-R, +E, -I, +Z] { self =>
       }
     } yield push)
   }
+*/
 
-  def exposeLeftover: ZSink[R, E, I, Nothing, (Z, Chunk[L])] = ZSink {
-    self.push.map { p => (in: Option[Chunk[I]]) =>
-      p(in).mapError { case (v, leftover) => (v.map(z => (z, leftover)), Chunk.empty) }
-    }
+  //TODO: impossible?
+ /* def exposeLeftover: ZSink[R, E, I, (Z, Chunk[I])] = new ZSink[R, E, I, (Z, Chunk[I])] {
+   override def push[I0](invert: I0 => I): ZManaged[R, Nothing, Push[R, E, I0, (Z, Chunk[I])]] =
+     self.push(invert).map(p => {
+       (in: Option[Chunk[I0]]) =>
+         p(in).mapError { case (v, leftover) => (v.map(z => (z, leftover.map(invert))), Chunk.empty) }
+     })*/
+ //}
+
+  def dropLeftover: ZSink[R, E, I, Z] = new ZSink[R, E, I, Z] {
+    override def push[I0](invert: I0 => I): ZManaged[R, Nothing, Push[R, E, I0, Z]] =
+      self.push(invert).map(p => {
+        (in: Option[Chunk[I0]]) =>
+          p(in).mapError { case (v, _) => (v, Chunk.empty) }
+      })
   }
-
-  def dropLeftover: ZSink[R, E, I, Nothing, Z] = ZSink {
-    self.push.map(p => (in: Option[Chunk[I]]) => p(in).mapError { case (v, _) => (v, Chunk.empty) })
-  }*/
 
   /**
    * Creates a sink that produces values until one verifies
@@ -607,44 +615,44 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           Push.fail(e, l)
         })
     }
-/*
+
   /**
    * A sink that folds its inputs with the provided function, termination predicate and initial state.
    */
-  def fold[I, S](z: S)(contFn: S => Boolean)(f: (S, I) => S): ZSink[Any, Nothing, I, I, S] = {
-    def foldChunk(s: S, chunk: Chunk[I], idx: Int, len: Int): (S, Option[Chunk[I]]) =
-      if (idx == len) {
-        (s, None)
-      } else {
-        val s1 = f(s, chunk(idx))
-        if (contFn(s1)) {
-          foldChunk(s1, chunk, idx + 1, len)
-        } else {
-          (s1, Some(chunk.drop(idx + 1)))
-        }
-      }
-
+  def fold[I, S](z: S)(contFn: S => Boolean)(f: (S, I) => S): ZSink[Any, Nothing, I, S] = {
     if (contFn(z))
-      ZSink[Any, Nothing, I, I, S] {
-        for {
-          state <- Ref.make(z).toManaged_
-          push = (is: Option[Chunk[I]]) =>
-            is match {
-              case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
-              case Some(is) => {
-                state.get.flatMap { s =>
-                  val (st, l) = foldChunk(s, is, 0, is.length)
-                  l match {
-                    case Some(leftover) => Push.emit(st, leftover)
-                    case None           => state.set(st) *> Push.more
+      new ZSink[Any, Nothing, I, S] {
+        override def push[I0](invert: I0 => I): ZManaged[Any, Nothing, Push[Any, Nothing, I0, S]] = {
+          def foldChunk(s: S, chunk: Chunk[I0], idx: Int, len: Int): (S, Option[Chunk[I0]]) =
+            if (idx == len) {
+              (s, None)
+            } else {
+              val s1 = f(s, invert(chunk(idx)))
+              if (contFn(s1)) {
+                foldChunk(s1, chunk, idx + 1, len)
+              } else {
+                (s1, Some(chunk.drop(idx + 1)))
+              }
+            }
+
+          for {
+            state <- Ref.make(z).toManaged_
+            push = (is: Option[Chunk[I0]]) =>
+              is match {
+                case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
+                case Some(is) => {
+                  state.get.flatMap { s =>
+                    val (st, l) = foldChunk(s, is, 0, is.length)
+                    l match {
+                      case Some(leftover) => Push.emit(st, leftover)
+                      case None           => state.set(st) *> Push.more
+                    }
                   }
                 }
               }
-            }
-        } yield push
-      }
-    else
-      ZSink.succeed(z)
+          } yield push
+        }
+      } else ZSink.succeed(z)
   }
 
   /**
@@ -652,7 +660,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * `contFn` condition is checked only for the initial value and at the end of processing of each chunk.
    * `f` and `contFn` must preserve chunking-invariance.
    */
-  def foldChunks[I, S](z: S)(contFn: S => Boolean)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, I, S] =
+  def foldChunks[I, S](z: S)(contFn: S => Boolean)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, S] =
     foldChunksM(z)(contFn)((s, is) => UIO.succeedNow(f(s, is)))
 
   /**
@@ -662,26 +670,28 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def foldChunksM[R, E, I, S](
     z: S
-  )(contFn: S => Boolean)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
+  )(contFn: S => Boolean)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, S] =
     if (contFn(z))
-      ZSink {
-        for {
-          state <- Ref.make(z).toManaged_
-          push = (is: Option[Chunk[I]]) =>
-            is match {
-              case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
-              case Some(is) => {
-                state.get
-                  .flatMap(f(_, is).mapError(e => (Left(e), Chunk.empty)))
-                  .flatMap { s =>
-                    if (contFn(s))
-                      state.set(s) *> Push.more
-                    else
-                      Push.emit(s, Chunk.empty)
+      new ZSink[R,E,I,S] {
+        override def push[I0](invert: I0 => I): ZManaged[R, Nothing, Push[R, E, I0, S]] = {
+            for {
+              state <- Ref.make(z).toManaged_
+              push = (is: Option[Chunk[I0]]) =>
+                is match {
+                  case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
+                  case Some(is) => {
+                    state.get
+                      .flatMap(f(_, is.map(invert)).mapError(e => (Left(e), Chunk.empty)))
+                      .flatMap { s =>
+                        if (contFn(s))
+                          state.set(s) *> Push.more
+                        else
+                          Push.emit(s, Chunk.empty)
+                      }
                   }
-              }
-            }
-        } yield push
+                }
+            } yield push
+        }
       }
     else
       ZSink.succeed(z)
@@ -692,43 +702,45 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * This sink may terminate in the middle of a chunk and discard the rest of it. See the discussion on the
    * ZSink class scaladoc on sinks vs. transducers.
    */
-  def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] = {
-    def foldChunk(s: S, chunk: Chunk[I], idx: Int, len: Int): ZIO[R, (E, Chunk[I]), (S, Option[Chunk[I]])] =
-      if (idx == len) {
-        ZIO.succeedNow((s, None))
-      } else {
-        f(s, chunk(idx)).foldM(
-          e => ZIO.fail((e, chunk.drop(idx + 1))),
-          s1 =>
-            if (contFn(s1)) {
-              foldChunk(s1, chunk, idx + 1, len)
-            } else {
-              ZIO.succeedNow((s1, Some(chunk.drop(idx + 1))))
-            }
-        )
-      }
-
+  def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] = {
     if (contFn(z))
-      ZSink[R, E, I, I, S] {
-        for {
-          state <- Ref.make(z).toManaged_
-          push = (is: Option[Chunk[I]]) =>
-            is match {
-              case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
-              case Some(is) => {
-                state.get.flatMap { s =>
-                  foldChunk(s, is, 0, is.length).foldM(err => Push.fail(err._1, err._2), {
-                    case (st, l) => {
-                      l match {
-                        case Some(leftover) => Push.emit(st, leftover)
-                        case None           => state.set(st) *> Push.more
+      new ZSink[R, E, I, S] {
+        override def push[I0](invert: I0 => I): ZManaged[R, Nothing, Push[R, E, I0, S]] = {
+          def foldChunk(s: S, chunk: Chunk[I0], idx: Int, len: Int): ZIO[R, (E, Chunk[I0]), (S, Option[Chunk[I0]])] =
+            if (idx == len) {
+              ZIO.succeedNow((s, None))
+            } else {
+              f(s, invert(chunk(idx))).foldM(
+                e => ZIO.fail((e, chunk.drop(idx + 1))),
+                s1 =>
+                  if (contFn(s1)) {
+                    foldChunk(s1, chunk, idx + 1, len)
+                  } else {
+                    ZIO.succeedNow((s1, Some(chunk.drop(idx + 1))))
+                  }
+              )
+            }
+
+          for {
+            state <- Ref.make(z).toManaged_
+            push = (is: Option[Chunk[I0]]) =>
+              is match {
+                case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
+                case Some(is) => {
+                  state.get.flatMap { s =>
+                    foldChunk(s, is, 0, is.length).foldM(err => Push.fail(err._1, err._2), {
+                      case (st, l) => {
+                        l match {
+                          case Some(leftover) => Push.emit(st, leftover)
+                          case None           => state.set(st) *> Push.more
+                        }
                       }
-                    }
-                  })
+                    })
+                  }
                 }
               }
-            }
-        } yield push
+          } yield push
+        }
       }
     else
       ZSink.succeed(z)
@@ -751,17 +763,17 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that effectfully folds its input chunks with the provided function and initial state.
    * `f` must preserve chunking-invariance.
    */
-  def foldLeftChunksM[R, E, I, S](z: S)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, Nothing, S] =
+  def foldLeftChunksM[R, E, I, S](z: S)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, S] =
     foldChunksM[R, E, I, S](z: S)(_ => true)(f).dropLeftover
 
   /**
    * A sink that effectfully folds its inputs with the provided function and initial state.
    */
-  def foldLeftM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
+  def foldLeftM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, S] =
     foldM[R, E, I, S](z: S)(_ => true)(f)
 
 
- */
+
   /**
    * A sink that executes the provided effectful function for every element fed to it.
    */

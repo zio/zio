@@ -22,7 +22,7 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
    */
   final def fromOutputStream(
     os: OutputStream
-  ): ZSink[Blocking, IOException, Byte, Byte, Long] = fromOutputStreamManaged(ZManaged.succeedNow(os))
+  ): ZSink[Blocking, IOException, Byte, Long] = fromOutputStreamManaged(ZManaged.succeedNow(os))
 
   /**
    * Uses the provided `OutputStream` resource to create a [[ZSink]] that consumes byte chunks
@@ -32,7 +32,7 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
    */
   final def fromOutputStreamManaged(
     os: ZManaged[Blocking, IOException, OutputStream]
-  ): ZSink[Blocking, IOException, Byte, Byte, Long] =
+  ): ZSink[Blocking, IOException, Byte, Long] =
     ZSink.managed(os) { out =>
       ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
         blocking.effectBlockingInterrupt {
