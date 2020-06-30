@@ -212,6 +212,11 @@ object NonEmptyChunk {
     NonEmptyChunk(a)
 
   /**
+   * The unit non-empty chunk.
+   */
+  val unit: NonEmptyChunk[Unit] = single(())
+
+  /**
    * Provides an implicit conversion from `NonEmptyChunk` to `Chunk` for
    * methods that may not return a `NonEmptyChunk`.
    */
