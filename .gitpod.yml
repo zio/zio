@@ -1,0 +1,9 @@
+image:
+  file: .gitpod.Dockerfile
+vscode:
+  extensions:
+    - scala-lang.scala@0.3.9:kklqw+c/dNRmtTU8B5repw==
+    - scalameta.metals@1.7.8:oixMSF1r3cXQPfOQ34+sTA==
+ports:
+  - port: 8212
+    onOpen: ignore
