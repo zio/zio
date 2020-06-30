@@ -17,7 +17,7 @@
 package zio.test.mock
 
 import zio.internal.Executor
-import zio.stream.{ ZSink, ZStream }
+import zio.stream.{ ZStream }
 import zio.test.TestPlatform
 import zio.{ Has, Runtime, Tag, URIO, URLayer, ZIO }
 
@@ -43,7 +43,7 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
 
   abstract class Effect[I: Tag, E: Tag, A: Tag]               extends Capability[R, I, E, A](self)
   abstract class Method[I: Tag, E <: Throwable: Tag, A: Tag]  extends Capability[R, I, E, A](self)
-  abstract class Sink[I: Tag, E: Tag, A: Tag, L: Tag, B: Tag] extends Capability[R, I, E, ZSink[Any, E, A, L, B]](self)
+  //abstract class Sink[I: Tag, E: Tag, A: Tag, L: Tag, B: Tag] extends Capability[R, I, E, ZSink[Any, E, A, L, B]](self)
   abstract class Stream[I: Tag, E: Tag, A: Tag]               extends Capability[R, I, Nothing, ZStream[Any, E, A]](self)
 
   object Poly {

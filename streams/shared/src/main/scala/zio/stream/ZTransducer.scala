@@ -35,7 +35,8 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    * Compose this transducer with a sink, resulting in a sink that processes elements by piping
    * them through this transducer and piping the results into the sink.
    */
-  def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, L, Z](that: ZSink[R1, E1, O2, L, Z]): ZSink[R1, E1, I1, L, Z] =
+  //TODO:
+  /*def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, L, Z](that: ZSink[R1, E1, O2, L, Z]): ZSink[R1, E1, I1, L, Z] =
     ZSink[R1, E1, I1, L, Z] {
       self.push.zipWith(that.push) { (pushSelf, pushThat) =>
         {
@@ -49,7 +50,7 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
               .flatMap(chunk => pushThat(Some(chunk)))
         }
       }
-    }
+    }*/
 
   final def contramap[J](f: J => I): ZTransducer[R, E, J, O] =
     ZTransducer(self.push.map(push => is => push(is.map(_.map(f)))))

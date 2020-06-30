@@ -2331,7 +2331,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Runs the stream and collects all of its elements to a list.
    */
- // def runCollect: ZIO[R, E, Chunk[O]] = run(ZSink.collectAll[O])
+  def runCollect: ZIO[R, E, Chunk[O]] = run(ZSink.collectAll[O])
 
   /**
    * Runs the stream and emits the number of elements processed
@@ -2350,15 +2350,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Runs the stream to completion and yields the first value emitted by it,
    * discarding the rest of the elements.
    */
-//  def runHead: ZIO[R, E, Option[O]] =
-//    run(ZSink.head)
+  def runHead: ZIO[R, E, Option[O]] =
+    run(ZSink.head)
 
   /**
    * Runs the stream to completion and yields the last value emitted by it,
    * discarding the rest of the elements.
    */
- // def runLast: ZIO[R, E, Option[O]] =
- //   run(ZSink.last)
+  def runLast: ZIO[R, E, Option[O]] =
+    run(ZSink.last)
 
   /**
    * Runs the stream to a sink which sums elements, provided they are Numeric.

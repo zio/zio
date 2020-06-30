@@ -606,26 +606,26 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   val count: ZSink[Any, Nothing, Any, Long] =
     foldLeft(0L)((s, _) => s + 1)
 
-  /*
+
   /**
    * Creates a sink halting with the specified `Throwable`.
    */
-  def die(e: => Throwable): ZSink[Any, Nothing, Any, Nothing, Nothing] =
+  def die(e: => Throwable): ZSink[Any, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(e))
 
   /**
    * Creates a sink halting with the specified message, wrapped in a
    * `RuntimeException`.
    */
-  def dieMessage(m: => String): ZSink[Any, Nothing, Any, Nothing, Nothing] =
+  def dieMessage(m: => String): ZSink[Any, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(new RuntimeException(m)))
 
   /**
    * A sink that ignores its inputs.
    */
-  val drain: ZSink[Any, Nothing, Any, Nothing, Unit] =
+  val drain: ZSink[Any, Nothing, Any, Unit] =
     foreach[Any, Nothing, Any](_ => ZIO.unit).dropLeftover
-*/
+
   /**
    * A sink that always fails with the specified error.
    */
