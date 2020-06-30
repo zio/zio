@@ -179,83 +179,18 @@ object ZTransducer {
   /**
    * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
-  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, Chunk[I]] =
-    ZTransducer {
-
-      def go(in: Chunk[I], builder: ChunkBuilder[I]): (ChunkBuilder[Chunk[I]], ChunkBuilder[I], Boolean) =
-        in.foldLeft[(ChunkBuilder[Chunk[I]], ChunkBuilder[I], Boolean)]((ChunkBuilder.make(), builder, true)) {
-          case ((outBuilder, builder, isBuilderEmpty), i) =>
-            if (p(i)) (outBuilder, builder += i, false)
-            else if (isBuilderEmpty) (outBuilder, builder, true)
-            else (outBuilder += builder.result(), ChunkBuilder.make(), true)
-        }
-
-      ZRef.makeManaged[Option[ChunkBuilder[I]]](Some(ChunkBuilder.make())).map { stateRef =>
-        {
-          case None =>
-            stateRef
-              .getAndSet(None)
-              .flatMap {
-                case Some(chunkBuilder) =>
-                  val out = chunkBuilder.result()
-                  Push.emit(out)
-
-                case None => Push.next
-              }
-
-          case Some(in) =>
-            stateRef.modify { maybeChunkBuilder =>
-              val (outBuilder, potentialChunkBuilder, isBuilderEmpty) =
-                go(in, maybeChunkBuilder.getOrElse(ChunkBuilder.make()))
-              if (isBuilderEmpty) Chunk.empty -> None
-              else outBuilder.result()        -> Some(potentialChunkBuilder)
-            }
-        }
-      }
-    }
+  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
+    fold[I, (List[I], Boolean)]((Nil, true))(_._2) {
+      case ((as, _), a) => if (p(a)) (a :: as, true) else (as, false)
+    }.map(_._1.reverse).filter(_.nonEmpty)
 
   /**
    * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
-  def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, Chunk[I]] =
-    ZTransducer {
-
-      def go(in: Chunk[I], builder: ChunkBuilder[I]): ZIO[R, E, (ChunkBuilder[Chunk[I]], ChunkBuilder[I], Boolean)] =
-        in.foldM[R, E, (ChunkBuilder[Chunk[I]], ChunkBuilder[I], Boolean)]((ChunkBuilder.make(), builder, true)) {
-          case ((outBuilder, builder, isBuilderEmpty), i) =>
-            p(i).map { continue =>
-              if (continue) (outBuilder, builder += i, false)
-              else if (isBuilderEmpty) (outBuilder, builder, true)
-              else (outBuilder += builder.result(), ChunkBuilder.make(), true)
-            }
-        }
-
-      ZRef.makeManaged[Option[ChunkBuilder[I]]](Some(ChunkBuilder.make())).map { stateRef =>
-        {
-          case None =>
-            stateRef
-              .getAndSet(None)
-              .flatMap {
-                case Some(chunkBuilder) =>
-                  val out = chunkBuilder.result()
-                  Push.emit(out)
-
-                case None => Push.next
-              }
-
-          case Some(in) =>
-            stateRef.get
-              .flatMap(maybeChunkBuilder => go(in, maybeChunkBuilder.getOrElse(ChunkBuilder.make())))
-              .flatMap {
-                case (outBuilder, potentialChunkBuilder, isBuilderEmpty) =>
-                  for {
-                    _   <- if (isBuilderEmpty) stateRef.set(None) else stateRef.set(Some(potentialChunkBuilder))
-                    out <- Push.emit(outBuilder.result())
-                  } yield out
-              }
-        }
-      }
-    }
+  def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
+    foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) {
+      case ((as, _), a) => p(a).map(if (_) (a :: as, true) else (as, false))
+    }.map(_._1.reverse).filter(_.nonEmpty)
 
   /**
    * Creates a transducer that always dies with the specified exception.

@@ -124,13 +124,13 @@ object ZTransducerSpec extends ZIOBaseSpec {
         val parser = ZTransducer.collectAllWhile[Int](_ < 5)
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = run(parser, input)
-        assertM(result)(equalTo(Chunk(Chunk(3, 4), Chunk(2, 3, 4), Chunk(4, 3, 2))))
+        assertM(result)(equalTo(Chunk(List(3, 4), List(2, 3, 4), List(4, 3, 2))))
       },
       testM("collectAllWhileM") {
         val parser = ZTransducer.collectAllWhileM[Any, Nothing, Int](i => ZIO.succeed(i < 5))
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = run(parser, input)
-        assertM(result)(equalTo(Chunk(Chunk(3, 4), Chunk(2, 3, 4), Chunk(4, 3, 2))))
+        assertM(result)(equalTo(Chunk(List(3, 4), List(2, 3, 4), List(4, 3, 2))))
       },
       suite("fold")(
         testM("empty")(
