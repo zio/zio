@@ -126,32 +126,31 @@ object ZTransducer {
   /**
    * Creates a transducer accumulating incoming values into chunks of maximum size `n`.
    */
-  def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, Chunk[I]] =
+  def collectAllN[I](n: Int): ZTransducer[Any, Nothing, I, Chunk[I]] =
     ZTransducer {
 
-      def go(in: Chunk[I], builder: ChunkBuilder[I], size: Long): (ChunkBuilder[Chunk[I]], ChunkBuilder[I], Long) =
-        in.foldLeft[(ChunkBuilder[Chunk[I]], ChunkBuilder[I], Long)]((ChunkBuilder.make(), builder, size)) {
-          case ((outBuilder, builder, size), i) =>
-            if (size + 1 == n) (outBuilder += (builder += i).result(), ChunkBuilder.make(n.toInt), 0)
-            else (outBuilder, builder += i, size + 1)
-        }
+      def go(in: Chunk[I], leftover: Chunk[I], outBuilder: ChunkBuilder[Chunk[I]]): (Chunk[Chunk[I]], Chunk[I]) = {
+        val (left, nextIn)    = in.splitAt(n - leftover.size)
+        val potentialOutChunk = leftover ++ left
 
-      ZRef.makeManaged[(ChunkBuilder[I], Long)]((ChunkBuilder.make(n.toInt), 0)).map { stateRef =>
+        if (potentialOutChunk.size < n) outBuilder.result() -> potentialOutChunk
+        else go(nextIn, Chunk.empty, outBuilder += potentialOutChunk)
+      }
+
+      ZRef.makeManaged[Chunk[I]](Chunk.empty).map { stateRef =>
         {
           case None =>
             stateRef
-              .getAndSet((ChunkBuilder.make(n.toInt), 0))
-              .map {
-                case (chunkBuilder, chunkSize) =>
-                  if (chunkSize == 0) Chunk.empty
-                  else Chunk(chunkBuilder.result())
+              .getAndSet(Chunk.empty)
+              .map { leftover =>
+                if (leftover.nonEmpty) Chunk(leftover)
+                else Chunk.empty
               }
 
           case Some(in) =>
-            stateRef.modify {
-              case (chunkBuilder, chunkSize) =>
-                val (outBuilder, nextChunkBuilder, nextChunkSize) = go(in, chunkBuilder, chunkSize)
-                outBuilder.result() -> ((nextChunkBuilder, nextChunkSize))
+            stateRef.modify { leftover =>
+              val (out, nextLeftover) = go(in, leftover, ChunkBuilder.make())
+              out -> nextLeftover
             }
         }
       }
