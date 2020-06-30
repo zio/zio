@@ -1,3 +1,4 @@
+/*
 package zio.stream
 
 import zio.test.Assertion.equalTo
@@ -50,3 +51,4 @@ object SinkUtils {
     }
 
 }
+*/

@@ -572,13 +572,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       } yield push
     }
   }
-/*
+
   /**
    * A sink that collects all of its inputs into a map. The keys are extracted from inputs
    * using the keying function `key`; if multiple inputs use the same key, they are merged
    * using the `f` function.
    */
-  def collectAllToMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Nothing, Map[K, A]] =
+  def collectAllToMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Map[K, A]] =
     foldLeftChunks(Map[K, A]()) { (acc, as) =>
       as.foldLeft(acc) { (acc, a) =>
         val k = key(a)
@@ -595,11 +595,11 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that collects all of its inputs into a set.
    */
-  def collectAllToSet[A]: ZSink[Any, Nothing, A, Nothing, Set[A]] =
+  def collectAllToSet[A]: ZSink[Any, Nothing, A, Set[A]] =
     foldLeftChunks(Set[A]())((acc, as) => as.foldLeft(acc)(_ + _))
 
 
- */
+
   /**
    * A sink that counts the number of elements fed to it.
    */
