@@ -873,6 +873,18 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(name)(isNone)
       }
     ),
+    suite("forkIn") {
+      testM("fiber forked in a closed scope does not run") {
+        for {
+          ref   <- Ref.make(false)
+          open  <- ZScope.make[Exit[Any, Any]]
+          _     <- open.close(Exit.unit)
+          fiber <- ref.set(true).forkIn(open.scope)
+          exit  <- fiber.await
+          value <- ref.get
+        } yield assert(exit)(isInterrupted) && assert(value)(isFalse)
+      }
+    },
     suite("forkWithErrorHandler")(
       testM("calls provided function when task fails") {
         for {
