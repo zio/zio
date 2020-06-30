@@ -266,10 +266,22 @@ object UIO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterPar]]
+   */
+  def filterPar[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[List[A]] =
+    ZIO.filterPar(as)(f)
+
+  /**
    * @see [[zio.ZIO.filterNot]]
    */
   def filterNot[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[List[A]] =
     ZIO.filterNot(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNotPar]]
+   */
+  def filterNotPar[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[List[A]] =
+    ZIO.filterNotPar(as)(f)
 
   /**
    * @see [[zio.ZIO.firstSuccessOf]]
