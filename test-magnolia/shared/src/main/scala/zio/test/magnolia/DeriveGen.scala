@@ -26,7 +26,7 @@ import zio.test.Sized
 
 /**
  * A `DeriveGen[A]` can derive a generator of `A` values. Implicit instances of
- * DeriveGen are automically provided for standard types and algebraic data
+ * DeriveGen are automatically provided for standard types and algebraic data
  * types made up of standard types. For example, here is how you can
  * automatically derive generators for case classes and sealed traits:
  *

@@ -34,7 +34,7 @@ import scala.reflect.{ classTag, ClassTag }
  * [[http://aleksandar-prokopec.com/resources/docs/lcpc-conc-trees.pdf]]
  *
  * NOTE: For performance reasons `Chunk` does not box primitive types. As a
- * result, it is not safe to construct chunks from heteregenous primitive
+ * result, it is not safe to construct chunks from heterogeneous primitive
  * types.
  */
 sealed trait Chunk[+A] extends ChunkLike[A] { self =>

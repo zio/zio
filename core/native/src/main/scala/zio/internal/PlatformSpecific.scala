@@ -91,7 +91,7 @@ private[internal] trait PlatformSpecific {
     }
 
   /**
-   * Creates a Platform from an exeuction context.
+   * Creates a Platform from an execution context.
    */
   final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))

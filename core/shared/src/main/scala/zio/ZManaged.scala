@@ -612,7 +612,7 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
-   * otherwise suceeds with the specified value.
+   * otherwise succeeds with the specified value.
    */
   final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A1] =
     orElse(ZManaged.succeedNow(a1))
