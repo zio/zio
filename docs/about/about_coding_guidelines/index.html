@@ -89,7 +89,7 @@ This is done to help the compiler infer types;</p></li>
 <li><p>No methods on final classes declared <code>final</code>, because they are <code>final</code> by default;</p></li>
 <li><p>All classes inside objects should be defined <code>final</code>, because otherwise they could still be extended;</p></li>
 <li><p>In general, classes that are not case classes have their constructors &amp; constructor parameters private.
-Typically it is not good practice to expose constructors and constructor parameters but exceptions apply (i.e. <code>Assertion</code> and <code>TestAnnotation</code>);</p></li>
+Typically, it is not good practice to expose constructors and constructor parameters but exceptions apply (i.e. <code>Assertion</code> and <code>TestAnnotation</code>);</p></li>
 <li><p>All <code>vals</code> declared <code>final</code>, even in objects or <code>final classes</code>, if they are constant expressions and without type annotations;</p></li>
 <li><p>Package-private <code>vals</code> and methods should be declared <code>final</code>.</p></li>
 </ol>
@@ -100,17 +100,17 @@ Typically it is not good practice to expose constructors and constructor paramet
 no dependencies but throws an arbitrary error, should be defined as <code>IO</code>.</p></li>
 </ol>
 <h3><a class="anchor" aria-hidden="true" id="understanding-naming-of-parameters-or-values"></a><a href="#understanding-naming-of-parameters-or-values" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Understanding naming of parameters or values</h3>
-<p>ZIO code often uses the following naming conventions and you might be asked to change method parameters to follow this conventions. This guide can help you understand where the names come from.
+<p>ZIO code often uses the following naming conventions, and you might be asked to change method parameters to follow these conventions. This guide can help you understand where the names come from.
 Naming expectations can be helpful in understanding the role of certain parameters without even glancing at its type signature when reading code or class/method signatures.</p>
 <ol>
 <li><p>Partial functions have a shortened name <code>pf</code>;</p></li>
 <li><p>In ZIO implicit parameters are often used as compiler evidences;
-These evidences help you, as a developer, prove something to the compiler (at compile time) and they have the ability to add constraints to a method;
+These evidences help you, as a developer, prove something to the compiler (at compile time), and they have the ability to add constraints to a method;
 They are typically called <code>ev</code> if there is only one. Or <code>ev1</code>, <code>ev2</code>... if more than one;</p></li>
-<li><p>Promises are called <code>p</code> (unless in its own class methods, in that case it is called <code>that</code>, like point 6 defines);</p></li>
+<li><p>Promises are called <code>p</code> (unless in its own class methods, in that case it is called <code>that</code>, like point 8 defines);</p></li>
 <li><p>Functions are called <code>fn</code>, <code>fn1</code>, unless they bear specific meaning: <code>use</code>, <code>release</code>;</p></li>
 <li><p>ZIO effects are called <code>f</code>, unless they bear specific meaning like partially providing environment: <code>r0</code>;</p></li>
-<li><p>Consider methods ending with _ having more meaningful names;</p></li>
+<li><p>Consider methods ending with <code>_</code> having more meaningful names;</p></li>
 <li><p>Iterable are called <code>in</code>;</p></li>
 <li><p>When a parameter type equals own (in a method of a trait) call it <code>that</code>;</p></li>
 <li><p>Be mindful of using by-name parameters. Mind the <code>Function[0]</code> extra allocation and loss of clean syntax when invoking the method.
@@ -123,7 +123,7 @@ This section will attempt to provide some guidelines and examples to document, g
 <ol>
 <li><p>Methods that lift pure values to effects are dangerous. Dangerous in the sense that they can potentially have dangerous side-effects.
 Such methods should have a default lazy variant and an eager variant for advanced users that are aware they absolutely do not have side-effects in their code,
-having slight gains in performance. The lazy variant should have a normal name (succeed, fail, die, lift) and the eager variant should have a <code>now</code> suffix
+having slight gains in performance. The lazy variant should have a normal name (succeed, fail, die, lift) and the eager variant should have a <code>Now</code> suffix
 (succeedNow, failNow, dieNow, liftNow) which makes it clear of its eager behaviour;</p></li>
 <li><p>Methods that have the form of <code>List#zip</code> are called <code>zip</code>, and have an alias called <code>&lt;*&gt;</code>. The parallel version, if applicable, has the name <code>zipPar</code>, with an alias called <code>&lt;&amp;&gt;</code>;</p></li>
 <li><p>Methods that are intended to capture side-effects, convert them into functional effects, should be prefixed by effect*. For example, <code>ZIO.effect</code>;</p></li>
@@ -139,7 +139,7 @@ For example, <code>ZIO.fromOption</code>, <code>ZStream.fromEffect</code>;</p></
 The following rules are good to have in mind when adding new <code>types</code>, <code>traits</code> or <code>classes</code> that have either covariant or contravariant types.</p>
 <ol>
 <li><p>Generalized ADTs should always have type annotation. (i.e. <code>final case class Fail[+E](value: E) extends Cause[E]</code>);</p></li>
-<li><p>Type alias should always have type annotation. Much like in Generalized ADTs defining type aliases should have carry the type annotations
+<li><p>Type alias should always have type annotation. Much like in Generalized ADTs defining type aliases should carry the type annotations
 (i.e. <code>type IO[+E, +A] = ZIO[Any, E, A]</code>).</p></li>
 </ol>
 <h3><a class="anchor" aria-hidden="true" id="method-alphabetization"></a><a href="#method-alphabetization" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Method alphabetization</h3>
@@ -154,7 +154,7 @@ Operators are any methods that only have non-letter characters (i.e. <code>&lt;*
 <h3><a class="anchor" aria-hidden="true" id="scala-documentation"></a><a href="#scala-documentation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Scala documentation</h3>
 <p>It is strongly recommended to use scala doc links when referring to other members.
 This both makes it easier for users to navigate the documentation and enforces that the references are accurate.
-A good example of this are <code>ZIO</code> type aliases that are extremely pervasive in the codebase: <code>UIO</code>, <code>Task</code>, <code>RIO</code>, <code>URIO</code> and <code>UIO</code>.
+A good example of this are <code>ZIO</code> type aliases that are extremely pervasive in the codebase: <code>Task</code>, <code>RIO</code>, <code>URIO</code> and <code>UIO</code>.
 To make it easy for developers to see the implementation scala doc links are used, for example:</p>
 <pre><code class="hljs">  /**
 <span class="hljs-bullet">   * </span>@see See [[zio.ZIO.absolve]]

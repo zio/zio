@@ -64,7 +64,7 @@
 <p>You can map over the success channel of an effect by calling the <code>ZIO#map</code> method. This lets you transform the success values of effects.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
 
-<span class="hljs-keyword">val</span> succeded: <span class="hljs-type">UIO</span>[<span class="hljs-type">Int</span>] = <span class="hljs-type">IO</span>.succeed(<span class="hljs-number">21</span>).map(_ * <span class="hljs-number">2</span>)
+<span class="hljs-keyword">val</span> succeeded: <span class="hljs-type">UIO</span>[<span class="hljs-type">Int</span>] = <span class="hljs-type">IO</span>.succeed(<span class="hljs-number">21</span>).map(_ * <span class="hljs-number">2</span>)
 </code></pre>
 <p>You can map over the error channel of an effect by calling the <code>ZIO#mapError</code> method. This lets you transform the failure values of effects.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> failed: <span class="hljs-type">IO</span>[<span class="hljs-type">Exception</span>, <span class="hljs-type">Unit</span>] = 
