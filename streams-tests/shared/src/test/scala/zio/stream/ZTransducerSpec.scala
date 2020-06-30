@@ -457,6 +457,16 @@ object ZTransducerSpec extends ZIOBaseSpec {
             )
           }
         }
+      ),
+      suite("iso8859_1")(
+        testM("ISO-8859-1 strings")(checkM(Gen.iso8859_1) { s =>
+          ZTransducer.iso8859_1.push.use { push =>
+            for {
+              part1 <- push(Some(Chunk.fromArray(s.getBytes("ISO-8859-1"))))
+              part2 <- push(None)
+            } yield assert((part1 ++ part2).mkString)(equalTo(s))
+          }
+        })
       )
     )
   )

@@ -479,6 +479,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
+   *  A generator of strings that can be encoded in the ISO-8859-1 character set.
+   */
+  val iso8859_1: Gen[Random with Sized, String] =
+    chunkOf(anyByte).map(chunk => new String(chunk.toArray, "ISO-8859-1"))
+
+  /**
    * A sized generator that uses a uniform distribution of size values. A large
    * number of larger sizes will be generated.
    */
