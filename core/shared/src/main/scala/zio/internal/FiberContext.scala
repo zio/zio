@@ -718,7 +718,7 @@ private[zio] final class FiberContext[E, A](
       childContext.onDone(exit => currentSup.unsafeOnEnd(exit, childContext))
     }
 
-    if (parentScope ne ZScope.global) {
+    val childZio = if (parentScope ne ZScope.global) {
       // Create a weak reference to the child fiber, so that we don't prevent it
       // from being garbage collected:
       val childContextRef = Platform.newWeakReference[FiberContext[E, A]](childContext)
@@ -726,7 +726,7 @@ private[zio] final class FiberContext[E, A](
       // Ensure that when the fiber's parent scope ends, the child fiber is
       // interrupted, but do so using a weak finalizer, which will be removed
       // as soon as the key is garbage collected:
-      val key = parentScope.unsafeEnsure(
+      val exitOrKey = parentScope.unsafeEnsure(
         exit =>
           UIO.effectSuspendTotal {
             val childContext = childContextRef()
@@ -739,16 +739,30 @@ private[zio] final class FiberContext[E, A](
         ZScope.Mode.Weak
       )
 
-      // Add the finalizer key to the child fiber, so that if it happens to be
-      // garbage collected, then its finalizer will be garbage collected too:
-      key.foreach(childContext.scopeKey = _)
+      exitOrKey.fold(
+        exit => {
+          val interruptor = exit match {
+            case Exit.Failure(cause) => cause.interruptors.headOption.getOrElse(fiberId)
+            case Exit.Success(_)     => fiberId
+          }
+          ZIO.interruptAs(interruptor)
+        },
+        key => {
+          // Add the finalizer key to the child fiber, so that if it happens to
+          // be garbage collected, then its finalizer will be garbage collected
+          // too:
+          childContext.scopeKey = key
 
-      // Remove the finalizer key from the parent scope when the child fiber
-      // terminates:
-      childContext.onDone(_ => key.foreach(parentScope.unsafeDeny))
-    }
+          // Remove the finalizer key from the parent scope when the child
+          // fiber terminates:
+          childContext.onDone(_ => parentScope.unsafeDeny(key))
 
-    executor.submitOrThrow(() => childContext.evaluateNow(zio))
+          zio
+        }
+      )
+    } else zio
+
+    executor.submitOrThrow(() => childContext.evaluateNow(childZio))
 
     childContext
   }
