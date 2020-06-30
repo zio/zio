@@ -43,6 +43,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Evolution Gaming](https://www.evolutiongaming.com/)
 * [Hunters.AI](https://hunters.ai)
 * [Kensu](https://kensu.io)
+* [LiveIntent Inc.](https://liveintent.com)
 * [Megogo](https://megogo.net)
 * [Mylivn](https://www.mylivn.com/)
 * [Optrak](https://optrak.com)
