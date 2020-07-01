@@ -3501,6 +3501,26 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a stream from Java reader
+   */
+  def fromJavaReader(reader: => java.io.Reader): ZStream[Any, Throwable, Char] = {
+    object StreamEnd extends Exception(null, null, false, false)
+
+    ZStream.fromEffect(Task(reader) <*> ZIO.runtime[Any]).flatMap {
+      case (reader, runtime) =>
+        ZStream.repeatEffectOption {
+          Task {
+            val read = reader.read()
+            if (read == -1) throw StreamEnd else read.toChar
+          }.mapError {
+            case StreamEnd                                  => None
+            case e: Throwable if !runtime.platform.fatal(e) => Some(e)
+          }
+        }
+    }
+  }
+
+  /**
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   def fromQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O]): ZStream[R, E, O] =
