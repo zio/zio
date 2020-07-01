@@ -3,7 +3,6 @@ package zio.stream
 import java.{ util => ju }
 
 import zio._
-import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.UniqueKey
@@ -3500,34 +3499,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         def hasNext: Boolean = it.hasNext
       }
     }
-
-  /**
-   * Creates a stream from managed Java reader
-   */
-  def fromJavaReaderManaged[R](
-    reader: => ZManaged[R, Throwable, java.io.Reader]
-  ): ZStream[R with Blocking, Throwable, Char] =
-    managed(reader).flatMap(fromJavaReader(_))
-
-  /**
-   * Creates a stream from Java reader
-   */
-  def fromJavaReader(reader: => java.io.Reader): ZStream[Blocking, Throwable, Char] = {
-    object StreamEnd extends Exception(null, null, false, false)
-
-    ZStream.fromEffect(Task(reader) <*> ZIO.runtime[Any]).flatMap {
-      case (reader, runtime) =>
-        ZStream.repeatEffectOption {
-          blocking.effectBlocking {
-            val read = reader.read()
-            if (read == -1) throw StreamEnd else read.toChar
-          }.mapError {
-            case StreamEnd                                  => None
-            case e: Throwable if !runtime.platform.fatal(e) => Some(e)
-          }
-        }
-    }
-  }
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values

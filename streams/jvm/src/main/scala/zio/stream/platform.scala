@@ -1,6 +1,6 @@
 package zio.stream
 
-import java.io.{ IOException, InputStream, OutputStream }
+import java.io.{ IOException, InputStream, OutputStream, Reader }
 import java.net.InetSocketAddress
 import java.nio.channels.FileChannel
 import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler }
@@ -285,6 +285,38 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     ZStream
       .managed(is)
       .flatMap(fromInputStream(_, chunkSize))
+
+  /**
+   * Creates a stream from an effect producing [[java.io.Reader]].
+   */
+  def fromReaderEffect[R](reader: => ZIO[R, Throwable, Reader]): ZStream[R with Blocking, Throwable, Char] =
+    fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())))
+
+  /**
+   * Creates a stream from managed [[java.io.Reader]].
+   */
+  def fromReaderManaged[R](reader: => ZManaged[R, Throwable, Reader]): ZStream[R with Blocking, Throwable, Char] =
+    ZStream.managed(reader).flatMap(fromReader(_))
+
+  /**
+   * Creates a stream from [[java.io.Reader]].
+   */
+  def fromReader(reader: => Reader): ZStream[Blocking, Throwable, Char] = {
+    object StreamEnd extends Exception(null, null, false, false)
+
+    ZStream.fromEffect(Task(reader) <*> ZIO.runtime[Any]).flatMap {
+      case (reader, runtime) =>
+        ZStream.repeatEffectOption {
+          blocking.effectBlocking {
+            val read = reader.read()
+            if (read == -1) throw StreamEnd else read.toChar
+          }.mapError {
+            case StreamEnd                                  => None
+            case e: Throwable if !runtime.platform.fatal(e) => Some(e)
+          }
+        }
+    }
+  }
 
   /**
    * Creates a stream from a Java stream
