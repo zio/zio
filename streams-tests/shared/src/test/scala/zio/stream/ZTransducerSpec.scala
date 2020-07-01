@@ -406,9 +406,9 @@ object ZTransducerSpec extends ZIOBaseSpec {
         }
       ),
       suite("splitOnChunk")(
-        testM("preserves data")(checkM(Gen.chunkOf(Gen.anyInt.filter(_ != 0))) { ints: Chunk[Int] =>
+        testM("preserves data")(checkM(Gen.chunkOf(Gen.anyInt.filter(_ != 0))) { ints =>
           val splitSequence = Chunk(0, 1)
-          val data          = ints.flatMap(b => b +: splitSequence)
+          val data          = ints.flatMap(i => i +: splitSequence)
           val parser        = ZTransducer.splitOnChunk[Int, Chunk[Int]](splitSequence, identity)
           assertM(run(parser, List(data)).map(_.flatten))(equalTo(ints))
         }),
