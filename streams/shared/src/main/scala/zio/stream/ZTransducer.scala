@@ -130,11 +130,15 @@ object ZTransducer {
     ZTransducer {
 
       def go(in: Chunk[I], leftover: Chunk[I], outBuilder: ChunkBuilder[Chunk[I]]): (Chunk[Chunk[I]], Chunk[I]) = {
-        val (left, nextIn)    = in.splitAt(n - leftover.size)
-        val potentialOutChunk = leftover ++ left
+        val (left, nextIn) = in.splitAt(n - leftover.size)
 
-        if (potentialOutChunk.size < n) outBuilder.result() -> potentialOutChunk
-        else go(nextIn, Chunk.empty, outBuilder += potentialOutChunk)
+        if (leftover.size + left.size < n) outBuilder.result() -> (leftover ++ left)
+        else {
+          val nextOutBuilder =
+            if (leftover.nonEmpty) outBuilder += leftover += left
+            else outBuilder += left
+          go(nextIn, Chunk.empty, nextOutBuilder)
+        }
       }
 
       ZRef.makeManaged[Chunk[I]](Chunk.empty).map { stateRef =>
