@@ -1,54 +1,72 @@
 package zio.stm
 
-import zio.ZIOBaseSpec
+import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
+import zio.{ Chunk, ZIOBaseSpec }
 
 object TPriorityQueueSpec extends ZIOBaseSpec {
 
+  final case class Event(time: Int, description: String)
+
+  implicit val eventOrdering: Ordering[Event] =
+    Ordering.by(_.time)
+
+  val genEvent: Gen[Random with Sized, Event] =
+    for {
+      time        <- Gen.int(-10, 10)
+      description <- Gen.alphaNumericString
+    } yield Event(time, description)
+
+  val genEvents: Gen[Random with Sized, Chunk[Event]] =
+    Gen.chunkOf(genEvent)
+
+  val genPredicate: Gen[Random, Event => Boolean] =
+    Gen.function(Gen.boolean)
+
   def spec = suite("TPriorityQueueSpec")(
     testM("offerAll and takeAll") {
-      checkM(Gen.chunkOf(Gen.anyInt)) { as =>
+      checkM(genEvents) { as =>
         val transaction = for {
-          queue  <- TPriorityQueue.empty[Int]
+          queue  <- TPriorityQueue.empty[Event]
           _      <- queue.offerAll(as)
           values <- queue.takeAll
         } yield values
-        assertM(transaction.commit)(equalTo(as.sorted))
+        assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     testM("removeIf") {
-      checkM(Gen.listOf(Gen.anyInt), Gen.function(Gen.boolean)) { (as, f) =>
+      checkM(genEvents, genPredicate) { (as, f) =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           _     <- queue.removeIf(f)
-          list  <- queue.toList
+          list  <- queue.toChunk
         } yield list
-        assertM(transaction.commit)(equalTo(as.filterNot(f).sorted))
+        assertM(transaction.commit)(hasSameElements(as.filterNot(f)) && isSorted)
       }
     },
     testM("retainIf") {
-      checkM(Gen.listOf(Gen.anyInt), Gen.function(Gen.boolean)) { (as, f) =>
+      checkM(Gen.listOf(genEvent), genPredicate) { (as, f) =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           _     <- queue.retainIf(f)
           list  <- queue.toList
         } yield list
-        assertM(transaction.commit)(equalTo(as.filter(f).sorted))
+        assertM(transaction.commit)(hasSameElements(as.filter(f)) && isSorted)
       }
     },
     testM("take") {
-      checkM(Gen.listOf(Gen.anyInt)) { as =>
+      checkM(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           takes <- STM.collectAll(STM.replicate(as.length)(queue.take))
         } yield takes
-        assertM(transaction.commit)(equalTo((as.sorted)))
+        assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     testM("takeUpTo") {
       val gen = for {
-        as <- Gen.chunkOf(Gen.int(1, 10))
+        as <- genEvents
         n  <- Gen.int(0, as.length)
       } yield (as, n)
       checkM(gen) {
@@ -57,35 +75,35 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
             queue <- TPriorityQueue.fromIterable(as)
             left  <- queue.takeUpTo(n)
             right <- queue.takeAll
-          } yield (left, right)
-          assertM(transaction.commit)(equalTo((as.sorted.take(n), as.sorted.drop(n))))
+          } yield left ++ right
+          assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     testM("toChunk") {
-      checkM(Gen.chunkOf(Gen.anyInt)) { as =>
+      checkM(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           list  <- queue.toChunk
         } yield list
-        assertM(transaction.commit)(equalTo(as.sorted))
+        assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     testM("toList") {
-      checkM(Gen.listOf(Gen.anyInt)) { as =>
+      checkM(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           list  <- queue.toList
         } yield list
-        assertM(transaction.commit)(equalTo(as.sorted))
+        assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     testM("toVector") {
-      checkM(Gen.vectorOf(Gen.anyInt)) { as =>
+      checkM(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           list  <- queue.toVector
         } yield list
-        assertM(transaction.commit)(equalTo(as.sorted))
+        assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     }
   )
