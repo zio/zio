@@ -3501,6 +3501,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a stream from managed Java reader
+   */
+  def fromJavaReaderManaged[R](reader: => ZManaged[R, Throwable, java.io.Reader]): ZStream[R, Throwable, Char] =
+    managed(reader).flatMap(fromJavaReader(_))
+
+  /**
    * Creates a stream from Java reader
    */
   def fromJavaReader(reader: => java.io.Reader): ZStream[Any, Throwable, Char] = {
