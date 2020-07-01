@@ -289,33 +289,26 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   /**
    * Creates a stream from [[java.io.Reader]].
    */
-  def fromReader(reader: => Reader): ZStream[Blocking, Throwable, Char] = {
-    object StreamEnd extends Exception(null, null, false, false)
-
-    ZStream.fromEffect(Task(reader) <*> ZIO.runtime[Any]).flatMap {
-      case (reader, runtime) =>
-        ZStream.repeatEffectOption {
-          blocking.effectBlocking {
-            val read = reader.read()
-            if (read == -1) throw StreamEnd else read.toChar
-          }.mapError {
-            case StreamEnd                                  => None
-            case e: Throwable if !runtime.platform.fatal(e) => Some(e)
-          }
-        }
+  def fromReader(reader: => Reader): ZStream[Blocking, IOException, Char] =
+    ZStream.repeatEffectOption {
+      blocking
+        .effectBlockingIO(reader.read())
+        .foldM(
+          e => ZIO.fail(Some(e)),
+          r => if (r == -1) ZIO.fail(None) else ZIO.succeed(r.toChar)
+        )
     }
-  }
 
   /**
    * Creates a stream from an effect producing [[java.io.Reader]].
    */
-  def fromReaderEffect[R](reader: => ZIO[R, Throwable, Reader]): ZStream[R with Blocking, Throwable, Char] =
+  def fromReaderEffect[R](reader: => ZIO[R, IOException, Reader]): ZStream[R with Blocking, IOException, Char] =
     fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())))
 
   /**
    * Creates a stream from managed [[java.io.Reader]].
    */
-  def fromReaderManaged[R](reader: => ZManaged[R, Throwable, Reader]): ZStream[R with Blocking, Throwable, Char] =
+  def fromReaderManaged[R](reader: => ZManaged[R, IOException, Reader]): ZStream[R with Blocking, IOException, Char] =
     ZStream.managed(reader).flatMap(fromReader(_))
 
   /**
