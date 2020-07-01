@@ -287,18 +287,6 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
       .flatMap(fromInputStream(_, chunkSize))
 
   /**
-   * Creates a stream from an effect producing [[java.io.Reader]].
-   */
-  def fromReaderEffect[R](reader: => ZIO[R, Throwable, Reader]): ZStream[R with Blocking, Throwable, Char] =
-    fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())))
-
-  /**
-   * Creates a stream from managed [[java.io.Reader]].
-   */
-  def fromReaderManaged[R](reader: => ZManaged[R, Throwable, Reader]): ZStream[R with Blocking, Throwable, Char] =
-    ZStream.managed(reader).flatMap(fromReader(_))
-
-  /**
    * Creates a stream from [[java.io.Reader]].
    */
   def fromReader(reader: => Reader): ZStream[Blocking, Throwable, Char] = {
@@ -317,6 +305,18 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
         }
     }
   }
+
+  /**
+   * Creates a stream from an effect producing [[java.io.Reader]].
+   */
+  def fromReaderEffect[R](reader: => ZIO[R, Throwable, Reader]): ZStream[R with Blocking, Throwable, Char] =
+    fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())))
+
+  /**
+   * Creates a stream from managed [[java.io.Reader]].
+   */
+  def fromReaderManaged[R](reader: => ZManaged[R, Throwable, Reader]): ZStream[R with Blocking, Throwable, Char] =
+    ZStream.managed(reader).flatMap(fromReader(_))
 
   /**
    * Creates a stream from a Java stream
