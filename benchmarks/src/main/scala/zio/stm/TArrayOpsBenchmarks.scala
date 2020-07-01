@@ -21,7 +21,7 @@ class TArrayOpsBenchmarks {
   private var idx: Int           = _
   private var array: TArray[Int] = _
 
-  // used to ammortize the relative cost of unsafeRun
+  // used to amortize the relative cost of unsafeRun
   // compared to benchmarked operations
   private val calls = List.fill(500)(false)
 

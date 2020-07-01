@@ -789,6 +789,20 @@ object ZManagedSpec extends ZIOBaseSpec {
         managed.run.use(res => ZIO.succeed(assert(res)(fails(equalTo(ExampleError)))))
       } @@ zioTag(errors)
     ),
+    suite("someOrElseM")(
+      testM("extracts the value from Some") {
+        val managed: TaskManaged[Int] = Managed.succeed(Some(1)).someOrElseM(Managed.succeed(2))
+        managed.use(res => ZIO.succeed(assert(res)(equalTo(1))))
+      },
+      testM("falls back to the default value if None") {
+        val managed: TaskManaged[Int] = Managed.succeed(None).someOrElseM(Managed.succeed(42))
+        managed.use(res => ZIO.succeed(assert(res)(equalTo(42))))
+      },
+      testM("does not change failed state") {
+        val managed: TaskManaged[Int] = Managed.fail(ExampleError).someOrElseM(Managed.succeed(42))
+        managed.run.use(res => ZIO.succeed(assert(res)(fails(equalTo(ExampleError)))))
+      } @@ zioTag(errors)
+    ),
     suite("someOrFailException")(
       testM("extracts the optional value") {
         val managed = Managed.succeed(Some(42)).someOrFailException

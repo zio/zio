@@ -181,7 +181,7 @@ private[macros] class AccessibleMacro(val c: Context) {
              ..$accessors
            }
          """
-      case _ => abort("@accesible macro failure - could not unquote annotated object.")
+      case _ => abort("@accessible macro failure - could not unquote annotated object.")
     }
   }
 }

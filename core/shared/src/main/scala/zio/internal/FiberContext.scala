@@ -427,6 +427,8 @@ private[zio] final class FiberContext[E, A](
                         else causeAndInterrupt
                       }
 
+                      setInterrupting(true)
+
                       curZio = done(Exit.halt(cause))
                     } else {
                       setInterrupting(false)
@@ -718,7 +720,7 @@ private[zio] final class FiberContext[E, A](
       childContext.onDone(exit => currentSup.unsafeOnEnd(exit, childContext))
     }
 
-    if (parentScope ne ZScope.global) {
+    val childZio = if (parentScope ne ZScope.global) {
       // Create a weak reference to the child fiber, so that we don't prevent it
       // from being garbage collected:
       val childContextRef = Platform.newWeakReference[FiberContext[E, A]](childContext)
@@ -726,7 +728,7 @@ private[zio] final class FiberContext[E, A](
       // Ensure that when the fiber's parent scope ends, the child fiber is
       // interrupted, but do so using a weak finalizer, which will be removed
       // as soon as the key is garbage collected:
-      val key = parentScope.unsafeEnsure(
+      val exitOrKey = parentScope.unsafeEnsure(
         exit =>
           UIO.effectSuspendTotal {
             val childContext = childContextRef()
@@ -739,14 +741,30 @@ private[zio] final class FiberContext[E, A](
         ZScope.Mode.Weak
       )
 
-      // Add the finalizer key to the child fiber, so that if it happens to be
-      // garbage collected, then its finalizer will be garbage collected too:
-      childContext.scopeKey = key.getOrElse(
-        throw new IllegalStateException("Defect: The fiber's scope has ended before the fiber itself has ended")
-      )
-    }
+      exitOrKey.fold(
+        exit => {
+          val interruptor = exit match {
+            case Exit.Failure(cause) => cause.interruptors.headOption.getOrElse(fiberId)
+            case Exit.Success(_)     => fiberId
+          }
+          ZIO.interruptAs(interruptor)
+        },
+        key => {
+          // Add the finalizer key to the child fiber, so that if it happens to
+          // be garbage collected, then its finalizer will be garbage collected
+          // too:
+          childContext.scopeKey = key
 
-    executor.submitOrThrow(() => childContext.evaluateNow(zio))
+          // Remove the finalizer key from the parent scope when the child
+          // fiber terminates:
+          childContext.onDone(_ => parentScope.unsafeDeny(key))
+
+          zio
+        }
+      )
+    } else zio
+
+    executor.submitOrThrow(() => childContext.evaluateNow(childZio))
 
     childContext
   }
@@ -754,11 +772,6 @@ private[zio] final class FiberContext[E, A](
   private[this] def evaluateLater(zio: IO[E, Any]): Unit =
     executor.submitOrThrow(() => evaluateNow(zio))
 
-  /**
-   * Resumes an asynchronous computation.
-   *
-   * @param value The value produced by the asynchronous computation.
-   */
   private[this] def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio => if (exitAsync(epoch)) evaluateLater(zio) }
 
   final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)

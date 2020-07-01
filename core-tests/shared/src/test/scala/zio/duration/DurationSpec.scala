@@ -78,6 +78,23 @@ object DurationSpec extends ZIOBaseSpec {
       test("* with overflow to negative results in Infinity") {
         assert(Duration.fromNanos(Long.MaxValue) * 2)(equalTo(Duration.Infinity: Duration))
       },
+      test("* with factor equal to 0 results in zero") {
+        assert(Duration.fromNanos(42) * 0)(equalTo(Duration.Zero: Duration))
+      },
+      test("* with positive factor less than 1 results in Finite Duration") {
+        assert(Duration.fromNanos(42) * 0.5)(equalTo(Duration.fromNanos(21)))
+      },
+      test("* with factor equal to 1 results in Finite Duration in case of small duration") {
+        assert(Duration.fromNanos(42) * 1)(equalTo(Duration.fromNanos(42)))
+      },
+      test("* with factor equal to 1 results in Finite Duration in case of large duration") {
+        assert(Duration.fromNanos(Long.MaxValue) * 1)(equalTo(Duration.fromNanos(Long.MaxValue)))
+      },
+      test("* results in Finite Duration if the multiplication result is close to max FiniteDuration value") {
+        val factor = 1.5
+        val nanos  = (Long.MaxValue / 1.9).round
+        assert(Duration.fromNanos(nanos) * factor)(isSubtype[Duration.Finite](Assertion.anything))
+      },
       test("Folding picks up the correct value") {
         assert(Duration.fromNanos(Long.MaxValue).fold("Infinity", _ => "Finite"))(equalTo("Finite"))
       },
@@ -130,6 +147,9 @@ object DurationSpec extends ZIOBaseSpec {
       },
       test("Infinity * -10 = Zero") {
         assert(Duration.Infinity * -10)(equalTo(Duration.Zero: Duration))
+      },
+      test("Infinity * 0 = Zero") {
+        assert(Duration.Infinity * 0)(equalTo(Duration.Zero: Duration))
       }
     ),
     suite("Make a Scala stdlib s.c.d.Duration and check that: ")(

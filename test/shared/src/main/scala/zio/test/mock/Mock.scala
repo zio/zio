@@ -22,7 +22,7 @@ import zio.test.TestPlatform
 import zio.{ Has, Runtime, Tag, URIO, URLayer, ZIO }
 
 /**
- * A `Mock[R]` represents a mockable environenment `R`.
+ * A `Mock[R]` represents a mockable environment `R`.
  */
 abstract class Mock[R <: Has[_]: Tag] { self =>
 

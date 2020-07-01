@@ -89,11 +89,10 @@ object Duration {
 
     def *(factor: Double): Duration =
       if (factor <= 0 || nanos <= 0) Zero
-      else if (factor < 1) Finite((nanos * factor).round)
-      else if (factor < Long.MaxValue / nanos) Finite((nanos * factor).round)
+      else if (factor <= Long.MaxValue / nanos.toDouble) Finite((nanos * factor).round)
       else Infinity
 
-    def compare(other: Duration) = other match {
+    def compare(other: Duration): Int = other match {
       case Finite(otherNanos) => nanos compare otherNanos
       case Infinity           => -1
     }
@@ -140,9 +139,9 @@ object Duration {
     def +(other: Duration): Duration = Infinity
 
     def *(factor: Double): Duration =
-      if (factor < 0) Duration.Zero else Infinity
+      if (factor <= 0) Duration.Zero else Infinity
 
-    def compare(other: Duration) = if (other == this) 0 else 1
+    def compare(other: Duration): Int = if (other == this) 0 else 1
 
     val toMillis: Long = TimeUnit.NANOSECONDS.toMillis(Long.MaxValue)
 
