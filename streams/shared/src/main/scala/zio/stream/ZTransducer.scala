@@ -619,57 +619,58 @@ object ZTransducer {
   /**
    * Splits elements on a delimiter and transforms the splits into desired output.
    */
-  def splitOnChunk[A, O: ClassTag](delimiter: Chunk[A], fn: Chunk[A] => O): ZTransducer[Any, Nothing, A, O] = ZTransducer {
-    ZRef.makeManaged[(Option[Chunk[A]], Int)](None -> 0).map {
-      state => {
-        case None =>
-          state.modify {
-            case s@(None, _) => Chunk.empty -> s
-            case (Some(chunk), _) => Chunk.single(fn(chunk)) -> (None -> 0)
-          }
-        case Some(inputChunk: Chunk[A]) =>
-          state.modify { s0 =>
-            var out: mutable.ArrayBuffer[Chunk[A]] = null
-            var chunkIndex = 0
-            var buffer: Chunk[A] = s0._1.getOrElse(Chunk.empty)
-            var delimIndex = s0._2
-            while (chunkIndex < inputChunk.length) {
-              val in = buffer :+ inputChunk(chunkIndex)
-              var index = buffer.length
-              var start = 0
-              buffer = Chunk.empty
-              while (index < in.length) {
-                while (delimIndex < delimiter.length && index < in.length && in(index) == delimiter(delimIndex)) {
-                  delimIndex += 1
-                  index += 1
-                }
-                if (delimIndex == delimiter.length || in.isEmpty) {
-                  if (out eq null) out = mutable.ArrayBuffer[Chunk[A]]()
-                  val slice = in.slice(start, index - delimiter.length)
-                  out += slice
-                  delimIndex = 0
-                  start = index
-                }
-                if (index < in.length) {
-                  delimIndex = 0
-                  while (index < in.length && in(index) != delimiter(0)) index += 1
-                }
-              }
-
-              if (start < in.length) {
-                buffer = in.drop(start)
-              }
-
-              chunkIndex += 1
+  def splitOnChunk[A, O: ClassTag](delimiter: Chunk[A], fn: Chunk[A] => O): ZTransducer[Any, Nothing, A, O] =
+    ZTransducer {
+      ZRef.makeManaged[(Option[Chunk[A]], Int)](None -> 0).map { state =>
+        {
+          case None =>
+            state.modify {
+              case s @ (None, _)    => Chunk.empty             -> s
+              case (Some(chunk), _) => Chunk.single(fn(chunk)) -> (None -> 0)
             }
+          case Some(inputChunk: Chunk[A]) =>
+            state.modify { s0 =>
+              var out: mutable.ArrayBuffer[Chunk[A]] = null
+              var chunkIndex                         = 0
+              var buffer: Chunk[A]                   = s0._1.getOrElse(Chunk.empty)
+              var delimIndex                         = s0._2
+              while (chunkIndex < inputChunk.length) {
+                val in    = buffer :+ inputChunk(chunkIndex)
+                var index = buffer.length
+                var start = 0
+                buffer = Chunk.empty
+                while (index < in.length) {
+                  while (delimIndex < delimiter.length && index < in.length && in(index) == delimiter(delimIndex)) {
+                    delimIndex += 1
+                    index += 1
+                  }
+                  if (delimIndex == delimiter.length || in.isEmpty) {
+                    if (out eq null) out = mutable.ArrayBuffer[Chunk[A]]()
+                    val slice = in.slice(start, index - delimiter.length)
+                    out += slice
+                    delimIndex = 0
+                    start = index
+                  }
+                  if (index < in.length) {
+                    delimIndex = 0
+                    while (index < in.length && in(index) != delimiter(0)) index += 1
+                  }
+                }
 
-            val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray.map(fn))
-            val buf = if (buffer.isEmpty) None else Some(buffer)
-            chunk -> (buf -> delimIndex)
-          }
+                if (start < in.length) {
+                  buffer = in.drop(start)
+                }
+
+                chunkIndex += 1
+              }
+
+              val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray.map(fn))
+              val buf   = if (buffer.isEmpty) None else Some(buffer)
+              chunk -> (buf -> delimIndex)
+            }
+        }
       }
     }
-  }
 
   /**
    * Decodes chunks of UTF-8 bytes into strings.
