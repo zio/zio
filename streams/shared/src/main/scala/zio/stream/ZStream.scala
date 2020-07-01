@@ -3,7 +3,7 @@ package zio.stream
 import java.{ util => ju }
 
 import zio._
-import zio.blocking._
+import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.UniqueKey
@@ -3518,7 +3518,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.fromEffect(Task(reader) <*> ZIO.runtime[Any]).flatMap {
       case (reader, runtime) =>
         ZStream.repeatEffectOption {
-          effectBlocking {
+          blocking.effectBlocking {
             val read = reader.read()
             if (read == -1) throw StreamEnd else read.toChar
           }.mapError {
