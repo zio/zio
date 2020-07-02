@@ -244,11 +244,8 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
             if (_) Pull.end
             else
               for {
-                bufArray <- UIO(Array.ofDim[Byte](chunkSize))
-                bytesRead <- blocking
-                              .effectBlocking(capturedIs.read(bufArray))
-                              .refineToOrDie[IOException]
-                              .mapError(Some(_))
+                bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
+                bytesRead <- blocking.effectBlockingIO(capturedIs.read(bufArray)).mapError(Some(_))
                 bytes <- if (bytesRead < 0)
                           done.set(true) *> Pull.end
                         else if (bytesRead == 0)
