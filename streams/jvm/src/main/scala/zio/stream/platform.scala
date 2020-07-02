@@ -1,6 +1,6 @@
 package zio.stream
 
-import java.io.{ IOException, InputStream, OutputStream }
+import java.io.{ IOException, InputStream, OutputStream, Reader }
 import java.net.InetSocketAddress
 import java.nio.channels.FileChannel
 import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler }
@@ -235,34 +235,21 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     is: => InputStream,
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[Blocking, IOException, Byte] =
-    ZStream {
-      for {
-        done       <- Ref.make(false).toManaged_
-        capturedIs <- Managed.effectTotal(is)
-        pull = {
-          def go: ZIO[Blocking, Option[IOException], Chunk[Byte]] = done.get.flatMap {
-            if (_) Pull.end
-            else
-              for {
-                bufArray <- UIO(Array.ofDim[Byte](chunkSize))
-                bytesRead <- blocking
-                              .effectBlocking(capturedIs.read(bufArray))
-                              .refineToOrDie[IOException]
-                              .mapError(Some(_))
-                bytes <- if (bytesRead < 0)
-                          done.set(true) *> Pull.end
-                        else if (bytesRead == 0)
-                          go
-                        else if (bytesRead < bufArray.length)
-                          Pull.emit(Chunk.fromArray(bufArray).take(bytesRead))
-                        else
-                          Pull.emit(Chunk.fromArray(bufArray))
-              } yield bytes
-          }
-
-          go
-        }
-      } yield pull
+    ZStream.fromEffect(UIO(is)).flatMap { capturedIs =>
+      ZStream.repeatEffectChunkOption {
+        for {
+          bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
+          bytesRead <- blocking.effectBlockingIO(capturedIs.read(bufArray)).mapError(Some(_))
+          bytes <- if (bytesRead < 0)
+                    ZIO.fail(None)
+                  else if (bytesRead == 0)
+                    UIO(Chunk.empty)
+                  else if (bytesRead < chunkSize)
+                    UIO(Chunk.fromArray(bufArray).take(bytesRead))
+                  else
+                    UIO(Chunk.fromArray(bufArray))
+        } yield bytes
+      }
     }
 
   /**
@@ -285,6 +272,45 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     ZStream
       .managed(is)
       .flatMap(fromInputStream(_, chunkSize))
+
+  /**
+   * Creates a stream from [[java.io.Reader]].
+   */
+  def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, IOException, Char] =
+    ZStream.fromEffect(UIO(reader)).flatMap { capturedReader =>
+      ZStream.repeatEffectChunkOption {
+        for {
+          bufArray  <- UIO(Array.ofDim[Char](chunkSize))
+          bytesRead <- blocking.effectBlockingIO(capturedReader.read(bufArray)).mapError(Some(_))
+          chars <- if (bytesRead < 0)
+                    ZIO.fail(None)
+                  else if (bytesRead == 0)
+                    UIO(Chunk.empty)
+                  else if (bytesRead < chunkSize)
+                    UIO(Chunk.fromArray(bufArray).take(bytesRead))
+                  else
+                    UIO(Chunk.fromArray(bufArray))
+        } yield chars
+      }
+    }
+
+  /**
+   * Creates a stream from an effect producing [[java.io.Reader]].
+   */
+  def fromReaderEffect[R](
+    reader: => ZIO[R, IOException, Reader],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R with Blocking, IOException, Char] =
+    fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())), chunkSize)
+
+  /**
+   * Creates a stream from managed [[java.io.Reader]].
+   */
+  def fromReaderManaged[R](
+    reader: => ZManaged[R, IOException, Reader],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R with Blocking, IOException, Char] =
+    ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
 
   /**
    * Creates a stream from a Java stream
