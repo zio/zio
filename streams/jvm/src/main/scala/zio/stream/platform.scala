@@ -296,16 +296,16 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
             if (_) Pull.end
             else
               for {
-                buffer    <- UIO(Array.ofDim[Char](chunkSize))
-                bytesRead <- blocking.effectBlockingIO(capturedReader.read(buffer)).mapError(Some(_))
+                bufArray  <- UIO(Array.ofDim[Char](chunkSize))
+                bytesRead <- blocking.effectBlockingIO(capturedReader.read(bufArray)).mapError(Some(_))
                 chars <- if (bytesRead < 0)
                           done.set(true) *> Pull.end
                         else if (bytesRead == 0)
                           go
-                        else if (bytesRead < buffer.length)
-                          Pull.emit(Chunk.fromArray(buffer).take(bytesRead))
+                        else if (bytesRead < bufArray.length)
+                          Pull.emit(Chunk.fromArray(bufArray).take(bytesRead))
                         else
-                          Pull.emit(Chunk.fromArray(buffer))
+                          Pull.emit(Chunk.fromArray(bufArray))
               } yield chars
           }
 
