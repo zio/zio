@@ -1,5 +1,7 @@
 package zio.stream
 
+import java.nio.charset.StandardCharsets
+
 import scala.collection.mutable
 
 import zio._
@@ -546,9 +548,9 @@ object ZTransducer {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  val iso8859_1: ZTransducer[Any, Nothing, Byte, String] =
+  val iso_8859_1Decode: ZTransducer[Any, Nothing, Byte, String] =
     ZTransducer.fromPush {
-      case Some(is) => ZIO.succeedNow(Chunk.single(new String(is.toArray, "ISO-8859-1")))
+      case Some(is) => ZIO.succeedNow(Chunk.single(new String(is.toArray, StandardCharsets.ISO_8859_1)))
       case None     => ZIO.succeedNow(Chunk.empty)
     }
 
