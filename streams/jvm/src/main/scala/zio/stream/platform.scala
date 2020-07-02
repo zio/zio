@@ -289,27 +289,51 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   /**
    * Creates a stream from [[java.io.Reader]].
    */
-  def fromReader(reader: => Reader): ZStream[Blocking, IOException, Char] =
-    ZStream.repeatEffectOption {
-      blocking
-        .effectBlockingIO(reader.read())
-        .foldM(
-          e => ZIO.fail(Some(e)),
-          r => if (r == -1) ZIO.fail(None) else ZIO.succeed(r.toChar)
-        )
+  def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, IOException, Char] =
+    ZStream {
+      for {
+        done           <- Ref.make(false).toManaged_
+        capturedReader <- Managed.effectTotal(reader)
+        pull = {
+          def go: ZIO[Blocking, Option[IOException], Chunk[Char]] = done.get.flatMap {
+            if (_) Pull.end
+            else
+              for {
+                buffer    <- UIO(Array.ofDim[Char](chunkSize))
+                bytesRead <- blocking.effectBlockingIO(capturedReader.read(buffer)).mapError(Some(_))
+                chars <- if (bytesRead < 0)
+                          done.set(true) *> Pull.end
+                        else if (bytesRead == 0)
+                          go
+                        else if (bytesRead < buffer.length)
+                          Pull.emit(Chunk.fromArray(buffer).take(bytesRead))
+                        else
+                          Pull.emit(Chunk.fromArray(buffer))
+              } yield chars
+          }
+
+          go
+        }
+      } yield pull
     }
 
   /**
    * Creates a stream from an effect producing [[java.io.Reader]].
    */
-  def fromReaderEffect[R](reader: => ZIO[R, IOException, Reader]): ZStream[R with Blocking, IOException, Char] =
-    fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())))
+  def fromReaderEffect[R](
+    reader: => ZIO[R, IOException, Reader],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R with Blocking, IOException, Char] =
+    fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())), chunkSize)
 
   /**
    * Creates a stream from managed [[java.io.Reader]].
    */
-  def fromReaderManaged[R](reader: => ZManaged[R, IOException, Reader]): ZStream[R with Blocking, IOException, Char] =
-    ZStream.managed(reader).flatMap(fromReader(_))
+  def fromReaderManaged[R](
+    reader: => ZManaged[R, IOException, Reader],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R with Blocking, IOException, Char] =
+    ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
 
   /**
    * Creates a stream from a Java stream
