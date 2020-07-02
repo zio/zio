@@ -1,10 +1,10 @@
 package zio.stream
 
+import java.io.{ FileReader, IOException, Reader }
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{ Files, NoSuchFileException, Paths }
 import java.nio.{ Buffer, ByteBuffer }
-import java.io.{ FileReader, IOException, Reader }
 
 import scala.concurrent.ExecutionContext.global
 
