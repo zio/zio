@@ -3609,14 +3609,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * hence the name.
    */
   def paginateM[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
-    ZStream {
-      for {
-        ref <- Ref.make[Option[S]](Some(s)).toManaged_
-      } yield ref.get.flatMap {
-        case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s).as(Chunk.single(a)) })
-        case None    => Pull.end
-      }
-    }
+    paginateChunkM(s)(f(_).map { case (a, s) => Chunk.single(a) -> s })
 
   /**
    * Like [[unfoldChunkM]], but allows the emission of values to end one step further than
