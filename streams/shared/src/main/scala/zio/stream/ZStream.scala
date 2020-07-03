@@ -3612,6 +3612,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     paginateChunkM(s)(f(_).map { case (a, s) => Chunk.single(a) -> s })
 
   /**
+   * Similar to unfolding, but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
+  def paginateChunk[A, S](s: S)(f: S => (Chunk[A], Option[S])): ZStream[Any, Nothing, A] =
+    paginateChunkM(s)(s => ZIO.succeedNow(f(s)))
+
+  /**
    * Like [[unfoldChunkM]], but allows the emission of values to end one step further than
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
