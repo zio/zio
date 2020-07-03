@@ -3431,6 +3431,32 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runCollect
           )(equalTo(Chunk(0, 1, 2, 3)))
         },
+        testM("paginateChunk") {
+          val s        = (Chunk.single(0), List(1, 2, 3, 4, 5))
+          val pageSize = 2
+
+          assertM(
+            ZStream
+              .paginateChunk(s) {
+                case (x, Nil) => x -> None
+                case (x, xs)  => x -> Some(Chunk.fromIterable(xs.take(pageSize)) -> xs.drop(pageSize))
+              }
+              .runCollect
+          )(equalTo(Chunk(0, 1, 2, 3, 4, 5)))
+        },
+        testM("paginateChunkM") {
+          val s        = (Chunk.single(0), List(1, 2, 3, 4, 5))
+          val pageSize = 2
+
+          assertM(
+            ZStream
+              .paginateChunkM(s) {
+                case (x, Nil) => ZIO.succeed(x -> None)
+                case (x, xs)  => ZIO.succeed(x -> Some(Chunk.fromIterable(xs.take(pageSize)) -> xs.drop(pageSize)))
+              }
+              .runCollect
+          )(equalTo(Chunk(0, 1, 2, 3, 4, 5)))
+        },
         testM("range") {
           val right = Chunk.fromIterable(Range(0, 10))
           val left  = ZStream.range(0, 10).runCollect
