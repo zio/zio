@@ -1,5 +1,6 @@
 package zio.stream
 
+import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 
 import scala.collection.mutable
@@ -560,6 +561,52 @@ object ZTransducer {
   def last[O]: ZTransducer[Any, Nothing, O, Option[O]] =
     foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
 
+  def magicSequence[R, E, I, O](n: Int)(f: Chunk[I] => ZTransducer[R, E, I, O]): ZTransducer[R, E, I, O] =
+    ZTransducer {
+      sealed trait State
+      object State {
+        final case class Collecting(data: Chunk[I]) extends State
+        final case class Emitting(finalizer: ZManaged.Finalizer, push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]])
+            extends State
+        val initial = Collecting(Chunk.empty)
+      }
+
+      val toCollect = Math.max(0, n)
+
+      ZManaged.scope.flatMap { scope =>
+        ZRefM.makeManaged[State](State.initial).map { stateRef =>
+          {
+            case None =>
+              stateRef.getAndSet(State.initial).flatMap {
+                case State.Emitting(finalizer, push) =>
+                  push(None) <* finalizer(Exit.unit)
+                case _ =>
+                  ZIO.succeedNow(Chunk.empty)
+              }
+            case Some(data) =>
+              stateRef.modify {
+                case s @ State.Emitting(_, push) =>
+                  push(Some(data)).map((_, s))
+                case s @ State.Collecting(collected) =>
+                  if (data.isEmpty) ZIO.succeedNow((Chunk.empty, s))
+                  else {
+                    val remaining = toCollect - collected.length
+                    if (remaining <= data.length) {
+                      val (newCollected, remainder) = data.splitAt(remaining)
+                      scope(f(collected ++ newCollected).push).flatMap {
+                        case (finalizer, push) =>
+                          push(Some(remainder)).map((_, State.Emitting(finalizer, push)))
+                      }
+                    } else {
+                      ZIO.succeedNow((Chunk.empty, State.Collecting(collected ++ data)))
+                    }
+                  }
+              }
+          }
+        }
+      }
+    }
+
   /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
@@ -715,7 +762,7 @@ object ZTransducer {
           case None =>
             stateRef.getAndSet(Chunk.empty).flatMap { leftovers =>
               if (leftovers.isEmpty) ZIO.succeedNow(Chunk.empty)
-              else ZIO.succeedNow(Chunk.single(new String(leftovers.toArray[Byte], "UTF-8")))
+              else ZIO.succeedNow(Chunk.single(new String(leftovers.toArray[Byte], StandardCharsets.UTF_8)))
             }
 
           case Some(bytes) =>
@@ -726,6 +773,64 @@ object ZTransducer {
 
               if (toConvert.isEmpty) (Chunk.empty, newLeftovers.materialize)
               else (Chunk.single(new String(toConvert.toArray[Byte], "UTF-8")), newLeftovers.materialize)
+            }
+        }
+      }
+    }
+
+  /**
+   * Decodes chunks of UTF-16 bytes into strings.
+   *
+   * This will fail with an `IllegalArgumentException` if no byte order mark was found and will
+   * use the error handling behavior of the endian-specific decoder otherwise.
+   */
+  val utf16Decode: ZTransducer[Any, IllegalArgumentException, Byte, String] =
+    magicSequence(2) { bytes =>
+      bytes.toList match {
+        case -2 :: -1 :: Nil =>
+          utf16BEDecode
+        case -1 :: -2 :: Nil =>
+          utf16LEDecode
+        case xs =>
+          fail(new IllegalArgumentException(s"Not a valid magic sequence ${xs.mkString(", ")}"))
+      }
+    }
+
+  /**
+   * Decodes chunks of UTF-16 bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val utf16BEDecode: ZTransducer[Any, Nothing, Byte, String] =
+    utf16Decode(StandardCharsets.UTF_16BE)
+
+  /**
+   * Decodes chunks of UTF-16 bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val utf16LEDecode: ZTransducer[Any, Nothing, Byte, String] =
+    utf16Decode(StandardCharsets.UTF_16LE)
+
+  private def utf16Decode(charset: Charset): ZTransducer[Any, Nothing, Byte, String] =
+    ZTransducer {
+      ZRef.makeManaged[Option[Byte]](None).map { stateRef =>
+        {
+          case None =>
+            // should we raise an error here if we have leftovers?
+            stateRef.set(None) *> ZIO.succeedNow(Chunk.empty)
+          case Some(bytes) =>
+            stateRef.modify { old =>
+              val data = old.fold(bytes)(_ +: bytes)
+              if (data.length % 2 == 0) {
+                val decoded = new String(data.toArray, charset)
+                (Chunk.single(decoded), None)
+              } else {
+                val decoded = new String(data.init.toArray, charset)
+                (Chunk.single(decoded), Some(data.last))
+              }
             }
         }
       }

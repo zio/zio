@@ -460,7 +460,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         }
       ),
-      suite("iso8859_1")(
+      suite("iso_8859_1")(
         testM("ISO-8859-1 strings")(checkM(Gen.iso_8859_1) { s =>
           ZTransducer.iso_8859_1Decode.push.use { push =>
             for {
@@ -469,6 +469,73 @@ object ZTransducerSpec extends ZIOBaseSpec {
             } yield assert((part1 ++ part2).mkString)(equalTo(s))
           }
         })
+      ),
+      suite("utf16BEDecode")(
+        testM("regular strings") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16BEDecode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        }
+      ),
+      suite("utf16FEDecode")(
+        testM("regular strings") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16LEDecode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        }
+      ),
+      suite("utf16Decode")(
+        testM("regular strings") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        },
+        testM("no magic sequence") {
+          checkM(Gen.anyString.filter(_.nonEmpty)) { s =>
+            val test = ZTransducer.utf16Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
+                part2 <- push(None)
+              } yield (part1 ++ part2).mkString
+            }
+            assertM(test.run)(fails(anything))
+          }
+        },
+        testM("big endian") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk[Byte](-2, -1) ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        },
+        testM("little endian") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk[Byte](-1, -2) ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        }
       )
     )
   )
