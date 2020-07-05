@@ -166,9 +166,15 @@ private[compression] class Gunzipper private (bufferSize: Int) {
     }
   }
 
+  private def u8(b: Byte): Int = b & 0xff
+
+  private def u16(b1: Byte, b2: Byte): Int = u8(b1) | (u8(b2) << 8)
+
+  private def u32(b1: Byte, b2: Byte, b3: Byte, b4: Byte) = u16(b1, b2) | (u16(b3, b4) << 16)
+
 }
 
-private[compression] object Gunzipper {
+private[stream] object Gunzipper {
 
   private val fixedHeaderLength = 10
 

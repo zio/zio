@@ -7,7 +7,7 @@ import java.util.zip.{ Deflater, DeflaterInputStream, GZIPOutputStream }
 import TestData._
 
 import zio._
-import zio.stream.compression.{ gunzip, inflate }
+import zio.stream.ZTransducer.{ gunzip, inflate }
 import zio.test.Assertion._
 import zio.test._
 
