@@ -792,7 +792,7 @@ object ZTransducer {
         case -1 :: -2 :: Nil =>
           utf16LEDecode
         case xs =>
-          fail(new IllegalArgumentException(s"Not a valid magic sequence ${xs.mkString(", ")}"))
+          fail(new IllegalArgumentException(s"Not a valid byte order mark ${xs.mkString(", ")}"))
       }
     }
 
@@ -819,8 +819,10 @@ object ZTransducer {
       ZRef.makeManaged[Option[Byte]](None).map { stateRef =>
         {
           case None =>
-            // should we raise an error here if we have leftovers?
-            stateRef.set(None) *> ZIO.succeedNow(Chunk.empty)
+            stateRef.getAndSet(None).flatMap { leftovers =>
+              if (leftovers.isEmpty) ZIO.succeedNow(Chunk.empty)
+              else ZIO.succeedNow(Chunk.single(new String(leftovers.toArray[Byte], charset)))
+            }
           case Some(bytes) =>
             stateRef.modify { old =>
               val data = old.fold(bytes)(_ +: bytes)
