@@ -1462,7 +1462,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * still preserving them.
    */
   def flattenChunks[O1](implicit ev: O <:< Chunk[O1]): ZStream[R, E, O1] =
-    mapConcatChunk(ev)
+    ZStream {
+      self.process
+        .mapM(BufferedPull.make(_))
+        .map(_.pullElement.map(ev(_)))
+    }
 
   /**
    * Flattens a stream of streams into a stream by executing a non-deterministic
