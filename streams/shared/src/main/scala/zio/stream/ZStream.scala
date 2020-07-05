@@ -1465,7 +1465,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream {
       self.process
         .mapM(BufferedPull.make(_))
-        .map(_.pullElement.map(ev(_)))
+        .map(_.pullElement.map(ev))
     }
 
   /**
