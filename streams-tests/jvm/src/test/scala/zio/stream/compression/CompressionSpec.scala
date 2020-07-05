@@ -105,10 +105,15 @@ object CompressionSpec extends DefaultRunnableSpec {
             Stream.fromIterable(1 to 10).map(_.toByte).transduce(gunzip()).runCollect.run
           )(fails(anything))
         ),
-        testM("no output on very incomplete stream is OK")(
+        testM("fail if input stream finished unexpected")(
           assertM(
-            Stream.fromIterable(1 to 5).map(_.toByte).transduce(gunzip()).runCollect
-          )(isEmpty)
+            gzippedStream(longText).take(80).transduce(gunzip()).runCollect.run
+          )(fails(anything))
+        ),
+        testM("no output on very incomplete stream is not OK")(
+          assertM(
+            Stream.fromIterable(1 to 5).map(_.toByte).transduce(gunzip()).runCollect.run
+          )(fails(anything))
         ),
         testM("gunzip what JDK gzipped, nowrap")(
           checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {

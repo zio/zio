@@ -15,11 +15,6 @@ private[compression] class Gunzipper private (bufferSize: Int) {
 
   private var state: State = new ParseHeaderStep(Array.emptyByteArray, new CRC32)
 
-  def reset(): Unit = {
-    state.close()
-    state = new ParseHeaderStep(Array.emptyByteArray, new CRC32)
-  }
-
   def close(): Unit = state.close()
 
   def onChunk(c: Chunk[Byte]): ZIO[Any, CompressionException, Chunk[Byte]] =
@@ -31,6 +26,10 @@ private[compression] class Gunzipper private (bufferSize: Int) {
       case e: ju.zip.DataFormatException => CompressionException(e)
       case e: CompressionException       => e
     }
+
+  def onNone: ZIO[Any, CompressionException, Chunk[Byte]] =
+    if (state.isInProgress) ZIO.fail(CompressionException("Stream closed before completion."))
+    else ZIO.effectTotal(Chunk.empty)
 
   private def nextStep(
     acc: Array[Byte],
@@ -67,6 +66,8 @@ private[compression] class Gunzipper private (bufferSize: Int) {
         }
       }
     }
+
+    override def isInProgress: Boolean = acc.nonEmpty
   }
 
   private class ParseExtraStep(acc: Array[Byte], crc32: CRC32, checkCrc16: Boolean, commentsToSkip: Int) extends State {
@@ -153,9 +154,9 @@ private[compression] class Gunzipper private (bufferSize: Int) {
 
     override def feed(chunkBytes: Array[Byte]): (State, Chunk[Byte]) = {
       val bytes = acc ++ chunkBytes
-      if (bytes.length < 8) ((this, Chunk.empty)) // need more input
+      if (bytes.length < 8)
+        ((new CheckTrailerStep(bytes, expectedCrc32, expectedIsize), Chunk.empty)) // need more input
       else {
-        reset()
         val (trailerBytes, leftover) = bytes.splitAt(8)
         val crc32                    = readInt(trailerBytes.take(4))
         val isize                    = readInt(trailerBytes.drop(4))
@@ -181,6 +182,7 @@ private[stream] object Gunzipper {
   private sealed trait State {
     def close(): Unit = ()
     def feed(chunkBytes: Array[Byte]): (State, Chunk[Byte])
+    def isInProgress: Boolean = true
   }
 
   def make(bufferSize: Int): ZIO[Any, Nothing, Gunzipper] = ZIO.succeed(new Gunzipper(bufferSize))

@@ -525,11 +525,7 @@ trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
         .make(Gunzipper.make(bufferSize))(gunzipper => ZIO.effectTotal(gunzipper.close()))
         .map { gunzipper =>
           {
-            case None =>
-              ZIO.effectTotal {
-                gunzipper.reset()
-                Chunk.empty
-              }
+            case None        => gunzipper.onNone
             case Some(chunk) => gunzipper.onChunk(chunk)
           }
         }
