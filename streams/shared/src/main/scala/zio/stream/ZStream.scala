@@ -1261,7 +1261,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Emits elements of this stream with a fixed delay in between, regardless of how long it
    * takes to produce a value.
    */
-  final def fixed[R1 <: R](duration: Duration): ZStream[R1 with Clock, E, O] =
+  final def fixed(duration: Duration): ZStream[R with Clock, E, O] =
     scheduleElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
       case Right(x) => x
     }
