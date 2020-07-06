@@ -47,11 +47,12 @@ private[compression] class Gunzipper private (bufferSize: Int) {
 
     //TODO: If whole input is shorther than fixed header, not output is produced and no error is singaled. Is it ok?
     override def feed(chunkBytes: Array[Byte]): (State, Chunk[Byte]) = {
-      crc32.update(chunkBytes)
+
       val bytes = acc ++ chunkBytes
       if (bytes.length < fixedHeaderLength) (new ParseHeaderStep(bytes, crc32), Chunk.empty)
       else {
         val (header, leftover) = bytes.splitAt(fixedHeaderLength)
+        crc32.update(header)
         if (u8(header(0)) != 31 || u8(header(1)) != 139) throw CompressionException("Invalid GZIP header")
         else if (header(2) != 8)
           throw CompressionException(s"Only deflate (8) compression method is supported, present: ${header(2)}")
@@ -73,17 +74,18 @@ private[compression] class Gunzipper private (bufferSize: Int) {
   private class ParseExtraStep(acc: Array[Byte], crc32: CRC32, checkCrc16: Boolean, commentsToSkip: Int) extends State {
 
     override def feed(chunkBytes: Array[Byte]): (State, Chunk[Byte]) = {
-      crc32.update(chunkBytes)
       val bytes = acc ++ chunkBytes
       if (bytes.length < 12) {
         (new ParseExtraStep(bytes, crc32, checkCrc16, commentsToSkip), Chunk.empty)
       } else {
+        val xlenLenght            = 2
         val extraBytes: Int       = u16(bytes(fixedHeaderLength), bytes(fixedHeaderLength + 1))
-        val headerWithExtraLength = fixedHeaderLength + extraBytes
+        val headerWithExtraLength = fixedHeaderLength + xlenLenght + extraBytes
         if (bytes.length < headerWithExtraLength)
           (new ParseExtraStep(bytes, crc32, checkCrc16, commentsToSkip), Chunk.empty)
         else {
           val (headerWithExtra, leftover) = bytes.splitAt(headerWithExtraLength)
+          crc32.update(headerWithExtra.drop(fixedHeaderLength))
           nextStep(headerWithExtra, checkCrc16, crc32, false, commentsToSkip).feed(leftover)
         }
       }
@@ -106,7 +108,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
       if (crc16Bytes.length < 2) {
         (new CheckCrc16Step(crc16Bytes, crcValue), Chunk.empty)
       } else {
-        val computedCrc16 = crcValue.toInt & 0xffff
+        val computedCrc16 = (crcValue & 0xFFFFL).toInt
         val expectedCrc   = u16(crc16Bytes(0), crc16Bytes(1))
         if (computedCrc16 != expectedCrc) throw CompressionException("Invalid header CRC16")
         else new Decompress().feed(leftover)

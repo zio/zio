@@ -469,10 +469,15 @@ trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
         .map {
           case (buffer, inflater) => {
             case None =>
-              ZIO.effectTotal {
-                //No need to pull, because after `pullAllOutput` there is nothing left in inflater.
-                inflater.reset()
-                Chunk.empty
+              ZIO.effect {
+                if (inflater.finished()) {
+                  inflater.reset()
+                  Chunk.empty
+                } else {
+                  throw CompressionException("Inflater is not finished when input stream completed")
+                }
+              }.refineOrDie {
+                case e: DataFormatException => CompressionException(e)
               }
             case Some(chunk) =>
               ZIO.effect {
@@ -506,7 +511,8 @@ trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
             // Impossible happened (aka programmer error). Die.
             throw new Exception("read = 0, remaining > 0, not finished")
           }
-        } else acc ++ current
+        } else if (read > 0) next(acc ++ current)
+        else acc ++ current
       }
       if (inflater.needsInput()) Chunk.empty else next(Chunk.empty)
     }
