@@ -2588,7 +2588,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("should handle empty chunks properly") {
             for {
-              fiber  <- ZStream(1, 2, 3).fixed[Any](500.millis).debounce(1.second).runCollect.fork
+              fiber  <- ZStream(1, 2, 3).fixed(500.millis).debounce(1.second).runCollect.fork
               _      <- TestClock.adjust(3.seconds)
               result <- fiber.join
             } yield assert(result)(equalTo(Chunk(3)))
