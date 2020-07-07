@@ -161,3 +161,24 @@ def tupleStreamReduce(total: Int, element: (Int, Int)) = {
 
 val reducedResult: UIO[Int] = zippedStream.run(Sink.foldLeft(0)(tupleStreamReduce))
 ```
+
+## Compressed streams
+
+### Decompression
+
+If you read `Content-Encoding: deflate`, `Content-Encoding: gzip` or streams other such streams of compressed data, following transducers can be helpful:
+* `inflate` transducer allows to decompress stream of _deflated_ inputs, according to [RFC 1951](https://tools.ietf.org/html/rfc1951).
+* `gunzip` transducer can be used to decompress stream of _gzipped_ inputs, according to [RFC 1952](https://tools.ietf.org/html/rfc1952).
+
+```scala mdoc:silent
+import zio.stream.ZStream
+import zio.stream.Transducer.{ gunzip, inflate }
+import zio.stream.compression.CompressionException
+
+val bufferSize: Int                       = ??? // Internal buffer size. Few times bigger than upstream chunks should work well.
+val noWrap: Boolean                       = ??? // For HTTP Content-Encoding should be false.
+val deflated: ZStream[Any, Nothing, Byte] = ???
+val inflated: ZStream[Any, CompressionException, Byte] = deflated.transduce(inflate(bufferSize, noWrap))
+val gzipped: ZStream[Any, Nothing, Byte] = ???
+val gunzipped: ZStream[Any, CompressionException, Byte] = deflated.transduce(gunzip(bufferSize))
+```
