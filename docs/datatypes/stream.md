@@ -175,10 +175,15 @@ import zio.stream.ZStream
 import zio.stream.Transducer.{ gunzip, inflate }
 import zio.stream.compression.CompressionException
 
-val bufferSize: Int                       = ??? // Internal buffer size. Few times bigger than upstream chunks should work well.
-val noWrap: Boolean                       = ??? // For HTTP Content-Encoding should be false.
-val deflated: ZStream[Any, Nothing, Byte] = ???
-val inflated: ZStream[Any, CompressionException, Byte] = deflated.transduce(inflate(bufferSize, noWrap))
-val gzipped: ZStream[Any, Nothing, Byte] = ???
-val gunzipped: ZStream[Any, CompressionException, Byte] = deflated.transduce(gunzip(bufferSize))
+def decompressDeflated(deflated: ZStream[Any, Nothing, Byte]): ZStream[Any, CompressionException, Byte] = {
+  val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
+  val noWrap: Boolean = false     // For HTTP Content-Encoding should be false.
+  deflated.transduce(inflate(bufferSize, noWrap))
+}
+
+def decompressGzipped(gzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, CompressionException, Byte] = {
+  val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
+  gzipped.transduce(gunzip(bufferSize))
+}
+
 ```
