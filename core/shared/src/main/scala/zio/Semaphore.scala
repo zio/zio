@@ -77,7 +77,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
         case Right(m) => IO.unit -> Right(m + n)
       })
 
-    if (n == 0)
+    if (n == 0L)
       IO.succeedNow(Acquisition(IO.unit, IO.unit))
     else
       Promise.make[Nothing, Unit].flatMap { p =>

@@ -608,6 +608,17 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.fail(ExampleError).someOrElse(42).commit.run)(fails(equalTo(ExampleError)))
         } @@ zioTag(errors)
       ),
+      suite("someOrElseM")(
+        testM("extracts the value from Some") {
+          assertM(STM.succeed(Some(1)).someOrElseM(STM.succeed(2)).commit)(equalTo(1))
+        },
+        testM("falls back to the default value if None") {
+          assertM(STM.succeed(None).someOrElseM(STM.succeed(42)).commit)(equalTo(42))
+        },
+        testM("does not change failed state") {
+          assertM(STM.fail(ExampleError).someOrElseM(STM.succeed(42)).commit.run)(fails(equalTo(ExampleError)))
+        } @@ zioTag(errors)
+      ),
       suite("someOrFail")(
         testM("extracts the value from Some") {
           assertM(STM.succeed(Some(1)).someOrFail(ExampleError).commit)(equalTo(1))

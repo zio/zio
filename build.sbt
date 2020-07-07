@@ -280,7 +280,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
   .settings(mainClass in (Test, run) := Some("zio.test.sbt.TestMain"))
-  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "1.1.0"))
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "1.1.1"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .dependsOn(core)
   .dependsOn(test)
@@ -327,10 +327,10 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"      % "2.4.2",
         "com.google.code.findbugs"  % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"     % "20.5.0",
+        "com.twitter"               %% "util-core"     % "20.6.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.6.6",
         "io.monix"                  %% "monix"         % "3.2.2",
-        "io.projectreactor"         % "reactor-core"   % "3.3.6.RELEASE",
+        "io.projectreactor"         % "reactor-core"   % "3.3.7.RELEASE",
         "io.reactivex.rxjava2"      % "rxjava"         % "2.2.19",
         "org.ow2.asm"               % "asm"            % "8.0.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
@@ -379,7 +379,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC11",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC12",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2"
     )
   )

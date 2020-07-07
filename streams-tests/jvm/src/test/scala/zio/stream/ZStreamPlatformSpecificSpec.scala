@@ -1,5 +1,6 @@
 package zio.stream
 
+import java.io.{ FileReader, IOException, Reader }
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{ Files, NoSuchFileException, Paths }
@@ -202,6 +203,39 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.run)(
             fails(isSubtype[NoSuchFileException](anything))
           )
+        }
+      ),
+      suite("fromReader")(
+        testM("reads non-empty file") {
+          Task(Files.createTempFile("stream", "reader")).bracket(path => UIO(Files.delete(path))) { path =>
+            for {
+              data <- UIO((0 to 100).mkString)
+              _    <- Task(Files.write(path, data.getBytes("UTF-8")))
+              read <- ZStream.fromReader(new FileReader(path.toString)).runCollect.map(_.mkString)
+            } yield assert(read)(equalTo(data))
+          }
+        },
+        testM("reads empty file") {
+          Task(Files.createTempFile("stream", "reader-empty")).bracket(path => UIO(Files.delete(path))) { path =>
+            ZStream
+              .fromReader(new FileReader(path.toString))
+              .runCollect
+              .map(_.mkString)
+              .map(assert(_)(isEmptyString))
+          }
+        },
+        testM("fails on a failing reader") {
+          final class FailingReader extends Reader {
+            def read(x: Array[Char], a: Int, b: Int): Int = throw new IOException("failed")
+
+            def close(): Unit = ()
+          }
+
+          ZStream
+            .fromReader(new FailingReader)
+            .runDrain
+            .run
+            .map(assert(_)(fails(isSubtype[IOException](anything))))
         }
       ),
       suite("fromSocketServer")(

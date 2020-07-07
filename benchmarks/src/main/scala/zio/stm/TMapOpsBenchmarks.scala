@@ -21,7 +21,7 @@ class TMapOpsBenchmarks {
   private var idx: Int            = _
   private var map: TMap[Int, Int] = _
 
-  // used to ammortize the relative cost of unsafeRun
+  // used to amortize the relative cost of unsafeRun
   // compared to benchmarked operations
   private val calls = (0 to 500).toList
 

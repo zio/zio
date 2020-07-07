@@ -236,7 +236,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
     self >>> ZLayer.fromFunctionMany(ev1.update[ROut, A](_, f))
 
   /**
-   * Combines this layer with the specified layer, prodicing a new layer that
+   * Combines this layer with the specified layer, producing a new layer that
    * has the inputs of both layers, and the outputs of both layers combined
    * into a tuple.
    */

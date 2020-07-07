@@ -1,5 +1,7 @@
 package zio.stream
 
+import java.nio.charset.StandardCharsets
+
 import scala.io.Source
 
 import zio._
@@ -74,6 +76,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
         },
         testM("doesn't emit empty trailing chunks") {
           assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3))))(equalTo(Chunk(List(1, 2, 3))))
+        },
+        testM("emits chunks when exactly N elements received") {
+          ZTransducer.collectAllN[Int](4).push.use { push =>
+            push(Some(Chunk(1, 2, 3, 4))).map(result => assert(result)(equalTo(Chunk(List(1, 2, 3, 4)))))
+          }
         }
       ),
       suite("collectAllToMapN")(
@@ -452,6 +459,16 @@ object ZTransducerSpec extends ZIOBaseSpec {
             )
           }
         }
+      ),
+      suite("iso8859_1")(
+        testM("ISO-8859-1 strings")(checkM(Gen.iso_8859_1) { s =>
+          ZTransducer.iso_8859_1Decode.push.use { push =>
+            for {
+              part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.ISO_8859_1))))
+              part2 <- push(None)
+            } yield assert((part1 ++ part2).mkString)(equalTo(s))
+          }
+        })
       )
     )
   )

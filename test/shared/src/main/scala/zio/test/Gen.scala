@@ -16,6 +16,7 @@
 
 package zio.test
 
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 import scala.collection.immutable.SortedMap
@@ -477,6 +478,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         effect.map(Sample.shrinkIntegral(min))
       }
     }
+
+  /**
+   *  A generator of strings that can be encoded in the ISO-8859-1 character set.
+   */
+  val iso_8859_1: Gen[Random with Sized, String] =
+    chunkOf(anyByte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
 
   /**
    * A sized generator that uses a uniform distribution of size values. A large

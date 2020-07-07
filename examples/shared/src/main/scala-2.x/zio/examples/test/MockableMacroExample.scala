@@ -3,7 +3,7 @@ package zio.examples.test
 import zio.test.mock.mockable
 import zio.{ IO, Tag, Task, UIO, URIO }
 
-object DiffrentScopeExample {
+object DifferentScopeExample {
 
   trait Foo { val value: String }
   case class Bar(value: String) extends Foo
@@ -30,5 +30,5 @@ object DiffrentScopeExample {
   }
 }
 
-@mockable[DiffrentScopeExample.Service]
+@mockable[DifferentScopeExample.Service]
 object MockableMacroExample
