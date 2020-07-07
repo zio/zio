@@ -1465,8 +1465,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream {
       self.process
         .mapM(BufferedPull.make(_))
-        .map(_.pullElement.map(ev(_)))
+        .map(_.pullElement.map(ev))
     }
+
+  /**
+   * Submerges the iterables carried by this stream into the stream's structure, while
+   * still preserving them.
+   */
+  def flattenIterable[O1](implicit ev: O <:< Iterable[O1]): ZStream[R, E, O1] =
+    map(o => Chunk.fromIterable(ev(o))).flattenChunks
 
   /**
    * Flattens a stream of streams into a stream by executing a non-deterministic
