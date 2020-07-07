@@ -3755,14 +3755,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`
    */
-  def unfold[S, A](s: S)(f0: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
-    unfoldM(s)(s => ZIO.succeedNow(f0(s)))
+  def unfold[S, A](s: S)(f: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
+    unfoldM(s)(s => ZIO.succeedNow(f(s)))
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
-  def unfoldM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
-    unfoldChunkM(s)(f0(_).map(_.map {
+  def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
+    unfoldChunkM(s)(f(_).map(_.map {
       case (a, s) => Chunk.single(a) -> s
     }))
 
@@ -3775,7 +3775,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
-  def unfoldChunkM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(Chunk[A], S)]]): ZStream[R, E, A] =
+  def unfoldChunkM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(Chunk[A], S)]]): ZStream[R, E, A] =
     ZStream {
       for {
         done <- Ref.make(false).toManaged_
@@ -3784,7 +3784,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           if (_) Pull.end
           else {
             ref.get
-              .flatMap(f0)
+              .flatMap(f)
               .foldM(
                 Pull.fail,
                 opt =>
