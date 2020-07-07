@@ -1333,8 +1333,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
-        testM("flattenIterable")(checkM(tinyListOf(tinyListOf(Gen.anyInt))) { lists =>
-          assertM(ZStream.fromIterable(lists).flattenIterable.runCollect)(equalTo(Chunk.fromIterable(lists.flatten)))
+        testM("flattenIterables")(checkM(tinyListOf(tinyListOf(Gen.anyInt))) { lists =>
+          assertM(ZStream.fromIterable(lists).flattenIterables.runCollect)(equalTo(Chunk.fromIterable(lists.flatten)))
         }),
         suite("flattenTake")(
           testM("happy path")(checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
