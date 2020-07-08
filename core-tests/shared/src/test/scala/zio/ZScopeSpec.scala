@@ -43,7 +43,7 @@ object ZScopeSpec extends ZIOBaseSpec {
         open  <- ZScope.make[Unit]
         value <- open.scope.ensure(_ => IO.unit)
         empty <- open.scope.empty
-      } yield assert(empty)(isFalse) && assert(value)(isSome(anything))
+      } yield assert(empty)(isFalse) && assert(value)(isRight(anything))
     },
     testM("ensure on closed scope returns false") {
       for {
@@ -51,7 +51,7 @@ object ZScopeSpec extends ZIOBaseSpec {
         _     <- open.close(())
         value <- open.scope.ensure(_ => IO.unit)
         empty <- open.scope.empty
-      } yield assert(empty)(isTrue) && assert(value)(isNone)
+      } yield assert(empty)(isTrue) && assert(value)(isLeft(anything))
     },
     testScope("one finalizer", 0)((ref, scope) => scope.ensure(_ => ref.update(_ + 1)) as 1),
     suite("finalizer removal")(
@@ -60,7 +60,7 @@ object ZScopeSpec extends ZIOBaseSpec {
           ref  <- Ref.make[Int](0)
           open <- ZScope.make[Unit]
           key  <- open.scope.ensure(_ => ref.update(_ + 1))
-          _    <- key.fold[UIO[Any]](IO.unit)(_.remove)
+          _    <- key.fold[UIO[Any]](_ => IO.unit, _.remove)
           _    <- open.close(())
           v    <- ref.get
         } yield assert(v)(equalTo(0))

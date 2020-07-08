@@ -282,17 +282,17 @@ object FailureRenderer {
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Message =
     failureDetails match {
       case Some(details) =>
-        val shrinked = details.shrinkedInput.toString
+        val shrunken = details.shrunkenInput.toString
         val initial  = details.initialInput.toString
-        val renderShrinked = withOffset(offset + tabSize)(
+        val renderShrunken = withOffset(offset + tabSize)(
           Fragment(
             s"Test failed after ${details.iterations + 1} iteration${if (details.iterations > 0) "s" else ""} with input: "
           ) +
-            red(shrinked)
+            red(shrunken)
         )
-        if (initial == shrinked) renderShrinked.toMessage
+        if (initial == shrunken) renderShrunken.toMessage
         else
-          renderShrinked + withOffset(offset + tabSize)(
+          renderShrunken + withOffset(offset + tabSize)(
             Fragment(s"Original input before shrinking was: ") + red(initial)
           )
       case None => Message.empty
@@ -401,27 +401,27 @@ object FailureRenderer {
         case Nil =>
           lines
 
-        case (ident, Expectation.And(children, false, _, _, _)) :: tail =>
+        case (ident, Expectation.And(children, state, _, _)) :: tail if state.isFailed =>
           val title       = Line.fromString("in any order", ident)
-          val unsatisfied = children.filter(!_.satisfied).map(ident + tabSize -> _)
+          val unsatisfied = children.filter(_.state.isFailed).map(ident + tabSize -> _)
           loop(unsatisfied ++ tail, lines :+ title)
 
-        case (ident, Expectation.Call(method, assertion, _, false, _, _)) :: tail =>
+        case (ident, Expectation.Call(method, assertion, _, state, _)) :: tail if state.isFailed =>
           val rendered =
             withOffset(ident)(Fragment(s"$method with arguments ") + cyan(assertion.toString))
           loop(tail, lines :+ rendered)
 
-        case (ident, Expectation.Chain(children, false, _, _, _)) :: tail =>
+        case (ident, Expectation.Chain(children, state, _, _)) :: tail if state.isFailed =>
           val title       = Line.fromString("in sequential order", ident)
-          val unsatisfied = children.filter(!_.satisfied).map(ident + tabSize -> _)
+          val unsatisfied = children.filter(_.state.isFailed).map(ident + tabSize -> _)
           loop(unsatisfied ++ tail, lines :+ title)
 
-        case (ident, Expectation.Or(children, false, _, _, _)) :: tail =>
+        case (ident, Expectation.Or(children, state, _, _)) :: tail if state.isFailed =>
           val title       = Line.fromString("one of", ident)
           val unsatisfied = children.map(ident + tabSize -> _)
           loop(unsatisfied ++ tail, lines :+ title)
 
-        case (ident, Expectation.Repeated(child, range, false, _, _, _, completed)) :: tail =>
+        case (ident, Expectation.Repeated(child, range, state, _, _, completed)) :: tail if state.isFailed =>
           val min = Try(range.min.toString).getOrElse("0")
           val max = Try(range.max.toString).getOrElse("∞")
           val title =

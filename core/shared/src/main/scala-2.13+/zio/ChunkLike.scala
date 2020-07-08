@@ -98,7 +98,7 @@ trait ChunkLike[+A]
   /**
    * Returns a `SeqFactory` that can construct `Chunk` values. The
    * `SeqFactory` exposes a `newBuilder` method that is not referentially
-   * transparent beacuse it allocates mutable state.
+   * transparent because it allocates mutable state.
    */
   override val iterableFactory: SeqFactory[Chunk] =
     ChunkLike

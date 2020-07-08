@@ -15,7 +15,7 @@ You can map over the success channel of an effect by calling the `ZIO#map` metho
 ```scala mdoc:silent
 import zio._
 
-val succeded: UIO[Int] = IO.succeed(21).map(_ * 2)
+val succeeded: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```
 
 You can map over the error channel of an effect by calling the `ZIO#mapError` method. This lets you transform the failure values of effects.

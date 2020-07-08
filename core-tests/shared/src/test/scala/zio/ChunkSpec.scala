@@ -102,6 +102,10 @@ object ChunkSpec extends ZIOBaseSpec {
           val expected = (as ++ bs).length
           assert(actual)(equalTo(expected))
         }
+      },
+      zio.test.test("returns most specific type") {
+        val seq = (zio.Chunk("foo"): Seq[String]) :+ "post1"
+        assert(seq)(isSubtype[Chunk[String]](equalTo(Chunk("foo", "post1"))))
       }
     ),
     suite("prepend")(
@@ -149,6 +153,10 @@ object ChunkSpec extends ZIOBaseSpec {
           val expected = (as ++ bs).length
           assert(actual)(equalTo(expected))
         }
+      },
+      zio.test.test("returns most specific type") {
+        val seq = "pre1" +: (zio.Chunk("foo"): Seq[String])
+        assert(seq)(isSubtype[Chunk[String]](equalTo(Chunk("pre1", "foo"))))
       }
     ),
     testM("apply") {
@@ -502,6 +510,11 @@ object ChunkSpec extends ZIOBaseSpec {
       val n  = 100000
       val as = List.range(0, n).foldRight[Chunk[Int]](Chunk.empty)((a, as) => Chunk(a) ++ as)
       assert(as.toArray)(equalTo(Array.range(0, n)))
+    },
+    zio.test.test("toArray does not throw ClassCastException") {
+      val chunk = Chunk("a")
+      val array = chunk.toArray
+      assert(array)(anything)
     }
   )
 }

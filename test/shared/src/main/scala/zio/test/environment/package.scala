@@ -402,7 +402,7 @@ package object environment extends PlatformSpecific {
                 .foreach(refs)(_.get)
                 .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
                 .map(_.filter(_.id != descriptor.id))
-          } //.tap(result => UIO(println("TestClock got fibers equal to " + result)))
+          }
         }
 
       /**
@@ -535,7 +535,7 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.timeZone)
 
     /**
-     * `Data` represents the state of the `TestClock`, incuding the clock time
+     * `Data` represents the state of the `TestClock`, including the clock time
      * and time zone.
      */
     final case class Data(

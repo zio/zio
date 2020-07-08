@@ -25,7 +25,7 @@ import zio.{ IO, Tag, URIO, ZIO }
  */
 object PureModule {
 
-  // Workaround for izumi.reflect.Tag any-kindedness (probably?)  causing `Any` to be inferred on dotty
+  // Workaround for izumi.reflect.Tag any-kindness (probably?)  causing `Any` to be inferred on dotty
   final class NotAnyKind[A](private val dummy: Boolean = false) extends AnyVal
   object NotAnyKind {
     // for some reason a ClassTag search is required, an arbitrary type like Set[A] doesn't fix inference
