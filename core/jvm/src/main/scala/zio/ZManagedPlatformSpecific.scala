@@ -29,31 +29,43 @@ private[zio] trait ZManagedPlatformSpecific {
     readFile(path.toString())
 
   def readFile(path: String): ZManaged[Blocking, IOException, ZInputStream] =
-    ZManaged.make(
-      effectBlocking(ZInputStream.fromInputStream(new io.FileInputStream(path)))
-        .refineToOrDie[IOException]
-    )(_.close())
+    ZManaged
+      .make(
+        effectBlockingIO {
+          val fis = new io.FileInputStream(path)
+          (fis, ZInputStream.fromInputStream(fis))
+        }
+      )(tuple => effectBlocking(tuple._1.close()).orDie)
+      .map(_._2)
 
   def readURL(url: URL): ZManaged[Blocking, IOException, ZInputStream] =
-    ZManaged.make(
-      effectBlocking(ZInputStream.fromInputStream(url.openStream()))
-        .refineToOrDie[IOException]
-    )(_.close())
+    ZManaged
+      .make(
+        effectBlockingIO {
+          val fis = url.openStream()
+          (fis, ZInputStream.fromInputStream(fis))
+        }
+      )(tuple => effectBlocking(tuple._1.close()).orDie)
+      .map(_._2)
 
   def readURL(url: String): ZManaged[Blocking, IOException, ZInputStream] =
-    ZManaged.fromEffect(ZIO.effect(new URL(url))).orDie.flatMap(readURL)
+    ZManaged.fromEffect(ZIO.effectTotal(new URL(url))).flatMap(readURL)
 
   def readURI(uri: URI): ZManaged[Blocking, IOException, ZInputStream] =
     for {
-      isAbsolute <- ZManaged.fromEffect(effectBlocking(uri.isAbsolute()).refineToOrDie[IOException])
+      isAbsolute <- ZManaged.fromEffect(effectBlockingIO(uri.isAbsolute()))
       is         <- if (isAbsolute) readURL(uri.toURL()) else readFile(uri.toString())
     } yield is
 
   def writeFile(path: String): ZManaged[Blocking, IOException, ZOutputStream] =
-    ZManaged.make(
-      effectBlocking(ZOutputStream.fromOutputStream(new io.FileOutputStream(path)))
-        .refineToOrDie[IOException]
-    )(_.close())
+    ZManaged
+      .make(
+        effectBlockingIO {
+          val fos = new io.FileOutputStream(path)
+          (fos, ZOutputStream.fromOutputStream(fos))
+        }
+      )(tuple => effectBlocking(tuple._1.close()).orDie)
+      .map(_._2)
 
   def writeFile(path: Path): ZManaged[Blocking, IOException, ZOutputStream] =
     writeFile(path.toString())

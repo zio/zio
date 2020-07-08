@@ -16,22 +16,4 @@
 
 package zio
 
-import java.io.IOException
-
-import zio.blocking.Blocking
-import zio.blocking.{ Blocking, _ }
-
-trait ZOutputStream {
-  def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit]
-}
-
-object ZOutputStream {
-
-  def fromOutputStream(os: java.io.OutputStream) = new ZOutputStream {
-    def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit] =
-      effectBlockingIO {
-        os.write(chunk.toArray)
-      }
-  }
-
-}
+private[zio] trait ZManagedPlatformSpecific

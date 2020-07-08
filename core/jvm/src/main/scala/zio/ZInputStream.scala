@@ -24,7 +24,6 @@ trait ZInputStream {
   def readN(n: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]]
   def skip(n: Long): ZIO[Blocking, IOException, Long]
   def readAll(bufferSize: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]]
-  def close(): ZIO[Blocking, Nothing, Unit]
 }
 
 object ZInputStream {
@@ -33,55 +32,38 @@ object ZInputStream {
     new ZInputStream {
 
       def readN(n: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]] =
-        (for {
-          bc <- effectBlocking {
-                 val b: Array[Byte] = new Array[Byte](n)
-                 val code           = is.read(b)
-                 (b, code)
-               }.refineToOrDie[IOException]
-          r <- bc match {
-                case (buf, rcode) =>
-                  rcode match {
-                    case -1 => ZIO.fail(None)
-                    case _  => ZIO.succeed(Chunk.fromArray(buf))
-                  }
-              }
-        } yield r).mapError {
+        effectBlockingIO {
+          val b: Array[Byte] = new Array[Byte](n)
+          val count          = is.read(b)
+          if (count == -1) ZIO.fail(None) else ZIO.succeed(Chunk.fromArray(b).take(count))
+        }.mapError {
           case e: IOException => Some(e)
-        }
+        }.flatten
 
       def skip(n: Long): ZIO[Blocking, IOException, Long] =
-        effectBlocking(is.skip(n)).refineToOrDie[IOException]
+        effectBlockingIO(is.skip(n))
 
       def readAll(bufferSize: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]] =
-        (for {
-          bdr <- effectBlocking {
-                  val buffer = new java.io.ByteArrayOutputStream();
-                  val data   = new Array[Byte](bufferSize);
-                  val nRead  = is.read(data, 0, data.length)
-                  (buffer, data, nRead)
-                }.refineToOrDie[IOException]
-          r <- bdr match {
-                case (buf, data, rcode) =>
-                  rcode match {
-                    case -1 => ZIO.fail(None)
-                    case _ =>
-                      effectBlocking {
-                        var nRead = rcode
-                        while (nRead != -1) {
-                          buf.write(data, 0, nRead);
-                          nRead = is.read(data, 0, data.length)
-                        }
-                        buf.flush()
-                        Chunk.fromArray(buf.toByteArray())
-                      }
-                  }
-              }
-        } yield r).mapError {
-          case e: IOException => Some(e)
-        }
+        effectBlockingIO {
+          val buffer = new java.io.ByteArrayOutputStream();
+          val idata  = new Array[Byte](bufferSize);
+          var count  = is.read(idata, 0, idata.length)
 
-      def close(): ZIO[Blocking, Nothing, Unit] =
-        effectBlocking(is.close()).orDie
+          if (count == -1) ZIO.fail(None)
+          else {
+            var countTotalBytes = 0
+            var data            = idata
+            while (count != -1) {
+              countTotalBytes = countTotalBytes + count
+              buffer.write(data, 0, count);
+              data = new Array[Byte](bufferSize)
+              count = is.read(data, 0, data.length)
+            }
+            ZIO.succeed(Chunk.fromArray(buffer.toByteArray()).take(countTotalBytes))
+          }
+        }.mapError {
+          case e: IOException => Some(e)
+        }.flatten
+
     }
 }

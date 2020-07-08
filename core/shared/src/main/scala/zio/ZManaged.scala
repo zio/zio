@@ -1122,7 +1122,7 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     }
 }
 
-object ZManaged {
+object ZManaged extends ZManagedPlatformSpecific {
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZManaged[R, Nothing, A] =
