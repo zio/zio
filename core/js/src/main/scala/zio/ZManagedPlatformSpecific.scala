@@ -16,4 +16,4 @@
 
 package zio
 
-private[zio] trait ZManagedPlatformSpecific {}
+private[zio] trait ZManagedPlatformSpecific
