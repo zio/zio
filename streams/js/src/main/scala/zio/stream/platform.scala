@@ -67,3 +67,5 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
 
 }
 trait StreamPlatformSpecificConstructors
+
+trait ZTransducerPlatformSpecificConstructors

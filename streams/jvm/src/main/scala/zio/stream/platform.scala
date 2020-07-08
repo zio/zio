@@ -7,10 +7,14 @@ import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketCh
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{ OpenOption, Path }
 import java.nio.{ Buffer, ByteBuffer }
+import java.util.zip.{ DataFormatException, Inflater }
 import java.{ util => ju }
+
+import scala.annotation.tailrec
 
 import zio._
 import zio.blocking.Blocking
+import zio.stream.compression.{ CompressionException, Gunzipper }
 
 trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
 
@@ -440,4 +444,96 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     def make(socket: AsynchronousSocketChannel): UManaged[Connection] =
       Managed.make(ZIO.succeed(new Connection(socket)))(_.close())
   }
+}
+
+trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
+
+  /**
+   * Decompresses deflated stream. Compression method is described in https://tools.ietf.org/html/rfc1951.
+   *
+   * @param noWrap  Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
+   *                For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+   * @param bufferSize Size of buffer used internally, affects performance.
+   **/
+  def inflate(
+    bufferSize: Int = 64 * 1024,
+    noWrap: Boolean = false
+  ): ZTransducer[Any, CompressionException, Byte, Byte] = {
+    def makeInflater(
+      bufferSize: Int
+    ): ZManaged[Any, Nothing, Option[zio.Chunk[Byte]] => ZIO[Any, CompressionException, Chunk[Byte]]] =
+      ZManaged
+        .make(ZIO.effectTotal((new Array[Byte](bufferSize), new Inflater(noWrap)))) {
+          case (_, inflater) => ZIO.effectTotal(inflater.end())
+        }
+        .map {
+          case (buffer, inflater) => {
+            case None =>
+              ZIO.effect {
+                if (inflater.finished()) {
+                  inflater.reset()
+                  Chunk.empty
+                } else {
+                  throw CompressionException("Inflater is not finished when input stream completed")
+                }
+              }.refineOrDie {
+                case e: DataFormatException => CompressionException(e)
+              }
+            case Some(chunk) =>
+              ZIO.effect {
+                inflater.setInput(chunk.toArray)
+                pullAllOutput(inflater, buffer, chunk)
+              }.refineOrDie {
+                case e: DataFormatException => CompressionException(e)
+              }
+          }
+        }
+
+    // Pulls all available output from the inflater.
+    def pullAllOutput(
+      inflater: Inflater,
+      buffer: Array[Byte],
+      input: Chunk[Byte]
+    ): Chunk[Byte] = {
+      @tailrec
+      def next(acc: Chunk[Byte]): Chunk[Byte] = {
+        val read      = inflater.inflate(buffer)
+        val remaining = inflater.getRemaining()
+        val current   = Chunk.fromArray(ju.Arrays.copyOf(buffer, read))
+        if (remaining > 0) {
+          if (read > 0) next(acc ++ current)
+          else if (inflater.finished()) {
+            val leftover = input.takeRight(remaining)
+            inflater.reset()
+            inflater.setInput(leftover.toArray)
+            next(acc ++ current)
+          } else {
+            // Impossible happened (aka programmer error). Die.
+            throw new Exception("read = 0, remaining > 0, not finished")
+          }
+        } else if (read > 0) next(acc ++ current)
+        else acc ++ current
+      }
+      if (inflater.needsInput()) Chunk.empty else next(Chunk.empty)
+    }
+
+    ZTransducer(makeInflater(bufferSize))
+  }
+
+  /**
+   * Decompresses gzipped stream. Compression method is described in https://tools.ietf.org/html/rfc1952.
+   *
+   * @param bufferSize Size of buffer used internally, affects performance.
+   **/
+  def gunzip(bufferSize: Int = 64 * 1024): ZTransducer[Any, CompressionException, Byte, Byte] =
+    ZTransducer(
+      ZManaged
+        .make(Gunzipper.make(bufferSize))(gunzipper => ZIO.effectTotal(gunzipper.close()))
+        .map { gunzipper =>
+          {
+            case None        => gunzipper.onNone
+            case Some(chunk) => gunzipper.onChunk(chunk)
+          }
+        }
+    )
 }
