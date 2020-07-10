@@ -470,6 +470,82 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         })
       ),
+      suite("branchAfter")(
+        testM("switches transducers") {
+          checkM(Gen.chunkOf(Gen.anyInt)) { data =>
+            val test =
+              ZStream
+                .fromChunk(0 +: data)
+                .transduce {
+                  ZTransducer.branchAfter(1) { values =>
+                    values.toList match {
+                      case 0 :: Nil => ZTransducer.identity
+                      case _        => ZTransducer.fail("boom")
+                    }
+                  }
+                }
+                .runCollect
+            assertM(test.run)(succeeds(equalTo(data)))
+          }
+        },
+        testM("finalizes transducers") {
+          checkM(Gen.chunkOf(Gen.anyInt)) {
+            data =>
+              val test =
+                Ref.make(0).flatMap { ref =>
+                  ZStream
+                    .fromChunk(data)
+                    .transduce {
+                      ZTransducer.branchAfter(1) { values =>
+                        values.toList match {
+                          case _ =>
+                            ZTransducer {
+                              Managed.make(
+                                ref
+                                  .update(_ + 1)
+                                  .as[Option[Chunk[Int]] => UIO[Chunk[Int]]]({
+                                    case None    => ZIO.succeedNow(Chunk.empty)
+                                    case Some(c) => ZIO.succeedNow(c)
+                                  })
+                              )(_ => ref.update(_ - 1))
+                            }
+                        }
+                      }
+                    }
+                    .runDrain *> ref.get
+                }
+              assertM(test.run)(succeeds(equalTo(0)))
+          }
+        },
+        testM("finalizes transducers - inner transducer fails") {
+          checkM(Gen.chunkOf(Gen.anyInt)) { data =>
+            val test =
+              Ref.make(0).flatMap { ref =>
+                ZStream
+                  .fromChunk(data)
+                  .transduce {
+                    ZTransducer.branchAfter(1) { values =>
+                      values.toList match {
+                        case _ =>
+                          ZTransducer {
+                            Managed.make(
+                              ref
+                                .update(_ + 1)
+                                .as[Option[Chunk[Int]] => IO[String, Chunk[Int]]]({
+                                  case _ => ZIO.fail("boom")
+                                })
+                            )(_ => ref.update(_ - 1))
+                          }
+                      }
+                    }
+                  }
+                  .runDrain
+                  .ignore *> ref.get
+              }
+            assertM(test.run)(succeeds(equalTo(0)))
+          }
+        }
+      ),
       suite("utf16BEDecode")(
         testM("regular strings") {
           checkM(Gen.anyString) { s =>

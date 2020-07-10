@@ -118,12 +118,52 @@ object ZTransducer {
   def apply[I]: ZTransducer[Any, Nothing, I, I] = identity[I]
 
   /**
-   * The identity transducer. Passed elements through.
+   * Reads the first n values from the stream and uses them to choose the transducer that will be used for the remainder of the stream.
    */
-  def identity[I]: ZTransducer[Any, Nothing, I, I] =
-    ZTransducer.fromPush {
-      case Some(is) => ZIO.succeedNow(is)
-      case None     => ZIO.succeedNow(Chunk.empty)
+  def branchAfter[R, E, I, O](n: Int)(f: Chunk[I] => ZTransducer[R, E, I, O]): ZTransducer[R, E, I, O] =
+    ZTransducer {
+      sealed trait State
+      object State {
+        final case class Collecting(data: Chunk[I]) extends State
+        final case class Emitting(finalizer: ZManaged.Finalizer, push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]])
+            extends State
+        val initial: State = Collecting(Chunk.empty)
+      }
+
+      val toCollect = Math.max(0, n)
+
+      ZManaged.scope.flatMap { scope =>
+        ZRefM.makeManaged(State.initial).map { stateRef =>
+          {
+            case None =>
+              stateRef.getAndSet(State.initial).flatMap {
+                case State.Emitting(finalizer, push) =>
+                  push(None) <* finalizer(Exit.unit)
+                case _ =>
+                  ZIO.succeedNow(Chunk.empty)
+              }
+            case Some(data) =>
+              stateRef.modify {
+                case s @ State.Emitting(_, push) =>
+                  push(Some(data)).map((_, s))
+                case s @ State.Collecting(collected) =>
+                  if (data.isEmpty) ZIO.succeedNow((Chunk.empty, s))
+                  else {
+                    val remaining = toCollect - collected.length
+                    if (remaining <= data.length) {
+                      val (newCollected, remainder) = data.splitAt(remaining)
+                      scope(f(collected ++ newCollected).push).flatMap {
+                        case (finalizer, push) =>
+                          push(Some(remainder)).map((_, State.Emitting(finalizer, push)))
+                      }
+                    } else {
+                      ZIO.succeedNow((Chunk.empty, State.Collecting(collected ++ data)))
+                    }
+                  }
+              }
+          }
+        }
+      }
     }
 
   /**
@@ -544,6 +584,15 @@ object ZTransducer {
     }
 
   /**
+   * The identity transducer. Passes elements through.
+   */
+  def identity[I]: ZTransducer[Any, Nothing, I, I] =
+    ZTransducer.fromPush {
+      case Some(is) => ZIO.succeedNow(is)
+      case None     => ZIO.succeedNow(Chunk.empty)
+    }
+
+  /**
    * Decodes chunks of ISO/IEC 8859-1 bytes into strings.
    *
    * This transducer uses the String constructor's behavior when handling malformed byte
@@ -560,52 +609,6 @@ object ZTransducer {
    */
   def last[O]: ZTransducer[Any, Nothing, O, Option[O]] =
     foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
-
-  def magicSequence[R, E, I, O](n: Int)(f: Chunk[I] => ZTransducer[R, E, I, O]): ZTransducer[R, E, I, O] =
-    ZTransducer {
-      sealed trait State
-      object State {
-        final case class Collecting(data: Chunk[I]) extends State
-        final case class Emitting(finalizer: ZManaged.Finalizer, push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]])
-            extends State
-        val initial = Collecting(Chunk.empty)
-      }
-
-      val toCollect = Math.max(0, n)
-
-      ZManaged.scope.flatMap { scope =>
-        ZRefM.makeManaged[State](State.initial).map { stateRef =>
-          {
-            case None =>
-              stateRef.getAndSet(State.initial).flatMap {
-                case State.Emitting(finalizer, push) =>
-                  push(None) <* finalizer(Exit.unit)
-                case _ =>
-                  ZIO.succeedNow(Chunk.empty)
-              }
-            case Some(data) =>
-              stateRef.modify {
-                case s @ State.Emitting(_, push) =>
-                  push(Some(data)).map((_, s))
-                case s @ State.Collecting(collected) =>
-                  if (data.isEmpty) ZIO.succeedNow((Chunk.empty, s))
-                  else {
-                    val remaining = toCollect - collected.length
-                    if (remaining <= data.length) {
-                      val (newCollected, remainder) = data.splitAt(remaining)
-                      scope(f(collected ++ newCollected).push).flatMap {
-                        case (finalizer, push) =>
-                          push(Some(remainder)).map((_, State.Emitting(finalizer, push)))
-                      }
-                    } else {
-                      ZIO.succeedNow((Chunk.empty, State.Collecting(collected ++ data)))
-                    }
-                  }
-              }
-          }
-        }
-      }
-    }
 
   /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
@@ -785,14 +788,14 @@ object ZTransducer {
    * use the error handling behavior of the endian-specific decoder otherwise.
    */
   val utf16Decode: ZTransducer[Any, IllegalArgumentException, Byte, String] =
-    magicSequence(2) { bytes =>
+    branchAfter(2) { bytes =>
       bytes.toList match {
         case -2 :: -1 :: Nil =>
           utf16BEDecode
         case -1 :: -2 :: Nil =>
           utf16LEDecode
         case xs =>
-          fail(new IllegalArgumentException(s"Not a valid byte order mark ${xs.mkString(", ")}"))
+          fail(new IllegalArgumentException(s"Not a valid byte order mark ${xs.map(_ & 0xFF).mkString(", ")}"))
       }
     }
 
