@@ -16,6 +16,7 @@
 
 package zio.test.magnolia
 
+import java.time.{ LocalDate, LocalDateTime }
 import java.util.UUID
 
 import magnolia._
@@ -66,17 +67,22 @@ object DeriveGen {
       val derive: Gen[Random with Sized, A] = gen
     }
 
-  implicit val genBoolean: DeriveGen[Boolean] = instance(Gen.boolean)
-  implicit val genByte: DeriveGen[Byte]       = instance(Gen.anyByte)
-  implicit val genChar: DeriveGen[Char]       = instance(Gen.anyChar)
-  implicit val genDouble: DeriveGen[Double]   = instance(Gen.anyDouble)
-  implicit val genFloat: DeriveGen[Float]     = instance(Gen.anyFloat)
-  implicit val genInt: DeriveGen[Int]         = instance(Gen.anyInt)
-  implicit val genLong: DeriveGen[Long]       = instance(Gen.anyLong)
-  implicit val genShort: DeriveGen[Short]     = instance(Gen.anyShort)
-  implicit val genString: DeriveGen[String]   = instance(Gen.anyString)
-  implicit val genUnit: DeriveGen[Unit]       = instance(Gen.unit)
-  implicit val genUUID: DeriveGen[UUID]       = instance(Gen.anyUUID)
+  implicit val genBoolean: DeriveGen[Boolean]             = instance(Gen.boolean)
+  implicit val genByte: DeriveGen[Byte]                   = instance(Gen.anyByte)
+  implicit val genChar: DeriveGen[Char]                   = instance(Gen.anyChar)
+  implicit val genDouble: DeriveGen[Double]               = instance(Gen.anyDouble)
+  implicit val genFloat: DeriveGen[Float]                 = instance(Gen.anyFloat)
+  implicit val genInt: DeriveGen[Int]                     = instance(Gen.anyInt)
+  implicit val genLong: DeriveGen[Long]                   = instance(Gen.anyLong)
+  implicit val genShort: DeriveGen[Short]                 = instance(Gen.anyShort)
+  implicit val genString: DeriveGen[String]               = instance(Gen.anyString)
+  implicit val genUnit: DeriveGen[Unit]                   = instance(Gen.unit)
+  implicit val genUUID: DeriveGen[UUID]                   = instance(Gen.anyUUID)
+  implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.anyLocalDateTime)
+  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.anyLocalDateTime.map(_.toLocalDate()))
+  implicit val genBigDecimal: DeriveGen[BigDecimal] = instance(
+    Gen.bigDecimal(BigDecimal(Double.MinValue), BigDecimal(Double.MaxValue))
+  )
 
   implicit def genEither[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[Either[A, B]] =
     instance(Gen.either(ev1.derive, ev2.derive))
