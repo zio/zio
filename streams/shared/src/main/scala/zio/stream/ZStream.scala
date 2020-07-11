@@ -3697,9 +3697,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
    */
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, _]): ZStream[R, E, A] =
-    fromEffect(schedule.initial).flatMap { initial =>
-      unfoldM(initial) { state =>
-        effect.flatMap(value => schedule.update(value, state).fold(_ => None, state => Some((value, state))))
+    ZStream.fromEffect(schedule.initial).flatMap { initialScheduleState =>
+      ZStream.fromEffect(effect).flatMap { value =>
+        ZStream.succeed(value) ++ ZStream.unfoldM((initialScheduleState, value)) {
+          case (state, lastValue) =>
+            schedule
+              .update(lastValue, state)
+              .foldM(_ => ZIO.succeed(Option.empty), newState => effect.map(value => Some((value, (newState, value)))))
+        }
       }
     }
 
