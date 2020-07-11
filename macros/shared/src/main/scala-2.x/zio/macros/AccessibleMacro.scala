@@ -16,19 +16,20 @@
 
 package zio.macros
 
-import scala.reflect.macros.whitebox.Context
+import scala.reflect.macros.whitebox
 
 import com.github.ghik.silencer.silent
 
 /**
  * Generates method accessors for a service into annotated object.
  */
-private[macros] class AccessibleMacro(val c: Context) {
+private[macros] class AccessibleMacro(val c: whitebox.Context) {
   import c.universe._
 
   protected case class ModuleInfo(
     module: ModuleDef,
-    service: ClassDef
+    service: ClassDef,
+    serviceTypeParams: List[TypeDef]
   )
 
   def abort(msg: String) = c.abort(c.enclosingPosition, msg)
@@ -43,8 +44,8 @@ private[macros] class AccessibleMacro(val c: Context) {
     val moduleInfo = (annottees match {
       case (module: ModuleDef) :: Nil =>
         module.impl.body.collectFirst {
-          case service @ ClassDef(_, name, _, _) if name.toTermName.toString == "Service" =>
-            ModuleInfo(module, service)
+          case service @ ClassDef(_, name, tparams, _) if name.toTermName.toString == "Service" =>
+            ModuleInfo(module, service, tparams)
         }
       case _ => None
     }).getOrElse(abort("@accessible macro can only be applied to objects containing `Service` trait."))
@@ -113,6 +114,7 @@ private[macros] class AccessibleMacro(val c: Context) {
       name: TermName,
       info: TypeInfo,
       impl: Tree,
+      serviceTypeParams: List[TypeDef],
       typeParams: List[TypeDef],
       paramLists: List[List[ValDef]],
       isVal: Boolean
@@ -121,23 +123,25 @@ private[macros] class AccessibleMacro(val c: Context) {
         if (impl == EmptyTree) Modifiers()
         else Modifiers(Flag.OVERRIDE)
 
+      val serviceTypeArgs = serviceTypeParams.map(_.name)
+
       val returnType = info.capability match {
         case Capability.Effect(r, e, a) =>
-          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $a]"
-          else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $a]"
+          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]] with $r, $e, $a]"
+          else tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]], $e, $a]"
         case Capability.Managed(r, e, a) =>
-          if (r != any) tq"_root_.zio.ZManaged[_root_.zio.Has[Service] with $r, $e, $a]"
-          else tq"_root_.zio.ZManaged[_root_.zio.Has[Service], $e, $a]"
+          if (r != any) tq"_root_.zio.ZManaged[_root_.zio.Has[Service[..$serviceTypeArgs]] with $r, $e, $a]"
+          else tq"_root_.zio.ZManaged[_root_.zio.Has[Service[..$serviceTypeArgs]], $e, $a]"
         case Capability.Stream(r, e, a) =>
           val value = tq"_root_.zio.stream.ZStream[$r, $e, $a]"
-          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $nothing, $value]"
-          else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $nothing, $value]"
+          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]] with $r, $nothing, $value]"
+          else tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]], $nothing, $value]"
         case Capability.Sink(r, e, a, l, b) =>
           val value = tq"_root_.zio.stream.ZSink[$r, $e, $a, $l, $b]"
-          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service] with $r, $e, $value]"
-          else tq"_root_.zio.ZIO[_root_.zio.Has[Service], $e, $value]"
+          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]] with $r, $e, $value]"
+          else tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]], $e, $value]"
         case Capability.Method(a) =>
-          tq"_root_.zio.ZIO[_root_.zio.Has[Service], $throwable, $a]"
+          tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]], $throwable, $a]"
       }
 
       val typeArgs = typeParams.map(_.name)
@@ -153,40 +157,50 @@ private[macros] class AccessibleMacro(val c: Context) {
             if (isRepeatedParamType(arg)) q"${arg.name}: _*"
             else q"${arg.name}"
           })
-          q"_root_.zio.ZIO.accessM(_.get[Service].$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.ZIO.accessM(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Effect, _) =>
-          q"_root_.zio.ZIO.accessM(_.get[Service].$name)"
+          q"_root_.zio.ZIO.accessM(_.get[Service[..$serviceTypeArgs]].$name)"
         case (_: Capability.Managed, argLists) if argLists.flatten.nonEmpty =>
           val argNames = argLists.map(_.map { arg =>
             if (isRepeatedParamType(arg)) q"${arg.name}: _*"
             else q"${arg.name}"
           })
-          q"_root_.zio.ZManaged.service[Service].flatMap(_.$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.ZManaged.service[Service[..$serviceTypeArgs]].flatMap(_.$name[..$typeArgs](...$argNames))"
         case (_: Capability.Managed, _) =>
-          q"_root_.zio.ZManaged.service[Service].flatMap(_.$name[..$typeArgs])"
+          q"_root_.zio.ZManaged.service[Service[..$serviceTypeArgs]].flatMap(_.$name[..$typeArgs])"
         case (_, argLists) if argLists.flatten.nonEmpty =>
           val argNames = argLists.map(_.map(_.name))
-          q"_root_.zio.ZIO.access(_.get[Service].$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.ZIO.access(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_, _) =>
-          q"_root_.zio.ZIO.access(_.get[Service].$name)"
+          q"_root_.zio.ZIO.access(_.get[Service[..$serviceTypeArgs]].$name)"
       }
 
-      if (isVal) q"$mods val $name: $returnType = $returnValue"
-      else
-        paramLists match {
-          case Nil       => q"$mods def $name[..$typeParams]: $returnType = $returnValue"
-          case List(Nil) => q"$mods def $name[..$typeParams](): $returnType = $returnValue"
-          case _         => q"$mods def $name[..$typeParams](...$paramLists): $returnType = $returnValue"
+      if (isVal && serviceTypeParams.isEmpty) q"$mods val $name: $returnType = $returnValue"
+      else {
+        val allTypeParams = serviceTypeParams ::: typeParams
+        val tagsForServiceTypeArgs = serviceTypeArgs.zipWithIndex.map {
+          case (name, idx) =>
+            val tagName = TermName(s"tag$idx")
+            q"$tagName: _root_.izumi.reflect.Tag[$name]"
         }
+        paramLists match {
+          case Nil =>
+            q"$mods def $name[..$allTypeParams](implicit ..$tagsForServiceTypeArgs): $returnType = $returnValue"
+          case List(Nil) =>
+            q"$mods def $name[..$allTypeParams]()(implicit ..$tagsForServiceTypeArgs): $returnType = $returnValue"
+          case _ =>
+            q"$mods def $name[..$allTypeParams](...$paramLists)(implicit ..$tagsForServiceTypeArgs): $returnType = $returnValue"
+        }
+      }
     }
 
     val accessors =
       moduleInfo.service.impl.body.collect {
         case DefDef(_, termName, tparams, argLists, tree: Tree, impl) =>
-          makeAccessor(termName, typeInfo(tree), impl, tparams, argLists, false)
+          makeAccessor(termName, typeInfo(tree), impl, moduleInfo.serviceTypeParams, tparams, argLists, isVal = false)
 
         case ValDef(_, termName, tree: Tree, impl) =>
-          makeAccessor(termName, typeInfo(tree), impl, Nil, Nil, true)
+          makeAccessor(termName, typeInfo(tree), impl, moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
       }
 
     moduleInfo.module match {
