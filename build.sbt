@@ -117,6 +117,7 @@ lazy val coreJVM = core.jvm
   .settings(replSettings)
 
 lazy val coreJS = core.js
+  .settings(jsSettings)
 
 lazy val coreNative = core.native
   .settings(scalaVersion := "2.11.12")
@@ -152,7 +153,7 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(replSettings)
 
 lazy val coreTestsJS = coreTests.js
-  .settings(testJsSettings)
+  .settings(jsSettings)
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros"))
@@ -165,7 +166,7 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
 
 lazy val macrosJVM = macros.jvm.settings(dottySettings)
-lazy val macrosJS  = macros.js.settings(testJsSettings)
+lazy val macrosJS  = macros.js.settings(jsSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
@@ -197,7 +198,7 @@ lazy val streamsTestsJVM = streamsTests.jvm
   .settings(dottySettings)
 
 lazy val streamsTestsJS = streamsTests.js
-  .settings(testJsSettings)
+  .settings(jsSettings)
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
@@ -228,7 +229,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(testJsSettings)
+lazy val testTestsJS  = testTests.js.settings(jsSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -256,7 +257,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
-lazy val testMagnoliaTestsJS  = testMagnoliaTests.js.settings(testJsSettings)
+lazy val testMagnoliaTestsJS  = testMagnoliaTests.js.settings(jsSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -294,7 +295,7 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
 
 lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
-lazy val testRunnerJS  = testRunner.js.settings(testJsSettings)
+lazy val testRunnerJS  = testRunner.js.settings(jsSettings)
 
 /**
  * Examples sub-project that is not included in the root project.
@@ -309,7 +310,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(macros, testRunner)
 
-lazy val examplesJS = examples.js.settings(testJsSettings)
+lazy val examplesJS = examples.js.settings(jsSettings)
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
   .dependsOn(testJunitRunnerJVM)

@@ -327,7 +327,7 @@ object BuildHelper {
     }
   )
 
-  def testJsSettings = Seq(
+  def jsSettings = Seq(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0" % Test
   )
 
