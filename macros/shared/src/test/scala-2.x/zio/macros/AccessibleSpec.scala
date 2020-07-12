@@ -152,6 +152,23 @@ object AccessibleSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
+      testM("generates accessor for service with contravariant type param") {
+        assertM(typeCheck {
+          """
+             @accessible
+             object Module {
+               trait Service[-R] {
+                 val v: RIO[R, Unit]
+               }
+             }
+
+             object Check {
+               def v[R: Tag]: ZIO[Has[Module.Service[R]] with R, Throwable, Unit] =
+                 Module.v[R]
+             }
+          """
+        })(isRight(anything))
+      },
       testM("generates accessor for service with two type params and type bounds") {
         assertM(typeCheck {
           """

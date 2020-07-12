@@ -177,7 +177,8 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
 
       if (isVal && serviceTypeParams.isEmpty) q"$mods val $name: $returnType = $returnValue"
       else {
-        val allTypeParams = serviceTypeParams ::: typeParams
+        val allTypeParams =
+          serviceTypeParams.map(tp => TypeDef(Modifiers(Flag.PARAM), tp.name, tp.tparams, tp.rhs)) ::: typeParams
         val tagsForServiceTypeArgs = serviceTypeArgs.zipWithIndex.map {
           case (name, idx) =>
             val tagName = TermName(s"tag$idx")
