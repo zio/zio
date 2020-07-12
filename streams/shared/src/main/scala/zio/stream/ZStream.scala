@@ -2307,31 +2307,45 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @return Stream outputting elements of all attempts of the stream
    */
   def retry[R1 <: R](schedule: Schedule[R1, E, _]): ZStream[R1, E, O] =
-    ZStream.unwrap {
+    ZStream {
       for {
-        s0    <- schedule.initial
-        state <- Ref.make[schedule.State](s0)
-      } yield {
-        def go: ZStream[R1, E, O] =
-          self
-            .catchAll(e =>
-              ZStream.unwrap {
-                (for {
-                  s        <- state.get
-                  newState <- schedule.update(e, s)
-                } yield newState).fold(
-                  _ => ZStream.fail(e), // Failure of the schedule indicates it doesn't accept the input
-                  newState =>
-                    ZStream.fromEffect(state.set(newState)) *> go.mapChunksM { chunk =>
-                      // Reset the schedule to its initial state when a chunk is successfully pulled
-                      state.set(s0).as(chunk)
-                    }
-                )
-              }
-            )
+        s0           <- schedule.initial.toManaged_
+        state        <- Ref.make[schedule.State](s0).toManaged_
+        currStream   <- Ref.make[ZIO[R, Option[E], Chunk[O]]](Pull.end).toManaged_
+        switchStream <- ZManaged.switchable[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
+        _            <- switchStream(stream.process).flatMap(currStream.set).toManaged_
+        pull = {
+          def go: ZIO[R1, Option[E], Chunk[O]] =
+            currStream.get.flatten.catchAllCause {
+              Cause.sequenceCauseOption(_) match {
+                case Some(c) =>
+                  c.failureOption match {
+                    case Some(e) =>
+                      (for {
+                        s        <- state.get
+                        newState <- schedule.update(e, s)
+                        _        <- state.set(newState)
+                      } yield newState)
+                        .foldM(
+                          // Failure of the schedule indicates it doesn't accept the input
+                          _ => Pull.halt(c),
+                          newState =>
+                            switchStream(stream.process).flatMap(currStream.set) *>
+                              // Reset the schedule to its initial state when a chunk is successfully pulled
+                              go.tap(_ => state.set(s0))
+                        )
 
-        go
-      }
+                    case None =>
+                      Pull.halt(c)
+                  }
+                case None =>
+                  Pull.end
+              }
+            }
+
+          go
+        }
+      } yield pull
     }
 
   /**
