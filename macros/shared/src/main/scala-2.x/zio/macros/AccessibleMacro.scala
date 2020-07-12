@@ -179,18 +179,13 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
       else {
         val allTypeParams =
           serviceTypeParams.map(tp => TypeDef(Modifiers(Flag.PARAM), tp.name, tp.tparams, tp.rhs)) ::: typeParams
-        val tagsForServiceTypeArgs = serviceTypeArgs.zipWithIndex.map {
-          case (name, idx) =>
-            val tagName = TermName(s"tag$idx")
-            q"$tagName: _root_.izumi.reflect.Tag[$name]"
-        }
         paramLists match {
           case Nil =>
-            q"$mods def $name[..$allTypeParams](implicit ..$tagsForServiceTypeArgs): $returnType = $returnValue"
+            q"$mods def $name[..$allTypeParams](implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
           case List(Nil) =>
-            q"$mods def $name[..$allTypeParams]()(implicit ..$tagsForServiceTypeArgs): $returnType = $returnValue"
+            q"$mods def $name[..$allTypeParams]()(implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
           case _ =>
-            q"$mods def $name[..$allTypeParams](...$paramLists)(implicit ..$tagsForServiceTypeArgs): $returnType = $returnValue"
+            q"$mods def $name[..$allTypeParams](...$paramLists)(implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
         }
       }
     }
