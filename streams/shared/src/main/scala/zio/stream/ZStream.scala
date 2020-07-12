@@ -2426,34 +2426,24 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         state        <- Ref.make[schedule.State](s0).toManaged_
         currStream   <- Ref.make[ZIO[R, Option[E], Chunk[O]]](Pull.end).toManaged_
         switchStream <- ZManaged.switchable[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
-        _            <- switchStream(stream.process).flatMap(currStream.set).toManaged_
+        _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
         pull = {
           def go: ZIO[R1, Option[E], Chunk[O]] =
-            currStream.get.flatten.catchAllCause {
-              Cause.sequenceCauseOption(_) match {
-                case Some(c) =>
-                  c.failureOption match {
-                    case Some(e) =>
-                      (for {
-                        s        <- state.get
-                        newState <- schedule.update(e, s)
-                        _        <- state.set(newState)
-                      } yield newState)
-                        .foldM(
-                          // Failure of the schedule indicates it doesn't accept the input
-                          _ => Pull.halt(c),
-                          newState =>
-                            switchStream(stream.process).flatMap(currStream.set) *>
-                              // Reset the schedule to its initial state when a chunk is successfully pulled
-                              go.tap(_ => state.set(s0))
-                        )
-
-                    case None =>
-                      Pull.halt(c)
-                  }
-                case None =>
-                  Pull.end
-              }
+            currStream.get.flatten.catchSome {
+              case Some(e) =>
+                (for {
+                  s        <- state.get
+                  newState <- schedule.update(e, s)
+                  _        <- state.set(newState)
+                } yield ())
+                  .foldM(
+                    // Failure of the schedule indicates it doesn't accept the input
+                    _ => Pull.fail(e),
+                    _ =>
+                      switchStream(self.process).flatMap(currStream.set) *>
+                        // Reset the schedule to its initial state when a chunk is successfully pulled
+                        go.tap(_ => state.set(s0))
+                  )
             }
 
           go
