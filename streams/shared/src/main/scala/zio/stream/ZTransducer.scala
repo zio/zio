@@ -1,5 +1,7 @@
 package zio.stream
 
+import java.nio.charset.StandardCharsets
+
 import scala.collection.mutable
 
 import zio._
@@ -100,7 +102,7 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
     ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
 }
 
-object ZTransducer {
+object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   def apply[R, E, I, O](
     push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
   ): ZTransducer[R, E, I, O] =
@@ -513,7 +515,7 @@ object ZTransducer {
   /**
    * Creates a transducer that purely transforms incoming values.
    */
-  def fromFunction[I, O](f: I => O): ZTransducer[Any, Unit, I, O] =
+  def fromFunction[I, O](f: I => O): ZTransducer[Any, Nothing, I, O] =
     identity.map(f)
 
   /**
@@ -538,6 +540,18 @@ object ZTransducer {
           case Some(_) => acc
           case None    => Some(a)
         }
+    }
+
+  /**
+   * Decodes chunks of ISO/IEC 8859-1 bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val iso_8859_1Decode: ZTransducer[Any, Nothing, Byte, String] =
+    ZTransducer.fromPush {
+      case Some(is) => ZIO.succeedNow(Chunk.single(new String(is.toArray, StandardCharsets.ISO_8859_1)))
+      case None     => ZIO.succeedNow(Chunk.empty)
     }
 
   /**

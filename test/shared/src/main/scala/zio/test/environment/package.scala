@@ -402,7 +402,7 @@ package object environment extends PlatformSpecific {
                 .foreach(refs)(_.get)
                 .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
                 .map(_.filter(_.id != descriptor.id))
-          } //.tap(result => UIO(println("TestClock got fibers equal to " + result)))
+          }
         }
 
       /**
@@ -535,7 +535,7 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.timeZone)
 
     /**
-     * `Data` represents the state of the `TestClock`, incuding the clock time
+     * `Data` represents the state of the `TestClock`, including the clock time
      * and time zone.
      */
     final case class Data(
@@ -642,6 +642,7 @@ package object environment extends PlatformSpecific {
       def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
       def feedLines(lines: String*): UIO[Unit]
       def output: UIO[Vector[String]]
+      def outputErr: UIO[Vector[String]]
       def silent[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
     }
 
@@ -691,7 +692,7 @@ package object environment extends PlatformSpecific {
                     IO.fromOption(d.input.headOption)
                       .orElseFail(new EOFException("There is no more input left to read"))
                   )
-          _ <- consoleState.update(data => Data(data.input.tail, data.output))
+          _ <- consoleState.update(data => Data(data.input.tail, data.output, data.errOutput))
         } yield input
       }
 
@@ -703,11 +704,26 @@ package object environment extends PlatformSpecific {
         consoleState.get.map(_.output)
 
       /**
+       * Returns the contents of the error output buffer. The first value written to
+       * the error output buffer will be the first in the sequence.
+       */
+      val outputErr: UIO[Vector[String]] =
+        consoleState.get.map(_.errOutput)
+
+      /**
        * Writes the specified string to the output buffer.
        */
       override def putStr(line: String): UIO[Unit] =
         consoleState.update { data =>
-          Data(data.input, data.output :+ line)
+          Data(data.input, data.output :+ line, data.errOutput)
+        } *> live.provide(console.putStr(line)).whenM(debugState.get)
+
+      /**
+       * Writes the specified string to the error buffer.
+       */
+      override def putStrErr(line: String): UIO[Unit] =
+        consoleState.update { data =>
+          Data(data.input, data.output, data.errOutput :+ line)
         } *> live.provide(console.putStr(line)).whenM(debugState.get)
 
       /**
@@ -716,7 +732,16 @@ package object environment extends PlatformSpecific {
        */
       override def putStrLn(line: String): UIO[Unit] =
         consoleState.update { data =>
-          Data(data.input, data.output :+ s"$line\n")
+          Data(data.input, data.output :+ s"$line\n", data.errOutput)
+        } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
+
+      /**
+       * Writes the specified string to the error buffer followed by a newline
+       * character.
+       */
+      override def putStrLnErr(line: String): UIO[Unit] =
+        consoleState.update { data =>
+          Data(data.input, data.output, data.errOutput :+ s"$line\n")
         } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
 
       /**
@@ -798,6 +823,13 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.output)
 
     /**
+     * Accesses a `TestConsole` instance in the environment and returns the
+     * contents of the error buffer.
+     */
+    val outputErr: ZIO[TestConsole, Nothing, Vector[String]] =
+      ZIO.accessM(_.get.outputErr)
+
+    /**
      * Accesses a `TestConsole` instance in the environment and saves the
      * console state in an effect which, when run, will restore the
      * `TestConsole` to the saved state.
@@ -817,7 +849,11 @@ package object environment extends PlatformSpecific {
     /**
      * The state of the `TestConsole`.
      */
-    final case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
+    final case class Data(
+      input: List[String] = List.empty,
+      output: Vector[String] = Vector.empty,
+      errOutput: Vector[String] = Vector.empty
+    )
   }
 
   /**

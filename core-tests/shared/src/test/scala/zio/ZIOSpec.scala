@@ -457,6 +457,24 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(effects)(equalTo(List(2, 4, 6, 3, 5, 6)))
       }
     ),
+    suite("filterPar")(
+      testM("filters a collection in parallel using an effectual predicate") {
+        val as = Iterable(2, 4, 6, 3, 5, 6, 10, 11, 15, 17, 20, 22, 23, 25, 28)
+        for {
+          results <- ZIO.filterPar(as)(a => UIO(a % 2 == 0))
+        } yield assert(results)(equalTo(List(2, 4, 6, 6, 10, 20, 22, 28)))
+      }
+    ),
+    suite("filterNotPar")(
+      testM(
+        "filters a collection in parallel using an effectual predicate, removing all elements that satisfy the predicate"
+      ) {
+        val as = Iterable(2, 4, 6, 3, 5, 6, 10, 11, 15, 17, 20, 22, 23, 25, 28)
+        for {
+          results <- ZIO.filterNotPar(as)(a => UIO(a % 2 == 0))
+        } yield assert(results)(equalTo(List(3, 5, 11, 15, 17, 23, 25)))
+      }
+    ),
     suite("filterOrElse")(
       testM("returns checked failure from held value") {
         val goodCase =
@@ -855,6 +873,18 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(name)(isNone)
       }
     ),
+    suite("forkIn") {
+      testM("fiber forked in a closed scope does not run") {
+        for {
+          ref   <- Ref.make(false)
+          open  <- ZScope.make[Exit[Any, Any]]
+          _     <- open.close(Exit.unit)
+          fiber <- ref.set(true).forkIn(open.scope)
+          exit  <- fiber.await
+          value <- ref.get
+        } yield assert(exit)(isInterrupted) && assert(value)(isFalse)
+      }
+    },
     suite("forkWithErrorHandler")(
       testM("calls provided function when task fails") {
         for {
