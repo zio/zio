@@ -3523,7 +3523,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref      <- Ref.make(0)
               effect   = ref.getAndUpdate(_ + 1).filterOrFail(_ <= length + 1)(())
-              schedule = Schedule.identity[Int].whileOutput(_ <= length)
+              schedule = Schedule.identity[Int].whileOutput(_ < length)
               result   <- ZStream.repeatEffectWith(effect, schedule).runCollect
             } yield assert(result)(equalTo(Chunk.fromIterable(0 to length)))
           })
