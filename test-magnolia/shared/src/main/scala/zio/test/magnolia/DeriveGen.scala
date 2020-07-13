@@ -81,7 +81,10 @@ object DeriveGen {
   implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.anyLocalDateTime)
   implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.anyLocalDateTime.map(_.toLocalDate()))
   implicit val genBigDecimal: DeriveGen[BigDecimal] = instance(
-    Gen.bigDecimal(BigDecimal(Double.MinValue), BigDecimal(Double.MaxValue))
+    Gen.bigDecimal(
+      BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),
+      BigDecimal(Double.MaxValue) * BigDecimal(Double.MaxValue)
+    )
   )
 
   implicit def genEither[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[Either[A, B]] =
