@@ -25,6 +25,13 @@ object EnvironmentSpec extends ZIOBaseSpec {
         output <- TestConsole.output
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     } @@ silent,
+    testM("Console writes error line to error console") {
+      for {
+        _      <- console.putStrLnErr("First line")
+        _      <- console.putStrLnErr("Second line")
+        output <- TestConsole.outputErr
+      } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
+    } @@ silent,
     testM("Console reads line from input") {
       for {
         _      <- TestConsole.feedLines("Input 1", "Input 2")
