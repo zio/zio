@@ -3534,6 +3534,26 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.repeatEffectWith(UIO(1), Schedule.stop).runCollect)(
               equalTo(Chunk(1))
             )
+          },
+          testM("emits before delaying according to the schedule"){
+            val interval = 1.second
+
+            for {
+              collected <- Ref.make(0)
+              effect    = ZIO.unit
+              schedule  = Schedule.fixed(interval)
+              streamFiber <- ZStream
+                              .repeatEffectWith(effect, schedule)
+                              .tap(_ => collected.update(_ + 1))
+                              .runDrain
+                              .fork
+              _                      <- TestClock.adjust(0.seconds)
+              nrCollectedImmediately <- collected.get
+              _                      <- TestClock.adjust(1.seconds)
+              nrCollectedAfterDelay  <- collected.get
+              _                      <- streamFiber.interrupt
+
+            } yield assert(nrCollectedImmediately)(equalTo(1)) && assert(nrCollectedAfterDelay)(equalTo(2))
           }
         ),
         testM("unfold") {
