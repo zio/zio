@@ -3535,7 +3535,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               equalTo(Chunk(1))
             )
           },
-          testM("emits before delaying according to the schedule"){
+          testM("emits before delaying according to the schedule") {
             val interval = 1.second
 
             for {
