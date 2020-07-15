@@ -18,7 +18,7 @@ package zio.stm
 
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.timeout
+import zio.test.TestAspect.{ flaky, timeout }
 import zio.test._
 import zio.{ Exit, Promise, Ref, Schedule, ZIO }
 
@@ -70,7 +70,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
       } yield assert(locks)(equalTo(1)) &&
         assert(option)(isNone) &&
         assert(1)(equalTo(rcount))
-    } @@ timeout(10.seconds),
+    } @@ timeout(10.seconds) @@ flaky,
     testM("1 write lock then 1 write lock, different fibers") {
       for {
         lock   <- TReentrantLock.make.commit
@@ -88,7 +88,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
       } yield assert(locks)(equalTo(1)) &&
         assert(option)(isNone) &&
         assert(1)(equalTo(rcount))
-    } @@ timeout(10.seconds),
+    } @@ timeout(10.seconds) @@ flaky,
     testM("write lock followed by read lock from same fiber") {
       for {
         lock <- TReentrantLock.make.commit
@@ -121,6 +121,6 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         _      <- rlatch.succeed(())
         count  <- writer.join
       } yield assert(option)(isNone) && assert(count)(equalTo(1))
-    } @@ timeout(10.seconds)
+    } @@ timeout(10.seconds) @@ flaky
   )
 }

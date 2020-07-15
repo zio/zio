@@ -165,21 +165,21 @@ object TestAspect extends TimeoutVariants {
    * An aspect that runs each test on a separate fiber and prints a fiber dump
    * if the test fails or has not terminated within the specified duration.
    */
-  def diagnose(duration: Duration): TestAspectAtLeastR[Live] =
-    new TestAspectAtLeastR[Live] {
-      def some[R <: Live, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] = {
-        def diagnose[R <: Live, E](
+  def diagnose(duration: Duration): TestAspectAtLeastR[Live with Annotations] =
+    new TestAspectAtLeastR[Live with Annotations] {
+      def some[R <: Live with Annotations, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] = {
+        def diagnose[R <: Live with Annotations, E](
           label: String,
           test: ZIO[R, TestFailure[E], TestSuccess]
         ): ZIO[R, TestFailure[E], TestSuccess] =
           test.fork.flatMap { fiber =>
-            fiber.join.raceWith(Live.live(ZIO.sleep(duration)))(
-              (exit, sleepFiber) => dump(label, fiber).when(!exit.succeeded) *> sleepFiber.interrupt *> ZIO.done(exit),
-              (_, _) => dump(label, fiber) *> fiber.join
+            fiber.join.raceWith[R, TestFailure[E], TestFailure[E], Unit, TestSuccess](Live.live(ZIO.sleep(duration)))(
+              (exit, sleepFiber) => dump(label).when(!exit.succeeded) *> sleepFiber.interrupt *> ZIO.done(exit),
+              (_, _) => dump(label) *> fiber.join
             )
           }
-        def dump[E, A](label: String, fiber: Fiber.Runtime[E, A]): ZIO[Live, Nothing, Unit] =
-          Live.live(Fiber.putDumpStr(label, fiber))
+        def dump[E, A](label: String): URIO[Live with Annotations, Unit] =
+          Annotations.supervisedFibers.flatMap(fibers => Live.live(Fiber.putDumpStr(label, fibers.toSeq: _*)))
         spec.transform[R, TestFailure[E], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
           case Spec.TestCase(label, test, annotations) =>
@@ -308,6 +308,29 @@ object TestAspect extends TimeoutVariants {
         )
     }
 
+  import scala.collection.immutable.SortedSet
+
+  private[zio] lazy val fibers: TestAspect[Nothing, Annotations, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Annotations, Nothing, Any] {
+      def perTest[R <: Annotations, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] = {
+        val acquire = Ref.make(SortedSet.empty[Fiber.Runtime[Any, Any]]).tap { ref =>
+          Annotations.annotate(TestAnnotation.fibers, Right(Chunk(ref)))
+        }
+        val release = Annotations.get(TestAnnotation.fibers).flatMap {
+          case Right(refs) =>
+            ZIO.foreach(refs)(_.get).map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _).size).tap { n =>
+              Annotations.annotate(TestAnnotation.fibers, Left(n))
+            }
+          case Left(_) => ZIO.unit
+        }
+        acquire.bracket(_ => release) { ref =>
+          Supervisor.fibersIn(ref).flatMap(supervisor => test.supervised(supervisor))
+        }
+      }
+    }
+
   /**
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
@@ -407,14 +430,6 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isNative) identity else ignore
 
   /**
-   * An aspect that causes calls to `sleep` and methods implemented in terms
-   * of it to be executed immediately instead of requiring the `TestClock` to
-   * be adjusted.
-   */
-  val noDelay: TestAspectAtLeastR[TestClock] =
-    before(TestClock.runAll)
-
-  /**
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
@@ -450,12 +465,6 @@ object TestAspect extends TimeoutVariants {
    */
   val nondeterministic: TestAspectAtLeastR[Live with TestRandom] =
     before(Live.live(clock.nanoTime).flatMap(TestRandom.setSeed(_)))
-
-  /**
-   * Annotates tests to be the only ones evaluated.
-   */
-  val only: TestAspectPoly =
-    annotate(TestAnnotation.only, true)
 
   /**
    * An aspect that executes the members of a suite in parallel.
@@ -668,7 +677,6 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that times out tests using the specified duration.
    * @param duration maximum test duration
-   * @param interruptDuration after test timeout will wait given duration for successful interruption
    */
   def timeout(
     duration: Duration

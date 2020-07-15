@@ -16,6 +16,7 @@
 
 package zio.test
 
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 import scala.collection.immutable.SortedMap
@@ -23,7 +24,7 @@ import scala.math.Numeric.DoubleIsFractional
 
 import zio.random._
 import zio.stream.{ Stream, ZStream }
-import zio.{ Chunk, NonEmptyChunk, UIO, ZIO }
+import zio.{ Chunk, NonEmptyChunk, UIO, URIO, ZIO }
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
@@ -120,14 +121,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect: ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).runCollect
+    sample.map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect
+    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
@@ -430,7 +431,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Constructs a generator from an effect that constructs a value.
    */
-  def fromEffect[R, A](effect: ZIO[R, Nothing, A]): Gen[R, A] =
+  def fromEffect[R, A](effect: URIO[R, A]): Gen[R, A] =
     Gen(ZStream.fromEffect(effect.map(Sample.noShrink)))
 
   /**
@@ -477,6 +478,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         effect.map(Sample.shrinkIntegral(min))
       }
     }
+
+  /**
+   *  A generator of strings that can be encoded in the ISO-8859-1 character set.
+   */
+  val iso_8859_1: Gen[Random with Sized, String] =
+    chunkOf(anyByte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
 
   /**
    * A sized generator that uses a uniform distribution of size values. A large
@@ -714,10 +721,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def vectorOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
     listOfN(n)(g).map(_.toVector)
 
+  /**
+   * A generator which chooses one of the given generators according to their
+   * weights. For example, the following generator will generate 90% true and
+   * 10% false values.
+   * {{{
+   * val trueFalse = Gen.weighted((Gen.const(true), 9), (Gen.const(false), 1))
+   * }}}
+   */
   def weighted[R <: Random, A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
     val sum = gs.map(_._2).sum
     val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) {
-      case ((map, acc), (gen, d)) => (map.updated((acc + d) / sum, gen), acc + d)
+      case ((map, acc), (gen, d)) =>
+        if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)
+        else (map, acc)
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }

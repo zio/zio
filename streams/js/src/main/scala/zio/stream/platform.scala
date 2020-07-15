@@ -18,14 +18,13 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     ZStream {
       for {
         done       <- Ref.make(false).toManaged_
-        buf        <- Ref.make(Array.ofDim[Byte](chunkSize)).toManaged_
         capturedIs <- Managed.effectTotal(is)
         pull = {
           def go: ZIO[Any, Option[IOException], Chunk[Byte]] = done.get.flatMap {
             if (_) Pull.end
             else
               for {
-                bufArray <- buf.get
+                bufArray <- UIO(Array.ofDim[Byte](chunkSize))
                 bytesRead <- Task(capturedIs.read(bufArray))
                               .refineToOrDie[IOException]
                               .mapError(Some(_))
@@ -68,3 +67,5 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
 
 }
 trait StreamPlatformSpecificConstructors
+
+trait ZTransducerPlatformSpecificConstructors

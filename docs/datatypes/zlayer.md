@@ -21,8 +21,8 @@ import zio._
 
 object Example extends zio.App {
 
-  def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
-    zio.provideLayer(nameLayer).as(0)
+  def run(args: List[String]): URIO[ZEnv, ExitCode] =
+    zio.provideLayer(nameLayer).as(ExitCode.success)
 
   val zio = for {
     name <- ZIO.access[Has[String]](_.get)
@@ -59,7 +59,7 @@ object moduleA {
     }
   }
 
-  def letsGoA(v: Int): ZIO[ModuleA, Nothing, String] =
+  def letsGoA(v: Int): URIO[ModuleA, String] =
     ZIO.accessM(_.get.letsGoA(v))
 }
 
@@ -84,7 +84,7 @@ object moduleB {
     }
   }
 
-  def letsGoB(v: Int): ZIO[ModuleB, Nothing, String] =
+  def letsGoB(v: Int): URIO[ModuleB, String] =
     ZIO.accessM(_.get.letsGoB(v))
 }
 
@@ -102,7 +102,7 @@ object ZLayerApp0 extends zio.App {
     } yield ()
 
   def run(args: List[String]) =
-    program.provideLayer(env).fold(_ => 1, _ => 0)
+    program.provideLayer(env).exitCode
 
 }
 
@@ -164,7 +164,7 @@ object ZLayerApp1 extends scala.App {
         }
       }
 
-    val foo: ZIO[ModuleC, Nothing, Int] =
+    val foo: URIO[ModuleC, Int] =
       ZIO.accessM(_.get.foo)
   }
 

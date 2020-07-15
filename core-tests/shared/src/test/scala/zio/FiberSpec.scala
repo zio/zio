@@ -1,8 +1,6 @@
 package zio
 
 import zio.LatchOps._
-import zio.duration._
-import zio.internal.FiberRenderer
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -124,61 +122,27 @@ object FiberSpec extends ZIOBaseSpec {
           assertM(Fiber.collectAll(fibers).join)(anything)
         }
       ) @@ sequential,
-      suite("fiber dump tree")(
-        zio.test.test("render fiber hierarchy tree") {
-          def node(n: Long, children: Seq[Fiber.Dump]): Fiber.Dump =
-            Fiber.Dump(Fiber.Id(n, n), Some(n.toString), Fiber.Status.Done, children, None)
-
-          val tree1 =
-            node(1, Seq(node(11, Seq(node(111, Nil), node(112, Nil))), node(12, Seq(node(121, Nil), node(122, Nil)))))
-          val tree2 =
-            node(2, Seq(node(21, Seq(node(211, Nil), node(212, Nil))), node(12, Seq(node(221, Nil), node(222, Nil)))))
-          val expected = """#+---"1" #1 Status: Done
-                         #|   +---"11" #11 Status: Done
-                         #|   |   +---"111" #111 Status: Done
-                         #|   |   +---"112" #112 Status: Done
-                         #|   +---"12" #12 Status: Done
-                         #|       +---"121" #121 Status: Done
-                         #|       +---"122" #122 Status: Done
-                         #+---"2" #2 Status: Done
-                         #    +---"21" #21 Status: Done
-                         #    |   +---"211" #211 Status: Done
-                         #    |   +---"212" #212 Status: Done
-                         #    +---"12" #12 Status: Done
-                         #        +---"221" #221 Status: Done
-                         #        +---"222" #222 Status: Done
-                         #""".stripMargin('#')
-          assert(FiberRenderer.renderHierarchy(Seq(tree1, tree2)))(equalTo(expected))
-        }
-      ),
       suite("track blockingOn")(
         testM("in await") {
           for {
-            p    <- Promise.make[Nothing, Unit]
-            f1   <- p.await.fork
-            f1id <- f1.id
-            f2   <- f1.await.fork
-            blockingOn <- (ZIO.yieldNow *> f2.dump)
-                           .map(_.status)
-                           .repeat(
-                             Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
-                               case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                             } <* Schedule.fixed(10.milli)
-                           )
-          } yield assert(blockingOn)(isSome(equalTo(List(f1id))))
+            f1 <- ZIO.never.fork
+            f2 <- f1.await.fork
+            blockingOn <- f2.status
+                           .collect(()) {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           }
+                           .eventually
+          } yield assert(blockingOn)(equalTo(List(f1.id)))
         },
         testM("in race") {
           for {
-            p <- Promise.make[Nothing, Unit]
-            f <- p.await.race(p.await).fork
-            blockingOn <- (ZIO.yieldNow *> f.dump)
-                           .map(_.status)
-                           .repeat(
-                             Schedule.doUntil[Fiber.Status, List[Fiber.Id]] {
-                               case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                             } <* Schedule.fixed(10.milli)
-                           )
-          } yield assert(blockingOn)(isSome(hasSize(equalTo(2))))
+            f <- ZIO.never.race(ZIO.never).fork
+            blockingOn <- f.status
+                           .collect(()) {
+                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                           }
+                           .eventually
+          } yield assert(blockingOn)(hasSize(equalTo(2)))
         }
       )
     )

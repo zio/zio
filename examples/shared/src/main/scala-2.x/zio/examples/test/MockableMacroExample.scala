@@ -1,18 +1,17 @@
 package zio.examples.test
 
 import zio.test.mock.mockable
-import zio.{ Tag, UIO }
-import zio.{ IO, Tag, Task, UIO, URIO, ZIO }
+import zio.{ IO, Tag, Task, UIO, URIO }
 
-object DiffrentScopeExample {
+object DifferentScopeExample {
 
   trait Foo { val value: String }
   case class Bar(value: String) extends Foo
   case class Wrapped[T](value: T)
 
   trait Service {
-    def get(key: String): ZIO[Any, Nothing, Int]
-    def set(key: String, value: Int): ZIO[Any, Nothing, Unit]
+    def get(key: String): UIO[Int]
+    def set(key: String, value: Int): UIO[Unit]
     def reset: UIO[Unit]
     def io: IO[String, Long]
     def task: Task[Long]
@@ -31,5 +30,5 @@ object DiffrentScopeExample {
   }
 }
 
-@mockable[DiffrentScopeExample.Service]
+@mockable[DifferentScopeExample.Service]
 object MockableMacroExample

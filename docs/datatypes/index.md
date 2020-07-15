@@ -18,6 +18,7 @@ ZIO contains a small number of data types that can help you solve complex proble
  - **[Chunk](chunk.md)** — ZIO `Chunk`: Fast, Pure Alternative to Arrays
  - **[TArray](tarray.md)** - A `TArray[A]` is an array of mutable references that can participate in transactions.
  - **[TMap](tmap.md)** - A `TMap[A]` is a mutable map that can participate in transactions.
+ - **[TPriorityQueue](tpriorityqueue.md)** - A `TPriorityQueue[A]` is a mutable priority queue that can participate in transactions.
  - **[TPromise](tpromise.md)** - A `TPromise` is a mutable reference that can be set exactly once and can participate in transactions.
  - **[TQueue](tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
  - **[TRef](tref.md)** - A `TRef` is a mutable reference to an immutable value that can participate in transactions.

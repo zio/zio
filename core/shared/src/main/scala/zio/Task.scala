@@ -13,12 +13,6 @@ object Task extends TaskPlatformSpecific {
     ZIO.absolve(v)
 
   /**
-   * @see See [[zio.ZIO.adopt]]
-   */
-  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
-    ZIO.adopt(fiber)
-
-  /**
    * @see See [[zio.ZIO.allowInterrupt]]
    */
   def allowInterrupt: UIO[Unit] =
@@ -28,11 +22,6 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.apply]]
    */
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
-
-  /**
-   * @see [[zio.ZIO.awaitAllChildren]]
-   */
-  val awaitAllChildren: UIO[Unit] = ZIO.awaitAllChildren
 
   /**
    * @see See bracket [[zio.ZIO]]
@@ -75,9 +64,10 @@ object Task extends TaskPlatformSpecific {
     ZIO.checkTraced(f)
 
   /**
-   * @see See [[zio.ZIO.children]]
+   * @see See [[zio.ZIO.collect]]
    */
-  def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
+  def collect[R, A, B](in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+    ZIO.collect(in)(f)
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
@@ -188,6 +178,18 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectPar]]
+   */
+  def collectPar[R, A, B](in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+    ZIO.collectPar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectParN]]
+   */
+  def collectParN[R, A, B](n: Int)(in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+    ZIO.collectParN(n)(in)(f)
+
+  /**
    * @see See [[zio.ZIO.die]]
    */
   def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
@@ -196,11 +198,6 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.dieMessage]]
    */
   def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
-
-  /**
-   * @see See [[zio.ZIO.disown]]
-   */
-  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = ZIO.disown(fiber)
 
   /**
    * @see See [[zio.ZIO.done]]
@@ -295,10 +292,22 @@ object Task extends TaskPlatformSpecific {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterPar]]
+   */
+  def filterPar[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+    ZIO.filterPar(as)(f)
+
+  /**
    * @see [[zio.ZIO.filterNot]]
    */
   def filterNot[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
     ZIO.filterNot(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNotPar]]
+   */
+  def filterNotPar[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+    ZIO.filterNotPar(as)(f)
 
   /**
    * @see See [[zio.ZIO.firstSuccessOf]]
@@ -500,17 +509,12 @@ object Task extends TaskPlatformSpecific {
    * @see [[zio.ZIO.ifM]]
    */
   def ifM(b: Task[Boolean]): ZIO.IfM[Any, Throwable] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see See [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
-
-  /**
-   * @see See [zio.ZIO.interruptAllChildren]
-   */
-  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
 
   /**
    * @see See [[zio.ZIO.interruptAs]]
@@ -597,6 +601,12 @@ object Task extends TaskPlatformSpecific {
     f: (A, B, C, D) => F
   ): Task[F] =
     ZIO.mapParN(task1, task2, task3, task4)(f)
+
+  /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[A, B](f: A => Task[B]): UIO[A => Task[B]] =
+    ZIO.memoize(f)
 
   /**
    * @see See [[zio.ZIO.mergeAll]]
@@ -730,8 +740,8 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.unlessM]]
    */
-  def unlessM(b: Task[Boolean])(zio: => Task[Any]): Task[Unit] =
-    ZIO.unlessM(b)(zio)
+  def unlessM(b: Task[Boolean]): ZIO.UnlessM[Any, Throwable] =
+    ZIO.unlessM(b)
 
   /**
    * @see [[zio.ZIO.unsandbox]]
@@ -764,8 +774,8 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  def whenM(b: Task[Boolean])(task: => Task[Any]): Task[Unit] =
-    ZIO.whenM(b)(task)
+  def whenM(b: Task[Boolean]): ZIO.WhenM[Any, Throwable] =
+    ZIO.whenM(b)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

@@ -30,10 +30,10 @@ import zio.NonEmptyChunk._
 final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
 
   /**
-   * Apparents a single element to the end of this `NonEmptyChunk`.
+   * Appends a single element to the end of this `NonEmptyChunk`.
    */
-  def +[A1 >: A](a: A1): NonEmptyChunk[A1] =
-    nonEmpty(chunk + a)
+  def :+[A1 >: A](a: A1): NonEmptyChunk[A1] =
+    nonEmpty(chunk :+ a)
 
   /**
    * Appends the specified `Chunk` to the end of this `NonEmptyChunk`.
@@ -101,7 +101,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Effectfully maps over the elements of this `NonEmptyChunk`, maintaining
    * some state along the way.
    */
-  def mapAccumM[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)]): ZIO[R, E, (S, Chunk[B])] =
+  def mapAccumM[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)]): ZIO[R, E, (S, NonEmptyChunk[B])] =
     chunk.mapAccumM(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
 
   /**
@@ -120,7 +120,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Materialize the elements of this `NonEmptyChunk` into a `NonEmptyChunk`
    * backed by an array.
    */
-  def materialize[A1 >: A]: Chunk[A1] =
+  def materialize[A1 >: A]: NonEmptyChunk[A1] =
     nonEmpty(chunk.materialize)
 
   /**
@@ -162,8 +162,8 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Zips this `NonEmptyCHunk` with the specified `NonEmptyChunk`, only
    * keeping as many elements as are in the smaller chunk.
    */
-  final def zipWith[B, C](that: NonEmptyChunk[B])(f: (A, B) => C): Chunk[C] =
-    nonEmpty(chunk.zipWith(that)(f))
+  final def zipWith[B, C](that: NonEmptyChunk[B])(f: (A, B) => C): NonEmptyChunk[C] =
+    nonEmpty(chunk.zipWith(that.chunk)(f))
 
   /**
    * Annotates each element of this `NonEmptyChunk` with its index.
@@ -175,7 +175,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Annotates each element of this `NonEmptyChunk` with its index, with the
    * specified offset.
    */
-  final def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)] =
+  final def zipWithIndexFrom(indexOffset: Int): NonEmptyChunk[(A, Int)] =
     nonEmpty(chunk.zipWithIndexFrom(indexOffset))
 }
 
@@ -191,7 +191,7 @@ object NonEmptyChunk {
    * Checks if a `chunk` is not empty and constructs a `NonEmptyChunk` from it.
    */
   def fromChunk[A](chunk: Chunk[A]): Option[NonEmptyChunk[A]] =
-    if (chunk.isEmpty) None else Some(nonEmpty(chunk))
+    chunk.nonEmptyOrElse[Option[NonEmptyChunk[A]]](None)(Some(_))
 
   /**
    * Constructs a `NonEmptyChunk` from the `::` case of a `List`.
@@ -203,13 +203,18 @@ object NonEmptyChunk {
    * Constructs a `NonEmptyChunk` from an `Iterable`.
    */
   def fromIterable[A](a: A, as: Iterable[A]): NonEmptyChunk[A] =
-    single(a) ++ Chunk.fromIterable(as)
+    nonEmpty(Chunk.single(a) ++ Chunk.fromIterable(as))
 
   /**
    * Constructs a `NonEmptyChunk` from a single value.
    */
   def single[A](a: A): NonEmptyChunk[A] =
     NonEmptyChunk(a)
+
+  /**
+   * The unit non-empty chunk.
+   */
+  val unit: NonEmptyChunk[Unit] = single(())
 
   /**
    * Provides an implicit conversion from `NonEmptyChunk` to `Chunk` for

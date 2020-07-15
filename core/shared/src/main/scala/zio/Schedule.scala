@@ -51,7 +51,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   /**
    * The initial state of the schedule.
    */
-  val initial: ZIO[R, Nothing, State]
+  val initial: URIO[R, State]
 
   /**
    * Extract the B from the schedule
@@ -455,6 +455,20 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   }
 
   /**
+   * Returns a new schedule that will not perform any sleep calls between recurrences.
+   */
+  final def noDelay[R1 <: R](implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = {
+    def proxy(clock0: Clock.Service): Clock.Service = new Clock.Service {
+      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
+      def currentDateTime             = clock0.currentDateTime
+      val nanoTime                    = clock0.nanoTime
+      def sleep(duration: Duration)   = ZIO.unit
+    }
+
+    provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy(_)))
+  }
+
+  /**
    * A new schedule that applies the current one but runs the specified effect
    * for every decision of this schedule. This can be used to create schedules
    * that log failures, decisions, or computed values.
@@ -513,6 +527,25 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * another value unchanged as the first element of the either.
    */
   final def right[C]: Schedule[R, Either[C, A], Either[C, B]] = Schedule.identity[C] +++ self
+
+  /**
+   * Run a schedule using the provided input and collect all outputs.
+   */
+  final def run(input: Iterable[A]): ZIO[R, Nothing, List[B]] = {
+    def loop(xs: List[A], state: State, acc: List[B]): ZIO[R, Nothing, List[B]] = xs match {
+      case Nil => ZIO.succeedNow(acc)
+      case x :: xs =>
+        update(x, state)
+          .foldM(
+            _ => ZIO.succeedNow(extract(x, state) :: acc),
+            s => loop(xs, s, extract(x, state) :: acc)
+          )
+    }
+
+    initial
+      .flatMap(loop(input.toList, _, Nil))
+      .map(_.reverse)
+  }
 
   /**
    * Puts this schedule into the second element of a tuple, and passes along
@@ -590,6 +623,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     )
 
   /**
+   * Updates a service in the environment of this effect.
+   */
+  final def updateService[M] =
+    new Schedule.UpdateService[R, A, B, M](self)
+
+  /**
    * Returns a new schedule that continues this schedule so long as the
    * predicate is satisfied on the input of the schedule.
    */
@@ -638,8 +677,8 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
 object Schedule {
 
   def apply[R, S, A, B](
-    initial0: ZIO[R, Nothing, S],
-    update0: (A, S) => ZIO[R, Nothing, S],
+    initial0: URIO[R, S],
+    update0: (A, S) => URIO[R, S],
     extract0: (A, S) => B
   ): Schedule[R, A, B] =
     new Schedule[R, A, B] {
@@ -926,14 +965,14 @@ object Schedule {
    * A schedule that recurs forever, dumping input values to the specified
    * sink, and returning those same values unmodified.
    */
-  def tapInput[R, A](f: A => ZIO[R, Nothing, Unit]): Schedule[R, A, A] =
+  def tapInput[R, A](f: A => URIO[R, Unit]): Schedule[R, A, A] =
     identity[A].tapInput(f)
 
   /**
    * A schedule that recurs forever, dumping output values to the specified
    * sink, and returning those same values unmodified.
    */
-  def tapOutput[R, A](f: A => ZIO[R, Nothing, Unit]): Schedule[R, A, A] =
+  def tapOutput[R, A](f: A => URIO[R, Unit]): Schedule[R, A, A] =
     identity[A].tapOutput(f)
 
   /**
@@ -947,6 +986,11 @@ object Schedule {
    * A schedule that always recurs without delay, and computes the output
    * through recured application of a function to a base value.
    */
-  def unfoldM[R, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): Schedule[R, Any, A] =
+  def unfoldM[R, A](a: URIO[R, A])(f: A => URIO[R, A]): Schedule[R, Any, A] =
     Schedule[R, A, Any, A](a, (_, a) => f(a), (_, a) => a)
+
+  final class UpdateService[-R, -A, +B, M](private val self: Schedule[R, A, B]) extends AnyVal {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): Schedule[R1, A, B] =
+      self.provideSome(ev.update(_, f))
+  }
 }

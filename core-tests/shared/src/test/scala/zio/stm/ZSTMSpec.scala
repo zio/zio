@@ -264,8 +264,8 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("extracts the value from Some") {
           assertM(STM.succeed(Some(1)).get.commit)(equalTo(1))
         },
-        testM("fails with Unit on None") {
-          assertM(STM.succeed(None).get.commit.run)(fails(isUnit))
+        testM("fails with None on None") {
+          assertM(STM.succeed(None).get.commit.run)(fails(isNone))
         }
       ),
       suite("head")(
@@ -596,6 +596,28 @@ object ZSTMSpec extends ZIOBaseSpec {
         testM("lifting a value") {
           assertM(STM.some(42).commit)(isSome(equalTo(42)))
         }
+      ),
+      suite("someOrElse")(
+        testM("extracts the value from Some") {
+          assertM(STM.succeed(Some(1)).someOrElse(2).commit)(equalTo(1))
+        },
+        testM("falls back to the default value if None") {
+          assertM(STM.succeed(None).someOrElse(42).commit)(equalTo(42))
+        },
+        testM("does not change failed state") {
+          assertM(STM.fail(ExampleError).someOrElse(42).commit.run)(fails(equalTo(ExampleError)))
+        } @@ zioTag(errors)
+      ),
+      suite("someOrElseM")(
+        testM("extracts the value from Some") {
+          assertM(STM.succeed(Some(1)).someOrElseM(STM.succeed(2)).commit)(equalTo(1))
+        },
+        testM("falls back to the default value if None") {
+          assertM(STM.succeed(None).someOrElseM(STM.succeed(42)).commit)(equalTo(42))
+        },
+        testM("does not change failed state") {
+          assertM(STM.fail(ExampleError).someOrElseM(STM.succeed(42)).commit.run)(fails(equalTo(ExampleError)))
+        } @@ zioTag(errors)
       ),
       suite("someOrFail")(
         testM("extracts the value from Some") {
@@ -1273,9 +1295,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(chain(10000)(_.foldM(_ => STM.succeed(0), a => STM.succeed(a + 1))))(equalTo(10000))
       },
       testM("long mapError chains") {
-        def chain(depth: Int): ZIO[Any, Int, Nothing] = {
+        def chain(depth: Int): IO[Int, Nothing] = {
           @annotation.tailrec
-          def loop(n: Int, acc: STM[Int, Nothing]): ZIO[Any, Int, Nothing] =
+          def loop(n: Int, acc: STM[Int, Nothing]): IO[Int, Nothing] =
             if (n <= 0) acc.commit else loop(n - 1, acc.mapError(_ + 1))
 
           loop(depth, STM.fail(0))

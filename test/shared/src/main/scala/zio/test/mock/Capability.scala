@@ -25,7 +25,7 @@ import zio.{ =!=, taggedIsSubtype, taggedTagType, Has, IO, LightTypeTag, Tag }
 
 /**
  * A `Capability[R, I, E, A]` represents a capability of environment `R` that takes an input `I`
- * and returns an effect that may fail witn an error `E` or produce a single `A`.
+ * and returns an effect that may fail with an error `E` or produce a single `A`.
  *
  * To represent polymorphic capabilities you must use one of lazy `Capability.Poly` types which
  * allow you to delay the declaration of some types to call site.

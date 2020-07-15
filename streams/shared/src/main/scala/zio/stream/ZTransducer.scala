@@ -1,5 +1,7 @@
 package zio.stream
 
+import java.nio.charset.StandardCharsets
+
 import scala.collection.mutable
 
 import zio._
@@ -10,9 +12,8 @@ import zio._
 //
 //   Stated differently, after a first push(None), all subsequent push(None) must
 //   result in Chunk.empty.
-abstract class ZTransducer[-R, +E, -I, +O](
-  val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
-) extends ZConduit[R, E, I, O, Nothing](push.map(_.andThen(_.mapError(Left(_))))) { self =>
+abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]) {
+  self =>
 
   /**
    * Compose this transducer with another transducer, resulting in a composite transducer.
@@ -36,17 +37,17 @@ abstract class ZTransducer[-R, +E, -I, +O](
    * Compose this transducer with a sink, resulting in a sink that processes elements by piping
    * them through this transducer and piping the results into the sink.
    */
-  def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, Z](that: ZSink[R1, E1, O2, Z]): ZSink[R1, E1, I1, Z] =
-    ZSink {
+  def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, L, Z](that: ZSink[R1, E1, O2, L, Z]): ZSink[R1, E1, I1, L, Z] =
+    ZSink[R1, E1, I1, L, Z] {
       self.push.zipWith(that.push) { (pushSelf, pushThat) =>
         {
           case None =>
             pushSelf(None)
-              .mapError(Left(_))
+              .mapError(e => (Left(e), Chunk.empty))
               .flatMap(chunk => pushThat(Some(chunk)) *> pushThat(None))
           case inputs @ Some(_) =>
             pushSelf(inputs)
-              .mapError(Left(_))
+              .mapError(e => (Left(e), Chunk.empty))
               .flatMap(chunk => pushThat(Some(chunk)))
         }
       }
@@ -71,6 +72,24 @@ abstract class ZTransducer[-R, +E, -I, +O](
     ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
 
   /**
+   * Transforms the chunks emitted by this transducer.
+   */
+  final def mapChunks[O2](f: Chunk[O] => Chunk[O2]): ZTransducer[R, E, I, O2] =
+    ZTransducer {
+      self.push.map(push => (input: Option[Chunk[I]]) => push(input).map(f))
+    }
+
+  /**
+   * Effectfully transforms the chunks emitted by this transducer.
+   */
+  final def mapChunksM[R1 <: R, E1 >: E, O2](
+    f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
+  ): ZTransducer[R1, E1, I, O2] =
+    ZTransducer {
+      self.push.map(push => (input: Option[Chunk[I]]) => push(input).flatMap(f))
+    }
+
+  /**
    * Transforms the outputs of this transducer.
    */
   final def mapError[E1](f: E => E1): ZTransducer[R, E1, I, O] =
@@ -81,10 +100,9 @@ abstract class ZTransducer[-R, +E, -I, +O](
    */
   final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
     ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
-
 }
 
-object ZTransducer {
+object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   def apply[R, E, I, O](
     push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
   ): ZTransducer[R, E, I, O] =
@@ -108,38 +126,10 @@ object ZTransducer {
     }
 
   /**
-   * A transducer that re-chunks the elements fed to it into chunks of up to
-   * `n` elements each.
-   */
-  def chunkN[I](n: Int): ZTransducer[Any, Nothing, I, I] =
-    ZTransducer {
-      for {
-        buffered <- ZRef.makeManaged[Chunk[I]](Chunk.empty)
-        push = { (input: Option[Chunk[I]]) =>
-          input match {
-            case None =>
-              buffered
-                .modify(buf => (if (buf.isEmpty) Push.emit(Chunk.empty) else Push.emit(buf)) -> Chunk.empty)
-                .flatten
-            case Some(is) =>
-              buffered.modify { buf0 =>
-                val buf = buf0 ++ is
-                if (buf.length >= n) {
-                  val (out, buf1) = buf.splitAt(n)
-                  Push.emit(out) -> buf1
-                } else
-                  Push.next -> buf
-              }.flatten
-          }
-        }
-      } yield push
-    }
-
-  /**
    * Creates a transducer accumulating incoming values into lists of maximum size `n`.
    */
   def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
-    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse)
+    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse).filter(_.nonEmpty)
 
   /**
    * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
@@ -152,13 +142,13 @@ object ZTransducer {
 
       if (acc contains k) acc.updated(k, f(acc(k), i))
       else acc.updated(k, i)
-    }
+    }.filter(_.nonEmpty)
 
   /**
    * Creates a transducer accumulating incoming values into sets of maximum size `n`.
    */
   def collectAllToSetN[I](n: Long): ZTransducer[Any, Nothing, I, Set[I]] =
-    foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _)
+    foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _).filter(_.nonEmpty)
 
   /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
@@ -246,7 +236,7 @@ object ZTransducer {
             if (contFn(o))
               (os0, o, true)
             else
-              (os0 + o, z, false)
+              (os0 :+ o, z, false)
         }
 
       ZRef.makeManaged[Option[O]](Some(z)).map { state =>
@@ -292,7 +282,7 @@ object ZTransducer {
               if (contFn(o))
                 (os0, o, true)
               else
-                (os0 + o, z, false)
+                (os0 :+ o, z, false)
             }
         }
 
@@ -319,7 +309,9 @@ object ZTransducer {
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
   def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
-    foldWeighted[I, O](z)((_, _) => 1, max)(f)
+    fold[I, (O, Long)]((z, 0))(_._2 < max) {
+      case ((o, count), i) => (f(o, i), count + 1)
+    }.map(_._1)
 
   /**
    * Creates a transducer that effectfully folds elements of type `I` into a structure
@@ -328,7 +320,9 @@ object ZTransducer {
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
   def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldWeightedM[R, E, I, O](z)((_, _) => UIO.succeedNow(1), max)(f)
+    foldM[R, E, I, (O, Long)]((z, 0))(_._2 < max) {
+      case ((o, count), i) => f(o, i).map((_, count + 1))
+    }.map(_._1)
 
   /**
    * Creates a transducer that folds elements of type `I` into a structure
@@ -400,14 +394,14 @@ object ZTransducer {
                 // If `i` cannot be decomposed, we need to cross the `max` threshold. To
                 // minimize "injury", we only allow this when we haven't added anything else
                 // to the aggregate (dirty = false).
-                (os0 + f(state.result, if (is.nonEmpty) is(0) else i), initial, false)
+                (os0 :+ f(state.result, if (is.nonEmpty) is(0) else i), initial, false)
               else if (is.length <= 1 && dirty) {
                 // If the state is dirty and `i` cannot be decomposed, we close the current
                 // aggregate and a create new one from `is`. We're not adding `f(initial, i)` to
                 // the results immediately because it could be that `i` by itself does not
                 // cross the threshold, so we can attempt to aggregate it with subsequent elements.
                 val elem = if (is.nonEmpty) is(0) else i
-                (os0 + state.result, FoldWeightedState(f(initial.result, elem), costFn(initial.result, elem)), true)
+                (os0 :+ state.result, FoldWeightedState(f(initial.result, elem), costFn(initial.result, elem)), true)
               } else
                 // `i` got decomposed, so we will recurse and see whether the decomposition
                 // can be aggregated without crossing `max`.
@@ -482,12 +476,12 @@ object ZTransducer {
                 decompose(i).flatMap(is =>
                   // See comments on `foldWeightedDecompose` for details on every case here.
                   if (is.length <= 1 && !dirty)
-                    f(state.result, if (is.nonEmpty) is(0) else i).map(o => ((os + o), initial, false))
+                    f(state.result, if (is.nonEmpty) is(0) else i).map(o => ((os :+ o), initial, false))
                   else if (is.length <= 1 && dirty) {
                     val elem = if (is.nonEmpty) is(0) else i
 
                     f(initial.result, elem).zipWith(costFn(initial.result, elem)) { (s, cost) =>
-                      (os + state.result, FoldWeightedState(s, cost), true)
+                      (os :+ state.result, FoldWeightedState(s, cost), true)
                     }
                   } else go(is, os, state, dirty)
                 )
@@ -521,7 +515,7 @@ object ZTransducer {
   /**
    * Creates a transducer that purely transforms incoming values.
    */
-  def fromFunction[I, O](f: I => O): ZTransducer[Any, Unit, I, O] =
+  def fromFunction[I, O](f: I => O): ZTransducer[Any, Nothing, I, O] =
     identity.map(f)
 
   /**
@@ -546,6 +540,18 @@ object ZTransducer {
           case Some(_) => acc
           case None    => Some(a)
         }
+    }
+
+  /**
+   * Decodes chunks of ISO/IEC 8859-1 bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val iso_8859_1Decode: ZTransducer[Any, Nothing, Byte, String] =
+    ZTransducer.fromPush {
+      case Some(is) => ZIO.succeedNow(Chunk.single(new String(is.toArray, StandardCharsets.ISO_8859_1)))
+      case None     => ZIO.succeedNow(Chunk.empty)
     }
 
   /**
@@ -574,7 +580,7 @@ object ZTransducer {
                 var inCRLF = wasSplitCRLF
                 var carry  = leftover getOrElse ""
 
-                (Chunk.fromIterable(leftover) ++ strings).foreach { string =>
+                strings.foreach { string =>
                   val concat = carry + string
 
                   if (concat.length() > 0) {
@@ -718,8 +724,8 @@ object ZTransducer {
 
               val (toConvert, newLeftovers) = concat.splitAt(computeSplit(concat))
 
-              if (toConvert.isEmpty) (Chunk.empty, newLeftovers)
-              else (Chunk.single(new String(toConvert.toArray[Byte], "UTF-8")), newLeftovers)
+              if (toConvert.isEmpty) (Chunk.empty, newLeftovers.materialize)
+              else (Chunk.single(new String(toConvert.toArray[Byte], "UTF-8")), newLeftovers.materialize)
             }
         }
       }

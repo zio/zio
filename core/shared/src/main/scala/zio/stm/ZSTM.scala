@@ -383,12 +383,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def forever: ZSTM[R, E, Nothing] = self *> self.forever
 
   /**
-   * Unwraps the optional success of this effect, but can fail with unit value.
+   * Unwraps the optional success of this effect, but can fail with None value.
    */
-  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Unit, B] =
+  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Option[Nothing], B] =
     foldM(
       ev1,
-      ev2(_).fold[ZSTM[R, Unit, B]](ZSTM.fail(()))(ZSTM.succeedNow(_))
+      ev2(_).fold[ZSTM[R, Option[Nothing], B]](ZSTM.fail(None))(ZSTM.succeedNow(_))
     )(CanFail)
 
   /**
@@ -770,6 +770,21 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   /**
+   * Extracts the optional value, or returns the given 'default'.
+   */
+  def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZSTM[R, E, B] =
+    map(_.getOrElse(default))
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  def someOrElseM[B, R1 <: R, E1 >: E](default: ZSTM[R1, E1, B])(implicit ev: A <:< Option[B]): ZSTM[R1, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZSTM.succeedNow(value)
+      case None        => default
+    })
+
+  /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
   def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZSTM[R, E1, B] =
@@ -835,6 +850,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
     ZSTM.unlessM(b)(self)
+
+  /**
+   * Updates a service in the environment of this effect.
+   */
+  final def updateService[M] =
+    new ZSTM.UpdateService[R, E, A, M](self)
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -971,6 +992,13 @@ object ZSTM {
    */
   def check[R](p: => Boolean): URSTM[R, Unit] =
     suspend(if (p) STM.unit else retry)
+
+  /**
+   * Evaluate each effect in the structure from left to right, collecting the
+   * the successful values and discarding the empty cases.
+   */
+  def collect[R, E, A, B](in: Iterable[A])(f: A => ZSTM[R, Option[E], B]): ZSTM[R, E, List[B]] =
+    foreach(in)(a => f(a).optional).map(_.flatten)
 
   /**
    * Collects all the transactional effects in a list, returning a single
@@ -1167,8 +1195,8 @@ object ZSTM {
   /**
    * Lifts an `Option` into a `STM`.
    */
-  def fromOption[A](v: => Option[A]): STM[Unit, A] =
-    STM.suspend(v.fold[STM[Unit, A]](STM.fail(()))(STM.succeedNow))
+  def fromOption[A](v: => Option[A]): STM[Option[Nothing], A] =
+    STM.suspend(v.fold[STM[Option[Nothing], A]](STM.fail(None))(STM.succeedNow))
 
   /**
    * Lifts a `Try` into a `STM`.
@@ -1298,7 +1326,7 @@ object ZSTM {
     in.foldLeft[ZSTM[R, E, B]](succeedNow(zero))(_.zipWith(_)(f))
 
   /**
-   * Returns an effect wth the empty value.
+   * Returns an effect with the empty value.
    */
   val none: USTM[Option[Nothing]] = succeedNow(None)
 
@@ -1423,8 +1451,8 @@ object ZSTM {
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessM[R, E](b: ZSTM[R, E, Boolean])(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    b.flatMap(b => if (b) unit else stm.unit)
+  def unlessM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessM[R, E] =
+    new ZSTM.UnlessM(b)
 
   /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error
@@ -1471,8 +1499,8 @@ object ZSTM {
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZSTM[R, E, Boolean])(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    b.flatMap(b => if (b) stm.unit else unit)
+  def whenM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenM[R, E] =
+    new ZSTM.WhenM(b)
 
   private[zio] def succeedNow[A](a: A): USTM[A] =
     succeed(a)
@@ -1490,6 +1518,21 @@ object ZSTM {
   final class IfM[R, E](private val b: ZSTM[R, E, Boolean]) {
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZSTM[R1, E1, A], onFalse: => ZSTM[R1, E1, A]): ZSTM[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
+  }
+
+  final class UnlessM[R, E](private val b: ZSTM[R, E, Boolean]) {
+    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
+      b.flatMap(b => if (b) unit else stm.unit)
+  }
+
+  final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZSTM[R1, E, A] =
+      self.provideSome(ev.update(_, f))
+  }
+
+  final class WhenM[R, E](private val b: ZSTM[R, E, Boolean]) {
+    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
+      b.flatMap(b => if (b) stm.unit else unit)
   }
 
   private final class Resumable[E, E1, A, B](

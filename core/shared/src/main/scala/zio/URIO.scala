@@ -13,12 +13,6 @@ object URIO {
     ZIO.absolve(v)
 
   /**
-   * @see See [[zio.ZIO.adopt]]
-   */
-  def adopt(fiber: Fiber[Any, Any]): UIO[Boolean] =
-    ZIO.adopt(fiber)
-
-  /**
    * @see [[zio.ZIO.access]]
    */
   def access[R]: ZIO.AccessPartiallyApplied[R] = ZIO.access[R]
@@ -37,11 +31,6 @@ object URIO {
    * @see [[zio.ZIO.apply]]
    */
   def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
-
-  /**
-   * @see [[zio.ZIO.awaitAllChildren]]
-   */
-  val awaitAllChildren: UIO[Unit] = ZIO.awaitAllChildren
 
   /**
    * @see bracket in [[zio.ZIO]]
@@ -86,9 +75,10 @@ object URIO {
     ZIO.checkTraced(f)
 
   /**
-   * @see [[zio.ZIO.children]]
+   * @see See [[zio.ZIO.collect]]
    */
-  def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
+  def collect[R, A, B](in: Iterable[A])(f: A => ZIO[R, Option[Nothing], B]): URIO[R, List[B]] =
+    ZIO.collect(in)(f)
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
@@ -199,6 +189,18 @@ object URIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectPar]]
+   */
+  def collectPar[R, A, B](in: Iterable[A])(f: A => ZIO[R, Option[Nothing], B]): URIO[R, List[B]] =
+    ZIO.collectPar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectParN]]
+   */
+  def collectParN[R, E, A, B](n: Int)(in: Iterable[A])(f: A => ZIO[R, Option[Nothing], B]): URIO[R, List[B]] =
+    ZIO.collectParN(n)(in)(f)
+
+  /**
    * @see [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -218,11 +220,6 @@ object URIO {
    * @see [[zio.ZIO.dieMessage]]
    */
   def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
-
-  /**
-   * @see See [[zio.ZIO.disown]]
-   */
-  def disown(fiber: Fiber[Any, Any]): UIO[Boolean] = ZIO.disown(fiber)
 
   /**
    * @see [[zio.ZIO.done]]
@@ -278,7 +275,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.environment]]
    */
-  def environment[R]: ZIO[R, Nothing, R] = ZIO.environment
+  def environment[R]: URIO[R, R] = ZIO.environment
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -292,10 +289,22 @@ object URIO {
     ZIO.filter(as)(f)
 
   /**
+   * @see [[zio.ZIO.filterPar]]
+   */
+  def filterPar[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, List[A]] =
+    ZIO.filterPar(as)(f)
+
+  /**
    * @see [[zio.ZIO.filterNot]]
    */
   def filterNot[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, List[A]] =
     ZIO.filterNot(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNotPar]]
+   */
+  def filterNotPar[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, List[A]] =
+    ZIO.filterNotPar(as)(f)
 
   /**
    * @see [[zio.ZIO.first]]
@@ -421,7 +430,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.forkAll_]]
    */
-  def forkAll_[R, A](as: Iterable[URIO[R, A]]): ZIO[R, Nothing, Unit] =
+  def forkAll_[R, A](as: Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.forkAll_(as)
 
   /**
@@ -474,7 +483,7 @@ object URIO {
    * @see [[zio.ZIO.ifM]]
    */
   def ifM[R](b: URIO[R, Boolean]): ZIO.IfM[R, Nothing] =
-    new ZIO.IfM(b)
+    ZIO.ifM(b)
 
   /**
    * @see [[zio.ZIO.infinity]]
@@ -485,11 +494,6 @@ object URIO {
    * @see [[zio.ZIO.interrupt]]
    */
   val interrupt: UIO[Nothing] = ZIO.interrupt
-
-  /**
-   * @see See [zio.ZIO.interruptAllChildren]
-   */
-  def interruptAllChildren: UIO[Unit] = ZIO.children.flatMap(Fiber.interruptAll(_))
 
   /**
    * @see See [[zio.ZIO.interruptAs]]
@@ -580,6 +584,12 @@ object URIO {
     f: (A, B, C, D) => F
   ): URIO[R, F] =
     ZIO.mapParN(urio1, urio2, urio3, urio4)(f)
+
+  /**
+   * @see See [[zio.ZIO.memoize]]
+   */
+  def memoize[R, A, B](f: A => URIO[R, B]): UIO[A => URIO[R, B]] =
+    ZIO.memoize(f)
 
   /**
    * @see [[zio.ZIO.mergeAll]]
@@ -733,8 +743,8 @@ object URIO {
   /**
    * @see See [[zio.ZIO.unlessM]]
    */
-  def unlessM[R](b: URIO[R, Boolean])(zio: => URIO[R, Any]): URIO[R, Unit] =
-    ZIO.unlessM(b)(zio)
+  def unlessM[R](b: URIO[R, Boolean]): ZIO.UnlessM[R, Nothing] =
+    ZIO.unlessM(b)
 
   /**
    * @see [[zio.ZIO.unsandbox]]
@@ -766,7 +776,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.whenM]]
    */
-  def whenM[R](b: URIO[R, Boolean])(rio: => URIO[R, Any]): URIO[R, Unit] = ZIO.whenM(b)(rio)
+  def whenM[R](b: URIO[R, Boolean]): ZIO.WhenM[R, Nothing] =
+    ZIO.whenM(b)
 
   /**
    * @see [[zio.ZIO.yieldNow]]

@@ -140,11 +140,11 @@ object ZIOSpec extends ZIOBaseSpec {
           ref   <- Ref.make(0)
           cache <- incrementAndGet(ref).cached(60.minutes)
           a     <- cache
-          _     <- TestClock.advance(59.minutes)
+          _     <- TestClock.adjust(59.minutes)
           b     <- cache
-          _     <- TestClock.advance(1.minute)
+          _     <- TestClock.adjust(1.minute)
           c     <- cache
-          _     <- TestClock.advance(59.minutes)
+          _     <- TestClock.adjust(59.minutes)
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       },
@@ -455,6 +455,24 @@ object ZIOSpec extends ZIOBaseSpec {
           effects <- ref.get.map(_.reverse)
         } yield assert(results)(equalTo(List(2, 4, 6, 6))) &&
           assert(effects)(equalTo(List(2, 4, 6, 3, 5, 6)))
+      }
+    ),
+    suite("filterPar")(
+      testM("filters a collection in parallel using an effectual predicate") {
+        val as = Iterable(2, 4, 6, 3, 5, 6, 10, 11, 15, 17, 20, 22, 23, 25, 28)
+        for {
+          results <- ZIO.filterPar(as)(a => UIO(a % 2 == 0))
+        } yield assert(results)(equalTo(List(2, 4, 6, 6, 10, 20, 22, 28)))
+      }
+    ),
+    suite("filterNotPar")(
+      testM(
+        "filters a collection in parallel using an effectual predicate, removing all elements that satisfy the predicate"
+      ) {
+        val as = Iterable(2, 4, 6, 3, 5, 6, 10, 11, 15, 17, 20, 22, 23, 25, 28)
+        for {
+          results <- ZIO.filterNotPar(as)(a => UIO(a % 2 == 0))
+        } yield assert(results)(equalTo(List(3, 5, 11, 15, 17, 23, 25)))
       }
     ),
     suite("filterOrElse")(
@@ -855,24 +873,18 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(name)(isNone)
       }
     ),
-    suite("forkDaemon")(
-      testM("child is unsupervised by parent") {
+    suite("forkIn") {
+      testM("fiber forked in a closed scope does not run") {
         for {
-          p        <- Promise.make[Nothing, Unit]
-          _        <- (p.succeed(()) *> ZIO.never).forkDaemon
-          _        <- p.await
-          children <- ZIO.children
-        } yield assert(children)(isEmpty)
-      },
-      testM("grandchild is supervised by child") {
-        for {
-          p        <- Promise.make[Nothing, Unit]
-          _        <- (p.succeed(()) *> ZIO.never).fork
-          _        <- p.await
-          children <- ZIO.children
-        } yield assert(children)(hasSize(equalTo(1)))
-      } @@ flaky
-    ) @@ zioTag(supervision),
+          ref   <- Ref.make(false)
+          open  <- ZScope.make[Exit[Any, Any]]
+          _     <- open.close(Exit.unit)
+          fiber <- ref.set(true).forkIn(open.scope)
+          exit  <- fiber.await
+          value <- ref.get
+        } yield assert(exit)(isInterrupted) && assert(value)(isFalse)
+      }
+    },
     suite("forkWithErrorHandler")(
       testM("calls provided function when task fails") {
         for {
@@ -907,7 +919,7 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
         } yield assert(result)(isNone)
       }
-    ) @@ zioTag(future, interruption),
+    ) @@ zioTag(future, interruption) @@ jvmOnly,
     suite("head")(
       testM("on non empty list") {
         assertM(ZIO.succeed(List(1, 2, 3)).head.either)(isRight(equalTo(1)))
@@ -992,6 +1004,14 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("on Right value") {
         assertM(UIO(Right(12)).leftOrFail(ExampleError).flip)(equalTo(ExampleError))
+      } @@ zioTag(errors)
+    ),
+    suite("leftOrFailWith")(
+      testM("on Left value") {
+        assertM(Task(Left(42)).leftOrFailWith((x: Throwable) => x))(equalTo(42))
+      },
+      testM("on Right value") {
+        assertM(Task(Right(ExampleError)).leftOrFailWith((x: Throwable) => x).flip)(equalTo(ExampleError))
       } @@ zioTag(errors)
     ),
     suite("leftOrFailException")(
@@ -1102,6 +1122,17 @@ object ZIOSpec extends ZIOBaseSpec {
         ioMemo
           .flatMap(io => io <*> io)
           .map(tuple => assert(tuple._1)(equalTo(tuple._2)))
+      },
+      testM("memoized function returns the same instance on repeated calls") {
+        for {
+          memoized <- ZIO.memoize((n: Int) => random.nextString(n))
+          a        <- memoized(10)
+          b        <- memoized(10)
+          c        <- memoized(11)
+          d        <- memoized(11)
+        } yield assert(a)(equalTo(b)) &&
+          assert(b)(not(equalTo(c))) &&
+          assert(c)(equalTo(d))
       }
     ),
     suite("merge")(
@@ -1427,7 +1458,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: ZIO[ZEnv, Nothing, Unit]              = zio.provideCustomLayer(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomLayer(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -1435,7 +1466,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("can split environment into two parts") {
         val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: ZIO[Random, Nothing, Unit]           = zio.provideSomeLayer[Random](clockLayer)
+        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -1613,6 +1644,14 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("on Left value") {
         assertM(UIO(Left(1)).rightOrFail(ExampleError).flip)(equalTo(ExampleError))
+      } @@ zioTag(errors)
+    ),
+    suite("rightOrFailWith")(
+      testM("on Right value") {
+        assertM(Task(Right(42)).rightOrFailWith((x: Throwable) => x))(equalTo(42))
+      },
+      testM("on Left value") {
+        assertM(Task(Left(ExampleError)).rightOrFailWith((x: Throwable) => x).flip)(equalTo(ExampleError))
       } @@ zioTag(errors)
     ),
     suite("rightOrFailException")(
@@ -2045,7 +2084,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield l
 
         assertM(Live.live(io))(hasSameElements(List("start 1", "release 1", "start 2", "release 2")))
-      } @@ zioTag(regression),
+      } @@ zioTag(regression) @@ jvmOnly,
       testM("interrupt waits for finalizer") {
         val io =
           for {
@@ -2127,7 +2166,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val io = stackIOs(procNum + 1)
 
         assertM(Live.live(io))(equalTo(42))
-      },
+      } @@ jvmOnly,
       testM("interrupt of effectAsyncM register") {
         for {
           release <- Promise.make[Nothing, Unit]
@@ -2268,11 +2307,14 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(42))
       } @@ zioTag(interruption),
       testM("daemon fiber is unsupervised") {
+        def child(ref: Ref[Boolean]) = withLatch(release => (release *> UIO.never).ensuring(ref.set(true)))
+
         for {
-          ref  <- Ref.make(Option.empty[Fiber[Any, Any]])
-          _    <- withLatch(release => (release *> UIO.never).forkDaemon.tap(fiber => ref.set(Some(fiber))))
-          fibs <- ZIO.children
-        } yield assert(fibs)(isEmpty)
+          ref   <- Ref.make[Boolean](false)
+          fiber <- child(ref).forkDaemon.fork
+          _     <- fiber.join
+          b     <- ref.get
+        } yield assert(b)(isFalse)
       } @@ zioTag(supervision),
       testM("daemon fiber race interruption") {
         def plus1(latch: Promise[Nothing, Unit], finalizer: UIO[Any]) =
@@ -2313,7 +2355,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val io =
           for {
             counter <- Ref.make(0)
-            _ <- (makeChild(1) *> makeChild(2)).handleChildrenWith { fs =>
+            _ <- (makeChild(1) *> makeChild(2)).ensuringChildren { fs =>
                   fs.foldLeft(IO.unit)((acc, f) => acc *> f.interrupt *> counter.update(_ + 1))
                 }
             value <- counter.get
@@ -2340,6 +2382,20 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("race in uninterruptible region") {
         val effect = (ZIO.unit.race(ZIO.infinity)).uninterruptible
         assertM(effect)(isUnit)
+      },
+      testM("race of two forks does not interrupt winner") {
+        for {
+          ref    <- Ref.make(0)
+          fibers <- Ref.make(Set.empty[Fiber[Any, Any]])
+          latch  <- Promise.make[Nothing, Unit]
+          scope  <- ZIO.descriptor.map(_.scope)
+          effect = ZIO.uninterruptibleMask { restore =>
+            restore(latch.await.onInterrupt(ref.update(_ + 1))).forkIn(scope).tap(f => fibers.update(_ + f))
+          }
+          awaitAll = fibers.get.flatMap(Fiber.awaitAll(_))
+          _        <- effect race effect
+          value2   <- latch.succeed(()) *> awaitAll *> ref.get
+        } yield assert(value2)(isLessThanEqualTo(1))
       },
       testM("firstSuccessOf of values") {
         val io = IO.firstSuccessOf(IO.fail(0), List(IO.succeed(100))).either
@@ -2375,19 +2431,6 @@ object ZIOSpec extends ZIOBaseSpec {
           b      <- effect.await
         } yield assert(b)(equalTo(42))
       } @@ zioTag(interruption),
-      testM("par regression") {
-        val io =
-          IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
-        assertM(io)(isTrue)
-      } @@ zioTag(regression) @@ jvm(nonFlaky),
-      testM("par of now values") {
-        def countdown(n: Int): UIO[Int] =
-          if (n == 0) IO.succeed(0)
-          else
-            IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
-
-        assertM(countdown(50))(equalTo(150))
-      },
       testM("mergeAll") {
         val io = IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeed[String](_)))(0)((b, a) => b + a.length)
 
@@ -2614,7 +2657,7 @@ object ZIOSpec extends ZIOBaseSpec {
           p1 <- Promise.make[Nothing, Boolean]
           c  <- Promise.make[Nothing, Unit]
           f1 <- (c.succeed(()) *> ZIO.never)
-                 .ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interruptors.nonEmpty)))
+                 .ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interrupters.nonEmpty)))
                  .fork
           _   <- c.await
           _   <- f1.interrupt
@@ -2857,6 +2900,28 @@ object ZIOSpec extends ZIOBaseSpec {
         io.lock(executor)
       } @@ jvm(nonFlaky(100))
     ),
+    suite("someOrElse")(
+      testM("extracts the value from Some") {
+        assertM(UIO.succeed(Some(1)).someOrElse(2))(equalTo(1))
+      },
+      testM("falls back to the default value if None") {
+        assertM(UIO.succeed(None).someOrElse(42))(equalTo(42))
+      },
+      testM("does not change failed state") {
+        assertM(ZIO.fail(ExampleError).someOrElse(42).run)(fails(equalTo(ExampleError)))
+      } @@ zioTag(errors)
+    ),
+    suite("someOrElseM")(
+      testM("extracts the value from Some") {
+        assertM(UIO.succeed(Some(1)).someOrElseM(UIO.succeed(2)))(equalTo(1))
+      },
+      testM("falls back to the default effect if None") {
+        assertM(UIO.succeed(None).someOrElseM(UIO.succeed(42)))(equalTo(42))
+      },
+      testM("does not change failed state") {
+        assertM(ZIO.fail(ExampleError).someOrElseM(UIO.succeed(42)).run)(fails(equalTo(ExampleError)))
+      } @@ zioTag(errors)
+    ),
     suite("someOrFail")(
       testM("extracts the optional value") {
         val task: Task[Int] = UIO(Some(42)).someOrFail(exampleError)
@@ -2903,6 +2968,26 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(isNone)
       }
     ),
+    suite("transplant")(
+      testM("preserves supervision relationship of nested fibers") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber <- ZIO.transplant { grafter =>
+                    grafter {
+                      val zio = for {
+                        _ <- (latch1.succeed(()) *> ZIO.infinity.onInterrupt(latch2.succeed(()))).fork
+                        _ <- ZIO.infinity
+                      } yield ()
+                      zio.fork
+                    }
+                  }
+          _ <- latch1.await
+          _ <- fiber.interrupt
+          _ <- latch2.await
+        } yield assertCompletes
+      }
+    ),
     suite("unless")(
       testM("executes correct branch only") {
         for {
@@ -2944,6 +3029,17 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(conditionVal2)(equalTo(2)) &&
           assert(failed)(isLeft(equalTo(failure)))
         }
+      },
+      testM("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
+        val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
+        val _                     = ZIO.unlessM(b)(zio)
+        ZIO.succeed(assertCompletes)
       }
     ),
     suite("unrefine")(
@@ -3012,6 +3108,15 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield assert(result)(equalTo(c)) &&
             assert(result.prettyPrint)(equalTo(c.prettyPrint))
         }
+      }
+    ),
+    suite("updateService")(
+      testM("updates a service in the environment") {
+        val zio = for {
+          a <- ZIO.service[Int].updateService[Int](_ + 1)
+          b <- ZIO.service[Int]
+        } yield (a, b)
+        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(
@@ -3090,6 +3195,19 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(6))
       }
     ),
+    suite("validateWith")(
+      testM("succeeds") {
+        assertM(ZIO(1).validateWith(ZIO(2))(_ + _))(equalTo(3))
+      },
+      testM("fails") {
+        assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2))))
+      },
+      testM("combines both cause") {
+        assertM(ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either)(
+          isLeft(equalTo(Cause.Then(Cause.Fail(1), Cause.Fail(2))))
+        )
+      }
+    ),
     suite("when")(
       testM("executes correct branch only") {
         for {
@@ -3157,6 +3275,17 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(conditionVal2)(equalTo(2)) &&
           assert(failed)(isLeft(equalTo(failure)))
         }
+      },
+      testM("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
+        val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
+        val _                     = ZIO.whenM(b)(zio)
+        ZIO.succeed(assertCompletes)
       }
     ),
     suite("withFilter")(
@@ -3187,7 +3316,9 @@ object ZIOSpec extends ZIOBaseSpec {
             } yield n
               """
         }
-        val expected = "Cannot prove that NoSuchElementException <:< String."
+
+        val expected =
+          "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has String for the error type."
         if (TestVersion.isScala2) assertM(result)(isLeft(equalTo(expected)))
         else assertM(result)(isLeft(anything))
       }
@@ -3203,7 +3334,40 @@ object ZIOSpec extends ZIOBaseSpec {
         val io          = ZIO.interrupt.zipPar(IO.succeed(1))
         val interrupted = io.sandbox.either.map(_.left.map(_.interrupted))
         assertM(interrupted)(isLeft(isTrue))
-      } @@ zioTag(interruption)
+      } @@ zioTag(interruption),
+      testM("passes regression 1") {
+        val io =
+          IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
+        assertM(io)(isTrue)
+      } @@ zioTag(regression) @@ jvm(nonFlaky),
+      testM("paralellizes simple success values") {
+        def countdown(n: Int): UIO[Int] =
+          if (n == 0) IO.succeed(0)
+          else
+            IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
+
+        assertM(countdown(50))(equalTo(150))
+      },
+      testM("does not kill fiber when forked on parent scope") {
+
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          latch3 <- Promise.make[Nothing, Unit]
+          ref1   <- Ref.make(false)
+          left = ZIO
+            .uninterruptibleMask(restore => latch2.succeed(()) *> restore(latch1.await *> ZIO.succeed("foo")))
+            .onInterrupt(ref1.set(true))
+          right                         = latch3.succeed(()).as(42)
+          _                             <- (latch2.await *> latch3.await *> latch1.succeed(())).fork
+          result                        <- left.fork zipPar right
+          (leftInnerFiber, rightResult) = result
+          leftResult                    <- leftInnerFiber.await
+          interrupted                   <- ref1.get
+        } yield assert(interrupted)(isFalse) && assert(leftResult)(succeeds(equalTo("foo"))) && assert(rightResult)(
+          equalTo(42)
+        )
+      }
     ),
     suite("toFuture")(
       testM("should fail with ZTrace attached") {
@@ -3212,7 +3376,14 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- ZIO.fromFuture(_ => future).either
         } yield assert(result)(isLeft(hasThrowableCause(hasThrowableCause(hasMessage(containsString("Fiber:Id("))))))
       }
-    ) @@ zioTag(future)
+    ) @@ zioTag(future),
+    suite("resurrect")(
+      testM("should fail checked") {
+        val error: Exception   = new Exception("msg")
+        val effect: Task[Unit] = ZIO.fail(error).unit.orDie.resurrect
+        assertM(effect.either)(isLeft(equalTo(error)))
+      }
+    )
   )
 
   def functionIOGen: Gen[Random with Sized, String => Task[Int]] =

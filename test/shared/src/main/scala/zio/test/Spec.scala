@@ -96,34 +96,18 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Returns a new spec with only those suites and tests with annotations
-   * satisfying the specified predicate. If no annotations satisfy the
-   * specified predicate then returns `Some` with an empty suite with the root
-   * label if this is a suite or `None` otherwise.
+   * Returns a new spec with only those tests with annotations satisfying the
+   * specified predicate. If no annotations satisfy the specified predicate
+   * then returns `Some` with an empty suite if this is a suite or `None`
+   * otherwise.
    */
-  final def filterAnnotations[V](key: TestAnnotation[V])(f: V => Boolean): Option[Spec[R, E, T]] = {
-    def loop(spec: Spec[R, E, T]): ZManaged[R, Nothing, Option[Spec[R, E, T]]] =
-      spec.caseValue match {
-        case SuiteCase(label, specs, exec) =>
-          specs.foldCauseM(
-            c => ZManaged.succeedNow(Some(Spec.suite(label, ZManaged.halt(c), exec))),
-            ZManaged.foreach(_)(loop).map(_.toVector.flatten).map { specs =>
-              if (specs.isEmpty) None
-              else Some(Spec.suite(label, ZManaged.succeedNow(specs), exec))
-            }
-          )
-        case t @ TestCase(_, _, annotations) =>
-          if (f(annotations.get(key))) ZManaged.succeedNow(Some(Spec(t)))
-          else ZManaged.succeedNow(None)
-      }
+  final def filterAnnotations[V](key: TestAnnotation[V])(f: V => Boolean): Option[Spec[R, E, T]] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        Some(Spec.suite(label, specs.flatMap(ZManaged.foreach(_)(loop).map(_.toVector.flatten)), exec))
-      case t @ TestCase(_, _, annotations) =>
-        if (f(annotations.get(key))) Some(Spec(t))
-        else None
+        Some(Spec.suite(label, specs.map(_.flatMap(_.filterAnnotations(key)(f).toVector)), exec))
+      case TestCase(label, test, annotations) =>
+        if (f(annotations.get(key))) Some(Spec.test(label, test, annotations)) else None
     }
-  }
 
   /**
    * Returns a new spec with only those suites and tests satisfying the
@@ -131,35 +115,16 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * suite will be included in the new spec. Otherwise only those specs in a
    * suite that satisfy the specified predicate will be included in the new
    * spec. If no labels satisfy the specified predicate then returns `Some`
-   * with an empty suite with the root label if this is a suite or `None`
-   * otherwise.
+   * with an empty suite if this is a suite or `None` otherwise.
    */
-  final def filterLabels(f: String => Boolean): Option[Spec[R, E, T]] = {
-    def loop(spec: Spec[R, E, T]): ZManaged[R, Nothing, Option[Spec[R, E, T]]] =
-      spec.caseValue match {
-        case SuiteCase(label, specs, exec) =>
-          if (f(label))
-            ZManaged.succeedNow(Some(Spec.suite(label, specs, exec)))
-          else
-            specs.foldCauseM(
-              c => ZManaged.succeedNow(Some(Spec.suite(label, ZManaged.halt(c), exec))),
-              ZManaged.foreach(_)(loop).map(_.toVector.flatten).map { specs =>
-                if (specs.isEmpty) None
-                else Some(Spec.suite(label, ZManaged.succeedNow(specs), exec))
-              }
-            )
-        case TestCase(label, test, annotations) =>
-          if (f(label)) ZManaged.succeedNow(Some(Spec.test(label, test, annotations)))
-          else ZManaged.succeedNow(None)
-      }
+  final def filterLabels(f: String => Boolean): Option[Spec[R, E, T]] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         if (f(label)) Some(Spec.suite(label, specs, exec))
-        else Some(Spec.suite(label, specs.flatMap(ZManaged.foreach(_)(loop).map(_.toVector.flatten)), exec))
+        else Some(Spec.suite(label, specs.map(_.flatMap(_.filterLabels(f).toVector)), exec))
       case TestCase(label, test, annotations) =>
         if (f(label)) Some(Spec.test(label, test, annotations)) else None
     }
-  }
 
   /**
    * Returns a new spec with only those suites and tests with tags satisfying
@@ -191,7 +156,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
         specs.foldCauseM(
           c => f(SuiteCase(label, ZManaged.halt(c), exec)),
           ZManaged
-            .foreachExec(_)(exec.getOrElse(defExec))(_.foldM(defExec)(f))
+            .foreachExec(_)(exec.getOrElse(defExec))(_.foldM(defExec)(f).release)
             .flatMap(z => f(SuiteCase(label, ZManaged.succeedNow(z.toVector), exec)))
         )
       case t @ TestCase(_, _, _) => f(t)
@@ -285,44 +250,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       case SuiteCase(label, specs, exec)      => SuiteCase(label, specs, exec)
       case TestCase(label, test, annotations) => TestCase(label, test.map(f), annotations)
     }
-
-  /**
-   * Returns a new suite with only those suites and tests tagged to be the only
-   * ones evaluated. If no tests are tagged to be the only ones evaluated then
-   * returns the spec unmodified.
-   */
-  final def only: Spec[R, E, T] = {
-    def loop(spec: Spec[R, E, T]): ZManaged[R, Nothing, Either[Spec[R, E, T], Spec[R, E, T]]] =
-      spec.caseValue match {
-        case SuiteCase(label, specs, exec) =>
-          specs.foldCauseM(
-            c => ZManaged.succeedNow(Left(Spec.suite(label, ZManaged.halt(c), exec))),
-            ZManaged.foreach(_)(loop).map { specs =>
-              val (left, right) = ZIO.partitionMap(specs)(identity)
-              if (right.nonEmpty)
-                Right(Spec.suite(label, ZManaged.succeedNow(right.toVector), exec))
-              else
-                Left(Spec.suite(label, ZManaged.succeedNow(left.toVector), exec))
-            }
-          )
-        case t @ TestCase(_, _, annotations) =>
-          if (annotations.get(TestAnnotation.only)) ZManaged.succeedNow(Right(Spec(t)))
-          else ZManaged.succeedNow(Left(Spec(t)))
-      }
-    caseValue match {
-      case SuiteCase(label, specs, exec) =>
-        Spec.suite(
-          label,
-          specs.flatMap(ZManaged.foreach(_)(loop)).map { specs =>
-            val (left, right) = ZIO.partitionMap(specs)(identity)
-            if (right.nonEmpty) right.toVector else left.toVector
-          },
-          exec
-        )
-      case TestCase(label, specs, annotations) =>
-        Spec.test(label, specs, annotations)
-    }
-  }
 
   /**
    * Provides each test in this spec with its required environment
@@ -481,6 +408,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
+   * Updates a service in the environment of this effect.
+   */
+  final def updateService[M] =
+    new Spec.UpdateService[R, E, T, M](self)
+
+  /**
    * Runs the spec only if the specified predicate is satisfied.
    */
   final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Annotations, E, TestSuccess] =
@@ -560,5 +493,10 @@ object Spec {
         case TestCase(label, test, annotations) =>
           Spec.test(label, test.provideSomeLayer(layer), annotations)
       }
+  }
+
+  final class UpdateService[-R, +E, +T, M](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): Spec[R1, E, T] =
+      self.provideSome(ev.update(_, f))
   }
 }

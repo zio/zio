@@ -6,7 +6,7 @@ title:  "Creating Effects"
 This section explores some of the common ways to create ZIO effects from values, from common Scala types, and from both synchronous and asynchronous side-effects.
 
 ```scala mdoc:invisible
-import zio.{ ZIO, Task, UIO, IO }
+import zio.{ ZIO, Task, UIO, URIO, IO }
 ```
 
 ## From Success Values
@@ -58,13 +58,32 @@ Scala's standard library contains a number of data types that can be converted i
 An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 
 ```scala mdoc:silent
-val zoption: ZIO[Any, Unit, Int] = ZIO.fromOption(Some(2))
+val zoption: IO[Option[Nothing], Int] = ZIO.fromOption(Some(2))
 ```
 
-The error type of the resulting effect is `Unit`, because the `None` case of `Option` provides no information on why the value is not there. You can change the `Unit` into a more specific error type using `ZIO#mapError`:
+The error type of the resulting effect is `Option[Nothing]`, which provides no information on why the value is not there. You can change the `Option[Nothing]` into a more specific error type using `ZIO#mapError`:
 
 ```scala mdoc:silent
-val zoption2: ZIO[Any, String, Int] = zoption.mapError(_ => "It wasn't there!")
+val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
+```
+
+You can also readily compose it with other operators while preserving the optional nature of the result (similar to an `OptionT`)
+
+```scala mdoc:invisible
+trait Team
+```
+
+```scala mdoc:silent
+val maybeId: IO[Option[Nothing], String] = ZIO.fromOption(Some("abc123"))
+def getUser(userId: String): IO[Throwable, Option[User]] = ???
+def getTeam(teamId: String): IO[Throwable, Team] = ???
+
+
+val result: IO[Throwable, Option[(User, Team)]] = (for {
+  id   <- maybeId
+  user <- getUser(id).some
+  team <- getTeam(user.teamId).asSomeError 
+} yield (user, team)).optional 
 ```
 
 ### Either
@@ -94,7 +113,7 @@ The error type of the resulting effect will always be `Throwable`, because `Try`
 A function `A => B` can be converted into a ZIO effect with `ZIO.fromFunction`:
 
 ```scala mdoc:silent
-val zfun: ZIO[Int, Nothing, Int] =
+val zfun: URIO[Int, Int] =
   ZIO.fromFunction((i: Int) => i * i)
 ```
 
@@ -161,7 +180,9 @@ val getStrLn2: IO[IOException, String] =
 An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.effectAsync`:
 
 ```scala mdoc:invisible
-trait User
+trait User { 
+  def teamId: String
+}
 trait AuthError
 ```
 

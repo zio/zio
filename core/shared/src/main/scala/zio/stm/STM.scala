@@ -168,7 +168,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fromOption]]
    */
-  def fromOption[A](v: => Option[A]): STM[Unit, A] =
+  def fromOption[A](v: => Option[A]): STM[Option[Nothing], A] =
     ZSTM.fromOption(v)
 
   /**
@@ -186,7 +186,7 @@ object STM {
    * @see See [[zio.stm.ZSTM.ifM]]
    */
   def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
-    new ZSTM.IfM(b)
+    ZSTM.ifM(b)
 
   /**
    * @see See [[zio.stm.ZSTM.iterate]]
@@ -324,8 +324,8 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.unlessM]]
    */
-  def unlessM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] =
-    ZSTM.unlessM(b)(stm)
+  def unlessM[E](b: STM[E, Boolean]): ZSTM.UnlessM[Any, E] =
+    ZSTM.unlessM(b)
 
   /**
    * @see See [[zio.stm.ZSTM.validate]]
@@ -363,7 +363,8 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.whenM]]
    */
-  def whenM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
+  def whenM[E](b: STM[E, Boolean]): ZSTM.WhenM[Any, E] =
+    ZSTM.whenM(b)
 
   private[zio] def succeedNow[A](a: A): USTM[A] =
     ZSTM.succeedNow(a)

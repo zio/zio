@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.{ ignore, nonFlaky }
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment._
 
@@ -257,7 +257,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
         } yield assertCompletes
-      } @@ ignore,
+      },
       testM("map can map the output of a layer to an unrelated type") {
         case class A(name: String, value: Int)
         case class B(name: String)
@@ -332,6 +332,28 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- env.useNow
           result <- ref.get
         } yield assert(result)(equalTo(expected))
-      } @@ nonFlaky
+      } @@ nonFlaky,
+      testM("preserves identity of acquired resources") {
+        for {
+          testRef <- Ref.make(Vector[String]())
+          layer = ZLayer.fromManagedMany(
+            for {
+              ref <- Ref.make[Vector[String]](Vector()).toManaged(ref => ref.get.flatMap(testRef.set))
+              _   <- ZManaged.unit
+            } yield ref
+          )
+          _      <- layer.build.use(ref => ref.update(_ :+ "test"))
+          result <- testRef.get
+        } yield assert(result)(equalTo(Vector("test")))
+      },
+      testM("retry") {
+        for {
+          ref    <- Ref.make(0)
+          effect = ref.update(_ + 1) *> ZIO.fail("fail")
+          layer  = ZLayer.fromEffectMany(effect).retry(Schedule.recurs(3))
+          _      <- layer.build.useNow.ignore
+          result <- ref.get
+        } yield assert(result)(equalTo(4))
+      }
     )
 }

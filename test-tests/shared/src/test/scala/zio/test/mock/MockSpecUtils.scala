@@ -19,7 +19,7 @@ import zio.duration._
 import zio.test.environment.Live
 import zio.test.mock.module.T22
 import zio.test.{ assertM, testM, Assertion, ZSpec }
-import zio.{ ULayer, ZIO }
+import zio.{ IO, ULayer, ZIO }
 
 trait MockSpecUtils[R] {
 
@@ -64,7 +64,7 @@ trait MockSpecUtils[R] {
     app: ZIO[R, E, A],
     check: Assertion[Throwable]
   ): ZSpec[Any, Any] = testM(name) {
-    val result: ZIO[Any, Any, Throwable] =
+    val result: IO[Any, Throwable] =
       mock.build
         .use(app.provide _)
         .orElse(ZIO.unit)

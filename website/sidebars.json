@@ -31,6 +31,7 @@
       "datatypes/datatypes_chunk",
       "datatypes/datatypes_tarray",
       "datatypes/datatypes_tmap",
+      "datatypes/datatypes_tpriorityqueue",
       "datatypes/datatypes_tpromise",
       "datatypes/datatypes_tqueue",
       "datatypes/datatypes_tref",
@@ -87,6 +88,7 @@
   "about-sidebar": {
       "About": [
           "about/about_index",
+          "about/about_coding_guidelines",
           "about/about_contributing",
           "about/about_coc"
       ]

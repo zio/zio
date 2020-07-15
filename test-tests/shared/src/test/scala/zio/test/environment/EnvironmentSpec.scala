@@ -15,7 +15,6 @@ object EnvironmentSpec extends ZIOBaseSpec {
     testM("Clock returns time when it is set") {
       for {
         _    <- TestClock.setTime(1.millis)
-        _    <- clock.sleep(1.millis)
         time <- clock.currentTime(TimeUnit.MILLISECONDS)
       } yield assert(time)(equalTo(1L))
     },
@@ -24,6 +23,13 @@ object EnvironmentSpec extends ZIOBaseSpec {
         _      <- console.putStrLn("First line")
         _      <- console.putStrLn("Second line")
         output <- TestConsole.output
+      } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
+    } @@ silent,
+    testM("Console writes error line to error console") {
+      for {
+        _      <- console.putStrLnErr("First line")
+        _      <- console.putStrLnErr("Second line")
+        output <- TestConsole.outputErr
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     } @@ silent,
     testM("Console reads line from input") {

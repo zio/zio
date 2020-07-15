@@ -16,8 +16,8 @@
 
 package zio.test
 
-import zio.Tag
 import zio.duration._
+import zio.{ Chunk, Fiber, Tag }
 
 /**
  * A type of annotation.
@@ -47,12 +47,6 @@ object TestAnnotation {
     TestAnnotation("ignored", 0, _ + _)
 
   /**
-   * An annotation which tags tests to be the only ones evaluated.
-   */
-  val only: TestAnnotation[Boolean] =
-    TestAnnotation("only", false, _ || _)
-
-  /**
    * An annotation which counts repeated tests.
    */
   val repeated: TestAnnotation[Int] =
@@ -75,4 +69,19 @@ object TestAnnotation {
    */
   val timing: TestAnnotation[Duration] =
     TestAnnotation("timing", Duration.Zero, _ + _)
+
+  import scala.collection.immutable.SortedSet
+
+  import zio.Ref
+
+  val fibers: TestAnnotation[Either[Int, Chunk[Ref[SortedSet[Fiber.Runtime[Any, Any]]]]]] =
+    TestAnnotation("fibers", Left(0), compose(_, _))
+
+  def compose[A](left: Either[Int, Chunk[A]], right: Either[Int, Chunk[A]]): Either[Int, Chunk[A]] =
+    (left, right) match {
+      case (Left(n), Left(m))           => Left(n + m)
+      case (Right(refs1), Right(refs2)) => Right(refs1 ++ refs2)
+      case (Right(_), Left(n))          => Left(n)
+      case (Left(_), Right(refs))       => Right(refs)
+    }
 }
