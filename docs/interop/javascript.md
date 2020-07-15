@@ -19,17 +19,11 @@ Your main function can extend `App` as follows.
 This example uses [scala-js-dom](https://github.com/scala-js/scala-js-dom) to access the DOM; to run the example you
 will need to add that library as a dependency to your `build.sbt`.
 
-<<<<<<< HEAD
-```scala mdoc:silent
-import org.scalajs.dom.document
-import zio.{App, IO}
-=======
 ```scala mdoc:js
 import org.scalajs.dom.{document, raw}
 import zio._
 import zio.duration._
 import zio.clock._
->>>>>>> Added Scala.JS example that uses ZIO and should render with mdoc in the browser.
 
 object Main extends App {
 
