@@ -682,6 +682,12 @@ object ZIOSpec extends ZIOBaseSpec {
           .run
         assertM(results)(isInterrupted)
       } @@ zioTag(interruption),
+      testM("runs a task that throws an unsuspended exception") {
+        def f(i: Int): Task[Int] = throw new Exception(i.toString)
+        for {
+          _ <- IO.foreachPar(1 to 1)(f).run
+        } yield assertCompletes
+      },
       testM("returns results in the same order") {
         val list = List("1", "2", "3")
         val res  = IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt))
