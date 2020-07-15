@@ -19,19 +19,42 @@ Your main function can extend `App` as follows.
 This example uses [scala-js-dom](https://github.com/scala-js/scala-js-dom) to access the DOM; to run the example you
 will need to add that library as a dependency to your `build.sbt`.
 
+<<<<<<< HEAD
 ```scala mdoc:silent
 import org.scalajs.dom.document
 import zio.{App, IO}
+=======
+```scala mdoc:js
+import org.scalajs.dom.{document, raw}
+import zio._
+import zio.duration._
+import zio.clock._
+>>>>>>> Added Scala.JS example that uses ZIO and should render with mdoc in the browser.
 
-object MyApp extends App {
+object Main extends App {
 
-  def run(args: List[String]): IO[Nothing, Int] =
+  def run(args: List[String]) = {
     for {
-      p <- IO.effectTotal(document.createElement("p"))
-      t <- IO.effectTotal(document.createTextNode("Hello World"))
-      _ <- IO.effectTotal(p.appendChild(t))
-      _ <- IO.effectTotal(document.body.appendChild(p))
+      target <- IO.effectTotal(document.createElement("pre"))
+      _      <- update(target).repeat(Schedule.spaced(1.seconds))
+      _      <- IO.effectTotal(node.appendChild(target))
     } yield ExitCode.success
-}
+  }
 
+  def update(target: raw.Element) = {
+      for {
+        time   <- currentTime(TimeUnit.SECONDS)
+        output <- UIO.effectTotal(progress((time % 11).toInt, 10))
+        _      <- UIO.effectTotal(target.innerHTML = output)
+      } yield ()
+  }
+
+  def progress(tick: Int, size: Int) = {
+      val bar_length = tick
+      val empty_length = size - tick
+      val bar = "#" * bar_length + " " * empty_length
+      s"$bar $bar_length%"
+  }
+
+}
 ```

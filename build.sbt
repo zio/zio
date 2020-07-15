@@ -1,6 +1,6 @@
-// shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import BuildHelper._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
+// shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 name := "zio"
@@ -357,6 +357,11 @@ lazy val benchmarks = project.module
     )
   )
 
+lazy val jsdocs = project
+  .settings(
+    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0"
+  )
+  .enablePlugins(ScalaJSPlugin)
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
@@ -385,6 +390,7 @@ lazy val docs = project.module
     )
   )
   .settings(macroExpansionSettings)
+  .settings(mdocJS := Some(jsdocs))
   .dependsOn(
     coreJVM,
     streamsJVM,
