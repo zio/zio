@@ -19,7 +19,7 @@ Your main function can extend `App` as follows.
 This example uses [scala-js-dom](https://github.com/scala-js/scala-js-dom) to access the DOM; to run the example you
 will need to add that library as a dependency to your `build.sbt`.
 
-```scala mdoc:js
+```scala
 import org.scalajs.dom.{document, raw}
 import zio._
 import zio.duration._
