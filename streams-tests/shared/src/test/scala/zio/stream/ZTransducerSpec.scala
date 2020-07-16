@@ -88,12 +88,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
           checkM(
             Gen
               .int(0, 10)
-              .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))))
-          ) { chunks =>
-            for {
-              transduced <- ZIO.foreach(chunks)(chunk => run(ZTransducer.collectAllN[Int](3), List(chunk)))
-              regular    = chunks.map(chunk => Chunk.fromIterable(chunk.grouped(3).toIterable))
-            } yield assert(transduced)(equalTo(regular))
+              .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))),
+            Gen.small(Gen.const(_), 1)
+          ) {
+            case (chunks, groupingSize) =>
+              for {
+                transduced <- ZIO.foreach(chunks)(chunk => run(ZTransducer.collectAllN[Int](groupingSize), List(chunk)))
+                regular    = chunks.map(chunk => Chunk.fromIterable(chunk.grouped(groupingSize).toIterable))
+              } yield assert(transduced)(equalTo(regular))
           }
         }
       ),
