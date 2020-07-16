@@ -44,7 +44,7 @@ This is done to help the compiler infer types;
 4. All classes inside objects should be defined `final`, because otherwise they could still be extended;
 
 5. In general, classes that are not case classes have their constructors & constructor parameters private. 
-   Typically it is not good practice to expose constructors and constructor parameters but exceptions apply (i.e. `Assertion` and `TestAnnotation`);
+   Typically, it is not good practice to expose constructors and constructor parameters but exceptions apply (i.e. `Assertion` and `TestAnnotation`);
 
 6. All `vals` declared `final`, even in objects or `final classes`, if they are constant expressions and without type annotations;
 
@@ -59,31 +59,31 @@ This is done to help the compiler infer types;
 
 ### Understanding naming of parameters or values
 
-ZIO code often uses the following naming conventions and you might be asked to change method parameters to follow this conventions. This guide can help you understand where the names come from. 
+ZIO code often uses the following naming conventions, and you might be asked to change method parameters to follow these conventions. This guide can help you understand where the names come from. 
 Naming expectations can be helpful in understanding the role of certain parameters without even glancing at its type signature when reading code or class/method signatures.
 
 1. Partial functions have a shortened name `pf`;
 
 2. In ZIO implicit parameters are often used as compiler evidences;
-   These evidences help you, as a developer, prove something to the compiler (at compile time) and they have the ability to add constraints to a method;
+   These evidences help you, as a developer, prove something to the compiler (at compile time), and they have the ability to add constraints to a method;
    They are typically called `ev` if there is only one. Or `ev1`, `ev2`... if more than one;
    
-3. Promises are called `p` (unless in its own class methods, in that case it is called `that`, like point 6 defines);
+3. Promises are called `p` (unless in its own class methods, in that case it is called `that`, like point 8 defines);
 
 4. Functions are called `fn`, `fn1`, unless they bear specific meaning: `use`, `release`;
 
-4. ZIO effects are called `f`, unless they bear specific meaning like partially providing environment: `r0`;
+5. ZIO effects are called `f`, unless they bear specific meaning like partially providing environment: `r0`;
 
-4. Consider methods ending with _ having more meaningful names;
+6. Consider methods ending with `_` having more meaningful names;
 
-5. Iterable are called `in`;
+7. Iterable are called `in`;
 
-6. When a parameter type equals own (in a method of a trait) call it `that`;
+8. When a parameter type equals own (in a method of a trait) call it `that`;
 
-7. Be mindful of using by-name parameters. Mind the `Function[0]` extra allocation and loss of clean syntax when invoking the method.
+9. Be mindful of using by-name parameters. Mind the `Function[0]` extra allocation and loss of clean syntax when invoking the method.
    Loss of syntax means that instead of being able to do something like `f.flatMap(ZIO.success)` you require to explicitly do `f.flatMap(ZIO.success(_))`;
    
-8. Fold or fold variants initial values are called `zero`.
+10. Fold or fold variants initial values are called `zero`.
 
 ### Understanding naming of methods
 
@@ -92,7 +92,7 @@ This section will attempt to provide some guidelines and examples to document, g
 
 1. Methods that lift pure values to effects are dangerous. Dangerous in the sense that they can potentially have dangerous side-effects. 
    Such methods should have a default lazy variant and an eager variant for advanced users that are aware they absolutely do not have side-effects in their code, 
-   having slight gains in performance. The lazy variant should have a normal name (succeed, fail, die, lift) and the eager variant should have a `now` suffix 
+   having slight gains in performance. The lazy variant should have a normal name (succeed, fail, die, lift) and the eager variant should have a `Now` suffix 
    (succeedNow, failNow, dieNow, liftNow) which makes it clear of its eager behaviour;
 
 2. Methods that have the form of `List#zip` are called `zip`, and have an alias called `<*>`. The parallel version, if applicable, has the name `zipPar`, with an alias called `<&>`;
@@ -116,7 +116,7 @@ The following rules are good to have in mind when adding new `types`, `traits` o
 
 1. Generalized ADTs should always have type annotation. (i.e. `final case class Fail[+E](value: E) extends Cause[E]`);
    
-2. Type alias should always have type annotation. Much like in Generalized ADTs defining type aliases should have carry the type annotations 
+2. Type alias should always have type annotation. Much like in Generalized ADTs defining type aliases should carry the type annotations 
    (i.e. `type IO[+E, +A] = ZIO[Any, E, A]`).
   
 
@@ -136,7 +136,7 @@ Operators are any methods that only have non-letter characters (i.e. `<*>` , `<>
 
 It is strongly recommended to use scala doc links when referring to other members. 
 This both makes it easier for users to navigate the documentation and enforces that the references are accurate.
-A good example of this are `ZIO` type aliases that are extremely pervasive in the codebase: `UIO`, `Task`, `RIO`, `URIO` and `UIO`.
+A good example of this are `ZIO` type aliases that are extremely pervasive in the codebase: `Task`, `RIO`, `URIO` and `UIO`.
 To make it easy for developers to see the implementation scala doc links are used, for example:
 
 ```

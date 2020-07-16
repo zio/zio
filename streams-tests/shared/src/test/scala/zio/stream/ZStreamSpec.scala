@@ -14,7 +14,7 @@ import zio.duration._
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.test.Assertion._
-import zio.test.TestAspect.{ exceptDotty, exceptJS, flaky, nonFlaky, timeout }
+import zio.test.TestAspect.{ exceptJS, flaky, nonFlaky, timeout }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1333,6 +1333,9 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
+        testM("flattenIterables")(checkM(tinyListOf(tinyListOf(Gen.anyInt))) { lists =>
+          assertM(ZStream.fromIterable(lists).flattenIterables.runCollect)(equalTo(Chunk.fromIterable(lists.flatten)))
+        }),
         suite("flattenTake")(
           testM("happy path")(checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
             assertM(
@@ -1970,14 +1973,17 @@ object ZStreamSpec extends ZIOBaseSpec {
               interrupted <- Ref.make(0)
               latch1      <- Promise.make[Nothing, Unit]
               latch2      <- Promise.make[Nothing, Unit]
-              _ <- ZStream(
-                    latch1.succeed(()) *> ZIO.never.onInterrupt(interrupted.update(_ + 1)),
-                    latch2.succeed(()) *> ZIO.never.onInterrupt(interrupted.update(_ + 1)),
-                    latch1.await *> latch2.await *> ZIO.fail("Boom")
-                  ).mapMPar(3)(identity).runDrain.run
+              result <- ZStream(1, 2, 3)
+                         .mapMPar(3) {
+                           case 1 => (latch1.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                           case 2 => (latch2.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                           case 3 => latch1.await *> latch2.await *> ZIO.fail("Boom")
+                         }
+                         .runDrain
+                         .run
               count <- interrupted.get
-            } yield assert(count)(equalTo(2))
-          } @@ exceptDotty
+            } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
+          } @@ nonFlaky
         ),
         suite("mergeTerminateLeft")(
           testM("terminates as soon as the first stream terminates") {
@@ -2585,7 +2591,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("should handle empty chunks properly") {
             for {
-              fiber  <- ZStream(1, 2, 3).fixed[Any](500.millis).debounce(1.second).runCollect.fork
+              fiber  <- ZStream(1, 2, 3).fixed(500.millis).debounce(1.second).runCollect.fork
               _      <- TestClock.adjust(3.seconds)
               result <- fiber.join
             } yield assert(result)(equalTo(Chunk(3)))
@@ -3428,12 +3434,34 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runCollect
           )(equalTo(Chunk(0, 1, 2, 3)))
         },
+        testM("paginateChunk") {
+          val s        = (Chunk.single(0), List(1, 2, 3, 4, 5))
+          val pageSize = 2
+
+          assertM(
+            ZStream
+              .paginateChunk(s) {
+                case (x, Nil) => x -> None
+                case (x, xs)  => x -> Some(Chunk.fromIterable(xs.take(pageSize)) -> xs.drop(pageSize))
+              }
+              .runCollect
+          )(equalTo(Chunk(0, 1, 2, 3, 4, 5)))
+        },
+        testM("paginateChunkM") {
+          val s        = (Chunk.single(0), List(1, 2, 3, 4, 5))
+          val pageSize = 2
+
+          assertM(
+            ZStream
+              .paginateChunkM(s) {
+                case (x, Nil) => ZIO.succeed(x -> None)
+                case (x, xs)  => ZIO.succeed(x -> Some(Chunk.fromIterable(xs.take(pageSize)) -> xs.drop(pageSize)))
+              }
+              .runCollect
+          )(equalTo(Chunk(0, 1, 2, 3, 4, 5)))
+        },
         testM("range") {
-          val right = Chunk.fromIterable(Range(0, 10))
-          println(right)
-          val left = UIO(println("Starting")) *> ZStream.range(0, 10).runCollect <* UIO(println("Done"))
-          assertM(left)(equalTo(right))
-          //assertM(ZStream.range(0, 10).runCollect)(equalTo(Chunk.fromIterable(Range(0, 10))))
+          assertM(ZStream.range(0, 10).runCollect)(equalTo(Chunk.fromIterable(Range(0, 10))))
         },
         testM("repeatEffect")(
           assertM(
@@ -3493,16 +3521,56 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref      <- Ref.make(0)
               effect   = ref.getAndUpdate(_ + 1).filterOrFail(_ <= length + 1)(())
-              schedule = Schedule.identity[Int].whileOutput(_ <= length)
+              schedule = Schedule.identity[Int].whileOutput(_ < length)
               result   <- ZStream.repeatEffectWith(effect, schedule).runCollect
             } yield assert(result)(equalTo(Chunk.fromIterable(0 to length)))
-          })
+          }),
+          testM("should perform repetitions in addition to the first execution (one repetition)") {
+            assertM(ZStream.repeatEffectWith(UIO(1), Schedule.once).runCollect)(
+              equalTo(Chunk(1, 1))
+            )
+          },
+          testM("should perform repetitions in addition to the first execution (zero repetitions)") {
+            assertM(ZStream.repeatEffectWith(UIO(1), Schedule.stop).runCollect)(
+              equalTo(Chunk(1))
+            )
+          },
+          testM("emits before delaying according to the schedule") {
+            val interval = 1.second
+
+            for {
+              collected <- Ref.make(0)
+              effect    = ZIO.unit
+              schedule  = Schedule.fixed(interval)
+              streamFiber <- ZStream
+                              .repeatEffectWith(effect, schedule)
+                              .tap(_ => collected.update(_ + 1))
+                              .runDrain
+                              .fork
+              _                      <- TestClock.adjust(0.seconds)
+              nrCollectedImmediately <- collected.get
+              _                      <- TestClock.adjust(1.seconds)
+              nrCollectedAfterDelay  <- collected.get
+              _                      <- streamFiber.interrupt
+
+            } yield assert(nrCollectedImmediately)(equalTo(1)) && assert(nrCollectedAfterDelay)(equalTo(2))
+          }
         ),
         testM("unfold") {
           assertM(
             ZStream
               .unfold(0) { i =>
                 if (i < 10) Some((i, i + 1))
+                else None
+              }
+              .runCollect
+          )(equalTo(Chunk.fromIterable(0 to 9)))
+        },
+        testM("unfoldChunk") {
+          assertM(
+            ZStream
+              .unfoldChunk(0) { i =>
+                if (i < 10) Some((Chunk(i, i + 1), i + 2))
                 else None
               }
               .runCollect

@@ -1,5 +1,7 @@
 package zio.stream
 
+import java.nio.charset.StandardCharsets
+
 import scala.io.Source
 
 import zio._
@@ -463,6 +465,159 @@ object ZTransducerSpec extends ZIOBaseSpec {
             } yield assert(part2.mkString)(
               equalTo(new String(Array(0xF0.toByte, 0x90.toByte), "UTF-8"))
             )
+          }
+        }
+      ),
+      suite("iso_8859_1")(
+        testM("ISO-8859-1 strings")(checkM(Gen.iso_8859_1) { s =>
+          ZTransducer.iso_8859_1Decode.push.use { push =>
+            for {
+              part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.ISO_8859_1))))
+              part2 <- push(None)
+            } yield assert((part1 ++ part2).mkString)(equalTo(s))
+          }
+        })
+      ),
+      suite("branchAfter")(
+        testM("switches transducers") {
+          checkM(Gen.chunkOf(Gen.anyInt)) { data =>
+            val test =
+              ZStream
+                .fromChunk(0 +: data)
+                .transduce {
+                  ZTransducer.branchAfter(1) { values =>
+                    values.toList match {
+                      case 0 :: Nil => ZTransducer.identity
+                      case _        => ZTransducer.fail("boom")
+                    }
+                  }
+                }
+                .runCollect
+            assertM(test.run)(succeeds(equalTo(data)))
+          }
+        },
+        testM("finalizes transducers") {
+          checkM(Gen.chunkOf(Gen.anyInt)) {
+            data =>
+              val test =
+                Ref.make(0).flatMap { ref =>
+                  ZStream
+                    .fromChunk(data)
+                    .transduce {
+                      ZTransducer.branchAfter(1) { values =>
+                        values.toList match {
+                          case _ =>
+                            ZTransducer {
+                              Managed.make(
+                                ref
+                                  .update(_ + 1)
+                                  .as[Option[Chunk[Int]] => UIO[Chunk[Int]]]({
+                                    case None    => ZIO.succeedNow(Chunk.empty)
+                                    case Some(c) => ZIO.succeedNow(c)
+                                  })
+                              )(_ => ref.update(_ - 1))
+                            }
+                        }
+                      }
+                    }
+                    .runDrain *> ref.get
+                }
+              assertM(test.run)(succeeds(equalTo(0)))
+          }
+        },
+        testM("finalizes transducers - inner transducer fails") {
+          checkM(Gen.chunkOf(Gen.anyInt)) { data =>
+            val test =
+              Ref.make(0).flatMap { ref =>
+                ZStream
+                  .fromChunk(data)
+                  .transduce {
+                    ZTransducer.branchAfter(1) { values =>
+                      values.toList match {
+                        case _ =>
+                          ZTransducer {
+                            Managed.make(
+                              ref
+                                .update(_ + 1)
+                                .as[Option[Chunk[Int]] => IO[String, Chunk[Int]]]({
+                                  case _ => ZIO.fail("boom")
+                                })
+                            )(_ => ref.update(_ - 1))
+                          }
+                      }
+                    }
+                  }
+                  .runDrain
+                  .ignore *> ref.get
+              }
+            assertM(test.run)(succeeds(equalTo(0)))
+          }
+        }
+      ),
+      suite("utf16BEDecode")(
+        testM("regular strings") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16BEDecode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        }
+      ),
+      suite("utf16FEDecode")(
+        testM("regular strings") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16LEDecode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        }
+      ),
+      suite("utf16Decode")(
+        testM("regular strings") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        },
+        testM("no magic sequence") {
+          checkM(Gen.anyString.filter(_.nonEmpty)) { s =>
+            val test = ZTransducer.utf16Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
+                part2 <- push(None)
+              } yield (part1 ++ part2).mkString
+            }
+            assertM(test.run)(fails(anything))
+          }
+        },
+        testM("big endian") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk[Byte](-2, -1) ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        },
+        testM("little endian") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf16Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk[Byte](-1, -2) ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
           }
         }
       )

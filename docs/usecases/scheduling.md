@@ -8,7 +8,7 @@ For scenarios where an action needs to be performed multiple times, `Schedule` c
 * effect performed on each repetition
 
 ## Retry strategy for HTTP requests
-One potential issue when dealing with a 3rd party API is the unreliability of a given endpoint. Since you have no control over the software, you cannot directly improve the reliability. Here's a mock request that has approimately a 70% chance of succeeding:
+One potential issue when dealing with a 3rd party API is the unreliability of a given endpoint. Since you have no control over the software, you cannot directly improve the reliability. Here's a mock request that has approximately a 70% chance of succeeding:
 ```
 object API {
   def makeRequest = Task.effect {
@@ -34,7 +34,7 @@ There are many rates which you can use such as `spaced`, `exponential`, `fibonac
 import zio.duration._
 Schedule.spaced(1.second)
 ```
-You can compose the schedules using operators to create a more compelx schedule:
+You can compose the schedules using operators to create a more complex schedule:
 ```
 def schedule = Schedule.recurs(4) && Schedule.spaced(1.second)
 ```

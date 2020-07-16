@@ -1654,6 +1654,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     map(_.getOrElse(default))
 
   /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  final def someOrElseM[B, R1 <: R, E1 >: E](default: ZIO[R1, E1, B])(implicit ev: A <:< Option[B]): ZIO[R1, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZIO.succeedNow(value)
+      case None        => default
+    })
+
+  /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
   final def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZIO[R, E1, B] =
@@ -2609,11 +2618,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
+   * Filters the collection in parallel using the specified effectual predicate.
+   * See [[filter]] for a sequential version of it.
+   */
+  def filterPar[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
+    ZIO.foreachPar(as)(a => f(a).map(if (_) Some(a) else None)).map(_.flatten)
+
+  /**
    * Filters the collection using the specified effectual predicate, removing
    * all elements that satisfy the predicate.
    */
   def filterNot[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
     filter(as)(f(_).map(!_))
+
+  /**
+   * Filters the collection in parallel using the specified effectual predicate,
+   * removing all elements that satisfy the predicate.
+   * See [[filterNot]] for a sequential version of it.
+   */
+  def filterNotPar[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
+    filterPar(as)(f(_).map(!_))
 
   /**
    * Returns an effectful function that extracts out the first element of a
@@ -2810,7 +2834,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         task = ZIOFn(f)((a: A) =>
           ZIO
             .whenM[R, E](startTask) {
-              f(a).interruptible
+              ZIO
+                .effectSuspendTotal(f(a))
+                .interruptible
                 .tapCause(c => causes.update(_ && c) *> startFailure)
                 .ensuring {
                   val isComplete = status.modify {
@@ -3788,7 +3814,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   @implicitNotFound(
     "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has ${E} for the error type."
   )
-  sealed trait CanFilter[+E] {
+  trait CanFilter[+E] {
     def apply(t: NoSuchElementException): E
   }
 

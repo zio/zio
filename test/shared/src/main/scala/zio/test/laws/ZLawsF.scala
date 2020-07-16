@@ -24,7 +24,7 @@ import zio.{ URIO, ZIO }
  * `F[A]` with capabilities `CapsF` is expected to satisfy with respect to all
  * types `A` that have capabilities `Caps`. Laws can be run by providing a
  * `GenF` that is capable of generating `F[A]` values given a generator of `A`
- * values and a generatoro of values of some type `A`. Laws can be combined
+ * values and a generator of values of some type `A`. Laws can be combined
  * using `+` to produce a set of laws that require both sets of laws to be
  * satisfied.
  */

@@ -612,7 +612,7 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
-   * otherwise suceeds with the specified value.
+   * otherwise succeeds with the specified value.
    */
   final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A1] =
     orElse(ZManaged.succeedNow(a1))
@@ -836,6 +836,17 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
    */
   final def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZManaged[R, E, B] =
     map(_.getOrElse(default))
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  final def someOrElseM[B, R1 <: R, E1 >: E](
+    default: ZManaged[R1, E1, B]
+  )(implicit ev: A <:< Option[B]): ZManaged[R1, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZManaged.succeedNow(value)
+      case None        => default
+    })
 
   /**
    * Extracts the optional value, or fails with the given error 'e'.
@@ -1111,7 +1122,7 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     }
 }
 
-object ZManaged {
+object ZManaged extends ZManagedPlatformSpecific {
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZManaged[R, Nothing, A] =

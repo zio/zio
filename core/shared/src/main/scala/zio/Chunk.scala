@@ -34,7 +34,7 @@ import scala.reflect.{ classTag, ClassTag }
  * [[http://aleksandar-prokopec.com/resources/docs/lcpc-conc-trees.pdf]]
  *
  * NOTE: For performance reasons `Chunk` does not box primitive types. As a
- * result, it is not safe to construct chunks from heteregenous primitive
+ * result, it is not safe to construct chunks from heterogeneous primitive
  * types.
  */
 sealed trait Chunk[+A] extends ChunkLike[A] { self =>
@@ -473,7 +473,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     if (iterator.hasNext) {
       val array  = iterator.next()
       val length = array.length
-      loop(z, iterator, iterator.next(), 0, length)
+      loop(z, iterator, array, 0, length)
     } else {
       ZIO.succeedNow(z)
     }
@@ -1067,7 +1067,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     }
 }
 
-object Chunk {
+object Chunk extends ChunkFactory {
 
   /**
    * Returns the empty chunk.
@@ -1078,7 +1078,7 @@ object Chunk {
   /**
    * Returns a chunk from a number of values.
    */
-  def apply[A](as: A*): Chunk[A] =
+  override def apply[A](as: A*): Chunk[A] =
     fromIterable(as)
 
   /**
@@ -1192,7 +1192,7 @@ object Chunk {
         fromArray(it.toArray)
     }
 
-  def fill[A](n: Int)(elem: => A): Chunk[A] =
+  override def fill[A](n: Int)(elem: => A): Chunk[A] =
     if (n <= 0) Chunk.empty
     else {
       val builder = ChunkBuilder.make[A]()
