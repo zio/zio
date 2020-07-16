@@ -29,9 +29,10 @@ object Main extends App {
 
   def run(args: List[String]) = {
     for {
+      _      <- putStrLn("Starting progress bar demo.")  // Outputs on browser console log.
       target <- IO.effectTotal(document.createElement("pre"))
       _      <- update(target).repeat(Schedule.spaced(1.seconds))
-      _      <- IO.effectTotal(node.appendChild(target))
+      _      <- IO.effectTotal(node.appendChild(target)) // "node" is provided in this page by mdoc.
     } yield ExitCode.success
   }
 
