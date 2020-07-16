@@ -390,13 +390,13 @@ lazy val docs = project.module
     )
   )
   .settings(macroExpansionSettings)
-  .settings(mdocJS := Some(jsdocs))
+  //.settings(mdocJS := Some(jsdocs)) // Disabled until mdoc supports ScalaJS 1.1
   .dependsOn(
     coreJVM,
     streamsJVM,
     testJVM,
-    testMagnoliaJVM,
-    coreJS
+    testMagnoliaJVM
+    // , coreJS // Disabled until mdoc supports ScalaJS 1.1
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
 
