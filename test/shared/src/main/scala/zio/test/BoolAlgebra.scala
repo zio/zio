@@ -307,6 +307,12 @@ object BoolAlgebra {
     if (as.isEmpty) None else Some(as.reduce(_ && _))
 
   /**
+   * Returns a result that is the logical conjunction of all of the results
+   */
+  def all[A](a: BoolAlgebra[A], as: BoolAlgebra[A]*): BoolAlgebra[A] =
+    as.foldLeft(a)(_ && _)
+
+  /**
    * Constructs a result that is the logical conjunction of two results.
    */
   def and[A](left: BoolAlgebra[A], right: BoolAlgebra[A]): BoolAlgebra[A] =
@@ -318,6 +324,12 @@ object BoolAlgebra {
    */
   def any[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
     if (as.isEmpty) None else Some(as.reduce(_ || _))
+
+  /**
+   * Returns a result that is the logical disjunction of all of the results
+   */
+  def any[A](a: BoolAlgebra[A], as: BoolAlgebra[A]*): BoolAlgebra[A] =
+    as.foldLeft(a)(_ || _)
 
   /**
    * Combines a collection of results to create a single result that succeeds
