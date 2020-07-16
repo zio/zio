@@ -3461,9 +3461,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           )(equalTo(Chunk(0, 1, 2, 3, 4, 5)))
         },
         testM("range") {
-          val right = Chunk.fromIterable(Range(0, 10))
-          val left  = ZStream.range(0, 10).runCollect
-          assertM(left)(equalTo(right))
+          assertM(ZStream.range(0, 10).runCollect)(equalTo(Chunk.fromIterable(Range(0, 10))))
         },
         testM("repeatEffect")(
           assertM(
@@ -3523,10 +3521,40 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref      <- Ref.make(0)
               effect   = ref.getAndUpdate(_ + 1).filterOrFail(_ <= length + 1)(())
-              schedule = Schedule.identity[Int].whileOutput(_ <= length)
+              schedule = Schedule.identity[Int].whileOutput(_ < length)
               result   <- ZStream.repeatEffectWith(effect, schedule).runCollect
             } yield assert(result)(equalTo(Chunk.fromIterable(0 to length)))
-          })
+          }),
+          testM("should perform repetitions in addition to the first execution (one repetition)") {
+            assertM(ZStream.repeatEffectWith(UIO(1), Schedule.once).runCollect)(
+              equalTo(Chunk(1, 1))
+            )
+          },
+          testM("should perform repetitions in addition to the first execution (zero repetitions)") {
+            assertM(ZStream.repeatEffectWith(UIO(1), Schedule.stop).runCollect)(
+              equalTo(Chunk(1))
+            )
+          },
+          testM("emits before delaying according to the schedule") {
+            val interval = 1.second
+
+            for {
+              collected <- Ref.make(0)
+              effect    = ZIO.unit
+              schedule  = Schedule.fixed(interval)
+              streamFiber <- ZStream
+                              .repeatEffectWith(effect, schedule)
+                              .tap(_ => collected.update(_ + 1))
+                              .runDrain
+                              .fork
+              _                      <- TestClock.adjust(0.seconds)
+              nrCollectedImmediately <- collected.get
+              _                      <- TestClock.adjust(1.seconds)
+              nrCollectedAfterDelay  <- collected.get
+              _                      <- streamFiber.interrupt
+
+            } yield assert(nrCollectedImmediately)(equalTo(1)) && assert(nrCollectedAfterDelay)(equalTo(2))
+          }
         ),
         testM("unfold") {
           assertM(
