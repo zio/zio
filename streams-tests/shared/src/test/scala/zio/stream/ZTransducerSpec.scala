@@ -94,7 +94,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             case (chunks, groupingSize) =>
               for {
                 transduced <- ZIO.foreach(chunks)(chunk => run(ZTransducer.collectAllN[Int](groupingSize), List(chunk)))
-                regular    = chunks.map(chunk => Chunk.fromIterable(chunk.grouped(groupingSize).toIterable))
+                regular    = chunks.map(chunk => Chunk.fromArray(chunk.grouped(groupingSize).toArray))
               } yield assert(transduced)(equalTo(regular))
           }
         }
