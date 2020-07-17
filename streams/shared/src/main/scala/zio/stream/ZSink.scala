@@ -2,7 +2,7 @@ package zio.stream
 
 import zio._
 import zio.clock.Clock
-import zio.duration.Duration
+import zio.duration._
 
 // Important notes while writing sinks and combinators:
 // - What return values for sinks mean:
@@ -317,7 +317,17 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
   /**
    * Returns the sink that executes this one and times its execution.
    */
-  final def timed: ZSink[R with Clock, E, I, L, (Z, Duration)] = ???
+  final def timed: ZSink[R with Clock, E, I, L, (Z, Duration)] =
+    ZSink {
+      self.push.map { push => (input: Option[Chunk[I]]) =>
+        clock.nanoTime.flatMap { start =>
+          push(input).catchAll {
+            case (Left(e), leftover)  => Push.fail(e, leftover)
+            case (Right(z), leftover) => clock.nanoTime.flatMap(stop => Push.emit((z, (stop - start).nanos), leftover))
+          }
+        }
+      }
+    }
 
   /**
    * Feeds inputs to this sink until it yields a result, then switches over to the
