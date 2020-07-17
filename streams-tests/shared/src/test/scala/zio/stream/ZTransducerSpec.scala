@@ -480,6 +480,16 @@ object ZTransducerSpec extends ZIOBaseSpec {
               equalTo(new String(Array(0xF0.toByte, 0x90.toByte), "UTF-8"))
             )
           }
+        },
+        testM("handle byte order mark") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf8Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk[Byte](-17, -69, -65) ++ Chunk.fromArray(s.getBytes("UTF-8"))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
         }
       ),
       suite("iso_8859_1")(
@@ -566,6 +576,25 @@ object ZTransducerSpec extends ZIOBaseSpec {
               }
             assertM(test.run)(succeeds(equalTo(0)))
           }
+        },
+        testM("emits data if less than n are collected") {
+          val gen =
+            for {
+              data <- Gen.chunkOf(Gen.anyInt)
+              n    <- Gen.anyInt.filter(_ > data.length)
+            } yield (data, n)
+
+          checkM(gen) {
+            case (data, n) =>
+              val test =
+                ZStream
+                  .fromChunk(data)
+                  .transduce {
+                    ZTransducer.branchAfter(n)(ZTransducer.prepend)
+                  }
+                  .runCollect
+              assertM(test.run)(succeeds(equalTo(data)))
+          }
         }
       ),
       suite("utf16BEDecode")(
@@ -603,15 +632,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
             }
           }
         },
-        testM("no magic sequence") {
+        testM("no magic sequence - parse as big endian") {
           checkM(Gen.anyString.filter(_.nonEmpty)) { s =>
-            val test = ZTransducer.utf16Decode.push.use { push =>
+            ZTransducer.utf16Decode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
                 part2 <- push(None)
-              } yield (part1 ++ part2).mkString
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
             }
-            assertM(test.run)(fails(anything))
           }
         },
         testM("big endian") {
