@@ -1,7 +1,6 @@
 package zio.stream
 
-import java.nio.charset.Charset
-import java.nio.charset.StandardCharsets
+import java.nio.charset.{ Charset, StandardCharsets }
 
 import scala.collection.mutable
 
@@ -774,6 +773,24 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
+   * Decodes chunks of Unicode bytes into strings.
+   *
+   * Detects byte order marks for UTF-8, UTF-16BE, UTF-16LE, UTF-32BE, UTF-32LE or defaults
+   * to UTF-8 if no BOM is detected.
+   */
+  val utfDecode: ZTransducer[Any, Nothing, Byte, String] =
+    branchAfter(4) { bytes =>
+      bytes.toList match {
+        case 0 :: 0 :: -2 :: -1 :: Nil if Charset.isSupported("UTF-32BE") => utf32BEDecode
+        case -2 :: -1 :: 0 :: 0 :: Nil if Charset.isSupported("UTF-32LE") => utf32LEDecode
+        case -17 :: -69 :: -65 :: x1 :: Nil                               => prepend(Chunk(x1)) >>> utf8Decode
+        case -2 :: -1 :: x1 :: x2 :: Nil                                  => prepend(Chunk(x1, x2)) >>> utf16BEDecode
+        case -1 :: -2 :: x1 :: x2 :: Nil                                  => prepend(Chunk(x1, x2)) >>> utf16LEDecode
+        case _                                                            => prepend(bytes) >>> utf8Decode
+      }
+    }
+
+  /**
    * Decodes chunks of UTF-8 bytes into strings.
    *
    * This transducer uses the String constructor's behavior when handling malformed byte
@@ -843,7 +860,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Decodes chunks of UTF-16 bytes into strings.
    * If no byte order mark is found big-endianness is assumed.
    *
-   * It will use the error handling behavior of the endian-specific decoder when handling malformed byte sequences.
+   * This transducer uses the endisn-specific String constructor's behavior when handling
+   * malformed byte sequences.
    */
   val utf16Decode: ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(2) { bytes =>
@@ -858,41 +876,77 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
-   * Decodes chunks of UTF-16 bytes into strings.
+   * Decodes chunks of UTF-16BE bytes into strings.
    *
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
   val utf16BEDecode: ZTransducer[Any, Nothing, Byte, String] =
-    utf16Decode(StandardCharsets.UTF_16BE)
+    utfFixedLengthDecode(StandardCharsets.UTF_16BE, 2)
 
   /**
-   * Decodes chunks of UTF-16 bytes into strings.
+   * Decodes chunks of UTF-16LE bytes into strings.
    *
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
   val utf16LEDecode: ZTransducer[Any, Nothing, Byte, String] =
-    utf16Decode(StandardCharsets.UTF_16LE)
+    utfFixedLengthDecode(StandardCharsets.UTF_16LE, 2)
 
-  private def utf16Decode(charset: Charset): ZTransducer[Any, Nothing, Byte, String] =
+  /**
+   * Decodes chunks of UTF-32 bytes into strings.
+   * If no byte order mark is found big-endianness is assumed.
+   */
+  lazy val utf32Decode: ZTransducer[Any, Nothing, Byte, String] =
+    branchAfter(4) { bytes =>
+      bytes.toList match {
+        case 0 :: 0 :: -2 :: -1 :: Nil =>
+          utf32BEDecode
+        case -1 :: -2 :: 0 :: 0 :: Nil =>
+          utf32LEDecode
+        case _ =>
+          prepend(bytes) >>> utf32BEDecode
+      }
+    }
+
+  /**
+   * Decodes chunks of UTF-32BE bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  lazy val utf32BEDecode: ZTransducer[Any, Nothing, Byte, String] =
+    utfFixedLengthDecode(Charset.forName("UTF-32BE"), 4)
+
+  /**
+   * Decodes chunks of UTF-32LE bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  lazy val utf32LEDecode: ZTransducer[Any, Nothing, Byte, String] =
+    utfFixedLengthDecode(Charset.forName("UTF-32LE"), 4)
+
+  private def utfFixedLengthDecode(charset: Charset, width: Int): ZTransducer[Any, Nothing, Byte, String] =
     ZTransducer {
-      ZRef.makeManaged[Option[Byte]](None).map { stateRef =>
+      ZRef.makeManaged[Chunk[Byte]](Chunk.empty).map { stateRef =>
         {
           case None =>
-            stateRef.getAndSet(None).flatMap { leftovers =>
+            stateRef.getAndSet(Chunk.empty).flatMap { leftovers =>
               if (leftovers.isEmpty) ZIO.succeedNow(Chunk.empty)
               else ZIO.succeedNow(Chunk.single(new String(leftovers.toArray[Byte], charset)))
             }
           case Some(bytes) =>
             stateRef.modify { old =>
-              val data = old.fold(bytes)(_ +: bytes)
-              if (data.length % 2 == 0) {
+              val data      = old ++ bytes
+              val remainder = data.length % width
+              if (remainder == 0) {
                 val decoded = new String(data.toArray, charset)
-                (Chunk.single(decoded), None)
+                (Chunk.single(decoded), Chunk.empty)
               } else {
-                val decoded = new String(data.init.toArray, charset)
-                (Chunk.single(decoded), Some(data.last))
+                val (fullChunk, rest) = data.splitAt(data.length - remainder)
+                val decoded           = new String(fullChunk.toArray, charset)
+                (Chunk.single(decoded), rest)
               }
             }
         }
