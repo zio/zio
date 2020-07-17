@@ -1546,7 +1546,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("grouped")(
           testM("sanity") {
-            assertM(ZStream(1, 2, 3, 4, 5).grouped(2).runCollect)(equalTo(Chunk(List(1, 2), List(3, 4), List(5))))
+            assertM(ZStream(1, 2, 3, 4, 5).grouped(2).runCollect)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
           },
           testM("doesn't emit empty chunks") {
             assertM(ZStream.fromIterable(List.empty[Int]).grouped(5).runCollect)(equalTo(Chunk.empty))
@@ -1568,12 +1568,12 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _      <- c.offer *> TestClock.adjust(2.seconds) *> c.awaitNext
                 _      <- c.offer
                 result <- f.join
-              } yield result)(equalTo(Chunk(List(1, 2), List(3, 4), List(5))))
+              } yield result)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
             }
           } @@ timeout(10.seconds) @@ flaky,
           testM("group immediately when chunk size is reached") {
             assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
-              equalTo(Chunk(List(1, 2), List(3, 4)))
+              equalTo(Chunk(Chunk(1, 2), Chunk(3, 4)))
             )
           }
         ),

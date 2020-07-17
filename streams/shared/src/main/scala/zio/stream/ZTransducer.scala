@@ -167,10 +167,41 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a transducer accumulating incoming values into lists of maximum size `n`.
+   * Creates a transducer accumulating incoming values into chunks of maximum size `n`.
    */
-  def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
-    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse).filter(_.nonEmpty)
+  def collectAllN[I](n: Int): ZTransducer[Any, Nothing, I, Chunk[I]] =
+    ZTransducer {
+
+      def go(in: Chunk[I], leftover: Chunk[I], outBuilder: ChunkBuilder[Chunk[I]]): (Chunk[Chunk[I]], Chunk[I]) = {
+        val (left, nextIn) = in.splitAt(n - leftover.size)
+
+        if (leftover.size + left.size < n) outBuilder.result() -> (leftover ++ left)
+        else {
+          val nextOutBuilder =
+            if (leftover.nonEmpty) outBuilder += leftover += left
+            else outBuilder += left
+          go(nextIn, Chunk.empty, nextOutBuilder)
+        }
+      }
+
+      ZRef.makeManaged[Chunk[I]](Chunk.empty).map { stateRef =>
+        {
+          case None =>
+            stateRef
+              .getAndSet(Chunk.empty)
+              .map { leftover =>
+                if (leftover.nonEmpty) Chunk(leftover)
+                else Chunk.empty
+              }
+
+          case Some(in) =>
+            stateRef.modify { leftover =>
+              val (out, nextLeftover) = go(in, leftover, ChunkBuilder.make())
+              out -> nextLeftover
+            }
+        }
+      }
+    }
 
   /**
    * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
@@ -192,7 +223,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _).filter(_.nonEmpty)
 
   /**
-   * Accumulates incoming elements into a list as long as they verify predicate `p`.
+   * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
   def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
     fold[I, (List[I], Boolean)]((Nil, true))(_._2) {
@@ -200,7 +231,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }.map(_._1.reverse).filter(_.nonEmpty)
 
   /**
-   * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
+   * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
   def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
     foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) {
@@ -250,7 +281,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
             case Some(is) =>
               dropping.get.flatMap {
                 case false => UIO(is -> false)
-                case true  => is.dropWhileM(p).map(is1 => is1 -> (is1.length == 0))
+                case true  => is.dropWhileM(p).map(is1 => is1 -> is1.isEmpty)
               }.flatMap { case (is, pt) => dropping.set(pt) as is }
           }
         }

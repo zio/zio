@@ -69,17 +69,33 @@ object ZTransducerSpec extends ZIOBaseSpec {
     suite("Constructors")(
       suite("collectAllN")(
         testM("happy path") {
-          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3, 4))))(equalTo(Chunk(List(1, 2, 3), List(4))))
+          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3, 4))))(
+            equalTo(Chunk(Chunk(1, 2, 3), Chunk(4)))
+          )
         },
         testM("empty list") {
           assertM(run(ZTransducer.collectAllN[Int](3), List()))(equalTo(Chunk.empty))
         },
         testM("doesn't emit empty trailing chunks") {
-          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3))))(equalTo(Chunk(List(1, 2, 3))))
+          assertM(run(ZTransducer.collectAllN[Int](3), List(Chunk(1, 2, 3))))(equalTo(Chunk(Chunk(1, 2, 3))))
         },
         testM("emits chunks when exactly N elements received") {
           ZTransducer.collectAllN[Int](4).push.use { push =>
-            push(Some(Chunk(1, 2, 3, 4))).map(result => assert(result)(equalTo(Chunk(List(1, 2, 3, 4)))))
+            push(Some(Chunk(1, 2, 3, 4))).map(result => assert(result)(equalTo(Chunk(Chunk(1, 2, 3, 4)))))
+          }
+        },
+        testM("IterableLike#grouped equivalence") {
+          checkM(
+            Gen
+              .int(0, 10)
+              .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))),
+            Gen.small(Gen.const(_), 1)
+          ) {
+            case (chunks, groupingSize) =>
+              for {
+                transduced <- ZIO.foreach(chunks)(chunk => run(ZTransducer.collectAllN[Int](groupingSize), List(chunk)))
+                regular    = chunks.map(chunk => Chunk.fromArray(chunk.grouped(groupingSize).toArray))
+              } yield assert(transduced)(equalTo(regular))
           }
         }
       ),
@@ -122,6 +138,12 @@ object ZTransducerSpec extends ZIOBaseSpec {
       ),
       testM("collectAllWhile") {
         val parser = ZTransducer.collectAllWhile[Int](_ < 5)
+        val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
+        val result = run(parser, input)
+        assertM(result)(equalTo(Chunk(List(3, 4), List(2, 3, 4), List(4, 3, 2))))
+      },
+      testM("collectAllWhileM") {
+        val parser = ZTransducer.collectAllWhileM[Any, Nothing, Int](i => ZIO.succeed(i < 5))
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = run(parser, input)
         assertM(result)(equalTo(Chunk(List(3, 4), List(2, 3, 4), List(4, 3, 2))))
