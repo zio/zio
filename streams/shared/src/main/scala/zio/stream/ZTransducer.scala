@@ -1,7 +1,6 @@
 package zio.stream
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 import zio._
 
@@ -612,21 +611,21 @@ object ZTransducer {
    */
   def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] = {
     val chars = ZTransducer.fromFunction[String, Chunk[Char]](s => Chunk.fromArray(s.toArray)).mapChunks(_.flatten)
-    val split = splitOnChunk[Char, String](Chunk.fromArray(delimiter.toArray), _.mkString(""))
+    val split = splitOnChunk(Chunk.fromArray(delimiter.toArray)).map(_.mkString(""))
     chars >>> split
   }
 
   /**
    * Splits elements on a delimiter and transforms the splits into desired output.
    */
-  def splitOnChunk[A, O: ClassTag](delimiter: Chunk[A], fn: Chunk[A] => O): ZTransducer[Any, Nothing, A, O] =
+  def splitOnChunk[A](delimiter: Chunk[A]): ZTransducer[Any, Nothing, A, Chunk[A]] =
     ZTransducer {
       ZRef.makeManaged[(Option[Chunk[A]], Int)](None -> 0).map { state =>
         {
           case None =>
             state.modify {
-              case s @ (None, _)    => Chunk.empty             -> s
-              case (Some(chunk), _) => Chunk.single(fn(chunk)) -> (None -> 0)
+              case s @ (None, _)    => Chunk.empty         -> s
+              case (Some(chunk), _) => Chunk.single(chunk) -> (None -> 0)
             }
           case Some(inputChunk: Chunk[A]) =>
             state.modify { s0 =>
@@ -664,7 +663,7 @@ object ZTransducer {
                 chunkIndex += 1
               }
 
-              val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray.map(fn))
+              val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray)
               val buf   = if (buffer.isEmpty) None else Some(buffer)
               chunk -> (buf -> delimIndex)
             }

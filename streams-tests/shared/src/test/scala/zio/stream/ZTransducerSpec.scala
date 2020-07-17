@@ -406,22 +406,29 @@ object ZTransducerSpec extends ZIOBaseSpec {
         }
       ),
       suite("splitOnChunk")(
+        testM("consecutive delimiter yields empty Chunk") {
+          val input         = ZStream.apply(Chunk(1, 2), Chunk(1), Chunk(2, 1, 2, 3, 1, 2), Chunk(1, 2))
+          val splitSequence = Chunk(1, 2)
+          assertM(input.flattenChunks.transduce(ZTransducer.splitOnChunk(splitSequence)).map(_.size).runCollect)(
+            equalTo(Chunk(0, 0, 0, 1, 0))
+          )
+        },
         testM("preserves data")(checkM(Gen.chunkOf(Gen.anyByte.filter(_ != 0.toByte))) { bytes =>
-          val splitSequence: Chunk[Byte] = Chunk(0.toByte, 1.toByte)
-          val data: Chunk[Byte]          = bytes.flatMap((b: Byte) => b +: splitSequence)
-          val parser                     = ZTransducer.splitOnChunk[Byte, Chunk[Byte]](splitSequence, identity)
+          val splitSequence = Chunk[Byte](0, 1)
+          val data          = bytes.flatMap(_ +: splitSequence)
+          val parser        = ZTransducer.splitOnChunk(splitSequence)
           assertM(run(parser, List(data)).map(_.flatten))(equalTo(bytes))
         }),
         testM("handles leftovers") {
           val splitSequence = Chunk(0, 1)
-          val parser        = ZTransducer.splitOnChunk[Int, Chunk[Int]](splitSequence, identity)
+          val parser        = ZTransducer.splitOnChunk(splitSequence)
           assertM(run(parser, List(Chunk(1, 0, 2, 0, 1, 2), Chunk(2))))(equalTo(Chunk(Chunk(1, 0, 2), Chunk(2, 2))))
         },
         testM("aggregates") {
           val splitSequence = Chunk(0, 1)
           assertM(
             Stream(1, 2, 0, 1, 3, 4, 0, 1, 5, 6, 5, 6)
-              .aggregate(ZTransducer.splitOnChunk[Int, Chunk[Int]](splitSequence, identity))
+              .aggregate(ZTransducer.splitOnChunk(splitSequence))
               .runCollect
           )(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6, 5, 6))))
         },
@@ -430,14 +437,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(
             ZStream
               .fromChunks(Chunk(1, 2), splitSequence, Chunk(3, 4), splitSequence, Chunk(5, 6), Chunk(5, 6))
-              .aggregate(ZTransducer.splitOnChunk[Int, Chunk[Int]](splitSequence, identity))
+              .aggregate(ZTransducer.splitOnChunk(splitSequence))
               .runCollect
           )(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6, 5, 6))))
         },
         testM("single delimiter edgecase") {
           assertM(
             Stream(0)
-              .aggregate(ZTransducer.splitOnChunk[Int, Chunk[Int]](Chunk(0), identity))
+              .aggregate(ZTransducer.splitOnChunk(Chunk(0)))
               .runCollect
           )(equalTo(Chunk(Chunk())))
         },
@@ -445,7 +452,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(
             ZStream
               .fromChunks(Chunk(1, 2), Chunk(1, 2), Chunk(1, 2))
-              .aggregate(ZTransducer.splitOnChunk[Int, Chunk[Int]](Chunk(1, 1), identity))
+              .aggregate(ZTransducer.splitOnChunk(Chunk(1, 1)))
               .runCollect
           )(equalTo(Chunk(Chunk(1, 2, 1, 2, 1, 2))))
         },
@@ -453,7 +460,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(
             ZStream
               .fromChunks(Chunk(1, 2), Chunk(1, 2))
-              .aggregate(ZTransducer.splitOnChunk[Int, Chunk[Int]](Chunk(2, 1), identity))
+              .aggregate(ZTransducer.splitOnChunk(Chunk(2, 1)))
               .runCollect
           )(equalTo(Chunk(Chunk(1), Chunk(2))))
         }
