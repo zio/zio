@@ -189,7 +189,7 @@ lazy val streamsJVM = streams.jvm
   // No bincompat on streams yet
   .settings(mimaSettings(failOnProblem = false))
 
-lazy val streamsJS  = streams.js
+lazy val streamsJS = streams.js
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams-tests"))
@@ -228,7 +228,7 @@ lazy val testJVM = test.jvm
   .settings(dottySettings)
   // No bincompat on zio-test yet
   .settings(mimaSettings(failOnProblem = false))
-lazy val testJS  = test.js
+lazy val testJS = test.js
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
