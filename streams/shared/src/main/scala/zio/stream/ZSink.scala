@@ -290,12 +290,10 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    */
   final def timed: ZSink[R with Clock, E, I, L, (Z, Duration)] =
     ZSink {
-      self.push.map { push => (input: Option[Chunk[I]]) =>
-        clock.nanoTime.flatMap { start =>
-          push(input).catchAll {
-            case (Left(e), leftover)  => Push.fail(e, leftover)
-            case (Right(z), leftover) => clock.nanoTime.flatMap(stop => Push.emit((z, (stop - start).nanos), leftover))
-          }
+      self.push.zipWith(clock.nanoTime.toManaged_) { (push, start) =>
+        push(_).catchAll {
+          case (Left(e), leftover)  => Push.fail(e, leftover)
+          case (Right(z), leftover) => clock.nanoTime.flatMap(stop => Push.emit(z -> (stop - start).nanos, leftover))
         }
       }
     }
@@ -328,7 +326,6 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
           (input: Option[Chunk[I]]) => go(input)
       }
     }
-
 
   /**
    * Feeds inputs to this sink until it yields a result, then switches over to the
