@@ -8,8 +8,8 @@ import zio.duration._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isFalse, isGreaterThanEqualTo, isTrue, succeeds }
-import zio.test.{ assertM, _ }
 import zio.test.environment.TestClock
+import zio.test.{ assertM, _ }
 
 object ZSinkSpec extends ZIOBaseSpec {
   def spec = suite("ZSinkSpec")(
