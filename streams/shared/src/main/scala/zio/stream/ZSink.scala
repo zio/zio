@@ -862,4 +862,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def sum[A](implicit A: Numeric[A]): ZSink[Any, Nothing, A, Nothing, A] =
     foldLeft(A.zero)(A.plus)
+
+  /**
+   * A sink with timed execution.
+   */
+  def timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 }
