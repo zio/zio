@@ -843,8 +843,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Decodes chunks of UTF-16 bytes into strings.
    * If no byte order mark is found big-endianness is assumed.
    *
-   * This will fail with an `IllegalArgumentException` if no byte order mark was found and will
-   * use the error handling behavior of the endian-specific decoder otherwise.
+   * It will use the error handling behavior of the endian-specific decoder when handling malformed byte sequences.
    */
   val utf16Decode: ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(2) { bytes =>
