@@ -1,6 +1,8 @@
 package zio.stream
 
 import zio._
+import zio.clock.Clock
+import zio.duration.Duration
 
 // Important notes while writing sinks and combinators:
 // - What return values for sinks mean:
@@ -311,6 +313,11 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
           )
       }
     } yield push)
+
+  /**
+   * Returns the sink that executes this one and times its execution.
+   */
+  final def timed: ZSink[R with Clock, E, I, L, (Z, Duration)] = ???
 
   /**
    * Feeds inputs to this sink until it yields a result, then switches over to the
