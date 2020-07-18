@@ -71,10 +71,9 @@ import zio.internal.{ Platform, Stack, Sync }
  *  April 2006
  *  [[https://www.microsoft.com/en-us/research/publication/lock-free-data-structures-using-stms-in-haskell/]]
  */
-final class ZSTM[-R, +E, +A] private[stm] (
-  private val exec: (ZSTM.internal.Journal, Fiber.Id, AtomicLong, R) => ZSTM.internal.TExit[E, A]
-) extends AnyVal { self =>
+sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   import ZSTM.internal.{ prepareResetJournal, TExit }
+  import ZSTM._
 
   /**
    * Alias for `<*>` and `zip`.
@@ -222,11 +221,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Continues on the effect returned from pf.
    */
   def collectM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZSTM[R1, E1, B]]): ZSTM[R1, E1, B] =
-    self.continueWithM {
-      case TExit.Fail(e)    => ZSTM.fail(e)
-      case TExit.Succeed(a) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry
-      case TExit.Retry      => ZSTM.retry
-    }
+    foldM(ZSTM.fail(_), (a: A) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry) 
 
   /**
    * Named alias for `<<<`.
@@ -325,12 +320,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
-  def flatMap[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
-    self.continueWithM {
-      case TExit.Succeed(a) => f(a)
-      case TExit.Fail(e)    => ZSTM.fail(e)
-      case TExit.Retry      => ZSTM.retry
-    }
+  def flatMap[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] = FlatMap(self, f)
 
   /**
    * Creates a composite effect that represents this effect followed by another
@@ -370,24 +360,15 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * retry.
    */
   def fold[B](f: E => B, g: A => B)(implicit ev: CanFail[E]): URSTM[R, B] =
-    self.continueWithM {
-      case TExit.Fail(e)    => ZSTM.succeedNow(f(e))
-      case TExit.Succeed(a) => ZSTM.succeedNow(g(a))
-      case TExit.Retry      => ZSTM.retry
-    }
+    foldM(f andThen ZSTM.succeedNow, g andThen ZSTM.succeedNow)
 
   /**
    * Effectfully folds over the `STM` effect, handling both failure and
    * success.
    */
-  def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
-    ev: CanFail[E]
-  ): ZSTM[R1, E1, B] =
-    self.continueWithM {
-      case TExit.Fail(e)    => f(e)
-      case TExit.Succeed(a) => g(a)
-      case TExit.Retry      => ZSTM.retry
-    }
+  def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(
+    implicit ev: CanFail[E]
+  ): ZSTM[R1, E1, B] = FoldM(self, f, g, () => ZSTM.retry)
 
   /**
    * Repeats this effect forever (until the first error).
@@ -473,22 +454,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Maps the value produced by the effect.
    */
-  def map[B](f: A => B): ZSTM[R, E, B] =
-    self.continueWithM {
-      case TExit.Succeed(a) => ZSTM.succeedNow(f(a))
-      case TExit.Fail(e)    => ZSTM.fail(e)
-      case TExit.Retry      => ZSTM.retry
-    }
+  def map[B](f: A => B): ZSTM[R, E, B] = flatMap(f andThen ZSTM.succeedNow)
 
   /**
    * Maps from one error type to another.
    */
   def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
-    self.continueWithM {
-      case TExit.Succeed(a) => ZSTM.succeedNow(a)
-      case TExit.Fail(e)    => ZSTM.fail(f(e))
-      case TExit.Retry      => ZSTM.retry
-    }
+    foldM(e => ZSTM.fail(f(e)), ZSTM.succeedNow)
 
   /**
    * Maps the value produced by the effect with the specified function that may
@@ -579,33 +551,33 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Named alias for `<>`.
    */
-  def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    new ZSTM((journal, fiberId, stackSize, r) => {
-      val reset = prepareResetJournal(journal)
+  def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] = ???
+  // new ZSTM((journal, fiberId, stackSize, r) => {
+  //   val reset = prepareResetJournal(journal)
 
-      val continueM: TExit[E, A] => STM[E1, A1] = {
-        case TExit.Fail(_)    => { reset(); that.provide(r) }
-        case TExit.Succeed(a) => ZSTM.succeedNow(a)
-        case TExit.Retry      => { reset(); that.provide(r) }
-      }
+  //   val continueM: TExit[E, A] => STM[E1, A1] = {
+  //     case TExit.Fail(_)    => { reset(); that.provide(r) }
+  //     case TExit.Succeed(a) => ZSTM.succeedNow(a)
+  //     case TExit.Retry      => { reset(); that.provide(r) }
+  //   }
 
-      val framesCount = stackSize.incrementAndGet()
+  //   val framesCount = stackSize.incrementAndGet()
 
-      if (framesCount > ZSTM.MaxFrames) {
-        throw new ZSTM.Resumable(self.provide(r), Stack(continueM))
-      } else {
-        val continued =
-          try {
-            continueM(self.exec(journal, fiberId, stackSize, r))
-          } catch {
-            case res: ZSTM.Resumable[e, e1, a, b] =>
-              res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-              throw res
-          }
+  //   if (framesCount > ZSTM.MaxFrames) {
+  //     throw new ZSTM.Resumable(self.provide(r), Stack(continueM))
+  //   } else {
+  //     val continued =
+  //       try {
+  //         continueM(self.exec(journal, fiberId, stackSize, r))
+  //       } catch {
+  //         case res: ZSTM.Resumable[e, e1, a, b] =>
+  //           res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+  //           throw res
+  //       }
 
-        continued.exec(journal, fiberId, stackSize, r)
-      }
-    })
+  //     continued.exec(journal, fiberId, stackSize, r)
+  //   }
+  // })
 
   /**
    * Returns a transactional effect that will produce the value of this effect
@@ -661,21 +633,21 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
-  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] =
-    new ZSTM((journal, fiberId, stackSize, r0) => {
+  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] = ???
+  // new ZSTM((journal, fiberId, stackSize, r0) => {
 
-      val framesCount = stackSize.incrementAndGet()
+  //   val framesCount = stackSize.incrementAndGet()
 
-      if (framesCount > ZSTM.MaxFrames) {
-        throw new ZSTM.Resumable(
-          new ZSTM((journal, fiberId, stackSize, _) => self.exec(journal, fiberId, stackSize, f(r0))),
-          Stack[TExit[E, A] => STM[E, A]]()
-        )
-      } else {
-        // no need to catch resumable here
-        self.exec(journal, fiberId, stackSize, f(r0))
-      }
-    })
+  //   if (framesCount > ZSTM.MaxFrames) {
+  //     throw new ZSTM.Resumable(
+  //       new ZSTM((journal, fiberId, stackSize, _) => self.exec(journal, fiberId, stackSize, f(r0))),
+  //       Stack[TExit[E, A] => STM[E, A]]()
+  //     )
+  //   } else {
+  //     // no need to catch resumable here
+  //     self.exec(journal, fiberId, stackSize, f(r0))
+  //   }
+  // })
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -854,7 +826,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Updates a service in the environment of this effect.
    */
-  final def updateService[M] =
+  def updateService[M] =
     new ZSTM.UpdateService[R, E, A, M](self)
 
   /**
@@ -897,57 +869,80 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def continueWithM[R1 <: R, E1, B](continueM: TExit[E, A] => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
-    new ZSTM((journal, fiberId, stackSize, r) => {
-      val framesCount = stackSize.incrementAndGet()
+  // private def continueWithM[R1 <: R, E1, B](continueM: TExit[E, A] => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
+  //   new ZSTM((journal, fiberId, stackSize, r) => {
+  //     val framesCount = stackSize.incrementAndGet()
 
-      if (framesCount > ZSTM.MaxFrames) {
-        throw new ZSTM.Resumable(self.provide(r), Stack(continueM.andThen(_.provide(r))))
-      } else {
-        val continued =
-          try {
-            continueM(self.exec(journal, fiberId, stackSize, r))
-          } catch {
-            case res: ZSTM.Resumable[e, e1, a, b] =>
-              res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-              throw res
-          }
+  //     if (framesCount > ZSTM.MaxFrames) {
+  //       throw new ZSTM.Resumable(self.provide(r), Stack(continueM.andThen(_.provide(r))))
+  //     } else {
+  //       val continued =
+  //         try {
+  //           continueM(self.exec(journal, fiberId, stackSize, r))
+  //         } catch {
+  //           case res: ZSTM.Resumable[e, e1, a, b] =>
+  //             res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+  //             throw res
+  //         }
 
-        continued.exec(journal, fiberId, stackSize, r)
-      }
-    })
+  //       continued.exec(journal, fiberId, stackSize, r)
+  //     }
+  //   })
 
-  private def run(journal: ZSTM.internal.Journal, fiberId: Fiber.Id, r: R): TExit[E, A] = {
-    type Cont = ZSTM.internal.TExit[Any, Any] => STM[Any, Any]
+  // private def run(journal: ZSTM.internal.Journal, fiberId: Fiber.Id, r: R): TExit[E, A] = {
+  //   type Cont = ZSTM.internal.TExit[Any, Any] => STM[Any, Any]
 
-    val stackSize = new AtomicLong()
-    val stack     = new Stack[Cont]()
-    var current   = self.asInstanceOf[ZSTM[R, Any, Any]]
-    var result    = null: TExit[Any, Any]
+  //   val stackSize = new AtomicLong()
+  //   val stack     = new Stack[Cont]()
+  //   var current   = self.asInstanceOf[ZSTM[R, Any, Any]]
+  //   var result    = null: TExit[Any, Any]
 
-    while (result eq null) {
-      try {
-        val v = current.exec(journal, fiberId, stackSize, r)
+  //   while (result eq null) {
+  //     try {
+  //       val v = current.exec(journal, fiberId, stackSize, r)
 
-        if (stack.isEmpty)
-          result = v
-        else {
-          val next = stack.pop()
-          current = next(v)
-        }
-      } catch {
-        case cont: ZSTM.Resumable[_, _, _, _] =>
-          current = cont.stm
-          while (!cont.ks.isEmpty) stack.push(cont.ks.pop().asInstanceOf[Cont])
-          stackSize.set(0)
-      }
-    }
-    result.asInstanceOf[TExit[E, A]]
-  }
+  //       if (stack.isEmpty)
+  //         result = v
+  //       else {
+  //         val next = stack.pop()
+  //         current = next(v)
+  //       }
+  //     } catch {
+  //       case cont: ZSTM.Resumable[_, _, _, _] =>
+  //         current = cont.stm
+  //         while (!cont.ks.isEmpty) stack.push(cont.ks.pop().asInstanceOf[Cont])
+  //         stackSize.set(0)
+  //     }
+  //   }
+  //   result.asInstanceOf[TExit[E, A]]
+  // }
 }
 
 object ZSTM {
   import internal._
+
+  final case class Continue[-R, +E, +E2, +A, +B](self: ZSTM[R, E, A], f: TExit[E, A] => TExit[E2, B])
+      extends ZSTM[R, E2, B]
+
+  final case class FlatMap[-R, +E, +A, +B](self: ZSTM[R, E, A], f: A => ZSTM[R, E, B]) extends ZSTM[R, E, B]
+
+  final case class FoldM[-R, +E1, +E2, +A, +B](
+    self: ZSTM[R, E1, A],
+    ifError: E1 => ZSTM[R, E2, B],
+    ifSuccess: A => ZSTM[R, E2, B],
+    ifRetry: () => ZSTM[R, E2, B]
+  ) extends ZSTM[R, E2, B]
+
+  final case class Fail[+E](value: E)    extends ZSTM[Any, E, Nothing]
+  final case class Succeed[+A](value: A) extends ZSTM[Any, Nothing, A]
+  case object Retry                      extends ZSTM[Any, Nothing, Nothing]
+
+  final case class Effect[-R, +E, +A](f: (Journal, Fiber.Id, AtomicLong, R) => TExit[E, A]) extends ZSTM[R, E, A]
+
+  private def continue[R, E, E2, A, B](stm: ZSTM[R, E, A])(f: TExit[E, A] => TExit[E2, B]): ZSTM[R, E2, B] =
+    Continue(stm, f)
+
+  private def run[R, E, A](stm: ZSTM[R, E, A]): TExit[E, A] = ???
 
   /**
    * Submerges the error case of an `Either` into the `STM`. The inverse
@@ -1050,19 +1045,17 @@ object ZSTM {
   /**
    * Retrieves the environment inside an stm.
    */
-  def environment[R]: URSTM[R, R] =
-    new ZSTM((_, _, _, r) => TExit.Succeed(r))
+  def environment[R]: URSTM[R, R] = Effect((_, _, _, r) => TExit.Succeed(r))
 
   /**
    * Returns a value that models failure in the transaction.
    */
-  def fail[E](e: => E): STM[E, Nothing] =
-    new ZSTM((_, _, _, _) => TExit.Fail(e))
+  def fail[E](e: => E): STM[E, Nothing] = Effect((_, _, _, _) => TExit.Fail(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  val fiberId: USTM[Fiber.Id] = new ZSTM((_, fiberId, _, _) => TExit.Succeed(fiberId))
+  val fiberId: USTM[Fiber.Id] = Effect((_, fiberId, _, _) => TExit.Succeed(fiberId))
 
   /**
    * Filters the collection using the specified effectual predicate.
@@ -1345,7 +1338,7 @@ object ZSTM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  val retry: USTM[Nothing] = new ZSTM((_, _, _, _) => TExit.Retry)
+  val retry: USTM[Nothing] = Effect((_, _, _, _) => TExit.Retry)
 
   /**
    * Returns an effect with the value on the right part.
@@ -1394,8 +1387,7 @@ object ZSTM {
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  def succeed[A](a: => A): USTM[A] =
-    new ZSTM((_, _, _, _) => TExit.Succeed(a))
+  def succeed[A](a: => A): USTM[A] = Effect((_, _, _, _) => TExit.Succeed(a))
 
   /**
    * Suspends creation of the specified transaction lazily.
