@@ -130,7 +130,7 @@ final case class Schedule2[-Env, -In, +Out](
   /**
    * Operator alias for `andThenEither`.
    */
-  final def <||>[Env1 <: Env, In1 <: In, Out2](
+  def <||>[Env1 <: Env, In1 <: In, Out2](
     that: Schedule2[Env1, In1, Out2]
   ): Schedule2[Env1, In1, Either[Out, Out2]] = self.andThenEither(that)
 
@@ -184,7 +184,7 @@ final case class Schedule2[-Env, -In, +Out](
   /**
    * Returns a new schedule that chooses between two schedules with a common output.
    */
-  final def |||[Env1 <: Env, Out1 >: Out, In2](
+  def |||[Env1 <: Env, Out1 >: Out, In2](
     that: Schedule2[Env1, In2, Out1]
   ): Schedule2[Env1, Either[In, In2], Out1] =
     (self +++ that).map(_.merge)
@@ -192,20 +192,34 @@ final case class Schedule2[-Env, -In, +Out](
   /**
    * Returns a new schedule with the given delay added to every interval defined by this schedule.
    */
-  def addDelay(f: Out => Duration): Schedule2[Env, In, Out] = {
-    def loop(n: Long, self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
+  def addDelay(f: Out => Duration): Schedule2[Env, In, Out] = addDelayM(out => ZIO.succeed(f(out)))
+
+  /**
+   * Returns a new schedule with the given effectfully computed delay added to every interval
+   * defined by this schedule.
+   */
+  def addDelayM[Env1 <: Env](f: Out => URIO[Env1, Duration]): Schedule2[Env1, In, Out] = {
+    def loop(n: Long, self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
       (now: Instant, in: In) =>
-        self(now, in).map {
-          case Done(out)                     => Done(out)
-          case Continue(out, interval, next) => Continue(out, interval.shiftN(n)(f(out)), loop(n + 1, next))
+        self(now, in).flatMap {
+          case Done(out) => ZIO.succeed(Done(out))
+          case Continue(out, interval, next) =>
+            f(out).map(delay => Continue(out, interval.shiftN(n)(delay), loop(n + 1, next)))
         }
 
     Schedule2(loop(1, step0))
   }
 
+  /**
+   * The same as `andThenEither`, but merges the output.
+   */
   def andThen[Env1 <: Env, In1 <: In, Out2 >: Out](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, Out2] =
     (self andThenEither that).map(_.merge)
 
+  /**
+   * Returns a new schedule that first executes this schedule to completion, and then executes the
+   * specified schedule to completion.
+   */
   def andThenEither[Env1 <: Env, In1 <: In, Out2](
     that: Schedule2[Env1, In1, Out2]
   ): Schedule2[Env1, In1, Either[Out, Out2]] = {
@@ -228,21 +242,45 @@ final case class Schedule2[-Env, -In, +Out](
     Schedule2(loop(self.step0, that.step0, true))
   }
 
+  /**
+   * Returns a new schedule that maps this schedule to a constant output.
+   */
   def as[Out2](out2: => Out2): Schedule2[Env, In, Out2] = self.map(_ => out2)
 
-  def check[Env1 <: Env, In1 <: In](test: (In1, Out) => Boolean): Schedule2[Env, In1, Out] = {
-    def loop(self: StepFunction[Env, In1, Out]): StepFunction[Env, In1, Out] =
+  /**
+   * Returns a new schedule that passes each input and output of this schedule to the spefcified
+   * function, and then determines whether or not to continue based on the return value of the
+   * function.
+   */
+  def check[In1 <: In](test: (In1, Out) => Boolean): Schedule2[Env, In1, Out] =
+    checkM((in1, out) => ZIO.succeed(test(in1, out)))
+
+  /**
+   * Returns a new schedule that passes each input and output of this schedule to the spefcified
+   * function, and then determines whether or not to continue based on the return value of the
+   * function.
+   */
+  def checkM[Env1 <: Env, In1 <: In](test: (In1, Out) => URIO[Env1, Boolean]): Schedule2[Env1, In1, Out] = {
+    def loop(self: StepFunction[Env, In1, Out]): StepFunction[Env1, In1, Out] =
       (now: Instant, in: In1) =>
-        self(now, in).map {
-          case Done(out) => Done(out)
+        self(now, in).flatMap {
+          case Done(out) => ZIO.succeed(Done(out))
           case Continue(out, interval, next) =>
-            if (test(in, out)) Continue(out, interval, loop(next)) else Done(out)
+            test(in, out).map(b => if (b) Continue(out, interval, loop(next)) else Done(out))
         }
 
     Schedule2(loop(step0))
   }
 
+  /**
+   * Returns a new schedule that collects the outputs of this one into a chunk.
+   */
   def collectAll: Schedule2[Env, In, Chunk[Out]] = fold[Chunk[Out]](Chunk.empty)((xs, x) => xs :+ x)
+
+  /**
+   * A named alias for `<<<`.
+   */
+  def compose[Env1 <: Env, In2](that: Schedule2[Env1, In2, In]): Schedule2[Env1, In2, Out] = that >>> self
 
   def combineWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule2[Env1, In1, Out2]
@@ -268,24 +306,119 @@ final case class Schedule2[-Env, -In, +Out](
     Schedule2(loop(None, None)(self.step0, that.step0))
   }
 
+  /**
+   * Returns a new schedule that deals with a narrower class of inputs than this schedule.
+   */
   def contramap[Env1 <: Env, In2](f: In2 => In): Schedule2[Env, In2, Out] =
     Schedule2((now: Instant, in: In2) => step0(now, f(in)).map(_.contramap(f)))
 
   /**
+   * Returns a new schedule with the specified effectfully computed delay added before the start
+   * of each interval produced by this schedule.
+   */
+  def delayed(f: Duration => Duration): Schedule2[Env, In, Out] = self.delayedM(d => ZIO.succeed(f(d)))
+
+  /**
+   * Returns a new schedule with the specified effectfully computed delay added before the start
+   * of each interval produced by this schedule.
+   */
+  def delayedM[Env1 <: Env](f: Duration => URIO[Env1, Duration]): Schedule2[Env1, In, Out] = {
+    def loop(acc: Duration, self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
+      (now: Instant, in: In) =>
+        self(now, in).flatMap {
+          case Done(out) => ZIO.succeed(Done(out))
+          case Continue(out, interval, next) =>
+            val before = Interval(now, interval.start).toDuration
+
+            f(before).map { duration =>
+              val newAcc = acc + duration
+
+              val newInterval = interval.shift(newAcc)
+
+              Continue(out, newInterval, loop(newAcc, next))
+            }
+        }
+
+    Schedule2(loop(Duration.Zero, step0))
+  }
+
+  /**
+   * Returns a new schedule that contramaps the input and maps the output.
+   */
+  def dimap[In2, Out2](f: In2 => In, g: Out => Out2): Schedule2[Env, In2, Out2] =
+    contramap(f).map(g)
+
+  /**
+   * A named alias for `||`.
+   */
+  def either[Env1 <: Env, In1 <: In, Out2](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, (Out, Out2)] =
+    self || that
+
+  /**
+   * The same as `either` followed by `map`.
+   */
+  def eitherWith[Env1 <: Env, In1 <: In, Out2, Out3](
+    that: Schedule2[Env1, In1, Out2]
+  )(f: (Out, Out2) => Out3): Schedule2[Env1, In1, Out3] =
+    (self || that).map(f.tupled)
+
+  /**
+   * Returns a new schedule that will run the specified finalizer as soon as the schedule is
+   * complete. Note that unlike `ZIO#ensuring`, this method does not guarantee the finalizer
+   * will be run. The `Schedule` may not initialize or the driver of the schedule may not run
+   * to completion. However, if the `Schedule` ever decides not to continue, then the
+   * finalizer will be run.
+   */
+  def ensuring(finalizer: UIO[Any]): Schedule2[Env, In, Out] = {
+    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
+      (now: Instant, in: In) =>
+        self(now, in).flatMap {
+          case Done(out)                     => finalizer as Done(out)
+          case Continue(out, interval, next) => ZIO.succeed(Continue(out, interval, loop(next)))
+        }
+
+    Schedule2(loop(step0))
+  }
+
+  /**
+   * Returns a new schedule that packs the input and output of this schedule into the first
+   * element of a tuple. This allows carrying information through this schedule.
+   */
+  def first[X]: Schedule2[Env, (In, X), (Out, X)] = self *** Schedule2.identity[X]
+
+  /**
    * Returns a new schedule that folds over the outputs of this one.
    */
-  final def fold[Z](z: Z)(f: (Z, Out) => Z): Schedule2[Env, In, Z] = {
-    def loop(z: Z, self: StepFunction[Env, In, Out]): StepFunction[Env, In, Z] =
-      (now: Instant, in: In) =>
-        self(now, in).map {
-          case Done(out) => Done(f(z, out))
-          case Continue(out, interval, next) =>
-            val z2 = f(z, out)
+  def fold[Z](z: Z)(f: (Z, Out) => Z): Schedule2[Env, In, Z] = foldM(z)((z, out) => ZIO.succeed(f(z, out)))
 
-            Continue(z2, interval, loop(z2, next))
+  /**
+   * Returns a new schedule that effectfully folds over the outputs of this one.
+   */
+  def foldM[Env1 <: Env, Z](z: Z)(f: (Z, Out) => URIO[Env1, Z]): Schedule2[Env1, In, Z] = {
+    def loop(z: Z, self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Z] =
+      (now: Instant, in: In) =>
+        self(now, in).flatMap {
+          case Done(out) => f(z, out).map(Done(_))
+          case Continue(out, interval, next) =>
+            f(z, out).map(z2 => Continue(z2, interval, loop(z2, next)))
         }
 
     Schedule2(loop(z, step0))
+  }
+
+  /**
+   * Returns a new schedule that loops this one forever, resetting the state
+   * when this schedule is done.
+   */
+  final def forever: Schedule2[Env, In, Out] = {
+    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
+      (now: Instant, in: In) =>
+        self(now, in).flatMap {
+          case Done(_)                       => loop(step0)(now, in)
+          case Continue(out, interval, next) => ZIO.succeed(Continue(out, interval, loop(next)))
+        }
+
+    Schedule2(self.step0)
   }
 
   def map[Out2](f: Out => Out2): Schedule2[Env, In, Out2] =
@@ -604,6 +737,8 @@ object Schedule2 {
         Try(start.plusMillis(n * duration.toMillis)).getOrElse(Instant.MAX),
         Try(end.plusMillis(n * duration.toMillis)).getOrElse(Instant.MAX)
       ).normalize
+
+    def toDuration: Duration = Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
 
     def union(that: Interval): Option[Interval] =
       if (self.nowhere) Some(that)
