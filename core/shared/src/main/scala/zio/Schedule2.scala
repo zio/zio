@@ -17,10 +17,11 @@
 package zio
 
 import java.time.Instant
+import java.util.concurrent.TimeUnit
+
 import scala.util.Try
 
 import zio.duration._
-import java.util.concurrent.TimeUnit
 
 /**
  * A `Schedule[Env, In, Out]` defines a recurring schedule, which consumes values of type `In`, and
@@ -48,8 +49,8 @@ import java.util.concurrent.TimeUnit
 final case class Schedule2[-Env, -In, +Out](
   private val step0: Schedule2.StepFunction[Env, In, Out]
 ) { self =>
-  import Schedule2._
   import Schedule2.Decision._
+  import Schedule2._
 
   def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, (Out, Out2)] =
     (self combineWith that)((l, Env) => (l union Env).getOrElse(l min Env))
@@ -72,15 +73,15 @@ final case class Schedule2[-Env, -In, +Out](
   def >>>[Env1 <: Env, Out2](that: Schedule2[Env1, Out, Out2]): Schedule2[Env1, In, Out2] = {
     def loop(self: StepFunction[Env, In, Out], that: StepFunction[Env1, Out, Out2]): StepFunction[Env1, In, Out2] =
       (now: Instant, in: In) =>
-        self(now, in) match {
-          case Done(out, fx) => that(now, out).toDone.withEffect(fx)
-          case Continue(out, interval, next, fx1) =>
-            that(now, out) match {
-              case Done(out2, fx2) => Done(out2, fx1 *> fx2)
-              case Continue(out2, interval2, next2, fx2) =>
+        self(now, in).flatMap {
+          case Done(out) => that(now, out).map(_.toDone)
+          case Continue(out, interval, next1) =>
+            that(now, out).map {
+              case Done(out2) => Done(out2)
+              case Continue(out2, interval2, next2) =>
                 val combined = (interval union interval2).getOrElse(interval min interval2)
 
-                Continue(out2, combined, loop(next, next2), fx1 *> fx2)
+                Continue(out2, combined, loop(next1, next2))
             }
         }
 
@@ -95,9 +96,9 @@ final case class Schedule2[-Env, -In, +Out](
   def addDelay(f: Out => Duration): Schedule2[Env, In, Out] = {
     def loop(n: Long, self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
       (now: Instant, in: In) =>
-        self(now, in) match {
-          case Done(out, fx)                     => Done(out, fx)
-          case Continue(out, interval, next, fx) => Continue(out, interval.shiftN(n)(f(out)), loop(n + 1, next), fx)
+        self(now, in).map {
+          case Done(out)                     => Done(out)
+          case Continue(out, interval, next) => Continue(out, interval.shiftN(n)(f(out)), loop(n + 1, next))
         }
 
     Schedule2(loop(1, step0))
@@ -115,14 +116,14 @@ final case class Schedule2[-Env, -In, +Out](
       onLeft: Boolean
     ): StepFunction[Env1, In1, Either[Out, Out2]] =
       (now: Instant, in: In1) =>
-        if (onLeft) self(now, in) match {
-          case Continue(out, interval, next, fx) => Continue(Left(out), interval, loop(next, that, true), fx)
-          case Done(out, fx)                     => Continue(Left(out), Interval.Nowhere, loop(self, that, false), fx)
+        if (onLeft) self(now, in).map {
+          case Continue(out, interval, next) => Continue(Left(out), interval, loop(next, that, true))
+          case Done(out)                     => Continue(Left(out), Interval.Nowhere, loop(self, that, false))
         }
         else
-          that(now, in) match {
-            case Done(r, fx)                       => Done(Right(r), fx)
-            case Continue(out, interval, next, fx) => Continue(Right(out), interval, loop(self, next, false), fx)
+          that(now, in).map {
+            case Done(r)                       => Done(Right(r))
+            case Continue(out, interval, next) => Continue(Right(out), interval, loop(self, next, false))
           }
 
     Schedule2(loop(self.step0, that.step0, true))
@@ -133,10 +134,10 @@ final case class Schedule2[-Env, -In, +Out](
   def check[Env1 <: Env, In1 <: In](test: (In1, Out) => Boolean): Schedule2[Env, In1, Out] = {
     def loop(self: StepFunction[Env, In1, Out]): StepFunction[Env, In1, Out] =
       (now: Instant, in: In1) =>
-        self(now, in) match {
-          case Done(out, fx) => Done(out, fx)
-          case Continue(out, interval, next, fx) =>
-            if (test(in, out)) Continue(out, interval, loop(next), fx) else Done(out, fx)
+        self(now, in).map {
+          case Done(out) => Done(out)
+          case Continue(out, interval, next) =>
+            if (test(in, out)) Continue(out, interval, loop(next)) else Done(out)
         }
 
     Schedule2(loop(step0))
@@ -154,14 +155,14 @@ final case class Schedule2[-Env, -In, +Out](
       val left  = StepFunction.stepIfNecessary(now, in, lprev, self)
       val right = StepFunction.stepIfNecessary(now, in, rprev, that)
 
-      (left, right) match {
-        case (Done(l, lfx), Done(r, rfx))           => Done(l -> r, lfx *> rfx)
-        case (Done(l, lfx), Continue(r, _, _, rfx)) => Done(l -> r, lfx *> rfx)
-        case (Continue(l, _, _, lfx), Done(r, rfx)) => Done(l -> r, lfx *> rfx)
-        case (Continue(l, linterval, lnext, lfx), Continue(r, rinterval, rnext, rfx)) =>
+      (left zip right).map {
+        case (Done(l), Done(r))           => Done(l -> r)
+        case (Done(l), Continue(r, _, _)) => Done(l -> r)
+        case (Continue(l, _, _), Done(r)) => Done(l -> r)
+        case (Continue(l, linterval, lnext), Continue(r, rinterval, rnext)) =>
           val combined = f(linterval, rinterval)
 
-          Continue(l -> r, combined, loop(Some((linterval, l)), Some((rinterval, r)))(lnext, rnext), lfx *> rfx)
+          Continue(l -> r, combined, loop(Some((linterval, l)), Some((rinterval, r)))(lnext, rnext))
       }
     }
 
@@ -169,7 +170,7 @@ final case class Schedule2[-Env, -In, +Out](
   }
 
   def contramap[Env1 <: Env, In2](f: In2 => In): Schedule2[Env, In2, Out] =
-    Schedule2((now: Instant, in: In2) => step0(now, f(in)).contramap(f))
+    Schedule2((now: Instant, in: In2) => step0(now, f(in)).map(_.contramap(f)))
 
   /**
    * Returns a new schedule that folds over the outputs of this one.
@@ -177,18 +178,19 @@ final case class Schedule2[-Env, -In, +Out](
   final def fold[Z](z: Z)(f: (Z, Out) => Z): Schedule2[Env, In, Z] = {
     def loop(z: Z, self: StepFunction[Env, In, Out]): StepFunction[Env, In, Z] =
       (now: Instant, in: In) =>
-        self(now, in) match {
-          case Done(out, fx) => Done(f(z, out), fx)
-          case Continue(out, interval, next, fx) =>
+        self(now, in).map {
+          case Done(out) => Done(f(z, out))
+          case Continue(out, interval, next) =>
             val z2 = f(z, out)
 
-            Continue(z2, interval, loop(z2, next), fx)
+            Continue(z2, interval, loop(z2, next))
         }
 
     Schedule2(loop(z, step0))
   }
 
-  def map[Out2](f: Out => Out2): Schedule2[Env, In, Out2] = Schedule2((now: Instant, in: In) => step0(now, in).map(f))
+  def map[Out2](f: Out => Out2): Schedule2[Env, In, Out2] =
+    Schedule2((now: Instant, in: In) => step0(now, in).map(_.map(f)))
 
   def repetitions: Schedule2[Env, In, Int] =
     fold(0)((n: Int, _: Out) => n + 1)
@@ -196,9 +198,9 @@ final case class Schedule2[-Env, -In, +Out](
   def tapInput[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Any]): Schedule2[Env1, In1, Out] = {
     def loop(self: StepFunction[Env, In1, Out]): StepFunction[Env1, In1, Out] =
       (now: Instant, in: In1) =>
-        self(now, in) match {
-          case Done(out, fx)                     => Done(out, fx *> f(in))
-          case Continue(out, interval, next, fx) => Continue(out, interval, loop(next), fx *> f(in))
+        f(in) *> self(now, in).map {
+          case Done(out)                     => Done(out)
+          case Continue(out, interval, next) => Continue(out, interval, loop(next))
         }
 
     Schedule2(loop(step0))
@@ -207,9 +209,9 @@ final case class Schedule2[-Env, -In, +Out](
   def tapOutput[Env1 <: Env](f: Out => URIO[Env1, Any]): Schedule2[Env1, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
       (now: Instant, in: In) =>
-        self(now, in) match {
-          case Done(out, fx)                     => Done(out, fx *> f(out))
-          case Continue(out, interval, next, fx) => Continue(out, interval, loop(next), fx *> f(out))
+        self(now, in).flatMap {
+          case Done(out)                     => f(out) as Done(out)
+          case Continue(out, interval, next) => f(out) as Continue(out, interval, loop(next))
         }
 
     Schedule2(loop(step0))
@@ -289,7 +291,9 @@ object Schedule2 {
 
   def duration(duration: Duration): Schedule2[Any, Any, Duration] =
     Schedule2((now, _: Any) =>
-      Decision.Continue(duration, Interval(now, now.plusNanos(duration.toNanos)), StepFunction.done(duration), UIO.unit)
+      ZIO.succeed {
+        Decision.Continue(duration, Interval(now, now.plusNanos(duration.toNanos)), StepFunction.done(duration))
+      }
     )
 
   /**
@@ -299,12 +303,14 @@ object Schedule2 {
   val elapsed: Schedule2[Any, Any, Duration] = {
     def loop(start: Option[Instant]): StepFunction[Any, Any, Duration] =
       (now: Instant, _: Any) =>
-        start match {
-          case None => Decision.Continue(Duration.Zero, Interval.Everywhere, loop(Some(now)), UIO.unit)
-          case Some(start) =>
-            val duration = Duration(now.toEpochMilli() - start.toEpochMilli(), TimeUnit.MILLISECONDS)
+        ZIO.succeed {
+          start match {
+            case None => Decision.Continue(Duration.Zero, Interval.Everywhere, loop(Some(now)))
+            case Some(start) =>
+              val duration = Duration(now.toEpochMilli() - start.toEpochMilli(), TimeUnit.MILLISECONDS)
 
-            Decision.Continue(duration, Interval.Everywhere, loop(Some(start)), UIO.unit)
+              Decision.Continue(duration, Interval.Everywhere, loop(Some(start)))
+          }
         }
 
     Schedule2(loop(None))
@@ -338,8 +344,10 @@ object Schedule2 {
    */
   def fromDuration(duration: Duration): Schedule2[Any, Any, Duration] =
     Schedule2((now, _: Any) =>
-      Decision
-        .Continue(Duration.Zero, Interval(now, now.plusNanos(duration.toNanos)), StepFunction.done(duration), UIO.unit)
+      ZIO.succeed {
+        Decision
+          .Continue(Duration.Zero, Interval(now, now.plusNanos(duration.toNanos)), StepFunction.done(duration))
+      }
     )
 
   /**
@@ -363,7 +371,7 @@ object Schedule2 {
 
   def identity[A]: Schedule2[Any, A, A] = {
     lazy val loop: StepFunction[Any, A, A] = (_: Instant, in: A) =>
-      Decision.Continue(in, Interval.Everywhere, loop, UIO.unit)
+      ZIO.succeed(Decision.Continue(in, Interval.Everywhere, loop))
 
     Schedule2(loop)
   }
@@ -394,14 +402,14 @@ object Schedule2 {
   def succeed[A](a0: => A): Schedule2[Any, Any, A] = {
     lazy val a = a0
 
-    lazy val loop: StepFunction[Any, Any, A] = (_, _) => Decision.Continue(a, Interval.Everywhere, loop, UIO.unit)
+    lazy val loop: StepFunction[Any, Any, A] = (_, _) => ZIO.succeed(Decision.Continue(a, Interval.Everywhere, loop))
 
     Schedule2(loop)
   }
 
   def unfold[A](a: => A)(f: A => A): Schedule2[Any, Any, A] = {
     def loop(a: => A): StepFunction[Any, Any, A] =
-      (_, _) => Decision.Continue(a, Interval.Everywhere, loop(f(a)), UIO.unit)
+      (_, _) => ZIO.succeed(Decision.Continue(a, Interval.Everywhere, loop(f(a))))
 
     Schedule2(loop(a))
   }
@@ -410,7 +418,7 @@ object Schedule2 {
     def loop(a0: => A): StepFunction[Any, Any, A] = {
       val (delay, a) = f(a0)
 
-      (now, _) => Decision.Continue(a0, Interval(now, now.plusNanos(delay.toNanos)), loop(a), UIO.unit)
+      (now, _) => ZIO.succeed(Decision.Continue(a0, Interval(now, now.plusNanos(delay.toNanos)), loop(a)))
     }
 
     Schedule2(loop(a))
@@ -514,63 +522,54 @@ object Schedule2 {
     val Nowhere    = Interval(Instant.MIN, Instant.MIN)
   }
 
-  type StepFunction[-Env, -In, +Out] = (Instant, In) => Schedule2.Decision[Env, In, Out]
+  type StepFunction[-Env, -In, +Out] = (Instant, In) => ZIO[Env, Nothing, Schedule2.Decision[Env, In, Out]]
   object StepFunction {
-    def done[A](a: => A): StepFunction[Any, Any, A] = (_: Instant, _: Any) => Decision.Done(a, UIO.unit)
+    def done[A](a: => A): StepFunction[Any, Any, A] = (_: Instant, _: Any) => ZIO.succeed(Decision.Done(a))
 
     def stepIfNecessary[Env, In, Out](
       now: Instant,
       in: In,
       option: Option[(Interval, Out)],
       step0: StepFunction[Env, In, Out]
-    ): Decision[Env, In, Out] =
+    ): ZIO[Env, Nothing, Decision[Env, In, Out]] =
       option match {
         case None => step0(now, in)
         case Some((interval, out)) =>
           if (now.compareTo(interval.end) >= 0) step0(now, in)
-          else Decision.Continue(out, interval, step0, UIO.unit)
+          else ZIO.succeed(Decision.Continue(out, interval, step0))
       }
   }
 
   sealed trait Decision[-Env, -In, +Out] { self =>
     def out: Out
 
-    def effect: URIO[Env, Any]
-
     def contramap[In1](f: In1 => In): Decision[Env, In1, Out] =
       self match {
-        case Decision.Done(v, fx) => Decision.Done(v, fx)
-        case Decision.Continue(v, i, n, fx) =>
-          Decision.Continue(v, i, (now: Instant, in1: In1) => n(now, f(in1)).contramap(f), fx)
+        case Decision.Done(v) => Decision.Done(v)
+        case Decision.Continue(v, i, n) =>
+          Decision.Continue(v, i, (now: Instant, in1: In1) => n(now, f(in1)).map(_.contramap(f)))
       }
 
     def map[Out2](f: Out => Out2): Decision[Env, In, Out2] =
       self match {
-        case Decision.Done(v, fx) => Decision.Done(f(v), fx)
-        case Decision.Continue(v, i, n, fx) =>
-          Decision.Continue(f(v), i, (now: Instant, in: In) => n(now, in).map(f), fx)
+        case Decision.Done(v) => Decision.Done(f(v))
+        case Decision.Continue(v, i, n) =>
+          Decision.Continue(f(v), i, (now: Instant, in: In) => n(now, in).map(_.map(f)))
       }
 
     def toDone: Decision[Env, Any, Out] =
       self match {
-        case Decision.Done(v, fx)           => Decision.Done(v, fx)
-        case Decision.Continue(v, _, _, fx) => Decision.Done(v, fx)
-      }
-
-    def withEffect[Env1 <: Env](effect: URIO[Env1, Any]): Decision[Env1, In, Out] =
-      self match {
-        case Decision.Done(v, fx)           => Decision.Done(v, fx *> effect)
-        case Decision.Continue(v, i, n, fx) => Decision.Continue(v, i, n, fx *> effect)
+        case Decision.Done(v)           => Decision.Done(v)
+        case Decision.Continue(v, _, _) => Decision.Done(v)
       }
   }
   object Decision {
-    final case class Done[-Env, +Out](out: Out, effect: URIO[Env, Any]) extends Decision[Env, Any, Out]
+    final case class Done[-Env, +Out](out: Out) extends Decision[Env, Any, Out]
     // [Env1 <: Env, Inclusive, Exclusive)
     final case class Continue[-Env, -In, +Out](
       out: Out,
       interval: Interval,
-      next: StepFunction[Env, In, Out],
-      effect: URIO[Env, Any]
+      next: StepFunction[Env, In, Out]
     ) extends Decision[Env, In, Out]
   }
 }
