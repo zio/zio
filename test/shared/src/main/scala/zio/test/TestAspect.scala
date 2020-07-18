@@ -702,6 +702,13 @@ object TestAspect extends TimeoutVariants {
         test <* ZTest(condition)
     }
 
+  val untraced: TestAspectPoly = new PerTest[Nothing, Any, Nothing, Any] {
+    override def perTest[R >: Nothing <: Any, E >: Nothing <: Any](
+      test: ZIO[R, TestFailure[E], TestSuccess]
+    ): ZIO[R, TestFailure[E], TestSuccess] =
+      test.untraced
+  }
+
   trait PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
 
     def perTest[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
