@@ -14,7 +14,7 @@ import zio.duration._
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.test.Assertion._
-import zio.test.TestAspect.{ exceptJS, flaky, nonFlaky, timeout }
+import zio.test.TestAspect.{ exceptJS, flaky, nonFlaky, scala2Only, timeout }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -3148,6 +3148,18 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield assert(result0)(equalTo(result1))
             }
           }
+        ),
+        suite("refineToOrDie")(
+          testM("does not compile when refine type is not a subtype of error type") {
+            val result = typeCheck {
+              """
+                |ZStream.fail(new RuntimeException("KABOOM!"))
+                | .refineToOrDie[Error]""".stripMargin
+            }
+            val expected =
+              "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
+            assertM(result)(isLeft(equalTo(expected)))
+          } @@ scala2Only
         )
       ),
       suite("Constructors")(

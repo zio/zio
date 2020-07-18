@@ -10,6 +10,8 @@ import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ ZInputStream, ZReader }
 
+import scala.reflect.ClassTag
+
 /**
  * A `ZStream[R, E, O]` is a description of a program that, when evaluated,
  * may emit 0 or more values of type `O`, may fail with errors of type `E`
@@ -4046,4 +4048,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     case object Both   extends TerminationStrategy
     case object Either extends TerminationStrategy
   }
+
+  implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZStream[R, E, A]) extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZStream[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
+  }
+
 }
