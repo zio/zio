@@ -3153,8 +3153,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("does not compile when refine type is not a subtype of error type") {
             val result = typeCheck {
               """
-                |ZStream.fail(new RuntimeException("KABOOM!"))
-                | .refineToOrDie[Error]""".stripMargin
+              ZIO
+                .fail(new RuntimeException("BOO!"))
+                .refineToOrDie[Error]
+                """
             }
             val expected =
               "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
