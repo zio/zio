@@ -52,11 +52,38 @@ final case class Schedule2[-Env, -In, +Out](
   import Schedule2.Decision._
   import Schedule2._
 
-  def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, (Out, Out2)] =
-    (self combineWith that)((l, Env) => (l union Env).getOrElse(l min Env))
-
+  /**
+   * Returns a new schedule that performs a geometric intersection on the intervals defined
+   * by both schedules.
+   */
   def &&[Env1 <: Env, In1 <: In, Out2](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, (Out, Out2)] =
     (self combineWith that)(_ intersect _)
+
+  /**
+   * Returns a new schedule that has both the inputs and outputs of this and the specified
+   * schedule.
+   */
+  def ***[Env1 <: Env, In2, Out2](that: Schedule2[Env1, In2, Out2]): Schedule2[Env1, (In, In2), (Out, Out2)] = {
+    def loop(
+      self: StepFunction[Env, In, Out],
+      that: StepFunction[Env1, In2, Out2]
+    ): StepFunction[Env1, (In, In2), (Out, Out2)] =
+      (now: Instant, tuple: (In, In2)) => {
+        val (in, in2) = tuple
+
+        (self(now, in) zip that(now, in2)).map {
+          case (Done(out), Done(out2))           => Done(out -> out2)
+          case (Done(out), Continue(out2, _, _)) => Done(out -> out2)
+          case (Continue(out, _, _), Done(out2)) => Done(out -> out2)
+          case (Continue(out, linterval, lnext), Continue(out2, rinterval, rnext)) =>
+            val interval = (linterval union rinterval).getOrElse(linterval min rinterval)
+
+            Continue(out -> out2, interval, loop(lnext, rnext))
+        }
+      }
+
+    Schedule2(loop(self.step0, that.step0))
+  }
 
   /**
    * The same as `&&`, but ignores the left output.
@@ -65,11 +92,70 @@ final case class Schedule2[-Env, -In, +Out](
     (self && that).map(_._2)
 
   /**
+   * A symbolic alias for `andThen`.
+   */
+  def ++[Env1 <: Env, In1 <: In, Out2 >: Out](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, Out2] =
+    self andThen that
+
+  /**
+   * Returns a new schedule that allows choosing between feeding inputs to this schedule, or
+   * feeding inputs to the specified schedule.
+   */
+  def +++[Env1 <: Env, In2, Out2](
+    that: Schedule2[Env1, In2, Out2]
+  ): Schedule2[Env1, Either[In, In2], Either[Out, Out2]] = {
+    def loop(
+      self: StepFunction[Env, In, Out],
+      that: StepFunction[Env1, In2, Out2]
+    ): StepFunction[Env1, Either[In, In2], Either[Out, Out2]] =
+      (now: Instant, either: Either[In, In2]) => {
+        either match {
+          case Left(in) =>
+            self(now, in).map {
+              case Done(out)                     => Done(Left(out))
+              case Continue(out, interval, next) => Continue(Left(out), interval, loop(next, that))
+            }
+
+          case Right(in2) =>
+            that(now, in2).map {
+              case Done(out)                      => Done(Right(out))
+              case Continue(out2, interval, next) => Continue(Right(out2), interval, loop(self, next))
+            }
+        }
+      }
+
+    Schedule2(loop(self.step0, that.step0))
+  }
+
+  /**
+   * Operator alias for `andThenEither`.
+   */
+  final def <||>[Env1 <: Env, In1 <: In, Out2](
+    that: Schedule2[Env1, In1, Out2]
+  ): Schedule2[Env1, In1, Either[Out, Out2]] = self.andThenEither(that)
+
+  /**
    * The same as `&&`, but ignores the right output.
    */
   def <*[Env1 <: Env, In1 <: In, Out2](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, Out] =
     (self && that).map(_._1)
 
+  /**
+   * An operator alias for `zip`.
+   */
+  def <*>[Env1 <: Env, In1 <: In, Out2](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, (Out, Out2)] =
+    self zip that
+
+  /**
+   * A backwards version of `>>>`.
+   */
+  def <<<[Env1 <: Env, In2](that: Schedule2[Env1, In2, In]): Schedule2[Env1, In2, Out] = that >>> self
+
+  /**
+   * Returns the composition of this schedule and the specified schedule, by piping the output of
+   * this one into the input of the other. Effects described by this schedule will always be
+   * executed before the effects described by the second schedule.
+   */
   def >>>[Env1 <: Env, Out2](that: Schedule2[Env1, Out, Out2]): Schedule2[Env1, In, Out2] = {
     def loop(self: StepFunction[Env, In, Out], that: StepFunction[Env1, Out, Out2]): StepFunction[Env1, In, Out2] =
       (now: Instant, in: In) =>
@@ -88,11 +174,24 @@ final case class Schedule2[-Env, -In, +Out](
     Schedule2(loop(self.step0, that.step0))
   }
 
-  def <<<[Env1 <: Env, In2](that: Schedule2[Env1, In2, In]): Schedule2[Env1, In2, Out] = that >>> self
+  /**
+   * Returns a new schedule that performs a geometric union on the intervals defined
+   * by both schedules.
+   */
+  def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, (Out, Out2)] =
+    (self combineWith that)((l, r) => (l union r).getOrElse(l min r))
 
-  def ++[Env1 <: Env, In1 <: In, Out2 >: Out](that: Schedule2[Env1, In1, Out2]): Schedule2[Env1, In1, Out2] =
-    self andThen that
+  /**
+   * Returns a new schedule that chooses between two schedules with a common output.
+   */
+  final def |||[Env1 <: Env, Out1 >: Out, In2](
+    that: Schedule2[Env1, In2, Out1]
+  ): Schedule2[Env1, Either[In, In2], Out1] =
+    (self +++ that).map(_.merge)
 
+  /**
+   * Returns a new schedule with the given delay added to every interval defined by this schedule.
+   */
   def addDelay(f: Out => Duration): Schedule2[Env, In, Out] = {
     def loop(n: Long, self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
       (now: Instant, in: In) =>
