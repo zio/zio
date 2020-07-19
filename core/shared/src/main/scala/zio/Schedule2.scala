@@ -19,8 +19,6 @@ package zio
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-import scala.util.Try
-
 import zio.duration._
 import zio.random._
 
@@ -221,9 +219,9 @@ final case class Schedule2[-Env, -In, +Out](
       onLeft: Boolean
     ): StepFunction[Env1, In1, Either[Out, Out2]] =
       (now: Instant, in: In1) =>
-        if (onLeft) self(now, in).map {
-          case Continue(out, interval, next) => Continue(Left(out), interval, loop(next, that, true))
-          case Done(out)                     => Continue(Left(out), Interval.Nowhere, loop(self, that, false))
+        if (onLeft) self(now, in).flatMap {
+          case Continue(out, interval, next) => ZIO.succeed(Continue(Left(out), interval, loop(next, that, true)))
+          case Done(_)                       => loop(self, that, false)(now, in)
         }
         else
           that(now, in).map {
@@ -443,10 +441,15 @@ final case class Schedule2[-Env, -In, +Out](
         self(now, in).flatMap {
           case Done(out) => ZIO.succeed(Done(out))
           case Continue(out, interval, next) =>
-            val before = Interval(now, interval.start).toDuration
+            val delay = Interval(now, interval.start).size
 
-            f(out, before).map { duration =>
-              val newInterval = interval.shift(duration)
+            f(out, delay).map { duration =>
+              val oldStart = interval.start
+              val newStart = now.plusNanos(duration.toNanos)
+              val delta    = java.time.Duration.between(oldStart, newStart)
+              val newEnd   = interval.end.plus(delta)
+
+              val newInterval = Interval(newStart, newEnd)
 
               Continue(out, newInterval, loop(next))
             }
@@ -509,18 +512,18 @@ final case class Schedule2[-Env, -In, +Out](
   /**
    * Runs a schedule using the provided inputs, and collects all outputs.
    */
-  def run(input: Iterable[(Instant, In)]): URIO[Env, Chunk[Out]] = {
-    def loop(xs: List[(Instant, In)], self: StepFunction[Env, In, Out], acc: Chunk[Out]): URIO[Env, Chunk[Out]] =
+  def run(now: Instant, input: Iterable[In]): URIO[Env, Chunk[Out]] = {
+    def loop(now: Instant, xs: List[In], self: StepFunction[Env, In, Out], acc: Chunk[Out]): URIO[Env, Chunk[Out]] =
       xs match {
         case Nil => ZIO.succeedNow(acc)
-        case (now, in) :: xs =>
+        case in :: xs =>
           self(now, in).flatMap {
-            case Done(out)              => ZIO.succeed(acc :+ out)
-            case Continue(out, _, next) => loop(xs, next, acc :+ out)
+            case Done(out)                     => ZIO.succeed(acc :+ out)
+            case Continue(out, interval, next) => loop(interval.start, xs, next, acc :+ out)
           }
       }
 
-    loop(input.toList, self.step0, Chunk.empty)
+    loop(now, input.toList, self.step0, Chunk.empty)
   }
 
   /**
@@ -670,6 +673,12 @@ object Schedule2 {
     identity[A].whileInput(f)
 
   /**
+   * A schedule that recurs for as long as the effectful predicate evaluates to true.
+   */
+  def doWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule2[Env, A, A] =
+    identity[A].whileInputM(f)
+
+  /**
    * A schedule that recurs for as long as the predicate is equal.
    */
   def doWhileEquals[A](a: => A): Schedule2[Any, A, A] =
@@ -680,6 +689,12 @@ object Schedule2 {
    */
   def doUntil[A](f: A => Boolean): Schedule2[Any, A, A] =
     identity[A].untilInput(f)
+
+  /**
+   * A schedule that recurs for until the predicate evaluates to true.
+   */
+  def doUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule2[Env, A, A] =
+    identity[A].untilInputM(f)
 
   /**
    * A schedule that recurs for until the predicate is equal.
@@ -694,10 +709,20 @@ object Schedule2 {
   def doUntil[A, B](pf: PartialFunction[A, B]): Schedule2[Any, A, Option[B]] =
     doUntil(pf.isDefinedAt(_)).map(pf.lift(_))
 
+  /**
+   * A schedule that recurs for until the input value becomes applicable to partial function
+   * and then map that value with given function.
+   * */
+  def doUntilM[Env, A, B](pf: PartialFunction[A, B]): Schedule2[Any, A, Option[B]] =
+    doUntil(pf.isDefinedAt(_)).map(pf.lift(_))
+
+  /**
+   * A schedule that can recur one time, the specified amount of time into the future.
+   */
   def duration(duration: Duration): Schedule2[Any, Any, Duration] =
     Schedule2((now, _: Any) =>
       ZIO.succeed {
-        Decision.Continue(duration, Interval(now, now.plusNanos(duration.toNanos)), StepFunction.done(duration))
+        Decision.Continue(Duration.Zero, Interval.after(now.plusNanos(duration.toNanos)), StepFunction.done(duration))
       }
     )
 
@@ -709,12 +734,14 @@ object Schedule2 {
     def loop(start: Option[Instant]): StepFunction[Any, Any, Duration] =
       (now: Instant, _: Any) =>
         ZIO.succeed {
+          val interval = Interval.after(now)
+
           start match {
-            case None => Decision.Continue(Duration.Zero, Interval.Everywhere, loop(Some(now)))
+            case None => Decision.Continue(Duration.Zero, interval, loop(Some(now)))
             case Some(start) =>
               val duration = Duration(now.toEpochMilli() - start.toEpochMilli(), TimeUnit.MILLISECONDS)
 
-              Decision.Continue(duration, Interval.Everywhere, loop(Some(start)))
+              Decision.Continue(duration, interval, loop(Some(start)))
           }
         }
 
@@ -775,8 +802,8 @@ object Schedule2 {
     unfold(0L)(_ + 1L)
 
   def identity[A]: Schedule2[Any, A, A] = {
-    lazy val loop: StepFunction[Any, A, A] = (_: Instant, in: A) =>
-      ZIO.succeed(Decision.Continue(in, Interval.Everywhere, loop))
+    lazy val loop: StepFunction[Any, A, A] = (now: Instant, in: A) =>
+      ZIO.succeed(Decision.Continue(in, Interval.after(now), loop))
 
     Schedule2(loop)
   }
@@ -801,132 +828,131 @@ object Schedule2 {
   def recurs(n: Int): Schedule2[Any, Any, Long] =
     count.whileOutput(_ < n)
 
+  /**
+   * Returns a schedule that repeats forever, each repetition spaced the specified duration
+   * from the last run.
+   */
   def spaced(duration: Duration): Schedule2[Any, Any, Long] =
     unfoldDelay(0L)(i => (duration, i))
 
+  /**
+   * Returns a schedule that repeats one time, producing the specified constant value.
+   */
   def succeed[A](a0: => A): Schedule2[Any, Any, A] = {
     lazy val a = a0
 
-    lazy val loop: StepFunction[Any, Any, A] = (_, _) => ZIO.succeed(Decision.Continue(a, Interval.Everywhere, loop))
+    lazy val loop: StepFunction[Any, Any, A] = (now, _) =>
+      ZIO.succeed(Decision.Continue(a, Interval(now, Instant.MAX), loop))
 
     Schedule2(loop)
   }
 
+  /**
+   * Unfolds a schedule that repeats one time from the specified state and iterator.
+   */
   def unfold[A](a: => A)(f: A => A): Schedule2[Any, Any, A] = {
     def loop(a: => A): StepFunction[Any, Any, A] =
-      (_, _) => ZIO.succeed(Decision.Continue(a, Interval.Everywhere, loop(f(a))))
+      (now, _) => ZIO.succeed(Decision.Continue(a, Interval.after(now), loop(f(a))))
 
     Schedule2(loop(a))
   }
 
+  /**
+   * Unfolds a schedule that repeats continuously, spacing each repetition out by the duration
+   * returned from specified iterator.
+   */
   def unfoldDelay[A](a: => A)(f: A => (Duration, A)): Schedule2[Any, Any, A] = {
     def loop(a0: => A): StepFunction[Any, Any, A] = {
       val (delay, a) = f(a0)
 
-      (now, _) => ZIO.succeed(Decision.Continue(a0, Interval(now, now.plusNanos(delay.toNanos)), loop(a)))
+      (now, _) => ZIO.succeed(Decision.Continue(a0, Interval.after(now.plusNanos(delay.toNanos)), loop(a)))
     }
 
     Schedule2(loop(a))
   }
 
-  private def min(l: Instant, Env: Instant): Instant = if (l.compareTo(Env) <= 0) l else Env
-  private def max(l: Instant, Env: Instant): Instant = if (l.compareTo(Env) >= 0) l else Env
-
   /**
    * An `Interval` represents an interval of time. Intervals can encompass all time, or no time
    * at all.
-   *
-   * @param start
-   * @param end
    */
-  final case class Interval(start: Instant, end: Instant) { self =>
-    def <(that: Interval): Boolean = (self min that) == self
+  sealed abstract case class Interval private (start: Instant, end: Instant) { self =>
+    final def <(that: Interval): Boolean = (self min that) == self
 
-    def <=(that: Interval): Boolean = (self < that) || (self == that)
+    final def <=(that: Interval): Boolean = (self < that) || (self == that)
 
-    def >(that: Interval): Boolean = that < self
+    final def >(that: Interval): Boolean = that < self
 
-    def >=(that: Interval): Boolean = (self > that) || (self == that)
+    final def >=(that: Interval): Boolean = (self > that) || (self == that)
 
-    def after: Interval = Interval(end, Instant.MAX).normalize
+    final def empty: Boolean = start.compareTo(end) >= 0
 
-    def after(that: Instant): Interval = if (start.compareTo(that) <= 0) Interval(that, end).normalize else self
-
-    def before: Interval = Interval(Instant.MIN, start).normalize
-
-    def before(that: Instant): Interval = if (end.compareTo(that) <= 0) Interval(start, that).normalize else self
-
-    def complement: (Interval, Interval) = (self.before, self.after)
-
-    override def equals(that: Any): Boolean =
+    final override def equals(that: Any): Boolean =
       that match {
         case that @ Interval(_, _) =>
-          val self1 = self.normalize
-          val that1 = that.normalize
-
-          self1.start == that1.start && self1.end == that1.end
+          (self.empty && that.empty) || self.start == that.start && self.end == that.end
 
         case _ => false
       }
 
-    def everywhere: Boolean = normalize == Interval.Everywhere
+    final def intersect(that: Interval): Interval = {
+      val start = Interval.max(self.start, that.start)
+      val end   = Interval.min(self.end, that.end)
 
-    def intersect(that: Interval): Interval = {
-      val start = Schedule2.max(self.start, that.start)
-      val end   = Schedule2.min(self.end, that.end)
-
-      if (start.compareTo(end) <= 0) Interval.Nowhere
-      else Interval(start, end)
+      Interval(start, end)
     }
 
-    def max(that: Interval): Interval = {
+    final def max(that: Interval): Interval = {
       val m = self min that
 
       if (m == self) that else self
     }
 
-    def min(that: Interval): Interval =
+    final def min(that: Interval): Interval =
       if (self.end.compareTo(that.start) <= 0) self
       else if (that.end.compareTo(self.start) <= 0) that
-      else if (self.start.compareTo(that.start) <= 0) self
-      else if (that.start.compareTo(self.start) <= 0) that
+      else if (self.start.compareTo(that.start) < 0) self
+      else if (that.start.compareTo(self.start) < 0) that
       else if (self.end.compareTo(that.end) <= 0) self
       else that
 
-    def normalize: Interval = if (start.compareTo(end) >= 0) Interval.Nowhere else self
+    final def nonEmpty: Boolean = !empty
 
-    def nowhere: Boolean = normalize == Interval.Nowhere
+    final def overlaps(that: Interval): Boolean = self.intersect(that).nonEmpty
 
-    def overlaps(that: Interval): Boolean = !self.intersect(that).nowhere
+    final def size: Duration = Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
 
-    def shift(duration: Duration): Interval =
-      Interval(
-        Try(start.plusNanos(duration.toNanos)).getOrElse(Instant.MAX),
-        Try(end.plusNanos(duration.toNanos)).getOrElse(Instant.MAX)
-      ).normalize
+    final def union(that: Interval): Option[Interval] = {
+      val istart = Interval.max(self.start, that.start)
+      val iend   = Interval.min(self.end, that.end)
 
-    def shiftN(n: Long)(duration: Duration): Interval =
-      Interval(
-        Try(start.plusMillis(n * duration.toMillis)).getOrElse(Instant.MAX),
-        Try(end.plusMillis(n * duration.toMillis)).getOrElse(Instant.MAX)
-      ).normalize
-
-    def toDuration: Duration = Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
-
-    def union(that: Interval): Option[Interval] =
-      if (self.nowhere) Some(that)
-      else if (that.nowhere) Some(self)
-      else {
-        val istart = Schedule2.max(self.start, that.start)
-        val iend   = Schedule2.min(self.end, that.end)
-
-        if (istart.compareTo(iend) <= 0) None
-        else Some(Interval(Schedule2.min(self.start, that.start), Schedule2.max(self.end, that.end)))
-      }
+      if (istart.compareTo(iend) <= 0) None
+      else Some(Interval(istart, iend))
+    }
   }
-  object Interval {
-    val Everywhere = Interval(Instant.MIN, Instant.MAX)
-    val Nowhere    = Interval(Instant.MIN, Instant.MIN)
+  object Interval extends Function2[Instant, Instant, Interval] {
+
+    /**
+     * Constructs a new interval from the two specified endpoints. If the start endpoint greater
+     * than the end endpoint, then a zero size interval will be returned.
+     */
+    def apply(start: Instant, end: Instant): Interval =
+      if (start.isBefore(end) || start == end) new Interval(start, end) {}
+      else empty
+
+    def after(instant: Instant): Interval = Interval(instant, Instant.MAX)
+
+    def before(instant: Instant): Interval = Interval(Instant.MIN, instant)
+
+    /**
+     * An interval of zero-width.
+     */
+    val empty: Interval = Interval(Instant.ofEpochSecond(0L), Instant.ofEpochMilli(0L))
+
+    def fromInstantDuration(instant: Instant, duration: Duration): Interval =
+      Interval(instant, instant.plusNanos(duration.toNanos))
+
+    private def min(l: Instant, r: Instant): Instant = if (l.compareTo(r) <= 0) l else r
+    private def max(l: Instant, r: Instant): Instant = if (l.compareTo(r) >= 0) l else r
   }
 
   type StepFunction[-Env, -In, +Out] = (Instant, In) => ZIO[Env, Nothing, Schedule2.Decision[Env, In, Out]]
@@ -950,23 +976,23 @@ object Schedule2 {
   sealed trait Decision[-Env, -In, +Out] { self =>
     def out: Out
 
-    def as[Out2](out2: => Out2): Decision[Env, In, Out2] = map(_ => out2)
+    final def as[Out2](out2: => Out2): Decision[Env, In, Out2] = map(_ => out2)
 
-    def contramap[In1](f: In1 => In): Decision[Env, In1, Out] =
+    final def contramap[In1](f: In1 => In): Decision[Env, In1, Out] =
       self match {
         case Decision.Done(v) => Decision.Done(v)
         case Decision.Continue(v, i, n) =>
           Decision.Continue(v, i, (now: Instant, in1: In1) => n(now, f(in1)).map(_.contramap(f)))
       }
 
-    def map[Out2](f: Out => Out2): Decision[Env, In, Out2] =
+    final def map[Out2](f: Out => Out2): Decision[Env, In, Out2] =
       self match {
         case Decision.Done(v) => Decision.Done(f(v))
         case Decision.Continue(v, i, n) =>
           Decision.Continue(f(v), i, (now: Instant, in: In) => n(now, in).map(_.map(f)))
       }
 
-    def toDone: Decision[Env, Any, Out] =
+    final def toDone: Decision[Env, Any, Out] =
       self match {
         case Decision.Done(v)           => Decision.Done(v)
         case Decision.Continue(v, _, _) => Decision.Done(v)
@@ -974,7 +1000,6 @@ object Schedule2 {
   }
   object Decision {
     final case class Done[-Env, +Out](out: Out) extends Decision[Env, Any, Out]
-    // [Env1 <: Env, Inclusive, Exclusive)
     final case class Continue[-Env, -In, +Out](
       out: Out,
       interval: Interval,
