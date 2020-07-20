@@ -119,6 +119,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
 
   /**
    * Reads the first n values from the stream and uses them to choose the transducer that will be used for the remainder of the stream.
+   * If the stream ends before it has collected n values the partial chunk will be provided to f.
    */
   def branchAfter[R, E, I, O](n: Int)(f: Chunk[I] => ZTransducer[R, E, I, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
@@ -139,8 +140,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
               stateRef.getAndSet(State.initial).flatMap {
                 case State.Emitting(finalizer, push) =>
                   push(None) <* finalizer(Exit.unit)
-                case _ =>
-                  ZIO.succeedNow(Chunk.empty)
+                case State.Collecting(data) =>
+                  f(data).push.use(_(None))
               }
             case Some(data) =>
               stateRef.modify {
@@ -642,6 +643,21 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
 
   /**
+   * Emits the provided chunk before emitting any other value.
+   */
+  def prepend[A](values: Chunk[A]): ZTransducer[Any, Nothing, A, A] =
+    ZTransducer {
+      ZRef.makeManaged(values).map { stateRef =>
+        {
+          case None =>
+            stateRef.getAndSet(Chunk.empty)
+          case Some(xs) =>
+            stateRef.getAndSet(Chunk.empty).map(c => if (c.isEmpty) xs else c ++ xs)
+        }
+      }
+    }
+
+  /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
   val splitLines: ZTransducer[Any, Nothing, String, String] =
@@ -763,8 +779,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  val utf8Decode: ZTransducer[Any, Nothing, Byte, String] =
-    ZTransducer {
+  val utf8Decode: ZTransducer[Any, Nothing, Byte, String] = {
+    val transducer = ZTransducer[Any, Nothing, Byte, String] {
       def is2ByteSequenceStart(b: Byte) = (b & 0xE0) == 0xC0
       def is3ByteSequenceStart(b: Byte) = (b & 0xF0) == 0xE0
       def is4ByteSequenceStart(b: Byte) = (b & 0xF8) == 0xF0
@@ -812,21 +828,32 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       }
     }
 
+    // handle optional byte order mark
+    branchAfter(3) { bytes =>
+      bytes.toList match {
+        case -17 :: -69 :: -65 :: Nil =>
+          transducer
+        case _ =>
+          prepend(bytes) >>> transducer
+      }
+    }
+  }
+
   /**
    * Decodes chunks of UTF-16 bytes into strings.
+   * If no byte order mark is found big-endianness is assumed.
    *
-   * This will fail with an `IllegalArgumentException` if no byte order mark was found and will
-   * use the error handling behavior of the endian-specific decoder otherwise.
+   * It will use the error handling behavior of the endian-specific decoder when handling malformed byte sequences.
    */
-  val utf16Decode: ZTransducer[Any, IllegalArgumentException, Byte, String] =
+  val utf16Decode: ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(2) { bytes =>
       bytes.toList match {
         case -2 :: -1 :: Nil =>
           utf16BEDecode
         case -1 :: -2 :: Nil =>
           utf16LEDecode
-        case xs =>
-          fail(new IllegalArgumentException(s"Not a valid byte order mark ${xs.map(_ & 0xFF).mkString(", ")}"))
+        case _ =>
+          prepend(bytes) >>> utf16BEDecode
       }
     }
 
