@@ -77,6 +77,15 @@ object ChunkBuilder {
     }
 
   /**
+   * Constructs a generic `ChunkBuilder` with size hint.
+   */
+  def make[A](sizeHint: SInt): ChunkBuilder[A] = {
+    val builder = make[A]()
+    builder.sizeHint(sizeHint)
+    builder
+  }
+
+  /**
    * A `ChunkBuilder` specialized for building chunks of unboxed `Boolean`
    * values.
    */
