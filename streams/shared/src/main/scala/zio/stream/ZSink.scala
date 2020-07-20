@@ -1,6 +1,8 @@
 package zio.stream
 
 import zio._
+import zio.clock.Clock
+import zio.duration._
 
 // Important notes while writing sinks and combinators:
 // - What return values for sinks mean:
@@ -247,35 +249,6 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     )
 
   /**
-   * Converts this sink to a transducer that feeds incoming elements to the sink
-   * and emits the sink's results as outputs. The sink will be restarted when
-   * it ends.
-   */
-  def toTransducer(implicit ev: L <:< I): ZTransducer[R, E, I, Z] =
-    ZTransducer {
-      ZSink.Push.restartable(push).map {
-        case (push, restart) =>
-          def go(input: Option[Chunk[I]]): ZIO[R, E, Chunk[Z]] =
-            push(input).foldM(
-              {
-                case (Left(e), _) => ZIO.fail(e)
-                case (Right(z), leftover) =>
-                  restart *> {
-                    if (leftover.isEmpty || input.isEmpty) {
-                      ZIO.succeed(Chunk.single(z))
-                    } else {
-                      go(Some(leftover).asInstanceOf[Option[Chunk[I]]]).map(more => Chunk.single(z) ++ more)
-                    }
-                  }
-              },
-              _ => UIO.succeedNow(Chunk.empty)
-            )
-
-          (input: Option[Chunk[I]]) => go(input)
-      }
-    }
-
-  /**
    * Runs both sinks in parallel on the input, , returning the result or the error from the
    * one that finishes first.
    */
@@ -311,6 +284,48 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
           )
       }
     } yield push)
+
+  /**
+   * Returns the sink that executes this one and times its execution.
+   */
+  final def timed: ZSink[R with Clock, E, I, L, (Z, Duration)] =
+    ZSink {
+      self.push.zipWith(clock.nanoTime.toManaged_) { (push, start) =>
+        push(_).catchAll {
+          case (Left(e), leftover)  => Push.fail(e, leftover)
+          case (Right(z), leftover) => clock.nanoTime.flatMap(stop => Push.emit(z -> (stop - start).nanos, leftover))
+        }
+      }
+    }
+
+  /**
+   * Converts this sink to a transducer that feeds incoming elements to the sink
+   * and emits the sink's results as outputs. The sink will be restarted when
+   * it ends.
+   */
+  def toTransducer(implicit ev: L <:< I): ZTransducer[R, E, I, Z] =
+    ZTransducer {
+      ZSink.Push.restartable(push).map {
+        case (push, restart) =>
+          def go(input: Option[Chunk[I]]): ZIO[R, E, Chunk[Z]] =
+            push(input).foldM(
+              {
+                case (Left(e), _) => ZIO.fail(e)
+                case (Right(z), leftover) =>
+                  restart *> {
+                    if (leftover.isEmpty || input.isEmpty) {
+                      ZIO.succeed(Chunk.single(z))
+                    } else {
+                      go(Some(leftover).asInstanceOf[Option[Chunk[I]]]).map(more => Chunk.single(z) ++ more)
+                    }
+                  }
+              },
+              _ => UIO.succeedNow(Chunk.empty)
+            )
+
+          (input: Option[Chunk[I]]) => go(input)
+      }
+    }
 
   /**
    * Feeds inputs to this sink until it yields a result, then switches over to the
@@ -845,4 +860,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def sum[A](implicit A: Numeric[A]): ZSink[Any, Nothing, A, Nothing, A] =
     foldLeft(A.zero)(A.plus)
+
+  /**
+   * A sink with timed execution.
+   */
+  def timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 }
