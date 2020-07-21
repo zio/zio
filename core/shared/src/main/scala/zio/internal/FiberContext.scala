@@ -403,9 +403,19 @@ private[zio] final class FiberContext[E, A](
                     val fastPathTrace = fastPathFlatMapContinuationTrace
                     fastPathFlatMapContinuationTrace = null
 
-                    val cause0 = zio.fill(() => captureTrace(fastPathTrace))
+                    val fullCause = zio.fill(() => captureTrace(fastPathTrace))
 
                     val discardedFolds = unwindStack()
+                    val maybeRedactedCause =
+                      if (discardedFolds)
+                        // We threw away some error handlers while unwinding the stack because
+                        // we got interrupted during this instruction. So it's not safe to return
+                        // typed failures from cause0, because they might not be typed correctly.
+                        // Instead, we strip the typed failures, and return the remainders and
+                        // the interruption.
+                        fullCause.stripFailures
+                      else
+                        fullCause
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -414,17 +424,10 @@ private[zio] final class FiberContext[E, A](
 
                         // Add interruption information into the cause, if it's not already there:
                         val causeAndInterrupt =
-                          if (!cause0.contains(interrupted)) cause0 ++ interrupted
-                          else cause0
+                          if (!maybeRedactedCause.contains(interrupted)) maybeRedactedCause ++ interrupted
+                          else maybeRedactedCause
 
-                        if (discardedFolds)
-                          // We threw away some error handlers while unwinding the stack because
-                          // we got interrupted during this instruction. So it's not safe to return
-                          // typed failures from cause0, because they might not be typed correctly.
-                          // Instead, we strip the typed failures, and return the remainders and
-                          // the interruption.
-                          causeAndInterrupt.stripFailures
-                        else causeAndInterrupt
+                        causeAndInterrupt
                       }
 
                       setInterrupting(true)
@@ -435,7 +438,7 @@ private[zio] final class FiberContext[E, A](
 
                       // Error caught, next continuation on the stack will deal
                       // with it, so we just have to compute it here:
-                      curZio = nextInstr(cause0)
+                      curZio = nextInstr(maybeRedactedCause)
                     }
 
                   case ZIO.Tags.Fold =>
