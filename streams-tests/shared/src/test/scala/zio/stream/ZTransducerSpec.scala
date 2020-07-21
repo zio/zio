@@ -429,6 +429,66 @@ object ZTransducerSpec extends ZIOBaseSpec {
           )(equalTo(Chunk("abc", "abc")))
         }
       ),
+      suite("splitOnChunk")(
+        testM("consecutive delimiter yields empty Chunk") {
+          val input         = ZStream.apply(Chunk(1, 2), Chunk(1), Chunk(2, 1, 2, 3, 1, 2), Chunk(1, 2))
+          val splitSequence = Chunk(1, 2)
+          assertM(input.flattenChunks.transduce(ZTransducer.splitOnChunk(splitSequence)).map(_.size).runCollect)(
+            equalTo(Chunk(0, 0, 0, 1, 0))
+          )
+        },
+        testM("preserves data")(checkM(Gen.chunkOf(Gen.anyByte.filter(_ != 0.toByte))) { bytes =>
+          val splitSequence = Chunk[Byte](0, 1)
+          val data          = bytes.flatMap(_ +: splitSequence)
+          val parser        = ZTransducer.splitOnChunk(splitSequence)
+          assertM(run(parser, List(data)).map(_.flatten))(equalTo(bytes))
+        }),
+        testM("handles leftovers") {
+          val splitSequence = Chunk(0, 1)
+          val parser        = ZTransducer.splitOnChunk(splitSequence)
+          assertM(run(parser, List(Chunk(1, 0, 2, 0, 1, 2), Chunk(2))))(equalTo(Chunk(Chunk(1, 0, 2), Chunk(2, 2))))
+        },
+        testM("aggregates") {
+          val splitSequence = Chunk(0, 1)
+          assertM(
+            Stream(1, 2, 0, 1, 3, 4, 0, 1, 5, 6, 5, 6)
+              .aggregate(ZTransducer.splitOnChunk(splitSequence))
+              .runCollect
+          )(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6, 5, 6))))
+        },
+        testM("aggregates from Chunks") {
+          val splitSequence = Chunk(0, 1)
+          assertM(
+            ZStream
+              .fromChunks(Chunk(1, 2), splitSequence, Chunk(3, 4), splitSequence, Chunk(5, 6), Chunk(5, 6))
+              .aggregate(ZTransducer.splitOnChunk(splitSequence))
+              .runCollect
+          )(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6, 5, 6))))
+        },
+        testM("single delimiter edgecase") {
+          assertM(
+            Stream(0)
+              .aggregate(ZTransducer.splitOnChunk(Chunk(0)))
+              .runCollect
+          )(equalTo(Chunk(Chunk())))
+        },
+        testM("no delimiter in data") {
+          assertM(
+            ZStream
+              .fromChunks(Chunk(1, 2), Chunk(1, 2), Chunk(1, 2))
+              .aggregate(ZTransducer.splitOnChunk(Chunk(1, 1)))
+              .runCollect
+          )(equalTo(Chunk(Chunk(1, 2, 1, 2, 1, 2))))
+        },
+        testM("delimiter on the boundary") {
+          assertM(
+            ZStream
+              .fromChunks(Chunk(1, 2), Chunk(1, 2))
+              .aggregate(ZTransducer.splitOnChunk(Chunk(2, 1)))
+              .runCollect
+          )(equalTo(Chunk(Chunk(1), Chunk(2))))
+        }
+      ),
       suite("utf8DecodeChunk")(
         testM("regular strings")(checkM(Gen.anyString) { s =>
           ZTransducer.utf8Decode.push.use { push =>
@@ -479,6 +539,16 @@ object ZTransducerSpec extends ZIOBaseSpec {
             } yield assert(part2.mkString)(
               equalTo(new String(Array(0xF0.toByte, 0x90.toByte), "UTF-8"))
             )
+          }
+        },
+        testM("handle byte order mark") {
+          checkM(Gen.anyString) { s =>
+            ZTransducer.utf8Decode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk[Byte](-17, -69, -65) ++ Chunk.fromArray(s.getBytes("UTF-8"))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
           }
         }
       ),
@@ -566,6 +636,25 @@ object ZTransducerSpec extends ZIOBaseSpec {
               }
             assertM(test.run)(succeeds(equalTo(0)))
           }
+        },
+        testM("emits data if less than n are collected") {
+          val gen =
+            for {
+              data <- Gen.chunkOf(Gen.anyInt)
+              n    <- Gen.anyInt.filter(_ > data.length)
+            } yield (data, n)
+
+          checkM(gen) {
+            case (data, n) =>
+              val test =
+                ZStream
+                  .fromChunk(data)
+                  .transduce {
+                    ZTransducer.branchAfter(n)(ZTransducer.prepend)
+                  }
+                  .runCollect
+              assertM(test.run)(succeeds(equalTo(data)))
+          }
         }
       ),
       suite("utf16BEDecode")(
@@ -603,15 +692,14 @@ object ZTransducerSpec extends ZIOBaseSpec {
             }
           }
         },
-        testM("no magic sequence") {
+        testM("no magic sequence - parse as big endian") {
           checkM(Gen.anyString.filter(_.nonEmpty)) { s =>
-            val test = ZTransducer.utf16Decode.push.use { push =>
+            ZTransducer.utf16Decode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
                 part2 <- push(None)
-              } yield (part1 ++ part2).mkString
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
             }
-            assertM(test.run)(fails(anything))
           }
         },
         testM("big endian") {
