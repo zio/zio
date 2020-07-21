@@ -4,9 +4,11 @@ import scala.util.Random
 
 import zio.ZIOBaseSpec
 import zio._
+import zio.duration._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
-import zio.test.Assertion.{ equalTo, isFalse, isTrue, succeeds }
+import zio.test.Assertion.{ equalTo, isFalse, isGreaterThanEqualTo, isTrue, succeeds }
+import zio.test.environment.TestClock
 import zio.test.{ assertM, _ }
 
 object ZSinkSpec extends ZIOBaseSpec {
@@ -233,7 +235,14 @@ object ZSinkSpec extends ZIOBaseSpec {
             }
           }
         }
-      )
+      ),
+      testM("timed") {
+        for {
+          f <- ZStream.fromIterable(1 to 10).mapM(i => clock.sleep(10.millis).as(i)).run(ZSink.timed).fork
+          _ <- TestClock.adjust(100.millis)
+          r <- f.join
+        } yield assert(r)(isGreaterThanEqualTo(100.millis))
+      }
     )
   )
 }

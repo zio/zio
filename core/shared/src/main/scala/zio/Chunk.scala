@@ -473,7 +473,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
     if (iterator.hasNext) {
       val array  = iterator.next()
       val length = array.length
-      loop(z, iterator, iterator.next(), 0, length)
+      loop(z, iterator, array, 0, length)
     } else {
       ZIO.succeedNow(z)
     }

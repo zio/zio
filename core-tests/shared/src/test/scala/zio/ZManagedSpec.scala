@@ -6,7 +6,7 @@ import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test._
 import zio.test.environment._
 
@@ -1551,6 +1551,20 @@ object ZManagedSpec extends ZIOBaseSpec {
             ref.get.map(assert(_)(equalTo(List(1, 3))))
         }
       }
+    ),
+    suite("refineToOrDie")(
+      testM("does not compile when refine type is not a subtype of error type") {
+        val result = typeCheck {
+          """
+          ZIO
+            .fail(new RuntimeException("BOO!"))
+            .refineToOrDie[Error]
+            """
+        }
+        val expected =
+          "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
+        assertM(result)(isLeft(equalTo(expected)))
+      } @@ scala2Only
     )
   )
 

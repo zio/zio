@@ -1,9 +1,8 @@
 package zio.stream
 
-import java.io.{ IOException, InputStream, OutputStream, Reader }
+import java.io._
 import java.net.InetSocketAddress
-import java.nio.channels.FileChannel
-import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler }
+import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel }
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{ OpenOption, Path }
 import java.nio.{ Buffer, ByteBuffer }
@@ -315,6 +314,36 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R with Blocking, IOException, Char] =
     ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
+
+  /**
+   * Creates a stream from a callback that writes to [[java.io.OutputStream]].
+   * Note: the input stream will be closed after the `write` is done.
+   */
+  def fromOutputStreamWriter(
+    write: OutputStream => Unit,
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[Blocking, Throwable, Byte] = {
+    def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
+      val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.effectTotal(in.close()))
+      val writeOut = ZStream.fromEffect {
+        blocking
+          .effectBlockingInterrupt(write(out))
+          .run
+          .tap(exit => err.done(exit.as(None)))
+          .ensuring(ZIO.effectTotal(out.close()))
+      }
+
+      val handleError = ZStream.fromEffectOption(err.await.some)
+      readIn.drainFork(writeOut) ++ handleError
+    }
+
+    for {
+      out    <- ZStream.fromEffect(ZIO.effectTotal(new PipedOutputStream()))
+      in     <- ZStream.fromEffect(ZIO.effectTotal(new PipedInputStream(out)))
+      err    <- ZStream.fromEffect(Promise.make[Throwable, None.type])
+      result <- from(in, out, err)
+    } yield result
+  }
 
   /**
    * Creates a stream from a Java stream

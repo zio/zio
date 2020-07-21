@@ -1,5 +1,7 @@
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import BuildHelper._
+import MimaSettings.mimaSettings
+import com.typesafe.tools.mima.plugin.MimaKeys.mimaFailOnNoPrevious
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
@@ -67,6 +69,10 @@ addCommandAlias(
   "testJS211",
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test"
 )
+addCommandAlias(
+  "mimaChecks",
+  "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
+)
 
 lazy val root = project
   .in(file("."))
@@ -115,6 +121,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
   .settings(replSettings)
+  // Failures will be enabled after 1.0.0
+  .settings(mimaSettings(failOnProblem = false))
 
 lazy val coreJS = core.js
 
@@ -176,8 +184,12 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val streamsJVM = streams.jvm.settings(dottySettings)
-lazy val streamsJS  = streams.js
+lazy val streamsJVM = streams.jvm
+  .settings(dottySettings)
+  // No bincompat on streams yet
+  .settings(mimaSettings(failOnProblem = false))
+
+lazy val streamsJS = streams.js
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams-tests"))
@@ -212,8 +224,11 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
     )
   )
 
-lazy val testJVM = test.jvm.settings(dottySettings)
-lazy val testJS  = test.js
+lazy val testJVM = test.jvm
+  .settings(dottySettings)
+  // No bincompat on zio-test yet
+  .settings(mimaSettings(failOnProblem = false))
+lazy val testJS = test.js
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
@@ -330,12 +345,12 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "20.6.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.6.7",
         "io.monix"                  %% "monix"         % "3.2.2",
-        "io.projectreactor"         % "reactor-core"   % "3.3.7.RELEASE",
+        "io.projectreactor"         % "reactor-core"   % "3.3.8.RELEASE",
         "io.reactivex.rxjava2"      % "rxjava"         % "2.2.19",
         "org.ow2.asm"               % "asm"            % "8.0.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"            % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"   % "2.1.3",
+        "org.typelevel"             %% "cats-effect"   % "2.1.4",
         "org.scalacheck"            %% "scalacheck"    % "1.14.3",
         "hedgehog"                  %% "hedgehog-core" % "0.1.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % "0.9.2"

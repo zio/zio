@@ -2834,7 +2834,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         task = ZIOFn(f)((a: A) =>
           ZIO
             .whenM[R, E](startTask) {
-              f(a).interruptible
+              ZIO
+                .effectSuspendTotal(f(a))
+                .interruptible
                 .tapCause(c => causes.update(_ && c) *> startFailure)
                 .ensuring {
                   val isComplete = status.modify {
