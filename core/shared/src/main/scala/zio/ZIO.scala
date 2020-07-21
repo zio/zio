@@ -2402,6 +2402,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     foreachParN(n)(in)(a => f(a).optional).map(_.flatten)
 
   /**
+   * If the condition is satisfied, return the given A as success, otherwise, return the given E as error.
+   */
+  def cond[E, A](predicate: Boolean, error: => E, result: => A): IO[E, A] =
+    if (predicate) ZIO.succeed(result) else ZIO.fail(error)
+
+  /**
    * Returns information about the current fiber, such as its identity.
    */
   def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeedNow)
