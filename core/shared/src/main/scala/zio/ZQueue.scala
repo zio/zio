@@ -116,9 +116,13 @@ trait ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
         if (remaining == 1)
           take.map(bs :+ _)
-        else if (remaining > 1)
-          take.repeat(Schedule.collectAll[B] <* Schedule.recurs(remaining - 1)).map(bs ++ _)
-        else
+        else if (remaining > 1) {
+          def takeRemainder(n: Int): ZIO[RB, EB, List[B]] =
+            if (n <= 0) ZIO.succeed(Nil)
+            else take.flatMap(a => takeRemainder(n - 1).map(a :: _))
+
+          takeRemainder(remaining - 1).map(list => bs ++ list.reverse)
+        } else
           UIO.succeedNow(bs)
       }
 

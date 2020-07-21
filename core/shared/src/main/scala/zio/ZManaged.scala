@@ -787,8 +787,11 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1, E, A] =
-    ZManaged(zio.retry(policy.provideSome[(R1, ZManaged.ReleaseMap)](_._1)))
+  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Clock, E, A] =
+    ZManaged(ZIO.accessM[(R1 with Clock, ZManaged.ReleaseMap)] {
+      case (env, releaseMap) =>
+        zio.provideSome[R1 with Clock](env => (env, releaseMap)).retry(policy).provide(env)
+    })
 
   def right[R1 <: R, C]: ZManaged[Either[C, R1], E, Either[C, A]] = ZManaged.identity +++ self
 

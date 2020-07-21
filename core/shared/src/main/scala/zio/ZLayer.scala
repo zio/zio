@@ -190,24 +190,25 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Retries constructing this layer according to the specified schedule.
    */
-  final def retry[RIn1 <: RIn](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
-    type S = schedule.State
+  final def retry[RIn1 <: RIn with clock.Clock](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
+    import Schedule.{ Interval, StepFunction }
+    import Schedule.Decision._
+
+    type S = StepFunction[RIn1, E, Any]
+
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
       (ZLayer.first >>> self).catchAll {
         val update: ZLayer[((RIn1, S), E), E, (RIn1, S)] =
           ZLayer.fromFunctionManyM {
             case ((r, s), e) =>
-              schedule
-                .update(e, s)
-                .provide(r)
-                .foldM(
-                  _ => ZIO.fail(e),
-                  s => ZIO.succeed((r, s))
-                )
+              clock.instant.flatMap(now => s(now, e).flatMap {
+                case Done(_) => ZIO.fail(e)
+                case Continue(_, interval, next) => clock.sleep(Interval(now, interval.start).size) as ((r, next))
+              }).provide(r)
           }
         update >>> loop.fresh
       }
-    ZLayer.identity <&> ZLayer.fromEffectMany(schedule.initial) >>> loop
+    ZLayer.identity <&> ZLayer.fromEffectMany(ZIO.succeed(schedule.step)) >>> loop
   }
 
   /**
