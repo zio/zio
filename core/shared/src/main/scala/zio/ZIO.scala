@@ -2856,8 +2856,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           .forkManaged
         _ <- interrupter.use_ {
               ZIO
-                .whenM(result.await.map(!_)) {
-                  causes.get.flatMap(ZIO.halt(_))
+                .whenM(ZIO.foreach(fibers)(_.await).map(_.exists(!_.succeeded))) {
+                  failureTrigger.fail(()) *> causes.get.flatMap(ZIO.halt(_))
                 }
                 .refailWithTrace
             }
