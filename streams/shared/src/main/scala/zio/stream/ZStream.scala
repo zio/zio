@@ -10,7 +10,7 @@ import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
-import zio.stream.internal.{ ZInputStream, ZReader }
+import zio.stream.internal.{ Builder, ZInputStream, ZReader }
 
 /**
  * A `ZStream[R, E, O]` is a description of a program that, when evaluated,
@@ -138,29 +138,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Applies an aggregator to the stream, which converts one or more elements
    * of type `A` into elements of type `B`.
    */
+  @deprecated("Use transduce", "1.0.2")
   def aggregate[R1 <: R, E1 >: E, P](transducer: ZTransducer[R1, E1, O, P]): ZStream[R1, E1, P] =
-    ZStream {
-      for {
-        pull <- self.process
-        push <- transducer.push
-        done <- ZRef.makeManaged(false)
-        run = {
-          def go: ZIO[R1, Option[E1], Chunk[P]] = done.get.flatMap {
-            if (_)
-              Pull.end
-            else
-              pull
-                .foldM(
-                  _.fold(done.set(true) *> push(None).asSomeError)(Pull.fail(_)),
-                  os => push(Some(os)).asSomeError
-                )
-                .flatMap(ps => if (ps.isEmpty) go else IO.succeedNow(ps))
-          }
-
-          go
-        }
-      } yield run
-    }
+    transduce(transducer)
 
   /**
    * Aggregates elements of this stream using the provided sink for as long
@@ -174,6 +154,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Any transducer can be used here, but see [[ZTransducer.foldWeightedM]] and [[ZTransducer.foldUntilM]] for
    * transducers that cover the common usecases.
    */
+  @deprecated("Use aggregateAsync with a Summary", "1.0.2")
   final def aggregateAsync[R1 <: R, E1 >: E, P](
     transducer: ZTransducer[R1, E1, O, P]
   ): ZStream[R1 with Clock, E1, P] =
@@ -189,6 +170,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @tparam P type of the value produced by the given transducer and consumed by the given schedule
    * @return `ZStream[R1, E1, P]`
    */
+  @deprecated("Use aggregateAsyncWithin with a Summary", "1.0.2")
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, P](
     transducer: ZTransducer[R1, E1, O, P],
     schedule: Schedule[R1, Chunk[P], Any]
@@ -216,6 +198,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @tparam Q type of the value produced by the given schedule
    * @return `ZStream[R1, E1, Either[Q, P]]`
    */
+  @deprecated("Use aggregateAsyncWithinEither with a Summary", "1.0.2")
   final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, P, Q](
     transducer: ZTransducer[R1, E1, O, P],
     schedule: Schedule[R1, Chunk[P], Q]
@@ -281,6 +264,227 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         _  <- raceNextTime.set(false)
                         _  <- waitingFiber.set(Some(producerWaiting))
                       } yield Chunk.single(ps.map(Right(_)))
+                  },
+                (producerDone, scheduleWaiting) =>
+                  scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit))),
+                Some(ZScope.global)
+              )
+
+          raceNextTime.get
+            .flatMap(go)
+            .onInterrupt(waitingFiber.get.flatMap(_.map(_.interrupt).getOrElse(ZIO.unit)))
+
+        }
+
+        _ <- producer.forkManaged
+      } yield consumer
+    }.flattenTake
+
+  /**
+   * Aggregates elements of this stream using the provided sink for as long
+   * as the downstream operators on the stream are busy.
+   *
+   * This operator divides the stream into two asynchronous "islands". Operators upstream
+   * of this operator run on one fiber, while downstream operators run on another. Whenever
+   * the downstream fiber is busy processing elements, the upstream fiber will feed elements
+   * into the sink until it signals completion.
+   *
+   * Any transducer can be used here, but see [[ZTransducer.foldWeightedM]] and [[ZTransducer.foldUntilM]] for
+   * transducers that cover the common usecases.
+   */
+  final def aggregateAsync[R1 <: R, E1 >: E, P](
+    summary: ZSummary[R1, E1, O, P]
+  ): ZStream[R1 with Clock, E1, P] =
+    aggregateAsyncWithin(summary, Schedule.forever)
+
+  /**
+   * Uses `aggregateAsyncWithinEither` but only returns the `Right` results.
+   *
+   * @param transducer used for the aggregation
+   * @param schedule signalling for when to stop the aggregation
+   * @tparam R1 environment type
+   * @tparam E1 error type
+   * @tparam P type of the value produced by the given transducer and consumed by the given schedule
+   * @return `ZStream[R1, E1, P]`
+   */
+  final def aggregateAsyncWithin[R1 <: R, E1 >: E, P](
+    summary: ZSummary[R1, E1, O, P],
+    schedule: Schedule[R1, Chunk[P], Any]
+  ): ZStream[R1 with Clock, E1, P] =
+    aggregateAsyncWithinEither(summary, schedule).collect { case Right(v) => v }
+
+  /**
+   * Aggregates elements using the provided transducer until it signals completion, or the
+   * delay signalled by the schedule has passed.
+   *
+   * This operator divides the stream into two asynchronous islands. Operators upstream
+   * of this operator run on one fiber, while downstream operators run on another. Elements
+   * will be aggregated by the transducer until the downstream fiber pulls the aggregated value,
+   * or until the schedule's delay has passed.
+   *
+   * Aggregated elements will be fed into the schedule to determine the delays between
+   * pulls.
+   *
+   * @param transducer used for the aggregation
+   * @param schedule signalling for when to stop the aggregation
+   * @tparam R1 environment type
+   * @tparam E1 error type
+   * @tparam P type of the value produced by the given transducer and consumed by the given schedule
+   * @tparam Q type of the value produced by the given schedule
+   * @return `ZStream[R1, E1, Either[Q, P]]`
+   */
+  final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, P, Q](
+    summary: ZSummary[R1, E1, O, P],
+    schedule: Schedule[R1, Chunk[P], Q]
+  ): ZStream[R1 with Clock, E1, Either[Q, P]] =
+    ZStream {
+      for {
+        pull         <- self.process
+        builder      <- summary.builder.toManaged_
+        builderDirty <- Ref.make(false).toManaged_
+        handoff      <- ZStream.Handoff.make[Take[E1, O]].toManaged_
+        raceNextTime <- ZRef.makeManaged(false)
+        waitingFiber <- ZRef
+                          .makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
+        sdriver   <- schedule.driver.toManaged_
+        lastChunk <- ZRef.makeManaged[Chunk[P]](Chunk.empty)
+        producer   = Take.fromPull(pull).repeatWhileM(take => handoff.offer(take).as(take.isSuccess))
+        consumer = {
+          // Advances the state of the schedule, which may or may not terminate
+          val updateSchedule: URIO[R1 with Clock, Option[Q]] =
+            lastChunk.get.flatMap(sdriver.next).fold(_ => None, Some(_))
+
+          // Waiting for the normal output of the producer
+          val waitForProducer: ZIO[R1, Nothing, Take[E1, O]] =
+            waitingFiber.getAndSet(None).flatMap {
+              case None      => handoff.take
+              case Some(fib) => fib.join
+            }
+
+          def updateLastChunk(take: Take[_, P]): UIO[Unit] = take.tap(lastChunk.set(_))
+
+          def handleTake(take: Take[E1, O]): Pull[R1, E1, Take[E1, Either[Nothing, P]]] =
+            take
+              .foldM(
+                builderDirty.getAndSet(false).flatMap { dirty =>
+                  if (!dirty) UIO.succeed(Chunk(Take.end))
+                  else {
+                    val p =
+                      builder match {
+                        case builder: Builder.Effectual[R1, E1, O, P] => (builder.extract <* builder.reset)
+                        case builder: Builder.Mutable[O, P] =>
+                          UIO {
+                            val p = builder.extract()
+                            builder.reset()
+                            p
+                          }
+                      }
+
+                    p.map(p => Chunk(Take.single(Right(p)), Take.end))
+                  }
+                },
+                cause => ZIO.halt(cause),
+                os =>
+                  builderDirty.get.flatMap { wasDirty =>
+                    builder match {
+                      case builder: Builder.Effectual[R1, E1, O, P] =>
+                        ZIO.effectSuspendTotal {
+                          @volatile var stillDirty = wasDirty
+                          val cb                   = ChunkBuilder.make[P]()
+
+                          ZIO.foreach_(os) { o =>
+                            for {
+                              _ <- ZIO.whenM(builder.accepts(o).negate) {
+                                     builder.extract.flatMap(p => UIO(cb += p)) *> builder.reset
+                                   }
+                              _ <- builder.step(o)
+                              _ <- UIO { stillDirty = true }
+                              _ <- ZIO.whenM(builder.done) {
+                                     builder.extract.flatMap(p => UIO(cb += p)) *>
+                                       builder.reset *>
+                                       UIO { stillDirty = false }
+                                   }
+                            } yield ()
+                          } *> builderDirty.set(stillDirty).as(Take.chunk(cb.result()))
+                        }
+                      case builder: Builder.Mutable[O, P] =>
+                        UIO.effectSuspendTotal {
+                          var stillDirty = wasDirty
+                          var i          = 0
+                          val cb         = ChunkBuilder.make[P]()
+
+                          while (i < os.size) {
+                            if (!builder.accepts(os(i))) {
+                              cb += builder.extract()
+                              builder.reset()
+                            }
+
+                            builder.step(os(i))
+                            stillDirty = true
+
+                            if (builder.done()) {
+                              cb += builder.extract()
+                              builder.reset()
+                              stillDirty = false
+                            }
+
+                            i += 1
+                          }
+
+                          builderDirty
+                            .set(stillDirty)
+                            .as(Take.chunk(cb.result()))
+                        }
+                    }
+                  }
+                    .flatMap(take => updateLastChunk(take).as(Chunk.single(take.map(Right(_)))))
+              )
+              .mapError(Some(_))
+
+          def extractBuilder = builderDirty
+            .getAndSet(false)
+            .flatMap { dirty =>
+              if (!dirty) UIO.succeed(Take.chunk(Chunk.empty))
+              else {
+                val p = builder match {
+                  case builder: Builder.Effectual[R1, E1, O, P] =>
+                    (builder.extract <* builder.reset).asSomeError
+                  case builder: Builder.Mutable[O, P] =>
+                    UIO {
+                      val p = builder.extract()
+                      builder.reset()
+                      p
+                    }
+                }
+
+                p.map(Take.single)
+              }
+            }
+
+          def go(race: Boolean): ZIO[R1 with Clock, Option[E1], Chunk[Take[E1, Either[Q, P]]]] =
+            if (!race)
+              waitForProducer.flatMap(handleTake) <* raceNextTime.set(true)
+            else
+              updateSchedule.raceWith[R1 with Clock, Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
+                waitForProducer
+              )(
+                (scheduleDone, producerWaiting) =>
+                  ZIO.done(scheduleDone).flatMap {
+                    case None =>
+                      for {
+                        lastQ         <- lastChunk.set(Chunk.empty) *> sdriver.last.orDie <* sdriver.reset
+                        scheduleResult = Take.single(Left(lastQ))
+                        take          <- extractBuilder.tap(updateLastChunk)
+                        _             <- raceNextTime.set(false)
+                        _             <- waitingFiber.set(Some(producerWaiting))
+                      } yield Chunk(scheduleResult, take.map(Right(_)))
+
+                    case Some(_) =>
+                      for {
+                        take <- extractBuilder.tap(updateLastChunk)
+                        _    <- raceNextTime.set(false)
+                        _    <- waitingFiber.set(Some(producerWaiting))
+                      } yield Chunk.single(take.map(Right(_)))
                   },
                 (producerDone, scheduleWaiting) =>
                   scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit))),
@@ -1594,14 +1798,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @param chunkSize size of the chunk
    */
   def grouped(chunkSize: Int): ZStream[R, E, Chunk[O]] =
-    aggregate(ZTransducer.collectAllN(chunkSize))
+    transduce(ZSummary.collectAllN(chunkSize).toTransducer)
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified
    * duration has passed, whichever is satisfied first.
    */
   def groupedWithin(chunkSize: Int, within: Duration): ZStream[R with Clock, E, Chunk[O]] =
-    aggregateAsyncWithin(ZTransducer.collectAllN(chunkSize), Schedule.spaced(within))
+    aggregateAsyncWithin(ZSummary.collectAll[O].emitWhen(_.size >= chunkSize), Schedule.spaced(within))
 
   /**
    * Halts the evaluation of this stream when the provided promise resolves.
@@ -1813,14 +2017,29 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Statefully maps over the elements of this stream to produce new elements.
    */
+  @deprecated("Use mapAccumulate", "1.0.2")
   def mapAccum[S, O1](s: S)(f: (S, O) => (S, O1)): ZStream[R, E, O1] =
-    mapAccumM(s)((s, a) => UIO.succeedNow(f(s, a)))
+    mapAccumulate(s)(f)
+
+  /**
+   * Statefully maps over the elements of this stream to produce new elements.
+   */
+  def mapAccumulate[S, O1](s: S)(f: (S, O) => (S, O1)): ZStream[R, E, O1] =
+    mapAccumulateM(s)((s, a) => UIO.succeedNow(f(s, a)))
 
   /**
    * Statefully and effectfully maps over the elements of this stream to produce
    * new elements.
    */
+  @deprecated("Use mapAccumulateM", "1.0.2")
   final def mapAccumM[R1 <: R, E1 >: E, S, O1](s: S)(f: (S, O) => ZIO[R1, E1, (S, O1)]): ZStream[R1, E1, O1] =
+    mapAccumulateM[R1, E1, S, O1](s)(f)
+
+  /**
+   * Statefully and effectfully maps over the elements of this stream to produce
+   * new elements.
+   */
+  final def mapAccumulateM[R1 <: R, E1 >: E, S, O1](s: S)(f: (S, O) => ZIO[R1, E1, (S, O1)]): ZStream[R1, E1, O1] =
     ZStream {
       for {
         state <- Ref.make(s).toManaged_
@@ -2435,22 +2654,22 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * of type `S` given an initial S.
    */
   def scan[S](s: S)(f: (S, O) => S): ZStream[R, E, S] =
-    scanM(s)((s, a) => ZIO.succeedNow(f(s, a)))
+    ZStream(s) ++ scanWith(ZSummary.foldLeft(s)(f))
 
   /**
    * Statefully and effectfully maps over the elements of this stream to produce all
    * intermediate results of type `S` given an initial S.
    */
   def scanM[R1 <: R, E1 >: E, S](s: S)(f: (S, O) => ZIO[R1, E1, S]): ZStream[R1, E1, S] =
-    ZStream(s) ++ mapAccumM[R1, E1, S, S](s)((s, a) => f(s, a).map(s => (s, s)))
+    ZStream(s) ++ scanWith(ZSummary.foldLeftM(s)(f))
 
   /**
    * Statefully maps over the elements of this stream to produce all intermediate results.
    *
    * See also [[ZStream#scan]].
    */
-  def scanReduce[O1 >: O](f: (O1, O) => O1): ZStream[R, E, O1] =
-    scanReduceM[R, E, O1]((curr, next) => ZIO.succeedNow(f(curr, next)))
+  def scanReduce[O1 >: O](f: (O1, O1) => O1): ZStream[R, E, O1] =
+    scanWith(ZSummary.reduce(f)).collectSome
 
   /**
    * Statefully and effectfully maps over the elements of this stream to produce all
@@ -2458,18 +2677,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * See also [[ZStream#scanM]].
    */
-  def scanReduceM[R1 <: R, E1 >: E, O1 >: O](f: (O1, O) => ZIO[R1, E1, O1]): ZStream[R1, E1, O1] =
-    ZStream[R1, E1, O1] {
-      for {
-        state <- Ref.makeManaged[Option[O1]](None)
-        pull  <- self.process.mapM(BufferedPull.make(_))
-      } yield pull.pullElement.flatMap { curr =>
-        state.get.flatMap {
-          case Some(s) => f(s, curr).tap(o => state.set(Some(o))).map(Chunk.single).asSomeError
-          case None    => state.set(Some(curr)).as(Chunk.single(curr))
-        }
-      }
-    }
+  def scanReduceM[R1 <: R, E1 >: E, O1 >: O](f: (O1, O1) => ZIO[R1, E1, O1]): ZStream[R1, E1, O1] =
+    scanWith(ZSummary.reduceM(f)).collectSome
+
+  /**
+   * Feeds this stream to the specified summary, resulting in a stream of the summary's outputs.
+   */
+  final def scanWith[R1 <: R, E1 >: E, O1 >: O, O3](summary: ZSummary[R1, E1, O1, O3]): ZStream[R1, E1, O3] =
+    zipWithSummary(summary).map(_._2)
 
   /**
    * Schedules the output of the stream using the provided `schedule`.
@@ -2927,8 +3142,29 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Applies the transducer to the stream and emits its outputs.
    */
-  def transduce[R1 <: R, E1 >: E, O3](transducer: ZTransducer[R1, E1, O, O3]): ZStream[R1, E1, O3] =
-    aggregate(transducer)
+  def transduce[R1 <: R, E1 >: E, O2](transducer: ZTransducer[R1, E1, O, O2]): ZStream[R1, E1, O2] =
+    ZStream {
+      for {
+        pull <- self.process
+        push <- transducer.push
+        done <- ZRef.makeManaged(false)
+        run = {
+          def go: ZIO[R1, Option[E1], Chunk[O2]] = done.get.flatMap {
+            if (_)
+              Pull.end
+            else
+              pull
+                .foldM(
+                  _.fold(done.set(true) *> push(None).asSomeError)(Pull.fail(_)),
+                  os => push(Some(os)).asSomeError
+                )
+                .flatMap(ps => if (ps.isEmpty) go else IO.succeedNow(ps))
+          }
+
+          go
+        }
+      } yield run
+    }
 
   /**
    * Updates a service in the environment of this effect.
@@ -3139,7 +3375,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Zips this stream together with the index of elements.
    */
   final def zipWithIndex: ZStream[R, E, (O, Long)] =
-    mapAccum(0L)((index, a) => (index + 1, (a, index)))
+    mapAccumulate(0L)((index, a) => (index + 1, (a, index)))
 
   /**
    * Zips the two streams so that when a value is emitted by either of the two streams,
@@ -3217,13 +3453,32 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Zips each element with the previous element. Initially accompanied by `None`.
    */
   final def zipWithPrevious: ZStream[R, E, (Option[O], O)] =
-    mapAccum[Option[O], (Option[O], O)](None)((prev, next) => (Some(next), (prev, next)))
+    mapAccumulate[Option[O], (Option[O], O)](None)((prev, next) => (Some(next), (prev, next)))
 
   /**
    * Zips each element with both the previous and next element.
    */
   final def zipWithPreviousAndNext: ZStream[R, E, (Option[O], O, Option[O])] =
     zipWithPrevious.zipWithNext.map { case ((prev, curr), next) => (prev, curr, next.map(_._2)) }
+
+  /**
+   * Zips this stream with the outputs of the specified summary.
+   */
+  def zipWithSummary[R1 <: R, E1 >: E, O2 >: O, O3](summary: ZSummary[R1, E1, O2, O3]): ZStream[R1, E1, (O2, O3)] =
+    ZStream.fromEffect(summary.builder).flatMap {
+      case builder: Builder.Effectual[R1, E1, O2, O3] =>
+        self.mapM(i => builder.step(i) *> builder.extract.map((i, _)))
+
+      case builder: Builder.Mutable[O2, O3] =>
+        self.mapChunksM { is =>
+          UIO {
+            is.map { i =>
+              builder.step(i)
+              (i, builder.extract())
+            }
+          }
+        }
+    }
 }
 
 object ZStream extends ZStreamPlatformSpecificConstructors {

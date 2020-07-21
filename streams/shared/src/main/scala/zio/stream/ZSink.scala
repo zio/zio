@@ -3,18 +3,48 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration._
+import zio.stream.internal.Builder
 
-// Important notes while writing sinks and combinators:
-// - What return values for sinks mean:
-//   ZIO.unit - "need more values"
-//   ZIO.fail((Right(z), l)) - "ended with z and emit leftover l"
-//   ZIO.fail((Left(e), l)) - "failed with e and emit leftover l"
-// - Result of processing of the stream using the sink must not depend on how the stream is chunked
-//   (chunking-invariance)
-//   stream.run(sink).either === stream.chunkN(1).run(sink).either
-// - Sinks should always end when receiving a `None`. It is a defect to not end with some
-//   sort of result (even a failure) when receiving a `None`.
-// - Sinks can assume they will not be pushed again after emitting a value.
+/**
+ * A `ZSink[R, E, I, L, Z]` is an effectual chunk-processing
+ * abstraction. Sinks process chunks of values of type `I` into a
+ * single value of type `Z`. If not all of the `I` values are used,
+ * chunks of leftovers of type `L` are emitted when the sink finishes
+ * processing. Sinks use environmental effects of type `R` and may
+ * fail with errors of type `E`.
+ *
+ * Sinks are typically used as the terminal processing function of
+ * streams; they can be applied to a stream using [[ZStream#run]]. The
+ * sink will consume the chunks of the stream until it completes, at
+ * which point it will emit its result.
+ *
+ * Because the processing logic for sinks is initialized in a
+ * [[ZManaged]], sinks can utilize state and resources during
+ * processing.
+ *
+ * Sinks form monads and can be composed sequentially using
+ * [[ZSink#flatMap]] and [[ZSink#zipWith]]. Composing sinks in
+ * sequence allows users to perform sequences of computations on
+ * streams: `stream.run(sink1 zip sink2)` will feed the stream's
+ * chunks to `sink1` until it completes, and then continue to feed the
+ * remaining chunks to `sink2` until it completes, resulting in the
+ * results of both sinks.
+ *
+ * Compared to [[ZTransducer]] and [[ZSummary]], `ZSink` offers the
+ * most expressive power (particularly due to it being monadic).
+ * However, it is also typically slower than transducers or summaries. Use
+ * sinks when a complex sequence of effectual actions is required to
+ * be applied to a stream of values.
+ *
+ * Aggregations can be written using [[ZSummary]] and then converted
+ * to a sink. That offers superior performance, particularly for
+ * non-effectual aggregations.
+ *
+ * Writing parsers and codecs using `ZSink` is possible and is
+ * easier than writing them using [[ZTransducer]]. However, writing
+ * them directly using [[ZTransducer]] offers superior performance.
+ * See, for example, [[ZTransducer.utf8Decode]].
+ */
 abstract class ZSink[-R, +E, -I, +L, +Z] private (
   val push: ZManaged[R, Nothing, ZSink.Push[R, E, I, L, Z]]
 ) { self =>
@@ -482,7 +512,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
                 else if (leftover.isEmpty)
                   if (end) Push.emit(None, Chunk.empty) else restart *> Push.more
                 else
-                  go(Some(leftover.asInstanceOf[Chunk[I]]), end)
+                  restart *> go(Some(leftover.asInstanceOf[Chunk[I]]), end)
               }
           }
 
@@ -492,6 +522,25 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
 }
 
 object ZSink extends ZSinkPlatformSpecificConstructors {
+
+  /**
+   * A chunk-processing function that terminates with results or errors and leftovers.
+   *
+   * The returned ZIO value is interpreted as follows:
+   * - A success of unit means the function requires more values;
+   * - A failure with a `(Right(z), l)` means that the function terminated successfully
+   *   with a result `z` and leftovers `l`
+   * - A failure with a `(Left(e), l)` means that the function failed with an error `e`
+   *   and leftovers `l`.
+   *
+   * The function will be invoked with an optional chunk. A `None` means that the stream
+   * has ended and that the function must fail with a result (success/failure). It is a
+   * defect not to return a result of some sort after being invoked with `None`.
+   *
+   * It can be assumed that:
+   * - Once the function has been invoked with `None`, it will not be invoked again
+   * - The function will not be invoked concurrently.
+   */
   type Push[-R, +E, -I, +L, +Z] = Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
 
   object Push {
@@ -522,13 +571,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that collects all of its inputs into a chunk.
    */
-  def collectAll[A]: ZSink[Any, Nothing, A, Nothing, Chunk[A]] = ZSink {
-    for {
-      builder    <- UIO(ChunkBuilder.make[A]()).toManaged_
-      foldingSink = foldLeftChunks(builder)((b, chunk: Chunk[A]) => b ++= chunk).map(_.result())
-      push       <- foldingSink.push
-    } yield push
-  }
+  def collectAll[A]: ZSink[Any, Nothing, A, Nothing, Chunk[A]] =
+    ZSummary.collectAll[A].toSink.dropLeftover
 
   /**
    * A sink that collects all of its inputs into a map. The keys are extracted from inputs
@@ -536,30 +580,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * using the `f` function.
    */
   def collectAllToMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Nothing, Map[K, A]] =
-    foldLeftChunks(Map[K, A]()) { (acc, as) =>
-      as.foldLeft(acc) { (acc, a) =>
-        val k = key(a)
-
-        acc.updated(
-          k,
-          // Avoiding `get/getOrElse` here to avoid an Option allocation
-          if (acc.contains(k)) f(acc(k), a)
-          else a
-        )
-      }
-    }
+    ZSummary.collectAllToMap(key)(f).toSink.dropLeftover
 
   /**
    * A sink that collects all of its inputs into a set.
    */
   def collectAllToSet[A]: ZSink[Any, Nothing, A, Nothing, Set[A]] =
-    foldLeftChunks(Set[A]())((acc, as) => as.foldLeft(acc)(_ + _))
+    ZSummary.collectAllToSet[A].toSink.dropLeftover
 
   /**
    * A sink that counts the number of elements fed to it.
    */
   val count: ZSink[Any, Nothing, Any, Nothing, Long] =
-    foldLeft(0L)((s, _) => s + 1)
+    ZSummary.count.toSink.dropLeftover
 
   /**
    * Creates a sink halting with the specified `Throwable`.
@@ -592,41 +625,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that folds its inputs with the provided function, termination predicate and initial state.
    */
-  def fold[I, S](z: S)(contFn: S => Boolean)(f: (S, I) => S): ZSink[Any, Nothing, I, I, S] = {
-    def foldChunk(s: S, chunk: Chunk[I], idx: Int, len: Int): (S, Option[Chunk[I]]) =
-      if (idx == len) {
-        (s, None)
-      } else {
-        val s1 = f(s, chunk(idx))
-        if (contFn(s1)) {
-          foldChunk(s1, chunk, idx + 1, len)
-        } else {
-          (s1, Some(chunk.drop(idx + 1)))
-        }
-      }
-
-    if (contFn(z))
-      ZSink[Any, Nothing, I, I, S] {
-        for {
-          state <- Ref.make(z).toManaged_
-          push = (is: Option[Chunk[I]]) =>
-                   is match {
-                     case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
-                     case Some(is) => {
-                       state.get.flatMap { s =>
-                         val (st, l) = foldChunk(s, is, 0, is.length)
-                         l match {
-                           case Some(leftover) => Push.emit(st, leftover)
-                           case None           => state.set(st) *> Push.more
-                         }
-                       }
-                     }
-                   }
-        } yield push
-      }
-    else
-      ZSink.succeed(z)
-  }
+  def fold[I, S](z: S)(contFn: S => Boolean)(f: (S, I) => S): ZSink[Any, Nothing, I, I, S] =
+    ZSummary.fold(z)(contFn)(f).toSink
 
   /**
    * A sink that folds its input chunks with the provided function, termination predicate and initial state.
@@ -634,7 +634,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * `f` and `contFn` must preserve chunking-invariance.
    */
   def foldChunks[I, S](z: S)(contFn: S => Boolean)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, I, S] =
-    foldChunksM(z)(contFn)((s, is) => UIO.succeedNow(f(s, is)))
+    ZSink.fromSummaryChunked(ZSummary.fold(z)(contFn)(f))
 
   /**
    * A sink that effectfully folds its input chunks with the provided function, termination predicate and initial state.
@@ -644,28 +644,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def foldChunksM[R, E, I, S](
     z: S
   )(contFn: S => Boolean)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
-    if (contFn(z))
-      ZSink {
-        for {
-          state <- Ref.make(z).toManaged_
-          push = (is: Option[Chunk[I]]) =>
-                   is match {
-                     case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
-                     case Some(is) => {
-                       state.get
-                         .flatMap(f(_, is).mapError(e => (Left(e), Chunk.empty)))
-                         .flatMap { s =>
-                           if (contFn(s))
-                             state.set(s) *> Push.more
-                           else
-                             Push.emit(s, Chunk.empty)
-                         }
-                     }
-                   }
-        } yield push
-      }
-    else
-      ZSink.succeed(z)
+    ZSink.fromSummaryChunked(ZSummary.foldM(z)(contFn)(f))
 
   /**
    * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
@@ -673,76 +652,34 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * This sink may terminate in the middle of a chunk and discard the rest of it. See the discussion on the
    * ZSink class scaladoc on sinks vs. transducers.
    */
-  def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] = {
-    def foldChunk(s: S, chunk: Chunk[I], idx: Int, len: Int): ZIO[R, (E, Chunk[I]), (S, Option[Chunk[I]])] =
-      if (idx == len) {
-        ZIO.succeedNow((s, None))
-      } else {
-        f(s, chunk(idx)).foldM(
-          e => ZIO.fail((e, chunk.drop(idx + 1))),
-          s1 =>
-            if (contFn(s1)) {
-              foldChunk(s1, chunk, idx + 1, len)
-            } else {
-              ZIO.succeedNow((s1, Some(chunk.drop(idx + 1))))
-            }
-        )
-      }
-
-    if (contFn(z))
-      ZSink[R, E, I, I, S] {
-        for {
-          state <- Ref.make(z).toManaged_
-          push = (is: Option[Chunk[I]]) =>
-                   is match {
-                     case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
-                     case Some(is) => {
-                       state.get.flatMap { s =>
-                         foldChunk(s, is, 0, is.length).foldM(
-                           err => Push.fail(err._1, err._2),
-                           {
-                             case (st, l) => {
-                               l match {
-                                 case Some(leftover) => Push.emit(st, leftover)
-                                 case None           => state.set(st) *> Push.more
-                               }
-                             }
-                           }
-                         )
-                       }
-                     }
-                   }
-        } yield push
-      }
-    else
-      ZSink.succeed(z)
-  }
+  def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
+    ZSummary.foldM(z)(contFn)(f).toSink
 
   /**
    * A sink that folds its inputs with the provided function and initial state.
    */
   def foldLeft[I, S](z: S)(f: (S, I) => S): ZSink[Any, Nothing, I, Nothing, S] =
-    fold(z)(_ => true)(f).dropLeftover
+    ZSummary.fold(z)(_ => true)(f).toSink.dropLeftover
 
   /**
    * A sink that folds its input chunks with the provided function and initial state.
    * `f` must preserve chunking-invariance.
    */
   def foldLeftChunks[I, S](z: S)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, Nothing, S] =
-    foldChunks(z)(_ => true)(f).asInstanceOf[ZSink[Any, Nothing, I, Nothing, S]]
+    fromSummaryChunked(ZSummary.foldLeft(z)(f)).dropLeftover
 
   /**
    * A sink that effectfully folds its input chunks with the provided function and initial state.
    * `f` must preserve chunking-invariance.
    */
   def foldLeftChunksM[R, E, I, S](z: S)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, Nothing, S] =
-    foldChunksM[R, E, I, S](z: S)(_ => true)(f).dropLeftover
+    fromSummaryChunked(ZSummary.foldLeftM(z)(f)).dropLeftover
 
   /**
    * A sink that effectfully folds its inputs with the provided function and initial state.
    */
   def foldLeftM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
-    foldM[R, E, I, S](z: S)(_ => true)(f)
+    ZSummary.foldLeftM(z)(f).toSink
 
   /**
    * A sink that executes the provided effectful function for every element fed to it.
@@ -798,8 +735,160 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       b.foldM(Push.fail(_, leftover), z => Push.emit(z, leftover))
     }
 
+  /**
+   * Creates a sink from a chunk-processing function.
+   */
   def fromPush[R, E, I, L, Z](sink: Push[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
     ZSink(Managed.succeed(sink))
+
+  /**
+   * Creates a sink from a summary that processes chunks.
+   */
+  def fromSummaryChunked[R, E, I, O](summary: ZSummary[R, E, Chunk[I], O]): ZSink[R, E, I, I, O] =
+    ZSink {
+      summary.builder.toManaged_.map {
+        case builder: Builder.Mutable[Chunk[I], O] => {
+          case None =>
+            ZIO.effectSuspendTotal {
+              val o = builder.extract()
+              builder.reset()
+
+              Sink.Push.emit(o, Chunk.empty)
+            }
+
+          case Some(is) =>
+            ZIO.effectSuspendTotal {
+              if (builder.done()) Sink.Push.emit(builder.extract(), is) <* UIO(builder.reset())
+              else if (!builder.accepts(is))
+                Sink.Push.emit(builder.extract(), Chunk.empty) <* UIO(builder.reset())
+              else {
+                builder.step(is)
+
+                if (builder.done()) Sink.Push.emit(builder.extract(), Chunk.empty) <* UIO(builder.reset())
+                else Sink.Push.more
+              }
+            }
+        }
+
+        case builder: Builder.Effectual[R, E, Chunk[I], O] =>
+          def extractAndReset(leftover: Chunk[I]) =
+            (builder.extract <* builder.reset).foldM(
+              Sink.Push.fail(_, leftover),
+              Sink.Push.emit(_, leftover)
+            )
+
+          {
+            case None => extractAndReset(Chunk.empty)
+            case Some(is) =>
+              builder.done.mapError(e => Left(e) -> is).flatMap {
+                if (_) extractAndReset(is)
+                else
+                  builder
+                    .accepts(is)
+                    .foldM(
+                      Sink.Push.fail(_, is),
+                      accepted =>
+                        if (!accepted) extractAndReset(is)
+                        else
+                          (builder.step(is) *> builder.done).foldM(
+                            Sink.Push.fail(_, Chunk.empty),
+                            done =>
+                              if (!done) Sink.Push.more
+                              else extractAndReset(Chunk.empty)
+                          )
+                    )
+              }
+          }
+
+      }
+    }
+
+  /**
+   * Creates a sink from a summary.
+   */
+  def fromSummary[R, E, I, O](summary: ZSummary[R, E, I, O]): ZSink[R, E, I, I, O] =
+    ZSink {
+      summary.builder.toManaged_.map {
+        case builder: Builder.Effectual[R, E, I, O] =>
+          def extractAndReset(leftover: Chunk[I]) =
+            (builder.extract <* builder.reset).foldM(
+              Sink.Push.fail(_, leftover),
+              Sink.Push.emit(_, leftover)
+            )
+
+          {
+            case None => extractAndReset(Chunk.empty)
+            case Some(is) =>
+              builder.done.mapError(e => Left(e) -> is).flatMap {
+                if (_) extractAndReset(is)
+                else {
+                  def process(idx: Int): ZIO[R, E, Option[Int]] =
+                    if (idx >= is.length) UIO.succeed(None)
+                    else
+                      builder.accepts(is(idx)).flatMap { accepted =>
+                        if (!accepted) UIO.succeed(Some(idx))
+                        else
+                          builder.step(is(idx)) *>
+                            builder.done.flatMap { done =>
+                              if (!done) process(idx + 1)
+                              else UIO.succeed(Some(idx + 1))
+                            }
+                      }
+
+                  process(0).foldM(
+                    Sink.Push.fail(_, Chunk.empty),
+                    {
+                      case None => Sink.Push.more
+                      case Some(splitAt) =>
+                        val (_, leftover) = is.splitAt(splitAt)
+                        extractAndReset(leftover)
+                    }
+                  )
+                }
+              }
+          }
+
+        case builder: Builder.Mutable[I, O] => {
+          case None =>
+            ZIO.effectSuspendTotal {
+              val result = builder.extract()
+              builder.reset()
+
+              Sink.Push.emit(result, Chunk.empty)
+            }
+
+          case Some(is) =>
+            ZIO.effectSuspendTotal {
+              if (builder.done()) Sink.Push.emit(builder.extract(), is) <* UIO(builder.reset())
+              else {
+                var shouldEmit = false
+                var i          = 0
+                var splitAt    = -1
+                while (i < is.length && !shouldEmit) {
+                  if (builder.accepts(is(i))) {
+                    builder.step(is(i))
+
+                    shouldEmit = builder.done()
+                    splitAt = i + 1
+                    i += 1
+                  } else {
+                    splitAt = i
+                    shouldEmit = true
+                  }
+                }
+
+                if (!shouldEmit) Sink.Push.more
+                else {
+                  val (_, leftover) = is.splitAt(splitAt)
+                  Sink.Push.emit(builder.extract(), leftover) <* UIO(builder.reset())
+                }
+              }
+            }
+        }
+
+      }
+
+    }
 
   /**
    * Creates a sink halting with a specified cause.
@@ -811,36 +900,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink containing the first value.
    */
   def head[I]: ZSink[Any, Nothing, I, I, Option[I]] =
-    ZSink[Any, Nothing, I, I, Option[I]](ZManaged.succeed({
-      case Some(ch) =>
-        if (ch.isEmpty) {
-          Push.more
-        } else {
-          Push.emit(Some(ch.head), ch.drop(1))
-        }
-      case None => Push.emit(None, Chunk.empty)
-    }))
+    ZSummary.head[I].toSink
 
   /**
    * Creates a sink containing the last value.
    */
   def last[I]: ZSink[Any, Nothing, I, Nothing, Option[I]] =
-    ZSink {
-      for {
-        state <- Ref.make[Option[I]](None).toManaged_
-        push = (is: Option[Chunk[I]]) =>
-                 state.get.flatMap { last =>
-                   is match {
-                     case Some(ch) =>
-                       ch.lastOption match {
-                         case l: Some[_] => state.set(l) *> Push.more
-                         case None       => Push.more
-                       }
-                     case None => Push.emit(last, Chunk.empty)
-                   }
-                 }
-      } yield push
-    }
+    ZSummary.last[I].toSink.dropLeftover
 
   /**
    * A sink that depends on another managed value
@@ -862,33 +928,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that sums incoming numeric values.
    */
   def sum[A](implicit A: Numeric[A]): ZSink[Any, Nothing, A, Nothing, A] =
-    foldLeft(A.zero)(A.plus)
+    ZSummary.foldLeft(A.zero)(A.plus).toSink.dropLeftover
 
   /**
    * A sink that takes the specified number of values.
    */
   def take[I](n: Int): ZSink[Any, Nothing, I, I, Chunk[I]] =
-    ZSink {
-      for {
-        state <- Ref.make[Chunk[I]](Chunk.empty).toManaged_
-        push = (is: Option[Chunk[I]]) =>
-                 state.get.flatMap { take =>
-                   is match {
-                     case Some(ch) =>
-                       val idx = n - take.length
-                       if (idx < ch.length) {
-                         val (chunk, leftover) = ch.splitAt(idx)
-                         state.set(Chunk.empty) *> Push.emit(take ++ chunk, leftover)
-                       } else {
-                         state.set(take ++ ch) *> Push.more
-                       }
-                     case None =>
-                       if (n >= 0) Push.emit(take, Chunk.empty)
-                       else Push.emit(Chunk.empty, take)
-                   }
-                 }
-      } yield push
-    }
+    ZSummary.collectAllN(n).toSink
 
   /**
    * A sink with timed execution.

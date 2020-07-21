@@ -171,7 +171,7 @@ class CSVStreamBenchmarks {
     val chunks = genCsvChunks.map(Chunk.fromArray)
     val stream = ZStream
       .fromChunks(chunks.toIndexedSeq: _*)
-      .mapAccum[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) { case (acc, char) =>
+      .mapAccumulate[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) { case (acc, char) =>
         if (char == CSV.ColumnSep) {
           Vector.empty[Char] ->
             ((if (acc.nonEmpty)

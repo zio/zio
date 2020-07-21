@@ -82,9 +82,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           } @@ zioTag(errors)
         ),
         suite("aggregateAsync")(
-          testM("aggregateAsync999") {
+          testM("aggregates a simple example properly") {
             ZStream(1, 1, 1, 1)
-              .aggregateAsync(ZTransducer.foldUntil(List[Int](), 3)((acc, el) => el :: acc))
+              .aggregateAsync(ZSummary.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc))
               .runCollect
               .map { result =>
                 assert(result.toList.flatten)(equalTo(List(1, 1, 1, 1))) &&
@@ -95,7 +95,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val e = new RuntimeException("Boom")
             assertM(
               ZStream(1, 1, 1, 1)
-                .aggregateAsync(ZTransducer.die(e))
+                .aggregateAsync(ZSummary.die(e))
                 .runCollect
                 .run
             )(dies(equalTo(e)))
@@ -105,7 +105,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             assertM(
               ZStream(1, 1)
-                .aggregateAsync(ZTransducer.foldLeftM(Nil)((_, _) => ZIO.die(e)))
+                .aggregateAsync(ZSummary.foldLeftM(Nil)((_, _: Int) => ZIO.die(e)))
                 .runCollect
                 .run
             )(dies(equalTo(e)))
@@ -114,7 +114,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
-              sink = ZTransducer.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+              sink = ZSummary.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
                        if (el == 1) UIO.succeedNow(el :: acc)
                        else
                          (latch.succeed(()) *> ZIO.infinity)
@@ -130,7 +130,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
-              sink = ZTransducer.fromEffect {
+              sink = ZSummary.fromEffect {
                        (latch.succeed(()) *> ZIO.infinity)
                          .onInterrupt(cancelled.set(true))
                      }
@@ -145,7 +145,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream(data: _*)
                 .aggregateAsync(
-                  ZTransducer.foldWeighted(List[Int]())((_, x: Int) => x.toLong, 4)((acc, el) => el :: acc)
+                  ZSummary.foldWeighted(List[Int]())((_, x: Int) => x.toLong, 4)((acc, el) => el :: acc)
                 )
                 .map(_.reverse)
                 .runCollect
@@ -153,41 +153,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(data))
           }
         ),
-        suite("aggregate")(
-          testM("aggregate") {
-            assertM(
-              ZStream('1', '2', ',', '3', '4')
-                .aggregate(ZTransducer.collectAllWhile(_.isDigit))
-                .map(_.mkString.toInt)
-                .runCollect
-            )(equalTo(Chunk(12, 34)))
-          },
-          testM("no remainder") {
-            assertM(
-              ZStream(1, 2, 3, 4)
-                .aggregate(ZTransducer.fold(100)(_ % 2 == 0)(_ + _))
-                .runCollect
-            )(equalTo(Chunk(101, 105, 104)))
-          },
-          testM("with a sink that always signals more") {
-            assertM(
-              ZStream(1, 2, 3)
-                .aggregate(ZTransducer.fold(0)(_ => true)(_ + _))
-                .runCollect
-            )(equalTo(Chunk(1 + 2 + 3)))
-          },
-          testM("propagate managed error") {
-            val fail = "I'm such a failure!"
-            val t    = ZTransducer.fail(fail)
-            assertM(ZStream(1, 2, 3).aggregate(t).runCollect.either)(isLeft(equalTo(fail)))
-          }
-        ),
         suite("aggregateAsyncWithinEither")(
-          testM("aggregateAsyncWithinEither") {
+          testM("aggregates properly on a simple example") {
             assertM(
               ZStream(1, 1, 1, 1, 2, 2)
                 .aggregateAsyncWithinEither(
-                  ZTransducer
+                  ZSummary
                     .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
                       if (el == 1) (el :: acc._1, true)
                       else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
@@ -207,7 +178,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _ <- ZStream
                      .range(1, 10)
                      .tap(i => ZIO.fail("BOOM!").when(i == 6) *> queue.offer(i))
-                     .aggregateAsyncWithin(ZTransducer.foldUntil((), 5)((_, _) => ()), Schedule.forever)
+                     .aggregateAsyncWithin(ZSummary.foldUntil((), 5)((_, _: Int) => ()), Schedule.forever)
                      .runDrain
                      .catchAll(_ => ZIO.succeedNow(()))
               value <- queue.takeAll
@@ -218,18 +189,17 @@ object ZStreamSpec extends ZIOBaseSpec {
             val e = new RuntimeException("Boom")
             assertM(
               ZStream(1, 1, 1, 1)
-                .aggregateAsyncWithinEither(ZTransducer.die(e), Schedule.spaced(30.minutes))
+                .aggregateAsyncWithinEither(ZSummary.die(e), Schedule.spaced(30.minutes))
                 .runCollect
                 .run
             )(dies(equalTo(e)))
           } @@ zioTag(errors),
           testM("error propagation 2") {
             val e = new RuntimeException("Boom")
-
             assertM(
               ZStream(1, 1)
                 .aggregateAsyncWithinEither(
-                  ZTransducer.foldM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e)),
+                  ZSummary.foldM(List[Int]())(_ => true)((_, _: Int) => ZIO.die(e)),
                   Schedule.spaced(30.minutes)
                 )
                 .runCollect
@@ -240,7 +210,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
-              sink = ZTransducer.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+              sink = ZSummary.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
                        if (el == 1) UIO.succeed(el :: acc)
                        else
                          (latch.succeed(()) *> ZIO.infinity)
@@ -260,7 +230,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
-              sink = ZTransducer.fromEffect {
+              sink = ZSummary.fromEffect {
                        (latch.succeed(()) *> ZIO.infinity)
                          .onInterrupt(cancelled.set(true))
                      }
@@ -282,7 +252,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .tap(_ => c.proceed)
                          .flatMap(ex => ZStream.fromEffectOption(ZIO.done(ex)))
                          .flattenChunks
-                         .aggregateAsyncWithin(ZTransducer.last, Schedule.fixed(200.millis))
+                         .aggregateAsyncWithin(ZSummary.last[Int], Schedule.fixed(200.millis))
                          .interruptWhen(ZIO.never)
                          .take(2)
                          .runCollect
@@ -292,13 +262,13 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield assert(results)(equalTo(Chunk(2, 3)))
             }
           } @@ zioTag(interruption) @@ TestAspect.jvmOnly,
-          testM("aggregateAsyncWithinEitherLeftoverHandling") {
+          testM("leftover handling") {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
               for {
                 f <- (ZStream(data: _*)
                        .aggregateAsyncWithinEither(
-                         ZTransducer
+                         ZSummary
                            .foldWeighted(List[Int]())((_, i: Int) => i.toLong, 4)((acc, el) => el :: acc)
                            .map(_.reverse),
                          Schedule.spaced(100.millis)
@@ -320,7 +290,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream(1, 1, 1, 1, 2, 2)
                 .aggregateAsyncWithin(
-                  ZTransducer
+                  ZSummary
                     .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
                       if (el == 1) (el :: acc._1, true)
                       else if (el == 2 && acc._1.isEmpty) (el :: acc._1, false)
@@ -1849,22 +1819,22 @@ object ZStreamSpec extends ZIOBaseSpec {
             res2 <- s.runCollect.map(_.map(f))
           } yield assert(res1)(equalTo(res2))
         }),
-        testM("mapAccum") {
-          assertM(ZStream(1, 1, 1).mapAccum(0)((acc, el) => (acc + el, acc + el)).runCollect)(
+        testM("mapAccumulate") {
+          assertM(ZStream(1, 1, 1).mapAccumulate(0)((acc, el) => (acc + el, acc + el)).runCollect)(
             equalTo(Chunk(1, 2, 3))
           )
         },
-        suite("mapAccumM")(
-          testM("mapAccumM happy path") {
+        suite("mapAccumulateM")(
+          testM("mapAccumulateM happy path") {
             assertM(
               ZStream(1, 1, 1)
-                .mapAccumM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
+                .mapAccumulateM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
                 .runCollect
             )(equalTo(Chunk(1, 2, 3)))
           },
-          testM("mapAccumM error") {
+          testM("mapAccumulateM error") {
             ZStream(1, 1, 1)
-              .mapAccumM(0)((_, _) => IO.fail("Ouch"))
+              .mapAccumulateM(0)((_, _) => IO.fail("Ouch"))
               .runCollect
               .either
               .map(assert(_)(isLeft(equalTo("Ouch"))))
@@ -1872,7 +1842,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("laziness on chunks") {
             assertM(
               ZStream(1, 2, 3)
-                .mapAccumM(()) {
+                .mapAccumulateM(()) {
                   case (_, 3) => ZIO.fail("boom")
                   case (_, x) => UIO.succeed(((), x))
                 }
@@ -2619,6 +2589,35 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .throttleShape(1, Duration.Infinity)(_ => 0)
                 .runCollect
             )(equalTo(Chunk(1, 2, 3, 4)))
+          }
+        ),
+        suite("transduce")(
+          testM("transduce") {
+            assertM(
+              ZStream('1', '2', ',', '3', '4')
+                .transduce(ZTransducer.collectAllWhile(_.isDigit))
+                .map(_.mkString.toInt)
+                .runCollect
+            )(equalTo(Chunk(12, 34)))
+          },
+          testM("no remainder") {
+            assertM(
+              ZStream(1, 2, 3, 4)
+                .transduce(ZTransducer.fold(100)(_ % 2 == 0)(_ + _))
+                .runCollect
+            )(equalTo(Chunk(101, 105, 104)))
+          },
+          testM("with a sink that always signals more") {
+            assertM(
+              ZStream(1, 2, 3)
+                .transduce(ZTransducer.fold(0)(_ => true)(_ + _))
+                .runCollect
+            )(equalTo(Chunk(1 + 2 + 3)))
+          },
+          testM("propagate managed error") {
+            val fail = "I'm such a failure!"
+            val t    = ZTransducer.fail(fail)
+            assertM(ZStream(1, 2, 3).transduce(t).runCollect.either)(isLeft(equalTo(fail)))
           }
         ),
         suite("debounce")(
