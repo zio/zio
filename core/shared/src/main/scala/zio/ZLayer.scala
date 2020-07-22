@@ -62,7 +62,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    * A symbolic alias for `orElse`.
    */
   def <>[RIn1 <: RIn, E1, ROut1 >: ROut](
-    that: => ZLayer[RIn1, E1, ROut1]
+    that: ZLayer[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
     self.orElse(that)
 
@@ -72,7 +72,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    * outputs of both this layer and the specified layer.
    */
   final def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
-    that: => ZLayer[RIn2, E1, ROut2]
+    that: ZLayer[RIn2, E1, ROut2]
   )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
     self ++ (self >>> that)
 
@@ -81,8 +81,8 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    * layer, resulting in a new layer with the inputs of this layer, and the
    * outputs of the specified layer.
    */
-  final def >>>[E1 >: E, ROut2](that: => ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    fold(ZLayer.second >>> ZLayer.fromFunctionManyM(ZIO.halt(_)), that)
+  final def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+    fold(ZLayer.fromFunctionManyM { case (_, cause) => ZIO.halt(cause) }, that)
 
   /**
    * A named alias for `++`.
@@ -96,7 +96,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    * A named alias for `>+>`.
    */
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
-    that: => ZLayer[RIn2, E1, ROut2]
+    that: ZLayer[RIn2, E1, ROut2]
   )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
     self >+> that
 
@@ -114,7 +114,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    * Recovers from all errors.
    */
   final def catchAll[RIn1 <: RIn, E1, ROut1 >: ROut](
-    handler: => ZLayer[(RIn1, E), E1, ROut1]
+    handler: ZLayer[(RIn1, E), E1, ROut1]
   ): ZLayer[RIn1, E1, ROut1] = {
     val failureOrDie: ZLayer[(RIn1, Cause[E]), Nothing, (RIn1, E)] =
       ZLayer.fromFunctionManyM {
@@ -133,10 +133,10 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    * the inputs of this layer, and the error or outputs of the specified layer.
    */
   final def fold[E1, RIn1 <: RIn, ROut2](
-    failure: => ZLayer[(RIn1, Cause[E]), E1, ROut2],
-    success: => ZLayer[ROut, E1, ROut2]
+    failure: ZLayer[(RIn1, Cause[E]), E1, ROut2],
+    success: ZLayer[ROut, E1, ROut2]
   )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut2] =
-    ZLayer.Fold(self, () => failure, () => success)
+    ZLayer.Fold(self, failure, success)
 
   /**
    * Creates a fresh version of this layer that will not be shared.
@@ -183,7 +183,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    * executes the specified layer.
    */
   final def orElse[RIn1 <: RIn, E1, ROut1 >: ROut](
-    that: => ZLayer[RIn1, E1, ROut1]
+    that: ZLayer[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
     catchAll(ZLayer.first >>> that)
 
@@ -205,7 +205,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
                   s => ZIO.succeed((r, s))
                 )
           }
-        update >>> loop.fresh
+        update >>> ZLayer.suspend(loop.fresh)
       }
     ZLayer.identity <&> ZLayer.fromEffectMany(schedule.initial) >>> loop
   }
@@ -219,7 +219,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * A named alias for `>>>`.
    */
-  final def to[E1 >: E, ROut2](that: => ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+  final def to[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
     self >>> that
 
   /**
@@ -260,14 +260,16 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
           memoMap
             .getOrElseMemoize(self)
             .foldCauseM(
-              e => ZManaged.environment[RIn].flatMap(r => memoMap.getOrElseMemoize(failure()).provide((r, e))),
-              r => memoMap.getOrElseMemoize(success()).provide(r)(NeedsEnv.needsEnv)
+              e => ZManaged.environment[RIn].flatMap(r => memoMap.getOrElseMemoize(failure).provide((r, e))),
+              r => memoMap.getOrElseMemoize(success).provide(r)(NeedsEnv.needsEnv)
             )
         )
       case ZLayer.Fresh(self) =>
         Managed.succeed(_ => self.build)
       case ZLayer.Managed(self) =>
         Managed.succeed(_ => self)
+      case ZLayer.Suspend(self) =>
+         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self()))
       case ZLayer.ZipWithPar(self, that, f) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWithPar(memoMap.getOrElseMemoize(that))(f))
     }
@@ -279,11 +281,12 @@ object ZLayer {
 
   private final case class Fold[RIn, E, E1, ROut, ROut1](
     self: ZLayer[RIn, E, ROut],
-    failure: () => ZLayer[(RIn, Cause[E]), E1, ROut1],
-    success: () => ZLayer[ROut, E1, ROut1]
+    failure: ZLayer[(RIn, Cause[E]), E1, ROut1],
+    success: ZLayer[ROut, E1, ROut1]
   ) extends ZLayer[RIn, E1, ROut1]
   private final case class Fresh[RIn, E, ROut](self: ZLayer[RIn, E, ROut])        extends ZLayer[RIn, E, ROut]
   private final case class Managed[-RIn, +E, +ROut](self: ZManaged[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
+  private final case class Suspend[-RIn, +E, +ROut](self: () => ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
   private final case class ZipWithPar[-RIn, +E, ROut, ROut2, ROut3](
     self: ZLayer[RIn, E, ROut],
     that: ZLayer[RIn, E, ROut2],
@@ -299,7 +302,7 @@ object ZLayer {
   /**
    * Constructs a layer that fails with the specified value.
    */
-  def fail[E](e: => E): Layer[E, Nothing] =
+  def fail[E](e: E): Layer[E, Nothing] =
     ZLayer(ZManaged.fail(e))
 
   /**
@@ -2161,15 +2164,24 @@ object ZLayer {
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: Tag](a: => A): ULayer[Has[A]] =
-    ZLayer(ZManaged.succeed(Has(a)))
+  def succeed[A: Tag](a: A): ULayer[Has[A]] =
+    ZLayer(ZManaged.succeedNow(Has(a)))
 
   /**
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
-  def succeedMany[A](a: => A): ULayer[A] =
-    ZLayer(ZManaged.succeed(a))
+  def succeedMany[A](a: A): ULayer[A] =
+    ZLayer(ZManaged.succeedNow(a))
+
+  /**
+    * Lazily constructs a layer. This is useful to avoid infinite recursion when
+    * creating layers that refer to themselves.
+    */
+   def suspend[RIn, E, ROut](layer: => ZLayer[RIn, E, ROut]): ZLayer[RIn, E, ROut] = {
+     lazy val self = layer
+     Suspend(() => self)
+   }
 
   implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 

@@ -2812,11 +2812,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     else {
       val size = as.size
       for {
-        parentId       <- ZIO.fiberId
-        causes         <- Ref.make[Cause[E]](Cause.empty)
-        result         <- Promise.make[Nothing, Boolean]
-        failureTrigger <- Promise.make[Unit, Unit]
-        status         <- Ref.make((0, 0, false))
+        parentId <- ZIO.fiberId
+        causes   <- Ref.make[Cause[E]](Cause.empty)
+        result   <- Promise.make[Unit, Unit]
+        status   <- Ref.make((0, 0, false))
 
         startTask = status.modify {
           case (started, done, failing) =>
@@ -2829,7 +2828,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
         startFailure = status.update {
           case (started, done, _) => (started, done, true)
-        } *> failureTrigger.fail(())
+        } *> result.fail(())
 
         task = ZIOFn(f)((a: A) =>
           ZIO
@@ -2845,7 +2844,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                       ((if (failing) started else size) == newDone, (started, newDone, failing))
                   }
                   ZIO.whenM(isComplete) {
-                    result.complete(failureTrigger.succeed(()))
+                    result.succeed(())
                   }
                 }
             }
@@ -2853,13 +2852,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         )
 
         fibers <- ZIO.foreach(as)(a => task(a).fork)
-        interrupter = failureTrigger.await
+        interrupter = result.await
           .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
           .forkManaged
         _ <- interrupter.use_ {
               ZIO
-                .whenM(result.await.map(!_)) {
-                  causes.get.flatMap(ZIO.halt(_))
+                .whenM(ZIO.foreach(fibers)(_.await).map(_.exists(!_.succeeded))) {
+                  result.fail(()) *> causes.get.flatMap(ZIO.halt(_))
                 }
                 .refailWithTrace
             }
