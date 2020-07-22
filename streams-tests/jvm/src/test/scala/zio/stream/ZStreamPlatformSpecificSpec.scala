@@ -1,10 +1,11 @@
 package zio.stream
 
-import java.io.{ FileReader, IOException, Reader }
+import java.io.{ FileReader, IOException, OutputStream, Reader }
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{ Files, NoSuchFileException, Paths }
 import java.nio.{ Buffer, ByteBuffer }
+import java.util.concurrent.CountDownLatch
 
 import scala.concurrent.ExecutionContext.global
 
@@ -289,6 +290,29 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message)))
         })
+      ),
+      suite("fromOutputStreamWriter")(
+        testM("reads what is written") {
+          checkM(Gen.listOf(Gen.chunkOf(Gen.anyByte)), Gen.int(1, 10)) { (bytess, chunkSize) =>
+            val write    = (out: OutputStream) => for (bytes <- bytess) out.write(bytes.toArray)
+            val expected = bytess.foldLeft[Chunk[Byte]](Chunk.empty)(_ ++ _)
+            ZStream.fromOutputStreamWriter(write, chunkSize).runCollect.map(assert(_)(equalTo(expected)))
+          }
+        },
+        testM("captures errors") {
+          val write = (_: OutputStream) => throw new Exception("boom")
+          ZStream.fromOutputStreamWriter(write).runDrain.run.map(assert(_)(fails(hasMessage(equalTo("boom")))))
+        },
+        testM("is not affected by closing the output stream") {
+          val data  = Array.tabulate[Byte](ZStream.DefaultChunkSize * 5 / 2)(_.toByte)
+          val write = (out: OutputStream) => { out.write(data); out.close() }
+          ZStream.fromOutputStreamWriter(write).runCollect.map(assert(_)(equalTo(Chunk.fromArray(data))))
+        },
+        testM("is interruptable") {
+          val latch = new CountDownLatch(1)
+          val write = (out: OutputStream) => { latch.await(); out.write(42); }
+          ZStream.fromOutputStreamWriter(write).runDrain.fork.flatMap(_.interrupt).map(assert(_)(isInterrupted))
+        }
       )
     )
   )

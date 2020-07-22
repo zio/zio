@@ -7,7 +7,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
 import zio.test.environment.TestRandom
-import zio.{ Ref, Schedule, ZIO }
+import zio.{ Ref, Schedule, TracingStatus, ZIO }
 
 object TestAspectSpec extends ZIOBaseSpec {
 
@@ -246,7 +246,10 @@ object TestAspectSpec extends ZIOBaseSpec {
         ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
         result <- succeeded(spec)
       } yield assert(result)(isFalse)
-    }
+    },
+    testM("untraced disables tracing") {
+      assertM(ZIO.checkTraced(ZIO.succeed(_)))(equalTo(TracingStatus.Untraced))
+    } @@ untraced
   )
 
   def diesWithSubtypeOf[E](implicit ct: ClassTag[E]): Assertion[TestFailure[E]] =

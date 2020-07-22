@@ -119,6 +119,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
 
   /**
    * Reads the first n values from the stream and uses them to choose the transducer that will be used for the remainder of the stream.
+   * If the stream ends before it has collected n values the partial chunk will be provided to f.
    */
   def branchAfter[R, E, I, O](n: Int)(f: Chunk[I] => ZTransducer[R, E, I, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
@@ -139,8 +140,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
               stateRef.getAndSet(State.initial).flatMap {
                 case State.Emitting(finalizer, push) =>
                   push(None) <* finalizer(Exit.unit)
-                case _ =>
-                  ZIO.succeedNow(Chunk.empty)
+                case State.Collecting(data) =>
+                  f(data).push.use(_(None))
               }
             case Some(data) =>
               stateRef.modify {
@@ -167,10 +168,41 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a transducer accumulating incoming values into lists of maximum size `n`.
+   * Creates a transducer accumulating incoming values into chunks of maximum size `n`.
    */
-  def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
-    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse).filter(_.nonEmpty)
+  def collectAllN[I](n: Int): ZTransducer[Any, Nothing, I, Chunk[I]] =
+    ZTransducer {
+
+      def go(in: Chunk[I], leftover: Chunk[I], outBuilder: ChunkBuilder[Chunk[I]]): (Chunk[Chunk[I]], Chunk[I]) = {
+        val (left, nextIn) = in.splitAt(n - leftover.size)
+
+        if (leftover.size + left.size < n) outBuilder.result() -> (leftover ++ left)
+        else {
+          val nextOutBuilder =
+            if (leftover.nonEmpty) outBuilder += leftover += left
+            else outBuilder += left
+          go(nextIn, Chunk.empty, nextOutBuilder)
+        }
+      }
+
+      ZRef.makeManaged[Chunk[I]](Chunk.empty).map { stateRef =>
+        {
+          case None =>
+            stateRef
+              .getAndSet(Chunk.empty)
+              .map { leftover =>
+                if (leftover.nonEmpty) Chunk(leftover)
+                else Chunk.empty
+              }
+
+          case Some(in) =>
+            stateRef.modify { leftover =>
+              val (out, nextLeftover) = go(in, leftover, ChunkBuilder.make())
+              out -> nextLeftover
+            }
+        }
+      }
+    }
 
   /**
    * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
@@ -192,7 +224,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _).filter(_.nonEmpty)
 
   /**
-   * Accumulates incoming elements into a list as long as they verify predicate `p`.
+   * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
   def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
     fold[I, (List[I], Boolean)]((Nil, true))(_._2) {
@@ -200,7 +232,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }.map(_._1.reverse).filter(_.nonEmpty)
 
   /**
-   * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
+   * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
   def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
     foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) {
@@ -250,7 +282,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
             case Some(is) =>
               dropping.get.flatMap {
                 case false => UIO(is -> false)
-                case true  => is.dropWhileM(p).map(is1 => is1 -> (is1.length == 0))
+                case true  => is.dropWhileM(p).map(is1 => is1 -> is1.isEmpty)
               }.flatMap { case (is, pt) => dropping.set(pt) as is }
           }
         }
@@ -611,6 +643,21 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
 
   /**
+   * Emits the provided chunk before emitting any other value.
+   */
+  def prepend[A](values: Chunk[A]): ZTransducer[Any, Nothing, A, A] =
+    ZTransducer {
+      ZRef.makeManaged(values).map { stateRef =>
+        {
+          case None =>
+            stateRef.getAndSet(Chunk.empty)
+          case Some(xs) =>
+            stateRef.getAndSet(Chunk.empty).map(c => if (c.isEmpty) xs else c ++ xs)
+        }
+      }
+    }
+
+  /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
   val splitLines: ZTransducer[Any, Nothing, String, String] =
@@ -673,40 +720,50 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Splits strings on a delimiter.
    */
-  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] =
+  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] = {
+    val chars = ZTransducer.fromFunction[String, Chunk[Char]](s => Chunk.fromArray(s.toArray)).mapChunks(_.flatten)
+    val split = splitOnChunk(Chunk.fromArray(delimiter.toArray)).map(_.mkString(""))
+    chars >>> split
+  }
+
+  /**
+   * Splits elements on a delimiter and transforms the splits into desired output.
+   */
+  def splitOnChunk[A](delimiter: Chunk[A]): ZTransducer[Any, Nothing, A, Chunk[A]] =
     ZTransducer {
-      ZRef.makeManaged[(Option[String], Int)](None -> 0).map { state =>
+      ZRef.makeManaged[(Option[Chunk[A]], Int)](None -> 0).map { state =>
         {
           case None =>
             state.modify {
-              case s @ (None, _) => Chunk.empty     -> s
-              case (Some(s), _)  => Chunk.single(s) -> (None -> 0)
+              case s @ (None, _)    => Chunk.empty         -> s
+              case (Some(chunk), _) => Chunk.single(chunk) -> (None -> 0)
             }
-          case Some(is) =>
+          case Some(inputChunk: Chunk[A]) =>
             state.modify { s0 =>
-              var out: mutable.ArrayBuffer[String] = null
-              var chunkIndex                       = 0
-              var buffer                           = s0._1.getOrElse("")
-              var delimIndex                       = s0._2
-              while (chunkIndex < is.length) {
-                val in    = buffer + is(chunkIndex)
+              var out: mutable.ArrayBuffer[Chunk[A]] = null
+              var chunkIndex                         = 0
+              var buffer: Chunk[A]                   = s0._1.getOrElse(Chunk.empty)
+              var delimIndex                         = s0._2
+              while (chunkIndex < inputChunk.length) {
+                val in    = buffer :+ inputChunk(chunkIndex)
                 var index = buffer.length
                 var start = 0
-                buffer = ""
+                buffer = Chunk.empty
                 while (index < in.length) {
                   while (delimIndex < delimiter.length && index < in.length && in(index) == delimiter(delimIndex)) {
                     delimIndex += 1
                     index += 1
                   }
-                  if (delimIndex == delimiter.length || in == "") {
-                    if (out eq null) out = mutable.ArrayBuffer[String]()
-                    out += in.substring(start, index - delimiter.length)
+                  if (delimIndex == delimiter.length || in.isEmpty) {
+                    if (out eq null) out = mutable.ArrayBuffer[Chunk[A]]()
+                    val slice = in.slice(start, index - delimiter.length)
+                    out += slice
                     delimIndex = 0
                     start = index
                   }
                   if (index < in.length) {
                     delimIndex = 0
-                    while (index < in.length && in(index) != delimiter(0)) index += 1;
+                    while (index < in.length && in(index) != delimiter(0)) index += 1
                   }
                 }
 
@@ -718,8 +775,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
               }
 
               val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray)
-              val buf   = if (buffer == "") None else Some(buffer)
-
+              val buf   = if (buffer.isEmpty) None else Some(buffer)
               chunk -> (buf -> delimIndex)
             }
         }
@@ -732,8 +788,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  val utf8Decode: ZTransducer[Any, Nothing, Byte, String] =
-    ZTransducer {
+  val utf8Decode: ZTransducer[Any, Nothing, Byte, String] = {
+    val transducer = ZTransducer[Any, Nothing, Byte, String] {
       def is2ByteSequenceStart(b: Byte) = (b & 0xE0) == 0xC0
       def is3ByteSequenceStart(b: Byte) = (b & 0xF0) == 0xE0
       def is4ByteSequenceStart(b: Byte) = (b & 0xF8) == 0xF0
@@ -781,21 +837,32 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       }
     }
 
+    // handle optional byte order mark
+    branchAfter(3) { bytes =>
+      bytes.toList match {
+        case -17 :: -69 :: -65 :: Nil =>
+          transducer
+        case _ =>
+          prepend(bytes) >>> transducer
+      }
+    }
+  }
+
   /**
    * Decodes chunks of UTF-16 bytes into strings.
+   * If no byte order mark is found big-endianness is assumed.
    *
-   * This will fail with an `IllegalArgumentException` if no byte order mark was found and will
-   * use the error handling behavior of the endian-specific decoder otherwise.
+   * It will use the error handling behavior of the endian-specific decoder when handling malformed byte sequences.
    */
-  val utf16Decode: ZTransducer[Any, IllegalArgumentException, Byte, String] =
+  val utf16Decode: ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(2) { bytes =>
       bytes.toList match {
         case -2 :: -1 :: Nil =>
           utf16BEDecode
         case -1 :: -2 :: Nil =>
           utf16LEDecode
-        case xs =>
-          fail(new IllegalArgumentException(s"Not a valid byte order mark ${xs.map(_ & 0xFF).mkString(", ")}"))
+        case _ =>
+          prepend(bytes) >>> utf16BEDecode
       }
     }
 

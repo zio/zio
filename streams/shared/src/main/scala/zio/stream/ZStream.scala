@@ -2,6 +2,8 @@ package zio.stream
 
 import java.{ util => ju }
 
+import scala.reflect.ClassTag
+
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
@@ -1599,14 +1601,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Partitions the stream with specified chunkSize
    * @param chunkSize size of the chunk
    */
-  def grouped(chunkSize: Long): ZStream[R, E, List[O]] =
+  def grouped(chunkSize: Int): ZStream[R, E, Chunk[O]] =
     aggregate(ZTransducer.collectAllN(chunkSize))
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified
    * duration has passed, whichever is satisfied first.
    */
-  def groupedWithin(chunkSize: Long, within: Duration): ZStream[R with Clock, E, List[O]] =
+  def groupedWithin(chunkSize: Int, within: Duration): ZStream[R with Clock, E, Chunk[O]] =
     aggregateAsyncWithin(ZTransducer.collectAllN(chunkSize), Schedule.spaced(within))
 
   /**
@@ -2335,7 +2337,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
-   * Runs the stream and collects all of its elements to a list.
+   * Runs the stream and collects all of its elements to a chunk.
    */
   def runCollect: ZIO[R, E, Chunk[O]] = run(ZSink.collectAll[O])
 
@@ -3695,12 +3697,19 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
+   *
+   * The first `A` is emitted immediately. Subsequent `A`s are delayed according to `schedule`, which takes as input
+   * the previous `A`.
    */
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, _]): ZStream[R, E, A] =
-    fromEffect(schedule.initial).flatMap { initial =>
-      unfoldM(initial) { state =>
-        effect.flatMap(value => schedule.update(value, state).fold(_ => None, state => Some((value, state))))
-      }
+    ZStream.fromEffect(schedule.initial zip effect).flatMap {
+      case (initialScheduleState, value) =>
+        ZStream.succeed(value) ++ ZStream.unfoldM((initialScheduleState, value)) {
+          case (state, lastValue) =>
+            schedule
+              .update(lastValue, state)
+              .foldM(_ => ZIO.succeed(Option.empty), newState => effect.map(value => Some((value, (newState, value)))))
+        }
     }
 
   /**
@@ -4039,4 +4048,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     case object Both   extends TerminationStrategy
     case object Either extends TerminationStrategy
   }
+
+  implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZStream[R, E, A]) extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZStream[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
+  }
+
 }
