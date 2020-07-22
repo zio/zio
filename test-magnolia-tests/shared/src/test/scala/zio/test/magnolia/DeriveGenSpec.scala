@@ -1,5 +1,6 @@
 package zio.test.magnolia
 
+import java.time.{ LocalDate, LocalDateTime }
 import java.util.UUID
 
 import zio.random.Random
@@ -80,7 +81,10 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       test("tuple4")(assertDeriveGen[(Int, Int, Int, Int)]),
       test("unit")(assertDeriveGen[Unit]),
       test("uuid")(assertDeriveGen[UUID]),
-      test("vector")(assertDeriveGen[Vector[Int]])
+      test("vector")(assertDeriveGen[Vector[Int]]),
+      test("localDateTime")(assertDeriveGen[LocalDateTime]),
+      test("localDate")(assertDeriveGen[LocalDate]),
+      test("bigDecimal")(assertDeriveGen[BigDecimal])
     ),
     suite("shrinking")(
       testM("derived generators shrink to smallest value") {
