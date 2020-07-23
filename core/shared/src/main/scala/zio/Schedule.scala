@@ -805,6 +805,29 @@ object Schedule {
     }
 
   /**
+   * A schedule that recurs the specified duration intervals from the starting time.
+   */
+  def fixed(interval: Duration): Schedule[Any, Any, Long] = {
+    import Decision._
+
+    val millis = interval.toMillis
+
+    def loop(startMillis: Option[Long], n: Long): StepFunction[Any, Any, Long] =
+      (now: Instant, _: Any) =>
+        ZIO.succeed(startMillis match {
+          case Some(startMillis) =>
+            Continue(
+              n + 1,
+              Interval(now.plusMillis((now.toEpochMilli() - startMillis) % millis), Instant.MAX),
+              loop(Some(startMillis), n + 1L)
+            )
+          case None => Continue(n + 1L, Interval(now, now.plusMillis(millis)), loop(Some(now.toEpochMilli()), n + 1))
+        })
+
+    Schedule(loop(None, 0L))
+  }
+
+  /**
    * A schedule that always recurs, producing a count of repeats: 0, 1, 2.
    */
   val forever: Schedule[Any, Any, Long] = unfold(0L)(_ + 1L)
@@ -861,12 +884,21 @@ object Schedule {
     delayed(forever.map(i => base * (i + 1).doubleValue()))
 
   /**
+   * A schedule that recurs one time.
+   */
+  val once: Schedule[Any, Any, Unit] = recurs(1).unit
+
+  /**
    * A schedule spanning all time, which can be stepped only the specified number of times before
    * it terminates.
    */
   def recurs(n: Long): Schedule[Any, Any, Long] =
     forever.whileOutput(_ < n)
 
+  /**
+   * A schedule spanning all time, which can be stepped only the specified number of times before
+   * it terminates.
+   */
   def recurs(n: Int): Schedule[Any, Any, Long] = recurs(n.toLong)
 
   /**
