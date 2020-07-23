@@ -2405,7 +2405,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Similar to Either.cond, evaluate the predicate,
    * return the given A as success if predicate returns true, and the given E as error otherwise
    */
-  def cond[R, E, A](predicate: Boolean, result: => A, error: => E): ZIO[R, E, A] =
+  def cond[E, A](predicate: Boolean, result: => A, error: => E): IO[E, A] =
     if (predicate) ZIO.succeed(result) else ZIO.fail(error)
 
   /**
