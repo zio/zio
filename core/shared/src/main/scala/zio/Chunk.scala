@@ -987,7 +987,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * `Chunk`. Note that this method is side effecting because it allocates
    * mutable state and should only be used internally.
    */
-  protected def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
+  private[zio] def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
     materialize.arrayIterator
 
   /**
@@ -1039,7 +1039,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * be changed.  Note that this method is side effecting because it allocates
    * mutable state and should only be used internally.
    */
-  protected def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
+  private[zio] def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
     materialize.arrayIterator
 
   protected def right: Chunk[A] =
@@ -1467,7 +1467,7 @@ object Chunk extends ChunkFactory {
     override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       Array.copy(array, 0, dest, n, length)
 
-    override protected def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
+    override private[zio] def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
       Iterator.single(array.asInstanceOf[Array[A1]])
 
     override protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] = {
@@ -1501,7 +1501,7 @@ object Chunk extends ChunkFactory {
       builder.result()
     }
 
-    override protected def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
+    override private[zio] def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
       Iterator.single(array.asInstanceOf[Array[A1]])
   }
 
@@ -1534,10 +1534,10 @@ object Chunk extends ChunkFactory {
       right.toArray(n + left.length, dest)
     }
 
-    override protected def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
+    override private[zio] def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
       (left.arrayIterator ++ right.arrayIterator).asInstanceOf[Iterator[Array[A1]]]
 
-    override protected def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
+    override private[zio] def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
       (right.arrayIterator ++ left.arrayIterator).asInstanceOf[Iterator[Array[A1]]]
   }
 
@@ -1560,10 +1560,10 @@ object Chunk extends ChunkFactory {
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       dest(n) = a
 
-    protected override def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
+    private[zio] override def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
       Iterator.single(Array(a).asInstanceOf[Array[A1]])
 
-    protected override def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
+    private[zio] override def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
       arrayIterator
   }
 
@@ -1680,13 +1680,13 @@ object Chunk extends ChunkFactory {
       }
     }
 
-    override protected def arrayIterator[A1 >: Boolean]: Iterator[Array[A1]] = {
+    override private[zio] def arrayIterator[A1 >: Boolean]: Iterator[Array[A1]] = {
       val array = Array.ofDim[Boolean](length)
       toArray(0, array)
       Iterator.single(array.asInstanceOf[Array[A1]])
     }
 
-    override protected def reverseArrayIterator[A1 >: Boolean]: Iterator[Array[A1]] =
+    override private[zio] def reverseArrayIterator[A1 >: Boolean]: Iterator[Array[A1]] =
       arrayIterator
 
   }
@@ -1713,10 +1713,10 @@ object Chunk extends ChunkFactory {
     override def toArray[A1: ClassTag]: Array[A1] =
       Array.empty
 
-    override protected def arrayIterator[A]: Iterator[Array[A]] =
+    override private[zio] def arrayIterator[A]: Iterator[Array[A]] =
       Iterator.empty
 
-    override protected def reverseArrayIterator[A]: Iterator[Array[A]] =
+    override private[zio] def reverseArrayIterator[A]: Iterator[Array[A]] =
       Iterator.empty
   }
 
