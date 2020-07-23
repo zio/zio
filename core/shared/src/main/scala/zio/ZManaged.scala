@@ -1468,7 +1468,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * return the given A as success if predicate returns true, and the given E as error otherwise
    */
   def cond[R, E, A](predicate: Boolean, result: => A, error: => E): ZManaged[R, E, A] =
-    if (predicate) effectTotal(result) else fail(error)
+    if (predicate) succeed(result) else fail(error)
 
   /**
    * Returns an effect that dies with the specified `Throwable`.
