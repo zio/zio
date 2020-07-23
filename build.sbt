@@ -406,4 +406,8 @@ lazy val docs = project.module
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
 
-scalafixDependencies in ThisBuild += "com.nequissimus" %% "sort-imports" % "0.5.0"
+ThisBuild / scalafixDependencies ++= Seq(
+  "com.nequissimus" %% "sort-imports"   % "0.5.4",
+  "com.sandinh"     %% "scala-rewrites" % "0.1.10-sd"
+)
+ThisBuild / scalafixScalaBinaryVersion := (coreJVM / scalaBinaryVersion).value
