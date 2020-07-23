@@ -361,7 +361,7 @@ package object environment extends PlatformSpecific {
       private lazy val awaitSuspended: UIO[Unit] =
         live.provide {
           suspended.repeat {
-            Schedule.doUntilEquals(true) && Schedule.fixed(5.milliseconds)
+            Schedule.doUntilEquals(true) && Schedule.spaced(5.milliseconds)
           }
         }.unit
 

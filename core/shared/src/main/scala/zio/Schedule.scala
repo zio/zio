@@ -875,6 +875,11 @@ object Schedule {
     forever.addDelay(_ => duration)
 
   /**
+   * A schedule that does not recur, it just stops.
+   */
+  val stop: Schedule[Any, Any, Unit] = recurs(0).unit
+
+  /**
    * Returns a schedule that repeats one time, producing the specified constant value.
    */
   def succeed[A](a: => A): Schedule[Any, Any, A] =
