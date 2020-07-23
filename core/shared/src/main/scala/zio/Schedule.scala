@@ -867,6 +867,8 @@ object Schedule {
   def recurs(n: Long): Schedule[Any, Any, Long] =
     forever.whileOutput(_ < n)
 
+  def recurs(n: Int): Schedule[Any, Any, Long] = recurs(n.toLong)
+
   /**
    * Returns a schedule that recurs continuously, each repetition spaced the specified duration
    * from the last run.
