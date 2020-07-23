@@ -1464,6 +1464,13 @@ object ZManaged extends ZManagedPlatformSpecific {
     foreachParN(n)(in)(a => f(a).optional).map(_.flatten)
 
   /**
+   * Similar to Either.cond, evaluate the predicate,
+   * return the given A as success if predicate returns true, and the given E as error otherwise
+   */
+  def cond[R, E, A](predicate: Boolean, result: => A, error: => E): ZManaged[R, E, A] =
+    if (predicate) effectTotal(result) else fail(error)
+
+  /**
    * Returns an effect that dies with the specified `Throwable`.
    * This method can be used for terminating a fiber because a defect has been
    * detected in the code.
