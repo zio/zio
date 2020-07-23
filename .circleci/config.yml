@@ -297,11 +297,18 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
-  mdoc:
+  mdoc_212:
     <<: *mdoc
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
+      - <<: *jdk_8
+
+  mdoc_213:
+    <<: *mdoc
+    <<: *machine_ubuntu
+    environment:
+      - <<: *scala_213
       - <<: *jdk_8
 
   test_211_jdk8_jvm:
@@ -415,7 +422,11 @@ workflows:
       - lint_213:
           filters:
             <<: *filter_tags
-      - mdoc:
+      - mdoc_212:
+          <<: *requires_lint
+          filters:
+            <<: *filter_tags
+      - mdoc_213:
           <<: *requires_lint
           filters:
             <<: *filter_tags
@@ -473,7 +484,8 @@ workflows:
             - test_212_jdk8_js
             - test_213_jdk8_jvm
             - test_213_jdk8_js
-            - mdoc
+            - mdoc_212
+            - mdoc_213
             - mima_212
             - mima_213
           filters:
