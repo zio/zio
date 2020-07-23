@@ -10,6 +10,7 @@ RUN bash -cl "set -eux \
         org.scalameta:metals_2.12:$version \
         org.scalameta:mtags_2.13.1:$version \
         org.scalameta:mtags_2.13.0:$version \
+        org.scalameta:mtags_2.12.12:$version \
         org.scalameta:mtags_2.12.10:$version \
         org.scalameta:mtags_2.12.9:$version \
         org.scalameta:mtags_2.12.8:$version"
