@@ -209,7 +209,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.cond]]
    */
-  def cond[R, A](predicate: Boolean, result: => A, error: => Throwable): RIO[R, A] =
+  def cond[A](predicate: Boolean, result: => A, error: => Throwable): Task[A] =
     ZIO.cond(predicate, result, error)
 
   /**
