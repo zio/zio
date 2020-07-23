@@ -7,6 +7,7 @@ import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 import scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb
+import DottyFullCompat._
 
 object BuildHelper {
 
@@ -210,18 +211,23 @@ object BuildHelper {
 
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
-    crossScalaVersions := Seq("2.12.12", "2.11.12", "2.13.1"),
+    crossScalaVersions := Seq("2.12.12", "2.11.12", "2.13.3"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
-      if (isDotty.value)
-        Seq(("com.github.ghik" % "silencer-lib_2.13.1" % "1.6.0" % Provided).withDottyCompat(scalaVersion.value))
-      else
-        Seq(
-          "com.github.ghik" % "silencer-lib" % "1.4.4" % Provided cross CrossVersion.full,
-          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.4.4" cross CrossVersion.full),
-          compilerPlugin(scalafixSemanticdb)
-        )
+      def silencer(name: String) =
+        "com.github.ghik" %% s"silencer-$name" % "1.7.1" withDottyFullCompat scalaVersion.value
+
+      Seq(
+        silencer("lib") % Provided
+      ) ++ {
+        if (isDotty.value) Nil
+        else
+          Seq(
+            compilerPlugin(silencer("plugin")),
+            compilerPlugin(scalafixSemanticdb)
+          )
+      }
     },
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),

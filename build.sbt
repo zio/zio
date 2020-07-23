@@ -375,7 +375,7 @@ lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
     // skip 2.13 mdoc until mdoc is available for 2.13
-    crossScalaVersions -= "2.13.1",
+    crossScalaVersions -= "2.13.3",
     //
     skip.in(publish) := true,
     moduleName := "zio-docs",
