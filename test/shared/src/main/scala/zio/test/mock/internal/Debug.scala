@@ -58,7 +58,7 @@ private[mock] object Debug {
         renderRoot("Or", children)
       case Expectation.Repeated(child, range, _, _, started, completed) =>
         val progress = s"progress = $started out of $completed,"
-        ("Repeated(" :: state :: s"range = $range," :: progress :: invoked :: prettify(child) :: ")" :: Nil)
+        ("Repeated(" :: state :: s"range = $range," :: progress :: invoked :: prettify(child, 1) :: ")" :: Nil)
           .mkString(s"\n$ident")
     }
   }
