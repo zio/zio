@@ -64,6 +64,12 @@ object STM {
     ZSTM.collectAll_(in)
 
   /**
+   * @see See [[zio.stm.ZSTM.cond]]
+   */
+  def cond[E, A](predicate: Boolean, result: => A, error: => E): STM[E, A] =
+    ZSTM.cond(predicate, result, error)
+
+  /**
    * @see See [[zio.stm.ZSTM.die]]
    */
   def die(t: => Throwable): USTM[Nothing] =

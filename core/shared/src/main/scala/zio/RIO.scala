@@ -207,6 +207,12 @@ object RIO {
     ZIO.collectParN(n)(in)(f)
 
   /**
+   * @see See [[zio.ZIO.cond]]
+   */
+  def cond[A](predicate: Boolean, result: => A, error: => Throwable): Task[A] =
+    ZIO.cond(predicate, result, error)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
