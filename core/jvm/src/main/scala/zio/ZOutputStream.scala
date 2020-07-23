@@ -18,7 +18,6 @@ package zio
 
 import java.io.IOException
 
-import zio.blocking.Blocking
 import zio.blocking.{ Blocking, _ }
 
 trait ZOutputStream {

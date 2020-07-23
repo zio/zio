@@ -4,7 +4,6 @@ import zio.ZIOBaseSpec
 import zio.internal.Platform
 import zio.test.Assertion._
 import zio.test._
-import zio.test._
 
 object PlatformSpec extends ZIOBaseSpec {
 
