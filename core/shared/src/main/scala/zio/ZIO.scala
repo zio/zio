@@ -502,7 +502,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect while its result satisfies the specified effectful predicate.
    */
   final def doWhileM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
-    self.flatMap(a => f(a).flatMap(b => if (!b) ZIO.succeed(a) else self.doUntilM(f)))
+    self.flatMap(a => f(a).flatMap(b => if (!b) ZIO.succeed(a) else self.doWhileM(f)))
 
   /**
    * Returns an effect whose failure and success have been lifted into an

@@ -165,7 +165,7 @@ final case class Schedule[-Env, -In, +Out](
             that(now, out).map {
               case Done(out2) => Done(out2)
               case Continue(out2, interval2, next2) =>
-                val combined = Schedule.minInstant(interval, interval2)
+                val combined = Schedule.maxInstant(interval, interval2)
 
                 Continue(out2, combined, loop(next1, next2))
             }
@@ -199,7 +199,7 @@ final case class Schedule[-Env, -In, +Out](
    * defined by this schedule.
    */
   def addDelayM[Env1 <: Env](f: Out => URIO[Env1, Duration]): Schedule[Env1, In, Out] =
-    modifyDelayM((out, _) => f(out))
+    modifyDelayM((out, duration) => f(out).map(duration + _))
 
   /**
    * The same as `andThenEither`, but merges the output.
@@ -247,7 +247,7 @@ final case class Schedule[-Env, -In, +Out](
     checkM((in1, out) => ZIO.succeed(test(in1, out)))
 
   /**
-   * Returns a new schedule that passes each input and output of this schedule to the spefcified
+   * Returns a new schedule that passes each input and output of this schedule to the specified
    * function, and then determines whether or not to continue based on the return value of the
    * function.
    */
@@ -327,26 +327,27 @@ final case class Schedule[-Env, -In, +Out](
     contramap(f).map(g)
 
   /**
-    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
-    */
-  def driver[In1 <: In]: UIO[Schedule.Driver[Env with Clock, In1, Out]] = 
+   * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
+   */
+  def driver[In1 <: In]: UIO[Schedule.Driver[Env with Clock, In1, Out]] =
     Ref.make[(Option[Out], StepFunction[Env with Clock, In, Out], Option[Instant])]((None, step, None)).map { ref =>
       val next = (in: In) =>
         for {
-          tuple <- ref.get 
+          tuple               <- ref.get
           (_, step, interval) = tuple
-          now  <- clock.instant
-          _    <- interval.fold[URIO[Clock, Any]](ZIO.unit)(interval => ZIO.sleep(Duration.fromInterval(now, interval)))
-          dec  <- step(now, in)
+          now                 <- clock.instant
+          dec                 <- step(now, in)
+          _                   <- UIO(println(dec))
           tuple = dec match {
-            case Done(out) => (out, StepFunction.done(out), None)
+            case Done(out)                     => (out, StepFunction.done(out), None)
             case Continue(out, interval, next) => (out, next, Some(interval))
           }
-          _    <- ref.set((Some(tuple._1), tuple._2, tuple._3))
+          _ <- tuple._3.fold[URIO[Clock, Any]](ZIO.unit)(interval => ZIO.sleep(Duration.fromInterval(now, interval)))
+          _ <- ref.set((Some(tuple._1), tuple._2, tuple._3))
         } yield tuple._1
 
       val last = ref.get.flatMap {
-        case (None, _, _) => ZIO.fail(new NoSuchElementException("There is no value left"))
+        case (None, _, _)    => ZIO.fail(new NoSuchElementException("There is no value left"))
         case (Some(b), _, _) => ZIO.succeed(b)
       }
 
@@ -459,11 +460,28 @@ final case class Schedule[-Env, -In, +Out](
   /**
    * Returns a new schedule that maps the output of this schedule through the specified function.
    */
-  def mapM[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]): Schedule[Env1, In, Out2] =
-    Schedule((now: Instant, in: In) => step(now, in).flatMap(decision => f(decision.out).map(out => decision.as(out))))
+  def mapM[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]): Schedule[Env1, In, Out2] = {
+    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out2] =
+      (now: Instant, in: In) =>
+        self(now, in).flatMap {
+          case Done(out) => f(out).map(Done(_))
+          case Continue(out, interval, next) =>
+            f(out).map(out2 => Continue(out2, interval, loop(next)))
+        }
+
+    Schedule(loop(step))
+  }
 
   /**
-   * Returns a new schedule that modifies the delay.
+   * Returns a new schedule that modifies the delay using the specified
+   * function.
+   */
+  def modifyDelay(f: (Out, Duration) => Duration): Schedule[Env, In, Out] =
+    modifyDelayM((out, duration) => UIO.succeedNow(f(out, duration)))
+
+  /**
+   * Returns a new schedule that modifies the delay using the specified
+   * effectual function.
    */
   def modifyDelayM[Env1 <: Env](f: (Out, Duration) => URIO[Env1, Duration]): Schedule[Env1, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
@@ -488,7 +506,16 @@ final case class Schedule[-Env, -In, +Out](
    * for every decision of this schedule. This can be used to create schedules
    * that log failures, decisions, or computed values.
    */
-  def onDecision[Env1 <: Env](f: Decision[Env, In, Out] => URIO[Env1, Any]): Schedule[Env1, In, Out] = ???
+  def onDecision[Env1 <: Env](f: Decision[Env, In, Out] => URIO[Env1, Any]): Schedule[Env1, In, Out] = {
+    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
+      (now: Instant, in: In) =>
+        self(now, in).flatMap {
+          case Done(out)                     => f(Done(out)) as Done(out)
+          case Continue(out, interval, next) => f(Continue(out, interval, next)) as Continue(out, interval, loop(next))
+        }
+
+    Schedule(loop(step))
+  }
 
   /**
    * Returns a new schedule with its environment provided to it, so the resulting
@@ -713,10 +740,24 @@ object Schedule {
     doWhile(f).collectAll
 
   /**
+   * A schedule that recurs as long as the effectful condition holds,
+   * collecting all inputs into a list.
+   */
+  def collectWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
+    doWhileM(f).collectAll
+
+  /**
    * A schedule that recurs until the condition f fails, collecting all inputs into a list.
    */
   def collectUntil[A](f: A => Boolean): Schedule[Any, A, Chunk[A]] =
     doUntil(f).collectAll
+
+  /**
+   * A schedule that recurs until the effectful condition f fails, collecting
+   * all inputs into a list.
+   */
+  def collectUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
+    doUntilM(f).collectAll
 
   /**
    * Takes a schedule that produces a delay, and returns a new schedule that uses this delay to
@@ -890,8 +931,7 @@ object Schedule {
    * A schedule that always recurs, which returns inputs as outputs.
    */
   def identity[A]: Schedule[Any, A, A] = {
-    lazy val loop: StepFunction[Any, A, A] = (now: Instant, in: A) =>
-      ZIO.succeed(Decision.Continue(in, now, loop))
+    lazy val loop: StepFunction[Any, A, A] = (now: Instant, in: A) => ZIO.succeed(Decision.Continue(in, now, loop))
 
     Schedule(loop)
   }
@@ -950,7 +990,7 @@ object Schedule {
     Schedule(loop(a))
   }
 
-  type Interval = java.time.Instant  
+  type Interval = java.time.Instant
 
   def minInstant(l: Instant, r: Instant): Instant = if (l.compareTo(r) <= 0) l else r
   def maxInstant(l: Instant, r: Instant): Instant = if (l.compareTo(r) >= 0) l else r

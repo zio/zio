@@ -2297,7 +2297,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       schedStateRef.get.flatMap {
                         case (start, step) =>
                           clock.instant.flatMap(now =>
-                            start.fold[URIO[Clock, Any]](ZIO.unit)(start => ZIO.sleep(Duration.fromInterval(now, start))) *>
+                            start.fold[URIO[Clock, Any]](ZIO.unit)(start =>
+                              ZIO.sleep(Duration.fromInterval(now, start))
+                            ) *>
                               step(now, ()).flatMap {
                                 case Done(_) => doneRef.set(true) *> Pull.end // TODO: `out` not used???
                                 case Continue(out, interval, step) =>
@@ -2502,7 +2504,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         case Some(a) =>
                           clock.instant
                             .flatMap(now =>
-                              start.fold(ZIO.unit: URIO[Clock, Any])(start => clock.sleep(Duration.fromInterval(now, start))) *>
+                              start.fold(ZIO.unit: URIO[Clock, Any])(start =>
+                                clock.sleep(Duration.fromInterval(now, start))
+                              ) *>
                                 step(now, a).flatMap {
                                   case Done(b) => state.set((None, schedule.step, Some(() => b)))
                                   case Continue(_, interval, next) =>
@@ -3568,7 +3572,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * input. The stream will emit an element for each value output from the
    * schedule, continuing for as long as the schedule continues.
    */
-  def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R with Clock, Nothing, A] = {
+  def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R with Clock, Nothing, A] =
     ZStream.unfoldM(Option(Option.empty[Instant] -> schedule.step)) {
       case None => ZIO.succeed(None)
       case Some((start, step)) =>
@@ -3580,7 +3584,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
             }
         )
     }
-  }
 
   /**
    * Creates a stream from a [[zio.stm.TQueue]] of values.

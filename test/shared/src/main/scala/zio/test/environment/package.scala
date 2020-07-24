@@ -272,7 +272,7 @@ package object environment extends PlatformSpecific {
        * Returns the current clock time in the specified time unit.
        */
       def currentTime(unit: TimeUnit): UIO[Long] =
-        clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
+        clockState.get.map(data => unit.convert(data.duration.toMillis, unit))
 
       /**
        * Returns the current clock time in nanoseconds.

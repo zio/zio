@@ -273,7 +273,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(5)
                 .someOrFail(None)
                 .runCollect
-            )(equalTo(Chunk(3, 8, 13, 18, 23)))
+            )(equalTo(Chunk(3L, 8L, 13L, 18L, 23L)))
           } @@ zioTag(interruption),
           testM("aggregateAsyncWithinEitherLeftoverHandling") {
             val data = List(1, 2, 2, 3, 2, 3)
@@ -2208,21 +2208,21 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("repeatEither")(
           testM("emits schedule output")(
             assertM(
-              ZStream(1)
+              ZStream(1L)
                 .repeatEither(Schedule.recurs(4))
                 .runCollect
             )(
               equalTo(
                 Chunk(
-                  Right(1),
-                  Right(1),
-                  Left(1),
-                  Right(1),
-                  Left(2),
-                  Right(1),
-                  Left(3),
-                  Right(1),
-                  Left(4)
+                  Right(1L),
+                  Right(1L),
+                  Left(1L),
+                  Right(1L),
+                  Left(2L),
+                  Right(1L),
+                  Left(3L),
+                  Right(1L),
+                  Left(4L)
                 )
               )
             )
@@ -2620,7 +2620,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .interruptWhen(ZIO.never)
                 .take(5)
                 .runCollect
-            )(equalTo(Chunk(0, 1, 2, 3, 4)))
+            )(equalTo(Chunk(0L, 1L, 2L, 3L, 4L)))
           },
           testM("should interrupt children fiber on stream interruption") {
             for {
