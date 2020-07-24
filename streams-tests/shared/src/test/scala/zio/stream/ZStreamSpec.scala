@@ -520,6 +520,39 @@ object ZStreamSpec extends ZIOBaseSpec {
               )
           }
         ),
+        suite("range")(
+          testM("range includes min value and excludes max value") {
+            assertM(
+              (ZStream.range(1, 2))
+                .runCollect
+            )(equalTo(Chunk(1)))
+          },
+          testM("two large ranges can be concatenated") {
+            assertM(
+              (ZStream.range(1, 1000) ++ ZStream.range(1000, 2000))
+                .runCollect
+            )(equalTo(Chunk.range(1, 2000)))
+          },
+          testM("two small ranges can be concatenated") {
+            assertM(
+              (ZStream.range(1, 10) ++ ZStream.range(10, 20))
+                .runCollect
+            )(equalTo(Chunk.range(1, 20)))
+          },
+          testM("range emits no values when start >= end") {
+            assertM(
+              (ZStream.range(1, 1) ++ ZStream.range(2, 1))
+                .runCollect
+            )(equalTo(Chunk.empty))
+          },
+          testM("range emits values in chunks of chunkSize") {
+            assertM(
+              (ZStream.range(1, 10, 2))
+                .mapChunks(c => Chunk[Int](c.sum))
+                .runCollect
+            )(equalTo(Chunk(1+2, 3+4, 5+6, 7+8, 9)))
+          }
+        ),
         suite("bufferSliding")(
           testM("buffer the Stream with Error") {
             val e = new RuntimeException("boom")
