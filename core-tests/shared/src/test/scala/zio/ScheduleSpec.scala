@@ -5,7 +5,7 @@ import scala.language.postfixOps
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ nonFlaky, timeout }
+import zio.test.TestAspect.timeout
 import zio.test.environment.{ TestClock, TestRandom }
 import zio.test.{ assert, assertM, suite, testM, TestResult }
 
