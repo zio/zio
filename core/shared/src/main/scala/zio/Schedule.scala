@@ -465,7 +465,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       def sleep(duration: Duration)   = ZIO.unit
     }
 
-    provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy(_)))
+    provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy))
   }
 
   /**
@@ -523,6 +523,25 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     fold(0)((n: Int, _: B) => n + 1)
 
   /**
+   * Return a new schedule that automatically resets the initial schedule to its initial state
+   * after some time of inactivity defined by `duration`.
+   */
+  final def resetAfter(duration: Duration): Schedule[R with Clock, A, B] =
+    new Schedule[R with Clock, A, B] {
+      type State = (self.State, Long)
+      val initial: URIO[R with Clock, State] = self.initial zip clock.nanoTime
+      val extract: (A, State) => B           = { case (a, (state, _)) => self.extract(a, state) }
+      val update: (A, State) => ZIO[R with Clock, Unit, State] = {
+        case (a, (state, lastUpdate)) =>
+          for {
+            cdt        <- clock.nanoTime
+            stateToUse <- if (lastUpdate + duration.toNanos < cdt) initial.map(_._1) else UIO(state)
+            result     <- self.update(a, stateToUse) zip clock.nanoTime
+          } yield result
+      }
+    }
+
+  /**
    * Puts this schedule into the second element of a either, and passes along
    * another value unchanged as the first element of the either.
    */
@@ -563,7 +582,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Sends every output value to the specified sink.
    */
   final def tapOutput[R1 <: R](f: B => ZIO[R1, Nothing, Unit]): Schedule[R1, A, B] =
-    updated(update => (a, s) => update(a, s).flatMap(s1 => f(self.extract(a, s1)).as(s1)))
+    updated(update => (a, s) => update(a, s).tap(s1 => f(self.extract(a, s1))))
 
   /**
    * Returns a new schedule with the update function transformed by the
