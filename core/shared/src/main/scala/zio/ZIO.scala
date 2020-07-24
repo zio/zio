@@ -1502,7 +1502,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   ): ZIO[R1 with Clock, E2, Either[C, B]] = {
-    import Schedule.Interval
     import Schedule.Decision._
     import java.util.concurrent.TimeUnit
 
@@ -1517,7 +1516,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
               step(now, a).flatMap {
                 case Done(b) => ZIO.succeed(Right(b))
                 case Continue(b, interval, next) =>
-                  val duration = Interval(now, interval.start).size
+                  val duration = Duration(interval.toEpochMilli() - now.toEpochMilli(), TimeUnit.MILLISECONDS)
 
                   clock.sleep(duration) *> loop(Some(b), next)
               }
@@ -1556,7 +1555,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     schedule: Schedule[R1, E, Out],
     orElse: (E, Out) => ZIO[R1, E1, B]
   )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E1, Either[B, A]] = {
-    import Schedule.Interval
     import Schedule.Decision._
     import java.util.concurrent.TimeUnit
 
@@ -1571,7 +1569,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
               step(now, e).flatMap {
                 case Done(out) => orElse(e, out).map(Left(_))
                 case Continue(_, interval, next) =>
-                  val duration = Interval(now, interval.start).size
+                  val duration = Duration(interval.toEpochMilli() - now.toEpochMilli(), TimeUnit.MILLISECONDS)
 
                   clock.sleep(duration) *> loop(next)
               }

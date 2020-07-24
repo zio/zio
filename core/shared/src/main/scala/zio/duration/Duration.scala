@@ -68,7 +68,13 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
 }
 
 object Duration {
+  def fromInterval(start: Instant, end: Instant): Duration = {
+    val delta = end.toEpochMilli() - start.toEpochMilli()
 
+    if (delta < 0) Duration.Zero 
+    else Duration(delta, TimeUnit.MILLISECONDS) 
+  }
+    
   object Finite {
 
     def apply(nanos: Long): Finite =

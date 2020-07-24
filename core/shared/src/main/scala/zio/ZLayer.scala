@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.duration.Duration
 import zio.ZManaged.ReleaseMap
 import zio.internal.Platform
 
@@ -191,7 +192,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    * Retries constructing this layer according to the specified schedule.
    */
   final def retry[RIn1 <: RIn with clock.Clock](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
-    import Schedule.{ Interval, StepFunction }
+    import Schedule.StepFunction
     import Schedule.Decision._
 
     type S = StepFunction[RIn1, E, Any]
@@ -203,7 +204,7 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
             case ((r, s), e) =>
               clock.instant.flatMap(now => s(now, e).flatMap {
                 case Done(_) => ZIO.fail(e)
-                case Continue(_, interval, next) => clock.sleep(Interval(now, interval.start).size) as ((r, next))
+                case Continue(_, interval, next) => clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
               }).provide(r)
           }
         update >>> loop.fresh

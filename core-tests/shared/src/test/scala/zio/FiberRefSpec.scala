@@ -352,7 +352,7 @@ object FiberRefSpec extends ZIOBaseSpec {
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
-  val looseTimeAndCpu: ZIO[Live, Nothing, (Int, Int)] = Live.live {
+  val looseTimeAndCpu: ZIO[Live, Nothing, (Long, Long)] = Live.live {
     ZIO.yieldNow.repeat(Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100))
   }
 

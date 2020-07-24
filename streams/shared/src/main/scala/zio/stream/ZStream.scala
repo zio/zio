@@ -221,7 +221,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   ): ZStream[R1 with Clock, E1, Either[Q, P]] =
     ZStream {
       type Step = Schedule.StepFunction[R1, Chunk[P], Q]
-      import Schedule.Interval
       import Schedule.Decision._
 
       for {
@@ -243,7 +242,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   step(now, chunk).flatMap {
                     case Done(out) => qRef.set(Some(out)) as None
                     case Continue(out, interval, next) =>
-                      ZIO.sleep(Interval(now, interval.start).size) *> qRef.set(Some(out)) as Some(next)
+                      ZIO.sleep(Duration.fromInterval(now, interval)) *> qRef.set(Some(out)) as Some(next)
                   }
                 )
             }
@@ -2277,7 +2276,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     schedule: Schedule[R1, Any, B]
   )(f: O => C, g: B => C): ZStream[R1 with Clock, E, C] =
     ZStream[R1 with Clock, E, C] {
-      import Schedule.Interval
       import Schedule.Decision._
 
       import java.time.Instant
@@ -2299,12 +2297,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       schedStateRef.get.flatMap {
                         case (start, step) =>
                           clock.instant.flatMap(now =>
-                            start.fold[URIO[Clock, Any]](ZIO.unit)(start => ZIO.sleep(Interval(now, start).size)) *>
+                            start.fold[URIO[Clock, Any]](ZIO.unit)(start => ZIO.sleep(Duration.fromInterval(now, start))) *>
                               step(now, ()).flatMap {
                                 case Done(_) => doneRef.set(true) *> Pull.end // TODO: `out` not used???
                                 case Continue(out, interval, step) =>
                                   switchPull((self.map(f) ++ ZStream.succeed(g(out))).process)
-                                    .tap(currPull.set(_)) *> schedStateRef.set(Some(interval.start) -> step) *> go
+                                    .tap(currPull.set(_)) *> schedStateRef.set(Some(interval) -> step) *> go
                               }
                           )
                       }
@@ -2443,7 +2441,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       type Step = Schedule.StepFunction[R1, O, B]
 
       import java.time.Instant
-      import Schedule.Interval
       import Schedule.Decision._
 
       for {
@@ -2459,11 +2456,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
             case Some((start, a, step)) =>
               clock.instant.flatMap(now =>
-                start.fold(ZIO.unit: URIO[Clock, Any])(start => clock.sleep(Interval(now, start).size)) *>
+                start.fold(ZIO.unit: URIO[Clock, Any])(start => clock.sleep(Duration.fromInterval(now, start))) *>
                   step(now, a).flatMap {
                     case Done(b) => state.set(None).as(Chunk.single(g(b)))
                     case Continue(_, interval, next) =>
-                      state.set(Some((Some(interval.start), a, next))).as(Chunk.single(f(a))) // TODO: 'b' not used?
+                      state.set(Some((Some(interval), a, next))).as(Chunk.single(f(a))) // TODO: 'b' not used?
                   }
               )
           }
@@ -2485,7 +2482,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       type Step = Schedule.StepFunction[R1, O, B]
 
       import java.time.Instant
-      import Schedule.Interval
       import Schedule.Decision._
 
       for {
@@ -2506,11 +2502,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         case Some(a) =>
                           clock.instant
                             .flatMap(now =>
-                              start.fold(ZIO.unit: URIO[Clock, Any])(start => clock.sleep(Interval(now, start).size)) *>
+                              start.fold(ZIO.unit: URIO[Clock, Any])(start => clock.sleep(Duration.fromInterval(now, start))) *>
                                 step(now, a).flatMap {
                                   case Done(b) => state.set((None, schedule.step, Some(() => b)))
                                   case Continue(_, interval, next) =>
-                                    state.set((Some(interval.start), next, None)) // TODO: 'b' not used???
+                                    state.set((Some(interval), next, None)) // TODO: 'b' not used???
                                 }
                             )
                             .as(f(a))
@@ -3573,16 +3569,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * schedule, continuing for as long as the schedule continues.
    */
   def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R with Clock, Nothing, A] = {
-    import Schedule.Interval
-
     ZStream.unfoldM(Option(Option.empty[Instant] -> schedule.step)) {
       case None => ZIO.succeed(None)
       case Some((start, step)) =>
         clock.instant.flatMap(now =>
-          start.fold[URIO[Clock, Any]](ZIO.unit)(start => clock.sleep(Interval(now, start).size)) *>
+          start.fold[URIO[Clock, Any]](ZIO.unit)(start => clock.sleep(Duration.fromInterval(now, start))) *>
             step(now, ()).map {
               case Schedule.Decision.Done(a)                     => Some((a -> None))
-              case Schedule.Decision.Continue(a, interval, next) => Some((a -> Some(Some(interval.start) -> next)))
+              case Schedule.Decision.Continue(a, interval, next) => Some((a -> Some(Some(interval) -> next)))
             }
         )
     }
@@ -3750,7 +3744,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               step(now, value).flatMap {
                 case Schedule.Decision.Done(_) => ZIO.succeed(Some((value, None)))
                 case Schedule.Decision.Continue(_, interval, next) =>
-                  clock.sleep(Schedule.Interval(now, interval.start).size) as Some((value, Some(next)))
+                  clock.sleep(Duration.fromInterval(now, interval)) as Some((value, Some(next)))
               }
           }
         )
