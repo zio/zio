@@ -523,7 +523,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     fold(0)((n: Int, _: B) => n + 1)
 
   /**
-   * Return a new schedule that automatically resets the initial schedule to its initial state
+   * Return a new schedule that automatically resets the schedule to its initial state
    * after some time of inactivity defined by `duration`.
    */
   final def resetAfter(duration: Duration): Schedule[R with Clock, A, B] =
