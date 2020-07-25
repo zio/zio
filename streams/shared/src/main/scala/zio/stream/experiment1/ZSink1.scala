@@ -2,59 +2,96 @@ package zio.stream.experiment1
 
 import zio._
 
-abstract class ZSink1[-R, -EI, +EO, -I, +O] {
+abstract class ZSink1[-R, +EO, -I, +O] {
+  self =>
 
-  def process: ZSink1.Process[R, EI, EO, I, O]
+  def process[E >: EO]: ZSink1.Process[R, E, I, O]
 
-  def >>:[R1 <: R, E1 <: EI, I1](upstream: ZTransducer1[R1, E1, E1, I1, I]): ZSink1[R1, E1, EO, I1, O] =
-    transduce(upstream)
+  def >>:[R1 <: R, E1 >: EO, I1 <: I](upstream: ZStream1[R1, E1, I1]): ZIO[R1, E1, O] =
+    aggregate(upstream)
 
-  def transduce[R1 <: R, E1 <: EI, I1](upstream: ZTransducer1[R1, E1, E1, I1, I]): ZSink1[R1, E1, EO, I1, O] =
-    ZSink1(upstream.process.zipWith(process) {
-      case (pipe, (push, read)) => (pipe andThen push, read)
-    })
+  def >>:[R1 <: R, E1 >: EO, II, I1 <: I](upstream: ZTransducer1[R1, E1, II, I1]): ZSink1[R1, E1, II, O] =
+    prepend(upstream)
+
+  def aggregate[R1 <: R, E1 >: EO, I1 <: I](upstream: ZStream1[R1, E1, I1]): ZIO[R1, E1, O] =
+    upstream.process.zip(self.process[E1]).use {
+      case (pull, (push, read)) =>
+        push(pull).forever.catchAllCause[R1, E1, O](Cause.sequenceCauseOption(_).fold(read)(ZIO.halt(_)))
+    }
+
+  def chunked: ZSink1[R, EO, Chunk[I], O] =
+    new ZSink1[R, EO, Chunk[I], O] {
+
+      def process[E >: EO]: ZSink1.Process[R, E, Chunk[I], O] =
+        self.process[E].map {
+          case (push, read) => (_.flatMap(ZIO.foreach(_)(i => push(Pull.emit(i)))), read)
+        }
+    }
+
+  def prepend[R1 <: R, E1 >: EO, II, I1 <: I](upstream: ZTransducer1[R1, E1, II, I1]): ZSink1[R1, E1, II, O] =
+    new ZSink1[R1, E1, II, O] {
+
+      def process[E >: E1]: ZSink1.Process[R1, E, II, O] =
+        upstream.process[E].zipWith(self.process[E]) {
+          case (pipe, (push, read)) => (pipe andThen push, read)
+        }
+    }
 }
 
 object ZSink1 {
 
-  type Process[-R, -EI, +EO, -I, +O] = URManaged[R, (Pull[EI, I] => Pull[EO, Any], IO[EO, O])]
+  type Process[-R, E, -I, +O] = URManaged[R, (Pull[E, I] => Pull[E, Any], IO[E, O])]
 
-  def apply[R, EI, EO, I, O](p: Process[R, EI, EO, I, O]): ZSink1[R, EI, EO, I, O] =
-    new ZSink1[R, EI, EO, I, O] {
-      def process: Process[R, EI, EO, I, O] = p
-    }
+  def access[R, I] =
+    new AccessPartiallyApplied[R, I]()
 
-  def drain[E]: Chunked[Any, E, Any, Unit] =
-    new Chunked[Any, E, Any, Unit](ZManaged.succeedNow((_ => ZIO.unit, ZIO.unit))) {
+  val drain: ZSink1[Any, Nothing, Any, Unit] =
+    new ZSink1[Any, Nothing, Any, Unit] {
 
-      override def chunked: Chunked[Any, E, Chunk[Any], Unit] =
+      def process[E >: Nothing]: Process[Any, E, Any, Unit] =
+        ZManaged.succeedNow((_ => ZIO.unit, ZIO.unit))
+
+      override def chunked: ZSink1[Any, Nothing, Chunk[Any], Unit] =
         ZSink1.drain
     }
 
-  def fold[S, E, I](init: S)(push: (S, I) => S): Chunked[Any, E, I, S] =
-    new Chunked[Any, E, I, S](Process.fold(init)(push)) {
+  def fold[S, I](init: S)(push: (S, I) => S): ZSink1[Any, Nothing, I, S] =
+    new ZSink1[Any, Nothing, I, S] {
 
-      override def chunked: Chunked[Any, E, Chunk[I], S] =
+      def process[E >: Nothing]: Process[Any, E, I, S] =
+        Process.stateful(init)((ref, pull) => pull.flatMap(i => ref.update(push(_, i))))
+
+      override def chunked: ZSink1[Any, Nothing, Chunk[I], S] =
         ZSink1.fold(init)((s, is: Chunk[I]) => is.foldLeft(s)(push))
     }
 
-  def make[R, E, I, O](process: Process[R, E, E, I, O]): Chunked[R, E, I, O] =
-    new Chunked(process)
+  def service[A, I] =
+    new ServicePartiallyApplied[A, I]()
 
-  def sum[E, N](implicit N: Numeric[N]): Chunked[Any, E, N, N] =
+  def sum[N](implicit N: Numeric[N]): ZSink1[Any, Nothing, N, N] =
     fold(N.zero)(N.plus)
 
-  sealed class Chunked[-R, E, -I, +O](val process: Process[R, E, E, I, O]) extends ZSink1[R, E, E, I, O] {
+  final class AccessPartiallyApplied[R, I](private val dummy: Boolean = true) extends AnyVal {
 
-    def chunked: Chunked[R, E, Chunk[I], O] =
-      ZSink1.make(process.map {
-        case (push, read) => (_.flatMap(ZIO.foreach_(_)(i => push(Pull.emit(i)))), read)
-      })
+    def apply[EO, O](push: (R, I) => Pull[EO, Any])(read: R => IO[EO, O]): ZSink1[R, EO, I, O] =
+      new ZSink1[R, EO, I, O] {
+        def process[E >: EO]: Process[R, E, I, O] =
+          ZManaged.access[R](r => (_.flatMap(push(r, _)), read(r)))
+      }
+  }
+
+  final class ServicePartiallyApplied[A, I](private val dummy: Boolean = true) extends AnyVal {
+
+    def apply[EO, O](push: (A, I) => Pull[EO, O])(read: A => IO[EO, O])(implicit a: Tag[A]): ZSink1[Has[A], EO, I, O] =
+      new ZSink1[Has[A], EO, I, O] {
+        def process[E >: EO]: Process[Has[A], E, I, O] =
+          ZManaged.service[A].map(a => (_.flatMap(push(a, _)), read(a)))
+      }
   }
 
   object Process {
 
-    def fold[S, E, I](init: S)(push: (S, I) => S): Process[Any, E, E, I, S] =
-      ZRef.makeManaged(init).map(ref => (_.flatMap(i => ref.update(push(_, i))), ref.get))
+    def stateful[S, E, I](init: S)(push: (Ref[S], Pull[E, I]) => Pull[E, Any]): Process[Any, E, I, S] =
+      ZRef.makeManaged(init).map(ref => (push(ref, _), ref.get))
   }
 }

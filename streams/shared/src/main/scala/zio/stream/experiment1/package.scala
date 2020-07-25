@@ -1,6 +1,6 @@
 package zio.stream
 
-import zio._
+import zio.{ Cause, ZIO }
 
 package object experiment1 {
 
@@ -16,9 +16,6 @@ package object experiment1 {
 
     def fail[E](e: E): Pull[E, Nothing] =
       ZIO.fail(Some(e))
-
-    def fromEffect[E, I](z: IO[E, I]): Pull[E, I] =
-      z.mapError(Some(_))
 
     def halt[E](cause: Cause[E]): Pull[E, Nothing] =
       ZIO.halt(cause.map(Some(_)))

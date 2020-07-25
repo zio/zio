@@ -4,7 +4,8 @@ package experiment1
 
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Param, Scope, State}
+import org.openjdk.jmh.annotations.{ Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Param, Scope, State }
+
 import zio.IOBenchmarks.unsafeRun
 
 @State(Scope.Thread)
@@ -22,11 +23,11 @@ class ChunkStream1Benchmarks {
   def chunkFilterMapSum = {
     import ZTransducer1._
 
-    val chunk = Chunk.fromIterable(0 until chunkSize)
+    val chunk  = Chunk.fromIterable(0 until chunkSize)
     val stream = ZStream1(chunk).forever
-    val pipe = take[Any, Int](count).chunked >>> filter[Any, Int](_ % 2 == 0).chunked >>> map[Any, Int, Long](_.toLong).chunked
-    val sink   = ZSink1.sum[Any, Long].chunked
-    val result = stream.transduce(pipe).run(sink)
+    val pipe   = take[Int](count).chunked >>: filter[Int](_ % 2 == 0).chunked >>: map[Int, Long](_.toLong).chunked
+    val sink   = ZSink1.sum[Long].chunked
+    val result = stream >>: pipe >>: sink
 
     unsafeRun(result)
   }

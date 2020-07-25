@@ -3,9 +3,7 @@ package zio.stream.experiment1
 import zio._
 
 sealed abstract class ZStream1[-R, +E, +I](val process: ZStream1.Process[R, E, I]) {
-
-  def :>>[R1 <: R, E1 >: E, I1](downstream: ZTransducer1[R1, E1, E1, I, I1]): ZStream1[R1, E1, I1] =
-    transduce(downstream)
+  self =>
 
   def forever: ZStream1[R, E, I] =
     ZStream1(for {
@@ -18,33 +16,28 @@ sealed abstract class ZStream1[-R, +E, +I](val process: ZStream1.Process[R, E, I
       go
     })
 
-  def transduce[R1 <: R, E1 >: E, I1](downstream: ZTransducer1[R1, E1, E1, I, I1]): ZStream1[R1, E1, I1] =
-    ZStream1(process.zipWith(downstream.process)((pull, pipe) => pipe(pull)))
-
-  def run[R1 <: R, E1 >: E, O](downstream: ZSink1[R1, E1, E1, I, O]): ZIO[R1, E1, O] =
-    process
-      .zipWith(downstream.process) {
-        case (pull, (push, read)) =>
-          push(pull).forever.foldCauseM(Cause.sequenceCauseOption(_).fold(read)(ZIO.halt(_)), ZIO.succeedNow)
-      }
-      .use(identity)
+  def run[R1 <: R, E1 >: E, O](downstream: ZSink1[R1, E1, I, O]): ZIO[R1, E1, O] =
+    self >>: downstream
 
   def runDrain: ZIO[R, E, Unit] =
-    run(ZSink1.drain)
+    self >>: ZSink1.drain
 
   def take(n: Long): ZStream1[R, E, I] =
-    transduce(ZTransducer1.take(n))
+    self >>: ZTransducer1.take(n)
 
   def takeUntil(p: I => Boolean): ZStream1[R, E, I] =
-    transduce(ZTransducer1.takeUntil(p))
+    self >>: ZTransducer1.takeUntil(p)
 
   def takeWhile(p: I => Boolean): ZStream1[R, E, I] =
-    transduce(ZTransducer1.takeWhile(p))
+    self >>: ZTransducer1.takeWhile(p)
 }
 
 object ZStream1 {
 
   type Process[-R, +E, +I] = URManaged[R, Pull[E, I]]
+
+  def access[R]: AccessPartiallyApplied[R] =
+    new AccessPartiallyApplied[R]()
 
   def apply[R, E, I](process: Process[R, E, I]): ZStream1[R, E, I] =
     new ZStream1(process) {}
@@ -53,12 +46,9 @@ object ZStream1 {
     fromIterable(i)
 
   def fromIterable[I](is: Iterable[I]): ZStream1[Any, Nothing, I] =
-    ZStream1(Process.pull(is)(s => if (s.isEmpty) (Pull.end, s) else (Pull.emit(s.head), s.tail)))
+    ZStream1(Process.stateful(is)(_.modify(s => if (s.isEmpty) (Pull.end, s) else (Pull.emit(s.head), s.tail)).flatten))
 
-  def fromChunk[I](chunk: Chunk[I]): ZStream1[Any, Nothing, I] =
-    ZStream1(Process.pull(chunk)(s => if (s.isEmpty) (Pull.end, s) else (Pull.emit(s.head), s.tail)))
-
-  def managed[R, E, I](z: ZManaged[R, E, I]): ZStream1[R, E, I] =
+  def fromManaged[R, E, I](z: ZManaged[R, E, I]): ZStream1[R, E, I] =
     ZStream1(
       for {
         env     <- ZManaged.access[R](identity)
@@ -72,15 +62,53 @@ object ZStream1 {
       )
     )
 
-  def repeatEffect[E, A](z: IO[E, A]): ZStream1[Any, E, A] =
-    repeatPull(Pull.fromEffect(z))
+  def fromPull[E, I](z: Pull[E, I]): ZStream1[Any, E, I] =
+    ZStream1(Process.stateful(false)(_.getAndSet(true).flatMap(if (_) Pull.end else z)))
 
-  def repeatPull[E, A](z: Pull[E, A]): ZStream1[Any, E, A] =
+  def repeatPull[E, I](z: Pull[E, I]): ZStream1[Any, E, I] =
     ZStream1(ZManaged.succeedNow(z))
+
+  def repeatPullWith[R, E, I](z: Pull[E, I], s: Schedule[R, I, _]): ZStream1[R, E, I] =
+    ZStream1(
+      ZManaged
+        .access[R](s.provide)
+        .flatMap(ss =>
+          ss.initial.toManaged_.flatMap(
+            Process.stateful(_)(ref => z.tap(i => ref.get.flatMap(ss.update(i, _).foldM(_ => Pull.end, ref.set))))
+          )
+        )
+    )
+
+  def service[A: Tag]: ServicePartiallyApplied[A] =
+    new ServicePartiallyApplied[A]()
+
+  def unfold[S, I](init: S)(pull: S => (I, S)): ZStream1[Any, Nothing, I] =
+    ZStream1(Process.stateful(init)(_.modify(pull)))
+
+  def unfoldM[S, E, I](init: S)(pull: S => Pull[E, (I, S)]): ZStream1[Any, E, I] =
+    ZStream1(
+      Process.stateful(init)(ref =>
+        ref.get.flatMap(pull).flatMap {
+          case (i, s) => ref.set(s).as(i)
+        }
+      )
+    )
+
+  final class AccessPartiallyApplied[R](private val dummy: Boolean = false) {
+
+    def apply[E, I](pull: R => Pull[E, I]): ZStream1[R, E, I] =
+      ZStream1(ZManaged.access[R](pull))
+  }
+
+  final class ServicePartiallyApplied[A: Tag](private val dummy: Boolean = false) {
+
+    def apply[E, I](pull: A => Pull[E, I]): ZStream1[Has[A], E, I] =
+      ZStream1(ZManaged.service[A].map(pull))
+  }
 
   object Process {
 
-    def pull[R, E, I, S](init: S)(pull: S => (Pull[E, I], S)): Process[R, E, I] =
-      ZRef.makeManaged(init).map(ref => ref.modify(pull).flatten)
+    def stateful[S, E, I](init: S)(pull: Ref[S] => Pull[E, I]): Process[Any, E, I] =
+      ZRef.makeManaged(init).map(pull)
   }
 }

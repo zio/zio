@@ -5,6 +5,7 @@ package experiment1
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
+
 import zio.IOBenchmarks.unsafeRun
 
 @State(Scope.Thread)
@@ -19,10 +20,10 @@ class Stream1Benchmarks {
   def filterMapSum = {
     import ZTransducer1._
 
-    val stream = ZStream1.repeatPull(ZIO.succeedNow(1))
-    val pipe = take[Any, Int](count) >>> filter[Any, Int](_ % 2 == 0) >>> map[Any, Int, Long](_.toLong)
-    val sink   = ZSink1.sum[Any, Long]
-    val result = stream.transduce(pipe).run(sink)
+    val stream = ZStream1.repeatPull(Pull.emit(1))
+    val pipe   = take[Int](count) >>: filter[Int](_ % 2 == 0) >>: map[Int, Long](_.toLong)
+    val sink   = ZSink1.sum[Long]
+    val result = stream >>: pipe >>: sink
 
     unsafeRun(result)
   }

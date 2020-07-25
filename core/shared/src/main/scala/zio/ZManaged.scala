@@ -19,8 +19,7 @@ package zio
 import scala.collection.immutable.LongMap
 import scala.reflect.ClassTag
 
-import ZManaged.ReleaseMap
-
+import zio.ZManaged.ReleaseMap
 import zio.clock.Clock
 import zio.duration.Duration
 
