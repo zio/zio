@@ -330,28 +330,27 @@ final case class Schedule[-Env, -In, +Out](
    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
    */
   def driver[In1 <: In]: UIO[Schedule.Driver[Env with Clock, In1, Out]] =
-    Ref.make[(Option[Out], StepFunction[Env with Clock, In, Out], Option[OffsetDateTime])]((None, step, None)).map {
-      ref =>
-        val next = (in: In) =>
-          for {
-            tuple               <- ref.get
-            (_, step, interval) = tuple
-            now                 <- clock.currentDateTime.orDie
-            dec                 <- step(now, in)
-            tuple = dec match {
-              case Done(out)                     => (out, StepFunction.done(out), None)
-              case Continue(out, interval, next) => (out, next, Some(interval))
-            }
-            _ <- tuple._3.fold[URIO[Clock, Any]](ZIO.unit)(interval => ZIO.sleep(Duration.fromInterval(now, interval)))
-            _ <- ref.set((Some(tuple._1), tuple._2, tuple._3))
-          } yield tuple._1
+    Ref.make[(Option[Out], StepFunction[Env with Clock, In, Out])]((None, step)).map { ref =>
+      val next = (in: In) =>
+        for {
+          step <- ref.get.map(_._2)
+          now  <- clock.currentDateTime.orDie
+          dec  <- step(now, in)
+          v <- dec match {
+                case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(())
+                case Continue(out, interval, next) =>
+                  ref.set((Some(out), next)) *> ZIO.sleep(Duration.fromInterval(now, interval)) as out
+              }
+        } yield v
 
-        val last = ref.get.flatMap {
-          case (None, _, _)    => ZIO.fail(new NoSuchElementException("There is no value left"))
-          case (Some(b), _, _) => ZIO.succeed(b)
-        }
+      val last = ref.get.flatMap {
+        case (None, _)    => ZIO.fail(new NoSuchElementException("There is no value left"))
+        case (Some(b), _) => ZIO.succeed(b)
+      }
 
-        Schedule.Driver(next, last)
+      val reset = ref.set((None, step))
+
+      Schedule.Driver(next, last, reset)
     }
 
   /**
@@ -1010,7 +1009,11 @@ object Schedule {
   def maxOffsetDateTime(l: OffsetDateTime, r: OffsetDateTime): OffsetDateTime =
     if (l.compareTo(r) >= 0) l else r
 
-  final case class Driver[-Env, -In, +Out](next: In => URIO[Env, Out], last: IO[NoSuchElementException, Out])
+  final case class Driver[-Env, -In, +Out](
+    next: In => ZIO[Env, Unit, Out],
+    last: IO[NoSuchElementException, Out],
+    reset: UIO[Unit]
+  )
 
   type StepFunction[-Env, -In, +Out] = (OffsetDateTime, In) => ZIO[Env, Nothing, Schedule.Decision[Env, In, Out]]
   object StepFunction {

@@ -2438,31 +2438,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     schedule: Schedule[R1, O, B]
   )(f: O => C, g: B => C): ZStream[R1 with Clock, E1, C] =
     ZStream {
-      type Step = Schedule.StepFunction[R1, O, B]
-
-      import Schedule.Decision._
-
       for {
-        as    <- self.process.mapM(BufferedPull.make(_))
-        state <- Ref.make[Option[(Option[OffsetDateTime], O, Step)]](None).toManaged_
+        as     <- self.process.mapM(BufferedPull.make(_))
+        driver <- schedule.driver.toManaged_ : ZManaged[R1 with Clock, Nothing, Schedule.Driver[R1 with Clock, O, B]]
         pull = {
-          def go: ZIO[R1 with Clock, Option[E1], Chunk[C]] = state.get.flatMap {
-            case None =>
-              for {
-                a <- as.pullElement
-                _ <- state.set(Some((None, a, schedule.step)))
-              } yield Chunk.single(f(a))
-
-            case Some((start, a, step)) =>
-              clock.currentDateTime.orDie.flatMap(now =>
-                start.fold(ZIO.unit: URIO[Clock, Any])(start => clock.sleep(Duration.fromInterval(now, start))) *>
-                  step(now, a).flatMap {
-                    case Done(b) => state.set(None).as(Chunk.single(g(b)))
-                    case Continue(_, interval, next) =>
-                      state.set(Some((Some(interval), a, next))).as(Chunk.single(f(a))) // TODO: 'b' not used?
-                  }
-              )
-          }
+          def go: ZIO[R1 with Clock, Option[E1], Chunk[C]] =
+            as.pullElement.flatMap { o =>
+              (driver.next(o) as Chunk(f(o))) orElse driver.last.orDie.map(b => Chunk(f(o), g(b))) <* driver.reset
+            }
 
           go
         }
