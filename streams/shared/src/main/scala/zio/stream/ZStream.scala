@@ -2444,7 +2444,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = {
           def go: ZIO[R1 with Clock, Option[E1], Chunk[C]] =
             as.pullElement.flatMap { o =>
-              (driver.next(o) as Chunk(f(o))) orElse driver.last.orDie.map(b => Chunk(f(o), g(b))) <* driver.reset
+              (driver.next(o) as Chunk(f(o))) orElse (driver.last.orDie.map(b => Chunk(f(o), g(b))) <* driver.reset)
             }
 
           go
