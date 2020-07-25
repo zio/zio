@@ -515,6 +515,17 @@ object ChunkSpec extends ZIOBaseSpec {
       val chunk = Chunk("a")
       val array = chunk.toArray
       assert(array)(anything)
+    },
+    testM("foldWhileM") {
+      assertM(
+        Chunk
+          .fromIterable(List(2))
+          .foldWhileM(0)(i => i <= 2) {
+            case (i: Int, i1: Int) =>
+              if (i < 2) IO.succeed(i + i1)
+              else IO.succeed(i)
+          }
+      )(equalTo(2))
     }
   )
 }

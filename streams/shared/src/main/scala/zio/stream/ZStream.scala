@@ -2,6 +2,8 @@ package zio.stream
 
 import java.{ util => ju }
 
+import scala.reflect.ClassTag
+
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
@@ -1261,7 +1263,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Emits elements of this stream with a fixed delay in between, regardless of how long it
    * takes to produce a value.
    */
-  final def fixed[R1 <: R](duration: Duration): ZStream[R1 with Clock, E, O] =
+  final def fixed(duration: Duration): ZStream[R with Clock, E, O] =
     scheduleElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
       case Right(x) => x
     }
@@ -1462,7 +1464,18 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * still preserving them.
    */
   def flattenChunks[O1](implicit ev: O <:< Chunk[O1]): ZStream[R, E, O1] =
-    mapConcatChunk(ev)
+    ZStream {
+      self.process
+        .mapM(BufferedPull.make(_))
+        .map(_.pullElement.map(ev))
+    }
+
+  /**
+   * Submerges the iterables carried by this stream into the stream's structure, while
+   * still preserving them.
+   */
+  def flattenIterables[O1](implicit ev: O <:< Iterable[O1]): ZStream[R, E, O1] =
+    map(o => Chunk.fromIterable(ev(o))).flattenChunks
 
   /**
    * Flattens a stream of streams into a stream by executing a non-deterministic
@@ -1588,14 +1601,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Partitions the stream with specified chunkSize
    * @param chunkSize size of the chunk
    */
-  def grouped(chunkSize: Long): ZStream[R, E, List[O]] =
+  def grouped(chunkSize: Int): ZStream[R, E, Chunk[O]] =
     aggregate(ZTransducer.collectAllN(chunkSize))
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified
    * duration has passed, whichever is satisfied first.
    */
-  def groupedWithin(chunkSize: Long, within: Duration): ZStream[R with Clock, E, List[O]] =
+  def groupedWithin(chunkSize: Int, within: Duration): ZStream[R with Clock, E, Chunk[O]] =
     aggregateAsyncWithin(ZTransducer.collectAllN(chunkSize), Schedule.spaced(within))
 
   /**
@@ -2324,7 +2337,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
-   * Runs the stream and collects all of its elements to a list.
+   * Runs the stream and collects all of its elements to a chunk.
    */
   def runCollect: ZIO[R, E, Chunk[O]] = run(ZSink.collectAll[O])
 
@@ -3609,11 +3622,27 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * hence the name.
    */
   def paginateM[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
+    paginateChunkM(s)(f(_).map { case (a, s) => Chunk.single(a) -> s })
+
+  /**
+   * Like [[unfoldChunk]], but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
+  def paginateChunk[A, S](s: S)(f: S => (Chunk[A], Option[S])): ZStream[Any, Nothing, A] =
+    paginateChunkM(s)(s => ZIO.succeedNow(f(s)))
+
+  /**
+   * Like [[unfoldChunkM]], but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
+  def paginateChunkM[R, E, A, S](s: S)(f: S => ZIO[R, E, (Chunk[A], Option[S])]): ZStream[R, E, A] =
     ZStream {
       for {
-        ref <- Ref.make[Option[S]](Some(s)).toManaged_
+        ref <- Ref.make(Option(s)).toManaged_
       } yield ref.get.flatMap {
-        case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s).as(Chunk.single(a)) })
+        case Some(s) => f(s).foldM(Pull.fail, { case (as, s) => ref.set(s).as(as) })
         case None    => Pull.end
       }
     }
@@ -3668,12 +3697,19 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
+   *
+   * The first `A` is emitted immediately. Subsequent `A`s are delayed according to `schedule`, which takes as input
+   * the previous `A`.
    */
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, _]): ZStream[R, E, A] =
-    fromEffect(schedule.initial).flatMap { initial =>
-      unfoldM(initial) { state =>
-        effect.flatMap(value => schedule.update(value, state).fold(_ => None, state => Some((value, state))))
-      }
+    ZStream.fromEffect(schedule.initial zip effect).flatMap {
+      case (initialScheduleState, value) =>
+        ZStream.succeed(value) ++ ZStream.unfoldM((initialScheduleState, value)) {
+          case (state, lastValue) =>
+            schedule
+              .update(lastValue, state)
+              .foldM(_ => ZIO.succeed(Option.empty), newState => effect.map(value => Some((value, (newState, value)))))
+        }
     }
 
   /**
@@ -3728,21 +3764,27 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`
    */
-  def unfold[S, A](s: S)(f0: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
-    unfoldM(s)(s => ZIO.succeedNow(f0(s)))
+  def unfold[S, A](s: S)(f: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
+    unfoldM(s)(s => ZIO.succeedNow(f(s)))
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
-  def unfoldM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
-    unfoldChunkM(s)(f0(_).map(_.map {
+  def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
+    unfoldChunkM(s)(f(_).map(_.map {
       case (a, s) => Chunk.single(a) -> s
     }))
 
   /**
+   * Creates a stream by peeling off the "layers" of a value of type `S`.
+   */
+  def unfoldChunk[S, A](s: S)(f: S => Option[(Chunk[A], S)]): ZStream[Any, Nothing, A] =
+    unfoldChunkM(s)(s => ZIO.succeedNow(f(s)))
+
+  /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
-  def unfoldChunkM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(Chunk[A], S)]]): ZStream[R, E, A] =
+  def unfoldChunkM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(Chunk[A], S)]]): ZStream[R, E, A] =
     ZStream {
       for {
         done <- Ref.make(false).toManaged_
@@ -3751,7 +3793,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           if (_) Pull.end
           else {
             ref.get
-              .flatMap(f0)
+              .flatMap(f)
               .foldM(
                 Pull.fail,
                 opt =>
@@ -4006,4 +4048,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     case object Both   extends TerminationStrategy
     case object Either extends TerminationStrategy
   }
+
+  implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZStream[R, E, A]) extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZStream[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
+  }
+
 }

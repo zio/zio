@@ -1,9 +1,11 @@
 package zio.stream
 
+import java.io.{ FileReader, IOException, OutputStream, Reader }
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{ Files, NoSuchFileException, Paths }
 import java.nio.{ Buffer, ByteBuffer }
+import java.util.concurrent.CountDownLatch
 
 import scala.concurrent.ExecutionContext.global
 
@@ -204,6 +206,39 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           )
         }
       ),
+      suite("fromReader")(
+        testM("reads non-empty file") {
+          Task(Files.createTempFile("stream", "reader")).bracket(path => UIO(Files.delete(path))) { path =>
+            for {
+              data <- UIO((0 to 100).mkString)
+              _    <- Task(Files.write(path, data.getBytes("UTF-8")))
+              read <- ZStream.fromReader(new FileReader(path.toString)).runCollect.map(_.mkString)
+            } yield assert(read)(equalTo(data))
+          }
+        },
+        testM("reads empty file") {
+          Task(Files.createTempFile("stream", "reader-empty")).bracket(path => UIO(Files.delete(path))) { path =>
+            ZStream
+              .fromReader(new FileReader(path.toString))
+              .runCollect
+              .map(_.mkString)
+              .map(assert(_)(isEmptyString))
+          }
+        },
+        testM("fails on a failing reader") {
+          final class FailingReader extends Reader {
+            def read(x: Array[Char], a: Int, b: Int): Int = throw new IOException("failed")
+
+            def close(): Unit = ()
+          }
+
+          ZStream
+            .fromReader(new FailingReader)
+            .runDrain
+            .run
+            .map(assert(_)(fails(isSubtype[IOException](anything))))
+        }
+      ),
       suite("fromSocketServer")(
         testM("read data")(checkM(Gen.anyString.filter(_.nonEmpty)) { message =>
           for {
@@ -255,6 +290,29 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message)))
         })
+      ),
+      suite("fromOutputStreamWriter")(
+        testM("reads what is written") {
+          checkM(Gen.listOf(Gen.chunkOf(Gen.anyByte)), Gen.int(1, 10)) { (bytess, chunkSize) =>
+            val write    = (out: OutputStream) => for (bytes <- bytess) out.write(bytes.toArray)
+            val expected = bytess.foldLeft[Chunk[Byte]](Chunk.empty)(_ ++ _)
+            ZStream.fromOutputStreamWriter(write, chunkSize).runCollect.map(assert(_)(equalTo(expected)))
+          }
+        },
+        testM("captures errors") {
+          val write = (_: OutputStream) => throw new Exception("boom")
+          ZStream.fromOutputStreamWriter(write).runDrain.run.map(assert(_)(fails(hasMessage(equalTo("boom")))))
+        },
+        testM("is not affected by closing the output stream") {
+          val data  = Array.tabulate[Byte](ZStream.DefaultChunkSize * 5 / 2)(_.toByte)
+          val write = (out: OutputStream) => { out.write(data); out.close() }
+          ZStream.fromOutputStreamWriter(write).runCollect.map(assert(_)(equalTo(Chunk.fromArray(data))))
+        },
+        testM("is interruptable") {
+          val latch = new CountDownLatch(1)
+          val write = (out: OutputStream) => { latch.await(); out.write(42); }
+          ZStream.fromOutputStreamWriter(write).runDrain.fork.flatMap(_.interrupt).map(assert(_)(isInterrupted))
+        }
       )
     )
   )

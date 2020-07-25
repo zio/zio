@@ -190,6 +190,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectParN(n)(in)(f)
 
   /**
+   * @see See [[zio.ZIO.cond]]
+   */
+  def cond[A](predicate: Boolean, result: => A, error: => Throwable): Task[A] =
+    ZIO.cond(predicate, result, error)
+
+  /**
    * @see See [[zio.ZIO.die]]
    */
   def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)

@@ -2402,6 +2402,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     foreachParN(n)(in)(a => f(a).optional).map(_.flatten)
 
   /**
+   * Similar to Either.cond, evaluate the predicate,
+   * return the given A as success if predicate returns true, and the given E as error otherwise
+   */
+  def cond[E, A](predicate: Boolean, result: => A, error: => E): IO[E, A] =
+    if (predicate) ZIO.succeed(result) else ZIO.fail(error)
+
+  /**
    * Returns information about the current fiber, such as its identity.
    */
   def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeedNow)
@@ -2812,11 +2819,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     else {
       val size = as.size
       for {
-        parentId       <- ZIO.fiberId
-        causes         <- Ref.make[Cause[E]](Cause.empty)
-        result         <- Promise.make[Nothing, Boolean]
-        failureTrigger <- Promise.make[Unit, Unit]
-        status         <- Ref.make((0, 0, false))
+        parentId <- ZIO.fiberId
+        causes   <- Ref.make[Cause[E]](Cause.empty)
+        result   <- Promise.make[Unit, Unit]
+        status   <- Ref.make((0, 0, false))
 
         startTask = status.modify {
           case (started, done, failing) =>
@@ -2829,12 +2835,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
         startFailure = status.update {
           case (started, done, _) => (started, done, true)
-        } *> failureTrigger.fail(())
+        } *> result.fail(())
 
         task = ZIOFn(f)((a: A) =>
           ZIO
             .whenM[R, E](startTask) {
-              f(a).interruptible
+              ZIO
+                .effectSuspendTotal(f(a))
+                .interruptible
                 .tapCause(c => causes.update(_ && c) *> startFailure)
                 .ensuring {
                   val isComplete = status.modify {
@@ -2843,7 +2851,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                       ((if (failing) started else size) == newDone, (started, newDone, failing))
                   }
                   ZIO.whenM(isComplete) {
-                    result.complete(failureTrigger.succeed(()))
+                    result.succeed(())
                   }
                 }
             }
@@ -2851,13 +2859,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         )
 
         fibers <- ZIO.foreach(as)(a => task(a).fork)
-        interrupter = failureTrigger.await
+        interrupter = result.await
           .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
           .forkManaged
         _ <- interrupter.use_ {
               ZIO
-                .whenM(result.await.map(!_)) {
-                  causes.get.flatMap(ZIO.halt(_))
+                .whenM(ZIO.foreach(fibers)(_.await).map(_.exists(!_.succeeded))) {
+                  result.fail(()) *> causes.get.flatMap(ZIO.halt(_))
                 }
                 .refailWithTrace
             }
@@ -3812,7 +3820,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   @implicitNotFound(
     "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has ${E} for the error type."
   )
-  sealed trait CanFilter[+E] {
+  trait CanFilter[+E] {
     def apply(t: NoSuchElementException): E
   }
 

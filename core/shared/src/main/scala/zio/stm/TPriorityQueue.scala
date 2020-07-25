@@ -22,26 +22,25 @@ import zio.stm.ZSTM.internal._
 import zio.{ Chunk, ChunkBuilder }
 
 /**
- * A simple `TPriorityQueue` implementation. A `TPriorityQueue` contains values
- * of type `A` that an `Ordering` is defined on. Unlike a `TQueue`, `take`
- * returns the highest priority value (the value that is first in the specified
- * ordering) as opposed to the first value offered to the queue. The ordering
- * that elements with the same priority will be taken from the queue is not
- * guaranteed.
+ * A `TPriorityQueue` contains values of type `A` that an `Ordering` is defined
+ * on. Unlike a `TQueue`, `take` returns the highest priority value (the value
+ * that is first in the specified ordering) as opposed to the first value
+ * offered to the queue. The ordering that elements with the same priority will
+ * be taken from the queue is not guaranteed.
  */
-final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]]) extends AnyVal {
+final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]]) extends AnyVal {
 
   /**
    * Offers the specified value to the queue.
    */
   def offer(a: A): USTM[Unit] =
-    ref.update(map => map + (a -> map.get(a).fold(1)(_ + 1)))
+    ref.update(map => map + (a -> map.get(a).fold(::(a, Nil))(::(a, _))))
 
   /**
    * Offers all of the elements in the specified collection to the queue.
    */
   def offerAll(values: Iterable[A]): USTM[Unit] =
-    ref.update(map => values.foldLeft(map)((map, a) => map + (a -> map.get(a).fold(1)(_ + 1))))
+    ref.update(map => values.foldLeft(map)((map, a) => map + (a -> map.get(a).fold(::(a, Nil))(::(a, _)))))
 
   /**
    * Peeks at the first value in the queue without removing it, retrying until
@@ -50,8 +49,8 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
   def peek: USTM[A] =
     new ZSTM((journal, _, _, _) =>
       ref.unsafeGet(journal).headOption match {
-        case None         => TExit.Retry
-        case Some((a, _)) => TExit.Succeed(a)
+        case None          => TExit.Retry
+        case Some((_, as)) => TExit.Succeed(as.head)
       }
     )
 
@@ -60,7 +59,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
    * `None` if there is not a value in the queue.
    */
   def peekOption: USTM[Option[A]] =
-    ref.modify(map => (map.headOption.map(_._1), map))
+    ref.modify(map => (map.headOption.map(_._2.head), map))
 
   /**
    * Removes all elements from the queue matching the specified predicate.
@@ -72,13 +71,21 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
    * Retains only elements from the queue matching the specified predicate.
    */
   def retainIf(f: A => Boolean): USTM[Unit] =
-    ref.update(_.filter { case (a, _) => f(a) })
+    ref.update { map =>
+      map.keys.foldLeft(map) {
+        case (map, a) =>
+          map(a).filter(f) match {
+            case h :: t => map + (a -> ::(h, t))
+            case Nil    => map - a
+          }
+      }
+    }
 
   /**
    * Returns the size of the queue.
    */
   def size: USTM[Int] =
-    ref.modify(map => (map.values.sum, map))
+    ref.modify(map => (map.foldLeft(0) { case (n, (_, as)) => n + as.length }, map))
 
   /**
    * Takes a value from the queue, retrying until a value is in the queue.
@@ -88,9 +95,12 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
       val map = ref.unsafeGet(journal)
       map.headOption match {
         case None => TExit.Retry
-        case Some((a, n)) =>
-          ref.unsafeSet(journal, if (n == 1) map - a else map + (a -> (n - 1)))
-          TExit.Succeed(a)
+        case Some((a, as)) =>
+          ref.unsafeSet(journal, as.tail match {
+            case h :: t => map + (a -> ::(h, t))
+            case Nil    => map - a
+          })
+          TExit.Succeed(as.head)
       }
     })
 
@@ -100,17 +110,8 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
   def takeAll: USTM[Chunk[A]] =
     ref.modify { map =>
       val builder = ChunkBuilder.make[A]()
-      var updated = map
-      map.foreach {
-        case (a, n) =>
-          var i = 0
-          while (i < n) {
-            builder += a
-            i += 1
-          }
-          updated -= a
-      }
-      (builder.result, updated)
+      map.foreach(builder ++= _._2)
+      (builder.result, SortedMap.empty(map.ordering))
     }
 
   /**
@@ -123,14 +124,14 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
       var updated  = map
       var i        = 0
       while (iterator.hasNext && i < n) {
-        val (a, j) = iterator.next()
-        var k      = 0
-        while (i < n && k < j) {
-          builder += a
-          i += 1
-          k += 1
+        val (a, as) = iterator.next()
+        val (l, r)  = as.splitAt(n - i)
+        builder ++= l
+        r match {
+          case h :: t => updated += (a -> ::(h, t))
+          case Nil    => updated -= a
         }
-        if (k == j) updated -= a else updated += (a -> (j - k))
+        i += l.length
       }
       (builder.result, updated)
     }
@@ -144,9 +145,12 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
       val map = ref.unsafeGet(journal)
       map.headOption match {
         case None => TExit.Succeed(None)
-        case Some((a, n)) =>
-          ref.unsafeSet(journal, if (n == 1) map - a else map + (a -> (n - 1)))
-          TExit.Succeed(Some(a))
+        case Some((a, as)) =>
+          ref.unsafeSet(journal, as.tail match {
+            case h :: t => map + (a -> ::(h, t))
+            case Nil    => map - a
+          })
+          TExit.Succeed(Some(as.head))
       }
     })
 
@@ -156,14 +160,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, Int]])
   def toChunk: USTM[Chunk[A]] =
     ref.modify { map =>
       val builder = ChunkBuilder.make[A]()
-      map.foreach {
-        case (a, n) =>
-          var i = 0
-          while (i < n) {
-            builder += a
-            i += 1
-          }
-      }
+      map.foreach(builder ++= _._2)
       (builder.result, map)
     }
 
@@ -186,14 +183,14 @@ object TPriorityQueue {
    * Constructs a new empty `TPriorityQueue` with the specified `Ordering`.
    */
   def empty[A](implicit ord: Ordering[A]): USTM[TPriorityQueue[A]] =
-    TRef.make(SortedMap.empty[A, Int]).map(ref => new TPriorityQueue(ref))
+    TRef.make(SortedMap.empty[A, ::[A]]).map(ref => new TPriorityQueue(ref))
 
   /**
    * Makes a new `TPriorityQueue` initialized with provided iterable.
    */
   def fromIterable[A](data: Iterable[A])(implicit ord: Ordering[A]): USTM[TPriorityQueue[A]] =
     TRef
-      .make(data.foldLeft(SortedMap.empty[A, Int])((map, a) => map + (a -> map.get(a).fold(1)(_ + 1))))
+      .make(data.foldLeft(SortedMap.empty[A, ::[A]])((map, a) => map + (a -> map.get(a).fold(::(a, Nil))(::(a, _)))))
       .map(ref => new TPriorityQueue(ref))
 
   /**

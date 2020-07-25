@@ -1,1 +1,1 @@
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.17")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.19")

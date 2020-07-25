@@ -47,15 +47,15 @@ object ChunkBuilder {
     new ChunkBuilder[A] {
       var arrayBuilder: ArrayBuilder[A] = null
       var size: SInt                    = -1
-      def addOne(a: A): this.type = {
+      def +=(a: A): this.type = {
         if (arrayBuilder eq null) {
           implicit val tag = Chunk.Tags.fromValue(a)
-          arrayBuilder = ArrayBuilder.make
+          arrayBuilder = ArrayBuilder.make()
           if (size != -1) {
             arrayBuilder.sizeHint(size)
           }
         }
-        arrayBuilder.addOne(a)
+        arrayBuilder += a
         this
       }
       def clear(): Unit =
@@ -77,6 +77,15 @@ object ChunkBuilder {
     }
 
   /**
+   * Constructs a generic `ChunkBuilder` with size hint.
+   */
+  def make[A](sizeHint: SInt): ChunkBuilder[A] = {
+    val builder = make[A]()
+    builder.sizeHint(sizeHint)
+    builder
+  }
+
+  /**
    * A `ChunkBuilder` specialized for building chunks of unboxed `Boolean`
    * values.
    */
@@ -88,7 +97,7 @@ object ChunkBuilder {
     private var lastByte: SByte   = 0.toByte
     private var maxBitIndex: SInt = 0
 
-    def addOne(b: SBoolean): this.type = {
+    def +=(b: SBoolean): this.type = {
       if (b) {
         if (maxBitIndex == 8) {
           arrayBuilder += lastByte
@@ -119,8 +128,8 @@ object ChunkBuilder {
       val bytes: Chunk[SByte] = Chunk.fromArray(arrayBuilder.result() :+ lastByte)
       BitChunk(bytes, 0, 8 * (bytes.length - 1) + maxBitIndex)
     }
-    override def addAll(as: IterableOnce[SBoolean]): this.type = {
-      as.iterator.foreach(addOne _)
+    override def ++=(as: TraversableOnce[SBoolean]): this.type = {
+      as.foreach(+= _)
       this
     }
     override def sizeHint(n: SInt): Unit = {
@@ -146,7 +155,7 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SByte] = {
       new ArrayBuilder.ofByte
     }
-    def addOne(a: SByte): this.type = {
+    def +=(a: SByte): this.type = {
       arrayBuilder += a
       this
     }
@@ -154,7 +163,7 @@ object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SByte] =
       Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SByte]): this.type = {
+    override def ++=(as: TraversableOnce[SByte]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -176,7 +185,7 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SChar] = {
       new ArrayBuilder.ofChar
     }
-    def addOne(a: SChar): this.type = {
+    def +=(a: SChar): this.type = {
       arrayBuilder += a
       this
     }
@@ -184,7 +193,7 @@ object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SChar] =
       Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SChar]): this.type = {
+    override def ++=(as: TraversableOnce[SChar]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -207,7 +216,7 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SDouble] = {
       new ArrayBuilder.ofDouble
     }
-    def addOne(a: SDouble): this.type = {
+    def +=(a: SDouble): this.type = {
       arrayBuilder += a
       this
     }
@@ -215,7 +224,7 @@ object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SDouble] =
       Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SDouble]): this.type = {
+    override def ++=(as: TraversableOnce[SDouble]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -238,7 +247,7 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SFloat] = {
       new ArrayBuilder.ofFloat
     }
-    def addOne(a: SFloat): this.type = {
+    def +=(a: SFloat): this.type = {
       arrayBuilder += a
       this
     }
@@ -246,7 +255,7 @@ object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SFloat] =
       Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SFloat]): this.type = {
+    override def ++=(as: TraversableOnce[SFloat]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -268,7 +277,7 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SInt] = {
       new ArrayBuilder.ofInt
     }
-    def addOne(a: SInt): this.type = {
+    def +=(a: SInt): this.type = {
       arrayBuilder += a
       this
     }
@@ -276,7 +285,7 @@ object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SInt] =
       Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SInt]): this.type = {
+    override def ++=(as: TraversableOnce[SInt]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -298,7 +307,7 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SLong] = {
       new ArrayBuilder.ofLong
     }
-    def addOne(a: SLong): this.type = {
+    def +=(a: SLong): this.type = {
       arrayBuilder += a
       this
     }
@@ -306,7 +315,7 @@ object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SLong] =
       Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SLong]): this.type = {
+    override def ++=(as: TraversableOnce[SLong]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -329,7 +338,7 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SShort] = {
       new ArrayBuilder.ofShort
     }
-    def addOne(a: SShort): this.type = {
+    def +=(a: SShort): this.type = {
       arrayBuilder += a
       this
     }
@@ -337,7 +346,7 @@ object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SShort] =
       Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SShort]): this.type = {
+    override def ++=(as: TraversableOnce[SShort]): this.type = {
       arrayBuilder ++= as
       this
     }
