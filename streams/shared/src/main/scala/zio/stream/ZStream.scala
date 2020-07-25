@@ -3651,13 +3651,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Constructs a stream from a range of integers (lower bound included, upper bound not included)
    */
   def range(min: Int, max: Int, chunkSize: Int = DefaultChunkSize): ZStream[Any, Nothing, Int] = {
-    val pull= (ref: Ref[Int]) =>
+    val pull = (ref: Ref[Int]) =>
       for {
         start <- ref.getAndUpdate(_ + chunkSize)
-        _ <- ZIO.when(start >= max)(ZIO.fail(None))
+        _     <- ZIO.when(start >= max)(ZIO.fail(None))
       } yield Chunk.range(start, (start + chunkSize).min(max))
     ZStream(Ref.makeManaged(min).map(pull))
   }
+
   /**
    * Repeats the provided value infinitely.
    */

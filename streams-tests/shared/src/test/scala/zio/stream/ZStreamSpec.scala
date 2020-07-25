@@ -494,10 +494,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                 .fromEffect(latch1.await)
-                .flatMap(_ => ZStream.range(1, 17).ensuring(latch2.succeed(())))
+                .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
               s2 = ZStream
                 .fromEffect(latch3.await)
-                .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
+                .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferDropping(8)
               snapshots <- s.process.use { as =>
                             for {
@@ -523,34 +523,31 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("range")(
           testM("range includes min value and excludes max value") {
             assertM(
-              (ZStream.range(1, 2))
-                .runCollect
+              (ZStream.range(1, 2)).runCollect
             )(equalTo(Chunk(1)))
           },
           testM("two large ranges can be concatenated") {
             assertM(
-              (ZStream.range(1, 1000) ++ ZStream.range(1000, 2000))
-                .runCollect
+              (ZStream.range(1, 1000) ++ ZStream.range(1000, 2000)).runCollect
             )(equalTo(Chunk.range(1, 2000)))
           },
           testM("two small ranges can be concatenated") {
             assertM(
-              (ZStream.range(1, 10) ++ ZStream.range(10, 20))
-                .runCollect
+              (ZStream.range(1, 10) ++ ZStream.range(10, 20)).runCollect
             )(equalTo(Chunk.range(1, 20)))
           },
           testM("range emits no values when start >= end") {
             assertM(
-              (ZStream.range(1, 1) ++ ZStream.range(2, 1))
-                .runCollect
+              (ZStream.range(1, 1) ++ ZStream.range(2, 1)).runCollect
             )(equalTo(Chunk.empty))
           },
           testM("range emits values in chunks of chunkSize") {
             assertM(
-              (ZStream.range(1, 10, 2))
+              (ZStream
+                .range(1, 10, 2))
                 .mapChunks(c => Chunk[Int](c.sum))
                 .runCollect
-            )(equalTo(Chunk(1+2, 3+4, 5+6, 7+8, 9)))
+            )(equalTo(Chunk(1 + 2, 3 + 4, 5 + 6, 7 + 8, 9)))
           }
         ),
         suite("bufferSliding")(
@@ -572,10 +569,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                 .fromEffect(latch1.await)
-                .flatMap(_ => ZStream.range(1, 17).ensuring(latch2.succeed(())))
+                .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
               s2 = ZStream
                 .fromEffect(latch3.await)
-                .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
+                .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferSliding(8)
               snapshots <- s.process.use { as =>
                             for {
