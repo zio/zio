@@ -1509,14 +1509,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       self.foldM(
         orElse(_, optionB).map(Left(_)),
         a =>
-          clock
-            .currentTime(TimeUnit.MILLISECONDS)
-            .map(java.time.Instant.ofEpochMilli(_))
+          clock.currentDateTime.orDie
             .flatMap(now =>
               step(now, a).flatMap {
                 case Done(b) => ZIO.succeed(Right(b))
                 case Continue(b, interval, next) =>
-                  val duration = Duration(interval.toEpochMilli() - now.toEpochMilli(), TimeUnit.MILLISECONDS)
+                  val duration =
+                    Duration(interval.toInstant.toEpochMilli() - now.toInstant.toEpochMilli(), TimeUnit.MILLISECONDS)
 
                   clock.sleep(duration) *> loop(Some(b), next)
               }
@@ -1562,14 +1561,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       self
         .map(Right(_))
         .catchAll(e =>
-          clock
-            .currentTime(TimeUnit.MILLISECONDS)
-            .map(java.time.Instant.ofEpochMilli(_))
+          clock.currentDateTime.orDie
             .flatMap(now =>
               step(now, e).flatMap {
                 case Done(out) => orElse(e, out).map(Left(_))
                 case Continue(_, interval, next) =>
-                  val duration = Duration(interval.toEpochMilli() - now.toEpochMilli(), TimeUnit.MILLISECONDS)
+                  val duration =
+                    Duration(interval.toInstant.toEpochMilli() - now.toInstant.toEpochMilli(), TimeUnit.MILLISECONDS)
 
                   clock.sleep(duration) *> loop(next)
               }

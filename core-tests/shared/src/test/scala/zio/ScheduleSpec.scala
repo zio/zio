@@ -1,7 +1,5 @@
 package zio
 
-import java.time.Instant
-
 import scala.concurrent.Future
 
 import zio.clock.Clock
@@ -121,13 +119,13 @@ object ScheduleSpec extends ZIOBaseSpec {
     suite("Simulate a schedule")(
       testM("without timing out") {
         val schedule  = Schedule.exponential(1.minute)
-        val scheduled = schedule.run(Instant.EPOCH, List.fill(5)(()))
+        val scheduled = clock.currentDateTime.orDie.flatMap(schedule.run(_, List.fill(5)(())))
         val expected  = Chunk(1.minute, 2.minute, 4.minute, 8.minute, 16.minute)
         assertM(scheduled)(equalTo(expected))
       } @@ timeout(1.seconds),
       testM("respect Schedule.recurs even if more input is provided than needed") {
         val schedule  = Schedule.recurs(2) && Schedule.exponential(1.minute)
-        val scheduled = schedule.run(Instant.EPOCH, 1 to 10)
+        val scheduled = clock.currentDateTime.orDie.flatMap(schedule.run(_, 1 to 10))
         val expected  = Chunk((0L, 1.minute), (1L, 2.minute), (2L, 4.minute))
         assertM(scheduled)(equalTo(expected))
       }

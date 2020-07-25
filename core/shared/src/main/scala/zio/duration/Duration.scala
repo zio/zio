@@ -16,7 +16,7 @@
 
 package zio.duration
 
-import java.time.{ Duration => JavaDuration, Instant }
+import java.time.{ Duration => JavaDuration, OffsetDateTime }
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
@@ -68,8 +68,8 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
 }
 
 object Duration {
-  def fromInterval(start: Instant, end: Instant): Duration = {
-    val delta = end.toEpochMilli() - start.toEpochMilli()
+  def fromInterval(start: OffsetDateTime, end: OffsetDateTime): Duration = {
+    val delta = end.toInstant.toEpochMilli() - start.toInstant.toEpochMilli()
 
     if (delta < 0) Duration.Zero
     else Duration(delta, TimeUnit.MILLISECONDS)
@@ -166,8 +166,8 @@ object Duration {
 
   def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
 
-  def fromInstant(instant: Instant): Duration =
-    Duration(instant.toEpochMilli, TimeUnit.MILLISECONDS)
+  def fromOffsetDateTime(offsetDateTime: OffsetDateTime): Duration =
+    Duration(offsetDateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
 
   def fromNanos(nanos: Long): Duration = Finite(nanos)
 
