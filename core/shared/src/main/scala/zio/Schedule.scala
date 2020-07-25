@@ -403,7 +403,7 @@ final case class Schedule[-Env, -In, +Out](
     def loop(z: Z, self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Z] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
-          case Done(out) => f(z, out).map(Done(_))
+          case Done(_) => ZIO.succeed(Done(z))
           case Continue(out, interval, next) =>
             f(z, out).map(z2 => Continue(z2, interval, loop(z2, next)))
         }

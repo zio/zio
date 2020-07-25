@@ -355,12 +355,23 @@ object ScheduleSpec extends ZIOBaseSpec {
    * Run a schedule using the provided input and collect all outputs
    */
   def run[R <: Clock with TestClock, A, B](schedule: Schedule[R, A, B])(input: Iterable[A]): ZIO[R, Nothing, Chunk[B]] =
-    for {
-      driver <- schedule.driver[A]
-      fiber  <- ZIO.foreach(input)(driver.next).fork
-      _      <- TestClock.setTime(Duration.Infinity)
-      output <- fiber.join
-    } yield Chunk.fromIterable(output)
+    run {
+      schedule.driver[A].flatMap { driver =>
+        def loop(input: List[A], acc: Chunk[B]): ZIO[R, Nothing, Chunk[B]] =
+          input match {
+            case h :: t =>
+              driver
+                .next(h)
+                .foldM(
+                  _ => driver.last.fold(_ => acc, b => acc :+ b),
+                  b => loop(t, acc :+ b)
+                )
+            case Nil => UIO.succeed(acc)
+          }
+
+        loop(input.toList, Chunk.empty)
+      }
+    }
 
   def run[R <: TestClock, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
     for {
