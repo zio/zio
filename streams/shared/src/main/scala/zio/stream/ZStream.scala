@@ -3655,7 +3655,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       for {
         start <- ref.getAndUpdate(_ + chunkSize)
         _     <- ZIO.when(start >= max)(ZIO.fail(None))
-      } yield Chunk.range(start, (start + chunkSize).min(max))
+      } yield Chunk.fromIterable(Range(start, (start + chunkSize).min(max)))
     ZStream(Ref.makeManaged(min).map(pull))
   }
 

@@ -529,12 +529,12 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("two large ranges can be concatenated") {
             assertM(
               (ZStream.range(1, 1000) ++ ZStream.range(1000, 2000)).runCollect
-            )(equalTo(Chunk.range(1, 2000)))
+            )(equalTo(Chunk.fromIterable(Range(1, 2000))))
           },
           testM("two small ranges can be concatenated") {
             assertM(
               (ZStream.range(1, 10) ++ ZStream.range(10, 20)).runCollect
-            )(equalTo(Chunk.range(1, 20)))
+            )(equalTo(Chunk.fromIterable(Range(1, 20))))
           },
           testM("range emits no values when start >= end") {
             assertM(
