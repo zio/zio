@@ -1274,7 +1274,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * takes to produce a value.
    */
   final def fixed(duration: Duration): ZStream[R with Clock, E, O] =
-    scheduleElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
+    repeatElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
       case Right(x) => x
     }
 
@@ -2265,7 +2265,57 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * the end of each repetition.
    */
   final def repeatEither[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1 with Clock, E, Either[B, O]] =
-    repeatWith(schedule)(Right(_), Left(_))
+    repeatWith(schedule)(Right(_), Left(_))    
+
+  /**
+   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
+   */
+  final def repeatElements[R1 <: R](schedule: Schedule[R1, O, Any]): ZStream[R1 with Clock, E, O] =
+    repeatElementsEither(schedule).collect { case Right(a) => a }
+
+  /**
+   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
+   */
+  final def repeatElementsEither[R1 <: R, E1 >: E, B](
+    schedule: Schedule[R1, O, B]
+  ): ZStream[R1 with Clock, E1, Either[B, O]] =
+    repeatElementsWith(schedule)(Right.apply, Left.apply)
+
+  /**
+   * Repeats each element of the stream using the provided schedule, additionally emitting the schedule's output
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `repeatElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
+   * Uses the provided functions to align the stream and schedule outputs on a common type.
+   */
+  final def repeatElementsWith[R1 <: R, E1 >: E, B, C](
+    schedule: Schedule[R1, O, B]
+  )(f: O => C, g: B => C): ZStream[R1 with Clock, E1, C] =
+    ZStream {
+      for {
+        as     <- self.process.mapM(BufferedPull.make(_))
+        driver <- schedule.driver.toManaged_ : ZManaged[R1 with Clock, Nothing, Schedule.Driver[R1 with Clock, O, B]]
+        state  <- Ref.make[Option[O]](None).toManaged_
+        pull = {
+          def go: ZIO[R1 with Clock, Option[E1], Chunk[C]] =
+            state.get.flatMap {
+              case None => 
+                as.pullElement.flatMap(o => state.set(Some(o))).as(Chunk.empty)
+
+              case Some(o) => 
+                (driver.next(o) as Chunk(f(o))) orElse (driver.last.orDie.map(b => Chunk(f(o), g(b))) <* driver.reset <* state.set(None))
+            }
+
+          go
+        }
+      } yield pull
+    }
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
@@ -2408,51 +2458,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     scheduleWith(schedule)(Right.apply, Left.apply)
 
   /**
-   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
-   * and if not short circuited, repeat element once".
-   */
-  final def scheduleElements[R1 <: R](schedule: Schedule[R1, O, Any]): ZStream[R1 with Clock, E, O] =
-    scheduleElementsEither(schedule).collect { case Right(a) => a }
-
-  /**
-   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
-   * and if not short circuited, repeat element once".
-   */
-  final def scheduleElementsEither[R1 <: R, E1 >: E, B](
-    schedule: Schedule[R1, O, B]
-  ): ZStream[R1 with Clock, E1, Either[B, O]] =
-    scheduleElementsWith(schedule)(Right.apply, Left.apply)
-
-  /**
-   * Repeats each element of the stream using the provided schedule, additionally emitting the schedule's output
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
-   * and if not short circuited, repeat element once".
-   * Uses the provided functions to align the stream and schedule outputs on a common type.
-   */
-  final def scheduleElementsWith[R1 <: R, E1 >: E, B, C](
-    schedule: Schedule[R1, O, B]
-  )(f: O => C, g: B => C): ZStream[R1 with Clock, E1, C] =
-    ZStream {
-      for {
-        as     <- self.process.mapM(BufferedPull.make(_))
-        driver <- schedule.driver.toManaged_ : ZManaged[R1 with Clock, Nothing, Schedule.Driver[R1 with Clock, O, B]]
-        pull = {
-          def go: ZIO[R1 with Clock, Option[E1], Chunk[C]] =
-            as.pullElement.flatMap { o =>
-              (driver.next(o) as Chunk(f(o))) orElse (driver.last.orDie.map(b => Chunk(f(o), g(b))) <* driver.reset)
-            }
-
-          go
-        }
-      } yield pull
-    }
-
-  /**
    * Schedules the output of the stream using the provided `schedule` and emits its output at
    * the end (if `schedule` is finite).
    * Uses the provided function to align the stream and schedule outputs on the same type.
@@ -2461,47 +2466,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     schedule: Schedule[R1, O, B]
   )(f: O => C, g: B => C): ZStream[R1 with Clock, E1, C] =
     ZStream[R1 with Clock, E1, C] {
-      type Step = Schedule.StepFunction[R1, O, B]
-
-      import Schedule.Decision._
-
       for {
         as    <- self.process.mapM(BufferedPull.make(_))
-        state <- Ref.make[(Option[OffsetDateTime], Step, Option[() => B])]((None, schedule.step, None)).toManaged_
-        pull = state.get.flatMap {
-          case (start, step, finish0) =>
-            // Before pulling from the stream, we need to check whether the previous
-            // action ended the schedule, in which case we must emit its final output
-            finish0 match {
-              case None =>
-                for {
-                  a <- as.pullElement.optional.mapError(Some(_))
-                  c <- a match {
-                        // There's a value emitted by the underlying stream, we emit it
-                        // and check whether the schedule ends; in that case, we record
-                        // its final state, to be emitted during the next pull
-                        case Some(a) =>
-                          clock.currentDateTime.orDie
-                            .flatMap(now =>
-                              start.fold(ZIO.unit: URIO[Clock, Any])(start =>
-                                clock.sleep(Duration.fromInterval(now, start))
-                              ) *>
-                                step(now, a).flatMap {
-                                  case Done(b) => state.set((None, schedule.step, Some(() => b)))
-                                  case Continue(_, interval, next) =>
-                                    state.set((Some(interval), next, None)) // TODO: 'b' not used???
-                                }
-                            )
-                            .as(f(a))
-
-                        // The stream ends when both the underlying stream ends and the final
-                        // schedule value has been emitted
-                        case None => Pull.end
-                      }
-                } yield Chunk.single(c)
-              case Some(b) => state.set((start, step, None)) *> Pull.emit(g(b()))
-            }
-        }
+        driver <- schedule.driver.toManaged_ : ZManaged[Any, Nothing, Schedule.Driver[R1 with Clock, O, B]]
+        pull = as.pullElement.flatMap(o => driver.next(o).as(Chunk(f(o))) orElse (driver.last.orDie.map(b => Chunk(f(o), g(b))) <* driver.reset))
       } yield pull
     }
 
