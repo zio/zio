@@ -329,7 +329,7 @@ final case class Schedule[-Env, -In, +Out](
   /**
    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
    */
-  def driver[In1 <: In]: UIO[Schedule.Driver[Env with Clock, In1, Out]] =
+  def driver: UIO[Schedule.Driver[Env with Clock, In, Out]] =
     Ref.make[(Option[Out], StepFunction[Env with Clock, In, Out])]((None, step)).map { ref =>
       val next = (in: In) =>
         for {
@@ -337,7 +337,7 @@ final case class Schedule[-Env, -In, +Out](
           now  <- clock.currentDateTime.orDie
           dec  <- step(now, in)
           v <- dec match {
-                case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(())
+                case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)
                 case Continue(out, interval, next) =>
                   ref.set((Some(out), next)) *> ZIO.sleep(Duration.fromInterval(now, interval)) as out
               }
@@ -1010,7 +1010,7 @@ object Schedule {
     if (l.compareTo(r) >= 0) l else r
 
   final case class Driver[-Env, -In, +Out](
-    next: In => ZIO[Env, Unit, Out],
+    next: In => ZIO[Env, None.type, Out],
     last: IO[NoSuchElementException, Out],
     reset: UIO[Unit]
   )

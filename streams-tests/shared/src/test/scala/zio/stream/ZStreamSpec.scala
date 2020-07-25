@@ -2314,35 +2314,35 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Right("A"), Right("B"), Right("C"), Left("!"))))
           )
         ),
-        suite("scheduleElements")(
-          testM("scheduleElementsWith")(
+        suite("repeatElements")(
+          testM("repeatElementsWith")(
             assertM(
               ZStream("A", "B", "C")
-                .scheduleElementsWith(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))(
+                .repeatElementsWith(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))(
                   identity,
                   _.toString
                 )
                 .runCollect
             )(equalTo(Chunk("A", "123", "B", "123", "C", "123")))
           ),
-          testM("scheduleElementsEither")(
+          testM("repeatElementsEither")(
             assertM(
               ZStream("A", "B", "C")
-                .scheduleElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
+                .repeatElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
                 .runCollect
             )(equalTo(Chunk(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123))))
           ),
           testM("repeated && assertspaced")(
             assertM(
               ZStream("A", "B", "C")
-                .scheduleElements(Schedule.once)
+                .repeatElements(Schedule.once)
                 .runCollect
             )(equalTo(Chunk("A", "A", "B", "B", "C", "C")))
           ),
           testM("short circuits in schedule")(
             assertM(
               ZStream("A", "B", "C")
-                .scheduleElements(Schedule.once)
+                .repeatElements(Schedule.once)
                 .take(4)
                 .runCollect
             )(equalTo(Chunk("A", "A", "B", "B")))
@@ -2350,7 +2350,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("short circuits after schedule")(
             assertM(
               ZStream("A", "B", "C")
-                .scheduleElements(Schedule.once)
+                .repeatElements(Schedule.once)
                 .take(3)
                 .runCollect
             )(equalTo(Chunk("A", "A", "B")))

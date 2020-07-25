@@ -356,8 +356,8 @@ object ScheduleSpec extends ZIOBaseSpec {
    */
   def run[R <: Clock with TestClock, A, B](schedule: Schedule[R, A, B])(input: Iterable[A]): ZIO[R, Nothing, Chunk[B]] =
     for {
-      driver <- schedule.driver[A]
-      fiber  <- ZIO.foreach(input)(driver.next).fork
+      driver <- schedule.driver
+      fiber  <- ZIO.foreach(input)(a => driver.next(a).orDieWith(_ => new Error)).fork
       _      <- TestClock.setTime(Duration.Infinity)
       output <- fiber.join
     } yield Chunk.fromIterable(output)
