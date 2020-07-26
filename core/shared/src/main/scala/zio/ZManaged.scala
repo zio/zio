@@ -43,8 +43,18 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)])
-    extends Serializable { self =>
+abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
+
+  /**
+   * The ZIO value that underlies this ZManaged value. To evaluate it, a ReleaseMap is
+   * required. The ZIO value will return a tuple of the resource allocated by this ZManaged
+   * and a finalizer that will release the resource.
+   *
+   * Note that this method is a low-level interface, not intended for regular usage. As such,
+   * it offers no guarantees on interruption or resource safety - those are up to the caller
+   * to enforce!
+   */
+  def zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)]
 
   /**
    * Symbolic alias for zip.
@@ -1391,8 +1401,10 @@ object ZManaged extends ZManagedPlatformSpecific {
    * - Returning the finalizer returned from [[ReleaseMap#add]]. This is important
    *   to prevent double-finalization.
    */
-  def apply[R, E, A](run: ZIO[(R, ReleaseMap), E, (Finalizer, A)]): ZManaged[R, E, A] =
-    new ZManaged(run)
+  def apply[R, E, A](run0: ZIO[(R, ReleaseMap), E, (Finalizer, A)]): ZManaged[R, E, A] =
+    new ZManaged[R, E, A] {
+      def zio = run0
+    }
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
