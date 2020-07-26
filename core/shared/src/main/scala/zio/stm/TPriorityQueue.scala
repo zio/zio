@@ -111,7 +111,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.modify { map =>
       val builder = ChunkBuilder.make[A]()
       map.foreach(builder ++= _._2)
-      (builder.result, SortedMap.empty(map.ordering))
+      (builder.result(), SortedMap.empty(map.ordering))
     }
 
   /**
@@ -133,7 +133,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
         }
         i += l.length
       }
-      (builder.result, updated)
+      (builder.result(), updated)
     }
 
   /**
@@ -161,7 +161,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.modify { map =>
       val builder = ChunkBuilder.make[A]()
       map.foreach(builder ++= _._2)
-      (builder.result, map)
+      (builder.result(), map)
     }
 
   /**

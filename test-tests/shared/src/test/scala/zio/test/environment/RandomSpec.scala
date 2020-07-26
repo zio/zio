@@ -12,21 +12,21 @@ import zio.test.environment.TestRandom.{ DefaultData, Test => ZRandom }
 object RandomSpec extends ZIOBaseSpec {
 
   def spec = suite("RandomSpec")(
-    testM("check clearBooleans")(checkClear(_.nextBoolean)(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
+    testM("check clearBooleans")(checkClear(_.nextBoolean())(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
     testM("check clearBytes")(checkClear(nextBytes(1))(_.feedBytes(_: _*))(_.clearBytes)(_.nextBytes(1))),
-    testM("check clearChars")(checkClear(_.nextPrintableChar)(_.feedChars(_: _*))(_.clearChars)(_.nextPrintableChar)),
-    testM("check clearDoubles")(checkClear(_.nextDouble)(_.feedDoubles(_: _*))(_.clearDoubles)(_.nextDouble)),
-    testM("check clearFloats")(checkClear(_.nextFloat)(_.feedFloats(_: _*))(_.clearFloats)(_.nextFloat)),
-    testM("check clearInts")(checkClear(_.nextInt)(_.feedInts(_: _*))(_.clearInts)(_.nextInt)),
-    testM("check clearLongs")(checkClear(_.nextLong)(_.feedLongs(_: _*))(_.clearLongs)(_.nextLong)),
+    testM("check clearChars")(checkClear(_.nextPrintableChar())(_.feedChars(_: _*))(_.clearChars)(_.nextPrintableChar)),
+    testM("check clearDoubles")(checkClear(_.nextDouble())(_.feedDoubles(_: _*))(_.clearDoubles)(_.nextDouble)),
+    testM("check clearFloats")(checkClear(_.nextFloat())(_.feedFloats(_: _*))(_.clearFloats)(_.nextFloat)),
+    testM("check clearInts")(checkClear(_.nextInt())(_.feedInts(_: _*))(_.clearInts)(_.nextInt)),
+    testM("check clearLongs")(checkClear(_.nextLong())(_.feedLongs(_: _*))(_.clearLongs)(_.nextLong)),
     testM("check clearStrings")(checkClear(_.nextString(1))(_.feedStrings(_: _*))(_.clearStrings)(_.nextString(1))),
-    testM("check feedBooleans")(checkFeed(_.nextBoolean)(_.feedBooleans(_: _*))(_.nextBoolean)),
+    testM("check feedBooleans")(checkFeed(_.nextBoolean())(_.feedBooleans(_: _*))(_.nextBoolean)),
     testM("check feedBytes")(checkFeed(nextBytes(1))(_.feedBytes(_: _*))(_.nextBytes(1))),
-    testM("check feedChars")(checkFeed(_.nextPrintableChar)(_.feedChars(_: _*))(_.nextPrintableChar)),
-    testM("check feedDoubles")(checkFeed(_.nextDouble)(_.feedDoubles(_: _*))(_.nextDouble)),
-    testM("check feedFloats")(checkFeed(_.nextFloat)(_.feedFloats(_: _*))(_.nextFloat)),
-    testM("check feedInts")(checkFeed(_.nextInt)(_.feedInts(_: _*))(_.nextInt)),
-    testM("check feedLongs")(checkFeed(_.nextLong)(_.feedLongs(_: _*))(_.nextLong)),
+    testM("check feedChars")(checkFeed(_.nextPrintableChar())(_.feedChars(_: _*))(_.nextPrintableChar)),
+    testM("check feedDoubles")(checkFeed(_.nextDouble())(_.feedDoubles(_: _*))(_.nextDouble)),
+    testM("check feedFloats")(checkFeed(_.nextFloat())(_.feedFloats(_: _*))(_.nextFloat)),
+    testM("check feedInts")(checkFeed(_.nextInt())(_.feedInts(_: _*))(_.nextInt)),
+    testM("check feedLongs")(checkFeed(_.nextLong())(_.feedLongs(_: _*))(_.nextLong)),
     testM("check feedStrings")(checkFeed(_.nextString(1))(_.feedStrings(_: _*))(_.nextString(1))),
     testM("check nextBoolean")(forAllEqual(_.nextBoolean)(_.nextBoolean())),
     testM("check nextBytes")(forAllEqualBytes),
@@ -154,7 +154,7 @@ object RandomSpec extends ZIOBaseSpec {
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- testRandom.nextGaussian
-        expected   <- ZIO.effectTotal(sRandom.nextGaussian)
+        expected   <- ZIO.effectTotal(sRandom.nextGaussian())
       } yield assert(actual)(approximatelyEquals(expected, 0.01))
     }
 

@@ -16,7 +16,7 @@ abstract class BaseTestTask(
 
   protected lazy val specInstance: AbstractRunnableSpec = {
     import org.portablescala.reflect._
-    val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
+    val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
     Reflect
       .lookupLoadableModuleClass(fqn, testClassLoader)
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
@@ -29,7 +29,7 @@ abstract class BaseTestTask(
       spec    <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary <- SummaryBuilder.buildSummary(spec)
       _       <- sendSummary.provide(summary)
-      events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
+      events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 

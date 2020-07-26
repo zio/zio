@@ -374,7 +374,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         val it = newData.iterator
 
         while (it.hasNext) {
-          array(i).unsafeSet(journal, it.next)
+          array(i).unsafeSet(journal, it.next())
           i += 1
         }
 

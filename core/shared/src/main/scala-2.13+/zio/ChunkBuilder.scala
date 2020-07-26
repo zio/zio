@@ -66,7 +66,7 @@ object ChunkBuilder {
         if (arrayBuilder eq null) {
           Chunk.empty
         } else {
-          Chunk.fromArray(arrayBuilder.result)
+          Chunk.fromArray(arrayBuilder.result())
         }
       override def sizeHint(n: SInt): Unit =
         if (arrayBuilder eq null) {

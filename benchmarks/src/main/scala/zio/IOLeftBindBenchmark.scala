@@ -137,6 +137,6 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => IO(i))
       else IO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 }

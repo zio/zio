@@ -3468,7 +3468,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       Managed.effectTotal(iterator).map { it =>
         IO.effectTotal {
           if (it.hasNext)
-            Pull.emit(it.next)
+            Pull.emit(it.next())
           else
             Pull.end
         }.flatten

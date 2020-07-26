@@ -2734,7 +2734,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foreach_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     ZIO.effectTotal(as.iterator).flatMap { i =>
       def loop: ZIO[R, E, Unit] =
-        if (i.hasNext) f(i.next) *> loop
+        if (i.hasNext) f(i.next()) *> loop
         else ZIO.unit
       loop
     }

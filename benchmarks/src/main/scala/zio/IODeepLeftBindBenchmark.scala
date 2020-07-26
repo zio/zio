@@ -55,7 +55,7 @@ class IODeepLeftBindBenchmark {
       i += 1
     }
 
-    io.unsafeRunSync
+    io.unsafeRunSync()
   }
 
 }

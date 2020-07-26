@@ -53,7 +53,7 @@ sealed abstract class ZTestRunner(
   }
 
   override def serializeTask(task: Task, serializer: TaskDef => String): String =
-    serializer(task.taskDef)
+    serializer(task.taskDef())
 
   override def deserializeTask(task: String, deserializer: String => TaskDef): Task =
     new ZTestTask(deserializer(task), testClassLoader, runnerType, sendSummary, TestArgs.parse(args))

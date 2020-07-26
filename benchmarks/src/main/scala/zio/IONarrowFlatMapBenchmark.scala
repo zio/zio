@@ -127,6 +127,6 @@ class IONarrowFlatMapBenchmark {
       if (i < size) IO(i + 1).flatMap(loop)
       else IO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 }

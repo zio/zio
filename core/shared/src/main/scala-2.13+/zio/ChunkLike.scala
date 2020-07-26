@@ -87,7 +87,7 @@ trait ChunkLike[+A]
       val it = chunks.iterator
       var n  = total
       while (it.hasNext) {
-        val chunk = it.next
+        val chunk = it.next()
         n -= chunk.length
         chunk.toArray(n, dest)
       }
