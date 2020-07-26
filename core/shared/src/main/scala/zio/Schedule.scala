@@ -585,6 +585,28 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
     fold(0)((n: Int, _: Out) => n + 1)
 
   /**
+   * Return a new schedule that automatically resets the schedule to its initial state
+   * after some time of inactivity defined by `duration`.
+   */
+  final def resetAfter(duration: Duration): Schedule[Env, In, Out] =
+    (self zip Schedule.elapsed).resetWhen(_._2 >= duration).map(_._1)
+
+  /**
+   * Resets the schedule when the specified predicate on the schedule output evaluates to true.
+   */
+  final def resetWhen(f: Out => Boolean): Schedule[Env, In, Out] = {
+    def loop(step: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
+      (now: OffsetDateTime, in: In) =>
+        step(now, in).flatMap {
+          case Done(out) => if (f(out)) self.step(now, in) else ZIO.succeed(Done(out))
+          case Continue(out, interval, next) =>
+            if (f(out)) self.step(now, in) else ZIO.succeed(Continue(out, interval, loop(next)))
+        }
+
+    Schedule(loop(self.step))
+  }
+
+  /**
    * Returns a new schedule that makes this schedule available on the `Right` side of an `Either`
    * input, allowing propagating some type `X` through this channel on demand.
    */
@@ -730,11 +752,12 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
     (self zip that).map(f.tupled)
 }
 object Schedule {
+
   /**
-    * Constructs a new schedule from the specified step function.
-    */
-  def apply[Env, In, Out](step: StepFunction[Env, In, Out]): Schedule[Env, In, Out] = 
-    new Schedule(step){}
+   * Constructs a new schedule from the specified step function.
+   */
+  def apply[Env, In, Out](step: StepFunction[Env, In, Out]): Schedule[Env, In, Out] =
+    new Schedule(step) {}
 
   /**
    * A schedule that recurs anywhere, collecting all inputs into a list.

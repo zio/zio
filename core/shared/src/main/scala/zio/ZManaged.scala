@@ -43,8 +43,18 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)])
-    extends Serializable { self =>
+abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
+
+  /**
+   * The ZIO value that underlies this ZManaged value. To evaluate it, a ReleaseMap is
+   * required. The ZIO value will return a tuple of the resource allocated by this ZManaged
+   * and a finalizer that will release the resource.
+   *
+   * Note that this method is a low-level interface, not intended for regular usage. As such,
+   * it offers no guarantees on interruption or resource safety - those are up to the caller
+   * to enforce!
+   */
+  def zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)]
 
   /**
    * Symbolic alias for zip.
@@ -740,12 +750,6 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     refineOrDieWith(pf)(ev1)
 
   /**
-   * Keeps some of the errors, and terminates the fiber with the rest.
-   */
-  def refineToOrDie[E1: ClassTag](implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, E1, A] =
-    refineOrDieWith { case e: E1 => e }(ev1)
-
-  /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
    * the specified function to convert the `E` into a `Throwable`.
    */
@@ -1125,7 +1129,7 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     }
 }
 
-object ZManaged {
+object ZManaged extends ZManagedPlatformSpecific {
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZManaged[R, Nothing, A] =
@@ -1400,8 +1404,10 @@ object ZManaged {
    * - Returning the finalizer returned from [[ReleaseMap#add]]. This is important
    *   to prevent double-finalization.
    */
-  def apply[R, E, A](run: ZIO[(R, ReleaseMap), E, (Finalizer, A)]): ZManaged[R, E, A] =
-    new ZManaged(run)
+  def apply[R, E, A](run0: ZIO[(R, ReleaseMap), E, (Finalizer, A)]): ZManaged[R, E, A] =
+    new ZManaged[R, E, A] {
+      def zio = run0
+    }
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
@@ -1471,6 +1477,13 @@ object ZManaged {
    */
   def collectParN[R, E, A, B](n: Int)(in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
     foreachParN(n)(in)(a => f(a).optional).map(_.flatten)
+
+  /**
+   * Similar to Either.cond, evaluate the predicate,
+   * return the given A as success if predicate returns true, and the given E as error otherwise
+   */
+  def cond[E, A](predicate: Boolean, result: => A, error: => E): Managed[E, A] =
+    if (predicate) succeed(result) else fail(error)
 
   /**
    * Returns an effect that dies with the specified `Throwable`.
@@ -2294,4 +2307,14 @@ object ZManaged {
 
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow((Finalizer.noop, r)))
+
+  implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZManaged[R, E, A]) extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZManaged[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
+  }
+
 }

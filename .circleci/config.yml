@@ -121,6 +121,17 @@ mdoc: &mdoc
     - <<: *clean_cache
     - <<: *save_cache
 
+mimaChecks: &mimaChecks
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - run:
+        name: Run MiMa checks
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! mimaChecks
+    - <<: *clean_cache
+    - <<: *save_cache
+
 testJVM: &testJVM
   steps:
     - checkout
@@ -305,6 +316,22 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
+  mima_212:
+    <<: *mimaChecks
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_212
+      - <<: *jdk_8
+
+  mima_213:
+    <<: *mimaChecks
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_213
+      - <<: *jdk_8
+
   test_dotty_jdk8_jvm:
     <<: *testJVMDotty
     <<: *machine_ubuntu
@@ -378,6 +405,16 @@ workflows:
             - lint
           filters:
             <<: *filter_tags
+      - mima_212:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
+      - mima_213:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
       - test_211_jdk8_jvm:
           requires:
             - lint
@@ -434,6 +471,8 @@ workflows:
             - test_213_jdk8_jvm
             - test_213_jdk8_js
             - mdoc
+            - mima_212
+            - mima_213
           filters:
             <<: *filter_tags
             branches:
