@@ -2253,19 +2253,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     repeatWith(schedule)(Right(_), Left(_))
 
   /**
-   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
-   * and if not short circuited, repeat element once".
+   * Repeats each element of the stream using the provided schedule. Repetitions are done in
+   * addition to the first execution, which means using `Schedule.recurs(1)` actually results in
+   * the original effect, plus an additional recurrence, for a total of two repetitions of each
+   * value in the stream.
    */
   final def repeatElements[R1 <: R](schedule: Schedule[R1, O, Any]): ZStream[R1 with Clock, E, O] =
     repeatElementsEither(schedule).collect { case Right(a) => a }
 
   /**
-   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
-   * and if not short circuited, repeat element once".
+   * Repeats each element of the stream using the provided schedule. When the schedule is finished,
+   * then the output of the schedule will be emitted into the stream. Repetitions are done in
+   * addition to the first execution, which means using `Schedule.recurs(1)` actually results in
+   * the original effect, plus an additional recurrence, for a total of two repetitions of each
+   * value in the stream.
    */
   final def repeatElementsEither[R1 <: R, E1 >: E, B](
     schedule: Schedule[R1, O, B]
@@ -2273,11 +2274,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     repeatElementsWith(schedule)(Right.apply, Left.apply)
 
   /**
-   * Repeats each element of the stream using the provided schedule, additionally emitting the schedule's output
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `repeatElements(Schedule.once)` means "emit element
-   * and if not short circuited, repeat element once".
-   * Uses the provided functions to align the stream and schedule outputs on a common type.
+   * Repeats each element of the stream using the provided schedule. When the schedule is finished,
+   * then the output of the schedule will be emitted into the stream. Repetitions are done in
+   * addition to the first execution, which means using `Schedule.recurs(1)` actually results in
+   * the original effect, plus an additional recurrence, for a total of two repetitions of each
+   * value in the stream.
+   *
+   * This function accepts to conversion functions, which allow the output of this steam and the
+   * output of the provided schedule to be unified into a single type. For example, `Either` or
+   * similar data type.
    */
   final def repeatElementsWith[R1 <: R, E1 >: E, B, C](
     schedule: Schedule[R1, O, B]
@@ -2291,11 +2296,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           def go: ZIO[R1 with Clock, Option[E1], Chunk[C]] =
             state.get.flatMap {
               case None =>
-                as.pullElement.flatMap(o => state.set(Some(o))).as(Chunk.empty)
+                as.pullElement.flatMap(o => state.set(Some(o)) as Chunk.single(f(o)))
 
               case Some(o) =>
-                (driver.next(o) as Chunk(f(o))) orElse (driver.last.orDie.map(b => Chunk(f(o), g(b))) <* driver.reset <* state
-                  .set(None))
+                val advance = driver.next(o) as Chunk(f(o))
+                val reset   = driver.last.orDie.map(b => Chunk.single(g(b))) <* driver.reset <* state.set(None)
+
+                advance orElse reset
             }
 
           go
@@ -3654,11 +3661,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
+   * Creates a stream from an effect producing a value of type `A`, which is repeated using the
+   * specified schedule.
    */
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Clock, E, A] =
-    ZStream {
-      schedule.driver.toManaged_.map(driver => effect.mapError(Some(_)).tap(driver.next).map(Chunk(_)))
+    ZStream.fromEffect(effect zip schedule.driver).flatMap {
+      case (a, driver) =>
+        ZStream(a) ++
+          ZStream.repeatEffectOption(effect.mapError(Some(_)).tap(driver.next(_)))
     }
 
   /**

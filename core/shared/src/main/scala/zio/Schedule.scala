@@ -46,8 +46,8 @@ import zio.clock.Clock
  * object for `Schedule` contains all common types of schedules, both for performing retrying, as
  * well as performing repetition.
  */
-final case class Schedule[-Env, -In, +Out](
-  step: Schedule.StepFunction[Env, In, Out]
+sealed abstract class Schedule[-Env, -In, +Out] private (
+  private[zio] val step: Schedule.StepFunction[Env, In, Out]
 ) { self =>
   import Schedule.Decision._
   import Schedule._
@@ -730,6 +730,11 @@ final case class Schedule[-Env, -In, +Out](
     (self zip that).map(f.tupled)
 }
 object Schedule {
+  /**
+    * Constructs a new schedule from the specified step function.
+    */
+  def apply[Env, In, Out](step: StepFunction[Env, In, Out]): Schedule[Env, In, Out] = 
+    new Schedule(step){}
 
   /**
    * A schedule that recurs anywhere, collecting all inputs into a list.
