@@ -381,7 +381,7 @@ object ScheduleSpec extends ZIOBaseSpec {
    */
   def run[R <: Clock with TestClock, A, B](schedule: Schedule[R, A, B])(input: Iterable[A]): ZIO[R, Nothing, Chunk[B]] =
     run {
-      schedule.driver[A].flatMap { driver =>
+      schedule.driver.flatMap { driver =>
         def loop(input: List[A], acc: Chunk[B]): ZIO[R, Nothing, Chunk[B]] =
           input match {
             case h :: t =>

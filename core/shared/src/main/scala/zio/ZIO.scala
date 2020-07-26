@@ -1502,7 +1502,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   ): ZIO[R1 with Clock, E2, Either[C, B]] =
-    schedule.driver[A].flatMap { driver =>
+    schedule.driver.flatMap { driver =>
       def loop(a: A): ZIO[R1 with Clock, E2, Either[C, B]] =
         driver
           .next(a)

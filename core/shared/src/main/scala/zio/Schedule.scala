@@ -48,7 +48,7 @@ import zio.clock.Clock
  */
 sealed abstract class Schedule[-Env, -In, +Out] private (
   private[zio] val step: Schedule.StepFunction[Env, In, Out]
-) { self =>
+) extends Serializable { self =>
   import Schedule.Decision._
   import Schedule._
 
