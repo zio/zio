@@ -1501,29 +1501,25 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def repeatOrElseEither[R1 <: R, B, E2, C](
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
-  ): ZIO[R1 with Clock, E2, Either[C, B]] = {
-    import Schedule.Decision._
-    import java.util.concurrent.TimeUnit
+  ): ZIO[R1 with Clock, E2, Either[C, B]] =
+    schedule.driver.flatMap { driver =>
+      def loop(a: A): ZIO[R1 with Clock, E2, Either[C, B]] =
+        driver
+          .next(a)
+          .foldM(
+            _ => driver.last.orDie.map(Right(_)),
+            b =>
+              self.foldM(
+                e => orElse(e, Some(b)).map(Left(_)),
+                a => loop(a)
+              )
+          )
 
-    def loop(optionB: Option[B], step: Schedule.StepFunction[R1, A, B]): ZIO[R1 with Clock, E2, Either[C, B]] =
       self.foldM(
-        orElse(_, optionB).map(Left(_)),
-        a =>
-          clock.currentDateTime.orDie
-            .flatMap(now =>
-              step(now, a).flatMap {
-                case Done(b) => ZIO.succeed(Right(b))
-                case Continue(b, interval, next) =>
-                  val duration =
-                    Duration(interval.toInstant.toEpochMilli() - now.toInstant.toEpochMilli(), TimeUnit.MILLISECONDS)
-
-                  clock.sleep(duration) *> loop(Some(b), next)
-              }
-            )
+        e => orElse(e, None).map(Left(_)),
+        a => loop(a)
       )
-
-    loop(None, schedule.step)
-  }
+    }
 
   /**
    * Retries with the specified retry policy.
