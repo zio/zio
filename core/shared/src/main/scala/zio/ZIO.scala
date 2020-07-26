@@ -791,7 +791,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Unwraps the optional error, defaulting to the provided value.
    */
-  final def flattenErrorOption[E1, E2 <: E1](default: E2)(implicit ev: E <:< Option[E1]): ZIO[R, E1, A] =
+  final def flattenErrorOption[E1, E2 <: E1](default: => E2)(implicit ev: E <:< Option[E1]): ZIO[R, E1, A] =
     self.mapError(e => ev(e).getOrElse(default))
 
   /**
@@ -1815,7 +1815,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * The same as [[timeout]], but instead of producing a `None` in the event
    * of timeout, it will produce the specified error.
    */
-  final def timeoutFail[E1 >: E](e: E1)(d: Duration): ZIO[R with Clock, E1, A] =
+  final def timeoutFail[E1 >: E](e: => E1)(d: Duration): ZIO[R with Clock, E1, A] =
     ZIO.flatten(timeoutTo(ZIO.fail(e))(ZIO.succeedNow)(d))
 
   /**
