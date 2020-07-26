@@ -46,8 +46,8 @@ import zio.clock.Clock
  * object for `Schedule` contains all common types of schedules, both for performing retrying, as
  * well as performing repetition.
  */
-final case class Schedule[-Env, -In, +Out](
-  step: Schedule.StepFunction[Env, In, Out]
+sealed abstract class Schedule[-Env, -In, +Out] private (
+  private[zio] val step: Schedule.StepFunction[Env, In, Out]
 ) { self =>
   import Schedule.Decision._
   import Schedule._
@@ -329,7 +329,7 @@ final case class Schedule[-Env, -In, +Out](
   /**
    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
    */
-  def driver[In1 <: In]: UIO[Schedule.Driver[Env with Clock, In1, Out]] =
+  def driver: UIO[Schedule.Driver[Env with Clock, In, Out]] =
     Ref.make[(Option[Out], StepFunction[Env with Clock, In, Out])]((None, step)).map { ref =>
       val next = (in: In) =>
         for {
@@ -337,7 +337,7 @@ final case class Schedule[-Env, -In, +Out](
           now  <- clock.currentDateTime.orDie
           dec  <- step(now, in)
           v <- dec match {
-                case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(())
+                case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)
                 case Continue(out, interval, next) =>
                   ref.set((Some(out), next)) *> ZIO.sleep(Duration.fromInterval(now, interval)) as out
               }
@@ -585,6 +585,28 @@ final case class Schedule[-Env, -In, +Out](
     fold(0)((n: Int, _: Out) => n + 1)
 
   /**
+   * Return a new schedule that automatically resets the schedule to its initial state
+   * after some time of inactivity defined by `duration`.
+   */
+  final def resetAfter(duration: Duration): Schedule[Env, In, Out] =
+    (self zip Schedule.elapsed).resetWhen(_._2 >= duration).map(_._1)
+
+  /**
+   * Resets the schedule when the specified predicate on the schedule output evaluates to true.
+   */
+  final def resetWhen(f: Out => Boolean): Schedule[Env, In, Out] = {
+    def loop(step: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
+      (now: OffsetDateTime, in: In) =>
+        step(now, in).flatMap {
+          case Done(out) => if (f(out)) self.step(now, in) else ZIO.succeed(Done(out))
+          case Continue(out, interval, next) =>
+            if (f(out)) self.step(now, in) else ZIO.succeed(Continue(out, interval, loop(next)))
+        }
+
+    Schedule(loop(self.step))
+  }
+
+  /**
    * Returns a new schedule that makes this schedule available on the `Right` side of an `Either`
    * input, allowing propagating some type `X` through this channel on demand.
    */
@@ -730,6 +752,12 @@ final case class Schedule[-Env, -In, +Out](
     (self zip that).map(f.tupled)
 }
 object Schedule {
+
+  /**
+   * Constructs a new schedule from the specified step function.
+   */
+  def apply[Env, In, Out](step: StepFunction[Env, In, Out]): Schedule[Env, In, Out] =
+    new Schedule(step) {}
 
   /**
    * A schedule that recurs anywhere, collecting all inputs into a list.
@@ -1010,7 +1038,7 @@ object Schedule {
     if (l.compareTo(r) >= 0) l else r
 
   final case class Driver[-Env, -In, +Out](
-    next: In => ZIO[Env, Unit, Out],
+    next: In => ZIO[Env, None.type, Out],
     last: IO[NoSuchElementException, Out],
     reset: UIO[Unit]
   )

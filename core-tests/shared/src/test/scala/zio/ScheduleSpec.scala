@@ -339,6 +339,31 @@ object ScheduleSpec extends ZIOBaseSpec {
         _   <- ref.getAndUpdate(_ + 1).repeat(schedule(ref))
         res <- ref.get
       } yield assert(res)(equalTo(8))
+    },
+    testM("Reset after some inactivity") {
+
+      def io(ref: Ref[Int], latch: Promise[Nothing, Unit]): ZIO[Clock, String, Unit] =
+        ref
+          .updateAndGet(_ + 1)
+          .flatMap(retries =>
+            // the 5th retry will fail after 10 seconds to let the schedule reset
+            if (retries == 5) latch.succeed(()) *> io(ref, latch).delay(10.seconds)
+            // the 10th retry will succeed, which is only possible if the schedule was reset
+            else if (retries == 10) UIO.unit
+            else ZIO.fail("Boom")
+          )
+
+      assertM {
+        for {
+          retriesCounter <- Ref.make(-1)
+          latch          <- Promise.make[Nothing, Unit]
+          fiber          <- io(retriesCounter, latch).retry(Schedule.recurs(5).resetAfter(5.seconds)).fork
+          _              <- latch.await
+          _              <- TestClock.adjust(10.seconds)
+          _              <- fiber.join
+          retries        <- retriesCounter.get
+        } yield retries
+      }(equalTo(10))
     }
   )
 

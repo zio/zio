@@ -343,7 +343,7 @@ object TestAspect extends TimeoutVariants {
    * use with flaky tests.
    */
   def flaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations with Live] =
-    retry(Schedule.recurs(n.toLong))
+    retry(Schedule.recurs(n))
 
   /**
    * An aspect that runs each test on its own separate fiber.
@@ -441,7 +441,7 @@ object TestAspect extends TimeoutVariants {
    * is stable ("non-flaky"). Stops at the first failure.
    */
   def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations with Live] =
-    repeat(Schedule.recurs(n.toLong))
+    repeat(Schedule.recurs(n))
 
   /**
    * Constructs an aspect that requires a test to not terminate within the
@@ -714,6 +714,13 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
         test <* ZTest(condition)
     }
+
+  val untraced: TestAspectPoly = new PerTest[Nothing, Any, Nothing, Any] {
+    override def perTest[R >: Nothing <: Any, E >: Nothing <: Any](
+      test: ZIO[R, TestFailure[E], TestSuccess]
+    ): ZIO[R, TestFailure[E], TestSuccess] =
+      test.untraced
+  }
 
   trait PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
 
