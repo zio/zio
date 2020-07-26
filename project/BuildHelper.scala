@@ -6,7 +6,7 @@ import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
-import scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb
+import scalafix.sbt.ScalafixPlugin.autoImport.{ scalafixConfig, scalafixSemanticdb }
 import DottyFullCompat._
 
 object BuildHelper {
@@ -213,6 +213,10 @@ object BuildHelper {
     name := s"$prjName",
     crossScalaVersions := Seq("2.12.12", "2.11.12", "2.13.3"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
+    scalafixConfig := {
+      if (scalaBinaryVersion.value != "2.13") None
+      else Some(file(".scalafix213.conf"))
+    },
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
       def silencer(name: String) =
