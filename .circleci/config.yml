@@ -277,12 +277,24 @@ microsite: &microsite
       - <<: *clean_cache
       - <<: *save_cache
 
+requires_lint: &requires_lint
+  requires:
+    - lint_212
+    - lint_213
+
 jobs:
-  lint:
+  lint_212:
     <<: *lint
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
+      - <<: *jdk_8
+
+  lint_213:
+    <<: *lint
+    <<: *machine_ubuntu
+    environment:
+      - <<: *scala_213
       - <<: *jdk_8
 
   mdoc:
@@ -397,67 +409,58 @@ workflows:
   version: 2
   build:
     jobs:
-      - lint:
+      - lint_212:
+          filters:
+            <<: *filter_tags
+      - lint_213:
           filters:
             <<: *filter_tags
       - mdoc:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - mima_212:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - mima_213:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - test_211_jdk8_jvm:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - test_212_jdk8_jvm:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - test_213_jdk8_jvm:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - test_dotty_jdk8_jvm:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - test_212_jdk11_jvm:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - test_211_jdk8_js:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - test_212_jdk8_js:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - test_213_jdk8_js:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - test_211_jdk8_native:
-          requires:
-            - lint
+          <<: *requires_lint
           filters:
             <<: *filter_tags
       - release:
