@@ -2282,7 +2282,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * the original effect, plus an additional recurrence, for a total of two repetitions of each
    * value in the stream.
    *
-   * This function accepts to conversion functions, which allow the output of this steam and the
+   * This function accepts two conversion functions, which allow the output of this stream and the
    * output of the provided schedule to be unified into a single type. For example, `Either` or
    * similar data type.
    */
@@ -2342,7 +2342,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                           switchPull((self.map(f) ++ ZStream.fromEffect(scheduleOutput)).process)
                             .tap(currPull.set(_)) *> go
 
-                      val halt = (doneRef.set(true) *> scheduleOutput.flatMap(Pull.emit(_)))
+                      val halt = doneRef.set(true) *> Pull.end
 
                       continue orElse halt
                   },
@@ -3511,7 +3511,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * schedule, continuing for as long as the schedule continues.
    */
   def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R with Clock, Nothing, A] =
-    unwrap(schedule.driver.map(driver => fromEffectOption(driver.next(()))))
+    unwrap(schedule.driver.map(driver => repeatEffectOption(driver.next(()))))
 
   /**
    * Creates a stream from a [[zio.stm.TQueue]] of values.
