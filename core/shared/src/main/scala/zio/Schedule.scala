@@ -839,14 +839,7 @@ object Schedule {
    * and then map that value with given function.
    * */
   def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[Any, A, Option[B]] =
-    doUntil(pf.isDefinedAt(_)).map(pf.lift(_))
-
-  /**
-   * A schedule that recurs for until the input value becomes applicable to partial function
-   * and then map that value with given function.
-   * */
-  def doUntilM[Env, A, B](pf: PartialFunction[A, B]): Schedule[Any, A, Option[B]] =
-    doUntil(pf.isDefinedAt(_)).map(pf.lift(_))
+    identity[A].map(pf.lift(_)).untilOutput(_.isDefined)
 
   /**
    * A schedule that can recur one time, the specified amount of time into the future.
