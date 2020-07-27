@@ -3573,7 +3573,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               collected <- Ref.make(0)
               effect    = ZIO.unit
-              schedule  = Schedule.fixed(interval)
+              schedule  = Schedule.spaced(interval)
               streamFiber <- ZStream
                               .repeatEffectWith(effect, schedule)
                               .tap(_ => collected.update(_ + 1))
