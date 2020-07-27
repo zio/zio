@@ -38,10 +38,10 @@ import zio.internal.Platform
  */
 sealed trait ZLayer[-RIn, +E, +ROut] { self =>
 
-  final def +!+[E1 >: E, RIn2, ROut2](
+  final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut, ROut2]): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
-    self.zipWithPar(that)(ev.unionAll[ROut, ROut2])
+  )(implicit ev: Has.UnionAll[ROut1, ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWithPar(that)(ev.unionAll)
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -49,8 +49,8 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut1, ROut2], tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-    self.zipWithPar(that)(ev.union[ROut1, ROut2])
+  )(implicit ev: Has.Union[ROut1, ROut2], tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWithPar(that)(ev.union)
 
   /**
    * A symbolic alias for `zipPar`.
@@ -73,8 +73,8 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
-    self ++ (self >>> that)
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+    self ++[E1, RIn, ROut1, ROut2] (self >>> that)
 
   /**
    * Feeds the output services of this layer into the input of the specified
@@ -89,16 +89,16 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-    self ++ that
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self ++[E1, RIn2, ROut1, ROut2] that
 
   /**
    * A named alias for `>+>`.
    */
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
-    self >+> that
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+    self >+>[E1, RIn2, ROut1, ROut2] that
 
   /**
    * Builds a layer into a managed value.
@@ -2189,7 +2189,7 @@ object ZLayer {
      * Returns a new layer that produces the outputs of this layer but also
      * passes through the inputs to this layer.
      */
-    def passthrough(implicit ev: Has.AreHas[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
+    def passthrough(implicit ev: Has.Union[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
       ZLayer.identity[RIn] ++ self
   }
 
