@@ -126,12 +126,12 @@ object ZTransducer1 {
           ZTransducer1.foldUntil(init)(p) { (s, is: Chunk[I]) =>
             val b = ChunkBuilder.make[O]()
             var z = s
-            var i = is.length
-            while (i > 0) {
+            var i = 0
+            while (i < is.length) {
               val os = push(z, is(i))
               z = os._2
               b += os._1
-              if (p(z)) i = 0 else i -= 1
+              if (p(z)) i = is.length else i += 1
             }
             b.result() -> z
           }
@@ -157,12 +157,12 @@ object ZTransducer1 {
           ZTransducer1.foldWhile(init)(p) { (s, is: Chunk[I]) =>
             val b = ChunkBuilder.make[O]()
             var z = s
-            var i = is.length
-            while (i > 0) {
+            var i = 0
+            while (i < is.length) {
               val os = push(z, is(i))
               z = os._2
               b += os._1
-              if (p(z)) i -= 1 else i = 0
+              if (p(z)) i += 1 else i = is.length
             }
             b.result() -> z
           }
