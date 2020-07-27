@@ -78,10 +78,22 @@ object AssertionSpec extends ZIOBaseSpec {
     },
     testM("equalTo must not compile when comparing two unrelated types") {
       val result = typeCheck("assert(1)(equalTo(\"abc\"))")
+      val eqlImplicitNotFound = { // see [[zio.test.Eql]]
+        val A = "String"; val B = "Int"
+        s"This operation assumes that values of types ${A} and ${B} could " +
+          s"potentially be equal. However, ${A} and ${B} are unrelated types, so " +
+          "they cannot be equal."
+      }
       assertM(result)(
         isLeft(
-          containsString("found   : zio.test.Assertion[String]") &&
-            containsString("required: zio.test.Assertion[Int]")
+          //When compiling: assert(1)(equalTo("abc"))
+          //+ scala <= 2.13.1 fail with message:
+          // found   : zio.test.Assertion[String]
+          // required: zio.test.Assertion[Int]
+          //+ scala 2.13.2+ fail with the message annotated by `@implicitNotFound` in trait `zio.test.Eql`
+          (containsString("found   : zio.test.Assertion[String]") &&
+            containsString("required: zio.test.Assertion[Int]")) ||
+            containsString(eqlImplicitNotFound)
         )
       )
     } @@ scala2Only,
