@@ -101,8 +101,8 @@ import zio.clock.Clock
 
 val groupedWithinResult: ZStream[Any with Clock, Nothing, Chunk[Int]] =
   Stream.fromIterable(0 to 10)
-    .repeat(Schedule.spaced(1 seconds))
-    .groupedWithin(30, 10 seconds)
+    .repeat(Schedule.spaced(1.second))
+    .groupedWithin(30, 10.seconds)
 ```
 
 ## Consuming a Stream
