@@ -2408,6 +2408,21 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         },
+        testM("takeUntilM") {
+          checkM(streamOfBytes, Gen.function(Gen.successes(Gen.boolean))) { (s, p) =>
+            for {
+              streamTakeUntilM <- s.takeUntilM(p).runCollect.run
+              chunkTakeUntilM <- s.runCollect
+                                  .flatMap(as =>
+                                    as.takeWhileM(p(_).map(!_))
+                                      .zipWith(as.dropWhileM(p(_).map(!_)).map(_.take(1)))(_ ++ _)
+                                  )
+                                  .run
+            } yield assert(chunkTakeUntilM.succeeded)(isTrue) implies assert(streamTakeUntilM)(
+              equalTo(chunkTakeUntilM)
+            )
+          }
+        },
         suite("takeWhile")(
           testM("takeWhile")(checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
             for {
