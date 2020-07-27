@@ -11,13 +11,13 @@ import zio.IOBenchmarks.unsafeRun
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class Stream1Benchmarks {
+class StreamBenchmarks {
 
   @Param(Array("10000"))
   var count: Long = _
 
   @Benchmark
-  def filterMapSum = {
+  def filterMapSum: Long = {
     import ZTransducer1._
 
     val stream = ZStream1.repeatPull(Pull.emit(1))
@@ -29,7 +29,7 @@ class Stream1Benchmarks {
   }
 
   @Benchmark
-  def zioFilterMapSum = {
+  def zioFilterMapSum: Long = {
     val stream = ZStream
       .repeatEffect(ZIO.succeedNow(1))
       .take(count)

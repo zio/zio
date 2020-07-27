@@ -11,7 +11,7 @@ import zio.IOBenchmarks.unsafeRun
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class ChunkStream1Benchmarks {
+class ChunkStreamBenchmarks {
 
   @Param(Array("10000"))
   var count: Long = _
@@ -20,7 +20,7 @@ class ChunkStream1Benchmarks {
   var chunkSize: Int = _
 
   @Benchmark
-  def chunkFilterMapSum = {
+  def chunkFilterMapSum: Long = {
     import ZTransducer1._
 
     val chunk  = Chunk.fromIterable(0 until chunkSize)
@@ -33,7 +33,7 @@ class ChunkStream1Benchmarks {
   }
 
   @Benchmark
-  def zioChunkFilterMapSum = {
+  def zioChunkFilterMapSum: Long = {
     val chunk = Chunk.fromIterable(0 until chunkSize)
     val stream = ZStream
       .fromChunk(chunk)
