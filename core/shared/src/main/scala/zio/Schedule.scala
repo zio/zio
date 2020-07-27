@@ -900,27 +900,48 @@ object Schedule {
     }
 
   /**
-   * A schedule that recurs the specified duration intervals from the starting time.
+   * A schedule that recurs on a fixed interval. Returns the number of
+   * repetitions of the schedule so far.
+   *
+   * If the action run between updates takes longer than the interval, then the
+   * action will be run immediately, but re-runs will not "pile up".
+   *
+   * <pre>
+   * |-----interval-----|-----interval-----|-----interval-----|
+   * |         action        ||action|-----|action|-----------|
+   * </pre>
    */
   def fixed(interval: Duration): Schedule[Any, Any, Long] = {
     import Decision._
+    import java.time.Duration
 
-    val millis = interval.toMillis
+    val fixedDelay  = interval.toMillis
+    val fixedDelayD = Duration.ofMillis(fixedDelay)
 
-    def loop(startMillis: Option[Long], n: Long): StepFunction[Any, Any, Long] =
+    final case class State(startMillis: Long, lastRun: Long)
+
+    def loop(startMillis: Option[State], n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         ZIO.succeed(startMillis match {
-          case Some(startMillis) =>
-            Continue(
-              n + 1,
-              now.plus((now.toInstant.toEpochMilli() - startMillis) % millis, java.time.temporal.ChronoUnit.MILLIS),
-              loop(Some(startMillis), n + 1L)
-            )
-          case None =>
+          case Some(State(startMillis, lastRun)) =>
+            val nowMillis     = now.toInstant.toEpochMilli()
+            val runningBehind = nowMillis > (lastRun + fixedDelay)
+            val boundary      = Duration.ofMillis((nowMillis - startMillis) % fixedDelay)
+            val sleepTime     = if (boundary.isZero()) fixedDelayD else boundary
+            val nextRun       = if (runningBehind) now else now.plus(sleepTime)
+
             Continue(
               n + 1L,
-              now.plus(millis, java.time.temporal.ChronoUnit.MILLIS),
-              loop(Some(now.toInstant.toEpochMilli()), n + 1)
+              nextRun,
+              loop(Some(State(startMillis, nextRun.toInstant().toEpochMilli())), n + 1L)
+            )
+          case None =>
+            val nowMillis = now.toInstant.toEpochMilli()
+
+            Continue(
+              n + 1L,
+              now.plus(fixedDelayD),
+              loop(Some(State(nowMillis, nowMillis)), n + 1L)
             )
         })
 
@@ -1027,6 +1048,42 @@ object Schedule {
       (now, _) => ZIO.succeed(Decision.Continue(a, now, loop(f(a))))
 
     Schedule(loop(a))
+  }
+
+  /**
+   * A schedule that divides the timeline to `interval`-long windows, and sleeps
+   * until the nearest window boundary every time it recurs.
+   *
+   * For example, `windowed(10.seconds)` would produce a schedule as follows:
+   * <pre>
+   *      10s        10s        10s       10s
+   * |----------|----------|----------|----------|
+   * |action------|sleep---|act|-sleep|action----|
+   * </pre>
+   */
+  def windowed(interval: Duration): Schedule[Any, Any, Long] = {
+    import Decision._
+
+    val millis = interval.toMillis
+
+    def loop(startMillis: Option[Long], n: Long): StepFunction[Any, Any, Long] =
+      (now: OffsetDateTime, _: Any) =>
+        ZIO.succeed(startMillis match {
+          case Some(startMillis) =>
+            Continue(
+              n + 1,
+              now.plus((now.toInstant.toEpochMilli() - startMillis) % millis, java.time.temporal.ChronoUnit.MILLIS),
+              loop(Some(startMillis), n + 1L)
+            )
+          case None =>
+            Continue(
+              n + 1L,
+              now.plus(millis, java.time.temporal.ChronoUnit.MILLIS),
+              loop(Some(now.toInstant.toEpochMilli()), n + 1)
+            )
+        })
+
+    Schedule(loop(None, 0L))
   }
 
   type Interval = java.time.OffsetDateTime

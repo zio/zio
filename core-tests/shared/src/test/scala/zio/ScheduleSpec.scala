@@ -204,6 +204,16 @@ object ScheduleSpec extends ZIOBaseSpec {
           equalTo(Chunk(0, 1, 3, 6, 10).map(i => (i * 100).millis))
         )
       },
+      testM("spaced delay") {
+        assertM(run(Schedule.spaced(100.millis) >>> Schedule.elapsed)(List.fill(5)(())))(
+          equalTo(Chunk(0, 1, 2, 3, 4).map(i => (i * 100).millis))
+        )
+      },
+      testM("fixed delay") {
+        assertM(run(Schedule.fixed(100.millis) >>> Schedule.elapsed)(List.fill(5)(())))(
+          equalTo(Chunk(0, 1, 2, 3, 4).map(i => (i * 100).millis))
+        )
+      },
       testM("modified linear delay") {
         assertM(
           run(Schedule.linear(100.millis).modifyDelayM { case (_, d) => ZIO.succeed(d * 2) } >>> Schedule.elapsed)(
