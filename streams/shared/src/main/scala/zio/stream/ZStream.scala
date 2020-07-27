@@ -3669,8 +3669,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Clock, E, A] =
     ZStream.fromEffect(effect zip schedule.driver).flatMap {
       case (a, driver) =>
-        ZStream(a) ++
-          ZStream.repeatEffectOption(effect.mapError(Some(_)).tap(driver.next(_)))
+        ZStream.succeed(a) ++
+          ZStream.unfoldM(a)(driver.next(_).foldM(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
     }
 
   /**
