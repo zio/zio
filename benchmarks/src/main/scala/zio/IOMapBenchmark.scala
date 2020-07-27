@@ -99,7 +99,7 @@ class IOMapBenchmark {
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    sumTo(Task.eval(0), depth).runSyncStep.right.get
+    sumTo(Task.eval(0), depth).runSyncStep.getOrElse(throw new NoSuchElementException)
   }
 
   @Benchmark

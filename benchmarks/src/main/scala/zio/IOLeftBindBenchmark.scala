@@ -76,13 +76,13 @@ class IOLeftBindBenchmark {
     import io.reactivex.Single
 
     def loop(i: Int): Single[Int] =
-      if (i % depth == 0) Single.fromCallable(() => i + 1).flatMap(loop)
+      if (i % depth == 0) Single.fromCallable(() => i + 1).flatMap(i => loop(i))
       else if (i < size) loop(i + 1).flatMap(i => Single.fromCallable(() => i))
       else Single.fromCallable(() => i)
 
     Single
       .fromCallable(() => 0)
-      .flatMap(loop)
+      .flatMap(i => loop(i))
       .blockingGet()
   }
 
@@ -110,7 +110,7 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => Task.eval(i))
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop).runSyncStep.right.get
+    Task.eval(0).flatMap(loop).runSyncStep.getOrElse(throw new NoSuchElementException)
   }
 
   @Benchmark

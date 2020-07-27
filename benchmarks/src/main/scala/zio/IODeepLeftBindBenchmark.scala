@@ -24,7 +24,7 @@ class IODeepLeftBindBenchmark {
       i += 1
     }
 
-    io.runSyncStep.right.get
+    io.runSyncStep.getOrElse(throw new NoSuchElementException)
   }
 
   @Benchmark

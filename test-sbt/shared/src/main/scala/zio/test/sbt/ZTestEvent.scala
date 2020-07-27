@@ -13,7 +13,7 @@ final case class ZTestEvent(
   duration: Long,
   fingerprint: Fingerprint
 ) extends Event {
-  def throwable: OptionalThrowable = maybeThrowable.fold(new OptionalThrowable())(new OptionalThrowable(_))
+  def throwable(): OptionalThrowable = maybeThrowable.fold(new OptionalThrowable())(new OptionalThrowable(_))
 }
 
 object ZTestEvent {
