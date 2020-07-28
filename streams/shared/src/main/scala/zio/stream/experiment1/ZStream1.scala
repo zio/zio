@@ -5,16 +5,43 @@ import zio._
 sealed abstract class ZStream1[-R, +E, +I](val process: ZStream1.Process[R, E, I]) {
   self =>
 
+  def ++[R1 <: R, E1 >: E, I1 >: I](that: => ZStream1[R1, E1, I1]): ZStream1[R1, E1, I1] =
+    concat(that)
+
+  def concat[R1 <: R, E1 >: E, I1 >: I](that: => ZStream1[R1, E1, I1]): ZStream1[R1, E1, I1] =
+    ZStream1(for {
+      env      <- ZManaged.access[R1](identity)
+      switched <- ZRef.makeManaged(false)
+      switch   <- ZManaged.switchable[Any, Nothing, Pull[E1, I1]]
+      source   <- switch(self.process.provide(env)).flatMap(ZRef.make).toManaged_
+    } yield {
+      def go: Pull[E1, I1] =
+        source.get.flatten.catchAllCause(
+          Pull.recover(
+            switched
+              .getAndSet(true)
+              .flatMap(s => if (s) Pull.end else switch(that.process.provide(env)).flatMap(source.set) *> go)
+          )
+        )
+      go
+    })
+
+  def filter(p: I => Boolean): ZStream1[R, E, I] =
+    self >>: ZTransducer1.filter(p)
+
   def forever: ZStream1[R, E, I] =
     ZStream1(for {
       env    <- ZManaged.access[R](identity)
-      ref    <- ZRef.makeManaged[Pull[E, I]](Pull.end)
       switch <- ZManaged.switchable[Any, Nothing, Pull[E, I]]
+      source <- ZRef.makeManaged[Pull[E, I]](Pull.end)
     } yield {
       def go: Pull[E, I] =
-        ref.get.flatten.catchAllCause(Pull.recover(switch(process.provide(env)).flatMap(ref.set) *> go))
+        source.get.flatten.catchAllCause(Pull.recover(switch(process.provide(env)).flatMap(source.set) *> go))
       go
     })
+
+  def map[O](f: I => O): ZStream1[R, E, O] =
+    self >>: ZTransducer1.map(f)
 
   def run[R1 <: R, E1 >: E, O](downstream: ZSink1[R1, E1, I, O]): ZIO[R1, E1, O] =
     self >>: downstream
@@ -46,7 +73,7 @@ object ZStream1 {
     fromIterable(i)
 
   def fromIterable[I](is: Iterable[I]): ZStream1[Any, Nothing, I] =
-    ZStream1(Process.stateful(is)(_.modify(s => if (s.isEmpty) (Pull.end, s) else (Pull.emit(s.head), s.tail)).flatten))
+    ZStream1(Process.unfold(is)(s => if (s.isEmpty) (Pull.end, s) else (Pull.emit(s.head), s.tail)))
 
   def fromManaged[R, E, I](z: ZManaged[R, E, I]): ZStream1[R, E, I] =
     ZStream1(
@@ -63,7 +90,7 @@ object ZStream1 {
     )
 
   def fromPull[E, I](z: Pull[E, I]): ZStream1[Any, E, I] =
-    ZStream1(Process.stateful(false)(_.getAndSet(true).flatMap(if (_) Pull.end else z)))
+    ZStream1(Process.unfold(false)(s => (if (s) Pull.end else z, true)))
 
   def repeatPull[E, I](z: Pull[E, I]): ZStream1[Any, E, I] =
     ZStream1(ZManaged.succeedNow(z))
@@ -110,5 +137,8 @@ object ZStream1 {
 
     def stateful[S, E, I](init: S)(pull: Ref[S] => Pull[E, I]): Process[Any, E, I] =
       ZRef.makeManaged(init).map(pull)
+
+    def unfold[S, E, I](init: S)(pull: S => (Pull[E, I], S)): Process[Any, E, I] =
+      stateful(init)(_.modify(pull).flatten)
   }
 }

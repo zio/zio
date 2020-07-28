@@ -1,6 +1,6 @@
 package zio.stream.experiment2
 
-import zio.{ Chunk, ChunkBuilder, Has, Ref, Tag, URManaged, ZIO, ZManaged, ZRef }
+import zio._
 
 abstract class ZTransducer2[-R, +E, -I, +O](val process: ZTransducer2.Process[R, E, I, O]) {
   self =>
@@ -12,7 +12,7 @@ abstract class ZTransducer2[-R, +E, -I, +O](val process: ZTransducer2.Process[R,
     transduce(upstream)
 
   def chunked: ZTransducer2[R, E, Chunk[I], Chunk[O]] =
-    ZTransducer2(self.process.map(push => ZIO.foreach(_)(push)))
+    ZTransducer2(self.process.map(pipe => ZIO.foreach(_)(pipe)))
 
   def prepend[R1 <: R, E1 >: E, I1, II <: I](upstream: ZTransducer2[R1, E1, I1, II]): ZTransducer2[R1, E1, I1, O] =
     ZTransducer2(upstream.process.zipWith(self.process)((pipe1, pipe2) => pipe1(_) >>= pipe2))
@@ -30,26 +30,6 @@ object ZTransducer2 {
 
   def apply[R, E, I, O](process: Process[R, E, I, O]): ZTransducer2[R, E, I, O] =
     new ZTransducer2(process) {}
-
-  def foldWhile[S, I, O](init: S)(p: S => Boolean)(pipe: (S, I) => (O, S)): ZTransducer2[Any, Nothing, I, O] =
-    new ZTransducer2[Any, Nothing, I, O](
-      Process.stateful(init)(ref => i => ref.get.flatMap(s => if (p(s)) ref.modify(pipe(_, i)) else Pull.end))
-    ) {
-
-      override def chunked: ZTransducer2[Any, Nothing, Chunk[I], Chunk[O]] =
-        ZTransducer2.foldWhile(init)(p) { (s, is: Chunk[I]) =>
-          val b = ChunkBuilder.make[O]()
-          var z = s
-          var i = 0
-          while (i < is.length) {
-            val os = pipe(z, is(i))
-            b += os._1
-            z = os._2
-            if (p(z)) i += 1 else i = is.length
-          }
-          b.result() -> z
-        }
-    }
 
   def identity[I]: ZTransducer2[Any, Nothing, I, I] =
     new ZTransducer2[Any, Nothing, I, I](ZManaged.succeedNow(Pull.emit)) {
@@ -76,11 +56,56 @@ object ZTransducer2 {
       override def chunked: ZTransducer2[Any, Nothing, Chunk[I], Chunk[I]] =
         ZTransducer2(
           Process.stateful(n)(ref =>
-            i =>
+            is =>
               ref
                 .modify(s =>
-                  if (s > 0) if (s > i.length) (Pull.emit(i), s - i.length) else (Pull.emit(i.take(s.toInt)), 0)
+                  if (s > 0) if (s > is.length) (Pull.emit(is), s - is.length) else (Pull.emit(is.take(s.toInt)), 0)
                   else (Pull.end, s)
+                )
+                .flatten
+          )
+        )
+    }
+
+  def takeUntil[I](p: I => Boolean): ZTransducer2[Any, Nothing, I, I] =
+    new ZTransducer2[Any, Nothing, I, I](
+      Process.stateful(false)(ref => i => ref.modify(s => (if (s) Pull.end else Pull.emit(i), p(i))).flatten)
+    ) {
+
+      override def chunked: ZTransducer2[Any, Nothing, Chunk[I], Chunk[I]] =
+        ZTransducer2(
+          Process.stateful(false)(ref =>
+            is =>
+              ref
+                .modify(
+                  if (_) (Pull.end, true)
+                  else
+                    is.indexWhere(p) match {
+                      case -1 => (Pull.emit(is), false)
+                      case i  => (Pull.emit(is.take(i + 1)), true)
+                    }
+                )
+                .flatten
+          )
+        )
+    }
+
+  def takeWhile[I](p: I => Boolean): ZTransducer2[Any, Nothing, I, I] =
+    new ZTransducer2[Any, Nothing, I, I](
+      Process.stateless(i => if (p(i)) Pull.emit(i) else Pull.end)
+    ) {
+
+      override def chunked: ZTransducer2[Any, Nothing, Chunk[I], Chunk[I]] =
+        ZTransducer2(
+          Process.stateful(true)(ref =>
+            is =>
+              ref
+                .modify(
+                  if (_) is.indexWhere(!p(_)) match {
+                    case -1 => (Pull.emit(is), true)
+                    case i  => (Pull.emit(is.take(i)), false)
+                  }
+                  else (Pull.end, false)
                 )
                 .flatten
           )
@@ -100,6 +125,9 @@ object ZTransducer2 {
   }
 
   object Process {
+
+    def stateless[E, I, O](pipe: I => Pull[E, O]): Process[Any, E, I, O] =
+      ZManaged.succeedNow(pipe)
 
     def stateful[S, E, I, O](init: S)(pipe: Ref[S] => I => Pull[E, O]): Process[Any, E, I, O] =
       ZRef.makeManaged(init).map(pipe)

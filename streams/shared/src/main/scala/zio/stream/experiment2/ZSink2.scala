@@ -1,6 +1,6 @@
 package zio.stream.experiment2
 
-import zio.{ Cause, Chunk, Has, IO, Ref, Tag, URManaged, ZIO, ZManaged, ZRef }
+import zio._
 
 abstract class ZSink2[-R, +E, -I, +O](val process: ZSink2.Process[R, E, I, O]) {
   self =>
@@ -53,14 +53,14 @@ object ZSink2 {
 
   final class AccessPartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
 
-    def apply[E, I, O](push: R => I => Pull[E, Any])(read: R => IO[E, O]): ZSink2[R, E, I, O] =
-      ZSink2(ZManaged.access[R](r => (push(r), read(r))))
+    def apply[E, I, O](push: (R, I) => Pull[E, Any])(read: R => IO[E, O]): ZSink2[R, E, I, O] =
+      ZSink2(ZManaged.access[R](r => (push(r, _), read(r))))
   }
 
   final class ServicePartiallyApplied[A](val dummy: Boolean = true) extends AnyVal {
 
-    def apply[E, I, O](push: A => I => Pull[E, Any])(read: A => IO[E, O])(implicit A: Tag[A]): ZSink2[Has[A], E, I, O] =
-      ZSink2(ZManaged.service[A].map(a => (push(a), read(a))))
+    def apply[E, I, O](push: (A, I) => Pull[E, Any])(read: A => IO[E, O])(implicit A: Tag[A]): ZSink2[Has[A], E, I, O] =
+      ZSink2(ZManaged.service[A].map(a => (push(a, _), read(a))))
   }
 
   object Process {
