@@ -2560,6 +2560,28 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
+   * Takes all elements of the stream until the specified effectual predicate
+   * evaluates to `true`.
+   */
+  def takeUntilM[R1 <: R, E1 >: E](pred: O => ZIO[R1, E1, Boolean]): ZStream[R1, E1, O] =
+    ZStream {
+      for {
+        chunks        <- self.process
+        keepTakingRef <- Ref.make(true).toManaged_
+        pull = keepTakingRef.get.flatMap { keepTaking =>
+          if (!keepTaking) Pull.end
+          else
+            for {
+              chunk <- chunks
+              taken <- chunk.takeWhileM(pred(_).map(!_)).asSomeError
+              last  = chunk.drop(taken.length).take(1)
+              _     <- keepTakingRef.set(false).when(last.nonEmpty)
+            } yield taken ++ last
+        }
+      } yield pull
+    }
+
+  /**
    * Takes all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */

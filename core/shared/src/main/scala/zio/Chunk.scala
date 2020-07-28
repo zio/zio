@@ -798,6 +798,38 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
+   * Takes all elements so long as the effectual predicate returns true.
+   */
+  def takeWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] =
+    ZIO.effectSuspendTotal {
+      val length  = self.length
+      val builder = ChunkBuilder.make[A]()
+      builder.sizeHint(length)
+      var taking: ZIO[R, E, Boolean] = UIO.succeedNow(true)
+      val iterator                   = arrayIterator
+      while (iterator.hasNext) {
+        val array  = iterator.next()
+        val length = array.length
+        var i      = 0
+        while (i < length) {
+          val j = i
+          taking = taking.flatMap { b =>
+            val a = array(j)
+            (if (b) p(a) else UIO(false)).map {
+              case true =>
+                builder += a
+                true
+              case false =>
+                false
+            }
+          }
+          i += 1
+        }
+      }
+      taking as builder.result()
+    }
+
+  /**
    * Converts the chunk into an array.
    */
   override def toArray[A1 >: A: ClassTag]: Array[A1] = {
