@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.{ Cause, ZIO }
 
-package object experiment1 {
+package object encoding2 {
 
   type Pull[+E, +I] = ZIO[Any, Option[E], I]
 

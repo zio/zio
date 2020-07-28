@@ -1,6 +1,6 @@
 package zio
 package stream
-package experiment2
+package encoding1
 
 import java.util.concurrent.TimeUnit
 
@@ -11,26 +11,33 @@ import zio.IOBenchmarks.unsafeRun
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class StreamBenchmarks {
+class ChunkStreamBenchmarks {
 
   @Param(Array("10000"))
   var count: Long = _
 
-  @Benchmark
-  def filterMapSum: Long = {
+  @Param(Array("1000"))
+  var chunkSize: Int = _
 
-    val stream = ZStream2.repeatPull(Pull.emit(1)).take(count).filter(_ % 2 == 0)
-    val pipe   = ZTransducer2.map[Int, Long](_.toLong)
-    val sink   = ZSink2.sum[Long]
+  @Benchmark
+  def chunkFilterMapSum: Long = {
+    import ZTransducer1._
+
+    val chunk  = Chunk.fromIterable(0 until chunkSize)
+    val stream = ZStream1(chunk).forever
+    val pipe   = take[Int](count).chunked >>: filter[Int](_ % 2 == 0).chunked >>: map[Int, Long](_.toLong).chunked
+    val sink   = ZSink1.sum[Long].chunked
     val result = stream >>: pipe >>: sink
 
     unsafeRun(result)
   }
 
   @Benchmark
-  def zioFilterMapSum: Long = {
+  def zioChunkFilterMapSum: Long = {
+    val chunk = Chunk.fromIterable(0 until chunkSize)
     val stream = ZStream
-      .repeatEffect(ZIO.succeedNow(1))
+      .fromChunk(chunk)
+      .forever
       .take(count)
       .filter(_ % 2 == 0)
       .map(_.toLong)

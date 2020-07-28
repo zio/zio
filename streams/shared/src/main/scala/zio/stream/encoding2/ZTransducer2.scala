@@ -1,4 +1,4 @@
-package zio.stream.experiment2
+package zio.stream.encoding2
 
 import zio._
 

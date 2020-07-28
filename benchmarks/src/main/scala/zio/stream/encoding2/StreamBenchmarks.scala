@@ -1,10 +1,10 @@
 package zio
 package stream
-package experiment1
+package encoding2
 
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{ Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Param, Scope, State }
 
 import zio.IOBenchmarks.unsafeRun
 
@@ -18,11 +18,10 @@ class StreamBenchmarks {
 
   @Benchmark
   def filterMapSum: Long = {
-    import ZTransducer1._
 
-    val stream = ZStream1.repeatPull(Pull.emit(1))
-    val pipe   = take[Int](count) >>: filter[Int](_ % 2 == 0) >>: map[Int, Long](_.toLong)
-    val sink   = ZSink1.sum[Long]
+    val stream = ZStream2.repeatPull(Pull.emit(1)).take(count).filter(_ % 2 == 0)
+    val pipe   = ZTransducer2.map[Int, Long](_.toLong)
+    val sink   = ZSink2.sum[Long]
     val result = stream >>: pipe >>: sink
 
     unsafeRun(result)

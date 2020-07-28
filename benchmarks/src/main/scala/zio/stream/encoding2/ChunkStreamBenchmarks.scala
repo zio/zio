@@ -1,6 +1,6 @@
 package zio
 package stream
-package experiment1
+package encoding2
 
 import java.util.concurrent.TimeUnit
 
@@ -21,12 +21,14 @@ class ChunkStreamBenchmarks {
 
   @Benchmark
   def chunkFilterMapSum: Long = {
-    import ZTransducer1._
+    import ZTransducer2._
 
     val chunk  = Chunk.fromIterable(0 until chunkSize)
-    val stream = ZStream1(chunk).forever
-    val pipe   = take[Int](count).chunked >>: filter[Int](_ % 2 == 0).chunked >>: map[Int, Long](_.toLong).chunked
-    val sink   = ZSink1.sum[Long].chunked
+    val stream = ZStream2.repeatPull(Pull.emit(chunk)).forever
+    val pipe = take[Int](count).chunked >>: map[Chunk[Int], Chunk[Int]](_.filter(_ % 2 == 0)) >>: map[Int, Long](
+      _.toLong
+    ).chunked
+    val sink   = ZSink2.sum[Long].chunked
     val result = stream >>: pipe >>: sink
 
     unsafeRun(result)
