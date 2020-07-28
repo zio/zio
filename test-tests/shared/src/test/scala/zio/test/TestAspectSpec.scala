@@ -7,7 +7,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
 import zio.test.environment.TestRandom
-import zio.{ Ref, Schedule, TracingStatus, ZIO }
+import zio.{ Ref, TracingStatus, ZIO }
 
 object TestAspectSpec extends ZIOBaseSpec {
 
@@ -208,15 +208,6 @@ object TestAspectSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("fail"))(anything)
       } @@ nonTermination(1.minute) @@ failing
     ),
-    testM("retry retries failed tests according to a schedule") {
-      for {
-        ref <- Ref.make(0)
-        spec = testM("retry") {
-          assertM(ref.updateAndGet(_ + 1))(equalTo(2))
-        } @@ retry(Schedule.recurs(1))
-        result <- succeeded(spec)
-      } yield assert(result)(isTrue)
-    },
     testM("scala2 applies test aspect only on Scala 2") {
       for {
         ref    <- Ref.make(false)
