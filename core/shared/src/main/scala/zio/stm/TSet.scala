@@ -31,7 +31,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * Tests if the set is empty or not
    */
   def isEmpty: USTM[Boolean] =
-    tSize.map(_ == 0).get
+    tmap.isEmpty
 
   /**
    * Removes element from set.
