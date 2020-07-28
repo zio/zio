@@ -327,7 +327,8 @@ object BuildHelper {
   )
 
   def testJsSettings = Seq(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0" % Test
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time"      % "2.0.0" % Test,
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.0.0" % Test
   )
 
   def welcomeMessage = onLoadMessage := {
