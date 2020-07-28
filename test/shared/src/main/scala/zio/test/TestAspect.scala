@@ -335,15 +335,22 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky: TestAspectAtLeastR[ZTestEnv with Annotations with Live] =
+  val flaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
     flaky(100)
 
   /**
    * An aspect that retries a test until success, with the specified limit, for
    * use with flaky tests.
    */
-  def flaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations with Live] =
-    retry(Schedule.recurs(n))
+  def flaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations] = {
+    val flaky = new PerTest.AtLeastR[ZTestEnv with Annotations] {
+      def perTest[R <: ZTestEnv with Annotations, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
+    }
+    restoreTestEnvironment >>> flaky
+  }
 
   /**
    * An aspect that runs each test on its own separate fiber.
@@ -433,15 +440,22 @@ object TestAspect extends TimeoutVariants {
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Annotations with Live] =
+  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
     nonFlaky(100)
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it
    * is stable ("non-flaky"). Stops at the first failure.
    */
-  def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations with Live] =
-    repeat(Schedule.recurs(n))
+  def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations] = {
+    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Annotations] {
+      def perTest[R <: ZTestEnv with Annotations, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
+    }
+    restoreTestEnvironment >>> nonFlaky
+  }
 
   /**
    * Constructs an aspect that requires a test to not terminate within the

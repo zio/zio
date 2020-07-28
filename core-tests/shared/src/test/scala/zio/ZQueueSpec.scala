@@ -793,7 +793,7 @@ object ZQueueSpec extends ZIOBaseSpec {
 
 object ZQueueSpecUtil {
   def waitForValue[T](ref: UIO[T], value: T): URIO[Live, T] =
-    Live.live((ref <* clock.sleep(10.millis)).repeat(Schedule.doWhile(_ != value)))
+    Live.live((ref <* clock.sleep(10.millis)).repeatUntil(_ == value))
 
   def waitForSize[RA, EA, RB, EB, A, B](queue: ZQueue[RA, EA, RB, EB, A, B], size: Int): URIO[Live, Int] =
     waitForValue(queue.size, size)

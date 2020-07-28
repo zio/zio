@@ -359,11 +359,10 @@ package object environment extends PlatformSpecific {
        * Polls until all descendants of this fiber are done or suspended.
        */
       private lazy val awaitSuspended: UIO[Unit] =
-        live.provide {
-          suspended.repeat {
-            Schedule.doUntilEquals(true) && Schedule.spaced(5.milliseconds)
-          }
-        }.unit
+        suspended.flatMap { b =>
+          if (b) ZIO.unit
+          else live.provide(awaitSuspended.delay(5.milliseconds))
+        }
 
       /**
        * Delays for a short period of time.

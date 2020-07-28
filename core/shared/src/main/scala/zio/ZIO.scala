@@ -1475,6 +1475,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
+   * Repeats this effect the specified number of times.
+   */
+  final def repeatN(n: Int): ZIO[R, E, A] =
+    self.flatMap(a => if (n <= 0) ZIO.succeedNow(a) else repeatN(n - 1))
+
+  /**
    * Returns a new effect that repeats this effect according to the specified
    * schedule or until the first failure, at which point, the failure value
    * and schedule output are passed to the specified handler.
@@ -1522,6 +1528,42 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     }
 
   /**
+   * Repeats this effect until its error satisfies the specified predicate.
+   */
+  final def repeatUntil(f: A => Boolean): ZIO[R, E, A] =
+    repeatUntilM(a => ZIO.succeed(f(a)))
+
+  /**
+   * Repeats this effect until its error equals the predicate.
+   */
+  final def repeatUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+    repeatUntil(_ == a)
+
+  /**
+   * Repeats this effect until its error satisfies the specified effectful predicate.
+   */
+  final def repeatUntilM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
+    self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else repeatUntilM(f)))
+
+  /**
+   * Repeats this effect while its error satisfies the specified predicate.
+   */
+  final def repeatWhile(f: A => Boolean): ZIO[R, E, A] =
+    repeatWhileM(a => ZIO.succeed(f(a)))
+
+  /**
+   * Repeats this effect for as long as the error equals the predicate.
+   */
+  final def repeatWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+    repeatWhile(_ == a)
+
+  /**
+   * Repeats this effect while its error satisfies the specified effectful predicate.
+   */
+  final def repeatWhileM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
+    repeatUntilM(e => f(e).map(!_))
+
+  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
@@ -1529,6 +1571,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZIO[R1 with Clock, E, A] =
     retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
+
+  /**
+   * Retries this effect the specified number of times.
+   */
+  final def retryN(n: Int)(implicit ev: CanFail[E]): ZIO[R, E, A] =
+    self.catchAll(e => if (n <= 0) ZIO.fail(e) else retryN(n - 1))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -1590,7 +1638,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     retryWhileM(e => ZIO.succeed(f(e)))
 
   /**
-   * Repeats this effect for as long as the error equals the predicate.
+   * Retries this effect for as long as the error equals the predicate.
    */
   final def retryWhileEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
     retryWhile(_ == e)
