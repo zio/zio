@@ -28,6 +28,12 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     tmap.contains(a)
 
   /**
+   * Tests if the set is empty or not
+   */
+  def isEmpty: USTM[Boolean] =
+    tSize.map(_ == 0).get
+
+  /**
    * Removes element from set.
    */
   def delete(a: A): USTM[Unit] =
