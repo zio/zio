@@ -722,6 +722,18 @@ object ZTransducerSpec extends ZIOBaseSpec {
             }
           }
         }
+      ),
+      suite("usASCII")(
+        testM("US-ASCII strings") {
+          checkM(Gen.usASCII) { s =>
+            ZTransducer.usASCIIDecode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.US_ASCII))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        }
       )
     )
   )

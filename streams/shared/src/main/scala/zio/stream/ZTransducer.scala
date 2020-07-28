@@ -962,6 +962,18 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       }
     }
 
+  /**
+   * Decodes chunks of US-ASCII bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val usASCIIDecode: ZTransducer[Any, Nothing, Byte, String] =
+    ZTransducer.fromPush {
+      case Some(chunk) => ZIO.succeedNow(Chunk.single(new String(chunk.toArray, StandardCharsets.US_ASCII)))
+      case None        => ZIO.succeedNow(Chunk.empty)
+    }
+
   object Push {
     def emit[A](a: A): UIO[Chunk[A]]         = IO.succeedNow(Chunk.single(a))
     def emit[A](as: Chunk[A]): UIO[Chunk[A]] = IO.succeedNow(as)
