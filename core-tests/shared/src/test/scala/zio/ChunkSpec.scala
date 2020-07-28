@@ -526,6 +526,10 @@ object ChunkSpec extends ZIOBaseSpec {
               else IO.succeed(i)
           }
       )(equalTo(2))
+    },
+    zio.test.test("Tags.fromValue is safe on Scala.is") {
+      val _ = Chunk(1, 128)
+      assertCompletes
     }
   )
 }
