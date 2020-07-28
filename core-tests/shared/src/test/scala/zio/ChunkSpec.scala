@@ -330,6 +330,14 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.takeWhile(p).toList)(equalTo(c.toList.takeWhile(p)))
       }
     },
+    suite("takeWhileM")(
+      testM("takeWhileM happy path") {
+        assertM(Chunk(1, 2, 3, 4, 5).takeWhileM(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(1)))
+      },
+      testM("takeWhileM error") {
+        Chunk(1, 1, 1).dropWhileM(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
+      } @@ zioTag(errors)
+    ),
     testM("toArray") {
       check(mediumChunks(Gen.alphaNumericString))(c => assert(c.toArray.toList)(equalTo(c.toList)))
     },
@@ -526,6 +534,10 @@ object ChunkSpec extends ZIOBaseSpec {
               else IO.succeed(i)
           }
       )(equalTo(2))
+    },
+    zio.test.test("Tags.fromValue is safe on Scala.is") {
+      val _ = Chunk(1, 128)
+      assertCompletes
     }
   )
 }
