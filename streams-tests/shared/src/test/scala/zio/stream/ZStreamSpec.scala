@@ -3087,17 +3087,17 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("zipWithLatest")(
           testM("succeed") {
             for {
-              left   <- Queue.unbounded[Int]
-              right  <- Queue.unbounded[Int]
+              left   <- Queue.unbounded[Chunk[Int]]
+              right  <- Queue.unbounded[Chunk[Int]]
               out    <- Queue.bounded[Take[Nothing, (Int, Int)]](1)
-              _      <- ZStream.fromQueue(left).zipWithLatest(ZStream.fromQueue(right))((_, _)).into(out).fork
-              _      <- left.offer(0)
-              _      <- right.offerAll(List(0, 1))
+              _      <- ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).into(out).fork
+              _      <- left.offer(Chunk(0))
+              _      <- right.offerAll(List(Chunk(0), Chunk(1)))
               chunk1 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
-              _      <- left.offerAll(List(1, 2))
+              _      <- left.offerAll(List(Chunk(1), Chunk(2)))
               chunk2 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
             } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
-          },
+          } @@ TestAspect.nonFlaky(50000),
           testM("handle empty pulls properly") {
             assertM(
               ZStream
