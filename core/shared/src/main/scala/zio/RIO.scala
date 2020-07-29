@@ -343,7 +343,8 @@ object RIO {
   /**
    * @see See [[zio.ZIO.first]]
    */
-  def first[A, B]: RIO[(A, B), A] = ZIO.first
+  def first[A]: RIO[(A, Any), A] =
+    ZIO.first
 
   /**
    * @see See [[zio.ZIO.firstSuccessOf]]
@@ -749,7 +750,8 @@ object RIO {
   /**
    * @see See [[zio.ZIO.second]]
    */
-  def second[A, B]: RIO[(A, B), B] = ZIO.second
+  def second[A]: RIO[(Any, A), A] =
+    ZIO.second
 
   /**
    * @see See [[zio.ZIO.service]]

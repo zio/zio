@@ -309,7 +309,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.first]]
    */
-  def first[A, B]: URIO[(A, B), A] = ZIO.first
+  def first[A]: URIO[(A, Any), A] =
+    ZIO.first
 
   /**
    * @see [[zio.ZIO.firstSuccessOf]]
@@ -662,7 +663,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.second]]
    */
-  def second[A, B]: URIO[(A, B), B] = ZIO.second
+  def second[A]: URIO[(Any, A), A] =
+    ZIO.second
 
   /**
    * @see See [[zio.ZIO.service]]
