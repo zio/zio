@@ -6,11 +6,14 @@ import java.util.Arrays
 import java.util.zip.{ CRC32, Deflater, DeflaterInputStream, GZIPOutputStream }
 
 import TestData._
-
 import zio._
-import zio.stream.ZTransducer.{ gunzip, inflate }
+import zio.stream.ZTransducer.{ deflate, gunzip, inflate }
 import zio.test.Assertion._
 import zio.test._
+import java.util.zip.InflaterInputStream
+import java.util.zip.Inflater
+
+import scala.annotation.tailrec
 
 object CompressionSpec extends DefaultRunnableSpec {
   override def spec =
@@ -163,6 +166,42 @@ object CompressionSpec extends DefaultRunnableSpec {
             headerWithAll.transduce(gunzip(64)).runCollect
           )(equalTo(Chunk.fromArray(shortText)))
         )
+      ),
+      suite("deflate")(
+        testM("JDK inflates what was deflated")(
+          checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+            case ((input, n), bufferSize) =>
+              assertM(for {
+                deflated <- Stream.fromIterable(input).chunkN(n).transduce(deflate(bufferSize, false)).runCollect
+                inflated <- jdkInflate(deflated, noWrap = false)
+              } yield inflated)(equalTo(input))
+          }
+        ),
+        testM("deflate empty bytes, small buffer")(
+          assertM(
+            Stream.fromIterable(List.empty).chunkN(1).transduce(deflate(100, false)).runCollect.map(_.toList)
+          )(equalTo(deflateJDK(Array.empty, new Deflater(-1, false)).toList))
+        ),
+        testM("deflates same as JDK")(
+          assertM(Stream.fromIterable(longText).chunkN(128).transduce(deflate(256, false)).runCollect)(
+            equalTo(Chunk.fromArray(deflateJDK(longText, new Deflater(-1, false))))
+          )
+        ),
+        testM("deflates same as JDK, nowrap")(
+          assertM(Stream.fromIterable(longText).chunkN(128).transduce(deflate(256, true)).runCollect)(
+            equalTo(Chunk.fromArray(deflateJDK(longText, new Deflater(-1, true))))
+          )
+        ),
+        testM("deflates same as JDK, small buffer")(
+          assertM(Stream.fromIterable(longText).chunkN(64).transduce(deflate(1, false)).runCollect)(
+            equalTo(Chunk.fromArray(deflateJDK(longText, new Deflater(-1, false))))
+          )
+        ),
+        testM("deflates same as JDK, nowrap, small buffer ")(
+          assertM(Stream.fromIterable(longText).chunkN(64).transduce(deflate(1, true)).runCollect)(
+            equalTo(Chunk.fromArray(deflateJDK(longText, new Deflater(-1, true))))
+          )
+        )
       )
     )
 
@@ -181,11 +220,31 @@ object TestData {
   def noWrapDeflatedStream(bytes: Array[Byte]) =
     deflatedWith(bytes, new Deflater(9, true))
 
-  def deflatedWith(bytes: Array[Byte], deflater: Deflater) = {
+  def deflateJDK(bytes: Array[Byte], deflater: Deflater): Array[Byte] = {
     val bigBuffer = new Array[Byte](1024 * 1024)
     val dif       = new DeflaterInputStream(new ByteArrayInputStream(bytes), deflater)
     val read      = dif.read(bigBuffer, 0, bigBuffer.length)
-    ZStream.fromIterable(Arrays.copyOf(bigBuffer, read))
+    Arrays.copyOf(bigBuffer, read)
+  }
+
+  def deflatedWith(bytes: Array[Byte], deflater: Deflater) = {
+    val arr = deflateJDK(bytes, deflater)
+    ZStream.fromIterable(arr)
+  }
+
+  def jdkInflate(bytes: Chunk[Byte], noWrap: Boolean): UIO[List[Byte]] = ZIO.effectTotal {
+    val bigBuffer = new Array[Byte](1024 * 1024)
+    val inflater  = new Inflater(noWrap)
+    val iif       = new InflaterInputStream(new ByteArrayInputStream(bytes.toArray), inflater)
+
+    @tailrec
+    def inflate(acc: List[Byte]): List[Byte] = {
+      val read = iif.read(bigBuffer, 0, bigBuffer.length)
+      if (read <= 0) acc
+      else inflate(acc ++ bigBuffer.take(read).toList)
+    }
+
+    inflate(Nil)
   }
 
   def gzippedStream(bytes: Array[Byte], syncFlush: Boolean = true) =
