@@ -6,18 +6,14 @@ import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketCh
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{ OpenOption, Path }
 import java.nio.{ Buffer, ByteBuffer }
-import java.util.zip.{ DataFormatException, Inflater }
+import java.util.zip.{ DataFormatException, Deflater, Inflater }
 import java.{ util => ju }
 
 import scala.annotation.tailrec
 
 import zio._
 import zio.blocking.Blocking
-import zio.stream.compression.{ CompressionException, Gunzipper }
-import java.util.zip.Deflater
-import zio.stream.compression.CompressionLevel
-import zio.stream.compression.CompressionStrategy
-import zio.stream.compression.FlushMode
+import zio.stream.compression.{ CompressionException, CompressionLevel, CompressionStrategy, FlushMode, Gunzipper }
 
 trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
 
