@@ -113,15 +113,11 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
     def makeAccessor(
       name: TermName,
       info: TypeInfo,
-      impl: Tree,
       serviceTypeParams: List[TypeDef],
       typeParams: List[TypeDef],
       paramLists: List[List[ValDef]],
       isVal: Boolean
     ): Tree = {
-      val mods =
-        if (impl == EmptyTree) Modifiers()
-        else Modifiers(Flag.OVERRIDE)
 
       val serviceTypeArgs = serviceTypeParams.map(_.name)
 
@@ -175,28 +171,28 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
           q"_root_.zio.ZIO.access(_.get[Service[..$serviceTypeArgs]].$name)"
       }
 
-      if (isVal && serviceTypeParams.isEmpty) q"$mods val $name: $returnType = $returnValue"
+      if (isVal && serviceTypeParams.isEmpty) q"val $name: $returnType = $returnValue"
       else {
         val allTypeParams =
           serviceTypeParams.map(tp => TypeDef(Modifiers(Flag.PARAM), tp.name, tp.tparams, tp.rhs)) ::: typeParams
         paramLists match {
           case Nil =>
-            q"$mods def $name[..$allTypeParams](implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
+            q"def $name[..$allTypeParams](implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
           case List(Nil) =>
-            q"$mods def $name[..$allTypeParams]()(implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
+            q"def $name[..$allTypeParams]()(implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
           case _ =>
-            q"$mods def $name[..$allTypeParams](...$paramLists)(implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
+            q"def $name[..$allTypeParams](...$paramLists)(implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
         }
       }
     }
 
     val accessors =
       moduleInfo.service.impl.body.collect {
-        case DefDef(_, termName, tparams, argLists, tree: Tree, impl) =>
-          makeAccessor(termName, typeInfo(tree), impl, moduleInfo.serviceTypeParams, tparams, argLists, isVal = false)
+        case DefDef(_, termName, tparams, argLists, tree: Tree, _) if termName != TermName("$init$") =>
+          makeAccessor(termName, typeInfo(tree), moduleInfo.serviceTypeParams, tparams, argLists, isVal = false)
 
-        case ValDef(_, termName, tree: Tree, impl) =>
-          makeAccessor(termName, typeInfo(tree), impl, moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
+        case ValDef(_, termName, tree: Tree, _) =>
+          makeAccessor(termName, typeInfo(tree), moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
       }
 
     moduleInfo.module match {
