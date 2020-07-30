@@ -45,7 +45,7 @@ trait TimeVariants {
   final def anyOffsetDateTime: Gen[Random, OffsetDateTime] = offsetDateTime(OffsetDateTime.MIN, OffsetDateTime.MAX)
 
   /**
-   * A generator of finite `zio.duration.Duration` values inside the specified range: [min, max]. Shrinks toward min.
+   * A generator of finite `java.time.Duration` values inside the specified range: [min, max]. Shrinks toward min.
    */
   final def finiteDuration(min: Duration, max: Duration): Gen[Random, Duration] =
     Gen.long(min.toNanos, max.toNanos).map(fromNanos)

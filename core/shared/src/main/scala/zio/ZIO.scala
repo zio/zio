@@ -446,7 +446,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Returns an effect that is delayed from this effect by the specified
-   * [[zio.duration.Duration]].
+   * [[java.time.Duration]].
    */
   final def delay(duration: Duration): ZIO[R with Clock, E, A] =
     clock.sleep(duration) *> self

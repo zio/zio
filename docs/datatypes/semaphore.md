@@ -17,11 +17,11 @@ is placed in internal suspended fibers queue and will be awaken when `permits` v
 import java.util.concurrent.TimeUnit
 import zio._
 import zio.console._
-import zio.duration.Duration
+import zio.duration._
 
 val task = for {
   _ <- putStrLn("start")
-  _ <- ZIO.sleep(Duration(2, TimeUnit.SECONDS))
+  _ <- ZIO.sleep(fromSeconds(2))
   _ <- putStrLn("end")
 } yield ()
 

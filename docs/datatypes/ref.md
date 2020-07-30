@@ -99,7 +99,7 @@ object S {
 Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:
 
 ```scala mdoc:silent
-import zio.duration.Duration
+import zio.duration._
 import zio.clock._
 import zio.console._
 import zio.random._
@@ -107,7 +107,7 @@ import zio.random._
 val party = for {
   dancefloor <- S(10)
   dancers <- ZIO.foreachPar(1 to 100) { i =>
-    dancefloor.P *> nextDouble.map(d => Duration.fromNanos((d * 1000000).round)).flatMap { d =>
+    dancefloor.P *> nextDouble.map(d => fromNanos((d * 1000000).round)).flatMap { d =>
       putStrLn(s"${i} checking my boots") *> sleep(d) *> putStrLn(s"${i} dancing like it's 99")
     } *> dancefloor.V
   }
