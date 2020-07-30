@@ -616,7 +616,7 @@ package object test extends CompileVariants {
 
     final class CheckNM(private val n: Int) extends AnyVal {
       def apply[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
-        checkStream(rv.sample.forever.take(n.toLong))(test)
+        checkStream(rv.sample.forever.take(n.toLong), maxShrinks = n * 5)(test)
       def apply[R, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
