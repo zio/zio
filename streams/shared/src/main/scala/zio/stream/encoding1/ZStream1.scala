@@ -57,6 +57,12 @@ sealed abstract class ZStream1[-R, +E, +I](val process: ZStream1.Process[R, E, I
 
   def takeWhile(p: I => Boolean): ZStream1[R, E, I] =
     self >>: ZTransducer1.takeWhile(p)
+
+  def tap[R1 <: R, E1 >: E](f: I => ZIO[R1, E1, Any]): ZStream1[R1, E1, I] =
+    self >>: ZTransducer1.tap(f)
+
+  def transduce[R1 <: R, E1 >: E, I1 >: I, O](that: ZTransducer1[R1, E1, I1, O]): ZStream1[R1, E1, O] =
+    self >>: that
 }
 
 object ZStream1 {
