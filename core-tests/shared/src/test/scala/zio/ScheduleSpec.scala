@@ -3,12 +3,13 @@ package zio
 import java.time.Duration
 
 import scala.concurrent.Future
+
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.timeout
-import zio.test.environment.{TestClock, TestRandom}
-import zio.test.{TestResult, assert, assertM, suite, testM}
+import zio.test.environment.{ TestClock, TestRandom }
+import zio.test.{ assert, assertM, suite, testM, TestResult }
 
 object ScheduleSpec extends ZIOBaseSpec {
 
@@ -213,7 +214,11 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("modified linear delay") {
         assertM(
-          run(Schedule.linear(fromMillis(100)).modifyDelay { case (_, d) => ZIO.succeed(multiply(d, 2)) } >>> Schedule.elapsed)(
+          run(
+            Schedule
+              .linear(fromMillis(100))
+              .modifyDelay { case (_, d) => ZIO.succeed(multiply(d, 2)) } >>> Schedule.elapsed
+          )(
             List.fill(5)(())
           )
         )(equalTo(List(0, 1, 3, 6, 10).map(i => fromMillis(i * 200))))
@@ -330,7 +335,9 @@ object ScheduleSpec extends ZIOBaseSpec {
     },
     testM("either should not wait if neither schedule wants to continue") {
       assertM(
-        run((Schedule.stop || (Schedule.spaced(fromSeconds(2)) && Schedule.stop)) >>> Schedule.elapsed)(List.fill(5)(()))
+        run((Schedule.stop || (Schedule.spaced(fromSeconds(2)) && Schedule.stop)) >>> Schedule.elapsed)(
+          List.fill(5)(())
+        )
       )(
         equalTo(List(Duration.ZERO))
       )

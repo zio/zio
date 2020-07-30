@@ -1,12 +1,13 @@
 package zio
 package stm
 
+import java.time.Duration
+
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ jvmOnly, nonFlaky }
 import zio.test._
 import zio.test.environment.Live
-import java.time.Duration
 
 object ZSTMSpec extends ZIOBaseSpec {
 

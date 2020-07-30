@@ -16,12 +16,12 @@
 
 package zio
 
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 import zio.clock.Clock
-import java.time.Duration
-import zio.random.Random
 import zio.duration._
+import zio.random.Random
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
@@ -843,8 +843,8 @@ object Schedule {
    * </pre>
    */
   def fixed(interval: Duration): Schedule[Clock, Any, Int] = interval.toNanos match {
-    case zio.duration.infiniteNano                    => once >>> never.as(1)
-    case 0 => forever
+    case zio.duration.infiniteNano => once >>> never.as(1)
+    case 0                         => forever
     case nanos =>
       Schedule[Clock, (Long, Int, Int), Any, Int](
         clock.nanoTime.map(nt => (nt, 1, 0)),

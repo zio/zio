@@ -6,14 +6,16 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.ExecutionContext
+
 import ZStreamGen._
+
 import zio._
 import zio.clock.Clock
 import zio.duration._
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, timeout}
+import zio.test.TestAspect.{ exceptJS, flaky, nonFlaky, scala2Only, timeout }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1553,21 +1555,22 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("groupedWithin")(
           testM("group based on time passed") {
-            assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) { c =>
-              val stream = ZStream
-                .fromQueue(c.queue)
-                .collectWhileSuccess
-                .flattenChunks
-                .groupedWithin(10, fromSeconds(2))
-                .tap(_ => c.proceed)
+            assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) {
+              c =>
+                val stream = ZStream
+                  .fromQueue(c.queue)
+                  .collectWhileSuccess
+                  .flattenChunks
+                  .groupedWithin(10, fromSeconds(2))
+                  .tap(_ => c.proceed)
 
-              assertM(for {
-                f      <- stream.runCollect.fork
-                _      <- c.offer *> TestClock.adjust(fromSeconds(2)) *> c.awaitNext
-                _      <- c.offer *> TestClock.adjust(fromSeconds(2)) *> c.awaitNext
-                _      <- c.offer
-                result <- f.join
-              } yield result)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
+                assertM(for {
+                  f      <- stream.runCollect.fork
+                  _      <- c.offer *> TestClock.adjust(fromSeconds(2)) *> c.awaitNext
+                  _      <- c.offer *> TestClock.adjust(fromSeconds(2)) *> c.awaitNext
+                  _      <- c.offer
+                  result <- f.join
+                } yield result)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
             }
           } @@ timeout(fromSeconds(10L)) @@ flaky,
           testM("group immediately when chunk size is reached") {

@@ -1,10 +1,10 @@
 package zio.test
 
+import java.time.Duration
 import java.time._
 
 import scala.math.Numeric.DoubleIsFractional
 
-import java.time.Duration
 import zio.duration._
 import zio.random.Random
 import zio.test.Assertion._

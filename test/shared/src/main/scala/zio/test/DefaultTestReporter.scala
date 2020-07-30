@@ -16,6 +16,7 @@
 
 package zio.test
 
+import java.time.Duration
 import java.util.regex.Pattern
 
 import scala.io.AnsiColor
@@ -29,7 +30,6 @@ import zio.test.RenderedResult.{ CaseType, Status }
 import zio.test.mock.Expectation
 import zio.test.mock.internal.{ InvalidCall, MockException }
 import zio.{ Cause, Has, UIO, URIO }
-import java.time.Duration
 
 object DefaultTestReporter {
 

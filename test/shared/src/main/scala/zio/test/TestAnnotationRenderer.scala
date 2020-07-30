@@ -134,6 +134,9 @@ object TestAnnotationRenderer {
     LeafRenderer(TestAnnotation.timing) {
       case (child :: ancestors) =>
         if (child.isZero) None
-        else Some(f"${zio.duration.render(child)} (${(child.toNanos.toDouble / (child :: ancestors).last.toNanos) * 100}%2.2f%%)")
+        else
+          Some(
+            f"${zio.duration.render(child)} (${(child.toNanos.toDouble / (child :: ancestors).last.toNanos) * 100}%2.2f%%)"
+          )
     }
 }

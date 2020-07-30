@@ -1,7 +1,8 @@
 package zio
 
-import zio.clock.Clock
 import java.time.Duration
+
+import zio.clock.Clock
 import zio.internal.{ Executor, Platform }
 
 object URIO {

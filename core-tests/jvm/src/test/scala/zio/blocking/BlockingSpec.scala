@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.{UIO, ZIOBaseSpec}
+import zio.{ UIO, ZIOBaseSpec }
 
 object BlockingSpec extends ZIOBaseSpec {
 

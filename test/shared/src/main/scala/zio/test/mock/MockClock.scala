@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import java.time.{ DateTimeException, OffsetDateTime, Duration }
+import java.time.{ DateTimeException, Duration, OffsetDateTime }
 import java.util.concurrent.TimeUnit
 
 import zio.clock.Clock

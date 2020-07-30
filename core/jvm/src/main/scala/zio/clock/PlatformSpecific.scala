@@ -16,9 +16,9 @@
 
 package zio.clock
 
+import java.time.Duration
 import java.util.concurrent._
 
-import java.time.Duration
 import zio.internal.{ NamedThreadFactory, Scheduler }
 
 private[clock] trait PlatformSpecific {

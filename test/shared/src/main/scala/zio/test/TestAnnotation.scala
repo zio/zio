@@ -16,8 +16,9 @@
 
 package zio.test
 
-import zio.duration._
 import java.time.Duration
+
+import zio.duration._
 import zio.{ Chunk, Fiber, Tag }
 
 /**

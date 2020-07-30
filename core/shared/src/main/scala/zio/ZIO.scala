@@ -16,11 +16,12 @@
 
 package zio
 
+import java.time.Duration
+
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
-import java.time.Duration
 
 import zio.clock.Clock
 import zio.duration._

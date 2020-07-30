@@ -16,11 +16,12 @@
 
 package zio.test
 
+import java.time.Duration
+
 import zio.console
 import zio.duration._
 import zio.test.environment.Live
 import zio.{ URIO, ZIO }
-import java.time.Duration
 
 trait TimeoutVariants {
 

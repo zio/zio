@@ -16,11 +16,12 @@
 
 package zio.test
 
+import java.time.Duration
+
 import zio._
 import zio.duration._
 import zio.test.Assertion.{ equalTo, hasMessage, isCase, isSubtype }
 import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem }
-import java.time.Duration
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of

@@ -35,7 +35,6 @@ package object duration {
   def fromMinutes(minutes: Int): Duration  = if (minutes <= 0) Duration.ZERO else Duration.ofMinutes(minutes.toLong)
   def fromHours(hours: Long): Duration     = if (hours <= 0) Duration.ZERO else Duration.ofHours(hours)
 
-
   def render(duration: Duration): String = {
     val nanos = duration.toNanos
     TimeUnit.NANOSECONDS.toMillis(nanos) match {
@@ -72,6 +71,5 @@ package object duration {
     fromNanos(d1.toNanos + d2.toNanos + d3.toNanos)
   def add(d1: Duration, d2: Duration, d3: Duration, d4: Duration): Duration =
     fromNanos(d1.toNanos + d2.toNanos + d3.toNanos + d4.toNanos)
-
 
 }

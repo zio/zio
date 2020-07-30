@@ -3,11 +3,12 @@ package zio
 import java.time.Duration
 
 import ZManaged.ReleaseMap
+
 import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{nonFlaky, scala2Only}
+import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test._
 import zio.test.environment._
 

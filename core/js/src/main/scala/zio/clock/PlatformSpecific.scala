@@ -18,9 +18,9 @@ package zio.clock
 
 import java.time.Duration
 
-import zio.internal.Scheduler
-
 import scala.scalajs.js
+
+import zio.internal.Scheduler
 
 private[clock] trait PlatformSpecific {
   private[clock] val globalScheduler = new Scheduler {

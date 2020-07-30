@@ -1,9 +1,10 @@
 package zio
 
+import java.time.Duration
+
 import scala.concurrent.ExecutionContext
 
 import zio.clock.Clock
-import java.time.Duration
 import zio.internal.{ Executor, Platform }
 
 object RIO {

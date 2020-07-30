@@ -1,17 +1,17 @@
 package zio.stream
 
+import java.time.Duration
 import java.{ util => ju }
 
 import scala.reflect.ClassTag
 
 import zio._
 import zio.clock.Clock
-import java.time.Duration
+import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ ZInputStream, ZReader }
-import zio.duration._
 
 /**
  * A `ZStream[R, E, O]` is a description of a program that, when evaluated,
