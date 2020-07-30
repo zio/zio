@@ -1,7 +1,6 @@
 package zio.stream.encoding1
 
-import zio.{Cause, ZIO}
-
+import zio.{ Cause, ZIO }
 
 object Pull {
 
