@@ -4,7 +4,8 @@ import java.time._
 
 import scala.math.Numeric.DoubleIsFractional
 
-import zio.duration.{ Duration, _ }
+import java.time.Duration
+import zio.duration._
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
@@ -184,8 +185,8 @@ object GenSpec extends ZIOBaseSpec {
         checkSample(smallInt.filter(_ % 2 == 0))(forall(equalTo(0)), _.map(_ % 2))
       },
       testM("finiteDuration generates values in range") {
-        val min = 42.minutes + 23222.nanos
-        val max = 3.hours + 30.seconds + 887999.nanos
+        val min = add(fromMinutes(42), fromNanos(23222))
+        val max = add(fromHours(3), fromSeconds(30), fromNanos(887999))
         checkSample(Gen.finiteDuration(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
       testM("function generates different functions") {
@@ -382,8 +383,8 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyChar shrinks to zero") {
         checkShrink(Gen.anyChar)(0)
       },
-      testM("anyFiniteDuration shrinks to Duration.Zero") {
-        checkShrink(Gen.anyFiniteDuration)(Duration.Zero)
+      testM("anyFiniteDuration shrinks to Duration.ZERO") {
+        checkShrink(Gen.anyFiniteDuration)(Duration.ZERO)
       },
       testM("anyFloat shrinks to zero") {
         checkShrink(Gen.anyFloat)(0)
@@ -448,8 +449,8 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.int(1, 10).filter(_ % 2 == 0))(2)
       },
       testM("finiteDuration shrinks to min") {
-        val min = 97.minutes + 13.seconds + 32.nanos
-        val max = 3.hours + 2.minutes + 45.seconds + 23453.nanos
+        val min = add(fromMinutes(97), fromSeconds(13), fromNanos(32))
+        val max = add(fromHours(3), fromMinutes(2), fromSeconds(45), fromNanos(23453))
         checkShrink(Gen.finiteDuration(min, max))(min)
       },
       testM("instant shrinks to min") {

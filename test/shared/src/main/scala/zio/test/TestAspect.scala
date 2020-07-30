@@ -20,6 +20,7 @@ import zio._
 import zio.duration._
 import zio.test.Assertion.{ equalTo, hasMessage, isCase, isSubtype }
 import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem }
+import java.time.Duration
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -455,7 +456,7 @@ object TestAspect extends TimeoutVariants {
             case TestFailure.Runtime(cause) => cause.dieOption
             case _                          => None
           },
-          isSubtype[TestTimeoutException](hasMessage(equalTo(s"Timeout of ${duration.render} exceeded.")))
+          isSubtype[TestTimeoutException](hasMessage(equalTo(s"Timeout of ${render(duration)} exceeded.")))
         )
       )
 
@@ -684,7 +685,7 @@ object TestAspect extends TimeoutVariants {
     new PerTest.AtLeastR[Live] {
       def perTest[R <: Live, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] = {
         def timeoutFailure =
-          TestTimeoutException(s"Timeout of ${duration.render} exceeded.")
+          TestTimeoutException(s"Timeout of ${render(duration)} exceeded.")
         Live
           .withLive(test)(_.either.disconnect.timeout(duration).flatMap {
             case None         => ZIO.fail(TestFailure.Runtime(Cause.die(timeoutFailure)))

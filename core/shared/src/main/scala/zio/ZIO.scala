@@ -20,6 +20,7 @@ import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
+import java.time.Duration
 
 import zio.clock.Clock
 import zio.duration._
@@ -1791,7 +1792,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * A more powerful variation of `timed` that allows specifying the clock.
    */
   final def timedWith[R1 <: R, E1 >: E](nanoTime: ZIO[R1, E1, Long]): ZIO[R1, E1, (Duration, A)] =
-    summarized(nanoTime)((start, end) => Duration.fromNanos(end - start))
+    summarized(nanoTime)((start, end) => fromNanos(end - start))
 
   /**
    * Returns an effect that will timeout this effect, returning `None` if the
@@ -3116,7 +3117,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
-  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+  val infinity: URIO[Clock, Nothing] = ZIO.sleep(zio.duration.infiniteDuration) *> ZIO.never
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this

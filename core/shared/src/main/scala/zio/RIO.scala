@@ -3,7 +3,7 @@ package zio
 import scala.concurrent.ExecutionContext
 
 import zio.clock.Clock
-import zio.duration.Duration
+import java.time.Duration
 import zio.internal.{ Executor, Platform }
 
 object RIO {
@@ -551,7 +551,7 @@ object RIO {
   /**
    * @see [[zio.ZIO.infinity]]
    */
-  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+  val infinity: URIO[Clock, Nothing] = ZIO.sleep(zio.duration.infiniteDuration) *> ZIO.never
 
   /**
    * @see See [[zio.ZIO.interrupt]]

@@ -1,7 +1,7 @@
 package zio
 
 import zio.clock.Clock
-import zio.duration.Duration
+import java.time.Duration
 import zio.internal.{ Executor, Platform }
 
 object URIO {
@@ -488,7 +488,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.infinity]]
    */
-  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+  val infinity: URIO[Clock, Nothing] = ZIO.sleep(zio.duration.infiniteDuration) *> ZIO.never
 
   /**
    * @see [[zio.ZIO.interrupt]]

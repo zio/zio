@@ -19,8 +19,9 @@ package zio
 import java.util.concurrent.TimeUnit
 
 import zio.clock.Clock
-import zio.duration.Duration
+import java.time.Duration
 import zio.random.Random
+import zio.duration._
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
@@ -407,7 +408,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       random.nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random
-        Duration.fromNanos(jittered.toLong)
+        fromNanos(jittered.toLong)
       }
     }
 
@@ -796,7 +797,7 @@ object Schedule {
    * the total elapsed time.
    */
   def duration(duration: Duration): Schedule[Clock, Any, Duration] =
-    elapsed.untilOutput(_ >= duration)
+    elapsed.untilOutput(_.toNanos >= duration.toNanos)
 
   /**
    * A schedule that recurs forever without delay. Returns the elapsed time
@@ -806,7 +807,7 @@ object Schedule {
     Schedule[Clock, (Long, Long), Any, Duration](
       clock.nanoTime.map((_, 0L)),
       { case (_, (start, _))   => clock.nanoTime.map(currentTime => (start, currentTime - start)) },
-      { case (_, (_, elapsed)) => Duration.fromNanos(elapsed) }
+      { case (_, (_, elapsed)) => fromNanos(elapsed) }
     )
 
   /**
@@ -815,7 +816,7 @@ object Schedule {
    * repetitions so far. Returns the current duration between recurrences.
    */
   def exponential(base: Duration, factor: Double = 2.0): Schedule[Clock, Any, Duration] =
-    delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
+    delayed(forever.map(i => multiply(base, math.pow(factor, i.doubleValue))))
 
   /**
    * A schedule that always recurs, increasing delays by summing the
@@ -825,7 +826,7 @@ object Schedule {
   def fibonacci(one: Duration): Schedule[Clock, Any, Duration] =
     delayed {
       unfold[(Duration, Duration)]((one, one)) {
-        case (a1, a2) => (a2, a1 + a2)
+        case (a1, a2) => (a2, add(a1, a2))
       }.map(_._1)
     }
 
@@ -841,10 +842,10 @@ object Schedule {
    * |action|                   |action|
    * </pre>
    */
-  def fixed(interval: Duration): Schedule[Clock, Any, Int] = interval match {
-    case Duration.Infinity                    => once >>> never.as(1)
-    case Duration.Finite(nanos) if nanos == 0 => forever
-    case Duration.Finite(nanos) =>
+  def fixed(interval: Duration): Schedule[Clock, Any, Int] = interval.toNanos match {
+    case zio.duration.infiniteNano                    => once >>> never.as(1)
+    case 0 => forever
+    case nanos =>
       Schedule[Clock, (Long, Int, Int), Any, Int](
         clock.nanoTime.map(nt => (nt, 1, 0)),
         (_, t) =>
@@ -855,7 +856,7 @@ object Schedule {
                 val n = 1 +
                   (if (await < 0) ((now - start) / nanos).toInt else n0)
 
-                ZIO.sleep(Duration.fromNanos(await.max(0L))).as((start, n, i + 1))
+                ZIO.sleep(fromNanos(await.max(0L))).as((start, n, i + 1))
               }
           },
         (_, s) => s._3
@@ -899,7 +900,7 @@ object Schedule {
    * repetitions so far. Returns the current duration between recurrences.
    */
   def linear(base: Duration): Schedule[Clock, Any, Duration] =
-    delayed(forever.map(i => base * (i + 1).doubleValue()))
+    delayed(forever.map(i => multiply(base, (i + 1).doubleValue())))
 
   /**
    * A schedule that waits forever when updating or initializing.
@@ -920,10 +921,10 @@ object Schedule {
     val minNanos = min.toNanos
     val maxNanos = max.toNanos
     Schedule[Clock with Random, Duration, Any, Duration](
-      ZIO.succeedNow(Duration.Zero), {
+      ZIO.succeedNow(Duration.ZERO), {
         case _ =>
           random.nextLongBounded(maxNanos - minNanos + 1).flatMap { n =>
-            val duration = Duration.fromNanos(n + minNanos)
+            val duration = fromNanos(n + minNanos)
             clock.sleep(duration).as(duration)
           }
       },
@@ -937,10 +938,10 @@ object Schedule {
    */
   def randomDelayNormal(mean: Duration, std: Duration): Schedule[Random with Clock, Any, Duration] =
     Schedule[Clock with Random, Duration, Any, Duration](
-      ZIO.succeedNow(Duration.Zero), {
+      ZIO.succeedNow(Duration.ZERO), {
         case _ =>
           random.nextGaussian.flatMap { n =>
-            val duration = mean + std * n
+            val duration = add(mean, multiply(std, n))
             clock.sleep(duration).as(duration)
           }
       },

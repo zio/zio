@@ -1,9 +1,8 @@
 package zio.internal
 
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
+import java.time.Duration
+import java.util.concurrent.{ ScheduledExecutorService, TimeUnit }
 
-import zio.duration.Duration
 import zio.internal.Scheduler.CancelToken
 
 private[zio] trait Scheduler {
@@ -17,19 +16,26 @@ private[zio] object Scheduler {
     new Scheduler {
       val ConstFalse = () => false
 
-      override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
-        case Duration.Infinity => ConstFalse
-        case Duration.Zero =>
+      override def schedule(task: Runnable, duration: Duration): CancelToken = {
+        val nanos = duration.toNanos
+
+        if (nanos <= 0) {
           task.run()
 
           ConstFalse
-        case duration: Duration.Finite =>
-          val future = service.schedule(new Runnable {
-            def run: Unit =
-              task.run()
-          }, duration.toNanos, TimeUnit.NANOSECONDS)
+        } else {
+          nanos match {
+            case zio.duration.infiniteNano => ConstFalse
+            case nanos =>
+              val future = service.schedule(new Runnable {
+                def run: Unit =
+                  task.run()
+              }, nanos, TimeUnit.NANOSECONDS)
 
-          () => future.cancel(true)
+              () => future.cancel(true)
+          }
+        }
       }
+
     }
 }

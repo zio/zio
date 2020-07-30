@@ -18,7 +18,7 @@ package zio.clock
 
 import java.util.concurrent._
 
-import zio.duration.Duration
+import java.time.Duration
 import zio.internal.{ NamedThreadFactory, Scheduler }
 
 private[clock] trait PlatformSpecific {
@@ -30,23 +30,30 @@ private[clock] trait PlatformSpecific {
 
     private[this] val ConstFalse = () => false
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
-      case Duration.Infinity => ConstFalse
-      case Duration.Zero =>
+    override def schedule(task: Runnable, duration: Duration): CancelToken = {
+      val nanos = duration.toNanos
+      if (nanos <= 0) {
         task.run()
 
         ConstFalse
-      case duration: Duration.Finite =>
-        val future = service.schedule(new Runnable {
-          def run: Unit =
-            task.run()
-        }, duration.toNanos, TimeUnit.NANOSECONDS)
+      } else {
+        nanos match {
+          case zio.duration.infiniteNano => ConstFalse
+          case nanos =>
+            val future = service.schedule(new Runnable {
+              def run: Unit =
+                task.run()
+            }, nanos.toLong, TimeUnit.NANOSECONDS)
 
-        () => {
-          val canceled = future.cancel(true)
+            () => {
+              val canceled = future.cancel(true)
 
-          canceled
+              canceled
+            }
         }
+      }
+
     }
+
   }
 }

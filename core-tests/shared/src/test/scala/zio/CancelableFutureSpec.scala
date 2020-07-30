@@ -21,7 +21,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
   def spec =
     suite("CancelableFutureSpec")(
       testM("auto-kill regression") {
-        val effect = ZIO.unit.delay(1.millisecond)
+        val effect = ZIO.unit.delay(fromMillis(1))
 
         val roundtrip = for {
           rt <- ZIO.runtime[Console with Clock]
@@ -33,7 +33,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         assertM(Live.live(result))(equalTo(0))
       } @@ nonFlaky @@ zioTag(supervision, regression),
       testM("auto-kill regression 2") {
-        val effect = clock.nanoTime.map(_.toString()).delay(10.millisecond)
+        val effect = clock.nanoTime.map(_.toString()).delay(fromMillis(10))
 
         val roundtrip = for {
           rt <- ZIO.runtime[Console with Clock]
@@ -42,7 +42,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         val result = roundtrip.orDie.forever
 
-        assertM(Live.live(result.timeout(1.seconds)))(isNone)
+        assertM(Live.live(result.timeout(fromSeconds(1))))(isNone)
       } @@ zioTag(supervision, regression),
       testM("unsafeRunToFuture interruptibility") {
         for {
@@ -51,7 +51,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           _       <- UIO(f.cancel())
           r       <- ZIO.fromFuture(_ => f).run
         } yield assert(r.succeeded)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
-      } @@ timeout(1.second) @@ jvmOnly @@ zioTag(interruption),
+      } @@ timeout(fromSeconds(1)) @@ jvmOnly @@ zioTag(interruption),
       testM("roundtrip preserves interruptibility") {
         for {
           start <- Promise.make[Nothing, Unit]

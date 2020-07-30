@@ -34,6 +34,6 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
               )
             ).unsafeRun(tst)
           )
-      } @@ timeout(1.second)
+      } @@ timeout(fromSeconds(1))
     ) @@ zioTag(future)
 }

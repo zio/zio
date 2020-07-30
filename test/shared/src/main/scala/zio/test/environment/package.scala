@@ -17,7 +17,7 @@
 package zio.test
 
 import java.io.{ EOFException, IOException }
-import java.time.{ Instant, OffsetDateTime, ZoneId }
+import java.time.{ Duration, Instant, OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
 import scala.collection.immutable.{ Queue, SortedSet }
@@ -260,7 +260,7 @@ package object environment extends PlatformSpecific {
        * run in order.
        */
       def adjust(duration: Duration): UIO[Unit] =
-        warningDone *> run(_ + duration)
+        warningDone *> run(add(_, duration))
 
       /**
        * Returns the current clock time as an `OffsetDateTime`.
@@ -323,8 +323,8 @@ package object environment extends PlatformSpecific {
         for {
           promise <- Promise.make[Nothing, Unit]
           await <- clockState.modify { data =>
-                    val end = data.duration + duration
-                    if (end > data.duration)
+                    val end = add(data.duration, duration)
+                    if (end.toNanos > data.duration.toNanos)
                       (true, data.copy(sleeps = (end, promise) :: data.sleeps))
                     else
                       (false, data)
@@ -361,7 +361,7 @@ package object environment extends PlatformSpecific {
       private lazy val awaitSuspended: UIO[Unit] =
         live.provide {
           suspended.repeat {
-            Schedule.doUntilEquals(true) && Schedule.fixed(5.milliseconds)
+            Schedule.doUntilEquals(true) && Schedule.fixed(fromMillis(5))
           }
         }.unit
 
@@ -370,7 +370,7 @@ package object environment extends PlatformSpecific {
        */
       private lazy val delay: UIO[Unit] =
         if (TestPlatform.isJS) ZIO.yieldNow
-        else live.provide(ZIO.sleep(5.milliseconds))
+        else live.provide(ZIO.sleep(fromMillis(5)))
 
       /**
        * Captures a "snapshot" of the status of all descendants of this fiber.
@@ -408,8 +408,7 @@ package object environment extends PlatformSpecific {
       /**
        * Constructs a `Duration` from an `OffsetDateTime`.
        */
-      private def fromDateTime(dateTime: OffsetDateTime): Duration =
-        Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+      private def fromDateTime(dateTime: OffsetDateTime): Duration = fromMillis(dateTime.toInstant.toEpochMilli)
 
       /**
        * Runs all effects scheduled to occur on or before the specified
@@ -420,7 +419,7 @@ package object environment extends PlatformSpecific {
           clockState.modify { data =>
             val end = f(data.duration)
             data.sleeps.sortBy(_._1) match {
-              case (duration, promise) :: sleeps if duration <= end =>
+              case (duration, promise) :: sleeps if duration.toNanos <= end.toNanos =>
                 (Some((end, promise)), Data(duration, sleeps, data.timeZone))
               case _ => (None, Data(end, data.sleeps, data.timeZone))
             }
@@ -452,7 +451,7 @@ package object environment extends PlatformSpecific {
         warningState.updateSome {
           case WarningData.Start =>
             for {
-              fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
+              fiber <- live.provide(console.putStrLn(warning).delay(fromSeconds(5))).interruptible.fork
             } yield WarningData.pending(fiber)
         }
 
@@ -477,7 +476,7 @@ package object environment extends PlatformSpecific {
       ZLayer.requires[Clock with TestClock]
 
     val default: ZLayer[Live with Annotations, Nothing, Clock with TestClock] =
-      live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))
+      live(Data(Duration.ZERO, Nil, ZoneId.of("UTC")))
 
     /**
      * Accesses a `TestClock` instance in the environment and increments the

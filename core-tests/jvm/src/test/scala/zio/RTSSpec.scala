@@ -22,7 +22,7 @@ object RTSSpec extends ZIOBaseSpec {
         blocking.blocking {
           UIO(Thread.currentThread())
             .flatMap(thread => ref.modify(set => (set.contains(thread), set + thread))) <* ZIO
-            .sleep(1.millis)
+            .sleep(fromMillis(1))
         }
 
       val io =
@@ -137,7 +137,7 @@ object RTSSpec extends ZIOBaseSpec {
       val zio =
         for {
           f <- test.fork
-          c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
+          c <- (IO.effectTotal[Int](c.get) <* clock.sleep(fromMillis(1)))
                 .repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
         } yield c
 

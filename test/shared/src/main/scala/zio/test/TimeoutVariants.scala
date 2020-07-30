@@ -20,6 +20,7 @@ import zio.console
 import zio.duration._
 import zio.test.environment.Live
 import zio.{ URIO, ZIO }
+import java.time.Duration
 
 trait TimeoutVariants {
 
@@ -72,7 +73,7 @@ trait TimeoutVariants {
     suiteLabels.map(label => "in Suite \"" + label + "\", ").reverse.mkString
 
   private def renderTest(testLabel: String, duration: Duration): String =
-    "test " + "\"" + testLabel + "\"" + " has taken more than " + duration.render +
+    "test " + "\"" + testLabel + "\"" + " has taken more than " + render(duration) +
       " to execute. If this is not expected, consider using TestAspect.timeout to timeout runaway tests for faster diagnostics."
 
 }

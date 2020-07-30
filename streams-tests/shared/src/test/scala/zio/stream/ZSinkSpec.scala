@@ -238,10 +238,10 @@ object ZSinkSpec extends ZIOBaseSpec {
       ),
       testM("timed") {
         for {
-          f <- ZStream.fromIterable(1 to 10).mapM(i => clock.sleep(10.millis).as(i)).run(ZSink.timed).fork
-          _ <- TestClock.adjust(100.millis)
+          f <- ZStream.fromIterable(1 to 10).mapM(i => clock.sleep(fromMillis(10)).as(i)).run(ZSink.timed).fork
+          _ <- TestClock.adjust(fromMillis(100))
           r <- f.join
-        } yield assert(r)(isGreaterThanEqualTo(100.millis))
+        } yield assert(r)(isGreaterThanEqualTo(fromMillis(100)))
       }
     )
   )

@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.duration._
+import java.time.Duration
 import zio.{ Chunk, Fiber, Tag }
 
 /**
@@ -68,7 +69,7 @@ object TestAnnotation {
    * An annotation for timing.
    */
   val timing: TestAnnotation[Duration] =
-    TestAnnotation("timing", Duration.Zero, _ + _)
+    TestAnnotation("timing", Duration.ZERO, add(_, _))
 
   import scala.collection.immutable.SortedSet
 

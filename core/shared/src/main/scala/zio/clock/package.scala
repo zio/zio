@@ -16,10 +16,8 @@
 
 package zio
 
-import java.time.{ DateTimeException, Instant, OffsetDateTime, ZoneId }
+import java.time.{ DateTimeException, Instant, OffsetDateTime, ZoneId, Duration }
 import java.util.concurrent.TimeUnit
-
-import zio.duration.Duration
 
 package object clock {
 

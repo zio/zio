@@ -52,7 +52,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         _       <- wlatch.await
         count   <- reader2.join
       } yield assert(count)(equalTo(1))
-    } @@ timeout(10.seconds),
+    } @@ timeout(fromSeconds(10)),
     testM("1 write lock then 1 read lock, different fibers") {
       for {
         lock   <- TReentrantLock.make.commit
@@ -70,7 +70,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
       } yield assert(locks)(equalTo(1)) &&
         assert(option)(isNone) &&
         assert(1)(equalTo(rcount))
-    } @@ timeout(10.seconds) @@ flaky,
+    } @@ timeout(fromSeconds(10)) @@ flaky,
     testM("1 write lock then 1 write lock, different fibers") {
       for {
         lock   <- TReentrantLock.make.commit
@@ -88,7 +88,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
       } yield assert(locks)(equalTo(1)) &&
         assert(option)(isNone) &&
         assert(1)(equalTo(rcount))
-    } @@ timeout(10.seconds) @@ flaky,
+    } @@ timeout(fromSeconds(10)) @@ flaky,
     testM("write lock followed by read lock from same fiber") {
       for {
         lock <- TReentrantLock.make.commit
@@ -121,6 +121,6 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         _      <- rlatch.succeed(())
         count  <- writer.join
       } yield assert(option)(isNone) && assert(count)(equalTo(1))
-    } @@ timeout(10.seconds) @@ flaky
+    } @@ timeout(fromSeconds(10)) @@ flaky
   )
 }

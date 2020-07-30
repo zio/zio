@@ -1,12 +1,13 @@
 package zio
 
-import ZManaged.ReleaseMap
+import java.time.Duration
 
+import ZManaged.ReleaseMap
 import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ nonFlaky, scala2Only }
+import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
 import zio.test.environment._
 
@@ -1146,15 +1147,15 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("timed")(
       testM("Should time both the reservation and the acquisition") {
         val managed = ZManaged.makeReserve(
-          clock.sleep(20.milliseconds) *> ZIO.succeed(Reservation(clock.sleep(20.milliseconds), _ => ZIO.unit))
+          clock.sleep(fromMillis(20)) *> ZIO.succeed(Reservation(clock.sleep(fromMillis(20)), _ => ZIO.unit))
         )
         val test = managed.timed.use {
           case (duration, _) =>
-            ZIO.succeed(assert(duration.toNanos)(isGreaterThanEqualTo(40.milliseconds.toNanos)))
+            ZIO.succeed(assert(duration.toNanos)(isGreaterThanEqualTo(fromMillis(40).toNanos)))
         }
         for {
           f      <- test.fork
-          _      <- TestClock.adjust(40.milliseconds)
+          _      <- TestClock.adjust(fromMillis(40))
           result <- f.join
         } yield result
       }
@@ -1162,13 +1163,13 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("timeout")(
       testM("Returns Some if the timeout isn't reached") {
         val managed = ZManaged.make(ZIO.succeed(1))(_ => ZIO.unit)
-        managed.timeout(Duration.Infinity).use(res => ZIO.succeed(assert(res)(isSome(equalTo(1)))))
+        managed.timeout(zio.duration.infiniteDuration).use(res => ZIO.succeed(assert(res)(isSome(equalTo(1)))))
       },
       testM("Returns None if the reservation takes longer than d") {
         for {
           latch   <- Promise.make[Nothing, Unit]
           managed = ZManaged.make(latch.await)(_ => ZIO.unit)
-          res     <- managed.timeout(Duration.Zero).use(res => ZIO.succeed(assert(res)(isNone)))
+          res     <- managed.timeout(Duration.ZERO).use(res => ZIO.succeed(assert(res)(isNone)))
           _       <- latch.succeed(())
         } yield res
       },
@@ -1176,7 +1177,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         for {
           latch   <- Promise.make[Nothing, Unit]
           managed = ZManaged.reserve(Reservation(latch.await, _ => ZIO.unit))
-          res     <- managed.timeout(Duration.Zero).use(res => ZIO.succeed(assert(res)(isNone)))
+          res     <- managed.timeout(Duration.ZERO).use(res => ZIO.succeed(assert(res)(isNone)))
           _       <- latch.succeed(())
         } yield res
       },
@@ -1185,7 +1186,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           reserveLatch <- Promise.make[Nothing, Unit]
           releaseLatch <- Promise.make[Nothing, Unit]
           managed      = ZManaged.reserve(Reservation(reserveLatch.await, _ => releaseLatch.succeed(())))
-          res          <- managed.timeout(Duration.Zero).use(ZIO.succeed(_))
+          res          <- managed.timeout(Duration.ZERO).use(ZIO.succeed(_))
           _            <- reserveLatch.succeed(())
           _            <- releaseLatch.await
         } yield assert(res)(isNone)
@@ -1197,7 +1198,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           managed = ZManaged.makeReserve(
             acquireLatch.await *> ZIO.succeed(Reservation(ZIO.unit, _ => releaseLatch.succeed(())))
           )
-          res <- managed.timeout(Duration.Zero).use(ZIO.succeed(_))
+          res <- managed.timeout(Duration.ZERO).use(ZIO.succeed(_))
           _   <- acquireLatch.succeed(())
           _   <- releaseLatch.await
         } yield assert(res)(isNone)
@@ -1232,7 +1233,7 @@ object ZManagedSpec extends ZIOBaseSpec {
                        for {
                          fiber        <- canceler.forkDaemon
                          _            <- latch.await
-                         interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds))
+                         interruption <- withLive(fiber.interrupt)(_.timeout(fromSeconds(5)))
                          _            <- ref.set(false)
                        } yield interruption
                    }
@@ -1283,7 +1284,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Does not swallow exit cause if one reservation fails") {
         (for {
           latch  <- Promise.make[Nothing, Unit]
-          first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))
+          first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(zio.duration.infiniteDuration))
           second = ZManaged.fromEffect(latch.await *> ZIO.fail(()))
           _      <- first.zipPar(second).use_(ZIO.unit)
         } yield ()).run
@@ -1302,7 +1303,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         ZIO.fiberId.flatMap { selfId =>
           (for {
             latch  <- Promise.make[Nothing, Unit]
-            first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))
+            first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(zio.duration.infiniteDuration))
             second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
             _      <- first.zipPar(second).use_(ZIO.unit)
           } yield ()).run
@@ -1579,7 +1580,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       counter.update(_ - 1) *> {
         def await: URIO[Live, Unit] = counter.get.flatMap { n =>
           if (n <= 0) ZIO.unit
-          else Live.live(ZIO.sleep(10.milliseconds)) *> await
+          else Live.live(ZIO.sleep(fromMillis(10))) *> await
         }
         await
       }
@@ -1595,7 +1596,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).forkDaemon
       _                  <- reachedAcquisition.await
-      interruption       <- Live.live(managedFiber.interruptAs(fiberId).timeout(5.seconds))
+      interruption       <- Live.live(managedFiber.interruptAs(fiberId).timeout(fromSeconds(5)))
     } yield assert(interruption.map(_.untraced))(equalTo(expected(fiberId)))
 
   def makeTestManaged(ref: Ref[Int]): Managed[Nothing, Unit] =

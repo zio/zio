@@ -54,7 +54,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
     },
     testM("foreachPar fail") {
       val io = for {
-        trace <- TestClock.setTime(1.second) *> foreachParFail
+        trace <- TestClock.setTime(fromSeconds(1)) *> foreachParFail
       } yield trace
 
       io causeMust { cause =>
@@ -69,7 +69,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
     },
     testM("foreachParN fail") {
       val io = for {
-        _     <- TestClock.setTime(1.second)
+        _     <- TestClock.setTime(fromSeconds(1))
         trace <- foreachParNFail
       } yield trace
 

@@ -28,7 +28,7 @@ import zio.test.environment.TestEnvironment
 trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
   override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
-    List(TestAspect.timeoutWarning(60.seconds))
+    List(TestAspect.timeoutWarning(fromSeconds(60)))
 
   override def runner: TestRunner[TestEnvironment, Any] =
     defaultTestRunner

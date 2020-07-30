@@ -372,7 +372,7 @@ object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
         )
       ),
       suite("looped")(
-        testValueTimeboxed("returns never")(500.millis)(
+        testValueTimeboxed("returns never")(fromMillis(500))(
           PureModuleMock.Looped(equalTo(1), never),
           PureModule.looped(1),
           isNone

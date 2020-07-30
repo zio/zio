@@ -1,5 +1,7 @@
 package zio.stream
 
+import java.time.Duration
+
 import zio._
 import zio.clock.Clock
 import zio.duration._
@@ -293,7 +295,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
       self.push.zipWith(clock.nanoTime.toManaged_) { (push, start) =>
         push(_).catchAll {
           case (Left(e), leftover)  => Push.fail(e, leftover)
-          case (Right(z), leftover) => clock.nanoTime.flatMap(stop => Push.emit(z -> (stop - start).nanos, leftover))
+          case (Right(z), leftover) => clock.nanoTime.flatMap(stop => Push.emit(z -> fromNanos(stop - start), leftover))
         }
       }
     }

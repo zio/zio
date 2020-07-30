@@ -358,7 +358,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(4))
       },
       testM("error handling") {
-        val sleep  = ZIO.sleep(100.milliseconds).provideLayer(Clock.live)
+        val sleep  = ZIO.sleep(fromMillis(100)).provideLayer(Clock.live)
         val layer1 = ZLayer.fail("foo")
         val layer2 = ZLayer.succeed("bar")
         val layer3 = ZLayer.succeed("baz")

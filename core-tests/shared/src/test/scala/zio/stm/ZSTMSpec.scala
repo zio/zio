@@ -6,6 +6,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{ jvmOnly, nonFlaky }
 import zio.test._
 import zio.test.environment.Live
+import java.time.Duration
 
 object ZSTMSpec extends ZIOBaseSpec {
 
@@ -872,7 +873,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             _ <- barrier.await
             _ <- fiber.interrupt
             _ <- tvar.set(10).commit
-            v <- liveClockSleep(10.millis) *> tvar.get.commit
+            v <- liveClockSleep(fromMillis(10)) *> tvar.get.commit
           } yield assert(v)(equalTo(10))
         } @@ zioTag(interruption),
         testM(
@@ -890,7 +891,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             _ <- barrier.await
             _ <- fiber.interrupt
             _ <- tvar.set(-1).commit
-            v <- liveClockSleep(10.millis) *> tvar.get.commit
+            v <- liveClockSleep(fromMillis(10)) *> tvar.get.commit
           } yield assert(v)(equalTo(-1))
         },
         testM("interrupt the fiber and observe it, it should be resumed with Interrupted Cause") {

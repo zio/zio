@@ -16,10 +16,11 @@
 
 package zio.clock
 
-import scala.scalajs.js
+import java.time.Duration
 
-import zio.duration.Duration
 import zio.internal.Scheduler
+
+import scala.scalajs.js
 
 private[clock] trait PlatformSpecific {
   private[clock] val globalScheduler = new Scheduler {
@@ -27,24 +28,31 @@ private[clock] trait PlatformSpecific {
 
     private[this] val ConstFalse = () => false
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
-      case Duration.Infinity => ConstFalse
-      case Duration.Zero =>
+    override def schedule(task: Runnable, duration: Duration): CancelToken = {
+      val nanos = duration.toNanos
+
+      if (nanos <= 0) {
         task.run()
 
         ConstFalse
-      case duration: Duration.Finite =>
-        var completed = false
+      } else {
 
-        val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
-          completed = true
+        nanos match {
+          case zio.duration.infiniteNano => ConstFalse
+          case _ =>
+            var completed = false
 
-          task.run()
+            val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
+              completed = true
+
+              task.run()
+            }
+            () => {
+              js.timers.clearTimeout(handle)
+              !completed
+            }
         }
-        () => {
-          js.timers.clearTimeout(handle)
-          !completed
-        }
+      }
     }
   }
 }

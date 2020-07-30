@@ -6,11 +6,12 @@ import scala.reflect.ClassTag
 
 import zio._
 import zio.clock.Clock
-import zio.duration.Duration
+import java.time.Duration
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ ZInputStream, ZReader }
+import zio.duration._
 
 /**
  * A `ZStream[R, E, O]` is a description of a program that, when evaluated,
@@ -2694,12 +2695,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       val waitCycles =
                         if (remaining >= 0) 0
                         else -remaining.toDouble / units
-                      val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
+                      val delay = fromNanos((waitCycles * duration.toNanos).toLong)
 
                       (delay, (remaining, current))
 
                   }
-          _ <- clock.sleep(delay).when(delay > Duration.Zero)
+          _ <- clock.sleep(delay).when(delay.toNanos > Duration.ZERO.toNanos)
         } yield chunk
       } yield pull
     }

@@ -200,13 +200,13 @@ object TestAspectSpec extends ZIOBaseSpec {
     suite("nonTermination")(
       testM("makes a test pass if it does not terminate within the specified time") {
         assertM(ZIO.never)(anything)
-      } @@ nonTermination(10.milliseconds),
+      } @@ nonTermination(fromMillis(10)),
       testM("makes a test fail if it succeeds within the specified time") {
         assertM(ZIO.unit)(anything)
-      } @@ nonTermination(1.minute) @@ failing,
+      } @@ nonTermination(fromMinutes(1)) @@ failing,
       testM("makes a test fail if it fails within the specified time") {
         assertM(ZIO.fail("fail"))(anything)
-      } @@ nonTermination(1.minute) @@ failing
+      } @@ nonTermination(fromMinutes(1)) @@ failing
     ),
     testM("retry retries failed tests according to a schedule") {
       for {
@@ -235,7 +235,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ setSeed(seed),
     testM("timeout makes tests fail after given duration") {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
-    } @@ timeout(1.nanos)
+    } @@ timeout(fromNanos(1))
       @@ failing(diesWithSubtypeOf[TestTimeoutException]),
     testM("verify verifies the specified post-condition after each test is run") {
       for {

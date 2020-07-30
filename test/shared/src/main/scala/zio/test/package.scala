@@ -20,7 +20,7 @@ import scala.collection.immutable.SortedSet
 import scala.util.Try
 
 import zio.console.Console
-import zio.duration.Duration
+import java.time.Duration
 import zio.stream.{ ZSink, ZStream }
 import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem }
 
