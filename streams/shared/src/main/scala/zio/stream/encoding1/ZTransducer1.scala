@@ -35,8 +35,8 @@ object ZTransducer1 {
 
   type Process[-R, E, -I, +O] = URManaged[R, Pull[E, I] => Pull[E, O]]
 
-  def access[R, I]: AccessPartiallyApplied[R, I] =
-    new AccessPartiallyApplied[R, I]()
+  def access[R]: AccessPartiallyApplied[R] =
+    new AccessPartiallyApplied[R]()
 
   def collect[I, O](f: PartialFunction[I, O]): ZTransducer1[Any, Nothing, I, O] =
     new ZTransducer1[Any, Nothing, I, O] {
@@ -135,8 +135,8 @@ object ZTransducer1 {
         ZTransducer1.map[Chunk[I], Chunk[O]](_.map(f))
     }
 
-  def service[A, I]: ServicePartiallyApplied[A, I] =
-    new ServicePartiallyApplied[A, I]()
+  def service[A]: ServicePartiallyApplied[A] =
+    new ServicePartiallyApplied[A]()
 
   def take[I](n: Long): ZTransducer1[Any, Nothing, I, I] =
     if (n < 0) dieMessage(s"cannot take $n")
@@ -212,18 +212,21 @@ object ZTransducer1 {
         }
     }
 
-  final class AccessPartiallyApplied[R, I](private val dummy: Boolean = true) extends AnyVal {
+  def tap[R, E, I](f: I => ZIO[R, E, Any]): ZTransducer1[R, E, I, I] =
+    access[R]((r, i) => f(i).provide(r).foldCauseM(Pull.halt, _ => Pull.emit(i)))
 
-    def apply[E, O](pipe: (R, I) => Pull[E, O]): ZTransducer1[R, E, I, O] =
+  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+
+    def apply[E, I, O](pipe: (R, I) => Pull[E, O]): ZTransducer1[R, E, I, O] =
       new ZTransducer1[R, E, I, O] {
         def process[EE >: E]: Process[R, EE, I, O] =
           ZManaged.access[R](r => _.flatMap(pipe(r, _)))
       }
   }
 
-  final class ServicePartiallyApplied[A, I](private val dummy: Boolean = true) extends AnyVal {
+  final class ServicePartiallyApplied[A](private val dummy: Boolean = true) extends AnyVal {
 
-    def apply[E, O](pipe: (A, I) => Pull[E, O])(implicit a: Tag[A]): ZTransducer1[Has[A], E, I, O] =
+    def apply[E, I, O](pipe: (A, I) => Pull[E, O])(implicit a: Tag[A]): ZTransducer1[Has[A], E, I, O] =
       new ZTransducer1[Has[A], E, I, O] {
         def process[EE >: E]: Process[Has[A], EE, I, O] =
           ZManaged.service[A].map(a => _.flatMap(pipe(a, _)))
