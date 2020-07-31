@@ -447,7 +447,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         suite("buffer")(
-          testM("maintains elements and ordering")(checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt))) { chunk =>
+          testM("maintains elements and ordering")(checkM(tinyChunkOf(tinyChunkOf(Gen.anyInt))) { chunk =>
             assertM(
               ZStream
                 .fromChunks(chunk: _*)
@@ -1079,14 +1079,14 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         suite("flatMapPar")(
-          testM("guarantee ordering")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { (m: List[Int]) =>
+          testM("guarantee ordering")(checkM(tinyListOf(Gen.anyInt)) { (m: List[Int]) =>
             for {
               flatMap    <- ZStream.fromIterable(m).flatMap(i => ZStream(i, i)).runCollect
               flatMapPar <- ZStream.fromIterable(m).flatMapPar(1)(i => ZStream(i, i)).runCollect
             } yield assert(flatMap)(equalTo(flatMapPar))
           }),
           testM("consistent with flatMap")(
-            checkM(Gen.int(1, Int.MaxValue), Gen.small(Gen.listOfN(_)(Gen.anyInt))) { (n, m) =>
+            checkM(Gen.int(1, Int.MaxValue), tinyListOf(Gen.anyInt)) { (n, m) =>
               for {
                 flatMap <- ZStream
                             .fromIterable(m)
@@ -1974,7 +1974,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .run
                 .map(_.interrupted)
             )(equalTo(false))
-          } @@ nonFlaky(10),
+          } @@ nonFlaky(10) @@ TestAspect.jvmOnly,
           testM("interrupts pending tasks when one of the tasks fails") {
             for {
               interrupted <- Ref.make(0)
@@ -3133,7 +3133,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield assert(result0)(equalTo(result1))
             }
           }
-        ),
+        ) @@ TestAspect.jvmOnly,
         suite("zipWithPrevious")(
           testM("should zip with previous element for a single chunk") {
             for {
@@ -3157,7 +3157,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield assert(result0)(equalTo(result1))
             }
           }
-        ),
+        ) @@ TestAspect.jvmOnly,
         suite("zipWithPreviousAndNext")(
           testM("succeed") {
             for {
@@ -3181,7 +3181,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield assert(result0)(equalTo(result1))
             }
           }
-        ),
+        ) @@ TestAspect.jvmOnly,
         suite("refineToOrDie")(
           testM("does not compile when refine type is not a subtype of error type") {
             val result = typeCheck {
