@@ -53,7 +53,7 @@ object BuildHelper {
       buildInfoObject := "BuildInfo"
     )
 
-  val dottyVersion = "0.23.0-RC1"
+  val dottyVersion = "0.26.0-RC1"
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
@@ -83,7 +83,7 @@ object BuildHelper {
   )
 
   val scalaReflectSettings = Seq(
-    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M2")
+    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M5")
   )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
