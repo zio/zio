@@ -193,7 +193,7 @@ testM("`acquire` doesn't leak permits upon cancellation") {
 Above code doesn't work. We created a new `TestClock` instance and are correctly adjusting its time. What might be surprising is that call to `timeout` will use the `TestClock` provided by the `TestEnvironment` not our `testClock` instance. It easy to know why when you look at the signature of `timeout`:
 
 ```scala mdoc
-import zio.duration.Duration
+import zio.console._
 import zio.clock.Clock
 
 sealed trait ZIO[-R, +E, +A] extends Serializable { self =>

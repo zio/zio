@@ -4,7 +4,7 @@ import java.{ util => ju }
 
 import zio._
 import zio.clock.Clock
-import zio.duration.Duration
+import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
@@ -2679,7 +2679,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       val waitCycles =
                         if (remaining >= 0) 0
                         else -remaining.toDouble / units
-                      val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
+                      val delay = (waitCycles * duration.toNanos).toLong.nanos
 
                       (delay, (remaining, current))
 

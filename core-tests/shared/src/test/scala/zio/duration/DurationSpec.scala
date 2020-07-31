@@ -13,28 +13,22 @@ object DurationSpec extends ZIOBaseSpec {
 
   def spec = suite("DurationSpec")(
     suite("Make a Duration from positive nanos and check that: ")(
-      test("The Duration is Finite") {
-        assert(Duration.fromNanos(1))(isSubtype[Duration.Finite](Assertion.anything))
-      },
-      test("Copy with a negative nanos returns Zero") {
-        assert(Duration.fromNanos(1).asInstanceOf[Duration.Finite].copy(-1))(equalTo(Duration.Zero))
-      },
       test("Multiplying with a negative factor returns Zero") {
-        assert(Duration.fromNanos(1) * -1.0)(equalTo(Duration.Zero: Duration))
+        assert(1.nanos * -1.0)(equalTo(Duration.Zero))
       },
       test("Its stdlib representation is correct and matches type") {
-        val duration: ScalaFiniteDuration = Duration.Finite(1234L).asScala
-        val expected: ScalaFiniteDuration = ScalaFiniteDuration(1234L, TimeUnit.NANOSECONDS)
+        val duration = 1234L.nanos.asScala
+        val expected = ScalaFiniteDuration(1234L, TimeUnit.NANOSECONDS)
         assert(duration)(equalTo(expected))
       },
       test("Its JDK representation is correct") {
-        assert(Duration.fromNanos(2345L).asJava)(equalTo(JavaDuration.ofNanos(2345L)))
+        assert(2345L.nanos.asJava)(equalTo(JavaDuration.ofNanos(2345L)))
       },
       test("It identifies as 'zero'") {
-        assert(Duration.fromNanos(0L).isZero)(equalTo(true))
+        assert(0L.nanos.isZero)(equalTo(true))
       },
       test("Creating it with a j.u.c.TimeUnit is identical") {
-        assert(Duration(12L, TimeUnit.NANOSECONDS))(equalTo(Duration.fromNanos(12L)))
+        assert(Duration(12L, TimeUnit.NANOSECONDS))(equalTo(12L.nanos))
       },
       test("It knows its length in ns") {
         assert(Duration.fromNanos(123L).toNanos)(equalTo(123L))
@@ -90,13 +84,8 @@ object DurationSpec extends ZIOBaseSpec {
       test("* with factor equal to 1 results in Finite Duration in case of large duration") {
         assert(Duration.fromNanos(Long.MaxValue) * 1)(equalTo(Duration.fromNanos(Long.MaxValue)))
       },
-      test("* results in Finite Duration if the multiplication result is close to max FiniteDuration value") {
-        val factor = 1.5
-        val nanos  = (Long.MaxValue / 1.9).round
-        assert(Duration.fromNanos(nanos) * factor)(isSubtype[Duration.Finite](Assertion.anything))
-      },
       test("Folding picks up the correct value") {
-        assert(Duration.fromNanos(Long.MaxValue).fold("Infinity", _ => "Finite"))(equalTo("Finite"))
+        assert(Duration.fromNanos(Long.MaxValue).fold("Infinity", _ => "Finite"))(equalTo("Infinity"))
       },
       test("Durations can be accumulated") {
         val durations = List(1.second, 2.seconds, 3.seconds)

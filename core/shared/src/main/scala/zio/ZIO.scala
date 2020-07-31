@@ -444,7 +444,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Returns an effect that is delayed from this effect by the specified
-   * [[zio.duration.Duration]].
+   * [[java.time.Duration]].
    */
   final def delay(duration: Duration): ZIO[R with Clock, E, A] =
     clock.sleep(duration) *> self
@@ -1782,7 +1782,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * A more powerful variation of `timed` that allows specifying the clock.
    */
   final def timedWith[R1 <: R, E1 >: E](nanoTime: ZIO[R1, E1, Long]): ZIO[R1, E1, (Duration, A)] =
-    summarized(nanoTime)((start, end) => Duration.fromNanos(end - start))
+    summarized(nanoTime)((start, end) => (end - start).nanos)
 
   /**
    * Returns an effect that will timeout this effect, returning `None` if the
@@ -3084,7 +3084,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
-  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.Infinity) *> ZIO.never
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this

@@ -196,7 +196,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val expected = (800.millis, "GiveUpError", 4)
         val result = io.retryOrElseEither(
           strategy,
-          (e: String, r: Int) => clock.nanoTime.map(nanos => (Duration.fromNanos(nanos), e, r))
+          (e: String, r: Int) => clock.nanoTime.map(nanos => (nanos.nanos, e, r))
         )
         assertM(run(result))(isLeft(equalTo(expected)))
       },

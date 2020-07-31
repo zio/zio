@@ -409,7 +409,7 @@ package object environment extends PlatformSpecific {
        * Constructs a `Duration` from an `OffsetDateTime`.
        */
       private def fromDateTime(dateTime: OffsetDateTime): Duration =
-        Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+        dateTime.toInstant.toEpochMilli.millis
 
       /**
        * Runs all effects scheduled to occur on or before the specified

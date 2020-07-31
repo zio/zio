@@ -19,7 +19,7 @@ package zio
 import java.util.concurrent.TimeUnit
 
 import zio.clock.Clock
-import zio.duration.Duration
+import zio.duration._
 import zio.random.Random
 
 /**
@@ -407,7 +407,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       random.nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random
-        Duration.fromNanos(jittered.toLong)
+        jittered.toLong.nanos
       }
     }
 
@@ -787,7 +787,7 @@ object Schedule {
     Schedule[Clock, (Long, Long), Any, Duration](
       clock.nanoTime.map((_, 0L)),
       { case (_, (start, _))   => clock.nanoTime.map(currentTime => (start, currentTime - start)) },
-      { case (_, (_, elapsed)) => Duration.fromNanos(elapsed) }
+      { case (_, (_, elapsed)) => elapsed.nanos }
     )
 
   /**
@@ -823,20 +823,20 @@ object Schedule {
    * </pre>
    */
   def fixed(interval: Duration): Schedule[Clock, Any, Int] = interval match {
-    case Duration.Infinity                    => once >>> never.as(1)
-    case Duration.Finite(nanos) if nanos == 0 => forever
-    case Duration.Finite(nanos) =>
+    case Duration.Infinity => once >>> never.as(1)
+    case Duration.Zero     => forever
+    case duration =>
       Schedule[Clock, (Long, Int, Int), Any, Int](
         clock.nanoTime.map(nt => (nt, 1, 0)),
         (_, t) =>
           t match {
             case (start, n0, i) =>
               clock.nanoTime.flatMap { now =>
-                val await = (start + n0 * nanos) - now
+                val await = (start + n0 * duration.toNanos) - now
                 val n = 1 +
-                  (if (await < 0) ((now - start) / nanos).toInt else n0)
+                  (if (await < 0) ((now - start) / duration.toNanos).toInt else n0)
 
-                ZIO.sleep(Duration.fromNanos(await.max(0L))).as((start, n, i + 1))
+                ZIO.sleep(await.max(0L).nanos).as((start, n, i + 1))
               }
           },
         (_, s) => s._3
@@ -904,7 +904,7 @@ object Schedule {
       ZIO.succeedNow(Duration.Zero), {
         case _ =>
           random.nextLongBounded(maxNanos - minNanos + 1).flatMap { n =>
-            val duration = Duration.fromNanos(n + minNanos)
+            val duration = (n + minNanos).nanos
             clock.sleep(duration).as(duration)
           }
       },

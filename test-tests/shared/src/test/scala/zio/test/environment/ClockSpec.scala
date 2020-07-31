@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 
 import zio._
 import zio.clock._
-import zio.duration.Duration._
+import zio.duration._
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -54,7 +54,7 @@ object ClockSpec extends ZIOBaseSpec {
           time1 <- nanoTime
           _     <- adjust(1.millis)
           time2 <- nanoTime
-        } yield assert(fromNanos(time2 - time1))(equalTo(1.millis))
+        } yield assert((time2 - time1).nanos)(equalTo(1.millis))
       },
       testM("adjust correctly advances currentTime") {
         for {

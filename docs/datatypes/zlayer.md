@@ -39,7 +39,7 @@ import zio._
 import zio.console._
 import zio.clock._
 import java.io.IOException
-import zio.duration.Duration._
+import zio.duration._
 
 object moduleA {
   type ModuleA = Has[ModuleA.Service]
@@ -96,7 +96,7 @@ object ZLayerApp0 extends zio.App {
   val program: ZIO[Console with Clock with moduleB.ModuleB, IOException, Unit] =
     for {
       _ <- putStrLn(s"Welcome to ZIO!")
-      _ <- sleep(Finite(1000))
+      _ <- sleep(1000.nanos)
       r <- letsGoB(10)
       _ <- putStrLn(r)
     } yield ()

@@ -18,15 +18,15 @@ package zio.test
 
 import java.time.{ Instant, LocalDateTime, OffsetDateTime, ZoneOffset }
 
-import zio.duration.Duration
+import zio.duration._
 import zio.random.Random
 
 trait TimeVariants {
 
   /**
-   * A generator of finite `zio.duration.Duration` values. Shrinks toward `Duration.Zero`.
+   * A generator of finite `java.time.Duration` values. Shrinks toward `Duration.Zero`.
    */
-  final def anyFiniteDuration: Gen[Random, Duration] = Gen.long(0L, Long.MaxValue).map(Duration.Finite(_))
+  final def anyFiniteDuration: Gen[Random, Duration] = Gen.long(0L, Long.MaxValue).map(_.nanos)
 
   /**
    * A generator of `java.time.Instant` values. Shrinks toward `Instant.MIN`.
@@ -44,10 +44,10 @@ trait TimeVariants {
   final def anyOffsetDateTime: Gen[Random, OffsetDateTime] = offsetDateTime(OffsetDateTime.MIN, OffsetDateTime.MAX)
 
   /**
-   * A generator of finite `zio.duration.Duration` values inside the specified range: [min, max]. Shrinks toward min.
+   * A generator of finite `java.time.Duration` values inside the specified range: [min, max]. Shrinks toward min.
    */
   final def finiteDuration(min: Duration, max: Duration): Gen[Random, Duration] =
-    Gen.long(min.toNanos, max.toNanos).map(Duration.Finite(_))
+    Gen.long(min.toNanos, max.toNanos).map(_.nanos)
 
   /**
    * A generator of `java.time.Instant` values inside the specified range: [min, max]. Shrinks toward min.
