@@ -13,6 +13,68 @@ abstract class ZTransducer1[-R, +E, -I, +O] {
   def >>:[R1 <: R, E1 >: E, II, I1 <: I](upstream: ZTransducer1[R1, E1, II, I1]): ZTransducer1[R1, E1, II, O] =
     transduce(upstream)
 
+  def buffer(capacity: Int): ZTransducer1[R, E, I, O] =
+    new ZTransducer1[R, E, I, O] {
+
+      def process[EE >: E]: ZTransducer1.Process[R, EE, I, O] =
+        for {
+          q    <- Queue.bounded[Take[EE, I]](capacity).toManaged_
+          pipe <- self.process[EE]
+          upstream <- Promise
+                       .make[Nothing, Pull[EE, I]]
+                       .toManaged_
+                       .tap(
+                         _.await.flatMap(Take.fromPull(_).doUntilM(take => q.offer(take).as(take.isDone))).forkManaged
+                       )
+        } yield upstream.succeed(_) *> pipe(q.take.flatMap(_.toPull))
+    }
+
+  def bufferDropping(capacity: Int): ZTransducer1[R, E, I, O] =
+    new ZTransducer1[R, E, I, O] {
+
+      def process[EE >: E]: ZTransducer1.Process[R, EE, I, O] =
+        Queue.dropping[Take[EE, I]](capacity).toManaged(_.shutdown).flatMap(bufferUsing)
+    }
+
+  def bufferSliding(capacity: Int): ZTransducer1[R, E, I, O] =
+    new ZTransducer1[R, E, I, O] {
+
+      def process[EE >: E]: ZTransducer1.Process[R, EE, I, O] =
+        Queue.sliding[Take[EE, I]](capacity).toManaged(_.shutdown).flatMap(bufferUsing)
+    }
+
+  def bufferUnbounded: ZTransducer1[R, E, I, O] =
+    new ZTransducer1[R, E, I, O] {
+
+      def process[EE >: E]: ZTransducer1.Process[R, EE, I, O] =
+        Queue.unbounded[Take[EE, I]].toManaged(_.shutdown).flatMap(bufferUsing)
+    }
+
+  private def bufferUsing[E1 >: E, I1 <: I](q: Queue[Take[E1, I1]]): ZTransducer1.Process[R, E1, I1, O] =
+    for {
+      pipe <- self.process[E1]
+      done <- Promise.make[Nothing, Boolean].toManaged_
+      pull <- Promise
+               .make[Nothing, Pull[E1, I1]]
+               .toManaged_
+               .tap(
+                 _.await
+                   .flatMap(
+                     Take
+                       .fromPull(_)
+                       .doUntilM(k =>
+                         if (k.isDone) q.offer(k) *> done.await
+                         else q.offer(k).as(false)
+                       )
+                   )
+                   .forkManaged
+               )
+    } yield (upstream: Pull[E1, I1]) =>
+      ZIO.ifM(done.isDone)(
+        Pull.end,
+        pull.succeed(upstream) *> pipe(q.take.flatMap(k => done.succeed(true).when(k.isDone) *> k.toPull))
+      )
+
   def chunked: ZTransducer1[R, E, Chunk[I], Chunk[O]] =
     new ZTransducer1[R, E, Chunk[I], Chunk[O]] {
 
