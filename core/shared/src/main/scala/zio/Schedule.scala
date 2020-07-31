@@ -901,7 +901,7 @@ object Schedule {
    *
    * <pre>
    * |-----interval-----|-----interval-----|-----interval-----|
-   * |         action        ||action|-----|action|-----------|
+   * |---------action--------||action|-----|action|-----------|
    * </pre>
    */
   def fixed(interval: Duration): Schedule[Any, Any, Long] = {
