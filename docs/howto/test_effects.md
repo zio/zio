@@ -195,6 +195,7 @@ Above code doesn't work. We created a new `TestClock` instance and are correctly
 ```scala mdoc
 import zio.console._
 import zio.clock.Clock
+import zio.duration._
 
 sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     /* All other method declarations in this trait ignored to avoid clutter */
