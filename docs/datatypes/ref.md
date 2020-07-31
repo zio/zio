@@ -107,7 +107,7 @@ import zio.random._
 val party = for {
   dancefloor <- S(10)
   dancers <- ZIO.foreachPar(1 to 100) { i =>
-    dancefloor.P *> nextDouble.map(d => (d * 1000000).round.nanos)).flatMap { d =>
+    dancefloor.P *> nextDouble.map(d => (d * 1000000).round.nanos).flatMap { d =>
       putStrLn(s"${i} checking my boots") *> sleep(d) *> putStrLn(s"${i} dancing like it's 99")
     } *> dancefloor.V
   }
