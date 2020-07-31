@@ -50,8 +50,8 @@ object GenF {
   /**
    * A generator of `Either` values.
    */
-  def either[R <: Random, A](a: Gen[R, A]): GenF[R, ({ type lambda[x] = Either[A, x] })#lambda] =
-    new GenF[R, ({ type lambda[x] = Either[A, x] })#lambda] {
+  def either[R <: Random, A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Either[A, x] })#lambda] =
+    new GenF[R, ({ type lambda[+x] = Either[A, x] })#lambda] {
       def apply[R1 <: R, B](b: Gen[R1, B]): Gen[R1, Either[A, B]] =
         Gen.either(a, b)
     }
@@ -68,8 +68,8 @@ object GenF {
   /**
    * A generator of `Map` values.
    */
-  def map[R <: Random with Sized, A](a: Gen[R, A]): GenF[R, ({ type lambda[x] = Map[A, x] })#lambda] =
-    new GenF[R, ({ type lambda[x] = Map[A, x] })#lambda] {
+  def map[R <: Random with Sized, A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] =
+    new GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] {
       def apply[R1 <: R, B](b: Gen[R1, B]): Gen[R1, Map[A, B]] =
         Gen.mapOf(a, b)
     }
