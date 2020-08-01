@@ -30,7 +30,7 @@ package object duration {
 
   type Duration = java.time.Duration
   object Duration {
-    final val Infinity = java.time.Duration.ofNanos(Long.MaxValue)
+   val Infinity = java.time.Duration.ofNanos(Long.MaxValue)
     val Zero     = java.time.Duration.ZERO
 
     object Finite {
