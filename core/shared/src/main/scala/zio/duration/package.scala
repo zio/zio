@@ -132,7 +132,6 @@ package object duration {
       case f: Duration       => finite(f)
     }
 
-    def copy(nanos: Long = duration.toNanos): Duration = Finite(nanos)
 
   }
 
