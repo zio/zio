@@ -22,12 +22,14 @@ import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 import scala.language.implicitConversions
+import scala.math.Ordering
 
 import zio.duration.Duration
 
 package object duration {
 
   type Duration = java.time.Duration
+
   object Duration {
     val Infinity = java.time.Duration.ofNanos(Long.MaxValue)
     val Zero     = java.time.Duration.ZERO
@@ -131,6 +133,10 @@ package object duration {
       case f: Duration       => finite(f)
     }
 
+  }
+
+  implicit val durationOrdering: Ordering[Duration] = new Ordering[Duration] {
+    override def compare(x: Duration, y: Duration): Int = x.compareTo(y)
   }
 
 }
