@@ -374,19 +374,13 @@ object RIO {
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
-  def foreach[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, List[B]] =
-    ZIO.foreach(in)(f)
+  def foreach[R, E, A, B, Collection[x] <: Iterable[x]](in: Collection[A])(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+    ZIO.foreach(in)(fn)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
    */
   def foreach[R, A, B](in: Option[A])(f: A => RIO[R, B]): RIO[R, Option[B]] =
-    ZIO.foreach(in)(f)
-
-  /**
-   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.Chunk*]]]
-   */
-  def foreach[R, A, B](in: Chunk[A])(f: A => RIO[R, B]): RIO[R, Chunk[B]] =
     ZIO.foreach(in)(f)
 
   /**

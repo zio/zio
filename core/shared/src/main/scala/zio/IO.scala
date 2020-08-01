@@ -345,19 +345,13 @@ object IO {
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
-  def foreach[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[E, List[B]] =
-    ZIO.foreach(in)(f)
+  def foreach[E, A, B, Collection[x] <: Iterable[x]](in: Collection[A])(fn: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+    ZIO.foreach(in)(fn)
 
   /**
    * @see See [[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
    */
   def foreach[E, A, B](in: Option[A])(f: A => IO[E, B]): IO[E, Option[B]] =
-    ZIO.foreach(in)(f)
-
-  /**
-   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.Chunk*]]]
-   */
-  def foreach[E, A, B](in: Chunk[A])(f: A => IO[E, B]): IO[E, Chunk[B]] =
     ZIO.foreach(in)(f)
 
   /**

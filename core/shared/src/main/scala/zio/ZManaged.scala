@@ -1309,7 +1309,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Sequential =>
                     (
                       ZIO
-                        .foreach(fins) {
+                        .foreach(fins.toList) {
                           case (_, fin) => fin.apply(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAll(results) getOrElse Exit.unit)),
@@ -1599,7 +1599,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def foreach[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
     ZManaged(ZIO.foreach(as)(f(_).zio).map { result =>
       val (fins, as) = result.unzip
-      (e => ZIO.foreach(fins.reverse)(_.apply(e)), as)
+      (e => ZIO.foreach(fins.toList.reverse)(_.apply(e)), as.toList)
     })
 
   /**
@@ -1665,7 +1665,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def foreach_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     ZManaged(ZIO.foreach(as)(f(_).zio).map { result =>
       val (fins, _) = result.unzip
-      (e => ZIO.foreach(fins.reverse)(_.apply(e)), ())
+      (e => ZIO.foreach(fins.toList.reverse)(_.apply(e)), ())
     })
 
   /**

@@ -1357,7 +1357,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       c <- ZIO.uninterruptibleMask { restore =>
             for {
               head <- ZIO.interruptible(self).fork
-              tail <- ZIO.foreach(ios)(io => ZIO.interruptible(io).fork)
+              tail <- ZIO.foreach(ios)(io => ZIO.interruptible(io).fork).map(_.toList)
               fs   = head :: tail
               _ <- fs.foldLeft[ZIO[R1, E1, Any]](ZIO.unit) {
                     case (io, f) =>
@@ -2244,14 +2244,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * the successful values and discarding the empty cases. For a parallel version, see `collectPar`.
    */
   def collect[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, Option[E], B]): ZIO[R, E, List[B]] =
-    foreach(in)(a => f(a).optional).map(_.flatten)
+    foreach(in)(a => f(a).optional).map(_.toList.flatten)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect the
    * results. For a parallel version, see `collectAllPar`.
    */
   def collectAll[R, E, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreach(in)(ZIO.identityFn)
+    foreach(in)(ZIO.identityFn).map(_.toList)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect the
@@ -2694,8 +2694,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * For a parallel version of this method, see `foreachPar`.
    * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
-  def foreach[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    in.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil))((a, io) => f(a).zipWith(io)((b, bs) => b :: bs))
+  def foreach[R, E, A, B, Collection[x] <: Iterable[x]](in: Collection[A])(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+    in.foldLeft[ZIO[R, E, scala.collection.mutable.Builder[B, Collection[B]]]](effectTotal(bf.newBuilder(in)))((io, a) => io.zipWith(fn(a))((bs, b) => bs += b)).map(_.result())
 
   /**
    * Applies the function `f` if the argument is non-empty and
@@ -2703,16 +2703,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   final def foreach[R, E, A, B](in: Option[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Option[B]] =
     in.fold[ZIO[R, E, Option[B]]](none)(f(_).map(Some(_)))
-
-  /**
-   * Applies the function `f` to each element of the `Chunk[A]` and
-   * returns the results in a new `Chunk[B]`.
-   *
-   * For a parallel version of this method, see `foreachPar`.
-   * If you do not need the results, see `foreach_` for a more efficient implementation.
-   */
-  final def foreach[R, E, A, B](in: Chunk[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
-    in.mapM(f)
 
   /**
    * Applies the function `f` to each element of the `NonEmptyChunk[A]` and
@@ -2756,9 +2746,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     as: Iterable[A]
   )(exec: ExecutionStrategy)(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     exec match {
-      case ExecutionStrategy.Parallel     => ZIO.foreachPar(as)(f)
-      case ExecutionStrategy.ParallelN(n) => ZIO.foreachParN(n)(as)(f)
-      case ExecutionStrategy.Sequential   => ZIO.foreach(as)(f)
+      case ExecutionStrategy.Parallel     => ZIO.foreachPar(as)(f).map(_.toList)
+      case ExecutionStrategy.ParallelN(n) => ZIO.foreachParN(n)(as)(f).map(_.toList)
+      case ExecutionStrategy.Sequential   => ZIO.foreach(as)(f).map(_.toList)
     }
 
   /**
@@ -2903,6 +2893,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         } yield res
       }
       .refailWithTrace
+      .map(_.toList)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -3708,7 +3699,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def validateFirst[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], B] =
-    ZIO.foreach(in)(f(_).flip).flip
+    ZIO.foreach(in)(f(_).flip).flip.mapError(_.toList)
 
   /**
    * Feeds elements of type `A` to `f`, in parallel, until it succeeds. Returns

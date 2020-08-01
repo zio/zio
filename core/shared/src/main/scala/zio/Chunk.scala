@@ -615,23 +615,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Effectfully maps the elements of this chunk.
    */
   final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
-    ZIO.effectSuspendTotal {
-      val iterator = arrayIterator
-      val builder  = ChunkBuilder.make[B]()
-      builder.sizeHint(length)
-      var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
-      while (iterator.hasNext) {
-        val array  = iterator.next()
-        val length = array.length
-        var i      = 0
-        while (i < length) {
-          val j = i
-          dest = dest.zipWith(f(self(j)))(_ += _)
-          i += 1
-        }
-      }
-      dest.map(_.result())
-    }
+    ZIO.foreach(self)(f)
 
   /**
    * Effectfully maps the elements of this chunk in parallel.

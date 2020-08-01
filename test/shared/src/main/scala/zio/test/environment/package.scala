@@ -382,7 +382,7 @@ package object environment extends PlatformSpecific {
       private lazy val freeze: IO[Unit, Set[Fiber.Status]] =
         supervisedFibers.flatMap { fibers =>
           ZIO
-            .foreach(fibers)(_.status.filterOrFail {
+            .foreach(fibers.toList)(_.status.filterOrFail {
               case Fiber.Status.Done                     => true
               case Fiber.Status.Suspended(_, _, _, _, _) => true
               case _                                     => false
