@@ -522,7 +522,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       var j      = 0
       while (result < 0 & j < length) {
         if (i >= from) {
-          val a = array(i)
+          val a = array(j)
           if (f(a)) {
             result = i
           }
@@ -591,15 +591,15 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       val iterator = arrayIterator
       val builder  = ChunkBuilder.make[B]()
       builder.sizeHint(length)
-      var dest: ZIO[R, E, S1] = UIO.succeedNow(s1)
+      var zio: ZIO[R, E, S1] = UIO.succeedNow(s1)
       while (iterator.hasNext) {
         val array  = iterator.next()
         val length = array.length
         var i      = 0
         while (i < length) {
-          val j = i
-          dest = dest.flatMap { state =>
-            f1(state, self(j)).map {
+          val a = array(i)
+          zio = zio.flatMap { state =>
+            f1(state, a).map {
               case (state2, b) =>
                 builder += b
                 state2
@@ -608,7 +608,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
           i += 1
         }
       }
-      dest.map((_, builder.result()))
+      zio.map((_, builder.result()))
     }
 
   /**
@@ -619,18 +619,18 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       val iterator = arrayIterator
       val builder  = ChunkBuilder.make[B]()
       builder.sizeHint(length)
-      var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
+      var zio: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
       while (iterator.hasNext) {
         val array  = iterator.next()
         val length = array.length
         var i      = 0
         while (i < length) {
-          val j = i
-          dest = dest.zipWith(f(self(j)))(_ += _)
+          val a = array(i)
+          zio = zio.zipWith(f(a))(_ += _)
           i += 1
         }
       }
-      dest.map(_.result())
+      zio.map(_.result())
     }
 
   /**

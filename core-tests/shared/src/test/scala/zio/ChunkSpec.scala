@@ -16,21 +16,59 @@ object ChunkSpec extends ZIOBaseSpec {
   def toBoolFn[R <: Random, A]: Gen[R, A => Boolean] =
     Gen.function(Gen.boolean)
 
+  def chunks[R <: Random, A](n: Int)(a: Gen[R, A]): Gen[R, Chunk[A]] = {
+
+    val empty: Gen[R, Chunk[Nothing]] =
+      Gen.const(Chunk.empty)
+
+    val single: Gen[R, Chunk[A]] =
+      a.map(Chunk.single)
+
+    def append(n: Int): Gen[R, Chunk[A]] =
+      chunks(n - 1)(a).zipWith(a)(_ :+ _)
+
+    def prepend(n: Int): Gen[R, Chunk[A]] =
+      a.zipWith(chunks(n - 1)(a))(_ +: _)
+
+    def array(n: Int): Gen[R, Chunk[A]] =
+      Gen.listOfN(n)(a).map(Chunk.fromIterable)
+
+    def vector(n: Int): Gen[R, Chunk[A]] =
+      Gen.vectorOfN(n)(a).map(Chunk.fromIterable)
+
+    def concat(n: Int): Gen[R, Chunk[A]] =
+      Gen.suspend {
+        for {
+          i <- Gen.int(0, n)
+          l <- chunks(i)(a)
+          r <- chunks(n - i)(a)
+        } yield l ++ r
+      }
+
+    Gen.suspend {
+      if (n == 0) Gen.oneOf(empty, array(n), vector(n), concat(n))
+      else Gen.oneOf(append(n), array(n), concat(n), prepend(n), single, vector(n))
+    }
+  }
+
+  def chunkOfBounded[R <: Random, A](from: Int, to: Int)(a: Gen[R, A]): Gen[R, Chunk[A]] =
+    Gen.int(from, to).flatMap(chunks(_)(a))
+
   def tinyChunks[R <: Random, A](a: Gen[R, A]): Gen[R, Chunk[A]] =
-    Gen.chunkOfBounded(0, 3)(a)
+    chunkOfBounded(0, 3)(a)
 
   def smallChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
-    Gen.small(Gen.chunkOfN(_)(a))
+    Gen.small(chunks(_)(a))
 
   def mediumChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
-    Gen.medium(Gen.chunkOfN(_)(a))
+    Gen.medium(chunks(_)(a))
 
   def largeChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
-    Gen.large(Gen.chunkOfN(_)(a))
+    Gen.large(chunks(_)(a))
 
   def chunkWithIndex[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, (Chunk[A], Int)] =
     for {
-      chunk <- Gen.chunkOfBounded(1, 100)(a)
+      chunk <- chunkOfBounded(1, 100)(a)
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
@@ -243,7 +281,15 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("mapAccumM")(
       testM("mapAccumM happy path") {
-        assertM(Chunk(1, 1, 1).mapAccumM(0)((s, el) => UIO.succeed((s + el, s + el))))(equalTo((3, Chunk(1, 2, 3))))
+        checkM(smallChunks(Gen.anyInt), Gen.anyInt, Gen.function2(Gen.anyInt <*> Gen.anyInt)) { (as, s, f) =>
+          val actual = as.mapAccumM[Any, Nothing, Int, Int](s)((s, a) => UIO.succeed(f(s, a)))
+          val expected = as.foldLeft[(Int, Chunk[Int])]((s, Chunk.empty)) {
+            case ((s0, bs), a) =>
+              val (s1, b) = f(s0, a)
+              (s1, bs :+ b)
+          }
+          assertM(actual)(equalTo(expected))
+        }
       },
       testM("mapAccumM error") {
         Chunk(1, 1, 1).mapAccumM(0)((_, _) => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
@@ -503,10 +549,28 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(a.zipAll(b))(equalTo(d)) &&
       assert(b.zipAll(a))(equalTo(e))
     },
-    zio.test.test("zipAllWith") {
-      assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
-      assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
-      assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
+    testM("zipAllWith") {
+      check(
+        smallChunks(Gen.anyInt),
+        smallChunks(Gen.anyInt),
+        Gen.function(Gen.anyInt),
+        Gen.function(Gen.anyInt),
+        Gen.function2(Gen.anyInt)
+      ) { (as, bs, left, right, both) =>
+        val actual = as.zipAllWith(bs)(left, right)(both).toList
+        val expected =
+          if (as.length > bs.length)
+            (as.toList).zip(bs.toList).map(both.tupled) ::: as.toList.drop(bs.toList.length).map(left)
+          else (as.toList).zip(bs.toList).map(both.tupled) ::: bs.toList.drop(as.toList.length).map(right)
+        assert(actual)(equalTo(expected))
+      }
+    },
+    testM("zipWith") {
+      check(smallChunks(Gen.anyInt), smallChunks(Gen.anyInt), Gen.function2(Gen.anyInt)) { (as, bs, f) =>
+        val actual   = as.zipWith(bs)(f).toList
+        val expected = as.toList.zip(bs.toList).map(f.tupled)
+        assert(actual)(equalTo(expected))
+      }
     },
     zio.test.test("partitionMap") {
       val as       = Chunk(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
