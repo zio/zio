@@ -65,7 +65,7 @@ package object duration {
 
   implicit def durationLong(n: Long): DurationSyntax = new DurationSyntax(n)
 
-  implicit class DurationOps(duration: Duration) {
+  implicit final class DurationOps(private val duration: Duration) extends AnyVal {
 
     def +(other: Duration): Duration = {
       val thisNanos  = if (duration.toNanos > 0) duration.toNanos else 0
