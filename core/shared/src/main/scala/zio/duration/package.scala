@@ -24,13 +24,12 @@ import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => 
 import scala.language.implicitConversions
 
 import zio.duration.Duration
-import zio.duration.Duration.Finite
 
 package object duration {
 
   type Duration = java.time.Duration
   object Duration {
-   val Infinity = java.time.Duration.ofNanos(Long.MaxValue)
+    val Infinity = java.time.Duration.ofNanos(Long.MaxValue)
     val Zero     = java.time.Duration.ZERO
 
     object Finite {
@@ -131,7 +130,6 @@ package object duration {
       case Duration.Infinity => infinity
       case f: Duration       => finite(f)
     }
-
 
   }
 
