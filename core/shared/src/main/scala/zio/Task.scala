@@ -132,7 +132,9 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  def collectAllParN[A](n: Int)(as: Iterable[Task[A]]): Task[List[A]] =
+  def collectAllParN[R, E, A, Collection[+x] <: Iterable[x]](n: Int)(
+    as: Collection[ZIO[R, E, A]]
+  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     ZIO.collectAllParN(n)(as)
 
   /**
@@ -144,19 +146,27 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectAllSuccesses]]
    */
-  def collectAllSuccesses[A](in: Iterable[Task[A]]): Task[List[A]] =
+  def collectAllSuccesses[A, Collection[+x] <: Iterable[x]](
+    in: Collection[Task[A]]
+  )(implicit bf: BuildFrom[Collection[Task[A]], A, Collection[A]]): UIO[Collection[A]] =
     ZIO.collectAllSuccesses(in)
 
   /**
    * @see See [[zio.ZIO.collectAllSuccessesPar]]
    */
-  def collectAllSuccessesPar[A](as: Iterable[Task[A]]): Task[List[A]] =
+  def collectAllSuccessesPar[R, E, A, Collection[+x] <: Iterable[x]](
+    as: Collection[ZIO[R, E, A]]
+  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Collection[A]] =
     ZIO.collectAllSuccessesPar(as)
 
   /**
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
-  def collectAllSuccessesParN[A](n: Int)(as: Iterable[Task[A]]): Task[List[A]] =
+  def collectAllSuccessesParN[R, E, A, Collection[+x] <: Iterable[x]](
+    n: Int
+  )(
+    as: Collection[ZIO[R, E, A]]
+  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Collection[A]] =
     ZIO.collectAllSuccessesParN(n)(as)
 
   /**
@@ -168,13 +178,21 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectAllWithPar]]
    */
-  def collectAllWithPar[A, B](as: Iterable[Task[A]])(f: PartialFunction[A, B]): Task[List[B]] =
+  def collectAllWithPar[R, E, A, U, Collection[+x] <: Iterable[x]](
+    as: Collection[ZIO[R, E, A]]
+  )(
+    f: PartialFunction[A, U]
+  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], U, Collection[U]]): ZIO[R, E, Collection[U]] =
     ZIO.collectAllWithPar(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[A, B](n: Int)(as: Iterable[Task[A]])(f: PartialFunction[A, B]): Task[List[B]] =
+  def collectAllWithParN[R, E, A, U, Collection[+x] <: Iterable[x]](n: Int)(
+    as: Collection[ZIO[R, E, A]]
+  )(
+    f: PartialFunction[A, U]
+  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], U, Collection[U]]): ZIO[R, E, Collection[U]] =
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
@@ -188,7 +206,9 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
-  def collectParN[R, A, B](n: Int)(in: Iterable[A])(f: A => ZIO[Any, Option[Throwable], B]): Task[List[B]] =
+  def collectParN[R, E, A, B, Collection[+x] <: Iterable[x]](n: Int)(
+    in: Collection[A]
+  )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
     ZIO.collectParN(n)(in)(f)
 
   /**
@@ -296,25 +316,33 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see [[zio.ZIO.filter]]
    */
-  def filter[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+  def filter[R, E, A, Collection[+x] <: Iterable[x]](
+    as: Collection[A]
+  )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     ZIO.filter(as)(f)
 
   /**
    * @see [[zio.ZIO.filterPar]]
    */
-  def filterPar[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+  def filterPar[R, E, A, Collection[+x] <: Iterable[x]](
+    as: Collection[A]
+  )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     ZIO.filterPar(as)(f)
 
   /**
    * @see [[zio.ZIO.filterNot]]
    */
-  def filterNot[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+  def filterNot[R, E, A, Collection[+x] <: Iterable[x]](
+    as: Collection[A]
+  )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     ZIO.filterNot(as)(f)
 
   /**
    * @see [[zio.ZIO.filterNotPar]]
    */
-  def filterNotPar[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+  def filterNotPar[R, E, A, Collection[+x] <: Iterable[x]](
+    as: Collection[A]
+  )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
@@ -373,7 +401,11 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.foreachExec]]
    */
-  final def foreachExec[A, B](as: Iterable[A])(exec: ExecutionStrategy)(f: A => Task[B]): Task[List[B]] =
+  final def foreachExec[R, E, A, B, Collection[+x] <: Iterable[x]](
+    as: Collection[A]
+  )(
+    exec: ExecutionStrategy
+  )(f: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
   /**
@@ -393,7 +425,11 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  def foreachParN[A, B](n: Int)(as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
+  def foreachParN[R, E, A, B, Collection[+x] <: Iterable[x]](
+    n: Int
+  )(
+    as: Collection[A]
+  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
@@ -429,7 +465,9 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  def forkAll[A](as: Iterable[Task[A]]): UIO[Fiber[Throwable, List[A]]] =
+  def forkAll[R, E, A, Collection[+x] <: Iterable[x]](
+    as: Collection[ZIO[R, E, A]]
+  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Fiber[E, Collection[A]]] =
     ZIO.forkAll(as)
 
   /**
