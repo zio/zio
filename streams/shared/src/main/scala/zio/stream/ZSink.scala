@@ -869,16 +869,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       for {
         state <- Ref.make[Chunk[I]](Chunk.empty).toManaged_
         push = (is: Option[Chunk[I]]) =>
-          state.get.flatMap { taken =>
+          state.get.flatMap { take =>
             is match {
               case Some(ch) =>
-                val (toTake, leftover) = ch.splitAt(n - taken.length)
-                val take               = taken ++ toTake
-                if (take.length == n) state.set(Chunk.empty) *> Push.emit(take, leftover)
-                else state.set(taken ++ ch) *> Push.more
+                val idx = n - take.length
+                if (idx < ch.length) {
+                  val (chunk, leftover) = ch.splitAt(idx)
+                  state.set(Chunk.empty) *> Push.emit(take ++ chunk, leftover)
+                } else {
+                  state.set(take ++ ch) *> Push.more
+                }
               case None =>
-                if (n >= 0) Push.emit(taken, Chunk.empty)
-                else Push.emit(Chunk.empty, taken)
+                if (n >= 0) Push.emit(take, Chunk.empty)
+                else Push.emit(Chunk.empty, take)
             }
           }
       } yield push
