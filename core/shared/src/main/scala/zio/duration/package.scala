@@ -117,7 +117,7 @@ package object duration {
     }
 
     def asJava: JavaDuration = duration match {
-      case Duration.Infinity => JavaDuration.ofMillis(Long.MaxValue)
+      case Duration.Infinity => JavaDuration.ofNanos(Long.MaxValue)
       case _                 => JavaDuration.ofNanos(duration.toNanos)
     }
 
