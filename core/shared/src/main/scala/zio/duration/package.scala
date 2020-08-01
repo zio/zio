@@ -39,7 +39,7 @@ package object duration {
         if (nanos >= 0) nanos.nanos
         else Duration.Zero
 
-      def unapply(arg: Duration): Option[Long] = if (arg == Duration.Infinity) None else Some(arg.toNanos)
+      def unapply(arg: Duration): Option[Long] = if (arg >= Duration.Infinity) None else Some(arg.toNanos)
 
     }
 
