@@ -1319,7 +1319,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Parallel =>
                     (
                       ZIO
-                        .foreachPar(fins) {
+                        .foreachPar(fins.toList) {
                           case (_, finalizer) =>
                             finalizer(exit).run
                         }
@@ -1634,7 +1634,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     f: A1 => ZManaged[R, E, A2]
   ): ZManaged[R, E, List[A2]] =
     ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapM { parallelReleaseMap =>
-      ZIO.foreachPar(as)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
+      ZIO.foreachPar(as.toList)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
     }
 
   /**

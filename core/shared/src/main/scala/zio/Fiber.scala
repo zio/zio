@@ -545,7 +545,7 @@ object Fiber extends FiberPlatformSpecific {
   def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber.Synthetic[E, List[A]] =
     new Fiber.Synthetic[E, List[A]] {
       def await: UIO[Exit[E, List[A]]] =
-        IO.foreachPar(fibers)(_.await.flatMap(IO.done(_))).run
+        IO.foreachPar(fibers.toList)(_.await.flatMap(IO.done(_))).run
       def getRef[A](ref: FiberRef[A]): UIO[A] =
         UIO.foreach(fibers)(_.getRef(ref)).map(_.foldRight(ref.initial)(ref.join))
       def inheritRefs: UIO[Unit] =

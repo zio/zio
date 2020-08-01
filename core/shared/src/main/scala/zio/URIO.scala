@@ -77,13 +77,17 @@ object URIO {
   /**
    * @see See [[zio.ZIO.collect]]
    */
-  def collect[R, A, B](in: Iterable[A])(f: A => ZIO[R, Option[Nothing], B]): URIO[R, List[B]] =
+  def collect[R, A, B, Collection[+x] <: Iterable[x]](in: Collection[A])(
+    f: A => ZIO[R, Option[Nothing], B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): URIO[R, Collection[B]] =
     ZIO.collect(in)(f)
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
-  def collectAll[R, A](in: Iterable[URIO[R, A]]): URIO[R, List[A]] =
+  def collectAll[R, E, A, Collection[+x] <: Iterable[x]](
+    in: Collection[URIO[R, A]]
+  )(implicit bf: BuildFrom[Collection[URIO[R, A]], A, Collection[A]]): URIO[R, Collection[A]] =
     ZIO.collectAll(in)
 
   /**
@@ -113,14 +117,10 @@ object URIO {
   /**
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Iterable*]]]
    */
-  def collectAllPar[R, A](as: Iterable[URIO[R, A]]): URIO[R, List[A]] =
-    ZIO.collectAllPar(as)
-
-  /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.Chunk*]]]
-   */
-  def collectAllPar[R, A](as: Chunk[URIO[R, A]]): URIO[R, Chunk[A]] =
-    ZIO.collectAllPar(as)
+  def collectAllPar[R, E, A, Collection[+x] <: Iterable[x]](
+    in: Collection[URIO[R, A]]
+  )(implicit bf: BuildFrom[Collection[URIO[R, A]], A, Collection[A]]): URIO[R, Collection[A]] =
+    ZIO.collectAllPar(in)
 
   /**
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.NonEmptyChunk*]]]
@@ -174,7 +174,7 @@ object URIO {
    * @see [[zio.ZIO.collectAllWith]]
    */
   def collectAllWith[R, A, B](in: Iterable[URIO[R, A]])(f: PartialFunction[A, B]): URIO[R, List[B]] =
-    ZIO.collectAllWith(in)(f)
+    ???
 
   /**
    * @see [[zio.ZIO.collectAllWithPar]]
@@ -191,7 +191,9 @@ object URIO {
   /**
    * @see See [[zio.ZIO.collectPar]]
    */
-  def collectPar[R, A, B](in: Iterable[A])(f: A => ZIO[R, Option[Nothing], B]): URIO[R, List[B]] =
+  def collectPar[R, A, B, Collection[+x] <: Iterable[x]](in: Collection[A])(
+    f: A => ZIO[R, Option[Nothing], B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): URIO[R, Collection[B]] =
     ZIO.collectPar(in)(f)
 
   /**
@@ -340,7 +342,9 @@ object URIO {
   /**
    * @see [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
-  def foreach[R, E, A, B, Collection[x] <: Iterable[x]](in: Collection[A])(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+  def foreach[R, E, A, B, Collection[+x] <: Iterable[x]](
+    in: Collection[A]
+  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
     ZIO.foreach(in)(fn)
 
   /**
@@ -370,14 +374,10 @@ object URIO {
   /**
    * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
-  def foreachPar[R, A, B](as: Iterable[A])(fn: A => URIO[R, B]): URIO[R, List[B]] =
-    ZIO.foreachPar(as)(fn)
-
-  /**
-   * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.Chunk*]]]
-   */
-  def foreachPar[R, A, B](as: Chunk[A])(fn: A => URIO[R, B]): URIO[R, Chunk[B]] =
-    ZIO.foreachPar(as)(fn)
+  def foreachPar[R, E, A, B, Collection[+x] <: Iterable[x]](
+    in: Collection[A]
+  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+    ZIO.foreachPar(in)(fn)
 
   /**
    * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.NonEmptyChunk*]]]

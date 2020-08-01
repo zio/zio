@@ -639,7 +639,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("runs many tasks") {
         val as      = (1 to 1000)
         val results = IO.foreachPar(as)(a => IO.succeed(2 * a))
-        assertM(results)(equalTo(as.toList.map(2 * _)))
+        assertM(results)(equalTo(as.map(2 * _)))
       },
       testM("runs a task that fails") {
         val as = (1 to 10)
