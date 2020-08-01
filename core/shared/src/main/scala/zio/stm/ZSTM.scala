@@ -87,7 +87,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * second part to that effect.
    */
   def ***[R1, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[(R, R1), E1, (A, B)] =
-    (ZSTM.first[R, R1] >>> self) &&& (ZSTM.second[R, R1] >>> that)
+    (ZSTM.first >>> self) &&& (ZSTM.second >>> that)
 
   /**
    * Sequentially zips this value with the specified one, discarding the
@@ -1096,8 +1096,8 @@ object ZSTM {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  def first[A, B]: ZSTM[(A, B), Nothing, A] =
-    fromFunction[(A, B), A](_._1)
+  def first[A]: ZSTM[(A, Any), Nothing, A] =
+    fromFunction(_._1)
 
   /**
    * Returns an effect that first executes the outer effect, and then executes
@@ -1392,8 +1392,8 @@ object ZSTM {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def second[A, B]: URSTM[(A, B), B] =
-    fromFunction[(A, B), B](_._2)
+  def second[A]: URSTM[(Any, A), A] =
+    fromFunction(_._2)
 
   /**
    * Accesses the specified service in the environment of the effect.

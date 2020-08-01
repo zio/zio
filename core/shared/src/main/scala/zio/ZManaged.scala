@@ -73,7 +73,7 @@ abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * second part to that effect.
    */
   def ***[R1, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[(R, R1), E1, (A, B)] =
-    (ZManaged.first[R, R1] >>> self) &&& (ZManaged.second[R, R1] >>> that)
+    (ZManaged.first >>> self) &&& (ZManaged.second >>> that)
 
   /**
    * Symbolic alias for zipRight
@@ -1561,7 +1561,8 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  def first[A, B]: ZManaged[(A, B), Nothing, A] = fromFunction(_._1)
+  def first[A]: ZManaged[(A, Any), Nothing, A] =
+    fromFunction(_._1)
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
@@ -2128,7 +2129,8 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def second[A, B]: ZManaged[(A, B), Nothing, B] = fromFunction(_._2)
+  def second[A]: ZManaged[(Any, A), Nothing, A] =
+    fromFunction(_._2)
 
   /**
    * Accesses the specified service in the environment of the effect.

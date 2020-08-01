@@ -70,7 +70,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * second part to that effect.
    */
   final def ***[R1, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[(R, R1), E1, (A, B)] =
-    (ZIO.first[R, R1] >>> self) &&& (ZIO.second[R, R1] >>> that)
+    (ZIO.first >>> self) &&& (ZIO.second >>> that)
 
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
@@ -2650,7 +2650,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  def first[A, B]: ZIO[(A, B), Nothing, A] = fromFunction[(A, B), A](_._1)
+  def first[A]: ZIO[(A, Any), Nothing, A] =
+    fromFunction(_._1)
 
   /**
    * Returns an effect that races this effect with all the specified effects,
@@ -3550,7 +3551,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def second[A, B]: URIO[(A, B), B] = fromFunction[(A, B), B](_._2)
+  def second[A]: URIO[(Any, A), A] =
+    fromFunction(_._2)
 
   /**
    * Accesses the specified service in the environment of the effect.
