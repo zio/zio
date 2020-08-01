@@ -21,7 +21,7 @@ import java.util.regex.Pattern
 import scala.io.AnsiColor
 import scala.util.Try
 
-import zio.duration.Duration
+import zio.duration._
 import zio.test.ConsoleUtils.{ cyan, red, _ }
 import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
 import zio.test.RenderedResult.CaseType._

@@ -17,6 +17,7 @@ package zio.test
  */
 
 import zio.test.TestAnnotationRenderer._
+import zio.duration._
 
 /**
  * A `TestAnnotationRenderer` knows how to render test annotations.
