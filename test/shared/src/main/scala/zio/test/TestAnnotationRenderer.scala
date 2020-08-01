@@ -16,8 +16,8 @@ package zio.test
  * limitations under the License.
  */
 
-import zio.test.TestAnnotationRenderer._
 import zio.duration._
+import zio.test.TestAnnotationRenderer._
 
 /**
  * A `TestAnnotationRenderer` knows how to render test annotations.

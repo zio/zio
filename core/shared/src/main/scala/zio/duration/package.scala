@@ -16,15 +16,15 @@
 
 package zio
 
-import java.time.temporal.{ChronoUnit, TemporalUnit}
-import java.time.{Instant, Duration => JavaDuration}
+import java.time.temporal.{ ChronoUnit, TemporalUnit }
+import java.time.{ Instant, Duration => JavaDuration }
 import java.util.concurrent.TimeUnit
+
+import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
+import scala.language.implicitConversions
 
 import zio.duration.Duration
 import zio.duration.Duration.Finite
-
-import scala.concurrent.duration.{Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration}
-import scala.language.implicitConversions
 
 package object duration {
 

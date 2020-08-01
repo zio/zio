@@ -3,7 +3,7 @@ package zio.duration
 import java.time.{ Duration => JavaDuration }
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.duration.{ Duration => ScalaDuration}
+import scala.concurrent.duration.{ Duration => ScalaDuration }
 
 import zio.ZIOBaseSpec
 import zio.test.Assertion._
