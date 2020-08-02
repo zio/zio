@@ -1627,9 +1627,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Applies the function `f` to each element of the `Iterable[A]` and returns
    * the result in a new `List[B]` using the specified execution strategy.
    */
-  final def foreachExec[R, E, A, B, Collection[+Element] <: Iterable[Element]](
-    as: Collection[A]
-  )(
+  final def foreachExec[R, E, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
     exec: ExecutionStrategy
   )(f: A => ZManaged[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
     exec match {
@@ -1644,9 +1642,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * For a sequential version of this method, see `foreach`.
    */
-  def foreachPar[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](
-    as: Collection[A1]
-  )(
+  def foreachPar[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](as: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
   )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
     ReleaseMap
@@ -1665,11 +1661,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
    *
    */
-  def foreachParN[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](
-    n: Int
-  )(
-    as: Collection[A1]
-  )(
+  def foreachParN[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](n: Int)(as: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
   )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
     ReleaseMap

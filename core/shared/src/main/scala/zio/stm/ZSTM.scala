@@ -1434,9 +1434,7 @@ object ZSTM {
    * This combinator is lossy meaning that if there are errors all successes
    * will be lost. To retain all information please use [[partition]].
    */
-  def validate[R, E, A, B, Collection[+Element] <: Iterable[Element]](
-    in: Collection[A]
-  )(
+  def validate[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZSTM[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZSTM[R, ::[E], Collection[B]] =
     partition(in)(f).flatMap {
@@ -1448,9 +1446,7 @@ object ZSTM {
    * Feeds elements of type `A` to `f` until it succeeds. Returns first success
    * or the accumulation of all errors.
    */
-  def validateFirst[R, E, A, B, Collection[+Element] <: Iterable[Element]](
-    in: Collection[A]
-  )(
+  def validateFirst[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZSTM[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], E, Collection[E]], ev: CanFail[E]): ZSTM[R, Collection[E], B] =
     ZSTM.foreach(in)(f(_).flip).flip
