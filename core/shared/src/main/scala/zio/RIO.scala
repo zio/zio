@@ -169,25 +169,25 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectAllWith]]
    */
-  def collectAllWith[R, A, U, Collection[+Element] <: Iterable[Element]](
+  def collectAllWith[R, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[RIO[R, A]]
-  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[RIO[R, A]], U, Collection[U]]): RIO[R, Collection[U]] =
+  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[RIO[R, A]], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.collectAllWith(in)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithPar]]
    */
-  def collectAllWithPar[R, A, U, Collection[+Element] <: Iterable[Element]](
+  def collectAllWithPar[R, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[RIO[R, A]]
-  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[RIO[R, A]], U, Collection[U]]): RIO[R, Collection[U]] =
+  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[RIO[R, A]], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.collectAllWithPar(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[R, A, U, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectAllWithParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     as: Collection[RIO[R, A]]
-  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[RIO[R, A]], U, Collection[U]]): RIO[R, Collection[U]] =
+  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[RIO[R, A]], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**

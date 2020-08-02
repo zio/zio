@@ -146,25 +146,25 @@ object UIO {
   /**
    * @see See [[zio.ZIO.collectAllWith]]
    */
-  def collectAllWith[A, U, Collection[+Element] <: Iterable[Element]](
+  def collectAllWith[A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[UIO[A]]
-  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[UIO[A]], U, Collection[U]]): UIO[Collection[U]] =
+  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[UIO[A]], B, Collection[B]]): UIO[Collection[B]] =
     ZIO.collectAllWith(in)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithPar]]
    */
-  def collectAllWithPar[A, U, Collection[+Element] <: Iterable[Element]](
+  def collectAllWithPar[A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[UIO[A]]
-  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[UIO[A]], U, Collection[U]]): UIO[Collection[U]] =
+  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[UIO[A]], B, Collection[B]]): UIO[Collection[B]] =
     ZIO.collectAllWithPar(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[A, U, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectAllWithParN[A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     as: Collection[UIO[A]]
-  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[UIO[A]], U, Collection[U]]): UIO[Collection[U]] =
+  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[UIO[A]], B, Collection[B]]): UIO[Collection[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**

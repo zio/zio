@@ -152,25 +152,25 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectAllWith]]
    */
-  def collectAllWith[A, U, Collection[+Element] <: Iterable[Element]](
+  def collectAllWith[A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[Task[A]]
-  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[Task[A]], U, Collection[U]]): Task[Collection[U]] =
+  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[Task[A]], B, Collection[B]]): Task[Collection[B]] =
     ZIO.collectAllWith(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithPar]]
    */
-  def collectAllWithPar[A, U, Collection[+Element] <: Iterable[Element]](
+  def collectAllWithPar[A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[Task[A]]
-  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[Task[A]], U, Collection[U]]): Task[Collection[U]] =
+  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[Task[A]], B, Collection[B]]): Task[Collection[B]] =
     ZIO.collectAllWithPar(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[A, U, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectAllWithParN[A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     as: Collection[Task[A]]
-  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[Task[A]], U, Collection[U]]): Task[Collection[U]] =
+  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[Task[A]], B, Collection[B]]): Task[Collection[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
