@@ -346,7 +346,8 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Puts this schedule into the first element of a tuple, and passes along
    * another value unchanged as the second element of the tuple.
    */
-  final def first[R1 <: R, C]: Schedule[R1, (A, C), (B, C)] = self *** Schedule.identity[C]
+  final def first[C]: Schedule[R, (A, C), (B, C)] =
+    self *** Schedule.identity[C]
 
   /**
    * Returns a new schedule that folds over the outputs of this one.
@@ -570,7 +571,8 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Puts this schedule into the second element of a tuple, and passes along
    * another value unchanged as the first element of the tuple.
    */
-  final def second[C]: Schedule[R, (C, A), (C, B)] = Schedule.identity[C] *** self
+  final def second[C]: Schedule[R, (C, A), (C, B)] =
+    Schedule.identity[C] *** self
 
   /**
    * Sends every input value to the specified sink.

@@ -44,7 +44,7 @@ object ZStreamGen extends GenZIO {
           )
     }
 
-  def nPulls[R, E, A](pull: ZIO[R, Option[E], A], n: Int): ZIO[R, Nothing, List[Either[Option[E], A]]] =
+  def nPulls[R, E, A](pull: ZIO[R, Option[E], A], n: Int): ZIO[R, Nothing, Iterable[Either[Option[E], A]]] =
     ZIO.foreach(1 to n)(_ => pull.either)
 
   val streamOfBytes = Gen.bounded(0, 5)(streamGen(Gen.anyByte, _))
