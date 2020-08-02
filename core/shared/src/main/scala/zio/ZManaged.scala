@@ -1114,15 +1114,22 @@ abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f: (A, A1) => A2): ZManaged[R1, E1, A2] =
     ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapM { parallelReleaseMap =>
-      self.zio
-        .zipWithPar(that.zio) {
-          // We can safely discard the finalizers here because the resulting ZManaged's early
-          // release will trigger the ReleaseMap, which would release both finalizers in
-          // parallel.
-          case ((_, a), (_, b)) =>
-            f(a, b)
-        }
-        .provideSome[R1]((_, parallelReleaseMap))
+      val innerMap =
+        ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.provideSome[R1]((_, parallelReleaseMap))
+
+      (innerMap zip innerMap) flatMap {
+        case ((_, l), (_, r)) =>
+          self.zio
+            .provideSome[R1]((_, l))
+            .zipWithPar(that.zio.provideSome[R1]((_, r))) {
+              // We can safely discard the finalizers here because the resulting ZManaged's early
+              // release will trigger the ReleaseMap, which would release both finalizers in
+              // parallel.
+              case ((_, a), (_, b)) =>
+                f(a, b)
+            }
+
+      }
     }
 }
 
@@ -1649,10 +1656,14 @@ object ZManaged extends ZManagedPlatformSpecific {
     ReleaseMap
       .makeManaged(ExecutionStrategy.Parallel)
       .mapM { parallelReleaseMap =>
+        val makeInnerMap =
+          ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+
         ZIO
-          .foreachPar(as.toIterable)(f(_).zio.map(_._2))
+          .foreachPar(as.toIterable)(a =>
+            makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
+          )
           .map(bf.fromSpecific(as))
-          .provideSome[R]((_, parallelReleaseMap))
       }
 
   /**
@@ -1668,10 +1679,14 @@ object ZManaged extends ZManagedPlatformSpecific {
     ReleaseMap
       .makeManaged(ExecutionStrategy.ParallelN(n))
       .mapM { parallelReleaseMap =>
+        val makeInnerMap =
+          ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+
         ZIO
-          .foreachParN(n)(as.toIterable)(f(_).zio.map(_._2))
+          .foreachParN(n)(as.toIterable)(a =>
+            makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
+          )
           .map(bf.fromSpecific(as))
-          .provideSome[R]((_, parallelReleaseMap))
       }
 
   /**
@@ -1695,7 +1710,10 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapM { parallelReleaseMap =>
-      ZIO.foreachPar_(as)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
+      val makeInnerMap =
+        ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+
+      ZIO.foreachPar_(as)(a => makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap))))
     }
 
   /**
@@ -1712,7 +1730,10 @@ object ZManaged extends ZManagedPlatformSpecific {
     f: A => ZManaged[R, E, Any]
   ): ZManaged[R, E, Unit] =
     ReleaseMap.makeManaged(ExecutionStrategy.ParallelN(n)).mapM { parallelReleaseMap =>
-      ZIO.foreachParN_(n)(as)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
+      val makeInnerMap =
+        ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+
+      ZIO.foreachParN_(n)(as)(a => makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap))))
     }
 
   /**
