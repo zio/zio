@@ -2853,7 +2853,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Applies the functionw `f` to each element of the `Collection[A]` in parallel,
+   * Applies the function `f` to each element of the `Collection[A]` in parallel,
    * and returns the results in a new `Collection[B]`.
    *
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
