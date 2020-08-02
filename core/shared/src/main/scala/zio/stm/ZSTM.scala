@@ -997,7 +997,7 @@ object ZSTM {
    * Evaluate each effect in the structure from left to right, collecting the
    * the successful values and discarding the empty cases.
    */
-  def collect[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZSTM[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
     foreach(in.toList)(a => f(a).optional).map(_.collect { case Some(b) => b }(scala.collection.breakOut(bf)))
@@ -1006,7 +1006,7 @@ object ZSTM {
    * Collects all the transactional effects in a list, returning a single
    * transactional effect that produces a list of values.
    */
-  def collectAll[R, E, A, Collection[+x] <: Iterable[x]](
+  def collectAll[R, E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZSTM[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZSTM[R, E, A]], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
     foreach(in)(ZIO.identityFn)
@@ -1067,7 +1067,7 @@ object ZSTM {
   /**
    * Filters the collection using the specified effectual predicate.
    */
-  def filter[R, E, A, Collection[+x] <: Iterable[x]](
+  def filter[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZSTM[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
     as.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil)) { (a, zio) =>
@@ -1079,7 +1079,7 @@ object ZSTM {
    * Filters the collection using the specified effectual predicate, removing
    * all elements that satisfy the predicate.
    */
-  def filterNot[R, E, A, Collection[+x] <: Iterable[x]](
+  def filterNot[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZSTM[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
     filter(as)(f(_).map(!_))
@@ -1119,7 +1119,7 @@ object ZSTM {
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces a new `List[B]`.
    */
-  def foreach[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZSTM[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
     in.foldRight[ZSTM[R, E, List[B]]](ZSTM.succeedNow(Nil))((a, tx) => f(a).zipWith(tx)(_ :: _))
@@ -1433,7 +1433,7 @@ object ZSTM {
    * This combinator is lossy meaning that if there are errors all successes
    * will be lost. To retain all information please use [[partition]].
    */
-  def validate[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def validate[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(
     f: A => ZSTM[R, E, B]
@@ -1447,7 +1447,7 @@ object ZSTM {
    * Feeds elements of type `A` to `f` until it succeeds. Returns first success
    * or the accumulation of all errors.
    */
-  def validateFirst[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def validateFirst[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(
     f: A => ZSTM[R, E, B]

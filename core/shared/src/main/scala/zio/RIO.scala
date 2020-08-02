@@ -83,7 +83,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collect]]
    */
-  def collect[R, A, B, Collection[+x] <: Iterable[x]](in: Collection[A])(
+  def collect[R, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, Option[Throwable], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.collect(in)(f)
@@ -91,7 +91,7 @@ object RIO {
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
    */
-  def collectAll[R, A, Collection[+x] <: Iterable[x]](
+  def collectAll[R, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[RIO[R, A]]
   )(implicit bf: BuildFrom[Collection[RIO[R, A]], A, Collection[A]]): RIO[R, Collection[A]] =
     ZIO.collectAll(in)
@@ -109,23 +109,11 @@ object RIO {
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:zio\.Chunk*]]]
-   */
-  def collectAll_[R, A](in: Chunk[RIO[R, A]]): RIO[R, Unit] =
-    ZIO.collectAll_(in)
-
-  /**
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Iterable*]]]
    */
-  def collectAllPar[R, A, Collection[+x] <: Iterable[x]](
+  def collectAllPar[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[RIO[R, A]]
   )(implicit bf: BuildFrom[Collection[RIO[R, A]], A, Collection[A]]): RIO[R, Collection[A]] =
-    ZIO.collectAllPar(as)
-
-  /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.Chunk*]]]
-   */
-  def collectAllPar[R, A](as: Chunk[RIO[R, A]]): RIO[R, Chunk[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -141,17 +129,11 @@ object RIO {
     ZIO.collectAllPar_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar_[R,E,A](as:zio\.Chunk*]]]
-   */
-  def collectAllPar_[R, A](in: Chunk[RIO[R, A]]): RIO[R, Unit] =
-    ZIO.collectAllPar_(in)
-
-  /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  def collectAllParN[R, E, A, Collection[+x] <: Iterable[x]](n: Int)(
-    as: Collection[ZIO[R, E, A]]
-  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): ZIO[R, E, Collection[A]] =
+  def collectAllParN[R, A, Collection[+Element] <: Iterable[Element]](
+    n: Int
+  )(as: Collection[RIO[R, A]])(implicit bf: BuildFrom[Collection[RIO[R, A]], A, Collection[A]]): RIO[R, Collection[A]] =
     ZIO.collectAllParN(n)(as)
 
   /**
@@ -163,7 +145,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectAllSuccesses]]
    */
-  def collectAllSuccesses[R, A, Collection[+x] <: Iterable[x]](
+  def collectAllSuccesses[R, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[RIO[R, A]]
   )(implicit bf: BuildFrom[Collection[RIO[R, A]], A, Collection[A]]): RIO[R, Collection[A]] =
     ZIO.collectAllSuccesses(in)
@@ -171,51 +153,47 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectAllSuccessesPar]]
    */
-  def collectAllSuccessesPar[R, E, A, Collection[+x] <: Iterable[x]](
-    as: Collection[ZIO[R, E, A]]
-  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Collection[A]] =
+  def collectAllSuccessesPar[R, A, Collection[+Element] <: Iterable[Element]](
+    as: Collection[RIO[R, A]]
+  )(implicit bf: BuildFrom[Collection[RIO[R, A]], A, Collection[A]]): URIO[R, Collection[A]] =
     ZIO.collectAllSuccessesPar(as)
 
   /**
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
-  def collectAllSuccessesParN[R, E, A, Collection[+x] <: Iterable[x]](
-    n: Int
-  )(
-    as: Collection[ZIO[R, E, A]]
-  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Collection[A]] =
+  def collectAllSuccessesParN[R, A, Collection[+Element] <: Iterable[Element]](n: Int)(
+    as: Collection[RIO[R, A]]
+  )(implicit bf: BuildFrom[Collection[RIO[R, A]], A, Collection[A]]): URIO[R, Collection[A]] =
     ZIO.collectAllSuccessesParN(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllWith]]
    */
-  def collectAllWith[R, A, B](in: Iterable[RIO[R, A]])(f: PartialFunction[A, B]): RIO[R, List[B]] =
-    ???
+  def collectAllWith[R, A, U, Collection[+Element] <: Iterable[Element]](
+    in: Collection[RIO[R, A]]
+  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[RIO[R, A]], U, Collection[U]]): RIO[R, Collection[U]] =
+    ZIO.collectAllWith(in)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithPar]]
    */
-  def collectAllWithPar[R, E, A, U, Collection[+x] <: Iterable[x]](
-    as: Collection[ZIO[R, E, A]]
-  )(
-    f: PartialFunction[A, U]
-  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], U, Collection[U]]): ZIO[R, E, Collection[U]] =
+  def collectAllWithPar[R, A, U, Collection[+Element] <: Iterable[Element]](
+    as: Collection[RIO[R, A]]
+  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[RIO[R, A]], U, Collection[U]]): RIO[R, Collection[U]] =
     ZIO.collectAllWithPar(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[R, E, A, U, Collection[+x] <: Iterable[x]](n: Int)(
-    as: Collection[ZIO[R, E, A]]
-  )(
-    f: PartialFunction[A, U]
-  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], U, Collection[U]]): ZIO[R, E, Collection[U]] =
+  def collectAllWithParN[R, A, U, Collection[+Element] <: Iterable[Element]](n: Int)(
+    as: Collection[RIO[R, A]]
+  )(f: PartialFunction[A, U])(implicit bf: BuildFrom[Collection[RIO[R, A]], U, Collection[U]]): RIO[R, Collection[U]] =
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectPar]]
    */
-  def collectPar[R, A, B, Collection[+x] <: Iterable[x]](in: Collection[A])(
+  def collectPar[R, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, Option[Throwable], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.collectPar(in)(f)
@@ -223,9 +201,9 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
-  def collectParN[R, E, A, B, Collection[+x] <: Iterable[x]](n: Int)(
-    in: Collection[A]
-  )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+  def collectParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(in: Collection[A])(
+    f: A => ZIO[R, Option[Throwable], B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.collectParN(n)(in)(f)
 
   /**
@@ -341,33 +319,33 @@ object RIO {
   /**
    * @see [[zio.ZIO.filter]]
    */
-  def filter[R, E, A, Collection[+x] <: Iterable[x]](
+  def filter[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
+  )(f: A => RIO[R, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): RIO[R, Collection[A]] =
     ZIO.filter(as)(f)
 
   /**
    * @see [[zio.ZIO.filterPar]]
    */
-  def filterPar[R, E, A, Collection[+x] <: Iterable[x]](
+  def filterPar[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
+  )(f: A => RIO[R, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): RIO[R, Collection[A]] =
     ZIO.filterPar(as)(f)
 
   /**
    * @see [[zio.ZIO.filterNot]]
    */
-  def filterNot[R, E, A, Collection[+x] <: Iterable[x]](
+  def filterNot[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
+  )(f: A => RIO[R, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): RIO[R, Collection[A]] =
     ZIO.filterNot(as)(f)
 
   /**
    * @see [[zio.ZIO.filterNotPar]]
    */
-  def filterNotPar[R, E, A, Collection[+x] <: Iterable[x]](
+  def filterNotPar[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
+  )(f: A => RIO[R, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): RIO[R, Collection[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
@@ -404,9 +382,9 @@ object RIO {
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
    */
-  def foreach[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def foreach[R, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+  )(fn: A => RIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.foreach(in)(fn)
 
   /**
@@ -424,19 +402,17 @@ object RIO {
   /**
    * @see See [[zio.ZIO.foreachExec]]
    */
-  final def foreachExec[R, E, A, B, Collection[+x] <: Iterable[x]](
-    as: Collection[A]
-  )(
+  final def foreachExec[R, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
     exec: ExecutionStrategy
-  )(f: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+  )(f: A => RIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
    */
-  def foreachPar[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def foreachPar[R, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+  )(fn: A => RIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -448,11 +424,9 @@ object RIO {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  def foreachParN[R, E, A, B, Collection[+x] <: Iterable[x]](
-    n: Int
-  )(
+  def foreachParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     as: Collection[A]
-  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+  )(fn: A => RIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
@@ -462,21 +436,9 @@ object RIO {
     ZIO.foreach_(as)(f)
 
   /**
-   * @see See [[[zio.ZIO.foreach_[R,E,A](as:zio\.Chunk*]]]
-   */
-  def foreach_[R, A](as: Chunk[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
-    ZIO.foreach_(as)(f)
-
-  /**
    * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:Iterable*]]]
    */
   def foreachPar_[R, A, B](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
-    ZIO.foreachPar_(as)(f)
-
-  /**
-   * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:zio\.Chunk*]]]
-   */
-  def foreachPar_[R, A, B](as: Chunk[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
@@ -488,9 +450,9 @@ object RIO {
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  def forkAll[R, E, A, Collection[+x] <: Iterable[x]](
-    as: Collection[ZIO[R, E, A]]
-  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Fiber[E, Collection[A]]] =
+  def forkAll[R, A, Collection[+Element] <: Iterable[Element]](
+    as: Collection[RIO[R, A]]
+  )(implicit bf: BuildFrom[Collection[RIO[R, A]], A, Collection[A]]): URIO[R, Fiber[Throwable, Collection[A]]] =
     ZIO.forkAll(as)
 
   /**
@@ -709,21 +671,19 @@ object RIO {
   /**
    * @see See [[zio.ZIO.partition]]
    */
-  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
+  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (Iterable[Throwable], Iterable[B])] =
     ZIO.partition(in)(f)
 
   /**
    * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
+  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (Iterable[Throwable], Iterable[B])] =
     ZIO.partitionPar(in)(f)
 
   /**
    * @see See [[zio.ZIO.partitionParN]]
    */
-  def partitionParN[R, A, B](n: Int)(
-    in: Iterable[A]
-  )(f: A => RIO[R, B]): RIO[R, (List[Throwable], List[B])] =
+  def partitionParN[R, A, B](n: Int)(in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (Iterable[Throwable], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
 
   /**

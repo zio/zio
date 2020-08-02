@@ -2243,7 +2243,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Evaluate each effect in the structure from left to right, collecting the
    * the successful values and discarding the empty cases. For a parallel version, see `collectPar`.
    */
-  def collect[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
     in.foldLeft[ZIO[R, E, scala.collection.mutable.Builder[B, Collection[B]]]](effectTotal(bf.newBuilder(in)))(
@@ -2255,7 +2255,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Evaluate each effect in the structure from left to right, and collect the
    * results. For a parallel version, see `collectAllPar`.
    */
-  def collectAll[R, E, A, Collection[+x] <: Iterable[x]](
+  def collectAll[R, E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     foreach(in)(ZIO.identityFn)
@@ -2278,7 +2278,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Evaluate each effect in the structure in parallel, and collect the
    * results. For a sequential version, see `collectAll`.
    */
-  def collectAllPar[R, E, A, Collection[+x] <: Iterable[x]](
+  def collectAllPar[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     foreachPar(as)(ZIO.identityFn)
@@ -2303,7 +2303,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * Unlike `collectAllPar`, this method will use at most `n` fibers.
    */
-  def collectAllParN[R, E, A, Collection[+x] <: Iterable[x]](n: Int)(
+  def collectAllParN[R, E, A, Collection[+Element] <: Iterable[Element]](n: Int)(
     as: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     foreachParN(n)(as)(ZIO.identityFn)
@@ -2320,7 +2320,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Evaluate and run each effect in the structure and collect discarding failed ones.
    */
-  def collectAllSuccesses[R, E, A, Collection[+x] <: Iterable[x]](
+  def collectAllSuccesses[R, E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Collection[A]] =
     in.foldLeft[ZIO[R, Nothing, scala.collection.mutable.Builder[A, Collection[A]]]](effectTotal(bf.newBuilder(in)))(
@@ -2331,7 +2331,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Evaluate and run each effect in the structure in parallel, and collect discarding failed ones.
    */
-  def collectAllSuccessesPar[R, E, A, Collection[+x] <: Iterable[x]](
+  def collectAllSuccessesPar[R, E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Collection[A]] = {
     val size = in.size
@@ -2353,7 +2353,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * Unlike `collectAllSuccessesPar`, this method will use at most up to `n` fibers.
    */
-  def collectAllSuccessesParN[R, E, A, Collection[+x] <: Iterable[x]](
+  def collectAllSuccessesParN[R, E, A, Collection[+Element] <: Iterable[Element]](
     n: Int
   )(
     in: Collection[ZIO[R, E, A]]
@@ -2365,7 +2365,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Evaluate each effect in the structure with `collectAll`, and collect
    * the results with given partial function.
    */
-  def collectAllWith[R, E, A, U, Collection[+x] <: Iterable[x]](
+  def collectAllWith[R, E, A, U, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZIO[R, E, A]]
   )(
     f: PartialFunction[A, U]
@@ -2382,7 +2382,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Evaluate each effect in the structure with `collectAllPar`, and collect
    * the results with given partial function.
    */
-  def collectAllWithPar[R, E, A, U, Collection[+x] <: Iterable[x]](
+  def collectAllWithPar[R, E, A, U, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZIO[R, E, A]]
   )(
     f: PartialFunction[A, U]
@@ -2410,7 +2410,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * Unlike `collectAllWithPar`, this method will use at most up to `n` fibers.
    */
-  def collectAllWithParN[R, E, A, U, Collection[+x] <: Iterable[x]](n: Int)(
+  def collectAllWithParN[R, E, A, U, Collection[+Element] <: Iterable[Element]](n: Int)(
     in: Collection[ZIO[R, E, A]]
   )(
     f: PartialFunction[A, U]
@@ -2421,7 +2421,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Evaluate each effect in the structure in parallel, collecting the
    * the successful values and discarding the empty cases.
    */
-  def collectPar[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def collectPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] = {
     val size = in.size
@@ -2447,7 +2447,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * Unlike `collectPar`, this method will use at most up to `n` fibers.
    */
-  def collectParN[R, E, A, B, Collection[+x] <: Iterable[x]](n: Int)(
+  def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
     foreachParN(n)(in.toList)(a => f(a).optional).map(_.collect { case Some(a) => a }(scala.collection.breakOut(bf)))
@@ -2670,7 +2670,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Filters the collection using the specified effectual predicate.
    */
-  def filter[R, E, A, Collection[+x] <: Iterable[x]](
+  def filter[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     as.foldLeft[ZIO[R, E, scala.collection.mutable.Builder[A, Collection[A]]]](effectTotal(bf.newBuilder(as)))(
@@ -2682,7 +2682,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Filters the collection in parallel using the specified effectual predicate.
    * See [[filter]] for a sequential version of it.
    */
-  def filterPar[R, E, A, Collection[+x] <: Iterable[x]](
+  def filterPar[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] = {
     val size = as.size
@@ -2706,7 +2706,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Filters the collection using the specified effectual predicate, removing
    * all elements that satisfy the predicate.
    */
-  def filterNot[R, E, A, Collection[+x] <: Iterable[x]](
+  def filterNot[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     filter(as)(f(_).map(!_))
@@ -2716,7 +2716,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * removing all elements that satisfy the predicate.
    * See [[filterNot]] for a sequential version of it.
    */
-  def filterNotPar[R, E, A, Collection[+x] <: Iterable[x]](
+  def filterNotPar[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
     filterPar(as)(f(_).map(!_))
@@ -2769,7 +2769,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * For a parallel version of this method, see `foreachPar`.
    * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
-  def foreach[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
     in.foldLeft[ZIO[R, E, scala.collection.mutable.Builder[B, Collection[B]]]](effectTotal(bf.newBuilder(in)))(
@@ -2810,19 +2810,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Applies the function `f` to each element of the `Chunk[A]` and
-   * returns the results in a new `Chunk[B]`.
-   *
-   * For a parallel version of this method, see `foreachPar`.
-   */
-  final def foreach_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    as.mapM_(f)
-
-  /**
    * Applies the function `f` to each element of the `Iterable[A]` and returns
    * the result in a new `List[B]` using the specified execution strategy.
    */
-  final def foreachExec[R, E, A, B, Collection[+x] <: Iterable[x]](
+  final def foreachExec[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(
     exec: ExecutionStrategy
@@ -2839,7 +2830,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * For a sequential version of this method, see `foreach`.
    */
-  def foreachPar[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def foreachPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] = {
     val size = as.size
@@ -2948,7 +2939,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
    */
-  def foreachParN[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def foreachParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     n: Int
   )(
     as: Collection[A]
@@ -2985,7 +2976,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect that forks all of the specified values, and returns a
    * composite fiber that produces a list of their results, in order.
    */
-  def forkAll[R, E, A, Collection[+x] <: Iterable[x]](
+  def forkAll[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Fiber[E, Collection[A]]] =
     ZIO.foreach(as.toList)(_.fork).map { fibers =>
@@ -3745,7 +3736,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * This combinator is lossy meaning that if there are errors all successes
    * will be lost. To retain all information please use [[partition]].
    */
-  def validate[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def validate[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Iterable[A]
   )(
     f: A => ZIO[R, E, B]
@@ -3762,7 +3753,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * This combinator is lossy meaning that if there are errors all successes
    * will be lost. To retain all information please use [[partitionPar]].
    */
-  def validatePar[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def validatePar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Iterable[A]
   )(
     f: A => ZIO[R, E, B]
@@ -3776,7 +3767,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Feeds elements of type `A` to `f` until it succeeds. Returns first success
    * or the accumulation of all errors.
    */
-  def validateFirst[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def validateFirst[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(
     f: A => ZIO[R, E, B]
@@ -3789,7 +3780,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * In case of success all other running fibers are terminated.
    */
-  def validateFirstPar[R, E, A, B, Collection[+x] <: Iterable[x]](
+  def validateFirstPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(
     f: A => ZIO[R, E, B]
