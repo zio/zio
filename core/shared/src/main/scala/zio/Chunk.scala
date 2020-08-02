@@ -591,14 +591,14 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       val iterator = arrayIterator
       val builder  = ChunkBuilder.make[B]()
       builder.sizeHint(length)
-      var zio: ZIO[R, E, S1] = UIO.succeedNow(s1)
+      var dest: ZIO[R, E, S1] = UIO.succeedNow(s1)
       while (iterator.hasNext) {
         val array  = iterator.next()
         val length = array.length
         var i      = 0
         while (i < length) {
           val a = array(i)
-          zio = zio.flatMap { state =>
+          dest = dest.flatMap { state =>
             f1(state, a).map {
               case (state2, b) =>
                 builder += b
@@ -608,7 +608,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
           i += 1
         }
       }
-      zio.map((_, builder.result()))
+      dest.map((_, builder.result()))
     }
 
   /**
