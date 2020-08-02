@@ -793,19 +793,31 @@ object IO {
   /**
    * @see See [[zio.ZIO.validate]]
    */
-  def validate[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
+  def validate[R, E, A, B, Collection[+x] <: Iterable[x]](
+    in: Iterable[A]
+  )(
+    f: A => ZIO[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
     ZIO.validate(in)(f)
 
   /**
    * @see See [[zio.ZIO.validatePar]]
    */
-  def validatePar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
+  def validatePar[R, E, A, B, Collection[+x] <: Iterable[x]](
+    in: Iterable[A]
+  )(
+    f: A => ZIO[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
     ZIO.validatePar(in)(f)
 
   /**
    * @see See [[zio.ZIO.validateFirst]]
    */
-  def validateFirst[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
+  def validateFirst[R, E, A, B, Collection[+x] <: Iterable[x]](
+    in: Collection[A]
+  )(
+    f: A => ZIO[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], E, Collection[E]], ev: CanFail[E]): ZIO[R, Collection[E], B] =
     ZIO.validateFirst(in)(f)
 
   /**

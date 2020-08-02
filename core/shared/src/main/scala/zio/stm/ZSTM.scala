@@ -997,21 +997,18 @@ object ZSTM {
    * Evaluate each effect in the structure from left to right, collecting the
    * the successful values and discarding the empty cases.
    */
-  def collect[R, E, A, B](in: Iterable[A])(f: A => ZSTM[R, Option[E], B]): ZSTM[R, E, List[B]] =
-    foreach(in)(a => f(a).optional).map(_.flatten)
+  def collect[R, E, A, B, Collection[+x] <: Iterable[x]](
+    in: Collection[A]
+  )(f: A => ZSTM[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
+    foreach(in.toList)(a => f(a).optional).map(_.collect { case Some(b) => b }(scala.collection.breakOut(bf)))
 
   /**
    * Collects all the transactional effects in a list, returning a single
    * transactional effect that produces a list of values.
    */
-  def collectAll[R, E, A](in: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, List[A]] =
-    foreach(in)(ZIO.identityFn)
-
-  /**
-   * Collects all the transactional effects in a list, returning a single
-   * transactional effect that produces a chunk of values.
-   */
-  def collectAll[R, E, A](in: Chunk[ZSTM[R, E, A]]): ZSTM[R, E, Chunk[A]] =
+  def collectAll[R, E, A, Collection[+x] <: Iterable[x]](
+    in: Collection[ZSTM[R, E, A]]
+  )(implicit bf: BuildFrom[Collection[ZSTM[R, E, A]], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
     foreach(in)(ZIO.identityFn)
 
   /**
@@ -1022,16 +1019,6 @@ object ZSTM {
    * list of results.
    */
   def collectAll_[R, E, A](in: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
-    foreach_(in)(ZIO.identityFn)
-
-  /**
-   * Collects all the transactional effects, returning a single transactional
-   * effect that produces `Unit`.
-   *
-   * Equivalent to `collectAll(i).unit`, but without the cost of building the
-   * chunk of results.
-   */
-  def collectAll_[R, E, A](in: Chunk[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
     foreach_(in)(ZIO.identityFn)
 
   /**
@@ -1080,16 +1067,21 @@ object ZSTM {
   /**
    * Filters the collection using the specified effectual predicate.
    */
-  def filter[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, List[A]] =
+  def filter[R, E, A, Collection[+x] <: Iterable[x]](
+    as: Collection[A]
+  )(f: A => ZSTM[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
     as.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil)) { (a, zio) =>
-      f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
-    }
+        f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
+      }
+      .map(_.map(a => a)(scala.collection.breakOut(bf)))
 
   /**
    * Filters the collection using the specified effectual predicate, removing
    * all elements that satisfy the predicate.
    */
-  def filterNot[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, List[A]] =
+  def filterNot[R, E, A, Collection[+x] <: Iterable[x]](
+    as: Collection[A]
+  )(f: A => ZSTM[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
     filter(as)(f(_).map(!_))
 
   /**
@@ -1127,28 +1119,11 @@ object ZSTM {
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces a new `List[B]`.
    */
-  def foreach[R, E, A, B](in: Iterable[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, List[B]] =
+  def foreach[R, E, A, B, Collection[+x] <: Iterable[x]](
+    in: Collection[A]
+  )(f: A => ZSTM[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
     in.foldRight[ZSTM[R, E, List[B]]](ZSTM.succeedNow(Nil))((a, tx) => f(a).zipWith(tx)(_ :: _))
-
-  /**
-   * Applies the function `f` to each element of the `Chunk[A]` and
-   * returns a transactional effect that produces a new `Chunk[B]`.
-   */
-  def foreach[R, E, A, B](in: Chunk[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Chunk[B]] =
-    ZSTM.suspend {
-      val length = in.length
-      var idx    = 0
-
-      var tx: ZSTM[R, E, ChunkBuilder[B]] = ZSTM.succeedNow(ChunkBuilder.make[B]())
-
-      while (idx < length) {
-        val a = in(idx)
-        tx = tx.zipWith(f(a))(_ += _)
-        idx += 1
-      }
-
-      tx.map(_.result())
-    }
+      .map(_.map(a => a)(scala.collection.breakOut(bf)))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1164,16 +1139,6 @@ object ZSTM {
         else ZSTM.unit
       loop
     }
-
-  /**
-   * Applies the function `f` to each element of the `Chunk[A]` and
-   * returns a transactional effect that produces `Unit`.
-   *
-   * Equivalent to `foreach(as)(f).unit`, but without the cost of building
-   * the chunk of results.
-   */
-  def foreach_[R, E, A](in: Chunk[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    in.foldLeft[ZSTM[R, E, Unit]](ZSTM.unit)((tx, a) => tx *> f(a).unit)
 
   /**
    * Lifts an `Either` into a `STM`.
@@ -1468,21 +1433,25 @@ object ZSTM {
    * This combinator is lossy meaning that if there are errors all successes
    * will be lost. To retain all information please use [[partition]].
    */
-  def validate[R, E, A, B](
-    in: Iterable[A]
-  )(f: A => ZSTM[R, E, B])(implicit ev: CanFail[E]): ZSTM[R, ::[E], List[B]] =
+  def validate[R, E, A, B, Collection[+x] <: Iterable[x]](
+    in: Collection[A]
+  )(
+    f: A => ZSTM[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZSTM[R, ::[E], Collection[B]] =
     partition(in)(f).flatMap {
       case (e :: es, _) => fail(::(e, es))
-      case (_, bs)      => succeedNow(bs)
+      case (_, bs)      => succeedNow(bs.map(a => a)(scala.collection.breakOut(bf)))
     }
 
   /**
    * Feeds elements of type `A` to `f` until it succeeds. Returns first success
    * or the accumulation of all errors.
    */
-  def validateFirst[R, E, A, B](
-    in: Iterable[A]
-  )(f: A => ZSTM[R, E, B])(implicit ev: CanFail[E]): ZSTM[R, List[E], B] =
+  def validateFirst[R, E, A, B, Collection[+x] <: Iterable[x]](
+    in: Collection[A]
+  )(
+    f: A => ZSTM[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], E, Collection[E]], ev: CanFail[E]): ZSTM[R, Collection[E], B] =
     ZSTM.foreach(in)(f(_).flip).flip
 
   /**
