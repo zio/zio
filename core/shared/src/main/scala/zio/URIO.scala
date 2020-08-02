@@ -117,7 +117,7 @@ object URIO {
     ZIO.collectAllPar(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A](in:Set*]]]
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Set*]]]
    */
   def collectAllPar[R, A](as: Set[URIO[R, A]]): URIO[R, Set[A]] =
     ZIO.collectAllPar(as)
@@ -400,7 +400,7 @@ object URIO {
     ZIO.foreachPar(as)(fn)
 
   /**
-   * @see [[[zio.ZIO.foreachPar[R,E,A,B](in:Set*]]]
+   * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:Set*]]]
    */
   final def foreachPar[R, A, B](as: Set[A])(fn: A => URIO[R, B]): URIO[R, Set[B]] =
     ZIO.foreachPar(as)(fn)

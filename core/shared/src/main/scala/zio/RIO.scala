@@ -123,7 +123,7 @@ object RIO {
     ZIO.collectAllPar(as)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A](in:Set*]]]
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Set*]]]
    */
   def collectAllPar[R, A](as: Set[RIO[R, A]]): RIO[R, Set[A]] =
     ZIO.collectAllPar(as)
@@ -434,7 +434,7 @@ object RIO {
     ZIO.foreachPar(as)(fn)
 
   /**
-   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](in:Set*]]]
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Set*]]]
    */
   def foreachPar[R, A, B](as: Set[A])(fn: A => RIO[R, B]): RIO[R, Set[B]] =
     ZIO.foreachPar(as)(fn)
