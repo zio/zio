@@ -368,7 +368,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically updates all elements using a transactional effect.
    */
   def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
-    STM.foreach(array.toList)(_.get.flatMap(f)).flatMap { newData =>
+    STM.foreach(array.toIterable)(_.get.flatMap(f)).flatMap { newData =>
       new ZSTM((journal, _, _, _) => {
         var i  = 0
         val it = newData.iterator
