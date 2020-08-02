@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 import java.util.{ HashMap => MutableMap }
 
 import scala.annotation.tailrec
+import scala.collection.mutable.Builder
 import scala.util.{ Failure, Success, Try }
 
 import com.github.ghik.silencer.silent
@@ -1000,7 +1001,7 @@ object ZSTM {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZSTM[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
-    foreach(in.toList)(a => f(a).optional).map(_.collect { case Some(b) => b }(scala.collection.breakOut(bf)))
+    foreach(in.toIterable)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Collects all the transactional effects in a list, returning a single
@@ -1070,10 +1071,10 @@ object ZSTM {
   def filter[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZSTM[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
-    as.foldRight[ZSTM[R, E, List[A]]](ZSTM.succeedNow(Nil)) { (a, zio) =>
-        f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
+    as.foldLeft[ZSTM[R, E, Builder[A, Collection[A]]]](ZSTM.succeed(bf(as))) { (zio, a) =>
+        zio.zipWith(f(a))((as, p) => if (p) as += a else as)
       }
-      .map(_.map(a => a)(scala.collection.breakOut(bf)))
+      .map(_.result())
 
   /**
    * Filters the collection using the specified effectual predicate, removing
@@ -1122,8 +1123,8 @@ object ZSTM {
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZSTM[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
-    in.foldRight[ZSTM[R, E, List[B]]](ZSTM.succeedNow(Nil))((a, tx) => f(a).zipWith(tx)(_ :: _))
-      .map(_.map(a => a)(scala.collection.breakOut(bf)))
+    in.foldLeft[ZSTM[R, E, Builder[B, Collection[B]]]](ZSTM.succeed(bf(in)))((tx, a) => tx.zipWith(f(a))(_ += _))
+      .map(_.result())
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1440,7 +1441,7 @@ object ZSTM {
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZSTM[R, ::[E], Collection[B]] =
     partition(in)(f).flatMap {
       case (e :: es, _) => fail(::(e, es))
-      case (_, bs)      => succeedNow(bs.map(a => a)(scala.collection.breakOut(bf)))
+      case (_, bs)      => succeedNow(bf.fromSpecific(in)(bs))
     }
 
   /**
