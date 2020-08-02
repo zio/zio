@@ -53,9 +53,15 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
       }
     }
 
+  /**
+   * Transforms the inputs of this transducer.
+   */
   final def contramap[J](f: J => I): ZTransducer[R, E, J, O] =
     ZTransducer(self.push.map(push => is => push(is.map(_.map(f)))))
 
+  /**
+   * Effectually transforms the inputs of this transducer
+   */
   final def contramapM[R1 <: R, E1 >: E, J](f: J => ZIO[R1, E1, I]): ZTransducer[R1, E1, J, O] =
     ZTransducer[R1, E1, J, O](self.push.map(push => is => ZIO.foreach(is)(_.mapM(f)).flatMap(push)))
 
@@ -64,6 +70,18 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    */
   final def filter(p: O => Boolean): ZTransducer[R, E, I, O] =
     ZTransducer(self.push.map(push => i => push(i).map(_.filter(p))))
+
+  /**
+   * Filters the inputs of this transducer.
+   */
+  final def filterInput[I1 <: I](p: I1 => Boolean): ZTransducer[R, E, I1, O] =
+    ZTransducer(self.push.map(push => is => push(is.map(_.filter(p)))))
+
+  /**
+   * Effectually filters the inputs of this transducer.
+   */
+  final def filterInputM[R1 <: R, E1 >: E, I1 <: I](p: I1 => ZIO[R1, E1, Boolean]): ZTransducer[R1, E1, I1, O] =
+    ZTransducer[R1, E1, I1, O](self.push.map(push => is => ZIO.foreach(is)(_.filterM(p)).flatMap(push)))
 
   /**
    * Transforms the outputs of this transducer.
