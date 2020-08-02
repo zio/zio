@@ -1117,8 +1117,8 @@ object ZSTM {
     in.foldRight(ZSTM.succeedNow(zero): ZSTM[R, E, S])((el, acc) => acc.flatMap(f(el, _)))
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns a transactional effect that produces a new `List[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` and
+   * returns a transactional effect that produces a new `Collection[B]`.
    */
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]

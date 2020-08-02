@@ -1602,8 +1602,8 @@ object ZManaged extends ZManagedPlatformSpecific {
     in.foldLeft(ZManaged.succeedNow(zero): ZManaged[R, E, S])((acc, el) => acc.flatMap(f(_, el)))
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns the results in a new `List[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` and
+   * returns the results in a new `Collection[B]`.
    *
    * For a parallel version of this method, see `foreachPar`.
    * If you do not need the results, see `foreach_` for a more efficient implementation.
@@ -1624,8 +1624,8 @@ object ZManaged extends ZManagedPlatformSpecific {
     in.fold[ZManaged[R, E, Option[A2]]](succeed(None))(f(_).map(Some(_)))
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and returns
-   * the result in a new `List[B]` using the specified execution strategy.
+   * Applies the function `f` to each element of the `Collection[A]` and returns
+   * the result in a new `Collection[B]` using the specified execution strategy.
    */
   final def foreachExec[R, E, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
     exec: ExecutionStrategy
@@ -1637,8 +1637,8 @@ object ZManaged extends ZManagedPlatformSpecific {
     }
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` in parallel,
-   * and returns the results in a new `List[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` in parallel,
+   * and returns the results in a new `Collection[B]`.
    *
    * For a sequential version of this method, see `foreach`.
    */
@@ -1655,8 +1655,8 @@ object ZManaged extends ZManagedPlatformSpecific {
       }
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` in parallel,
-   * and returns the results in a new `List[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` in parallel,
+   * and returns the results in a new `Collection[B]`.
    *
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
    *

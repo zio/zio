@@ -2689,8 +2689,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     in.foldRight(IO.succeedNow(zero): ZIO[R, E, S])((el, acc) => acc.flatMap(f(el, _)))
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns the results in a new `List[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` and
+   * returns the results in a new `Collection[B]`.
    *
    * For a parallel version of this method, see `foreachPar`.
    * If you do not need the results, see `foreach_` for a more efficient implementation.
@@ -2736,8 +2736,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and returns
-   * the result in a new `List[B]` using the specified execution strategy.
+   * Applies the function `f` to each element of the `Collection[A]` and returns
+   * the result in a new `Collection[B]` using the specified execution strategy.
    */
   final def foreachExec[R, E, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
     exec: ExecutionStrategy
@@ -2749,8 +2749,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` in parallel,
-   * and returns the results in a new `List[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` in parallel,
+   * and returns the results in a new `Collection[B]`.
    *
    * For a sequential version of this method, see `foreach`.
    */
@@ -2853,8 +2853,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Applies the functionw `f` to each element of the `Iterable[A]` in parallel,
-   * and returns the results in a new `List[B]`.
+   * Applies the functionw `f` to each element of the `Collection[A]` in parallel,
+   * and returns the results in a new `Collection[B]`.
    *
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
    */
