@@ -556,7 +556,7 @@ object Fiber extends FiberPlatformSpecific {
         UIO
           .foreach(fibers.toIterable)(_.interruptAs(fiberId))
           .map(_.foldRight[Exit[E, List[A]]](Exit.succeed(Nil))(_.zipWith(_)(_ :: _, _ && _)))
-          .map(_.map(_.map(a => a)(scala.collection.breakOut(bf))))
+          .map(_.map(bf.fromSpecific(fibers)))
       def poll: UIO[Option[Exit[E, Collection[A]]]] =
         UIO
           .foreach(fibers.toIterable)(_.poll)
@@ -564,7 +564,7 @@ object Fiber extends FiberPlatformSpecific {
             case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(_ :: _, _ && _))
             case _                    => None
           })
-          .map(_.map(_.map(_.map(a => a)(scala.collection.breakOut(bf)))))
+          .map(_.map(_.map(bf.fromSpecific(fibers))))
     }
 
   /**
