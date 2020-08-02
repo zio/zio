@@ -358,7 +358,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Maintains finalizer ordering in inner ZManaged values") {
         checkM(Gen.int(5, 100))(l => testParallelNestedFinalizerOrdering(l, ZManaged.foreachPar(_)(identity)))
       }
-    ) @@ TestAspect.nonFlaky,
+    ),
     suite("foreachParN")(
       testM("Returns elements in the correct order") {
         def res(int: Int) =
