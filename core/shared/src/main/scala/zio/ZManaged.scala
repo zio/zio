@@ -1309,7 +1309,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Sequential =>
                     (
                       ZIO
-                        .foreach(fins.toList) {
+                        .foreach(fins.toIterable) {
                           case (_, fin) => fin.apply(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAll(results) getOrElse Exit.unit)),
@@ -1319,7 +1319,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Parallel =>
                     (
                       ZIO
-                        .foreachPar(fins.toList) {
+                        .foreachPar(fins.toIterable) {
                           case (_, finalizer) =>
                             finalizer(exit).run
                         }
@@ -1330,7 +1330,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.ParallelN(n) =>
                     (
                       ZIO
-                        .foreachParN(n)(fins.toList) {
+                        .foreachParN(n)(fins.toIterable) {
                           case (_, finalizer) =>
                             finalizer(exit).run
                         }
@@ -1413,7 +1413,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
-    foreach(in.toList)(a => f(a).optional).map(_.collect { case Some(a) => a }(scala.collection.breakOut(bf)))
+    foreach(in.toIterable)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure from left to right, and collect the
@@ -1474,7 +1474,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def collectPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
-    foreachPar(in.toList)(a => f(a).optional).map(_.collect { case Some(b) => b }(scala.collection.breakOut(bf)))
+    foreachPar(in.toIterable)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure in parallel, collecting the
@@ -1485,7 +1485,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
-    foreachParN(n)(in.toList)(a => f(a).optional).map(_.collect { case Some(a) => a }(scala.collection.breakOut(bf)))
+    foreachParN(n)(in.toIterable)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Similar to Either.cond, evaluate the predicate,
@@ -1608,12 +1608,12 @@ object ZManaged extends ZManagedPlatformSpecific {
    * For a parallel version of this method, see `foreachPar`.
    * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
-  def foreach[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](as: Collection[A1])(
+  def foreach[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](in: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
   )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
-    ZManaged(ZIO.foreach(as.toList)(f(_).zio).map { result =>
+    ZManaged(ZIO.foreach(in.toList)(f(_).zio).map { result =>
       val (fins, as) = result.unzip
-      (e => ZIO.foreach(fins.toList.reverse)(_.apply(e)), as.map(a => a)(scala.collection.breakOut(bf)))
+      (e => ZIO.foreach(fins.reverse)(_.apply(e)), bf.fromSpecific(in)(as))
     })
 
   /**
@@ -1652,9 +1652,11 @@ object ZManaged extends ZManagedPlatformSpecific {
     ReleaseMap
       .makeManaged(ExecutionStrategy.Parallel)
       .mapM { parallelReleaseMap =>
-        ZIO.foreachPar(as.toList)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
+        ZIO
+          .foreachPar(as.toIterable)(f(_).zio.map(_._2))
+          .map(bf.fromSpecific(as))
+          .provideSome[R]((_, parallelReleaseMap))
       }
-      .map(_.map(a => a)(scala.collection.breakOut(bf)))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
@@ -1673,9 +1675,11 @@ object ZManaged extends ZManagedPlatformSpecific {
     ReleaseMap
       .makeManaged(ExecutionStrategy.ParallelN(n))
       .mapM { parallelReleaseMap =>
-        ZIO.foreachParN(n)(as.toList)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
+        ZIO
+          .foreachParN(n)(as.toIterable)(f(_).zio.map(_._2))
+          .map(bf.fromSpecific(as))
+          .provideSome[R]((_, parallelReleaseMap))
       }
-      .map(_.map(a => a)(scala.collection.breakOut(bf)))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
