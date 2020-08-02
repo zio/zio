@@ -83,7 +83,7 @@ object URIO {
     ZIO.collect(in)(f)
 
   /**
-   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collectAll[R, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[URIO[R, A]]
@@ -103,7 +103,7 @@ object URIO {
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collectAllPar[R, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[URIO[R, A]]
@@ -346,7 +346,7 @@ object URIO {
     ZIO.foldRight(in)(zero)(f)
 
   /**
-   * @see [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
+   * @see See [[[zio.ZIO.foreach[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def foreach[R, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
@@ -374,7 +374,7 @@ object URIO {
     ZIO.foreachExec(as)(exec)(f)
 
   /**
-   * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def foreachPar[R, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]

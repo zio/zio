@@ -72,7 +72,7 @@ object Task extends TaskPlatformSpecific {
     ZIO.collect(in)(f)
 
   /**
-   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAll[R,E,A,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collectAll[A, Collection[+Element] <: Iterable[Element]](
     in: Collection[Task[A]]
@@ -92,7 +92,7 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collectAllPar[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[Task[A]]
@@ -351,7 +351,7 @@ object Task extends TaskPlatformSpecific {
     ZIO.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Iterable*]]]
+   * @see See [[[zio.ZIO.foreach[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def foreach[A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
@@ -379,7 +379,7 @@ object Task extends TaskPlatformSpecific {
     ZIO.foreachExec(as)(exec)(f)
 
   /**
-   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Iterable*]]]
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def foreachPar[A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]

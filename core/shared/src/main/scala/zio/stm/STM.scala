@@ -40,7 +40,7 @@ object STM {
   def check(p: => Boolean): USTM[Unit] = ZSTM.check(p)
 
   /**
-   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.collectAll]]
    */
   def collectAll[E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[STM[E, A]]
@@ -48,7 +48,7 @@ object STM {
     ZSTM.collectAll(in)
 
   /**
-   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.collectAll_]]
    */
   def collectAll_[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
     ZSTM.collectAll_(in)
@@ -124,7 +124,7 @@ object STM {
     ZSTM.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.foreach]]
    */
   def foreach[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
@@ -132,7 +132,7 @@ object STM {
     ZSTM.foreach(in)(f)
 
   /**
-   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.foreach_]]
    */
   def foreach_[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
     ZSTM.foreach_(in)(f)
