@@ -1147,9 +1147,10 @@ object ZSTMSpec extends ZIOBaseSpec {
     ),
     suite("ZSTM validate")(
       testM("returns all errors if never valid") {
-        implicit val canFail = CanFail
-        val in               = List.fill(10)(0)
-        val res              = STM.validate(in)(a => STM.fail(a))
+        implicit val canFail         = CanFail
+        val in                       = List.fill(10)(0)
+        def fail[A](a: A): STM[A, A] = STM.fail(a)
+        val res                      = STM.validate(in)(a => fail(a))
         assertM(res.commit.run)(fails(equalTo(in)))
       } @@ zioTag(errors),
       testM("accumulate errors and ignore successes") {

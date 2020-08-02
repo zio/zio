@@ -2247,7 +2247,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
-    foreach(in.toIterable)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure from left to right, and collect the
@@ -2345,10 +2345,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Evaluate each effect in the structure with `collectAll`, and collect
    * the results with given partial function.
    */
-  def collectAllWith[R, E, A, U, Collection[+Element] <: Iterable[Element]](in: Collection[ZIO[R, E, A]])(
-    f: PartialFunction[A, U]
-  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], U, Collection[U]]): ZIO[R, E, Collection[U]] =
-    ZIO.collectAll(in.toIterable).map(_.collect(f)).map(bf.fromSpecific(in))
+  def collectAllWith[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[ZIO[R, E, A]])(
+    f: PartialFunction[A, B]
+  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+    ZIO.collectAll[R, E, A, Iterable](in).map(_.collect(f)).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure with `collectAllPar`, and collect
@@ -2357,7 +2357,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collectAllWithPar[R, E, A, U, Collection[+Element] <: Iterable[Element]](in: Collection[ZIO[R, E, A]])(
     f: PartialFunction[A, U]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], U, Collection[U]]): ZIO[R, E, Collection[U]] =
-    ZIO.collectAllPar(in.toIterable).map(_.collect(f)).map(bf.fromSpecific(in))
+    ZIO.collectAllPar[R, E, A, Iterable](in).map(_.collect(f)).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure with `collectAllPar`, and collect
@@ -2365,10 +2365,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * Unlike `collectAllWithPar`, this method will use at most up to `n` fibers.
    */
-  def collectAllWithParN[R, E, A, U, Collection[+Element] <: Iterable[Element]](n: Int)(in: Collection[ZIO[R, E, A]])(
-    f: PartialFunction[A, U]
-  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], U, Collection[U]]): ZIO[R, E, Collection[U]] =
-    ZIO.collectAllParN(n)(in.toIterable).map(_.collect(f)).map(bf.fromSpecific(in))
+  def collectAllWithParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(in: Collection[ZIO[R, E, A]])(
+    f: PartialFunction[A, B]
+  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+    ZIO.collectAllParN[R, E, A, Iterable](n)(in).map(_.collect(f)).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure in parallel, collecting the
@@ -2377,7 +2377,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collectPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
-    foreachPar(in.toIterable)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreachPar[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure in parallel, collecting the
@@ -2388,7 +2388,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
-    foreachParN(n)(in.toIterable)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Similar to Either.cond, evaluate the predicate,
@@ -2623,7 +2623,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def filterPar[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZIO[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZIO[R, E, Collection[A]] =
-    ZIO.foreachPar(as.toIterable)(a => f(a).map(if (_) Some(a) else None)).map(_.flatten).map(bf.fromSpecific(as))
+    ZIO
+      .foreachPar[R, E, A, Option[A], Iterable](as)(a => f(a).map(if (_) Some(a) else None))
+      .map(_.flatten)
+      .map(bf.fromSpecific(as))
 
   /**
    * Filters the collection using the specified effectual predicate, removing
@@ -2862,8 +2865,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       .bounded[(Promise[E, B], A)](n.toInt)
       .bracket(_.shutdown) { q =>
         for {
-          pairs <- ZIO.foreach(as.toIterable)(a => Promise.make[E, B].map(p => (p, a)))
-          _     <- ZIO.foreach_(pairs)(pair => q.offer(pair)).fork
+          pairs <- ZIO.foreach[Any, Nothing, A, (Promise[E, B], A), Iterable](as) { a =>
+                    Promise.make[E, B].map(p => (p, a))
+                  }
+          _ <- ZIO.foreach_(pairs)(pair => q.offer(pair)).fork
           _ <- ZIO.collectAll_(List.fill(n.toInt)(q.take.flatMap {
                 case (p, a) => fn(a).foldCauseM(c => ZIO.foreach(pairs)(_._1.halt(c)), b => p.succeed(b))
               }.forever.fork))
@@ -2893,7 +2898,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def forkAll[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Fiber[E, Collection[A]]] =
-    ZIO.foreach(as.toIterable)(_.fork).map { fibers =>
+    ZIO.foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork).map { fibers =>
       fibers
         .foldLeft[Fiber[E, Builder[A, Collection[A]]]](Fiber.succeed(bf.newBuilder(as)))(_.zipWith(_)(_ += _))
         .map(_.result())

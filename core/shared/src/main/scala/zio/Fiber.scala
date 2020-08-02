@@ -554,12 +554,12 @@ object Fiber extends FiberPlatformSpecific {
         UIO.foreach_(fibers)(_.inheritRefs)
       def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, Collection[A]]] =
         UIO
-          .foreach(fibers.toIterable)(_.interruptAs(fiberId))
+          .foreach[Fiber[E, A], Exit[E, A], Iterable](fibers)(_.interruptAs(fiberId))
           .map(_.foldRight[Exit[E, List[A]]](Exit.succeed(Nil))(_.zipWith(_)(_ :: _, _ && _)))
           .map(_.map(bf.fromSpecific(fibers)))
       def poll: UIO[Option[Exit[E, Collection[A]]]] =
         UIO
-          .foreach(fibers.toIterable)(_.poll)
+          .foreach[Fiber[E, A], Option[Exit[E, A]], Iterable](fibers)(_.poll)
           .map(_.foldRight[Option[Exit[E, List[A]]]](Some(Exit.succeed(Nil))) {
             case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(_ :: _, _ && _))
             case _                    => None
