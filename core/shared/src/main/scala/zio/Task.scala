@@ -80,6 +80,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Set*]]]
+   */
+  def collectAll[A](in: Set[Task[A]]): Task[Set[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[A](in: NonEmptyChunk[Task[A]]): Task[NonEmptyChunk[A]] =
@@ -97,6 +103,12 @@ object Task extends TaskPlatformSpecific {
   def collectAllPar[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[Task[A]]
   )(implicit bf: BuildFrom[Collection[Task[A]], A, Collection[A]]): Task[Collection[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](in:Set*]]]
+   */
+  def collectAllPar[A](as: Set[Task[A]]): Task[Set[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -355,8 +367,14 @@ object Task extends TaskPlatformSpecific {
    */
   def foreach[A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(fn: A => Task[B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): Task[Collection[B]] =
-    ZIO.foreach(in)(fn)
+  )(f: A => Task[B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): Task[Collection[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Set*]]]
+   */
+  def foreach[A, B](in: Set[A])(f: A => Task[B]): Task[Set[B]] =
+    ZIO.foreach(in)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
@@ -384,6 +402,12 @@ object Task extends TaskPlatformSpecific {
   def foreachPar[A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(fn: A => Task[B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): Task[Collection[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](in:Set*]]]
+   */
+  def foreachPar[A, B](as: Set[A])(fn: A => Task[B]): Task[Set[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**

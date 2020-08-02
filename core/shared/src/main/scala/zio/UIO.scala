@@ -74,6 +74,12 @@ object UIO {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Set*]]]
+   */
+  def collectAll[A](in: Set[UIO[A]]): UIO[Set[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[A](in: NonEmptyChunk[UIO[A]]): UIO[NonEmptyChunk[A]] =
@@ -91,6 +97,12 @@ object UIO {
   def collectAllPar[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[UIO[A]]
   )(implicit bf: BuildFrom[Collection[UIO[A]], A, Collection[A]]): UIO[Collection[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](in:Set*]]]
+   */
+  def collectAllPar[A](as: Set[UIO[A]]): UIO[Set[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -333,8 +345,14 @@ object UIO {
    */
   def foreach[A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(fn: A => UIO[B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): UIO[Collection[B]] =
-    ZIO.foreach(in)(fn)
+  )(f: A => UIO[B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): UIO[Collection[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Set*]]]
+   */
+  def foreach[A, B](in: Set[A])(f: A => UIO[B]): UIO[Set[B]] =
+    ZIO.foreach(in)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
@@ -366,9 +384,15 @@ object UIO {
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def foreachPar[A, B, Collection[+Element] <: Iterable[Element]](
-    in: Collection[A]
+    as: Collection[A]
   )(fn: A => UIO[B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): UIO[Collection[B]] =
-    ZIO.foreachPar(in)(fn)
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](in:Set*]]]
+   */
+  def foreachPar[A, B](as: Set[A])(fn: A => UIO[B]): UIO[Set[B]] =
+    ZIO.foreachPar(as)(fn)
 
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.NonEmptyChunk*]]]

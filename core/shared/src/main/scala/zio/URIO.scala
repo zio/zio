@@ -91,6 +91,12 @@ object URIO {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Set*]]]
+   */
+  def collectAll[R, A](in: Set[URIO[R, A]]): URIO[R, Set[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[R, A](in: NonEmptyChunk[URIO[R, A]]): URIO[R, NonEmptyChunk[A]] =
@@ -109,6 +115,12 @@ object URIO {
     in: Collection[URIO[R, A]]
   )(implicit bf: BuildFrom[Collection[URIO[R, A]], A, Collection[A]]): URIO[R, Collection[A]] =
     ZIO.collectAllPar(in)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](in:Set*]]]
+   */
+  def collectAllPar[R, A](as: Set[URIO[R, A]]): URIO[R, Set[A]] =
+    ZIO.collectAllPar(as)
 
   /**
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.NonEmptyChunk*]]]
@@ -350,8 +362,14 @@ object URIO {
    */
   def foreach[R, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(fn: A => URIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): URIO[R, Collection[B]] =
-    ZIO.foreach(in)(fn)
+  )(f: A => URIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): URIO[R, Collection[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see [[[zio.ZIO.foreach[R,E,A,B](in:Set*]]]
+   */
+  final def foreach[R, A, B](in: Set[A])(f: A => URIO[R, B]): URIO[R, Set[B]] =
+    ZIO.foreach(in)(f)
 
   /**
    * @see [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
@@ -377,9 +395,15 @@ object URIO {
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def foreachPar[R, A, B, Collection[+Element] <: Iterable[Element]](
-    in: Collection[A]
+    as: Collection[A]
   )(fn: A => URIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): URIO[R, Collection[B]] =
-    ZIO.foreachPar(in)(fn)
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar[R,E,A,B](in:Set*]]]
+   */
+  final def foreachPar[R, A, B](as: Set[A])(fn: A => URIO[R, B]): URIO[R, Set[B]] =
+    ZIO.foreachPar(as)(fn)
 
   /**
    * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.NonEmptyChunk*]]]

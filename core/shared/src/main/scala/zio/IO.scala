@@ -80,6 +80,12 @@ object IO {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Set*]]]
+   */
+  def collectAll[E, A](in: Set[IO[E, A]]): IO[E, Set[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[E, A](in: NonEmptyChunk[IO[E, A]]): IO[E, NonEmptyChunk[A]] =
@@ -97,6 +103,12 @@ object IO {
   def collectAllPar[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[IO[E, A]]
   )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]]): IO[E, Collection[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](in:Set*]]]
+   */
+  def collectAllPar[E, A](as: Set[IO[E, A]]): IO[E, Set[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -355,8 +367,14 @@ object IO {
    */
   def foreach[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(fn: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
-    ZIO.foreach(in)(fn)
+  )(f: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Set*]]]
+   */
+  def foreach[E, A, B](in: Set[A])(f: A => IO[E, B]): IO[E, Set[B]] =
+    ZIO.foreach(in)(f)
 
   /**
    * @see See [[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
@@ -384,6 +402,12 @@ object IO {
   def foreachPar[E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(fn: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](in:Set*]]]
+   */
+  def foreachPar[E, A, B](as: Set[A])(fn: A => IO[E, B]): IO[E, Set[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
