@@ -553,8 +553,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * guaranteeing the specified callback will be invoked, whether or not
    * this effect succeeds.
    */
-  final def ensuringChild[R1 <: R](f: Fiber[Any, List[Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
-    ensuringChildren(children => f(Fiber.collectAll[Any, Any](children)))
+  final def ensuringChild[R1 <: R](f: Fiber[Any, Iterable[Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
+    ensuringChildren(children => f(Fiber.collectAll(children)))
 
   /**
    * Acts on the children of this fiber, guaranteeing the specified callback

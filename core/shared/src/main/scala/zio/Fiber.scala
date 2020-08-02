@@ -542,25 +542,29 @@ object Fiber extends FiberPlatformSpecific {
    * Collects all fibers into a single fiber producing an in-order list of the
    * results.
    */
-  def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber.Synthetic[E, List[A]] =
-    new Fiber.Synthetic[E, List[A]] {
-      def await: UIO[Exit[E, List[A]]] =
-        IO.foreachPar(fibers.toList)(_.await.flatMap(IO.done(_))).run
+  def collectAll[E, A, Collection[+Element] <: Iterable[Element]](
+    fibers: Collection[Fiber[E, A]]
+  )(implicit bf: BuildFrom[Collection[Fiber[E, A]], A, Collection[A]]): Fiber.Synthetic[E, Collection[A]] =
+    new Fiber.Synthetic[E, Collection[A]] {
+      def await: UIO[Exit[E, Collection[A]]] =
+        IO.foreachPar(fibers)(_.await.flatMap(IO.done(_))).run
       def getRef[A](ref: FiberRef[A]): UIO[A] =
-        UIO.foreach(fibers)(_.getRef(ref)).map(_.foldRight(ref.initial)(ref.join))
+        UIO.foldLeft(fibers)(ref.initial)((a, fiber) => fiber.getRef(ref).map(ref.join(a, _)))
       def inheritRefs: UIO[Unit] =
         UIO.foreach_(fibers)(_.inheritRefs)
-      def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, List[A]]] =
+      def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, Collection[A]]] =
         UIO
-          .foreach(fibers)(_.interruptAs(fiberId))
+          .foreach(fibers.toIterable)(_.interruptAs(fiberId))
           .map(_.foldRight[Exit[E, List[A]]](Exit.succeed(Nil))(_.zipWith(_)(_ :: _, _ && _)))
-      def poll: UIO[Option[Exit[E, List[A]]]] =
+          .map(_.map(_.map(a => a)(scala.collection.breakOut(bf))))
+      def poll: UIO[Option[Exit[E, Collection[A]]]] =
         UIO
-          .foreach(fibers)(_.poll)
+          .foreach(fibers.toIterable)(_.poll)
           .map(_.foldRight[Option[Exit[E, List[A]]]](Some(Exit.succeed(Nil))) {
             case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(_ :: _, _ && _))
             case _                    => None
           })
+          .map(_.map(_.map(_.map(a => a)(scala.collection.breakOut(bf)))))
     }
 
   /**
