@@ -25,7 +25,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.absolve]]
    */
-  def absolve[R, E, A](e: STM[E, Either[E, A]]): STM[E, A] =
+  def absolve[E, A](e: STM[E, Either[E, A]]): STM[E, A] =
     ZSTM.absolve(e)
 
   /**
@@ -152,7 +152,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fromFunctionM]]
    */
-  def fromFunctionM[R, E, A](f: Any => STM[E, A]): STM[E, A] =
+  def fromFunctionM[E, A](f: Any => STM[E, A]): STM[E, A] =
     ZSTM.fromFunctionM(f)
 
   /**
@@ -266,8 +266,8 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.require]]
    */
-  def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
-    ZSTM.require(error)
+  def require[E, A](error: => E): STM[E, Option[A]] => STM[E, A] =
+    ZSTM.require[Any, E, A](error)
 
   /**
    * @see See [[zio.stm.ZSTM.retry]]

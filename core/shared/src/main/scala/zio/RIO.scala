@@ -879,7 +879,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.whenCaseM]]
    */
-  def whenCaseM[R, E, A](a: RIO[R, A])(pf: PartialFunction[A, RIO[R, Any]]): RIO[R, Unit] =
+  def whenCaseM[R, A](a: RIO[R, A])(pf: PartialFunction[A, RIO[R, Any]]): RIO[R, Unit] =
     ZIO.whenCaseM(a)(pf)
 
   /**
