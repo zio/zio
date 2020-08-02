@@ -18,7 +18,7 @@ package zio.stm
 
 import scala.util.Try
 
-import zio.{ CanFail, Chunk, Fiber, IO }
+import zio.{ BuildFrom, CanFail, Fiber, IO }
 
 object STM {
 
@@ -40,27 +40,17 @@ object STM {
   def check(p: => Boolean): USTM[Unit] = ZSTM.check(p)
 
   /**
-   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.collectAll]]
    */
-  def collectAll[E, A](in: Iterable[STM[E, A]]): STM[E, List[A]] =
+  def collectAll[E, A, Collection[+Element] <: Iterable[Element]](
+    in: Collection[STM[E, A]]
+  )(implicit bf: BuildFrom[Collection[STM[E, A]], A, Collection[A]]): STM[E, Collection[A]] =
     ZSTM.collectAll(in)
 
   /**
-   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:zio\.Chunk*]]]
-   */
-  def collectAll[E, A](in: Chunk[STM[E, A]]): STM[E, Chunk[A]] =
-    ZSTM.collectAll(in)
-
-  /**
-   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.collectAll_]]
    */
   def collectAll_[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
-    ZSTM.collectAll_(in)
-
-  /**
-   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:zio\.Chunk*]]]
-   */
-  def collectAll_[E, A](in: Chunk[STM[E, A]]): STM[E, Unit] =
     ZSTM.collectAll_(in)
 
   /**
@@ -102,13 +92,17 @@ object STM {
   /**
    * @see [[zio.stm.ZSTM.filter]]
    */
-  def filter[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, List[A]] =
+  def filter[E, A, Collection[+Element] <: Iterable[Element]](
+    as: Collection[A]
+  )(f: A => STM[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): STM[E, Collection[A]] =
     ZSTM.filter(as)(f)
 
   /**
    * @see [[zio.stm.ZSTM.filterNot]]
    */
-  def filterNot[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, List[A]] =
+  def filterNot[E, A, Collection[+Element] <: Iterable[Element]](
+    as: Collection[A]
+  )(f: A => STM[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): STM[E, Collection[A]] =
     ZSTM.filterNot(as)(f)
 
   /**
@@ -130,27 +124,17 @@ object STM {
     ZSTM.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.foreach]]
    */
-  def foreach[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+  def foreach[E, A, B, Collection[+Element] <: Iterable[Element]](
+    in: Collection[A]
+  )(f: A => STM[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): STM[E, Collection[B]] =
     ZSTM.foreach(in)(f)
 
   /**
-   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:zio\.Chunk*]]]
-   */
-  def foreach[E, A, B](in: Chunk[A])(f: A => STM[E, B]): STM[E, Chunk[B]] =
-    ZSTM.foreach(in)(f)
-
-  /**
-   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.foreach_]]
    */
   def foreach_[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
-    ZSTM.foreach_(in)(f)
-
-  /**
-   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](in:zio\.Chunk*]]]
-   */
-  def foreach_[E, A](in: Chunk[A])(f: A => STM[E, Any]): STM[E, Unit] =
     ZSTM.foreach_(in)(f)
 
   /**
@@ -263,7 +247,7 @@ object STM {
    */
   def partition[E, A, B](
     in: Iterable[A]
-  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[Nothing, (List[E], List[B])] =
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[Nothing, (Iterable[E], Iterable[B])] =
     ZSTM.partition(in)(f)
 
   /**
@@ -336,17 +320,17 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.validate]]
    */
-  def validate[E, A, B](
-    in: Iterable[A]
-  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[::[E], List[B]] =
+  def validate[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
+    f: A => STM[E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): STM[::[E], Collection[B]] =
     ZSTM.validate(in)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.validateFirst]]
    */
-  def validateFirst[E, A, B](
-    in: Iterable[A]
-  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[List[E], B] =
+  def validateFirst[E, A, B, Collection[+Element] <: Iterable[Element]](
+    in: Collection[A]
+  )(f: A => STM[E, B])(implicit bf: BuildFrom[Collection[A], E, Collection[E]], ev: CanFail[E]): STM[Collection[E], B] =
     ZSTM.validateFirst(in)(f)
 
   /**

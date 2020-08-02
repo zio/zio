@@ -615,79 +615,25 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
    * Effectfully maps the elements of this chunk.
    */
   final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
-    ZIO.effectSuspendTotal {
-      val iterator = arrayIterator
-      val builder  = ChunkBuilder.make[B]()
-      builder.sizeHint(length)
-      var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
-      while (iterator.hasNext) {
-        val array  = iterator.next()
-        val length = array.length
-        var i      = 0
-        while (i < length) {
-          val j = i
-          dest = dest.zipWith(f(self(j)))(_ += _)
-          i += 1
-        }
-      }
-      dest.map(_.result())
-    }
+    ZIO.foreach(self)(f)
 
   /**
    * Effectfully maps the elements of this chunk in parallel.
    */
-  final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
-    val iterator                   = arrayIterator
-    var array: ZIO[R, E, Array[B]] = IO.succeedNow(null.asInstanceOf[Array[B]])
-
-    while (iterator.hasNext) {
-      val sourceArray = iterator.next()
-      val length      = sourceArray.length
-      var i           = 0
-      while (i < length) {
-        val j = i
-        array = array.zipWithPar(f(self(j))) { (array, b) =>
-          val array2 = if (array == null) {
-            implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-            Array.ofDim[B](self.length)
-          } else array
-
-          array2(j) = b
-          array2
-        }
-        i += 1
-      }
-    }
-    array.map(array =>
-      if (array == null) Chunk.empty
-      else Chunk.fromArray(array)
-    )
-  }
+  final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
+    ZIO.foreachPar(self)(f)
 
   /**
    * Effectfully maps the elements of this chunk in parallel purely for the effects.
    */
   final def mapMPar_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    foldLeft[ZIO[R, E, Unit]](IO.unit)((io, a) => f(a).zipParRight(io))
+    ZIO.foreachPar_(self)(f)
 
   /**
    * Effectfully maps the elements of this chunk purely for the effects.
    */
-  final def mapM_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
-    val iterator            = arrayIterator
-    var zio: ZIO[R, E, Any] = ZIO.unit
-    while (iterator.hasNext) {
-      val array  = iterator.next()
-      val length = array.length
-      var i      = 0
-      while (i < length) {
-        val a = array(i)
-        zio = zio *> f(a)
-        i += 1
-      }
-    }
-    zio.unit
-  }
+  final def mapM_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    ZIO.foreach_(self)(f)
 
   /**
    * Materializes a chunk into a chunk backed by an array. This method can

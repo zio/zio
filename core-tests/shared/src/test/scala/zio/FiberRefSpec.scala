@@ -307,7 +307,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           n      = 64
           fiber  <- ZIO.forkAll(1.to(n).map(setAndGet))
           values <- fiber.join
-        } yield assert(values)(equalTo(1.to(n).toList))
+        } yield assert(values)(equalTo(1.to(n)))
       },
       testM("unsafe handles don't see updates from other fibers") {
         for {
