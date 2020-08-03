@@ -21,7 +21,7 @@ package zio.test
  * hiding the type. This is used internally by the library to provide useful
  * error messages in the event of test failures.
  */
-sealed trait AssertionValue {
+sealed abstract class AssertionValue {
   type Value
   def value: Value
   protected def assertion: AssertionM[Value]

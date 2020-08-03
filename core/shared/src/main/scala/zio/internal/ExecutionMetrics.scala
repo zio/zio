@@ -16,7 +16,7 @@
 
 package zio.internal
 
-trait ExecutionMetrics {
+abstract class ExecutionMetrics {
 
   /**
    * The concurrency level of the executor.

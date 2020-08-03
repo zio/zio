@@ -41,7 +41,7 @@ import zio.internal.{ Executor, FiberRenderer }
  *   } yield (a, b)
  * }}}
  */
-sealed trait Fiber[+E, +A] { self =>
+sealed abstract class Fiber[+E, +A] { self =>
 
   /**
    * Same as `zip` but discards the output of the left hand side.
@@ -391,7 +391,7 @@ object Fiber extends FiberPlatformSpecific {
    * A runtime fiber that is executing an effect. Runtime fibers have an
    * identity and a trace.
    */
-  sealed trait Runtime[+E, +A] extends Fiber[E, A] { self =>
+  sealed abstract class Runtime[+E, +A] extends Fiber[E, A] { self =>
 
     /**
      * Generates a fiber dump.
@@ -431,17 +431,17 @@ object Fiber extends FiberPlatformSpecific {
     implicit def fiberOrdering[E, A]: Ordering[Fiber.Runtime[E, A]] =
       Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeMillis, fiber.id.seqNumber))
 
-    trait Internal[+E, +A] extends Runtime[E, A]
+    abstract class Internal[+E, +A] extends Runtime[E, A]
   }
 
   /**
    * A synthetic fiber that is created from a pure value or that combines
    * existing fibers.
    */
-  sealed trait Synthetic[+E, +A] extends Fiber[E, A] {}
+  sealed abstract class Synthetic[+E, +A] extends Fiber[E, A] {}
 
   private[zio] object Synthetic {
-    trait Internal[+E, +A] extends Synthetic[E, A]
+    abstract class Internal[+E, +A] extends Synthetic[E, A]
   }
 
   /**
@@ -494,7 +494,7 @@ object Fiber extends FiberPlatformSpecific {
     final val None = Id(0L, 0L)
   }
 
-  sealed trait Status extends Serializable with Product { self =>
+  sealed abstract class Status extends Serializable with Product { self =>
     import Status._
 
     final def isDone: Boolean = self match {
@@ -542,25 +542,29 @@ object Fiber extends FiberPlatformSpecific {
    * Collects all fibers into a single fiber producing an in-order list of the
    * results.
    */
-  def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber.Synthetic[E, List[A]] =
-    new Fiber.Synthetic[E, List[A]] {
-      def await: UIO[Exit[E, List[A]]] =
+  def collectAll[E, A, Collection[+Element] <: Iterable[Element]](
+    fibers: Collection[Fiber[E, A]]
+  )(implicit bf: BuildFrom[Collection[Fiber[E, A]], A, Collection[A]]): Fiber.Synthetic[E, Collection[A]] =
+    new Fiber.Synthetic[E, Collection[A]] {
+      def await: UIO[Exit[E, Collection[A]]] =
         IO.foreachPar(fibers)(_.await.flatMap(IO.done(_))).run
       def getRef[A](ref: FiberRef[A]): UIO[A] =
-        UIO.foreach(fibers)(_.getRef(ref)).map(_.foldRight(ref.initial)(ref.join))
+        UIO.foldLeft(fibers)(ref.initial)((a, fiber) => fiber.getRef(ref).map(ref.join(a, _)))
       def inheritRefs: UIO[Unit] =
         UIO.foreach_(fibers)(_.inheritRefs)
-      def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, List[A]]] =
+      def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, Collection[A]]] =
         UIO
-          .foreach(fibers)(_.interruptAs(fiberId))
+          .foreach[Fiber[E, A], Exit[E, A], Iterable](fibers)(_.interruptAs(fiberId))
           .map(_.foldRight[Exit[E, List[A]]](Exit.succeed(Nil))(_.zipWith(_)(_ :: _, _ && _)))
-      def poll: UIO[Option[Exit[E, List[A]]]] =
+          .map(_.map(bf.fromSpecific(fibers)))
+      def poll: UIO[Option[Exit[E, Collection[A]]]] =
         UIO
-          .foreach(fibers)(_.poll)
+          .foreach[Fiber[E, A], Option[Exit[E, A]], Iterable](fibers)(_.poll)
           .map(_.foldRight[Option[Exit[E, List[A]]]](Some(Exit.succeed(Nil))) {
             case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(_ :: _, _ && _))
             case _                    => None
           })
+          .map(_.map(_.map(bf.fromSpecific(fibers))))
     }
 
   /**

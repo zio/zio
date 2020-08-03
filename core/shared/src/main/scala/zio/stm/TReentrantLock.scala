@@ -169,7 +169,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
 }
 object TReentrantLock {
 
-  private[stm] sealed trait LockState {
+  private[stm] sealed abstract class LockState {
     def readLocks: Int
     def readLocks(fiberId: Fiber.Id): Int
     val writeLocks: Int

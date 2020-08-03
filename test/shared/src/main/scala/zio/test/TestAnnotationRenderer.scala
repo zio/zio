@@ -22,7 +22,7 @@ import zio.test.TestAnnotationRenderer._
 /**
  * A `TestAnnotationRenderer` knows how to render test annotations.
  */
-sealed trait TestAnnotationRenderer { self =>
+sealed abstract class TestAnnotationRenderer { self =>
 
   def run(ancestors: List[TestAnnotationMap], child: TestAnnotationMap): List[String]
 
@@ -51,7 +51,7 @@ object TestAnnotationRenderer {
   /**
    * A test annotation renderer that renders a single test annotation.
    */
-  sealed trait LeafRenderer extends TestAnnotationRenderer
+  sealed abstract class LeafRenderer extends TestAnnotationRenderer
 
   object LeafRenderer {
     def apply[V](annotation: TestAnnotation[V])(render: ::[V] => Option[String]): TestAnnotationRenderer =

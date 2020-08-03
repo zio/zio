@@ -190,7 +190,7 @@ object Runtime {
   /**
    * A runtime that can be shutdown to release resources allocated to it.
    */
-  trait Managed[+R] extends Runtime[R] {
+  abstract class Managed[+R] extends Runtime[R] {
 
     /**
      * Shuts down this runtime and releases resources allocated to it. Once

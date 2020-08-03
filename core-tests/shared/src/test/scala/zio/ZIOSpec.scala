@@ -639,7 +639,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("runs many tasks") {
         val as      = (1 to 1000)
         val results = IO.foreachPar(as)(a => IO.succeed(2 * a))
-        assertM(results)(equalTo(as.toList.map(2 * _)))
+        assertM(results)(equalTo(as.map(2 * _)))
       },
       testM("runs a task that fails") {
         val as = (1 to 10)
@@ -827,18 +827,19 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.forkAll(list.map(a => ZIO.effectTotal(a))).flatMap(_.join))(equalTo(list))
       },
       testM("empty input") {
-        assertM(ZIO.forkAll(List.empty).flatMap(_.join))(equalTo(List.empty))
+        assertM(ZIO.forkAll(List.empty[ZIO[Any, Nothing, Unit]]).flatMap(_.join))(equalTo(List.empty))
       },
       testM("propagate failures") {
-        val boom = new Exception
+        val boom             = new Exception
+        val fail: Task[Unit] = ZIO.fail(boom)
         for {
-          fiber  <- ZIO.forkAll(List(ZIO.fail(boom)))
+          fiber  <- ZIO.forkAll(List(fail))
           result <- fiber.join.flip
         } yield assert(result)(equalTo(boom))
       },
       testM("propagates defects") {
         val boom                                 = new Exception("boom")
-        val die                                  = ZIO.die(boom)
+        val die: UIO[Unit]                       = ZIO.die(boom)
         def joinDefect(fiber: Fiber[Nothing, _]) = fiber.join.sandbox.flip
         for {
           fiber1 <- ZIO.forkAll(List(die))
@@ -3127,8 +3128,9 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("validate")(
       testM("returns all errors if never valid") {
-        val in  = List.fill(10)(0)
-        val res = IO.validate(in)(a => ZIO.fail(a)).flip
+        val in                      = List.fill(10)(0)
+        def fail[A](a: A): IO[A, A] = IO.fail(a)
+        val res                     = IO.validate(in)(fail).flip
         assertM(res)(equalTo(in))
       } @@ zioTag(errors),
       testM("accumulate errors and ignore successes") {
@@ -3146,8 +3148,9 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("validatePar")(
       testM("returns all errors if never valid") {
-        val in  = List.fill(1000)(0)
-        val res = IO.validatePar(in)(a => ZIO.fail(a)).flip
+        val in                      = List.fill(1000)(0)
+        def fail[A](a: A): IO[A, A] = IO.fail(a)
+        val res                     = IO.validatePar(in)(fail).flip
         assertM(res)(equalTo(in))
       } @@ zioTag(errors),
       testM("accumulate errors and ignore successes") {

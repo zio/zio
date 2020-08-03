@@ -24,7 +24,7 @@ import scala.annotation.implicitAmbiguous
  *
  * Based on https://github.com/milessabin/shapeless.
  */
-trait =!=[A, B] extends Serializable
+abstract class =!=[A, B] extends Serializable
 
 object =!= {
   def unexpected: Nothing = sys.error("Unexpected invocation")

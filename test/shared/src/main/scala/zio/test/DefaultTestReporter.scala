@@ -170,14 +170,14 @@ object DefaultTestReporter {
 }
 
 object RenderedResult {
-  sealed trait Status
+  sealed abstract class Status
   object Status {
     case object Failed  extends Status
     case object Passed  extends Status
     case object Ignored extends Status
   }
 
-  sealed trait CaseType
+  sealed abstract class CaseType
   object CaseType {
     case object Test  extends CaseType
     case object Suite extends CaseType

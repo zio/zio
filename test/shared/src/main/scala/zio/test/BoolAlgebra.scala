@@ -22,7 +22,7 @@ import zio.ZIO
  * A `BoolAlgebra[A]` is a description of logical operations on values of type
  * `A`.
  */
-sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
+sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =>
   import BoolAlgebra._
 
   /**

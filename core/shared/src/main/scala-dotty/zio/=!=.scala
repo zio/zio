@@ -24,7 +24,7 @@ import scala.implicits.Not
  *
  */
 @implicitNotFound("${A} must not be ${B}")
-trait =!=[A, B] extends Serializable
+abstract class =!=[A, B] extends Serializable
 
 object =!= {
   implicit def neq[A, B](implicit ev: Not[A =:= B]): A =!= B = new =!=[A, B] {}
