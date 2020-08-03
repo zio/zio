@@ -36,7 +36,7 @@ import zio.internal.Platform
  * Because of their excellent composition properties, layers are the idiomatic
  * way in ZIO to create services that depend on other services.
  */
-sealed trait ZLayer[-RIn, +E, +ROut] { self =>
+sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
@@ -2196,7 +2196,7 @@ object ZLayer {
   /**
    * A `MemoMap` memoizes dependencies.
    */
-  private trait MemoMap { self =>
+  private abstract class MemoMap { self =>
 
     /**
      * Checks the memo map to see if a dependency exists. If it is, immediately

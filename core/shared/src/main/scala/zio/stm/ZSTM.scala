@@ -1589,7 +1589,7 @@ object ZSTM {
       result
     }
 
-    sealed trait JournalAnalysis extends Serializable with Product
+    sealed abstract class JournalAnalysis extends Serializable with Product
     object JournalAnalysis {
       case object Invalid   extends JournalAnalysis
       case object ReadOnly  extends JournalAnalysis
@@ -1803,7 +1803,7 @@ object ZSTM {
 
     val globalLock = new AnyRef {}
 
-    sealed trait TExit[+A, +B] extends Serializable with Product
+    sealed abstract class TExit[+A, +B] extends Serializable with Product
     object TExit {
       val unit: TExit[Nothing, Unit] = Succeed(())
 

@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 import zio.duration.Duration
 import zio.internal.Scheduler.CancelToken
 
-private[zio] trait Scheduler {
+private[zio] abstract class Scheduler {
   def schedule(task: Runnable, duration: Duration): CancelToken
 }
 

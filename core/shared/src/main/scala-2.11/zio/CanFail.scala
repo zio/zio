@@ -29,7 +29,7 @@ import scala.annotation.implicitNotFound
     "method you can use instead of this operation, please see the " +
     "reference chart at: https://zio.dev/docs/can_fail"
 )
-sealed trait CanFail[-E]
+sealed abstract class CanFail[-E]
 
 object CanFail extends CanFail[Any] {
 

@@ -28,7 +28,7 @@ import scala.math.Ordered
  * `Infinity` has `Long.MaxValue` nanoseconds value, but for arithmetic operations behaviour is
  * mathematical infinity like-ish.
  */
-sealed trait Duration extends Ordered[Duration] with Serializable with Product {
+sealed abstract class Duration extends Ordered[Duration] with Serializable with Product {
 
   /** Adds other `Duration`. When nanoseconds overflow `Long.MaxValue` returns `Infinity`.
    */

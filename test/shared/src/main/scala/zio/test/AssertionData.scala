@@ -18,7 +18,7 @@ package zio.test
 
 import zio.ZIO
 
-sealed trait AssertionData {
+sealed abstract class AssertionData {
   type Value
   def value: Value
   val assertion: Assertion[Value]
@@ -36,7 +36,7 @@ object AssertionData {
     }
 }
 
-sealed trait AssertionMData {
+sealed abstract class AssertionMData {
   type Value
   def value: Value
   val assertion: AssertionM[Value]

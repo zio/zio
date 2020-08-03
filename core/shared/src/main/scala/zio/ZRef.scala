@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference
  * than synchronization. These operations are not safe for mutable values that
  * do not support concurrent access.
  */
-sealed trait ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
+sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Folds over the error and value types of the `ZRef`. This is a highly
@@ -330,7 +330,7 @@ object ZRef extends Serializable {
 
   }
 
-  private trait Derived[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
+  private abstract class Derived[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
     type S
 
     def getEither(s: S): Either[EB, B]
@@ -385,7 +385,7 @@ object ZRef extends Serializable {
       setEither(a).fold(ZIO.fail(_), value.setAsync)
   }
 
-  private trait DerivedAll[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
+  private abstract class DerivedAll[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
     type S
 
     def getEither(s: S): Either[EB, B]

@@ -20,7 +20,7 @@ import java.io.IOException
 
 import zio.blocking._
 
-trait ZInputStream {
+abstract class ZInputStream {
   def readN(n: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]]
   def skip(n: Long): ZIO[Blocking, IOException, Long]
   def readAll(bufferSize: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]]

@@ -33,7 +33,7 @@ package zio
  * at some cost to performance. Writes will semantically block other writers,
  * while multiple readers can read simultaneously.
  */
-sealed trait ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
+sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
 
   /**
    * Folds over the error and value types of the `ZRefM`. This is a highly
@@ -281,7 +281,7 @@ object ZRefM {
       semaphore.withPermit(ref.setAsync(a))
   }
 
-  private trait Derived[-RA, -RB, +EA, +EB, -A, +B] extends ZRefM[RA, RB, EA, EB, A, B] { self =>
+  private abstract class Derived[-RA, -RB, +EA, +EB, -A, +B] extends ZRefM[RA, RB, EA, EB, A, B] { self =>
     type S
 
     def getEither(s: S): ZIO[RB, EB, B]
@@ -336,7 +336,7 @@ object ZRefM {
       value.semaphore.withPermit(setEither(a).flatMap(value.ref.setAsync))
   }
 
-  private trait DerivedAll[-RA, -RB, +EA, +EB, -A, +B] extends ZRefM[RA, RB, EA, EB, A, B] { self =>
+  private abstract class DerivedAll[-RA, -RB, +EA, +EB, -A, +B] extends ZRefM[RA, RB, EA, EB, A, B] { self =>
     type S
 
     def getEither(s: S): ZIO[RB, EB, B]

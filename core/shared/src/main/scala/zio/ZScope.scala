@@ -31,7 +31,7 @@ import zio.internal.Sync
  * that can close a scope. This allows scopes to be safely passed around
  * without fear they will be accidentally closed.
  */
-sealed trait ZScope[+A] { self =>
+sealed abstract class ZScope[+A] { self =>
 
   /**
    * Determines if the scope is closed at the instant the effect executes.
@@ -94,7 +94,7 @@ sealed trait ZScope[+A] { self =>
   private[zio] def unsafeExtend(that: ZScope[Any]): Boolean
 }
 object ZScope {
-  sealed trait Mode
+  sealed abstract class Mode
   object Mode {
     case object Weak   extends Mode
     case object Strong extends Mode
@@ -103,7 +103,7 @@ object ZScope {
   /**
    * Represents a key in a scope, which is associated with a single finalizer.
    */
-  sealed trait Key {
+  sealed abstract class Key {
 
     /**
      * Attempts to remove the finalizer associated with this key from the
