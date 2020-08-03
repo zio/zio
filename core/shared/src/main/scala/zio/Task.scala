@@ -786,7 +786,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCase[A](a: => A)(pf: PartialFunction[A, Task[Any]]): Task[Unit] =
     ZIO.whenCase(a)(pf)
 
   /**
