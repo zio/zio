@@ -77,7 +77,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
               5
             )
             run    <- stream.run(ZSink.fromEffect[Any, Nothing, Int, Nothing](ZIO.never)).fork
-            _      <- refCnt.get.repeat(Schedule.doWhile(_ != 7))
+            _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
           } yield assert(isDone)(isFalse)
@@ -126,7 +126,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
               5
             )
             run    <- stream.run(ZSink.fromEffect[Any, Nothing, Int, Nothing](ZIO.never)).fork
-            _      <- refCnt.get.repeat(Schedule.doWhile(_ != 7))
+            _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
           } yield assert(isDone)(isFalse)
@@ -182,7 +182,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
               5
             )
             run    <- stream.run(ZSink.fromEffect[Any, Throwable, Int, Nothing](ZIO.never)).fork
-            _      <- refCnt.get.repeat(Schedule.doWhile(_ != 7))
+            _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             exit   <- run.interrupt
           } yield assert(isDone)(isFalse) &&
@@ -259,7 +259,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                   .use(c => ZIO.fromFutureJava(c.write(ByteBuffer.wrap(message.getBytes))))
                   .retry(Schedule.forever)
 
-            receive <- refOut.get.doWhileM(s => ZIO.succeed(s.isEmpty))
+            receive <- refOut.get.repeatWhileM(s => ZIO.succeed(s.isEmpty))
 
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message))
@@ -278,14 +278,14 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
                   ZIO
                     .fromFutureJava(c.read(buffer))
-                    .repeat(Schedule.doUntil(_ < 1))
+                    .repeatUntil(_ < 1)
                     .flatMap { _ =>
                       (buffer: Buffer).flip()
                       refOut.update(_ => new String(buffer.array))
                     }
                 }.retry(Schedule.forever)
 
-            receive <- refOut.get.doWhileM(s => ZIO.succeed(s.isEmpty))
+            receive <- refOut.get.repeatWhileM(s => ZIO.succeed(s.isEmpty))
 
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message)))

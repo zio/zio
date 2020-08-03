@@ -45,27 +45,27 @@ object ScheduleSpec extends ZIOBaseSpec {
       testM("for 'recurs(a positive given number)' repeats that additional number of time") {
         checkRepeat(Schedule.recurs(42), expected = 42)
       },
-      testM("for 'doWhile(cond)' repeats while the cond still holds") {
+      testM("for 'recurWhile(cond)' repeats while the cond still holds") {
         def cond: Int => Boolean = _ < 10
-        checkRepeat(Schedule.doWhile(cond), expected = 10)
+        checkRepeat(Schedule.recurWhile(cond), expected = 10)
       },
-      testM("for 'doWhileM(cond)' repeats while the effectful cond still holds") {
+      testM("for 'recurWhileM(cond)' repeats while the effectful cond still holds") {
         def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
-        checkRepeat(Schedule.doWhileM(cond), expected = 1)
+        checkRepeat(Schedule.recurWhileM(cond), expected = 1)
       },
-      testM("for 'doWhileEquals(cond)' repeats while the cond is equal") {
-        checkRepeat(Schedule.doWhileEquals(1), expected = 2)
+      testM("for 'recurWhileEquals(cond)' repeats while the cond is equal") {
+        checkRepeat(Schedule.recurWhileEquals(1), expected = 2)
       },
-      testM("for 'doUntil(cond)' repeats until the cond is satisfied") {
+      testM("for 'recurUntil(cond)' repeats until the cond is satisfied") {
         def cond: Int => Boolean = _ < 10
-        checkRepeat(Schedule.doUntil(cond), expected = 1)
+        checkRepeat(Schedule.recurUntil(cond), expected = 1)
       },
-      testM("for 'doUntilM(cond)' repeats until the effectful cond is satisfied") {
+      testM("for 'recurUntilM(cond)' repeats until the effectful cond is satisfied") {
         def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
-        checkRepeat(Schedule.doUntilM(cond), expected = 11)
+        checkRepeat(Schedule.recurUntilM(cond), expected = 11)
       },
-      testM("for 'doUntilEquals(cond)' repeats until the cond is equal") {
-        checkRepeat(Schedule.doUntilEquals(1), expected = 1)
+      testM("for 'recurUntilEquals(cond)' repeats until the cond is equal") {
+        checkRepeat(Schedule.recurUntilEquals(1), expected = 1)
       }
     ),
     suite("Collect all inputs into a list")(

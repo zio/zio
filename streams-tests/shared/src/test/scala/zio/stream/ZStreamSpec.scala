@@ -2878,7 +2878,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
             assertM(
               s.toQueue(1000)
-                .use(queue => queue.size.repeat(Schedule.doWhile(_ != c.size + 1)) *> queue.takeAll)
+                .use(queue => queue.size.repeatWhile(_ != c.size + 1) *> queue.takeAll)
             )(
               equalTo(c.toSeq.toList.map(Take.single) :+ Take.end)
             )
@@ -2886,7 +2886,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("toQueueUnbounded")(checkM(Gen.chunkOfBounded(0, 3)(Gen.anyInt)) { (c: Chunk[Int]) =>
             val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
             assertM(
-              s.toQueueUnbounded.use(queue => queue.size.repeat(Schedule.doWhile(_ != c.size + 1)) *> queue.takeAll)
+              s.toQueueUnbounded.use(queue => queue.size.repeatWhile(_ != c.size + 1) *> queue.takeAll)
             )(
               equalTo(c.toSeq.toList.map(Take.single) :+ Take.end)
             )

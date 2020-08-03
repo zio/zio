@@ -769,27 +769,27 @@ object Schedule {
    * A schedule that recurs as long as the condition f holds, collecting all inputs into a list.
    */
   def collectWhile[A](f: A => Boolean): Schedule[Any, A, Chunk[A]] =
-    doWhile(f).collectAll
+    recurWhile(f).collectAll
 
   /**
    * A schedule that recurs as long as the effectful condition holds,
    * collecting all inputs into a list.
    */
   def collectWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
-    doWhileM(f).collectAll
+    recurWhileM(f).collectAll
 
   /**
    * A schedule that recurs until the condition f fails, collecting all inputs into a list.
    */
   def collectUntil[A](f: A => Boolean): Schedule[Any, A, Chunk[A]] =
-    doUntil(f).collectAll
+    recurUntil(f).collectAll
 
   /**
    * A schedule that recurs until the effectful condition f fails, collecting
    * all inputs into a list.
    */
   def collectUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
-    doUntilM(f).collectAll
+    recurUntilM(f).collectAll
 
   /**
    * Takes a schedule that produces a delay, and returns a new schedule that uses this delay to
@@ -801,44 +801,44 @@ object Schedule {
   /**
    * A schedule that recurs for as long as the predicate evaluates to true.
    */
-  def doWhile[A](f: A => Boolean): Schedule[Any, A, A] =
+  def recurWhile[A](f: A => Boolean): Schedule[Any, A, A] =
     identity[A].whileInput(f)
 
   /**
    * A schedule that recurs for as long as the effectful predicate evaluates to true.
    */
-  def doWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, A] =
+  def recurWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, A] =
     identity[A].whileInputM(f)
 
   /**
    * A schedule that recurs for as long as the predicate is equal.
    */
-  def doWhileEquals[A](a: => A): Schedule[Any, A, A] =
+  def recurWhileEquals[A](a: => A): Schedule[Any, A, A] =
     identity[A].whileInput(_ == a)
 
   /**
    * A schedule that recurs for until the predicate evaluates to true.
    */
-  def doUntil[A](f: A => Boolean): Schedule[Any, A, A] =
+  def recurUntil[A](f: A => Boolean): Schedule[Any, A, A] =
     identity[A].untilInput(f)
 
   /**
    * A schedule that recurs for until the predicate evaluates to true.
    */
-  def doUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, A] =
+  def recurUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, A] =
     identity[A].untilInputM(f)
 
   /**
    * A schedule that recurs for until the predicate is equal.
    */
-  def doUntilEquals[A](a: => A): Schedule[Any, A, A] =
+  def recurUntilEquals[A](a: => A): Schedule[Any, A, A] =
     identity[A].untilInput(_ == a)
 
   /**
    * A schedule that recurs for until the input value becomes applicable to partial function
    * and then map that value with given function.
    * */
-  def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[Any, A, Option[B]] =
+  def recurUntil[A, B](pf: PartialFunction[A, B]): Schedule[Any, A, Option[B]] =
     identity[A].map(pf.lift(_)).untilOutput(_.isDefined)
 
   /**

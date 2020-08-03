@@ -102,7 +102,7 @@ Retry only when a specific exception occurs:
 ```scala mdoc:silent
 import scala.concurrent.TimeoutException
 
-val whileTimeout = Schedule.exponential(10.milliseconds) && Schedule.doWhile[Throwable] {
+val whileTimeout = Schedule.exponential(10.milliseconds) && Schedule.recurWhile[Throwable] {
   case _: TimeoutException => true
   case _ => false
 }
