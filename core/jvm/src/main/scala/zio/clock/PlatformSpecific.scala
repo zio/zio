@@ -36,7 +36,7 @@ private[clock] trait PlatformSpecific {
         task.run()
 
         ConstFalse
-      case duration: Duration.Finite =>
+      case Duration.Finite(_) =>
         val future = service.schedule(new Runnable {
           def run: Unit =
             task.run()

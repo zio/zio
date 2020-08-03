@@ -20,7 +20,7 @@ import java.io.IOException
 
 import zio.blocking._
 
-trait ZOutputStream {
+abstract class ZOutputStream {
   def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit]
 }
 

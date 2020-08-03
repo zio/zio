@@ -33,7 +33,7 @@ private[clock] trait PlatformSpecific {
         task.run()
 
         ConstFalse
-      case duration: Duration.Finite =>
+      case Duration.Finite(_) =>
         var completed = false
 
         val handle = js.timers.setTimeout(duration.toMillis.toDouble) {

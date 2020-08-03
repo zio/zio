@@ -19,7 +19,7 @@ package zio.test
 import zio._
 import zio.test.environment._
 
-private[test] trait PlatformSpecific {
+private[test] abstract class PlatformSpecific {
   type TestEnvironment =
     ZEnv with Annotations with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
 

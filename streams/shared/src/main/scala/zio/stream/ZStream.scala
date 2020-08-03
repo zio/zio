@@ -6,7 +6,7 @@ import scala.reflect.ClassTag
 
 import zio._
 import zio.clock.Clock
-import zio.duration.Duration
+import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks

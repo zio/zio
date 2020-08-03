@@ -39,7 +39,7 @@ import zio.stm.ZSTM.internal._
  * These operations are not safe for mutable values that do not support concurrent
  * access.
  */
-sealed trait ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
+sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Folds over the error and value types of the `ZTRef`. This is a highly
@@ -371,7 +371,7 @@ object ZTRef {
       setEither(a).fold(STM.fail(_), value.set)
   }
 
-  private trait DerivedAll[+EA, +EB, -A, +B] extends ZTRef[EA, EB, A, B] { self =>
+  private abstract class DerivedAll[+EA, +EB, -A, +B] extends ZTRef[EA, EB, A, B] { self =>
     type S
 
     def getEither(s: S): Either[EB, B]

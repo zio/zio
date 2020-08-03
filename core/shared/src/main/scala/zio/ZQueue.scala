@@ -30,7 +30,7 @@ import zio.internal.MutableConcurrentQueue
  * type `EA`. The dequeueing operations may utilize an environment of type `RB` and may fail
  * with errors of type `EB`.
  */
-trait ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
+abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Waits until the queue is shutdown.
@@ -355,7 +355,7 @@ object ZQueue {
     def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Unit =
       p.unsafeDone(IO.succeedNow(a))
 
-    sealed trait Strategy[A] {
+    sealed abstract class Strategy[A] {
       def handleSurplus(
         as: List[A],
         queue: MutableConcurrentQueue[A],

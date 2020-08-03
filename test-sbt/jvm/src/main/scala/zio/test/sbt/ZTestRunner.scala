@@ -66,7 +66,7 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
 final class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
     extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs)
 
-trait ZTestTaskPolicy {
+abstract class ZTestTaskPolicy {
   def merge(zioTasks: Array[ZTestTask]): Array[Task]
 }
 

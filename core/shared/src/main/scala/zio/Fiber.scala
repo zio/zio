@@ -41,7 +41,7 @@ import zio.internal.{ Executor, FiberRenderer }
  *   } yield (a, b)
  * }}}
  */
-sealed trait Fiber[+E, +A] { self =>
+sealed abstract class Fiber[+E, +A] { self =>
 
   /**
    * Same as `zip` but discards the output of the left hand side.
@@ -391,7 +391,7 @@ object Fiber extends FiberPlatformSpecific {
    * A runtime fiber that is executing an effect. Runtime fibers have an
    * identity and a trace.
    */
-  sealed trait Runtime[+E, +A] extends Fiber[E, A] { self =>
+  sealed abstract class Runtime[+E, +A] extends Fiber[E, A] { self =>
 
     /**
      * Generates a fiber dump.
@@ -431,17 +431,17 @@ object Fiber extends FiberPlatformSpecific {
     implicit def fiberOrdering[E, A]: Ordering[Fiber.Runtime[E, A]] =
       Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeMillis, fiber.id.seqNumber))
 
-    trait Internal[+E, +A] extends Runtime[E, A]
+    abstract class Internal[+E, +A] extends Runtime[E, A]
   }
 
   /**
    * A synthetic fiber that is created from a pure value or that combines
    * existing fibers.
    */
-  sealed trait Synthetic[+E, +A] extends Fiber[E, A] {}
+  sealed abstract class Synthetic[+E, +A] extends Fiber[E, A] {}
 
   private[zio] object Synthetic {
-    trait Internal[+E, +A] extends Synthetic[E, A]
+    abstract class Internal[+E, +A] extends Synthetic[E, A]
   }
 
   /**
@@ -494,7 +494,7 @@ object Fiber extends FiberPlatformSpecific {
     final val None = Id(0L, 0L)
   }
 
-  sealed trait Status extends Serializable with Product { self =>
+  sealed abstract class Status extends Serializable with Product { self =>
     import Status._
 
     final def isDone: Boolean = self match {

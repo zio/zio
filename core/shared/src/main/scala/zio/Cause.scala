@@ -21,7 +21,7 @@ import scala.util.control.NonFatal
 
 import zio.internal.Platform
 
-sealed trait Cause[+E] extends Product with Serializable { self =>
+sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause.Internal._
 
   /**
@@ -257,8 +257,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Returns a `String` with the cause pretty-printed.
    */
   final def prettyPrint: String = {
-    sealed trait Segment
-    sealed trait Step extends Segment
+    sealed abstract class Segment
+    sealed abstract class Step extends Segment
 
     final case class Sequential(all: List[Step])     extends Segment
     final case class Parallel(all: List[Sequential]) extends Step

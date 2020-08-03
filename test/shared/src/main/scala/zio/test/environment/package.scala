@@ -557,7 +557,7 @@ package object environment extends PlatformSpecific {
      * if a test has adjusted the `TestClock` or the warning message has
      * already been displayed.
      */
-    sealed trait WarningData
+    sealed abstract class WarningData
 
     object WarningData {
 

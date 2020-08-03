@@ -18,7 +18,7 @@ package zio.test
 
 import zio.Cause
 
-sealed trait TestFailure[+E]
+sealed abstract class TestFailure[+E]
 
 object TestFailure {
   final case class Assertion(result: TestResult) extends TestFailure[Nothing]

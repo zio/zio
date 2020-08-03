@@ -30,8 +30,8 @@ import zio.{ Cause, Exit, ZIO }
 final class Assertion[-A] private (
   val render: Assertion.Render,
   val run: (=> A) => AssertResult
-) extends ((=> A) => AssertResult)
-    with AssertionM[A] { self =>
+) extends AssertionM[A]
+    with ((=> A) => AssertResult) { self =>
   import zio.test.Assertion.Render._
 
   def runM: (=> A) => AssertResultM = a => BoolAlgebraM(ZIO.succeed(run(a)))

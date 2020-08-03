@@ -19,7 +19,7 @@ package zio.test
 /**
  * `GenFailureDetails` keeps track of relevant information related to a failure in a generative test.
  */
-sealed trait GenFailureDetails {
+sealed abstract class GenFailureDetails {
   type Value
 
   val initialInput: Value

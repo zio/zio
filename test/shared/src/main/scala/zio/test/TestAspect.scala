@@ -26,7 +26,7 @@ import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRand
  * an aspect as a polymorphic function, capable of transforming one test into
  * another, possibly enlarging the environment or error type.
  */
-trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
+abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
 
   /**
    * Applies the aspect to some tests in the spec, chosen by the provided
@@ -736,7 +736,7 @@ object TestAspect extends TimeoutVariants {
       test.untraced
   }
 
-  trait PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
+  abstract class PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
 
     def perTest[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
       test: ZIO[R, TestFailure[E], TestSuccess]
