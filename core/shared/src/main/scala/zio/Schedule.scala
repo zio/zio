@@ -28,7 +28,7 @@ import zio.clock.Clock
  * which returns values of type `Out`.
  *
  * Schedules are defined as a possibly infinite set of intervals spread out over time. Each
- * interval defines a window in which recurrance is possible.
+ * interval defines a window in which recurrence is possible.
  *
  * When schedules are used to repeat or retry effects, the starting boundary of each interval
  * produced by a schedule is used as the moment when the effect will be executed again.
