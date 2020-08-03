@@ -522,7 +522,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
       var j      = 0
       while (result < 0 & j < length) {
         if (i >= from) {
-          val a = array(i)
+          val a = array(j)
           if (f(a)) {
             result = i
           }
@@ -597,9 +597,9 @@ sealed trait Chunk[+A] extends ChunkLike[A] { self =>
         val length = array.length
         var i      = 0
         while (i < length) {
-          val j = i
+          val a = array(i)
           dest = dest.flatMap { state =>
-            f1(state, self(j)).map {
+            f1(state, a).map {
               case (state2, b) =>
                 builder += b
                 state2
