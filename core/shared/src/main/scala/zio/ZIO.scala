@@ -473,42 +473,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
-   * Repeats this effect until its result satisfies the specified predicate.
-   */
-  final def doUntil(f: A => Boolean): ZIO[R, E, A] =
-    repeat(Schedule.doUntil(f))
-
-  /**
-   * Repeats this effect until its result is equal to the predicate.
-   */
-  final def doUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
-    repeat(Schedule.doUntilEquals(a))
-
-  /**
-   * Repeats this effect until its result satisfies the specified effectful predicate.
-   */
-  final def doUntilM(f: A => UIO[Boolean]): ZIO[R, E, A] =
-    repeat(Schedule.doUntilM(f))
-
-  /**
-   * Repeats this effect while its result satisfies the specified predicate.
-   */
-  final def doWhile(f: A => Boolean): ZIO[R, E, A] =
-    repeat(Schedule.doWhile(f))
-
-  /**
-   * Repeats this effect for as long as the predicate is equal to its result.
-   */
-  final def doWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
-    repeat(Schedule.doWhileEquals(a))
-
-  /**
-   * Repeats this effect while its result satisfies the specified effectful predicate.
-   */
-  final def doWhileM(f: A => UIO[Boolean]): ZIO[R, E, A] =
-    repeat(Schedule.doWhileM(f))
-
-  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail, because the failure case has
    * been exposed as part of the `Either` success case.
@@ -1475,8 +1439,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect that executes `io`, and then if that succeeds, executes `io` an
    * additional time.
    */
-  final def repeat[R1 <: R, B](schedule: Schedule[R1, A, B]): ZIO[R1, E, B] =
+  final def repeat[R1 <: R, B](schedule: Schedule[R1, A, B]): ZIO[R1 with Clock, E, B] =
     repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
+
+  /**
+   * Repeats this effect the specified number of times.
+   */
+  final def repeatN(n: Int): ZIO[R, E, A] =
+    self.flatMap(a => if (n <= 0) ZIO.succeedNow(a) else repeatN(n - 1))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -1490,7 +1460,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def repeatOrElse[R1 <: R, E2, B](
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  ): ZIO[R1, E2, B] =
+  ): ZIO[R1 with Clock, E2, B] =
     repeatOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
 
   /**
@@ -1505,23 +1475,61 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def repeatOrElseEither[R1 <: R, B, E2, C](
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
-  ): ZIO[R1, E2, Either[C, B]] = {
-    def loop(last: A, state: schedule.State): ZIO[R1, E2, Either[C, B]] =
-      schedule
-        .update(last, state)
-        .foldM(
-          _ => ZIO.succeedRight(schedule.extract(last, state)),
-          s =>
-            self.foldM(
-              e => orElse(e, Some(schedule.extract(last, state))).map(Left(_)),
-              a => loop(a, s)
-            )
-        )
-    self.foldM(
-      orElse(_, None).map(Left(_)),
-      a => schedule.initial.flatMap(loop(a, _))
-    )
-  }
+  ): ZIO[R1 with Clock, E2, Either[C, B]] =
+    schedule.driver.flatMap { driver =>
+      def loop(a: A): ZIO[R1 with Clock, E2, Either[C, B]] =
+        driver
+          .next(a)
+          .foldM(
+            _ => driver.last.orDie.map(Right(_)),
+            b =>
+              self.foldM(
+                e => orElse(e, Some(b)).map(Left(_)),
+                a => loop(a)
+              )
+          )
+
+      self.foldM(
+        e => orElse(e, None).map(Left(_)),
+        a => loop(a)
+      )
+    }
+
+  /**
+   * Repeats this effect until its error satisfies the specified predicate.
+   */
+  final def repeatUntil(f: A => Boolean): ZIO[R, E, A] =
+    repeatUntilM(a => ZIO.succeed(f(a)))
+
+  /**
+   * Repeats this effect until its error equals the predicate.
+   */
+  final def repeatUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+    repeatUntil(_ == a)
+
+  /**
+   * Repeats this effect until its error satisfies the specified effectful predicate.
+   */
+  final def repeatUntilM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
+    self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else repeatUntilM(f)))
+
+  /**
+   * Repeats this effect while its error satisfies the specified predicate.
+   */
+  final def repeatWhile(f: A => Boolean): ZIO[R, E, A] =
+    repeatWhileM(a => ZIO.succeed(f(a)))
+
+  /**
+   * Repeats this effect for as long as the error equals the predicate.
+   */
+  final def repeatWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+    repeatWhile(_ == a)
+
+  /**
+   * Repeats this effect while its error satisfies the specified effectful predicate.
+   */
+  final def repeatWhileM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
+    repeatUntilM(e => f(e).map(!_))
 
   /**
    * Retries with the specified retry policy.
@@ -1529,8 +1537,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
+  final def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZIO[R1 with Clock, E, A] =
     retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
+
+  /**
+   * Retries this effect the specified number of times.
+   */
+  final def retryN(n: Int)(implicit ev: CanFail[E]): ZIO[R, E, A] =
+    self.catchAll(e => if (n <= 0) ZIO.fail(e) else retryN(n - 1))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -1540,68 +1554,68 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def retryOrElse[R1 <: R, A1 >: A, S, E1](
     policy: Schedule[R1, E, S],
     orElse: (E, S) => ZIO[R1, E1, A1]
-  )(implicit ev: CanFail[E]): ZIO[R1, E1, A1] =
+  )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E1, A1] =
     retryOrElseEither(policy, orElse).map(_.merge)
 
   /**
-   * Retries with the specified schedule, until it fails, and then both the
-   * value produced by the schedule together with the last error are passed to
-   * the recovery function.
+   * Returns an effect that retries this effect with the specified schedule when it fails, until
+   * the schedule is done, then both the value produced by the schedule together with the last
+   * error are passed to the specified recovery function.
    */
-  final def retryOrElseEither[R1 <: R, S, E1, B](
-    policy: Schedule[R1, E, S],
-    orElse: (E, S) => ZIO[R1, E1, B]
-  )(implicit ev: CanFail[E]): ZIO[R1, E1, Either[B, A]] = {
-    def loop(state: policy.State): ZIO[R1, E1, Either[B, A]] =
-      self.foldM(
-        err =>
-          policy
-            .update(err, state)
+  final def retryOrElseEither[R1 <: R, Out, E1, B](
+    schedule: Schedule[R1, E, Out],
+    orElse: (E, Out) => ZIO[R1, E1, B]
+  )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E1, Either[B, A]] = {
+    def loop(driver: Schedule.Driver[R1 with Clock, E, Out]): ZIO[R1 with Clock, E1, Either[B, A]] =
+      self
+        .map(Right(_))
+        .catchAll(e =>
+          driver
+            .next(e)
             .foldM(
-              _ => orElse(err, policy.extract(err, state)).map(Left(_)),
-              loop
-            ),
-        ZIO.succeedRight
-      )
+              _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
+              _ => loop(driver)
+            )
+        )
 
-    policy.initial.flatMap(loop)
+    schedule.driver.flatMap(loop(_))
   }
 
   /**
    * Retries this effect until its error satisfies the specified predicate.
    */
   final def retryUntil(f: E => Boolean)(implicit ev: CanFail[E]): ZIO[R, E, A] =
-    retry(Schedule.doUntil(f))
+    retryUntilM(e => ZIO.succeed(f(e)))
 
   /**
    * Retries this effect until its error equals the predicate.
    */
   final def retryUntilEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
-    retry(Schedule.doUntilEquals(e))
+    retryUntil(_ == e)
 
   /**
    * Retries this effect until its error satisfies the specified effectful predicate.
    */
-  final def retryUntilM(f: E => UIO[Boolean])(implicit ev: CanFail[E]): ZIO[R, E, A] =
-    retry(Schedule.doUntilM(f))
+  final def retryUntilM[R1 <: R](f: E => URIO[R1, Boolean])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
+    self.catchAll(e => f(e).flatMap(b => if (b) ZIO.fail(e) else retryUntilM(f)))
 
   /**
    * Retries this effect while its error satisfies the specified predicate.
    */
   final def retryWhile(f: E => Boolean)(implicit ev: CanFail[E]): ZIO[R, E, A] =
-    retry(Schedule.doWhile(f))
+    retryWhileM(e => ZIO.succeed(f(e)))
 
   /**
-   * Repeats this effect for as long as the error equals the predicate.
+   * Retries this effect for as long as the error equals the predicate.
    */
   final def retryWhileEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
-    retry(Schedule.doWhileEquals(e))
+    retryWhile(_ == e)
 
   /**
    * Retries this effect while its error satisfies the specified effectful predicate.
    */
-  final def retryWhileM(f: E => UIO[Boolean])(implicit ev: CanFail[E]): ZIO[R, E, A] =
-    retry(Schedule.doWhileM(f))
+  final def retryWhileM[R1 <: R](f: E => URIO[R1, Boolean])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
+    retryUntilM(e => f(e).map(!_))
 
   /**
    * Returns an effect that semantically runs the effect on a fiber,

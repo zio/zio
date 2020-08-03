@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.duration.Duration
 import zio.ZManaged.ReleaseMap
 import zio.internal.Platform
 
@@ -190,24 +191,25 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Retries constructing this layer according to the specified schedule.
    */
-  final def retry[RIn1 <: RIn](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
-    type S = schedule.State
+  final def retry[RIn1 <: RIn with clock.Clock](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
+    import Schedule.StepFunction
+    import Schedule.Decision._
+
+    type S = StepFunction[RIn1, E, Any]
+
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
       (ZLayer.first >>> self).catchAll {
         val update: ZLayer[((RIn1, S), E), E, (RIn1, S)] =
           ZLayer.fromFunctionManyM {
             case ((r, s), e) =>
-              schedule
-                .update(e, s)
-                .provide(r)
-                .foldM(
-                  _ => ZIO.fail(e),
-                  s => ZIO.succeed((r, s))
-                )
+              clock.currentDateTime.orDie.flatMap(now => s(now, e).flatMap {
+                case Done(_) => ZIO.fail(e)
+                case Continue(_, interval, next) => clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
+              }).provide(r)
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromEffectMany(schedule.initial) >>> loop
+    ZLayer.identity <&> ZLayer.fromEffectMany(ZIO.succeed(schedule.step)) >>> loop
   }
 
   /**

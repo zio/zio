@@ -250,14 +250,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Repeats this `STM` effect until its result satisfies the specified predicate.
    */
-  def doUntil(f: A => Boolean): ZSTM[R, E, A] =
-    flatMap(a => if (f(a)) ZSTM.succeedNow(a) else doUntil(f))
+  def repeatUntil(f: A => Boolean): ZSTM[R, E, A] =
+    flatMap(a => if (f(a)) ZSTM.succeedNow(a) else repeatUntil(f))
 
   /**
    * Repeats this `STM` effect while its result satisfies the specified predicate.
    */
-  def doWhile(f: A => Boolean): ZSTM[R, E, A] =
-    flatMap(a => if (f(a)) doWhile(f) else ZSTM.succeedNow(a))
+  def repeatWhile(f: A => Boolean): ZSTM[R, E, A] =
+    flatMap(a => if (f(a)) repeatWhile(f) else ZSTM.succeedNow(a))
 
   /**
    * Converts the failure channel into an `Either`.

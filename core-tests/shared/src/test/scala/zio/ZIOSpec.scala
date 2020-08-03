@@ -343,92 +343,92 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(IO.done(failed).run)(fails(equalTo(error)))
       }
     ),
-    suite("doUntil")(
-      testM("doUntil repeats until condition is true") {
+    suite("repeatUntil")(
+      testM("repeatUntil repeats until condition is true") {
         for {
           in     <- Ref.make(10)
           out    <- Ref.make(0)
-          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).doUntil(_ == 0)
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).repeatUntil(_ == 0)
           result <- out.get
         } yield assert(result)(equalTo(10))
       },
-      testM("doUntil always evaluates effect at least once") {
+      testM("repeatUntil always evaluates effect at least once") {
         for {
           ref    <- Ref.make(0)
-          _      <- ref.update(_ + 1).doUntil(_ => true)
+          _      <- ref.update(_ + 1).repeatUntil(_ => true)
           result <- ref.get
         } yield assert(result)(equalTo(1))
       }
     ),
-    suite("doUntilEquals")(
-      testM("doUntilEquals repeats until result is equal to predicate") {
+    suite("repeatUntilEquals")(
+      testM("repeatUntilEquals repeats until result is equal to predicate") {
         for {
           q      <- Queue.unbounded[Int]
           _      <- q.offerAll(List(1, 2, 3, 4, 5, 6))
           acc    <- Ref.make(0)
-          _      <- (q.take <* acc.update(_ + 1)).doUntilEquals(5)
+          _      <- (q.take <* acc.update(_ + 1)).repeatUntilEquals(5)
           result <- acc.get
         } yield assert(result)(equalTo(5))
       }
     ),
-    suite("doUntilM")(
-      testM("doUntilM repeat until effectful condition is true") {
+    suite("repeatUntilM")(
+      testM("repeatUntilM repeat until effectful condition is true") {
         for {
           in     <- Ref.make(10)
           out    <- Ref.make(0)
-          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).doUntilM(v => UIO.succeed(v == 0))
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).repeatUntilM(v => UIO.succeed(v == 0))
           result <- out.get
         } yield assert(result)(equalTo(10))
       },
-      testM("doUntilM always evaluates effect at least once") {
+      testM("repeatUntilM always evaluates effect at least once") {
         for {
           ref    <- Ref.make(0)
-          _      <- ref.update(_ + 1).doUntilM(_ => UIO.succeed(true))
+          _      <- ref.update(_ + 1).repeatUntilM(_ => UIO.succeed(true))
           result <- ref.get
         } yield assert(result)(equalTo(1))
       }
     ),
-    suite("doWhile")(
-      testM("doWhile repeats while condition is true") {
+    suite("repeatWhile")(
+      testM("repeatWhile repeats while condition is true") {
         for {
           in     <- Ref.make(10)
           out    <- Ref.make(0)
-          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).doWhile(_ >= 0)
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).repeatWhile(_ >= 0)
           result <- out.get
         } yield assert(result)(equalTo(11))
       },
-      testM("doWhile always evaluates effect at least once") {
+      testM("repeatWhile always evaluates effect at least once") {
         for {
           ref    <- Ref.make(0)
-          _      <- ref.update(_ + 1).doWhile(_ => false)
+          _      <- ref.update(_ + 1).repeatWhile(_ => false)
           result <- ref.get
         } yield assert(result)(equalTo(1))
       }
     ),
-    suite("doWhileEquals")(
-      testM("doWhileEquals repeats while result equals predicate") {
+    suite("repeatWhileEquals")(
+      testM("repeatWhileEquals repeats while result equals predicate") {
         for {
           q      <- Queue.unbounded[Int]
           _      <- q.offerAll(List(0, 0, 0, 0, 1, 2))
           acc    <- Ref.make(0)
-          _      <- (q.take <* acc.update(_ + 1)).doWhileEquals(0)
+          _      <- (q.take <* acc.update(_ + 1)).repeatWhileEquals(0)
           result <- acc.get
         } yield assert(result)(equalTo(5))
       }
     ),
-    suite("doWhileM")(
-      testM("doWhileM repeats while condition is true") {
+    suite("repeatWhileM")(
+      testM("repeatWhileM repeats while condition is true") {
         for {
           in     <- Ref.make(10)
           out    <- Ref.make(0)
-          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).doWhileM(v => UIO.succeed(v >= 0))
+          _      <- (in.updateAndGet(_ - 1) <* out.update(_ + 1)).repeatWhileM(v => UIO.succeed(v >= 0))
           result <- out.get
         } yield assert(result)(equalTo(11))
       },
-      testM("doWhileM always evaluates effect at least once") {
+      testM("repeatWhileM always evaluates effect at least once") {
         for {
           ref    <- Ref.make(0)
-          _      <- ref.update(_ + 1).doWhileM(_ => UIO.succeed(false))
+          _      <- ref.update(_ + 1).repeatWhileM(_ => UIO.succeed(false))
           result <- ref.get
         } yield assert(result)(equalTo(1))
       }
@@ -2084,9 +2084,9 @@ object ZIOSpec extends ZIOBaseSpec {
                     )
                   )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
                   .fork
-            _ <- (ref.get <* clock.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
+            _ <- (ref.get <* clock.sleep(1.millis)).repeatUntil(_.contains("start 1"))
             _ <- f.interrupt
-            _ <- (ref.get <* clock.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
+            _ <- (ref.get <* clock.sleep(1.millis)).repeatUntil(_.contains("release 2"))
             l <- ref.get
           } yield l
 

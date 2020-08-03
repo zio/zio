@@ -75,18 +75,18 @@ object ZSTMSpec extends ZIOBaseSpec {
         val tx    = (print <<< add).provide(1)
         assertM(tx.commit)(equalTo("2 is the sum"))
       },
-      testM("doWhile to run effect while it satisfies predicate") {
+      testM("repeatWhile to run effect while it satisfies predicate") {
         (for {
           a <- TQueue.bounded[Int](5)
           _ <- a.offerAll(List(0, 0, 0, 1, 2))
-          n <- a.take.doWhile(_ == 0)
+          n <- a.take.repeatWhile(_ == 0)
         } yield assert(n)(equalTo(1))).commit
       },
-      testM("doUntil to run effect until it satisfies predicate") {
+      testM("repeatUntil to run effect until it satisfies predicate") {
         (for {
           a <- TQueue.bounded[Int](5)
           _ <- a.offerAll(List(0, 0, 0, 1, 2))
-          b <- a.take.doUntil(_ == 1)
+          b <- a.take.repeatUntil(_ == 1)
         } yield assert(b)(equalTo(1))).commit
       },
       suite("either to convert")(
