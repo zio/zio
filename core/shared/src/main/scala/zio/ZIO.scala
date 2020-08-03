@@ -473,39 +473,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
-   * Repeats this effect until its result satisfies the specified predicate.
-   */
-  final def doUntil(f: A => Boolean): ZIO[R, E, A] = doUntilM(a => ZIO.succeed(f(a)))
-
-  /**
-   * Repeats this effect until its result is equal to the predicate.
-   */
-  final def doUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1] = doUntil(_ == a)
-
-  /**
-   * Repeats this effect until its result satisfies the specified effectful predicate.
-   */
-  final def doUntilM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
-    self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeed(a) else self.doUntilM(f)))
-
-  /**
-   * Repeats this effect while its result satisfies the specified predicate.
-   */
-  final def doWhile(f: A => Boolean): ZIO[R, E, A] =
-    doWhileM(a => ZIO.succeed(f(a)))
-
-  /**
-   * Repeats this effect for as long as the predicate is equal to its result.
-   */
-  final def doWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1] = doWhile(_ == a)
-
-  /**
-   * Repeats this effect while its result satisfies the specified effectful predicate.
-   */
-  final def doWhileM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
-    self.flatMap(a => f(a).flatMap(b => if (!b) ZIO.succeed(a) else self.doWhileM(f)))
-
-  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail, because the failure case has
    * been exposed as part of the `Either` success case.

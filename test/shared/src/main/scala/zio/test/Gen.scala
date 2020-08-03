@@ -305,7 +305,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
           val arr = bytes.toArray
           arr(0) = (arr(0) & mask).toByte
           min + BigInt(arr)
-        }.doUntil(n => min <= n && n <= max)
+        }.repeatUntil(n => min <= n && n <= max)
         effect.map(Sample.shrinkIntegral(min))
       }
     }
@@ -486,7 +486,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         val difference = max - min + 1
         val effect =
           if (difference > 0) nextIntBounded(difference).map(min + _)
-          else nextInt.doUntil(n => min <= n && n <= max)
+          else nextInt.repeatUntil(n => min <= n && n <= max)
         effect.map(Sample.shrinkIntegral(min))
       }
     }
@@ -533,7 +533,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         val difference = max - min + 1
         val effect =
           if (difference > 0) nextLongBounded(difference).map(min + _)
-          else nextLong.doUntil(n => min <= n && n <= max)
+          else nextLong.repeatUntil(n => min <= n && n <= max)
         effect.map(Sample.shrinkIntegral(min))
       }
     }

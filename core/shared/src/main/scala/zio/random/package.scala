@@ -108,7 +108,7 @@ package object random {
       } else {
         val difference = maxExclusive - minInclusive
         if (difference > 0) nextIntBounded(difference).map(_ + minInclusive)
-        else nextInt.doUntil(n => minInclusive <= n && n < maxExclusive)
+        else nextInt.repeatUntil(n => minInclusive <= n && n < maxExclusive)
       }
 
     private[zio] def nextLongBetweenWith(
@@ -120,7 +120,7 @@ package object random {
       else {
         val difference = maxExclusive - minInclusive
         if (difference > 0) nextLongBounded(difference).map(_ + minInclusive)
-        else nextLong.doUntil(n => minInclusive <= n && n < maxExclusive)
+        else nextLong.repeatUntil(n => minInclusive <= n && n < maxExclusive)
       }
 
     private[zio] def nextLongBoundedWith(n: Long)(nextLong: UIO[Long]): UIO[Long] =

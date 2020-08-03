@@ -230,7 +230,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                          .makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
         sdriver   <- schedule.driver.toManaged_
         lastChunk <- ZRef.makeManaged[Chunk[P]](Chunk.empty)
-        producer  = Take.fromPull(pull).doWhileM(take => handoff.offer(take).as(!take.isDone))
+        producer  = Take.fromPull(pull).repeatWhileM(take => handoff.offer(take).as(!take.isDone))
         consumer = {
           // Advances the state of the schedule, which may or may not terminate
           val updateSchedule: URIO[R1 with Clock, Option[Q]] =
@@ -427,7 +427,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               } yield ()
           )
 
-        Take.fromPull(as).tap(take => offer(take)).doWhile(_ != Take.end).unit
+        Take.fromPull(as).tap(take => offer(take)).repeatWhile(_ != Take.end).unit
       }
       _ <- upstream.toManaged_.fork
       pull = done.get.flatMap {
@@ -2050,7 +2050,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   }
                 }
               }
-          }.doWhileEquals(true).fork.interruptible.toManaged(_.interrupt)
+          }.repeatWhileEquals(true).fork.interruptible.toManaged(_.interrupt)
         _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy))
         _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy))
       } yield {
