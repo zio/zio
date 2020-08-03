@@ -198,125 +198,96 @@ object ZRef extends Serializable {
       }
 
     def get: UIO[A] =
-      UIO.effectTotal(value.get)
+      UIO.effectTotal(unsafeGet)
 
     def getAndSet(a: A): UIO[A] =
-      UIO.effectTotal {
-        var loop       = true
-        var current: A = null.asInstanceOf[A]
-        while (loop) {
-          current = value.get
-          loop = !value.compareAndSet(current, a)
-        }
-        current
-      }
+      UIO.effectTotal(unsafeGetAndSet(a))
 
     def getAndUpdate(f: A => A): UIO[A] =
-      UIO.effectTotal {
-        var loop       = true
-        var current: A = null.asInstanceOf[A]
-        while (loop) {
-          current = value.get
-          val next = f(current)
-          loop = !value.compareAndSet(current, next)
-        }
-        current
-      }
+      UIO.effectTotal(unsafeGetAndUpdate(f))
 
     def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] =
-      UIO.effectTotal {
-        var loop       = true
-        var current: A = null.asInstanceOf[A]
-        while (loop) {
-          current = value.get
-          val next = pf.applyOrElse(current, (_: A) => current)
-          loop = !value.compareAndSet(current, next)
-        }
-        current
-      }
+      UIO.effectTotal(unsafeGetAndUpdateSome(pf))
 
     def modify[B](f: A => (B, A)): UIO[B] =
-      UIO.effectTotal {
-        var loop = true
-        var b: B = null.asInstanceOf[B]
-        while (loop) {
-          val current = value.get
-          val tuple   = f(current)
-          b = tuple._1
-          loop = !value.compareAndSet(current, tuple._2)
-        }
-        b
-      }
+      UIO.effectTotal(unsafeModify(f))
 
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] =
-      UIO.effectTotal {
-        var loop = true
-        var b: B = null.asInstanceOf[B]
-        while (loop) {
-          val current = value.get
-          val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
-          b = tuple._1
-          loop = !value.compareAndSet(current, tuple._2)
-        }
-        b
-      }
+      UIO.effectTotal(unsafeModifySome(default)(pf))
 
     def set(a: A): UIO[Unit] =
-      UIO.effectTotal(value.set(a))
+      UIO.effectTotal(unsafeSet(a))
 
     def setAsync(a: A): UIO[Unit] =
-      UIO.effectTotal(value.lazySet(a))
+      UIO.effectTotal(unsafeSetAsync(a))
 
     override def toString: String =
       s"Ref(${value.get})"
 
-    def update(f: A => A): UIO[Unit] =
-      UIO.effectTotal {
-        var loop    = true
-        var next: A = null.asInstanceOf[A]
-        while (loop) {
-          val current = value.get
-          next = f(current)
-          loop = !value.compareAndSet(current, next)
-        }
-        ()
-      }
+    def unsafeGet: A =
+      value.get
 
-    def updateAndGet(f: A => A): UIO[A] =
-      UIO.effectTotal {
-        var loop    = true
-        var next: A = null.asInstanceOf[A]
-        while (loop) {
-          val current = value.get
-          next = f(current)
-          loop = !value.compareAndSet(current, next)
-        }
-        next
+    def unsafeGetAndSet(a: A): A = {
+      var loop       = true
+      var current: A = null.asInstanceOf[A]
+      while (loop) {
+        current = value.get
+        loop = !value.compareAndSet(current, a)
       }
+      current
+    }
 
-    def updateSome(pf: PartialFunction[A, A]): UIO[Unit] =
-      UIO.effectTotal {
-        var loop    = true
-        var next: A = null.asInstanceOf[A]
-        while (loop) {
-          val current = value.get
-          next = pf.applyOrElse(current, (_: A) => current)
-          loop = !value.compareAndSet(current, next)
-        }
-        ()
+    def unsafeGetAndUpdate(f: A => A): A = {
+      var loop       = true
+      var current: A = null.asInstanceOf[A]
+      while (loop) {
+        current = value.get
+        val next = f(current)
+        loop = !value.compareAndSet(current, next)
       }
+      current
+    }
 
-    def updateSomeAndGet(pf: PartialFunction[A, A]): UIO[A] =
-      UIO.effectTotal {
-        var loop    = true
-        var next: A = null.asInstanceOf[A]
-        while (loop) {
-          val current = value.get
-          next = pf.applyOrElse(current, (_: A) => current)
-          loop = !value.compareAndSet(current, next)
-        }
-        next
+    def unsafeGetAndUpdateSome(pf: PartialFunction[A, A]): A = {
+      var loop       = true
+      var current: A = null.asInstanceOf[A]
+      while (loop) {
+        current = value.get
+        val next = pf.applyOrElse(current, (_: A) => current)
+        loop = !value.compareAndSet(current, next)
       }
+      current
+    }
+
+    def unsafeModify[B](f: A => (B, A)): B = {
+      var loop = true
+      var b: B = null.asInstanceOf[B]
+      while (loop) {
+        val current = value.get
+        val tuple   = f(current)
+        b = tuple._1
+        loop = !value.compareAndSet(current, tuple._2)
+      }
+      b
+    }
+
+    def unsafeModifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): B = {
+      var loop = true
+      var b: B = null.asInstanceOf[B]
+      while (loop) {
+        val current = value.get
+        val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
+        b = tuple._1
+        loop = !value.compareAndSet(current, tuple._2)
+      }
+      b
+    }
+
+    def unsafeSet(a: A): Unit =
+      value.set(a)
+
+    def unsafeSetAsync(a: A): Unit =
+      value.lazySet(a)
 
     def unsafeUpdate(f: A => A): Unit = {
       var loop    = true
@@ -326,8 +297,53 @@ object ZRef extends Serializable {
         next = f(current)
         loop = !value.compareAndSet(current, next)
       }
+      ()
     }
 
+    def unsafeUpdateAndGet(f: A => A): A = {
+      var loop    = true
+      var next: A = null.asInstanceOf[A]
+      while (loop) {
+        val current = value.get
+        next = f(current)
+        loop = !value.compareAndSet(current, next)
+      }
+      next
+    }
+
+    def unsafeUpdateSome(pf: PartialFunction[A, A]): Unit = {
+      var loop    = true
+      var next: A = null.asInstanceOf[A]
+      while (loop) {
+        val current = value.get
+        next = pf.applyOrElse(current, (_: A) => current)
+        loop = !value.compareAndSet(current, next)
+      }
+      ()
+    }
+
+    def unsafeUpdateSomeAndGet(pf: PartialFunction[A, A]): A = {
+      var loop    = true
+      var next: A = null.asInstanceOf[A]
+      while (loop) {
+        val current = value.get
+        next = pf.applyOrElse(current, (_: A) => current)
+        loop = !value.compareAndSet(current, next)
+      }
+      next
+    }
+
+    def update(f: A => A): UIO[Unit] =
+      UIO.effectTotal(unsafeUpdate(f))
+
+    def updateAndGet(f: A => A): UIO[A] =
+      UIO.effectTotal(unsafeUpdateAndGet(f))
+
+    def updateSome(pf: PartialFunction[A, A]): UIO[Unit] =
+      UIO.effectTotal(unsafeUpdateSome(pf))
+
+    def updateSomeAndGet(pf: PartialFunction[A, A]): UIO[A] =
+      UIO.effectTotal(unsafeUpdateSomeAndGet(pf))
   }
 
   private trait Derived[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
@@ -590,15 +606,139 @@ object ZRef extends Serializable {
 
   }
 
-  implicit class UnsafeSyntax[A](private val self: Ref[A]) extends AnyVal {
+  private[zio] implicit class UnsafeSyntax[A](private val self: Ref[A]) extends AnyVal {
 
-    private[zio] def unsafeUpdate(f: A => A): Unit =
+    def unsafeGet: A =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeGet
+        case derived: Derived[Nothing, Nothing, A, A] =>
+          derived.getEither(derived.value.unsafeGet).merge
+        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
+          derivedAll.getEither(derivedAll.value.unsafeGet).merge
+      }
+
+    def unsafeGetAndSet(a: A): A =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeGetAndSet(a)
+        case derived           => derived.unsafeModify(v => (v, a))
+      }
+
+    def unsafeGetAndUpdate(f: A => A): A =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeGetAndUpdate(f)
+        case derived           => derived.unsafeModify(v => (v, f(v)))
+      }
+
+    def unsafeGetAndUpdateSome(pf: PartialFunction[A, A]): A =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeGetAndUpdateSome(pf)
+        case derived =>
+          derived.unsafeModify { v =>
+            val result = pf.applyOrElse[A, A](v, identity)
+            (v, result)
+          }
+      }
+
+    def unsafeModify[B](f: A => (B, A)): B =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeModify(f)
+        case derived: Derived[Nothing, Nothing, A, A] =>
+          derived.value.unsafeModify { s =>
+            derived.getEither(s) match {
+              case Left(e) => (Left(e), s)
+              case Right(a1) => {
+                val (b, a2) = f(a1)
+                derived.setEither(a2) match {
+                  case Left(e)  => (Left(e), s)
+                  case Right(s) => (Right(b), s)
+                }
+              }
+            }
+          }.merge
+        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
+          derivedAll.value.unsafeModify { s =>
+            derivedAll.getEither(s) match {
+              case Left(e) => (Left(e), s)
+              case Right(a1) => {
+                val (b, a2) = f(a1)
+                derivedAll.setEither(a2)(s) match {
+                  case Left(e)  => (Left(e), s)
+                  case Right(s) => (Right(b), s)
+                }
+              }
+            }
+          }.merge
+      }
+
+    def unsafeModifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): B =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeModifySome(default)(pf)
+        case derived =>
+          derived.unsafeModify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
+      }
+
+    def unsafeSet(a: A): Unit =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeSet(a)
+        case derived: Derived[Nothing, Nothing, A, A] =>
+          derived.value.unsafeSet(derived.setEither(a).merge)
+        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
+          derivedAll.value.unsafeModify { s =>
+            derivedAll.setEither(a)(s) match {
+              case Left(e)  => (Left(e), s)
+              case Right(s) => (Right(()), s)
+            }
+          }.merge
+      }
+
+    def unsafeSetAsync(a: A): Unit =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeSetAsync(a)
+        case derived: Derived[Nothing, Nothing, A, A] =>
+          derived.value.unsafeSetAsync(derived.setEither(a).merge)
+        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
+          derivedAll.value.unsafeModify { s =>
+            derivedAll.setEither(a)(s) match {
+              case Left(e)  => (Left(e), s)
+              case Right(s) => (Right(()), s)
+            }
+          }.merge
+      }
+
+    def unsafeUpdate(f: A => A): Unit =
       self match {
         case atomic: Atomic[A] => atomic.unsafeUpdate(f)
-        case derived: Derived[Nothing, Nothing, A, A] =>
-          derived.value.unsafeUpdate(s => derived.setEither(f(derived.getEither(s).merge)).merge)
-        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
-          derivedAll.value.unsafeUpdate(s => derivedAll.setEither(f(derivedAll.getEither(s).merge))(s).merge)
+        case derived           => derived.unsafeModify(v => ((), f(v)))
+      }
+
+    def unsafeUpdateAndGet(f: A => A): A =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeUpdateAndGet(f)
+        case derived =>
+          derived.unsafeModify { v =>
+            val result = f(v)
+            (result, result)
+          }
+      }
+
+    def unsafeUpdateSome(pf: PartialFunction[A, A]): Unit =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeUpdateSome(pf)
+        case derived =>
+          derived.unsafeModify { v =>
+            val result = pf.applyOrElse[A, A](v, identity)
+            ((), result)
+          }
+      }
+
+    def unsafeUpdateSomeAndGet(pf: PartialFunction[A, A]): A =
+      self match {
+        case atomic: Atomic[A] => atomic.unsafeUpdateSomeAndGet(pf)
+        case derived =>
+          derived.unsafeModify { v =>
+            val result = pf.applyOrElse[A, A](v, identity)
+            (result, result)
+          }
       }
   }
 
@@ -606,11 +746,14 @@ object ZRef extends Serializable {
    * Creates a new `ZRef` with the specified value.
    */
   def make[A](a: A): UIO[Ref[A]] =
-    UIO.effectTotal(Atomic(new AtomicReference(a)))
+    UIO.effectTotal(unsafeMake(a))
 
   /**
    * Creates a new managed `ZRef` with the specified value
    */
   def makeManaged[A](a: A): Managed[Nothing, Ref[A]] =
     make(a).toManaged_
+
+  private[zio] def unsafeMake[A](a: A): Ref[A] =
+    Atomic(new AtomicReference(a))
 }
