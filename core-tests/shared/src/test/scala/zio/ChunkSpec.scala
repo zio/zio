@@ -243,7 +243,16 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("mapAccumM")(
       testM("mapAccumM happy path") {
-        assertM(Chunk(1, 1, 1).mapAccumM(0)((s, el) => UIO.succeed((s + el, s + el))))(equalTo((3, Chunk(1, 2, 3))))
+        checkM(smallChunks(Gen.anyInt), smallChunks(Gen.anyInt), Gen.anyInt, Gen.function2(Gen.anyInt <*> Gen.anyInt)) {
+          (left, right, s, f) =>
+            val actual = (left ++ right).mapAccumM[Any, Nothing, Int, Int](s)((s, a) => UIO.succeed(f(s, a)))
+            val expected = (left ++ right).foldLeft[(Int, Chunk[Int])]((s, Chunk.empty)) {
+              case ((s0, bs), a) =>
+                val (s1, b) = f(s0, a)
+                (s1, bs :+ b)
+            }
+            assertM(actual)(equalTo(expected))
+        }
       },
       testM("mapAccumM error") {
         Chunk(1, 1, 1).mapAccumM(0)((_, _) => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
@@ -275,8 +284,10 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     testM("indexWhere") {
       val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
-      check(mediumChunks(intGen), fn, intGen) { (chunk, p, from) =>
-        assert(chunk.indexWhere(p, from))(equalTo(chunk.toList.indexWhere(p, from)))
+      check(smallChunks(intGen), smallChunks(intGen), fn, intGen) { (left, right, p, from) =>
+        val actual   = (left ++ right).indexWhere(p, from)
+        val expected = (left.toVector ++ right.toVector).indexWhere(p, from)
+        assert(actual)(equalTo(expected))
       }
     } @@ exceptScala211,
     testM("exists") {

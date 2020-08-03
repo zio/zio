@@ -87,7 +87,7 @@ object FiberSpec extends ZIOBaseSpec {
         },
         testM("shard example") {
           def shard[R, E, A](queue: Queue[A], n: Int, worker: A => ZIO[R, E, Unit]): ZIO[R, E, Nothing] = {
-            val worker1 = queue.take.flatMap(a => worker(a).uninterruptible).forever
+            val worker1: ZIO[R, E, Unit] = queue.take.flatMap(a => worker(a).uninterruptible).forever
             ZIO.forkAll(List.fill(n)(worker1)).flatMap(_.join) *> ZIO.never
           }
           for {

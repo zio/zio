@@ -39,6 +39,26 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(run(parser, List(Chunk("1"))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
+      suite("filterInput")(
+        testM("happy path") {
+          val filter = ZTransducer.identity[Int].filterInput[Int](_ > 2)
+          assertM(run(filter, List(Chunk(1, 2, 3))))(equalTo(Chunk(3)))
+        },
+        testM("error") {
+          val parser = initErrorParser.filterInput[Int](_ > 2)
+          assertM(run(parser, List(Chunk(1, 2, 3))).either)(isLeft(equalTo("Ouch")))
+        } @@ zioTag(errors)
+      ),
+      suite("filterInputM")(
+        testM("happy path") {
+          val filter = ZTransducer.identity[Int].filterInputM[Any, String, Int](x => UIO.succeed(x > 2))
+          assertM(run(filter, List(Chunk(1, 2, 3))))(equalTo(Chunk(3)))
+        },
+        testM("error") {
+          val parser = initErrorParser.filterInputM[Any, String, Int](x => UIO.succeed(x > 2))
+          assertM(run(parser, List(Chunk(1, 2, 3))).either)(isLeft(equalTo("Ouch")))
+        } @@ zioTag(errors)
+      ),
       suite("map")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].map(_.toString)

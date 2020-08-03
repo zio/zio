@@ -256,7 +256,7 @@ private[mock] object MockableMacro {
     }
 
     val methods = service.members
-      .filter(_.owner == service.typeSymbol)
+      .filter(member => member.owner == service.typeSymbol && member.name.toTermName != TermName("$init$"))
       .map(symbol => MethodInfo(symbol.asMethod))
       .toList
       .groupBy(_.symbol.name)

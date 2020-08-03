@@ -117,6 +117,19 @@ object AccessibleSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
+      testM("generates accessor for service with default method implementations") {
+        assertM(typeCheck {
+          """
+             @accessible
+             object Module {
+               trait Service {
+                 def foo(x: Int): Task[Unit] = foo(x.toString)
+                 def foo(x: String): Task[Unit]
+               }
+             }
+          """.stripMargin
+        })(isRight(anything))
+      },
       testM("generates accessor for service with one type param") {
         assertM(typeCheck {
           """

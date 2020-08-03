@@ -340,7 +340,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Collects all elements into a list.
    */
   def toList: USTM[List[A]] =
-    STM.foreach(array)(_.get)
+    STM.foreach(array.toList)(_.get)
 
   /**
    * Collects all elements into a chunk.
@@ -368,7 +368,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically updates all elements using a transactional effect.
    */
   def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
-    STM.foreach(array)(_.get.flatMap(f)).flatMap { newData =>
+    STM.foreach(Chunk.fromArray(array))(_.get.flatMap(f)).flatMap { newData =>
       new ZSTM((journal, _, _, _) => {
         var i  = 0
         val it = newData.iterator

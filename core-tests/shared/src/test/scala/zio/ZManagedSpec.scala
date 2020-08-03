@@ -39,15 +39,6 @@ object ZManagedSpec extends ZIOBaseSpec {
           values  <- program.use_(ZIO.unit) *> effects.get
         } yield assert(values)(equalTo(List(1, 2, 3, 3, 2, 1)))
       },
-      testM("Properly performs parallel acquire and release") {
-        for {
-          log      <- Ref.make[List[String]](Nil)
-          a        = ZManaged.make(UIO.succeed("A"))(_ => log.update("A" :: _))
-          b        = ZManaged.make(UIO.succeed("B"))(_ => log.update("B" :: _))
-          result   <- a.zipWithPar(b)(_ + _).use(ZIO.succeed(_))
-          cleanups <- log.get
-        } yield assert(result.length)(equalTo(2)) && assert(cleanups)(hasSize(equalTo(2)))
-      },
       testM("Constructs an uninterruptible Managed value") {
         doInterrupt(io => ZManaged.make(io)(_ => IO.unit), _ => None)
       },
@@ -126,6 +117,32 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx)))))
       }
     ) @@ zioTag(errors),
+    suite("zipWithPar")(
+      testM("Properly performs parallel acquire and release") {
+        for {
+          log      <- Ref.make[List[String]](Nil)
+          a        = ZManaged.make(UIO.succeed("A"))(_ => log.update("A" :: _))
+          b        = ZManaged.make(UIO.succeed("B"))(_ => log.update("B" :: _))
+          result   <- a.zipWithPar(b)(_ + _).use(ZIO.succeed(_))
+          cleanups <- log.get
+        } yield assert(result.length)(equalTo(2)) && assert(cleanups)(hasSize(equalTo(2)))
+      },
+      testM("preserves ordering of nested finalizers") {
+        val inner = Ref.make(List[Int]()).toManaged_.flatMap { ref =>
+          ZManaged.finalizer(ref.update(1 :: _)) *>
+            ZManaged.finalizer(ref.update(2 :: _)) *>
+            ZManaged.finalizer(ref.update(3 :: _)).as(ref)
+        }
+
+        (inner <&> inner).useNow.flatMap {
+          case (l, r) => l.get <*> r.get
+        }.map {
+          case (l, r) =>
+            assert(l)(equalTo(List(1, 2, 3))) &&
+              assert(r)(equalTo(List(1, 2, 3)))
+        }
+      } @@ TestAspect.nonFlaky
+    ),
     suite("fromEffect")(
       testM("Performed interruptibly") {
         assertM(ZManaged.fromEffect(ZIO.checkInterruptible(ZIO.succeed(_))).use(ZIO.succeed(_)))(
@@ -337,6 +354,9 @@ object ZManagedSpec extends ZIOBaseSpec {
       },
       testM("Runs acquisitions in parallel") {
         testAcquirePar(4, res => ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res))
+      },
+      testM("Maintains finalizer ordering in inner ZManaged values") {
+        checkM(Gen.int(5, 100))(l => testParallelNestedFinalizerOrdering(l, ZManaged.foreachPar(_)(identity)))
       }
     ),
     suite("foreachParN")(
@@ -355,6 +375,11 @@ object ZManagedSpec extends ZIOBaseSpec {
       },
       testM("Runs finalizers") {
         testAcquirePar(2, res => ZManaged.foreachParN(2)(List(1, 2, 3, 4))(_ => res))
+      },
+      testM("Maintains finalizer ordering in inner ZManaged values") {
+        checkM(Gen.int(4, 10), Gen.int(5, 100)) { (n, l) =>
+          testParallelNestedFinalizerOrdering(l, ZManaged.foreachParN(n)(_)(identity))
+        }
       }
     ),
     suite("foreach_")(
@@ -1649,4 +1674,20 @@ object ZManagedSpec extends ZIOBaseSpec {
       count        <- effects.get
       _            <- reserveLatch.succeed(())
     } yield assert(count)(equalTo(n))
+
+  def testParallelNestedFinalizerOrdering(
+    listLength: Int,
+    f: List[ZManaged[Any, Nothing, Ref[List[Int]]]] => ZManaged[Any, Nothing, List[Ref[List[Int]]]]
+  ) = {
+    val inner = Ref.make(List[Int]()).toManaged_.flatMap { ref =>
+      ZManaged.finalizer(ref.update(1 :: _)) *>
+        ZManaged.finalizer(ref.update(2 :: _)) *>
+        ZManaged.finalizer(ref.update(3 :: _)).as(ref)
+    }
+
+    f(List.fill(listLength)(inner)).useNow
+      .flatMap(refs => ZIO.foreach(refs)(_.get))
+      .map(results => assert(results)(forall(equalTo(List(1, 2, 3)))))
+  }
+
 }
