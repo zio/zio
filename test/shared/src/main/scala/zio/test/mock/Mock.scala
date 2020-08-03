@@ -22,7 +22,7 @@ import zio.test.TestPlatform
 import zio.{ Has, Runtime, Tag, URIO, URLayer, ZIO }
 
 /**
- * A `Mock[R]` represents a mockable environenment `R`.
+ * A `Mock[R]` represents a mockable environment `R`.
  */
 abstract class Mock[R <: Has[_]: Tag] { self =>
 
@@ -41,10 +41,10 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
         }
     }
 
-  abstract class Effect[I: Tag, E: Tag, A: Tag]              extends Capability[R, I, E, A](self)
-  abstract class Method[I: Tag, E <: Throwable: Tag, A: Tag] extends Capability[R, I, E, A](self)
-  abstract class Sink[I: Tag, E: Tag, A: Tag, B: Tag]        extends Capability[R, I, E, ZSink[Any, E, A, B]](self)
-  abstract class Stream[I: Tag, E: Tag, A: Tag]              extends Capability[R, I, Nothing, ZStream[Any, E, A]](self)
+  abstract class Effect[I: Tag, E: Tag, A: Tag]               extends Capability[R, I, E, A](self)
+  abstract class Method[I: Tag, E <: Throwable: Tag, A: Tag]  extends Capability[R, I, E, A](self)
+  abstract class Sink[I: Tag, E: Tag, A: Tag, L: Tag, B: Tag] extends Capability[R, I, E, ZSink[Any, E, A, L, B]](self)
+  abstract class Stream[I: Tag, E: Tag, A: Tag]               extends Capability[R, I, Nothing, ZStream[Any, E, A]](self)
 
   object Poly {
 

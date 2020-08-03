@@ -16,10 +16,10 @@
 
 package zio.test.laws
 
-import zio.ZIO
 import zio.test.{ check, Gen, TestResult }
+import zio.{ URIO, ZIO }
 
-trait ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
+abstract class ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
 
   def run[R1 <: R, A: CapsLeft, B: CapsRight](left: Gen[R1, A], right: Gen[R1, B])(
     implicit CapsBoth: CapsBoth[A, B]
@@ -48,7 +48,7 @@ object ZLaws2 {
     def apply[A: CapsLeft, B: CapsRight](a1: A)(implicit CapsBoth: CapsBoth[A, B]): TestResult
     final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(
       implicit CapsBoth: CapsBoth[A, B]
-    ): ZIO[R, Nothing, TestResult] =
+    ): URIO[R, TestResult] =
       check(a, b)((a, _) => apply(a).map(_.label(label)))
   }
 
@@ -57,7 +57,7 @@ object ZLaws2 {
     def apply[A: CapsLeft, B: CapsRight](b1: B)(implicit CapsBoth: CapsBoth[A, B]): TestResult
     final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(
       implicit CapsBoth: CapsBoth[A, B]
-    ): ZIO[R, Nothing, TestResult] =
+    ): URIO[R, TestResult] =
       check(a, b)((_, b) => apply(b).map(_.label(label)))
   }
 }

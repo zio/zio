@@ -30,7 +30,7 @@ abstract class BaseTestTask(
       summary = SummaryBuilder.buildSummary(spec)
       _       <- sendSummary.provide(summary)
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
-      _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
+      _       <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, TestLogger with Clock] =

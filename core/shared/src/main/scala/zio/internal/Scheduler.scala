@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 import zio.duration.Duration
 import zio.internal.Scheduler.CancelToken
 
-private[zio] trait Scheduler {
+private[zio] abstract class Scheduler {
   def schedule(task: Runnable, duration: Duration): CancelToken
 }
 
@@ -23,7 +23,7 @@ private[zio] object Scheduler {
           task.run()
 
           ConstFalse
-        case duration: Duration.Finite =>
+        case Duration.Finite(_) =>
           val future = service.schedule(new Runnable {
             def run: Unit =
               task.run()

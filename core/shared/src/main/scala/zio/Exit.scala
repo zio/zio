@@ -20,7 +20,7 @@ package zio
  * An `Exit[E, A]` describes the result of executing an `IO` value. The
  * result is either succeeded with a value `A`, or failed with a `Cause[E]`.
  */
-sealed trait Exit[+E, +A] extends Product with Serializable { self =>
+sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   import Exit._
 
   /**
@@ -158,7 +158,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Replaces the error value with the one provided.
    */
-  final def orElseFail[E1](e1: E1): Exit[E1, A] =
+  final def orElseFail[E1](e1: => E1): Exit[E1, A] =
     mapError(_ => e1)
 
   /**

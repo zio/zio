@@ -1,6 +1,5 @@
 /*
  * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
- * Copyright 2013-2020 Miles Sabin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,21 +16,7 @@
 
 package zio
 
-import scala.annotation.implicitAmbiguous
-
-/**
- * Evidence type `A` is not equal to type `B`.
- *
- * Based on https://github.com/milessabin/shapeless.
- */
-trait =!=[A, B] extends Serializable
-
-object =!= {
-  def unexpected: Nothing = sys.error("Unexpected invocation")
-
-  implicit def neq[A, B]: A =!= B = new =!=[A, B] {}
-
-  @implicitAmbiguous("Cannot prove that ${A} =!= ${A}")
-  implicit def neqAmbig1[A]: A =!= A = unexpected
-  implicit def neqAmbig2[A]: A =!= A = unexpected
+private[zio] trait ChunkFactory {
+  def apply[A](as: A*): Chunk[A]
+  def fill[A](n: Int)(elem: => A): Chunk[A]
 }

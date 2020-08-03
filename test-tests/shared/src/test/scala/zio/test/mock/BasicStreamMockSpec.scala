@@ -1,5 +1,6 @@
 package zio.test.mock
 
+import zio.Chunk
 import zio.stream.{ ZSink, ZStream }
 import zio.test.mock.module.{ StreamModule, StreamModuleMock }
 import zio.test.{ suite, Assertion, TestAspect, ZIOBaseSpec }
@@ -17,7 +18,7 @@ object BasicStreamMockSpec extends ZIOBaseSpec with MockSpecUtils[StreamModule] 
       suite("capabilities")(
         suite("sink")(
           testValue("success")(
-            StreamModuleMock.Sink(equalTo(1), value(ZSink.collectAll)),
+            StreamModuleMock.Sink(equalTo(1), value(ZSink.collectAll.map(_.toList))),
             StreamModule.sink(1).flatMap(A.run(_)),
             equalTo(List(1, 2, 3))
           ),
@@ -31,7 +32,7 @@ object BasicStreamMockSpec extends ZIOBaseSpec with MockSpecUtils[StreamModule] 
           testValue("success")(
             StreamModuleMock.Stream(equalTo(1), value(A)),
             StreamModule.stream(1).flatMap(_.runCollect),
-            equalTo(List(1, 2, 3))
+            equalTo(Chunk(1, 2, 3))
           )
         )
       )

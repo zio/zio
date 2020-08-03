@@ -1,5 +1,7 @@
 package zio.stream
 
+import java.nio.charset.{ Charset, StandardCharsets }
+
 import scala.collection.mutable
 
 import zio._
@@ -32,97 +34,34 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
     }
 
   /**
-   * Symbolic alias for [[ZTransducer#zip]].
-   */
-  final def <&>[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, (O, O2)] =
-    self zip that
-
-  /**
-   * Symbolic alias for [[ZTransducer#zipLeft]].
-   */
-  final def <&[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O] =
-    self zipLeft that
-
-  /**
-   * Symbolic alias for [[ZTransducer#zipRight]].
-   */
-  final def &>[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O2] =
-    self zipRight that
-
-  /**
-   * Zips this transducer with another point-wise, but keeps only the outputs of this transducer.
-   */
-  def zipLeft[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O] =
-    zipWith(that)((o, _) => o)
-
-  /**
-   * Zips this transducer with another point-wise, but keeps only the outputs of the other transducer.
-   */
-  def zipRight[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, O2] =
-    zipWith(that)((_, o2) => o2)
-
-  /**
-   * Zips this transducer with another point-wise and emits tuples of elements from both transducers.
-   */
-  def zip[R1 <: R, E1 >: E, I1 <: I, O2](that: ZTransducer[R1, E1, I1, O2]): ZTransducer[R1, E1, I1, (O, O2)] =
-    zipWith(that)((_, _))
-
-  /**
-   * Zips this transducer with another point-wise and applies the function to the paired elements.
-   */
-  def zipWith[R1 <: R, E1 >: E, I1 <: I, O2, O3](
-    that: ZTransducer[R1, E1, I1, O2]
-  )(f: (O, O2) => O3): ZTransducer[R1, E1, I1, O3] = {
-    type State = Either[Chunk[O], Chunk[O2]]
-    ZTransducer {
-      for {
-        ref <- ZRef.make[State](Left(Chunk.empty)).toManaged_
-        p1  <- self.push
-        p2  <- that.push
-        push = (in: Option[Chunk[I1]]) => {
-          ref.get.flatMap { excess =>
-            for {
-              res <- p1(in).zipWithPar(p2(in)) {
-                      case (leftUpd, rightUpd) =>
-                        val (left, right) = excess.fold(l => (l ++ leftUpd, rightUpd), r => (leftUpd, r ++ rightUpd))
-                        stream.internal.Utils.zipChunks(left, right, f)
-                    }
-              (emit, newExcess) = res
-              _                 <- ref.set(in.fold(Left(Chunk.empty): Either[Chunk[O], Chunk[O2]])(_ => newExcess))
-            } yield {
-              emit
-            }
-          }
-        }
-      } yield {
-        push
-      }
-    }
-  }
-
-  /**
    * Compose this transducer with a sink, resulting in a sink that processes elements by piping
    * them through this transducer and piping the results into the sink.
    */
-  def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, Z](that: ZSink[R1, E1, O2, Z]): ZSink[R1, E1, I1, Z] =
-    ZSink {
+  def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, L, Z](that: ZSink[R1, E1, O2, L, Z]): ZSink[R1, E1, I1, L, Z] =
+    ZSink[R1, E1, I1, L, Z] {
       self.push.zipWith(that.push) { (pushSelf, pushThat) =>
         {
           case None =>
             pushSelf(None)
-              .mapError(Left(_))
+              .mapError(e => (Left(e), Chunk.empty))
               .flatMap(chunk => pushThat(Some(chunk)) *> pushThat(None))
           case inputs @ Some(_) =>
             pushSelf(inputs)
-              .mapError(Left(_))
+              .mapError(e => (Left(e), Chunk.empty))
               .flatMap(chunk => pushThat(Some(chunk)))
         }
       }
     }
 
+  /**
+   * Transforms the inputs of this transducer.
+   */
   final def contramap[J](f: J => I): ZTransducer[R, E, J, O] =
     ZTransducer(self.push.map(push => is => push(is.map(_.map(f)))))
 
+  /**
+   * Effectually transforms the inputs of this transducer
+   */
   final def contramapM[R1 <: R, E1 >: E, J](f: J => ZIO[R1, E1, I]): ZTransducer[R1, E1, J, O] =
     ZTransducer[R1, E1, J, O](self.push.map(push => is => ZIO.foreach(is)(_.mapM(f)).flatMap(push)))
 
@@ -131,6 +70,18 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    */
   final def filter(p: O => Boolean): ZTransducer[R, E, I, O] =
     ZTransducer(self.push.map(push => i => push(i).map(_.filter(p))))
+
+  /**
+   * Filters the inputs of this transducer.
+   */
+  final def filterInput[I1 <: I](p: I1 => Boolean): ZTransducer[R, E, I1, O] =
+    ZTransducer(self.push.map(push => is => push(is.map(_.filter(p)))))
+
+  /**
+   * Effectually filters the inputs of this transducer.
+   */
+  final def filterInputM[R1 <: R, E1 >: E, I1 <: I](p: I1 => ZIO[R1, E1, Boolean]): ZTransducer[R1, E1, I1, O] =
+    ZTransducer[R1, E1, I1, O](self.push.map(push => is => ZIO.foreach(is)(_.filterM(p)).flatMap(push)))
 
   /**
    * Transforms the outputs of this transducer.
@@ -169,7 +120,7 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
     ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
 }
 
-object ZTransducer {
+object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   def apply[R, E, I, O](
     push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
   ): ZTransducer[R, E, I, O] =
@@ -184,19 +135,91 @@ object ZTransducer {
   def apply[I]: ZTransducer[Any, Nothing, I, I] = identity[I]
 
   /**
-   * The identity transducer. Passed elements through.
+   * Reads the first n values from the stream and uses them to choose the transducer that will be used for the remainder of the stream.
+   * If the stream ends before it has collected n values the partial chunk will be provided to f.
    */
-  def identity[I]: ZTransducer[Any, Nothing, I, I] =
-    ZTransducer.fromPush {
-      case Some(is) => ZIO.succeedNow(is)
-      case None     => ZIO.succeedNow(Chunk.empty)
+  def branchAfter[R, E, I, O](n: Int)(f: Chunk[I] => ZTransducer[R, E, I, O]): ZTransducer[R, E, I, O] =
+    ZTransducer {
+      sealed trait State
+      object State {
+        final case class Collecting(data: Chunk[I]) extends State
+        final case class Emitting(finalizer: ZManaged.Finalizer, push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]])
+            extends State
+        val initial: State = Collecting(Chunk.empty)
+      }
+
+      val toCollect = Math.max(0, n)
+
+      ZManaged.scope.flatMap { scope =>
+        ZRefM.makeManaged(State.initial).map { stateRef =>
+          {
+            case None =>
+              stateRef.getAndSet(State.initial).flatMap {
+                case State.Emitting(finalizer, push) =>
+                  push(None) <* finalizer(Exit.unit)
+                case State.Collecting(data) =>
+                  f(data).push.use(_(None))
+              }
+            case Some(data) =>
+              stateRef.modify {
+                case s @ State.Emitting(_, push) =>
+                  push(Some(data)).map((_, s))
+                case s @ State.Collecting(collected) =>
+                  if (data.isEmpty) ZIO.succeedNow((Chunk.empty, s))
+                  else {
+                    val remaining = toCollect - collected.length
+                    if (remaining <= data.length) {
+                      val (newCollected, remainder) = data.splitAt(remaining)
+                      scope(f(collected ++ newCollected).push).flatMap {
+                        case (finalizer, push) =>
+                          push(Some(remainder)).map((_, State.Emitting(finalizer, push)))
+                      }
+                    } else {
+                      ZIO.succeedNow((Chunk.empty, State.Collecting(collected ++ data)))
+                    }
+                  }
+              }
+          }
+        }
+      }
     }
 
   /**
-   * Creates a transducer accumulating incoming values into lists of maximum size `n`.
+   * Creates a transducer accumulating incoming values into chunks of maximum size `n`.
    */
-  def collectAllN[I](n: Long): ZTransducer[Any, Nothing, I, List[I]] =
-    foldUntil[I, List[I]](Nil, n)((list, element) => element :: list).map(_.reverse)
+  def collectAllN[I](n: Int): ZTransducer[Any, Nothing, I, Chunk[I]] =
+    ZTransducer {
+
+      def go(in: Chunk[I], leftover: Chunk[I], outBuilder: ChunkBuilder[Chunk[I]]): (Chunk[Chunk[I]], Chunk[I]) = {
+        val (left, nextIn) = in.splitAt(n - leftover.size)
+
+        if (leftover.size + left.size < n) outBuilder.result() -> (leftover ++ left)
+        else {
+          val nextOutBuilder =
+            if (leftover.nonEmpty) outBuilder += leftover += left
+            else outBuilder += left
+          go(nextIn, Chunk.empty, nextOutBuilder)
+        }
+      }
+
+      ZRef.makeManaged[Chunk[I]](Chunk.empty).map { stateRef =>
+        {
+          case None =>
+            stateRef
+              .getAndSet(Chunk.empty)
+              .map { leftover =>
+                if (leftover.nonEmpty) Chunk(leftover)
+                else Chunk.empty
+              }
+
+          case Some(in) =>
+            stateRef.modify { leftover =>
+              val (out, nextLeftover) = go(in, leftover, ChunkBuilder.make())
+              out -> nextLeftover
+            }
+        }
+      }
+    }
 
   /**
    * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
@@ -209,16 +232,16 @@ object ZTransducer {
 
       if (acc contains k) acc.updated(k, f(acc(k), i))
       else acc.updated(k, i)
-    }
+    }.filter(_.nonEmpty)
 
   /**
    * Creates a transducer accumulating incoming values into sets of maximum size `n`.
    */
   def collectAllToSetN[I](n: Long): ZTransducer[Any, Nothing, I, Set[I]] =
-    foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _)
+    foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _).filter(_.nonEmpty)
 
   /**
-   * Accumulates incoming elements into a list as long as they verify predicate `p`.
+   * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
   def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
     fold[I, (List[I], Boolean)]((Nil, true))(_._2) {
@@ -226,7 +249,7 @@ object ZTransducer {
     }.map(_._1.reverse).filter(_.nonEmpty)
 
   /**
-   * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
+   * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
   def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
     foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) {
@@ -276,7 +299,7 @@ object ZTransducer {
             case Some(is) =>
               dropping.get.flatMap {
                 case false => UIO(is -> false)
-                case true  => is.dropWhileM(p).map(is1 => is1 -> (is1.length == 0))
+                case true  => is.dropWhileM(p).map(is1 => is1 -> is1.isEmpty)
               }.flatMap { case (is, pt) => dropping.set(pt) as is }
           }
         }
@@ -303,7 +326,7 @@ object ZTransducer {
             if (contFn(o))
               (os0, o, true)
             else
-              (os0 + o, z, false)
+              (os0 :+ o, z, false)
         }
 
       ZRef.makeManaged[Option[O]](Some(z)).map { state =>
@@ -349,7 +372,7 @@ object ZTransducer {
               if (contFn(o))
                 (os0, o, true)
               else
-                (os0 + o, z, false)
+                (os0 :+ o, z, false)
             }
         }
 
@@ -376,7 +399,9 @@ object ZTransducer {
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
   def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
-    foldWeighted[I, O](z)((_, _) => 1, max)(f)
+    fold[I, (O, Long)]((z, 0))(_._2 < max) {
+      case ((o, count), i) => (f(o, i), count + 1)
+    }.map(_._1)
 
   /**
    * Creates a transducer that effectfully folds elements of type `I` into a structure
@@ -385,7 +410,9 @@ object ZTransducer {
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
   def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldWeightedM[R, E, I, O](z)((_, _) => UIO.succeedNow(1), max)(f)
+    foldM[R, E, I, (O, Long)]((z, 0))(_._2 < max) {
+      case ((o, count), i) => f(o, i).map((_, count + 1))
+    }.map(_._1)
 
   /**
    * Creates a transducer that folds elements of type `I` into a structure
@@ -457,14 +484,14 @@ object ZTransducer {
                 // If `i` cannot be decomposed, we need to cross the `max` threshold. To
                 // minimize "injury", we only allow this when we haven't added anything else
                 // to the aggregate (dirty = false).
-                (os0 + f(state.result, if (is.nonEmpty) is(0) else i), initial, false)
+                (os0 :+ f(state.result, if (is.nonEmpty) is(0) else i), initial, false)
               else if (is.length <= 1 && dirty) {
                 // If the state is dirty and `i` cannot be decomposed, we close the current
                 // aggregate and a create new one from `is`. We're not adding `f(initial, i)` to
                 // the results immediately because it could be that `i` by itself does not
                 // cross the threshold, so we can attempt to aggregate it with subsequent elements.
                 val elem = if (is.nonEmpty) is(0) else i
-                (os0 + state.result, FoldWeightedState(f(initial.result, elem), costFn(initial.result, elem)), true)
+                (os0 :+ state.result, FoldWeightedState(f(initial.result, elem), costFn(initial.result, elem)), true)
               } else
                 // `i` got decomposed, so we will recurse and see whether the decomposition
                 // can be aggregated without crossing `max`.
@@ -539,12 +566,12 @@ object ZTransducer {
                 decompose(i).flatMap(is =>
                   // See comments on `foldWeightedDecompose` for details on every case here.
                   if (is.length <= 1 && !dirty)
-                    f(state.result, if (is.nonEmpty) is(0) else i).map(o => ((os + o), initial, false))
+                    f(state.result, if (is.nonEmpty) is(0) else i).map(o => ((os :+ o), initial, false))
                   else if (is.length <= 1 && dirty) {
                     val elem = if (is.nonEmpty) is(0) else i
 
                     f(initial.result, elem).zipWith(costFn(initial.result, elem)) { (s, cost) =>
-                      (os + state.result, FoldWeightedState(s, cost), true)
+                      (os :+ state.result, FoldWeightedState(s, cost), true)
                     }
                   } else go(is, os, state, dirty)
                 )
@@ -578,7 +605,7 @@ object ZTransducer {
   /**
    * Creates a transducer that purely transforms incoming values.
    */
-  def fromFunction[I, O](f: I => O): ZTransducer[Any, Unit, I, O] =
+  def fromFunction[I, O](f: I => O): ZTransducer[Any, Nothing, I, O] =
     identity.map(f)
 
   /**
@@ -606,10 +633,46 @@ object ZTransducer {
     }
 
   /**
+   * The identity transducer. Passes elements through.
+   */
+  def identity[I]: ZTransducer[Any, Nothing, I, I] =
+    ZTransducer.fromPush {
+      case Some(is) => ZIO.succeedNow(is)
+      case None     => ZIO.succeedNow(Chunk.empty)
+    }
+
+  /**
+   * Decodes chunks of ISO/IEC 8859-1 bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val iso_8859_1Decode: ZTransducer[Any, Nothing, Byte, String] =
+    ZTransducer.fromPush {
+      case Some(is) => ZIO.succeedNow(Chunk.single(new String(is.toArray, StandardCharsets.ISO_8859_1)))
+      case None     => ZIO.succeedNow(Chunk.empty)
+    }
+
+  /**
    * Creates a transducer that returns the last element of the stream, if it exists.
    */
   def last[O]: ZTransducer[Any, Nothing, O, Option[O]] =
     foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
+
+  /**
+   * Emits the provided chunk before emitting any other value.
+   */
+  def prepend[A](values: Chunk[A]): ZTransducer[Any, Nothing, A, A] =
+    ZTransducer {
+      ZRef.makeManaged(values).map { stateRef =>
+        {
+          case None =>
+            stateRef.getAndSet(Chunk.empty)
+          case Some(xs) =>
+            stateRef.getAndSet(Chunk.empty).map(c => if (c.isEmpty) xs else c ++ xs)
+        }
+      }
+    }
 
   /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
@@ -674,40 +737,50 @@ object ZTransducer {
   /**
    * Splits strings on a delimiter.
    */
-  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] =
+  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] = {
+    val chars = ZTransducer.fromFunction[String, Chunk[Char]](s => Chunk.fromArray(s.toArray)).mapChunks(_.flatten)
+    val split = splitOnChunk(Chunk.fromArray(delimiter.toArray)).map(_.mkString(""))
+    chars >>> split
+  }
+
+  /**
+   * Splits elements on a delimiter and transforms the splits into desired output.
+   */
+  def splitOnChunk[A](delimiter: Chunk[A]): ZTransducer[Any, Nothing, A, Chunk[A]] =
     ZTransducer {
-      ZRef.makeManaged[(Option[String], Int)](None -> 0).map { state =>
+      ZRef.makeManaged[(Option[Chunk[A]], Int)](None -> 0).map { state =>
         {
           case None =>
             state.modify {
-              case s @ (None, _) => Chunk.empty     -> s
-              case (Some(s), _)  => Chunk.single(s) -> (None -> 0)
+              case s @ (None, _)    => Chunk.empty         -> s
+              case (Some(chunk), _) => Chunk.single(chunk) -> (None -> 0)
             }
-          case Some(is) =>
+          case Some(inputChunk: Chunk[A]) =>
             state.modify { s0 =>
-              var out: mutable.ArrayBuffer[String] = null
-              var chunkIndex                       = 0
-              var buffer                           = s0._1.getOrElse("")
-              var delimIndex                       = s0._2
-              while (chunkIndex < is.length) {
-                val in    = buffer + is(chunkIndex)
+              var out: mutable.ArrayBuffer[Chunk[A]] = null
+              var chunkIndex                         = 0
+              var buffer: Chunk[A]                   = s0._1.getOrElse(Chunk.empty)
+              var delimIndex                         = s0._2
+              while (chunkIndex < inputChunk.length) {
+                val in    = buffer :+ inputChunk(chunkIndex)
                 var index = buffer.length
                 var start = 0
-                buffer = ""
+                buffer = Chunk.empty
                 while (index < in.length) {
                   while (delimIndex < delimiter.length && index < in.length && in(index) == delimiter(delimIndex)) {
                     delimIndex += 1
                     index += 1
                   }
-                  if (delimIndex == delimiter.length || in == "") {
-                    if (out eq null) out = mutable.ArrayBuffer[String]()
-                    out += in.substring(start, index - delimiter.length)
+                  if (delimIndex == delimiter.length || in.isEmpty) {
+                    if (out eq null) out = mutable.ArrayBuffer[Chunk[A]]()
+                    val slice = in.slice(start, index - delimiter.length)
+                    out += slice
                     delimIndex = 0
                     start = index
                   }
                   if (index < in.length) {
                     delimIndex = 0
-                    while (index < in.length && in(index) != delimiter(0)) index += 1;
+                    while (index < in.length && in(index) != delimiter(0)) index += 1
                   }
                 }
 
@@ -719,11 +792,28 @@ object ZTransducer {
               }
 
               val chunk = if (out eq null) Chunk.empty else Chunk.fromArray(out.toArray)
-              val buf   = if (buffer == "") None else Some(buffer)
-
+              val buf   = if (buffer.isEmpty) None else Some(buffer)
               chunk -> (buf -> delimIndex)
             }
         }
+      }
+    }
+
+  /**
+   * Decodes chunks of Unicode bytes into strings.
+   *
+   * Detects byte order marks for UTF-8, UTF-16BE, UTF-16LE, UTF-32BE, UTF-32LE or defaults
+   * to UTF-8 if no BOM is detected.
+   */
+  val utfDecode: ZTransducer[Any, Nothing, Byte, String] =
+    branchAfter(4) { bytes =>
+      bytes.toList match {
+        case 0 :: 0 :: -2 :: -1 :: Nil if Charset.isSupported("UTF-32BE") => utf32BEDecode
+        case -2 :: -1 :: 0 :: 0 :: Nil if Charset.isSupported("UTF-32LE") => utf32LEDecode
+        case -17 :: -69 :: -65 :: x1 :: Nil                               => prepend(Chunk(x1)) >>> utf8Decode
+        case -2 :: -1 :: x1 :: x2 :: Nil                                  => prepend(Chunk(x1, x2)) >>> utf16BEDecode
+        case -1 :: -2 :: x1 :: x2 :: Nil                                  => prepend(Chunk(x1, x2)) >>> utf16LEDecode
+        case _                                                            => prepend(bytes) >>> utf8Decode
       }
     }
 
@@ -733,8 +823,8 @@ object ZTransducer {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  val utf8Decode: ZTransducer[Any, Nothing, Byte, String] =
-    ZTransducer {
+  val utf8Decode: ZTransducer[Any, Nothing, Byte, String] = {
+    val transducer = ZTransducer[Any, Nothing, Byte, String] {
       def is2ByteSequenceStart(b: Byte) = (b & 0xE0) == 0xC0
       def is3ByteSequenceStart(b: Byte) = (b & 0xF0) == 0xE0
       def is4ByteSequenceStart(b: Byte) = (b & 0xF8) == 0xF0
@@ -766,7 +856,7 @@ object ZTransducer {
           case None =>
             stateRef.getAndSet(Chunk.empty).flatMap { leftovers =>
               if (leftovers.isEmpty) ZIO.succeedNow(Chunk.empty)
-              else ZIO.succeedNow(Chunk.single(new String(leftovers.toArray[Byte], "UTF-8")))
+              else ZIO.succeedNow(Chunk.single(new String(leftovers.toArray[Byte], StandardCharsets.UTF_8)))
             }
 
           case Some(bytes) =>
@@ -780,6 +870,126 @@ object ZTransducer {
             }
         }
       }
+    }
+
+    // handle optional byte order mark
+    branchAfter(3) { bytes =>
+      bytes.toList match {
+        case -17 :: -69 :: -65 :: Nil =>
+          transducer
+        case _ =>
+          prepend(bytes) >>> transducer
+      }
+    }
+  }
+
+  /**
+   * Decodes chunks of UTF-16 bytes into strings.
+   * If no byte order mark is found big-endianness is assumed.
+   *
+   * This transducer uses the endisn-specific String constructor's behavior when handling
+   * malformed byte sequences.
+   */
+  val utf16Decode: ZTransducer[Any, Nothing, Byte, String] =
+    branchAfter(2) { bytes =>
+      bytes.toList match {
+        case -2 :: -1 :: Nil =>
+          utf16BEDecode
+        case -1 :: -2 :: Nil =>
+          utf16LEDecode
+        case _ =>
+          prepend(bytes) >>> utf16BEDecode
+      }
+    }
+
+  /**
+   * Decodes chunks of UTF-16BE bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val utf16BEDecode: ZTransducer[Any, Nothing, Byte, String] =
+    utfFixedLengthDecode(StandardCharsets.UTF_16BE, 2)
+
+  /**
+   * Decodes chunks of UTF-16LE bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val utf16LEDecode: ZTransducer[Any, Nothing, Byte, String] =
+    utfFixedLengthDecode(StandardCharsets.UTF_16LE, 2)
+
+  /**
+   * Decodes chunks of UTF-32 bytes into strings.
+   * If no byte order mark is found big-endianness is assumed.
+   */
+  lazy val utf32Decode: ZTransducer[Any, Nothing, Byte, String] =
+    branchAfter(4) { bytes =>
+      bytes.toList match {
+        case 0 :: 0 :: -2 :: -1 :: Nil =>
+          utf32BEDecode
+        case -1 :: -2 :: 0 :: 0 :: Nil =>
+          utf32LEDecode
+        case _ =>
+          prepend(bytes) >>> utf32BEDecode
+      }
+    }
+
+  /**
+   * Decodes chunks of UTF-32BE bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  lazy val utf32BEDecode: ZTransducer[Any, Nothing, Byte, String] =
+    utfFixedLengthDecode(Charset.forName("UTF-32BE"), 4)
+
+  /**
+   * Decodes chunks of UTF-32LE bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  lazy val utf32LEDecode: ZTransducer[Any, Nothing, Byte, String] =
+    utfFixedLengthDecode(Charset.forName("UTF-32LE"), 4)
+
+  private def utfFixedLengthDecode(charset: Charset, width: Int): ZTransducer[Any, Nothing, Byte, String] =
+    ZTransducer {
+      ZRef.makeManaged[Chunk[Byte]](Chunk.empty).map { stateRef =>
+        {
+          case None =>
+            stateRef.getAndSet(Chunk.empty).flatMap { leftovers =>
+              if (leftovers.isEmpty) ZIO.succeedNow(Chunk.empty)
+              else ZIO.succeedNow(Chunk.single(new String(leftovers.toArray[Byte], charset)))
+            }
+          case Some(bytes) =>
+            stateRef.modify { old =>
+              val data      = old ++ bytes
+              val remainder = data.length % width
+              if (remainder == 0) {
+                val decoded = new String(data.toArray, charset)
+                (Chunk.single(decoded), Chunk.empty)
+              } else {
+                val (fullChunk, rest) = data.splitAt(data.length - remainder)
+                val decoded           = new String(fullChunk.toArray, charset)
+                (Chunk.single(decoded), rest)
+              }
+            }
+        }
+      }
+    }
+
+  /**
+   * Decodes chunks of US-ASCII bytes into strings.
+   *
+   * This transducer uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val usASCIIDecode: ZTransducer[Any, Nothing, Byte, String] =
+    ZTransducer.fromPush {
+      case Some(chunk) => ZIO.succeedNow(Chunk.single(new String(chunk.toArray, StandardCharsets.US_ASCII)))
+      case None        => ZIO.succeedNow(Chunk.empty)
     }
 
   object Push {

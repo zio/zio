@@ -39,7 +39,7 @@ abstract class AbstractRunnableSpec {
   /**
    * Returns an effect that executes a given spec, producing the results of the execution.
    */
-  private[zio] final def runSpec(
+  private[zio] def runSpec(
     spec: ZSpec[Environment, Failure]
   ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _))

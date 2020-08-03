@@ -16,6 +16,7 @@
 
 package zio.test
 
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 import scala.collection.immutable.SortedMap
@@ -23,7 +24,7 @@ import scala.math.Numeric.DoubleIsFractional
 
 import zio.random._
 import zio.stream.{ Stream, ZStream }
-import zio.{ Chunk, NonEmptyChunk, UIO, ZIO }
+import zio.{ Chunk, NonEmptyChunk, UIO, URIO, ZIO }
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
@@ -120,14 +121,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect: ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).runCollect
+    sample.map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect
+    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
@@ -179,6 +180,18 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def alphaNumericStringBounded(min: Int, max: Int): Gen[Random with Sized, String] =
     Gen.stringBounded(min, max)(alphaNumericChar)
+
+  /**
+   * A generator US-ASCII strings. Shrinks towards the empty string.
+   */
+  def anyASCIIString: Gen[Random with Sized, String] =
+    Gen.string(Gen.anyASCIIChar)
+
+  /**
+   * A generator of US-ASCII characters. Shrinks toward '0'.
+   */
+  def anyASCIIChar: Gen[Random, Char] =
+    Gen.oneOf(Gen.char('\u0000', '\u007F'))
 
   /**
    * A generator of bytes. Shrinks toward '0'.
@@ -292,7 +305,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
           val arr = bytes.toArray
           arr(0) = (arr(0) & mask).toByte
           min + BigInt(arr)
-        }.doUntil(n => min <= n && n <= max)
+        }.repeatUntil(n => min <= n && n <= max)
         effect.map(Sample.shrinkIntegral(min))
       }
     }
@@ -430,7 +443,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Constructs a generator from an effect that constructs a value.
    */
-  def fromEffect[R, A](effect: ZIO[R, Nothing, A]): Gen[R, A] =
+  def fromEffect[R, A](effect: URIO[R, A]): Gen[R, A] =
     Gen(ZStream.fromEffect(effect.map(Sample.noShrink)))
 
   /**
@@ -473,10 +486,16 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         val difference = max - min + 1
         val effect =
           if (difference > 0) nextIntBounded(difference).map(min + _)
-          else nextInt.doUntil(n => min <= n && n <= max)
+          else nextInt.repeatUntil(n => min <= n && n <= max)
         effect.map(Sample.shrinkIntegral(min))
       }
     }
+
+  /**
+   *  A generator of strings that can be encoded in the ISO-8859-1 character set.
+   */
+  val iso_8859_1: Gen[Random with Sized, String] =
+    chunkOf(anyByte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
 
   /**
    * A sized generator that uses a uniform distribution of size values. A large
@@ -514,7 +533,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         val difference = max - min + 1
         val effect =
           if (difference > 0) nextLongBounded(difference).map(min + _)
-          else nextLong.doUntil(n => min <= n && n <= max)
+          else nextLong.repeatUntil(n => min <= n && n <= max)
         effect.map(Sample.shrinkIntegral(min))
       }
     }
@@ -698,6 +717,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val unit: Gen[Any, Unit] =
     const(())
+
+  /**
+   *  A generator of strings that can be encoded in the US-ASCII character set.
+   */
+  val usASCII: Gen[Random with Sized, String] =
+    chunkOf(anyASCIIString).map(chunk => chunk.toString)
 
   def vectorOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)

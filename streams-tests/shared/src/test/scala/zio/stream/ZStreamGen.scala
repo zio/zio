@@ -8,6 +8,9 @@ object ZStreamGen extends GenZIO {
   def tinyListOf[R <: Random, A](g: Gen[R, A]): Gen[R, List[A]] =
     Gen.listOfBounded(0, 5)(g)
 
+  def tinyChunkOf[R <: Random, A](g: Gen[R, A]): Gen[R, Chunk[A]] =
+    Gen.chunkOfBounded(0, 5)(g)
+
   def streamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
     Gen.oneOf(failingStreamGen(a, max), pureStreamGen(a, max))
 
@@ -41,7 +44,7 @@ object ZStreamGen extends GenZIO {
           )
     }
 
-  def nPulls[R, E, A](pull: ZIO[R, Option[E], A], n: Int): ZIO[R, Nothing, List[Either[Option[E], A]]] =
+  def nPulls[R, E, A](pull: ZIO[R, Option[E], A], n: Int): ZIO[R, Nothing, Iterable[Either[Option[E], A]]] =
     ZIO.foreach(1 to n)(_ => pull.either)
 
   val streamOfBytes = Gen.bounded(0, 5)(streamGen(Gen.anyByte, _))

@@ -21,7 +21,7 @@ import scala.language.implicitConversions
 import zio.test.Assertion
 import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
 import zio.test.mock.Result.{ Fail, Succeed }
-import zio.test.mock.internal.{ MockException, ProxyFactory, State }
+import zio.test.mock.internal.{ ExpectationState, MockException, MockState, ProxyFactory }
 import zio.{ Has, IO, Managed, Tag, ULayer, URLayer, ZLayer }
 
 /**
@@ -123,7 +123,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
     }
 
   /**
-   * Repeates this expectation withing given bounds, producing a new expectation to
+   * Repeats this expectation withing given bounds, producing a new expectation to
    * satisfy itself sequentially given number of times.
    *
    * {{
@@ -149,18 +149,14 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   private[test] val mock: Mock[R]
 
   /**
-   * Mock execution flag.
+   * Mock execution state.
    */
-  private[test] val satisfied: Boolean
-
-  /**
-   * Short-circuit flag. If an expectation has been saturated
-   * it's branch will be skipped in the invocation search.
-   */
-  private[test] val saturated: Boolean
+  private[test] val state: ExpectationState
 }
 
 object Expectation {
+
+  import ExpectationState._
 
   /**
    * Models expectations conjunction on environment `R`. Expectations are checked in the order they are provided,
@@ -168,8 +164,7 @@ object Expectation {
    */
   private[test] case class And[R <: Has[_]: Tag](
     children: List[Expectation[R]],
-    satisfied: Boolean,
-    saturated: Boolean,
+    state: ExpectationState,
     invocations: List[Int],
     mock: Mock.Composed[R]
   ) extends Expectation[R]
@@ -177,7 +172,7 @@ object Expectation {
   private[test] object And {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): And[R] =
-      And(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose))
+      And(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
 
     object Items {
 
@@ -194,8 +189,7 @@ object Expectation {
     capability: Capability[R, I, E, A],
     assertion: Assertion[I],
     returns: I => IO[E, A],
-    satisfied: Boolean,
-    saturated: Boolean,
+    state: ExpectationState,
     invocations: List[Int]
   ) extends Expectation[R] {
     val mock: Mock[R] = capability.mock
@@ -208,7 +202,7 @@ object Expectation {
       assertion: Assertion[I],
       returns: I => IO[E, A]
     ): Call[R, I, E, A] =
-      Call(capability, assertion, returns, false, false, List.empty)
+      Call(capability, assertion, returns, Unsatisfied, List.empty)
   }
 
   /**
@@ -216,8 +210,7 @@ object Expectation {
    */
   private[test] case class Chain[R <: Has[_]: Tag](
     children: List[Expectation[R]],
-    satisfied: Boolean,
-    saturated: Boolean,
+    state: ExpectationState,
     invocations: List[Int],
     mock: Mock.Composed[R]
   ) extends Expectation[R]
@@ -225,7 +218,7 @@ object Expectation {
   private[test] object Chain {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Chain[R] =
-      Chain(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose))
+      Chain(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
 
     object Items {
 
@@ -240,8 +233,7 @@ object Expectation {
    */
   private[test] case class Or[R <: Has[_]: Tag](
     children: List[Expectation[R]],
-    satisfied: Boolean,
-    saturated: Boolean,
+    state: ExpectationState,
     invocations: List[Int],
     mock: Mock.Composed[R]
   ) extends Expectation[R]
@@ -249,7 +241,7 @@ object Expectation {
   private[test] object Or {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Or[R] =
-      Or(children.asInstanceOf[List[Expectation[R]]], false, false, List.empty, Mock.Composed(compose))
+      Or(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
 
     object Items {
 
@@ -264,8 +256,7 @@ object Expectation {
   private[test] final case class Repeated[R <: Has[_]: Tag](
     child: Expectation[R],
     range: Range,
-    satisfied: Boolean,
-    saturated: Boolean,
+    state: ExpectationState,
     invocations: List[Int],
     started: Int,
     completed: Int
@@ -277,7 +268,7 @@ object Expectation {
 
     def apply[R <: Has[_]: Tag](child: Expectation[R], range: Range): Repeated[R] =
       if (range.step <= 0) throw MockException.InvalidRangeException(range)
-      else Repeated(child, range, range.start == 0, false, List.empty, 0, 0)
+      else Repeated(child, range, if (range.start == 0) Satisfied else Unsatisfied, List.empty, 0, 0)
   }
 
   /**
@@ -326,7 +317,7 @@ object Expectation {
   implicit def toLayer[R <: Has[_]: Tag](trunk: Expectation[R]): ULayer[R] =
     ZLayer.fromManagedMany(
       for {
-        state <- Managed.make(State.make(trunk))(State.checkUnmetExpectations)
+        state <- Managed.make(MockState.make(trunk))(MockState.checkUnmetExpectations)
         env   <- (ProxyFactory.mockProxy(state) >>> trunk.mock.compose).build
       } yield env
     )

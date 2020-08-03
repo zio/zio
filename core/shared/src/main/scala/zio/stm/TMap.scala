@@ -35,6 +35,12 @@ final class TMap[K, V] private (
     get(k).map(_.isDefined)
 
   /**
+   * Tests if the map is empty or not
+   */
+  def isEmpty: USTM[Boolean] =
+    tSize.map(_ == 0).get
+
+  /**
    * Removes binding for given key.
    */
   def delete(k: K): USTM[Unit] =
@@ -188,6 +194,12 @@ final class TMap[K, V] private (
   }
 
   /**
+   * Stores new binding in the map if it does not already exist.
+   */
+  def putIfAbsent(k: K, v: V): USTM[Unit] =
+    get(k).flatMap(_.fold(put(k, v))(_ => STM.unit))
+
+  /**
    * Removes bindings matching predicate.
    */
   def removeIf(p: (K, V) => Boolean): USTM[Unit] =
@@ -254,6 +266,12 @@ final class TMap[K, V] private (
 
       TExit.unit
     })
+
+  /**
+   * Returns the number of bindings.
+   */
+  val size: USTM[Int] =
+    tSize.get
 
   /**
    * Collects all bindings into a list.

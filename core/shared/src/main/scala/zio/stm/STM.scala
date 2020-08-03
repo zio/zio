@@ -18,14 +18,14 @@ package zio.stm
 
 import scala.util.Try
 
-import zio.{ CanFail, Chunk, Fiber, IO }
+import zio.{ BuildFrom, CanFail, Fiber, IO }
 
 object STM {
 
   /**
    * @see See [[zio.stm.ZSTM.absolve]]
    */
-  def absolve[R, E, A](e: STM[E, Either[E, A]]): STM[E, A] =
+  def absolve[E, A](e: STM[E, Either[E, A]]): STM[E, A] =
     ZSTM.absolve(e)
 
   /**
@@ -40,28 +40,24 @@ object STM {
   def check(p: => Boolean): USTM[Unit] = ZSTM.check(p)
 
   /**
-   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.collectAll]]
    */
-  def collectAll[E, A](in: Iterable[STM[E, A]]): STM[E, List[A]] =
+  def collectAll[E, A, Collection[+Element] <: Iterable[Element]](
+    in: Collection[STM[E, A]]
+  )(implicit bf: BuildFrom[Collection[STM[E, A]], A, Collection[A]]): STM[E, Collection[A]] =
     ZSTM.collectAll(in)
 
   /**
-   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:zio\.Chunk*]]]
-   */
-  def collectAll[E, A](in: Chunk[STM[E, A]]): STM[E, Chunk[A]] =
-    ZSTM.collectAll(in)
-
-  /**
-   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.collectAll_]]
    */
   def collectAll_[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
     ZSTM.collectAll_(in)
 
   /**
-   * @see See [[[zio.stm.ZSTM.collectAll_[R,E,A](in:zio\.Chunk*]]]
+   * @see See [[zio.stm.ZSTM.cond]]
    */
-  def collectAll_[E, A](in: Chunk[STM[E, A]]): STM[E, Unit] =
-    ZSTM.collectAll_(in)
+  def cond[E, A](predicate: Boolean, result: => A, error: => E): STM[E, A] =
+    ZSTM.cond(predicate, result, error)
 
   /**
    * @see See [[zio.stm.ZSTM.die]]
@@ -96,13 +92,17 @@ object STM {
   /**
    * @see [[zio.stm.ZSTM.filter]]
    */
-  def filter[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, List[A]] =
+  def filter[E, A, Collection[+Element] <: Iterable[Element]](
+    as: Collection[A]
+  )(f: A => STM[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): STM[E, Collection[A]] =
     ZSTM.filter(as)(f)
 
   /**
    * @see [[zio.stm.ZSTM.filterNot]]
    */
-  def filterNot[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, List[A]] =
+  def filterNot[E, A, Collection[+Element] <: Iterable[Element]](
+    as: Collection[A]
+  )(f: A => STM[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): STM[E, Collection[A]] =
     ZSTM.filterNot(as)(f)
 
   /**
@@ -124,27 +124,17 @@ object STM {
     ZSTM.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.foreach]]
    */
-  def foreach[E, A, B](in: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+  def foreach[E, A, B, Collection[+Element] <: Iterable[Element]](
+    in: Collection[A]
+  )(f: A => STM[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): STM[E, Collection[B]] =
     ZSTM.foreach(in)(f)
 
   /**
-   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:zio\.Chunk*]]]
-   */
-  def foreach[E, A, B](in: Chunk[A])(f: A => STM[E, B]): STM[E, Chunk[B]] =
-    ZSTM.foreach(in)(f)
-
-  /**
-   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](in:Iterable*]]]
+   * @see See [[zio.stm.ZSTM.foreach_]]
    */
   def foreach_[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
-    ZSTM.foreach_(in)(f)
-
-  /**
-   * @see See [[[zio.stm.ZSTM.foreach_[R,E,A](in:zio\.Chunk*]]]
-   */
-  def foreach_[E, A](in: Chunk[A])(f: A => STM[E, Any]): STM[E, Unit] =
     ZSTM.foreach_(in)(f)
 
   /**
@@ -162,13 +152,13 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fromFunctionM]]
    */
-  def fromFunctionM[R, E, A](f: Any => STM[E, A]): STM[E, A] =
+  def fromFunctionM[E, A](f: Any => STM[E, A]): STM[E, A] =
     ZSTM.fromFunctionM(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fromOption]]
    */
-  def fromOption[A](v: => Option[A]): STM[Unit, A] =
+  def fromOption[A](v: => Option[A]): STM[Option[Nothing], A] =
     ZSTM.fromOption(v)
 
   /**
@@ -186,7 +176,7 @@ object STM {
    * @see See [[zio.stm.ZSTM.ifM]]
    */
   def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
-    new ZSTM.IfM(b)
+    ZSTM.ifM(b)
 
   /**
    * @see See [[zio.stm.ZSTM.iterate]]
@@ -257,7 +247,7 @@ object STM {
    */
   def partition[E, A, B](
     in: Iterable[A]
-  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[Nothing, (List[E], List[B])] =
+  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[Nothing, (Iterable[E], Iterable[B])] =
     ZSTM.partition(in)(f)
 
   /**
@@ -276,8 +266,8 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.require]]
    */
-  def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
-    ZSTM.require(error)
+  def require[E, A](error: => E): STM[E, Option[A]] => STM[E, A] =
+    ZSTM.require[Any, E, A](error)
 
   /**
    * @see See [[zio.stm.ZSTM.retry]]
@@ -324,23 +314,23 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.unlessM]]
    */
-  def unlessM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] =
-    ZSTM.unlessM(b)(stm)
+  def unlessM[E](b: STM[E, Boolean]): ZSTM.UnlessM[Any, E] =
+    ZSTM.unlessM(b)
 
   /**
    * @see See [[zio.stm.ZSTM.validate]]
    */
-  def validate[E, A, B](
-    in: Iterable[A]
-  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[::[E], List[B]] =
+  def validate[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
+    f: A => STM[E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): STM[::[E], Collection[B]] =
     ZSTM.validate(in)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.validateFirst]]
    */
-  def validateFirst[E, A, B](
-    in: Iterable[A]
-  )(f: A => STM[E, B])(implicit ev: CanFail[E]): STM[List[E], B] =
+  def validateFirst[E, A, B, Collection[+Element] <: Iterable[Element]](
+    in: Collection[A]
+  )(f: A => STM[E, B])(implicit bf: BuildFrom[Collection[A], E, Collection[E]], ev: CanFail[E]): STM[Collection[E], B] =
     ZSTM.validateFirst(in)(f)
 
   /**
@@ -363,7 +353,8 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.whenM]]
    */
-  def whenM[E](b: STM[E, Boolean])(stm: => STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
+  def whenM[E](b: STM[E, Boolean]): ZSTM.WhenM[Any, E] =
+    ZSTM.whenM(b)
 
   private[zio] def succeedNow[A](a: A): USTM[A] =
     ZSTM.succeedNow(a)

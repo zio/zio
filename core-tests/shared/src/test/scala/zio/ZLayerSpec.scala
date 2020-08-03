@@ -1,7 +1,9 @@
 package zio
 
+import zio.clock._
+import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ ignore, nonFlaky }
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment._
 
@@ -257,7 +259,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
         } yield assertCompletes
-      } @@ ignore,
+      },
       testM("map can map the output of a layer to an unrelated type") {
         case class A(name: String, value: Int)
         case class B(name: String)
@@ -354,6 +356,15 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- layer.build.useNow.ignore
           result <- ref.get
         } yield assert(result)(equalTo(4))
+      },
+      testM("error handling") {
+        val sleep  = ZIO.sleep(100.milliseconds).provideLayer(Clock.live)
+        val layer1 = ZLayer.fail("foo")
+        val layer2 = ZLayer.succeed("bar")
+        val layer3 = ZLayer.succeed("baz")
+        val layer4 = ZLayer.fromAcquireRelease(sleep)(_ => sleep)
+        val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
+        assertM(ZIO.unit.provideCustomLayer(env).run)(fails(equalTo("foo")))
       }
     )
 }

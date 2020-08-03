@@ -9,7 +9,7 @@ import zio.Chunk
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class ChunkAddBenchmarks {
+class ChunkAppendBenchmarks {
 
   val chunk  = Chunk(1)
   val vector = Vector(1)
@@ -18,12 +18,12 @@ class ChunkAddBenchmarks {
   var size: Int = _
 
   @Benchmark
-  def chunkAdd(): Chunk[Int] = {
+  def chunkAppend(): Chunk[Int] = {
     var i       = 0
     var current = chunk
 
     while (i < size) {
-      current = current :+ 2
+      current = current :+ i
       i += 1
     }
 
@@ -31,12 +31,12 @@ class ChunkAddBenchmarks {
   }
 
   @Benchmark
-  def vectorAdd(): Vector[Int] = {
+  def vectorAppend(): Vector[Int] = {
     var i       = 0
     var current = vector
 
     while (i < size) {
-      current = current :+ 2
+      current = current :+ i
       i += 1
     }
 

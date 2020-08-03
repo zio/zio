@@ -44,6 +44,9 @@ trait ChunkLike[+A]
   override final def appended[A1 >: A](a1: A1): Chunk[A1] =
     append(a1)
 
+  override final def prepended[A1 >: A](a1: A1): Chunk[A1] =
+    prepend(a1)
+
   /**
    * Returns a filtered, mapped subset of the elements of this `Chunk`.
    */
@@ -54,33 +57,33 @@ trait ChunkLike[+A]
    * Returns the concatenation of mapping every element into a new chunk using
    * the specified function.
    */
-  override final def flatMap[B](f: A => IterableOnce[B]): Chunk[B] = {
-    val len                    = self.length
+  override final def flatMap[B](f: A => IterableOnce[B]): Chunk[B] =  {
+    val iterator = arrayIterator
     var chunks: List[Chunk[B]] = Nil
-
-    var i               = 0
-    var total           = 0
+    var total = 0
     var B0: ClassTag[B] = null.asInstanceOf[ClassTag[B]]
-    while (i < len) {
-      val chunk = ChunkLike.from(f(self(i)))
-
-      if (chunk.length > 0) {
-        if (B0 == null)
-          B0 = Chunk.classTagOf(chunk)
-
-        chunks ::= chunk
-        total += chunk.length
+    while (iterator.hasNext) {
+      val array = iterator.next()
+      val length = array.length
+      var i = 0
+      while (i < length) {
+        val a = array(i)
+        val bs = f(a)
+        val chunk = ChunkLike.from(bs)
+        if (chunk.length > 0) {
+          if (B0 == null) {
+            B0 = Chunk.classTagOf(chunk)
+          }
+          chunks ::= chunk
+          total += chunk.length
+        }
+        i += 1
       }
-
-      i += 1
     }
-
     if (B0 == null) Chunk.empty
     else {
       implicit val B: ClassTag[B] = B0
-
       val dest: Array[B] = Array.ofDim(total)
-
       val it = chunks.iterator
       var n  = total
       while (it.hasNext) {
@@ -88,7 +91,6 @@ trait ChunkLike[+A]
         n -= chunk.length
         chunk.toArray(n, dest)
       }
-
       Chunk.fromArray(dest)
     }
   }
@@ -96,7 +98,7 @@ trait ChunkLike[+A]
   /**
    * Returns a `SeqFactory` that can construct `Chunk` values. The
    * `SeqFactory` exposes a `newBuilder` method that is not referentially
-   * transparent beacuse it allocates mutable state.
+   * transparent because it allocates mutable state.
    */
   override val iterableFactory: SeqFactory[Chunk] =
     ChunkLike

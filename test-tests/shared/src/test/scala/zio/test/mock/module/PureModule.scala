@@ -18,14 +18,14 @@ package zio.test.mock.module
 
 import scala.reflect.ClassTag
 
-import zio.{ IO, Tag, ZIO }
+import zio.{ IO, Tag, URIO, ZIO }
 
 /**
  * Example module used for testing ZIO Mock framework.
  */
 object PureModule {
 
-  // Workaround for izumi.reflect.Tag any-kindedness (probably?)  causing `Any` to be inferred on dotty
+  // Workaround for izumi.reflect.Tag any-kindness (probably?)  causing `Any` to be inferred on dotty
   final class NotAnyKind[A](private val dummy: Boolean = false) extends AnyVal
   object NotAnyKind {
     // for some reason a ClassTag search is required, an arbitrary type like Set[A] doesn't fix inference
@@ -94,7 +94,7 @@ object PureModule {
     ZIO.accessM[PureModule](_.get.manyParamLists(a)(b)(c))
   def command: ZIO[PureModule, Unit, Unit]                      = ZIO.accessM[PureModule](_.get.command)
   def parameterizedCommand(a: Int): ZIO[PureModule, Unit, Unit] = ZIO.accessM[PureModule](_.get.parameterizedCommand(a))
-  def looped(a: Int): ZIO[PureModule, Nothing, Nothing]         = ZIO.accessM[PureModule](_.get.looped(a))
+  def looped(a: Int): URIO[PureModule, Nothing]                 = ZIO.accessM[PureModule](_.get.looped(a))
   def overloaded(n: Int): ZIO[PureModule, String, String]       = ZIO.accessM[PureModule](_.get.overloaded(n))
   def overloaded(n: Long): ZIO[PureModule, String, String]      = ZIO.accessM[PureModule](_.get.overloaded(n))
   def polyInput[I: NotAnyKind: Tag](v: I): ZIO[PureModule, String, String] =

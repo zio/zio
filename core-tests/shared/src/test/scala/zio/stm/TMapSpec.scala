@@ -18,7 +18,7 @@ package zio.stm
 
 import zio.test.Assertion._
 import zio.test._
-import zio.{ Schedule, UIO, ZIOBaseSpec }
+import zio.{ Schedule, URIO, ZIOBaseSpec }
 
 object TMapSpec extends ZIOBaseSpec {
 
@@ -129,9 +129,32 @@ object TMapSpec extends ZIOBaseSpec {
           } yield e
 
         assertM(tx.commit)(hasSameElements(expected))
+      },
+      testM("putIfAbsent") {
+        val expected = List("a" -> 1, "b" -> 2)
+
+        val tx =
+          for {
+            tmap <- TMap.make("a" -> 1)
+            _    <- tmap.putIfAbsent("b", 2)
+            _    <- tmap.putIfAbsent("a", 10)
+            e    <- tmap.toList
+          } yield e
+
+        assertM(tx.commit)(hasSameElements(expected))
       }
     ),
     suite("transformations")(
+      testM("size") {
+        val elems = List("a" -> 1, "b" -> 2)
+        val tx =
+          for {
+            tmap <- TMap.fromIterable(elems)
+            size <- tmap.size
+          } yield size
+
+        assertM(tx.commit)(equalTo(2))
+      },
       testM("toList") {
         val elems = List("a" -> 1, "b" -> 2)
         val tx =
@@ -262,7 +285,7 @@ object TMapSpec extends ZIOBaseSpec {
           policy = Schedule.recurs(999)
           tx     = tmap.transformValues(_ + 1).commit.repeat(policy)
           n      = 2
-          _      <- UIO.collectAllPar_(List.fill(n)(tx))
+          _      <- URIO.collectAllPar_(List.fill(n)(tx))
           res    <- tmap.get("a").commit
         } yield assert(res)(isSome(equalTo(2000)))
       },

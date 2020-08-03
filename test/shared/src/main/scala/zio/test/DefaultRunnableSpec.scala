@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.URIO
+import zio.clock.Clock
 import zio.duration._
 import zio.test.environment.TestEnvironment
 
@@ -23,11 +25,19 @@ import zio.test.environment.TestEnvironment
  * A default runnable spec that provides testable versions of all of the
  * modules in ZIO (Clock, Random, etc).
  */
-trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
+abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
   override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
     List(TestAspect.timeoutWarning(60.seconds))
 
   override def runner: TestRunner[TestEnvironment, Any] =
     defaultTestRunner
+
+  /**
+   * Returns an effect that executes a given spec, producing the results of the execution.
+   */
+  private[zio] override def runSpec(
+    spec: ZSpec[Environment, Failure]
+  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
+    runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 }

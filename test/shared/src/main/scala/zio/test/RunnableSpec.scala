@@ -22,7 +22,7 @@ import zio.{ Has, URIO }
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-trait RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
+abstract class RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
 

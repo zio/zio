@@ -24,7 +24,7 @@ import scala.concurrent.ExecutionContext
  * An executor is responsible for executing actions. Each action is guaranteed
  * to begin execution on a fresh stack frame.
  */
-trait Executor extends ExecutorPlatformSpecific { self =>
+abstract class Executor extends ExecutorPlatformSpecific { self =>
 
   /**
    * The number of operations a fiber should run before yielding.
@@ -63,6 +63,14 @@ trait Executor extends ExecutorPlatformSpecific { self =>
       override def reportFailure(cause: Throwable): Unit =
         cause.printStackTrace
     }
+
+  /**
+   * Views this `Executor` as a Java `Executor`.
+   */
+  lazy val asJava: java.util.concurrent.Executor =
+    command =>
+      if (submit(command)) ()
+      else throw new java.util.concurrent.RejectedExecutionException
 
 }
 

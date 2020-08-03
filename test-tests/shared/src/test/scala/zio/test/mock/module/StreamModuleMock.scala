@@ -27,7 +27,7 @@ import zio.{ Has, UIO, URLayer, ZLayer }
  */
 object StreamModuleMock extends Mock[StreamModule] {
 
-  object Sink   extends Sink[Any, String, Int, List[Int]]
+  object Sink   extends Sink[Any, String, Int, Nothing, List[Int]]
   object Stream extends Stream[Any, String, Int]
 
   @silent("is never used")
@@ -35,7 +35,8 @@ object StreamModuleMock extends Mock[StreamModule] {
     ZLayer.fromServiceM { proxy =>
       withRuntime.map { rts =>
         new StreamModule.Service {
-          def sink(a: Int)   = rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail(error))))
+          def sink(a: Int) =
+            rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail[String, Int](error).dropLeftover)))
           def stream(a: Int) = rts.unsafeRun(proxy(Stream, a))
         }
       }

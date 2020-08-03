@@ -21,7 +21,7 @@ package zio
  * parallel. There are three possible execution strategies: `Sequential`,
  * `Parallel`, and `ParallelN`.
  */
-sealed trait ExecutionStrategy
+sealed abstract class ExecutionStrategy
 
 object ExecutionStrategy {
 

@@ -16,14 +16,14 @@
 
 package zio.internal
 
-import zio.Cause
 import zio.internal.tracing.TracingConfig
+import zio.{ Cause, Supervisor }
 
 /**
  * A `Platform` provides the minimum capabilities necessary to bootstrap
  * execution of `ZIO` tasks.
  */
-trait Platform { self =>
+abstract class Platform { self =>
 
   /**
    * Retrieves the default executor.
@@ -81,6 +81,13 @@ trait Platform { self =>
     new Platform.Proxy(self) {
       override def reportFailure(cause: Cause[Any]): Unit = f(cause)
     }
+
+  def supervisor: Supervisor[Any]
+
+  def withSupervisor(s0: Supervisor[Any]): Platform =
+    new Platform.Proxy(self) {
+      override def supervisor: Supervisor[Any] = s0
+    }
 }
 object Platform extends PlatformSpecific {
   abstract class Proxy(self: Platform) extends Platform {
@@ -89,5 +96,6 @@ object Platform extends PlatformSpecific {
     def fatal(t: Throwable): Boolean           = self.fatal(t)
     def reportFatal(t: Throwable): Nothing     = self.reportFatal(t)
     def reportFailure(cause: Cause[Any]): Unit = self.reportFailure(cause)
+    def supervisor: Supervisor[Any]            = self.supervisor
   }
 }

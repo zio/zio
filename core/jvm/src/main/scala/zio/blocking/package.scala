@@ -35,15 +35,15 @@ package object blocking {
     trait Service extends Serializable {
 
       /**
-       * Retrieves the executor for all blocking tasks.
-       */
-      def blockingExecutor: Executor
-
-      /**
        * Locks the specified effect to the blocking thread pool.
        */
       def blocking[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
         zio.lock(blockingExecutor)
+
+      /**
+       * Retrieves the executor for all blocking tasks.
+       */
+      def blockingExecutor: Executor
 
       /**
        * Imports a synchronous effect that does blocking IO into a pure value.
@@ -142,6 +142,13 @@ package object blocking {
             )
           }
         }
+
+      /**
+       * Imports a synchronous effect that does blocking IO into a pure value,
+       * refining the error type to `[[java.io.IOException]]`.
+       */
+      def effectBlockingIO[A](effect: => A): ZIO[Blocking, IOException, A] =
+        effectBlocking(effect).refineToOrDie[IOException]
     }
 
     object Service {
@@ -157,20 +164,52 @@ package object blocking {
       ZLayer.succeed(Service.live)
   }
 
+  /**
+   * Locks the specified effect to the blocking thread pool.
+   */
   def blocking[R <: Blocking, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.accessM[R](_.get.blocking(zio))
+    ZIO.accessM(_.get.blocking(zio))
 
-  def effectBlocking[A](effect: => A): ZIO[Blocking, Throwable, A] =
-    ZIO.accessM[Blocking](_.get.effectBlocking(effect))
+  /**
+   * Retrieves the executor for all blocking tasks.
+   */
+  def blockingExecutor: URIO[Blocking, Executor] =
+    ZIO.access(_.get.blockingExecutor)
 
-  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[Blocking, Throwable, A] =
-    ZIO.accessM[Blocking](_.get.effectBlockingCancelable(effect)(cancel))
+  /**
+   * Retrieves the executor for all blocking tasks.
+   */
+  def effectBlocking[A](effect: => A): RIO[Blocking, A] =
+    ZIO.accessM(_.get.effectBlocking(effect))
 
-  def effectBlockingIO[A](effect: => A): ZIO[Blocking, IOException, A] =
-    effectBlocking(effect).refineToOrDie[IOException]
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value, with
+   * a custom cancel effect.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via the cancel effect.
+   */
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): RIO[Blocking, A] =
+    ZIO.accessM(_.get.effectBlockingCancelable(effect)(cancel))
 
-  def effectBlockingInterrupt[A](effect: => A): ZIO[Blocking, Throwable, A] =
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via `Thread.interrupt`.
+   *
+   * Note that this adds significant overhead. For performance sensitive
+   * applications consider using `effectBlocking` or `effectBlockingCancel`.
+   */
+  def effectBlockingInterrupt[A](effect: => A): RIO[Blocking, A] =
     ZIO.accessM(_.get.effectBlockingInterrupt(effect))
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value,
+   * refining the error type to `[[java.io.IOException]]`.
+   */
+  def effectBlockingIO[A](effect: => A): ZIO[Blocking, IOException, A] =
+    ZIO.accessM(_.get.effectBlockingIO(effect))
 
   private[blocking] object internal {
     private[blocking] val blockingExecutor0 =

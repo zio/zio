@@ -408,6 +408,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
+   * Updates a service in the environment of this effect.
+   */
+  final def updateService[M] =
+    new Spec.UpdateService[R, E, T, M](self)
+
+  /**
    * Runs the spec only if the specified predicate is satisfied.
    */
   final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Annotations, E, TestSuccess] =
@@ -442,7 +448,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
 }
 
 object Spec {
-  sealed trait SpecCase[-R, +E, +T, +A] { self =>
+  sealed abstract class SpecCase[-R, +E, +T, +A] { self =>
     final def map[B](f: A => B): SpecCase[R, E, T, B] = self match {
       case SuiteCase(label, specs, exec)      => SuiteCase(label, specs.map(_.map(f)), exec)
       case TestCase(label, test, annotations) => TestCase(label, test, annotations)
@@ -487,5 +493,10 @@ object Spec {
         case TestCase(label, test, annotations) =>
           Spec.test(label, test.provideSomeLayer(layer), annotations)
       }
+  }
+
+  final class UpdateService[-R, +E, +T, M](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): Spec[R1, E, T] =
+      self.provideSome(ev.update(_, f))
   }
 }

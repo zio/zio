@@ -29,7 +29,7 @@ import scala.implicits.Not
     "However, your effect has Any for the environment type, which means it " +
     "has no requirement, so there is no need to provide the environment."
 )
-sealed trait NeedsEnv[+R]
+sealed abstract class NeedsEnv[+R]
 
 object NeedsEnv extends NeedsEnv[Nothing] {
 

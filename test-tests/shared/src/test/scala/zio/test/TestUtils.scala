@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.environment.TestEnvironment
-import zio.{ ExecutionStrategy, UIO, ZIO }
+import zio.{ ExecutionStrategy, UIO }
 
 object TestUtils {
 
@@ -16,7 +16,7 @@ object TestUtils {
       case _                                 => true
     }
 
-  def isIgnored[E](spec: ZSpec[environment.TestEnvironment, E]): ZIO[Any, Nothing, Boolean] =
+  def isIgnored[E](spec: ZSpec[environment.TestEnvironment, E]): UIO[Boolean] =
     execute(spec).map { executedSpec =>
       forAllTests(executedSpec) {
         case Right(TestSuccess.Ignored) => true
@@ -24,7 +24,7 @@ object TestUtils {
       }
     }
 
-  def succeeded[E](spec: ZSpec[environment.TestEnvironment, E]): ZIO[Any, Nothing, Boolean] =
+  def succeeded[E](spec: ZSpec[environment.TestEnvironment, E]): UIO[Boolean] =
     execute(spec).map { executedSpec =>
       forAllTests(executedSpec) {
         case Right(TestSuccess.Succeeded(_)) => true

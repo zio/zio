@@ -32,7 +32,7 @@ When the environment is a type with fields, then the `ZIO.access` method can be 
 ```scala mdoc:silent:nest
 final case class Config(server: String, port: Int)
 
-val configString: ZIO[Config, Nothing, String] = 
+val configString: URIO[Config, String] = 
   for {
     server <- ZIO.access[Config](_.server)
     port   <- ZIO.access[Config](_.port)
@@ -65,7 +65,7 @@ Effects that require an environment cannot be run without first _providing_ thei
 The simplest way to provide an effect the environment that it requires is to use the `ZIO#provide` method:
 
 ```scala mdoc:silent
-val square: ZIO[Int, Nothing, Int] = 
+val square: URIO[Int, Int] = 
   for {
     env <- ZIO.environment[Int]
   } yield env * env
@@ -115,10 +115,10 @@ In order to make it easier to access the database service as an environmental ef
 
 ```scala mdoc:silent
 object db {
-  def lookup(id: UserID): ZIO[Database, Throwable, UserProfile] =
+  def lookup(id: UserID): RIO[Database, UserProfile] =
     ZIO.accessM(_.database.lookup(id))
 
-  def update(id: UserID, profile: UserProfile): ZIO[Database, Throwable, Unit] =
+  def update(id: UserID, profile: UserProfile): RIO[Database, Unit] =
     ZIO.accessM(_.database.update(id, profile))
 }
 ```
@@ -130,7 +130,7 @@ While these helpers are not required, because we can access the database module 
 Now that we have defined a module and helper functions, we are now ready to build an example that uses the database service:
 
 ```scala mdoc:silent
-val lookedupProfile: ZIO[Database, Throwable, UserProfile] = 
+val lookedupProfile: RIO[Database, UserProfile] = 
   for {
     profile <- db.lookup(userId)
   } yield profile
@@ -164,9 +164,9 @@ We now have a database module, helpers to interact with the database module, and
 We can now provide the live database module to our application, using `ZIO.provide`:
 
 ```scala mdoc:silent
-def main: ZIO[Database, Throwable, Unit] = ???
+def main: RIO[Database, Unit] = ???
 
-def main2: ZIO[Any, Throwable, Unit] = 
+def main2: Task[Unit] = 
   main.provide(DatabaseLive)
 ```
 
@@ -207,9 +207,9 @@ Because this module will only be used in tests, it simulates interaction with a 
 To test code that requires the database, we need only provide it with our test database module:
 
 ```scala mdoc:silent
-def code: ZIO[Database, Throwable, Unit] = ???
+def code: RIO[Database, Unit] = ???
 
-def code2: ZIO[Any, Throwable, Unit] = 
+def code2: Task[Unit] = 
   code.provide(TestDatabase)
 ```
 

@@ -1,8 +1,12 @@
 ![ZIO Logo](./ZIO.png)
 
-| CI | Release | Snapshot | Issues | Scaladex | Discord | Twitter |
-| --- | --- | --- | --- | --- | --- | --- |
-| [![Build Status][Badge-Circle]][Link-Circle] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] |
+| CI | Release | Snapshot | Issues | Scaladoc |
+| --- | --- | --- | --- | --- |
+| [![Build Status][Badge-Circle]][Link-Circle] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Badge-Scaladoc]][Link-Scaladoc] |
+
+| Scaladex | Discord | Twitter | Gitpod |
+| --- | --- | --- | --- |
+| [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] | [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/zio/zio) |
 
 # Welcome to ZIO
 
@@ -43,6 +47,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Evolution Gaming](https://www.evolutiongaming.com/)
 * [Hunters.AI](https://hunters.ai)
 * [Kensu](https://kensu.io)
+* [LiveIntent Inc.](https://liveintent.com)
 * [Megogo](https://megogo.net)
 * [Mylivn](https://www.mylivn.com/)
 * [Optrak](https://optrak.com)
@@ -52,8 +57,14 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Wehkamp](https://www.wehkamp.nl)
 * [LeadIQ](https://leadiq.com)
 * [Call Handling](https://www.callhandling.co.uk/)
+* [Univalence](https://univalence.io)
+* [CurrencyCloud](https://www.currencycloud.com/)
 
 # Sponsors
+
+[![Ziverge][Image-Ziverge]][Link-Ziverge]
+
+[Ziverge][Link-Ziverge] is a leading contributor to ZIO.
 
 [![Scalac][Image-Scalac]][Link-Scalac]
 
@@ -93,10 +104,12 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 
 [Link-Codecov]: https://codecov.io/gh/zio/zio?branch=master "Codecov"
 [Link-IsItMaintained]: http://isitmaintained.com/project/zio/zio "Average time to resolve an issue"
+[Link-Scaladoc]: https://javadoc.io/doc/dev.zio/zio_2.12/latest/zio/index.html
 [Link-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio "Scaladex"
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/dev/zio/zio_2.12/ "Sonatype Releases"
 [Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio_2.12/ "Sonatype Snapshots"
 [Link-Circle]: https://circleci.com/gh/zio/zio "circleci"
+[Link-Ziverge]: https://ziverge.com "Ziverge"
 [Link-Scalac]: https://scalac.io "Scalac"
 [Link-SoftwareMill]: https://softwaremill.com "SoftwareMill"
 [Link-SeptimalMind]: https://7mind.io "Septimal Mind"
@@ -105,6 +118,7 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
+[Badge-Scaladoc]: https://javadoc-badge.appspot.com/dev.zio/zio_2.12.svg?label=scaladoc "Scaladoc"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Releases"
 [Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Snapshots"
@@ -112,6 +126,7 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 [Badge-Discord]: https://img.shields.io/discord/629491597070827530?logo=discord "chat on discord"
 [Badge-Twitter]: https://img.shields.io/twitter/follow/zioscala.svg?style=plastic&label=follow&logo=twitter
 
+[Image-Ziverge]: ./website/static/img/ziverge.png "Ziverge"
 [Image-Scalac]: ./website/static/img/scalac.svg "Scalac"
 [Image-SoftwareMill]: ./website/static/img/softwaremill.svg "SoftwareMill"
 [Image-SeptimalMind]: ./website/static/img/septimal_mind.svg "Septimal Mind"

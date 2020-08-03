@@ -44,6 +44,14 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         assertM(Live.live(result.timeout(1.seconds)))(isNone)
       } @@ zioTag(supervision, regression),
+      testM("unsafeRunToFuture interruptibility") {
+        for {
+          runtime <- ZIO.runtime[Any]
+          f       = runtime.unsafeRunToFuture(UIO.never)
+          _       <- UIO(f.cancel())
+          r       <- ZIO.fromFuture(_ => f).run
+        } yield assert(r.succeeded)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
+      } @@ timeout(1.second) @@ jvmOnly @@ zioTag(interruption),
       testM("roundtrip preserves interruptibility") {
         for {
           start <- Promise.make[Nothing, Unit]
@@ -79,15 +87,14 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val t = new Exception("test")
 
         for {
-          p1 <- Promise.make[Nothing, Unit]
-          p2 <- Promise.make[Nothing, Unit]
-          f1 <- (ZIO.succeed(42) <* p1.succeed(())).toFuture
-          f2 <- ZIO.fail(t).onError(_ => p2.succeed(())).toFuture
-          _  <- p1.await *> p2.await
+          f1 <- ZIO.succeed(42).toFuture
+          f2 <- ZIO.fail(t).toFuture
+          _  <- Fiber.fromFuture(f1).await
+          _  <- Fiber.fromFuture(f2).await
           e1 <- ZIO.fromFuture(_ => f1.cancel())
           e2 <- ZIO.fromFuture(_ => f2.cancel())
         } yield assert(e1.succeeded)(isTrue) && assert(e2.succeeded)(isFalse)
-      },
+      } @@ nonFlaky,
       testM("is a scala.concurrent.Future") {
         for {
           f <- ZIO(42).toFuture

@@ -23,7 +23,7 @@ import scala.annotation.implicitAmbiguous
  * environment type `R` needs an environment, that is, that `R` is not equal to
  * `Any`.
  */
-sealed trait NeedsEnv[+R]
+sealed abstract class NeedsEnv[+R]
 
 object NeedsEnv extends NeedsEnv[Nothing] {
 

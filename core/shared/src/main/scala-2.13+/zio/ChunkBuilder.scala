@@ -36,9 +36,9 @@ import zio.Chunk.BitChunk
  * efficiently build chunks of unboxed primitives and for compatibility with
  * the Scala collection library.
  */
-private[zio] sealed trait ChunkBuilder[A] extends Builder[A, Chunk[A]]
+sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]]
 
-private[zio] object ChunkBuilder {
+object ChunkBuilder {
 
   /**
    * Constructs a generic `ChunkBuilder`.
@@ -47,15 +47,15 @@ private[zio] object ChunkBuilder {
     new ChunkBuilder[A] {
       var arrayBuilder: ArrayBuilder[A] = null
       var size: SInt                    = -1
-      def +=(a: A): this.type = {
+      def addOne(a: A): this.type = {
         if (arrayBuilder eq null) {
           implicit val tag = Chunk.Tags.fromValue(a)
-          arrayBuilder = ArrayBuilder.make()
+          arrayBuilder = ArrayBuilder.make
           if (size != -1) {
             arrayBuilder.sizeHint(size)
           }
         }
-        arrayBuilder += a
+        arrayBuilder.addOne(a)
         this
       }
       def clear(): Unit =
@@ -77,6 +77,15 @@ private[zio] object ChunkBuilder {
     }
 
   /**
+   * Constructs a generic `ChunkBuilder` with size hint.
+   */
+  def make[A](sizeHint: SInt): ChunkBuilder[A] = {
+    val builder = make[A]()
+    builder.sizeHint(sizeHint)
+    builder
+  }
+
+  /**
    * A `ChunkBuilder` specialized for building chunks of unboxed `Boolean`
    * values.
    */
@@ -88,7 +97,7 @@ private[zio] object ChunkBuilder {
     private var lastByte: SByte   = 0.toByte
     private var maxBitIndex: SInt = 0
 
-    def +=(b: SBoolean): this.type = {
+    def addOne(b: SBoolean): this.type = {
       if (b) {
         if (maxBitIndex == 8) {
           arrayBuilder += lastByte
@@ -119,8 +128,8 @@ private[zio] object ChunkBuilder {
       val bytes: Chunk[SByte] = Chunk.fromArray(arrayBuilder.result() :+ lastByte)
       BitChunk(bytes, 0, 8 * (bytes.length - 1) + maxBitIndex)
     }
-    override def ++=(as: TraversableOnce[SBoolean]): this.type = {
-      as.foreach(+= _)
+    override def addAll(as: IterableOnce[SBoolean]): this.type = {
+      as.iterator.foreach(addOne _)
       this
     }
     override def sizeHint(n: SInt): Unit = {
@@ -146,7 +155,7 @@ private[zio] object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SByte] = {
       new ArrayBuilder.ofByte
     }
-    def +=(a: SByte): this.type = {
+    def addOne(a: SByte): this.type = {
       arrayBuilder += a
       this
     }
@@ -154,7 +163,7 @@ private[zio] object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SByte] =
       Chunk.fromArray(arrayBuilder.result())
-    override def ++=(as: TraversableOnce[SByte]): this.type = {
+    override def addAll(as: IterableOnce[SByte]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -176,7 +185,7 @@ private[zio] object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SChar] = {
       new ArrayBuilder.ofChar
     }
-    def +=(a: SChar): this.type = {
+    def addOne(a: SChar): this.type = {
       arrayBuilder += a
       this
     }
@@ -184,7 +193,7 @@ private[zio] object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SChar] =
       Chunk.fromArray(arrayBuilder.result())
-    override def ++=(as: TraversableOnce[SChar]): this.type = {
+    override def addAll(as: IterableOnce[SChar]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -207,7 +216,7 @@ private[zio] object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SDouble] = {
       new ArrayBuilder.ofDouble
     }
-    def +=(a: SDouble): this.type = {
+    def addOne(a: SDouble): this.type = {
       arrayBuilder += a
       this
     }
@@ -215,7 +224,7 @@ private[zio] object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SDouble] =
       Chunk.fromArray(arrayBuilder.result())
-    override def ++=(as: TraversableOnce[SDouble]): this.type = {
+    override def addAll(as: IterableOnce[SDouble]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -238,7 +247,7 @@ private[zio] object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SFloat] = {
       new ArrayBuilder.ofFloat
     }
-    def +=(a: SFloat): this.type = {
+    def addOne(a: SFloat): this.type = {
       arrayBuilder += a
       this
     }
@@ -246,7 +255,7 @@ private[zio] object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SFloat] =
       Chunk.fromArray(arrayBuilder.result())
-    override def ++=(as: TraversableOnce[SFloat]): this.type = {
+    override def addAll(as: IterableOnce[SFloat]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -268,7 +277,7 @@ private[zio] object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SInt] = {
       new ArrayBuilder.ofInt
     }
-    def +=(a: SInt): this.type = {
+    def addOne(a: SInt): this.type = {
       arrayBuilder += a
       this
     }
@@ -276,7 +285,7 @@ private[zio] object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SInt] =
       Chunk.fromArray(arrayBuilder.result())
-    override def ++=(as: TraversableOnce[SInt]): this.type = {
+    override def addAll(as: IterableOnce[SInt]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -298,7 +307,7 @@ private[zio] object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SLong] = {
       new ArrayBuilder.ofLong
     }
-    def +=(a: SLong): this.type = {
+    def addOne(a: SLong): this.type = {
       arrayBuilder += a
       this
     }
@@ -306,7 +315,7 @@ private[zio] object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SLong] =
       Chunk.fromArray(arrayBuilder.result())
-    override def ++=(as: TraversableOnce[SLong]): this.type = {
+    override def addAll(as: IterableOnce[SLong]): this.type = {
       arrayBuilder ++= as
       this
     }
@@ -329,7 +338,7 @@ private[zio] object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SShort] = {
       new ArrayBuilder.ofShort
     }
-    def +=(a: SShort): this.type = {
+    def addOne(a: SShort): this.type = {
       arrayBuilder += a
       this
     }
@@ -337,7 +346,7 @@ private[zio] object ChunkBuilder {
       arrayBuilder.clear()
     def result(): Chunk[SShort] =
       Chunk.fromArray(arrayBuilder.result())
-    override def ++=(as: TraversableOnce[SShort]): this.type = {
+    override def addAll(as: IterableOnce[SShort]): this.type = {
       arrayBuilder ++= as
       this
     }

@@ -30,7 +30,7 @@ import scala.implicits.Not
     "method you can use instead of this operation, please see the " +
     "reference chart at: https://zio.dev/docs/can_fail"
 )
-sealed trait CanFail[-E]
+sealed abstract class CanFail[-E]
 
 object CanFail extends CanFail[Any] {
   implicit def canFail[E](implicit ev: Not[E =:= Nothing]): CanFail[E] = CanFail

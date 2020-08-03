@@ -19,14 +19,14 @@ package zio.test
 import scala.reflect.ClassTag
 import scala.util.Try
 
-import zio.ZIO
+import zio.{ UIO, ZIO }
 
 /**
  * An `AssertionM[A]` is capable of producing assertion results on an `A`. As a
  * proposition, assertions compose using logical conjunction and disjunction,
  * and can be negated.
  */
-trait AssertionM[-A] { self =>
+abstract class AssertionM[-A] { self =>
   import zio.test.AssertionM.Render._
 
   def render: AssertionM.Render
@@ -88,7 +88,7 @@ object AssertionM {
    * `Render` captures both the name of an assertion as well as the parameters
    * to the assertion combinator for pretty-printing.
    */
-  sealed trait Render {
+  sealed abstract class Render {
     override final def toString: String = this match {
       case Render.Function(name, paramLists) =>
         name + paramLists.map(_.mkString("(", ", ", ")")).mkString
@@ -157,7 +157,7 @@ object AssertionM {
       termName + ".unapply"
   }
 
-  sealed trait RenderParam {
+  sealed abstract class RenderParam {
     override final def toString: String = this match {
       case RenderParam.AssertionM(assertion) => assertion.toString
       case RenderParam.Value(value)          => value.toString
@@ -173,7 +173,7 @@ object AssertionM {
    */
   def assertionM[R, E, A](
     name: String
-  )(params: RenderParam*)(run: (=> A) => ZIO[Any, Nothing, Boolean]): AssertionM[A] = {
+  )(params: RenderParam*)(run: (=> A) => UIO[Boolean]): AssertionM[A] = {
     lazy val assertion: AssertionM[A] = assertionDirect(name)(params: _*) { actual =>
       lazy val tryActual = Try(actual)
       BoolAlgebraM.fromEffect(run(tryActual.get)).flatMap { p =>

@@ -213,6 +213,36 @@ object MockableSpec extends DefaultRunnableSpec {
 
           Check
         })(anything)
+      },
+      test("generates mocks for service with default pure method implementations") {
+        assert({
+          @mockable[DefaultImplPureDefsModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[DefaultImplPureDefsModule] = ModuleMock
+
+            val Foo: ModuleMock.Effect[Int, String, String]    = ModuleMock.Foo
+            val Bar: ModuleMock.Effect[String, String, String] = ModuleMock.Bar
+          }
+
+          Check
+        })(anything)
+      },
+      test("generates mocks for service with default impure method implementations") {
+        assert({
+          @mockable[DefaultImplImpureDefsModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[DefaultImplImpureDefsModule] = ModuleMock
+
+            val Foo: ModuleMock.Method[Int, Throwable, String]    = ModuleMock.Foo
+            val Bar: ModuleMock.Method[String, Throwable, String] = ModuleMock.Bar
+          }
+
+          Check
+        })(anything)
       }
     )
   )

@@ -1,6 +1,6 @@
 package zio.test.mock
 
-import zio.{ Has, IO, Tag, ZIO }
+import zio.{ Has, IO, Tag, UIO }
 
 /**
  * https://github.com/scalamacros/paradise/issues/75
@@ -16,7 +16,7 @@ object modules {
   type SinglePureValModule = Has[SinglePureValModule.Service]
   object SinglePureValModule {
     trait Service {
-      val foo: ZIO[Any, Nothing, Unit]
+      val foo: UIO[Unit]
     }
   }
 
@@ -102,6 +102,22 @@ object modules {
     trait Service {
       def simpleVarargs(a: Int, b: String*): String
       def curriedVarargs(a: Int, b: String*)(c: Long, d: Double*): String
+    }
+  }
+
+  type DefaultImplPureDefsModule = Has[DefaultImplPureDefsModule.Service]
+  object DefaultImplPureDefsModule {
+    trait Service {
+      def foo(i: Int): IO[String, String] = bar(i.toString)
+      def bar(s: String): IO[String, String]
+    }
+  }
+
+  type DefaultImplImpureDefsModule = Has[DefaultImplImpureDefsModule.Service]
+  object DefaultImplImpureDefsModule {
+    trait Service {
+      def foo(i: Int): String = bar(i.toString)
+      def bar(s: String): String
     }
   }
 }

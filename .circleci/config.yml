@@ -10,7 +10,7 @@ scala_213: &scala_213
   SCALA_VERSION: 2.13.1
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.23.0-RC1
+  SCALA_VERSION: 0.26.0-RC1
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -118,6 +118,17 @@ mdoc: &mdoc
         command: |
           ./sbt -Dfatal.warnings=true coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
           ./sbt ++${SCALA_VERSION}! mdoc
+    - <<: *clean_cache
+    - <<: *save_cache
+
+mimaChecks: &mimaChecks
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - run:
+        name: Run MiMa checks
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! mimaChecks
     - <<: *clean_cache
     - <<: *save_cache
 
@@ -305,6 +316,22 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
+  mima_212:
+    <<: *mimaChecks
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_212
+      - <<: *jdk_8
+
+  mima_213:
+    <<: *mimaChecks
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_213
+      - <<: *jdk_8
+
   test_dotty_jdk8_jvm:
     <<: *testJVMDotty
     <<: *machine_ubuntu
@@ -324,6 +351,7 @@ jobs:
   test_211_jdk8_js:
     <<: *testJS211
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_211
       - <<: *jdk_8
@@ -331,6 +359,7 @@ jobs:
   test_212_jdk8_js:
     <<: *testJS
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_212
       - <<: *jdk_8
@@ -338,6 +367,7 @@ jobs:
   test_213_jdk8_js:
     <<: *testJS
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_213
       - <<: *jdk_8
@@ -371,6 +401,16 @@ workflows:
           filters:
             <<: *filter_tags
       - mdoc:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
+      - mima_212:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
+      - mima_213:
           requires:
             - lint
           filters:
@@ -431,6 +471,8 @@ workflows:
             - test_213_jdk8_jvm
             - test_213_jdk8_js
             - mdoc
+            - mima_212
+            - mima_213
           filters:
             <<: *filter_tags
             branches:

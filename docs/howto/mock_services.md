@@ -11,7 +11,7 @@ However in larger applications there is a need for intermediate layers that dele
 For example, in a HTTP server the first layer of indirection are so called _routes_, whose job is to match the request and delegate the processing to
 downstream layers. Often below there is a second layer of indirection, so called _controllers_, which consist of several business logic units grouped
 by their domain. In a RESTful API that would be all operations on a certain model. The _controller_ to perform its job might call on further
-specialized services for communicating with the database, sending emails, logging, et cetera.
+specialized services for communicating with the database, sending email, logging, et cetera.
 
 If the job of the _capability_ is to call on another _capability_, how should we test it?
 
@@ -48,7 +48,7 @@ trait Event
 import zio._
 import zio.console.Console
 
-def processEvent(event: Event): ZIO[Console, Nothing, Unit] =
+def processEvent(event: Event): URIO[Console, Unit] =
   console.putStrLn(s"Got $event")
 ```
 
@@ -61,7 +61,7 @@ With ZIO, we've regained to ability to reason about the effects called. We know 
 However, the same method could be implemented as:
 
 ```scala mdoc:silent
-def processEvent2(event: Event): ZIO[Console, Nothing, Unit] =
+def processEvent2(event: Event): URIO[Console, Unit] =
   ZIO.unit
 ```
 
@@ -100,7 +100,7 @@ object Example {
     def overloaded(arg1: Int)                  : UIO[String]
     def overloaded(arg1: Long)                 : UIO[String]
     def function(arg1: Int)                    : String
-    def sink(a: Int)                           : ZSink[Any, String, Int, List[Int]]
+    def sink(a: Int)                           : ZSink[Any, String, Int, Int, List[Int]]
     def stream(a: Int)                         : ZStream[Any, String, Int]
   }
 }
@@ -122,7 +122,7 @@ object ExampleMock extends Mock[Example] {
     object _1 extends Effect[Long, Nothing, String]
   }
   object Function extends Method[Int, Throwable, String]
-  object Sink     extends Sink[Any, String, Int, List[Int]]
+  object Sink     extends Sink[Any, String, Int, Int, List[Int]]
   object Stream   extends Stream[Any, String, Int]
 
   val compose: URLayer[Has[Proxy], Example] = ???
@@ -169,7 +169,7 @@ val compose: URLayer[Has[Proxy], Example] =
         def overloaded(arg1: Int)                  = proxy(Overloaded._0, arg1)
         def overloaded(arg1: Long)                 = proxy(Overloaded._1, arg1)
         def function(arg1: Int)                    = rts.unsafeRunTask(proxy(Function, arg1))
-        def sink(a: Int)                           = rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail(error))))
+        def sink(a: Int)                           = rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail[String, Int](error))))
         def stream(a: Int)                         = rts.unsafeRun(proxy(Stream, a))
       }
     }
@@ -200,8 +200,8 @@ type AccountObserver = Has[AccountObserver.Service]
 
 object AccountObserver {
   trait Service {
-    def processEvent(event: AccountEvent): ZIO[Any, Nothing, Unit]
-    def runCommand(): ZIO[Any, Nothing, Unit]
+    def processEvent(event: AccountEvent): UIO[Unit]
+    def runCommand(): UIO[Unit]
   }
 
   def processEvent(event: AccountEvent) =
@@ -397,10 +397,10 @@ type PolyExample = Has[PolyExample.Service]
 
 object PolyExample {
   trait Service {
-    def polyInput[I: Tag](input: I): ZIO[Any, Throwable, String]
-    def polyError[E: Tag](input: Int): ZIO[Any, E, String]
-    def polyOutput[A: Tag](input: Int): ZIO[Any, Throwable, A]
-    def polyAll[I: Tag, E: Tag, A: Tag](input: I): ZIO[Any, E, A]
+    def polyInput[I: Tag](input: I): Task[String]
+    def polyError[E: Tag](input: Int): IO[E, String]
+    def polyOutput[A: Tag](input: Int): Task[A]
+    def polyAll[I: Tag, E: Tag, A: Tag](input: I): IO[E, A]
   }
 }
 ```
@@ -432,7 +432,7 @@ object PolyExampleMock extends Mock[PolyExample] {
 }
 ```
 
-Simiralily, we use the same `of` combinator to refer to concrete monomorphic call in our test suite when building expectations:
+Similarly, we use the same `of` combinator to refer to concrete monomorphic call in our test suite when building expectations:
 
 ```scala mdoc:silent
 import PolyExampleMock._

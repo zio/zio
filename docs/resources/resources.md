@@ -3,13 +3,19 @@ id: resources
 title:  "Resources"
 ---
 
+### If you find a new great library, talk, resource, slides or project, related to ZIO, consider adding to the list with your PR
+
 ## Blog Articles
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Streaming all the way with ZIO, Doobie, Quill, http4s and fs2](https://juliano-alves.com/2020/06/15/streaming-all-the-way-zio-doobie-quill-http4s-fs2/) by Juliano Alves (June 2020)
+- [Building a cool CLI with Decline for my ZIO App](https://medium.com/@pascal.mengelt/building-a-cool-cli-with-decline-for-my-zio-app-80e095b2899a) by Pascal Mengelt (May 2020)
+- [Building the Death Star with ZIO Stream](https://juliano-alves.com/2020/05/04/deathstar-zio-stream/) by Juliano Alves (May 2020)
 - [uzhttp + sttp for light-weight http and websockets](https://timpigden.github.io/_pages/zio-uzhttp-sttp/uzhttp-sttp.html) by Tim Pigden (April 2020)
 - [Effective testing with ZIO Test (RC18)](https://scala.monster/zio-test/) by Pavels Sisojevs (April 2020)
 - [ZIO with http4s, Auth, Codecs and zio-tests (RC18)](https://timpigden.github.io/_pages/zio-http4s/intro.html) by Tim Pigden (April 2020)
+- [ZIO + Http4s: a simple API client](https://juliano-alves.com/2020/04/20/zio-http4s-a-simple-api-client/) by Juliano Alves (April 2020)
 - [How to write a concurrent LRU cache with ZIO STM](https://scalac.io/how-to-write-a-completely-lock-free-concurrent-lru-cache-with-zio-stm/) by Jorge Vasquez (March 2020)
 - [Testing background process with ZIO](https://www.rudder.io/blog/testing-background-process-zio/) by François Armand (March 2020)
 - [Example of ZLayers being used in combination](https://timpigden.github.io/_pages/zlayer/Examples.html) by Tim Pigden (March 2020)
@@ -28,7 +34,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [Wrapping impure code with ZIO](https://medium.com/@ghostdogpr/wrapping-impure-code-with-zio-9265c219e2e) by Pierre Ricadat (July 2019)
 - [Combining ZIO and Akka to enable distributed FP in Scala](https://medium.com/@ghostdogpr/combining-zio-and-akka-to-enable-distributed-fp-in-scala-61ffb81e3283) by Pierre Ricadat (July 2019)
 - [tAPIr’s Endpoint meets ZIO’s IO](https://blog.softwaremill.com/tapirs-endpoint-meets-zio-s-io-3278099c5e10) by Adam Warski (July 2019)
-- [ZIO with http4s and doobie](https://medium.com/@wiemzin/zio-with-http4s-and-doobie-952fba51d089) by Wiem Zine Elabadine (June 2019)
+- [ZIO with http4s and doobie](https://medium.com/@wiemzin/zio-with-http4s-and-doobie-952fba51d089) by Wiem Zine El Abidine (June 2019)
 - [Thread shifting in cats-effect and ZIO](https://blog.softwaremill.com/thread-shifting-in-cats-effect-and-zio-9c184708067b) by Adam Warski (June 2019)
 - [Exploring the STM functionality in ZIO](https://freskog.github.io/blog/2019/05/30/explore-zio-stm/) by Fredrik Skogberg (May 2019)
 - [Performant Functional Programming to the Max with ZIO](https://cloudmark.github.io/A-Journey-To-Zio/) by Mark Galea (May 2019)
@@ -39,27 +45,39 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [Beautiful, Simple, Testable Functional Effects for Scala](http://degoes.net/articles/zio-environment) (introducing ZIO Environment) by John De Goes (February 2019)
 - [Thread Pool Best Practices with ZIO](http://degoes.net/articles/zio-threads) by John De Goes (January 2019)
 - [Building the Hangman Game using ScalaZ ZIO](https://abhsrivastava.github.io/2018/11/03/Hangman-Game-Using-ZIO/) by Abhishek Srivastava (November 2018)
-- [Elevator Control System using ZIO](https://medium.com/@wiemzin/elevator-control-system-using-zio-c718ae423c58) by Wiem Zine Elabadine (September 2018)
+- [Elevator Control System using ZIO](https://medium.com/@wiemzin/elevator-control-system-using-zio-c718ae423c58) by Wiem Zine El Abidine (September 2018)
 - [Scalaz 8 IO vs Akka (typed) Actors vs Monix (part 1)](https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1) + [part 2](https://blog.softwaremill.com/akka-vs-zio-vs-monix-part-2-communication-9ce7261aa08c) + [part 3](https://blog.softwaremill.com/supervision-error-handling-in-zio-akka-and-monix-part-3-series-summary-abe75f964c2a) by Adam Warski (June 2018)
 - [Bifunctor IO: A Step Away from Dynamically-Typed Error Handling](http://degoes.net/articles/bifunctor-io) by John De Goes (May 2018)
 
 ## Talks
 
+- [FP to the Max](https://www.youtube.com/watch?v=sxudIMiOo68) by John De Goes (July 2018)
 - [Modern Data Driven Applications with ZIO Streams](https://youtu.be/bbss7elSfxs) by Itamar Ravid (December 2019)
 - Systematic error management in application - We ported Rudder to ZIO: [video in French](https://www.youtube.com/watch?v=q0PlcgR5M1Q), [slides in English](https://speakerdeck.com/fanf42/systematic-error-management-we-ported-rudder-to-zio) by François Armand (Scala.io, October 2019)
 - [Upgrade Your Future](https://www.youtube.com/watch?v=USgfku1h7Hw) by John De Goes (September 2019)
 - [One Monad to Rule Them All](https://www.youtube.com/watch?v=POUEz8XHMhE) by John De Goes (August 2019)
 - [Functional Concurrency in Scala with ZIO](https://www.youtube.com/watch?v=m5nas4Hndqo) by Itamar Ravid (June 2019)
 - [Error Management: Future vs ZIO](https://www.youtube.com/watch?v=mGxcaQs3JWI) by John De Goes and Kai (May 2019)
-- [Atomically { Delete Your Actors }](https://www.youtube.com/watch?v=d6WWmia0BPM) by John De Goes and Wiem Zine Elabadine (April 2019)
+- [Atomically { Delete Your Actors }](https://www.youtube.com/watch?v=d6WWmia0BPM) by John De Goes and Wiem Zine El Abidine (April 2019)
 - [Thinking Functionally](https://www.youtube.com/watch?v=-KA3BSdqYug) by John De Goes (March 2019)
 - [Tour of ZIO](https://www.youtube.com/watch?v=5s0GOA3WQnY&t=1405s) by Oleksandra Holubitska (March 2019)
 - [The Death of Tagless Final](https://skillsmatter.com/skillscasts/13247-scala-matters) by John De Goes (February 2019)
-- [ZIO Queue](https://www.youtube.com/watch?v=lBYkLc-j7Vo) by Wiem Zine Elabadine (January 2019)
+- [ZIO Queue](https://www.youtube.com/watch?v=lBYkLc-j7Vo) by Wiem Zine El Abidine (January 2019)
 - [ZIO Stream: Rebirth](https://www.youtube.com/watch?v=mLJYODobz44&t=15s) by John De Goes and Itamar Ravid (November 2018)
 - [ZIO Schedule: Conquering Flakiness and Recurrence with Pure Functional Programming](https://www.youtube.com/watch?v=onQSHiafAY8&t=1s) by John De Goes (October 2018)
 - [ZIO: Next-Generation Effects in Scala](https://www.youtube.com/watch?v=mkSHhsJXjdc&t=6s) by John De Goes (October 2018)
 - [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
+
+## Conferences 
+###  Scala in the City Conference by Signify Technologies, May 2020
+- [0 to 100 with ZIO Test](https://www.youtube.com/watch?v=qDFfVinjDPQ) by Adam Fraser
+- [The Joys of (Z)Streams](https://www.youtube.com/watch?v=XIIX2YSg7M0) by Itamar Ravid 
+- [FP to the Min](https://www.youtube.com/watch?v=mrHphQT4RpU) by John De Goes 
+- [Functional Effects in ZIO](https://www.youtube.com/watch?v=4EeL8-chAR8) by  Wiem Zine El Abidine
+
+## Cookbooks 
+- [ZIO Cookbook](https://github.com/Neurodyne/zio-cookbook) A beginners' tour to ZIO by Boris V.Kuznetsov
+- [Mastering modularity in ZIO with ZLayers](https://lp.scalac.io/zio-modularity-ebook/) by Jorge Vasquez
 
 ## Cheat Sheet
 
@@ -68,6 +86,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
+- [ZIO Production Ready Microservice](https://github.com/saraiva132/zio-cats-backend) by [Rafael Figueiredo](https://github.com/saraiva132)
 - [ZIO Modern Backend giter8 Template - Tapir, sttp, http4s](https://github.com/Anadyne/zio-full-backend.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [ZIO CRUD sample - Code for the 'Spring to ZIO 101' blog post 03/2020](https://github.com/adrianfilip/zio-crud-sample) by [Adrian Filip](https://github.com/adrianfilip)
 - [ZIO modules with different implementations - Code for the 'Decouple the Program from its Implementation...' blog post 12/2019](https://github.com/pme123/zio-comps-module) by [pme123](https://github.com/pme123)
@@ -97,5 +116,5 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Support
 
-- [Offical Discord Server](https://discord.gg/2ccFBr4)
+- [Official Discord Server](https://discord.gg/2ccFBr4)
 - [Official Gitter Channel](https://gitter.im/ZIO/Core)

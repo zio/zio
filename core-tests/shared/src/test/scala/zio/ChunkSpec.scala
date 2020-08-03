@@ -57,7 +57,7 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(chunk.size)(equalTo(chunk.length))
       }
     ),
-    suite("add")(
+    suite("append")(
       testM("apply") {
         val chunksWithIndex: Gen[Random with Sized, (Chunk[Int], Chunk[Int], Int)] =
           for {
@@ -102,6 +102,61 @@ object ChunkSpec extends ZIOBaseSpec {
           val expected = (as ++ bs).length
           assert(actual)(equalTo(expected))
         }
+      },
+      zio.test.test("returns most specific type") {
+        val seq = (zio.Chunk("foo"): Seq[String]) :+ "post1"
+        assert(seq)(isSubtype[Chunk[String]](equalTo(Chunk("foo", "post1"))))
+      }
+    ),
+    suite("prepend")(
+      testM("apply") {
+        val chunksWithIndex: Gen[Random with Sized, (Chunk[Int], Chunk[Int], Int)] =
+          for {
+            p  <- Gen.boolean
+            as <- Gen.chunkOf(Gen.anyInt)
+            bs <- Gen.chunkOf1(Gen.anyInt)
+            n  <- Gen.int(0, as.length + bs.length - 1)
+          } yield if (p) (as, bs, n) else (bs, as, n)
+        check(chunksWithIndex) {
+          case (as, bs, n) =>
+            val actual   = as.foldRight(bs)(_ +: _).apply(n)
+            val expected = (as ++ bs).apply(n)
+            assert(actual)(equalTo(expected))
+        }
+      },
+      testM("buffer full") {
+        check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+          def addAll[A](l: Chunk[A], r: Chunk[A]): Chunk[A] = l.foldRight(r)(_ +: _)
+          val actual                                        = List.fill(100)(as).foldRight(bs)(addAll)
+          val expected                                      = List.fill(100)(as).foldRight(bs)(_ ++ _)
+          assert(actual)(equalTo(expected))
+        }
+      },
+      testM("buffer used") {
+        checkM(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+          val effect   = ZIO.succeed(as.foldRight(bs)(_ +: _))
+          val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
+          val expected = (as ++ bs)
+          assertM(actual)(forall(equalTo(expected)))
+        }
+      },
+      testM("equals") {
+        check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+          val actual   = as.foldRight(bs)(_ +: _)
+          val expected = (as ++ bs)
+          assert(actual)(equalTo(expected))
+        }
+      },
+      testM("length") {
+        check(Gen.chunkOf(Gen.anyInt), smallChunks(Gen.anyInt)) { (as, bs) =>
+          val actual   = as.foldRight(bs)(_ +: _).length
+          val expected = (as ++ bs).length
+          assert(actual)(equalTo(expected))
+        }
+      },
+      zio.test.test("returns most specific type") {
+        val seq = "pre1" +: (zio.Chunk("foo"): Seq[String])
+        assert(seq)(isSubtype[Chunk[String]](equalTo(Chunk("pre1", "foo"))))
       }
     ),
     testM("apply") {
@@ -188,7 +243,16 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("mapAccumM")(
       testM("mapAccumM happy path") {
-        assertM(Chunk(1, 1, 1).mapAccumM(0)((s, el) => UIO.succeed((s + el, s + el))))(equalTo((3, Chunk(1, 2, 3))))
+        checkM(smallChunks(Gen.anyInt), smallChunks(Gen.anyInt), Gen.anyInt, Gen.function2(Gen.anyInt <*> Gen.anyInt)) {
+          (left, right, s, f) =>
+            val actual = (left ++ right).mapAccumM[Any, Nothing, Int, Int](s)((s, a) => UIO.succeed(f(s, a)))
+            val expected = (left ++ right).foldLeft[(Int, Chunk[Int])]((s, Chunk.empty)) {
+              case ((s0, bs), a) =>
+                val (s1, b) = f(s0, a)
+                (s1, bs :+ b)
+            }
+            assertM(actual)(equalTo(expected))
+        }
       },
       testM("mapAccumM error") {
         Chunk(1, 1, 1).mapAccumM(0)((_, _) => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
@@ -220,8 +284,10 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     testM("indexWhere") {
       val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
-      check(mediumChunks(intGen), fn, intGen) { (chunk, p, from) =>
-        assert(chunk.indexWhere(p, from))(equalTo(chunk.toList.indexWhere(p, from)))
+      check(smallChunks(intGen), smallChunks(intGen), fn, intGen) { (left, right, p, from) =>
+        val actual   = (left ++ right).indexWhere(p, from)
+        val expected = (left.toVector ++ right.toVector).indexWhere(p, from)
+        assert(actual)(equalTo(expected))
       }
     } @@ exceptScala211,
     testM("exists") {
@@ -275,6 +341,14 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.takeWhile(p).toList)(equalTo(c.toList.takeWhile(p)))
       }
     },
+    suite("takeWhileM")(
+      testM("takeWhileM happy path") {
+        assertM(Chunk(1, 2, 3, 4, 5).takeWhileM(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(1)))
+      },
+      testM("takeWhileM error") {
+        Chunk(1, 1, 1).dropWhileM(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
+      } @@ zioTag(errors)
+    ),
     testM("toArray") {
       check(mediumChunks(Gen.alphaNumericString))(c => assert(c.toArray.toList)(equalTo(c.toList)))
     },
@@ -423,6 +497,23 @@ object ChunkSpec extends ZIOBaseSpec {
     zio.test.test("filterConstFalseResultsInEmptyChunk") {
       assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false))(equalTo(Chunk.empty))
     },
+    testM("zip") {
+      check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+        val actual   = as.zip(bs).toList
+        val expected = as.toList.zip(bs.toList)
+        assert(actual)(equalTo(expected))
+      }
+    },
+    zio.test.test("zipAll") {
+      val a = Chunk(1, 2, 3)
+      val b = Chunk(1, 2)
+      val c = Chunk((Some(1), Some(1)), (Some(2), Some(2)), (Some(3), Some(3)))
+      val d = Chunk((Some(1), Some(1)), (Some(2), Some(2)), (Some(3), None))
+      val e = Chunk((Some(1), Some(1)), (Some(2), Some(2)), (None, Some(3)))
+      assert(a.zipAll(a))(equalTo(c)) &&
+      assert(a.zipAll(b))(equalTo(d)) &&
+      assert(b.zipAll(a))(equalTo(e))
+    },
     zio.test.test("zipAllWith") {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 4))) &&
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
@@ -433,6 +524,31 @@ object ChunkSpec extends ZIOBaseSpec {
       val (bs, cs) = as.partitionMap(n => if (n % 2 == 0) Left(n) else Right(n))
       assert(bs)(equalTo(Chunk(0, 2, 4, 6, 8))) &&
       assert(cs)(equalTo(Chunk(1, 3, 5, 7, 9)))
+    },
+    zio.test.test("stack safety") {
+      val n  = 100000
+      val as = List.range(0, n).foldRight[Chunk[Int]](Chunk.empty)((a, as) => Chunk(a) ++ as)
+      assert(as.toArray)(equalTo(Array.range(0, n)))
+    },
+    zio.test.test("toArray does not throw ClassCastException") {
+      val chunk = Chunk("a")
+      val array = chunk.toArray
+      assert(array)(anything)
+    },
+    testM("foldWhileM") {
+      assertM(
+        Chunk
+          .fromIterable(List(2))
+          .foldWhileM(0)(i => i <= 2) {
+            case (i: Int, i1: Int) =>
+              if (i < 2) IO.succeed(i + i1)
+              else IO.succeed(i)
+          }
+      )(equalTo(2))
+    },
+    zio.test.test("Tags.fromValue is safe on Scala.is") {
+      val _ = Chunk(1, 128)
+      assertCompletes
     }
   )
 }

@@ -15,7 +15,7 @@ To access the DB we need a `DBConnection`, and each step in our program represen
 The result is a program that, in turn, depends on the `DBConnection`.
 
 ```scala mdoc:invisible
-import zio.{ Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }
+import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
@@ -33,10 +33,10 @@ case class User(id: UserId, name: String)
 
 ```scala mdoc:silent
 def getUser(userId: UserId): ZIO[DBConnection, Nothing, Option[User]] = UIO(???)
-def createUser(user: User): ZIO[DBConnection, Nothing, Unit] = UIO(???)
+def createUser(user: User): URIO[DBConnection, Unit] = UIO(???)
 
 val user: User = User(UserId(1234), "Chet")
-val created: ZIO[DBConnection, Nothing, Boolean] = for {
+val created: URIO[DBConnection, Boolean] = for {
   maybeUser <- getUser(user.id)
   res       <- maybeUser.fold(createUser(user).as(true))(_ => ZIO.succeed(false))
 } yield res
@@ -46,7 +46,7 @@ To run the program we must supply a `DBConnection` through `provide`, before fee
 
 ```scala
 val dbConnection: DBConnection = ???
-val runnable: ZIO[Any, Nothing, Boolean] = created.provide(dbConnection)
+val runnable: UIO[Boolean] = created.provide(dbConnection)
 
 val finallyCreated  = runtime.unsafeRun(runnable)
 ```
@@ -56,7 +56,7 @@ Notice that the act of `provide`ing an effect with its environment eliminates th
 In general we need more than just a DB connection though. We need components that enable us to perform different operations, and we need to be able to wire them together. This is what _modules_ are for.
 
 ## Our first ZIO module
-We will see now how to define modules and use them to create different application layers relying on each other. The core idea is that a layer depends on the layers imediately below but it is completely agnostic about their internal implementation.
+We will see now how to define modules and use them to create different application layers relying on each other. The core idea is that a layer depends on the layers immediately below but it is completely agnostic about their internal implementation.
 
 This formulation of module pattern is _the way_ ZIO manages dependencies between application components, giving extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during the testing/mocking phase.
 
@@ -64,7 +64,7 @@ This formulation of module pattern is _the way_ ZIO manages dependencies between
 A module is a group of functions that deals with only one concern. Keeping the scope of a module limited improves our ability to understand code, in that we need to focus
  only on one topic at a time without juggling with too many concepts together in our head.
 
-`ZIO` iself provides the basic capabilities through modules, e.g. see how `ZEnv` is defined.
+`ZIO` itself provides the basic capabilities through modules, e.g. see how `ZEnv` is defined.
 
 ### The module recipe
 Let's build a module for user data access, following these simple steps:
@@ -90,7 +90,7 @@ object UserRepo {
 ```
 
 ```scala mdoc:reset:invisible
-import zio.{ Has, IO, Layer, UIO, ZEnv, ZIO, ZLayer }
+import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
@@ -211,10 +211,10 @@ object Logging {
   )
 
   //accessor methods
-  def info(s: String): ZIO[Logging, Nothing, Unit] =
+  def info(s: String): URIO[Logging, Unit] =
     ZIO.accessM(_.get.info(s))
 
-  def error(s: String): ZIO[Logging, Nothing, Unit] =
+  def error(s: String): URIO[Logging, Unit] =
     ZIO.accessM(_.get.error(s))
 }
 ```
@@ -224,9 +224,9 @@ The accessor methods are provided so that we can build programs without botherin
 ```scala mdoc:silent
 val user2: User = User(UserId(123), "Tommy")
 val makeUser: ZIO[Logging with UserRepo, DBError, Unit] = for {
-  _ <- Logging.info(s"inserting user")  // ZIO[Logging, Nothing, Unit]
+  _ <- Logging.info(s"inserting user")  // URIO[Logging, Unit]
   _ <- UserRepo.createUser(user2)       // ZIO[UserRepo, DBError, Unit]
-  _ <- Logging.info(s"user inserted")   // ZIO[Logging, Nothing, Unit]
+  _ <- Logging.info(s"user inserted")   // URIO[Logging, Unit]
 } yield ()
 ```
 

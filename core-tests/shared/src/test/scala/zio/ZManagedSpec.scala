@@ -6,7 +6,7 @@ import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test._
 import zio.test.environment._
 
@@ -39,15 +39,6 @@ object ZManagedSpec extends ZIOBaseSpec {
           values  <- program.use_(ZIO.unit) *> effects.get
         } yield assert(values)(equalTo(List(1, 2, 3, 3, 2, 1)))
       },
-      testM("Properly performs parallel acquire and release") {
-        for {
-          log      <- Ref.make[List[String]](Nil)
-          a        = ZManaged.make(UIO.succeed("A"))(_ => log.update("A" :: _))
-          b        = ZManaged.make(UIO.succeed("B"))(_ => log.update("B" :: _))
-          result   <- a.zipWithPar(b)(_ + _).use(ZIO.succeed(_))
-          cleanups <- log.get
-        } yield assert(result.length)(equalTo(2)) && assert(cleanups)(hasSize(equalTo(2)))
-      },
       testM("Constructs an uninterruptible Managed value") {
         doInterrupt(io => ZManaged.make(io)(_ => IO.unit), _ => None)
       },
@@ -60,7 +51,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         def acquire1: ZIO[R, E, A]               = ???
         def acquire2: ZIO[R1, E, A]              = ???
         def acquire3: ZIO[R2, E, A]              = ???
-        def release1: A => ZIO[R, Nothing, Any]  = ???
+        def release1: A => URIO[R, Any]          = ???
         def release2: A => ZIO[R1, Nothing, Any] = ???
         def release3: A => ZIO[R2, Nothing, Any] = ???
         def managed1: ZManaged[R with R1, E, A]  = ZManaged.make(acquire1)(release2)
@@ -126,6 +117,32 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx)))))
       }
     ) @@ zioTag(errors),
+    suite("zipWithPar")(
+      testM("Properly performs parallel acquire and release") {
+        for {
+          log      <- Ref.make[List[String]](Nil)
+          a        = ZManaged.make(UIO.succeed("A"))(_ => log.update("A" :: _))
+          b        = ZManaged.make(UIO.succeed("B"))(_ => log.update("B" :: _))
+          result   <- a.zipWithPar(b)(_ + _).use(ZIO.succeed(_))
+          cleanups <- log.get
+        } yield assert(result.length)(equalTo(2)) && assert(cleanups)(hasSize(equalTo(2)))
+      },
+      testM("preserves ordering of nested finalizers") {
+        val inner = Ref.make(List[Int]()).toManaged_.flatMap { ref =>
+          ZManaged.finalizer(ref.update(1 :: _)) *>
+            ZManaged.finalizer(ref.update(2 :: _)) *>
+            ZManaged.finalizer(ref.update(3 :: _)).as(ref)
+        }
+
+        (inner <&> inner).useNow.flatMap {
+          case (l, r) => l.get <*> r.get
+        }.map {
+          case (l, r) =>
+            assert(l)(equalTo(List(1, 2, 3))) &&
+              assert(r)(equalTo(List(1, 2, 3)))
+        }
+      } @@ TestAspect.nonFlaky
+    ),
     suite("fromEffect")(
       testM("Performed interruptibly") {
         assertM(ZManaged.fromEffect(ZIO.checkInterruptible(ZIO.succeed(_))).use(ZIO.succeed(_)))(
@@ -337,6 +354,9 @@ object ZManagedSpec extends ZIOBaseSpec {
       },
       testM("Runs acquisitions in parallel") {
         testAcquirePar(4, res => ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res))
+      },
+      testM("Maintains finalizer ordering in inner ZManaged values") {
+        checkM(Gen.int(5, 100))(l => testParallelNestedFinalizerOrdering(l, ZManaged.foreachPar(_)(identity)))
       }
     ),
     suite("foreachParN")(
@@ -355,6 +375,11 @@ object ZManagedSpec extends ZIOBaseSpec {
       },
       testM("Runs finalizers") {
         testAcquirePar(2, res => ZManaged.foreachParN(2)(List(1, 2, 3, 4))(_ => res))
+      },
+      testM("Maintains finalizer ordering in inner ZManaged values") {
+        checkM(Gen.int(4, 10), Gen.int(5, 100)) { (n, l) =>
+          testParallelNestedFinalizerOrdering(l, ZManaged.foreachParN(n)(_)(identity))
+        }
       }
     ),
     suite("foreach_")(
@@ -789,6 +814,20 @@ object ZManagedSpec extends ZIOBaseSpec {
         managed.run.use(res => ZIO.succeed(assert(res)(fails(equalTo(ExampleError)))))
       } @@ zioTag(errors)
     ),
+    suite("someOrElseM")(
+      testM("extracts the value from Some") {
+        val managed: TaskManaged[Int] = Managed.succeed(Some(1)).someOrElseM(Managed.succeed(2))
+        managed.use(res => ZIO.succeed(assert(res)(equalTo(1))))
+      },
+      testM("falls back to the default value if None") {
+        val managed: TaskManaged[Int] = Managed.succeed(None).someOrElseM(Managed.succeed(42))
+        managed.use(res => ZIO.succeed(assert(res)(equalTo(42))))
+      },
+      testM("does not change failed state") {
+        val managed: TaskManaged[Int] = Managed.fail(ExampleError).someOrElseM(Managed.succeed(42))
+        managed.run.use(res => ZIO.succeed(assert(res)(fails(equalTo(ExampleError)))))
+      } @@ zioTag(errors)
+    ),
     suite("someOrFailException")(
       testM("extracts the optional value") {
         val managed = Managed.succeed(Some(42)).someOrFailException
@@ -876,9 +915,9 @@ object ZManagedSpec extends ZIOBaseSpec {
         val expected = Chunk("acquiring a", "acquiring b", "releasing b", "acquiring c", "releasing c", "releasing a")
         for {
           ref     <- Ref.make[Chunk[String]](Chunk.empty)
-          a       = Managed.make(ref.update(_ + "acquiring a"))(_ => ref.update(_ + "releasing a"))
-          b       = Managed.make(ref.update(_ + "acquiring b"))(_ => ref.update(_ + "releasing b"))
-          c       = Managed.make(ref.update(_ + "acquiring c"))(_ => ref.update(_ + "releasing c"))
+          a       = Managed.make(ref.update(_ :+ "acquiring a"))(_ => ref.update(_ :+ "releasing a"))
+          b       = Managed.make(ref.update(_ :+ "acquiring b"))(_ => ref.update(_ :+ "releasing b"))
+          c       = Managed.make(ref.update(_ :+ "acquiring c"))(_ => ref.update(_ :+ "releasing c"))
           managed = a *> b.release *> c
           _       <- managed.useNow
           log     <- ref.get
@@ -1509,7 +1548,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZManaged.succeed(42).collectM("Oh No!") {
           case 42 => ZManaged.succeed(84)
         }
-        val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed(_))
+        val effect: IO[String, Int] = managed.use(ZIO.succeed(_))
 
         assertM(effect)(equalTo(84))
       },
@@ -1517,7 +1556,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZManaged.succeed(42).collectM("Oh No!") {
           case 43 => ZManaged.succeed(84)
         }
-        val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed(_))
+        val effect: IO[String, Int] = managed.use(ZIO.succeed(_))
 
         assertM(effect.run)(fails(equalTo("Oh No!")))
       }
@@ -1537,6 +1576,20 @@ object ZManagedSpec extends ZIOBaseSpec {
             ref.get.map(assert(_)(equalTo(List(1, 3))))
         }
       }
+    ),
+    suite("refineToOrDie")(
+      testM("does not compile when refine type is not a subtype of error type") {
+        val result = typeCheck {
+          """
+          ZIO
+            .fail(new RuntimeException("BOO!"))
+            .refineToOrDie[Error]
+            """
+        }
+        val expected =
+          "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
+        assertM(result)(isLeft(equalTo(expected)))
+      } @@ scala2Only
     )
   )
 
@@ -1621,4 +1674,20 @@ object ZManagedSpec extends ZIOBaseSpec {
       count        <- effects.get
       _            <- reserveLatch.succeed(())
     } yield assert(count)(equalTo(n))
+
+  def testParallelNestedFinalizerOrdering(
+    listLength: Int,
+    f: List[ZManaged[Any, Nothing, Ref[List[Int]]]] => ZManaged[Any, Nothing, List[Ref[List[Int]]]]
+  ) = {
+    val inner = Ref.make(List[Int]()).toManaged_.flatMap { ref =>
+      ZManaged.finalizer(ref.update(1 :: _)) *>
+        ZManaged.finalizer(ref.update(2 :: _)) *>
+        ZManaged.finalizer(ref.update(3 :: _)).as(ref)
+    }
+
+    f(List.fill(listLength)(inner)).useNow
+      .flatMap(refs => ZIO.foreach(refs)(_.get))
+      .map(results => assert(results)(forall(equalTo(List(1, 2, 3)))))
+  }
+
 }

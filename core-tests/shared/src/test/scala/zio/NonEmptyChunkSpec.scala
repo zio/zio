@@ -11,6 +11,8 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
 
   lazy val genIntFunction = Gen.function(genInt)
 
+  lazy val genIntFunction2 = Gen.function2(genInt)
+
   lazy val genNonEmptyChunk = Gen.chunkOf1(genInt)
 
   lazy val genNonEmptyChunkFunction = Gen.function(genNonEmptyChunk)
@@ -39,6 +41,20 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
     },
     testM("map") {
       check(genNonEmptyChunk, genIntFunction)((as, f) => assert(as.map(f).toChunk)(equalTo(as.toChunk.map(f))))
+    },
+    testM("reduceMapLeft") {
+      check(genNonEmptyChunk, genIntFunction, genIntFunction2) { (as, map, reduce) =>
+        val actual   = as.reduceMapLeft(map)(reduce)
+        val expected = as.tail.foldLeft(map(as.head))(reduce)
+        assert(actual)(equalTo(expected))
+      }
+    },
+    testM("reduceMapRight") {
+      check(genNonEmptyChunk, genIntFunction, genIntFunction2) { (as, map, reduce) =>
+        val actual   = as.reduceMapRight(map)(reduce)
+        val expected = as.init.foldRight(map(as.last))(reduce)
+        assert(actual)(equalTo(expected))
+      }
     }
   )
 }

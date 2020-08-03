@@ -23,7 +23,7 @@ import zio.test.mock.Capability
 /**
  * An `InvalidCall` represents failed expectation.
  */
-sealed trait InvalidCall
+sealed abstract class InvalidCall
 
 object InvalidCall {
 
