@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-package zio.internal.impls
+package zio.internal
 
 import java.util.concurrent.atomic.AtomicLongArray
 
-import zio.internal.impls.padding.MutableQueueFieldsPadding
-import zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
+import zio.internal.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
 
 object RingBuffer {
 
@@ -125,7 +124,7 @@ object RingBuffer {
  * to do this except `Unsafe` is to use `AtomicLongFieldUpdater`,
  * which is exactly what we have here.
  *
- * @see [[zio.internal.impls.padding.MutableQueueFieldsPadding]] for more details on padding
+ * @see [[zio.internal.MutableQueueFieldsPadding]] for more details on padding
  * and object's memory layout.
  *
  * The design is heavily inspired by such libraries as

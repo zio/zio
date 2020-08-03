@@ -30,7 +30,7 @@ import zio.internal.MutableConcurrentQueue
  * type `EA`. The dequeueing operations may utilize an environment of type `RB` and may fail
  * with errors of type `EB`.
  */
-abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
+sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Waits until the queue is shutdown.
@@ -653,7 +653,7 @@ object ZQueue {
    *
    * @note when possible use only power of 2 capacities; this will
    * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.impls.RingBuffer]].
+   * the underlying [[zio.internal.RingBuffer]].
    *
    * @param requestedCapacity capacity of the `Queue`
    * @tparam A type of the `Queue`
@@ -668,7 +668,7 @@ object ZQueue {
    *
    * @note when possible use only power of 2 capacities; this will
    * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.impls.RingBuffer]].
+   * the underlying [[zio.internal.RingBuffer]].
    *
    * @param requestedCapacity capacity of the `Queue`
    * @tparam A type of the `Queue`
@@ -684,7 +684,7 @@ object ZQueue {
    *
    * @note when possible use only power of 2 capacities; this will
    * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.impls.RingBuffer]].
+   * the underlying [[zio.internal.RingBuffer]].
    *
    * @param requestedCapacity capacity of the `Queue`
    * @tparam A type of the `Queue`

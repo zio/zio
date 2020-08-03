@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-package zio.internal.impls
-
-import zio.internal.MutableConcurrentQueue
+package zio.internal
 
 object RingBuffer {
 
@@ -31,7 +29,7 @@ object RingBuffer {
 }
 
 /**
- * See [[zio.internal.impls.RingBuffer]] for details
+ * See [[zio.internal.RingBuffer]] for details
  * on design, tradeoffs, etc.
  */
 final class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQueue[A] {

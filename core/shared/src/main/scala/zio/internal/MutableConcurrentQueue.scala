@@ -17,7 +17,6 @@
 package zio.internal
 
 object MutableConcurrentQueue {
-  import zio.internal.impls._
 
   /**
    * @note in case you need extreme performance, make sure to use capacity

@@ -48,11 +48,6 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
     if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
 
   /**
-   * Whether or not the caller is being run on this executor.
-   */
-  def here: Boolean
-
-  /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
   lazy val asEC: ExecutionContext =
@@ -93,8 +88,6 @@ object Executor extends DefaultExecutors with Serializable {
         } catch {
           case _: RejectedExecutionException => false
         }
-
-      def here = false
 
       def metrics = None
     }

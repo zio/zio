@@ -444,29 +444,52 @@ object Fiber extends FiberPlatformSpecific {
     abstract class Internal[+E, +A] extends Synthetic[E, A]
   }
 
-  /**
-   * A record containing information about a [[Fiber]].
-   *
-   * @param id            The fiber's unique identifier
-   * @param interrupters  The set of fibers attempting to interrupt the fiber or its ancestors.
-   * @param executor      The [[zio.internal.Executor]] executing this fiber
-   * @param children      The fiber's forked children.
-   */
-  final case class Descriptor(
-    id: Fiber.Id,
-    status: Status,
-    interrupters: Set[Fiber.Id],
-    interruptStatus: InterruptStatus,
-    executor: Executor,
-    scope: ZScope[Exit[Any, Any]]
-  )
+  sealed abstract class Descriptor {
+    def id: Fiber.Id
+    def status: Status
+    def interrupters: Set[Fiber.Id]
+    def interruptStatus: InterruptStatus
+    def executor: Executor
+    def scope: ZScope[Exit[Any, Any]]
+  }
 
-  final case class Dump(
-    fiberId: Fiber.Id,
-    fiberName: Option[String],
-    status: Status,
-    trace: Option[ZTrace]
-  ) extends Serializable {
+  object Descriptor {
+
+    /**
+     * A record containing information about a [[Fiber]].
+     *
+     * @param id            The fiber's unique identifier
+     * @param interrupters  The set of fibers attempting to interrupt the fiber or its ancestors.
+     * @param executor      The [[zio.internal.Executor]] executing this fiber
+     * @param children      The fiber's forked children.
+     */
+    def apply(
+      id0: Fiber.Id,
+      status0: Status,
+      interrupters0: Set[Fiber.Id],
+      interruptStatus0: InterruptStatus,
+      executor0: Executor,
+      scope0: ZScope[Exit[Any, Any]]
+    ): Descriptor =
+      new Descriptor {
+        def id: Fiber.Id                     = id0
+        def status: Status                   = status0
+        def interrupters: Set[Fiber.Id]      = interrupters0
+        def interruptStatus: InterruptStatus = interruptStatus0
+        def executor: Executor               = executor0
+        def scope: ZScope[Exit[Any, Any]]    = scope0
+      }
+  }
+
+  sealed abstract class Dump extends Serializable { self =>
+
+    def fiberId: Fiber.Id
+
+    def fiberName: Option[String]
+
+    def status: Status
+
+    def trace: Option[ZTrace]
 
     /**
      * {{{
@@ -478,7 +501,24 @@ object Fiber extends FiberPlatformSpecific {
      *     at ...
      * }}}
      */
-    def prettyPrintM: UIO[String] = FiberRenderer.prettyPrintM(this)
+    def prettyPrintM: UIO[String] =
+      FiberRenderer.prettyPrintM(self)
+  }
+
+  object Dump {
+    def apply(
+      fiberId0: Fiber.Id,
+      fiberName0: Option[String],
+      status0: Status,
+      trace0: Option[ZTrace]
+    ): Dump =
+      new Dump {
+        def fiberId: Fiber.Id         = fiberId0
+        def fiberName: Option[String] = fiberName0
+        def status: Status            = status0
+        def trace: Option[ZTrace]     = trace0
+      }
+
   }
 
   /**

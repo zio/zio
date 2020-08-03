@@ -37,7 +37,7 @@ object MockRandom extends Mock[Random] {
   object NextPrintableChar extends Effect[Unit, Nothing, Char]
   object NextString        extends Effect[Int, Nothing, String]
   object SetSeed           extends Effect[Long, Nothing, Unit]
-  object Shuffle           extends Effect[List[Any], Nothing, List[Any]]
+  object Shuffle           extends Effect[Iterable[Any], Nothing, Iterable[Any]]
 
   val compose: URLayer[Has[Proxy], Random] =
     ZLayer.fromService(proxy =>
@@ -58,11 +58,14 @@ object MockRandom extends Mock[Random] {
         val nextLong: UIO[Long]              = proxy(NextLong)
         def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
           proxy(NextLongBetween, minInclusive, maxExclusive)
-        def nextLongBounded(n: Long): UIO[Long]     = proxy(NextLongBounded, n)
-        val nextPrintableChar: UIO[Char]            = proxy(NextPrintableChar)
-        def nextString(length: Int): UIO[String]    = proxy(NextString, length)
-        def setSeed(seed: Long): UIO[Unit]          = proxy(SetSeed, seed)
-        def shuffle[A](list: List[A]): UIO[List[A]] = proxy(Shuffle, list).asInstanceOf[UIO[List[A]]]
+        def nextLongBounded(n: Long): UIO[Long]  = proxy(NextLongBounded, n)
+        val nextPrintableChar: UIO[Char]         = proxy(NextPrintableChar)
+        def nextString(length: Int): UIO[String] = proxy(NextString, length)
+        def setSeed(seed: Long): UIO[Unit]       = proxy(SetSeed, seed)
+        def shuffle[A, Collection[+Element] <: Iterable[Element]](
+          collection: Collection[A]
+        )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
+          proxy(Shuffle, collection).asInstanceOf[UIO[Collection[A]]]
       }
     )
 }

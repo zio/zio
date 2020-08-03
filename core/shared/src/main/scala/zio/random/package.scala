@@ -21,7 +21,9 @@ package object random {
       def nextPrintableChar: UIO[Char]
       def nextString(length: Int): UIO[String]
       def setSeed(seed: Long): UIO[Unit]
-      def shuffle[A](list: List[A]): UIO[List[A]]
+      def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(
+        implicit bf: BuildFrom[Collection[A], A, Collection[A]]
+      ): UIO[Collection[A]]
     }
 
     object Service {
@@ -64,8 +66,10 @@ package object random {
           ZIO.effectTotal(SRandom.nextString(length))
         def setSeed(seed: Long): UIO[Unit] =
           ZIO.effectTotal(SRandom.setSeed(seed))
-        def shuffle[A](list: List[A]): UIO[List[A]] =
-          Random.shuffleWith(nextIntBounded(_), list)
+        def shuffle[A, Collection[+Element] <: Iterable[Element]](
+          collection: Collection[A]
+        )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
+          Random.shuffleWith(nextIntBounded(_), collection)
       }
     }
 
@@ -140,10 +144,13 @@ package object random {
         }
       }
 
-    private[zio] def shuffleWith[A](nextIntBounded: Int => UIO[Int], list: List[A]): UIO[List[A]] =
+    private[zio] def shuffleWith[A, Collection[+Element] <: Iterable[Element]](
+      nextIntBounded: Int => UIO[Int],
+      collection: Collection[A]
+    )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
       for {
         bufferRef <- Ref.make(new scala.collection.mutable.ArrayBuffer[A])
-        _         <- bufferRef.update(_ ++= list)
+        _         <- bufferRef.update(_ ++= collection)
         swap = (i1: Int, i2: Int) =>
           bufferRef.update {
             case buffer =>
@@ -152,9 +159,11 @@ package object random {
               buffer(i2) = tmp
               buffer
           }
-        _      <- ZIO.foreach((list.length to 2 by -1).toList)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
+        _ <- ZIO.foreach((collection.size to 2 by -1).toList)((n: Int) =>
+              nextIntBounded(n).flatMap(k => swap(n - 1, k))
+            )
         buffer <- bufferRef.get
-      } yield buffer.toList
+      } yield bf.fromSpecific(collection)(buffer)
   }
 
   /**

@@ -1179,7 +1179,9 @@ package object environment extends PlatformSpecific {
       /**
        * Randomly shuffles the specified list.
        */
-      def shuffle[A](list: List[A]): UIO[List[A]] =
+      def shuffle[A, Collection[+Element] <: Iterable[Element]](
+        list: Collection[A]
+      )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
         Random.shuffleWith(randomIntBounded, list)
 
       private def bufferedBoolean(buffer: Buffer): (Option[Boolean], Buffer) =

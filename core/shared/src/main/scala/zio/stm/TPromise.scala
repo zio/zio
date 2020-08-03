@@ -31,11 +31,8 @@ final class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends
   def fail(e: E): USTM[Boolean] =
     done(Left(e))
 
-  def poll: USTM[Option[STM[E, A]]] =
-    ref.get.map {
-      case Some(e) => Some(STM.fromEither(e))
-      case None    => None
-    }
+  def poll: USTM[Option[Either[E, A]]] =
+    ref.get
 
   def succeed(a: A): USTM[Boolean] =
     done(Right(a))

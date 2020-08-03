@@ -3,8 +3,6 @@ package zio.internal
 import org.openjdk.jcstress.annotations._
 import org.openjdk.jcstress.infra.results.{ IIII_Result, II_Result, I_Result }
 
-import zio.internal.impls.OneElementConcurrentQueue
-
 object OneElementConcurrentQueueConcurrencyTests {
   /*
    * Tests that offer writes are atomic (simple case, doesn't consider
