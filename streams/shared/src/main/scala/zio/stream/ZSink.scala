@@ -862,6 +862,32 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     foldLeft(A.zero)(A.plus)
 
   /**
+   * A sink that takes the specified number of values.
+   */
+  def take[I](n: Int): ZSink[Any, Nothing, I, I, Chunk[I]] =
+    ZSink {
+      for {
+        state <- Ref.make[Chunk[I]](Chunk.empty).toManaged_
+        push = (is: Option[Chunk[I]]) =>
+          state.get.flatMap { take =>
+            is match {
+              case Some(ch) =>
+                val idx = n - take.length
+                if (idx < ch.length) {
+                  val (chunk, leftover) = ch.splitAt(idx)
+                  state.set(Chunk.empty) *> Push.emit(take ++ chunk, leftover)
+                } else {
+                  state.set(take ++ ch) *> Push.more
+                }
+              case None =>
+                if (n >= 0) Push.emit(take, Chunk.empty)
+                else Push.emit(Chunk.empty, take)
+            }
+          }
+      } yield push
+    }
+
+  /**
    * A sink with timed execution.
    */
   def timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)

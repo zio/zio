@@ -236,6 +236,21 @@ object ZSinkSpec extends ZIOBaseSpec {
           }
         }
       ),
+      testM("take")(
+        checkM(Gen.chunkOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))), Gen.anyInt) { (chunks, n) =>
+          ZStream
+            .fromChunks(chunks: _*)
+            .peel(ZSink.take[Int](n))
+            .flatMap {
+              case (chunk, stream) =>
+                stream.runCollect.toManaged_.map { leftover =>
+                  assert(chunk)(equalTo(chunks.flatten.take(n))) &&
+                  assert(leftover)(equalTo(chunks.flatten.drop(n)))
+                }
+            }
+            .useNow
+        }
+      ),
       testM("timed") {
         for {
           f <- ZStream.fromIterable(1 to 10).mapM(i => clock.sleep(10.millis).as(i)).run(ZSink.timed).fork
