@@ -16,6 +16,7 @@ package zio.test
  * limitations under the License.
  */
 
+import zio.duration._
 import zio.test.TestAnnotationRenderer._
 
 /**
