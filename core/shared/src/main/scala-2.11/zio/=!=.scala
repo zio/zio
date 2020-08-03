@@ -25,7 +25,7 @@ import scala.annotation.implicitNotFound
  * Based on https://github.com/milessabin/shapeless.
  */
 @implicitNotFound("${A} must not be ${B}")
-trait =!=[A, B] extends Serializable
+abstract class =!=[A, B] extends Serializable
 
 object =!= {
   def unexpected: Nothing = sys.error("Unexpected invocation")

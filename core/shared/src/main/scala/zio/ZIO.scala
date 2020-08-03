@@ -3832,7 +3832,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   @implicitNotFound(
     "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has ${E} for the error type."
   )
-  trait CanFilter[+E] {
+  abstract class CanFilter[+E] {
     def apply(t: NoSuchElementException): E
   }
 

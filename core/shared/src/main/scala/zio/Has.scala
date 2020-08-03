@@ -60,7 +60,7 @@ object Has {
       "it with the Has(_) constructor, or you can directly wrap your " +
       "service in Has at the point where it is currently being constructed."
   )
-  trait IsHas[-R] {
+  abstract class IsHas[-R] {
     def add[R0 <: R, M: Tag](r: R0, m: M): R0 with Has[M]
     def union[R0 <: R, R1 <: Has[_]: Tag](r: R0, r1: R1): R0 with R1
     def update[R0 <: R, M: Tag](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
@@ -81,7 +81,7 @@ object Has {
       "operator, you must ensure the service produced by your layer is " +
       "wrapped in Has."
   )
-  trait Union[R, R1] {
+  abstract class Union[R, R1] {
     def union(r: R, r1: R1): R with R1
   }
   object Union extends LowPriorityUnionImplicits {
@@ -91,7 +91,7 @@ object Has {
           r.union[R1](r1)
       }
   }
-  trait LowPriorityUnionImplicits {
+  abstract class LowPriorityUnionImplicits {
     implicit def HasAnyUnion[R <: Has[_]]: Union[R, Any] =
       new Union[R, Any] {
         def union(r: R, r1: Any): R = {
@@ -122,7 +122,7 @@ object Has {
       "operator, you must ensure the service produced by your layer is " +
       "wrapped in Has."
   )
-  trait UnionAll[R, R1] {
+  abstract class UnionAll[R, R1] {
     def unionAll(r: R, r1: R1): R with R1
   }
   object UnionAll extends LowPriorityUnionAllImplicits {
@@ -132,7 +132,7 @@ object Has {
           r.unionAll[R1](r1)
       }
   }
-  trait LowPriorityUnionAllImplicits {
+  abstract class LowPriorityUnionAllImplicits {
    implicit def HasAnyUnionAll[R <: Has[_]]: UnionAll[R, Any] =
       new UnionAll[R, Any] {
         def unionAll(r: R, r1: Any): R = {

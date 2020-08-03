@@ -38,7 +38,7 @@ import scala.util.control.NonFatal
  */
 object AkkaLineNumbers {
 
-  sealed trait Result
+  sealed abstract class Result
   case object NoSourceInfo                                  extends Result
   final case class UnknownSourceFormat(explanation: String) extends Result
   final case class SourceFile(filename: String) extends Result {

@@ -36,7 +36,7 @@ import zio.Chunk.BitChunk
  * efficiently build chunks of unboxed primitives and for compatibility with
  * the Scala collection library.
  */
-sealed trait ChunkBuilder[A] extends Builder[A, Chunk[A]]
+sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]]
 
 object ChunkBuilder {
 

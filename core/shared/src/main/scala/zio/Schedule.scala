@@ -41,7 +41,7 @@ import zio.random.Random
  * `Schedule[R, A, B]` forms a profunctor on `[A, B]`, an applicative functor on
  * `B`, and a monoid, allowing rich composition of different schedules.
  */
-trait Schedule[-R, -A, +B] extends Serializable { self =>
+abstract class Schedule[-R, -A, +B] extends Serializable { self =>
 
   /**
    * The internal state type of the schedule.

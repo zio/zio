@@ -448,7 +448,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
 }
 
 object Spec {
-  sealed trait SpecCase[-R, +E, +T, +A] { self =>
+  sealed abstract class SpecCase[-R, +E, +T, +A] { self =>
     final def map[B](f: A => B): SpecCase[R, E, T, B] = self match {
       case SuiteCase(label, specs, exec)      => SuiteCase(label, specs.map(_.map(f)), exec)
       case TestCase(label, test, annotations) => TestCase(label, test, annotations)

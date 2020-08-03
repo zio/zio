@@ -33,7 +33,7 @@ object ZLawsF {
   /**
    * `ZLawsF` for covariant type constructors.
    */
-  trait Covariant[-CapsF[_[+_]], -Caps[_], -R] { self =>
+  abstract class Covariant[-CapsF[_[+_]], -Caps[_], -R] { self =>
 
     /**
      * Test that values of type `F[+_]` satisfy the laws using the specified
@@ -140,7 +140,7 @@ object ZLawsF {
   /**
    * `ZLawsF` for contravariant type constructors.
    */
-  trait Contravariant[-CapsF[_[-_]], -Caps[_], -R] { self =>
+  abstract class Contravariant[-CapsF[_[-_]], -Caps[_], -R] { self =>
 
     /**
      * Test that values of type `F[+_]` satisfy the laws using the specified
@@ -238,7 +238,7 @@ object ZLawsF {
   /**
    * `ZLawsF` for invariant type constructors.
    */
-  trait Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
+  abstract class Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
 
     /**
      * Test that values of type `F[+_]` satisfy the laws using the specified

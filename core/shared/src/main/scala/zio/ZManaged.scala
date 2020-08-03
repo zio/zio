@@ -1189,7 +1189,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The design of `ReleaseMap` is inspired by ResourceT, written by Michael Snoyman @snoyberg.
    * (https://github.com/snoyberg/conduit/blob/master/resourcet/Control/Monad/Trans/Resource/Internal.hs)
    */
-  trait ReleaseMap {
+  abstract class ReleaseMap {
 
     /**
      * An opaque identifier for a finalizer stored in the map.
@@ -2040,7 +2040,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * to the `apply` method will create (inside an effect) a managed resource which
    * is already acquired and cannot fail.
    */
-  trait PreallocationScope {
+  abstract class PreallocationScope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
@@ -2125,7 +2125,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * resource to the `apply` method will return an effect that allocates the resource
    * and returns it with an early-release handle.
    */
-  trait Scope {
+  abstract class Scope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, (ZManaged.Finalizer, A)]
   }
 

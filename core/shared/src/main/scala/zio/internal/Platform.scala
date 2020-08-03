@@ -23,7 +23,7 @@ import zio.{ Cause, Supervisor }
  * A `Platform` provides the minimum capabilities necessary to bootstrap
  * execution of `ZIO` tasks.
  */
-trait Platform { self =>
+abstract class Platform { self =>
 
   /**
    * Retrieves the default executor.
