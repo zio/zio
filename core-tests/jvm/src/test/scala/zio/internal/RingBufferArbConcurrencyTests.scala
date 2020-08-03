@@ -3,8 +3,6 @@ package zio.internal
 import org.openjdk.jcstress.annotations._
 import org.openjdk.jcstress.infra.results.{ IIIIII_Result, IIII_Result, II_Result }
 
-import zio.internal.impls.RingBufferArb
-
 object RingBufferArbConcurrencyTests {
   /*
    * Tests that [[RingBufferArb.offer]] is atomic.

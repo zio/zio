@@ -1,6 +1,4 @@
-package zio.internal.impls
-
-import zio.internal.MutableConcurrentQueue
+package zio.internal
 
 /**
  * JCToolsQueue is defined only under `benchmarks` so `coreJVM` doesn't

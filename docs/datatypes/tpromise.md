@@ -69,7 +69,7 @@ Returns the result if the promise has already been completed or a `None` otherwi
 import zio._
 import zio.stm._
 
-val tPromiseOptionValue: UIO[Option[STM[String, Int]]] = for {
+val tPromiseOptionValue: UIO[Option[Either[String, Int]]] = for {
   tPromise <- TPromise.make[String, Int].commit
   _        <- tPromise.succeed(0).commit
   res      <- tPromise.poll.commit

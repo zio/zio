@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package zio.internal.impls
+package zio.internal
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicLong
-
-import zio.internal.MutableConcurrentQueue
 
 private[zio] final class LinkedQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   override final val capacity = Int.MaxValue

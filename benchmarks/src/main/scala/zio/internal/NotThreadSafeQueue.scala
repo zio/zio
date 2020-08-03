@@ -1,6 +1,4 @@
-package zio.internal.impls
-
-import zio.internal.MutableConcurrentQueue
+package zio.internal
 
 class NotThreadSafeQueue[A](override val capacity: Int) extends MutableConcurrentQueue[A] {
   private val buf: Array[AnyRef] = Array.ofDim[AnyRef](capacity)

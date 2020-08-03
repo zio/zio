@@ -1,8 +1,6 @@
-package zio.internal.impls
+package zio.internal
 
 import java.util.concurrent.atomic.AtomicReference
-
-import zio.internal.MutableConcurrentQueue
 
 class OneElementConcQueueNoMetric[A] extends MutableConcurrentQueue[A] {
   private[this] final val ref = new AtomicReference[AnyRef]()
