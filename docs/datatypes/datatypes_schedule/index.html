@@ -83,9 +83,6 @@
 <p>A schedule that always recurs:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> forever = <span class="hljs-type">Schedule</span>.forever
 </code></pre>
-<p>A schedule that never executes:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> never = <span class="hljs-type">Schedule</span>.never
-</code></pre>
 <p>A schedule that recurs 10 times:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> upTo10 = <span class="hljs-type">Schedule</span>.recurs(<span class="hljs-number">10</span>)
 </code></pre>
@@ -121,16 +118,10 @@ recur, using the minimum of the two delays between recurrences:</p>
 <p>Retry only when a specific exception occurs:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">TimeoutException</span>
 
-<span class="hljs-keyword">val</span> whileTimeout = <span class="hljs-type">Schedule</span>.exponential(<span class="hljs-number">10.</span>milliseconds) &amp;&amp; <span class="hljs-type">Schedule</span>.doWhile[<span class="hljs-type">Throwable</span>] {
+<span class="hljs-keyword">val</span> whileTimeout = <span class="hljs-type">Schedule</span>.exponential(<span class="hljs-number">10.</span>milliseconds) &amp;&amp; <span class="hljs-type">Schedule</span>.recurWhile[<span class="hljs-type">Throwable</span>] {
   <span class="hljs-keyword">case</span> _: <span class="hljs-type">TimeoutException</span> =&gt; <span class="hljs-literal">true</span>
   <span class="hljs-keyword">case</span> _ =&gt; <span class="hljs-literal">false</span>
 }
-</code></pre>
-<p>Perform effect each time schedule makes a decision whether or not to repeat:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">schedule</span></span>[<span class="hljs-type">A</span>] = <span class="hljs-type">Schedule</span>.recurs(<span class="hljs-number">3</span>).onDecision((a: <span class="hljs-type">A</span>, s) =&gt; s <span class="hljs-keyword">match</span> {
-    <span class="hljs-keyword">case</span> <span class="hljs-type">None</span> =&gt; console.putStrLn(<span class="hljs-string">s"done repeating"</span>)
-    <span class="hljs-keyword">case</span> <span class="hljs-type">Some</span>(att) =&gt; console.putStrLn(<span class="hljs-string">s"repeat #<span class="hljs-subst">$att</span>"</span>)
-})
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/datatypes/datatypes_ref"><span class="arrow-prev">← </span><span>Ref</span></a><a class="docs-next button" href="/docs/datatypes/datatypes_semaphore"><span>Semaphore</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#base-schedules">Base Schedules</a></li><li><a href="#schedule-combinators">Schedule Combinators</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
                 document.addEventListener('keyup', function(e) {

@@ -62,29 +62,44 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">JavaScript</h1></header><article><div><span><p>Include ZIO in your Scala.js project by adding the following to your <code>build.sbt</code>:</p>
 <pre><code class="hljs">scalaJSUseMainModuleInitializer <span class="hljs-symbol">:</span>= <span class="hljs-literal">true</span>
-libraryDependencies += <span class="hljs-string">"dev.zio"</span> <span class="hljs-string">%%%</span> <span class="hljs-string">"zio"</span> % <span class="hljs-string">"1.0.0-RC21-2"</span>
+libraryDependencies += <span class="hljs-string">"dev.zio"</span> <span class="hljs-string">%%%</span> <span class="hljs-string">"zio"</span> % <span class="hljs-string">"1.0.0"</span>
 </code></pre>
-<p>For Java Time API which is not a part of ScalaJS, you might have to add dependency that provides <code>java.time</code> package to
-avoid linker errors when using <code>Clock</code>. ZIO uses <a href="https://github.com/cquiroz/scala-java-time">scala-java-time</a> for
-running it's test.</p>
 <h2><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h2>
 <p>Your main function can extend <code>App</code> as follows.
 This example uses <a href="https://github.com/scala-js/scala-js-dom">scala-js-dom</a> to access the DOM; to run the example you
 will need to add that library as a dependency to your <code>build.sbt</code>.</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> org.scalajs.dom.document
-<span class="hljs-keyword">import</span> zio.{<span class="hljs-type">App</span>, <span class="hljs-type">IO</span>}
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> org.scalajs.dom.{document, raw}
+<span class="hljs-keyword">import</span> zio._
+<span class="hljs-keyword">import</span> zio.duration._
+<span class="hljs-keyword">import</span> zio.clock._
 
-<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> </span>{
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Main</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> </span>{
 
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>] =
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]) = {
     <span class="hljs-keyword">for</span> {
-      p &lt;- <span class="hljs-type">IO</span>.effectSuspendTotal(document.createElement(<span class="hljs-string">"p"</span>))
-      t &lt;- <span class="hljs-type">IO</span>.effectSuspendTotal(document.createTextNode(<span class="hljs-string">"Hello World"</span>))
-      _ &lt;- <span class="hljs-type">IO</span>.effectSuspendTotal(p.appendChild(t))
-      _ &lt;- <span class="hljs-type">IO</span>.effectSuspendTotal(document.body.appendChild(p))
-    } <span class="hljs-keyword">yield</span> <span class="hljs-number">0</span>
-}
+      _      &lt;- putStrLn(<span class="hljs-string">"Starting progress bar demo."</span>)  <span class="hljs-comment">// Outputs on browser console log.</span>
+      target &lt;- <span class="hljs-type">IO</span>.effectTotal(document.createElement(<span class="hljs-string">"pre"</span>))
+      _      &lt;- update(target).repeat(<span class="hljs-type">Schedule</span>.spaced(<span class="hljs-number">1.</span>seconds))
+      _      &lt;- <span class="hljs-type">IO</span>.effectTotal(node.appendChild(target)) <span class="hljs-comment">// "node" is provided in this page by mdoc.</span>
+    } <span class="hljs-keyword">yield</span> <span class="hljs-type">ExitCode</span>.success
+  }
 
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">update</span></span>(target: raw.<span class="hljs-type">Element</span>) = {
+      <span class="hljs-keyword">for</span> {
+        time   &lt;- currentTime(<span class="hljs-type">TimeUnit</span>.<span class="hljs-type">SECONDS</span>)
+        output &lt;- <span class="hljs-type">UIO</span>.effectTotal(progress((time % <span class="hljs-number">11</span>).toInt, <span class="hljs-number">10</span>))
+        _      &lt;- <span class="hljs-type">UIO</span>.effectTotal(target.innerHTML = output)
+      } <span class="hljs-keyword">yield</span> ()
+  }
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">progress</span></span>(tick: <span class="hljs-type">Int</span>, size: <span class="hljs-type">Int</span>) = {
+      <span class="hljs-keyword">val</span> bar_length = tick
+      <span class="hljs-keyword">val</span> empty_length = size - tick
+      <span class="hljs-keyword">val</span> bar = <span class="hljs-string">"#"</span> * bar_length + <span class="hljs-string">" "</span> * empty_length
+      <span class="hljs-string">s"<span class="hljs-subst">$bar</span> <span class="hljs-subst">$bar_length</span>%"</span>
+  }
+
+}
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/interop/interop_java"><span class="arrow-prev">← </span><span>Java</span></a><a class="docs-next button" href="/docs/interop/interop_monix"><span>Monix</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#example">Example</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
                 document.addEventListener('keyup', function(e) {
