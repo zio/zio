@@ -25,6 +25,7 @@ import scala.language.implicitConversions
 import scala.math.Ordering
 
 import zio.duration.Duration
+import java.time.OffsetDateTime
 
 package object duration {
 
@@ -46,7 +47,15 @@ package object duration {
 
     def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
 
+    def fromMillis(millis: Long): Duration = java.time.Duration.ofMillis(millis)
+
     def fromNanos(nanos: Long): Duration = nanos.nanos
+
+    def fromInterval(start: Instant, end: Instant): Duration =
+      java.time.Duration.between(start, end)
+
+    def fromInterval(start: OffsetDateTime, end: OffsetDateTime): Duration =
+      java.time.Duration.between(start, end)
 
     def fromInstant(instant: Instant): Duration =
       Duration(instant.toEpochMilli, TimeUnit.MILLISECONDS)
