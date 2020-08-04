@@ -423,7 +423,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
           case Continue(out, interval, next) => ZIO.succeed(Continue(out, interval, loop(next)))
         }
 
-    Schedule(self.step)
+    Schedule(loop(self.step))
   }
 
   /**
