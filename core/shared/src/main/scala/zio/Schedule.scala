@@ -1065,14 +1065,17 @@ object Schedule {
           case Some(startMillis) =>
             Continue(
               n + 1,
-              now.plus((now.toInstant.toEpochMilli() - startMillis) % millis, java.time.temporal.ChronoUnit.MILLIS),
+              now.plus(
+                millis - (now.toInstant.toEpochMilli - startMillis) % millis,
+                java.time.temporal.ChronoUnit.MILLIS
+              ),
               loop(Some(startMillis), n + 1L)
             )
           case None =>
             Continue(
               n + 1L,
               now.plus(millis, java.time.temporal.ChronoUnit.MILLIS),
-              loop(Some(now.toInstant.toEpochMilli()), n + 1)
+              loop(Some(now.toInstant.toEpochMilli), n + 1)
             )
         })
 
