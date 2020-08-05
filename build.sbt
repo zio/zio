@@ -398,7 +398,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC12",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5",
       "dev.zio"             %% "zio-interop-twitter"         % "20.7.0.0"
     )
   )
