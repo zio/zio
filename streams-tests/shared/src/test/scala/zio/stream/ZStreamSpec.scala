@@ -1555,6 +1555,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("sanity") {
             assertM(ZStream(1, 2, 3, 4, 5).grouped(2).runCollect)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
           },
+          testM("group size is correct") {
+            assertM(ZStream.range(0, 100).grouped(10).map(_.size).runCollect)(equalTo(Chunk.fill(10)(10)))
+          },
           testM("doesn't emit empty chunks") {
             assertM(ZStream.fromIterable(List.empty[Int]).grouped(5).runCollect)(equalTo(Chunk.empty))
           }
