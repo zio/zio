@@ -128,6 +128,11 @@ object ScheduleSpec extends ZIOBaseSpec {
         val scheduled = clock.currentDateTime.orDie.flatMap(schedule.run(_, 1 to 10))
         val expected  = Chunk((0L, 1.minute), (1L, 2.minute), (2L, 4.minute))
         assertM(scheduled)(equalTo(expected))
+      },
+      testM("free from stack overflow") {
+        assertM(run(Schedule.forever *> Schedule.recurs(10000000))(List.fill(1000000)(())))(
+          equalTo(Chunk.range(0L, 1000000L))
+        )
       }
     ),
     suite("Retry on failure according to a provided strategy")(
