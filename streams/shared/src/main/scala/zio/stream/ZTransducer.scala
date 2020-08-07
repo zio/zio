@@ -196,7 +196,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         if (leftover.size + left.size < n) outBuilder.result() -> (leftover ++ left)
         else {
           val nextOutBuilder =
-            if (leftover.nonEmpty) outBuilder += leftover += left
+            if (leftover.nonEmpty) outBuilder += (leftover ++ left)
             else outBuilder += left
           go(nextIn, Chunk.empty, nextOutBuilder)
         }
