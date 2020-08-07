@@ -16,12 +16,12 @@
 
 package zio
 
-import java.time.OffsetDateTime
+import java.time.{ DayOfWeek, OffsetDateTime, YearMonth }
 import java.util.concurrent.TimeUnit
 
+import zio.clock.Clock
 import zio.duration._
 import zio.random._
-import zio.clock.Clock
 
 /**
  * A `Schedule[Env, In, Out]` defines a recurring schedule, which consumes values of type `In`, and
@@ -891,6 +891,107 @@ object Schedule {
         case (a1, a2) => (a2, a1 + a2)
       }.map(_._1)
     }
+
+  /**
+   * An effect that creates a schedule that recurs every minute at the provided second.
+   * The Schedule returns the duration between recurrences.
+   */
+  def secondOfMinute(second: Int): ZIO[Clock, RuntimeException, Schedule[Any, Any, Duration]] =
+    for {
+      _ <- if (second < 0 || second > 59) ZIO.fail(new RuntimeException(s"Invalid second: $second"))
+          else ZIO.succeed(())
+      now             <- zio.clock.currentDateTime.orDie
+      secondsInMinute = 60
+      next            = ((secondsInMinute - now.getSecond + second) % secondsInMinute).seconds
+    } yield (Schedule.fromDuration(next) ++ spaced(secondsInMinute.second)) >>> Schedule.elapsed
+
+  /**
+   * An effect that creates a schedule that recurs every hour at the provided minute.
+   * The Schedule returns the duration between recurrences.
+   */
+  def minuteOfHour(minute: Int): ZIO[Clock, RuntimeException, Schedule[Any, Any, Duration]] =
+    for {
+      _ <- if (minute < 0 || minute > 59) ZIO.fail(new RuntimeException(s"Invalid minute: $minute"))
+          else ZIO.succeed(())
+      now           <- zio.clock.currentDateTime.orDie
+      minutesInHour = 60
+      next          = ((minutesInHour - now.getMinute + minute) % minutesInHour).minutes
+    } yield (Schedule.fromDuration(next) ++ spaced(minutesInHour.minute)) >>> Schedule.elapsed
+
+  /**
+   * An effect that creates a schedule that recurs every day at the provided hour.
+   * The Schedule returns the duration between recurrences.
+   */
+  def hourOfDay(hour: Int): ZIO[Clock, RuntimeException, Schedule[Any, Any, Duration]] =
+    for {
+      _ <- if (hour < 0 || hour > 23) ZIO.fail(new RuntimeException(s"Invalid hour: $hour"))
+          else ZIO.succeed(())
+      now        <- zio.clock.currentDateTime.orDie
+      hoursInDay = 24
+      next       = ((hoursInDay - now.getHour + hour) % hoursInDay).hours
+    } yield (Schedule.fromDuration(next) ++ spaced(hoursInDay.hour)) >>> Schedule.elapsed
+
+  /**
+   * An effect that creates a schedule that recurs every week at the provided day.
+   * The Schedule returns the duration between recurrences.
+   */
+  def dayOfWeek(day: DayOfWeek): ZIO[Clock, Any, Schedule[Any, Any, Duration]] =
+    for {
+      now        <- zio.clock.currentDateTime.orDie
+      daysInWeek = 7
+      next       = ((daysInWeek - now.getDayOfWeek.getValue + day.getValue) % daysInWeek).days
+    } yield (Schedule.fromDuration(next) ++ spaced(daysInWeek.days)) >>> Schedule.elapsed
+
+  /**
+   * An effect that creates a schedule that recurs every month where the provided day is present at the provided day.
+   * The Schedule returns the duration between recurrences.
+   *
+   * ex:
+   *  dayOfMonth(31) => 31 January, 31 March, 31 May, ....
+   *  dayOfMonth(29) => 29 January, 29 February (if leap year), 29 March, ....
+   */
+  def dayOfMonth(day: Int): ZIO[Clock, RuntimeException, Schedule[Any, Any, Duration]] = {
+    import Decision._
+
+    def toNextTargetDay(offsetDateTime: OffsetDateTime, day: Int): OffsetDateTime = {
+      val currentDay = offsetDateTime.getDayOfMonth
+
+      if (currentDay == day) offsetDateTime
+      else if (currentDay < day) {
+        val daysInThisMonth = YearMonth.of(offsetDateTime.getYear, offsetDateTime.getMonth).lengthOfMonth()
+        if (daysInThisMonth < day) {
+          toNextTargetDay(offsetDateTime.withDayOfMonth(1).plusMonths(1), day)
+        } else {
+          offsetDateTime.withDayOfMonth(day)
+        }
+      } else {
+        toNextTargetDay(offsetDateTime.withDayOfMonth(1).plusMonths(1), day)
+      }
+
+    }
+
+    def loop(nextRun: OffsetDateTime): StepFunction[Any, Any, OffsetDateTime] =
+      (now: OffsetDateTime, _: Any) =>
+        ZIO.succeed {
+          val after = toNextTargetDay(nextRun.plusDays(1), day)
+
+          Continue(
+            now,
+            nextRun,
+            loop(after)
+          )
+        }
+
+    for {
+      _ <- if (day < 1 || day > 31) ZIO.fail(new RuntimeException(s"Invalid day: $day")) else ZIO.succeed(())
+      next <- zio.clock.currentDateTime.orDie.map { now =>
+               if (now.getDayOfMonth == day) now
+               else if (now.getDayOfMonth < day) now.withDayOfMonth(day)
+               else now.withDayOfMonth(1).plusMonths(1)
+             }
+    } yield Schedule(loop(next)) >>> Schedule.elapsed
+
+  }
 
   /**
    * A schedule that recurs on a fixed interval. Returns the number of

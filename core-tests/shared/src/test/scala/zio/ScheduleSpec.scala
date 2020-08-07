@@ -1,13 +1,17 @@
 package zio
 
-import scala.concurrent.Future
+import java.time.temporal.ChronoUnit.DAYS
+import java.time.{ DayOfWeek, LocalDate }
 
+import zio.ZIOSpec.ZioOfTestResultOps
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.timeout
+import zio.test._
 import zio.test.environment.{ TestClock, TestRandom }
-import zio.test.{ assert, assertM, suite, testM, TestResult }
+
+import scala.concurrent.Future
 
 object ScheduleSpec extends ZIOBaseSpec {
 
@@ -66,6 +70,161 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("for 'recurUntilEquals(cond)' repeats until the cond is equal") {
         checkRepeat(Schedule.recurUntilEquals(1), expected = 1)
+      }
+    ),
+    suite("repeats at point of interval if point exists (minute of hour, day of week, ...)")(
+      testM("secondOfMinute invalid input") {
+        val negativeSecond  = -1
+        val exceedingSecond = 60
+
+        assertM((for {
+          schedule <- Schedule.secondOfMinute(negativeSecond)
+          r        <- run(schedule)(List.fill(1)(()))
+        } yield r).run)(fails(hasMessage(equalTo(s"Invalid second: $negativeSecond")))) &&
+        assertM((for {
+          schedule <- Schedule.secondOfMinute(exceedingSecond)
+          r        <- run(schedule)(List.fill(1)(()))
+        } yield r).run)(fails(hasMessage(equalTo(s"Invalid second: $exceedingSecond"))))
+      },
+      testM("secondOfMinute") {
+        val second = 10
+        for {
+          _        <- TestClock.adjust(7.seconds)
+          schedule <- Schedule.secondOfMinute(second)
+          r        <- run(schedule)(List.fill(5)(()))
+        } yield assert(r)(equalTo(Chunk(0, 3, 63, 123, 183).map(_.seconds)))
+      },
+      testM("minuteOfHour invalid input") {
+        val negativeMinute   = -1
+        val excceedingMinute = 60
+
+        assertM((for {
+          schedule <- Schedule.minuteOfHour(negativeMinute)
+          r        <- run(schedule)(List.fill(1)(()))
+        } yield r).run)(fails(hasMessage(equalTo(s"Invalid minute: $negativeMinute")))) &&
+        assertM((for {
+          schedule <- Schedule.minuteOfHour(excceedingMinute)
+          r        <- run(schedule)(List.fill(1)(()))
+        } yield r).run)(fails(hasMessage(equalTo(s"Invalid minute: $excceedingMinute"))))
+
+      },
+      testM("minuteOfHour") {
+        val minute = 10
+        for {
+          _        <- TestClock.adjust(7.minutes)
+          schedule <- Schedule.minuteOfHour(minute)
+          r        <- run(schedule)(List.fill(5)(()))
+        } yield assert(r)(equalTo(Chunk(0, 3, 63, 123, 183).map(_.minutes)))
+      },
+      testM("hourOfDay invalid input") {
+        val negativeHour  = -1
+        val exceedingHour = 24
+
+        assertM((for {
+          schedule <- Schedule.hourOfDay(negativeHour)
+          r        <- run(schedule)(List.fill(1)(()))
+        } yield r).run)(fails(hasMessage(equalTo(s"Invalid hour: $negativeHour")))) &&
+        assertM((for {
+          schedule <- Schedule.hourOfDay(exceedingHour)
+          r        <- run(schedule)(List.fill(1)(()))
+        } yield r).run)(fails(hasMessage(equalTo(s"Invalid hour: $exceedingHour"))))
+      },
+      testM("hourOfDay") {
+        val hour = 10
+        for {
+          _        <- TestClock.adjust(7.hours)
+          schedule <- Schedule.hourOfDay(hour)
+          r        <- run(schedule)(List.fill(5)(()))
+        } yield assert(r)(equalTo(Chunk(0, 3, 27, 51, 75).map(_.hours)))
+      },
+      testM("dayOfWeek") {
+        val day = DayOfWeek.SATURDAY
+        for {
+          _        <- TestClock.adjust(1.days)
+          schedule <- Schedule.dayOfWeek(day)
+          r        <- run(schedule)(List.fill(5)(()))
+        } yield assert(r)(equalTo(Chunk(0, 1, 8, 15, 22).map(_.days)))
+      },
+      testM("dayOfMonth invalid input") {
+        val negativeDay  = -1
+        val exceedingDay = 32
+        assertM((for {
+          schedule <- Schedule.dayOfMonth(negativeDay)
+          r        <- run(schedule)(List.fill(1)(()))
+        } yield r).run)(fails(hasMessage(equalTo(s"Invalid day: $negativeDay")))) &&
+        assertM((for {
+          schedule <- Schedule.dayOfMonth(exceedingDay)
+          r        <- run(schedule)(List.fill(1)(()))
+        } yield r).run)(fails(hasMessage(equalTo(s"Invalid day: $exceedingDay"))))
+      },
+      testM("dayOfMonth 1 nonleapyear") {
+        val day = 1
+        for {
+          schedule <- Schedule.dayOfMonth(day)
+          r        <- run(schedule)(List.fill(5)(()))
+        } yield assert(r.map(_.toDays))(
+          equalTo(
+            Chunk(
+              0,
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 1, 1)),
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 2, 1)),
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 3, 1)),
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 4, 1))
+            ).map(_.days.toDays)
+          )
+        )
+      },
+      testM("dayOfMonth 1 leapyear") {
+        val day = 1
+        for {
+          _        <- TestClock.adjust((2 * 365).days)
+          schedule <- Schedule.dayOfMonth(day)
+          r        <- run(schedule)(List.fill(5)(()))
+        } yield assert(r.map(_.toDays))(
+          equalTo(
+            Chunk(
+              0,
+              DAYS.between(LocalDate.of(1972, 1, 1), LocalDate.of(1972, 1, 1)),
+              DAYS.between(LocalDate.of(1972, 1, 1), LocalDate.of(1972, 2, 1)),
+              DAYS.between(LocalDate.of(1972, 1, 1), LocalDate.of(1972, 3, 1)),
+              DAYS.between(LocalDate.of(1972, 1, 1), LocalDate.of(1972, 4, 1))
+            ).map(_.days.toDays)
+          )
+        )
+      },
+      testM("dayOfMonth 31") {
+        val day = 31
+        for {
+          schedule <- Schedule.dayOfMonth(day)
+          r        <- run(schedule)(List.fill(5)(()))
+        } yield assert(r.map(_.toDays))(
+          equalTo(
+            Chunk(
+              0,
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 1, 31)),
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 3, 31)),
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 5, 31)),
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 7, 31))
+            ).map(_.days.toDays)
+          )
+        )
+      },
+      testM("dayOfMonth 29") {
+        val day = 29
+        for {
+          schedule <- Schedule.dayOfMonth(day)
+          r        <- run(schedule)(List.fill(5)(()))
+        } yield assert(r.map(_.toDays))(
+          equalTo(
+            Chunk(
+              0,
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 1, 29)),
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 3, 29)),
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 4, 29)),
+              DAYS.between(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 5, 29))
+            ).map(_.days.toDays)
+          )
+        )
       }
     ),
     suite("Collect all inputs into a list")(
@@ -203,7 +362,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(run(Schedule.linear(100.millis) >>> Schedule.elapsed)(List.fill(5)(())))(
           equalTo(Chunk(0, 1, 3, 6, 10).map(i => (i * 100).millis))
         )
-      },
+      } @@ timeout(1.minute),
       testM("spaced delay") {
         assertM(run(Schedule.spaced(100.millis) >>> Schedule.elapsed)(List.fill(5)(())))(
           equalTo(Chunk(0, 1, 2, 3, 4).map(i => (i * 100).millis))
@@ -447,4 +606,5 @@ object ScheduleSpec extends ZIOBaseSpec {
   case class ScheduleError(message: String) extends Exception
   case class ScheduleFailure(message: String)
   case class ScheduleSuccess[O](content: O)
+
 }
