@@ -1,9 +1,9 @@
 package zio
 
 import scala.concurrent.Future
-
 import zio.clock.Clock
 import zio.duration._
+import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.timeout
 import zio.test.environment.{ TestClock, TestRandom }
@@ -130,8 +130,8 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(scheduled)(equalTo(expected))
       },
       testM("free from stack overflow") {
-        assertM(run(Schedule.forever *> Schedule.recurs(10000000))(List.fill(1000000)(())))(
-          equalTo(Chunk.range(0L, 1000000L))
+        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(1000000)).runCount)(
+          equalTo(1000000L)
         )
       }
     ),
