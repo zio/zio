@@ -89,7 +89,8 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
         case (Left(l), Right(_))  => Left(l)
         case (Right(_), Left(r))  => Left(r)
         case (Left(l), Left(r))   => Left(l && r)
-      }, {
+      },
+      {
         case (Right(l), Right(r)) => Right(l || r)
         case (Left(_), Right(r))  => Right(r)
         case (Right(l), Left(_))  => Right(l)

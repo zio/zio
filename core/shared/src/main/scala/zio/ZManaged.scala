@@ -404,13 +404,12 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
-          tp                   <- ZIO.environment[(R, ReleaseMap)]
+          tp                  <- ZIO.environment[(R, ReleaseMap)]
           (r, outerReleaseMap) = tp
-          innerReleaseMap      <- ReleaseMap.make
-          fiber                <- restore(zio.map(_._2).forkDaemon.provide(r -> innerReleaseMap))
-          releaseMapEntry <- outerReleaseMap.add(e =>
-                              fiber.interrupt *> innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential)
-                            )
+          innerReleaseMap     <- ReleaseMap.make
+          fiber               <- restore(zio.map(_._2).forkDaemon.provide(r -> innerReleaseMap))
+          releaseMapEntry <-
+            outerReleaseMap.add(e => fiber.interrupt *> innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential))
         } yield (releaseMapEntry, fiber)
       }
     }
@@ -482,13 +481,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
       for {
         promise <- Promise.make[E, A]
         complete <- ZIO
-                     .accessM[R] { r =>
-                       self.zio
-                         .provide((r, finalizers))
-                         .map(_._2)
-                         .to(promise)
-                     }
-                     .once
+                      .accessM[R] { r =>
+                        self.zio
+                          .provide((r, finalizers))
+                          .map(_._2)
+                          .to(promise)
+                      }
+                      .once
       } yield (complete *> promise.await).toManaged_
     }
 
@@ -516,17 +515,17 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
-          tp                    <- ZIO.environment[(R1, ReleaseMap)]
+          tp                   <- ZIO.environment[(R1, ReleaseMap)]
           (r1, outerReleaseMap) = tp
-          innerReleaseMap       <- ReleaseMap.make
-          exitEA                <- restore(zio.map(_._2)).run.provide(r1 -> innerReleaseMap)
+          innerReleaseMap      <- ReleaseMap.make
+          exitEA               <- restore(zio.map(_._2)).run.provide(r1 -> innerReleaseMap)
           releaseMapEntry <- outerReleaseMap.add { e =>
-                              innerReleaseMap
-                                .releaseAll(e, ExecutionStrategy.Sequential)
-                                .run
-                                .zipWith(cleanup(exitEA).provide(r1).run)((l, r) => ZIO.done(l *> r))
-                                .flatten
-                            }
+                               innerReleaseMap
+                                 .releaseAll(e, ExecutionStrategy.Sequential)
+                                 .run
+                                 .zipWith(cleanup(exitEA).provide(r1).run)((l, r) => ZIO.done(l *> r))
+                                 .flatten
+                             }
           a <- ZIO.done(exitEA)
         } yield (releaseMapEntry, a)
       }
@@ -540,19 +539,19 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
-          tp                    <- ZIO.environment[(R1, ReleaseMap)]
+          tp                   <- ZIO.environment[(R1, ReleaseMap)]
           (r1, outerReleaseMap) = tp
-          innerReleaseMap       <- ReleaseMap.make
-          exitEA                <- restore(zio.map(_._2)).run.provide(r1 -> innerReleaseMap)
+          innerReleaseMap      <- ReleaseMap.make
+          exitEA               <- restore(zio.map(_._2)).run.provide(r1 -> innerReleaseMap)
           releaseMapEntry <- outerReleaseMap.add { e =>
-                              cleanup(exitEA)
-                                .provide(r1)
-                                .run
-                                .zipWith(innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential).run)((l, r) =>
-                                  ZIO.done(l *> r)
-                                )
-                                .flatten
-                            }
+                               cleanup(exitEA)
+                                 .provide(r1)
+                                 .run
+                                 .zipWith(innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential).run)((l, r) =>
+                                   ZIO.done(l *> r)
+                                 )
+                                 .flatten
+                             }
           a <- ZIO.done(exitEA)
         } yield (releaseMapEntry, a)
       }
@@ -639,21 +638,22 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
         releaseMap <- ReleaseMap.make
         tp         <- restore(self.zio.provideSome[R]((_, releaseMap))).run
         preallocated <- tp.foldM(
-                         c =>
-                           releaseMap
-                             .releaseAll(Exit.fail(c), ExecutionStrategy.Sequential) *>
-                             ZIO.halt(c), {
-                           case (release, a) =>
-                             UIO.succeed(
-                               ZManaged {
-                                 ZIO.accessM[(Any, ReleaseMap)] {
-                                   case (_, releaseMap) =>
-                                     releaseMap.add(release).map((_, a))
-                                 }
-                               }
-                             )
-                         }
-                       )
+                          c =>
+                            releaseMap
+                              .releaseAll(Exit.fail(c), ExecutionStrategy.Sequential) *>
+                              ZIO.halt(c),
+                          {
+                            case (release, a) =>
+                              UIO.succeed(
+                                ZManaged {
+                                  ZIO.accessM[(Any, ReleaseMap)] {
+                                    case (_, releaseMap) =>
+                                      releaseMap.add(release).map((_, a))
+                                  }
+                                }
+                              )
+                          }
+                        )
       } yield preallocated
     }
 
@@ -665,12 +665,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
     ZManaged {
       self.zio.map {
         case (release, a) =>
-          (release, ZManaged {
-            ZIO.accessM[(Any, ReleaseMap)] {
-              case (_, releaseMap) =>
-                releaseMap.add(release).map((_, a))
+          (
+            release,
+            ZManaged {
+              ZIO.accessM[(Any, ReleaseMap)] {
+                case (_, releaseMap) =>
+                  releaseMap.add(release).map((_, a))
+              }
             }
-          })
+          )
       }
     }
 
@@ -867,14 +870,17 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   /**
    * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
    */
-  final def someOrFailException[B, E1 >: E](
-    implicit ev: A <:< Option[B],
+  final def someOrFailException[B, E1 >: E](implicit
+    ev: A <:< Option[B],
     ev2: NoSuchElementException <:< E1
   ): ZManaged[R, E1, B] =
-    self.foldM(e => ZManaged.fail(e), ev(_) match {
-      case Some(value) => ZManaged.succeedNow(value)
-      case None        => ZManaged.fail(ev2(new NoSuchElementException("None.get")))
-    })
+    self.foldM(
+      e => ZManaged.fail(e),
+      ev(_) match {
+        case Some(value) => ZManaged.succeedNow(value)
+        case None        => ZManaged.fail(ev2(new NoSuchElementException("None.get")))
+      }
+    )
 
   /**
    * Returns an effect that effectfully peeks at the acquired resource.
@@ -885,8 +891,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns an effect that effectfully peeks at the failure or success of the acquired resource.
    */
-  def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any], g: A => ZManaged[R1, E1, Any])(
-    implicit ev: CanFail[E]
+  def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any], g: A => ZManaged[R1, E1, Any])(implicit
+    ev: CanFail[E]
   ): ZManaged[R1, E1, A] =
     foldM(
       e => f(e) *> ZManaged.fail(e),
@@ -941,28 +947,28 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
-          env                  <- ZIO.environment[(R with Clock, ReleaseMap)]
+          env                 <- ZIO.environment[(R with Clock, ReleaseMap)]
           (r, outerReleaseMap) = env
-          innerReleaseMap      <- ZManaged.ReleaseMap.make
-          earlyRelease         <- outerReleaseMap.add(innerReleaseMap.releaseAll(_, ExecutionStrategy.Sequential))
+          innerReleaseMap     <- ZManaged.ReleaseMap.make
+          earlyRelease        <- outerReleaseMap.add(innerReleaseMap.releaseAll(_, ExecutionStrategy.Sequential))
           raceResult <- restore {
-                         zio
-                           .provide((r, innerReleaseMap))
-                           .raceWith(ZIO.sleep(d).as(None))(
-                             (result, sleeper) => sleeper.interrupt *> ZIO.done(result.map(tp => Right(tp._2))),
-                             (_, resultFiber) => UIO.succeed(Left(resultFiber))
-                           )
-                           .provide(r)
-                       }
+                          zio
+                            .provide((r, innerReleaseMap))
+                            .raceWith(ZIO.sleep(d).as(None))(
+                              (result, sleeper) => sleeper.interrupt *> ZIO.done(result.map(tp => Right(tp._2))),
+                              (_, resultFiber) => UIO.succeed(Left(resultFiber))
+                            )
+                            .provide(r)
+                        }
           a <- raceResult match {
-                case Right(value) => UIO.succeed(Some(value))
-                case Left(fiber) =>
-                  ZIO.fiberId.flatMap { id =>
-                    fiber.interrupt
-                      .ensuring(innerReleaseMap.releaseAll(Exit.interrupt(id), ExecutionStrategy.Sequential))
-                      .forkDaemon
-                  }.as(None)
-              }
+                 case Right(value) => UIO.succeed(Some(value))
+                 case Left(fiber) =>
+                   ZIO.fiberId.flatMap { id =>
+                     fiber.interrupt
+                       .ensuring(innerReleaseMap.releaseAll(Exit.interrupt(id), ExecutionStrategy.Sequential))
+                       .forkDaemon
+                   }.as(None)
+               }
         } yield (earlyRelease, a)
       }
     }
@@ -1674,7 +1680,6 @@ object ZManaged extends ZManagedPlatformSpecific {
    * and returns the results in a new `Collection[B]`.
    *
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
-   *
    */
   def foreachParN[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](n: Int)(as: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
@@ -1920,16 +1925,16 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
-          tp              <- ZIO.environment[(R, ReleaseMap)]
+          tp             <- ZIO.environment[(R, ReleaseMap)]
           (r, releaseMap) = tp
-          reserved        <- reservation.provide(r)
-          releaseKey      <- releaseMap.addIfOpen(reserved.release(_).provide(r))
+          reserved       <- reservation.provide(r)
+          releaseKey     <- releaseMap.addIfOpen(reserved.release(_).provide(r))
           finalizerAndA <- releaseKey match {
-                            case Some(key) =>
-                              restore(reserved.acquire.provideSome[(R, ReleaseMap)](_._1))
-                                .map((releaseMap.release(key, (_: Exit[Any, Any])), _))
-                            case None => ZIO.interrupt
-                          }
+                             case Some(key) =>
+                               restore(reserved.acquire.provideSome[(R, ReleaseMap)](_._1))
+                                 .map((releaseMap.release(key, (_: Exit[Any, Any])), _))
+                             case None => ZIO.interrupt
+                           }
         } yield finalizerAndA
       }
     }
@@ -2257,25 +2262,25 @@ object ZManaged extends ZManagedPlatformSpecific {
     for {
       releaseMap <- ZManaged.releaseMap
       key <- releaseMap
-              .addIfOpen(_ => UIO.unit)
-              .flatMap {
-                case Some(key) => UIO.succeed(key)
-                case None      => ZIO.interrupt
-              }
-              .toManaged_
+               .addIfOpen(_ => UIO.unit)
+               .flatMap {
+                 case Some(key) => UIO.succeed(key)
+                 case None      => ZIO.interrupt
+               }
+               .toManaged_
       switch = (newResource: ZManaged[R, E, A]) =>
-        ZIO.uninterruptibleMask { restore =>
-          for {
-            _ <- releaseMap
-                  .replace(key, _ => UIO.unit)
-                  .flatMap(_.map(_.apply(Exit.unit)).getOrElse(ZIO.unit))
-            r     <- ZIO.environment[R]
-            inner <- ReleaseMap.make
-            a     <- restore(newResource.zio.provide((r, inner)))
-            _ <- releaseMap
-                  .replace(key, inner.releaseAll(_, ExecutionStrategy.Sequential))
-          } yield a._2
-        }
+                 ZIO.uninterruptibleMask { restore =>
+                   for {
+                     _ <- releaseMap
+                            .replace(key, _ => UIO.unit)
+                            .flatMap(_.map(_.apply(Exit.unit)).getOrElse(ZIO.unit))
+                     r     <- ZIO.environment[R]
+                     inner <- ReleaseMap.make
+                     a     <- restore(newResource.zio.provide((r, inner)))
+                     _ <- releaseMap
+                            .replace(key, inner.releaseAll(_, ExecutionStrategy.Sequential))
+                   } yield a._2
+                 }
     } yield switch
 
   /**

@@ -70,7 +70,6 @@ import zio.internal.{ Platform, Stack, Sync }
  * Satnam Singh) FLOPS 2006: Eighth International Symposium on Functional and Logic Programming, Fuji Susono, JAPAN,
  *  April 2006
  *  [[https://www.microsoft.com/en-us/research/publication/lock-free-data-structures-using-stms-in-haskell/]]
- *
  */
 final class ZSTM[-R, +E, +A] private[stm] (
   private val exec: (ZSTM.internal.Journal, Fiber.Id, AtomicLong, R) => ZSTM.internal.TExit[E, A]
@@ -369,8 +368,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Effectfully folds over the `STM` effect, handling both failure and
    * success.
    */
-  def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(
-    implicit ev: CanFail[E]
+  def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
+    ev: CanFail[E]
   ): ZSTM[R1, E1, B] =
     self.continueWithM {
       case TExit.Fail(e)    => f(e)
@@ -441,8 +440,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Returns a successful effect if the value is `Left`, or fails with
    * a [[java.util.NoSuchElementException]].
    */
-  def leftOrFailException[B, C, E1 >: NoSuchElementException](
-    implicit ev: A <:< Either[B, C],
+  def leftOrFailException[B, C, E1 >: NoSuchElementException](implicit
+    ev: A <:< Either[B, C],
     ev2: E <:< E1
   ): ZSTM[R, E1, B] =
     foldM(
@@ -752,8 +751,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Returns a successful effect if the value is `Right`, or fails with
    * a [[java.util.NoSuchElementException]].
    */
-  def rightOrFailException[B, C, E1 >: NoSuchElementException](
-    implicit ev: A <:< Either[B, C],
+  def rightOrFailException[B, C, E1 >: NoSuchElementException](implicit
+    ev: A <:< Either[B, C],
     ev2: E <:< E1
   ): ZSTM[R, E1, C] =
     self.foldM(
@@ -794,8 +793,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
    */
-  def someOrFailException[B, E1 >: E](
-    implicit ev: A <:< Option[B],
+  def someOrFailException[B, E1 >: E](implicit
+    ev: A <:< Option[B],
     ev2: NoSuchElementException <:< E1
   ): ZSTM[R, E1, B] =
     foldM(
@@ -824,8 +823,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * "Peeks" at both sides of an transactional effect.
    */
-  def tapBoth[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any], g: A => ZSTM[R1, E1, Any])(
-    implicit ev: CanFail[E]
+  def tapBoth[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any], g: A => ZSTM[R1, E1, Any])(implicit
+    ev: CanFail[E]
   ): ZSTM[R1, E1, A] =
     foldM(e => f(e) *> ZSTM.fail(e), a => g(a) as a)
 
@@ -1072,9 +1071,8 @@ object ZSTM {
     as: Collection[A]
   )(f: A => ZSTM[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
     as.foldLeft[ZSTM[R, E, Builder[A, Collection[A]]]](ZSTM.succeed(bf.newBuilder(as))) { (zio, a) =>
-        zio.zipWith(f(a))((as, p) => if (p) as += a else as)
-      }
-      .map(_.result())
+      zio.zipWith(f(a))((as, p) => if (p) as += a else as)
+    }.map(_.result())
 
   /**
    * Filters the collection using the specified effectual predicate, removing
@@ -1124,9 +1122,8 @@ object ZSTM {
     in: Collection[A]
   )(f: A => ZSTM[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
     in.foldLeft[ZSTM[R, E, Builder[B, Collection[B]]]](ZSTM.succeed(bf.newBuilder(in))) { (tx, a) =>
-        tx.zipWith(f(a))(_ += _)
-      }
-      .map(_.result())
+      tx.zipWith(f(a))(_ += _)
+    }.map(_.result())
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and

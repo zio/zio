@@ -204,7 +204,9 @@ private[zio] trait ChunkLike[+A]
    */
   @inline
   private[this] def isChunkCanBuildFrom[A, B, That](bf: CanBuildFrom[Chunk[A], B, That]): Boolean =
-    bf.isInstanceOf[ChunkCanBuildFrom[_]] || (bf eq IndexedSeq.ReusableCBF) || (bf eq collection.immutable.Seq.ReusableCBF) || (bf eq collection.Seq.ReusableCBF)
+    bf.isInstanceOf[
+      ChunkCanBuildFrom[_]
+    ] || (bf eq IndexedSeq.ReusableCBF) || (bf eq collection.immutable.Seq.ReusableCBF) || (bf eq collection.Seq.ReusableCBF)
 }
 
 object ChunkLike {

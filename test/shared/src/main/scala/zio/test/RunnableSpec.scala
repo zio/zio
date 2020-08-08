@@ -31,9 +31,9 @@ abstract class RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
     for {
       results <- runSpec(spec)
       hasFailures <- results.exists {
-                      case TestCase(_, test, _) => test.map(_.isLeft)
-                      case _                    => UIO.succeedNow(false)
-                    }.useNow
+                       case TestCase(_, test, _) => test.map(_.isLeft)
+                       case _                    => UIO.succeedNow(false)
+                     }.useNow
       summary <- SummaryBuilder.buildSummary(results)
       _       <- TestLogger.logLine(summary.summary)
     } yield if (hasFailures) 1 else 0

@@ -141,9 +141,9 @@ object RandomSpec extends ZIOBaseSpec {
         _          <- testRandom.setSeed(seed)
         actual     <- UIO.foreach(List.range(0, 100))(testRandom.nextBytes(_))
         expected <- ZIO.effectTotal(List.range(0, 100).map(new Array[Byte](_)).map { arr =>
-                     sRandom.nextBytes(arr)
-                     Chunk.fromArray(arr)
-                   })
+                      sRandom.nextBytes(arr)
+                      Chunk.fromArray(arr)
+                    })
       } yield assert(actual)(equalTo(expected))
     }
 

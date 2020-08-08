@@ -40,7 +40,7 @@ object URIO {
 
   /**
    * @see bracket in [[zio.ZIO]]
-   **/
+   */
   def bracket[R, A, B](
     acquire: URIO[R, A],
     release: A => URIO[R, Any],
@@ -730,7 +730,7 @@ object URIO {
 
   /**
    * @see [[zio.ZIO.trace]]
-   * */
+   */
   def trace: UIO[ZTrace] = ZIO.trace
 
   /**

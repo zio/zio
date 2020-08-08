@@ -285,7 +285,7 @@ object TestData {
     val headerBytes = Array(31, 139, 8, crcFlag, 0, 0, 0, 0, 0, 0).map(_.toByte)
     val crc32       = new CRC32
     crc32.update(headerBytes)
-    val crc16      = (crc32.getValue() & 0xFFFFL).toInt
+    val crc16      = (crc32.getValue() & 0xffffL).toInt
     val crc16Byte1 = (crc16 & 0xff).toByte
     val crc16Byte2 = (crc16 >> 8).toByte
     val header     = headerBytes ++ Array(crc16Byte1, crc16Byte2)
@@ -301,7 +301,7 @@ object TestData {
     val headerUpToCrc = fixedHeader ++ extra ++ fileName ++ comment
     val crc32         = new CRC32
     crc32.update(headerUpToCrc)
-    val crc16      = (crc32.getValue() & 0xFFFFL).toInt
+    val crc16      = (crc32.getValue() & 0xffffL).toInt
     val crc16Byte1 = (crc16 & 0xff).toByte
     val crc16Byte2 = (crc16 >> 8).toByte
     val header     = headerUpToCrc ++ Array(crc16Byte1, crc16Byte2)

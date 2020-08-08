@@ -116,26 +116,26 @@ package object blocking {
               ZIO.uninterruptibleMask(restore =>
                 for {
                   fiber <- ZIO.effectSuspend {
-                            val current = Some(Thread.currentThread)
+                             val current = Some(Thread.currentThread)
 
-                            withMutex(thread.set(current))
+                             withMutex(thread.set(current))
 
-                            begin.set(())
+                             begin.set(())
 
-                            try {
-                              val a = effect
+                             try {
+                               val a = effect
 
-                              ZIO.succeedNow(a)
-                            } catch {
-                              case _: InterruptedException =>
-                                Thread.interrupted // Clear interrupt status
-                                ZIO.interrupt
-                              case t: Throwable =>
-                                ZIO.fail(t)
-                            } finally {
-                              withMutex { thread.set(None); end.set(()) }
-                            }
-                          }.forkDaemon
+                               ZIO.succeedNow(a)
+                             } catch {
+                               case _: InterruptedException =>
+                                 Thread.interrupted // Clear interrupt status
+                                 ZIO.interrupt
+                               case t: Throwable =>
+                                 ZIO.fail(t)
+                             } finally {
+                               withMutex { thread.set(None); end.set(()) }
+                             }
+                           }.forkDaemon
                   a <- restore(fiber.join.refailWithTrace).ensuring(interruptThread)
                 } yield a
               )

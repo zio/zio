@@ -323,12 +323,12 @@ package object environment extends PlatformSpecific {
         for {
           promise <- Promise.make[Nothing, Unit]
           await <- clockState.modify { data =>
-                    val end = data.duration + duration
-                    if (end > data.duration)
-                      (true, data.copy(sleeps = (end, promise) :: data.sleeps))
-                    else
-                      (false, data)
-                  }
+                     val end = data.duration + duration
+                     if (end > data.duration)
+                       (true, data.copy(sleeps = (end, promise) :: data.sleeps))
+                     else
+                       (false, data)
+                   }
           _ <- if (await) warningStart *> promise.await else promise.succeed(())
         } yield ()
 
@@ -687,9 +687,9 @@ package object environment extends PlatformSpecific {
       val getStrLn: IO[IOException, String] = {
         for {
           input <- consoleState.get.flatMap(d =>
-                    IO.fromOption(d.input.headOption)
-                      .orElseFail(new EOFException("There is no more input left to read"))
-                  )
+                     IO.fromOption(d.input.headOption)
+                       .orElseFail(new EOFException("There is no more input left to read"))
+                   )
           _ <- consoleState.update(data => Data(data.input.tail, data.output, data.errOutput))
         } yield input
       }
@@ -770,7 +770,7 @@ package object environment extends PlatformSpecific {
         for {
           ref      <- Ref.make(data)
           debugRef <- FiberRef.make(debug)
-          test     = Test(ref, live, debugRef)
+          test      = Test(ref, live, debugRef)
         } yield Has.allOf[Console.Service, TestConsole.Service](test, test)
       }
 
@@ -1044,7 +1044,7 @@ package object environment extends PlatformSpecific {
       val getSeed: UIO[Long] =
         randomState.get.map {
           case Data(seed1, seed2, _) =>
-            ((seed1.toLong << 24) | seed2) ^ 0X5DEECE66DL
+            ((seed1.toLong << 24) | seed2) ^ 0x5deece66dL
         }
 
       /**
@@ -1170,7 +1170,7 @@ package object environment extends PlatformSpecific {
        */
       def setSeed(seed: Long): UIO[Unit] =
         randomState.set {
-          val newSeed = (seed ^ 0X5DEECE66DL) & ((1L << 48) - 1)
+          val newSeed = (seed ^ 0x5deece66dL) & ((1L << 48) - 1)
           val seed1   = (newSeed >>> 24).toInt
           val seed2   = newSeed.toInt & ((1 << 24) - 1)
           Data(seed1, seed2, Queue.empty)
@@ -1245,11 +1245,11 @@ package object environment extends PlatformSpecific {
 
       private def randomBits(bits: Int): UIO[Int] =
         randomState.modify { data =>
-          val multiplier  = 0X5DEECE66DL
+          val multiplier  = 0x5deece66dL
           val multiplier1 = (multiplier >>> 24).toInt
           val multiplier2 = multiplier.toInt & ((1 << 24) - 1)
           val product1    = data.seed2.toDouble * multiplier1.toDouble + data.seed1.toDouble * multiplier2.toDouble
-          val product2    = data.seed2.toDouble * multiplier2.toDouble + 0xB
+          val product2    = data.seed2.toDouble * multiplier2.toDouble + 0xb
           val newSeed1    = (mostSignificantBits(product2) + leastSignificantBits(product1)) & ((1 << 24) - 1)
           val newSeed2    = leastSignificantBits(product2)
           val result      = (newSeed1 << 8) | (newSeed2 >> 16)
@@ -1356,7 +1356,7 @@ package object environment extends PlatformSpecific {
         randomIntBounded(127 - 33).map(i => (i + 33).toChar)
 
       private def randomString(length: Int): UIO[String] = {
-        val safeChar = randomIntBounded(0xD800 - 1).map(i => (i + 1).toChar)
+        val safeChar = randomIntBounded(0xd800 - 1).map(i => (i + 1).toChar)
         UIO.collectAll(List.fill(length)(safeChar)).map(_.mkString)
       }
 
@@ -1506,7 +1506,7 @@ package object environment extends PlatformSpecific {
       ZLayer.fromEffectMany(for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
-        test   = Test(data, buffer)
+        test    = Test(data, buffer)
       } yield Has.allOf[Random.Service, TestRandom.Service](test, test))
 
     val any: ZLayer[Random with TestRandom, Nothing, Random with TestRandom] =
@@ -1583,7 +1583,6 @@ package object environment extends PlatformSpecific {
    *   result <- system.property("java.vm.name")
    * } yield result == Some("VM")
    * }}}
-
    */
   object TestSystem extends Serializable {
 
@@ -1606,14 +1605,14 @@ package object environment extends PlatformSpecific {
       /**
        * Returns the specified environment variable if it exists or else the
        * specified fallback value.
-        **/
+       */
       def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
         System.envOrElseWith(variable, alt)(env)
 
       /**
        * Returns the specified environment variable if it exists or else the
        * specified optional fallback value.
-        **/
+       */
       def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
         System.envOrOptionWith(variable, alt)(env)
 
@@ -1638,14 +1637,14 @@ package object environment extends PlatformSpecific {
       /**
        * Returns the specified system property if it exists or else the
        * specified fallback value.
-        **/
+       */
       def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
         System.propertyOrElseWith(prop, alt)(property)
 
       /**
        * Returns the specified system property if it exists or else the
        * specified optional fallback value.
-        **/
+       */
       def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
         System.propertyOrOptionWith(prop, alt)(property)
 

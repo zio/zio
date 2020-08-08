@@ -91,11 +91,11 @@ object FiberSpec extends ZIOBaseSpec {
             ZIO.forkAll(List.fill(n)(worker1)).flatMap(_.join) *> ZIO.never
           }
           for {
-            queue  <- Queue.unbounded[Int]
-            _      <- queue.offerAll(1 to 100)
+            queue <- Queue.unbounded[Int]
+            _     <- queue.offerAll(1 to 100)
             worker = (n: Int) => if (n == 100) ZIO.fail("fail") else queue.offer(n).unit
-            exit   <- shard(queue, 4, worker).run
-            _      <- queue.shutdown
+            exit  <- shard(queue, 4, worker).run
+            _     <- queue.shutdown
           } yield assert(exit)(fails(equalTo("fail")))
         }
       ) @@ zioTag(errors),
@@ -103,8 +103,8 @@ object FiberSpec extends ZIOBaseSpec {
         for {
           latch1 <- Promise.make[Nothing, Unit]
           latch2 <- Promise.make[Nothing, Unit]
-          c      = ZIO.never.interruptible.onInterrupt(latch2.succeed(()))
-          a      = (latch1.succeed(()) *> c.fork.fork).uninterruptible *> ZIO.never
+          c       = ZIO.never.interruptible.onInterrupt(latch2.succeed(()))
+          a       = (latch1.succeed(()) *> c.fork.fork).uninterruptible *> ZIO.never
           fiber  <- a.fork
           _      <- latch1.await
           _      <- fiber.interrupt
@@ -128,20 +128,20 @@ object FiberSpec extends ZIOBaseSpec {
             f1 <- ZIO.never.fork
             f2 <- f1.await.fork
             blockingOn <- f2.status
-                           .collect(()) {
-                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                           }
-                           .eventually
+                            .collect(()) {
+                              case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                            }
+                            .eventually
           } yield assert(blockingOn)(equalTo(List(f1.id)))
         },
         testM("in race") {
           for {
             f <- ZIO.never.race(ZIO.never).fork
             blockingOn <- f.status
-                           .collect(()) {
-                             case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
-                           }
-                           .eventually
+                            .collect(()) {
+                              case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                            }
+                            .eventually
           } yield assert(blockingOn)(hasSize(equalTo(2)))
         }
       )

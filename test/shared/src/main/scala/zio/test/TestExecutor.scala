@@ -39,7 +39,8 @@ object TestExecutor {
             e.failureOrCause.fold(
               { case (failure, annotations) => ZIO.succeedNow((Left(failure), annotations)) },
               cause => ZIO.succeedNow((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
-            ), {
+            ),
+          {
             case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
           }
         )

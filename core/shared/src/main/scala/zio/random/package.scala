@@ -21,8 +21,8 @@ package object random {
       def nextPrintableChar: UIO[Char]
       def nextString(length: Int): UIO[String]
       def setSeed(seed: Long): UIO[Unit]
-      def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(
-        implicit bf: BuildFrom[Collection[A], A, Collection[A]]
+      def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
+        bf: BuildFrom[Collection[A], A, Collection[A]]
       ): UIO[Collection[A]]
     }
 
@@ -152,16 +152,15 @@ package object random {
         bufferRef <- Ref.make(new scala.collection.mutable.ArrayBuffer[A])
         _         <- bufferRef.update(_ ++= collection)
         swap = (i1: Int, i2: Int) =>
-          bufferRef.update {
-            case buffer =>
-              val tmp = buffer(i1)
-              buffer(i1) = buffer(i2)
-              buffer(i2) = tmp
-              buffer
-          }
-        _ <- ZIO.foreach((collection.size to 2 by -1).toList)((n: Int) =>
-              nextIntBounded(n).flatMap(k => swap(n - 1, k))
-            )
+                 bufferRef.update {
+                   case buffer =>
+                     val tmp = buffer(i1)
+                     buffer(i1) = buffer(i2)
+                     buffer(i2) = tmp
+                     buffer
+                 }
+        _ <-
+          ZIO.foreach((collection.size to 2 by -1).toList)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
         buffer <- bufferRef.get
       } yield bf.fromSpecific(collection)(buffer)
   }

@@ -268,8 +268,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
       mostSigBits  <- Gen.anyLong.noShrink
       leastSigBits <- Gen.anyLong.noShrink
     } yield new UUID(
-      (mostSigBits & ~0x0000F000) | 0x00004000,
-      (leastSigBits & ~(0xC0000000L << 32)) | (0x80000000L << 32)
+      (mostSigBits & ~0x0000f000) | 0x00004000,
+      (leastSigBits & ~(0xc0000000L << 32)) | (0x80000000L << 32)
     )
 
   /**

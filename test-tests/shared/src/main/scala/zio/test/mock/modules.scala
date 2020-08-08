@@ -6,7 +6,7 @@ import zio.{ Has, IO, Tag, UIO }
  * https://github.com/scalamacros/paradise/issues/75
  *
  * We can't define module in the same scope with macro application
- * */
+ */
 object modules {
   type EmptyModule = Has[EmptyModule.Service]
   object EmptyModule {

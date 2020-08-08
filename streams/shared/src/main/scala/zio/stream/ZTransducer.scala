@@ -825,9 +825,9 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    */
   val utf8Decode: ZTransducer[Any, Nothing, Byte, String] = {
     val transducer = ZTransducer[Any, Nothing, Byte, String] {
-      def is2ByteSequenceStart(b: Byte) = (b & 0xE0) == 0xC0
-      def is3ByteSequenceStart(b: Byte) = (b & 0xF0) == 0xE0
-      def is4ByteSequenceStart(b: Byte) = (b & 0xF8) == 0xF0
+      def is2ByteSequenceStart(b: Byte) = (b & 0xe0) == 0xc0
+      def is3ByteSequenceStart(b: Byte) = (b & 0xf0) == 0xe0
+      def is4ByteSequenceStart(b: Byte) = (b & 0xf8) == 0xf0
       def computeSplit(chunk: Chunk[Byte]) = {
         // There are 3 bad patterns we need to check to detect an incomplete chunk:
         // - 2/3/4 byte sequences that start on the last byte
@@ -837,14 +837,18 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         // Otherwise, we can convert the entire concatenated chunk to a string.
         val len = chunk.length
 
-        if (len >= 1 &&
-            (is2ByteSequenceStart(chunk(len - 1)) ||
-            is3ByteSequenceStart(chunk(len - 1)) ||
-            is4ByteSequenceStart(chunk(len - 1))))
+        if (
+          len >= 1 &&
+          (is2ByteSequenceStart(chunk(len - 1)) ||
+          is3ByteSequenceStart(chunk(len - 1)) ||
+          is4ByteSequenceStart(chunk(len - 1)))
+        )
           len - 1
-        else if (len >= 2 &&
-                 (is3ByteSequenceStart(chunk(len - 2)) ||
-                 is4ByteSequenceStart(chunk(len - 2))))
+        else if (
+          len >= 2 &&
+          (is3ByteSequenceStart(chunk(len - 2)) ||
+          is4ByteSequenceStart(chunk(len - 2)))
+        )
           len - 2
         else if (len >= 3 && is4ByteSequenceStart(chunk(len - 3)))
           len - 3

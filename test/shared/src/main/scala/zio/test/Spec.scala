@@ -395,9 +395,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
         for {
           specs <- specs
           result <- ZManaged.foldLeft(specs)(z0 -> Vector.empty[Spec[R1, E1, T1]]) {
-                     case ((z, vector), spec) =>
-                       spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
-                   }
+                      case ((z, vector), spec) =>
+                        spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
+                    }
           (z, specs1)     = result
           res             = f(z, SuiteCase(label, ZManaged.succeedNow(specs1), exec))
           (z1, caseValue) = res

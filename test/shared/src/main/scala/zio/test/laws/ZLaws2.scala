@@ -21,8 +21,8 @@ import zio.{ URIO, ZIO }
 
 abstract class ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
 
-  def run[R1 <: R, A: CapsLeft, B: CapsRight](left: Gen[R1, A], right: Gen[R1, B])(
-    implicit CapsBoth: CapsBoth[A, B]
+  def run[R1 <: R, A: CapsLeft, B: CapsRight](left: Gen[R1, A], right: Gen[R1, B])(implicit
+    CapsBoth: CapsBoth[A, B]
   ): ZIO[R1, Nothing, TestResult]
 
   def +[CapsBoth1[x, y] <: CapsBoth[x, y], CapsLeft1[x] <: CapsLeft[x], CapsRight1[x] <: CapsRight[x], R1 <: R](
@@ -37,8 +37,8 @@ object ZLaws2 {
     left: ZLaws2[CapsBoth, CapsLeft, CapsRight, R],
     right: ZLaws2[CapsBoth, CapsLeft, CapsRight, R]
   ) extends ZLaws2[CapsBoth, CapsLeft, CapsRight, R] {
-    final def run[R1 <: R, A: CapsLeft, B: CapsRight](a: Gen[R1, A], b: Gen[R1, B])(
-      implicit CapsBoth: CapsBoth[A, B]
+    final def run[R1 <: R, A: CapsLeft, B: CapsRight](a: Gen[R1, A], b: Gen[R1, B])(implicit
+      CapsBoth: CapsBoth[A, B]
     ): ZIO[R1, Nothing, TestResult] =
       left.run(a, b).zipWith(right.run(a, b))(_ && _)
   }
@@ -46,8 +46,8 @@ object ZLaws2 {
   abstract class Law1Left[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
     def apply[A: CapsLeft, B: CapsRight](a1: A)(implicit CapsBoth: CapsBoth[A, B]): TestResult
-    final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(
-      implicit CapsBoth: CapsBoth[A, B]
+    final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
+      CapsBoth: CapsBoth[A, B]
     ): URIO[R, TestResult] =
       check(a, b)((a, _) => apply(a).map(_.label(label)))
   }
@@ -55,8 +55,8 @@ object ZLaws2 {
   abstract class Law1Right[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
     def apply[A: CapsLeft, B: CapsRight](b1: B)(implicit CapsBoth: CapsBoth[A, B]): TestResult
-    final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(
-      implicit CapsBoth: CapsBoth[A, B]
+    final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
+      CapsBoth: CapsBoth[A, B]
     ): URIO[R, TestResult] =
       check(a, b)((_, b) => apply(b).map(_.label(label)))
   }

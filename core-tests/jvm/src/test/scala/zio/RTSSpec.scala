@@ -37,8 +37,8 @@ object RTSSpec extends ZIOBaseSpec {
         done  <- Ref.make(false)
         start <- IO.succeed(internal.OneShot.make[Unit])
         fiber <- blocking.effectBlockingInterrupt { start.set(()); Thread.sleep(60L * 60L * 1000L) }
-                  .ensuring(done.set(true))
-                  .fork
+                   .ensuring(done.set(true))
+                   .fork
         _     <- IO.succeed(start.get())
         res   <- fiber.interrupt
         value <- done.get
@@ -48,8 +48,8 @@ object RTSSpec extends ZIOBaseSpec {
       val io =
         for {
           release <- zio.Promise.make[Nothing, Int]
-          latch   = internal.OneShot.make[Unit]
-          async   = IO.effectAsyncInterrupt[Nothing, Unit] { _ => latch.set(()); Left(release.succeed(42).unit) }
+          latch    = internal.OneShot.make[Unit]
+          async    = IO.effectAsyncInterrupt[Nothing, Unit] { _ => latch.set(()); Left(release.succeed(42).unit) }
           fiber   <- async.fork
           _       <- IO.effectTotal(latch.get(1000))
           _       <- fiber.interrupt.fork
@@ -81,11 +81,11 @@ object RTSSpec extends ZIOBaseSpec {
           startLatch <- Promise.make[Nothing, Int]
           exitLatch  <- Promise.make[Nothing, Int]
           bracketed = IO
-            .succeed(21)
-            .bracketExit((r: Int, exit: Exit[Any, Any]) =>
-              if (exit.interrupted) exitLatch.succeed(r)
-              else IO.die(new Error("Unexpected case"))
-            )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+                        .succeed(21)
+                        .bracketExit((r: Int, exit: Exit[Any, Any]) =>
+                          if (exit.interrupted) exitLatch.succeed(r)
+                          else IO.die(new Error("Unexpected case"))
+                        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
           fiber      <- bracketed.fork
           startValue <- startLatch.await
           _          <- fiber.interrupt.fork
@@ -114,14 +114,14 @@ object RTSSpec extends ZIOBaseSpec {
     testM("second callback call is ignored") {
       for {
         _ <- IO.effectAsync[Throwable, Int] { k =>
-              k(IO.succeed(42))
-              Thread.sleep(500)
-              k(IO.succeed(42))
-            }
+               k(IO.succeed(42))
+               Thread.sleep(500)
+               k(IO.succeed(42))
+             }
         res <- IO.effectAsync[Throwable, String] { k =>
-                Thread.sleep(1000)
-                k(IO.succeed("ok"))
-              }
+                 Thread.sleep(1000)
+                 k(IO.succeed("ok"))
+               }
       } yield assert(res)(equalTo("ok"))
     },
     testM("check interruption regression 1") {
@@ -138,7 +138,7 @@ object RTSSpec extends ZIOBaseSpec {
         for {
           f <- test.fork
           c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
-                .repeatUntil(_ >= 1) <* f.interrupt
+                 .repeatUntil(_ >= 1) <* f.interrupt
         } yield c
 
       assertM(Live.live(zio))(isGreaterThanEqualTo(1))

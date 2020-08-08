@@ -47,23 +47,23 @@ object DefaultTestReporter {
           for {
             specs <- executedSpecs.useNow
             failures <- UIO.foreach(specs) { specs =>
-                         specs.exists {
-                           case Spec.TestCase(_, test, _) => test.map(_.isLeft)
-                           case _                         => UIO.succeedNow(false)
-                         }.useNow
-                       }
+                          specs.exists {
+                            case Spec.TestCase(_, test, _) => test.map(_.isLeft)
+                            case _                         => UIO.succeedNow(false)
+                          }.useNow
+                        }
             annotations <- Spec(c).fold[UIO[TestAnnotationMap]] {
-                            case Spec.SuiteCase(_, specs, _) =>
-                              specs.use(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
-                            case Spec.TestCase(_, _, annotations) => UIO.succeedNow(annotations)
-                          }
+                             case Spec.SuiteCase(_, specs, _) =>
+                               specs.use(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
+                             case Spec.TestCase(_, _, annotations) => UIO.succeedNow(annotations)
+                           }
             hasFailures = failures.exists(identity)
             status      = if (hasFailures) Failed else Passed
             renderedLabel = if (specs.isEmpty) Seq.empty
-            else if (hasFailures) Seq(renderFailureLabel(label, depth))
-            else Seq(renderSuccessLabel(label, depth))
+                            else if (hasFailures) Seq(renderFailureLabel(label, depth))
+                            else Seq(renderSuccessLabel(label, depth))
             renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
-            rest                <- UIO.foreach(specs)(loop(_, depth + tabSize, annotations :: ancestors)).map(_.flatten)
+            rest               <- UIO.foreach(specs)(loop(_, depth + tabSize, annotations :: ancestors)).map(_.flatten)
           } yield rendered(Suite, label, status, depth, (renderedLabel): _*)
             .withAnnotations(renderedAnnotations) +: rest
         case Spec.TestCase(label, result, annotations) =>
@@ -122,7 +122,7 @@ object DefaultTestReporter {
           }
       }
     for {
-      stats                      <- loop(executedSpec)
+      stats                     <- loop(executedSpec)
       (success, ignore, failure) = stats
       total                      = success + ignore + failure
     } yield cyan(

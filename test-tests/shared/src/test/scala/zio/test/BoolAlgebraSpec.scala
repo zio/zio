@@ -162,10 +162,10 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       for {
         n <- Gen.int(1, size - 2)
         gen <- Gen.oneOf(
-                (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 && p._2),
-                (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 || p._2),
-                boolAlgebraOfSize(size - 1).map(!_)
-              )
+                 (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 && p._2),
+                 (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 || p._2),
+                 boolAlgebraOfSize(size - 1).map(!_)
+               )
       } yield gen
     }
 

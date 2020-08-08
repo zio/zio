@@ -102,7 +102,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
         {
           case Assertion(result) => reportAssertionFailure(notifier, path, label, result)
           case Runtime(cause)    => reportRuntimeFailure(notifier, path, label, cause)
-        }, {
+        },
+        {
           case Succeeded(_) => notifier.fireTestFinished(label, path)
           case Ignored      => notifier.fireTestIgnored(label, path)
         }

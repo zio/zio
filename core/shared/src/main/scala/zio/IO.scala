@@ -733,7 +733,7 @@ object IO {
 
   /**
    * @see See [[zio.ZIO.trace]]
-   * */
+   */
   def trace: UIO[ZTrace] = ZIO.trace
 
   /**
