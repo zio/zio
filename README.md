@@ -59,6 +59,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Call Handling](https://www.callhandling.co.uk/)
 * [Univalence](https://univalence.io)
 * [CurrencyCloud](https://www.currencycloud.com/)
+* [Rudder](https://www.rudder.io/)
 
 # Sponsors
 
