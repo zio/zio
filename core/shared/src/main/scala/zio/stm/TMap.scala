@@ -35,6 +35,12 @@ final class TMap[K, V] private (
     get(k).map(_.isDefined)
 
   /**
+   * Tests if the map is empty or not
+   */
+  def isEmpty: USTM[Boolean] =
+    tSize.map(_ == 0).get
+
+  /**
    * Removes binding for given key.
    */
   def delete(k: K): USTM[Unit] =

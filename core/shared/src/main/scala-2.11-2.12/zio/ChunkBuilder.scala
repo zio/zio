@@ -36,7 +36,7 @@ import zio.Chunk.BitChunk
  * efficiently build chunks of unboxed primitives and for compatibility with
  * the Scala collection library.
  */
-sealed trait ChunkBuilder[A] extends Builder[A, Chunk[A]]
+sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]]
 
 object ChunkBuilder {
 
@@ -75,6 +75,15 @@ object ChunkBuilder {
           arrayBuilder.sizeHint(n)
         }
     }
+
+  /**
+   * Constructs a generic `ChunkBuilder` with size hint.
+   */
+  def make[A](sizeHint: SInt): ChunkBuilder[A] = {
+    val builder = make[A]()
+    builder.sizeHint(sizeHint)
+    builder
+  }
 
   /**
    * A `ChunkBuilder` specialized for building chunks of unboxed `Boolean`

@@ -26,7 +26,7 @@ import zio.{ URIO, ZIO }
  * Laws can be combined using `+` to produce a set of laws that require both
  * sets of laws to be satisfied.
  */
-trait ZLaws[-Caps[_], -R] { self =>
+abstract class ZLaws[-Caps[_], -R] { self =>
 
   /**
    * Test that values of type `A` satisfy the laws using the specified

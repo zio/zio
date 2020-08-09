@@ -243,7 +243,16 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("mapAccumM")(
       testM("mapAccumM happy path") {
-        assertM(Chunk(1, 1, 1).mapAccumM(0)((s, el) => UIO.succeed((s + el, s + el))))(equalTo((3, Chunk(1, 2, 3))))
+        checkM(smallChunks(Gen.anyInt), smallChunks(Gen.anyInt), Gen.anyInt, Gen.function2(Gen.anyInt <*> Gen.anyInt)) {
+          (left, right, s, f) =>
+            val actual = (left ++ right).mapAccumM[Any, Nothing, Int, Int](s)((s, a) => UIO.succeed(f(s, a)))
+            val expected = (left ++ right).foldLeft[(Int, Chunk[Int])]((s, Chunk.empty)) {
+              case ((s0, bs), a) =>
+                val (s1, b) = f(s0, a)
+                (s1, bs :+ b)
+            }
+            assertM(actual)(equalTo(expected))
+        }
       },
       testM("mapAccumM error") {
         Chunk(1, 1, 1).mapAccumM(0)((_, _) => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
@@ -275,8 +284,10 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     testM("indexWhere") {
       val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
-      check(mediumChunks(intGen), fn, intGen) { (chunk, p, from) =>
-        assert(chunk.indexWhere(p, from))(equalTo(chunk.toList.indexWhere(p, from)))
+      check(smallChunks(intGen), smallChunks(intGen), fn, intGen) { (left, right, p, from) =>
+        val actual   = (left ++ right).indexWhere(p, from)
+        val expected = (left.toVector ++ right.toVector).indexWhere(p, from)
+        assert(actual)(equalTo(expected))
       }
     } @@ exceptScala211,
     testM("exists") {
@@ -330,6 +341,14 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.takeWhile(p).toList)(equalTo(c.toList.takeWhile(p)))
       }
     },
+    suite("takeWhileM")(
+      testM("takeWhileM happy path") {
+        assertM(Chunk(1, 2, 3, 4, 5).takeWhileM(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(1)))
+      },
+      testM("takeWhileM error") {
+        Chunk(1, 1, 1).dropWhileM(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
+      } @@ zioTag(errors)
+    ),
     testM("toArray") {
       check(mediumChunks(Gen.alphaNumericString))(c => assert(c.toArray.toList)(equalTo(c.toList)))
     },
@@ -515,6 +534,21 @@ object ChunkSpec extends ZIOBaseSpec {
       val chunk = Chunk("a")
       val array = chunk.toArray
       assert(array)(anything)
+    },
+    testM("foldWhileM") {
+      assertM(
+        Chunk
+          .fromIterable(List(2))
+          .foldWhileM(0)(i => i <= 2) {
+            case (i: Int, i1: Int) =>
+              if (i < 2) IO.succeed(i + i1)
+              else IO.succeed(i)
+          }
+      )(equalTo(2))
+    },
+    zio.test.test("Tags.fromValue is safe on Scala.is") {
+      val _ = Chunk(1, 128)
+      assertCompletes
     }
   )
 }

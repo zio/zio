@@ -24,7 +24,7 @@ import internal.{ Platform, Sync }
  * A `Supervisor[A]` is allowed to supervise the launching and termination of
  * fibers, producing some visible value of type `A` from the supervision.
  */
-trait Supervisor[+A] { self =>
+abstract class Supervisor[+A] { self =>
   import Supervisor._
 
   /**
@@ -103,7 +103,7 @@ object Supervisor {
    * A hint indicating whether or not to propagate supervision events across
    * supervisor hierarchies.
    */
-  sealed trait Propagation { self =>
+  sealed abstract class Propagation { self =>
     import Propagation._
 
     def ||(that: => Propagation): Propagation =

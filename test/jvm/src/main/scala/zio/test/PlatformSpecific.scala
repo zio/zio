@@ -20,7 +20,7 @@ import zio.blocking.Blocking
 import zio.test.environment._
 import zio.{ ZEnv, ZLayer }
 
-private[test] trait PlatformSpecific {
+private[test] abstract class PlatformSpecific {
   type TestEnvironment =
     ZEnv with Annotations with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
 

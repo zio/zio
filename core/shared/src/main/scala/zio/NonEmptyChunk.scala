@@ -130,6 +130,48 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     nonEmpty(that ++ chunk)
 
   /**
+   * Reduces the elements of this `NonEmptyChunk` from left to right using the
+   * function `map` to transform the first value to the type `B` and then the
+   * function `reduce` to combine the `B` value with each other `A` value.
+   */
+  def reduceMapLeft[B](map: A => B)(reduce: (B, A) => B): B = {
+    val iterator = chunk.arrayIterator
+    var b: B     = null.asInstanceOf[B]
+    while (iterator.hasNext) {
+      val array  = iterator.next()
+      val length = array.length
+      var i      = 0
+      while (i < length) {
+        val a = array(i)
+        if (b == null) b = map(a) else b = reduce(b, a)
+        i += 1
+      }
+    }
+    b
+  }
+
+  /**
+   * Reduces the elements of this `NonEmptyChunk` from right to left using the
+   * function `map` to transform the first value to the type `B` and then the
+   * function `reduce` to combine the `B` value with each other `A` value.
+   */
+  def reduceMapRight[B](map: A => B)(reduce: (A, B) => B): B = {
+    val iterator = chunk.reverseArrayIterator
+    var b: B     = null.asInstanceOf[B]
+    while (iterator.hasNext) {
+      val array  = iterator.next()
+      val length = array.length
+      var i      = length - 1
+      while (i >= 0) {
+        val a = array(i)
+        if (b == null) b = map(a) else b = reduce(a, b)
+        i -= 1
+      }
+    }
+    b
+  }
+
+  /**
    * Converts this `NonEmptyChunk` to a `Chunk`, discarding information about
    * it not being empty.
    */

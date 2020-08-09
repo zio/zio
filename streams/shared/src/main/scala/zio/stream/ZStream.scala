@@ -2,9 +2,11 @@ package zio.stream
 
 import java.{ util => ju }
 
+import scala.reflect.ClassTag
+
 import zio._
 import zio.clock.Clock
-import zio.duration.Duration
+import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
@@ -174,7 +176,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def aggregateAsync[R1 <: R, E1 >: E, P](
     transducer: ZTransducer[R1, E1, O, P]
-  ): ZStream[R1, E1, P] =
+  ): ZStream[R1 with Clock, E1, P] =
     aggregateAsyncWithin(transducer, Schedule.forever)
 
   /**
@@ -190,7 +192,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, P](
     transducer: ZTransducer[R1, E1, O, P],
     schedule: Schedule[R1, Chunk[P], Any]
-  ): ZStream[R1, E1, P] = aggregateAsyncWithinEither(transducer, schedule).collect {
+  ): ZStream[R1 with Clock, E1, P] = aggregateAsyncWithinEither(transducer, schedule).collect {
     case Right(v) => v
   }
 
@@ -217,7 +219,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, P, Q](
     transducer: ZTransducer[R1, E1, O, P],
     schedule: Schedule[R1, Chunk[P], Q]
-  ): ZStream[R1, E1, Either[Q, P]] =
+  ): ZStream[R1 with Clock, E1, Either[Q, P]] =
     ZStream {
       for {
         pull         <- self.process
@@ -226,14 +228,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         raceNextTime <- ZRef.makeManaged(false)
         waitingFiber <- ZRef
                          .makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
-        scheduleState <- schedule.initial
-                          .flatMap(i => ZRef.make[(Chunk[P], schedule.State)](Chunk.empty -> i))
-                          .toManaged_
-        producer = Take.fromPull(pull).doWhileM(take => handoff.offer(take).as(!take.isDone))
+        sdriver   <- schedule.driver.toManaged_
+        lastChunk <- ZRef.makeManaged[Chunk[P]](Chunk.empty)
+        producer  = Take.fromPull(pull).repeatWhileM(take => handoff.offer(take).as(!take.isDone))
         consumer = {
           // Advances the state of the schedule, which may or may not terminate
-          val updateSchedule: URIO[R1, Option[schedule.State]] =
-            scheduleState.get.flatMap(state => schedule.update(state._1, state._2).option)
+          val updateSchedule: URIO[R1 with Clock, Option[Q]] =
+            lastChunk.get.flatMap(sdriver.next).fold(_ => None, Some(_))
 
           // Waiting for the normal output of the producer
           val waitForProducer: ZIO[R1, Nothing, Take[E1, O]] =
@@ -242,8 +243,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case Some(fib) => fib.join
             }
 
-          def updateLastChunk(take: Take[_, P]): UIO[Unit] =
-            take.tap(chunk => scheduleState.update(_.copy(_1 = chunk)))
+          def updateLastChunk(take: Take[_, P]): UIO[Unit] = take.tap(lastChunk.set(_))
 
           def handleTake(take: Take[E1, O]): Pull[R1, E1, Take[E1, Either[Nothing, P]]] =
             take
@@ -257,27 +257,26 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               )
               .mapError(Some(_))
 
-          def go(race: Boolean): ZIO[R1, Option[E1], Chunk[Take[E1, Either[Q, P]]]] =
+          def go(race: Boolean): ZIO[R1 with Clock, Option[E1], Chunk[Take[E1, Either[Q, P]]]] =
             if (!race)
               waitForProducer.flatMap(handleTake) <* raceNextTime.set(true)
             else
-              updateSchedule.raceWith[R1, Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
+              updateSchedule.raceWith[R1 with Clock, Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
                 waitForProducer
               )(
                 (scheduleDone, producerWaiting) =>
                   ZIO.done(scheduleDone).flatMap {
                     case None =>
                       for {
-                        init           <- schedule.initial
-                        state          <- scheduleState.getAndSet(Chunk.empty -> init)
-                        scheduleResult = Take.single(Left(schedule.extract(state._1, state._2)))
+                        lastQ          <- lastChunk.set(Chunk.empty) *> sdriver.last.orDie <* sdriver.reset
+                        scheduleResult = Take.single(Left(lastQ))
                         take           <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
                         _              <- raceNextTime.set(false)
                         _              <- waitingFiber.set(Some(producerWaiting))
                       } yield Chunk(scheduleResult, take.map(Right(_)))
-                    case Some(nextState) =>
+
+                    case Some(_) =>
                       for {
-                        _  <- scheduleState.update(_.copy(_2 = nextState))
                         ps <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
                         _  <- raceNextTime.set(false)
                         _  <- waitingFiber.set(Some(producerWaiting))
@@ -428,7 +427,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               } yield ()
           )
 
-        Take.fromPull(as).tap(take => offer(take)).doWhile(_ != Take.end).unit
+        Take.fromPull(as).tap(take => offer(take)).repeatWhile(_ != Take.end).unit
       }
       _ <- upstream.toManaged_.fork
       pull = done.get.flatMap {
@@ -1262,7 +1261,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * takes to produce a value.
    */
   final def fixed(duration: Duration): ZStream[R with Clock, E, O] =
-    scheduleElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
+    repeatElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
       case Right(x) => x
     }
 
@@ -1599,14 +1598,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Partitions the stream with specified chunkSize
    * @param chunkSize size of the chunk
    */
-  def grouped(chunkSize: Long): ZStream[R, E, List[O]] =
+  def grouped(chunkSize: Int): ZStream[R, E, Chunk[O]] =
     aggregate(ZTransducer.collectAllN(chunkSize))
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified
    * duration has passed, whichever is satisfied first.
    */
-  def groupedWithin(chunkSize: Long, within: Duration): ZStream[R with Clock, E, List[O]] =
+  def groupedWithin(chunkSize: Int, within: Duration): ZStream[R with Clock, E, Chunk[O]] =
     aggregateAsyncWithin(ZTransducer.collectAllN(chunkSize), Schedule.spaced(within))
 
   /**
@@ -2051,7 +2050,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   }
                 }
               }
-          }.repeat(Schedule.doWhileEquals(true)).fork.interruptible.toManaged(_.interrupt)
+          }.repeatWhileEquals(true).fork.interruptible.toManaged(_.interrupt)
         _ <- handler(chunksL.map(_.map(l)), List(L, E).contains(strategy))
         _ <- handler(chunksR.map(_.map(r)), List(R, E).contains(strategy))
       } yield {
@@ -2244,7 +2243,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  final def repeat[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1, E, O] =
+  final def repeat[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1 with Clock, E, O] =
     repeatEither(schedule) collect { case Right(a) => a }
 
   /**
@@ -2252,8 +2251,66 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * and then repeat again according to the provided schedule. The schedule output will be emitted at
    * the end of each repetition.
    */
-  final def repeatEither[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1, E, Either[B, O]] =
+  final def repeatEither[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1 with Clock, E, Either[B, O]] =
     repeatWith(schedule)(Right(_), Left(_))
+
+  /**
+   * Repeats each element of the stream using the provided schedule. Repetitions are done in
+   * addition to the first execution, which means using `Schedule.recurs(1)` actually results in
+   * the original effect, plus an additional recurrence, for a total of two repetitions of each
+   * value in the stream.
+   */
+  final def repeatElements[R1 <: R](schedule: Schedule[R1, O, Any]): ZStream[R1 with Clock, E, O] =
+    repeatElementsEither(schedule).collect { case Right(a) => a }
+
+  /**
+   * Repeats each element of the stream using the provided schedule. When the schedule is finished,
+   * then the output of the schedule will be emitted into the stream. Repetitions are done in
+   * addition to the first execution, which means using `Schedule.recurs(1)` actually results in
+   * the original effect, plus an additional recurrence, for a total of two repetitions of each
+   * value in the stream.
+   */
+  final def repeatElementsEither[R1 <: R, E1 >: E, B](
+    schedule: Schedule[R1, O, B]
+  ): ZStream[R1 with Clock, E1, Either[B, O]] =
+    repeatElementsWith(schedule)(Right.apply, Left.apply)
+
+  /**
+   * Repeats each element of the stream using the provided schedule. When the schedule is finished,
+   * then the output of the schedule will be emitted into the stream. Repetitions are done in
+   * addition to the first execution, which means using `Schedule.recurs(1)` actually results in
+   * the original effect, plus an additional recurrence, for a total of two repetitions of each
+   * value in the stream.
+   *
+   * This function accepts two conversion functions, which allow the output of this stream and the
+   * output of the provided schedule to be unified into a single type. For example, `Either` or
+   * similar data type.
+   */
+  final def repeatElementsWith[R1 <: R, E1 >: E, B, C](
+    schedule: Schedule[R1, O, B]
+  )(f: O => C, g: B => C): ZStream[R1 with Clock, E1, C] =
+    ZStream {
+      for {
+        as     <- self.process.mapM(BufferedPull.make(_))
+        driver <- schedule.driver.toManaged_
+        state  <- Ref.make[Option[O]](None).toManaged_
+        pull = {
+          def go: ZIO[R1 with Clock, Option[E1], Chunk[C]] =
+            state.get.flatMap {
+              case None =>
+                as.pullElement.flatMap(o => state.set(Some(o)) as Chunk.single(f(o)))
+
+              case Some(o) =>
+                val advance = driver.next(o) as Chunk(f(o))
+                val reset   = driver.last.orDie.map(b => Chunk.single(g(b))) <* driver.reset <* state.set(None)
+
+                advance orElse reset
+            }
+
+          go
+        }
+      } yield pull
+    }
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
@@ -2262,16 +2319,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def repeatWith[R1 <: R, B, C](
     schedule: Schedule[R1, Any, B]
-  )(f: O => C, g: B => C): ZStream[R1, E, C] =
-    ZStream[R1, E, C] {
+  )(f: O => C, g: B => C): ZStream[R1 with Clock, E, C] =
+    ZStream[R1 with Clock, E, C] {
       for {
-        scheduleInit  <- schedule.initial.toManaged_
-        schedStateRef <- Ref.make(scheduleInit).toManaged_
-        switchPull    <- ZManaged.switchable[R1, Nothing, ZIO[R1, Option[E], Chunk[C]]]
-        currPull      <- switchPull(self.map(f).process).flatMap(as => Ref.make(as)).toManaged_
-        doneRef       <- Ref.make(false).toManaged_
+        sdriver    <- schedule.driver.toManaged_
+        switchPull <- ZManaged.switchable[R1, Nothing, ZIO[R1, Option[E], Chunk[C]]]
+        currPull   <- switchPull(self.map(f).process).flatMap(as => Ref.make(as)).toManaged_
+        doneRef    <- Ref.make(false).toManaged_
         pull = {
-          def go: ZIO[R1, Option[E], Chunk[C]] =
+          def go: ZIO[R1 with Clock, Option[E], Chunk[C]] =
             doneRef.get.flatMap { done =>
               if (done) Pull.end
               else
@@ -2279,14 +2335,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   {
                     case e @ Some(_) => ZIO.fail(e)
                     case None =>
-                      schedStateRef.get
-                        .flatMap(schedule.update((), _))
-                        .foldM(
-                          _ => doneRef.set(true) *> Pull.end,
-                          state =>
-                            switchPull((self.map(f) ++ ZStream.succeed(g(schedule.extract((), state)))).process)
-                              .tap(currPull.set(_)) *> schedStateRef.set(state) *> go
-                        )
+                      val scheduleOutput = sdriver.last.orDie.map(g)
+
+                      val continue =
+                        sdriver.next(()) *>
+                          switchPull((self.map(f) ++ ZStream.fromEffect(scheduleOutput)).process)
+                            .tap(currPull.set(_)) *> go
+
+                      val halt = doneRef.set(true) *> Pull.end
+
+                      continue orElse halt
                   },
                   ZIO.succeedNow
                 )
@@ -2377,7 +2435,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
-   * Runs the stream and collects all of its elements to a list.
+   * Runs the stream and collects all of its elements to a chunk.
    */
   def runCollect: ZIO[R, E, Chunk[O]] = run(ZSink.collectAll[O])
 
@@ -2418,7 +2476,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Schedules the output of the stream using the provided `schedule`.
    */
-  final def schedule[R1 <: R](schedule: Schedule[R1, O, Any]): ZStream[R1, E, O] =
+  final def schedule[R1 <: R](schedule: Schedule[R1, O, Any]): ZStream[R1 with Clock, E, O] =
     scheduleEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -2427,65 +2485,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def scheduleEither[R1 <: R, E1 >: E, B](
     schedule: Schedule[R1, O, B]
-  ): ZStream[R1, E1, Either[B, O]] =
+  ): ZStream[R1 with Clock, E1, Either[B, O]] =
     scheduleWith(schedule)(Right.apply, Left.apply)
-
-  /**
-   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
-   * and if not short circuited, repeat element once".
-   */
-  final def scheduleElements[R1 <: R](schedule: Schedule[R1, O, Any]): ZStream[R1, E, O] =
-    scheduleElementsEither(schedule).collect { case Right(a) => a }
-
-  /**
-   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
-   * and if not short circuited, repeat element once".
-   */
-  final def scheduleElementsEither[R1 <: R, E1 >: E, B](
-    schedule: Schedule[R1, O, B]
-  ): ZStream[R1, E1, Either[B, O]] =
-    scheduleElementsWith(schedule)(Right.apply, Left.apply)
-
-  /**
-   * Repeats each element of the stream using the provided schedule, additionally emitting the schedule's output
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
-   * and if not short circuited, repeat element once".
-   * Uses the provided functions to align the stream and schedule outputs on a common type.
-   */
-  final def scheduleElementsWith[R1 <: R, E1 >: E, B, C](
-    schedule: Schedule[R1, O, B]
-  )(f: O => C, g: B => C): ZStream[R1, E1, C] =
-    ZStream {
-      for {
-        as    <- self.process.mapM(BufferedPull.make(_))
-        state <- Ref.make[Option[(O, schedule.State)]](None).toManaged_
-        pull = {
-          def go: ZIO[R1, Option[E1], Chunk[C]] = state.get.flatMap {
-            case None =>
-              for {
-                a    <- as.pullElement
-                init <- schedule.initial
-                _    <- state.set(Some(a -> init))
-              } yield Chunk.single(f(a))
-
-            case Some((a, scheduleState)) =>
-              schedule
-                .update(a, scheduleState)
-                .foldM(
-                  _ => state.set(None).as(Chunk.single(g(schedule.extract(a, scheduleState)))),
-                  s => state.set(Some(a -> s)).as(Chunk.single(f(a)))
-                )
-          }
-
-          go
-        }
-      } yield pull
-    }
 
   /**
    * Schedules the output of the stream using the provided `schedule` and emits its output at
@@ -2494,43 +2495,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def scheduleWith[R1 <: R, E1 >: E, B, C](
     schedule: Schedule[R1, O, B]
-  )(f: O => C, g: B => C): ZStream[R1, E1, C] =
-    ZStream[R1, E1, C] {
+  )(f: O => C, g: B => C): ZStream[R1 with Clock, E1, C] =
+    ZStream[R1 with Clock, E1, C] {
       for {
-        as    <- self.process.mapM(BufferedPull.make(_))
-        init  <- schedule.initial.toManaged_
-        state <- Ref.make[(schedule.State, Option[() => B])]((init, None)).toManaged_
-        pull = state.get.flatMap {
-          case (sched0, finish0) =>
-            // Before pulling from the stream, we need to check whether the previous
-            // action ended the schedule, in which case we must emit its final output
-            finish0 match {
-              case None =>
-                for {
-                  a <- as.pullElement.optional.mapError(Some(_))
-                  c <- a match {
-                        // There's a value emitted by the underlying stream, we emit it
-                        // and check whether the schedule ends; in that case, we record
-                        // its final state, to be emitted during the next pull
-                        case Some(a) =>
-                          schedule
-                            .update(a, sched0)
-                            .foldM(
-                              _ =>
-                                schedule.initial
-                                  .flatMap(s1 => state.set((s1, Some(() => schedule.extract(a, sched0))))),
-                              s => state.set((s, None))
-                            )
-                            .as(f(a))
-
-                        // The stream ends when both the underlying stream ends and the final
-                        // schedule value has been emitted
-                        case None => Pull.end
-                      }
-                } yield Chunk.single(c)
-              case Some(b) => state.set((sched0, None)) *> Pull.emit(g(b()))
-            }
-        }
+        as     <- self.process.mapM(BufferedPull.make(_))
+        driver <- schedule.driver.toManaged_
+        pull = as.pullElement.flatMap(o =>
+          driver.next(o).as(Chunk(f(o))) orElse (driver.last.orDie.map(b => Chunk(f(o), g(b))) <* driver.reset)
+        )
       } yield pull
     }
 
@@ -2592,6 +2564,28 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             for {
               chunk <- chunks
               taken = chunk.takeWhile(!pred(_))
+              last  = chunk.drop(taken.length).take(1)
+              _     <- keepTakingRef.set(false).when(last.nonEmpty)
+            } yield taken ++ last
+        }
+      } yield pull
+    }
+
+  /**
+   * Takes all elements of the stream until the specified effectual predicate
+   * evaluates to `true`.
+   */
+  def takeUntilM[R1 <: R, E1 >: E](pred: O => ZIO[R1, E1, Boolean]): ZStream[R1, E1, O] =
+    ZStream {
+      for {
+        chunks        <- self.process
+        keepTakingRef <- Ref.make(true).toManaged_
+        pull = keepTakingRef.get.flatMap { keepTaking =>
+          if (!keepTaking) Pull.end
+          else
+            for {
+              chunk <- chunks
+              taken <- chunk.takeWhileM(pred(_).map(!_)).asSomeError
               last  = chunk.drop(taken.length).take(1)
               _     <- keepTakingRef.set(false).when(last.nonEmpty)
             } yield taken ++ last
@@ -2825,7 +2819,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Fails the stream with given error if it does not produce a value after d duration.
    */
-  final def timeoutError[E1 >: E](e: E1)(d: Duration): ZStream[R with Clock, E1, O] =
+  final def timeoutError[E1 >: E](e: => E1)(d: Duration): ZStream[R with Clock, E1, O] =
     timeoutErrorCause(Cause.fail(e))(d)
 
   /**
@@ -3580,11 +3574,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * input. The stream will emit an element for each value output from the
    * schedule, continuing for as long as the schedule continues.
    */
-  def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R, Nothing, A] =
-    ZStream.fromEffect(schedule.initial).flatMap { s =>
-      ZStream.succeed(schedule.extract((), s)) ++
-        ZStream.unfoldM(s)(s => schedule.update((), s).map(s => (schedule.extract((), s), s)).option)
-    }
+  def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R with Clock, Nothing, A] =
+    unwrap(schedule.driver.map(driver => repeatEffectOption(driver.next(()))))
 
   /**
    * Creates a stream from a [[zio.stm.TQueue]] of values.
@@ -3736,19 +3727,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
+   * Creates a stream from an effect producing a value of type `A`, which is repeated using the
+   * specified schedule.
    */
-  def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, _]): ZStream[R, E, A] =
-    fromEffect(schedule.initial).flatMap { initial =>
-      unfoldM(initial) { state =>
-        effect.flatMap(value => schedule.update(value, state).fold(_ => None, state => Some((value, state))))
-      }
+  def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Clock, E, A] =
+    ZStream.fromEffect(effect zip schedule.driver).flatMap {
+      case (a, driver) =>
+        ZStream.succeed(a) ++
+          ZStream.unfoldM(a)(driver.next(_).foldM(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
     }
 
   /**
    * Repeats the value using the provided schedule.
    */
-  def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R, Nothing, A] =
+  def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R with Clock, Nothing, A] =
     repeatEffectWith(UIO.succeed(a), schedule)
 
   /**
@@ -4081,4 +4073,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     case object Both   extends TerminationStrategy
     case object Either extends TerminationStrategy
   }
+
+  implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZStream[R, E, A]) extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZStream[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
+  }
+
 }

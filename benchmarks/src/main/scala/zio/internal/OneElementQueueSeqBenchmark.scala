@@ -4,8 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 
-import zio.internal.impls._
-
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)

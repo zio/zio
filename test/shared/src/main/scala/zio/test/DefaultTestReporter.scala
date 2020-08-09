@@ -21,7 +21,7 @@ import java.util.regex.Pattern
 import scala.io.AnsiColor
 import scala.util.Try
 
-import zio.duration.Duration
+import zio.duration._
 import zio.test.ConsoleUtils.{ cyan, red, _ }
 import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
 import zio.test.RenderedResult.CaseType._
@@ -170,14 +170,14 @@ object DefaultTestReporter {
 }
 
 object RenderedResult {
-  sealed trait Status
+  sealed abstract class Status
   object Status {
     case object Failed  extends Status
     case object Passed  extends Status
     case object Ignored extends Status
   }
 
-  sealed trait CaseType
+  sealed abstract class CaseType
   object CaseType {
     case object Test  extends CaseType
     case object Suite extends CaseType

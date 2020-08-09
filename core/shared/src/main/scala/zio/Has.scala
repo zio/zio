@@ -60,7 +60,7 @@ object Has {
       "it with the Has(_) constructor, or you can directly wrap your " +
       "service in Has at the point where it is currently being constructed."
   )
-  trait IsHas[-R] {
+  abstract class IsHas[-R] {
     def add[R0 <: R, M: Tag](r: R0, m: M): R0 with Has[M]
     def union[R0 <: R, R1 <: Has[_]: Tag](r: R0, r1: R1): R0 with R1
     def update[R0 <: R, M: Tag](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
@@ -81,17 +81,78 @@ object Has {
       "operator, you must ensure the service produced by your layer is " +
       "wrapped in Has."
   )
-  trait AreHas[-R, -R1] {
-    def union[R0 <: R, R00 <: R1: Tag](r: R0, r1: R00): R0 with R00
-    def unionAll[R0 <: R, R00 <: R1](r: R0, r1: R00): R0 with R00
+  abstract class Union[R, R1] {
+    def union(r: R, r1: R1): R with R1
   }
-  object AreHas {
-    implicit def ImplicitAre[R <: Has[_], R1 <: Has[_]]: AreHas[R, R1] =
-      new AreHas[R, R1] {
-        def union[R0 <: R, R00 <: R1: Tag](r: R0, r1: R00): R0 with R00 =
-          r.union[R00](r1)
-        def unionAll[R0 <: R, R00 <: R1](r: R0, r1: R00): R0 with R00 =
-          r.unionAll[R00](r1)
+  object Union extends LowPriorityUnionImplicits {
+    implicit def HasHasUnion[R <: Has[_], R1 <: Has[_]: Tag]: Union[R, R1] =
+      new Union[R, R1] {
+        def union(r: R, r1: R1): R with R1 =
+          r.union[R1](r1)
+      }
+  }
+  abstract class LowPriorityUnionImplicits {
+    implicit def HasAnyUnion[R <: Has[_]]: Union[R, Any] =
+      new Union[R, Any] {
+        def union(r: R, r1: Any): R = {
+          val _ = r1
+          r
+        }
+      }
+    implicit def AnyHasUnion[R1 <: Has[_]]: Union[Any, R1] =
+      new Union[Any, R1] {
+        def union(r: Any, r1: R1): R1 = {
+          val _ = r
+          r1
+        }
+      }
+    implicit val AnyAnyUnion: Union[Any, Any] =
+      new Union[Any, Any] {
+        def union(r: Any, r1: Any): Any = {
+          val _ = (r, r1)
+          ()
+        }
+      }
+  }
+
+  @implicitNotFound(
+    "The ZLayer operator you are trying to use needs to combine multiple " +
+      "services. While services cannot directly be combined, they can be " +
+      "combined if first wrapped in the Has data type. Before you use this " +
+      "operator, you must ensure the service produced by your layer is " +
+      "wrapped in Has."
+  )
+  abstract class UnionAll[R, R1] {
+    def unionAll(r: R, r1: R1): R with R1
+  }
+  object UnionAll extends LowPriorityUnionAllImplicits {
+    implicit def HasHasUnionAll[R <: Has[_], R1 <: Has[_]: Tag]: UnionAll[R, R1] =
+      new UnionAll[R, R1] {
+        def unionAll(r: R, r1: R1): R with R1 =
+          r.unionAll[R1](r1)
+      }
+  }
+  abstract class LowPriorityUnionAllImplicits {
+   implicit def HasAnyUnionAll[R <: Has[_]]: UnionAll[R, Any] =
+      new UnionAll[R, Any] {
+        def unionAll(r: R, r1: Any): R = {
+          val _ = r1
+          r
+        }
+      }
+    implicit def AnyHasUnionAll[R1 <: Has[_]]: UnionAll[Any, R1] =
+      new UnionAll[Any, R1] {
+        def unionAll(r: Any, r1: R1): R1 = {
+          val _ = r
+          r1
+        }
+      }
+    implicit val AnyAnyUnionAll: UnionAll[Any, Any] =
+      new UnionAll[Any, Any] {
+        def unionAll(r: Any, r1: Any): Any = {
+          val _ = (r, r1)
+          ()
+        }
       }
   }
 

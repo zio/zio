@@ -361,7 +361,7 @@ package object environment extends PlatformSpecific {
       private lazy val awaitSuspended: UIO[Unit] =
         live.provide {
           suspended.repeat {
-            Schedule.doUntilEquals(true) && Schedule.fixed(5.milliseconds)
+            Schedule.recurUntilEquals(true) && Schedule.fixed(10.milliseconds)
           }
         }.unit
 
@@ -381,13 +381,11 @@ package object environment extends PlatformSpecific {
        */
       private lazy val freeze: IO[Unit, Set[Fiber.Status]] =
         supervisedFibers.flatMap { fibers =>
-          ZIO
-            .foreach(fibers)(_.status.filterOrFail {
-              case Fiber.Status.Done                     => true
-              case Fiber.Status.Suspended(_, _, _, _, _) => true
-              case _                                     => false
-            }(()))
-            .map(_.toSet)
+          ZIO.foreach(fibers)(_.status.filterOrFail {
+            case Fiber.Status.Done                     => true
+            case Fiber.Status.Suspended(_, _, _, _, _) => true
+            case _                                     => false
+          }(()))
         }
 
       /**
@@ -559,7 +557,7 @@ package object environment extends PlatformSpecific {
      * if a test has adjusted the `TestClock` or the warning message has
      * already been displayed.
      */
-    sealed trait WarningData
+    sealed abstract class WarningData
 
     object WarningData {
 
@@ -1181,7 +1179,9 @@ package object environment extends PlatformSpecific {
       /**
        * Randomly shuffles the specified list.
        */
-      def shuffle[A](list: List[A]): UIO[List[A]] =
+      def shuffle[A, Collection[+Element] <: Iterable[Element]](
+        list: Collection[A]
+      )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
         Random.shuffleWith(randomIntBounded, list)
 
       private def bufferedBoolean(buffer: Buffer): (Option[Boolean], Buffer) =

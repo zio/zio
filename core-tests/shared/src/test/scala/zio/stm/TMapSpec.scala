@@ -18,7 +18,7 @@ package zio.stm
 
 import zio.test.Assertion._
 import zio.test._
-import zio.{ Schedule, UIO, ZIOBaseSpec }
+import zio.{ Schedule, URIO, ZIOBaseSpec }
 
 object TMapSpec extends ZIOBaseSpec {
 
@@ -285,7 +285,7 @@ object TMapSpec extends ZIOBaseSpec {
           policy = Schedule.recurs(999)
           tx     = tmap.transformValues(_ + 1).commit.repeat(policy)
           n      = 2
-          _      <- UIO.collectAllPar_(List.fill(n)(tx))
+          _      <- URIO.collectAllPar_(List.fill(n)(tx))
           res    <- tmap.get("a").commit
         } yield assert(res)(isSome(equalTo(2000)))
       },

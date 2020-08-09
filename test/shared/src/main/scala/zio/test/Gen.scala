@@ -182,6 +182,18 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.stringBounded(min, max)(alphaNumericChar)
 
   /**
+   * A generator US-ASCII strings. Shrinks towards the empty string.
+   */
+  def anyASCIIString: Gen[Random with Sized, String] =
+    Gen.string(Gen.anyASCIIChar)
+
+  /**
+   * A generator of US-ASCII characters. Shrinks toward '0'.
+   */
+  def anyASCIIChar: Gen[Random, Char] =
+    Gen.oneOf(Gen.char('\u0000', '\u007F'))
+
+  /**
    * A generator of bytes. Shrinks toward '0'.
    */
   val anyByte: Gen[Random, Byte] =
@@ -293,7 +305,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
           val arr = bytes.toArray
           arr(0) = (arr(0) & mask).toByte
           min + BigInt(arr)
-        }.doUntil(n => min <= n && n <= max)
+        }.repeatUntil(n => min <= n && n <= max)
         effect.map(Sample.shrinkIntegral(min))
       }
     }
@@ -474,7 +486,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         val difference = max - min + 1
         val effect =
           if (difference > 0) nextIntBounded(difference).map(min + _)
-          else nextInt.doUntil(n => min <= n && n <= max)
+          else nextInt.repeatUntil(n => min <= n && n <= max)
         effect.map(Sample.shrinkIntegral(min))
       }
     }
@@ -521,7 +533,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         val difference = max - min + 1
         val effect =
           if (difference > 0) nextLongBounded(difference).map(min + _)
-          else nextLong.doUntil(n => min <= n && n <= max)
+          else nextLong.repeatUntil(n => min <= n && n <= max)
         effect.map(Sample.shrinkIntegral(min))
       }
     }
@@ -705,6 +717,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val unit: Gen[Any, Unit] =
     const(())
+
+  /**
+   *  A generator of strings that can be encoded in the US-ASCII character set.
+   */
+  val usASCII: Gen[Random with Sized, String] =
+    chunkOf(anyASCIIString).map(chunk => chunk.toString)
 
   def vectorOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)

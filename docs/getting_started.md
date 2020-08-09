@@ -43,7 +43,7 @@ object MyApp extends zio.App {
     } yield ()
 }
 ```
-The run `run` method should return a ZIO value which has all its errors handled,  
+The `run` method should return a ZIO value which has all its errors handled,  
 which, in ZIO parlance, is an unexceptional ZIO value.  
 
 One way to do this is to invoke `fold` over a ZIO value, to get an unexceptional ZIO value.

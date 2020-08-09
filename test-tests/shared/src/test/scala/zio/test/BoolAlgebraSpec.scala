@@ -7,7 +7,9 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
 
   def spec = suite("BoolAlgebraSpec")(
     test("all returns conjunction of values") {
-      assert(BoolAlgebra.all(List(success1, failure1, failure2)))(isSome(isFailure))
+      assert(BoolAlgebra.all(List(success1, failure1, failure2)))(isSome(isFailure)) &&
+      assert(BoolAlgebra.all(success1, failure1, failure2))(isFailure) &&
+      assert(BoolAlgebra.all(success1, success2))(isSuccess)
     },
     testM("and distributes over or") {
       check(boolAlgebra, boolAlgebra, boolAlgebra)((a, b, c) => assert(a && (b || c))(equalTo((a && b) || (a && c))))
@@ -19,7 +21,9 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       check(boolAlgebra, boolAlgebra)((a, b) => assert(a && b)(equalTo(b && a)))
     },
     test("any returns disjunction of values") {
-      assert(BoolAlgebra.any(List(success1, failure1, failure2)))(isSome(isSuccess))
+      assert(BoolAlgebra.any(List(success1, failure1, failure2)))(isSome(isSuccess)) &&
+      assert(BoolAlgebra.any(success1, failure1, failure2))(isSuccess) &&
+      assert(BoolAlgebra.any(failure1, failure2))(isFailure)
     },
     test("as maps values to constant value") {
       assert((success1 && success2).as("value"))(equalTo(BoolAlgebra.success("value") && BoolAlgebra.success("value")))

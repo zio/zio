@@ -1,8 +1,6 @@
-package zio.internal.impls
+package zio.internal
 
 import java.util.concurrent.LinkedBlockingQueue
-
-import zio.internal.MutableConcurrentQueue
 
 class JucBlockingQueue[A] extends MutableConcurrentQueue[A] {
   override val capacity: Int = Int.MaxValue

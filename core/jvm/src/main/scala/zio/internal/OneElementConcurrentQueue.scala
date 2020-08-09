@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package zio.internal.impls
+package zio.internal
 
 import java.io.Serializable
 import java.util.concurrent.atomic.{ AtomicReference, LongAdder }
-
-import zio.internal.MutableConcurrentQueue
 
 /**
  * This is a specialized implementation of MutableConcurrentQueue of
@@ -32,7 +30,7 @@ import zio.internal.MutableConcurrentQueue
  * Allocating an object takes only 24 bytes + 8+ bytes in long adder (so 32+ bytes total),
  * which is 15x less than the smallest RingBuffer.
  *
- * zio.internal.impls.OneElementConcurrentQueue object internals:
+ * zio.internal.OneElementConcurrentQueue object internals:
  *  OFFSET  SIZE                                          TYPE DESCRIPTION
  *       0     4                                               (object header)
  *       4     4                                               (object header)

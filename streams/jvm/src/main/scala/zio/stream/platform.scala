@@ -1,20 +1,19 @@
 package zio.stream
 
-import java.io.{ IOException, InputStream, OutputStream, Reader }
+import java.io._
 import java.net.InetSocketAddress
-import java.nio.channels.FileChannel
-import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler }
+import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel }
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{ OpenOption, Path }
 import java.nio.{ Buffer, ByteBuffer }
-import java.util.zip.{ DataFormatException, Inflater }
+import java.util.zip.{ DataFormatException, Deflater, Inflater }
 import java.{ util => ju }
 
 import scala.annotation.tailrec
 
 import zio._
 import zio.blocking.Blocking
-import zio.stream.compression.{ CompressionException, Gunzipper }
+import zio.stream.compression.{ CompressionException, CompressionLevel, CompressionStrategy, FlushMode, Gunzipper }
 
 trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
 
@@ -317,6 +316,36 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
 
   /**
+   * Creates a stream from a callback that writes to [[java.io.OutputStream]].
+   * Note: the input stream will be closed after the `write` is done.
+   */
+  def fromOutputStreamWriter(
+    write: OutputStream => Unit,
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[Blocking, Throwable, Byte] = {
+    def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
+      val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.effectTotal(in.close()))
+      val writeOut = ZStream.fromEffect {
+        blocking
+          .effectBlockingInterrupt(write(out))
+          .run
+          .tap(exit => err.done(exit.as(None)))
+          .ensuring(ZIO.effectTotal(out.close()))
+      }
+
+      val handleError = ZStream.fromEffectOption(err.await.some)
+      readIn.drainFork(writeOut) ++ handleError
+    }
+
+    for {
+      out    <- ZStream.fromEffect(ZIO.effectTotal(new PipedOutputStream()))
+      in     <- ZStream.fromEffect(ZIO.effectTotal(new PipedInputStream(out)))
+      err    <- ZStream.fromEffect(Promise.make[Throwable, None.type])
+      result <- from(in, out, err)
+    } yield result
+  }
+
+  /**
    * Creates a stream from a Java stream
    */
   final def fromJavaStream[R, A](stream: => ju.stream.Stream[A]): ZStream[R, Throwable, A] =
@@ -449,6 +478,64 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
 trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
 
   /**
+   * Compresses stream with 'deflate' method described in https://tools.ietf.org/html/rfc1951.
+   * Each incoming chunk is compressed at once, so it can utilize thread for long time if chunks are big.
+   *
+   * @param bufferSize Size of internal buffer used for pulling data from deflater, affects performance.
+   * @param noWrap Whether output stream is wrapped in ZLIB header and trailer. For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+   */
+  def deflate(
+    bufferSize: Int = 64 * 1024,
+    noWrap: Boolean = false,
+    level: CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: FlushMode = FlushMode.NoFlush
+  ): ZTransducer[Any, Nothing, Byte, Byte] = {
+    def makeDeflater: ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, Nothing, Chunk[Byte]]] =
+      ZManaged
+        .make(ZIO.effectTotal {
+          val deflater = new Deflater(level.jValue, noWrap)
+          deflater.setLevel(level.jValue)
+          deflater.setStrategy(strategy.jValue)
+          (deflater, new Array[Byte](bufferSize))
+        }) {
+          case (deflater, _) => ZIO.effectTotal(deflater.end())
+        }
+        .map {
+          case (deflater, buffer) => {
+            case Some(chunk) =>
+              ZIO.effectTotal {
+                deflater.setInput(chunk.toArray)
+                pullAllOutput(deflater, buffer)
+              }
+            case None =>
+              ZIO.effectTotal {
+                deflater.finish()
+                val out = pullAllOutput(deflater, buffer)
+                deflater.reset()
+                out
+              }
+          }
+        }
+
+    def pullAllOutput(
+      deflater: Deflater,
+      buffer: Array[Byte]
+    ): Chunk[Byte] = {
+      @tailrec
+      def next(acc: Chunk[Byte]): Chunk[Byte] = {
+        val size    = deflater.deflate(buffer, 0, bufferSize, flushMode.jValue)
+        val current = Chunk.fromArray(ju.Arrays.copyOf(buffer, size))
+        if (current.isEmpty) acc
+        else next(acc ++ current)
+      }
+      next(Chunk.empty)
+    }
+
+    ZTransducer(makeDeflater)
+  }
+
+  /**
    * Decompresses deflated stream. Compression method is described in https://tools.ietf.org/html/rfc1951.
    *
    * @param noWrap  Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
@@ -459,9 +546,7 @@ trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false
   ): ZTransducer[Any, CompressionException, Byte, Byte] = {
-    def makeInflater(
-      bufferSize: Int
-    ): ZManaged[Any, Nothing, Option[zio.Chunk[Byte]] => ZIO[Any, CompressionException, Chunk[Byte]]] =
+    def makeInflater: ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, CompressionException, Chunk[Byte]]] =
       ZManaged
         .make(ZIO.effectTotal((new Array[Byte](bufferSize), new Inflater(noWrap)))) {
           case (_, inflater) => ZIO.effectTotal(inflater.end())
@@ -517,7 +602,7 @@ trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
       if (inflater.needsInput()) Chunk.empty else next(Chunk.empty)
     }
 
-    ZTransducer(makeInflater(bufferSize))
+    ZTransducer(makeInflater)
   }
 
   /**

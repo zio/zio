@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package zio.internal.impls
+package zio.internal
 
 import java.io.Serializable
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
-
-import zio.internal.MutableConcurrentQueue
 
 final class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   private[this] val ref = new AtomicReference[AnyRef]()

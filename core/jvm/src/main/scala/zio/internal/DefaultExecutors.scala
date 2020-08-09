@@ -62,7 +62,5 @@ private[internal] abstract class DefaultExecutors {
         } catch {
           case _: RejectedExecutionException => false
         }
-
-      def here = false
     }
 }

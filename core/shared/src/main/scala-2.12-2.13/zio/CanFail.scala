@@ -22,7 +22,7 @@ import scala.annotation.implicitAmbiguous
  * A value of type `CanFail[E]` provides implicit evidence that an effect with
  * error type `E` can fail, that is, that `E` is not equal to `Nothing`.
  */
-sealed trait CanFail[-E]
+sealed abstract class CanFail[-E]
 
 object CanFail extends CanFail[Any] {
 

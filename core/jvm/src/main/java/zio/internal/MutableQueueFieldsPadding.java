@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.internal.impls.padding;
+package zio.internal;
 
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;

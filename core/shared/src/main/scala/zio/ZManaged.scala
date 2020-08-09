@@ -43,8 +43,18 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)])
-    extends Serializable { self =>
+sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
+
+  /**
+   * The ZIO value that underlies this ZManaged value. To evaluate it, a ReleaseMap is
+   * required. The ZIO value will return a tuple of the resource allocated by this ZManaged
+   * and a finalizer that will release the resource.
+   *
+   * Note that this method is a low-level interface, not intended for regular usage. As such,
+   * it offers no guarantees on interruption or resource safety - those are up to the caller
+   * to enforce!
+   */
+  def zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)]
 
   /**
    * Symbolic alias for zip.
@@ -63,7 +73,7 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
    * second part to that effect.
    */
   def ***[R1, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[(R, R1), E1, (A, B)] =
-    (ZManaged.first[R, R1] >>> self) &&& (ZManaged.second[R, R1] >>> that)
+    (ZManaged.first >>> self) &&& (ZManaged.second >>> that)
 
   /**
    * Symbolic alias for zipRight
@@ -740,12 +750,6 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
     refineOrDieWith(pf)(ev1)
 
   /**
-   * Keeps some of the errors, and terminates the fiber with the rest.
-   */
-  def refineToOrDie[E1: ClassTag](implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, E1, A] =
-    refineOrDieWith { case e: E1 => e }(ev1)
-
-  /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
    * the specified function to convert the `E` into a `Throwable`.
    */
@@ -787,8 +791,11 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1, E, A] =
-    ZManaged(zio.retry(policy.provideSome[(R1, ZManaged.ReleaseMap)](_._1)))
+  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Clock, E, A] =
+    ZManaged(ZIO.accessM[(R1 with Clock, ZManaged.ReleaseMap)] {
+      case (env, releaseMap) =>
+        zio.provideSome[R1 with Clock](env => (env, releaseMap)).retry(policy).provide(env)
+    })
 
   def right[R1 <: R, C]: ZManaged[Either[C, R1], E, Either[C, A]] = ZManaged.identity +++ self
 
@@ -1110,19 +1117,26 @@ final class ZManaged[-R, +E, +A] private (val zio: ZIO[(R, ZManaged.ReleaseMap),
    */
   def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f: (A, A1) => A2): ZManaged[R1, E1, A2] =
     ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapM { parallelReleaseMap =>
-      self.zio
-        .zipWithPar(that.zio) {
-          // We can safely discard the finalizers here because the resulting ZManaged's early
-          // release will trigger the ReleaseMap, which would release both finalizers in
-          // parallel.
-          case ((_, a), (_, b)) =>
-            f(a, b)
-        }
-        .provideSome[R1]((_, parallelReleaseMap))
+      val innerMap =
+        ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.provideSome[R1]((_, parallelReleaseMap))
+
+      (innerMap zip innerMap) flatMap {
+        case ((_, l), (_, r)) =>
+          self.zio
+            .provideSome[R1]((_, l))
+            .zipWithPar(that.zio.provideSome[R1]((_, r))) {
+              // We can safely discard the finalizers here because the resulting ZManaged's early
+              // release will trigger the ReleaseMap, which would release both finalizers in
+              // parallel.
+              case ((_, a), (_, b)) =>
+                f(a, b)
+            }
+
+      }
     }
 }
 
-object ZManaged {
+object ZManaged extends ZManagedPlatformSpecific {
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZManaged[R, Nothing, A] =
@@ -1185,7 +1199,7 @@ object ZManaged {
    * The design of `ReleaseMap` is inspired by ResourceT, written by Michael Snoyman @snoyberg.
    * (https://github.com/snoyberg/conduit/blob/master/resourcet/Control/Monad/Trans/Resource/Internal.hs)
    */
-  trait ReleaseMap {
+  abstract class ReleaseMap {
 
     /**
      * An opaque identifier for a finalizer stored in the map.
@@ -1305,7 +1319,7 @@ object ZManaged {
                   case ExecutionStrategy.Sequential =>
                     (
                       ZIO
-                        .foreach(fins) {
+                        .foreach(Chunk.fromIterable(fins)) {
                           case (_, fin) => fin.apply(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAll(results) getOrElse Exit.unit)),
@@ -1315,7 +1329,7 @@ object ZManaged {
                   case ExecutionStrategy.Parallel =>
                     (
                       ZIO
-                        .foreachPar(fins) {
+                        .foreachPar(Chunk.fromIterable(fins)) {
                           case (_, finalizer) =>
                             finalizer(exit).run
                         }
@@ -1326,7 +1340,7 @@ object ZManaged {
                   case ExecutionStrategy.ParallelN(n) =>
                     (
                       ZIO
-                        .foreachParN(n)(fins) {
+                        .foreachParN(n)(Chunk.fromIterable(fins)) {
                           case (_, finalizer) =>
                             finalizer(exit).run
                         }
@@ -1397,21 +1411,27 @@ object ZManaged {
    * - Returning the finalizer returned from [[ReleaseMap#add]]. This is important
    *   to prevent double-finalization.
    */
-  def apply[R, E, A](run: ZIO[(R, ReleaseMap), E, (Finalizer, A)]): ZManaged[R, E, A] =
-    new ZManaged(run)
+  def apply[R, E, A](run0: ZIO[(R, ReleaseMap), E, (Finalizer, A)]): ZManaged[R, E, A] =
+    new ZManaged[R, E, A] {
+      def zio = run0
+    }
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
    * the successful values and discarding the empty cases. For a parallel version, see `collectPar`.
    */
-  def collect[R, E, A, B](in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
-    foreach(in)(a => f(a).optional).map(_.flatten)
+  def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
+    f: A => ZManaged[R, Option[E], B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
+    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure from left to right, and collect the
    * results. For a parallel version, see `collectAllPar`.
    */
-  def collectAll[R, E, A](ms: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
+  def collectAll[R, E, A, Collection[+Element] <: Iterable[Element]](
+    ms: Collection[ZManaged[R, E, A]]
+  )(implicit bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]]): ZManaged[R, E, Collection[A]] =
     foreach(ms)(ZIO.identityFn)
 
   /**
@@ -1425,7 +1445,9 @@ object ZManaged {
    * Evaluate each effect in the structure in parallel, and collect the
    * results. For a sequential version, see `collectAll`.
    */
-  def collectAllPar[R, E, A](as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
+  def collectAllPar[R, E, A, Collection[+Element] <: Iterable[Element]](
+    as: Collection[ZManaged[R, E, A]]
+  )(implicit bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]]): ZManaged[R, E, Collection[A]] =
     foreachPar(as)(ZIO.identityFn)
 
   /**
@@ -1441,7 +1463,9 @@ object ZManaged {
    *
    * Unlike `CollectAllPar`, this method will use at most `n` fibers.
    */
-  def collectAllParN[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
+  def collectAllParN[R, E, A, Collection[+Element] <: Iterable[Element]](n: Int)(
+    as: Collection[ZManaged[R, E, A]]
+  )(implicit bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]]): ZManaged[R, E, Collection[A]] =
     foreachParN(n)(as)(ZIO.identityFn)
 
   /**
@@ -1457,8 +1481,10 @@ object ZManaged {
    * Evaluate each effect in the structure in parallel, collecting the
    * the successful values and discarding the empty cases.
    */
-  def collectPar[R, E, A, B](in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
-    foreachPar(in)(a => f(a).optional).map(_.flatten)
+  def collectPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
+    f: A => ZManaged[R, Option[E], B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
+    foreachPar[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure in parallel, collecting the
@@ -1466,8 +1492,17 @@ object ZManaged {
    *
    * Unlike `collectPar`, this method will use at most up to `n` fibers.
    */
-  def collectParN[R, E, A, B](n: Int)(in: Iterable[A])(f: A => ZManaged[R, Option[E], B]): ZManaged[R, E, List[B]] =
-    foreachParN(n)(in)(a => f(a).optional).map(_.flatten)
+  def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(in: Collection[A])(
+    f: A => ZManaged[R, Option[E], B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
+    foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+
+  /**
+   * Similar to Either.cond, evaluate the predicate,
+   * return the given A as success if predicate returns true, and the given E as error otherwise
+   */
+  def cond[E, A](predicate: Boolean, result: => A, error: => E): Managed[E, A] =
+    if (predicate) succeed(result) else fail(error)
 
   /**
    * Returns an effect that dies with the specified `Throwable`.
@@ -1548,7 +1583,8 @@ object ZManaged {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  def first[A, B]: ZManaged[(A, B), Nothing, A] = fromFunction(_._1)
+  def first[A]: ZManaged[(A, Any), Nothing, A] =
+    fromFunction(_._1)
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
@@ -1577,16 +1613,18 @@ object ZManaged {
     in.foldLeft(ZManaged.succeedNow(zero): ZManaged[R, E, S])((acc, el) => acc.flatMap(f(_, el)))
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns the results in a new `List[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` and
+   * returns the results in a new `Collection[B]`.
    *
    * For a parallel version of this method, see `foreachPar`.
    * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
-  def foreach[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
-    ZManaged(ZIO.foreach(as)(f(_).zio).map { result =>
+  def foreach[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](in: Collection[A1])(
+    f: A1 => ZManaged[R, E, A2]
+  )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
+    ZManaged(ZIO.foreach(in.toList)(f(_).zio).map { result =>
       val (fins, as) = result.unzip
-      (e => ZIO.foreach(fins.reverse)(_.apply(e)), as)
+      (e => ZIO.foreach(fins.reverse)(_.apply(e)), bf.fromSpecific(in)(as))
     })
 
   /**
@@ -1597,12 +1635,12 @@ object ZManaged {
     in.fold[ZManaged[R, E, Option[A2]]](succeed(None))(f(_).map(Some(_)))
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and returns
-   * the result in a new `List[B]` using the specified execution strategy.
+   * Applies the function `f` to each element of the `Collection[A]` and returns
+   * the result in a new `Collection[B]` using the specified execution strategy.
    */
-  final def foreachExec[R, E, A, B](
-    as: Iterable[A]
-  )(exec: ExecutionStrategy)(f: A => ZManaged[R, E, B]): ZManaged[R, E, List[B]] =
+  final def foreachExec[R, E, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
+    exec: ExecutionStrategy
+  )(f: A => ZManaged[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
     exec match {
       case ExecutionStrategy.Parallel     => ZManaged.foreachPar(as)(f)
       case ExecutionStrategy.ParallelN(n) => ZManaged.foreachParN(n)(as)(f)
@@ -1610,37 +1648,49 @@ object ZManaged {
     }
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` in parallel,
-   * and returns the results in a new `List[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` in parallel,
+   * and returns the results in a new `Collection[B]`.
    *
    * For a sequential version of this method, see `foreach`.
    */
-  def foreachPar[R, E, A1, A2](
-    as: Iterable[A1]
-  )(
+  def foreachPar[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](as: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
-  ): ZManaged[R, E, List[A2]] =
-    ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapM { parallelReleaseMap =>
-      ZIO.foreachPar(as)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
-    }
+  )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
+    ReleaseMap
+      .makeManaged(ExecutionStrategy.Parallel)
+      .mapM { parallelReleaseMap =>
+        val makeInnerMap =
+          ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+
+        ZIO
+          .foreachPar(as.toIterable)(a =>
+            makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
+          )
+          .map(bf.fromSpecific(as))
+      }
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` in parallel,
-   * and returns the results in a new `List[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` in parallel,
+   * and returns the results in a new `Collection[B]`.
    *
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
    *
    */
-  def foreachParN[R, E, A1, A2](
-    n: Int
-  )(
-    as: Iterable[A1]
-  )(
+  def foreachParN[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](n: Int)(as: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
-  ): ZManaged[R, E, List[A2]] =
-    ReleaseMap.makeManaged(ExecutionStrategy.ParallelN(n)).mapM { parallelReleaseMap =>
-      ZIO.foreachParN(n)(as)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
-    }
+  )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
+    ReleaseMap
+      .makeManaged(ExecutionStrategy.ParallelN(n))
+      .mapM { parallelReleaseMap =>
+        val makeInnerMap =
+          ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+
+        ZIO
+          .foreachParN(n)(as.toIterable)(a =>
+            makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
+          )
+          .map(bf.fromSpecific(as))
+      }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -1652,7 +1702,7 @@ object ZManaged {
   def foreach_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     ZManaged(ZIO.foreach(as)(f(_).zio).map { result =>
       val (fins, _) = result.unzip
-      (e => ZIO.foreach(fins.reverse)(_.apply(e)), ())
+      (e => ZIO.foreach(fins.toList.reverse)(_.apply(e)), ())
     })
 
   /**
@@ -1663,7 +1713,10 @@ object ZManaged {
    */
   def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapM { parallelReleaseMap =>
-      ZIO.foreachPar_(as)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
+      val makeInnerMap =
+        ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+
+      ZIO.foreachPar_(as)(a => makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap))))
     }
 
   /**
@@ -1680,7 +1733,10 @@ object ZManaged {
     f: A => ZManaged[R, E, Any]
   ): ZManaged[R, E, Unit] =
     ReleaseMap.makeManaged(ExecutionStrategy.ParallelN(n)).mapM { parallelReleaseMap =>
-      ZIO.foreachParN_(n)(as)(f(_).zio.map(_._2)).provideSome[R]((_, parallelReleaseMap))
+      val makeInnerMap =
+        ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+
+      ZIO.foreachParN_(n)(as)(a => makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap))))
     }
 
   /**
@@ -2008,7 +2064,7 @@ object ZManaged {
    * to the `apply` method will create (inside an effect) a managed resource which
    * is already acquired and cannot fail.
    */
-  trait PreallocationScope {
+  abstract class PreallocationScope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
@@ -2093,7 +2149,7 @@ object ZManaged {
    * resource to the `apply` method will return an effect that allocates the resource
    * and returns it with an early-release handle.
    */
-  trait Scope {
+  abstract class Scope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, (ZManaged.Finalizer, A)]
   }
 
@@ -2115,7 +2171,8 @@ object ZManaged {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  def second[A, B]: ZManaged[(A, B), Nothing, B] = fromFunction(_._2)
+  def second[A]: ZManaged[(Any, A), Nothing, A] =
+    fromFunction(_._2)
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -2291,4 +2348,14 @@ object ZManaged {
 
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow((Finalizer.noop, r)))
+
+  implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZManaged[R, E, A]) extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZManaged[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
+  }
+
 }
