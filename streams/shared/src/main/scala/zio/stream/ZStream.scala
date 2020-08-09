@@ -2364,34 +2364,30 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @param schedule Schedule receiving as input the errors of the stream
    * @return Stream outputting elements of all attempts of the stream
    */
-  def retry[R1 <: R](schedule: Schedule[R1, E, _]): ZStream[R1, E, O] =
+  def retry[R1 <: R](schedule: Schedule[R1, E, _]): ZStream[R1 with Clock, E, O] =
     ZStream {
       for {
-        s0           <- schedule.initial.toManaged_
-        state        <- Ref.make[schedule.State](s0).toManaged_
+        driver       <- schedule.driver.toManaged_
         currStream   <- Ref.make[ZIO[R, Option[E], Chunk[O]]](Pull.end).toManaged_
         switchStream <- ZManaged.switchable[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
         _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
         pull = {
-          def go: ZIO[R1, Option[E], Chunk[O]] =
+          def loop: ZIO[R1 with Clock, Option[E], Chunk[O]] =
             currStream.get.flatten.catchSome {
               case Some(e) =>
-                (for {
-                  s        <- state.get
-                  newState <- schedule.update(e, s)
-                  _        <- state.set(newState)
-                } yield ())
+                driver
+                  .next(e)
                   .foldM(
                     // Failure of the schedule indicates it doesn't accept the input
                     _ => Pull.fail(e),
                     _ =>
                       switchStream(self.process).flatMap(currStream.set) *>
                         // Reset the schedule to its initial state when a chunk is successfully pulled
-                        go.tap(_ => state.set(s0))
+                        loop.tap(_ => driver.reset)
                   )
             }
 
-          go
+          loop
         }
       } yield pull
     }
