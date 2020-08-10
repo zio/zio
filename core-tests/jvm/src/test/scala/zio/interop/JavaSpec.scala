@@ -29,7 +29,7 @@ object JavaSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                          = new Exception("no future for you!")
         lazy val noFuture: Future[Unit] = throw ex
-        assertM(ZIO.fromFutureJava(noFuture).run)(dies(equalTo(ex)))
+        assertM(ZIO.fromFutureJava(noFuture).run)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                         = new Exception("no value for you!")
@@ -158,7 +158,7 @@ object JavaSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                     = new Exception("no future for you!")
         def noFuture: Future[Unit] = throw ex
-        assertM(Fiber.fromFutureJava(noFuture).join.run)(dies(equalTo(ex)))
+        assertM(Fiber.fromFutureJava(noFuture).join.run)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                    = new Exception("no value for you!")
