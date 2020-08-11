@@ -48,7 +48,15 @@ object JavaSpec extends ZIOBaseSpec {
       testM("handle null produced by the completed `Future`") {
         lazy val someValue: Future[String] = CompletableFuture.completedFuture[String](null)
         assertM(ZIO.fromFutureJava(someValue).map(Option(_)))(isNone)
-      } @@ zioTag(errors)
+      } @@ zioTag(errors),
+      testM("be referentially transparent") {
+        var n    = 0
+        val task = ZIO.fromFutureJava(CompletableFuture.supplyAsync(() => n += 1))
+        for {
+          _ <- task
+          _ <- task
+        } yield assert(n)(equalTo(2))
+      }
     ) @@ zioTag(future),
     suite("`Task.fromCompletionStage` must")(
       testM("be lazy on the `Future` parameter") {
