@@ -369,7 +369,8 @@ package object environment extends PlatformSpecific {
        * Delays for a short period of time.
        */
       private lazy val delay: UIO[Unit] =
-        live.provide(ZIO.sleep(5.milliseconds))
+        if (TestPlatform.isJS) ZIO.yieldNow
+        else live.provide(ZIO.sleep(5.milliseconds))
 
       /**
        * Captures a "snapshot" of the identifier and status of all fibers in
