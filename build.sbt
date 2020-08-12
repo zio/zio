@@ -1,6 +1,5 @@
 import BuildHelper._
 import MimaSettings.mimaSettings
-import com.typesafe.tools.mima.plugin.MimaKeys.mimaFailOnNoPrevious
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
@@ -77,6 +76,7 @@ addCommandAlias(
 lazy val root = project
   .in(file("."))
   .settings(
+    name := "zio",
     skip in publish := true,
     console := (console in Compile in coreJVM).value,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
