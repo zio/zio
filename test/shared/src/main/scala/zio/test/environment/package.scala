@@ -359,33 +359,34 @@ package object environment extends PlatformSpecific {
        * Polls until all descendants of this fiber are done or suspended.
        */
       private lazy val awaitSuspended: UIO[Unit] =
-        live.provide {
-          suspended.repeat {
-            Schedule.recurUntilEquals(true) && Schedule.fixed(10.milliseconds)
-          }
-        }.unit
+        suspended
+          .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
+          .filterOrFail(identity)(())
+          .eventually
+          .unit
 
       /**
        * Delays for a short period of time.
        */
       private lazy val delay: UIO[Unit] =
-        if (TestPlatform.isJS) ZIO.yieldNow
-        else live.provide(ZIO.sleep(5.milliseconds))
+        live.provide(ZIO.sleep(5.milliseconds))
 
       /**
-       * Captures a "snapshot" of the status of all descendants of this fiber.
-       * Fails with the `Unit` value if any descendant of this fiber is not
-       * done or suspended. Note that because we cannot synchronize on the
-       * status of multiple fibers at the same time this snapshot may not be
-       * fully consistent.
+       * Captures a "snapshot" of the identifier and status of all fibers in
+       * this test other than the current fiber. Fails with the `Unit` value if
+       * any of these fibers are not done or suspended. Note that because we
+       * cannot synchronize on the status of multiple fibers at the same time
+       * this snapshot may not be fully consistent.
        */
-      private lazy val freeze: IO[Unit, Set[Fiber.Status]] =
+      private lazy val freeze: IO[Unit, Map[Fiber.Id, Fiber.Status]] =
         supervisedFibers.flatMap { fibers =>
-          ZIO.foreach(fibers)(_.status.filterOrFail {
-            case Fiber.Status.Done                     => true
-            case Fiber.Status.Suspended(_, _, _, _, _) => true
-            case _                                     => false
-          }(()))
+          IO.foldLeft(fibers)(Map.empty[Fiber.Id, Fiber.Status]) { (map, fiber) =>
+            fiber.status.flatMap {
+              case done @ Fiber.Status.Done                          => IO.succeedNow(map + (fiber.id -> done))
+              case suspended @ Fiber.Status.Suspended(_, _, _, _, _) => IO.succeedNow(map + (fiber.id -> suspended))
+              case _                                                 => IO.fail(())
+            }
+          }
         }
 
       /**
@@ -433,8 +434,12 @@ package object environment extends PlatformSpecific {
       /**
        * Returns whether all descendants of this fiber are done or suspended.
        */
-      private lazy val suspended: UIO[Boolean] =
-        freeze.zipWith(delay *> freeze)(_ == _).orElseSucceed(false)
+      private lazy val suspended: IO[Unit, Map[Fiber.Id, Fiber.Status]] =
+        freeze.zip(delay *> freeze).flatMap {
+          case (first, last) =>
+            if (first == last) ZIO.succeedNow(first)
+            else ZIO.fail(())
+        }
 
       /**
        * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
