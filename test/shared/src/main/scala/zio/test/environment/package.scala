@@ -360,7 +360,7 @@ package object environment extends PlatformSpecific {
        */
       private lazy val awaitSuspended: UIO[Unit] =
         suspended
-          .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
+          .zipWith(live.provide(ZIO.yieldNow *> ZIO.sleep(10.milliseconds) *> ZIO.yieldNow) *> suspended)(_ == _)
           .filterOrFail(identity)(())
           .eventually
           .unit
