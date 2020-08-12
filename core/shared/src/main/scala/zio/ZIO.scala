@@ -539,7 +539,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def exitCode: URIO[R with console.Console, ExitCode] =
     self.foldCauseM(
-      cause => console.putStrLn(cause.prettyPrint) as ExitCode.failure,
+      cause => console.putStrLnErr(cause.prettyPrint) as ExitCode.failure,
       _ => ZIO.succeedNow(ExitCode.success)
     )
 
