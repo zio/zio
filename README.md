@@ -43,6 +43,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [adsquare](https://www.adsquare.com/)
 * [AutoScout24](https://www.autoscout24.de)
 * [Coralogix](https://coralogix.com)
+* [Devsisters](https://devsisters.com/)
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Evolution Gaming](https://www.evolutiongaming.com/)
 * [Hunters.AI](https://hunters.ai)
