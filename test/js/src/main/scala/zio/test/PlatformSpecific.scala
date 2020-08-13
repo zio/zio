@@ -21,18 +21,27 @@ import zio.test.environment._
 
 private[test] abstract class PlatformSpecific {
   type TestEnvironment =
-    ZEnv with Annotations with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
+    Annotations
+      with Live
+      with Sized
+      with TestClock
+      with TestConfig
+      with TestConsole
+      with TestRandom
+      with TestSystem
+      with ZEnv
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
       ZLayer.requires[TestEnvironment]
     val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
       Annotations.live ++
-        ((Live.default ++ Annotations.live) >>> TestClock.default) ++
-        (Live.default >>> TestConsole.debug) ++
         Live.default ++
-        TestRandom.deterministic ++
         Sized.live(100) ++
+        ((Live.default ++ Annotations.live) >>> TestClock.default) ++
+        TestConfig.live(100, 100, 200, 1000) ++
+        (Live.default >>> TestConsole.debug) ++
+        TestRandom.deterministic ++
         TestSystem.default
   }
 }

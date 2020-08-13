@@ -208,6 +208,29 @@ object TestAspectSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("fail"))(anything)
       } @@ nonTermination(1.minute) @@ failing
     ),
+    testM("repeats sets the number of times to repeat a test to the specified value") {
+      for {
+        ref   <- Ref.make(0)
+        spec  = testM("test")(assertM(ref.update(_ + 1))(anything)) @@ nonFlaky @@ repeats(42)
+        _     <- execute(spec)
+        value <- ref.get
+      } yield assert(value)(equalTo(43))
+    },
+    testM("repeats sets the number of times to repeat a test to the specified value") {
+      for {
+        ref   <- Ref.make(0)
+        spec  = testM("test")(assertM(ref.update(_ + 1))(nothing)) @@ flaky @@ retries(42)
+        _     <- execute(spec)
+        value <- ref.get
+      } yield assert(value)(equalTo(43))
+    },
+    testM("samples sets the number of sufficient samples to the specified value") {
+      for {
+        ref   <- Ref.make(0)
+        _     <- checkM(Gen.anyInt.noShrink)(_ => assertM(ref.update(_ + 1))(anything))
+        value <- ref.get
+      } yield assert(value)(equalTo(42))
+    } @@ samples(42),
     testM("scala2 applies test aspect only on Scala 2") {
       for {
         ref    <- Ref.make(false)
@@ -224,6 +247,13 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("setSeed sets the random seed to the specified value before each test") {
       assertM(TestRandom.getSeed)(equalTo(seed & ((1L << 48) - 1)))
     } @@ setSeed(seed),
+    testM("shrinks sets the maximum number of shrinkings to the specified value") {
+      for {
+        ref   <- Ref.make(0)
+        _     <- checkM(Gen.anyInt)(_ => assertM(ref.update(_ + 1))(nothing))
+        value <- ref.get
+      } yield assert(value)(equalTo(1))
+    } @@ shrinks(0),
     testM("timeout makes tests fail after given duration") {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
