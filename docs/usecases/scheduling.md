@@ -42,9 +42,9 @@ def schedule = Schedule.recurs(4) && Schedule.spaced(1.second)
 For monitoring purposes, you may also want to log attempts. While this logic can be placed in the request itself, it's more scalable to add that logic to the schedule so it can be reused.
 ```
 object ScheduleUtil {
-  def schedule[A] = Schedule.recurs(4) && Schedule.spaced(1.second).onDecision((a: A, s) => s match {
-    case None => putStrLn(s"done trying")
-    case Some(att) => putStrLn(s"attempt #$att")
+  def schedule[A] = Schedule.spaced(1.second) && Schedule.recurs(4).onDecision({
+    case Decision.Done(_)                 => putStrLn(s"done trying")
+    case Decision.Continue(attempt, _, _) => putStrLn(s"attempt #$attempt")
   })
 }
 ```
