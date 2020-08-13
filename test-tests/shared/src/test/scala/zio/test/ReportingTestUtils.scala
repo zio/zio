@@ -59,7 +59,7 @@ object ReportingTestUtils {
                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
                     TestLogger.fromConsole ++ TestClock.default
                   )
-      actualSummary <- SummaryBuilder.buildSummary(results)
+      actualSummary = SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
   private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =

@@ -43,15 +43,15 @@ object TestExecutor {
             case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
           }
         )
-        .use(_.fold[UIO[ExecutedSpec[E]]] {
-          case Spec.SuiteCase(label, specs, exec) =>
-            UIO.succeedNow(Spec.suite(label, specs.mapM(UIO.collectAll(_)).map(_.toVector), exec))
-          case Spec.TestCase(label, test, annotations) =>
+        .use(_.foldM[Any, Nothing, ExecutedSpec[E]](defExec) {
+          case Spec.SuiteCase(label, specs, _) =>
+            specs.map(specs => ExecutedSpec.suite(label, specs))
+          case Spec.TestCase(label, test, staticAnnotations) =>
             test.map {
-              case (result, annotations1) =>
-                Spec.test(label, UIO.succeedNow(result), annotations ++ annotations1)
-            }
-        })
+              case (result, dynamicAnnotations) =>
+                ExecutedSpec.test(label, result, staticAnnotations ++ dynamicAnnotations)
+            }.toManaged_
+        }.useNow)
     val environment = env
   }
 }
