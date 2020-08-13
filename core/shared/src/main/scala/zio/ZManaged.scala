@@ -786,6 +786,18 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
     ZManaged.fromEffect(useNow)
 
   /**
+   * Returns a `Reservation` that allows separately accessing effects
+   * describing resource acquisition and release.
+   */
+  def reserve: UIO[Reservation[R, E, A]] =
+    ReleaseMap.make.map { releaseMap =>
+      Reservation(
+        zio.provideSome[R]((_, releaseMap)).map(_._2),
+        releaseMap.releaseAll(_, ExecutionStrategy.Sequential)
+      )
+    }
+
+  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
