@@ -255,6 +255,15 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   )(f: (ROut, ROut2) => ROut3): ZLayer[RIn with RIn2, E1, ROut3] =
     ZLayer.ZipWithPar(self, that, f)
 
+  /**
+    * Returns whether this layer is a fresh version that will not be shared.
+    */
+  private final def isFresh: Boolean =
+    self match {
+      case ZLayer.Fresh(_) => true
+      case _ => false
+    }
+
   private final def scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]] =
     self match {
       case ZLayer.Fold(self, failure, success) =>
@@ -2275,7 +2284,7 @@ object ZLayer {
                           },
                           (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
                         )
-                      } yield (resource, map + (layer -> memoized))
+                      } yield (resource, if (layer.isFresh) map else map + (layer -> memoized))
 
                   }
                 }.flatten
