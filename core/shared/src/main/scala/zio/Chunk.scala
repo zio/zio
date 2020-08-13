@@ -1238,7 +1238,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       } else {
         val buffer = Array.ofDim[AnyRef](BufferSize)
         buffer(0) = a1.asInstanceOf[AnyRef]
-        AppendN(self, buffer, 1, new AtomicInteger(1))
+        val chunk = Chunk.fromArray(self.buffer.asInstanceOf[Array[A1]]).take(bufferUsed)
+        AppendN(start ++ chunk, buffer, 1, new AtomicInteger(1))
       }
 
     def apply(n: Int): A =
@@ -1265,7 +1266,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       } else {
         val buffer = Array.ofDim[AnyRef](BufferSize)
         buffer(BufferSize - 1) = a1.asInstanceOf[AnyRef]
-        PrependN(self, buffer, 1, new AtomicInteger(1))
+        val chunk = Chunk.fromArray(self.buffer.asInstanceOf[Array[A1]]).take(bufferUsed)
+        PrependN(chunk ++ end, buffer, 1, new AtomicInteger(1))
       }
 
     def apply(n: Int): A =
