@@ -377,6 +377,14 @@ object IO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[[zio.ZIO.foreach[R,E,Key,Key2,Value,Value2](map:Map*]]]
+   */
+  def foreach[E, Key, Key2, Value, Value2](
+    map: Map[Key, Value]
+  )(f: (Key, Value) => IO[E, (Key2, Value2)]): IO[E, Map[Key2, Value2]] =
+    ZIO.foreach(map)(f)
+
+  /**
    * @see See [[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
    */
   def foreach[E, A, B](in: Option[A])(f: A => IO[E, B]): IO[E, Option[B]] =
@@ -409,6 +417,14 @@ object IO {
    */
   def foreachPar[E, A, B](as: Set[A])(fn: A => IO[E, B]): IO[E, Set[B]] =
     ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,Key,Key2,Value,Value2](map:Map*]]]
+   */
+  def foreachPar[E, Key, Key2, Value, Value2](
+    map: Map[Key, Value]
+  )(f: (Key, Value) => IO[E, (Key2, Value2)]): IO[E, Map[Key2, Value2]] =
+    ZIO.foreachPar(map)(f)
 
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.NonEmptyChunk*]]]

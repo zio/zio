@@ -1,6 +1,5 @@
 import BuildHelper._
 import MimaSettings.mimaSettings
-import com.typesafe.tools.mima.plugin.MimaKeys.mimaFailOnNoPrevious
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
@@ -22,7 +21,7 @@ inThisBuild(
         url("http://degoes.net")
       )
     ),
-    pgpPassphrase := sys.env.get("PGP_PASSWORD").map(_.toArray),
+    pgpPassphrase := sys.env.get("PGP_PASSPHRASE").map(_.toArray),
     pgpPublicRing := file("/tmp/public.asc"),
     pgpSecretRing := file("/tmp/secret.asc"),
     scmInfo := Some(
@@ -77,6 +76,7 @@ addCommandAlias(
 lazy val root = project
   .in(file("."))
   .settings(
+    name := "zio",
     skip in publish := true,
     console := (console in Compile in coreJVM).value,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
@@ -342,10 +342,10 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"      % "2.4.2",
         "com.google.code.findbugs"  % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"     % "20.7.0",
+        "com.twitter"               %% "util-core"     % "20.8.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.6.8",
         "io.monix"                  %% "monix"         % "3.2.2",
-        "io.projectreactor"         % "reactor-core"   % "3.3.8.RELEASE",
+        "io.projectreactor"         % "reactor-core"   % "3.3.9.RELEASE",
         "io.reactivex.rxjava2"      % "rxjava"         % "2.2.19",
         "org.ow2.asm"               % "asm"            % "8.0.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
@@ -398,7 +398,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC12",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5",
       "dev.zio"             %% "zio-interop-twitter"         % "20.7.0.0"
     )
   )

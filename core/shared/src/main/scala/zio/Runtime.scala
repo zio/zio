@@ -109,6 +109,8 @@ trait Runtime[+R] {
 
     val scope = ZScope.unsafeMake[Exit[E, A]]()
 
+    val supervisor = platform.supervisor
+
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       platform,
@@ -118,9 +120,15 @@ trait Runtime[+R] {
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap(),
-      platform.supervisor,
+      supervisor,
       scope
     )
+
+    if (supervisor ne Supervisor.none) {
+      supervisor.unsafeOnStart(environment, zio, None, context)
+
+      context.onDone(exit => supervisor.unsafeOnEnd(exit, context))
+    }
 
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)

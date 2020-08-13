@@ -199,6 +199,14 @@ Code reviews can sometimes take a few days, because open source projects are lar
 
 Once you receive a review, you will probably have to go back and make minor changes that improve your contribution and make it follow existing conventions in the code base. This is normal, even for experienced contributors, and the rigorous reviews help ensure ZIO's code base stays high quality.
 
+If iterating on a feature resulted in several commits, consider squashing them before pushing the final version of the code.
+One of the ways to squash e.g. 5 last commits: 
+```bash
+git reset --soft HEAD~5
+git commit -am "add feature X"
+git push --force
+```
+
 After you make changes, you may need to remind reviewers to check out the code again. If they give a final approval, it means your code is ready for merge! Usually this will happen at the same time, though for controversial changes, a contributor may wait for someone more senior to merge.
 
 If you don't get a merge in a day after your review is successful, then please gently remind folks that your code is ready to be merged.

@@ -539,7 +539,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def exitCode: URIO[R with console.Console, ExitCode] =
     self.foldCauseM(
-      cause => console.putStrLn(cause.prettyPrint) as ExitCode.failure,
+      cause => console.putStrLnErr(cause.prettyPrint) as ExitCode.failure,
       _ => ZIO.succeedNow(ExitCode.success)
     )
 
@@ -2743,6 +2743,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     foreach[R, E, A, B, Iterable](in)(f).map(_.toSet)
 
   /**
+   * Applies the function `f` to each element of the `Map[Key, Value]` and
+   * returns the results in a new `Map[Key2, Value2]`.
+   *
+   * For a parallel version of this method, see `foreachPar`. If you do not
+   * need the results, see `foreach_` for a more efficient implementation.
+   */
+  def foreach[R, E, Key, Key2, Value, Value2](
+    map: Map[Key, Value]
+  )(f: (Key, Value) => ZIO[R, E, (Key2, Value2)]): ZIO[R, E, Map[Key2, Value2]] =
+    foreach[R, E, (Key, Value), (Key2, Value2), Iterable](map)(f.tupled).map(_.toMap)
+
+  /**
    * Applies the function `f` if the argument is non-empty and
    * returns the results in a new `Option[B]`.
    */
@@ -2816,6 +2828,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   final def foreachPar[R, E, A, B](as: Set[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, Set[B]] =
     foreachPar[R, E, A, B, Iterable](as)(fn).map(_.toSet)
+
+  /**
+   * Applies the function `f` to each element of the `Map[Key, Value]` in
+   * parallel and returns the results in a new `Map[Key2, Value2]`.
+   *
+   * For a sequential version of this method, see `foreach`.
+   */
+  def foreachPar[R, E, Key, Key2, Value, Value2](
+    map: Map[Key, Value]
+  )(f: (Key, Value) => ZIO[R, E, (Key2, Value2)]): ZIO[R, E, Map[Key2, Value2]] =
+    foreachPar[R, E, (Key, Value), (Key2, Value2), Iterable](map)(f.tupled).map(_.toMap)
 
   /**
    * Applies the function `f` to each element of the `NonEmptyChunk[A]` in parallel,

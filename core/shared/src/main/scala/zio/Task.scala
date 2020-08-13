@@ -377,6 +377,14 @@ object Task extends TaskPlatformSpecific {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[[zio.ZIO.foreach[R,E,Key,Key2,Value,Value2](map:Map*]]]
+   */
+  def foreach[Key, Key2, Value, Value2](
+    map: Map[Key, Value]
+  )(f: (Key, Value) => Task[(Key2, Value2)]): Task[Map[Key2, Value2]] =
+    ZIO.foreach(map)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
    */
   def foreach[A, B](in: Option[A])(f: A => Task[B]): Task[Option[B]] =
@@ -409,6 +417,14 @@ object Task extends TaskPlatformSpecific {
    */
   def foreachPar[A, B](as: Set[A])(fn: A => Task[B]): Task[Set[B]] =
     ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,Key,Key2,Value,Value2](map:Map*]]]
+   */
+  def foreachPar[Key, Key2, Value, Value2](
+    map: Map[Key, Value]
+  )(f: (Key, Value) => Task[(Key2, Value2)]): Task[Map[Key2, Value2]] =
+    ZIO.foreachPar(map)(f)
 
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.NonEmptyChunk*]]]

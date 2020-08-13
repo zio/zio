@@ -423,7 +423,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
           case Continue(out, interval, next) => ZIO.succeed(Continue(out, interval, loop(next)))
         }
 
-    Schedule(self.step)
+    Schedule(loop(self.step))
   }
 
   /**
@@ -1037,10 +1037,10 @@ object Schedule {
    * Unfolds a schedule that repeats one time from the specified state and iterator.
    */
   def unfold[A](a: => A)(f: A => A): Schedule[Any, Any, A] = {
-    def loop(a: => A): StepFunction[Any, Any, A] =
+    def loop(a: A): StepFunction[Any, Any, A] =
       (now, _) => ZIO.succeed(Decision.Continue(a, now, loop(f(a))))
 
-    Schedule(loop(a))
+    Schedule((now, _) => ZIO.effectTotal(a).map(a => Decision.Continue(a, now, loop(f(a)))))
   }
 
   /**
