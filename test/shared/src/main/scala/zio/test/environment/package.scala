@@ -358,19 +358,21 @@ package object environment extends PlatformSpecific {
       /**
        * Polls until all descendants of this fiber are done or suspended.
        */
-      private lazy val awaitSuspended: UIO[Unit] =
-        suspended
-          .zipWith(live.provide(ZIO.yieldNow *> ZIO.sleep(10.milliseconds) *> ZIO.yieldNow) *> suspended)(_ == _)
-          .filterOrFail(identity)(())
-          .eventually
-          .unit
+      private lazy val awaitSuspended: UIO[Unit] = {
+        def loop(first: Option[Map[Fiber.Id, Fiber.Status]], duration: Duration): UIO[Unit] =
+          live.provide(ZIO.sleep(duration)) *> (ZIO.succeedNow(first).zip(suspended.option)).flatMap {
+            case (Some(first), Some(last)) if (first == last) => UIO.unit
+            case (_, Some(last))                              => loop(Some(last), duration.plus(duration))
+            case _                                            => loop(None, duration.plus(duration))
+          }
+        suspended.option.flatMap(loop(_, 10.milliseconds))
+      }
 
       /**
        * Delays for a short period of time.
        */
       private lazy val delay: UIO[Unit] =
-        if (TestPlatform.isJS) ZIO.yieldNow
-        else live.provide(ZIO.sleep(5.milliseconds))
+        live.provide(ZIO.sleep(5.milliseconds))
 
       /**
        * Captures a "snapshot" of the identifier and status of all fibers in
