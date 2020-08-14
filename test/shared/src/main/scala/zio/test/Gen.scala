@@ -483,10 +483,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.fromEffectSample {
       if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
       else {
-        val difference = max - min + 1
         val effect =
-          if (difference > 0) nextIntBounded(difference).map(min + _)
-          else nextInt.repeatUntil(n => min <= n && n <= max)
+          if (max < Int.MaxValue) nextIntBetween(min, max + 1)
+          else if (min > Int.MinValue) nextIntBetween(min - 1, max).map(_ + 1)
+          else nextInt
         effect.map(Sample.shrinkIntegral(min))
       }
     }
@@ -530,10 +530,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.fromEffectSample {
       if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
       else {
-        val difference = max - min + 1
         val effect =
-          if (difference > 0) nextLongBounded(difference).map(min + _)
-          else nextLong.repeatUntil(n => min <= n && n <= max)
+          if (max < Long.MaxValue) nextLongBetween(min, max + 1L)
+          else if (min > Long.MinValue) nextLongBetween(min - 1L, max).map(_ + 1L)
+          else nextLong
         effect.map(Sample.shrinkIntegral(min))
       }
     }

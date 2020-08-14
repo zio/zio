@@ -6,16 +6,16 @@ import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketCh
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{ OpenOption, Path }
 import java.nio.{ Buffer, ByteBuffer }
-import java.util.zip.{ DataFormatException, Deflater, Inflater }
+import java.util.zip.{ DataFormatException, Inflater }
 import java.{ util => ju }
 
 import scala.annotation.tailrec
-
 import zio._
 import zio.blocking.Blocking
-import zio.stream.compression.{ CompressionException, CompressionLevel, CompressionStrategy, FlushMode, Gunzipper }
+import zio.stream.compression._
 
-trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
+trait ZSinkPlatformSpecificConstructors {
+  self: ZSink.type =>
 
   /**
    * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
@@ -82,7 +82,8 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
   }
 }
 
-trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
+trait ZStreamPlatformSpecificConstructors {
+  self: ZStream.type =>
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
@@ -473,16 +474,18 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     def make(socket: AsynchronousSocketChannel): UManaged[Connection] =
       Managed.make(ZIO.succeed(new Connection(socket)))(_.close())
   }
+
 }
 
-trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
+trait ZTransducerPlatformSpecificConstructors {
+  self: ZTransducer.type =>
 
   /**
    * Compresses stream with 'deflate' method described in https://tools.ietf.org/html/rfc1951.
    * Each incoming chunk is compressed at once, so it can utilize thread for long time if chunks are big.
    *
    * @param bufferSize Size of internal buffer used for pulling data from deflater, affects performance.
-   * @param noWrap Whether output stream is wrapped in ZLIB header and trailer. For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+   * @param noWrap     Whether output stream is wrapped in ZLIB header and trailer. For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
    */
   def deflate(
     bufferSize: Int = 64 * 1024,
@@ -490,56 +493,14 @@ trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
     level: CompressionLevel = CompressionLevel.DefaultCompression,
     strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
     flushMode: FlushMode = FlushMode.NoFlush
-  ): ZTransducer[Any, Nothing, Byte, Byte] = {
-    def makeDeflater: ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, Nothing, Chunk[Byte]]] =
-      ZManaged
-        .make(ZIO.effectTotal {
-          val deflater = new Deflater(level.jValue, noWrap)
-          deflater.setLevel(level.jValue)
-          deflater.setStrategy(strategy.jValue)
-          (deflater, new Array[Byte](bufferSize))
-        }) {
-          case (deflater, _) => ZIO.effectTotal(deflater.end())
-        }
-        .map {
-          case (deflater, buffer) => {
-            case Some(chunk) =>
-              ZIO.effectTotal {
-                deflater.setInput(chunk.toArray)
-                pullAllOutput(deflater, buffer)
-              }
-            case None =>
-              ZIO.effectTotal {
-                deflater.finish()
-                val out = pullAllOutput(deflater, buffer)
-                deflater.reset()
-                out
-              }
-          }
-        }
-
-    def pullAllOutput(
-      deflater: Deflater,
-      buffer: Array[Byte]
-    ): Chunk[Byte] = {
-      @tailrec
-      def next(acc: Chunk[Byte]): Chunk[Byte] = {
-        val size    = deflater.deflate(buffer, 0, bufferSize, flushMode.jValue)
-        val current = Chunk.fromArray(ju.Arrays.copyOf(buffer, size))
-        if (current.isEmpty) acc
-        else next(acc ++ current)
-      }
-      next(Chunk.empty)
-    }
-
-    ZTransducer(makeDeflater)
-  }
+  ): ZTransducer[Any, Nothing, Byte, Byte] =
+    ZTransducer(Deflate.makeDeflater(bufferSize, noWrap, level, strategy, flushMode))
 
   /**
    * Decompresses deflated stream. Compression method is described in https://tools.ietf.org/html/rfc1951.
    *
-   * @param noWrap  Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
-   *                For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+   * @param noWrap     Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
+   *                   For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
    * @param bufferSize Size of buffer used internally, affects performance.
    **/
   def inflate(
@@ -599,11 +560,37 @@ trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
         } else if (read > 0) next(acc ++ current)
         else acc ++ current
       }
+
       if (inflater.needsInput()) Chunk.empty else next(Chunk.empty)
     }
 
     ZTransducer(makeInflater)
   }
+
+  /**
+   *
+   * @param bufferSize Size of buffer used internally, affects performance.
+   * @param level
+   * @param strategy
+   * @param flushMode
+   * @return
+   */
+  def gzip(
+    bufferSize: Int = 64 * 1024,
+    level: CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: FlushMode = FlushMode.NoFlush
+  ): ZTransducer[Any, Nothing, Byte, Byte] =
+    ZTransducer(
+      ZManaged
+        .make(Gzipper.make(bufferSize, level, strategy, flushMode))(gzipper => ZIO.effectTotal(gzipper.close()))
+        .map { gzipper =>
+          {
+            case None        => gzipper.onNone
+            case Some(chunk) => gzipper.onChunk(chunk)
+          }
+        }
+    )
 
   /**
    * Decompresses gzipped stream. Compression method is described in https://tools.ietf.org/html/rfc1952.

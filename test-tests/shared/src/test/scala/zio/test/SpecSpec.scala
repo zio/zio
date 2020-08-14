@@ -69,8 +69,14 @@ object SpecSpec extends ZIOBaseSpec {
         ).provideLayerShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
-          successes    <- executedSpec.countTests(_.isRight).useNow
-          failures     <- executedSpec.countTests(_.isLeft).useNow
+          successes = executedSpec.fold[Int] {
+            case ExecutedSpec.SuiteCase(_, counts) => counts.sum
+            case ExecutedSpec.TestCase(_, test, _) => if (test.isRight) 1 else 0
+          }
+          failures = executedSpec.fold[Int] {
+            case ExecutedSpec.SuiteCase(_, counts) => counts.sum
+            case ExecutedSpec.TestCase(_, test, _) => if (test.isLeft) 1 else 0
+          }
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),

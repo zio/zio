@@ -119,16 +119,6 @@ package object test extends CompileVariants {
   type ZSpec[-R, +E] = Spec[R, TestFailure[E], TestSuccess]
 
   /**
-   * An `ExecutedResult[E] is either a `TestSuccess` or a `TestFailure[E]`.
-   */
-  type ExecutedResult[+E] = Either[TestFailure[E], TestSuccess]
-
-  /**
-   * An `ExecutedSpec` is a spec that has been run to produce test results.
-   */
-  type ExecutedSpec[+E] = Spec[Any, Nothing, ExecutedResult[E]]
-
-  /**
    * An `Annotated[A]` contains a value of type `A` along with zero or more
    * test annotations.
    */

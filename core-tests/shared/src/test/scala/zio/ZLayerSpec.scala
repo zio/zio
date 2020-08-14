@@ -335,6 +335,17 @@ object ZLayerSpec extends ZIOBaseSpec {
           result <- ref.get
         } yield assert(result)(equalTo(expected))
       } @@ nonFlaky,
+      testM("fresh with identical fresh layers") {
+        for {
+          ref    <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          layer3 = makeLayer3(ref)
+          env    = ((layer1.fresh >>> layer2) ++ (layer1.fresh >>> layer3)).build
+          _      <- env.useNow
+          result <- ref.get
+        } yield assert(result)(hasSize(equalTo(8)))
+      } @@ nonFlaky,
       testM("preserves identity of acquired resources") {
         for {
           testRef <- Ref.make(Vector[String]())
