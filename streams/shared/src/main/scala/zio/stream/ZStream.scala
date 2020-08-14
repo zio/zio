@@ -2063,6 +2063,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
+   * Runs the specified effect if this stream fails, providing the error to the effect if it exists.
+   *
+   * Note: Unlike [[ZIO.onError]], there is no guarantee that the provided effect will not be interrupted.
+   */
+  final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any]): ZStream[R1, E, O] =
+    catchAllCause(cause => ZStream.fromEffect(cleanup(cause) *> ZIO.halt(cause)))
+
+  /**
    * Switches to the provided stream in case this one fails with a typed error.
    *
    * See also [[ZStream#catchAll]].
