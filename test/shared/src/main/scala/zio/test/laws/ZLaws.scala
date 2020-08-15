@@ -16,7 +16,7 @@
 
 package zio.test.laws
 
-import zio.test.{ check, checkM, Gen, TestResult }
+import zio.test.{ check, checkM, Gen, TestConfig, TestResult }
 import zio.{ URIO, ZIO }
 
 /**
@@ -32,7 +32,7 @@ abstract class ZLaws[-Caps[_], -R] { self =>
    * Test that values of type `A` satisfy the laws using the specified
    * generator.
    */
-  def run[R1 <: R, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult]
+  def run[R1 <: R with TestConfig, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult]
 
   /**
    * Combine these laws with the specified laws to produce a set of laws that
@@ -45,7 +45,7 @@ abstract class ZLaws[-Caps[_], -R] { self =>
 object ZLaws {
 
   private final case class Both[-Caps[_], -R](left: ZLaws[Caps, R], right: ZLaws[Caps, R]) extends ZLaws[Caps, R] {
-    final def run[R1 <: R, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+    final def run[R1 <: R with TestConfig, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
       left.run(gen).zipWith(right.run(gen))(_ && _)
   }
 
@@ -54,7 +54,7 @@ object ZLaws {
    */
   abstract class Law1[-Caps[_]](label: String) extends ZLaws[Caps, Any] { self =>
     def apply[A: Caps](a1: A): TestResult
-    final def run[R, A: Caps](gen: Gen[R, A]): URIO[R, TestResult] =
+    final def run[R <: TestConfig, A: Caps](gen: Gen[R, A]): URIO[R, TestResult] =
       check(gen)(apply(_).map(_.label(label)))
   }
 
@@ -63,7 +63,7 @@ object ZLaws {
    */
   abstract class Law1M[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
     def apply[A: Caps](a1: A): URIO[R, TestResult]
-    final def run[R1 <: R, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+    final def run[R1 <: R with TestConfig, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
       checkM(gen)(apply(_).map(_.map(_.label(label))))
   }
 
@@ -72,7 +72,7 @@ object ZLaws {
    */
   abstract class Law2[-Caps[_]](label: String) extends ZLaws[Caps, Any] { self =>
     def apply[A: Caps](a1: A, a2: A): TestResult
-    final def run[R, A: Caps](gen: Gen[R, A]): URIO[R, TestResult] =
+    final def run[R <: TestConfig, A: Caps](gen: Gen[R, A]): URIO[R, TestResult] =
       check(gen, gen)(apply(_, _).map(_.label(label)))
   }
 
@@ -81,7 +81,7 @@ object ZLaws {
    */
   abstract class Law2M[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
     def apply[A: Caps](a1: A, a2: A): URIO[R, TestResult]
-    final def run[R1 <: R, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+    final def run[R1 <: R with TestConfig, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
       checkM(gen, gen)(apply(_, _).map(_.map(_.label(label))))
   }
 
@@ -90,7 +90,7 @@ object ZLaws {
    */
   abstract class Law3[-Caps[_]](label: String) extends ZLaws[Caps, Any] { self =>
     def apply[A: Caps](a1: A, a2: A, a3: A): TestResult
-    final def run[R, A: Caps](gen: Gen[R, A]): URIO[R, TestResult] =
+    final def run[R <: TestConfig, A: Caps](gen: Gen[R, A]): URIO[R, TestResult] =
       check(gen, gen, gen)(apply(_, _, _).map(_.label(label)))
   }
 
@@ -99,7 +99,7 @@ object ZLaws {
    */
   abstract class Law3M[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
     def apply[A: Caps](a1: A, a2: A, a3: A): URIO[R, TestResult]
-    final def run[R1 <: R, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+    final def run[R1 <: R with TestConfig, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
       checkM(gen, gen, gen)(apply(_, _, _).map(_.map(_.label(label))))
   }
 }
