@@ -2169,6 +2169,13 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
           }
         },
+        testM("onError") {
+          for {
+            flag   <- Ref.make(false)
+            exit   <- ZStream.fail("Boom").onError(_ => flag.set(true)).runDrain.run
+            called <- flag.get
+          } yield assert(called)(isTrue) && assert(exit)(fails(equalTo("Boom")))
+        } @@ zioTag(errors),
         testM("orElse") {
           val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Boom")
           val s2 = ZStream(4, 5, 6)
