@@ -8,10 +8,20 @@ private[internal] abstract class DefaultExecutors {
     Executor.fromExecutionContext(yieldOpCount) {
       new ExecutionContext {
         def execute(runnable: Runnable): Unit = {
-          val _ = js.Dynamic.global.setImmediate(() => runnable.run())
+          val _ = setImmediate(() => runnable.run())
         }
         def reportFailure(cause: Throwable): Unit =
           cause.printStackTrace()
       }
+    }
+
+  /**
+   * Yields before executing this effect.
+   */
+  private val setImmediate =
+    if (js.typeOf(js.Dynamic.global.setImmediate) == "function") {
+      js.Dynamic.global.setImmediate
+    } else {
+      js.Dynamic.global.setTimeout
     }
 }
