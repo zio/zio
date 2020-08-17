@@ -9,28 +9,28 @@ object HasSpec extends ZIOBaseSpec {
   trait Cat   extends Animal
   trait Bunny extends Animal
 
-  val dog1: Dog     = new Dog   { override val toString = "dog1"   }
-  val dog2: Dog     = new Dog   { override val toString = "dog2"   }
-  val cat1: Cat     = new Cat   { override val toString = "cat1"   }
-  val cat2: Cat     = new Cat   { override val toString = "cat2"   }
+  val dog1: Dog     = new Dog { override val toString = "dog1" }
+  val dog2: Dog     = new Dog { override val toString = "dog2" }
+  val cat1: Cat     = new Cat { override val toString = "cat1" }
+  val cat2: Cat     = new Cat { override val toString = "cat2" }
   val bunny1: Bunny = new Bunny { override val toString = "bunny1" }
 
   trait IList[+A]
 
-  val dogs1: IList[Dog]      = new IList[Dog]   { override val toString = "dogs1"    }
-  val dogs2: IList[Dog]      = new IList[Dog]   { override val toString = "dogs2"    }
-  val cats1: IList[Cat]      = new IList[Cat]   { override val toString = "cats1"    }
-  val cats2: IList[Cat]      = new IList[Cat]   { override val toString = "cats2"    }
+  val dogs1: IList[Dog]      = new IList[Dog] { override val toString = "dogs1" }
+  val dogs2: IList[Dog]      = new IList[Dog] { override val toString = "dogs2" }
+  val cats1: IList[Cat]      = new IList[Cat] { override val toString = "cats1" }
+  val cats2: IList[Cat]      = new IList[Cat] { override val toString = "cats2" }
   val bunnies1: IList[Bunny] = new IList[Bunny] { override val toString = "animals1" }
 
   trait PetHotel[-A]
 
   val animalHotel1: PetHotel[Animal] = new PetHotel[Animal] { override val toString = "animalHotel1" }
-  val dogHotel1: PetHotel[Dog]       = new PetHotel[Dog]    { override val toString = "dogHotel1"    }
-  val dogHotel2: PetHotel[Dog]       = new PetHotel[Dog]    { override val toString = "dogHotel2"    }
-  val catHotel1: PetHotel[Cat]       = new PetHotel[Cat]    { override val toString = "catHotel1"    }
-  val catHotel2: PetHotel[Cat]       = new PetHotel[Cat]    { override val toString = "catHotel2"    }
-  val bunnyHotel1: PetHotel[Bunny]   = new PetHotel[Bunny]  { override val toString = "bunnyHotel1"  }
+  val dogHotel1: PetHotel[Dog]       = new PetHotel[Dog] { override val toString = "dogHotel1" }
+  val dogHotel2: PetHotel[Dog]       = new PetHotel[Dog] { override val toString = "dogHotel2" }
+  val catHotel1: PetHotel[Cat]       = new PetHotel[Cat] { override val toString = "catHotel1" }
+  val catHotel2: PetHotel[Cat]       = new PetHotel[Cat] { override val toString = "catHotel2" }
+  val bunnyHotel1: PetHotel[Bunny]   = new PetHotel[Bunny] { override val toString = "bunnyHotel1" }
 
   def spec = suite("HasSpec")(
     suite("monomorphic types")(

@@ -26,16 +26,16 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
               for {
                 bufArray <- UIO(Array.ofDim[Byte](chunkSize))
                 bytesRead <- Task(capturedIs.read(bufArray))
-                              .refineToOrDie[IOException]
-                              .mapError(Some(_))
+                               .refineToOrDie[IOException]
+                               .mapError(Some(_))
                 bytes <- if (bytesRead < 0)
-                          done.set(true) *> Pull.end
-                        else if (bytesRead == 0)
-                          go
-                        else if (bytesRead < bufArray.length)
-                          Pull.emit(Chunk.fromArray(bufArray).take(bytesRead))
-                        else
-                          Pull.emit(Chunk.fromArray(bufArray))
+                           done.set(true) *> Pull.end
+                         else if (bytesRead == 0)
+                           go
+                         else if (bytesRead < bufArray.length)
+                           Pull.emit(Chunk.fromArray(bufArray).take(bytesRead))
+                         else
+                           Pull.emit(Chunk.fromArray(bufArray))
               } yield bytes
           }
 

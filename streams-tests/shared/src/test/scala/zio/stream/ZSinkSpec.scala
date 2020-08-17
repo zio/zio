@@ -66,10 +66,9 @@ object ZSinkSpec extends ZIOBaseSpec {
         testM("happy path") {
           for {
             closed <- Ref.make[Boolean](false)
-            res    = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
-            sink: ZSink[Any, Nothing, Int, Int, (Long, Boolean)] = ZSink.managed(res)(m =>
-              ZSink.count.mapM(cnt => closed.get.map(cl => (cnt + m, cl)))
-            )
+            res     = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
+            sink: ZSink[Any, Nothing, Int, Int, (Long, Boolean)] =
+              ZSink.managed(res)(m => ZSink.count.mapM(cnt => closed.get.map(cl => (cnt + m, cl))))
             resAndState <- ZStream(1, 2, 3).run(sink)
             finalState  <- closed.get
           } yield {
@@ -79,8 +78,8 @@ object ZSinkSpec extends ZIOBaseSpec {
         testM("sad path") {
           for {
             closed     <- Ref.make[Boolean](false)
-            res        = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
-            sink       = ZSink.managed(res)(_ => ZSink.succeed[Int, String]("ok"))
+            res         = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
+            sink        = ZSink.managed(res)(_ => ZSink.succeed[Int, String]("ok"))
             r          <- ZStream.fail("fail").run(sink).either
             finalState <- closed.get
           } yield assert(r)(equalTo(Left("fail"))) && assert(finalState)(isTrue)
@@ -130,9 +129,9 @@ object ZSinkSpec extends ZIOBaseSpec {
             for {
               sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(f)))
               foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
-                             .map(_.reverse)
-                             .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
-                             .run
+                              .map(_.reverse)
+                              .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
+                              .run
             } yield assert(foldResult.succeeded)(isTrue) implies assert(foldResult)(succeeds(equalTo(sinkResult)))
           }
         }
@@ -141,9 +140,10 @@ object ZSinkSpec extends ZIOBaseSpec {
         testM("preserves leftovers in case of failure") {
           for {
             acc <- Ref.make[Int](0)
-            s   = ZSink.foreach[Any, String, Int]((i: Int) => if (i == 4) ZIO.fail("boom") else acc.update(_ + i))
-            sink: ZSink[Any, Nothing, Int, Nothing, Chunk[Int]] = s
-              .foldM(_ => ZSink.collectAll, _ => sys.error("impossible"))
+            s    = ZSink.foreach[Any, String, Int]((i: Int) => if (i == 4) ZIO.fail("boom") else acc.update(_ + i))
+            sink: ZSink[Any, Nothing, Int, Nothing, Chunk[Int]] =
+              s
+                .foldM(_ => ZSink.collectAll, _ => sys.error("impossible"))
             leftover <- ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4, 5)).run(sink)
             sum      <- acc.get
           } yield {

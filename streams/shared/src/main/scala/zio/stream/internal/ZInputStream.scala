@@ -36,7 +36,7 @@ private[zio] class ZInputStream(private var chunks: Iterator[Chunk[Byte]]) exten
         -1
       } else {
         if (availableInCurrentChunk > 0) {
-          readOne() & 0xFF
+          readOne() & 0xff
         } else {
           loadNext()
           go()

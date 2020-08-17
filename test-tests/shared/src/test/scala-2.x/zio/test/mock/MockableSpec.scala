@@ -8,7 +8,7 @@ import zio.test.mock.modules._
  * https://github.com/scalamacros/paradise/issues/75
  *
  * We can't typecheck @mockable with typeCheck
- * */
+ */
 object MockableSpec extends DefaultRunnableSpec {
 
   def spec = suite("MockableSpec")(

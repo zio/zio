@@ -10,7 +10,7 @@ object JSSpec extends ZIOBaseSpec {
   def spec = suite("JSSpec")(
     suite("Task.fromPromiseJS must")(
       testM("be lazy on the Promise parameter") {
-        var evaluated          = false
+        var evaluated = false
         def p: JSPromise[Unit] = { evaluated = true; JSPromise.resolve[Unit](()) }
         assertM(Task.fromPromiseJS(p).when(false).as(evaluated))(isFalse)
       },
@@ -35,7 +35,7 @@ object JSSpec extends ZIOBaseSpec {
     ),
     suite("ZIO.fromPromiseJS must")(
       testM("be lazy on the Promise parameter") {
-        var evaluated          = false
+        var evaluated = false
         def p: JSPromise[Unit] = { evaluated = true; JSPromise.resolve[Unit](()) }
         assertM(ZIO.fromPromiseJS(p).when(false).as(evaluated))(isFalse)
       },

@@ -44,32 +44,32 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray <- makeStairWithHoles(n).commit
           result <- tArray.collectFirst {
-                     case Some(i) if i > 2 => i.toString
-                   }.commit
+                      case Some(i) if i > 2 => i.toString
+                    }.commit
         } yield assert(result)(isSome(equalTo("4")))
       },
       testM("succeeds for empty") {
         for {
           tArray <- makeTArray[Option[Int]](0)(None).commit
           result <- tArray.collectFirst {
-                     case any => any
-                   }.commit
+                      case any => any
+                    }.commit
         } yield assert(result)(isNone)
       },
       testM("fails to find absent") {
         for {
           tArray <- makeStairWithHoles(n).commit
           result <- tArray.collectFirst {
-                     case Some(i) if i > n => i.toString
-                   }.commit
+                      case Some(i) if i > n => i.toString
+                    }.commit
         } yield assert(result)(isNone)
       } @@ zioTag(errors),
       testM("is atomic") {
         for {
           tArray <- makeStairWithHoles(N).commit
           findFiber <- tArray.collectFirst {
-                        case Some(i) if (i % largePrime) == 0 => i.toString
-                      }.commit.fork
+                         case Some(i) if (i % largePrime) == 0 => i.toString
+                       }.commit.fork
           _      <- STM.foreach(List.range(0, N))(i => tArray.update(i, _ => Some(1))).commit
           result <- findFiber.join
         } yield assert(result)(isSome(equalTo(largePrime.toString)) || isNone)
@@ -80,32 +80,32 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray <- makeStairWithHoles(n).commit
           result <- tArray.collectFirstM {
-                     case Some(i) if i > 2 => STM.succeed(i.toString)
-                   }.commit
+                      case Some(i) if i > 2 => STM.succeed(i.toString)
+                    }.commit
         } yield assert(result)(isSome(equalTo("4")))
       },
       testM("succeeds for empty") {
         for {
           tArray <- makeTArray[Option[Int]](0)(None).commit
           result <- tArray.collectFirstM {
-                     case any => STM.succeed(any)
-                   }.commit
+                      case any => STM.succeed(any)
+                    }.commit
         } yield assert(result)(isNone)
       },
       testM("fails to find absent") {
         for {
           tArray <- makeStairWithHoles(n).commit
           result <- tArray.collectFirstM {
-                     case Some(i) if i > n => STM.succeed(i.toString)
-                   }.commit
+                      case Some(i) if i > n => STM.succeed(i.toString)
+                    }.commit
         } yield assert(result)(isNone)
       } @@ zioTag(errors),
       testM("is atomic") {
         for {
           tArray <- makeStairWithHoles(N).commit
           findFiber <- tArray.collectFirstM {
-                        case Some(i) if (i % largePrime) == 0 => STM.succeed(i.toString)
-                      }.commit.fork
+                         case Some(i) if (i % largePrime) == 0 => STM.succeed(i.toString)
+                       }.commit.fork
           _      <- STM.foreach(List.range(0, N))(i => tArray.update(i, _ => Some(1))).commit
           result <- findFiber.join
         } yield assert(result)(isSome(equalTo(largePrime.toString)) || isNone)
@@ -114,18 +114,18 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray <- makeStairWithHoles(n).commit
           result <- tArray.collectFirstM {
-                     case Some(i) if i > 2 => STM.succeed(i.toString)
-                     case _                => STM.fail(boom)
-                   }.commit.flip
+                      case Some(i) if i > 2 => STM.succeed(i.toString)
+                      case _                => STM.fail(boom)
+                    }.commit.flip
         } yield assert(result)(equalTo(boom))
       } @@ zioTag(errors),
       testM("succeeds on errors after result found") {
         for {
           tArray <- makeStairWithHoles(n).commit
           result <- tArray.collectFirstM {
-                     case Some(i) if i > 2 => STM.succeed(i.toString)
-                     case Some(7)          => STM.fail(boom)
-                   }.commit
+                      case Some(i) if i > 2 => STM.succeed(i.toString)
+                      case Some(7)          => STM.fail(boom)
+                    }.commit
         } yield assert(result)(isSome(equalTo("4")))
       } @@ zioTag(errors)
     ),

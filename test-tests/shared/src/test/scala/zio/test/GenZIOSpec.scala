@@ -10,7 +10,7 @@ object GenZIOSpec extends ZIOBaseSpec {
     testM("died generates died effects") {
       val gen = died(Gen.throwable)
       for {
-        sample                <- sampleEffect(gen)
+        sample               <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)
       } yield {
         assert(successes)(isEmpty) &&
@@ -20,7 +20,7 @@ object GenZIOSpec extends ZIOBaseSpec {
     testM("failures generates failed effects") {
       val gen = failures(anyString)
       for {
-        sample                <- sampleEffect(gen)
+        sample               <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)
       } yield {
         assert(successes)(isEmpty) &&
@@ -30,7 +30,7 @@ object GenZIOSpec extends ZIOBaseSpec {
     testM("successes generates successful effects") {
       val gen = successes(int(-10, 10))
       for {
-        sample                <- sampleEffect(gen)
+        sample               <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)
       } yield {
         assert(successes)(isNonEmpty && forall(isWithin(-10, 10))) &&

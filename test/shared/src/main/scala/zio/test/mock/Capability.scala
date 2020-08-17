@@ -130,8 +130,8 @@ object Capability {
         toExpectation[R, I, E, A](self, assertion)
 
       @silent("is never used")
-      def of[E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(
-        implicit ev: I =!= Unit
+      def of[E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+        ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
@@ -154,8 +154,8 @@ object Capability {
         toExpectation[R, I, E, A](self, assertion)
 
       @silent("is never used")
-      def of[A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(
-        implicit ev: I =!= Unit
+      def of[A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+        ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
@@ -180,8 +180,8 @@ object Capability {
         toExpectation[R, I, E, A](self, assertion)
 
       @silent("is never used")
-      def of[I: Tag, E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(
-        implicit ev: I =!= Unit
+      def of[I: Tag, E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+        ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
@@ -206,8 +206,8 @@ object Capability {
         toExpectation[R, I, E, A](self, assertion)
 
       @silent("is never used")
-      def of[I: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(
-        implicit ev: I =!= Unit
+      def of[I: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+        ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
@@ -232,8 +232,8 @@ object Capability {
         toExpectation[R, I, E, A](self, assertion)
 
       @silent("is never used")
-      def of[E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(
-        implicit ev: I =!= Unit
+      def of[E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+        ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
@@ -258,8 +258,8 @@ object Capability {
         toExpectation[R, I, E, A](self, assertion)
 
       @silent("is never used")
-      def of[I: Tag, E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(
-        implicit ev: I =!= Unit
+      def of[I: Tag, E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+        ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 

@@ -904,9 +904,9 @@ private[zio] final class FiberContext[E, A](
 
     oldState match {
       case Executing(
-          status,
-          observers: List[Callback[Nothing, Exit[E, A]]],
-          interrupted
+            status,
+            observers: List[Callback[Nothing, Exit[E, A]]],
+            interrupted
           ) => // TODO: Dotty doesn't infer this properly
         if (!state.compareAndSet(oldState, Executing(status.withInterrupting(value), observers, interrupted)))
           setInterrupting(value)
@@ -935,9 +935,9 @@ private[zio] final class FiberContext[E, A](
         }
 
       case Executing(
-          oldStatus,
-          observers: List[Callback[Nothing, Exit[E, A]]],
-          interrupted
+            oldStatus,
+            observers: List[Callback[Nothing, Exit[E, A]]],
+            interrupted
           ) => // TODO: Dotty doesn't infer this properly
 
         /*
@@ -966,10 +966,12 @@ private[zio] final class FiberContext[E, A](
         case Executing(Status.Suspended(oldStatus, true, _, _, _), observers, interrupted) =>
           val newCause = interrupted ++ interruptedCause
 
-          if (!state.compareAndSet(
-                oldState,
-                Executing(oldStatus.withInterrupting(true), observers, newCause)
-              ))
+          if (
+            !state.compareAndSet(
+              oldState,
+              Executing(oldStatus.withInterrupting(true), observers, newCause)
+            )
+          )
             setInterruptedLoop()
           else {
             evaluateLater(ZIO.interruptAs(fiberId))

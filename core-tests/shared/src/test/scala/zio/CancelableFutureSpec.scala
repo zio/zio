@@ -47,7 +47,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
       testM("unsafeRunToFuture interruptibility") {
         for {
           runtime <- ZIO.runtime[Any]
-          f       = runtime.unsafeRunToFuture(UIO.never)
+          f        = runtime.unsafeRunToFuture(UIO.never)
           _       <- UIO(f.cancel())
           r       <- ZIO.fromFuture(_ => f).run
         } yield assert(r.succeeded)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
@@ -76,8 +76,8 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           p  <- Promise.make[Nothing, Unit]
           p2 <- Promise.make[Nothing, Int]
           f <- (p.succeed(()) *> IO.never)
-                .onInterrupt(p2.succeed(42))
-                .toFuture
+                 .onInterrupt(p2.succeed(42))
+                 .toFuture
           _    <- p.await
           _    <- ZIO.fromFuture(_ => f.cancel())
           test <- p2.await

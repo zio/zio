@@ -30,11 +30,11 @@ abstract class RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
     for {
       results <- runSpec(spec)
       hasFailures = results.exists {
-        case ExecutedSpec.TestCase(_, test, _) => test.isLeft
-        case _                                 => false
-      }
+                      case ExecutedSpec.TestCase(_, test, _) => test.isLeft
+                      case _                                 => false
+                    }
       summary = SummaryBuilder.buildSummary(results)
-      _       <- TestLogger.logLine(summary.summary)
+      _      <- TestLogger.logLine(summary.summary)
     } yield if (hasFailures) 1 else 0
 
   /**

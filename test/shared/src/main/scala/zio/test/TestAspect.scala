@@ -500,7 +500,8 @@ object TestAspect extends TimeoutVariants {
     timeout(duration) >>>
       failing(
         isCase[TestFailure[Any], Throwable](
-          "Runtime", {
+          "Runtime",
+          {
             case TestFailure.Runtime(cause) => cause.dieOption
             case _                          => None
           },
