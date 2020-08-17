@@ -337,10 +337,10 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
           now  <- clock.currentDateTime.orDie
           dec  <- step(now, in)
           v <- dec match {
-                case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)
-                case Continue(out, interval, next) =>
-                  ref.set((Some(out), next)) *> ZIO.sleep(Duration.fromInterval(now, interval)) as out
-              }
+                 case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)
+                 case Continue(out, interval, next) =>
+                   ref.set((Some(out), next)) *> ZIO.sleep(Duration.fromInterval(now, interval)) as out
+               }
         } yield v
 
       val last = ref.get.flatMap {
@@ -837,7 +837,7 @@ object Schedule {
   /**
    * A schedule that recurs for until the input value becomes applicable to partial function
    * and then map that value with given function.
-   * */
+   */
   def recurUntil[A, B](pf: PartialFunction[A, B]): Schedule[Any, A, Option[B]] =
     identity[A].map(pf.lift(_)).untilOutput(_.isDefined)
 

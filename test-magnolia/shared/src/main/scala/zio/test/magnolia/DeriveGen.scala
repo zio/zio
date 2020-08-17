@@ -117,15 +117,15 @@ object DeriveGen {
   implicit def genTuple2[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[(A, B)] =
     instance(Gen.zipN(ev1.derive, ev2.derive)((_, _)))
 
-  implicit def genTuple3[A, B, C](
-    implicit ev1: DeriveGen[A],
+  implicit def genTuple3[A, B, C](implicit
+    ev1: DeriveGen[A],
     ev2: DeriveGen[B],
     ev3: DeriveGen[C]
   ): DeriveGen[(A, B, C)] =
     instance(Gen.zipN(ev1.derive, ev2.derive, ev3.derive)((_, _, _)))
 
-  implicit def genTuple4[A, B, C, D](
-    implicit ev1: DeriveGen[A],
+  implicit def genTuple4[A, B, C, D](implicit
+    ev1: DeriveGen[A],
     ev2: DeriveGen[B],
     ev3: DeriveGen[C],
     ev4: DeriveGen[D]

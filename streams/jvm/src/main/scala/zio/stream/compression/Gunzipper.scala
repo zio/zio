@@ -7,8 +7,10 @@ import scala.annotation.tailrec
 
 import zio._
 
-/** Performs few steps of parsing header, then decompresses body and checks trailer.
- * With reasonably chosen bufferSize there shouldn't occur many concatenation of arrays. */
+/**
+ * Performs few steps of parsing header, then decompresses body and checks trailer.
+ * With reasonably chosen bufferSize there shouldn't occur many concatenation of arrays.
+ */
 private[compression] class Gunzipper private (bufferSize: Int) {
 
   import Gunzipper._
@@ -108,7 +110,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
       if (crc16Bytes.length < 2) {
         (new CheckCrc16Step(crc16Bytes, crcValue), Chunk.empty)
       } else {
-        val computedCrc16 = (crcValue & 0xFFFFL).toInt
+        val computedCrc16 = (crcValue & 0xffffL).toInt
         val expectedCrc   = u16(crc16Bytes(0), crc16Bytes(1))
         if (computedCrc16 != expectedCrc) throw CompressionException("Invalid header CRC16")
         else new Decompress().feed(leftover)

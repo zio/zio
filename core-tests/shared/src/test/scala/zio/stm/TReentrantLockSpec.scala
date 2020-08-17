@@ -94,7 +94,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         lock <- TReentrantLock.make.commit
         ref  <- Ref.make(0)
         rcount <- lock.writeLock
-                   .use(_ => lock.readLock.use(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))
+                    .use(_ => lock.readLock.use(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))
         wcount <- ref.get
       } yield assert(rcount)(equalTo(1)) && assert(wcount)(equalTo(1))
     },
@@ -103,7 +103,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         lock <- TReentrantLock.make.commit
         ref  <- Ref.make(0)
         rcount <- lock.readLock
-                   .use(_ => lock.writeLock.use(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))
+                    .use(_ => lock.writeLock.use(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))
         wcount <- ref.get
       } yield assert(rcount)(equalTo(1)) && assert(wcount)(equalTo(1))
     },

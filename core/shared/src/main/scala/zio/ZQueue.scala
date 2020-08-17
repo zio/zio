@@ -69,7 +69,6 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
    *
    * For Dropping Queue: uses `Dropping` Strategy,
    * It places the values in the queue but if there is no room it will not enqueue them and return false.
-   *
    */
   def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean]
 

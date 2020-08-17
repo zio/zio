@@ -42,7 +42,7 @@ private[internal] trait PlatformSpecific {
    * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
-   * */
+   */
   lazy val benchmark = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
 
   /**

@@ -335,8 +335,17 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
-    flaky(100)
+  val flaky: TestAspectAtLeastR[Annotations with TestConfig with ZTestEnv] = {
+    val flaky = new PerTest.AtLeastR[Annotations with TestConfig with ZTestEnv] {
+      def perTest[R <: Annotations with TestConfig with ZTestEnv, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConfig.retries.flatMap { n =>
+          test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
+        }
+    }
+    restoreTestEnvironment >>> flaky
+  }
 
   /**
    * An aspect that retries a test until success, with the specified limit, for
@@ -423,6 +432,23 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
+   * An aspect that runs each test with the maximum number of shrinkings to
+   * minimize large failures set to the specified value.
+   */
+  def shrinks(n: Int): TestAspectAtLeastR[TestConfig] =
+    new PerTest.AtLeastR[TestConfig] {
+      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig.Service] { old =>
+          new TestConfig.Service {
+            val repeats = old.repeats
+            val retries = old.retries
+            val samples = old.samples
+            val shrinks = n
+          }
+        }
+    }
+
+  /**
    * An aspect that applies the specified aspect on ScalaNative.
    */
   def native[LowerR, UpperR, LowerE, UpperE](
@@ -440,8 +466,17 @@ object TestAspect extends TimeoutVariants {
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
-    nonFlaky(100)
+  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Annotations with TestConfig] = {
+    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Annotations with TestConfig] {
+      def perTest[R <: ZTestEnv with Annotations with TestConfig, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConfig.repeats.flatMap { n =>
+          test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
+        }
+    }
+    restoreTestEnvironment >>> nonFlaky
+  }
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it
@@ -465,7 +500,8 @@ object TestAspect extends TimeoutVariants {
     timeout(duration) >>>
       failing(
         isCase[TestFailure[Any], Throwable](
-          "Runtime", {
+          "Runtime",
+          {
             case TestFailure.Runtime(cause) => cause.dieOption
             case _                          => None
           },
@@ -514,6 +550,23 @@ object TestAspect extends TimeoutVariants {
     }
     restoreTestEnvironment >>> repeat
   }
+
+  /**
+   * An aspect that runs each test with the number of times to repeat tests to
+   * ensure they are stable set to the specified value.
+   */
+  def repeats(n: Int): TestAspectAtLeastR[TestConfig] =
+    new PerTest.AtLeastR[TestConfig] {
+      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig.Service] { old =>
+          new TestConfig.Service {
+            val repeats = n
+            val retries = old.retries
+            val samples = old.samples
+            val shrinks = old.shrinks
+          }
+        }
+    }
 
   /**
    * An aspect that restores a given
@@ -572,6 +625,23 @@ object TestAspect extends TimeoutVariants {
     restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
+   * An aspect that runs each test with the number of times to retry flaky
+   * tests set to the specified value.
+   */
+  def retries(n: Int): TestAspectAtLeastR[TestConfig] =
+    new PerTest.AtLeastR[TestConfig] {
+      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig.Service] { old =>
+          new TestConfig.Service {
+            val repeats = old.repeats
+            val retries = n
+            val samples = old.samples
+            val shrinks = old.shrinks
+          }
+        }
+    }
+
+  /**
    * An aspect that retries failed tests according to a schedule.
    */
   def retry[R0 <: ZTestEnv with Annotations with Live, E0](
@@ -587,6 +657,23 @@ object TestAspect extends TimeoutVariants {
     }
     restoreTestEnvironment >>> retry
   }
+
+  /**
+   * An aspect that runs each test with the number of sufficient samples to
+   * check for a random variable set to the specified value.
+   */
+  def samples(n: Int): TestAspectAtLeastR[TestConfig] =
+    new PerTest.AtLeastR[TestConfig] {
+      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig.Service] { old =>
+          new TestConfig.Service {
+            val repeats = old.repeats
+            val retries = old.retries
+            val samples = n
+            val shrinks = old.shrinks
+          }
+        }
+    }
 
   /**
    * An aspect that executes the members of a suite sequentially.

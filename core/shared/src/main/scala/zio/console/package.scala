@@ -87,12 +87,11 @@ package object console {
          */
         final def getStrLn(reader: Reader): IO[IOException, String] =
           IO.effect(SConsole.withIn(reader) {
-              val line = StdIn.readLine()
-              if (line == null) {
-                throw new EOFException("There is no more input left to read")
-              } else line
-            })
-            .refineToOrDie[IOException]
+            val line = StdIn.readLine()
+            if (line == null) {
+              throw new EOFException("There is no more input left to read")
+            } else line
+          }).refineToOrDie[IOException]
 
       }
     }

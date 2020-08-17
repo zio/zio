@@ -146,18 +146,18 @@ object ClockSpec extends ZIOBaseSpec {
       ) @@ forked @@ nonFlaky(3),
       testM("TestClock interacts correctly with Scheduled.fixed") {
         for {
-          latch     <- Promise.make[Nothing, Unit]
-          ref       <- Ref.make(3)
+          latch    <- Promise.make[Nothing, Unit]
+          ref      <- Ref.make(3)
           countdown = ref.updateAndGet(_ - 1).flatMap(n => latch.succeed(()).when(n == 0))
-          _         <- countdown.repeat(Schedule.fixed(2.seconds)).delay(1.second).fork
-          _         <- TestClock.adjust(5.seconds)
-          _         <- latch.await
+          _        <- countdown.repeat(Schedule.fixed(2.seconds)).delay(1.second).fork
+          _        <- TestClock.adjust(5.seconds)
+          _        <- latch.await
         } yield assertCompletes
       },
       testM("adjustments to time are visible on other fibers") {
         for {
           promise <- Promise.make[Nothing, Unit]
-          effect  = adjust(1.second) *> clock.currentTime(TimeUnit.SECONDS)
+          effect   = adjust(1.second) *> clock.currentTime(TimeUnit.SECONDS)
           result  <- (effect <* promise.succeed(())) <&> (promise.await *> effect)
         } yield assert(result)(equalTo((1L, 2L)))
       }

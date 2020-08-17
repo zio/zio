@@ -253,7 +253,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(
     crossScalaVersions --= Seq("2.11.12", dottyVersion),
     scalacOptions += "-language:experimental.macros",
-    libraryDependencies += ("com.propensive" %%% "magnolia" % "0.16.0").exclude("org.scala-lang", "scala-compiler")
+    libraryDependencies += ("com.propensive" %%% "magnolia" % "0.17.0").exclude("org.scala-lang", "scala-compiler")
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
@@ -340,20 +340,20 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"      % "2.4.2",
-        "com.google.code.findbugs"  % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"     % "20.8.0",
-        "com.typesafe.akka"         %% "akka-stream"   % "2.6.8",
-        "io.monix"                  %% "monix"         % "3.2.2",
-        "io.projectreactor"         % "reactor-core"   % "3.3.9.RELEASE",
-        "io.reactivex.rxjava2"      % "rxjava"         % "2.2.19",
-        "org.ow2.asm"               % "asm"            % "8.0.1",
-        "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
-        "org.scala-lang"            % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"   % "2.1.4",
-        "org.scalacheck"            %% "scalacheck"    % "1.14.3",
-        "hedgehog"                  %% "hedgehog-core" % "0.1.0",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"     % "0.9.2"
+        "co.fs2"                    %% "fs2-core"       % "2.4.2",
+        "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
+        "com.twitter"               %% "util-core"      % "20.8.0",
+        "com.typesafe.akka"         %% "akka-stream"    % "2.6.8",
+        "io.monix"                  %% "monix"          % "3.2.2",
+        "io.projectreactor"          % "reactor-core"   % "3.3.9.RELEASE",
+        "io.reactivex.rxjava2"       % "rxjava"         % "2.2.19",
+        "org.ow2.asm"                % "asm"            % "8.0.1",
+        "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
+        "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
+        "org.typelevel"             %% "cats-effect"    % "2.1.4",
+        "org.scalacheck"            %% "scalacheck"     % "1.14.3",
+        "hedgehog"                  %% "hedgehog-core"  % "0.1.0",
+        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
@@ -390,16 +390,16 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "commons-io"          % "commons-io"                   % "2.7" % "provided",
-      "org.jsoup"           % "jsoup"                        % "1.13.1" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
-      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC13",
-      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC6",
-      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
-      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5",
-      "dev.zio"             %% "zio-interop-twitter"         % "20.7.0.0"
+      "commons-io"          % "commons-io"                  % "2.7"    % "provided",
+      "org.jsoup"           % "jsoup"                       % "1.13.1" % "provided",
+      "org.reactivestreams" % "reactive-streams-examples"   % "1.0.3"  % "provided",
+      "dev.zio"            %% "zio-interop-cats"            % "2.0.0.0-RC13",
+      "dev.zio"            %% "zio-interop-future"          % "2.12.8.0-RC6",
+      "dev.zio"            %% "zio-interop-monix"           % "3.0.0.0-RC7",
+      "dev.zio"            %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
+      "dev.zio"            %% "zio-interop-java"            % "1.1.0.0-RC6",
+      "dev.zio"            %% "zio-interop-reactivestreams" % "1.0.3.5",
+      "dev.zio"            %% "zio-interop-twitter"         % "20.8.0.0"
     )
   )
   .settings(macroExpansionSettings)

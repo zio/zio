@@ -109,21 +109,21 @@ package object system {
 
   /**
    * Retrieves the value of an environment variable.
-   **/
+   */
   def env(variable: => String): ZIO[System, SecurityException, Option[String]] =
     ZIO.accessM(_.get.env(variable))
 
   /**
    * Retrieves the value of an environment variable or else returns the
    * specified fallback value.
-   **/
+   */
   def envOrElse(variable: String, alt: => String): ZIO[System, SecurityException, String] =
     ZIO.accessM(_.get.envOrElse(variable, alt))
 
   /**
    * Retrieves the value of an environment variable or else returns the
    * specified optional fallback value.
-   **/
+   */
   def envOrOption(variable: String, alt: => Option[String]): ZIO[System, SecurityException, Option[String]] =
     ZIO.accessM(_.get.envOrOption(variable, alt))
 
@@ -141,27 +141,27 @@ package object system {
 
   /**
    * Retrieves the value of a system property.
-   **/
+   */
   def property(prop: => String): ZIO[System, Throwable, Option[String]] =
     ZIO.accessM(_.get.property(prop))
 
   /**
    * Retrieves the value of a system property or else return the specified
    * fallback value.
-   **/
+   */
   def propertyOrElse(prop: String, alt: => String): RIO[System, String] =
     ZIO.accessM(_.get.propertyOrElse(prop, alt))
 
   /**
    * Retrieves the value of a system property or else return the specified
    * optional fallback value.
-   **/
+   */
   def propertyOrOption(prop: String, alt: => Option[String]): ZIO[System, Throwable, Option[String]] =
     ZIO.accessM(_.get.propertyOrOption(prop, alt))
 
   /**
    * Retrieves the value of the system-specific line separator.
-   **/
+   */
   val lineSeparator: URIO[System, String] =
     ZIO.accessM(_.get.lineSeparator)
 }

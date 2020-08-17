@@ -281,8 +281,8 @@ object AkkaLineNumbers {
     skip(d, length)
   }
 
-  private[this] def readMethods(d: DataInputStream, methodName: Option[String])(
-    implicit c: Constants
+  private[this] def readMethods(d: DataInputStream, methodName: Option[String])(implicit
+    c: Constants
   ): Option[(Int, Int)] = {
     val count = d.readUnsignedShort()
     if (debug) println(s"LNB: reading $count methods")
