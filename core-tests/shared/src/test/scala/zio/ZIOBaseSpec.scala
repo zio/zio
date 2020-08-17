@@ -6,7 +6,10 @@ import zio.duration._
 import zio.test._
 
 trait ZIOBaseSpec extends DefaultRunnableSpec {
-  override def aspects = List(TestAspect.timeout(600.seconds), TestAspect.timed)
+  override def aspects = List(
+    if (TestPlatform.isJVM) TestAspect.timeout(60.seconds) else TestAspect.timeout(120.seconds),
+    TestAspect.timed
+  )
 
   sealed trait ZIOTag {
     val value: String

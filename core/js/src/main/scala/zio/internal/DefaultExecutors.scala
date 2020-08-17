@@ -4,8 +4,8 @@ import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 
 private[internal] abstract class DefaultExecutors {
-  final def makeDefault(yieldOpCount: Int): Executor =
-    Executor.fromExecutionContext(yieldOpCount) {
+  final def makeDefault(yieldOpCount: Int): Executor = {
+    val executor = Executor.fromExecutionContext(yieldOpCount) {
       new ExecutionContext {
         def execute(runnable: Runnable): Unit = {
           val _ = js.Dynamic.global.setImmediate(() => runnable.run())
@@ -14,4 +14,6 @@ private[internal] abstract class DefaultExecutors {
           cause.printStackTrace()
       }
     }
+    
+  }
 }
