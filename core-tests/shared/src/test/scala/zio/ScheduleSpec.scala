@@ -100,7 +100,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       val n = 42
       for {
         ref <- Ref.make(0)
-        io  = ref.update(_ + 1).repeat(Schedule.recurs(n))
+        io   = ref.update(_ + 1).repeat(Schedule.recurs(n))
         _   <- io.repeat(Schedule.recurs(1))
         res <- ref.get
       } yield assert(res)(equalTo((n + 1) * 2))
@@ -276,8 +276,8 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("if fallback succeed - retryOrElseEither") {
         for {
-          ref      <- Ref.make(0)
-          o        <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioSucceed)
+          ref     <- Ref.make(0)
+          o       <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioSucceed)
           expected = Left("OrElse")
         } yield assert(o)(equalTo(expected))
       },
@@ -302,8 +302,8 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("retry exactly one time for `once` when second time succeeds - retryOrElse0") {
         for {
-          ref      <- Ref.make(0)
-          o        <- failOn0(ref).retryOrElseEither(Schedule.once, ioFail)
+          ref     <- Ref.make(0)
+          o       <- failOn0(ref).retryOrElseEither(Schedule.once, ioFail)
           expected = Right(2)
         } yield assert(o)(equalTo(expected))
       }

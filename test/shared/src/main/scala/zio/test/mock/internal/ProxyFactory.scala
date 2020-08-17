@@ -272,9 +272,9 @@ object ProxyFactory {
           id      <- state.callsCountRef.updateAndGet(_ + 1)
           _       <- state.failedMatchesRef.set(List.empty)
           root    <- state.expectationRef.get
-          scope   = Scope[R](root, id, identity)
+          scope    = Scope[R](root, id, identity)
           matched <- findMatching(scope :: Nil)
-          _       = debug(s"::: setting root to\n${prettify(matched.expectation)}")
+          _        = debug(s"::: setting root to\n${prettify(matched.expectation)}")
           _       <- state.expectationRef.set(matched.expectation)
           output  <- matched.result
         } yield output

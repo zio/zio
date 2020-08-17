@@ -241,9 +241,12 @@ object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
           equalTo("foo 1, [2, 3]")
         ),
         testValue("returns valueM")(
-          PureModuleMock.Varargs(equalTo((1, Seq("2", "3"))), valueM {
-            case (a, b) => UIO.succeed(s"foo $a, [${b.mkString(", ")}]")
-          }),
+          PureModuleMock.Varargs(
+            equalTo((1, Seq("2", "3"))),
+            valueM {
+              case (a, b) => UIO.succeed(s"foo $a, [${b.mkString(", ")}]")
+            }
+          ),
           PureModule.varargs(1, "2", "3"),
           equalTo("foo 1, [2, 3]")
         ),
@@ -253,16 +256,22 @@ object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
           equalTo("foo")
         ),
         testError("returns failureF")(
-          PureModuleMock.Varargs(equalTo((1, Seq("2", "3"))), failureF {
-            case (a, b) => s"foo $a, [${b.mkString(", ")}]"
-          }),
+          PureModuleMock.Varargs(
+            equalTo((1, Seq("2", "3"))),
+            failureF {
+              case (a, b) => s"foo $a, [${b.mkString(", ")}]"
+            }
+          ),
           PureModule.varargs(1, "2", "3"),
           equalTo("foo 1, [2, 3]")
         ),
         testError("returns failureM")(
-          PureModuleMock.Varargs(equalTo((1, Seq("2", "3"))), failureM {
-            case (a, b) => IO.fail(s"foo $a, [${b.mkString(", ")}]")
-          }),
+          PureModuleMock.Varargs(
+            equalTo((1, Seq("2", "3"))),
+            failureM {
+              case (a, b) => IO.fail(s"foo $a, [${b.mkString(", ")}]")
+            }
+          ),
           PureModule.varargs(1, "2", "3"),
           equalTo("foo 1, [2, 3]")
         )
@@ -274,16 +283,22 @@ object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
           equalTo("foo")
         ),
         testValue("returns valueF")(
-          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), valueF {
-            case (a, b, c, d) => s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"
-          }),
+          PureModuleMock.CurriedVarargs(
+            equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))),
+            valueF {
+              case (a, b, c, d) => s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"
+            }
+          ),
           PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
           equalTo("foo 1, [2, 3], 4, [5, 6]")
         ),
         testValue("returns valueM")(
-          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), valueM {
-            case (a, b, c, d) => UIO.succeed(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
-          }),
+          PureModuleMock.CurriedVarargs(
+            equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))),
+            valueM {
+              case (a, b, c, d) => UIO.succeed(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
+            }
+          ),
           PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
           equalTo("foo 1, [2, 3], 4, [5, 6]")
         ),
@@ -293,16 +308,22 @@ object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
           equalTo("foo")
         ),
         testError("returns failureF")(
-          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), failureF {
-            case (a, b, c, d) => s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"
-          }),
+          PureModuleMock.CurriedVarargs(
+            equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))),
+            failureF {
+              case (a, b, c, d) => s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"
+            }
+          ),
           PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
           equalTo("foo 1, [2, 3], 4, [5, 6]")
         ),
         testError("returns failureM")(
-          PureModuleMock.CurriedVarargs(equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))), failureM {
-            case (a, b, c, d) => IO.fail(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
-          }),
+          PureModuleMock.CurriedVarargs(
+            equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))),
+            failureM {
+              case (a, b, c, d) => IO.fail(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
+            }
+          ),
           PureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
           equalTo("foo 1, [2, 3], 4, [5, 6]")
         )

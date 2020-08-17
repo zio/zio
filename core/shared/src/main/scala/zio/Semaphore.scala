@@ -31,7 +31,7 @@ import internals._
  * concurrently by different parties. Attempts to acquire more permits than
  * available result in the acquiring fiber being suspended until the specified
  * number of permits become available.
- **/
+ */
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
   /**

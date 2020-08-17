@@ -44,27 +44,26 @@ object TSemaphoreSpec extends ZIOBaseSpec {
         }
       },
       testM("acquireN/releaseN(n) is acquire/release repeated N times") {
-        checkM(Gen.long(1, 100)) {
-          capacity =>
-            def acquireRelease(
-              sem: TSemaphore
-            )(acq: Long => STM[Nothing, Unit])(rel: Long => STM[Nothing, Unit]): STM[Nothing, (Long, Long)] =
-              for {
-                _            <- acq(capacity)
-                usedCapacity <- sem.available
-                _            <- rel(capacity)
-                freeCapacity <- sem.available
-              } yield (usedCapacity, freeCapacity)
+        checkM(Gen.long(1, 100)) { capacity =>
+          def acquireRelease(
+            sem: TSemaphore
+          )(acq: Long => STM[Nothing, Unit])(rel: Long => STM[Nothing, Unit]): STM[Nothing, (Long, Long)] =
+            for {
+              _            <- acq(capacity)
+              usedCapacity <- sem.available
+              _            <- rel(capacity)
+              freeCapacity <- sem.available
+            } yield (usedCapacity, freeCapacity)
 
-            STM.atomically {
-              for {
-                sem               <- TSemaphore.make(capacity)
-                acquireReleaseN   = acquireRelease(sem)(sem.acquireN)(sem.releaseN)
-                acquireReleaseRep = acquireRelease(sem)(repeat(sem.acquire))(repeat(sem.release))
-                resN              <- acquireReleaseN
-                resRep            <- acquireReleaseRep
-              } yield assert(resN)(equalTo(resRep)) && assert(resN)(equalTo((0L, capacity)))
-            }
+          STM.atomically {
+            for {
+              sem              <- TSemaphore.make(capacity)
+              acquireReleaseN   = acquireRelease(sem)(sem.acquireN)(sem.releaseN)
+              acquireReleaseRep = acquireRelease(sem)(repeat(sem.acquire))(repeat(sem.release))
+              resN             <- acquireReleaseN
+              resRep           <- acquireReleaseRep
+            } yield assert(resN)(equalTo(resRep)) && assert(resN)(equalTo((0L, capacity)))
+          }
         }
       },
       testM("withPermit automatically acquires and releases a permit once an action completes") {

@@ -23,8 +23,8 @@ object FunSpec extends ZIOBaseSpec {
     testM("fun is showable") {
       for {
         f <- Fun.make((_: String) => random.nextBoolean)
-        p = f("Scala")
-        q = f("Haskell")
+        p  = f("Scala")
+        q  = f("Haskell")
       } yield {
         assert(f.toString)(equalTo(s"Fun(Scala -> $p, Haskell -> $q)")) ||
         assert(f.toString)(equalTo(s"Fun(Haskell -> $q, Scala -> $p)"))

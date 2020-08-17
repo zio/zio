@@ -38,11 +38,11 @@ object CheckSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         _ <- checkM(gen <*> gen) { _ =>
-              for {
-                _ <- ref.update(_ + 1)
-                p <- random.nextIntBounded(10).map(_ != 0)
-              } yield assert(p)(isTrue)
-            }
+               for {
+                 _ <- ref.update(_ + 1)
+                 p <- random.nextIntBounded(10).map(_ != 0)
+               } yield assert(p)(isTrue)
+             }
         result <- ref.get
       } yield assert(result)(isLessThan(1200))
     },
@@ -51,7 +51,7 @@ object CheckSpec extends ZIOBaseSpec {
         n      <- Gen.int(1, 100)
         i      <- Gen.int(0, n - 1)
         vector <- Gen.vectorOfN(n)(Gen.int(0, 100))
-        chunk  = Chunk.fromIterable(vector)
+        chunk   = Chunk.fromIterable(vector)
       } yield (chunk, i)
       check(chunkWithLength) {
         case (chunk, i) =>

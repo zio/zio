@@ -150,22 +150,28 @@ object Sample {
 
   def shrinkFractional[A](smallest: A)(a: A)(implicit F: Fractional[A]): Sample[Any, A] =
     Sample.unfold((a)) { max =>
-      (max, ZStream.unfold(smallest) { min =>
-        val mid = F.plus(min, F.div(F.minus(max, min), F.fromInt(2)))
-        if (mid == max) None
-        else if (F.toDouble(F.abs(F.minus(max, mid))) < 0.001) Some((min, max))
-        else Some((mid, mid))
-      })
+      (
+        max,
+        ZStream.unfold(smallest) { min =>
+          val mid = F.plus(min, F.div(F.minus(max, min), F.fromInt(2)))
+          if (mid == max) None
+          else if (F.toDouble(F.abs(F.minus(max, mid))) < 0.001) Some((min, max))
+          else Some((mid, mid))
+        }
+      )
     }
 
   def shrinkIntegral[A](smallest: A)(a: A)(implicit I: Integral[A]): Sample[Any, A] =
     Sample.unfold((a)) { max =>
-      (max, ZStream.unfold(smallest) { min =>
-        val mid = I.plus(min, I.quot(I.minus(max, min), I.fromInt(2)))
-        if (mid == max) None
-        else if (I.equiv(I.abs(I.minus(max, mid)), I.one)) Some((mid, max))
-        else Some((mid, mid))
-      })
+      (
+        max,
+        ZStream.unfold(smallest) { min =>
+          val mid = I.plus(min, I.quot(I.minus(max, min), I.fromInt(2)))
+          if (mid == max) None
+          else if (I.equiv(I.abs(I.minus(max, mid)), I.one)) Some((mid, max))
+          else Some((mid, mid))
+        }
+      )
     }
 
   def unfold[R, A, S](s: S)(f: S => (A, ZStream[R, Nothing, S])): Sample[R, A] = {

@@ -24,10 +24,14 @@ private[zio] object Scheduler {
 
           ConstFalse
         case Duration.Finite(_) =>
-          val future = service.schedule(new Runnable {
-            def run: Unit =
-              task.run()
-          }, duration.toNanos, TimeUnit.NANOSECONDS)
+          val future = service.schedule(
+            new Runnable {
+              def run: Unit =
+                task.run()
+            },
+            duration.toNanos,
+            TimeUnit.NANOSECONDS
+          )
 
           () => future.cancel(true)
       }

@@ -55,10 +55,10 @@ trait App extends BootstrapRuntime {
         for {
           fiber <- run(args0.toList).fork
           _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
-                override def run() = {
-                  val _ = unsafeRunSync(fiber.interrupt)
-                }
-              }))
+                 override def run() = {
+                   val _ = unsafeRunSync(fiber.interrupt)
+                 }
+               }))
           result <- fiber.join
           _      <- fiber.interrupt
         } yield result.code

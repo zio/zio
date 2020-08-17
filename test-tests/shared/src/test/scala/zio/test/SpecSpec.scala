@@ -50,7 +50,7 @@ object SpecSpec extends ZIOBaseSpec {
         )
         for {
           ref    <- Ref.make(true)
-          layer  = ZLayer.fromEffect(ref.set(false).as(ref))
+          layer   = ZLayer.fromEffect(ref.set(false).as(ref))
           _      <- execute(spec.provideCustomLayerShared(layer) @@ ifEnvSet("foo"))
           result <- ref.get
         } yield assert(result)(isTrue)
@@ -70,13 +70,13 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           executedSpec <- execute(spec)
           successes = executedSpec.fold[Int] {
-            case ExecutedSpec.SuiteCase(_, counts) => counts.sum
-            case ExecutedSpec.TestCase(_, test, _) => if (test.isRight) 1 else 0
-          }
+                        case ExecutedSpec.SuiteCase(_, counts) => counts.sum
+                        case ExecutedSpec.TestCase(_, test, _) => if (test.isRight) 1 else 0
+                      }
           failures = executedSpec.fold[Int] {
-            case ExecutedSpec.SuiteCase(_, counts) => counts.sum
-            case ExecutedSpec.TestCase(_, test, _) => if (test.isLeft) 1 else 0
-          }
+                       case ExecutedSpec.SuiteCase(_, counts) => counts.sum
+                       case ExecutedSpec.TestCase(_, test, _) => if (test.isLeft) 1 else 0
+                     }
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),
@@ -85,25 +85,25 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           ref <- Ref.make[Set[Int]](Set.empty)
           spec = suite("suite")(
-            testM("test1") {
-              for {
-                n <- random.nextInt
-                _ <- ref.update(_ + n)
-              } yield assertCompletes
-            },
-            testM("test2") {
-              for {
-                n <- random.nextInt
-                _ <- ref.update(_ + n)
-              } yield assertCompletes
-            },
-            testM("test3") {
-              for {
-                n <- random.nextInt
-                _ <- ref.update(_ + n)
-              } yield assertCompletes
-            }
-          ).provideSomeLayerShared[TestEnvironment](layer) @@ nondeterministic
+                   testM("test1") {
+                     for {
+                       n <- random.nextInt
+                       _ <- ref.update(_ + n)
+                     } yield assertCompletes
+                   },
+                   testM("test2") {
+                     for {
+                       n <- random.nextInt
+                       _ <- ref.update(_ + n)
+                     } yield assertCompletes
+                   },
+                   testM("test3") {
+                     for {
+                       n <- random.nextInt
+                       _ <- ref.update(_ + n)
+                     } yield assertCompletes
+                   }
+                 ).provideSomeLayerShared[TestEnvironment](layer) @@ nondeterministic
           _      <- execute(spec)
           result <- ref.get
         } yield assert(result)(hasSize(isGreaterThan(1)))
@@ -127,29 +127,29 @@ object SpecSpec extends ZIOBaseSpec {
       },
       testM("releases resources as soon as possible") {
         for {
-          ref     <- Ref.make[List[String]](List.empty)
+          ref    <- Ref.make[List[String]](List.empty)
           acquire = ref.update("Acquiring" :: _)
           release = ref.update("Releasing" :: _)
           update  = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
           layer   = ZLayer.fromAcquireRelease(acquire *> Ref.make(0))(_ => release)
           spec = suite("spec")(
-            suite("suite1")(
-              testM("test1") {
-                assertM(update)(equalTo(1))
-              },
-              testM("test2") {
-                assertM(update)(equalTo(2))
-              }
-            ).provideCustomLayerShared(layer),
-            suite("suite2")(
-              testM("test1") {
-                assertM(update)(equalTo(1))
-              },
-              testM("test2") {
-                assertM(update)(equalTo(2))
-              }
-            ).provideCustomLayerShared(layer)
-          ) @@ sequential
+                   suite("suite1")(
+                     testM("test1") {
+                       assertM(update)(equalTo(1))
+                     },
+                     testM("test2") {
+                       assertM(update)(equalTo(2))
+                     }
+                   ).provideCustomLayerShared(layer),
+                   suite("suite2")(
+                     testM("test1") {
+                       assertM(update)(equalTo(1))
+                     },
+                     testM("test2") {
+                       assertM(update)(equalTo(2))
+                     }
+                   ).provideCustomLayerShared(layer)
+                 ) @@ sequential
           succeeded <- succeeded(spec)
           log       <- ref.get.map(_.reverse)
         } yield assert(succeeded)(isTrue) &&

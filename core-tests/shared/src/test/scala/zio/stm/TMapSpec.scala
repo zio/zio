@@ -281,12 +281,12 @@ object TMapSpec extends ZIOBaseSpec {
       },
       testM("parallel value transformation") {
         for {
-          tmap   <- TMap.make("a" -> 0).commit
+          tmap  <- TMap.make("a" -> 0).commit
           policy = Schedule.recurs(999)
           tx     = tmap.transformValues(_ + 1).commit.repeat(policy)
           n      = 2
-          _      <- URIO.collectAllPar_(List.fill(n)(tx))
-          res    <- tmap.get("a").commit
+          _     <- URIO.collectAllPar_(List.fill(n)(tx))
+          res   <- tmap.get("a").commit
         } yield assert(res)(isSome(equalTo(2000)))
       },
       testM("transformValuesM") {

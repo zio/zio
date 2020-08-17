@@ -26,11 +26,11 @@ abstract class BaseTestTask(
 
   protected def run(eventHandler: EventHandler): ZIO[TestLogger with Clock, Throwable, Unit] =
     for {
-      spec    <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
+      spec   <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
-      _       <- sendSummary.provide(summary)
+      _      <- sendSummary.provide(summary)
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
-      _       <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e)))
+      _      <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, TestLogger with Clock] =
