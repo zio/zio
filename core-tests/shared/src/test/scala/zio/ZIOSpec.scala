@@ -779,9 +779,10 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(List("1", "2", "3")))
       },
       testM("works on large lists") {
-        val n   = 10
-        val seq = List.range(0, 100000)
-        val res = IO.foreachParN(n)(seq)(UIO.succeed(_))
+        val n    = 10
+        val size = if (TestPlatform.isJS) 10000 else 100000
+        val seq  = List.range(0, size)
+        val res  = IO.foreachParN(n)(seq)(UIO.succeed(_))
         assertM(res)(equalTo(seq))
       },
       testM("runs effects in parallel") {
