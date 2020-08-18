@@ -16,6 +16,8 @@
 
 package zio.test
 
+import scala.concurrent.ExecutionContext
+
 import zio.internal.Executor
 import zio.{ Runtime, URIO, ZIO }
 
@@ -73,8 +75,14 @@ private[test] object Fun {
   private def withFunExecutor[R](runtime: Runtime[R]): Runtime[R] =
     if (TestPlatform.isJS) {
       runtime.withExecutor {
-        val ec = runtime.platform.executor.asEC
-        Executor.fromExecutionContext(Int.MaxValue)(ec)
+        Executor.fromExecutionContext(Int.MaxValue) {
+          new ExecutionContext {
+            def execute(runnable: Runnable): Unit =
+              runnable.run()
+            def reportFailure(cause: Throwable): Unit =
+              cause.printStackTrace()
+          }
+        }
       }
     } else runtime
 }

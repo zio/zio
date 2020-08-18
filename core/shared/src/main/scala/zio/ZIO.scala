@@ -684,7 +684,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * schedules, see the `repeat` method.
    */
   final def forever: ZIO[R, E, Nothing] =
-    self *> ZIO.yieldNow *> self.forever
+    self *> ZIO.yieldNow *> forever
 
   /**
    * Returns an effect that forks this effect into its own separate fiber,
@@ -1446,7 +1446,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect the specified number of times.
    */
   final def repeatN(n: Int): ZIO[R, E, A] =
-    self.flatMap(a => if (n <= 0) ZIO.succeedNow(a) else repeatN(n - 1))
+    self.flatMap(a => if (n <= 0) ZIO.succeedNow(a) else ZIO.yieldNow *> repeatN(n - 1))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -1511,7 +1511,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect until its error satisfies the specified effectful predicate.
    */
   final def repeatUntilM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
-    self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else repeatUntilM(f)))
+    self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else ZIO.yieldNow *> repeatUntilM(f)))
 
   /**
    * Repeats this effect while its error satisfies the specified predicate.
@@ -1544,7 +1544,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Retries this effect the specified number of times.
    */
   final def retryN(n: Int)(implicit ev: CanFail[E]): ZIO[R, E, A] =
-    self.catchAll(e => if (n <= 0) ZIO.fail(e) else retryN(n - 1))
+    self.catchAll(e => if (n <= 0) ZIO.fail(e) else ZIO.yieldNow *> retryN(n - 1))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -1597,7 +1597,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Retries this effect until its error satisfies the specified effectful predicate.
    */
   final def retryUntilM[R1 <: R](f: E => URIO[R1, Boolean])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
-    self.catchAll(e => f(e).flatMap(b => if (b) ZIO.fail(e) else retryUntilM(f)))
+    self.catchAll(e => f(e).flatMap(b => if (b) ZIO.fail(e) else ZIO.yieldNow *> retryUntilM(f)))
 
   /**
    * Retries this effect while its error satisfies the specified predicate.

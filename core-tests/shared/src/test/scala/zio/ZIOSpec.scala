@@ -780,7 +780,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("works on large lists") {
         val n   = 10
-        val seq = List.range(0, 100000)
+        val seq = List.range(0, 10000)
         val res = IO.foreachParN(n)(seq)(UIO.succeed(_))
         assertM(res)(equalTo(seq))
       },
