@@ -535,9 +535,7 @@ private[zio] final class FiberContext[E, A](
                       else lock(zio.executor).bracket_(unlock, zio.zio)
 
                   case ZIO.Tags.Yield =>
-                    evaluateLater(ZIO.unit)
-
-                    curZio = null
+                    curZio = yieldNow
 
                   case ZIO.Tags.Access =>
                     val zio = curZio.asInstanceOf[ZIO.Read[Any, E, Any]]
@@ -665,6 +663,9 @@ private[zio] final class FiberContext[E, A](
 
   private[this] def unlock: UIO[Unit] =
     ZIO.effectTotal(executors.pop()) *> ZIO.yieldNow
+
+  private[this] def yieldNow: UIO[Unit] =
+    ZIO.effectAsync(cb => executor.submitAndYield(() => cb(ZIO.unit)))
 
   private[this] def getDescriptor(): Fiber.Descriptor =
     Fiber.Descriptor(
