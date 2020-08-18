@@ -535,7 +535,7 @@ private[zio] final class FiberContext[E, A](
                       else lock(zio.executor).bracket_(unlock, zio.zio)
 
                   case ZIO.Tags.Yield =>
-                    evaluateLater(ZIO.unit)
+                    evaluateLaterAndYield(ZIO.unit)
 
                     curZio = null
 
