@@ -3025,8 +3025,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     accessM(f)
 
   /**
-   * Imports a function that creates a [[scala.concurrent.Future]] from an
-   * [[scala.concurrent.ExecutionContext]] into a `ZIO`.
+   * Imports a function that creates a `Future` from an `ExecutionContext` into
+   * a `ZIO`.
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     Task.descriptorWith { d =>
@@ -3053,13 +3053,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Imports a function that creates a [[scala.concurrent.Future]] from an
-   * [[scala.concurrent.ExecutionContext]] into a `ZIO`. The provided
-   * `ExecutionContext` will interrupt the `Future` between asynchronous
-   * operations such as `map` and `flatMap` if this effect is interrupted. Note
-   * that no attempt will be made to interrupt a `Future` blocking on a
-   * synchronous operation and that the `Future` must be created using the
-   * provided `ExecutionContext`.
+   * Imports a function that creates a `Future` from an `ExecutionContext` into
+   * a `ZIO`. The provided `ExecutionContext` will interrupt the `Future`
+   * between asynchronous operations such as `map` and `flatMap` if this effect
+   * is interrupted. Note that no attempt will be made to interrupt a `Future`
+   * blocking on a synchronous operation and that the `Future` must be created
+   * using the provided `ExecutionContext`.
    */
   def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     Task.descriptorWith { d =>
