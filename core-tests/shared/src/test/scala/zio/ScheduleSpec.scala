@@ -130,8 +130,8 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(scheduled)(equalTo(expected))
       },
       testM("free from stack overflow") {
-        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(100000)).runCount)(
-          equalTo(100000L)
+        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(1000000)).runCount)(
+          equalTo(1000000L)
         )
       }
     ),
@@ -409,7 +409,7 @@ object ScheduleSpec extends ZIOBaseSpec {
                 .next(h)
                 .foldM(
                   _ => driver.last.fold(_ => acc, b => acc :+ b),
-                  b => ZIO.yieldNow *> loop(t, acc :+ b)
+                  b => loop(t, acc :+ b)
                 )
             case Nil => UIO.succeed(acc)
           }

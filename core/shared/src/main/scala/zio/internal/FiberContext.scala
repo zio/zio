@@ -311,7 +311,7 @@ private[zio] final class FiberContext[E, A](
             if (!shouldInterrupt()) {
               // Fiber does not need to be interrupted, but might need to yield:
               if (opCount == maxOpCount) {
-                evaluateLater(curZio)
+                evaluateLaterAndYield(curZio)
                 curZio = null
               } else {
                 // Fiber is neither being interrupted nor needs to yield. Execute
@@ -775,6 +775,9 @@ private[zio] final class FiberContext[E, A](
 
   private[this] def evaluateLater(zio: IO[E, Any]): Unit =
     executor.submitOrThrow(() => evaluateNow(zio))
+
+  private[this] def evaluateLaterAndYield(zio: IO[E, Any]): Unit =
+    executor.submitAndYieldOrThrow(() => evaluateNow(zio))
 
   private[this] def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio => if (exitAsync(epoch)) evaluateLater(zio) }
 

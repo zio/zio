@@ -2403,7 +2403,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             push(Some(os))
               .foldCauseM(
                 c => Cause.sequenceCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow),
-                _ => ZIO.yieldNow *> go
+                _ => go
               )
         )
 
