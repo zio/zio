@@ -42,18 +42,6 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   def submit(runnable: Runnable): Boolean
 
   /**
-   * Submits an effect for execution and yields.
-   */
-  def submitAndYield(runnable: Runnable): Boolean =
-    submit(runnable)
-
-  /**
-   * Submits an effect for execution and yields.
-   */
-  def submitAndYieldOrThrow(runnable: Runnable): Unit =
-    if (!submitAndYield(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
-
-  /**
    * Submits an effect for execution or throws.
    */
   final def submitOrThrow(runnable: Runnable): Unit =

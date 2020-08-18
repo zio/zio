@@ -7,7 +7,7 @@ import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.timeout
 import zio.test.environment.{ TestClock, TestRandom }
-import zio.test.{ assert, assertM, suite, testM, TestPlatform, TestResult }
+import zio.test.{ assert, assertM, suite, testM, TestResult }
 
 object ScheduleSpec extends ZIOBaseSpec {
 
@@ -130,9 +130,8 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(scheduled)(equalTo(expected))
       },
       testM("free from stack overflow") {
-        val n = if (TestPlatform.isJS) 100000L else 1000000L
-        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(n)).runCount)(
-          equalTo(n)
+        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(1000000)).runCount)(
+          equalTo(1000000L)
         )
       }
     ),

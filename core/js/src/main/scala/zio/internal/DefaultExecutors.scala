@@ -1,28 +1,17 @@
 package zio.internal
 
-import java.util.concurrent.RejectedExecutionException
-
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 
 private[internal] abstract class DefaultExecutors {
-  final def makeDefault(yieldOpCount0: Int): Executor =
-    new Executor {
-      def yieldOpCount = yieldOpCount0
-
-      def submit(runnable: Runnable): Boolean =
-        try {
-          ExecutionContext.global.execute(runnable)
-          true
-        } catch {
-          case _: RejectedExecutionException => false
+  final def makeDefault(yieldOpCount: Int): Executor =
+    Executor.fromExecutionContext(yieldOpCount) {
+      new ExecutionContext {
+        def execute(runnable: Runnable): Unit = {
+          val _ = setImmediate(() => runnable.run())
         }
-
-      def metrics = None
-
-      override def submitAndYield(runnable: Runnable): Boolean = {
-        val _ = setImmediate(() => runnable.run())
-        true
+        def reportFailure(cause: Throwable): Unit =
+          cause.printStackTrace()
       }
     }
 
