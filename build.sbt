@@ -340,7 +340,7 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"       % "2.4.2",
+        "co.fs2"                    %% "fs2-core"       % "2.4.3",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
         "com.twitter"               %% "util-core"      % "20.8.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.8",
