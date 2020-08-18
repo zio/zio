@@ -532,7 +532,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
    */
   final def eventually(implicit ev: CanFail[E]): URIO[R, A] =
-    self orElse eventually
+    self <> ZIO.yieldNow *> eventually
 
   /**
    * Maps this effect to the default exit codes.
@@ -683,7 +683,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect forever (until the first error). For more sophisticated
    * schedules, see the `repeat` method.
    */
-  final def forever: ZIO[R, E, Nothing] = self *> self.forever
+  final def forever: ZIO[R, E, Nothing] =
+    self *> ZIO.yieldNow *> self.forever
 
   /**
    * Returns an effect that forks this effect into its own separate fiber,

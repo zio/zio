@@ -118,7 +118,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
         else if (remaining > 1) {
           def takeRemainder(n: Int): ZIO[RB, EB, List[B]] =
             if (n <= 0) ZIO.succeed(Nil)
-            else take.flatMap(a => takeRemainder(n - 1).map(a :: _))
+            else take.flatMap(a => ZIO.yieldNow *> takeRemainder(n - 1).map(a :: _))
 
           takeRemainder(remaining - 1).map(list => bs ++ list.reverse)
         } else
