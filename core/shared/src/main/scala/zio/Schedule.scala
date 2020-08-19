@@ -919,8 +919,8 @@ object Schedule {
           case Some(State(startMillis, lastRun)) =>
             val nowMillis     = now.toInstant.toEpochMilli()
             val runningBehind = nowMillis > (lastRun + fixedDelay)
-            val boundary      = Duration.ofMillis((nowMillis - startMillis) % fixedDelay)
-            val sleepTime     = if (boundary.isZero()) fixedDelayD else boundary
+            val boundary      = if (interval.isZero) interval else Duration.ofMillis((nowMillis - startMillis) % fixedDelay)
+            val sleepTime     = if (boundary.isZero) fixedDelayD else boundary
             val nextRun       = if (runningBehind) now else now.plus(sleepTime)
 
             Continue(
