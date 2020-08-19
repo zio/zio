@@ -540,6 +540,20 @@ object ChunkSpec extends ZIOBaseSpec {
       val as = List.range(0, n).foldRight[Chunk[Int]](Chunk.empty)((a, as) => a +: as)
       assert(as.toArray)(equalTo(Array.range(0, n)))
     },
+    zio.test.test("stack safety concat and append") {
+      val n = 100000
+      val as = List.range(0, n).foldRight[Chunk[Int]](Chunk.empty) { (a, as) =>
+        if (a % 2 == 0) as :+ a else as ++ Chunk(a)
+      }
+      assert(as.toArray)(equalTo(Array.range(0, n).reverse))
+    },
+    zio.test.test("stack safety concat and prepend") {
+      val n = 100000
+      val as = List.range(0, n).foldRight[Chunk[Int]](Chunk.empty) { (a, as) =>
+        if (a % 2 == 0) a +: as else Chunk(a) ++ as
+      }
+      assert(as.toArray)(equalTo(Array.range(0, n)))
+    },
     zio.test.test("toArray does not throw ClassCastException") {
       val chunk = Chunk("a")
       val array = chunk.toArray
