@@ -24,14 +24,13 @@ class TMapContentionBenchmarks {
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    val schedule     = Schedule.recurs(repeatedUpdates)
     val keysToUpdate = (1 to 100).toList
     val data         = (1 to 1000).toList.zipWithIndex
     val map          = unsafeRun(TMap.fromIterable(data).commit)
     val ref          = ZTRef.unsafeMake(data.toMap)
 
-    mapUpdates = ZIO.foreachPar_(keysToUpdate)(i => map.put(i, i).commit.repeat(schedule))
-    refUpdates = ZIO.foreachPar_(keysToUpdate)(i => ref.update(_.updated(i, i)).commit.repeat(schedule))
+    mapUpdates = ZIO.foreachPar_(keysToUpdate)(i => map.put(i, i).commit.repeatN(repeatedUpdates))
+    refUpdates = ZIO.foreachPar_(keysToUpdate)(i => ref.update(_.updated(i, i)).commit.repeatN(repeatedUpdates))
   }
 
   @Benchmark

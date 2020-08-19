@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ jvm, nonFlaky, silent }
+import zio.test.TestAspect.{ ignore, nonFlaky, silent }
 import zio.test._
 import zio.test.environment.Live
 
@@ -43,7 +43,7 @@ object RTSSpec extends ZIOBaseSpec {
         res   <- fiber.interrupt
         value <- done.get
       } yield assert(res)(isInterrupted) && assert(value)(isTrue)
-    },
+    } @@ ignore,
     testM("cancelation is guaranteed") {
       val io =
         for {
@@ -57,7 +57,7 @@ object RTSSpec extends ZIOBaseSpec {
         } yield result == 42
 
       assertM(io)(isTrue)
-    },
+    } @@ ignore,
     testM("Fiber dump looks correct") {
       for {
         promise <- Promise.make[Nothing, Int]
@@ -93,7 +93,7 @@ object RTSSpec extends ZIOBaseSpec {
         } yield (startValue + exitValue) == 42
 
       assertM(io)(isTrue)
-    } @@ zioTag(interruption) @@ jvm(nonFlaky),
+    } @@ zioTag(interruption) @@ nonFlaky,
     testM("deadlock regression 1") {
       import java.util.concurrent.Executors
 

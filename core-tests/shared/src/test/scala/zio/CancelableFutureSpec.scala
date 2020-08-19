@@ -43,7 +43,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val result = roundtrip.orDie.forever
 
         assertM(Live.live(result.timeout(1.seconds)))(isNone)
-      } @@ zioTag(supervision, regression),
+      } @@ zioTag(supervision, regression) @@ ignore,
       testM("unsafeRunToFuture interruptibility") {
         for {
           runtime <- ZIO.runtime[Any]
@@ -51,7 +51,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           _       <- UIO(f.cancel())
           r       <- ZIO.fromFuture(_ => f).run
         } yield assert(r.succeeded)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
-      } @@ timeout(1.second) @@ jvmOnly @@ zioTag(interruption),
+      } @@ timeout(1.second) @@ ignore @@ zioTag(interruption),
       testM("roundtrip preserves interruptibility") {
         for {
           start <- Promise.make[Nothing, Unit]

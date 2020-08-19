@@ -5,7 +5,7 @@ import java.util.concurrent.{ LinkedBlockingQueue, RejectedExecutionException, T
 private[internal] abstract class DefaultExecutors {
   final def makeDefault(yieldOpCount: Int): Executor =
     fromThreadPoolExecutor(_ => yieldOpCount) {
-      val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
+      val corePoolSize  = 1
       val maxPoolSize   = corePoolSize
       val keepAliveTime = 60000L
       val timeUnit      = TimeUnit.MILLISECONDS

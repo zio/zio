@@ -2284,7 +2284,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("deep fork/join identity") {
         val n = 20
         assertM(concurrentFib(n))(equalTo(fib(n)))
-      },
+      } @@ jvmOnly,
       testM("effectAsyncM creation is interruptible") {
         for {
           release <- Promise.make[Nothing, Int]

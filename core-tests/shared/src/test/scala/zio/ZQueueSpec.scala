@@ -50,7 +50,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         f     <- IO.forkAll(values.map(queue.offer))
         _     <- waitForSize(queue, 10)
         out   <- Ref.make[List[Int]](Nil)
-        _     <- queue.take.flatMap(i => out.update(i :: _)).repeat(Schedule.recurs(9))
+        _     <- queue.take.flatMap(i => out.update(i :: _)).repeatN(9)
         l     <- out.get
         _     <- f.join
       } yield assert(l.toSet)(equalTo(values.toSet))
@@ -58,7 +58,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     testM("offers are suspended by back pressure") {
       for {
         queue        <- Queue.bounded[Int](10)
-        _            <- queue.offer(1).repeat(Schedule.recurs(9))
+        _            <- queue.offer(1).repeatN(9)
         refSuspended <- Ref.make[Boolean](true)
         f            <- (queue.offer(2) *> refSuspended.set(false)).fork
         _            <- waitForSize(queue, 11)
@@ -73,7 +73,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         f     <- IO.forkAll(values.map(queue.offer))
         _     <- waitForSize(queue, 10)
         out   <- Ref.make[List[Int]](Nil)
-        _     <- queue.take.flatMap(i => out.update(i :: _)).repeat(Schedule.recurs(9))
+        _     <- queue.take.flatMap(i => out.update(i :: _)).repeatN(9)
         l     <- out.get
         _     <- f.join
       } yield assert(l.toSet)(equalTo(values.toSet))
@@ -270,7 +270,7 @@ object ZQueueSpec extends ZIOBaseSpec {
           getter   = queue.takeBetween(5, 10)
           _       <- getter.race(updater)
           count   <- counter.get
-        } yield assert(count > 5)(isTrue)
+        } yield assert(count >= 5)(isTrue)
       }
     ),
     testM("offerAll with takeAll") {
