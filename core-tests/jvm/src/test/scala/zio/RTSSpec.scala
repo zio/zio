@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ ignore, nonFlaky, silent }
+import zio.test.TestAspect.{ nonFlaky, silent }
 import zio.test._
 import zio.test.environment.Live
 
@@ -35,29 +35,31 @@ object RTSSpec extends ZIOBaseSpec {
     testM("blocking IO is effect blocking") {
       for {
         done  <- Ref.make(false)
-        start <- IO.succeed(internal.OneShot.make[Unit])
-        fiber <- blocking.effectBlockingInterrupt { start.set(()); Thread.sleep(60L * 60L * 1000L) }
+        start <- Promise.make[Nothing, Unit]
+        fiber <- blocking.effectBlockingInterrupt { start.unsafeDone(IO.unit); Thread.sleep(60L * 60L * 1000L) }
                    .ensuring(done.set(true))
                    .fork
-        _     <- IO.succeed(start.get())
+        _     <- start.await
         res   <- fiber.interrupt
         value <- done.get
       } yield assert(res)(isInterrupted) && assert(value)(isTrue)
-    } @@ ignore,
+    } @@ nonFlaky,
     testM("cancelation is guaranteed") {
       val io =
         for {
-          release <- zio.Promise.make[Nothing, Int]
-          latch    = internal.OneShot.make[Unit]
-          async    = IO.effectAsyncInterrupt[Nothing, Unit] { _ => latch.set(()); Left(release.succeed(42).unit) }
-          fiber   <- async.fork
-          _       <- IO.effectTotal(latch.get(1000))
-          _       <- fiber.interrupt.fork
-          result  <- release.await
+          release <- Promise.make[Nothing, Int]
+          latch   <- Promise.make[Nothing, Unit]
+          async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
+                    latch.unsafeDone(IO.unit); Left(release.succeed(42).unit)
+                  }
+          fiber  <- async.fork
+          _      <- latch.await
+          _      <- fiber.interrupt.fork
+          result <- release.await
         } yield result == 42
 
       assertM(io)(isTrue)
-    } @@ ignore,
+    } @@ nonFlaky,
     testM("Fiber dump looks correct") {
       for {
         promise <- Promise.make[Nothing, Int]
