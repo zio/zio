@@ -110,7 +110,7 @@ object FiberSpec extends ZIOBaseSpec {
           _      <- fiber.interrupt
           _      <- latch2.await
         } yield assertCompletes
-      } @@ zioTag(interruption) @@ nonFlaky,
+      } @@ zioTag(interruption) @@ jvm(nonFlaky),
       suite("stack safety")(
         testM("awaitAll") {
           assertM(Fiber.awaitAll(fibers))(anything)
