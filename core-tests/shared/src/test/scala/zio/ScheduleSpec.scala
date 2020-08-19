@@ -384,6 +384,12 @@ object ScheduleSpec extends ZIOBaseSpec {
           retries        <- retriesCounter.get
         } yield retries
       }(equalTo(10))
+    },
+    testM("union of two schedules should continue as long as either wants to continue") {
+      val schedule = Schedule.recurWhile[Boolean](_ == true) || Schedule.fixed(1.second)
+      assertM(run(schedule >>> Schedule.elapsed)(List(true, false, false, false, false)))(
+        equalTo(Chunk(0, 0, 1, 2, 3).map(_.seconds))
+      )
     }
   )
 
