@@ -23,9 +23,7 @@ object GenUtils {
     gen: Gen[Random with Sized, A],
     size: Int = 100
   )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): URIO[Random with TestConfig, TestResult] =
-    TestConfig.samples.flatMap { n =>
-      assertM(provideSize(sampleN(n)(gen).map(f))(size))(assertion)
-    }
+    assertM(provideSize(sampleN(size)(gen).map(f))(size))(assertion)
 
   def checkShrink[A](gen: Gen[Random with Sized, A])(a: A): URIO[Random with TestConfig, TestResult] =
     TestConfig.samples.flatMap { n =>
