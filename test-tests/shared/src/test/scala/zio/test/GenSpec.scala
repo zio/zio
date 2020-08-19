@@ -8,7 +8,7 @@ import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestAspect.{ nonFlaky, scala2Only }
+import zio.test.TestAspect.{ jvmOnly, nonFlaky, scala2Only }
 import zio.test.{ check => Check, checkN => CheckN }
 import zio.{ Chunk, NonEmptyChunk, ZIO }
 
@@ -672,5 +672,5 @@ object GenSpec extends ZIOBaseSpec {
         )
       )
     }
-  )
+  ) @@ jvmOnly
 }
