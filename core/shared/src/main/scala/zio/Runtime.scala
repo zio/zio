@@ -206,7 +206,7 @@ trait Runtime[+R] {
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
 
-    fiberId => k => unsafeRunAsync(context.interruptAs(fiberId))(exit => k(exit.flatten))
+    fiberId => k => unsafeRunAsync(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))
   }
 }
 
