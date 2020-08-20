@@ -3,7 +3,7 @@ package stm
 
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ ignore, nonFlaky }
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment.Live
 
@@ -1103,7 +1103,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           updater = ref.update(_ + 10).commit.forever
           res    <- (left <|> right).commit.race(updater)
         } yield assert(res)(equalTo("left"))
-      } @@ ignore,
+      },
       testM("fails if left fails") {
         val left  = STM.fail("left")
         val right = STM.succeed("right")
