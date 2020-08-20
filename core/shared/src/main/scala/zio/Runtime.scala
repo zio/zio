@@ -130,7 +130,9 @@ trait Runtime[+R] {
       context.onDone(exit => supervisor.unsafeOnEnd(exit, context))
     }
 
-    context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
+    lazy val curZio = ZIO.yieldNow *> zio
+
+    context.evaluateNow(ZIOFn.recordStackTrace(() => curZio)(curZio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
 
     fiberId => unsafeRun(context.interruptAs(fiberId))
