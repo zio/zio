@@ -944,7 +944,7 @@ private[zio] final class FiberContext[E, A](
          * We are not done yet, because we have to close the scope of the fiber.
          */
         if (!state.compareAndSet(oldState, Executing(oldStatus.toFinishing, observers, interrupted))) done(v)
-        else openScope.close(v) *> ZIO.done(v)
+        else openScope.close(v).uninterruptible *> ZIO.done(v)
 
       case Done(_) => null // Already done
     }
