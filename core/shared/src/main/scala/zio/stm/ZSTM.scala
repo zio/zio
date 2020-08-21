@@ -633,21 +633,8 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
-  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] = ???
-  // new ZSTM((journal, fiberId, stackSize, r0) => {
-
-  //   val framesCount = stackSize.incrementAndGet()
-
-  //   if (framesCount > ZSTM.MaxFrames) {
-  //     throw new ZSTM.Resumable(
-  //       new ZSTM((journal, fiberId, stackSize, _) => self.exec(journal, fiberId, stackSize, f(r0))),
-  //       Stack[TExit[E, A] => STM[E, A]]()
-  //     )
-  //   } else {
-  //     // no need to catch resumable here
-  //     self.exec(journal, fiberId, stackSize, f(r0))
-  //   }
-  // })
+  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] = 
+    Effect((journal, fiberId, r) => self.run(journal, fiberId, f(r)))
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
