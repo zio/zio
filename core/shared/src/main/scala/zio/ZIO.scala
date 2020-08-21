@@ -2973,13 +2973,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     as: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Fiber[E, Collection[A]]] =
     ZIO.foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork).map { fibers =>
-      if (fibers.isEmpty) Fiber.succeed(bf(as).result())
+      if (fibers.isEmpty) Fiber.succeed(bf.newBuilder(as).result())
       else {
         val iterator                                     = fibers.iterator
         var builder: Fiber[E, Builder[A, Collection[A]]] = null
         while (iterator.hasNext) {
           val fiber = iterator.next()
-          if (builder eq null) builder = fiber.map(bf(as) += _)
+          if (builder eq null) builder = fiber.map(bf.newBuilder(as) += _)
           else builder = builder.zipWith(fiber)(_ += _)
         }
         builder.map(_.result())
