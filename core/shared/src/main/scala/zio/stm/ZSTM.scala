@@ -556,9 +556,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
       val reset = prepareResetJournal(journal)
 
       self.run(journal, fiberId, r) match {
+        case TExit.Succeed(a) => TExit.Succeed(a)
         case TExit.Fail(_)    => { reset(); that.run(journal, fiberId, r) }
         case TExit.Retry      => { reset(); that.run(journal, fiberId, r) }
-        case TExit.Succeed(a) => TExit.Succeed(a)
       }
     }
 
@@ -599,10 +599,14 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<|>`.
    */
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    continueWithM {
-      case TExit.Fail(e)    => ZSTM.fail(e)
-      case TExit.Succeed(a) => ZSTM.succeedNow(a)
-      case TExit.Retry      => that
+    Effect { (journal, fiberId, r) =>
+      val reset = prepareResetJournal(journal)
+
+      self.run(journal, fiberId, r) match {
+        case TExit.Succeed(a) => TExit.Succeed(a)
+        case TExit.Fail(e)    => TExit.Fail(e)
+        case TExit.Retry      => { reset(); that.orTry(self).run(journal, fiberId, r) }
+      }
     }
 
   /**
