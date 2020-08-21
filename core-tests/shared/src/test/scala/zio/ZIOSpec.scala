@@ -859,7 +859,7 @@ object ZIOSpec extends ZIOBaseSpec {
             assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.interrupted)(isTrue)
           }
         }
-      }
+      } @@ nonFlaky
     ),
     suite("forkAs")(
       testM("child has specified name") {
