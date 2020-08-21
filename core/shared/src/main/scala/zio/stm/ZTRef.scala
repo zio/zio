@@ -207,13 +207,13 @@ object ZTRef {
       }
 
     def get: USTM[A] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect((journal, _, _, _) => {
         val entry = getOrMakeEntry(journal)
         TExit.Succeed(entry.unsafeGet[A])
       })
 
     def set(a: A): USTM[Unit] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect((journal, _, _, _) => {
         val entry = getOrMakeEntry(journal)
         entry.unsafeSet(a)
         TExit.unit
@@ -223,7 +223,7 @@ object ZTRef {
      * Sets the value of the `ZTRef` and returns the old value.
      */
     def getAndSet(a: A): USTM[A] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect((journal, _, _, _) => {
         val entry    = getOrMakeEntry(journal)
         val oldValue = entry.unsafeGet[A]
         entry.unsafeSet(a)
@@ -234,7 +234,7 @@ object ZTRef {
      * Updates the value of the variable and returns the old value.
      */
     def getAndUpdate(f: A => A): USTM[A] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect((journal, _, _, _) => {
         val entry    = getOrMakeEntry(journal)
         val oldValue = entry.unsafeGet[A]
         entry.unsafeSet(f(oldValue))
@@ -253,7 +253,7 @@ object ZTRef {
      * value.
      */
     def modify[B](f: A => (B, A)): USTM[B] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect((journal, _, _, _) => {
         val entry                = getOrMakeEntry(journal)
         val (retValue, newValue) = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
@@ -274,7 +274,7 @@ object ZTRef {
      * Updates the value of the variable.
      */
     def update(f: A => A): USTM[Unit] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect((journal, _, _, _) => {
         val entry    = getOrMakeEntry(journal)
         val newValue = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
@@ -285,7 +285,7 @@ object ZTRef {
      * Updates the value of the variable and returns the new value.
      */
     def updateAndGet(f: A => A): USTM[A] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect((journal, _, _, _) => {
         val entry    = getOrMakeEntry(journal)
         val newValue = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
@@ -535,7 +535,7 @@ object ZTRef {
    * Makes a new `ZTRef` that is initialized to the specified value.
    */
   def make[A](a: => A): USTM[TRef[A]] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect((journal, _, _, _) => {
       val value     = a
       val versioned = new Versioned(value)
       val todo      = new AtomicReference[Map[TxnId, Todo]](Map())
