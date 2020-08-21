@@ -318,7 +318,15 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
-  def flatMap[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] = FlatMap(self, f)
+  def flatMap[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
+    FlatMap[R1, E, E1, A, B](
+      self,
+      {
+        case TExit.Succeed(value) => f(value)
+        case TExit.Fail(error)    => ZSTM.fail(error)
+        case TExit.Retry          => ZSTM.retry
+      }
+    )
 
   /**
    * Creates a composite effect that represents this effect followed by another
@@ -366,7 +374,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    */
   def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
     ev: CanFail[E]
-  ): ZSTM[R1, E1, B] = FoldM(self, f, g, () => ZSTM.retry)
+  ): ZSTM[R1, E1, B] = foldAllM(f, g, ZSTM.retry)
 
   /**
    * Unwraps the optional success of this effect, but can fail with None value.
@@ -536,15 +544,15 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<>`.
    */
   def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    Effect { (journal, fiberId, r) =>
-      val reset = prepareResetJournal(journal)
-
-      self.run(journal, fiberId, r) match {
-        case TExit.Succeed(a) => TExit.Succeed(a)
-        case TExit.Fail(_)    => { reset(); that.run(journal, fiberId, r) }
-        case TExit.Retry      => { reset(); that.run(journal, fiberId, r) }
+    FlatMap[R1, Nothing, E1, () => Any, A1](
+      Effect((journal, _, _) => TExit.Succeed(prepareResetJournal(journal))),
+      {
+        case TExit.Succeed(reset) =>
+          self.foldAllM[R1, E1, A1](_ => ZSTM.succeed(reset()) *> that, ZSTM.succeed(_), ZSTM.succeed(reset()) *> that)
+        case TExit.Fail(nothing) => nothing
+        case TExit.Retry         => ZSTM.retry
       }
-    }
+    )
 
   /**
    * Returns a transactional effect that will produce the value of this effect
@@ -583,15 +591,15 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<|>`.
    */
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    Effect { (journal, fiberId, r) =>
-      val reset = prepareResetJournal(journal)
-
-      self.run(journal, fiberId, r) match {
-        case TExit.Succeed(a) => TExit.Succeed(a)
-        case TExit.Fail(e)    => TExit.Fail(e)
-        case TExit.Retry      => { reset(); that.orTry(self).run(journal, fiberId, r) }
+    FlatMap[R1, Nothing, E1, () => Any, A1](
+      Effect((journal, _, _) => TExit.Succeed(prepareResetJournal(journal))),
+      {
+        case TExit.Succeed(reset) =>
+          self.foldAllM[R1, E1, A1](ZSTM.fail(_), ZSTM.succeed(_), ZSTM.succeed(reset()) *> that.orTry(self))
+        case TExit.Fail(nothing) => nothing
+        case TExit.Retry         => ZSTM.retry
       }
-    }
+    )
 
   /**
    * Provides the transaction its required environment, which eliminates
@@ -604,8 +612,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
-  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] =
-    Effect((journal, fiberId, r) => self.run(journal, fiberId, f(r)))
+  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] = ProvideSome(self, f)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -827,69 +834,43 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  // private def continueWithM[R1 <: R, E1, B](continueM: TExit[E, A] => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
-  //   new ZSTM((journal, fiberId, stackSize, r) => {
-  //     val framesCount = stackSize.incrementAndGet()
+  private def foldAllM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B], h: => ZSTM[R1, E1, B])(implicit
+    ev: CanFail[E]
+  ): ZSTM[R1, E1, B] =
+    FlatMap[R1, E, E1, A, B](
+      self,
+      {
+        case TExit.Fail(error)    => f(error)
+        case TExit.Succeed(value) => g(value)
+        case TExit.Retry          => h
+      }
+    )
 
-  //     if (framesCount > ZSTM.MaxFrames) {
-  //       throw new ZSTM.Resumable(self.provide(r), Stack(continueM.andThen(_.provide(r))))
-  //     } else {
-  //       val continued =
-  //         try {
-  //           continueM(self.exec(journal, fiberId, stackSize, r))
-  //         } catch {
-  //           case res: ZSTM.Resumable[e, e1, a, b] =>
-  //             res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-  //             throw res
-  //         }
+  private def run(journal: Journal, fiberId: Fiber.Id, r0: R): TExit[E, A] = {
+    type Erased = ZSTM[Any, Any, Any]
+    type Cont   = TExit[Any, Any] => Erased
 
-  //       continued.exec(journal, fiberId, stackSize, r)
-  //     }
-  //   })
+    val contStack = Stack[Cont]()
+    val envStack  = Stack[AnyRef](r0.asInstanceOf[AnyRef])
 
-  // private def run(journal: ZSTM.internal.Journal, fiberId: Fiber.Id, r: R): TExit[E, A] = {
-  //   type Cont = ZSTM.internal.TExit[Any, Any] => STM[Any, Any]
+    @tailrec
+    def loop(self: Erased): TExit[Any, Any] =
+      self match {
+        case Effect(f) =>
+          val exit = f(journal, fiberId, envStack.peek())
+          if (contStack.isEmpty) exit
+          else loop(contStack.pop()(exit))
 
-  //   val stackSize = new AtomicLong()
-  //   val stack     = new Stack[Cont]()
-  //   var current   = self.asInstanceOf[ZSTM[R, Any, Any]]
-  //   var result    = null: TExit[Any, Any]
+        case FlatMap(stm, k) =>
+          contStack.push(k)
+          loop(stm)
 
-  //   while (result eq null) {
-  //     try {
-  //       val v = current.exec(journal, fiberId, stackSize, r)
+        case ProvideSome(stm, f) =>
+          envStack.push(f.asInstanceOf[AnyRef => AnyRef](envStack.peek()))
 
-  //       if (stack.isEmpty)
-  //         result = v
-  //       else {
-  //         val next = stack.pop()
-  //         current = next(v)
-  //       }
-  //     } catch {
-  //       case cont: ZSTM.Resumable[_, _, _, _] =>
-  //         current = cont.stm
-  //         while (!cont.ks.isEmpty) stack.push(cont.ks.pop().asInstanceOf[Cont])
-  //         stackSize.set(0)
-  //     }
-  //   }
-  //   result.asInstanceOf[TExit[E, A]]
-  // }
+          val cleanup = ZSTM.succeed(envStack.pop())
 
-  private def run(journal: Journal, fiberId: Fiber.Id, r: R): TExit[E, A] = {
-    type Erased = ZSTM[R, Any, Any]
-    type Cont   = Any => Erased
-
-    val stack = new Stack[Cont]()
-
-    def loop(stm: Erased): Any =
-      stm match {
-        case Effect(f) => f(journal, fiberId, r)
-
-        case FlatMap(t, f) =>
-          stack.push(f.asInstanceOf[Cont])
-          loop(t.asInstanceOf[Erased])
-
-        case FoldM(_, _, _, _) => TExit.Retry
+          loop(stm.ensuring(cleanup))
       }
 
     loop(self.asInstanceOf[Erased]).asInstanceOf[TExit[E, A]]
@@ -900,16 +881,12 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 object ZSTM {
   import internal._
 
-  final case class FlatMap[R, E, A, B](self: ZSTM[R, E, A], f: A => ZSTM[R, E, B]) extends ZSTM[R, E, B]
+  private[stm] final case class FlatMap[R, E1, E2, A, B](self: ZSTM[R, E1, A], f: TExit[E1, A] => ZSTM[R, E2, B])
+      extends ZSTM[R, E2, B]
 
-  final case class FoldM[R, E1, E2, A, B](
-    self: ZSTM[R, E1, A],
-    ifError: E1 => ZSTM[R, E2, B],
-    ifSuccess: A => ZSTM[R, E2, B],
-    ifRetry: () => ZSTM[R, E2, B]
-  ) extends ZSTM[R, E2, B]
+  private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => TExit[E, A]) extends ZSTM[R, E, A]
 
-  final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => TExit[E, A]) extends ZSTM[R, E, A]
+  private[stm] final case class ProvideSome[R1, R2, E, A](effect: ZSTM[R1, E, A], f: R2 => R1) extends ZSTM[R2, E, A]
 
   /**
    * Submerges the error case of an `Either` into the `STM`. The inverse
