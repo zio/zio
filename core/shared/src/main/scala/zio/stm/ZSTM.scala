@@ -551,33 +551,16 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Named alias for `<>`.
    */
-  def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] = ???
-  // new ZSTM((journal, fiberId, stackSize, r) => {
-  //   val reset = prepareResetJournal(journal)
+  def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+    Effect { (journal, fiberId, r) =>
+      val reset = prepareResetJournal(journal)
 
-  //   val continueM: TExit[E, A] => STM[E1, A1] = {
-  //     case TExit.Fail(_)    => { reset(); that.provide(r) }
-  //     case TExit.Succeed(a) => ZSTM.succeedNow(a)
-  //     case TExit.Retry      => { reset(); that.provide(r) }
-  //   }
-
-  //   val framesCount = stackSize.incrementAndGet()
-
-  //   if (framesCount > ZSTM.MaxFrames) {
-  //     throw new ZSTM.Resumable(self.provide(r), Stack(continueM))
-  //   } else {
-  //     val continued =
-  //       try {
-  //         continueM(self.exec(journal, fiberId, stackSize, r))
-  //       } catch {
-  //         case res: ZSTM.Resumable[e, e1, a, b] =>
-  //           res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-  //           throw res
-  //       }
-
-  //     continued.exec(journal, fiberId, stackSize, r)
-  //   }
-  // })
+      self.run(journal, fiberId, r) match {
+        case TExit.Fail(_)    => { reset(); that.run(journal, fiberId, r) }
+        case TExit.Retry      => { reset(); that.run(journal, fiberId, r) }
+        case TExit.Succeed(a) => TExit.Succeed(a)
+      }
+    }
 
   /**
    * Returns a transactional effect that will produce the value of this effect
@@ -633,7 +616,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
-  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] = 
+  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] =
     Effect((journal, fiberId, r) => self.run(journal, fiberId, f(r)))
 
   /**
@@ -912,11 +895,11 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
     def loop(stm: Erased): Any =
       stm match {
-        case Continue(_, _)    => TExit.Retry
+        case Continue(_, _) => TExit.Retry
 
-        case Effect(f)         => f(journal, fiberId, r)
+        case Effect(f) => f(journal, fiberId, r)
 
-        case FlatMap(t, f)     =>
+        case FlatMap(t, f) =>
           stack.push(f.asInstanceOf[Cont])
           loop(t.asInstanceOf[Erased])
 
@@ -931,8 +914,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 object ZSTM {
   import internal._
 
-  final case class Continue[R, E, E2, A, B](self: ZSTM[R, E, A], f: TExit[E, A] => TExit[E2, B])
-      extends ZSTM[R, E2, B]
+  final case class Continue[R, E, E2, A, B](self: ZSTM[R, E, A], f: TExit[E, A] => TExit[E2, B]) extends ZSTM[R, E2, B]
 
   final case class FlatMap[R, E, A, B](self: ZSTM[R, E, A], f: A => ZSTM[R, E, B]) extends ZSTM[R, E, B]
 
