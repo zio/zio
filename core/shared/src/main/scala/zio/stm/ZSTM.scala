@@ -911,7 +911,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
       stm match {
         case Continue(_, _)    => TExit.Retry
 
-        case Effect(f)         => f(journal, fiberId, new AtomicLong(0), r)
+        case Effect(f)         => f(journal, fiberId, r)
 
         case FlatMap(t, f)     =>
           stack.push(f.asInstanceOf[Cont])
@@ -940,7 +940,7 @@ object ZSTM {
     ifRetry: () => ZSTM[R, E2, B]
   ) extends ZSTM[R, E2, B]
 
-  final case class Effect[R, E, A](f: (Journal, Fiber.Id, AtomicLong, R) => TExit[E, A]) extends ZSTM[R, E, A]
+  final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => TExit[E, A]) extends ZSTM[R, E, A]
 
   // private def continue[R, E, E2, A, B](stm: ZSTM[R, E, A])(f: TExit[E, A] => TExit[E2, B]): ZSTM[R, E2, B] =
   //   Continue(stm, f)
@@ -1053,17 +1053,17 @@ object ZSTM {
   /**
    * Retrieves the environment inside an stm.
    */
-  def environment[R]: URSTM[R, R] = Effect((_, _, _, r) => TExit.Succeed(r))
+  def environment[R]: URSTM[R, R] = Effect((_, _, r) => TExit.Succeed(r))
 
   /**
    * Returns a value that models failure in the transaction.
    */
-  def fail[E](e: => E): STM[E, Nothing] = Effect((_, _, _, _) => TExit.Fail(e))
+  def fail[E](e: => E): STM[E, Nothing] = Effect((_, _, _) => TExit.Fail(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  val fiberId: USTM[Fiber.Id] = Effect((_, fiberId, _, _) => TExit.Succeed(fiberId))
+  val fiberId: USTM[Fiber.Id] = Effect((_, fiberId, _) => TExit.Succeed(fiberId))
 
   /**
    * Filters the collection using the specified effectual predicate.
@@ -1380,7 +1380,7 @@ object ZSTM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  val retry: USTM[Nothing] = Effect((_, _, _, _) => TExit.Retry)
+  val retry: USTM[Nothing] = Effect((_, _, _) => TExit.Retry)
 
   /**
    * Returns an effect with the value on the right part.
@@ -1429,7 +1429,7 @@ object ZSTM {
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  def succeed[A](a: => A): USTM[A] = Effect((_, _, _, _) => TExit.Succeed(a))
+  def succeed[A](a: => A): USTM[A] = Effect((_, _, _) => TExit.Succeed(a))
 
   /**
    * Suspends creation of the specified transaction lazily.

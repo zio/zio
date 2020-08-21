@@ -52,7 +52,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
    * write locks held by this fiber.
    */
   lazy val acquireWrite: USTM[Int] =
-    ZSTM.Effect((journal, fiberId, _, _) =>
+    ZSTM.Effect((journal, fiberId, _) =>
       data.unsafeGet(journal) match {
 
         case readLock: ReadLock if readLock.noOtherHolder(fiberId) =>
@@ -96,13 +96,13 @@ final class TReentrantLock private (data: TRef[LockState]) {
    * Retrieves the number of acquired read locks for this fiber.
    */
   def fiberReadLocks: USTM[Int] =
-    ZSTM.Effect((journal, fiberId, _, _) => TExit.Succeed(data.unsafeGet(journal).readLocks(fiberId)))
+    ZSTM.Effect((journal, fiberId, _) => TExit.Succeed(data.unsafeGet(journal).readLocks(fiberId)))
 
   /**
    * Retrieves the number of acquired write locks for this fiber.
    */
   def fiberWriteLocks: USTM[Int] =
-    ZSTM.Effect((journal, fiberId, _, _) => TExit.Succeed(data.unsafeGet(journal).writeLocks(fiberId)))
+    ZSTM.Effect((journal, fiberId, _) => TExit.Succeed(data.unsafeGet(journal).writeLocks(fiberId)))
 
   /**
    * Determines if any fiber has a read lock.
@@ -120,7 +120,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
    * number of write locks held by this fiber.
    */
   lazy val releaseWrite: USTM[Int] =
-    ZSTM.Effect { (journal, fiberId, _, _) =>
+    ZSTM.Effect { (journal, fiberId, _) =>
       val res = data.unsafeGet(journal) match {
         case WriteLock(1, m, `fiberId`) => ReadLock(fiberId, m)
         case WriteLock(n, m, `fiberId`) if n > 1 =>
@@ -148,7 +148,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
   def writeLocks: USTM[Int] = data.get.map(_.writeLocks)
 
   private def adjustRead(delta: Int): USTM[Int] =
-    ZSTM.Effect((journal, fiberId, _, _) =>
+    ZSTM.Effect((journal, fiberId, _) =>
       data.unsafeGet(journal) match {
         case readLock: ReadLock =>
           val res = readLock.adjust(fiberId, delta)
