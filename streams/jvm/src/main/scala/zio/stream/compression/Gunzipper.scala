@@ -145,10 +145,10 @@ private[compression] class Gunzipper private (bufferSize: Int) {
       val newChunk = pullOutput(inflater, buffer)
       if (inflater.finished()) {
         val leftover = chunkBytes.takeRight(inflater.getRemaining())
-        val (state, _) =
+        val (state, restOfChunks) =
           new CheckTrailerStep(Array.emptyByteArray, crc32.getValue(), inflater.getBytesWritten()).feed(leftover)
-        (state, newChunk) // CheckTrailerStep returns empty chunk only
-      } else ((this, newChunk))
+        (state, newChunk ++ restOfChunks)
+      } else (this, newChunk)
     }
   }
 
