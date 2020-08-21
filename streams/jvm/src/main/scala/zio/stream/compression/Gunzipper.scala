@@ -145,10 +145,10 @@ private[compression] class Gunzipper private (bufferSize: Int) {
       val newChunk = pullOutput(inflater, buffer)
       if (inflater.finished()) {
         val leftover = chunkBytes.takeRight(inflater.getRemaining())
-        val (state, _) =
+        val (state, restOfChunks) =
           new CheckTrailerStep(Array.emptyByteArray, crc32.getValue(), inflater.getBytesWritten()).feed(leftover)
-        (state, newChunk) // CheckTrailerStep returns empty chunk only
-      } else ((this, newChunk))
+        (state, newChunk ++ restOfChunks)
+      } else (this, newChunk)
     }
   }
 
@@ -166,7 +166,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
         val isize                    = readInt(trailerBytes.drop(4))
         if (expectedCrc32.toInt != crc32) throw CompressionException("Invalid CRC32")
         else if (expectedIsize.toInt != isize) throw CompressionException("Invalid ISIZE")
-        else new ParseHeaderStep(leftover, new CRC32()).feed(Array.emptyByteArray)
+        else new ParseHeaderStep(Array.emptyByteArray, new CRC32()).feed(leftover)
       }
     }
   }

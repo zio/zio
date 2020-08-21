@@ -35,6 +35,11 @@ object CompressionSpec extends DefaultRunnableSpec {
             (deflatedStream(shortText) ++ deflatedStream(otherShortText)).transduce(inflate(64)).runCollect
           )(equalTo(Chunk.fromArray(shortText) ++ Chunk.fromArray(otherShortText)))
         ),
+        testM("stream of two deflated inputs as a single chunk")(
+          assertM(
+            (deflatedStream(shortText) ++ deflatedStream(otherShortText)).chunkN(500).transduce(inflate(64)).runCollect
+          )(equalTo(Chunk.fromArray(shortText) ++ Chunk.fromArray(otherShortText)))
+        ),
         testM("long input")(
           assertM(
             deflatedStream(longText).transduce(inflate(64)).runCollect
@@ -98,9 +103,12 @@ object CompressionSpec extends DefaultRunnableSpec {
             jdkGzippedStream(shortText).transduce(gunzip(64)).runCollect
           )(equalTo(Chunk.fromArray(shortText)))
         ),
-        testM("stream of two gzipped inputs")(
+        testM("stream of two gzipped inputs as a single chunk")(
           assertM(
-            (jdkGzippedStream(shortText) ++ jdkGzippedStream(otherShortText)).transduce(gunzip(64)).runCollect
+            (jdkGzippedStream(shortText) ++ jdkGzippedStream(otherShortText))
+              .chunkN(500)
+              .transduce(gunzip(64))
+              .runCollect
           )(equalTo(Chunk.fromArray(shortText) ++ Chunk.fromArray(otherShortText)))
         ),
         testM("long input")(
