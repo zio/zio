@@ -917,10 +917,6 @@ object ZSTM {
     ifRetry: () => ZSTM[R, E2, B]
   ) extends ZSTM[R, E2, B]
 
-  final case class Fail[+E](value: E)    extends ZSTM[Any, E, Nothing]
-  final case class Succeed[+A](value: A) extends ZSTM[Any, Nothing, A]
-  case object Retry                      extends ZSTM[Any, Nothing, Nothing]
-
   final case class Effect[-R, +E, +A](f: (Journal, Fiber.Id, AtomicLong, R) => TExit[E, A]) extends ZSTM[R, E, A]
 
   private def continue[R, E, E2, A, B](stm: ZSTM[R, E, A])(f: TExit[E, A] => TExit[E2, B]): ZSTM[R, E2, B] =
