@@ -60,7 +60,7 @@ private[internal] trait PlatformSpecific {
    * The default number of operations the ZIO runtime should execute before
    * yielding to other fibers.
    */
-  final val defaultYieldOpCount = Int.MaxValue
+  final val defaultYieldOpCount = 2048
 
   /**
    * Returns the name of the thread group to which this thread belongs. This
