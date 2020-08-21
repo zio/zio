@@ -899,8 +899,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
     def loop(stm: Erased): Any =
       stm match {
-        case Continue(_, _) => TExit.Retry
-
         case Effect(f) => f(journal, fiberId, r)
 
         case FlatMap(t, f) =>
@@ -918,8 +916,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 object ZSTM {
   import internal._
 
-  final case class Continue[R, E, E2, A, B](self: ZSTM[R, E, A], f: TExit[E, A] => TExit[E2, B]) extends ZSTM[R, E2, B]
-
   final case class FlatMap[R, E, A, B](self: ZSTM[R, E, A], f: A => ZSTM[R, E, B]) extends ZSTM[R, E, B]
 
   final case class FoldM[R, E1, E2, A, B](
@@ -930,9 +926,6 @@ object ZSTM {
   ) extends ZSTM[R, E2, B]
 
   final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => TExit[E, A]) extends ZSTM[R, E, A]
-
-  // private def continue[R, E, E2, A, B](stm: ZSTM[R, E, A])(f: TExit[E, A] => TExit[E2, B]): ZSTM[R, E2, B] =
-  //   Continue(stm, f)
 
   /**
    * Submerges the error case of an `Either` into the `STM`. The inverse
