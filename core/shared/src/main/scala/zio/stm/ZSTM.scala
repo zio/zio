@@ -70,7 +70,7 @@ import scala.util.{Failure, Success, Try}
  *  [[https://www.microsoft.com/en-us/research/publication/lock-free-data-structures-using-stms-in-haskell/]]
  */
 sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
-  import ZSTM.internal.{ prepareResetJournal, TExit }
+  import ZSTM.internal.{ prepareResetJournal, Journal, TExit }
   import ZSTM._
 
   /**
@@ -219,7 +219,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Continues on the effect returned from pf.
    */
   def collectM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZSTM[R1, E1, B]]): ZSTM[R1, E1, B] =
-    foldM(ZSTM.fail(_), (a: A) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry) 
+    foldM(ZSTM.fail(_), (a: A) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry)
 
   /**
    * Named alias for `<<<`.
@@ -364,8 +364,8 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Effectfully folds over the `STM` effect, handling both failure and
    * success.
    */
-  def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(
-    implicit ev: CanFail[E]
+  def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
+    ev: CanFail[E]
   ): ZSTM[R1, E1, B] = FoldM(self, f, g, () => ZSTM.retry)
 
   /**
@@ -900,6 +900,29 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   //   }
   //   result.asInstanceOf[TExit[E, A]]
   // }
+
+  private def run(journal: Journal, fiberId: Fiber.Id, r: R): TExit[E, A] = {
+    type Erased = ZSTM[R, Any, Any]
+    type Cont   = Any => Erased
+
+    val stack = new Stack[Cont]()
+
+    def loop(stm: Erased): Any =
+      stm match {
+        case Continue(_, _)    => TExit.Retry
+
+        case Effect(f)         => f(journal, fiberId, new AtomicLong(0), r)
+
+        case FlatMap(t, f)     =>
+          stack.push(f.asInstanceOf[Cont])
+          loop(t.asInstanceOf[Erased])
+
+        case FoldM(_, _, _, _) => TExit.Retry
+      }
+
+    loop(self.asInstanceOf[Erased]).asInstanceOf[TExit[E, A]]
+  }
+
 }
 
 object ZSTM {
@@ -919,10 +942,8 @@ object ZSTM {
 
   final case class Effect[-R, +E, +A](f: (Journal, Fiber.Id, AtomicLong, R) => TExit[E, A]) extends ZSTM[R, E, A]
 
-  private def continue[R, E, E2, A, B](stm: ZSTM[R, E, A])(f: TExit[E, A] => TExit[E2, B]): ZSTM[R, E2, B] =
-    Continue(stm, f)
-
-  private def run[R, E, A](stm: ZSTM[R, E, A]): TExit[E, A] = ???
+  // private def continue[R, E, E2, A, B](stm: ZSTM[R, E, A])(f: TExit[E, A] => TExit[E2, B]): ZSTM[R, E2, B] =
+  //   Continue(stm, f)
 
   /**
    * Submerges the error case of an `Either` into the `STM`. The inverse
@@ -1519,13 +1540,6 @@ object ZSTM {
     def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
       b.flatMap(b => if (b) stm.unit else unit)
   }
-
-  private final class Resumable[E, E1, A, B](
-    val stm: STM[E, A],
-    val ks: Stack[internal.TExit[E, A] => STM[E1, B]]
-  ) extends Throwable(null, null, false, false)
-
-  private val MaxFrames = 200
 
   private[stm] object internal {
     val DefaultJournalSize = 4
