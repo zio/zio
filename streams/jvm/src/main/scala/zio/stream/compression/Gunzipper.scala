@@ -166,7 +166,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
         val isize                    = readInt(trailerBytes.drop(4))
         if (expectedCrc32.toInt != crc32) throw CompressionException("Invalid CRC32")
         else if (expectedIsize.toInt != isize) throw CompressionException("Invalid ISIZE")
-        else new ParseHeaderStep(leftover, new CRC32()).feed(Array.emptyByteArray)
+        else new ParseHeaderStep(Array.emptyByteArray, new CRC32()).feed(leftover)
       }
     }
   }
