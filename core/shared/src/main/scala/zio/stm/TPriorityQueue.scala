@@ -90,7 +90,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
    * Takes a value from the queue, retrying until a value is in the queue.
    */
   def take: USTM[A] =
-    ZSTM.Effect((journal, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val map = ref.unsafeGet(journal)
       map.headOption match {
         case None => TExit.Retry
@@ -104,7 +104,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
           )
           TExit.Succeed(as.head)
       }
-    })
+    }
 
   /**
    * Takes all values from the queue.
@@ -143,7 +143,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
    * the queue.
    */
   def takeOption: USTM[Option[A]] =
-    ZSTM.Effect((journal, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val map = ref.unsafeGet(journal)
       map.headOption match {
         case None => TExit.Succeed(None)
@@ -157,7 +157,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
           )
           TExit.Succeed(Some(as.head))
       }
-    })
+    }
 
   /**
    * Collects all values into a chunk.
