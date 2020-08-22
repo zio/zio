@@ -207,7 +207,7 @@ object ReportingTestUtils {
   )
 
   val mock3 = zio.test.test("Extra calls") {
-    throw UnexpectedCallExpection(PureModuleMock.ManyParams, (2, "3", 4L))
+    throw UnexpectedCallException(PureModuleMock.ManyParams, (2, "3", 4L))
   }
 
   val mock3Expected = Vector(
