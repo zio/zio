@@ -334,7 +334,7 @@ object FailureRenderer {
         val header = red(s"- unsatisfied expectations").toLine
         header +: renderUnsatisfiedExpectations(expectation)
 
-      case MockException.UnexpectedCallExpection(method, args) =>
+      case MockException.UnexpectedCallException(method, args) =>
         Message(
           Seq(
             red(s"- unexpected call to $method with arguments").toLine,

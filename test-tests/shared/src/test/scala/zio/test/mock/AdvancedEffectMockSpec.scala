@@ -41,13 +41,13 @@ object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule]
   }
 
   def hasUnexpectedCall[I, E, A](capability: Capability[PureModule, I, E, A], args: I): Assertion[Throwable] =
-    isSubtype[UnexpectedCallExpection[PureModule, I, E, A]](
-      hasField[UnexpectedCallExpection[PureModule, I, E, A], Capability[PureModule, I, E, A]](
+    isSubtype[UnexpectedCallException[PureModule, I, E, A]](
+      hasField[UnexpectedCallException[PureModule, I, E, A], Capability[PureModule, I, E, A]](
         "capability",
         _.capability,
         equalTo(capability)
       ) &&
-        hasField[UnexpectedCallExpection[PureModule, I, E, A], Any]("args", _.args, equalTo(args))
+        hasField[UnexpectedCallException[PureModule, I, E, A], Any]("args", _.args, equalTo(args))
     )
 
   def hasUnsatisfiedExpectations: Assertion[Throwable] =
