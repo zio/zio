@@ -54,6 +54,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [LiveIntent Inc.](https://liveintent.com)
 * [Megogo](https://megogo.net)
 * [Mylivn](https://www.mylivn.com/)
+* [NewMotion](https://newmotion.com)
 * [Optrak](https://optrak.com)
 * [Performance Immo](https://www.performance-immo.com/)
 * [Risk Ident](https://riskident.com/)
