@@ -532,7 +532,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
    */
   final def eventually(implicit ev: CanFail[E]): URIO[R, A] =
-    self orElse eventually
+    self <> ZIO.yieldNow *> eventually
 
   /**
    * Maps this effect to the default exit codes.
@@ -683,7 +683,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect forever (until the first error). For more sophisticated
    * schedules, see the `repeat` method.
    */
-  final def forever: ZIO[R, E, Nothing] = self *> self.forever
+  final def forever: ZIO[R, E, Nothing] =
+    self *> ZIO.yieldNow *> forever
 
   /**
    * Returns an effect that forks this effect into its own separate fiber,
@@ -1445,7 +1446,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect the specified number of times.
    */
   final def repeatN(n: Int): ZIO[R, E, A] =
-    self.flatMap(a => if (n <= 0) ZIO.succeedNow(a) else repeatN(n - 1))
+    self.flatMap(a => if (n <= 0) ZIO.succeedNow(a) else ZIO.yieldNow *> repeatN(n - 1))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -1510,7 +1511,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect until its error satisfies the specified effectful predicate.
    */
   final def repeatUntilM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
-    self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else repeatUntilM(f)))
+    self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else ZIO.yieldNow *> repeatUntilM(f)))
 
   /**
    * Repeats this effect while its error satisfies the specified predicate.
@@ -1543,7 +1544,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Retries this effect the specified number of times.
    */
   final def retryN(n: Int)(implicit ev: CanFail[E]): ZIO[R, E, A] =
-    self.catchAll(e => if (n <= 0) ZIO.fail(e) else retryN(n - 1))
+    self.catchAll(e => if (n <= 0) ZIO.fail(e) else ZIO.yieldNow *> retryN(n - 1))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -1596,7 +1597,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Retries this effect until its error satisfies the specified effectful predicate.
    */
   final def retryUntilM[R1 <: R](f: E => URIO[R1, Boolean])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
-    self.catchAll(e => f(e).flatMap(b => if (b) ZIO.fail(e) else retryUntilM(f)))
+    self.catchAll(e => f(e).flatMap(b => if (b) ZIO.fail(e) else ZIO.yieldNow *> retryUntilM(f)))
 
   /**
    * Retries this effect while its error satisfies the specified predicate.
@@ -2972,9 +2973,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     as: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Fiber[E, Collection[A]]] =
     ZIO.foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork).map { fibers =>
-      fibers
-        .foldLeft[Fiber[E, Builder[A, Collection[A]]]](Fiber.succeed(bf.newBuilder(as)))(_.zipWith(_)(_ += _))
-        .map(_.result())
+      if (fibers.isEmpty) Fiber.succeed(bf.newBuilder(as).result())
+      else {
+        val iterator                                     = fibers.iterator
+        var builder: Fiber[E, Builder[A, Collection[A]]] = null
+        while (iterator.hasNext) {
+          val fiber = iterator.next()
+          if (builder eq null) builder = fiber.map(bf.newBuilder(as) += _)
+          else builder = builder.zipWith(fiber)(_ += _)
+        }
+        builder.map(_.result())
+      }
     }
 
   /**

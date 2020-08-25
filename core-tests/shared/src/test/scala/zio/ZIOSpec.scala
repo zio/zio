@@ -859,7 +859,7 @@ object ZIOSpec extends ZIOBaseSpec {
             assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.interrupted)(isTrue)
           }
         }
-      }
+      } @@ nonFlaky
     ),
     suite("forkAs")(
       testM("child has specified name") {
@@ -2284,7 +2284,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("deep fork/join identity") {
         val n = 20
         assertM(concurrentFib(n))(equalTo(fib(n)))
-      },
+      } @@ jvmOnly,
       testM("effectAsyncM creation is interruptible") {
         for {
           release <- Promise.make[Nothing, Int]

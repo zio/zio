@@ -34,7 +34,7 @@ object ZScopeSpec extends ZIOBaseSpec {
     testM("close can be called multiple times") {
       for {
         open  <- ZScope.make[Unit]
-        _     <- open.close(()).repeat(Schedule.recurs(10))
+        _     <- open.close(()).repeatN(10)
         value <- open.scope.closed
       } yield assert(value)(isTrue)
     },

@@ -129,11 +129,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces)(isNonEmpty) &&
         assert(cause.traces.head.parentTrace.isEmpty)(isFalse) &&
         assert(cause.traces.head.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
-        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
-        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
-        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(
-          isTrue
-        )
+        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse)
       }
     },
     testM("fiber ancestry example with uploads") {

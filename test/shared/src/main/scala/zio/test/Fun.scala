@@ -16,6 +16,8 @@
 
 package zio.test
 
+import scala.concurrent.ExecutionContext
+
 import zio.internal.Executor
 import zio.{ Runtime, URIO, ZIO }
 
@@ -66,15 +68,17 @@ private[test] object Fun {
     Fun(f, _.hashCode)
 
   /**
-   * Constructs a new runtime on Scala.js with an unyielding executor so that
-   * synchronous effects with a large number of operations can be safely
-   * executed.
+   * Constructs a new runtime that synchronously executes effects.
    */
   private def withFunExecutor[R](runtime: Runtime[R]): Runtime[R] =
-    if (TestPlatform.isJS) {
-      runtime.withExecutor {
-        val ec = runtime.platform.executor.asEC
-        Executor.fromExecutionContext(Int.MaxValue)(ec)
+    runtime.withExecutor {
+      Executor.fromExecutionContext(Int.MaxValue) {
+        new ExecutionContext {
+          def execute(runnable: Runnable): Unit =
+            runnable.run()
+          def reportFailure(cause: Throwable): Unit =
+            cause.printStackTrace()
+        }
       }
-    } else runtime
+    }
 }

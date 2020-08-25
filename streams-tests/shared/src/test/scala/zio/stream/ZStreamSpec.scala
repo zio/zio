@@ -276,7 +276,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .take(2)
                          .runCollect
                          .fork
-                _       <- (c.offer *> TestClock.adjust(100.millis) *> c.awaitNext).repeat(Schedule.recurs(3))
+                _       <- (c.offer *> TestClock.adjust(100.millis) *> c.awaitNext).repeatN(3)
                 results <- fib.join.map(_.collect { case Some(ex) => ex })
               } yield assert(results)(equalTo(Chunk(2, 3)))
             }
@@ -510,11 +510,11 @@ object ZStreamSpec extends ZIOBaseSpec {
                                zero      <- as
                                _         <- latch1.succeed(())
                                _         <- latch2.await
-                               _         <- as.flatMap(a => ref.update(a.toList ::: _)).repeat(Schedule.recurs(7))
+                               _         <- as.flatMap(a => ref.update(a.toList ::: _)).repeatN(7)
                                snapshot1 <- ref.get
                                _         <- latch3.succeed(())
                                _         <- latch4.await
-                               _         <- as.flatMap(a => ref.update(a.toList ::: _)).repeat(Schedule.recurs(7))
+                               _         <- as.flatMap(a => ref.update(a.toList ::: _)).repeatN(7)
                                snapshot2 <- ref.get
                              } yield (zero, snapshot1, snapshot2)
                            }
@@ -555,11 +555,11 @@ object ZStreamSpec extends ZIOBaseSpec {
                                zero      <- as
                                _         <- latch1.succeed(())
                                _         <- latch2.await
-                               _         <- as.flatMap(a => ref.update(a.toList ::: _)).repeat(Schedule.recurs(7))
+                               _         <- as.flatMap(a => ref.update(a.toList ::: _)).repeatN(7)
                                snapshot1 <- ref.get
                                _         <- latch3.succeed(())
                                _         <- latch4.await
-                               _         <- as.flatMap(a => ref.update(a.toList ::: _)).repeat(Schedule.recurs(7))
+                               _         <- as.flatMap(a => ref.update(a.toList ::: _)).repeatN(7)
                                snapshot2 <- ref.get
                              } yield (zero, snapshot1, snapshot2)
                            }
@@ -1968,7 +1968,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream
                 .fromIterable((0 to 100))
                 .interruptWhen(ZIO.never)
-                .mapMPar(8)(_ => ZIO(1).repeat(Schedule.recurs(2000)))
+                .mapMPar(8)(_ => ZIO(1).repeatN(2000))
                 .runDrain
                 .run
                 .map(_.interrupted)
@@ -2651,7 +2651,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .take(1)
                          .runCollect
                          .fork
-                _       <- (c.offer *> TestClock.adjust(100.millis) *> c.awaitNext).repeat(Schedule.recurs(3))
+                _       <- (c.offer *> TestClock.adjust(100.millis) *> c.awaitNext).repeatN(3)
                 _       <- TestClock.adjust(100.millis)
                 results <- fib.join
               } yield assert(results)(equalTo(Chunk(3)))

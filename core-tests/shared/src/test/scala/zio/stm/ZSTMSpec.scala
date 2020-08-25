@@ -3,7 +3,7 @@ package stm
 
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ jvmOnly, nonFlaky }
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment.Live
 
@@ -830,8 +830,8 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             sender      <- TRef.makeCommit(50)
             receiver    <- TRef.makeCommit(0)
-            toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
-            toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
+            toReceiver10 = transfer(receiver, sender, 100).repeatN(9)
+            toSender10   = transfer(sender, receiver, 100).repeatN(9)
             f           <- toReceiver10.zipPar(toSender10).fork
             _           <- sender.update(_ + 50).commit
             _           <- f.join
@@ -1103,7 +1103,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           updater = ref.update(_ + 10).commit.forever
           res    <- (left <|> right).commit.race(updater)
         } yield assert(res)(equalTo("left"))
-      } @@ jvmOnly,
+      },
       testM("fails if left fails") {
         val left  = STM.fail("left")
         val right = STM.succeed("right")
@@ -1433,7 +1433,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         _ <- tvar.set(v + 1)
         v <- tvar.get
       } yield v)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
+      .repeatN(n)
 
   def compute3VarN(
     n: Int,
@@ -1450,7 +1450,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         _  <- tvar1.set(v1 - 1)
         _  <- tvar2.set(v2 + 1)
       } yield v3)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
+      .repeatN(n)
 
   def transfer(receiver: TRef[Int], sender: TRef[Int], much: Int): UIO[Int] =
     STM.atomically {

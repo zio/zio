@@ -623,32 +623,11 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Named alias for `<|>`.
    */
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    new ZSTM((journal, fiberId, stackSize, r) => {
-      val reset = prepareResetJournal(journal)
-
-      val continueM: TExit[E, A] => STM[E1, A1] = {
-        case TExit.Fail(e)    => ZSTM.fail(e)
-        case TExit.Succeed(a) => ZSTM.succeedNow(a)
-        case TExit.Retry      => { reset(); that.orTry(self).provide(r) }
-      }
-
-      val framesCount = stackSize.incrementAndGet()
-
-      if (framesCount > ZSTM.MaxFrames) {
-        throw new ZSTM.Resumable(self.provide(r), Stack(continueM))
-      } else {
-        val continued =
-          try {
-            continueM(self.exec(journal, fiberId, stackSize, r))
-          } catch {
-            case res: ZSTM.Resumable[e, e1, a, b] =>
-              res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-              throw res
-          }
-
-        continued.exec(journal, fiberId, stackSize, r)
-      }
-    })
+    continueWithM {
+      case TExit.Fail(e)    => ZSTM.fail(e)
+      case TExit.Succeed(a) => ZSTM.succeedNow(a)
+      case TExit.Retry      => that
+    }
 
   /**
    * Provides the transaction its required environment, which eliminates
