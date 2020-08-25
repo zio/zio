@@ -79,7 +79,7 @@ trait Runtime[+R] {
   final def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
-    unsafeRunAsync(zio)((x: Exit[E, A]) => result.set(x))
+    unsafeRunWith(zio)(result.set)
 
     result.get()
   }
@@ -103,37 +103,8 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
-    val InitialInterruptStatus = InterruptStatus.Interruptible
-
-    val fiberId = Fiber.newFiberId()
-
-    val scope = ZScope.unsafeMake[Exit[E, A]]()
-
-    val supervisor = platform.supervisor
-
-    lazy val context: FiberContext[E, A] = new FiberContext[E, A](
-      fiberId,
-      platform,
-      environment.asInstanceOf[AnyRef],
-      platform.executor,
-      InitialInterruptStatus,
-      None,
-      PlatformConstants.tracingSupported,
-      Platform.newWeakHashMap(),
-      supervisor,
-      scope
-    )
-
-    if (supervisor ne Supervisor.none) {
-      supervisor.unsafeOnStart(environment, zio, None, context)
-
-      context.onDone(exit => supervisor.unsafeOnEnd(exit, context))
-    }
-
-    context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
-    context.runAsync(k)
-
-    fiberId => unsafeRun(context.interruptAs(fiberId))
+    lazy val curZIO = if (Platform.isJS) zio else ZIO.yieldNow *> zio
+    unsafeRunWith(curZIO)(k)
   }
 
   /**
@@ -191,6 +162,40 @@ trait Runtime[+R] {
    * Constructs a new `Runtime` with the specified tracing configuration.
    */
   def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
+
+  private final def unsafeRunWith[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
+    val InitialInterruptStatus = InterruptStatus.Interruptible
+
+    val fiberId = Fiber.newFiberId()
+
+    val scope = ZScope.unsafeMake[Exit[E, A]]()
+
+    val supervisor = platform.supervisor
+
+    lazy val context: FiberContext[E, A] = new FiberContext[E, A](
+      fiberId,
+      platform,
+      environment.asInstanceOf[AnyRef],
+      platform.executor,
+      InitialInterruptStatus,
+      None,
+      PlatformConstants.tracingSupported,
+      Platform.newWeakHashMap(),
+      supervisor,
+      scope
+    )
+
+    if (supervisor ne Supervisor.none) {
+      supervisor.unsafeOnStart(environment, zio, None, context)
+
+      context.onDone(exit => supervisor.unsafeOnEnd(exit, context))
+    }
+
+    context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
+    context.runAsync(k)
+
+    fiberId => unsafeRun(context.interruptAs(fiberId))
+  }
 }
 
 object Runtime {
