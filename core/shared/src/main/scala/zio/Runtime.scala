@@ -103,7 +103,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
-    lazy val curZio =
+    lazy val curZio = if (Platform.isJVM) ZIO.yieldNow *> zio else zio
       if (Platform.isJS) zio
       else if (Platform.isNative) zio
       else ZIO.yieldNow *> zio
