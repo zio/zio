@@ -104,10 +104,7 @@ trait Runtime[+R] {
    */
   final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
     lazy val curZio = if (Platform.isJVM) ZIO.yieldNow *> zio else zio
-      if (Platform.isJS) zio
-      else if (Platform.isNative) zio
-      else ZIO.yieldNow *> zio
-    val canceler = unsafeRunWith(curZio)(k)
+    val canceler    = unsafeRunWith(curZio)(k)
     fiberId => {
       val result = internal.OneShot.make[Exit[E, A]]
       canceler(fiberId)(result.set)
