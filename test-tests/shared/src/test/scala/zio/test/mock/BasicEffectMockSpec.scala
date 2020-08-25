@@ -467,7 +467,7 @@ object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
         )
       }, {
         type M = Capability[PureModule, (Int, String, Long), String, String]
-        type X = UnexpectedCallExpection[PureModule, (Int, String, Long), String, String]
+        type X = UnexpectedCallException[PureModule, (Int, String, Long), String, String]
 
         testDied("unexpected call")(
           PureModuleMock.SingleParam(equalTo(1), value("foo")),

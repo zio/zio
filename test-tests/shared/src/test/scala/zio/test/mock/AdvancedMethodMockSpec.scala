@@ -41,13 +41,13 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
   }
 
   def hasUnexpectedCall[I, E, A](capability: Capability[ImpureModule, I, E, A], args: I): Assertion[Throwable] =
-    isSubtype[UnexpectedCallExpection[ImpureModule, I, E, A]](
-      hasField[UnexpectedCallExpection[ImpureModule, I, E, A], Capability[ImpureModule, I, E, A]](
+    isSubtype[UnexpectedCallException[ImpureModule, I, E, A]](
+      hasField[UnexpectedCallException[ImpureModule, I, E, A], Capability[ImpureModule, I, E, A]](
         "capability",
         _.capability,
         equalTo(capability)
       ) &&
-        hasField[UnexpectedCallExpection[ImpureModule, I, E, A], Any]("args", _.args, equalTo(args))
+        hasField[UnexpectedCallException[ImpureModule, I, E, A], Any]("args", _.args, equalTo(args))
     )
 
   def hasUnsatisfiedExpectations: Assertion[Throwable] =

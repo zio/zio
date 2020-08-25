@@ -79,7 +79,7 @@ trait Runtime[+R] {
   final def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
-    unsafeRunAsync(zio)((x: Exit[E, A]) => result.set(x))
+    unsafeRunWith(zio)(result.set)
 
     result.get()
   }
@@ -103,7 +103,8 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
-    val canceler = unsafeRunWith(zio)(k)
+    lazy val curZio = if (Platform.isJS) zio else ZIO.yieldNow *> zio
+    val canceler    = unsafeRunWith(curZio)(k)
     fiberId => {
       val result = internal.OneShot.make[Exit[E, A]]
       canceler(fiberId)(result.set)

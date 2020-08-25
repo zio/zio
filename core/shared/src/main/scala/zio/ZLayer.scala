@@ -2204,6 +2204,16 @@ object ZLayer {
       ZLayer.identity[RIn] ++ self
   }
 
+  implicit final class ZLayerProjectOps[R, E, A](private val self: ZLayer[R, E, Has[A]]) extends AnyVal {
+
+    /**
+     * Projects out part of one of the layers output by this layer using the
+     * specified function
+     */
+    final def project[B: Tag](f: A => B)(implicit tag: Tag[A]): ZLayer[R, E, Has[B]] =
+      self >>> ZLayer.fromFunction(r => f(r.get))
+  }
+
   /**
    * A `MemoMap` memoizes dependencies.
    */

@@ -144,6 +144,22 @@ object RTSSpec extends ZIOBaseSpec {
         } yield c
 
       assertM(Live.live(zio))(isGreaterThanEqualTo(1))
-    } @@ zioTag(interruption, regression)
+    } @@ zioTag(interruption, regression),
+    testM("unsafeRunAsync runs effects on ZIO thread pool") {
+      for {
+        runtime <- ZIO.runtime[Any]
+        promise <- Promise.make[Nothing, String]
+        _ <- UIO.effectTotal {
+               val thread = new Thread("user-thread") {
+                 override def run(): Unit =
+                   runtime.unsafeRunAsync_ {
+                     UIO.effectTotal(Thread.currentThread.getName).to(promise)
+                   }
+               }
+               thread.start()
+             }
+        value <- promise.await
+      } yield assert(value)(startsWithString("zio-default-async"))
+    }
   )
 }

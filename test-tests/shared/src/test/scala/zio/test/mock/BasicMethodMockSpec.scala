@@ -467,7 +467,7 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
           )
         }, {
           type M = Capability[ImpureModule, (Int, String, Long), Throwable, String]
-          type X = UnexpectedCallExpection[ImpureModule, (Int, String, Long), Throwable, String]
+          type X = UnexpectedCallException[ImpureModule, (Int, String, Long), Throwable, String]
 
           testDied("unexpected call")(
             ImpureModuleMock.SingleParam(equalTo(1), value("foo")),

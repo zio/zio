@@ -173,7 +173,9 @@ object UserRepo {
   }
 
 
-  // This simple live version depends only on a DB Connection
+  // This simple in-memory version has no dependencies.
+  // This could be useful for tests where you don't want the additional
+  // complexity of having to manage DB Connections.
   val inMemory: Layer[Nothing, UserRepo] = ZLayer.succeed(
     new Service {
       def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)

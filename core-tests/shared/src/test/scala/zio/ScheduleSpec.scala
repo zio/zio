@@ -219,6 +219,11 @@ object ScheduleSpec extends ZIOBaseSpec {
           equalTo(Chunk(0, 1, 2, 3, 4).map(i => (i * 100).millis))
         )
       },
+      testM("fixed delay with zero delay") {
+        assertM(run(Schedule.fixed(Duration.Zero) >>> Schedule.elapsed)(List.fill(5)(())))(
+          equalTo(Chunk.fill(5)(Duration.Zero))
+        )
+      },
       testM("windowed") {
         assertM(run(Schedule.windowed(100.millis) >>> Schedule.elapsed)(List.fill(5)(())))(
           equalTo(Chunk(0, 1, 2, 3, 4).map(i => (i * 100).millis))
@@ -384,6 +389,12 @@ object ScheduleSpec extends ZIOBaseSpec {
           retries        <- retriesCounter.get
         } yield retries
       }(equalTo(10))
+    },
+    testM("union of two schedules should continue as long as either wants to continue") {
+      val schedule = Schedule.recurWhile[Boolean](_ == true) || Schedule.fixed(1.second)
+      assertM(run(schedule >>> Schedule.elapsed)(List(true, false, false, false, false)))(
+        equalTo(Chunk(0, 0, 1, 2, 3).map(_.seconds))
+      )
     }
   )
 

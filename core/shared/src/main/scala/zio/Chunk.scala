@@ -49,39 +49,47 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
-  final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] = {
-    val diff = that.depth - self.depth
-    if (math.abs(diff) <= 1) Chunk.Concat(self, that)
-    else if (diff < -1) {
-      if (self.left.depth >= self.right.depth) {
-        val nr = self.right ++ that
-        Chunk.Concat(self.left, nr)
-      } else {
-        val nrr = self.right.right ++ that
-        if (nrr.depth == self.depth - 3) {
-          val nr = Chunk.Concat(self.right.left, nrr)
-          Chunk.Concat(self.left, nr)
+  final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
+    (self, that) match {
+      case (Chunk.AppendN(start, buffer, bufferUsed, _), that) =>
+        val chunk = Chunk.fromArray(buffer.asInstanceOf[Array[A1]]).take(bufferUsed)
+        start ++ chunk ++ that
+      case (self, Chunk.PrependN(end, buffer, bufferUsed, _)) =>
+        val chunk = Chunk.fromArray(buffer.asInstanceOf[Array[A1]]).takeRight(bufferUsed)
+        self ++ chunk ++ end
+      case (self, that) =>
+        val diff = that.depth - self.depth
+        if (math.abs(diff) <= 1) Chunk.Concat(self, that)
+        else if (diff < -1) {
+          if (self.left.depth >= self.right.depth) {
+            val nr = self.right ++ that
+            Chunk.Concat(self.left, nr)
+          } else {
+            val nrr = self.right.right ++ that
+            if (nrr.depth == self.depth - 3) {
+              val nr = Chunk.Concat(self.right.left, nrr)
+              Chunk.Concat(self.left, nr)
+            } else {
+              val nl = Chunk.Concat(self.left, self.right.left)
+              Chunk.Concat(nl, nrr)
+            }
+          }
         } else {
-          val nl = Chunk.Concat(self.left, self.right.left)
-          Chunk.Concat(nl, nrr)
+          if (that.right.depth >= that.left.depth) {
+            val nl = self ++ that.left
+            Chunk.Concat(nl, that.right)
+          } else {
+            val nll = self ++ that.left.left
+            if (nll.depth == that.depth - 3) {
+              val nl = Chunk.Concat(nll, that.left.right)
+              Chunk.Concat(nl, that.right)
+            } else {
+              val nr = Chunk.Concat(that.left.right, that.right)
+              Chunk.Concat(nll, nr)
+            }
+          }
         }
-      }
-    } else {
-      if (that.right.depth >= that.left.depth) {
-        val nl = self ++ that.left
-        Chunk.Concat(nl, that.right)
-      } else {
-        val nll = self ++ that.left.left
-        if (nll.depth == that.depth - 3) {
-          val nl = Chunk.Concat(nll, that.left.right)
-          Chunk.Concat(nl, that.right)
-        } else {
-          val nr = Chunk.Concat(that.left.right, that.right)
-          Chunk.Concat(nll, nr)
-        }
-      }
     }
-  }
 
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
     that.prepend(self)
@@ -1266,7 +1274,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       } else {
         val buffer = Array.ofDim[AnyRef](BufferSize)
         buffer(BufferSize - 1) = a1.asInstanceOf[AnyRef]
-        val chunk = Chunk.fromArray(self.buffer.asInstanceOf[Array[A1]]).take(bufferUsed)
+        val chunk = Chunk.fromArray(self.buffer.asInstanceOf[Array[A1]]).takeRight(bufferUsed)
         PrependN(chunk ++ end, buffer, 1, new AtomicInteger(1))
       }
 
