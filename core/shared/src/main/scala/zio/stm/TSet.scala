@@ -44,7 +44,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   def diff(other: TSet[A]): USTM[Unit] =
-    other.toList.map(_.toSet).flatMap(vals => removeIf(vals.contains))
+    other.toSet.flatMap(vals => removeIf(vals.contains))
 
   /**
    * Atomically folds using a pure function.
@@ -69,7 +69,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   def intersect(other: TSet[A]): USTM[Unit] =
-    other.toList.map(_.toSet).flatMap(vals => retainIf(vals.contains))
+    other.toSet.flatMap(vals => retainIf(vals.contains))
 
   /**
    * Stores new element in the set.
