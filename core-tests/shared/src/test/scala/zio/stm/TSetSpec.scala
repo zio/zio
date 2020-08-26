@@ -27,7 +27,6 @@ object TSetSpec extends ZIOBaseSpec {
       testM("apply") {
         val tx = TSet.make(1, 2, 2, 3).flatMap[Any, Nothing, List[Int]](_.toList)
         assertM(tx.commit)(hasSameElements(List(1, 2, 3)))
-
       },
       testM("empty") {
         val tx = TSet.empty[Int].flatMap[Any, Nothing, List[Int]](_.toList)
@@ -200,6 +199,17 @@ object TSetSpec extends ZIOBaseSpec {
           } yield res
 
         assertM(tx.commit)(equalTo(0))
+      },
+      testM("toSet") {
+        val set = Set(1, 2, 3)
+
+        val tx =
+          for {
+            tset <- TSet.fromIterable(set)
+            res  <- tset.toSet
+          } yield res
+
+        assertM(tx.commit)(hasSameElements(set))
       }
     ),
     suite("set operations")(

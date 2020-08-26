@@ -100,6 +100,11 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   def toList: USTM[List[A]] = tmap.keys
 
   /**
+   * Collects all elements into a set.
+   */
+  def toSet: USTM[Set[A]] = toList.map(_.toSet)
+
+  /**
    * Atomically updates all elements using a pure function.
    */
   def transform(f: A => A): USTM[Unit] =
