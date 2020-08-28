@@ -203,6 +203,19 @@ object ZStreamSpec extends ZIOBaseSpec {
               equalTo(Chunk(Right(List(2, 1, 1, 1, 1)), Right(List(2))))
             )
           },
+          testM("fails fast") {
+            for {
+              queue <- Queue.unbounded[Int]
+              _ <- ZStream
+                     .range(1, 10)
+                     .tap(i => ZIO.fail("BOOM!").when(i == 6) *> queue.offer(i))
+                     .aggregateAsyncWithin(ZTransducer.foldUntil((), 5)((_, _) => ()), Schedule.forever)
+                     .runDrain
+                     .catchAll(_ => ZIO.succeedNow(()))
+              value <- queue.takeAll
+              _     <- queue.shutdown
+            } yield assert(value)(equalTo(List(1, 2, 3, 4, 5)))
+          } @@ zioTag(errors),
           testM("error propagation 1") {
             val e = new RuntimeException("Boom")
             assertM(
