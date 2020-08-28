@@ -735,6 +735,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] = forkIn(ZScope.global)
 
   /**
+   * Forks an effect that will be executed without unhandled failures being
+   * reported. This is useful for implementing combinators that handle failures
+   * themselves.
+   */
+  final def forkInternal: ZIO[R, Nothing, Fiber[E, A]] =
+    run.fork.map(_.mapM(IO.done(_)))
+
+  /**
    * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
    * execute the effect in the fiber, while ensuring its interruption when
    * the effect supplied to [[ZManaged#use]] completes.
