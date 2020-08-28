@@ -382,6 +382,14 @@ object ZLayerSpec extends ZIOBaseSpec {
         val personLayer = ZLayer.succeed(Person("User", 42))
         val ageLayer    = personLayer.project(_.age)
         assertM(ZIO.service[Int].provideLayer(ageLayer))(equalTo(42))
+      },
+      testM("tap") {
+        for {
+          ref   <- Ref.make("foo")
+          layer  = ZLayer.succeed("bar").tap(r => ref.set(r.get))
+          _     <- layer.build.useNow
+          value <- ref.get
+        } yield assert(value)(equalTo("bar"))
       }
     )
 }
