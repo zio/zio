@@ -213,6 +213,12 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   }
 
   /**
+    * Performs the specified effect if this layer succeeds.
+    */
+  final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
+    ZLayer.identity <&> self >>> ZLayer.fromFunctionManyM { case (in, out) => f(out).provide(in) *> ZIO.succeed(out) }
+
+  /**
    * Performs the specified effect if this layer fails.
    */
   final def tapError[RIn1 <: RIn, E1 >: E](f: E => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
