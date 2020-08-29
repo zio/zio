@@ -2308,6 +2308,22 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           )
         ),
+        suite("scan")(
+          testM("scan")(checkM(pureStreamOfInts) { s =>
+            for {
+              streamResult <- s.scan(0)(_ + _).runCollect
+              chunkResult  <- s.runCollect.map(_.scan(0)(_ + _))
+            } yield assert(streamResult)(equalTo(chunkResult))
+          })
+        ),
+        suite("scanReduce")(
+          testM("scanReduce")(checkM(pureStreamOfInts) { s =>
+            for {
+              streamResult <- s.scanReduce(_ + _).runCollect
+              chunkResult  <- s.runCollect.map(_.scan(0)(_ + _).tail)
+            } yield assert(streamResult)(equalTo(chunkResult))
+          })
+        ),
         suite("schedule")(
           testM("scheduleWith")(
             assertM(
