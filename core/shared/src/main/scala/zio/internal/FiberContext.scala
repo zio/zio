@@ -42,7 +42,8 @@ private[zio] final class FiberContext[E, A](
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals,
   supervisor0: Supervisor[Any],
-  openScope: ZScope.Open[Exit[E, A]]
+  openScope: ZScope.Open[Exit[E, A]],
+  reportFailure: Cause[Any] => Unit
 ) extends Fiber.Runtime.Internal[E, A] { self =>
 
   import FiberContext._
@@ -234,79 +235,29 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val left  = fork(race.left.asInstanceOf[IO[EL, A]].traced.run.untraced, race.scope)
-    val right = fork(race.right.asInstanceOf[IO[ER, B]].traced.run.untraced, race.scope)
+    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], race.scope, Some(_ => ()))
+    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], race.scope, Some(_ => ()))
 
     ZIO
       .effectAsync[R, E, C](
         { cb =>
-          val leftRegister = left.register0 { exit0 =>
-            val exit = exit0.flatten
-            exit match {
-              case success: Exit.Success[Exit[EL, A]] =>
-                complete(
-                  left.mapM(IO.done(_)),
-                  right.mapM(IO.done(_)),
-                  race.leftWins,
-                  success.value,
-                  raceIndicator,
-                  cb
-                )
-              case failure: Exit.Failure[_] =>
-                complete(
-                  left.mapM(IO.done(_)),
-                  right.mapM(IO.done(_)),
-                  race.leftWins,
-                  failure,
-                  raceIndicator,
-                  cb
-                )
-            }
+          val leftRegister = left.register0 {
+            case exit0: Exit.Success[Exit[EL, A]] =>
+              complete[EL, ER, A, B](left, right, race.leftWins, exit0.value, raceIndicator, cb)
+            case exit: Exit.Failure[_] => complete(left, right, race.leftWins, exit, raceIndicator, cb)
           }
 
           if (leftRegister ne null)
-            complete(
-              left.mapM(IO.done(_)),
-              right.mapM(IO.done(_)),
-              race.leftWins,
-              leftRegister.flatten,
-              raceIndicator,
-              cb
-            )
+            complete(left, right, race.leftWins, leftRegister, raceIndicator, cb)
           else {
-            val rightRegister = right.register0 { exit0 =>
-              val exit = exit0.flatten
-              exit match {
-                case success: Exit.Success[Exit[_, _]] =>
-                  complete(
-                    right.mapM(IO.done(_)),
-                    left.mapM(IO.done(_)),
-                    race.rightWins,
-                    success.value,
-                    raceIndicator,
-                    cb
-                  )
-                case exit: Exit.Failure[_] =>
-                  complete(
-                    right.mapM(IO.done(_)),
-                    left.mapM(IO.done(_)),
-                    race.rightWins,
-                    exit,
-                    raceIndicator,
-                    cb
-                  )
-              }
+            val rightRegister = right.register0 {
+              case exit0: Exit.Success[Exit[_, _]] =>
+                complete(right, left, race.rightWins, exit0.value, raceIndicator, cb)
+              case exit: Exit.Failure[_] => complete(right, left, race.rightWins, exit, raceIndicator, cb)
             }
 
             if (rightRegister ne null)
-              complete(
-                right.mapM(IO.done(_)),
-                left.mapM(IO.done(_)),
-                race.rightWins,
-                rightRegister.flatten,
-                raceIndicator,
-                cb
-              )
+              complete(right, left, race.rightWins, rightRegister, raceIndicator, cb)
           }
         },
         List(left.fiberId, right.fiberId)
@@ -567,7 +518,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = nextInstr(fork(zio.value, zio.scope))
+                    curZio = nextInstr(fork(zio.value, zio.scope, zio.reportFailure))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
@@ -731,7 +682,8 @@ private[zio] final class FiberContext[E, A](
    */
   def fork[E, A](
     zio: IO[E, A],
-    forkScope: Option[ZScope[Exit[Any, Any]]] = None
+    forkScope: Option[ZScope[Exit[Any, Any]]] = None,
+    reportFailure: Option[Cause[Any] => Unit] = None
   ): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
     val locals                              = fiberRefLocals.asScala: @silent("JavaConverters")
@@ -764,7 +716,8 @@ private[zio] final class FiberContext[E, A](
       tracingRegion,
       childFiberRefLocals,
       currentSup,
-      childScope
+      childScope,
+      reportFailure.getOrElse(platform.reportFailure)
     )
 
     if (currentSup ne Supervisor.none) {
@@ -1001,7 +954,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] def reportUnhandled(v: Exit[E, A]): Unit = v match {
-    case Exit.Failure(cause) => platform.reportFailure(cause)
+    case Exit.Failure(cause) => reportFailure(cause)
     case _                   =>
   }
 
