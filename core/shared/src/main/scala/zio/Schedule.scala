@@ -950,20 +950,21 @@ object Schedule {
     import Decision._
     import java.time.Duration
 
-    val fixedDelay  = interval.toMillis
-    val fixedDelayD = Duration.ofMillis(fixedDelay)
-
     final case class State(startMillis: Long, lastRun: Long)
 
-    def loop(startMillis: Option[State], n: Long): StepFunction[Any, Any, Long] =
+    val intervalMillis = interval.toMillis()
+
+    def loop(state: Option[State], n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
-        ZIO.succeed(startMillis match {
+        ZIO.succeed(state match {
           case Some(State(startMillis, lastRun)) =>
             val nowMillis     = now.toInstant.toEpochMilli()
-            val runningBehind = nowMillis > (lastRun + fixedDelay)
-            val boundary      = if (interval.isZero) interval else Duration.ofMillis((nowMillis - startMillis) % fixedDelay)
-            val sleepTime     = if (boundary.isZero) fixedDelayD else boundary
-            val nextRun       = if (runningBehind) now else now.plus(sleepTime)
+            val runningBehind = nowMillis > (lastRun + intervalMillis)
+            val boundary =
+              if (interval.isZero) interval
+              else Duration.ofMillis(intervalMillis - ((nowMillis - startMillis) % intervalMillis))
+            val sleepTime = if (boundary.isZero) interval else boundary
+            val nextRun   = if (runningBehind) now else now.plus(sleepTime)
 
             Continue(
               n + 1L,
@@ -972,11 +973,12 @@ object Schedule {
             )
           case None =>
             val nowMillis = now.toInstant.toEpochMilli()
+            val nextRun   = now.plus(interval)
 
             Continue(
               n + 1L,
-              now.plus(fixedDelayD),
-              loop(Some(State(nowMillis, nowMillis)), n + 1L)
+              nextRun,
+              loop(Some(State(nowMillis, nextRun.toInstant().toEpochMilli())), n + 1L)
             )
         })
 
