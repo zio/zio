@@ -1,6 +1,7 @@
 package zio
 
-import scala.concurrent.Future
+import java.time.{ Instant, OffsetDateTime, ZoneId }
+
 import zio.clock.Clock
 import zio.duration._
 import zio.stream.ZStream
@@ -8,6 +9,8 @@ import zio.test.Assertion._
 import zio.test.TestAspect.timeout
 import zio.test.environment.{ TestClock, TestRandom }
 import zio.test.{ assert, assertM, suite, testM, TestResult }
+
+import scala.concurrent.Future
 
 object ScheduleSpec extends ZIOBaseSpec {
 
@@ -395,6 +398,15 @@ object ScheduleSpec extends ZIOBaseSpec {
       assertM(run(schedule >>> Schedule.elapsed)(List(true, false, false, false, false)))(
         equalTo(Chunk(0, 0, 1, 2, 3).map(_.seconds))
       )
+    },
+    testM("Schedule.fixed should compute delays correctly") {
+      def offsetDateTime(millis: Long) =
+        OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.of("GMT"))
+
+      val inputs            = List(offsetDateTime(0), offsetDateTime(6500)).zip(List((), ()))
+      val scheduleIntervals = runManually(Schedule.fixed(5.seconds), inputs).map(_._1.map(_._1))
+
+      assertM(scheduleIntervals)(equalTo(List(offsetDateTime(5000), offsetDateTime(10000))))
     }
   )
 
@@ -435,6 +447,29 @@ object ScheduleSpec extends ZIOBaseSpec {
       _      <- TestClock.setTime(Duration.Infinity)
       result <- fiber.join
     } yield result
+
+  def runManually[Env, In, Out](
+    schedule: Schedule[Env, In, Out],
+    inputs: List[(OffsetDateTime, In)]
+  ): ZIO[Env, Nothing, (List[(OffsetDateTime, Out)], Option[Out])] = {
+
+    def loop(
+      step: Schedule.StepFunction[Env, In, Out],
+      inputs: List[(OffsetDateTime, In)],
+      acc: List[(OffsetDateTime, Out)]
+    ): ZIO[Env, Nothing, (List[(OffsetDateTime, Out)], Option[Out])] =
+      inputs match {
+        case Nil => UIO.succeed(acc.reverse -> None)
+        case (odt, in) :: rest =>
+          step(odt, in) flatMap {
+            case Schedule.Decision.Done(out) => UIO.succeed(acc.reverse -> Some(out))
+            case Schedule.Decision.Continue(out, interval, step) =>
+              loop(step, rest, (interval -> out) :: acc)
+          }
+      }
+
+    loop(schedule.step, inputs, Nil)
+  }
 
   def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Any with Clock, Nothing, TestResult] =
     assertM(repeat(schedule))(equalTo(expected))
