@@ -578,9 +578,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     filterOrElse_[R, E1, A](p)(ZIO.fail(e))
 
   /**
-   * Returns an effect that races this effect with all the specified effects,
-   * yielding the value of the first effect to succeed with a value.
-   * Losers of the race will be interrupted immediately
+   * Returns an effect that runs this effect and in case of failure,
+   * runs each of the specified effects in order until one of them succeeds.
    */
   final def firstSuccessOf[R1 <: R, E1 >: E, A1 >: A](rest: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] =
     ZIO.firstSuccessOf(self, rest)
@@ -2695,9 +2694,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     fromFunction(_._1)
 
   /**
-   * Returns an effect that races this effect with all the specified effects,
-   * yielding the value of the first effect to succeed with a value.
-   * Losers of the race will be interrupted immediately
+   * Returns an effect that runs the first effect and in case of failure,
+   * runs each of the specified effects in order until one of them succeeds.
    */
   def firstSuccessOf[R, R1 <: R, E, A](
     zio: ZIO[R, E, A],
