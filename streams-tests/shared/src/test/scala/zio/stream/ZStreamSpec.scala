@@ -2409,6 +2409,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(ints)(equalTo(Chunk(1)))
           )
         ),
+        testM("takeRight") {
+          checkM(pureStreamOfInts, Gen.int(1, 4)) { (s, n) =>
+            for {
+              streamTake <- s.takeRight(n).runCollect
+              chunkTake  <- s.runCollect.map(_.takeRight(n))
+            } yield assert(streamTake)(equalTo(chunkTake))
+          }
+        },
         testM("takeUntil") {
           checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
             for {
