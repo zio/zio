@@ -1267,9 +1267,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * takes to produce a value.
    */
   final def fixed(duration: Duration): ZStream[R with Clock, E, O] =
-    repeatElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
-      case Right(x) => x
-    }
+    schedule(Schedule.fixed(duration))
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
