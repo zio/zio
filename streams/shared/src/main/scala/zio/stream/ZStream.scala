@@ -3434,7 +3434,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       .fromEffect(Task(iterator.grouped(chunkSize)) <*> ZIO.runtime[Any])
       .flatMap {
         case (it, rt) =>
-          ZStream.repeatEffectOption {
+          ZStream.repeatEffectChunkOption {
             Task {
               val hasNext: Boolean =
                 try it.hasNext
@@ -3444,7 +3444,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                 }
 
               if (hasNext) {
-                try it.next()
+                try Chunk.fromIterable(it.next())
                 catch {
                   case e: Throwable if !rt.platform.fatal(e) =>
                     throw e
@@ -3456,7 +3456,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
             }
           }
       }
-      .mapConcat(identity)
   }
 
   /**
