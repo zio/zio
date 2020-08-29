@@ -245,8 +245,8 @@ private[zio] final class FiberContext[E, A](
             exit match {
               case success: Exit.Success[Exit[EL, A]] =>
                 complete(
-                  left.mapM(IO.done(_).untraced),
-                  right.mapM(IO.done(_).untraced),
+                  left.mapM(IO.done(_)),
+                  right.mapM(IO.done(_)),
                   race.leftWins,
                   success.value,
                   raceIndicator,
@@ -254,8 +254,8 @@ private[zio] final class FiberContext[E, A](
                 )
               case failure: Exit.Failure[_] =>
                 complete(
-                  left.mapM(IO.done(_).untraced),
-                  right.mapM(IO.done(_).untraced),
+                  left.mapM(IO.done(_)),
+                  right.mapM(IO.done(_)),
                   race.leftWins,
                   failure,
                   raceIndicator,
@@ -266,8 +266,8 @@ private[zio] final class FiberContext[E, A](
 
           if (leftRegister ne null)
             complete(
-              left.mapM(IO.done(_).untraced),
-              right.mapM(IO.done(_).untraced),
+              left.mapM(IO.done(_)),
+              right.mapM(IO.done(_)),
               race.leftWins,
               leftRegister.flatten,
               raceIndicator,
@@ -279,8 +279,8 @@ private[zio] final class FiberContext[E, A](
               exit match {
                 case success: Exit.Success[Exit[_, _]] =>
                   complete(
-                    right.mapM(IO.done(_).untraced),
-                    left.mapM(IO.done(_).untraced),
+                    right.mapM(IO.done(_)),
+                    left.mapM(IO.done(_)),
                     race.rightWins,
                     success.value,
                     raceIndicator,
@@ -288,8 +288,8 @@ private[zio] final class FiberContext[E, A](
                   )
                 case exit: Exit.Failure[_] =>
                   complete(
-                    right.mapM(IO.done(_).untraced),
-                    left.mapM(IO.done(_).untraced),
+                    right.mapM(IO.done(_)),
+                    left.mapM(IO.done(_)),
                     race.rightWins,
                     exit,
                     raceIndicator,
@@ -300,8 +300,8 @@ private[zio] final class FiberContext[E, A](
 
             if (rightRegister ne null)
               complete(
-                right.mapM(IO.done(_).untraced),
-                left.mapM(IO.done(_).untraced),
+                right.mapM(IO.done(_)),
+                left.mapM(IO.done(_)),
                 race.rightWins,
                 rightRegister.flatten,
                 raceIndicator,
