@@ -117,7 +117,7 @@ private[internal] trait PlatformSpecific {
    * Makes a new default platform. This is a side-effecting method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
-    fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))
+    fromExecutor(Executor.makeDefault(yieldOpCount))
 
   final def newWeakSet[A](): JSet[A] = new HashSet[A]()
 
