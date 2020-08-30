@@ -3449,6 +3449,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[Any, Throwable, A] = {
     object StreamEnd extends Throwable
+
     ZStream.fromEffect(Task(iterator.grouped(chunkSize)) <*> ZIO.runtime[Any]).flatMap {
       case (it, rt) =>
         ZStream.repeatEffectChunkOption {
