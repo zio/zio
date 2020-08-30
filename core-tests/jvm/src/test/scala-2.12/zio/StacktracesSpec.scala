@@ -307,6 +307,19 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield {
         assert(value)(equalTo("Controlling side-effect"))
       }
+    },
+    testM("side effect unit in option test") {
+      for {
+        value <- ZIO.fromOptionOrFailUnit(None).catchAll { unit =>
+                   if (unit.isInstanceOf[Unit]) {
+                     ZIO.succeed("Controlling unit side-effect")
+                   } else {
+                     ZIO.fail("wrong side-effect type ")
+                   }
+                 }
+      } yield {
+        assert(value)(equalTo("Controlling unit side-effect"))
+      }
     }
   )
 
