@@ -230,7 +230,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                           .makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
         sdriver   <- schedule.driver.toManaged_
         lastChunk <- ZRef.makeManaged[Chunk[P]](Chunk.empty)
-        producer   = Take.fromPull(pull).repeatWhileM(take => handoff.offer(take).as(!take.isDone))
+        producer   = Take.fromPull(pull).repeatWhileM(take => handoff.offer(take).as(take.isSuccess))
         consumer = {
           // Advances the state of the schedule, which may or may not terminate
           val updateSchedule: URIO[R1 with Clock, Option[Q]] =
