@@ -3109,10 +3109,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     effectTotal(v).flatMap(_.fold[IO[Option[Nothing], A]](fail(None))(succeedNow))
 
   def fromOptionValue[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap {
-      case Some(value) => succeedNow(value)
-      case None => fail(())
-    }
+    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
 
 
   /**
