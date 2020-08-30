@@ -620,4 +620,5 @@ object StackTracesSpec extends DefaultRunnableSpec {
         _ => assert(false)(isTrue)
       )
   }
+
 }
