@@ -524,6 +524,11 @@ object IO {
   def fromOption[A](v: => Option[A]): IO[Option[Nothing], A] = ZIO.fromOption(v)
 
   /**
+   * @see See [[zio.ZIO.fromOptionValue]]
+   */
+  def fromOptionValue[A](v: => Option[A]): IO[Unit, A] = ZIO.fromOptionValue(v)
+
+  /**
    * @see See [[zio.ZIO.fromTry]]
    */
   def fromTry[A](value: => scala.util.Try[A]): Task[A] =
