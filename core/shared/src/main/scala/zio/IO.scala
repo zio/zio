@@ -528,7 +528,6 @@ object IO {
    */
   def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] = ZIO.getOrFailUnit(v)
 
-
   /**
    * @see See [[zio.ZIO.fromTry]]
    */
