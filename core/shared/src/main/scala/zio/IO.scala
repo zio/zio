@@ -524,9 +524,9 @@ object IO {
   def fromOption[A](v: => Option[A]): IO[Option[Nothing], A] = ZIO.fromOption(v)
 
   /**
-   * @see See [[zio.ZIO.fromOptionOrFailUnit]]
+   * @see See [[zio.ZIO.getOrFailUnit]]
    */
-  def fromOptionOrFailUnit[A](v: => Option[A]): IO[Unit, A] = ZIO.fromOptionOrFailUnit(v)
+  def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] = ZIO.getOrFailUnit(v)
 
   /**
    * @see See [[zio.ZIO.fromTry]]

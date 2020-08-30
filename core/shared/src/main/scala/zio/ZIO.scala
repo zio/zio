@@ -3104,9 +3104,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def fromOption[A](v: => Option[A]): IO[Option[Nothing], A] =
     effectTotal(v).flatMap(_.fold[IO[Option[Nothing], A]](fail(None))(succeedNow))
 
-  def fromOptionOrFailUnit[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
-
   /**
    * Lifts a `Try` into a `ZIO`.
    */
@@ -3144,6 +3141,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       case None    => Task.fail(new NoSuchElementException("None.get"))
       case Some(v) => ZIO.succeedNow(v)
     })
+
+    /**
+   * Lifts an Option into a IO, if the option is not defined it fails with Unit.
+   */
+  final def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] =
+    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
