@@ -303,9 +303,9 @@ object StackTracesSpec extends DefaultRunnableSpec {
     },
     testM("side effect option test") {
       for {
-        value <- ZIO.fromOptionValue(None).catchAll(_ => ZIO.succeed("bla"))
+        value <- ZIO.fromOptionValue(None).catchAll(_ => ZIO.succeed("Controlling side-effect"))
       } yield {
-        assert(value)(equalTo("bla"))
+        assert(value)(equalTo("Controlling side-effect"))
       }
     }
   )
