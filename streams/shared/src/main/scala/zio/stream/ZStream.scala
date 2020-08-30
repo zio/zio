@@ -3457,7 +3457,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                 case e: Throwable if !rt.platform.fatal(e) =>
                   throw e
               }
-
             if (hasNext) {
               try it.next()
               catch {
