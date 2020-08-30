@@ -1276,10 +1276,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     ZIO.descriptorWith { descriptor =>
       val parentFiberId = descriptor.id
-
       def maybeDisconnect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
         ZIO.uninterruptibleMask(interruptible => interruptible.force(zio))
-
       (maybeDisconnect(self) raceWith maybeDisconnect(that))(
         (exit, right) =>
           exit.foldM[Any, E1, A1](
@@ -2786,7 +2784,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       def loop: ZIO[R, E, Unit] =
         if (i.hasNext) f(i.next) *> loop
         else ZIO.unit
-
       loop
     }
 
@@ -3082,7 +3079,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           else {
             val _ = latch.success(())
           }
-
         def reportFailure(cause: Throwable): Unit =
           ec.reportFailure(cause)
       }
@@ -3958,7 +3954,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[R1 <: R](release: URIO[R1, Any]): BracketRelease_[R1, E] =
       new BracketRelease_(acquire, release)
   }
-
   final class BracketRelease_[-R, +E](acquire: ZIO[R, E, Any], release: URIO[R, Any]) {
     def apply[R1 <: R, E1 >: E, B](use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.bracket(acquire, (_: Any) => release, (_: Any) => use)
@@ -3968,7 +3963,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[R1](release: A => URIO[R1, Any]): BracketRelease[R with R1, E, A] =
       new BracketRelease[R with R1, E, A](acquire, release)
   }
-
   final class BracketRelease[-R, +E, +A](acquire: ZIO[R, E, A], release: A => URIO[R, Any]) {
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.bracket(acquire, release, use)
@@ -3980,7 +3974,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ): BracketExitRelease[R1, E, E1, A, B] =
       new BracketExitRelease(acquire, release)
   }
-
   final class BracketExitRelease[-R, +E, E1, +A, B](
     acquire: ZIO[R, E, A],
     release: (A, Exit[E1, B]) => URIO[R, Any]
@@ -4138,7 +4131,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val GetForkScope             = 26
     final val OverrideForkScope        = 27
   }
-
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
     override def tag = Tags.FlatMap
