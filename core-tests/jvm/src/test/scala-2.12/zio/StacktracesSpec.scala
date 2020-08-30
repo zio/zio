@@ -296,14 +296,14 @@ object StackTracesSpec extends DefaultRunnableSpec {
     },
     testM("basic option test") {
       for {
-        value <- ZIO.fromOptionValue(Some("foo"))
+        value <- ZIO.fromOptionOrFailUnit(Some("foo"))
       } yield {
         assert(value)(equalTo("foo"))
       }
     },
     testM("side effect option test") {
       for {
-        value <- ZIO.fromOptionValue(None).catchAll(_ => ZIO.succeed("Controlling side-effect"))
+        value <- ZIO.fromOptionOrFailUnit(None).catchAll(_ => ZIO.succeed("Controlling side-effect"))
       } yield {
         assert(value)(equalTo("Controlling side-effect"))
       }
