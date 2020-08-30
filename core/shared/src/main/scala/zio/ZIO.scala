@@ -3142,7 +3142,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       case Some(v) => ZIO.succeedNow(v)
     })
 
-    /**
+  /**
    * Lifts an Option into a IO, if the option is not defined it fails with Unit.
    */
   final def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] =
