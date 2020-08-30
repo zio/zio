@@ -1537,7 +1537,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                   fiber <- ZStream
                              .fromQueue(c.queue)
                              .collectWhileSuccess
-                             .haltAfter(5.seconds)
+                             .haltAfter(4.seconds)
                              .tap(_ => c.proceed)
                              .runCollect
                              .fork
