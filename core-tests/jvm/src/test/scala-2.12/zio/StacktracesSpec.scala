@@ -301,13 +301,6 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(value)(equalTo("foo"))
       }
     },
-    testM("side effect option test") {
-      for {
-        value <- ZIO.getOrFailUnit(None).catchAll(_ => ZIO.succeed("Controlling side-effect"))
-      } yield {
-        assert(value)(equalTo("Controlling side-effect"))
-      }
-    },
     testM("side effect unit in option test") {
       for {
         value <- ZIO.getOrFailUnit(None).catchAll { unit =>
