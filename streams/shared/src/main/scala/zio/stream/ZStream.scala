@@ -2521,6 +2521,26 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       }
 
   /**
+   * Takes the last specified number of elements from this stream.
+   */
+  def takeRight(n: Int): ZStream[R, E, O] =
+    if (n <= 0) ZStream.empty
+    else
+      ZStream {
+        for {
+          pull  <- self.process.mapM(BufferedPull.make(_))
+          queue <- ZQueue.sliding[O](n).toManaged_
+          done  <- Ref.makeManaged(false)
+        } yield done.get.flatMap {
+          if (_) Pull.end
+          else
+            pull.pullElement.tap(queue.offer).as(Chunk.empty).catchSome {
+              case None => done.set(true) *> queue.takeAll.map(Chunk.fromIterable(_))
+            }
+        }
+      }
+
+  /**
    * Takes all elements of the stream until the specified predicate evaluates
    * to `true`.
    */
