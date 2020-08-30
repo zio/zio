@@ -21,6 +21,7 @@ import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
+
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
@@ -48,8 +49,7 @@ import zio.{ TracingStatus => TracingS }
  * To run an effect, you need a `Runtime`, which is capable of executing effects.
  * Runtimes bundle a thread pool together with the environment that effects need.
  */
-sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] {
-  self =>
+sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
 
   /**
    * Sequentially zips this effect with the specified effect, combining the
@@ -624,7 +624,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldM(ZIO.succeedNow, ZIO.fail(_))
 
   /**
-   * Swaps the error/value parameters, applies the function `f` and flips the parameters back
+   *  Swaps the error/value parameters, applies the function `f` and flips the parameters back
    */
   final def flipWith[R1, A1, E1](f: ZIO[R, A, E] => ZIO[R1, A1, E1]): ZIO[R1, E1, A1] = f(self.flip).flip
 
@@ -3222,7 +3222,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     else ZIO.succeedNow(initial)
 
   /**
-   * Returns an effect with the value on the left part.
+   *  Returns an effect with the value on the left part.
    */
   def left[A](a: => A): UIO[Either[A, Nothing]] =
     succeed(Left(a))
@@ -3581,7 +3581,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZManaged.makeReserve(reservation).use(use)
 
   /**
-   * Returns an effect with the value on the right part.
+   *  Returns an effect with the value on the right part.
    */
   def right[B](b: => B): UIO[Either[Nothing, B]] =
     succeed(Right(b))
@@ -3643,7 +3643,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     clock.sleep(duration)
 
   /**
-   * Returns an effect with the optional value.
+   *  Returns an effect with the optional value.
    */
   def some[A](a: => A): UIO[Option[A]] =
     succeed(Some(a))
@@ -3899,9 +3899,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      * If the condition is not satisfied, it fails with NoSuchElementException
      * this provide the syntax sugar in for-comprehension:
      * for {
-     * (i, j) <- io1
-     * positive <- io2 if positive > 0
-     * } yield ()
+     *   (i, j) <- io1
+     *   positive <- io2 if positive > 0
+     *  } yield ()
      */
     def withFilter(predicate: A => Boolean)(implicit ev: CanFilter[E]): ZIO[R, E, A] =
       self.flatMap { a =>
@@ -4186,8 +4186,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.CheckInterrupt
   }
 
-  private[zio] final class Fail[E, A](val fill: (() => ZTrace) => Cause[E]) extends IO[E, A] {
-    self =>
+  private[zio] final class Fail[E, A](val fill: (() => ZTrace) => Cause[E]) extends IO[E, A] { self =>
     override def tag = Tags.Fail
 
     override def map[B](f: A => B): IO[E, B] =
