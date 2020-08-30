@@ -3458,7 +3458,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               catch {
                 case e: Throwable if !rt.platform.fatal(e) => throw e
               }
-
             if (hasNext) {
               try Chunk.fromIterable(it.next())
               catch {
