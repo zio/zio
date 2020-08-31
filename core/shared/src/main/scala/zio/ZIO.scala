@@ -3045,6 +3045,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
             UIO.effectSuspendTotal(if (f.isCompleted) ZIO.unit else ZIO.fromFuture(_ => cancelable.cancel()).ignore)
           case _ => ZIO.unit
         }
+
         f.value
           .fold(
             Task.effectAsyncInterrupt { (k: Task[A] => Unit) =>
@@ -3055,7 +3056,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
               Left(canceler)
             }
-          )(f => Task.fromTry(f))
+          )(Task.fromTry(_))
       }
     }
 
