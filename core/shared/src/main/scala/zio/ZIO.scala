@@ -20,8 +20,7 @@ import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.{ Failure, Success }
-
+import scala.util.{ Failure, Success, Try }
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
@@ -3058,6 +3057,24 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           )(Task.fromTry(_))
       }
     }
+
+  /**
+   * Imports a [[scala.concurrent.Promise[A]] an input value of B and a function to apply in [complete] function of promise.
+   * We complete the promise in another thread avoiding blocking the function execution, and in the main thread
+   * we generate a future from promise, and we pass to [fromFuture] to transform into ZIO[Any, Throwable, A]
+   * With this operator we allow use Scala promise to have a lazy evaluation of the logic that it will be executed
+   * in another thread only when the whole program is evaluated.
+   */
+  def fromPromise[A, B](promise: scala.concurrent.Promise[A], input: B, func: B => A): ZIO[Any, Throwable, A] =
+    for {
+      _ <- ZIO.effect {
+             Try(func(input)) match {
+               case Success(value)     => promise.success(value)
+               case Failure(exception) => promise.failure(exception)
+             }
+           }.fork
+      value <- ZIO.fromFuture(_ => promise.future)
+    } yield value
 
   /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an

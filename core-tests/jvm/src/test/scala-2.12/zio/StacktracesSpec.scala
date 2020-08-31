@@ -3,9 +3,9 @@ package zio
 import zio.blocking.Blocking
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
-import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
+import zio.internal.stacktracer.ZTraceElement.{NoLocation, SourceLocation}
 import zio.test.Assertion._
-import zio.test._
+import zio.test.{testM, _}
 import zio.test.environment.TestClock
 
 object StackTracesSpec extends DefaultRunnableSpec {
@@ -312,6 +312,31 @@ object StackTracesSpec extends DefaultRunnableSpec {
                  }
       } yield {
         assert(value)(equalTo("Controlling unit side-effect"))
+      }
+    },
+    testM("promise test") {
+      val func: String => String = s => s.toUpperCase
+      for {
+        value <- ZIO.fromPromise(scala.concurrent.Promise[String](), "hello world from future", func)
+      } yield {
+        assert(value)(equalTo("HELLO WORLD FROM FUTURE"))
+      }
+    },
+    testM("promise supplier test") {
+      val func: Unit => String = _ => "hello again from future"
+      for {
+        value <- ZIO.fromPromise(scala.concurrent.Promise[String](), (), func)
+      } yield {
+        assert(value)(equalTo("hello again from future"))
+      }
+    },
+      testM("promise ugly path test") {
+      val func: String => String = s => s.toUpperCase
+      for {
+        value <- ZIO.fromPromise(scala.concurrent.Promise[String](), null, func)
+          .catchAll(_ => ZIO.succeed("Controlling side-effect of function passed to promise"))
+      } yield {
+        assert(value)(equalTo("Controlling side-effect of function passed to promise"))
       }
     }
   )
