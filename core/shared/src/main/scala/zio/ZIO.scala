@@ -3060,9 +3060,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Imports a [[scala.concurrent.Promise]] we generate a future from promise,
-   * and we pass to [fromFuture] to transform into ZIO[Any, Throwable, A]
+   * and we pass to [fromFuture] to transform into Task[A]
    */
-  def fromPromiseScala[A, B](promise: scala.concurrent.Promise[A]): ZIO[Any, Throwable, A] =
+  def fromPromiseScala[A](promise: scala.concurrent.Promise[A]): Task[A] =
     ZIO.fromFuture(_ => promise.future)
 
   /**
