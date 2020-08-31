@@ -8,6 +8,8 @@ import zio.test.Assertion._
 import zio.test.{ testM, _ }
 import zio.test.environment.TestClock
 
+import scala.util.{ Failure, Success, Try }
+
 object StackTracesSpec extends DefaultRunnableSpec {
   def spec = suite("StackTracesSpec")(
     testM("basic test") {
@@ -317,7 +319,14 @@ object StackTracesSpec extends DefaultRunnableSpec {
     testM("promise test") {
       val func: String => String = s => s.toUpperCase
       for {
-        value <- ZIO.fromPromise(scala.concurrent.Promise[String](), "hello world from future", func)
+        promise <- ZIO.succeed(scala.concurrent.Promise[String]())
+        _ <- ZIO.effect {
+               Try(func("hello world from future")) match {
+                 case Success(value)     => promise.success(value)
+                 case Failure(exception) => promise.failure(exception)
+               }
+             }.fork
+        value <- ZIO.fromPromiseScala(promise)
       } yield {
         assert(value)(equalTo("HELLO WORLD FROM FUTURE"))
       }
@@ -325,7 +334,14 @@ object StackTracesSpec extends DefaultRunnableSpec {
     testM("promise supplier test") {
       val func: Unit => String = _ => "hello again from future"
       for {
-        value <- ZIO.fromPromise(scala.concurrent.Promise[String](), (), func)
+        promise <- ZIO.succeed(scala.concurrent.Promise[String]())
+        _ <- ZIO.effect {
+               Try(func(())) match {
+                 case Success(value)     => promise.success(value)
+                 case Failure(exception) => promise.failure(exception)
+               }
+             }.fork
+        value <- ZIO.fromPromiseScala(promise)
       } yield {
         assert(value)(equalTo("hello again from future"))
       }
@@ -333,8 +349,15 @@ object StackTracesSpec extends DefaultRunnableSpec {
     testM("promise ugly path test") {
       val func: String => String = s => s.toUpperCase
       for {
+        promise <- ZIO.succeed(scala.concurrent.Promise[String]())
+        _ <- ZIO.effect {
+               Try(func(null)) match {
+                 case Success(value)     => promise.success(value)
+                 case Failure(exception) => promise.failure(exception)
+               }
+             }.fork
         value <- ZIO
-                   .fromPromise(scala.concurrent.Promise[String](), null, func)
+                   .fromPromiseScala(promise)
                    .catchAll(_ => ZIO.succeed("Controlling side-effect of function passed to promise"))
       } yield {
         assert(value)(equalTo("Controlling side-effect of function passed to promise"))
