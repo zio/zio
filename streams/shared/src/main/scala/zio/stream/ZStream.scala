@@ -3999,7 +3999,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         cursor.modify {
           case (chunk, idx) =>
             if (idx >= chunk.size) (update *> pullChunk, (Chunk.empty, 0))
-            else (update.as(chunk.drop(idx)), (Chunk.empty, 0))
+            else (UIO.succeedNow(chunk.drop(idx)), (Chunk.empty, 0))
         }.flatten
       }
 
