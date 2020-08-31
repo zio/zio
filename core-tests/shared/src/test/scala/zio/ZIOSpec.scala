@@ -3404,13 +3404,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("side effect unit in option test") {
         for {
-          value <- ZIO.getOrFailUnit(None).catchAll { unit =>
-                     if (unit.isInstanceOf[Unit]) {
-                       ZIO.succeed("Controlling unit side-effect")
-                     } else {
-                       ZIO.fail("wrong side-effect type ")
-                     }
-                   }
+          value <- ZIO.getOrFailUnit(None).catchAll(_ => ZIO.succeed("Controlling unit side-effect"))
         } yield {
           assert(value)(equalTo("Controlling unit side-effect"))
         }
