@@ -10,7 +10,7 @@ import zio.internal.Platform
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only }
-import zio.test.{ suite, _ }
+import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
 object ZIOSpec extends ZIOBaseSpec {
