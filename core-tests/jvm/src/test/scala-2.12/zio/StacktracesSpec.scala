@@ -3,9 +3,9 @@ package zio
 import zio.blocking.Blocking
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
-import zio.internal.stacktracer.ZTraceElement.{NoLocation, SourceLocation}
+import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
 import zio.test.Assertion._
-import zio.test.{testM, _}
+import zio.test.{ testM, _ }
 import zio.test.environment.TestClock
 
 object StackTracesSpec extends DefaultRunnableSpec {
@@ -330,11 +330,12 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(value)(equalTo("hello again from future"))
       }
     },
-      testM("promise ugly path test") {
+    testM("promise ugly path test") {
       val func: String => String = s => s.toUpperCase
       for {
-        value <- ZIO.fromPromise(scala.concurrent.Promise[String](), null, func)
-          .catchAll(_ => ZIO.succeed("Controlling side-effect of function passed to promise"))
+        value <- ZIO
+                   .fromPromise(scala.concurrent.Promise[String](), null, func)
+                   .catchAll(_ => ZIO.succeed("Controlling side-effect of function passed to promise"))
       } yield {
         assert(value)(equalTo("Controlling side-effect of function passed to promise"))
       }
