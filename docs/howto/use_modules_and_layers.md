@@ -77,9 +77,9 @@ Let's build a module for user data access, following these simple steps:
 ```scala mdoc:silent
 import zio.{ Has, ZLayer }
 
-object UserRepo {
+type UserRepo = Has[UserRepo.Service]
 
-  type UserRepo = Has[Service]
+object UserRepo {
 
   trait Service {
     def getUser(userId: UserId): IO[DBError, Option[User]]
@@ -148,7 +148,7 @@ Usually we don't create a `Has` directly, but we do that through `ZLayer`.
 In adherence with environmental concepts, the absence of a required input is represented by `RIn = Any`, conveniently  used in the type alias `Layer`.
 
 There are many ways to create a `ZLayer`, here's an incomplete list:
- - `ZLayer.succeed` or `ZIO.asService`  to create a layer from an existing service
+ - `ZLayer.succeed` or `ZIO#asService`  to create a layer from an existing service
  - `ZLayer.succeedMany` to create a layer from a value that's one or more services
  - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
  - `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
@@ -156,14 +156,14 @@ There are many ways to create a `ZLayer`, here's an incomplete list:
  - `ZLayer.fromService` to build a layer from a service
  - `ZLayer.fromServices` to build a layer from a number of required services
  - `ZLayer.identity` to express the requirement for a layer
- - `ZIO.toLayer` or `ZManaged.toLayer` to construct a layer from an effect
+ - `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
 
 Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `M`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
 
 We can compose `layerA` and `layerB`  _horizontally_ to build a layer that has the requirements of both layers, to provide the capabilities of both layers, through `layerA ++ layerB`
 
 We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first, and the output of the second layer: `layerA >>> layerB`.
-When doing this, we must feed all the inputs to make the code compile, but we can still define part of the input as the input of the final layer using `ZLayer.identity`. 
+When doing this, the first layer must output all the services required by the second layer, but we can defer creating some of these services and require them as part of the input of the final layer using `ZLayer.identity`.  
 
 ## Wiring modules together
 Here we define a module to cope with CRUD operations for the `User` domain object. We provide also an in memory implementation of the module
@@ -330,7 +330,7 @@ val layer: ZLayer[Any, Nothing, UserRepo] = connection >>> userRepo
 
 Notice that in `layer` the dependency of `UserRepo` on `Connection` has been "hidden" and is no longer expressed in the type signature. From the perspective of a caller, `layer` just outputs a `UserRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` is constructed.
 
-To hide only some inputs we need to explicitly define left overs
+To provide only some inputs we need to explicitly define what inputs still need to be provided:
 ```scala mdoc:silent
 trait Configuration
 
@@ -340,7 +340,7 @@ val partialLayer: ZLayer[Has[Configuration], Nothing, UserRepo] =
   (ZLayer.identity[Has[Configuration]] ++ connection) >>> userRepoWithConfig
 ``` 
 
-In this example the dependency on `Connection` remains hidden, but `Configuration` is still required by `partialLayer`.
+In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialLayer`.
 
 This achieves an encapsulation of services and can make it easier to refactor code. For example, say we want to refactor our application to use an in memory database:
 
