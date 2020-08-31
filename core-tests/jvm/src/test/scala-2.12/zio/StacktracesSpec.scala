@@ -293,26 +293,6 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
         assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")))(isTrue)
       }
-    },
-    testM("basic option test") {
-      for {
-        value <- ZIO.getOrFailUnit(Some("foo"))
-      } yield {
-        assert(value)(equalTo("foo"))
-      }
-    },
-    testM("side effect unit in option test") {
-      for {
-        value <- ZIO.getOrFailUnit(None).catchAll { unit =>
-                   if (unit.isInstanceOf[Unit]) {
-                     ZIO.succeed("Controlling unit side-effect")
-                   } else {
-                     ZIO.fail("wrong side-effect type ")
-                   }
-                 }
-      } yield {
-        assert(value)(equalTo("Controlling unit side-effect"))
-      }
     }
   )
 
