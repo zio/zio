@@ -1,7 +1,8 @@
 package zio
 
-import scala.concurrent.ExecutionContext
+import java.util.concurrent.CompletableFuture
 
+import scala.concurrent.ExecutionContext
 import zio.internal.{ Executor, Platform }
 
 object Task extends TaskPlatformSpecific {
@@ -517,6 +518,12 @@ object Task extends TaskPlatformSpecific {
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     ZIO.fromFuture(make)
+
+  /**
+   * @see See [[zio.ZIO.fromCompletableFuture]]
+   */
+  def fromCompletableFuture[A](completableFuture: => CompletableFuture[A]): Task[A] =
+    ZIO.fromCompletableFuture(completableFuture)
 
   /**
    * @see See [[zio.ZIO.fromTry]]

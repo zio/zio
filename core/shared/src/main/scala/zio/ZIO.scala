@@ -16,9 +16,11 @@
 
 package zio
 
+import java.util.concurrent.CompletableFuture
+
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ ExecutionContext }
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
 import zio.clock.Clock
@@ -3043,7 +3045,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
             UIO.effectSuspendTotal(if (f.isCompleted) ZIO.unit else ZIO.fromFuture(_ => cancelable.cancel()).ignore)
           case _ => ZIO.unit
         }
-
         f.value
           .fold(
             Task.effectAsyncInterrupt { (k: Task[A] => Unit) =>
@@ -3054,7 +3055,24 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
               Left(canceler)
             }
-          )(Task.fromTry(_))
+          )(f => Task.fromTry(f))
+      }
+    }
+
+  /**
+   * Imports a [[java.util.concurrent.CompletableFuture]] into a `ZIO`.
+   */
+  def fromCompletableFuture[A](completableFuture: => CompletableFuture[A]): Task[A] =
+    ZIO.effect(completableFuture).flatMap { cf =>
+      Task.effectAsyncInterrupt { (k: Task[A] => Unit) =>
+        cf.whenComplete { (a, t) =>
+          if (t != null) {
+            k(Task.fail(t))
+          } else {
+            k(Task.succeedNow(a))
+          }
+        }
+        Left(ZIO.unit)
       }
     }
 

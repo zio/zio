@@ -1,5 +1,7 @@
 package zio
 
+import java.util.concurrent.CompletableFuture
+
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success, Try }
 import zio.Cause._
@@ -3456,6 +3458,43 @@ object ZIOSpec extends ZIOBaseSpec {
                      .catchAll(_ => ZIO.succeed("Controlling side-effect of function passed to promise"))
         } yield {
           assert(value)(equalTo("Controlling side-effect of function passed to promise"))
+        }
+      }
+    ),
+    suite("completable future")(
+      testM("happy path completable future") {
+        for {
+          completableFuture <- ZIO.effect(CompletableFuture.supplyAsync(() => "Transform CompletableFuture into ZIO"))
+          value             <- ZIO.fromCompletableFuture(completableFuture)
+        } yield {
+          assert(value)(equalTo("Transform CompletableFuture into ZIO"))
+        }
+      },
+      testM("ugly path completable future failure") {
+        for {
+          completableFuture <- ZIO.effect(CompletableFuture.supplyAsync { () =>
+                                 throw new IllegalArgumentException()
+                                 "this is gonna fail"
+                               })
+          value <- ZIO
+                     .fromCompletableFuture(completableFuture)
+                     .catchAll(_ => ZIO.succeed("Controlling side-effect of CompletableFuture"))
+        } yield {
+          assert(value)(equalTo("Controlling side-effect of CompletableFuture"))
+        }
+      },
+      testM("ugly path completable future canceled") {
+        for {
+          completableFuture <- ZIO.effect(CompletableFuture.supplyAsync { () =>
+                                 Thread.sleep(5000)
+                                 "Transform CompletableFuture into ZIO"
+                               })
+          _ <- ZIO.effect(completableFuture.cancel(true))
+          value <- ZIO
+                     .fromCompletableFuture(completableFuture)
+                     .catchAll(_ => ZIO.succeed("Controlling side-effect of CompletableFuture"))
+        } yield {
+          assert(value)(equalTo("Controlling side-effect of CompletableFuture"))
         }
       }
     )
