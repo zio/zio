@@ -1,8 +1,7 @@
 package zio
 
 import scala.annotation.tailrec
-import scala.util.{ Failure, Success }
-
+import scala.util.{ Failure, Success, Try }
 import zio.Cause._
 import zio.LatchOps._
 import zio.clock.Clock
@@ -3393,6 +3392,71 @@ object ZIOSpec extends ZIOBaseSpec {
         val error: Exception   = new Exception("msg")
         val effect: Task[Unit] = ZIO.fail(error).unit.orDie.resurrect
         assertM(effect.either)(isLeft(equalTo(error)))
+      }
+    ),
+    suite("options")(
+      testM("basic option test") {
+        for {
+          value <- ZIO.getOrFailUnit(Some("foo"))
+        } yield {
+          assert(value)(equalTo("foo"))
+        }
+      },
+      testM("side effect unit in option test") {
+        for {
+          value <- ZIO.getOrFailUnit(None).catchAll(_ => ZIO.succeed("Controlling unit side-effect"))
+        } yield {
+          assert(value)(equalTo("Controlling unit side-effect"))
+        }
+      }
+    ),
+    suite("promises")(
+      testM("promise test") {
+        val func: String => String = s => s.toUpperCase
+        for {
+          promise <- ZIO.succeed(scala.concurrent.Promise[String]())
+          _ <- ZIO.effect {
+                 Try(func("hello world from future")) match {
+                   case Success(value)     => promise.success(value)
+                   case Failure(exception) => promise.failure(exception)
+                 }
+               }.fork
+          value <- ZIO.fromPromiseScala(promise)
+        } yield {
+          assert(value)(equalTo("HELLO WORLD FROM FUTURE"))
+        }
+      },
+      testM("promise supplier test") {
+        val func: Unit => String = _ => "hello again from future"
+        for {
+          promise <- ZIO.succeed(scala.concurrent.Promise[String]())
+          _ <- ZIO.effect {
+                 Try(func(())) match {
+                   case Success(value)     => promise.success(value)
+                   case Failure(exception) => promise.failure(exception)
+                 }
+               }.fork
+          value <- ZIO.fromPromiseScala(promise)
+        } yield {
+          assert(value)(equalTo("hello again from future"))
+        }
+      },
+      testM("promise ugly path test") {
+        val func: String => String = s => s.toUpperCase
+        for {
+          promise <- ZIO.succeed(scala.concurrent.Promise[String]())
+          _ <- ZIO.effect {
+                 Try(func(null)) match {
+                   case Success(value)     => promise.success(value)
+                   case Failure(exception) => promise.failure(exception)
+                 }
+               }.fork
+          value <- ZIO
+                     .fromPromiseScala(promise)
+                     .catchAll(_ => ZIO.succeed("Controlling side-effect of function passed to promise"))
+        } yield {
+          assert(value)(equalTo("Controlling side-effect of function passed to promise"))
+        }
       }
     )
   )

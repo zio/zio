@@ -21,7 +21,6 @@ import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
-
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
@@ -3058,6 +3057,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           )(Task.fromTry(_))
       }
     }
+
+  /**
+   * Imports a [[scala.concurrent.Promise]] we generate a future from promise,
+   * and we pass to [fromFuture] to transform into Task[A]
+   */
+  def fromPromiseScala[A](promise: scala.concurrent.Promise[A]): Task[A] =
+    ZIO.fromFuture(_ => promise.future)
 
   /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an

@@ -1843,7 +1843,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           s <- state.get
           t <- f(s, o)
           _ <- state.set(t._1)
-        } yield Chunk.single(t._2)).mapError(Some(_))
+        } yield Chunk.single(t._2)).asSomeError
       }
     }
 
@@ -2443,6 +2443,47 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Equivalent to `run(Sink.sum[A])`
    */
   final def runSum[O1 >: O](implicit ev: Numeric[O1]): ZIO[R, E, O1] = run(ZSink.sum[O1])
+
+  /**
+   * Statefully maps over the elements of this stream to produce all intermediate results
+   * of type `S` given an initial S.
+   */
+  def scan[S](s: S)(f: (S, O) => S): ZStream[R, E, S] =
+    scanM(s)((s, a) => ZIO.succeedNow(f(s, a)))
+
+  /**
+   * Statefully and effectfully maps over the elements of this stream to produce all
+   * intermediate results of type `S` given an initial S.
+   */
+  def scanM[R1 <: R, E1 >: E, S](s: S)(f: (S, O) => ZIO[R1, E1, S]): ZStream[R1, E1, S] =
+    ZStream(s) ++ mapAccumM[R1, E1, S, S](s)((s, a) => f(s, a).map(s => (s, s)))
+
+  /**
+   * Statefully maps over the elements of this stream to produce all intermediate results.
+   *
+   * See also [[ZStream#scan]].
+   */
+  def scanReduce[O1 >: O](f: (O1, O) => O1): ZStream[R, E, O1] =
+    scanReduceM[R, E, O1]((curr, next) => ZIO.succeedNow(f(curr, next)))
+
+  /**
+   * Statefully and effectfully maps over the elements of this stream to produce all
+   * intermediate results.
+   *
+   * See also [[ZStream#scanM]].
+   */
+  def scanReduceM[R1 <: R, E1 >: E, O1 >: O](f: (O1, O) => ZIO[R1, E1, O1]): ZStream[R1, E1, O1] =
+    ZStream[R1, E1, O1] {
+      for {
+        state <- Ref.makeManaged[Option[O1]](None)
+        pull  <- self.process.mapM(BufferedPull.make(_))
+      } yield pull.pullElement.flatMap { curr =>
+        state.get.flatMap {
+          case Some(s) => f(s, curr).tap(o => state.set(Some(o))).map(Chunk.single).asSomeError
+          case None    => state.set(Some(curr)).as(Chunk.single(curr))
+        }
+      }
+    }
 
   /**
    * Schedules the output of the stream using the provided `schedule`.
@@ -3999,7 +4040,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         cursor.modify {
           case (chunk, idx) =>
             if (idx >= chunk.size) (update *> pullChunk, (Chunk.empty, 0))
-            else (update.as(chunk.drop(idx)), (Chunk.empty, 0))
+            else (UIO.succeedNow(chunk.drop(idx)), (Chunk.empty, 0))
         }.flatten
       }
 
