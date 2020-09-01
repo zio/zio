@@ -3453,8 +3453,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       case (it, rt) =>
         ZStream.repeatEffectChunkOption {
           Task {
-            val hasNext: Boolean =
-              try it.hasNext
+            val hasNext: Boolean = try it.hasNext
               catch {
                 case e: Throwable if !rt.platform.fatal(e) => throw e
               }
