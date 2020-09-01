@@ -195,7 +195,8 @@ trait Runtime[+R] {
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap(),
       supervisor,
-      scope
+      scope,
+      platform.reportFailure
     )
 
     if (supervisor ne Supervisor.none) {
