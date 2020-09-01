@@ -235,8 +235,8 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], race.scope, Some(_ => ()))
-    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], race.scope, Some(_ => ()))
+    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], race.scope, noop)
+    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], race.scope, noop)
 
     ZIO
       .effectAsync[R, E, C](
@@ -1085,4 +1085,7 @@ private[zio] object FiberContext {
   }
 
   type FiberRefLocals = java.util.Map[FiberRef[Any], Any]
+
+  private val noop: Option[Any => Unit] =
+    Some(_ => ())
 }
