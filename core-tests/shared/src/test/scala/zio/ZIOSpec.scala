@@ -2870,6 +2870,18 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield value
 
         assertM(Live.live(io))(isTrue)
+      },
+      testM("closing scope is uninterruptible") {
+        for {
+          ref     <- Ref.make(false)
+          promise <- Promise.make[Nothing, Unit]
+          child    = promise.succeed(()) *> Live.live(ZIO.sleep(10.milliseconds)) *> ref.set(true)
+          parent   = child.uninterruptible.fork *> promise.await
+          fiber   <- parent.fork
+          _       <- promise.await
+          _       <- fiber.interrupt
+          value   <- ref.get
+        } yield assert(value)(isTrue)
       }
     ) @@ zioTag(interruption),
     suite("RTS environment")(
