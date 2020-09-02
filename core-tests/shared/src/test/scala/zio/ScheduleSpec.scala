@@ -306,17 +306,17 @@ object ScheduleSpec extends ZIOBaseSpec {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
           in._1.map(t => t._1.withNano(0))
 
-        val originOffset = OffsetDateTime.now().withHour(0).withSecond(0).withNano(0)
-        val beforeTime = originOffset.withMinute(0)
-        val afterTime = originOffset.withMinute(3)
-        val inTimeMinute = originOffset.withMinute(1)
+        val originOffset       = OffsetDateTime.now().withHour(0).withSecond(0).withNano(0)
+        val beforeTime         = originOffset.withMinute(0)
+        val afterTime          = originOffset.withMinute(3)
+        val inTimeMinute       = originOffset.withMinute(1)
         val inTimeMinuteSecond = originOffset.withMinute(1).withSecond(3)
 
-        val input = List(beforeTime, afterTime, inTimeMinute ,inTimeMinuteSecond).map((_,()))
+        val input = List(beforeTime, afterTime, inTimeMinute, inTimeMinuteSecond).map((_, ()))
 
         assertM(runManually(Schedule.minuteOfHour(1, 3), input).map(toOffsetDateTime)) {
-          val expected =  originOffset.withMinute(1).withSecond(3)
-          val afterTimeExpected =  expected.withHour(1)
+          val expected          = originOffset.withMinute(1).withSecond(3)
+          val afterTimeExpected = expected.withHour(1)
           equalTo(List(expected, afterTimeExpected, expected, expected))
         }
       } @@ timeout(1.second)

@@ -1136,12 +1136,10 @@ object Schedule {
     assert(minute < 60 && minute >= 0, s"Invalid minute parameter. Must be in range 0 ... 60")
     assert(second < 60 && second >= 0, s"Invalid second parameter. Must be in range 0 ... 60")
 
-    import Decision._
-
     def loop(n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         ZIO.succeed(
-          Continue(
+          Decision.Continue(
             n + 1,
             nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR).withSecond(second),
             loop(n + 1L)
