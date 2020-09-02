@@ -10,7 +10,7 @@ addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings"           
 addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies"     % "0.2.13")
 addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                    % "5.6.0")
 addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                     % "0.4.2")
-addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                      % "2.2.5")
+addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                      % "2.2.6")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                     % "1.4.4")
 addSbtPlugin("org.scala-native"                  % "sbt-scala-native"              % "0.4.0-M2")
 addSbtPlugin("org.portable-scala"                % "sbt-scala-native-crossproject" % "1.0.0")
