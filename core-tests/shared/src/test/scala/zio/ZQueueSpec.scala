@@ -1,6 +1,6 @@
 package zio
 
-import java.util.concurrent.Executors
+import java.util.concurrent.{ Executors, TimeUnit }
 
 import zio.ZQueueSpecUtil.waitForSize
 import zio.duration._
@@ -12,6 +12,7 @@ import zio.Runtime.global
 import zio.ZQueue.{ Capacity, DroppingStrategy }
 
 import scala.collection.immutable.Range
+import scala.concurrent.duration.FiniteDuration
 
 object ZQueueSpec extends ZIOBaseSpec {
 
@@ -804,7 +805,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         result <- ZIO.fromFuture(_ => promise.future)
       } yield assert(result)(equalTo("Hello world running in reactive Queue"))
     },
-    testM("reactive queue ugly path") {
+    testM("reactive queue error handler") {
       import scala.concurrent._
       val promise: Promise[String] = Promise()
       val queue: Queue[Task[promise.type]] =
@@ -818,6 +819,27 @@ object ZQueueSpec extends ZIOBaseSpec {
         _      <- queue.offer(program)
         result <- ZIO.fromFuture(_ => promise.future)
       } yield assert(result)(equalTo("Error in previous execution in reactive Queue"))
+    },
+    testM("reactive queue bulkhead pattern") {
+      import scala.concurrent._
+      val ec                       = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
+      val promise: Promise[String] = Promise()
+      val queue: Queue[Task[Unit]] =
+        global.unsafeRun(ZQueue.reactiveRunner(Capacity(3), ec, inboxStrategy = DroppingStrategy()))
+      val program1: Task[Unit] = ZIO.effect(Thread.sleep(5000))
+      val program2: Task[Unit] = ZIO.effect(Thread.sleep(5000))
+      val program3: Task[Unit] = ZIO.effect { promise.success("this program it should never being processed"); () }
+
+      for {
+        _ <- queue.offer(program1)
+        _ <- queue.offer(program2)
+        _ <- queue.offer(program3)
+        result <- ZIO
+                    .effect(Await.result(promise.future, FiniteDuration(2, TimeUnit.SECONDS)))
+                    .catchAll(_ => ZIO.succeed("Program never process, no workers available"))
+
+      } yield assert(result)(equalTo("Program never process, no workers available"))
+
     },
     testM("reactive queue with provider") {
       import scala.concurrent._
