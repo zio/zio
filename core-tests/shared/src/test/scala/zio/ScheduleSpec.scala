@@ -1,6 +1,7 @@
 package zio
 
 import java.time.{ Instant, OffsetDateTime, ZoneId }
+import java.util.concurrent.TimeUnit
 
 import zio.clock.Clock
 import zio.duration._
@@ -301,6 +302,20 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(failed)(equalTo("OrElseFailed"))
       }
     ) @@ zioTag(errors),
+    suite("cron-like scheduling. Repeats at point of time (minute of hour, day of week, ...)")(
+      testM("recur each 1st minute of hour at 3rd second") {
+        def toMinSec[T](in: (List[(OffsetDateTime, T)], Option[T])): List[(Duration, Duration)] =
+          in._1.map(t =>
+            (Duration(t._1.getMinute.toLong, TimeUnit.MINUTES), Duration(t._1.getSecond.toLong, TimeUnit.SECONDS))
+          )
+        val currentTime1 = OffsetDateTime.now().withMinute(3)
+        val currentTime2 = OffsetDateTime.now().withMinute(0)
+        val input        = List((currentTime1, ()), (currentTime2, ()))
+        assertM(runManually(Schedule.minuteOfHour(1, 3), input).map(toMinSec))(
+          equalTo(List((1.minute, 3.second), (1.minute, 3.second)))
+        )
+      } @@ timeout(1.second)
+    ),
     suite("Return the result after successful retry")(
       testM("retry exactly one time for `once` when second time succeeds - retryOrElse") {
         for {

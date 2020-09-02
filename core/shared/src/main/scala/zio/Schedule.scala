@@ -17,6 +17,7 @@
 package zio
 
 import java.time.OffsetDateTime
+import java.time.temporal.ChronoField
 import java.util.concurrent.TimeUnit
 
 import zio.duration._
@@ -1124,6 +1125,29 @@ object Schedule {
         })
 
     Schedule(loop(None, 0L))
+  }
+
+  def minuteOfHour(minute: Int, second: Int = 0): Schedule[Any, Any, Long] = {
+    assert(minute < 60 && minute >= 0, s"Invalid minute parameter. Must be in range 0 ... 60")
+    import Decision._
+
+    def loop(n: Long): StepFunction[Any, Any, Long] =
+      (now: OffsetDateTime, _: Any) =>
+        ZIO.succeed(
+          Continue(
+            n + 1,
+            nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR).withSecond(second),
+            loop(n + 1L)
+          )
+        )
+
+    Schedule(loop(0L))
+  }
+
+  def nextFixedOffset(currentOffset: OffsetDateTime, fixedTimeUnitValue: Int, timeUnit: ChronoField) = {
+    val fixedSec = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong).withNano(0)
+    if (currentOffset.get(timeUnit) < fixedTimeUnitValue.toLong) fixedSec
+    else fixedSec.plus(1, timeUnit.getRangeUnit)
   }
 
   type Interval = java.time.OffsetDateTime
