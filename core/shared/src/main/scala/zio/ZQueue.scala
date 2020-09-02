@@ -19,9 +19,10 @@ package zio
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.annotation.tailrec
-
 import zio.ZQueue.internal._
 import zio.internal.MutableConcurrentQueue
+
+import scala.concurrent.ExecutionContext
 
 /**
  * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of
@@ -717,4 +718,52 @@ object ZQueue {
           strategy
         )
       )
+
+  /**
+   * Reactive Queue is used to provide async computation, back-pressure and bulkhead pattern running programs.
+   *
+   * This implementation provide a Queue that can be used to push ZIO programs and run them using previous mentioned patterns.
+   *
+   * All programs will be executed in a fiber(green-thread) from an Executor with a limit of programs in the queue
+   * to be processed and a maximum number of threads to be used in this Queue.
+   *
+   * We apply [InboxStrategy] with [Bounded] by default. Once we reach the maximum programs in queue without being processed we apply the inbox strategy.
+   * Applying this patter we'll have [Back-pressure]
+   *
+   * We use [ExecutionContext] to allow a maximum number of threads this Queue can use to process programs, applying [Bulkhead] pattern.
+   */
+  def reactiveRunner[E, A](
+    requestedCapacity: Capacity,
+    executionContext: ExecutionContext = scala.concurrent.ExecutionContext.global,
+    inboxStrategy: InboxStrategy = BoundedStrategy()
+  ): UIO[Queue[ZIO[Any, E, A]]] =
+    for {
+      queue <- getInboxStrategy[Any, E, A](requestedCapacity)(inboxStrategy)
+      _ <- queue.take.flatMap { program =>
+             (for {
+               _ <- program
+             } yield ()).forkOn(executionContext)
+           }.forever.forkDaemon
+    } yield queue
+
+  /**
+   * Function to configure which strategy for the inbox it will be configured in case we reach the maximum capacity of the queue.
+   * We pass the [Capacity] with the [InboxStrategy] to choose one of the options and set the capacity
+   */
+  private def getInboxStrategy[R, E, A]: Capacity => InboxStrategy => UIO[Queue[ZIO[R, E, A]]] = capacity => {
+    case BoundedStrategy()  => Queue.bounded[ZIO[R, E, A]](capacity.value)
+    case SlidingStrategy()  => Queue.sliding[ZIO[R, E, A]](capacity.value)
+    case DroppingStrategy() => Queue.dropping[ZIO[R, E, A]](capacity.value)
+  }
+
+  trait InboxStrategy
+
+  case class BoundedStrategy() extends InboxStrategy
+
+  case class SlidingStrategy() extends InboxStrategy
+
+  case class DroppingStrategy() extends InboxStrategy
+
+  case class Capacity(value: Int)
+
 }

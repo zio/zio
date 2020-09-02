@@ -1,13 +1,17 @@
 package zio
 
-import scala.collection.immutable.Range
+import java.util.concurrent.Executors
 
 import zio.ZQueueSpecUtil.waitForSize
 import zio.duration._
+import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ jvm, nonFlaky }
-import zio.test._
 import zio.test.environment.Live
+import zio.Runtime.global
+import zio.ZQueue.{ Capacity, DroppingStrategy }
+
+import scala.collection.immutable.Range
 
 object ZQueueSpec extends ZIOBaseSpec {
 
@@ -787,7 +791,49 @@ object ZQueueSpec extends ZIOBaseSpec {
         _ <- q.shutdown
         _ <- f.await
       } yield assertCompletes
-    } @@ jvm(nonFlaky)
+    } @@ jvm(nonFlaky),
+    testM("reactive queue") {
+      import scala.concurrent._
+      val ec                              = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(30))
+      val promise: Promise[String]        = Promise()
+      val queue: Queue[UIO[promise.type]] = global.unsafeRun(ZQueue.reactiveRunner(Capacity(1000), ec))
+      val program: UIO[promise.type]      = ZIO.succeed(promise.success("Hello world running in reactive Queue"))
+
+      for {
+        _      <- queue.offer(program)
+        result <- ZIO.fromFuture(_ => promise.future)
+      } yield assert(result)(equalTo("Hello world running in reactive Queue"))
+    },
+    testM("reactive queue ugly path") {
+      import scala.concurrent._
+      val promise: Promise[String] = Promise()
+      val queue: Queue[Task[promise.type]] =
+        global.unsafeRun(ZQueue.reactiveRunner(Capacity(1000), inboxStrategy = DroppingStrategy()))
+      val programError: ZIO[Any, Throwable, promise.type] =
+        ZIO.effect(throw new IllegalStateException())
+      val program: Task[promise.type] = ZIO.effect(promise.success("Error in previous execution in reactive Queue"))
+
+      for {
+        _      <- queue.offer(programError)
+        _      <- queue.offer(program)
+        result <- ZIO.fromFuture(_ => promise.future)
+      } yield assert(result)(equalTo("Error in previous execution in reactive Queue"))
+    },
+    testM("reactive queue with provider") {
+      import scala.concurrent._
+      val promise: Promise[String] = Promise()
+      val queue                    = global.unsafeRun(ZQueue.reactiveRunner[Throwable, Unit](Capacity(1000)))
+      val program: ZIO[Promise[String], Nothing, Unit] =
+        for {
+          promise <- ZIO.environment[Promise[String]]
+          _       <- ZIO.succeed(promise.success("Hello world running in reactive Queue with provider value"))
+        } yield ()
+
+      for {
+        _      <- queue.offer(program.provide(promise))
+        result <- ZIO.fromFuture(_ => promise.future)
+      } yield assert(result)(equalTo("Hello world running in reactive Queue with provider value"))
+    }
   )
 }
 
