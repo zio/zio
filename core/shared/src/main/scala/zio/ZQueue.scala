@@ -739,11 +739,16 @@ object ZQueue {
   ): UIO[Queue[ZIO[Any, E, A]]] =
     for {
       queue <- getInboxStrategy[Any, E, A](requestedCapacity)(inboxStrategy)
-      _ <- queue.take.flatMap { program =>
-             (for {
-               _ <- program
-             } yield ()).forkOn(executionContext)
-           }.forever.forkDaemon
+      _ <- queue.take
+             .forkOn(executionContext)
+             .flatMap { fiber =>
+               for {
+                 program <- fiber.join
+                 _ <- program.ignore
+               } yield ()
+             }
+             .forever
+             .forkDaemon
     } yield queue
 
   /**
