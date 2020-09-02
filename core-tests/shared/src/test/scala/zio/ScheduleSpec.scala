@@ -315,11 +315,9 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(beforeTime, afterTime, inTimeMinute ,inTimeMinuteSecond).map((_,()))
 
         assertM(runManually(Schedule.minuteOfHour(1, 3), input).map(toOffsetDateTime)) {
-          val beforeTimeExpected =  originOffset.withMinute(1).withSecond(3)
-          val afterTimeExpected =  originOffset.withHour(1).withMinute(1).withSecond(3)
-          val inTimeMinuteExpected =  originOffset.withMinute(1).withSecond(3)
-          val inTimeMinuteSecondExpected =  originOffset.withMinute(1).withSecond(3)
-          equalTo(List(beforeTimeExpected, afterTimeExpected, inTimeMinuteExpected, inTimeMinuteSecondExpected))
+          val expected =  originOffset.withMinute(1).withSecond(3)
+          val afterTimeExpected =  expected.withHour(1)
+          equalTo(List(expected, afterTimeExpected, expected, expected))
         }
       } @@ timeout(1.second)
     ),
