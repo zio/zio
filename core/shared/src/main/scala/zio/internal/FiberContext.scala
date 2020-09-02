@@ -783,10 +783,27 @@ private[zio] final class FiberContext[E, A](
   final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
 
   def await: UIO[Exit[E, A]] =
-    ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]](
-      k => observe0(x => k(ZIO.done(x))),
+    ZIO.effectAsyncInterrupt[Any, Nothing, Exit[E, A]](
+      { k =>
+        val cb: Callback[Nothing, Exit[E, A]] = x => k(ZIO.done(x))
+        observe0(cb) match {
+          case None    => Left(ZIO.effectTotal(interruptObserver(cb)))
+          case Some(v) => Right(v)
+        }
+      },
       fiberId :: Nil
     )
+
+  @tailrec
+  private[this] def interruptObserver(k: Callback[Nothing, Exit[E, A]]): Unit = {
+    val oldState = state.get
+    oldState match {
+      case Executing(status, observers0, interrupted) =>
+        val observers = observers0.filter(_ ne k)
+        if (!state.compareAndSet(oldState, Executing(status, observers, interrupted))) interruptObserver(k)
+      case _ =>
+    }
+  }
 
   def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
     val oldValue = Option(fiberRefLocals.get(ref))
