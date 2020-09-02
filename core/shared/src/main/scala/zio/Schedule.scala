@@ -1153,7 +1153,7 @@ object Schedule {
 
   def nextFixedOffset(currentOffset: OffsetDateTime, fixedTimeUnitValue: Int, timeUnit: ChronoField) = {
     val fixedSec = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong).withNano(0)
-    if (currentOffset.get(timeUnit) < fixedTimeUnitValue.toLong) fixedSec
+    if (currentOffset.get(timeUnit) <= fixedTimeUnitValue.toLong) fixedSec
     else fixedSec.plus(1, timeUnit.getRangeUnit)
   }
 
