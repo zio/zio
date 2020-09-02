@@ -1127,8 +1127,15 @@ object Schedule {
     Schedule(loop(None, 0L))
   }
 
+  /**
+   * Cron-like schedule that recurs every specified `minute` of each hour.
+   * Exact second of the minute can be provided as optional `second` param.
+   * Producing a count of repeats: 0, 1, 2.
+   */
   def minuteOfHour(minute: Int, second: Int = 0): Schedule[Any, Any, Long] = {
     assert(minute < 60 && minute >= 0, s"Invalid minute parameter. Must be in range 0 ... 60")
+    assert(second < 60 && second >= 0, s"Invalid second parameter. Must be in range 0 ... 60")
+
     import Decision._
 
     def loop(n: Long): StepFunction[Any, Any, Long] =
