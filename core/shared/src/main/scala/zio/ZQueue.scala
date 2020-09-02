@@ -735,16 +735,16 @@ object ZQueue {
   def reactiveRunner[E, A](
     requestedCapacity: Capacity,
     executionContext: ExecutionContext = scala.concurrent.ExecutionContext.global,
-    inboxStrategy: InboxStrategy = BoundedStrategy()
+    inboxStrategy: QueueStrategy = BoundedStrategy()
   ): UIO[Queue[ZIO[Any, E, A]]] =
     for {
-      queue <- getInboxStrategy[Any, E, A](requestedCapacity)(inboxStrategy)
+      queue <- getQueueStrategy[Any, E, A](requestedCapacity)(inboxStrategy)
       _ <- queue.take
              .forkOn(executionContext)
              .flatMap { fiber =>
                for {
                  program <- fiber.join
-                 _ <- program.ignore
+                 _       <- program.ignore
                } yield ()
              }
              .forever
@@ -752,22 +752,22 @@ object ZQueue {
     } yield queue
 
   /**
-   * Function to configure which strategy for the inbox it will be configured in case we reach the maximum capacity of the queue.
-   * We pass the [Capacity] with the [InboxStrategy] to choose one of the options and set the capacity
+   * Function to configure which strategy for the queue it will be configured in case we reach the maximum capacity of the queue.
+   * We pass the [Capacity] with the [QueueStrategy] to choose one of the options and set the capacity
    */
-  private def getInboxStrategy[R, E, A]: Capacity => InboxStrategy => UIO[Queue[ZIO[R, E, A]]] = capacity => {
+  private def getQueueStrategy[R, E, A]: Capacity => QueueStrategy => UIO[Queue[ZIO[R, E, A]]] = capacity => {
     case BoundedStrategy()  => Queue.bounded[ZIO[R, E, A]](capacity.value)
     case SlidingStrategy()  => Queue.sliding[ZIO[R, E, A]](capacity.value)
     case DroppingStrategy() => Queue.dropping[ZIO[R, E, A]](capacity.value)
   }
 
-  trait InboxStrategy
+  trait QueueStrategy
 
-  case class BoundedStrategy() extends InboxStrategy
+  case class BoundedStrategy() extends QueueStrategy
 
-  case class SlidingStrategy() extends InboxStrategy
+  case class SlidingStrategy() extends QueueStrategy
 
-  case class DroppingStrategy() extends InboxStrategy
+  case class DroppingStrategy() extends QueueStrategy
 
   case class Capacity(value: Int)
 

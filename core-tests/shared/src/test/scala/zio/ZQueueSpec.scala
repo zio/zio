@@ -1,15 +1,15 @@
 package zio
 
-import java.util.concurrent.{Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit }
 
 import zio.ZQueueSpecUtil.waitForSize
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{ jvm, nonFlaky }
 import zio.test.environment.Live
 import zio.Runtime.global
-import zio.ZQueue.{Capacity, DroppingStrategy}
+import zio.ZQueue.{ Capacity, DroppingStrategy }
 
 import scala.collection.immutable.Range
 import scala.concurrent.duration.FiniteDuration
@@ -829,8 +829,8 @@ object ZQueueSpec extends ZIOBaseSpec {
       val program1: Task[Unit] = ZIO.effect(Thread.sleep(5000))
       val program2: Task[Unit] = ZIO.effect(Thread.sleep(5000))
       val program3: Task[Unit] = ZIO.effect {
-        println(s"Program Thread:${Thread.currentThread().getName}")
-        promise.success("this program it should never being processed"); ()
+        promise.success("this program it should never being processed")
+        ()
       }
 
       for {
@@ -838,15 +838,14 @@ object ZQueueSpec extends ZIOBaseSpec {
         _ <- queue.offer(program2)
         _ <- queue.offer(program3)
         result <- ZIO
-          .effect(Await.result(promise.future, FiniteDuration(2, TimeUnit.SECONDS)))
-          .catchAll(_ => ZIO.succeed("Program never process, no workers available"))
+                    .effect(Await.result(promise.future, FiniteDuration(2, TimeUnit.SECONDS)))
+                    .catchAll(_ => ZIO.succeed("Program never process, no workers available"))
 
       } yield assert(result)(equalTo("Program never process, no workers available"))
     },
-
     testM("reactive queue backpressure pattern") {
       import scala.concurrent._
-      val threadPoolExecutor = new ThreadPoolExecutor(1, 10, 10, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable])
+      val threadPoolExecutor       = new ThreadPoolExecutor(1, 10, 10, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable])
       val ec                       = ExecutionContext.fromExecutor(threadPoolExecutor)
       val promise: Promise[String] = Promise()
       val queue: Queue[Task[Unit]] =
@@ -866,8 +865,8 @@ object ZQueueSpec extends ZIOBaseSpec {
         _ <- queue.offer(program5)
         _ <- queue.offer(program6)
         result <- ZIO
-          .effect(Await.result(promise.future, FiniteDuration(5, TimeUnit.SECONDS)))
-          .catchAll(_ => ZIO.succeed("Program never process, no workers available"))
+                    .effect(Await.result(promise.future, FiniteDuration(5, TimeUnit.SECONDS)))
+                    .catchAll(_ => ZIO.succeed("Program never process, no workers available"))
 
       } yield assert(result)(equalTo("Program never process, no workers available"))
     },
