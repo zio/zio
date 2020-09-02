@@ -809,7 +809,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       import scala.concurrent._
       val promise: Promise[String] = Promise()
       val queue: Queue[Task[promise.type]] =
-        global.unsafeRun(ZQueue.reactiveRunner(Capacity(1000), inboxStrategy = DroppingStrategy()))
+        global.unsafeRun(ZQueue.reactiveRunner(Capacity(1000), queueStrategy = DroppingStrategy()))
       val programError: ZIO[Any, Throwable, promise.type] =
         ZIO.effect(throw new IllegalStateException())
       val program: Task[promise.type] = ZIO.effect(promise.success("Error in previous execution in reactive Queue"))
@@ -825,7 +825,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       val ec                       = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
       val promise: Promise[String] = Promise()
       val queue: Queue[Task[Unit]] =
-        global.unsafeRun(ZQueue.reactiveRunner(Capacity(3), ec, inboxStrategy = DroppingStrategy()))
+        global.unsafeRun(ZQueue.reactiveRunner(Capacity(3), ec, queueStrategy = DroppingStrategy()))
       val program1: Task[Unit] = ZIO.effect(Thread.sleep(5000))
       val program2: Task[Unit] = ZIO.effect(Thread.sleep(5000))
       val program3: Task[Unit] = ZIO.effect {
@@ -849,7 +849,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       val ec                       = ExecutionContext.fromExecutor(threadPoolExecutor)
       val promise: Promise[String] = Promise()
       val queue: Queue[Task[Unit]] =
-        global.unsafeRun(ZQueue.reactiveRunner(Capacity(1), ec, inboxStrategy = DroppingStrategy()))
+        global.unsafeRun(ZQueue.reactiveRunner(Capacity(1), ec, queueStrategy = DroppingStrategy()))
       val program1: Task[Unit] = ZIO.effect(Thread.sleep(1000))
       val program2: Task[Unit] = ZIO.effect(Thread.sleep(1000))
       val program3: Task[Unit] = ZIO.effect(Thread.sleep(1000))

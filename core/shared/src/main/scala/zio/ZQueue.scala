@@ -727,7 +727,7 @@ object ZQueue {
    * All programs will be executed in a fiber(green-thread) from an Executor with a limit of programs in the queue
    * to be processed and a maximum number of threads to be used in this Queue.
    *
-   * We apply [InboxStrategy] with [Bounded] by default. Once we reach the maximum programs in queue without being processed we apply the inbox strategy.
+   * We apply [QueueStrategy] with [Bounded] by default. Once we reach the maximum programs in queue without being processed we apply the queue strategy.
    * Applying this patter we'll have [Back-pressure]
    *
    * We use [ExecutionContext] to allow a maximum number of threads this Queue can use to process programs, applying [Bulkhead] pattern.
@@ -735,10 +735,10 @@ object ZQueue {
   def reactiveRunner[E, A](
     requestedCapacity: Capacity,
     executionContext: ExecutionContext = scala.concurrent.ExecutionContext.global,
-    inboxStrategy: QueueStrategy = BoundedStrategy()
+    queueStrategy: QueueStrategy = BoundedStrategy()
   ): UIO[Queue[ZIO[Any, E, A]]] =
     for {
-      queue <- getQueueStrategy[Any, E, A](requestedCapacity)(inboxStrategy)
+      queue <- getQueueStrategy[Any, E, A](requestedCapacity)(queueStrategy)
       _ <- queue.take
              .forkOn(executionContext)
              .flatMap { fiber =>
