@@ -1133,8 +1133,8 @@ object Schedule {
    * Producing a count of repeats: 0, 1, 2.
    */
   def minuteOfHour(minute: Int, second: Int = 0): Schedule[Any, Any, Long] = {
-    assert(minute < 60 && minute >= 0, s"Invalid minute parameter. Must be in range 0 ... 60")
-    assert(second < 60 && second >= 0, s"Invalid second parameter. Must be in range 0 ... 60")
+    assert(minute < 60 && minute >= 0, s"Invalid minute parameter. Must be in range 0 ... 59")
+    assert(second < 60 && second >= 0, s"Invalid second parameter. Must be in range 0 ... 59")
 
     def loop(n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
