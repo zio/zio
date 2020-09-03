@@ -1149,7 +1149,7 @@ object Schedule {
 
   /**
    *  Value must be in range [0 ... 59]
-   *  Throws [[IllegalArgumentException]] on invalid values.
+   *  Throws [[java.lang.IllegalArgumentException]] on invalid values.
    */
   case class Minute(value: Int) {
     require(value < 60 && value >= 0, s"Invalid minute parameter. Must be in range 0 ... 59")
