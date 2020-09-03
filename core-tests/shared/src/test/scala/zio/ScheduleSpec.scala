@@ -2,7 +2,6 @@ package zio
 
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 
-import zio.Schedule.Minute
 import zio.clock.Clock
 import zio.duration._
 import zio.stream.ZStream
@@ -315,7 +314,9 @@ object ScheduleSpec extends ZIOBaseSpec {
 
         val input = List(beforeTime, afterTime, inTimeMinute, inTimeMinuteSecond).map((_, ()))
 
-        assertM(runManually(Schedule.minuteOfHour(Minute(1)), input).map(toOffsetDateTime)) {
+        val schedule = Schedule.minuteOfHour(1).flatMap(runManually(_, input))
+
+        assertM(schedule.map(toOffsetDateTime)) {
           val expected          = originOffset.withMinute(1).withSecond(0)
           val afterTimeExpected = expected.withHour(1)
           equalTo(List(expected, afterTimeExpected, expected, expected))

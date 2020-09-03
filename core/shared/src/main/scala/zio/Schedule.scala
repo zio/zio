@@ -1132,27 +1132,23 @@ object Schedule {
    * It triggers at zero second of the minute.
    * Producing a count of repeats: 0, 1, 2.
    */
-  def minuteOfHour(minute: Minute): Schedule[Any, Any, Long] = {
+  def minuteOfHour(minute: Int): UIO[Schedule[Any, Any, Long]] = {
 
     def loop(n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         ZIO.succeed(
           Decision.Continue(
             n + 1,
-            nextFixedOffset(now, minute.value, ChronoField.MINUTE_OF_HOUR).withSecond(0),
+            nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR).withSecond(0),
             loop(n + 1L)
           )
         )
 
-    Schedule(loop(0L))
-  }
+    if (minute >= 60 || minute < 0)
+      ZIO.die(new IllegalArgumentException(s"Invalid minute parameter. Must be in range 0 ... 59"))
+    else
+      ZIO.succeed(Schedule(loop(0L)))
 
-  /**
-   *  Value must be in range [0 ... 59]
-   *  Throws [[java.lang.IllegalArgumentException]] on invalid values.
-   */
-  case class Minute(value: Int) {
-    require(value < 60 && value >= 0, s"Invalid minute parameter. Must be in range 0 ... 59")
   }
 
   private[this] def nextFixedOffset(currentOffset: OffsetDateTime, fixedTimeUnitValue: Int, timeUnit: ChronoField) = {
