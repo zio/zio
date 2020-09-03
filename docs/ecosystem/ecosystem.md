@@ -39,6 +39,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [tranzactio](https://github.com/gaelrenoux/tranzactio): ZIO wrapper for data access libraries like Doobie or Anorm
 - [ZIO Arrow](https://github.com/Neurodyne/zio-arrow) : Haskell Arrow meets ZIO. A deep composition and high performance applications
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
+- [zio-aws](https://github.com/vigoo/zio-aws): Low-level AWS wrapper for ZIO for all AWS services using the AWS Java SDK v2
 - [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [zio-easymock](https://github.com/egast/zio-easymock): EasyMock mocking for zio-test
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client
