@@ -1129,19 +1129,18 @@ object Schedule {
 
   /**
    * Cron-like schedule that recurs every specified `minute` of each hour.
-   * Exact second of the minute can be provided as optional `second` param.
+   * It triggers at zero second of the minute.
    * Producing a count of repeats: 0, 1, 2.
    */
-  def minuteOfHour(minute: Int, second: Int = 0): Schedule[Any, Any, Long] = {
+  def minuteOfHour(minute: Int): Schedule[Any, Any, Long] = {
     assert(minute < 60 && minute >= 0, s"Invalid minute parameter. Must be in range 0 ... 59")
-    assert(second < 60 && second >= 0, s"Invalid second parameter. Must be in range 0 ... 59")
 
     def loop(n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         ZIO.succeed(
           Decision.Continue(
             n + 1,
-            nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR).withSecond(second),
+            nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR).withSecond(0),
             loop(n + 1L)
           )
         )
@@ -1149,7 +1148,7 @@ object Schedule {
     Schedule(loop(0L))
   }
 
-  def nextFixedOffset(currentOffset: OffsetDateTime, fixedTimeUnitValue: Int, timeUnit: ChronoField) = {
+  private[this] def nextFixedOffset(currentOffset: OffsetDateTime, fixedTimeUnitValue: Int, timeUnit: ChronoField) = {
     val fixedSec = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong).withNano(0)
     if (currentOffset.get(timeUnit) <= fixedTimeUnitValue.toLong) fixedSec
     else fixedSec.plus(1, timeUnit.getRangeUnit)

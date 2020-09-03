@@ -302,7 +302,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       }
     ) @@ zioTag(errors),
     suite("cron-like scheduling. Repeats at point of time (minute of hour, day of week, ...)")(
-      testM("recur each 1st minute of hour at 3rd second") {
+      testM("recur each 1st minute of hour") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
           in._1.map(t => t._1.withNano(0))
 
@@ -310,12 +310,12 @@ object ScheduleSpec extends ZIOBaseSpec {
         val beforeTime         = originOffset.withMinute(0)
         val afterTime          = originOffset.withMinute(3)
         val inTimeMinute       = originOffset.withMinute(1)
-        val inTimeMinuteSecond = originOffset.withMinute(1).withSecond(3)
+        val inTimeMinuteSecond = originOffset.withMinute(1).withSecond(0)
 
         val input = List(beforeTime, afterTime, inTimeMinute, inTimeMinuteSecond).map((_, ()))
 
-        assertM(runManually(Schedule.minuteOfHour(1, 3), input).map(toOffsetDateTime)) {
-          val expected          = originOffset.withMinute(1).withSecond(3)
+        assertM(runManually(Schedule.minuteOfHour(1), input).map(toOffsetDateTime)) {
+          val expected          = originOffset.withMinute(1).withSecond(0)
           val afterTimeExpected = expected.withHour(1)
           equalTo(List(expected, afterTimeExpected, expected, expected))
         }
