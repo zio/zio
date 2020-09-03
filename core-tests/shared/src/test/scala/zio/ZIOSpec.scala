@@ -2882,7 +2882,19 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assert(value)(isTrue)
-      }
+      },
+      testM("asynchronous finalizers are uninterruptible") {
+        for {
+          promise1 <- Promise.make[Nothing, Unit]
+          promise2 <- Promise.make[Nothing, Unit]
+          promise3 <- Promise.make[Nothing, Unit]
+          fiber    <- (promise1.succeed(()) *> ZIO.never).ensuring(promise2.await *> promise3.succeed(())).fork
+          _        <- promise1.await
+          _        <- fiber.interrupt.fork
+          _        <- promise2.succeed(())
+          _        <- promise3.await
+        } yield assertCompletes
+      } @@ nonFlaky
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       testM("provide is modular") {
