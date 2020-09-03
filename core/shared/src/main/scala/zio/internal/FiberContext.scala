@@ -964,7 +964,10 @@ private[zio] final class FiberContext[E, A](
          * We are not done yet, because we have to close the scope of the fiber.
          */
         if (!state.compareAndSet(oldState, Executing(oldStatus.toFinishing, observers, interrupted))) done(v)
-        else openScope.close(v) *> ZIO.done(v)
+        else {
+          setInterrupting(true)
+          openScope.close(v) *> ZIO.done(v)
+        }
 
       case Done(_) => null // Already done
     }
@@ -983,7 +986,7 @@ private[zio] final class FiberContext[E, A](
       val oldState = state.get
 
       oldState match {
-        case Executing(Status.Suspended(oldStatus, true, _, _, _), observers, interrupted) =>
+        case Executing(Status.Suspended(oldStatus, true, _, _, _), observers, interrupted) if !oldState.interrupting =>
           val newCause = interrupted ++ interruptedCause
 
           if (
