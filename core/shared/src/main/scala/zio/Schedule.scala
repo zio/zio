@@ -1132,7 +1132,8 @@ object Schedule {
    * It triggers at zero second of the minute.
    * Producing a count of repeats: 0, 1, 2.
    */
-  def minuteOfHour(minute: Int): UIO[Schedule[Any, Any, Long]] = {
+  def minuteOfHour(minute: Int): UIO[Schedule[Any, Any, Long]] = ZIO.effectTotal {
+    require(minute < 60 && minute >= 0, s"Invalid minute parameter. Must be in range 0 ... 59")
 
     def loop(n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
@@ -1144,10 +1145,7 @@ object Schedule {
           )
         )
 
-    if (minute >= 60 || minute < 0)
-      ZIO.die(new IllegalArgumentException(s"Invalid minute parameter. Must be in range 0 ... 59"))
-    else
-      ZIO.succeed(Schedule(loop(0L)))
+    Schedule(loop(0L))
 
   }
 
