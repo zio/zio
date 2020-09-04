@@ -8,7 +8,7 @@ import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.{ failing, timeout }
 import zio.test.environment.{ TestClock, TestRandom }
-import zio.test.{ assert, assertM, suite, testM, TestResult }
+import zio.test.{ assert, assertM, suite, testM, Assertion, TestFailure, TestResult }
 
 import scala.concurrent.Future
 
@@ -324,7 +324,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(run(Schedule.minuteOfHour(60))(input)) {
           equalTo(Chunk.empty)
         }
-      } @@ failing
+      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything)))
     ),
     suite("Return the result after successful retry")(
       testM("retry exactly one time for `once` when second time succeeds - retryOrElse") {
@@ -519,6 +519,16 @@ object ScheduleSpec extends ZIOBaseSpec {
       i <- ref.updateAndGet(_ + 1)
       x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
     } yield x
+
+  def diesWith(assertion: Assertion[Throwable]): Assertion[TestFailure[Any]] =
+    isCase(
+      "Runtime",
+      {
+        case TestFailure.Runtime(c) => c.dieOption
+        case _                      => None
+      },
+      assertion
+    )
 
   case class ScheduleError(message: String) extends Exception
   case class ScheduleFailure(message: String)
