@@ -1144,7 +1144,7 @@ object Schedule {
           ZIO.succeed(
             Decision.Continue(
               n + 1,
-              nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR).withSecond(0),
+              nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR).withSecond(0).withNano(0),
               loop(n + 1L)
             )
           )
@@ -1154,7 +1154,7 @@ object Schedule {
   }
 
   private[this] def nextFixedOffset(currentOffset: OffsetDateTime, fixedTimeUnitValue: Int, timeUnit: ChronoField) = {
-    val fixedSec = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong).withNano(0)
+    val fixedSec = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong)
     if (currentOffset.get(timeUnit) <= fixedTimeUnitValue.toLong) fixedSec
     else fixedSec.plus(1, timeUnit.getRangeUnit)
   }
