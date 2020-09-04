@@ -320,9 +320,9 @@ object ScheduleSpec extends ZIOBaseSpec {
         }
       },
       testM("throw IllegalArgumentException on invalid argument") {
-        val input = List(OffsetDateTime.now()).map((_, ()))
-        assertM(runManually(Schedule.minuteOfHour(60), input)) {
-          equalTo((List.empty[(OffsetDateTime, Long)], None))
+        val input = List(OffsetDateTime.now())
+        assertM(run(Schedule.minuteOfHour(60))(input)) {
+          equalTo(Chunk.empty)
         }
       } @@ failing
     ),
