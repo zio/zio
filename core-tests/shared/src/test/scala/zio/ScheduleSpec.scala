@@ -6,7 +6,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.test.TestAspect.timeout
+import zio.test.TestAspect.{ failing, timeout }
 import zio.test.environment.{ TestClock, TestRandom }
 import zio.test.{ assert, assertM, suite, testM, TestResult }
 
@@ -306,22 +306,25 @@ object ScheduleSpec extends ZIOBaseSpec {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
           in._1.map(t => t._1.withNano(0))
 
-        val originOffset       = OffsetDateTime.now().withHour(0).withSecond(0).withNano(0)
-        val beforeTime         = originOffset.withMinute(0)
-        val afterTime          = originOffset.withMinute(3)
-        val inTimeMinute       = originOffset.withMinute(1)
-        val inTimeMinuteSecond = originOffset.withMinute(1).withSecond(0)
+        val originOffset = OffsetDateTime.now().withHour(0).withSecond(0).withNano(0)
+        val beforeTime   = originOffset.withMinute(0)
+        val afterTime    = originOffset.withMinute(3)
+        val inTimeMinute = originOffset.withMinute(1)
 
-        val input = List(beforeTime, afterTime, inTimeMinute, inTimeMinuteSecond).map((_, ()))
+        val input = List(beforeTime, afterTime, inTimeMinute).map((_, ()))
 
-        val schedule = Schedule.minuteOfHour(1).flatMap(runManually(_, input))
-
-        assertM(schedule.map(toOffsetDateTime)) {
+        assertM(runManually(Schedule.minuteOfHour(1), input).map(toOffsetDateTime)) {
           val expected          = originOffset.withMinute(1).withSecond(0)
           val afterTimeExpected = expected.withHour(1)
-          equalTo(List(expected, afterTimeExpected, expected, expected))
+          equalTo(List(expected, afterTimeExpected, expected))
         }
-      } @@ timeout(1.second)
+      },
+      testM("throw IllegalArgumentException on invalid argument") {
+        val input = List(OffsetDateTime.now()).map((_, ()))
+        assertM(runManually(Schedule.minuteOfHour(60), input)) {
+          equalTo((List.empty[(OffsetDateTime, Long)], None))
+        }
+      } @@ failing
     ),
     suite("Return the result after successful retry")(
       testM("retry exactly one time for `once` when second time succeeds - retryOrElse") {

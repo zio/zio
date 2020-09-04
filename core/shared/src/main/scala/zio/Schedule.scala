@@ -1131,19 +1131,23 @@ object Schedule {
    * Cron-like schedule that recurs every specified `minute` of each hour.
    * It triggers at zero second of the minute.
    * Producing a count of repeats: 0, 1, 2.
+   *
+   * NOTE: `minute` parameter is validated lazily. Must be in range 0...59.
    */
-  def minuteOfHour(minute: Int): UIO[Schedule[Any, Any, Long]] = ZIO.effectTotal {
-    require(minute < 60 && minute >= 0, s"Invalid minute parameter. Must be in range 0 ... 59")
+  def minuteOfHour(minute: Int): Schedule[Any, Any, Long] = {
 
     def loop(n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
-        ZIO.succeed(
-          Decision.Continue(
-            n + 1,
-            nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR).withSecond(0),
-            loop(n + 1L)
+        if (minute >= 60 || minute < 0)
+          ZIO.die(new IllegalArgumentException(s"Invalid argument in `minuteOfHour($minute)`. Must be in range 0...59"))
+        else
+          ZIO.succeed(
+            Decision.Continue(
+              n + 1,
+              nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR).withSecond(0),
+              loop(n + 1L)
+            )
           )
-        )
 
     Schedule(loop(0L))
 
