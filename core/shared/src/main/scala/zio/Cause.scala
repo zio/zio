@@ -745,7 +745,6 @@ object Cause extends Serializable {
 
     final case class Fail[+E](value: E) extends Cause[E] {
       override def hashWith(he: E => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int = he(value)
-      @tailrec
       override def equalsWith[E1 >: E](
         cmpE: (E1, E1) => Boolean,
         cmpT: (Throwable, Throwable) => Boolean,
@@ -771,7 +770,6 @@ object Cause extends Serializable {
 
     final case class Die(value: Throwable) extends Cause[Nothing] {
       override def hashWith(he: Nothing => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int = ht(value)
-      @tailrec
       override def equalsWith[E1 >: Nothing](
         cmpE: (E1, E1) => Boolean,
         cmpT: (Throwable, Throwable) => Boolean,
@@ -797,7 +795,6 @@ object Cause extends Serializable {
 
     final case class Interrupt(fiberId: Fiber.Id) extends Cause[Nothing] {
       override def hashWith(he: Nothing => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int = hf(fiberId)
-      @tailrec
       override def equalsWith[E1 >: Nothing](
         cmpE: (E1, E1) => Boolean,
         cmpT: (Throwable, Throwable) => Boolean,
@@ -868,7 +865,6 @@ object Cause extends Serializable {
     }
 
     final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-      @tailrec
       override def equalsWith[E1 >: E](
         cmpE: (E1, E1) => Boolean,
         cmpT: (Throwable, Throwable) => Boolean,
@@ -929,7 +925,6 @@ object Cause extends Serializable {
     }
 
     final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-      @tailrec
       override def equalsWith[E1 >: E](
         cmpE: (E1, E1) => Boolean,
         cmpT: (Throwable, Throwable) => Boolean,
