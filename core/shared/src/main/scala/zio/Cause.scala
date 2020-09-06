@@ -16,10 +16,10 @@
 
 package zio
 
+import zio.internal.Platform
+
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
-
-import zio.internal.Platform
 
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause.Internal._
@@ -69,11 +69,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def dieOption: Option[Throwable] =
     find { case Die(t) => t }
 
-  def equalsWith[E1 >: E](
-    cmpE: (E1, E1) => Boolean,
-    cmpT: (Throwable, Throwable) => Boolean,
-    cmpF: (Fiber.Id, Fiber.Id) => Boolean
-  )(that: Cause[E1]): Boolean
+  def equalsWith[E1 >: E](equalCause: Cause.EqualCause[E1])(that: Cause[E1]): Boolean
 
   final def failed: Boolean =
     failureOption.isDefined
@@ -139,7 +135,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def flatten[E1](implicit ev: E <:< Cause[E1]): Cause[E1] =
     self flatMap (e => e)
 
-  def hashWith(he: E => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int
+  def hashWith(hashCause: Cause.HashCause[E]): Int
 
   /**
    * Determines if the `Cause` contains an interruption.
@@ -721,284 +717,224 @@ object Cause extends Serializable {
   private object Internal {
 
     case object Empty extends Cause[Nothing] {
-      override def hashWith(te: Nothing => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int = this.hashCode()
-      override def equalsWith[E1 >: Nothing](
-        cmpE: (E1, E1) => Boolean,
-        cmpT: (Throwable, Throwable) => Boolean,
-        cmpF: (Fiber.Id, Fiber.Id) => Boolean
-      )(
-        that: Cause[E1]
-      ): Boolean = that match {
+      override def hashWith(hashCause: HashCause[Nothing]): Int = this.hashCode()
+      override def equalsWith[E1 >: Nothing](equalCause: EqualCause[E1])(that: Cause[E1]): Boolean = that match {
         case that if eq(that)   => true
         case _: Empty.type      => true
-        case Then(left, right)  => equalsWith(cmpE, cmpT, cmpF)(left) && equalsWith(cmpE, cmpT, cmpF)(right)
-        case Both(left, right)  => equalsWith(cmpE, cmpT, cmpF)(left) && equalsWith(cmpE, cmpT, cmpF)(right)
-        case traced: Traced[E1] => equalsWith(cmpE, cmpT, cmpF)(traced.cause)
-        case meta: Meta[E1]     => equalsWith(cmpE, cmpT, cmpF)(meta.cause)
+        case Then(left, right)  => equalCause(this, left) && equalCause(this, right)
+        case Both(left, right)  => equalCause(this, left) && equalCause(this, right)
+        case traced: Traced[E1] => equalCause(this, traced.cause)
+        case meta: Meta[E1]     => equalCause(this, meta.cause)
         case _                  => false
       }
       override def equals(that: Any): Boolean = that match {
-        case that: Cause[Any] => equalsWith[Any](_ == _, _ == _, _ == _)(that)
+        case that: Cause[Any] => equalsWith[Any](EqualCause.default)(that)
         case _                => false
       }
     }
 
     final case class Fail[+E](value: E) extends Cause[E] {
-      override def hashWith(he: E => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int = he(value)
-      override def equalsWith[E1 >: E](
-        cmpE: (E1, E1) => Boolean,
-        cmpT: (Throwable, Throwable) => Boolean,
-        cmpF: (Fiber.Id, Fiber.Id) => Boolean
-      )(
-        that: Cause[E1]
-      ): Boolean = that match {
-        case that if eq(that) => true
-        case fail: Fail[E1]   => cmpE(value, fail.value)
-        case c @ Then(_, _) =>
-          sym(empty((c1: Cause[E1], c2: Cause[E1]) => c1.equalsWith(cmpE, cmpT, cmpF)(c2)))(this, c)
-        case c @ Both(_, _) =>
-          sym(empty((c1: Cause[E1], c2: Cause[E1]) => c1.equalsWith(cmpE, cmpT, cmpF)(c2)))(this, c)
-        case traced: Traced[E1] => equalsWith(cmpE, cmpT, cmpF)(traced.cause)
-        case meta: Meta[E1]     => equalsWith(cmpE, cmpT, cmpF)(meta.cause)
+      override def hashWith(hashCause: HashCause[E]): Int = hashCause.hashE(value)
+      override def hashCode: Int                          = hashWith(HashCause.default)
+      override def equalsWith[E1 >: E](equalCause: EqualCause[E1])(that: Cause[E1]): Boolean = that match {
+        case that if eq(that)   => true
+        case fail: Fail[E1]     => equalCause.equalE(value, fail.value)
+        case c @ Then(_, _)     => sym(empty(equalCause))(this, c)
+        case c @ Both(_, _)     => sym(empty(equalCause))(this, c)
+        case traced: Traced[E1] => equalCause(this, traced.cause)
+        case meta: Meta[E1]     => equalCause(this, meta.cause)
         case _                  => false
       }
       override def equals(that: Any): Boolean = that match {
-        case that: Cause[Any] => equalsWith[Any](_ == _, _ == _, _ == _)(that)
+        case that: Cause[Any] => equalsWith[Any](EqualCause.default)(that)
         case _                => false
       }
     }
 
     final case class Die(value: Throwable) extends Cause[Nothing] {
-      override def hashWith(he: Nothing => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int = ht(value)
-      override def equalsWith[E1 >: Nothing](
-        cmpE: (E1, E1) => Boolean,
-        cmpT: (Throwable, Throwable) => Boolean,
-        cmpF: (Fiber.Id, Fiber.Id) => Boolean
-      )(
-        that: Cause[E1]
-      ): Boolean = that match {
-        case that if eq(that) => true
-        case die: Die         => cmpT(value, die.value)
-        case c @ Then(_, _) =>
-          sym(empty((c1: Cause[E1], c2: Cause[E1]) => c1.equalsWith(cmpE, cmpT, cmpF)(c2)))(this, c)
-        case c @ Both(_, _) =>
-          sym(empty((c1: Cause[E1], c2: Cause[E1]) => c1.equalsWith(cmpE, cmpT, cmpF)(c2)))(this, c)
-        case traced: Traced[E1] => equalsWith(cmpE, cmpT, cmpF)(traced.cause)
-        case meta: Meta[E1]     => equalsWith(cmpE, cmpT, cmpF)(meta.cause)
+      override def hashWith(hashCause: HashCause[Nothing]): Int = hashCause.hashThrowable(value)
+      override def hashCode: Int                                = hashWith(HashCause.default)
+      override def equalsWith[E1 >: Nothing](equalCause: EqualCause[E1])(that: Cause[E1]): Boolean = that match {
+        case that if eq(that)   => true
+        case die: Die           => equalCause.equalThrowable(value, die.value)
+        case c @ Then(_, _)     => sym(empty(equalCause))(this, c)
+        case c @ Both(_, _)     => sym(empty(equalCause))(this, c)
+        case traced: Traced[E1] => equalCause(this, traced.cause)
+        case meta: Meta[E1]     => equalCause(this, meta.cause)
         case _                  => false
       }
       override def equals(that: Any): Boolean = that match {
-        case that: Cause[Any] => equalsWith[Any](_ == _, _ == _, _ == _)(that)
+        case that: Cause[Any] => equalsWith[Any](EqualCause.default)(that)
         case _                => false
       }
     }
 
     final case class Interrupt(fiberId: Fiber.Id) extends Cause[Nothing] {
-      override def hashWith(he: Nothing => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int = hf(fiberId)
-      override def equalsWith[E1 >: Nothing](
-        cmpE: (E1, E1) => Boolean,
-        cmpT: (Throwable, Throwable) => Boolean,
-        cmpF: (Fiber.Id, Fiber.Id) => Boolean
-      )(
-        that: Cause[E1]
-      ): Boolean = that match {
+      override def hashWith(hashCause: HashCause[Nothing]): Int = hashCause.hashFiberId(fiberId)
+      override def hashCode: Int                                = hashWith(HashCause.default)
+      override def equalsWith[E1 >: Nothing](equalCause: EqualCause[E1])(that: Cause[E1]): Boolean = that match {
         case that if eq(that)     => true
-        case interrupt: Interrupt => cmpF(fiberId, interrupt.fiberId)
-        case c @ Then(_, _) =>
-          sym(empty((c1: Cause[E1], c2: Cause[E1]) => c1.equalsWith(cmpE, cmpT, cmpF)(c2)))(this, c)
-        case c @ Both(_, _) =>
-          sym(empty((c1: Cause[E1], c2: Cause[E1]) => c1.equalsWith(cmpE, cmpT, cmpF)(c2)))(this, c)
-        case traced: Traced[E1] => equalsWith(cmpE, cmpT, cmpF)(traced.cause)
-        case meta: Meta[E1]     => equalsWith(cmpE, cmpT, cmpF)(meta.cause)
-        case _                  => false
+        case interrupt: Interrupt => equalCause.equalFiberId(fiberId, interrupt.fiberId)
+        case c @ Then(_, _)       => sym(empty(equalCause))(this, c)
+        case c @ Both(_, _)       => sym(empty(equalCause))(this, c)
+        case traced: Traced[E1]   => equalCause(this, traced.cause)
+        case meta: Meta[E1]       => equalCause(this, meta.cause)
+        case _                    => false
       }
       override def equals(that: Any): Boolean = that match {
-        case that: Cause[Any] => equalsWith[Any](_ == _, _ == _, _ == _)(that)
+        case that: Cause[Any] => equalsWith[Any](EqualCause.default)(that)
         case _                => false
       }
     }
 
     // Traced is excluded completely from equals & hashCode
     final case class Traced[+E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
-      override def hashWith(he: E => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int =
-        cause.hashWith(he, ht, hf)
-      override def hashCode: Int = cause.hashCode()
-      override def equalsWith[E1 >: E](
-        cmpE: (E1, E1) => Boolean,
-        cmpT: (Throwable, Throwable) => Boolean,
-        cmpF: (Fiber.Id, Fiber.Id) => Boolean
-      )(
-        that: Cause[E1]
-      ): Boolean = that match {
+      override def hashWith(hashCause: HashCause[E]): Int = hashCause(cause)
+      override def hashCode: Int                          = hashWith(HashCause.default)
+      override def equalsWith[E1 >: E](equalCause: EqualCause[E1])(that: Cause[E1]): Boolean = that match {
         case that if eq(that)   => true
-        case traced: Traced[E1] => cause.equalsWith[E1](cmpE, cmpT, cmpF)(traced.cause)
-        case meta: Meta[E1]     => cause.equalsWith[E1](cmpE, cmpT, cmpF)(meta.cause)
-        case _                  => cause.equalsWith[E1](cmpE, cmpT, cmpF)(that)
+        case traced: Traced[E1] => equalCause(cause, traced.cause)
+        case meta: Meta[E1]     => equalCause(cause, meta.cause)
+        case _                  => equalCause(cause, that)
       }
       override def equals(that: Any): Boolean = that match {
-        case that: Cause[Any] => equalsWith[Any](_ == _, _ == _, _ == _)(that)
+        case that: Cause[Any] => equalsWith[Any](EqualCause.default)(that)
         case _                => false
       }
     }
 
     // Meta is excluded completely from equals & hashCode
     final case class Meta[+E](cause: Cause[E], data: Data) extends Cause[E] {
-      override def hashWith(he: E => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int =
-        cause.hashWith(he, ht, hf)
-      override def hashCode: Int = cause.hashCode()
-      override def equalsWith[E1 >: E](
-        cmpE: (E1, E1) => Boolean,
-        cmpT: (Throwable, Throwable) => Boolean,
-        cmpF: (Fiber.Id, Fiber.Id) => Boolean
-      )(
-        that: Cause[E1]
-      ): Boolean = that match {
+      override def hashWith(hashCause: HashCause[E]): Int = hashCause(cause)
+      override def hashCode: Int                          = hashWith(HashCause.default)
+      override def equalsWith[E1 >: E](equalCause: EqualCause[E1])(that: Cause[E1]): Boolean = that match {
         case that if eq(that)   => true
-        case traced: Traced[E1] => cause.equalsWith[E1](cmpE, cmpT, cmpF)(traced.cause)
-        case meta: Meta[E1]     => cause.equalsWith[E1](cmpE, cmpT, cmpF)(meta.cause)
-        case _                  => cause.equalsWith[E1](cmpE, cmpT, cmpF)(that)
+        case traced: Traced[E1] => equalCause(cause, traced.cause)
+        case meta: Meta[E1]     => equalCause(cause, meta.cause)
+        case _                  => equalCause(cause, that)
       }
       override def equals(that: Any): Boolean = that match {
-        case that: Cause[Any] => equalsWith[Any](_ == _, _ == _, _ == _)(that)
+        case that: Cause[Any] => equalsWith[Any](EqualCause.default)(that)
         case _                => false
       }
     }
 
     final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-      override def equalsWith[E1 >: E](
-        cmpE: (E1, E1) => Boolean,
-        cmpT: (Throwable, Throwable) => Boolean,
-        cmpF: (Fiber.Id, Fiber.Id) => Boolean
-      )(
-        that: Cause[E1]
-      ): Boolean = {
+      override def equalsWith[E1 >: E](equalCause: EqualCause[E1])(that: Cause[E1]): Boolean = {
 
         def eqv(that: Cause[E1]): Boolean = (self, that) match {
           case (tl: Then[E1], tr: Then[E1]) =>
-            tl.left.equalsWith[E1](cmpE, cmpT, cmpF)(tr.left) && tl.right.equalsWith[E1](cmpE, cmpT, cmpF)(tr.right)
+            equalCause(tl.left, tr.left) && equalCause(tl.right, tr.right)
           case _ => false
         }
 
         def assoc(l: Cause[E1], r: Cause[E1]): Boolean = (l, r) match {
           case (Then(Then(al, bl), cl), Then(ar, Then(br, cr))) =>
-            al.equalsWith[E1](cmpE, cmpT, cmpF)(ar) &&
-              bl.equalsWith[E1](cmpE, cmpT, cmpF)(br) &&
-              cl.equalsWith[E1](cmpE, cmpT, cmpF)(cr)
+            equalCause(al, ar) && equalCause(bl, br) && equalCause(cl, cr)
           case _ => false
         }
 
         def dist(l: Cause[E1], r: Cause[E1]): Boolean = (l, r) match {
           case (Then(al, Both(bl, cl)), Both(Then(ar1, br), Then(ar2, cr)))
-              if ar1.equalsWith[E1](cmpE, cmpT, cmpF)(ar2) &&
-                al.equalsWith[E1](cmpE, cmpT, cmpF)(ar1) &&
-                bl.equalsWith[E1](cmpE, cmpT, cmpF)(br) &&
-                cl.equalsWith[E1](cmpE, cmpT, cmpF)(cr) =>
+              if equalCause(ar1, ar2) && equalCause(al, ar1) && equalCause(bl, br) && equalCause(cl, cr) =>
             true
           case (Then(Both(al, bl), cl), Both(Then(ar, cr1), Then(br, cr2)))
-              if cr1.equalsWith[E1](cmpE, cmpT, cmpF)(cr2) &&
-                al.equalsWith[E1](cmpE, cmpT, cmpF)(ar) &&
-                bl.equalsWith[E1](cmpE, cmpT, cmpF)(br) &&
-                cl.equalsWith[E1](cmpE, cmpT, cmpF)(cr1) =>
+              if equalCause(cr1, cr2) && equalCause(al, ar) && equalCause(bl, br) && equalCause(cl, cr1) =>
             true
           case _ => false
         }
 
         that match {
           case that if eq(that)   => true
-          case traced: Traced[E1] => equalsWith(cmpE, cmpT, cmpF)(traced.cause)
-          case meta: Meta[E1]     => equalsWith(cmpE, cmpT, cmpF)(meta.cause)
+          case traced: Traced[E1] => equalCause(this, traced.cause)
+          case meta: Meta[E1]     => equalCause(this, meta.cause)
           case other: Cause[E1] =>
             eqv(other) ||
               sym(assoc)(other, self) ||
               sym(dist)(self, other) ||
-              sym(empty((c1: Cause[E1], c2: Cause[E1]) => c1.equalsWith(cmpE, cmpT, cmpF)(c2)))(self, other)
+              sym(empty(equalCause))(self, other)
           case _ => false
         }
       }
       override def equals(that: Any): Boolean = that match {
-        case that: Cause[Any] => equalsWith[Any](_ == _, _ == _, _ == _)(that)
+        case that: Cause[Any] => equalsWith[Any](EqualCause.default)(that)
         case _                => false
       }
-      override def hashCode: Int = Internal.hashCode[E](_.hashCode, _.hashCode, _.hashCode)(self)
-      override def hashWith(he: E => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int =
-        Internal.hashCode(he, ht, hf)(self)
+      override def hashCode: Int = hashWith(HashCause.default)
+      override def hashWith(hashCause: HashCause[E]): Int =
+        Internal.hashCode(hashCause)(self)
     }
 
     final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-      override def equalsWith[E1 >: E](
-        cmpE: (E1, E1) => Boolean,
-        cmpT: (Throwable, Throwable) => Boolean,
-        cmpF: (Fiber.Id, Fiber.Id) => Boolean
-      )(
-        that: Cause[E1]
-      ): Boolean = {
+      override def equalsWith[E1 >: E](equalCause: EqualCause[E1])(that: Cause[E1]): Boolean = {
 
         def eqv(that: Cause[E1]) = (self, that) match {
-          case (bl: Both[_], br: Both[_]) => bl.left == br.left && bl.right == br.right
-          case _                          => false
+          case (bl: Both[E1], br: Both[E1]) => equalCause(bl.left, br.left) && equalCause(bl.right, br.right)
+          case _                            => false
         }
 
         def assoc(l: Cause[E1], r: Cause[E1]): Boolean = (l, r) match {
-          case (Both(Both(al, bl), cl), Both(ar, Both(br, cr))) => al == ar && bl == br && cl == cr
-          case _                                                => false
+          case (Both(Both(al, bl), cl), Both(ar, Both(br, cr))) =>
+            equalCause(al, ar) && equalCause(bl, br) && equalCause(cl, cr)
+          case _ => false
         }
 
         def dist(l: Cause[E1], r: Cause[E1]): Boolean = (l, r) match {
           case (Both(Then(al1, bl), Then(al2, cl)), Then(ar, Both(br, cr)))
-              if al1 == al2 && al1 == ar && bl == br && cl == cr =>
+              if equalCause(al1, al2) && equalCause(al1, ar) && equalCause(bl, br) && equalCause(cl, cr) =>
             true
           case (Both(Then(al, cl1), Then(bl, cl2)), Then(Both(ar, br), cr))
-              if cl1 == cl2 && al == ar && bl == br && cl1 == cr =>
+              if equalCause(cl1, cl2) && equalCause(al, ar) && equalCause(bl, br) && equalCause(cl1, cr) =>
             true
           case _ => false
         }
 
         def comm(that: Cause[E1]): Boolean = (self, that) match {
-          case (Both(al, bl), Both(ar, br)) => al == br && bl == ar
+          case (Both(al, bl), Both(ar, br)) => equalCause(al, br) && equalCause(bl, ar)
           case _                            => false
         }
 
         that match {
           case that if eq(that)   => true
-          case traced: Traced[E1] => equalsWith(cmpE, cmpT, cmpF)(traced.cause)
-          case meta: Meta[E1]     => equalsWith(cmpE, cmpT, cmpF)(meta.cause)
+          case traced: Traced[E1] => equalCause(this, traced.cause)
+          case meta: Meta[E1]     => equalCause(this, meta.cause)
           case other: Cause[E1] =>
             eqv(other) ||
               sym(assoc)(self, other) ||
               sym(dist)(self, other) ||
               comm(other) ||
-              sym(empty((c1: Cause[E1], c2: Cause[E1]) => c1.equalsWith(cmpE, cmpT, cmpF)(c2)))(self, other)
+              sym(empty(equalCause))(self, other)
           case _ => false
         }
       }
 
       override def equals(that: Any): Boolean = that match {
-        case that: Cause[Any] => equalsWith[Any](_ == _, _ == _, _ == _)(that)
+        case that: Cause[Any] => equalsWith[Any](EqualCause.default)(that)
         case _                => false
       }
-      override def hashCode: Int = Internal.hashCode[E](_.hashCode, _.hashCode, _.hashCode)(self)
-      override def hashWith(he: E => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int =
-        Internal.hashCode(he, ht, hf)(self)
+      override def hashCode: Int = hashWith(HashCause.default)
+      override def hashWith(hashCause: HashCause[E]): Int =
+        Internal.hashCode(hashCause)(self)
     }
 
     final case class Data(stackless: Boolean)
 
-    private def empty[E](cmp: (Cause[E], Cause[E]) => Boolean)(l: Cause[E], r: Cause[E]): Boolean = (l, r) match {
-      case (Then(a, Empty), b) => cmp(a, b)
-      case (Then(Empty, a), b) => cmp(a, b)
-      case (Both(a, Empty), b) => cmp(a, b)
-      case (Both(Empty, a), b) => cmp(a, b)
+    private def empty[E](equal: (Cause[E], Cause[E]) => Boolean)(l: Cause[E], r: Cause[E]): Boolean = (l, r) match {
+      case (Then(a, Empty), b) => equal(a, b)
+      case (Then(Empty, a), b) => equal(a, b)
+      case (Both(a, Empty), b) => equal(a, b)
+      case (Both(Empty, a), b) => equal(a, b)
       case _                   => false
     }
 
     private def sym[E](f: (Cause[E], Cause[E]) => Boolean): (Cause[E], Cause[E]) => Boolean =
       (l, r) => f(l, r) || f(r, l)
 
-    private def hashCode[E](he: E => Int, ht: Throwable => Int, hf: Fiber.Id => Int)(c: Cause[E]): Int =
+    private def hashCode[E](hash: Cause[E] => Int)(c: Cause[E]): Int =
       flatten(c) match {
-        case Nil                         => Empty.hashWith(he, ht, hf)
-        case set :: Nil if set.size == 1 => set.head.hashWith(he, ht, hf)
-        case seq                         => seq.map(_.map(_.hashWith(he: E => Int, ht: Throwable => Int, hf: Fiber.Id => Int))).hashCode()
+        case Nil                         => hash(Empty)
+        case set :: Nil if set.size == 1 => hash(set.head)
+        case seq                         => seq.map(_.map(hash(_))).hashCode()
       }
 
     /**
@@ -1062,5 +998,35 @@ object Cause extends Serializable {
 
   private case class FiberTrace(trace: String) extends Throwable(null, null, true, false) {
     override final def getMessage: String = trace
+  }
+
+  trait EqualCause[-E] extends ((Cause[E], Cause[E]) => Boolean) {
+    def equalE(e1: E, e2: E): Boolean
+    def equalThrowable(t1: Throwable, t2: Throwable): Boolean
+    def equalFiberId(fid1: Fiber.Id, fid2: Fiber.Id): Boolean
+    @inline final override def apply(c1: Cause[E], c2: Cause[E]): Boolean = c1.equalsWith(this)(c2)
+  }
+
+  object EqualCause {
+    val default: EqualCause[Any] = new EqualCause[Any] {
+      override def equalE(e1: Any, e2: Any): Boolean                     = e1 == e2
+      override def equalThrowable(t1: Throwable, t2: Throwable): Boolean = t1 == t2
+      override def equalFiberId(fid1: Fiber.Id, fid2: Fiber.Id): Boolean = fid1 == fid2
+    }
+  }
+
+  trait HashCause[-E] extends (Cause[E] => Int) {
+    def hashE(e: E): Int
+    def hashThrowable(t: Throwable): Int
+    def hashFiberId(fid: Fiber.Id): Int
+    @inline final override def apply(c: Cause[E]): Int = c.hashWith(this)
+  }
+
+  object HashCause {
+    val default: HashCause[Any] = new HashCause[Any] {
+      override def hashE(e: Any): Int               = e.hashCode()
+      override def hashThrowable(t: Throwable): Int = t.hashCode()
+      override def hashFiberId(fid: Fiber.Id): Int  = fid.hashCode()
+    }
   }
 }
