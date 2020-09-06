@@ -721,7 +721,7 @@ object Cause extends Serializable {
   private object Internal {
 
     case object Empty extends Cause[Nothing] {
-      override def hashWith(te: Nothing => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int = hashCode()
+      override def hashWith(te: Nothing => Int, ht: Throwable => Int, hf: Fiber.Id => Int): Int = this.hashCode()
       override def equalsWith[E1 >: Nothing](
         cmpE: (E1, E1) => Boolean,
         cmpT: (Throwable, Throwable) => Boolean,
@@ -730,7 +730,7 @@ object Cause extends Serializable {
         that: Cause[E1]
       ): Boolean = that match {
         case that if eq(that)   => true
-        case Empty              => true
+        case _: Empty.type      => true
         case Then(left, right)  => equalsWith(cmpE, cmpT, cmpF)(left) && equalsWith(cmpE, cmpT, cmpF)(right)
         case Both(left, right)  => equalsWith(cmpE, cmpT, cmpF)(left) && equalsWith(cmpE, cmpT, cmpF)(right)
         case traced: Traced[E1] => equalsWith(cmpE, cmpT, cmpF)(traced.cause)
