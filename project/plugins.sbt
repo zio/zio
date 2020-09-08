@@ -16,4 +16,4 @@ addSbtPlugin("org.scala-native"                  % "sbt-scala-native"           
 addSbtPlugin("org.portable-scala"                % "sbt-scala-native-crossproject" % "1.0.0")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.20")
 addSbtPlugin("com.geirsson"                      % "sbt-ci-release"                % "1.5.3")
-addSbtPlugin("com.typesafe"                      % "sbt-mima-plugin"               % "0.7.0")
+addSbtPlugin("com.typesafe"                      % "sbt-mima-plugin"               % "0.8.0")
