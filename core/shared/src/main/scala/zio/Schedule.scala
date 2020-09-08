@@ -17,6 +17,7 @@
 package zio
 
 import java.time.OffsetDateTime
+import java.time.temporal.ChronoField
 import java.util.concurrent.TimeUnit
 
 import zio.duration._
@@ -1124,6 +1125,97 @@ object Schedule {
         })
 
     Schedule(loop(None, 0L))
+  }
+
+  /**
+   * Cron-like schedule that recurs every specified `second` of each minute.
+   * It triggers at zero nanosecond of the second.
+   * Producing a count of repeats: 0, 1, 2.
+   *
+   * NOTE: `second` parameter is validated lazily. Must be in range 0...59.
+   */
+  def secondOfMinute(second: Int): Schedule[Any, Any, Long] = {
+
+    def loop(n: Long): StepFunction[Any, Any, Long] =
+      (now: OffsetDateTime, _: Any) =>
+        if (second >= 60 || second < 0)
+          ZIO.die(
+            new IllegalArgumentException(s"Invalid argument in `secondOfMinute($second)`. Must be in range 0...59")
+          )
+        else
+          ZIO.succeed(
+            Decision.Continue(
+              n + 1,
+              nextFixedOffset(now, second, ChronoField.SECOND_OF_MINUTE).withNano(0),
+              loop(n + 1L)
+            )
+          )
+
+    Schedule(loop(0L))
+
+  }
+
+  /**
+   * Cron-like schedule that recurs every specified `minute` of each hour.
+   * It triggers at zero second of the minute.
+   * Producing a count of repeats: 0, 1, 2.
+   *
+   * NOTE: `minute` parameter is validated lazily. Must be in range 0...59.
+   */
+  def minuteOfHour(minute: Int): Schedule[Any, Any, Long] = {
+
+    def loop(n: Long): StepFunction[Any, Any, Long] =
+      (now: OffsetDateTime, _: Any) =>
+        if (minute >= 60 || minute < 0)
+          ZIO.die(new IllegalArgumentException(s"Invalid argument in `minuteOfHour($minute)`. Must be in range 0...59"))
+        else
+          ZIO.succeed(
+            Decision.Continue(
+              n + 1,
+              nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR)
+                .withSecond(0)
+                .withNano(0),
+              loop(n + 1L)
+            )
+          )
+
+    Schedule(loop(0L))
+
+  }
+
+  /**
+   * Cron-like schedule that recurs every specified `hour` of each day.
+   * It triggers at zero minute of the hour.
+   * Producing a count of repeats: 0, 1, 2.
+   *
+   * NOTE: `hour` parameter is validated lazily. Must be in range 0...23.
+   */
+  def hourOfDay(hour: Int): Schedule[Any, Any, Long] = {
+
+    def loop(n: Long): StepFunction[Any, Any, Long] =
+      (now: OffsetDateTime, _: Any) =>
+        if (hour >= 24 || hour < 0)
+          ZIO.die(new IllegalArgumentException(s"Invalid argument in `hourOfDay($hour)`. Must be in range 0...23"))
+        else
+          ZIO.succeed(
+            Decision.Continue(
+              n + 1,
+              nextFixedOffset(now, hour, ChronoField.HOUR_OF_DAY)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0),
+              loop(n + 1L)
+            )
+          )
+
+    Schedule(loop(0L))
+
+  }
+
+  private[this] def nextFixedOffset(currentOffset: OffsetDateTime, fixedTimeUnitValue: Int, timeUnit: ChronoField) = {
+    val fixedSec = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong)
+    if (currentOffset.get(timeUnit) <= fixedTimeUnitValue.toLong) fixedSec
+    else fixedSec.plus(1, timeUnit.getRangeUnit)
   }
 
   type Interval = java.time.OffsetDateTime
