@@ -305,7 +305,7 @@ object IO {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
-   * @see [[zio.ZIO.filter]]
+   * @see [[zio.ZIO.filter[R,E,A,Collection*]]
    */
   def filter[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -313,7 +313,13 @@ object IO {
     ZIO.filter(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterPar]]
+   * @see [[[zio.ZIO.filter[R,E,A](as:Set*]]]
+   */
+  def filter[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+    ZIO.filter(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterPar[R,E,A,Collection*]]
    */
   def filterPar[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -321,7 +327,13 @@ object IO {
     ZIO.filterPar(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNot]]
+   * @see [[[zio.ZIO.filterPar[R,E,A](as:Set*]]]
+   */
+  def filterPar[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+    ZIO.filterPar(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNot[R,E,A,Collection*]]
    */
   def filterNot[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -329,11 +341,23 @@ object IO {
     ZIO.filterNot(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNotPar]]
+   * @see [[[zio.ZIO.filterNot[R,E,A](as:Set*]]]
+   */
+  def filterNot[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNotPar[R,E,A,Collection*]]
    */
   def filterNotPar[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => IO[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): IO[E, Collection[A]] =
+    ZIO.filterNotPar(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.filterNotPar[R,E,A](as:Set*]]]
+   */
+  def filterNotPar[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
