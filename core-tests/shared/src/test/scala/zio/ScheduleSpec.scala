@@ -1,5 +1,6 @@
 package zio
 
+import java.time.temporal.ChronoField
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 
 import zio.clock.Clock
@@ -378,6 +379,36 @@ object ScheduleSpec extends ZIOBaseSpec {
       testM("throw IllegalArgumentException on invalid `hour` argument of `hourOfDay`") {
         val input = List(OffsetDateTime.now())
         assertM(run(Schedule.hourOfDay(24))(input)) {
+          equalTo(Chunk.empty)
+        }
+      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
+      testM("recur at Monday of each week") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime
+          .now()
+          .withHour(0)
+          .withMinute(0)
+          .withSecond(0)
+          .withNano(0)
+
+        val monday      = originOffset.`with`(ChronoField.DAY_OF_WEEK, 1)
+        val wednesday   = originOffset.`with`(ChronoField.DAY_OF_WEEK, 3)
+        val tuesday     = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2)
+        val tuesdayHour = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2).withHour(1)
+
+        val input = List(monday, wednesday, tuesday, tuesdayHour).map((_, ()))
+
+        assertM(runManually(Schedule.dayOfWeek(2), input).map(toOffsetDateTime)) {
+          val expectedTuesday = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2)
+          val nextTuesday     = expectedTuesday.plusDays(7).`with`(ChronoField.DAY_OF_WEEK, 2)
+          equalTo(List(expectedTuesday, nextTuesday, expectedTuesday, expectedTuesday))
+        }
+      },
+      testM("throw IllegalArgumentException on invalid `day` argument of `dayOfWeek`") {
+        val input = List(OffsetDateTime.now())
+        assertM(run(Schedule.dayOfWeek(8))(input)) {
           equalTo(Chunk.empty)
         }
       } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything)))
