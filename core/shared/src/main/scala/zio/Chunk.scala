@@ -1526,7 +1526,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       (left.arrayIterator ++ right.arrayIterator).asInstanceOf[Iterator[Array[A1]]]
 
     override private[zio] def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
-      (right.arrayIterator ++ left.arrayIterator).asInstanceOf[Iterator[Array[A1]]]
+      (right.reverseArrayIterator ++ left.reverseArrayIterator).asInstanceOf[Iterator[Array[A1]]]
   }
 
   private final case class Singleton[A](a: A) extends Chunk[A] {
