@@ -1212,6 +1212,36 @@ object Schedule {
 
   }
 
+  /**
+   * Cron-like schedule that recurs every specified `day` of each week.
+   * It triggers at zero hour of the week.
+   * Producing a count of repeats: 0, 1, 2.
+   *
+   * NOTE: `day` parameter is validated lazily. Must be in range 1 (Monday)...7 (Sunday).
+   */
+  def dayOfWeek(day: Int): Schedule[Any, Any, Long] = {
+
+    def loop(n: Long): StepFunction[Any, Any, Long] =
+      (now: OffsetDateTime, _: Any) =>
+        if (day > 7 || day < 1)
+          ZIO.die(new IllegalArgumentException(s"Invalid argument in `dayOfWeek($day)`. Must be in range 1...7"))
+        else
+          ZIO.succeed(
+            Decision.Continue(
+              n + 1,
+              nextFixedOffset(now, day, ChronoField.DAY_OF_WEEK)
+                .withHour(0)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0),
+              loop(n + 1L)
+            )
+          )
+
+    Schedule(loop(0L))
+
+  }
+
   private[this] def nextFixedOffset(currentOffset: OffsetDateTime, fixedTimeUnitValue: Int, timeUnit: ChronoField) = {
     val fixedSec = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong)
     if (currentOffset.get(timeUnit) <= fixedTimeUnitValue.toLong) fixedSec
