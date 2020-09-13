@@ -910,6 +910,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldM(e => ZIO.succeedNow(ev1(e)), ZIO.succeedNow)
 
   /**
+   * Returns a new effect where boolean value of this effect is negated.
+   */
+  final def negate(implicit ev: A <:< Boolean): ZIO[R, E, Boolean] =
+    map(result => !result)
+
+  /**
    * Requires the option produced by this value to be `None`.
    */
   final def none[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], Unit] =
@@ -3290,6 +3296,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def loop_[R, E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     if (cont(initial)) body(initial) *> loop_(inc(initial))(cont, inc)(body)
     else ZIO.unit
+
+  /**
+   * Returns a new effect where boolean value of this effect is negated.
+   */
+  def not[R, E](effect: ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+    effect.negate
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
