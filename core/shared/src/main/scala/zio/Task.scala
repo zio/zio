@@ -671,6 +671,12 @@ object Task extends TaskPlatformSpecific {
   val none: Task[Option[Nothing]] = ZIO.none
 
   /**
+   *  @see See [[zio.ZIO.not]]
+   */
+  def not[R, E](effect: ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+    ZIO.not(effect)
+
+  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[A, B](in: Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =

@@ -649,6 +649,12 @@ object URIO {
   val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
+   *  @see See [[zio.ZIO.not]]
+   */
+  def not[R, E](effect: ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+    ZIO.not(effect)
+
+  /**
    * @see [[zio.ZIO.provide]]
    */
   def provide[R, A](r: => R): URIO[R, A] => UIO[A] =
