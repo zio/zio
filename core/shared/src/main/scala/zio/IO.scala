@@ -678,7 +678,7 @@ object IO {
   /**
    *  @see See [[zio.ZIO.not]]
    */
-  def not[R, E](effect: ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+  def not[E](effect: IO[E, Boolean]): IO[E, Boolean] =
     ZIO.not(effect)
 
   /**

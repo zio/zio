@@ -673,7 +673,7 @@ object Task extends TaskPlatformSpecific {
   /**
    *  @see See [[zio.ZIO.not]]
    */
-  def not[R, E](effect: ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+  def not(effect: Task[Boolean]): Task[Boolean] =
     ZIO.not(effect)
 
   /**
