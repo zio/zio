@@ -3583,11 +3583,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
+   * 
+   * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
    */
-  def fromQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O]): ZStream[R, E, O] =
+  def fromQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O], maxChunkSize: Int = 1024): ZStream[R, E, O] =
     repeatEffectChunkOption {
       queue
-        .takeBetween(1, Int.MaxValue)
+        .takeBetween(1, maxChunkSize)
         .map(Chunk.fromIterable)
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
@@ -3599,9 +3601,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
+   * 
+   * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
    */
-  def fromQueueWithShutdown[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O]): ZStream[R, E, O] =
-    fromQueue(queue).ensuringFirst(queue.shutdown)
+  def fromQueueWithShutdown[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O], maxChunkSize: Int = 1024): ZStream[R, E, O] =
+    fromQueue(queue, maxChunkSize).ensuringFirst(queue.shutdown)
 
   /**
    * Creates a stream from a [[zio.Schedule]] that does not require any further

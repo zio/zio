@@ -3464,21 +3464,35 @@ object ZStreamSpec extends ZIOBaseSpec {
           val expected = Chunk(1.seconds, 2.seconds, 4.seconds, 8.seconds, 16.seconds)
           assertM(zio)(equalTo(expected))
         },
-        testM("fromQueue") {
-          assertWithChunkCoordination(List(Chunk(1, 2))) { c =>
+        suite("fromQueue")(
+          testM("emits queued elements") {
+            assertWithChunkCoordination(List(Chunk(1, 2))) { c =>
+              assertM(for {
+                fiber <- ZStream
+                          .fromQueue(c.queue)
+                          .collectWhileSuccess
+                          .flattenChunks
+                          .tap(_ => c.proceed)
+                          .runCollect
+                          .fork
+                _      <- c.offer
+                result <- fiber.join
+              } yield result)(equalTo(Chunk(1, 2)))
+            }
+          },
+          testM("chunks up to the max chunk size") {
             assertM(for {
-              fiber <- ZStream
-                         .fromQueue(c.queue)
-                         .collectWhileSuccess
-                         .flattenChunks
-                         .tap(_ => c.proceed)
-                         .runCollect
-                         .fork
-              _      <- c.offer
-              result <- fiber.join
-            } yield result)(equalTo(Chunk(1, 2)))
+              queue <- Queue.unbounded[Int]
+              _      <- queue.offerAll(List(1, 2, 3, 4, 5, 6, 7))
+              
+              result <- ZStream
+                        .fromQueue(queue, maxChunkSize = 2)
+                        .mapChunks(Chunk.single)
+                        .take(3)
+                        .runCollect
+            } yield result)(forall(hasSize(isLessThanEqualTo(2))))
           }
-        },
+        ),
         testM("fromTQueue") {
           TQueue.bounded[Int](5).commit.flatMap { tqueue =>
             ZStream.fromTQueue(tqueue).toQueueUnbounded.use { queue =>
