@@ -734,6 +734,12 @@ object RIO {
   val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
+   *  @see See [[zio.ZIO.not]]
+   */
+  def not[R](effect: RIO[R, Boolean]): RIO[R, Boolean] =
+    ZIO.not(effect)
+
+  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (Iterable[Throwable], Iterable[B])] =

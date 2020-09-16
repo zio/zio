@@ -627,6 +627,12 @@ object UIO {
   val never: UIO[Nothing] = ZIO.never
 
   /**
+   *  @see See [[zio.ZIO.not]]
+   */
+  def not(effect: UIO[Boolean]): UIO[Boolean] =
+    ZIO.not(effect)
+
+  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   def raceAll[A](uio: UIO[A], uios: Iterable[UIO[A]]): UIO[A] =

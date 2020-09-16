@@ -1237,6 +1237,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(task.run)(fails(isSome(equalTo(ex))))
       } @@ zioTag(errors)
     ),
+    suite("negate")(
+      testM("on true returns false") {
+        assertM(ZIO.succeed(true).negate)(equalTo(false))
+      },
+      testM("on false returns true") {
+        assertM(ZIO.succeed(false).negate)(equalTo(true))
+      }
+    ),
     suite("once")(
       testM("returns an effect that will only be executed once") {
         for {
