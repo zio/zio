@@ -3583,7 +3583,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
-   * 
+   *
    * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
    */
   def fromQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O], maxChunkSize: Int = 1024): ZStream[R, E, O] =
@@ -3601,10 +3601,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
-   * 
+   *
    * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
    */
-  def fromQueueWithShutdown[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O], maxChunkSize: Int = 1024): ZStream[R, E, O] =
+  def fromQueueWithShutdown[R, E, O](
+    queue: ZQueue[Nothing, R, Any, E, Nothing, O],
+    maxChunkSize: Int = 1024
+  ): ZStream[R, E, O] =
     fromQueue(queue, maxChunkSize).ensuringFirst(queue.shutdown)
 
   /**
