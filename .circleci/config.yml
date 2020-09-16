@@ -4,13 +4,13 @@ scala_211: &scala_211
   SCALA_VERSION: 2.11.12
 
 scala_212: &scala_212
-  SCALA_VERSION: 2.12.10
+  SCALA_VERSION: 2.12.12
 
 scala_213: &scala_213
-  SCALA_VERSION: 2.13.1
+  SCALA_VERSION: 2.13.3
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.26.0-RC1
+  SCALA_VERSION: 0.26.0
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -465,11 +465,13 @@ workflows:
           requires:
             - test_211_jdk8_jvm
             - test_211_jdk8_js
+            - test_211_jdk8_native
             - test_212_jdk8_jvm
             - test_212_jdk11_jvm
             - test_212_jdk8_js
             - test_213_jdk8_jvm
             - test_213_jdk8_js
+            - test_dotty_jdk8_jvm
             - mdoc
             - mima_212
             - mima_213
