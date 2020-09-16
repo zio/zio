@@ -9,6 +9,7 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Lessons Learned From Being a ZIO Contributor](https://www.softinio.com/post/lessons-learned-from-being-a-zio-contributor/) by Salar Rahmanian (September 2020)
 - [uzhttp + sttp for light-weight http and websockets](https://timpigden.github.io/_pages/zio-uzhttp-sttp/uzhttp-sttp.html) updated for 1.0.1 by Tim Pigden (August 2020)
 - [Streaming all the way with ZIO, Doobie, Quill, http4s and fs2](https://juliano-alves.com/2020/06/15/streaming-all-the-way-zio-doobie-quill-http4s-fs2/) by Juliano Alves (June 2020)
 - [Building a cool CLI with Decline for my ZIO App](https://medium.com/@pascal.mengelt/building-a-cool-cli-with-decline-for-my-zio-app-80e095b2899a) by Pascal Mengelt (May 2020)
