@@ -3469,12 +3469,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertWithChunkCoordination(List(Chunk(1, 2))) { c =>
               assertM(for {
                 fiber <- ZStream
-                          .fromQueue(c.queue)
-                          .collectWhileSuccess
-                          .flattenChunks
-                          .tap(_ => c.proceed)
-                          .runCollect
-                          .fork
+                           .fromQueue(c.queue)
+                           .collectWhileSuccess
+                           .flattenChunks
+                           .tap(_ => c.proceed)
+                           .runCollect
+                           .fork
                 _      <- c.offer
                 result <- fiber.join
               } yield result)(equalTo(Chunk(1, 2)))
@@ -3483,13 +3483,13 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("chunks up to the max chunk size") {
             assertM(for {
               queue <- Queue.unbounded[Int]
-              _      <- queue.offerAll(List(1, 2, 3, 4, 5, 6, 7))
-              
+              _     <- queue.offerAll(List(1, 2, 3, 4, 5, 6, 7))
+
               result <- ZStream
-                        .fromQueue(queue, maxChunkSize = 2)
-                        .mapChunks(Chunk.single)
-                        .take(3)
-                        .runCollect
+                          .fromQueue(queue, maxChunkSize = 2)
+                          .mapChunks(Chunk.single)
+                          .take(3)
+                          .runCollect
             } yield result)(forall(hasSize(isLessThanEqualTo(2))))
           }
         ),
