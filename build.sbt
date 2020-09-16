@@ -129,9 +129,10 @@ lazy val coreJS = core.js
 
 lazy val coreNative = core.native
   .settings(scalaVersion := Scala211)
+  .settings(crossScalaVersions := Seq(scalaVersion.value))
   .settings(skip in Test := true)
   .settings(skip in doc := true)
-  .settings(skip in scalafix := true)
+  .settings(ThisBuild / scalafix / skip := true)
   .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
     SettingKey[Boolean]("ide-skip-project") := true
   )
@@ -288,10 +289,11 @@ lazy val stacktracerJVM = stacktracer.jvm
 
 lazy val stacktracerNative = stacktracer.native
   .settings(scalaVersion := Scala211)
+  .settings(crossScalaVersions := Seq(scalaVersion.value))
   .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
   .settings(skip in Test := true)
   .settings(skip in doc := true)
-  .settings(skip in scalafix := true)
+  .settings(ThisBuild / scalafix / skip := true)
 
 lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))

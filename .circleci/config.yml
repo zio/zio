@@ -105,7 +105,7 @@ lint: &lint
     - <<: *load_cache
     - run:
         name: Lint code
-        command: ./sbt ++${SCALA_VERSION}! fmtCheck fixCheck
+        command: ./sbt ++${SCALA_VERSION} fmtCheck fixCheck
     - <<: *clean_cache
     - <<: *save_cache
 
