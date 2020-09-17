@@ -416,4 +416,4 @@ lazy val docs = project.module
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
 
-scalafixDependencies in ThisBuild += "com.nequissimus" %% "sort-imports" % "0.5.0"
+scalafixDependencies in ThisBuild += "com.nequissimus" %% "sort-imports" % "0.5.4"
