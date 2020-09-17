@@ -23,10 +23,7 @@ inThisBuild(
     ),
     pgpPassphrase := sys.env.get("PGP_PASSPHRASE").map(_.toArray),
     pgpPublicRing := file("/tmp/public.asc"),
-    pgpSecretRing := file("/tmp/secret.asc"),
-    scmInfo := Some(
-      ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
-    )
+    pgpSecretRing := file("/tmp/secret.asc")
   )
 )
 
