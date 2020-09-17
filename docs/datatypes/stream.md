@@ -24,6 +24,7 @@ val streamFromIterable: Stream[Nothing, Int] = Stream.fromIterable(0 to 100)
 
 You might also want to create it from a callback API :
 ```scala mdoc:silent
+import zio._
 import zio.stream._
 
 def callbackAPI(callback: String => Unit): Unit = ???
