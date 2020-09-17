@@ -63,4 +63,15 @@ object ZLawfulF {
         val laws = self.laws + that.laws
       }
   }
+
+  trait Divariant[-CapsF[_[-_, +_]], -Caps[_], -R] { self =>
+    def laws: ZLawsF.Divariant[CapsF, Caps, R]
+
+    def +[CapsF1[x[-_, +_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
+      that: Divariant[CapsF1, Caps1, R1]
+    ): Divariant[CapsF1, Caps1, R1] =
+      new Divariant[CapsF1, Caps1, R1] {
+        val laws = self.laws + that.laws
+      }
+  }
 }

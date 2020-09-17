@@ -76,6 +76,7 @@ package object laws {
     type Covariant[-CapsF[_[+_]], -Caps[_]]     = ZLawfulF.Covariant[CapsF, Caps, Any]
     type Contravariant[-CapsF[_[-_]], -Caps[_]] = ZLawfulF.Contravariant[CapsF, Caps, Any]
     type Invariant[-CapsF[_[_]], -Caps[_]]      = ZLawfulF.Invariant[CapsF, Caps, Any]
+    type Divariant[-CapsF[_[-_, +_]], -Caps[_]] = ZLawfulF.Divariant[CapsF, Caps, Any]
   }
 
   object Laws {
@@ -97,6 +98,7 @@ package object laws {
     type Covariant[-CapsF[_[+_]], -Caps[_]]     = ZLawsF.Covariant[CapsF, Caps, Any]
     type Contravariant[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant[CapsF, Caps, Any]
     type Invariant[-CapsF[_[_]], -Caps[_]]      = ZLawsF.Invariant[CapsF, Caps, Any]
+    type Divariant[-CapsF[_[-_, +_]], -Caps[_]] = ZLawsF.Divariant[CapsF, Caps, Any]
 
     object Covariant {
       type ComposeLaw[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.ComposeLaw[CapsF, Caps]
@@ -126,6 +128,15 @@ package object laws {
       type Law2M[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law2M[CapsF, Caps, Any]
       type Law3[-CapsF[_[_]], -Caps[_]]  = ZLawsF.Invariant.Law3[CapsF, Caps]
       type Law3M[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law3M[CapsF, Caps, Any]
+    }
+
+    object Divariant {
+      type Law1[-CapsF[_[-_, +_]], -Caps[_]]  = ZLawsF.Divariant.Law1[CapsF, Caps]
+      type Law1M[-CapsF[_[-_, +_]], -Caps[_]] = ZLawsF.Divariant.Law1M[CapsF, Caps, Any]
+      type Law2[-CapsF[_[-_, +_]], -Caps[_]]  = ZLawsF.Divariant.Law2[CapsF, Caps]
+      type Law2M[-CapsF[_[-_, +_]], -Caps[_]] = ZLawsF.Divariant.Law2M[CapsF, Caps, Any]
+      type Law3[-CapsF[_[-_, +_]], -Caps[_]]  = ZLawsF.Divariant.Law3[CapsF, Caps]
+      type Law3M[-CapsF[_[-_, +_]], -Caps[_]] = ZLawsF.Divariant.Law3M[CapsF, Caps, Any]
     }
   }
 
