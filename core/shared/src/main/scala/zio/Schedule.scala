@@ -17,7 +17,9 @@
 package zio
 
 import java.time.OffsetDateTime
-import java.time.temporal.ChronoField
+import java.time.temporal.ChronoField._
+import java.time.temporal.ChronoUnit._
+import java.time.temporal.{ ChronoField, TemporalAdjusters }
 import java.util.concurrent.TimeUnit
 
 import zio.duration._
@@ -1136,7 +1138,7 @@ object Schedule {
    */
   def secondOfMinute(second: Int): Schedule[Any, Any, Long] = {
 
-    def loop(n: Long): StepFunction[Any, Any, Long] =
+    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         if (second >= 60 || second < 0)
           ZIO.die(
@@ -1146,12 +1148,13 @@ object Schedule {
           ZIO.succeed(
             Decision.Continue(
               n + 1,
-              nextFixedOffset(now, second, ChronoField.SECOND_OF_MINUTE).withNano(0),
-              loop(n + 1L)
+              calculateNextOffset(initialLoop, now, second, SECOND_OF_MINUTE)
+                .truncatedTo(SECONDS),
+              loop(n + 1L, initialLoop = false)
             )
           )
 
-    Schedule(loop(0L))
+    Schedule(loop(0L, initialLoop = true))
 
   }
 
@@ -1164,7 +1167,7 @@ object Schedule {
    */
   def minuteOfHour(minute: Int): Schedule[Any, Any, Long] = {
 
-    def loop(n: Long): StepFunction[Any, Any, Long] =
+    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         if (minute >= 60 || minute < 0)
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `minuteOfHour($minute)`. Must be in range 0...59"))
@@ -1172,14 +1175,13 @@ object Schedule {
           ZIO.succeed(
             Decision.Continue(
               n + 1,
-              nextFixedOffset(now, minute, ChronoField.MINUTE_OF_HOUR)
-                .withSecond(0)
-                .withNano(0),
-              loop(n + 1L)
+              calculateNextOffset(initialLoop, now, minute, MINUTE_OF_HOUR)
+                .truncatedTo(MINUTES),
+              loop(n + 1L, initialLoop = false)
             )
           )
 
-    Schedule(loop(0L))
+    Schedule(loop(0L, initialLoop = true))
 
   }
 
@@ -1192,7 +1194,7 @@ object Schedule {
    */
   def hourOfDay(hour: Int): Schedule[Any, Any, Long] = {
 
-    def loop(n: Long): StepFunction[Any, Any, Long] =
+    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         if (hour >= 24 || hour < 0)
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `hourOfDay($hour)`. Must be in range 0...23"))
@@ -1200,15 +1202,13 @@ object Schedule {
           ZIO.succeed(
             Decision.Continue(
               n + 1,
-              nextFixedOffset(now, hour, ChronoField.HOUR_OF_DAY)
-                .withMinute(0)
-                .withSecond(0)
-                .withNano(0),
-              loop(n + 1L)
+              calculateNextOffset(initialLoop, now, hour, HOUR_OF_DAY)
+                .truncatedTo(HOURS),
+              loop(n + 1L, initialLoop = false)
             )
           )
 
-    Schedule(loop(0L))
+    Schedule(loop(0L, initialLoop = true))
 
   }
 
@@ -1221,7 +1221,7 @@ object Schedule {
    */
   def dayOfWeek(day: Int): Schedule[Any, Any, Long] = {
 
-    def loop(n: Long): StepFunction[Any, Any, Long] =
+    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         if (day > 7 || day < 1)
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `dayOfWeek($day)`. Must be in range 1...7"))
@@ -1229,23 +1229,76 @@ object Schedule {
           ZIO.succeed(
             Decision.Continue(
               n + 1,
-              nextFixedOffset(now, day, ChronoField.DAY_OF_WEEK)
-                .withHour(0)
-                .withMinute(0)
-                .withSecond(0)
-                .withNano(0),
-              loop(n + 1L)
+              calculateNextOffset(initialLoop, now, day, DAY_OF_WEEK).truncatedTo(DAYS),
+              loop(n + 1L, initialLoop = false)
             )
           )
 
-    Schedule(loop(0L))
+    Schedule(loop(0L, initialLoop = true))
 
   }
 
-  private[this] def nextFixedOffset(currentOffset: OffsetDateTime, fixedTimeUnitValue: Int, timeUnit: ChronoField) = {
-    val fixedSec = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong)
-    if (currentOffset.get(timeUnit) <= fixedTimeUnitValue.toLong) fixedSec
-    else fixedSec.plus(1, timeUnit.getRangeUnit)
+  /**
+   * Cron-like schedule that recurs every specified `day` of month.
+   * Won't recur on months containing less days than specified in `day` param.
+   *
+   * It triggers at zero hour of the day.
+   * Producing a count of repeats: 0, 1, 2.
+   *
+   * NOTE: `day` parameter is validated lazily. Must be in range 1...31.
+   */
+  def dayOfMonth(day: Int): Schedule[Any, Any, Long] = {
+
+    def calculateNextDate(currentDayAllowed: Boolean, currentDate: OffsetDateTime) = {
+
+      def mustBeInCurrentMonth =
+        (if (currentDayAllowed) currentDate.getDayOfMonth <= day else currentDate.getDayOfMonth < day) &&
+          currentDate.range(DAY_OF_MONTH).getMaximum >= day
+
+      if (mustBeInCurrentMonth)
+        currentDate.withDayOfMonth(day)
+      else {
+        def lastDayOfNextMonth(date: OffsetDateTime) = date
+          .`with`(TemporalAdjusters.firstDayOfNextMonth)
+          .`with`(TemporalAdjusters.lastDayOfMonth())
+
+        Stream
+          .iterate(lastDayOfNextMonth(currentDate))(lastDayOfNextMonth)
+          .find(_.getDayOfMonth >= day)
+          .get // can't fail
+          .withDayOfMonth(day)
+      }
+    }
+
+    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
+      (now: OffsetDateTime, _: Any) =>
+        if (day > 31 || day < 1)
+          ZIO.die(new IllegalArgumentException(s"Invalid argument in `dayOfMonth($day)`. Must be in range 1...31"))
+        else
+          ZIO.succeed(
+            Decision.Continue(
+              n + 1,
+              calculateNextDate(initialLoop, now).truncatedTo(DAYS),
+              loop(n + 1L, initialLoop = false)
+            )
+          )
+
+    Schedule(loop(0L, initialLoop = true))
+
+  }
+
+  private[this] def calculateNextOffset(
+    currentTemporalUnitAllowed: Boolean,
+    currentOffset: OffsetDateTime,
+    fixedTimeUnitValue: Int,
+    timeUnit: ChronoField
+  ) = {
+    val offsetWithAdjustedField = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong)
+    def mustBeInCurrentTemporalUnitValue =
+      if (currentTemporalUnitAllowed) currentOffset.get(timeUnit) <= fixedTimeUnitValue
+      else currentOffset.get(timeUnit) < fixedTimeUnitValue
+    if (mustBeInCurrentTemporalUnitValue) offsetWithAdjustedField
+    else offsetWithAdjustedField.plus(1, timeUnit.getRangeUnit)
   }
 
   type Interval = java.time.OffsetDateTime
