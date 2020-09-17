@@ -80,8 +80,11 @@ object AssertionSpec extends ZIOBaseSpec {
       val result = typeCheck("assert(1)(equalTo(\"abc\"))")
       assertM(result)(
         isLeft(
-          containsString("found   : zio.test.Assertion[String]") &&
-            containsString("required: zio.test.Assertion[Int]")
+          (containsString("found   : zio.test.Assertion[String]") &&
+            containsString("required: zio.test.Assertion[Int]")) ||
+            containsString(
+              "String and Int are unrelated types"
+            )
         )
       )
     } @@ scala2Only,
