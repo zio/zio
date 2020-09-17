@@ -42,7 +42,7 @@ class StreamBenchmarks {
       .map(_.toLong)
       .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
 
-    Await.result(program.run, Duration.Inf)
+    Await.result(program.run(), Duration.Inf)
   }
 
   @Benchmark
@@ -55,7 +55,7 @@ class StreamBenchmarks {
       .covary[CatsIO]
       .compile
       .fold(0L)(_ + _)
-    stream.unsafeRunSync
+    stream.unsafeRunSync()
   }
 
   @Benchmark
@@ -135,7 +135,7 @@ class CSVStreamBenchmarks {
       .mapConcat(t => t._2)
       .toMat(AkkaSink.ignore)(Keep.right)
 
-    Await.result(program.run, Duration.Inf)
+    Await.result(program.run(), Duration.Inf)
   }
 
   @Benchmark
@@ -164,7 +164,7 @@ class CSVStreamBenchmarks {
       .compile
       .drain
 
-    stream.unsafeRunSync
+    stream.unsafeRunSync()
   }
 
   @Benchmark

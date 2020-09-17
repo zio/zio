@@ -508,8 +508,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
   object executionTraceConditionalExampleFixture {
     def doWork(condition: Boolean) =
       for {
-        _ <- IO.when(condition)(doSideWork)
-        _ <- doMainWork
+        _ <- IO.when(condition)(doSideWork())
+        _ <- doMainWork()
       } yield ()
 
     def doSideWork() = Task(())
