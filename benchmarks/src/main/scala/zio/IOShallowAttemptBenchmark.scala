@@ -126,7 +126,7 @@ class IOShallowAttemptBenchmark {
           case Right(_) => Task.raiseError(new Error("Oh noes!"))
         }
 
-    throwup(0).runSyncStep.right.get
+    throwup(0).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark

@@ -98,7 +98,7 @@ class IODeepFlatMapBenchmark {
       else
         fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Task.eval(a + b)))
 
-    fib(depth).runSyncStep.right.get
+    fib(depth).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark
