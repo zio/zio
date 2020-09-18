@@ -4,18 +4,17 @@ import zio.random.Random
 import zio.test.{ FunctionVariants, Gen }
 
 /**
- * A `GenF` knows how to construct a generator of `F[A]` values given a
- * generator of `A` values for any `A`. For example, a `GenF` of `List` values
- * knows how to generate lists with elements given a generator of elements of
- * that type. You can think of `GenF` as a "recipe" for building generators
- * for parameterized types.
+ * A `GenF` knows how to construct a generator of `F[A,B]` values given a
+ * generator of `A` and generator of `B` values. For example, a `GenF2` of `Function1` values
+ * knows how to generate functions A => B with elements given a generator of elements of
+ * that type `B`.
  */
-trait GenF2[-R, F[-_, +_]] {
+trait GenF2[-R, F[_,_]] {
 
   /**
    * Construct a generator of `F[A,B]` values given a generators of `A` and `B` values.
    */
-  def apply[R1 <: R, A, B](gen: Gen[R1, B]): Gen[R, F[A, B]]
+  def apply[R1 <: R, A, B](gen: Gen[R1, B]): Gen[R1, F[A, B]]
 }
 
 object GenF2 extends FunctionVariants {
@@ -26,11 +25,7 @@ object GenF2 extends FunctionVariants {
   val function1: GenF2[Random, Function1] =
     new GenF2[Random, Function1] {
 
-      /**
-       * Construct a generator of `F[A,B]` values given a generators of `A` and `B` values.
-       */
-      override def apply[R1 <: Random, A, B](gen: Gen[R1, B]): Gen[Random, Function1[A, B]] =
-        //function[Random,A,B](gen) // declaration side variance ... is not happy
-        ???
+      override def apply[R1 <: Random, A, B](gen: Gen[R1, B]): Gen[R1, Function1[A, B]] =
+        function[R1,A,B](gen)
     }
 }
