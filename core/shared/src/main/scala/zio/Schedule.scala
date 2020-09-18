@@ -1255,19 +1255,19 @@ object Schedule {
         (if (currentDayAllowed) currentDate.getDayOfMonth <= day else currentDate.getDayOfMonth < day) &&
           currentDate.range(DAY_OF_MONTH).getMaximum >= day
 
-      if (mustBeInCurrentMonth)
-        currentDate.withDayOfMonth(day)
-      else {
-        def lastDayOfNextMonth(date: OffsetDateTime) = date
-          .`with`(TemporalAdjusters.firstDayOfNextMonth)
-          .`with`(TemporalAdjusters.lastDayOfMonth())
+      def lastDayOfNextMonth(date: OffsetDateTime) = date
+        .`with`(TemporalAdjusters.firstDayOfNextMonth())
+        .`with`(TemporalAdjusters.lastDayOfMonth())
 
-        Stream
-          .iterate(lastDayOfNextMonth(currentDate))(lastDayOfNextMonth)
-          .find(_.getDayOfMonth >= day)
-          .get // can't fail
-          .withDayOfMonth(day)
-      }
+      def findValidMonth(prevMonthDate: OffsetDateTime): OffsetDateTime =
+        lastDayOfNextMonth(prevMonthDate) match {
+          case d if d.getDayOfMonth >= day => d
+          case d                           => findValidMonth(d)
+        }
+
+      if (mustBeInCurrentMonth) currentDate.withDayOfMonth(day)
+      else findValidMonth(currentDate).withDayOfMonth(day)
+
     }
 
     def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =

@@ -447,8 +447,8 @@ object ScheduleSpec extends ZIOBaseSpec {
         val originOffset = OffsetDateTime
           .now()
           .withYear(2020)
-          .withMonth(2)
-          .withDayOfMonth(1)
+          .withMonth(1)
+          .withDayOfMonth(31)
           .withHour(0)
           .withMinute(0)
           .withSecond(0)
@@ -456,8 +456,8 @@ object ScheduleSpec extends ZIOBaseSpec {
 
         val input = List(originOffset).map((_, ()))
 
-        assertM(runManually(Schedule.dayOfMonth(31), input).map(toOffsetDateTime)) {
-          val expected = originOffset.withMonth(3).withDayOfMonth(31)
+        assertM(runManually(Schedule.dayOfMonth(30), input).map(toOffsetDateTime)) {
+          val expected = originOffset.withMonth(3).withDayOfMonth(30)
           equalTo(List(expected))
         }
       },
