@@ -9,20 +9,14 @@ import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.TestAspect.{ nonFlaky, scala2Only }
-import zio.test.environment.{ TestClock, TestConsole, TestRandom, TestSystem }
+import zio.test.environment.TestEnvironment
 import zio.test.{ check => Check, checkN => CheckN }
-import zio.{ Chunk, Has, NonEmptyChunk, ZIO }
+import zio.{ Chunk, NonEmptyChunk, ZIO }
 
 object GenSpec extends ZIOBaseSpec {
   implicit val localDateTimeOrdering: Ordering[LocalDateTime] = _ compareTo _
 
-  def spec: Spec[Has[TestConfig.Service] with Has[Random.Service] with Has[Sized.Service] with Has[
-    Annotations.Service
-  ] with Has[Random.Service] with Has[TestClock.Service] with Has[TestConsole.Service] with Has[
-    TestRandom.Service
-  ] with Has[TestSystem.Service] with Has[Annotations.Service] with Has[TestConfig.Service], TestFailure[
-    Any
-  ], TestSuccess] = suite("GenSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("GenSpec")(
     suite("integration tests")(
       testM("with bogus even property") {
         val gen = Gen.int(0, 100)

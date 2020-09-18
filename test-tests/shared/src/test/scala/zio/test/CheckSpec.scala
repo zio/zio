@@ -3,7 +3,7 @@ package zio.test
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.failing
-import zio.{ random, Chunk, Has, Ref, ZIO }
+import zio.{ Chunk, Has, Ref, ZIO, random }
 
 object CheckSpec extends ZIOBaseSpec {
 

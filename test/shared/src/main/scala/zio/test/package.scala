@@ -22,7 +22,7 @@ import scala.util.Try
 import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
-import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem }
+import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment }
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.

@@ -1,11 +1,10 @@
 package zio.stm
 
-import zio.clock.Clock
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
-import zio.{ Chunk, Has, ZIOBaseSpec }
+import zio.test.environment.TestEnvironment
+import zio.{ Chunk, ZIOBaseSpec }
 
 object TPriorityQueueSpec extends ZIOBaseSpec {
 
@@ -26,13 +25,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
   val genPredicate: Gen[Random, Event => Boolean] =
     Gen.function(Gen.boolean)
 
-  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
-    TestClock.Service
-  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
-    TestSystem.Service
-  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
-    Random.Service
-  ], TestFailure[Any], TestSuccess] = suite("TPriorityQueueSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("TPriorityQueueSpec")(
     testM("offerAll and takeAll") {
       checkM(genEvents) { as =>
         val transaction = for {

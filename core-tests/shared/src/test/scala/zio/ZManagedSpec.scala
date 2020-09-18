@@ -3,25 +3,17 @@ package zio
 import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.ZManaged.ReleaseMap
-import zio.clock.Clock
 import zio.duration._
-import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test._
-import zio.test.environment._
+import zio.test.environment.{ TestEnvironment, _ }
 
 object ZManagedSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
-    TestClock.Service
-  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
-    TestSystem.Service
-  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
-    Random.Service
-  ], TestFailure[Any], TestSuccess] = suite("ZManaged")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("ZManaged")(
     suite("absorbWith")(
       testM("on fail") {
         assertM(ZManagedExampleError.absorbWith(identity).use[Any, Throwable, Int](ZIO.succeed(_)).run)(

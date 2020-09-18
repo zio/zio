@@ -11,7 +11,7 @@ import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.{ failing, timeout }
 import zio.test.environment.{ TestClock, TestEnvironment, TestRandom }
-import zio.test.{ assert, assertM, suite, testM, Assertion, TestFailure, TestResult, ZSpec }
+import zio.test.{ Assertion, TestFailure, TestResult, ZSpec, assert, assertM, suite, testM }
 
 object ScheduleSpec extends ZIOBaseSpec {
 

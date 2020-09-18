@@ -4,7 +4,7 @@ import zio.duration._
 import zio.test.environment.Live
 import zio.test.mock.internal.{ ExpectationState, InvalidCall, MockException }
 import zio.test.mock.module.{ PureModule, PureModuleMock }
-import zio.test.{ suite, Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec }
+import zio.test.{ Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec, suite }
 import zio.{ IO, UIO }
 
 object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {

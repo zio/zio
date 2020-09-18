@@ -5,7 +5,7 @@ import scala.reflect.io.File
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{ live, Live }
+import zio.test.environment.{ Live, live }
 
 object SystemSpec extends ZIOBaseSpec {
 

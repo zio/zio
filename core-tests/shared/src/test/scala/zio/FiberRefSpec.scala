@@ -1,25 +1,17 @@
 package zio
 
 import zio.FiberRefSpecUtil._
-import zio.clock.Clock
 import zio.duration._
-import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
-import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
+import zio.test.environment.{ Live, TestEnvironment }
 
 object FiberRefSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
-    TestClock.Service
-  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
-    TestSystem.Service
-  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
-    Random.Service
-  ], TestFailure[Any], TestSuccess] = suite("FiberRefSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("FiberRefSpec")(
     suite("Create a new FiberRef with a specified value and check if:")(
       testM("`get` returns the current value") {
         for {

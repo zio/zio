@@ -18,7 +18,7 @@ package zio.test.mock
 import zio.duration._
 import zio.test.environment.Live
 import zio.test.mock.module.T22
-import zio.test.{ assertM, testM, Assertion, ZSpec }
+import zio.test.{ Assertion, ZSpec, assertM, testM }
 import zio.{ IO, ULayer, ZIO }
 
 trait MockSpecUtils[R] {

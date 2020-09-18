@@ -1,10 +1,9 @@
 package zio
 
-import zio.clock.Clock
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
+import zio.test.environment.{ Live, TestEnvironment }
 
 object RandomSpec extends ZIOBaseSpec {
 
@@ -14,13 +13,7 @@ object RandomSpec extends ZIOBaseSpec {
   implicit val FloatOrdering: Ordering[Float] =
     (l, r) => java.lang.Float.compare(l, r)
 
-  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
-    TestClock.Service
-  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
-    TestSystem.Service
-  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
-    Random.Service
-  ], TestFailure[Any], TestSuccess] = suite("RandomSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("RandomSpec")(
     testM("nextDoubleBetween generates doubles in specified range") {
       checkM(genDoubles) { case (min, max) =>
         for {

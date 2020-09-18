@@ -18,7 +18,7 @@ package zio.test
 
 import zio.duration._
 import zio.test.environment.Live
-import zio.{ console, URIO, ZIO }
+import zio.{ URIO, ZIO, console }
 
 trait TimeoutVariants {
 

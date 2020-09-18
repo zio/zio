@@ -2,23 +2,16 @@ package zio.stream
 
 import scala.util.Random
 
-import zio.clock.Clock
 import zio.duration._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isFalse, isGreaterThanEqualTo, isTrue, succeeds }
-import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
+import zio.test.environment.{ TestClock, TestEnvironment }
 import zio.test.{ assertM, _ }
 import zio.{ ZIOBaseSpec, _ }
 
 object ZSinkSpec extends ZIOBaseSpec {
-  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
-    TestClock.Service
-  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
-    TestSystem.Service
-  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
-    zio.random.Random.Service
-  ], TestFailure[Any], TestSuccess] = suite("ZSinkSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("ZSinkSpec")(
     suite("Constructors")(
       testM("collectAllToSet")(
         assertM(

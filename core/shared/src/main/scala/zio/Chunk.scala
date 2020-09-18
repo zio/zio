@@ -20,7 +20,7 @@ import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.Builder
-import scala.reflect.{ classTag, ClassTag }
+import scala.reflect.{ ClassTag, classTag }
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed

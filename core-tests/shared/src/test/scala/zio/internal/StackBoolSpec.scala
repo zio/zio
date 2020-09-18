@@ -5,7 +5,7 @@ import scala.util.Random.nextInt
 import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test.Assertion.equalTo
-import zio.test.{ assert, checkAll, suite, test, testM, Gen, ZSpec }
+import zio.test.{ Gen, ZSpec, assert, checkAll, suite, test, testM }
 
 object StackBoolSpec extends ZIOBaseSpec {
 

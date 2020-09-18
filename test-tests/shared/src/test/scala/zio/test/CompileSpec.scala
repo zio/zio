@@ -1,20 +1,11 @@
 package zio.test
 
-import zio.Has
-import zio.clock.Clock
-import zio.random.Random
 import zio.test.Assertion._
-import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
+import zio.test.environment.TestEnvironment
 
 object CompileSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
-    TestClock.Service
-  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
-    TestSystem.Service
-  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
-    Random.Service
-  ], TestFailure[Any], TestSuccess] = suite("CompileSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("CompileSpec")(
     testM("typeCheck must return Right if the specified string is valid Scala code") {
       assertM(typeCheck("1 + 1"))(isRight(anything))
     },

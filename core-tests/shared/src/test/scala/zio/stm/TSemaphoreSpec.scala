@@ -1,20 +1,13 @@
 package zio.stm
 
-import zio.clock.Clock
+import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
-import zio.{ Has, ZIOBaseSpec }
+import zio.test.environment.TestEnvironment
 
 object TSemaphoreSpec extends ZIOBaseSpec {
-  override def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
-    TestClock.Service
-  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
-    TestSystem.Service
-  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
-    Random.Service
-  ], TestFailure[Any], TestSuccess] = suite("TSemaphore")(
+  override def spec: ZSpec[TestEnvironment, Any] = suite("TSemaphore")(
     suite("factories")(
       testM("make") {
         checkM(Gen.long(1L, Int.MaxValue)) { expected =>

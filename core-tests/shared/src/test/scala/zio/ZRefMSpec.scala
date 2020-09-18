@@ -1,22 +1,14 @@
 package zio
 
-import zio.clock.Clock
-import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
+import zio.test.environment.TestEnvironment
 
 object ZRefMSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
-    TestClock.Service
-  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
-    TestSystem.Service
-  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
-    Random.Service
-  ], TestFailure[Any], TestSuccess] = suite("ZRefMSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("ZRefMSpec")(
     suite("atomic")(
       testM("get") {
         for {

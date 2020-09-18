@@ -3,7 +3,7 @@ package zio.test
 import scala.math.abs
 
 import zio.test.Assertion._
-import zio.{ random, ZIO }
+import zio.{ ZIO, random }
 
 object FunSpec extends ZIOBaseSpec {
 
