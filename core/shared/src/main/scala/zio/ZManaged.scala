@@ -2158,6 +2158,14 @@ object ZManaged extends ZManagedPlatformSpecific {
   lazy val releaseMap: ZManaged[Any, Nothing, ReleaseMap] =
     apply(ZIO.environment[(Any, ReleaseMap)].map(tp => (Finalizer.noop, tp._2)))
 
+  /**
+   * Returns an ZManaged that accesses the runtime, which can be used to
+   * (unsafely) execute tasks. This is useful for integration with legacy
+   * code that must call back into ZIO code.
+   */
+  def runtime[R]: ZManaged[R, Nothing, Runtime[R]] =
+    ZManaged.fromEffect(ZIO.runtime[R])
+
   def sandbox[R, E, A](v: ZManaged[R, E, A]): ZManaged[R, Cause[E], A] =
     v.sandbox
 
