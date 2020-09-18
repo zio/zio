@@ -1,19 +1,15 @@
 package zio.test.environment
 
+import zio.ZIO
 import zio.console._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ nonFlaky, silent }
 import zio.test._
 import zio.test.environment.TestConsole._
-import zio.{ Has, ZIO }
 
 object ConsoleSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Has[Service] with Has[Console.Service] with Has[TestClock.Service] with Has[Service] with Has[
-    TestRandom.Service
-  ] with Has[TestSystem.Service] with Has[Annotations.Service] with Has[TestConfig.Service] with Has[
-    Live.Service
-  ], Any] =
+  def spec: ZSpec[TestEnvironment, Any] =
     suite("ConsoleSpec")(
       testM("outputs nothing") {
         for {
