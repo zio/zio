@@ -5,7 +5,7 @@ import zio.console.Console
 import zio.duration._
 import zio.random.Random
 import zio.system.System
-import zio.test.{ assertM, suite, testM, Assertion, ZIOBaseSpec }
+import zio.test.{ assertM, suite, testM, Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec }
 import zio.{ clock, console, random, system, Has, Tag, ULayer, ZIO }
 
 object ComposedMockSpec extends ZIOBaseSpec {
@@ -22,7 +22,9 @@ object ComposedMockSpec extends ZIOBaseSpec {
     assertM(result)(check)
   }
 
-  def spec = suite("ComposedMockSpec")(
+  def spec: Spec[Has[Random.Service] with Has[Clock.Service] with Has[System.Service] with Has[
+    Console.Service
+  ], TestFailure[Throwable], TestSuccess] = suite("ComposedMockSpec")(
     suite("mocking composed environments")(
       {
         val cmd1     = MockClock.NanoTime(value(42L))

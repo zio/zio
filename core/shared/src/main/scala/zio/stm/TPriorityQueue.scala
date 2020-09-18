@@ -72,12 +72,11 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
    */
   def retainIf(f: A => Boolean): USTM[Unit] =
     ref.update { map =>
-      map.keys.foldLeft(map) {
-        case (map, a) =>
-          map(a).filter(f) match {
-            case h :: t => map + (a -> ::(h, t))
-            case Nil    => map - a
-          }
+      map.keys.foldLeft(map) { case (map, a) =>
+        map(a).filter(f) match {
+          case h :: t => map + (a -> ::(h, t))
+          case Nil    => map - a
+        }
       }
     }
 

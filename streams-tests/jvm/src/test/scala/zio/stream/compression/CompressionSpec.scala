@@ -14,15 +14,26 @@ import java.util.zip.{
 }
 
 import scala.annotation.tailrec
-import TestData._
+
 import zio._
+import zio.blocking.Blocking
+import zio.clock.Clock
+import zio.random.Random
 import zio.stream.ZTransducer.{ deflate, gunzip, gzip, inflate }
 import zio.stream._
+import zio.stream.compression.TestData._
 import zio.test.Assertion._
 import zio.test._
+import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
 
 object CompressionSpec extends DefaultRunnableSpec {
-  override def spec =
+  override def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
+    TestClock.Service
+  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
+    TestSystem.Service
+  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
+    Random.Service
+  ] with Has[Blocking.Service], TestFailure[Any], TestSuccess] =
     suite("CompressionSpec")(
       suite("inflate")(
         testM("short stream")(
@@ -273,15 +284,15 @@ object CompressionSpec extends DefaultRunnableSpec {
 
 object TestData {
 
-  val inflateRandomExampleThatFailed =
+  val inflateRandomExampleThatFailed: Array[Byte] =
     Array(100, 96, 2, 14, 108, -122, 110, -37, 35, -11, -10, 14, 47, 30, 43, 111, -80, 44, -34, 35, 35, 37, -103).map(
       _.toByte
     )
 
-  def deflatedStream(bytes: Array[Byte]) =
+  def deflatedStream(bytes: Array[Byte]): ZStream[Any, Nothing, Byte] =
     deflatedWith(bytes, new Deflater())
 
-  def noWrapDeflatedStream(bytes: Array[Byte]) =
+  def noWrapDeflatedStream(bytes: Array[Byte]): ZStream[Any, Nothing, Byte] =
     deflatedWith(bytes, new Deflater(9, true))
 
   def jdkDeflate(bytes: Array[Byte], deflater: Deflater): Array[Byte] = {
@@ -291,7 +302,7 @@ object TestData {
     Arrays.copyOf(bigBuffer, read)
   }
 
-  def deflatedWith(bytes: Array[Byte], deflater: Deflater) = {
+  def deflatedWith(bytes: Array[Byte], deflater: Deflater): ZStream[Any, Nothing, Byte] = {
     val arr = jdkDeflate(bytes, deflater)
     ZStream.fromIterable(arr)
   }
@@ -311,7 +322,7 @@ object TestData {
     inflate(Nil)
   }
 
-  def jdkGzippedStream(bytes: Array[Byte], syncFlush: Boolean = true) =
+  def jdkGzippedStream(bytes: Array[Byte], syncFlush: Boolean = true): ZStream[Any, Nothing, Byte] =
     ZStream.fromIterable(jdkGzip(bytes, syncFlush))
 
   def jdkGzip(bytes: Array[Byte], syncFlush: Boolean = true): Array[Byte] = {
@@ -337,28 +348,28 @@ object TestData {
     gunzip(Nil)
   }
 
-  val shortText          = "abcdefg1234567890".getBytes
-  val otherShortText     = "AXXX\u0000XXXA".getBytes
-  val longText           = Array.fill(1000)(shortText).flatten
-  val `1K`               = 1024
-  val headerHeadBytes    = Array(31.toByte, 139.toByte, 8.toByte)
-  val mTimeXflAndOsBytes = Array.fill(6)(0.toByte)
+  val shortText: Array[Byte]          = "abcdefg1234567890".getBytes
+  val otherShortText: Array[Byte]     = "AXXX\u0000XXXA".getBytes
+  val longText: Array[Byte]           = Array.fill(1000)(shortText).flatten
+  val `1K`                            = 1024
+  val headerHeadBytes: Array[Byte]    = Array(31.toByte, 139.toByte, 8.toByte)
+  val mTimeXflAndOsBytes: Array[Byte] = Array.fill(6)(0.toByte)
 
-  def makeStreamWithCustomHeader(flag: Int, headerTail: Array[Byte]) = {
+  def makeStreamWithCustomHeader(flag: Int, headerTail: Array[Byte]): ZStream[Any, Nothing, Byte] = {
     val headerHead = Array(31, 139, 8, flag, 0, 0, 0, 0, 0, 0).map(_.toByte)
     ZStream.fromIterable(headerHead ++ headerTail ++ jdkGzip(shortText).drop(10))
   }
 
-  val headerWithExtra =
+  val headerWithExtra: ZStream[Any, Nothing, Byte] =
     makeStreamWithCustomHeader(4, (Seq(13.toByte, 0.toByte) ++ Seq.fill(13)(42.toByte)).toArray)
 
-  val headerWithComment =
+  val headerWithComment: ZStream[Any, Nothing, Byte] =
     makeStreamWithCustomHeader(16, "ZIO rocks!".getBytes(StandardCharsets.ISO_8859_1) ++ Array(0.toByte))
 
-  val headerWithFileName =
+  val headerWithFileName: ZStream[Any, Nothing, Byte] =
     makeStreamWithCustomHeader(8, "some-file-name.md".getBytes(StandardCharsets.ISO_8859_1) ++ Array(0.toByte))
 
-  val headerWithCrc = {
+  val headerWithCrc: ZStream[Any, Nothing, Byte] = {
     val crcFlag     = 2
     val headerBytes = Array(31, 139, 8, crcFlag, 0, 0, 0, 0, 0, 0).map(_.toByte)
     val crc32       = new CRC32
@@ -370,7 +381,7 @@ object TestData {
     ZStream.fromIterable(header ++ jdkGzip(shortText).drop(10))
   }
 
-  val headerWithAll = {
+  val headerWithAll: ZStream[Any, Nothing, Byte] = {
     val flags         = 2 + 4 + 8 + 16
     val fixedHeader   = Array(31, 139, 8, flags, 0, 0, 0, 0, 0, 0).map(_.toByte)
     val extra         = (Seq(7.toByte, 0.toByte) ++ Seq.fill(7)(99.toByte)).toArray

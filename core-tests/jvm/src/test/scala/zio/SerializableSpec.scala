@@ -3,6 +3,7 @@ package zio
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
 
 import zio.SerializableSpecHelpers._
+import zio.clock.Clock
 import zio.internal.stacktracer.ZTraceElement
 import zio.system.System
 import zio.test.Assertion._
@@ -12,7 +13,9 @@ import zio.test.{ test => testSync, _ }
 
 object SerializableSpec extends ZIOBaseSpec {
 
-  def spec = suite("SerializableSpec")(
+  def spec: Spec[Has[Live.Service] with Any with Has[Clock.Service] with Has[Annotations.Service], TestFailure[
+    Any
+  ], TestSuccess] = suite("SerializableSpec")(
     testM("Semaphore is serializable") {
       val n = 20L
       for {

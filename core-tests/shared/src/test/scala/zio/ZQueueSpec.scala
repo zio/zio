@@ -3,17 +3,25 @@ package zio
 import scala.collection.immutable.Range
 
 import zio.ZQueueSpecUtil.waitForSize
+import zio.clock.Clock
 import zio.duration._
+import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.{ jvm, nonFlaky }
 import zio.test._
-import zio.test.environment.Live
+import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
 
 object ZQueueSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ZQueueSpec")(
+  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
+    TestClock.Service
+  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
+    TestSystem.Service
+  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
+    Random.Service
+  ], TestFailure[Any], TestSuccess] = suite("ZQueueSpec")(
     testM("sequential offer and take") {
       for {
         queue <- Queue.bounded[Int](100)

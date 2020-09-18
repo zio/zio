@@ -1,9 +1,10 @@
 package zio
 
+import zio.clock.Clock
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.Live
+import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
 
 object RandomSpec extends ZIOBaseSpec {
 
@@ -13,41 +14,43 @@ object RandomSpec extends ZIOBaseSpec {
   implicit val FloatOrdering: Ordering[Float] =
     (l, r) => java.lang.Float.compare(l, r)
 
-  def spec = suite("RandomSpec")(
+  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
+    TestClock.Service
+  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
+    TestSystem.Service
+  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
+    Random.Service
+  ], TestFailure[Any], TestSuccess] = suite("RandomSpec")(
     testM("nextDoubleBetween generates doubles in specified range") {
-      checkM(genDoubles) {
-        case (min, max) =>
-          for {
-            n <- Live.live(random.nextDoubleBetween(min, max))
-          } yield assert(n)(isGreaterThanEqualTo(min)) &&
-            assert(n)(isLessThan(max))
+      checkM(genDoubles) { case (min, max) =>
+        for {
+          n <- Live.live(random.nextDoubleBetween(min, max))
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     },
     testM("nextFloatBetween generates floats in specified range") {
-      checkM(genFloats) {
-        case (min, max) =>
-          for {
-            n <- Live.live(random.nextFloatBetween(min, max))
-          } yield assert(n)(isGreaterThanEqualTo(min)) &&
-            assert(n)(isLessThan(max))
+      checkM(genFloats) { case (min, max) =>
+        for {
+          n <- Live.live(random.nextFloatBetween(min, max))
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     },
     testM("nextIntBetween generates integers in specified range") {
-      checkM(genInts) {
-        case (min, max) =>
-          for {
-            n <- Live.live(random.nextIntBetween(min, max))
-          } yield assert(n)(isGreaterThanEqualTo(min)) &&
-            assert(n)(isLessThan(max))
+      checkM(genInts) { case (min, max) =>
+        for {
+          n <- Live.live(random.nextIntBetween(min, max))
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     },
     testM("nextLongBetween generates longs in specified range") {
-      checkM(genLongs) {
-        case (min, max) =>
-          for {
-            n <- Live.live(random.nextLongBetween(min, max))
-          } yield assert(n)(isGreaterThanEqualTo(min)) &&
-            assert(n)(isLessThan(max))
+      checkM(genLongs) { case (min, max) =>
+        for {
+          n <- Live.live(random.nextLongBetween(min, max))
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     }
   )

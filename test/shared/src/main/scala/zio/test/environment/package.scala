@@ -447,11 +447,10 @@ package object environment extends PlatformSpecific {
        * time but is not advancing the `TestClock`.
        */
       private val warningStart: UIO[Unit] =
-        warningState.updateSome {
-          case WarningData.Start =>
-            for {
-              fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
-            } yield WarningData.pending(fiber)
+        warningState.updateSome { case WarningData.Start =>
+          for {
+            fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
+          } yield WarningData.pending(fiber)
         }
 
     }
@@ -1042,9 +1041,8 @@ package object environment extends PlatformSpecific {
        * Gets the seed of this `TestRandom`.
        */
       val getSeed: UIO[Long] =
-        randomState.get.map {
-          case Data(seed1, seed2, _) =>
-            ((seed1.toLong << 24) | seed2) ^ 0x5deece66dL
+        randomState.get.map { case Data(seed1, seed2, _) =>
+          ((seed1.toLong << 24) | seed2) ^ 0x5deece66dL
         }
 
       /**
@@ -1293,29 +1291,25 @@ package object environment extends PlatformSpecific {
         //  The Box-Muller transform generates two normally distributed random
         //  doubles, so we store the second double in a queue and check the
         //  queue before computing a new pair of values to avoid wasted work.
-        randomState.modify {
-          case Data(seed1, seed2, queue) =>
-            queue.dequeueOption.fold((Option.empty[Double], Data(seed1, seed2, queue))) {
-              case (d, queue) => (Some(d), Data(seed1, seed2, queue))
-            }
+        randomState.modify { case Data(seed1, seed2, queue) =>
+          queue.dequeueOption.fold((Option.empty[Double], Data(seed1, seed2, queue))) { case (d, queue) =>
+            (Some(d), Data(seed1, seed2, queue))
+          }
         }.flatMap {
           case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
           case None =>
             def loop: UIO[(Double, Double, Double)] =
-              randomDouble.zip(randomDouble).flatMap {
-                case (d1, d2) =>
-                  val x      = 2 * d1 - 1
-                  val y      = 2 * d2 - 1
-                  val radius = x * x + y * y
-                  if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
+              randomDouble.zip(randomDouble).flatMap { case (d1, d2) =>
+                val x      = 2 * d1 - 1
+                val y      = 2 * d2 - 1
+                val radius = x * x + y * y
+                if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
               }
-            loop.flatMap {
-              case (x, y, radius) =>
-                val c = sqrt(-2 * log(radius) / radius)
-                randomState.modify {
-                  case Data(seed1, seed2, queue) =>
-                    (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
-                }
+            loop.flatMap { case (x, y, radius) =>
+              val c = sqrt(-2 * log(radius) / radius)
+              randomState.modify { case Data(seed1, seed2, queue) =>
+                (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
+              }
             }
         }
 

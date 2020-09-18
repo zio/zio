@@ -3,7 +3,7 @@ package zio.test.mock
 import zio.ZIO
 import zio.test.mock.internal.{ InvalidCall, MockException }
 import zio.test.mock.module.{ PureModule, PureModuleMock }
-import zio.test.{ suite, Assertion, ZIOBaseSpec }
+import zio.test.{ suite, Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec }
 
 object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
 
@@ -16,13 +16,13 @@ object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule]
   val cmdB = PureModuleMock.Overloaded._0
   val cmdC = PureModuleMock.ZeroParams
 
-  val A = PureModuleMock.SingleParam(equalTo(1), value("A"))
-  val B = PureModuleMock.Overloaded._0(equalTo(2), value("B"))
-  val C = PureModuleMock.ZeroParams(value("C"))
+  val A: Expectation[PureModule] = PureModuleMock.SingleParam(equalTo(1), value("A"))
+  val B: Expectation[PureModule] = PureModuleMock.Overloaded._0(equalTo(2), value("B"))
+  val C: Expectation[PureModule] = PureModuleMock.ZeroParams(value("C"))
 
-  val a = PureModule.singleParam(1)
-  val b = PureModule.overloaded(2)
-  val c = PureModule.zeroParams
+  val a: ZIO[PureModule, String, String] = PureModule.singleParam(1)
+  val b: ZIO[PureModule, String, String] = PureModule.overloaded(2)
+  val c                                  = PureModule.zeroParams
 
   type E = InvalidCallException
   type L = List[InvalidCall]
@@ -33,8 +33,8 @@ object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule]
       hasField[E, L](
         "failedMatches",
         _.failedMatches,
-        failedMatches.zipWithIndex.foldLeft[Assertion[L]](zero) {
-          case (acc, (failure, idx)) => acc && hasAt(idx)(equalTo(failure))
+        failedMatches.zipWithIndex.foldLeft[Assertion[L]](zero) { case (acc, (failure, idx)) =>
+          acc && hasAt(idx)(equalTo(failure))
         }
       )
     )
@@ -53,7 +53,7 @@ object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule]
   def hasUnsatisfiedExpectations: Assertion[Throwable] =
     isSubtype[UnsatisfiedExpectationsException[PureModule]](anything)
 
-  def spec = suite("AdvancedEffectMockSpec")(
+  def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("AdvancedEffectMockSpec")(
     suite("expectations composition")(
       suite("A and B")(
         testValue("A->B passes")(A && B, a *> b, equalTo("B")),

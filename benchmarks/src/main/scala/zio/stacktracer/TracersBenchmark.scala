@@ -16,7 +16,7 @@ import zio.stacktracer.impls.AsmTracer
 class TracersBenchmark {
 
   @Benchmark
-  def akkaLineNumbers1000Lambdas() = {
+  def akkaLineNumbers1000Lambdas(): Unit = {
     var i = 0
     while (i != 1000) {
       AkkaLineNumbers((a: Any) => a)
@@ -25,7 +25,7 @@ class TracersBenchmark {
   }
 
   @Benchmark
-  def akkaTracer1000Lambdas() = {
+  def akkaTracer1000Lambdas(): Unit = {
     var i = 0
     while (i != 1000) {
       akkaTracer.traceLocation((a: Any) => a)
@@ -34,7 +34,7 @@ class TracersBenchmark {
   }
 
   @Benchmark
-  def asmTracer1000Lambdas() = {
+  def asmTracer1000Lambdas(): Unit = {
     var i = 0
     while (i != 1000) {
       asmTracer.traceLocation((a: Any) => a)

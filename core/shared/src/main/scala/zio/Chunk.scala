@@ -354,9 +354,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
       var i      = 0
       while (i < length) {
         val a = array(i)
-        dest = dest.zipWith(f(a)) {
-          case (builder, res) =>
-            if (res) builder += a else builder
+        dest = dest.zipWith(f(a)) { case (builder, res) =>
+          if (res) builder += a else builder
         }
         i += 1
       }
@@ -607,10 +606,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
         while (i < length) {
           val a = array(i)
           dest = dest.flatMap { state =>
-            f1(state, a).map {
-              case (state2, b) =>
-                builder += b
-                state2
+            f1(state, a).map { case (state2, b) =>
+              builder += b
+              state2
             }
           }
           i += 1
@@ -1363,9 +1361,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
           val j = i
           // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
           val rhs = pf.applyOrElse(self(j), orElse)
-          dest = dest.zipWith(rhs) {
-            case (builder, b) =>
-              if (b != null) (builder += b) else builder
+          dest = dest.zipWith(rhs) { case (builder, b) =>
+            if (b != null) (builder += b) else builder
           }
           i += 1
         }

@@ -1,9 +1,8 @@
 package zio.test.mock
 
 import zio.Has
-import zio.test.Assertion
-import zio.test.mock.module.PureModuleMock
-import zio.test.{ assert, suite, test, ZIOBaseSpec }
+import zio.test.mock.module.{ PureModule, PureModuleMock }
+import zio.test.{ assert, suite, test, Assertion, ZIOBaseSpec, ZSpec }
 
 object ExpectationSpec extends ZIOBaseSpec {
 
@@ -11,9 +10,9 @@ object ExpectationSpec extends ZIOBaseSpec {
   import Expectation._
   import PureModuleMock._
 
-  lazy val A = SingleParam(equalTo(1), value("foo"))
-  lazy val B = Static(value("bar"))
-  lazy val C = Looped(equalTo(1), never)
+  lazy val A: Expectation[PureModule] = SingleParam(equalTo(1), value("foo"))
+  lazy val B: Expectation[PureModule] = Static(value("bar"))
+  lazy val C: Expectation[PureModule] = Looped(equalTo(1), never)
 
   private def isAnd[R <: Has[_]](children: List[Expectation[_]]) =
     isSubtype[And[R]](
@@ -42,7 +41,7 @@ object ExpectationSpec extends ZIOBaseSpec {
       )
     )
 
-  def spec = suite("ExpectationSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ExpectationSpec")(
     suite("and")(
       test("A and B")(assert(A and B)(isAnd(A :: B :: Nil))),
       test("A && B")(assert(A && B)(isAnd(A :: B :: Nil)))

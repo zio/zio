@@ -64,10 +64,9 @@ private[mock] object Debug {
   }
 
   def prettify[R <: Has[_]](scopes: List[Scope[R]]): String =
-    scopes.map {
-      case Scope(expectation, id, _) =>
-        val rendered = prettify(expectation)
-        s">>>\nInvocation ID: $id\n$rendered"
+    scopes.map { case Scope(expectation, id, _) =>
+      val rendered = prettify(expectation)
+      s">>>\nInvocation ID: $id\n$rendered"
     } match {
       case Nil         => ""
       case head :: Nil => s"[Head]:\n$head"

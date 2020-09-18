@@ -18,7 +18,13 @@ object CancelableFutureSpec extends ZIOBaseSpec {
       a      <- RIO.fromFuture(_ => future)
     } yield a
 
-  def spec =
+  def spec: ZSpec[Has[Clock.Service] with Has[TestClock.Service] with Has[TestConsole.Service] with Has[
+    TestRandom.Service
+  ] with Has[TestSystem.Service] with Has[Annotations.Service] with Has[TestConfig.Service] with Has[
+    Live.Service
+  ] with Has[TestClock.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
+    TestSystem.Service
+  ] with Has[Annotations.Service] with Has[TestConfig.Service], Any] =
     suite("CancelableFutureSpec")(
       testM("auto-kill regression") {
         val effect = ZIO.unit.delay(1.millisecond)

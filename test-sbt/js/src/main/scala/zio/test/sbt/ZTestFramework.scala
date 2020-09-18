@@ -19,7 +19,7 @@ package zio.test.sbt
 import sbt.testing._
 
 final class ZTestFramework extends Framework {
-  override final val name = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
+  override final val name: String = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
 
   val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
 

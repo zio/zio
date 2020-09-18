@@ -313,10 +313,9 @@ object ZScope {
             val a = exitValue.get()
 
             array
-              .foldLeft[UIO[Cause[Nothing]]](noCauseEffect) {
-                case (acc, o) =>
-                  if (o ne null) acc.zipWith(o.finalizer(a).cause)(_ ++ _)
-                  else acc
+              .foldLeft[UIO[Cause[Nothing]]](noCauseEffect) { case (acc, o) =>
+                if (o ne null) acc.zipWith(o.finalizer(a).cause)(_ ++ _)
+                else acc
               }
               .uncause[Nothing]
           }

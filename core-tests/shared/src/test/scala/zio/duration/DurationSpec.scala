@@ -11,7 +11,7 @@ import zio.test._
 
 object DurationSpec extends ZIOBaseSpec {
 
-  def spec = suite("DurationSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("DurationSpec")(
     suite("Make a Duration from positive nanos and check that: ")(
       test("The Duration is Finite") {
         assert(Duration.fromNanos(1) == Duration.Infinity)(equalTo(false))

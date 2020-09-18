@@ -36,8 +36,8 @@ object ZInputStream {
           val b: Array[Byte] = new Array[Byte](n)
           val count          = is.read(b)
           if (count == -1) ZIO.fail(None) else ZIO.succeed(Chunk.fromArray(b).take(count))
-        }.mapError {
-          case e: IOException => Some(e)
+        }.mapError { case e: IOException =>
+          Some(e)
         }.flatten
 
       def skip(n: Long): ZIO[Blocking, IOException, Long] =
@@ -61,8 +61,8 @@ object ZInputStream {
             }
             ZIO.succeed(Chunk.fromArray(buffer.toByteArray()).take(countTotalBytes))
           }
-        }.mapError {
-          case e: IOException => Some(e)
+        }.mapError { case e: IOException =>
+          Some(e)
         }.flatten
 
     }

@@ -1,12 +1,20 @@
 package zio.stm
 
-import zio.ZIOBaseSpec
+import zio.clock.Clock
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
+import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
+import zio.{ Has, ZIOBaseSpec }
 
 object TSemaphoreSpec extends ZIOBaseSpec {
-  override def spec = suite("TSemaphore")(
+  override def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
+    TestClock.Service
+  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
+    TestSystem.Service
+  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
+    Random.Service
+  ], TestFailure[Any], TestSuccess] = suite("TSemaphore")(
     suite("factories")(
       testM("make") {
         checkM(Gen.long(1L, Int.MaxValue)) { expected =>
@@ -31,16 +39,15 @@ object TSemaphoreSpec extends ZIOBaseSpec {
         }
       },
       testM("used capacity must be equal to the # of acquires minus # of releases") {
-        checkM(usedCapacityGen) {
-          case (capacity, acquire, release) =>
-            val actual = for {
-              sem <- TSemaphore.make(capacity)
-              _   <- repeat(sem.acquire)(acquire) *> repeat(sem.release)(release)
-              cap <- sem.available
-            } yield cap
+        checkM(usedCapacityGen) { case (capacity, acquire, release) =>
+          val actual = for {
+            sem <- TSemaphore.make(capacity)
+            _   <- repeat(sem.acquire)(acquire) *> repeat(sem.release)(release)
+            cap <- sem.available
+          } yield cap
 
-            val usedCapacity = acquire - release
-            assertM(actual.commit)(equalTo(capacity - usedCapacity))
+          val usedCapacity = acquire - release
+          assertM(actual.commit)(equalTo(capacity - usedCapacity))
         }
       },
       testM("acquireN/releaseN(n) is acquire/release repeated N times") {

@@ -4,8 +4,6 @@ import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
-name := "zio"
-
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 inThisBuild(
@@ -27,8 +25,8 @@ inThisBuild(
   )
 )
 
-addCommandAlias("build", "prepare; testJVM")
-addCommandAlias("prepare", "fix; fmt")
+addCommandAlias("build", "; prepare; testJVM")
+addCommandAlias("prepare", "; fix; fmt")
 addCommandAlias("fix", "all compile:scalafix test:scalafix")
 addCommandAlias(
   "fixCheck",
@@ -129,7 +127,6 @@ lazy val coreNative = core.native
   .settings(crossScalaVersions := Seq(scalaVersion.value))
   .settings(skip in Test := true)
   .settings(skip in doc := true)
-  .settings(ThisBuild / scalafix / skip := true)
   .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
     SettingKey[Boolean]("ide-skip-project") := true
   )
@@ -139,6 +136,9 @@ lazy val coreNative = core.native
       "dev.whaling" %%% "native-loop-core"      % "0.1.1",
       "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
     )
+  )
+  .disablePlugins(
+    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
   )
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
@@ -290,7 +290,9 @@ lazy val stacktracerNative = stacktracer.native
   .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
   .settings(skip in Test := true)
   .settings(skip in doc := true)
-  .settings(ThisBuild / scalafix / skip := true)
+  .disablePlugins(
+    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
+  )
 
 lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
@@ -412,5 +414,3 @@ lazy val docs = project.module
     // , coreJS // Disabled until mdoc supports ScalaJS 1.1
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
-
-scalafixDependencies in ThisBuild += "com.nequissimus" %% "sort-imports" % "0.5.4"

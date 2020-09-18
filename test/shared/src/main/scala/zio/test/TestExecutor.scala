@@ -40,17 +40,16 @@ object TestExecutor {
               { case (failure, annotations) => ZIO.succeedNow((Left(failure), annotations)) },
               cause => ZIO.succeedNow((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
             ),
-          {
-            case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
+          { case (success, annotations) =>
+            ZIO.succeedNow((Right(success), annotations))
           }
         )
         .use(_.foldM[Any, Nothing, ExecutedSpec[E]](defExec) {
           case Spec.SuiteCase(label, specs, _) =>
             specs.map(specs => ExecutedSpec.suite(label, specs))
           case Spec.TestCase(label, test, staticAnnotations) =>
-            test.map {
-              case (result, dynamicAnnotations) =>
-                ExecutedSpec.test(label, result, staticAnnotations ++ dynamicAnnotations)
+            test.map { case (result, dynamicAnnotations) =>
+              ExecutedSpec.test(label, result, staticAnnotations ++ dynamicAnnotations)
             }.toManaged_
         }.useNow)
     val environment = env

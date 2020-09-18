@@ -10,6 +10,7 @@ import java.util.zip.{ DataFormatException, Inflater }
 import java.{ util => ju }
 
 import scala.annotation.tailrec
+
 import zio._
 import zio.blocking.Blocking
 import zio.stream.compression._
@@ -42,8 +43,8 @@ trait ZSinkPlatformSpecificConstructors {
           val bytes = byteChunk.toArray
           out.write(bytes)
           bytesWritten + bytes.length
-        }.refineOrDie {
-          case e: IOException => e
+        }.refineOrDie { case e: IOException =>
+          e
         }
       }
     }
@@ -446,20 +447,19 @@ trait ZStreamPlatformSpecificConstructors {
      * The sink will yield the count of bytes written.
      */
     def write: Sink[Throwable, Byte, Nothing, Int] =
-      ZSink.foldLeftChunksM(0) {
-        case (nbBytesWritten, c) =>
-          IO.effectAsync[Throwable, Int] { callback =>
-            socket.write(
-              ByteBuffer.wrap(c.toArray),
-              null,
-              new CompletionHandler[Integer, Void] {
-                override def completed(result: Integer, attachment: Void): Unit =
-                  callback(ZIO.succeed(nbBytesWritten + result.toInt))
+      ZSink.foldLeftChunksM(0) { case (nbBytesWritten, c) =>
+        IO.effectAsync[Throwable, Int] { callback =>
+          socket.write(
+            ByteBuffer.wrap(c.toArray),
+            null,
+            new CompletionHandler[Integer, Void] {
+              override def completed(result: Integer, attachment: Void): Unit =
+                callback(ZIO.succeed(nbBytesWritten + result.toInt))
 
-                override def failed(error: Throwable, attachment: Void): Unit = callback(ZIO.fail(error))
-              }
-            )
-          }
+              override def failed(error: Throwable, attachment: Void): Unit = callback(ZIO.fail(error))
+            }
+          )
+        }
       }
 
     /**
@@ -511,8 +511,8 @@ trait ZTransducerPlatformSpecificConstructors {
   ): ZTransducer[Any, CompressionException, Byte, Byte] = {
     def makeInflater: ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, CompressionException, Chunk[Byte]]] =
       ZManaged
-        .make(ZIO.effectTotal((new Array[Byte](bufferSize), new Inflater(noWrap)))) {
-          case (_, inflater) => ZIO.effectTotal(inflater.end())
+        .make(ZIO.effectTotal((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
+          ZIO.effectTotal(inflater.end())
         }
         .map {
           case (buffer, inflater) => {
@@ -524,15 +524,15 @@ trait ZTransducerPlatformSpecificConstructors {
                 } else {
                   throw CompressionException("Inflater is not finished when input stream completed")
                 }
-              }.refineOrDie {
-                case e: DataFormatException => CompressionException(e)
+              }.refineOrDie { case e: DataFormatException =>
+                CompressionException(e)
               }
             case Some(chunk) =>
               ZIO.effect {
                 inflater.setInput(chunk.toArray)
                 pullAllOutput(inflater, buffer, chunk)
-              }.refineOrDie {
-                case e: DataFormatException => CompressionException(e)
+              }.refineOrDie { case e: DataFormatException =>
+                CompressionException(e)
               }
           }
         }

@@ -19,6 +19,6 @@ package zio
 final case class ExitCode(code: Int)
 
 object ExitCode {
-  val success = ExitCode(0)
-  val failure = ExitCode(1)
+  val success: ExitCode = ExitCode(0)
+  val failure: ExitCode = ExitCode(1)
 }

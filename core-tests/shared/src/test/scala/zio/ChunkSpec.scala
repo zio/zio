@@ -11,7 +11,7 @@ object ChunkSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  val intGen = Gen.int(-10, 10)
+  val intGen: Gen[Random, Int] = Gen.int(-10, 10)
 
   def toBoolFn[R <: Random, A]: Gen[R, A => Boolean] =
     Gen.function(Gen.boolean)
@@ -34,7 +34,9 @@ object ChunkSpec extends ZIOBaseSpec {
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
-  def spec = suite("ChunkSpec")(
+  def spec: Spec[Has[TestConfig.Service] with Has[Random.Service] with Has[Sized.Service] with Has[
+    Annotations.Service
+  ], TestFailure[Any], TestSuccess] = suite("ChunkSpec")(
     suite("size/length")(
       zio.test.test("concatenated size must match length") {
         val chunk = Chunk.empty ++ Chunk.fromArray(Array(1, 2)) ++ Chunk(3, 4, 5) ++ Chunk.single(6)
@@ -66,11 +68,10 @@ object ChunkSpec extends ZIOBaseSpec {
             bs <- Gen.chunkOf1(Gen.anyInt)
             n  <- Gen.int(0, as.length + bs.length - 1)
           } yield if (p) (as, bs, n) else (bs, as, n)
-        check(chunksWithIndex) {
-          case (as, bs, n) =>
-            val actual   = bs.foldLeft(as)(_ :+ _).apply(n)
-            val expected = (as ++ bs).apply(n)
-            assert(actual)(equalTo(expected))
+        check(chunksWithIndex) { case (as, bs, n) =>
+          val actual   = bs.foldLeft(as)(_ :+ _).apply(n)
+          val expected = (as ++ bs).apply(n)
+          assert(actual)(equalTo(expected))
         }
       },
       testM("buffer full") {
@@ -117,11 +118,10 @@ object ChunkSpec extends ZIOBaseSpec {
             bs <- Gen.chunkOf1(Gen.anyInt)
             n  <- Gen.int(0, as.length + bs.length - 1)
           } yield if (p) (as, bs, n) else (bs, as, n)
-        check(chunksWithIndex) {
-          case (as, bs, n) =>
-            val actual   = as.foldRight(bs)(_ +: _).apply(n)
-            val expected = (as ++ bs).apply(n)
-            assert(actual)(equalTo(expected))
+        check(chunksWithIndex) { case (as, bs, n) =>
+          val actual   = as.foldRight(bs)(_ +: _).apply(n)
+          val expected = (as ++ bs).apply(n)
+          assert(actual)(equalTo(expected))
         }
       },
       testM("buffer full") {
@@ -160,43 +160,34 @@ object ChunkSpec extends ZIOBaseSpec {
       }
     ),
     testM("apply") {
-      check(chunkWithIndex(Gen.unit)) {
-        case (chunk, i) =>
-          assert(chunk.apply(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithIndex(Gen.unit)) { case (chunk, i) =>
+        assert(chunk.apply(i))(equalTo(chunk.toList.apply(i)))
       }
     },
     testM("specialized accessors") {
-      check(chunkWithIndex(Gen.boolean)) {
-        case (chunk, i) =>
-          assert(chunk.boolean(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithIndex(Gen.boolean)) { case (chunk, i) =>
+        assert(chunk.boolean(i))(equalTo(chunk.toList.apply(i)))
       }
-      check(chunkWithIndex(Gen.byte(0, 127))) {
-        case (chunk, i) =>
-          assert(chunk.byte(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithIndex(Gen.byte(0, 127))) { case (chunk, i) =>
+        assert(chunk.byte(i))(equalTo(chunk.toList.apply(i)))
       }
-      check(chunkWithIndex(Gen.char(33, 123))) {
-        case (chunk, i) =>
-          assert(chunk.char(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithIndex(Gen.char(33, 123))) { case (chunk, i) =>
+        assert(chunk.char(i))(equalTo(chunk.toList.apply(i)))
       }
-      check(chunkWithIndex(Gen.short(5, 100))) {
-        case (chunk, i) =>
-          assert(chunk.short(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithIndex(Gen.short(5, 100))) { case (chunk, i) =>
+        assert(chunk.short(i))(equalTo(chunk.toList.apply(i)))
       }
-      check(chunkWithIndex(Gen.int(1, 142))) {
-        case (chunk, i) =>
-          assert(chunk.int(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithIndex(Gen.int(1, 142))) { case (chunk, i) =>
+        assert(chunk.int(i))(equalTo(chunk.toList.apply(i)))
       }
-      check(chunkWithIndex(Gen.long(1, 142))) {
-        case (chunk, i) =>
-          assert(chunk.long(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithIndex(Gen.long(1, 142))) { case (chunk, i) =>
+        assert(chunk.long(i))(equalTo(chunk.toList.apply(i)))
       }
-      check(chunkWithIndex(Gen.double(0.0, 100.0).map(_.toFloat))) {
-        case (chunk, i) =>
-          assert(chunk.float(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithIndex(Gen.double(0.0, 100.0).map(_.toFloat))) { case (chunk, i) =>
+        assert(chunk.float(i))(equalTo(chunk.toList.apply(i)))
       }
-      check(chunkWithIndex(Gen.double(1.0, 200.0))) {
-        case (chunk, i) =>
-          assert(chunk.double(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithIndex(Gen.double(1.0, 200.0))) { case (chunk, i) =>
+        assert(chunk.double(i))(equalTo(chunk.toList.apply(i)))
       }
     },
     testM("corresponds") {
@@ -252,10 +243,9 @@ object ChunkSpec extends ZIOBaseSpec {
         checkM(smallChunks(Gen.anyInt), smallChunks(Gen.anyInt), Gen.anyInt, Gen.function2(Gen.anyInt <*> Gen.anyInt)) {
           (left, right, s, f) =>
             val actual = (left ++ right).mapAccumM[Any, Nothing, Int, Int](s)((s, a) => UIO.succeed(f(s, a)))
-            val expected = (left ++ right).foldLeft[(Int, Chunk[Int])]((s, Chunk.empty)) {
-              case ((s0, bs), a) =>
-                val (s1, b) = f(s0, a)
-                (s1, bs :+ b)
+            val expected = (left ++ right).foldLeft[(Int, Chunk[Int])]((s, Chunk.empty)) { case ((s0, bs), a) =>
+              val (s1, b) = f(s0, a)
+              (s1, bs :+ b)
             }
             assertM(actual)(equalTo(expected))
         }
@@ -324,9 +314,8 @@ object ChunkSpec extends ZIOBaseSpec {
       check(largeChunks(intGen), intGen)((chunk, n) => assert(chunk.drop(n).toList)(equalTo(chunk.toList.drop(n))))
     },
     testM("take chunk") {
-      check(chunkWithIndex(Gen.unit)) {
-        case (c, n) =>
-          assert(c.take(n).toList)(equalTo(c.toList.take(n)))
+      check(chunkWithIndex(Gen.unit)) { case (c, n) =>
+        assert(c.take(n).toList)(equalTo(c.toList.take(n)))
       }
     },
     testM("dropWhile chunk") {
@@ -569,10 +558,9 @@ object ChunkSpec extends ZIOBaseSpec {
       assertM(
         Chunk
           .fromIterable(List(2))
-          .foldWhileM(0)(i => i <= 2) {
-            case (i: Int, i1: Int) =>
-              if (i < 2) IO.succeed(i + i1)
-              else IO.succeed(i)
+          .foldWhileM(0)(i => i <= 2) { case (i: Int, i1: Int) =>
+            if (i < 2) IO.succeed(i + i1)
+            else IO.succeed(i)
           }
       )(equalTo(2))
     },

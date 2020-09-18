@@ -7,6 +7,7 @@ import zio._
 import zio.clock._
 import zio.duration.Duration._
 import zio.duration._
+import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -14,7 +15,13 @@ import zio.test.environment.TestClock._
 
 object ClockSpec extends ZIOBaseSpec {
 
-  def spec =
+  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[Service] with Has[
+    TestConfig.Service
+  ] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[TestSystem.Service] with Has[
+    Clock.Service
+  ] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[Random.Service], TestFailure[
+    Any
+  ], TestSuccess] =
     suite("ClockSpec")(
       testM("sleep does not require passage of clock time") {
         for {

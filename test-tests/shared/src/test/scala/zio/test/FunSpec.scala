@@ -7,7 +7,7 @@ import zio.{ random, ZIO }
 
 object FunSpec extends ZIOBaseSpec {
 
-  def spec = suite("FunSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("FunSpec")(
     testM("fun converts effects into pure functions") {
       for {
         f <- Fun.make((n: Int) => random.nextIntBounded(n))

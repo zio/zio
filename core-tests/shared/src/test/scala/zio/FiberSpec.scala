@@ -4,12 +4,15 @@ import zio.LatchOps._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
+import zio.test.environment.{ TestClock, TestConsole, TestRandom, TestSystem }
 
 object FiberSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec =
+  def spec: Spec[Has[TestClock.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
+    TestSystem.Service
+  ] with Has[Annotations.Service] with Has[TestConfig.Service], TestFailure[Any], TestSuccess] =
     suite("FiberSpec")(
       suite("Create a new Fiber and")(testM("lift it into Managed") {
         for {
@@ -128,8 +131,8 @@ object FiberSpec extends ZIOBaseSpec {
             f1 <- ZIO.never.fork
             f2 <- f1.await.fork
             blockingOn <- f2.status
-                            .collect(()) {
-                              case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                            .collect(()) { case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
+                              blockingOn
                             }
                             .eventually
           } yield assert(blockingOn)(equalTo(List(f1.id)))
@@ -138,8 +141,8 @@ object FiberSpec extends ZIOBaseSpec {
           for {
             f <- ZIO.never.race(ZIO.never).fork
             blockingOn <- f.status
-                            .collect(()) {
-                              case Fiber.Status.Suspended(_, _, _, blockingOn, _) => blockingOn
+                            .collect(()) { case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
+                              blockingOn
                             }
                             .eventually
           } yield assert(blockingOn)(hasSize(equalTo(2)))
@@ -147,6 +150,6 @@ object FiberSpec extends ZIOBaseSpec {
       )
     )
 
-  val (initial, update) = ("initial", "update")
-  val fibers            = List.fill(100000)(Fiber.unit)
+  val (initial, update)                            = ("initial", "update")
+  val fibers: List[Fiber.Synthetic[Nothing, Unit]] = List.fill(100000)(Fiber.unit)
 }

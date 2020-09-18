@@ -3,13 +3,14 @@ package zio.test
 import zio.test.Assertion._
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
+import zio.test.environment.TestEnvironment
 
 object SummaryBuilderSpec extends ZIOBaseSpec {
 
   def summarize(log: Vector[String]): String =
     log.filter(!_.contains("+")).mkString.stripLineEnd
 
-  def spec =
+  def spec: ZSpec[TestEnvironment, Any] =
     suite("SummaryBuilderSpec")(
       testM("doesn't generate summary for a successful test") {
         assertM(runSummary(test1))(equalTo(""))

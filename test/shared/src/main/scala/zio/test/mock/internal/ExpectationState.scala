@@ -22,7 +22,7 @@ import scala.math.Ordering
  * A `ExpectationState` represents the state of an expectation tree branch.
  */
 private[test] sealed abstract class ExpectationState(val value: Int) extends Ordered[ExpectationState] {
-  def compare(that: ExpectationState) = Ordering.Int.compare(this.value, that.value)
+  def compare(that: ExpectationState): Int = Ordering.Int.compare(this.value, that.value)
 
   lazy val isFailed: Boolean = this < ExpectationState.Satisfied
 }

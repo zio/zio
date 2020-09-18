@@ -2,10 +2,11 @@ package zio
 
 import zio.test.Assertion._
 import zio.test._
+import zio.test.environment.TestEnvironment
 
 object ZRefSpec extends ZIOBaseSpec {
 
-  def spec = suite("ZRefSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("ZRefSpec")(
     suite("Atomic")(
       testM("get") {
         for {

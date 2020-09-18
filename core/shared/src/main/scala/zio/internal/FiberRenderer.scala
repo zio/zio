@@ -66,8 +66,8 @@ private[zio] object FiberRenderer {
     }
 
   private def renderHierarchy(trees: Iterable[Dump]): String =
-    zipWithHasNext(trees).map {
-      case (tree, _) => renderOne(tree)
+    zipWithHasNext(trees).map { case (tree, _) =>
+      renderOne(tree)
     }.mkString
 
   private def renderOne(tree: Dump): String = {

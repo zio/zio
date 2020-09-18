@@ -751,13 +751,12 @@ package object test extends CompileVariants {
     test: A => ZIO[R1, E, TestResult]
   ): ZIO[R1 with TestConfig, E, TestResult] =
     TestConfig.shrinks.flatMap { maxShrinks =>
-      stream.zipWithIndex.mapM {
-        case (initial, index) =>
-          initial.foreach(input =>
-            test(input).traced
-              .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
-              .either
-          )
+      stream.zipWithIndex.mapM { case (initial, index) =>
+        initial.foreach(input =>
+          test(input).traced
+            .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
+            .either
+        )
       }.dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
         .take(1)                                         // Get the first failure
         .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks.toLong))
@@ -780,12 +779,12 @@ package object test extends CompileVariants {
         .untraced
     }
 
-  private def reassociate[A, B, C, D](fn: (A, B, C) => D): (((A, B), C)) => D = {
-    case ((a, b), c) => fn(a, b, c)
+  private def reassociate[A, B, C, D](fn: (A, B, C) => D): (((A, B), C)) => D = { case ((a, b), c) =>
+    fn(a, b, c)
   }
 
-  private def reassociate[A, B, C, D, E](fn: (A, B, C, D) => E): ((((A, B), C), D)) => E = {
-    case (((a, b), c), d) => fn(a, b, c, d)
+  private def reassociate[A, B, C, D, E](fn: (A, B, C, D) => E): ((((A, B), C), D)) => E = { case (((a, b), c), d) =>
+    fn(a, b, c, d)
   }
 
   private def reassociate[A, B, C, D, E, F](fn: (A, B, C, D, E) => F): (((((A, B), C), D), E)) => F = {

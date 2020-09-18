@@ -5,11 +5,11 @@ import scala.reflect.io.File
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.live
+import zio.test.environment.{ live, Live }
 
 object SystemSpec extends ZIOBaseSpec {
 
-  def spec = suite("SystemSpec")(
+  def spec: Spec[Live, TestFailure[Throwable], TestSuccess] = suite("SystemSpec")(
     suite("Fetch an environment variable and check that")(
       testM("If it exists, return a reasonable value") {
         assertM(live(system.env("PATH")))(isSome(containsString(File.separator + "bin")))

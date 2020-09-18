@@ -749,10 +749,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def weighted[R <: Random, A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
     val sum = gs.map(_._2).sum
-    val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) {
-      case ((map, acc), (gen, d)) =>
-        if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)
-        else (map, acc)
+    val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) { case ((map, acc), (gen, d)) =>
+      if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)
+      else (map, acc)
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }
@@ -779,8 +778,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
-    (gen1 <&> gen2 <&> gen3).map {
-      case ((a, b), c) => f(a, b, c)
+    (gen1 <&> gen2 <&> gen3).map { case ((a, b), c) =>
+      f(a, b, c)
     }
 
   /**
@@ -791,8 +790,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def zipN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
     f: (A, B, C, D) => F
   ): Gen[R, F] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4).map {
-      case (((a, b), c), d) => f(a, b, c, d)
+    (gen1 <&> gen2 <&> gen3 <&> gen4).map { case (((a, b), c), d) =>
+      f(a, b, c, d)
     }
 
   /**

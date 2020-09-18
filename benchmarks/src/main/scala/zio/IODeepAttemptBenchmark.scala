@@ -4,8 +4,9 @@ import java.util.concurrent.TimeUnit
 
 import scala.concurrent.Await
 
-import IOBenchmarks._
 import org.openjdk.jmh.annotations._
+
+import zio.IOBenchmarks._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -16,7 +17,7 @@ class IODeepAttemptBenchmark {
   @Param(Array("1000"))
   var depth: Int = _
 
-  def halfway = depth / 2
+  def halfway: Int = depth / 2
 
   @Benchmark
   def thunkDeepAttempt(): BigInt = {

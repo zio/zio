@@ -6,12 +6,12 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
-import zio.test.environment.TestRandom
+import zio.test.environment.{ TestEnvironment, TestRandom }
 import zio.{ Ref, TracingStatus, ZIO }
 
 object TestAspectSpec extends ZIOBaseSpec {
 
-  def spec = suite("TestAspectSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("TestAspectSpec")(
     testM("around evaluates tests inside context of Managed") {
       for {
         ref <- Ref.make(0)
@@ -286,7 +286,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       assertion
     )
 
-  val interruptionTimeoutFailure =
+  val interruptionTimeoutFailure: TestTimeoutException =
     TestTimeoutException(
       "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
     )

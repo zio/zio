@@ -100,8 +100,8 @@ class IOShallowAttemptBenchmark {
     import com.twitter.util.{ Return, Throw }
 
     def throwup(n: Int): Future[BigInt] =
-      if (n == 0) throwup(n + 1).rescue {
-        case _ => Future.value(0)
+      if (n == 0) throwup(n + 1).rescue { case _ =>
+        Future.value(0)
       }
       else if (n == depth) Future(1)
       else

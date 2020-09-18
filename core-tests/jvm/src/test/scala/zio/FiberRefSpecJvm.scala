@@ -8,7 +8,7 @@ import zio.test._
 
 object FiberRefSpecJvm extends ZIOBaseSpec {
 
-  def spec = suite("FiberRefSpecJvm")(
+  def spec: Spec[Environment, TestFailure[Any], TestSuccess] = suite("FiberRefSpecJvm")(
     testM("unsafe handles behave properly if fiber specific data cannot be accessed") {
       for {
         fiberRef <- FiberRef.make(initial)

@@ -2,15 +2,21 @@ package zio.blocking
 
 import java.util.concurrent.atomic.AtomicBoolean
 
+import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.{ UIO, ZIOBaseSpec }
+import zio.test.environment.{ TestClock, TestConsole, TestRandom, TestSystem }
+import zio.{ Has, UIO, ZIOBaseSpec }
 
 object BlockingSpec extends ZIOBaseSpec {
 
-  def spec = suite("BlockingSpec")(
+  def spec: Spec[Has[Blocking.Service] with Has[Clock.Service] with Has[TestClock.Service] with Has[
+    TestConsole.Service
+  ] with Has[TestRandom.Service] with Has[TestSystem.Service] with Has[Annotations.Service] with Has[
+    TestConfig.Service
+  ], TestFailure[Any], TestSuccess] = suite("BlockingSpec")(
     suite("Make a Blocking Service and verify that")(
       testM("effectBlocking completes successfully") {
         assertM(effectBlocking(()))(isUnit)

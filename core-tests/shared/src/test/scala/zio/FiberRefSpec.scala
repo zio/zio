@@ -1,17 +1,25 @@
 package zio
 
 import zio.FiberRefSpecUtil._
+import zio.clock.Clock
 import zio.duration._
+import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
-import zio.test.environment.Live
+import zio.test.environment.{ Live, TestClock, TestConsole, TestRandom, TestSystem }
 
 object FiberRefSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("FiberRefSpec")(
+  def spec: Spec[Has[Annotations.Service] with Has[Live.Service] with Has[Sized.Service] with Has[
+    TestClock.Service
+  ] with Has[TestConfig.Service] with Has[TestConsole.Service] with Has[TestRandom.Service] with Has[
+    TestSystem.Service
+  ] with Has[Clock.Service] with Has[zio.console.Console.Service] with Has[zio.system.System.Service] with Has[
+    Random.Service
+  ], TestFailure[Any], TestSuccess] = suite("FiberRefSpec")(
     suite("Create a new FiberRef with a specified value and check if:")(
       testM("`get` returns the current value") {
         for {
@@ -36,8 +44,8 @@ object FiberRefSpec extends ZIOBaseSpec {
       testM("`getAndUpdateSome` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
-          value1 <- fiberRef.getAndUpdateSome {
-                      case _ => update
+          value1 <- fiberRef.getAndUpdateSome { case _ =>
+                      update
                     }
           value2 <- fiberRef.get
         } yield assert(value1)(equalTo(initial)) && assert(value2)(equalTo(update))
@@ -117,8 +125,8 @@ object FiberRefSpec extends ZIOBaseSpec {
       testM("`updateSomeAndGet` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
-          value1 <- fiberRef.updateSomeAndGet {
-                      case _ => update
+          value1 <- fiberRef.updateSomeAndGet { case _ =>
+                      update
                     }
           value2 <- fiberRef.get
         } yield assert(value1)(equalTo(update)) && assert(value2)(equalTo(update))

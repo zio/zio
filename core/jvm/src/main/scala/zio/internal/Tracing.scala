@@ -23,11 +23,11 @@ import zio.internal.tracing.TracingConfig
 final case class Tracing(tracer: Tracer, tracingConfig: TracingConfig)
 
 object Tracing {
-  def enabled =
+  def enabled: Tracing =
     Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
 
-  def enabledWith(tracingConfig: TracingConfig) =
+  def enabledWith(tracingConfig: TracingConfig): Tracing =
     Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), tracingConfig)
 
-  def disabled = Tracing(Tracer.Empty, TracingConfig.disabled)
+  def disabled: Tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
 }

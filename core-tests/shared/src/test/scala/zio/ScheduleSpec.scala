@@ -3,21 +3,21 @@ package zio
 import java.time.temporal.ChronoField
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 
+import scala.concurrent.Future
+
 import zio.clock.Clock
 import zio.duration._
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.{ failing, timeout }
-import zio.test.environment.{ TestClock, TestRandom }
-import zio.test.{ assert, assertM, suite, testM, Assertion, TestFailure, TestResult }
-
-import scala.concurrent.Future
+import zio.test.environment.{ TestClock, TestEnvironment, TestRandom }
+import zio.test.{ assert, assertM, suite, testM, Assertion, TestFailure, TestResult, ZSpec }
 
 object ScheduleSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ScheduleSpec")(
+  def spec: ZSpec[TestEnvironment, Any] = suite("ScheduleSpec")(
     /**
      * Retry `once` means that we try to exec `io`, get and error,
      * try again to exec `io`, and whatever the output is, we return that

@@ -2,8 +2,7 @@ package zio.stream.internal
 
 import scala.annotation.tailrec
 
-import zio.Runtime
-import zio.{ Chunk, Exit, FiberFailure, ZIO }
+import zio.{ Chunk, Exit, FiberFailure, Runtime, ZIO }
 
 private[zio] class ZReader(private var chunks: Iterator[Chunk[Char]]) extends java.io.Reader {
   private var current: Chunk[Char] = Chunk.empty
