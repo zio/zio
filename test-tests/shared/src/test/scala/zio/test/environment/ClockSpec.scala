@@ -7,12 +7,10 @@ import zio._
 import zio.clock._
 import zio.duration.Duration._
 import zio.duration._
-import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestClock._
-import zio.test.environment.TestEnvironment
 
 object ClockSpec extends ZIOBaseSpec {
 
