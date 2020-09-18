@@ -69,15 +69,20 @@ package object laws {
 
   type Lawful[-Caps[_]]                                      = ZLawful[Caps, Any]
   type Lawful2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]] = ZLawful2[CapsBoth, CapsLeft, CapsRight, Any]
-  type Laws[-Caps[_]]                                        = ZLaws[Caps, Any]
-  type Laws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]]   = ZLaws2[CapsBoth, CapsLeft, CapsRight, Any]
 
   object LawfulF {
     type Covariant[-CapsF[_[+_]], -Caps[_]]     = ZLawfulF.Covariant[CapsF, Caps, Any]
     type Contravariant[-CapsF[_[-_]], -Caps[_]] = ZLawfulF.Contravariant[CapsF, Caps, Any]
     type Invariant[-CapsF[_[_]], -Caps[_]]      = ZLawfulF.Invariant[CapsF, Caps, Any]
-    type Divariant[-CapsF[_[-_, +_]], -Caps[_]] = ZLawfulF.Divariant[CapsF, Caps, Any]
   }
+
+  object LawfulF2 {
+    type ZLawfulF2[-CapsBoth[_[-_, +_]], -CapsLeft[_], -CapsRight[_]] =
+      ZLawfulF2.Divariant[CapsBoth, CapsLeft, CapsRight, Any]
+  }
+
+  type Laws[-Caps[_]]                                      = ZLaws[Caps, Any]
+  type Laws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]] = ZLaws2[CapsBoth, CapsLeft, CapsRight, Any]
 
   object Laws {
     type Law1[-Caps[_]]  = ZLaws.Law1[Caps]
@@ -98,7 +103,6 @@ package object laws {
     type Covariant[-CapsF[_[+_]], -Caps[_]]     = ZLawsF.Covariant[CapsF, Caps, Any]
     type Contravariant[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant[CapsF, Caps, Any]
     type Invariant[-CapsF[_[_]], -Caps[_]]      = ZLawsF.Invariant[CapsF, Caps, Any]
-    type Divariant[-CapsF[_[-_, +_]], -Caps[_]] = ZLawsF.Divariant[CapsF, Caps, Any]
 
     object Covariant {
       type ComposeLaw[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.ComposeLaw[CapsF, Caps]
@@ -129,14 +133,16 @@ package object laws {
       type Law3[-CapsF[_[_]], -Caps[_]]  = ZLawsF.Invariant.Law3[CapsF, Caps]
       type Law3M[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law3M[CapsF, Caps, Any]
     }
+  }
+
+  object LawsF2 {
+    type Divariant[-CapsBoth[_[-_, +_]], -CapsLeft[_], -CapsRight[_]] = ZLawsF2.Divariant[CapsBoth, CapsLeft, CapsRight, Any]
 
     object Divariant {
-      type Law1[-CapsF[_[-_, +_]], -Caps[_]]  = ZLawsF.Divariant.Law1[CapsF, Caps]
-      type Law1M[-CapsF[_[-_, +_]], -Caps[_]] = ZLawsF.Divariant.Law1M[CapsF, Caps, Any]
-      type Law2[-CapsF[_[-_, +_]], -Caps[_]]  = ZLawsF.Divariant.Law2[CapsF, Caps]
-      type Law2M[-CapsF[_[-_, +_]], -Caps[_]] = ZLawsF.Divariant.Law2M[CapsF, Caps, Any]
-      type Law3[-CapsF[_[-_, +_]], -Caps[_]]  = ZLawsF.Divariant.Law3[CapsF, Caps]
-      type Law3M[-CapsF[_[-_, +_]], -Caps[_]] = ZLawsF.Divariant.Law3M[CapsF, Caps, Any]
+      // TODO 4211 laws for type class'es with 2 params differs significantly from tc with type constructor param with 1 hole
+      // TODO needs to understand what Covariant/Contravariant laws and transform this for Divariant ... challange!
+//      type Law1Left[-CapsBoth[_[-_,+_]], -CapsLeft[_], -CapsRight[_]]  = ZLawsF2.Divariant.Law1Left[CapsBoth, CapsLeft, CapsRight, Any]
+//      type Law1Right[-CapsBoth[_[-_,+_]], -CapsLeft[_], -CapsRight[_]] = ZLawsF2.Divariant.Law1Right[CapsBoth, CapsLeft, CapsRight, Any]
     }
   }
 

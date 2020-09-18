@@ -46,6 +46,7 @@ object ZLaws2 {
   abstract class Law1Left[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
     def apply[A: CapsLeft, B: CapsRight](a1: A)(implicit CapsBoth: CapsBoth[A, B]): TestResult
+
     final def run[R <: TestConfig, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
       CapsBoth: CapsBoth[A, B]
     ): URIO[R, TestResult] =
@@ -55,6 +56,7 @@ object ZLaws2 {
   abstract class Law1Right[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
     def apply[A: CapsLeft, B: CapsRight](b1: B)(implicit CapsBoth: CapsBoth[A, B]): TestResult
+
     final def run[R <: TestConfig, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
       CapsBoth: CapsBoth[A, B]
     ): URIO[R, TestResult] =

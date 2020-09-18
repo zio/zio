@@ -9,10 +9,10 @@ import zio.test.{ FunctionVariants, Gen }
  * knows how to generate functions A => B with elements given a generator of elements of
  * that type `B`.
  */
-trait GenF2[-R, F[_,_]] {
+trait GenF2[-R, F[_, _]] {
 
   /**
-   * Construct a generator of `F[A,B]` values given a generators of `A` and `B` values.
+   * Construct a generator of `F[A,B]` values given a generator of `B` values.
    */
   def apply[R1 <: R, A, B](gen: Gen[R1, B]): Gen[R1, F[A, B]]
 }
@@ -26,6 +26,6 @@ object GenF2 extends FunctionVariants {
     new GenF2[Random, Function1] {
 
       override def apply[R1 <: Random, A, B](gen: Gen[R1, B]): Gen[R1, Function1[A, B]] =
-        function[R1,A,B](gen)
+        function[R1, A, B](gen)
     }
 }
