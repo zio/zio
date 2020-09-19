@@ -311,6 +311,65 @@ testM("One can control time as he see fit") {
 
 The above code creates a write once cell that will be set to "1" after 10 seconds asynchronously from a different thread thanks to call to `fork`. At the end we wait on the promise until it is set. With call to `TestClock.adjust(10.seconds)` we simulate passing of 10 seconds of time. Because of it we don't need to wait for the real 10 seconds to pass and thus our unit test can run faster This is a pattern that will very often be used when `sleep` and `TestClock` are being used for testing of effects that are based on time. The fiber that needs to sleep will be forked and `TestClock` will used to adjust the time so that all expected effects are run in the forked fiber.
 
+**Example 3**
+
+A more complex example leveraging layers and multiple services is shown below. 
+
+```scala mdoc
+import zio.clock.Clock
+import zio.duration._
+import zio.test.Assertion._
+import zio.test._
+import zio.test.environment.{ TestClock, TestEnvironment }
+import zio._
+
+trait SchedulingService {
+  def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean]
+}
+
+trait LoggingService {
+  def log(msg: String): ZIO[Any, Exception, Unit]
+}
+
+val schedulingLayer: ZLayer[Clock with Has[LoggingService], Nothing, Has[SchedulingService]] =
+  ZLayer.fromFunction { env =>
+    new SchedulingService {
+      private val clock                     = env.get[Clock.Service]
+      private val logger                    = env.get[LoggingService]
+      private val clockLayer: ULayer[Clock] = ZLayer.succeed(clock)
+
+      def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
+        (ZIO.sleep(10.seconds) *> promise.succeed(1).tap(b => logger.log(b.toString)))
+          .provideLayer(clockLayer)
+    }
+}
+
+testM("One can control time for failing effects too") {
+  val failingLogger = ZLayer.succeed(new LoggingService {
+    override def log(msg: String): ZIO[Any, Exception, Unit] = ZIO.fail(new Exception("BOOM"))
+  })
+
+  val partialLayer = (ZLayer.identity[Clock] ++ failingLogger) >>> schedulingLayer
+
+  val testCase =
+    for {
+      promise <- Promise.make[Unit, Int]
+      result  <- ZIO.service[SchedulingService].flatMap(_.schedule(promise)).run.fork
+      _       <- TestClock.adjust(10.seconds)
+      readRef <- promise.await
+      result  <- result.join
+    } yield assert(1)(equalTo(readRef)) && assert(result)(fails(isSubtype[Exception](anything)))
+  testCase.provideSomeLayer[TestEnvironment](partialLayer)
+}
+```
+
+In this case we want to test a layered effect that can potentially fail with an error. To do this we need to run the effect 
+and use assertions that expect an `Exit` value. 
+Because we are providing a layer to the test we need to provide everything expected by our test case and leave the test
+environment behind using `.provideSomeLayer[TestEnvironment]`. Keep in mind we do not provide any implementation of the `Clock` 
+because doing will make force `SchedulingService` to use it, while the clock we need here is the `TestClock` provided by 
+the test environment.
+
 The pattern with `Promise` and `await` can be generalized when we need to wait for multiple values using a `Queue`. We simply need to put multiple values into the queue and progress the clock multiple times and there is no need to create multiple promises. Even if you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test snapshots of data in particular point in time `Queue` can help with that.
 
 ```scala mdoc
