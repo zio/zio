@@ -30,7 +30,6 @@ object ZLawfulF {
    */
   trait Covariant[-CapsF[_[+_]], -Caps[_], -R] { self =>
     def laws: ZLawsF.Covariant[CapsF, Caps, R]
-
     def +[CapsF1[x[+_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
       that: Covariant[CapsF1, Caps1, R1]
     ): Covariant[CapsF1, Caps1, R1] =
@@ -44,7 +43,6 @@ object ZLawfulF {
    */
   trait Contravariant[-CapsF[_[-_]], -Caps[_], -R] { self =>
     def laws: ZLawsF.Contravariant[CapsF, Caps, R]
-
     def +[CapsF1[x[-_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
       that: Contravariant[CapsF1, Caps1, R1]
     ): Contravariant[CapsF1, Caps1, R1] =
@@ -58,7 +56,6 @@ object ZLawfulF {
    */
   trait Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
     def laws: ZLawsF.Invariant[CapsF, Caps, R]
-
     def +[CapsF1[x[_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
       that: Invariant[CapsF1, Caps1, R1]
     ): Invariant[CapsF1, Caps1, R1] =
