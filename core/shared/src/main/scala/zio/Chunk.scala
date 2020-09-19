@@ -1186,6 +1186,7 @@ object Chunk extends ChunkFactory {
       case chunk: Chunk[A]              => chunk
       case iterable if iterable.isEmpty => Empty
       case vector: Vector[A]            => VectorChunk(vector)
+      case range: Range                 => fromArray(range.toArray[Int].asInstanceOf[Array[A]])
       case iterable =>
         val first                   = iterable.head
         implicit val A: ClassTag[A] = Tags.fromValue(first)
