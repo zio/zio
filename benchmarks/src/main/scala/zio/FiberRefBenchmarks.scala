@@ -64,8 +64,8 @@ class FiberRefBenchmarks {
       values1   <- ZIO.foreachPar(fiberRefs)(ref => ref.update(-_) *> ref.get)
       values2   <- ZIO.foreachPar(fiberRefs)(_.get)
       _ <- verify(values1.forall(_ < 0) && values1.size == values2.size)(
-            s"Got \nvalues1: $values1, \nvalues2: $values2"
-          )
+             s"Got \nvalues1: $values1, \nvalues2: $values2"
+           )
     } yield ()
   }
 }

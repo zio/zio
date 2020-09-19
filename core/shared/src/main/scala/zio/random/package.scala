@@ -21,7 +21,9 @@ package object random {
       def nextPrintableChar: UIO[Char]
       def nextString(length: Int): UIO[String]
       def setSeed(seed: Long): UIO[Unit]
-      def shuffle[A](list: List[A]): UIO[List[A]]
+      def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
+        bf: BuildFrom[Collection[A], A, Collection[A]]
+      ): UIO[Collection[A]]
     }
 
     object Service {
@@ -64,8 +66,10 @@ package object random {
           ZIO.effectTotal(SRandom.nextString(length))
         def setSeed(seed: Long): UIO[Unit] =
           ZIO.effectTotal(SRandom.setSeed(seed))
-        def shuffle[A](list: List[A]): UIO[List[A]] =
-          Random.shuffleWith(nextIntBounded(_), list)
+        def shuffle[A, Collection[+Element] <: Iterable[Element]](
+          collection: Collection[A]
+        )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
+          Random.shuffleWith(nextIntBounded(_), collection)
       }
     }
 
@@ -108,7 +112,7 @@ package object random {
       } else {
         val difference = maxExclusive - minInclusive
         if (difference > 0) nextIntBounded(difference).map(_ + minInclusive)
-        else nextInt.doUntil(n => minInclusive <= n && n < maxExclusive)
+        else nextInt.repeatUntil(n => minInclusive <= n && n < maxExclusive)
       }
 
     private[zio] def nextLongBetweenWith(
@@ -120,7 +124,7 @@ package object random {
       else {
         val difference = maxExclusive - minInclusive
         if (difference > 0) nextLongBounded(difference).map(_ + minInclusive)
-        else nextLong.doUntil(n => minInclusive <= n && n < maxExclusive)
+        else nextLong.repeatUntil(n => minInclusive <= n && n < maxExclusive)
       }
 
     private[zio] def nextLongBoundedWith(n: Long)(nextLong: UIO[Long]): UIO[Long] =
@@ -140,21 +144,25 @@ package object random {
         }
       }
 
-    private[zio] def shuffleWith[A](nextIntBounded: Int => UIO[Int], list: List[A]): UIO[List[A]] =
+    private[zio] def shuffleWith[A, Collection[+Element] <: Iterable[Element]](
+      nextIntBounded: Int => UIO[Int],
+      collection: Collection[A]
+    )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
       for {
         bufferRef <- Ref.make(new scala.collection.mutable.ArrayBuffer[A])
-        _         <- bufferRef.update(_ ++= list)
+        _         <- bufferRef.update(_ ++= collection)
         swap = (i1: Int, i2: Int) =>
-          bufferRef.update {
-            case buffer =>
-              val tmp = buffer(i1)
-              buffer(i1) = buffer(i2)
-              buffer(i2) = tmp
-              buffer
-          }
-        _      <- ZIO.foreach(list.length to 2 by -1)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
+                 bufferRef.update {
+                   case buffer =>
+                     val tmp = buffer(i1)
+                     buffer(i1) = buffer(i2)
+                     buffer(i2) = tmp
+                     buffer
+                 }
+        _ <-
+          ZIO.foreach((collection.size to 2 by -1).toList)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
         buffer <- bufferRef.get
-      } yield buffer.toList
+      } yield bf.fromSpecific(collection)(buffer)
   }
 
   /**

@@ -8,7 +8,7 @@ import zio.test.mock.modules._
  * https://github.com/scalamacros/paradise/issues/75
  *
  * We can't typecheck @mockable with typeCheck
- * */
+ */
 object MockableSpec extends DefaultRunnableSpec {
 
   def spec = suite("MockableSpec")(
@@ -209,6 +209,36 @@ object MockableSpec extends DefaultRunnableSpec {
             val SimpleVarargs: ModuleMock.Method[(Int, Seq[String]), Throwable, String] = ModuleMock.SimpleVarargs
             val CurriedVarargs: ModuleMock.Method[(Int, Seq[String], Long, Seq[Double]), Throwable, String] =
               ModuleMock.CurriedVarargs
+          }
+
+          Check
+        })(anything)
+      },
+      test("generates mocks for service with default pure method implementations") {
+        assert({
+          @mockable[DefaultImplPureDefsModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[DefaultImplPureDefsModule] = ModuleMock
+
+            val Foo: ModuleMock.Effect[Int, String, String]    = ModuleMock.Foo
+            val Bar: ModuleMock.Effect[String, String, String] = ModuleMock.Bar
+          }
+
+          Check
+        })(anything)
+      },
+      test("generates mocks for service with default impure method implementations") {
+        assert({
+          @mockable[DefaultImplImpureDefsModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[DefaultImplImpureDefsModule] = ModuleMock
+
+            val Foo: ModuleMock.Method[Int, Throwable, String]    = ModuleMock.Foo
+            val Bar: ModuleMock.Method[String, Throwable, String] = ModuleMock.Bar
           }
 
           Check

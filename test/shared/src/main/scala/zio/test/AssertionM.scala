@@ -26,7 +26,7 @@ import zio.{ UIO, ZIO }
  * proposition, assertions compose using logical conjunction and disjunction,
  * and can be negated.
  */
-trait AssertionM[-A] { self =>
+abstract class AssertionM[-A] { self =>
   import zio.test.AssertionM.Render._
 
   def render: AssertionM.Render
@@ -88,7 +88,7 @@ object AssertionM {
    * `Render` captures both the name of an assertion as well as the parameters
    * to the assertion combinator for pretty-printing.
    */
-  sealed trait Render {
+  sealed abstract class Render {
     override final def toString: String = this match {
       case Render.Function(name, paramLists) =>
         name + paramLists.map(_.mkString("(", ", ", ")")).mkString
@@ -157,7 +157,7 @@ object AssertionM {
       termName + ".unapply"
   }
 
-  sealed trait RenderParam {
+  sealed abstract class RenderParam {
     override final def toString: String = this match {
       case RenderParam.AssertionM(assertion) => assertion.toString
       case RenderParam.Value(value)          => value.toString

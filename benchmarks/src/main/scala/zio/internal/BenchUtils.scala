@@ -1,7 +1,5 @@
 package zio.internal
 
-import zio.internal.impls._
-
 object BenchUtils {
   def queueByType[A](
     tpe: BenchQueueType,

@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.duration.Duration
 import zio.ZManaged.ReleaseMap
 import zio.internal.Platform
 
@@ -36,12 +37,12 @@ import zio.internal.Platform
  * Because of their excellent composition properties, layers are the idiomatic
  * way in ZIO to create services that depend on other services.
  */
-sealed trait ZLayer[-RIn, +E, +ROut] { self =>
+sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
-  final def +!+[E1 >: E, RIn2, ROut2](
+  final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut, ROut2]): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
-    self.zipWithPar(that)(ev.unionAll[ROut, ROut2])
+  )(implicit ev: Has.UnionAll[ROut1, ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWithPar(that)(ev.unionAll)
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -49,8 +50,8 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut1, ROut2], tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-    self.zipWithPar(that)(ev.union[ROut1, ROut2])
+  )(implicit ev: Has.Union[ROut1, ROut2], tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWithPar(that)(ev.union)
 
   /**
    * A symbolic alias for `zipPar`.
@@ -73,8 +74,8 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
-    self ++ (self >>> that)
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+    self.++[E1, RIn, ROut1, ROut2](self >>> that)
 
   /**
    * Feeds the output services of this layer into the input of the specified
@@ -89,16 +90,16 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-    self ++ that
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.++[E1, RIn2, ROut1, ROut2](that)
 
   /**
    * A named alias for `>+>`.
    */
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.AreHas[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
-    self >+> that
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+    self.>+>[E1, RIn2, ROut1, ROut2](that)
 
   /**
    * Builds a layer into a managed value.
@@ -190,25 +191,32 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Retries constructing this layer according to the specified schedule.
    */
-  final def retry[RIn1 <: RIn](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
-    type S = schedule.State
+  final def retry[RIn1 <: RIn with clock.Clock](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
+    import Schedule.StepFunction
+    import Schedule.Decision._
+
+    type S = StepFunction[RIn1, E, Any]
+
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
       (ZLayer.first >>> self).catchAll {
         val update: ZLayer[((RIn1, S), E), E, (RIn1, S)] =
           ZLayer.fromFunctionManyM {
             case ((r, s), e) =>
-              schedule
-                .update(e, s)
-                .provide(r)
-                .foldM(
-                  _ => ZIO.fail(e),
-                  s => ZIO.succeed((r, s))
-                )
+              clock.currentDateTime.orDie.flatMap(now => s(now, e).flatMap {
+                case Done(_) => ZIO.fail(e)
+                case Continue(_, interval, next) => clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
+              }).provide(r)
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromEffectMany(schedule.initial) >>> loop
+    ZLayer.identity <&> ZLayer.fromEffectMany(ZIO.succeed(schedule.step)) >>> loop
   }
+
+  /**
+    * Performs the specified effect if this layer succeeds.
+    */
+  final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
+    ZLayer.identity <&> self >>> ZLayer.fromFunctionManyM { case (in, out) => f(out).provide(in) *> ZIO.succeed(out) }
 
   /**
    * Performs the specified effect if this layer fails.
@@ -252,6 +260,15 @@ sealed trait ZLayer[-RIn, +E, +ROut] { self =>
     that: ZLayer[RIn2, E1, ROut2]
   )(f: (ROut, ROut2) => ROut3): ZLayer[RIn with RIn2, E1, ROut3] =
     ZLayer.ZipWithPar(self, that, f)
+
+  /**
+    * Returns whether this layer is a fresh version that will not be shared.
+    */
+  private final def isFresh: Boolean =
+    self match {
+      case ZLayer.Fresh(_) => true
+      case _ => false
+    }
 
   private final def scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]] =
     self match {
@@ -2189,14 +2206,24 @@ object ZLayer {
      * Returns a new layer that produces the outputs of this layer but also
      * passes through the inputs to this layer.
      */
-    def passthrough(implicit ev: Has.AreHas[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
+    def passthrough(implicit ev: Has.Union[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
       ZLayer.identity[RIn] ++ self
+  }
+
+  implicit final class ZLayerProjectOps[R, E, A](private val self: ZLayer[R, E, Has[A]]) extends AnyVal {
+
+    /**
+     * Projects out part of one of the layers output by this layer using the
+     * specified function
+     */
+    final def project[B: Tag](f: A => B)(implicit tag: Tag[A]): ZLayer[R, E, Has[B]] =
+      self >>> ZLayer.fromFunction(r => f(r.get))
   }
 
   /**
    * A `MemoMap` memoizes dependencies.
    */
-  private trait MemoMap { self =>
+  private abstract class MemoMap { self =>
 
     /**
      * Checks the memo map to see if a dependency exists. If it is, immediately
@@ -2273,7 +2300,7 @@ object ZLayer {
                           },
                           (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
                         )
-                      } yield (resource, map + (layer -> memoized))
+                      } yield (resource, if (layer.isFresh) map else map + (layer -> memoized))
 
                   }
                 }.flatten

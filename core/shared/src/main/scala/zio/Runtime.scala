@@ -79,7 +79,7 @@ trait Runtime[+R] {
   final def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
-    unsafeRunAsync(zio)((x: Exit[E, A]) => result.set(x))
+    unsafeRunWith(zio)(result.set)
 
     result.get()
   }
@@ -103,29 +103,13 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
-    val InitialInterruptStatus = InterruptStatus.Interruptible
-
-    val fiberId = Fiber.newFiberId()
-
-    val scope = ZScope.unsafeMake[Exit[E, A]]()
-
-    lazy val context: FiberContext[E, A] = new FiberContext[E, A](
-      fiberId,
-      platform,
-      environment.asInstanceOf[AnyRef],
-      platform.executor,
-      InitialInterruptStatus,
-      None,
-      PlatformConstants.tracingSupported,
-      Platform.newWeakHashMap(),
-      platform.supervisor,
-      scope
-    )
-
-    context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
-    context.runAsync(k)
-
-    fiberId => unsafeRun(context.interruptAs(fiberId))
+    lazy val curZio = if (Platform.isJVM) ZIO.yieldNow *> zio else zio
+    val canceler    = unsafeRunWith(curZio)(k)
+    fiberId => {
+      val result = internal.OneShot.make[Exit[E, A]]
+      canceler(fiberId)(result.set)
+      result.get()
+    }
   }
 
   /**
@@ -143,9 +127,15 @@ trait Runtime[+R] {
    */
   final def unsafeRunToFuture[E <: Throwable, A](zio: ZIO[R, E, A]): CancelableFuture[A] = {
     val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
-    val canceler                 = unsafeRunAsyncCancelable(zio)(_.fold(cause => p.failure(cause.squashTraceWith(identity)), p.success))
+
+    val canceler = unsafeRunWith(zio)(_.fold(cause => p.failure(cause.squashTraceWith(identity)), p.success))
+
     new CancelableFuture[A](p.future) {
-      def cancel(): Future[Exit[Throwable, A]] = Future.successful(canceler(Fiber.Id.None))
+      def cancel(): Future[Exit[Throwable, A]] = {
+        val p: concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
+        canceler(Fiber.Id.None)(p.success)
+        p.future
+      }
     }
   }
 
@@ -183,6 +173,43 @@ trait Runtime[+R] {
    * Constructs a new `Runtime` with the specified tracing configuration.
    */
   def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
+
+  private final def unsafeRunWith[E, A](
+    zio: => ZIO[R, E, A]
+  )(k: Exit[E, A] => Any): Fiber.Id => (Exit[E, A] => Any) => Unit = {
+    val InitialInterruptStatus = InterruptStatus.Interruptible
+
+    val fiberId = Fiber.newFiberId()
+
+    val scope = ZScope.unsafeMake[Exit[E, A]]()
+
+    val supervisor = platform.supervisor
+
+    lazy val context: FiberContext[E, A] = new FiberContext[E, A](
+      fiberId,
+      platform,
+      environment.asInstanceOf[AnyRef],
+      platform.executor,
+      InitialInterruptStatus,
+      None,
+      PlatformConstants.tracingSupported,
+      Platform.newWeakHashMap(),
+      supervisor,
+      scope,
+      platform.reportFailure
+    )
+
+    if (supervisor ne Supervisor.none) {
+      supervisor.unsafeOnStart(environment, zio, None, context)
+
+      context.onDone(exit => supervisor.unsafeOnEnd(exit, context))
+    }
+
+    context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
+    context.runAsync(k)
+
+    fiberId => k => unsafeRunAsync(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))
+  }
 }
 
 object Runtime {
@@ -190,7 +217,7 @@ object Runtime {
   /**
    * A runtime that can be shutdown to release resources allocated to it.
    */
-  trait Managed[+R] extends Runtime[R] {
+  abstract class Managed[+R] extends Runtime[R] {
 
     /**
      * Shuts down this runtime and releases resources allocated to it. Once

@@ -140,19 +140,18 @@ object CauseSpec extends ZIOBaseSpec {
         }
       },
       testM("Meta") {
-        check(causes) {
-          cause =>
-            val result = (cause, Cause.stackless(cause)) match {
-              case (Cause.Empty(), Cause.Empty())                               => true
-              case (Cause.Fail(e1), Cause.Fail(e2))                             => e1 == e2
-              case (Cause.Die(t1), Cause.Die(t2))                               => t1 == t2
-              case (Cause.Interrupt(fiberId1), Cause.Interrupt(fiberId2))       => fiberId1 == fiberId2
-              case (Cause.Traced(cause1, trace1), Cause.Traced(cause2, trace2)) => cause1 == cause2 && trace1 == trace2
-              case (Cause.Then(left1, right1), Cause.Then(left2, right2))       => left1 == left2 && right1 == right2
-              case (Cause.Both(left1, right1), Cause.Both(left2, right2))       => left1 == left2 && right1 == right2
-              case _                                                            => false
-            }
-            assert(result)(isTrue)
+        check(causes) { cause =>
+          val result = (cause, Cause.stackless(cause)) match {
+            case (Cause.Empty(), Cause.Empty())                               => true
+            case (Cause.Fail(e1), Cause.Fail(e2))                             => e1 == e2
+            case (Cause.Die(t1), Cause.Die(t2))                               => t1 == t2
+            case (Cause.Interrupt(fiberId1), Cause.Interrupt(fiberId2))       => fiberId1 == fiberId2
+            case (Cause.Traced(cause1, trace1), Cause.Traced(cause2, trace2)) => cause1 == cause2 && trace1 == trace2
+            case (Cause.Then(left1, right1), Cause.Then(left2, right2))       => left1 == left2 && right1 == right2
+            case (Cause.Both(left1, right1), Cause.Both(left2, right2))       => left1 == left2 && right1 == right2
+            case _                                                            => false
+          }
+          assert(result)(isTrue)
         }
       },
       testM("Then") {

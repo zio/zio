@@ -76,13 +76,13 @@ class IOLeftBindBenchmark {
     import io.reactivex.Single
 
     def loop(i: Int): Single[Int] =
-      if (i % depth == 0) Single.fromCallable(() => i + 1).flatMap(loop)
+      if (i % depth == 0) Single.fromCallable(() => i + 1).flatMap(loop(_))
       else if (i < size) loop(i + 1).flatMap(i => Single.fromCallable(() => i))
       else Single.fromCallable(() => i)
 
     Single
       .fromCallable(() => 0)
-      .flatMap(loop)
+      .flatMap(loop(_))
       .blockingGet()
   }
 
@@ -110,7 +110,7 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => Task.eval(i))
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop).runSyncStep.right.get
+    Task.eval(0).flatMap(loop).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark
@@ -137,6 +137,6 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => IO(i))
       else IO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 }

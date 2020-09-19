@@ -30,20 +30,24 @@ object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule]
   def hasFailedMatches[T <: InvalidCall](failedMatches: T*): Assertion[Throwable] = {
     val zero = hasSize(equalTo(failedMatches.length))
     isSubtype[E](
-      hasField[E, L]("failedMatches", _.failedMatches, failedMatches.zipWithIndex.foldLeft[Assertion[L]](zero) {
-        case (acc, (failure, idx)) => acc && hasAt(idx)(equalTo(failure))
-      })
+      hasField[E, L](
+        "failedMatches",
+        _.failedMatches,
+        failedMatches.zipWithIndex.foldLeft[Assertion[L]](zero) {
+          case (acc, (failure, idx)) => acc && hasAt(idx)(equalTo(failure))
+        }
+      )
     )
   }
 
   def hasUnexpectedCall[I, E, A](capability: Capability[PureModule, I, E, A], args: I): Assertion[Throwable] =
-    isSubtype[UnexpectedCallExpection[PureModule, I, E, A]](
-      hasField[UnexpectedCallExpection[PureModule, I, E, A], Capability[PureModule, I, E, A]](
+    isSubtype[UnexpectedCallException[PureModule, I, E, A]](
+      hasField[UnexpectedCallException[PureModule, I, E, A], Capability[PureModule, I, E, A]](
         "capability",
         _.capability,
         equalTo(capability)
       ) &&
-        hasField[UnexpectedCallExpection[PureModule, I, E, A], Any]("args", _.args, equalTo(args))
+        hasField[UnexpectedCallException[PureModule, I, E, A], Any]("args", _.args, equalTo(args))
     )
 
   def hasUnsatisfiedExpectations: Assertion[Throwable] =

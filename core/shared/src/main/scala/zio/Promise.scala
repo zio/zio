@@ -225,7 +225,7 @@ object Promise {
   private val ConstFalse: () => Boolean = () => false
 
   private[zio] object internal {
-    sealed trait State[E, A]                                       extends Serializable with Product
+    sealed abstract class State[E, A]                              extends Serializable with Product
     final case class Pending[E, A](joiners: List[IO[E, A] => Any]) extends State[E, A]
     final case class Done[E, A](value: IO[E, A])                   extends State[E, A]
   }

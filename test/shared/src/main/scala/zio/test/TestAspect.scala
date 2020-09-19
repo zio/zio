@@ -26,7 +26,7 @@ import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRand
  * an aspect as a polymorphic function, capable of transforming one test into
  * another, possibly enlarging the environment or error type.
  */
-trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
+abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
 
   /**
    * Applies the aspect to some tests in the spec, chosen by the provided
@@ -335,15 +335,31 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
-    flaky(100)
+  val flaky: TestAspectAtLeastR[Annotations with TestConfig with ZTestEnv] = {
+    val flaky = new PerTest.AtLeastR[Annotations with TestConfig with ZTestEnv] {
+      def perTest[R <: Annotations with TestConfig with ZTestEnv, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConfig.retries.flatMap { n =>
+          test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
+        }
+    }
+    restoreTestEnvironment >>> flaky
+  }
 
   /**
    * An aspect that retries a test until success, with the specified limit, for
    * use with flaky tests.
    */
-  def flaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations] =
-    retry(Schedule.recurs(n))
+  def flaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations] = {
+    val flaky = new PerTest.AtLeastR[ZTestEnv with Annotations] {
+      def perTest[R <: ZTestEnv with Annotations, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
+    }
+    restoreTestEnvironment >>> flaky
+  }
 
   /**
    * An aspect that runs each test on its own separate fiber.
@@ -416,6 +432,23 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
+   * An aspect that runs each test with the maximum number of shrinkings to
+   * minimize large failures set to the specified value.
+   */
+  def shrinks(n: Int): TestAspectAtLeastR[TestConfig] =
+    new PerTest.AtLeastR[TestConfig] {
+      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig.Service] { old =>
+          new TestConfig.Service {
+            val repeats = old.repeats
+            val retries = old.retries
+            val samples = old.samples
+            val shrinks = n
+          }
+        }
+    }
+
+  /**
    * An aspect that applies the specified aspect on ScalaNative.
    */
   def native[LowerR, UpperR, LowerE, UpperE](
@@ -433,15 +466,31 @@ object TestAspect extends TimeoutVariants {
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
-    nonFlaky(100)
+  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Annotations with TestConfig] = {
+    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Annotations with TestConfig] {
+      def perTest[R <: ZTestEnv with Annotations with TestConfig, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        TestConfig.repeats.flatMap { n =>
+          test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
+        }
+    }
+    restoreTestEnvironment >>> nonFlaky
+  }
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it
    * is stable ("non-flaky"). Stops at the first failure.
    */
-  def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations] =
-    repeat(Schedule.recurs(n))
+  def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations] = {
+    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Annotations] {
+      def perTest[R <: ZTestEnv with Annotations, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
+    }
+    restoreTestEnvironment >>> nonFlaky
+  }
 
   /**
    * Constructs an aspect that requires a test to not terminate within the
@@ -451,7 +500,8 @@ object TestAspect extends TimeoutVariants {
     timeout(duration) >>>
       failing(
         isCase[TestFailure[Any], Throwable](
-          "Runtime", {
+          "Runtime",
+          {
             case TestFailure.Runtime(cause) => cause.dieOption
             case _                          => None
           },
@@ -482,15 +532,41 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that repeats successful tests according to a schedule.
    */
-  def repeat[R0 <: ZTestEnv with Annotations](schedule: Schedule[R0, TestSuccess, Any]): TestAspectAtLeastR[R0] = {
+  def repeat[R0 <: ZTestEnv with Annotations with Live](
+    schedule: Schedule[R0, TestSuccess, Any]
+  ): TestAspectAtLeastR[R0] = {
     val repeat = new PerTest.AtLeastR[R0] {
       def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        test.repeat(
-          (schedule *> Schedule.identity[TestSuccess]).tapOutput(_ => Annotations.annotate(TestAnnotation.repeated, 1))
+        ZIO.accessM(r =>
+          Live.live(
+            test
+              .provide(r)
+              .repeat(
+                (schedule *> Schedule
+                  .identity[TestSuccess]).tapOutput(_ => Annotations.annotate(TestAnnotation.repeated, 1)).provide(r)
+              )
+          )
         )
     }
     restoreTestEnvironment >>> repeat
   }
+
+  /**
+   * An aspect that runs each test with the number of times to repeat tests to
+   * ensure they are stable set to the specified value.
+   */
+  def repeats(n: Int): TestAspectAtLeastR[TestConfig] =
+    new PerTest.AtLeastR[TestConfig] {
+      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig.Service] { old =>
+          new TestConfig.Service {
+            val repeats = n
+            val retries = old.retries
+            val samples = old.samples
+            val shrinks = old.shrinks
+          }
+        }
+    }
 
   /**
    * An aspect that restores a given
@@ -549,17 +625,55 @@ object TestAspect extends TimeoutVariants {
     restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
+   * An aspect that runs each test with the number of times to retry flaky
+   * tests set to the specified value.
+   */
+  def retries(n: Int): TestAspectAtLeastR[TestConfig] =
+    new PerTest.AtLeastR[TestConfig] {
+      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig.Service] { old =>
+          new TestConfig.Service {
+            val repeats = old.repeats
+            val retries = n
+            val samples = old.samples
+            val shrinks = old.shrinks
+          }
+        }
+    }
+
+  /**
    * An aspect that retries failed tests according to a schedule.
    */
-  def retry[R0 <: ZTestEnv with Annotations, E0](
+  def retry[R0 <: ZTestEnv with Annotations with Live, E0](
     schedule: Schedule[R0, TestFailure[E0], Any]
   ): TestAspect[Nothing, R0, Nothing, E0] = {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0] {
       def perTest[R <: R0, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        test.retry(schedule.tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1)))
+        ZIO.accessM[R](r =>
+          Live.live(
+            test.provide(r).retry(schedule.tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1)).provide(r))
+          )
+        )
     }
     restoreTestEnvironment >>> retry
   }
+
+  /**
+   * An aspect that runs each test with the number of sufficient samples to
+   * check for a random variable set to the specified value.
+   */
+  def samples(n: Int): TestAspectAtLeastR[TestConfig] =
+    new PerTest.AtLeastR[TestConfig] {
+      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig.Service] { old =>
+          new TestConfig.Service {
+            val repeats = old.repeats
+            val retries = old.retries
+            val samples = n
+            val shrinks = old.shrinks
+          }
+        }
+    }
 
   /**
    * An aspect that executes the members of a suite sequentially.
@@ -709,7 +823,7 @@ object TestAspect extends TimeoutVariants {
       test.untraced
   }
 
-  trait PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
+  abstract class PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
 
     def perTest[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
       test: ZIO[R, TestFailure[E], TestSuccess]

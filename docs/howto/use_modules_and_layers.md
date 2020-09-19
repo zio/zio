@@ -80,6 +80,7 @@ import zio.{ Has, ZLayer }
 type UserRepo = Has[UserRepo.Service]
 
 object UserRepo {
+
   trait Service {
     def getUser(userId: UserId): IO[DBError, Option[User]]
     def createUser(user: User): IO[DBError, Unit]
@@ -111,11 +112,11 @@ We encountered two new data types `Has` and `ZLayer`, let's get familiar with th
 
 ```scala mdoc:invisible
 object Repo {
-  trait Service{}
+  trait Service {}
 }
 
 object Logger {
-  trait Service{
+  trait Service {
     def log(s: String): UIO[Unit] = UIO(???)
   }
 }
@@ -147,18 +148,22 @@ Usually we don't create a `Has` directly, but we do that through `ZLayer`.
 In adherence with environmental concepts, the absence of a required input is represented by `RIn = Any`, conveniently  used in the type alias `Layer`.
 
 There are many ways to create a `ZLayer`, here's an incomplete list:
- - `ZLayer.succeed` or `ZIO.asService`  to create a layer from an existing service
+ - `ZLayer.succeed` or `ZIO#asService`  to create a layer from an existing service
  - `ZLayer.succeedMany` to create a layer from a value that's one or more services
  - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
  - `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
  - `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `ZManaged`
+ - `ZLayer.fromService` to build a layer from a service
  - `ZLayer.fromServices` to build a layer from a number of required services
+ - `ZLayer.identity` to express the requirement for a layer
+ - `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
 
 Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `M`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
 
 We can compose `layerA` and `layerB`  _horizontally_ to build a layer that has the requirements of both layers, to provide the capabilities of both layers, through `layerA ++ layerB`
 
-We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first and the output of the second layer: `layerA >>> layerB`
+We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first, and the output of the second layer: `layerA >>> layerB`.
+When doing this, the first layer must output all the services required by the second layer, but we can defer creating some of these services and require them as part of the input of the final layer using `ZLayer.identity`.  
 
 ## Wiring modules together
 Here we define a module to cope with CRUD operations for the `User` domain object. We provide also an in memory implementation of the module
@@ -172,8 +177,9 @@ object UserRepo {
     def createUser(user: User): IO[DBError, Unit]
   }
 
-
-  // This simple live version depends only on a DB Connection
+  // This simple in-memory version has no dependencies.
+  // This could be useful for tests where you don't want the additional
+  // complexity of having to manage DB Connections.
   val inMemory: Layer[Nothing, UserRepo] = ZLayer.succeed(
     new Service {
       def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
@@ -200,7 +206,6 @@ object Logging {
     def info(s: String): UIO[Unit]
     def error(s: String): UIO[Unit]
   }
-
 
   import zio.console.Console
   val consoleLogger: ZLayer[Console, Nothing, Logging] = ZLayer.fromFunction( console =>
@@ -246,7 +251,6 @@ makeUser.provideLayer(fullLayer)
 Let's add some extra logic to our program that creates a user
 
 ```scala mdoc:silent
-
 val makeUser2: ZIO[Logging with UserRepo with Clock with Random, DBError, Unit] = for {
     uId       <- zio.random.nextLong.map(UserId)
     createdAt <- zio.clock.currentDateTime.orDie
@@ -325,6 +329,18 @@ val layer: ZLayer[Any, Nothing, UserRepo] = connection >>> userRepo
 ```
 
 Notice that in `layer` the dependency of `UserRepo` on `Connection` has been "hidden" and is no longer expressed in the type signature. From the perspective of a caller, `layer` just outputs a `UserRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` is constructed.
+
+To provide only some inputs we need to explicitly define what inputs still need to be provided:
+```scala mdoc:silent
+trait Configuration
+
+val userRepoWithConfig: ZLayer[Has[Configuration] with Has[Connection], Nothing, UserRepo] = 
+  ZLayer.succeed(new Configuration{}) ++ postgresLayer
+val partialLayer: ZLayer[Has[Configuration], Nothing, UserRepo] = 
+  (ZLayer.identity[Has[Configuration]] ++ connection) >>> userRepoWithConfig
+``` 
+
+In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialLayer`.
 
 This achieves an encapsulation of services and can make it easier to refactor code. For example, say we want to refactor our application to use an in memory database:
 

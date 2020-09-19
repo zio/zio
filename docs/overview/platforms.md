@@ -13,12 +13,15 @@ On the JVM, the `Blocking` service is available to lock effects on the blocking 
 
 ## Scala.js
 
-ZIO supports 0.6. As of the release of ZIO 1.0 and going forward, ZIO will support Scala.js 1.0.
+ZIO supports Scala.js 1.0.
 
 While ZIO is a zero dependency library, some basic capabilities of the platform are assumed. In particular, due to the absence of implementations for certain `java.time` methods in Scala.js, users must bring their own `java.time` dependency. The one used by ZIO in its own internal test suites is [scala-java-time](https://github.com/cquiroz/scala-java-time). It can be added as a dependency like so:
 
 ```scala
-libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC5"
+libraryDependencies ++= Seq(
+  "io.github.cquiroz" %%% "scala-java-time" % "2.0.0"
+  "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.0.0"
+)
 ```
 
 Because of its single threaded execution model, blocking operations are not supported on Scala.js. As such, the `Blocking` service is not available and is not included in the `ZEnv`. In addition, several other methods are not supported or are unsafe on Scala.js:

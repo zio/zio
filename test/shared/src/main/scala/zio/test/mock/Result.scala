@@ -22,7 +22,7 @@ import zio.{ IO, UIO }
  * A `Result[-I, +E, +A]` represents the value or failure that will be returned
  * by mock expectation when invoked.
  */
-sealed trait Result[-I, +E, +A] {
+sealed abstract class Result[-I, +E, +A] {
   val io: I => IO[E, A]
 }
 

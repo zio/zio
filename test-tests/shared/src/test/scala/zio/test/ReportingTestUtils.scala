@@ -47,19 +47,19 @@ object ReportingTestUtils {
   def runLog(spec: ZSpec[TestEnvironment, String]) =
     for {
       _ <- TestTestRunner(testEnvironment)
-            .run(spec)
-            .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
+             .run(spec)
+             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
     } yield output.mkString
 
   def runSummary(spec: ZSpec[TestEnvironment, String]) =
     for {
       results <- TestTestRunner(testEnvironment)
-                  .run(spec)
-                  .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
-                    TestLogger.fromConsole ++ TestClock.default
-                  )
-      actualSummary <- SummaryBuilder.buildSummary(results)
+                   .run(spec)
+                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+                     TestLogger.fromConsole ++ TestClock.default
+                   )
+      actualSummary = SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
   private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
@@ -207,7 +207,7 @@ object ReportingTestUtils {
   )
 
   val mock3 = zio.test.test("Extra calls") {
-    throw UnexpectedCallExpection(PureModuleMock.ManyParams, (2, "3", 4L))
+    throw UnexpectedCallException(PureModuleMock.ManyParams, (2, "3", 4L))
   }
 
   val mock3Expected = Vector(

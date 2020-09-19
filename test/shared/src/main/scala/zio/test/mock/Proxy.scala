@@ -22,7 +22,7 @@ import zio.{ Has, ZIO }
  * A `Proxy` provides the machinery to map mocked invocations to predefined results
  * and check some constraints on the way.
  */
-trait Proxy {
+abstract class Proxy {
 
   def invoke[RIn <: Has[_], ROut, Input, Error, Value](
     capability: Capability[RIn, Input, Error, Value],

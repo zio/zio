@@ -7,8 +7,10 @@ import scala.annotation.tailrec
 
 import zio._
 
-/** Performs few steps of parsing header, then decompresses body and checks trailer.
- * With reasonably chosen bufferSize there shouldn't occur many concatenation of arrays. */
+/**
+ * Performs few steps of parsing header, then decompresses body and checks trailer.
+ * With reasonably chosen bufferSize there shouldn't occur many concatenation of arrays.
+ */
 private[compression] class Gunzipper private (bufferSize: Int) {
 
   import Gunzipper._
@@ -108,7 +110,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
       if (crc16Bytes.length < 2) {
         (new CheckCrc16Step(crc16Bytes, crcValue), Chunk.empty)
       } else {
-        val computedCrc16 = (crcValue & 0xFFFFL).toInt
+        val computedCrc16 = (crcValue & 0xffffL).toInt
         val expectedCrc   = u16(crc16Bytes(0), crc16Bytes(1))
         if (computedCrc16 != expectedCrc) throw CompressionException("Invalid header CRC16")
         else new Decompress().feed(leftover)
@@ -143,10 +145,10 @@ private[compression] class Gunzipper private (bufferSize: Int) {
       val newChunk = pullOutput(inflater, buffer)
       if (inflater.finished()) {
         val leftover = chunkBytes.takeRight(inflater.getRemaining())
-        val (state, _) =
+        val (state, restOfChunks) =
           new CheckTrailerStep(Array.emptyByteArray, crc32.getValue(), inflater.getBytesWritten()).feed(leftover)
-        (state, newChunk) // CheckTrailerStep returns empty chunk only
-      } else ((this, newChunk))
+        (state, newChunk ++ restOfChunks)
+      } else (this, newChunk)
     }
   }
 
@@ -164,7 +166,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
         val isize                    = readInt(trailerBytes.drop(4))
         if (expectedCrc32.toInt != crc32) throw CompressionException("Invalid CRC32")
         else if (expectedIsize.toInt != isize) throw CompressionException("Invalid ISIZE")
-        else new ParseHeaderStep(leftover, new CRC32()).feed(Array.emptyByteArray)
+        else new ParseHeaderStep(Array.emptyByteArray, new CRC32()).feed(leftover)
       }
     }
   }

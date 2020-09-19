@@ -29,6 +29,8 @@ package object clock {
     trait Service extends Serializable {
       def currentTime(unit: TimeUnit): UIO[Long]
       def currentDateTime: IO[DateTimeException, OffsetDateTime]
+      def instant: UIO[java.time.Instant]                               = currentTime(TimeUnit.MILLISECONDS).map(java.time.Instant.ofEpochMilli(_))
+      def localDateTime: IO[DateTimeException, java.time.LocalDateTime] = currentDateTime.map(_.toLocalDateTime())
       def nanoTime: UIO[Long]
       def sleep(duration: Duration): UIO[Unit]
     }
@@ -78,6 +80,9 @@ package object clock {
    */
   val currentDateTime: ZIO[Clock, DateTimeException, OffsetDateTime] =
     ZIO.accessM(_.get.currentDateTime)
+
+  val instant: ZIO[Clock, Nothing, java.time.Instant] =
+    ZIO.accessM(_.get.instant)
 
   /**
    * Returns the system nano time, which is not relative to any date.

@@ -16,7 +16,7 @@ abstract class BaseTestTask(
 
   protected lazy val specInstance: AbstractRunnableSpec = {
     import org.portablescala.reflect._
-    val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
+    val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
     Reflect
       .lookupLoadableModuleClass(fqn, testClassLoader)
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
@@ -26,11 +26,11 @@ abstract class BaseTestTask(
 
   protected def run(eventHandler: EventHandler): ZIO[TestLogger with Clock, Throwable, Unit] =
     for {
-      spec    <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
-      summary <- SummaryBuilder.buildSummary(spec)
-      _       <- sendSummary.provide(summary)
-      events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
-      _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
+      spec   <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
+      summary = SummaryBuilder.buildSummary(spec)
+      _      <- sendSummary.provide(summary)
+      events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
+      _      <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, TestLogger with Clock] =

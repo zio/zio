@@ -80,8 +80,11 @@ object AssertionSpec extends ZIOBaseSpec {
       val result = typeCheck("assert(1)(equalTo(\"abc\"))")
       assertM(result)(
         isLeft(
-          containsString("found   : zio.test.Assertion[String]") &&
-            containsString("required: zio.test.Assertion[Int]")
+          (containsString("found   : zio.test.Assertion[String]") &&
+            containsString("required: zio.test.Assertion[Int]")) ||
+            containsString(
+              "String and Int are unrelated types"
+            )
         )
       )
     } @@ scala2Only,
@@ -285,7 +288,8 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isCase must succeed when unapplied Proj satisfy specified assertion")(
       assert(sampleUser)(
         isCase[SampleUser, (String, Int)](
-          termName = "SampleUser", { case SampleUser(name, age) => Some((name, age)) },
+          termName = "SampleUser",
+          { case SampleUser(name, age) => Some((name, age)) },
           equalTo((sampleUser.name, sampleUser.age))
         )
       )
@@ -575,6 +579,6 @@ object AssertionSpec extends ZIOBaseSpec {
   trait Cat extends Animal
 
   val animal = new Animal {}
-  val dog    = new Dog    {}
-  val cat    = new Cat    {}
+  val dog    = new Dog {}
+  val cat    = new Cat {}
 }

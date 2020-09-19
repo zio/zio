@@ -10,12 +10,12 @@ import java.util.zip.{ DataFormatException, Inflater }
 import java.{ util => ju }
 
 import scala.annotation.tailrec
-
 import zio._
 import zio.blocking.Blocking
-import zio.stream.compression.{ CompressionException, Gunzipper }
+import zio.stream.compression._
 
-trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
+trait ZSinkPlatformSpecificConstructors {
+  self: ZSink.type =>
 
   /**
    * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
@@ -82,7 +82,8 @@ trait ZSinkPlatformSpecificConstructors { self: ZSink.type =>
   }
 }
 
-trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
+trait ZStreamPlatformSpecificConstructors {
+  self: ZStream.type =>
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
@@ -93,10 +94,13 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    effectAsyncMaybe(callback => {
-      register(callback)
-      None
-    }, outputBuffer)
+    effectAsyncMaybe(
+      callback => {
+        register(callback)
+        None
+      },
+      outputBuffer
+    )
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
@@ -113,26 +117,26 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         eitherStream <- ZManaged.effectTotal {
-                         register(k =>
-                           try {
-                             runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
-                             ()
-                           } catch {
-                             case FiberFailure(c) if c.interrupted =>
-                           }
-                         )
-                       }
+                          register(k =>
+                            try {
+                              runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
+                              ()
+                            } catch {
+                              case FiberFailure(c) if c.interrupted =>
+                            }
+                          )
+                        }
         pull <- eitherStream match {
-                 case Left(canceler) =>
-                   (for {
-                     done <- ZRef.makeManaged(false)
-                   } yield done.get.flatMap {
-                     if (_) Pull.end
-                     else
-                       output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
-                   }).ensuring(canceler)
-                 case Right(stream) => output.shutdown.toManaged_ *> stream.process
-               }
+                  case Left(canceler) =>
+                    (for {
+                      done <- ZRef.makeManaged(false)
+                    } yield done.get.flatMap {
+                      if (_) Pull.end
+                      else
+                        output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
+                    }).ensuring(canceler)
+                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
+                }
       } yield pull
     }
 
@@ -150,20 +154,20 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register { k =>
-              try {
-                runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
-                ()
-              } catch {
-                case FiberFailure(c) if c.interrupted =>
-              }
-            }.toManaged_
+               try {
+                 runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
+                 ()
+               } catch {
+                 case FiberFailure(c) if c.interrupted =>
+               }
+             }.toManaged_
         done <- ZRef.makeManaged(false)
         pull = done.get.flatMap {
-          if (_)
-            Pull.end
-          else
-            output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
-        }
+                 if (_)
+                   Pull.end
+                 else
+                   output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
+               }
       } yield pull
     }.flatMap(repeatEffectChunkOption(_))
 
@@ -182,27 +186,27 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         maybeStream <- ZManaged.effectTotal {
-                        register { k =>
-                          try {
-                            runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
-                            ()
-                          } catch {
-                            case FiberFailure(c) if c.interrupted =>
-                          }
-                        }
-                      }
+                         register { k =>
+                           try {
+                             runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
+                             ()
+                           } catch {
+                             case FiberFailure(c) if c.interrupted =>
+                           }
+                         }
+                       }
         pull <- maybeStream match {
-                 case Some(stream) => output.shutdown.toManaged_ *> stream.process
-                 case None =>
-                   for {
-                     done <- ZRef.makeManaged(false)
-                   } yield done.get.flatMap {
-                     if (_)
-                       Pull.end
-                     else
-                       output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
-                   }
-               }
+                  case Some(stream) => output.shutdown.toManaged_ *> stream.process
+                  case None =>
+                    for {
+                      done <- ZRef.makeManaged(false)
+                    } yield done.get.flatMap {
+                      if (_)
+                        Pull.end
+                      else
+                        output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
+                    }
+                }
       } yield pull
     }
 
@@ -221,9 +225,9 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
               bytesRead <- blocking.effectBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
               _         <- ZIO.fail(None).when(bytesRead == -1)
               chunk <- UIO {
-                        reusableBuffer.flip()
-                        Chunk.fromByteBuffer(reusableBuffer)
-                      }
+                         reusableBuffer.flip()
+                         Chunk.fromByteBuffer(reusableBuffer)
+                       }
             } yield chunk
           )
         }
@@ -244,13 +248,13 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
           bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
           bytesRead <- blocking.effectBlockingIO(capturedIs.read(bufArray)).mapError(Some(_))
           bytes <- if (bytesRead < 0)
-                    ZIO.fail(None)
-                  else if (bytesRead == 0)
-                    UIO(Chunk.empty)
-                  else if (bytesRead < chunkSize)
-                    UIO(Chunk.fromArray(bufArray).take(bytesRead))
-                  else
-                    UIO(Chunk.fromArray(bufArray))
+                     ZIO.fail(None)
+                   else if (bytesRead == 0)
+                     UIO(Chunk.empty)
+                   else if (bytesRead < chunkSize)
+                     UIO(Chunk.fromArray(bufArray).take(bytesRead))
+                   else
+                     UIO(Chunk.fromArray(bufArray))
         } yield bytes
       }
     }
@@ -286,13 +290,13 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
           bufArray  <- UIO(Array.ofDim[Char](chunkSize))
           bytesRead <- blocking.effectBlockingIO(capturedReader.read(bufArray)).mapError(Some(_))
           chars <- if (bytesRead < 0)
-                    ZIO.fail(None)
-                  else if (bytesRead == 0)
-                    UIO(Chunk.empty)
-                  else if (bytesRead < chunkSize)
-                    UIO(Chunk.fromArray(bufArray).take(bytesRead))
-                  else
-                    UIO(Chunk.fromArray(bufArray))
+                     ZIO.fail(None)
+                   else if (bytesRead == 0)
+                     UIO(Chunk.empty)
+                   else if (bytesRead < chunkSize)
+                     UIO(Chunk.fromArray(bufArray).take(bytesRead))
+                   else
+                     UIO(Chunk.fromArray(bufArray))
         } yield chars
       }
     }
@@ -379,30 +383,29 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[Blocking, Throwable, Connection] =
     for {
       server <- ZStream.managed(ZManaged.fromAutoCloseable(blocking.effectBlocking {
-                 AsynchronousServerSocketChannel
-                   .open()
-                   .bind(
-                     host.fold(new InetSocketAddress(port))(new InetSocketAddress(_, port))
-                   )
-               }))
+                  AsynchronousServerSocketChannel
+                    .open()
+                    .bind(
+                      host.fold(new InetSocketAddress(port))(new InetSocketAddress(_, port))
+                    )
+                }))
 
       registerConnection <- ZStream.managed(ZManaged.scope)
 
       conn <- ZStream.repeatEffect {
-               IO.effectAsync[Throwable, UManaged[Connection]] { callback =>
-                   server.accept(
-                     null,
-                     new CompletionHandler[AsynchronousSocketChannel, Void]() {
-                       self =>
-                       override def completed(socket: AsynchronousSocketChannel, attachment: Void): Unit =
-                         callback(ZIO.succeed(Connection.make(socket)))
+                IO.effectAsync[Throwable, UManaged[Connection]] { callback =>
+                  server.accept(
+                    null,
+                    new CompletionHandler[AsynchronousSocketChannel, Void]() {
+                      self =>
+                      override def completed(socket: AsynchronousSocketChannel, attachment: Void): Unit =
+                        callback(ZIO.succeed(Connection.make(socket)))
 
-                       override def failed(exc: Throwable, attachment: Void): Unit = callback(ZIO.fail(exc))
-                     }
-                   )
-                 }
-                 .flatMap(managedConn => registerConnection(managedConn).map(_._2))
-             }
+                      override def failed(exc: Throwable, attachment: Void): Unit = callback(ZIO.fail(exc))
+                    }
+                  )
+                }.flatMap(managedConn => registerConnection(managedConn).map(_._2))
+              }
     } yield conn
 
   /**
@@ -473,24 +476,40 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     def make(socket: AsynchronousSocketChannel): UManaged[Connection] =
       Managed.make(ZIO.succeed(new Connection(socket)))(_.close())
   }
+
 }
 
-trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
+trait ZTransducerPlatformSpecificConstructors {
+  self: ZTransducer.type =>
+
+  /**
+   * Compresses stream with 'deflate' method described in https://tools.ietf.org/html/rfc1951.
+   * Each incoming chunk is compressed at once, so it can utilize thread for long time if chunks are big.
+   *
+   * @param bufferSize Size of internal buffer used for pulling data from deflater, affects performance.
+   * @param noWrap     Whether output stream is wrapped in ZLIB header and trailer. For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+   */
+  def deflate(
+    bufferSize: Int = 64 * 1024,
+    noWrap: Boolean = false,
+    level: CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: FlushMode = FlushMode.NoFlush
+  ): ZTransducer[Any, Nothing, Byte, Byte] =
+    ZTransducer(Deflate.makeDeflater(bufferSize, noWrap, level, strategy, flushMode))
 
   /**
    * Decompresses deflated stream. Compression method is described in https://tools.ietf.org/html/rfc1951.
    *
-   * @param noWrap  Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
-   *                For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+   * @param noWrap     Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
+   *                   For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
    * @param bufferSize Size of buffer used internally, affects performance.
-   **/
+   */
   def inflate(
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false
   ): ZTransducer[Any, CompressionException, Byte, Byte] = {
-    def makeInflater(
-      bufferSize: Int
-    ): ZManaged[Any, Nothing, Option[zio.Chunk[Byte]] => ZIO[Any, CompressionException, Chunk[Byte]]] =
+    def makeInflater: ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, CompressionException, Chunk[Byte]]] =
       ZManaged
         .make(ZIO.effectTotal((new Array[Byte](bufferSize), new Inflater(noWrap)))) {
           case (_, inflater) => ZIO.effectTotal(inflater.end())
@@ -543,17 +562,42 @@ trait ZTransducerPlatformSpecificConstructors { self: ZTransducer.type =>
         } else if (read > 0) next(acc ++ current)
         else acc ++ current
       }
+
       if (inflater.needsInput()) Chunk.empty else next(Chunk.empty)
     }
 
-    ZTransducer(makeInflater(bufferSize))
+    ZTransducer(makeInflater)
   }
+
+  /**
+   * @param bufferSize Size of buffer used internally, affects performance.
+   * @param level
+   * @param strategy
+   * @param flushMode
+   * @return
+   */
+  def gzip(
+    bufferSize: Int = 64 * 1024,
+    level: CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: FlushMode = FlushMode.NoFlush
+  ): ZTransducer[Any, Nothing, Byte, Byte] =
+    ZTransducer(
+      ZManaged
+        .make(Gzipper.make(bufferSize, level, strategy, flushMode))(gzipper => ZIO.effectTotal(gzipper.close()))
+        .map { gzipper =>
+          {
+            case None        => gzipper.onNone
+            case Some(chunk) => gzipper.onChunk(chunk)
+          }
+        }
+    )
 
   /**
    * Decompresses gzipped stream. Compression method is described in https://tools.ietf.org/html/rfc1952.
    *
    * @param bufferSize Size of buffer used internally, affects performance.
-   **/
+   */
   def gunzip(bufferSize: Int = 64 * 1024): ZTransducer[Any, CompressionException, Byte, Byte] =
     ZTransducer(
       ZManaged

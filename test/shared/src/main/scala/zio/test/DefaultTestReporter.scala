@@ -21,7 +21,7 @@ import java.util.regex.Pattern
 import scala.io.AnsiColor
 import scala.util.Try
 
-import zio.duration.Duration
+import zio.duration._
 import zio.test.ConsoleUtils.{ cyan, red, _ }
 import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
 import zio.test.RenderedResult.CaseType._
@@ -29,103 +29,86 @@ import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
 import zio.test.mock.Expectation
 import zio.test.mock.internal.{ InvalidCall, MockException }
-import zio.{ Cause, Has, UIO, URIO }
+import zio.{ Cause, Has }
 
 object DefaultTestReporter {
 
   def render[E](
     executedSpec: ExecutedSpec[E],
     testAnnotationRenderer: TestAnnotationRenderer
-  ): UIO[Seq[RenderedResult[String]]] = {
+  ): Seq[RenderedResult[String]] = {
     def loop(
       executedSpec: ExecutedSpec[E],
       depth: Int,
       ancestors: List[TestAnnotationMap]
-    ): UIO[Seq[RenderedResult[String]]] =
+    ): Seq[RenderedResult[String]] =
       executedSpec.caseValue match {
-        case c @ Spec.SuiteCase(label, executedSpecs, _) =>
-          for {
-            specs <- executedSpecs.useNow
-            failures <- UIO.foreach(specs) { specs =>
-                         specs.exists {
-                           case Spec.TestCase(_, test, _) => test.map(_.isLeft)
-                           case _                         => UIO.succeedNow(false)
-                         }.useNow
-                       }
-            annotations <- Spec(c).fold[UIO[TestAnnotationMap]] {
-                            case Spec.SuiteCase(_, specs, _) =>
-                              specs.use(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
-                            case Spec.TestCase(_, _, annotations) => UIO.succeedNow(annotations)
-                          }
-            hasFailures = failures.exists(identity)
-            status      = if (hasFailures) Failed else Passed
-            renderedLabel = if (specs.isEmpty) Seq.empty
+        case ExecutedSpec.SuiteCase(label, specs) =>
+          val hasFailures = executedSpec.exists {
+            case ExecutedSpec.TestCase(_, test, _) => test.isLeft
+            case _                                 => false
+          }
+          val annotations = executedSpec.fold[TestAnnotationMap] {
+            case ExecutedSpec.SuiteCase(_, annotations)   => annotations.foldLeft(TestAnnotationMap.empty)(_ ++ _)
+            case ExecutedSpec.TestCase(_, _, annotations) => annotations
+          }
+          val status = if (hasFailures) Failed else Passed
+          val renderedLabel =
+            if (specs.isEmpty) Seq.empty
             else if (hasFailures) Seq(renderFailureLabel(label, depth))
             else Seq(renderSuccessLabel(label, depth))
-            renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
-            rest                <- UIO.foreach(specs)(loop(_, depth + tabSize, annotations :: ancestors)).map(_.flatten)
-          } yield rendered(Suite, label, status, depth, (renderedLabel): _*)
-            .withAnnotations(renderedAnnotations) +: rest
-        case Spec.TestCase(label, result, annotations) =>
-          result.map { result =>
-            val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
-            val renderedResult = result match {
-              case Right(TestSuccess.Succeeded(_)) =>
-                rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
-              case Right(TestSuccess.Ignored) =>
-                rendered(Test, label, Ignored, depth)
-              case Left(TestFailure.Assertion(result)) =>
-                result.fold(details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*))(
-                  _ && _,
-                  _ || _,
-                  !_
-                )
-              case Left(TestFailure.Runtime(cause)) =>
-                rendered(
-                  Test,
-                  label,
-                  Failed,
-                  depth,
-                  (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth))): _*
-                )
-            }
-            Seq(renderedResult.withAnnotations(renderedAnnotations))
+          val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
+          val rest                = specs.flatMap(loop(_, depth + tabSize, annotations :: ancestors))
+          rendered(Suite, label, status, depth, (renderedLabel): _*).withAnnotations(renderedAnnotations) +: rest
+        case ExecutedSpec.TestCase(label, result, annotations) =>
+          val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
+          val renderedResult = result match {
+            case Right(TestSuccess.Succeeded(_)) =>
+              rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
+            case Right(TestSuccess.Ignored) =>
+              rendered(Test, label, Ignored, depth)
+            case Left(TestFailure.Assertion(result)) =>
+              result.fold(details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*))(
+                _ && _,
+                _ || _,
+                !_
+              )
+            case Left(TestFailure.Runtime(cause)) =>
+              rendered(
+                Test,
+                label,
+                Failed,
+                depth,
+                (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth))): _*
+              )
           }
+          Seq(renderedResult.withAnnotations(renderedAnnotations))
       }
     loop(executedSpec, 0, List.empty)
   }
 
   def apply[E](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E] = {
     (duration: Duration, executedSpec: ExecutedSpec[E]) =>
-      for {
-        rendered <- render(executedSpec, testAnnotationRenderer).map(_.flatMap(_.rendered))
-        stats    <- logStats(duration, executedSpec)
-        _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
-      } yield ()
+      val rendered = render(executedSpec, testAnnotationRenderer).flatMap(_.rendered)
+      val stats    = logStats(duration, executedSpec)
+      TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
   }
 
-  private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): URIO[TestLogger, String] = {
-    def loop(executedSpec: ExecutedSpec[E]): UIO[(Int, Int, Int)] =
-      executedSpec.caseValue match {
-        case Spec.SuiteCase(_, executedSpecs, _) =>
-          for {
-            specs <- executedSpecs.useNow
-            stats <- UIO.foreach(specs)(loop)
-          } yield stats.foldLeft((0, 0, 0)) {
-            case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
-          }
-        case Spec.TestCase(_, result, _) =>
-          result.map {
-            case Left(_)                         => (0, 0, 1)
-            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
-            case Right(TestSuccess.Ignored)      => (0, 1, 0)
-          }
-      }
-    for {
-      stats                      <- loop(executedSpec)
-      (success, ignore, failure) = stats
-      total                      = success + ignore + failure
-    } yield cyan(
+  private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): String = {
+    val (success, ignore, failure) = executedSpec.fold[(Int, Int, Int)] {
+      case ExecutedSpec.SuiteCase(_, stats) =>
+        stats.foldLeft((0, 0, 0)) {
+          case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
+        }
+      case ExecutedSpec.TestCase(_, result, _) =>
+        result match {
+          case Left(_)                         => (0, 0, 1)
+          case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
+          case Right(TestSuccess.Ignored)      => (0, 1, 0)
+        }
+    }
+    val total = success + ignore + failure
+    cyan(
       s"Ran $total test${if (total == 1) "" else "s"} in ${duration.render}: $success succeeded, $ignore ignored, $failure failed"
     )
   }
@@ -170,14 +153,14 @@ object DefaultTestReporter {
 }
 
 object RenderedResult {
-  sealed trait Status
+  sealed abstract class Status
   object Status {
     case object Failed  extends Status
     case object Passed  extends Status
     case object Ignored extends Status
   }
 
-  sealed trait CaseType
+  sealed abstract class CaseType
   object CaseType {
     case object Test  extends CaseType
     case object Suite extends CaseType
@@ -351,7 +334,7 @@ object FailureRenderer {
         val header = red(s"- unsatisfied expectations").toLine
         header +: renderUnsatisfiedExpectations(expectation)
 
-      case MockException.UnexpectedCallExpection(method, args) =>
+      case MockException.UnexpectedCallException(method, args) =>
         Message(
           Seq(
             red(s"- unexpected call to $method with arguments").toLine,

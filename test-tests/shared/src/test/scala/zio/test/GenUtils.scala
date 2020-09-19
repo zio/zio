@@ -60,7 +60,7 @@ object GenUtils {
 
   val genStringIntFn: Gen[Random, String => Int] = Gen.function(Gen.int(-10, 10))
 
-  def partitionExit[E, A](eas: List[Exit[E, A]]): (List[Failure[E]], List[A]) =
+  def partitionExit[E, A](eas: List[Exit[E, A]]): (Iterable[Failure[E]], Iterable[A]) =
     ZIO.partitionMap(eas) {
       case Success(a)     => Right(a)
       case e @ Failure(_) => Left(e)

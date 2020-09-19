@@ -4,5 +4,8 @@
     "unensures",
     "untrack",
     "urio"
-  ]
+  ],
+  "files.watcherExclude": {
+    "**/target": true
+  }
 }

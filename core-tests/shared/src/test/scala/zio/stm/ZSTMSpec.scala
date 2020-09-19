@@ -3,7 +3,7 @@ package stm
 
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ jvmOnly, nonFlaky }
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment.Live
 
@@ -75,18 +75,18 @@ object ZSTMSpec extends ZIOBaseSpec {
         val tx    = (print <<< add).provide(1)
         assertM(tx.commit)(equalTo("2 is the sum"))
       },
-      testM("doWhile to run effect while it satisfies predicate") {
+      testM("repeatWhile to run effect while it satisfies predicate") {
         (for {
           a <- TQueue.bounded[Int](5)
           _ <- a.offerAll(List(0, 0, 0, 1, 2))
-          n <- a.take.doWhile(_ == 0)
+          n <- a.take.repeatWhile(_ == 0)
         } yield assert(n)(equalTo(1))).commit
       },
-      testM("doUntil to run effect until it satisfies predicate") {
+      testM("repeatUntil to run effect until it satisfies predicate") {
         (for {
           a <- TQueue.bounded[Int](5)
           _ <- a.offerAll(List(0, 0, 0, 1, 2))
-          b <- a.take.doUntil(_ == 1)
+          b <- a.take.repeatUntil(_ == 1)
         } yield assert(b)(equalTo(1))).commit
       },
       suite("either to convert")(
@@ -103,7 +103,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             n <- ref.get
             r <- if (n < 10) ref.update(_ + 1) *> ZSTM.fail("Ouch")
-                else ZSTM.succeed(n)
+                 else ZSTM.succeed(n)
           } yield r
 
         val tx = for {
@@ -251,7 +251,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             n <- ref.get
             r <- if (n < 10) ref.update(_ + 1)
-                else ZSTM.fail("Ouch")
+                 else ZSTM.fail("Ouch")
           } yield r
 
         val tx = for {
@@ -661,9 +661,9 @@ object ZSTMSpec extends ZIOBaseSpec {
       suite("summarized")(
         testM("returns summary and value") {
           val tx = for {
-            counter               <- TRef.make(0)
+            counter              <- TRef.make(0)
             increment             = counter.updateAndGet(_ + 1)
-            result                <- increment.summarized(increment)((_, _))
+            result               <- increment.summarized(increment)((_, _))
             ((start, end), value) = result
           } yield (start, value, end)
           assertM(tx.commit)(equalTo((1, 2, 3)))
@@ -671,13 +671,13 @@ object ZSTMSpec extends ZIOBaseSpec {
       ),
       suite("tupled environment")(
         testM("_1 should extract first") {
-          val tx  = ZSTM.first[Int, String]
+          val tx  = ZSTM.first[Int]
           val env = (42, "test")
 
           assertM(tx.provide(env).commit)(equalTo(env._1))
         },
         testM("_2 should extract second") {
-          val tx  = ZSTM.second[Int, String]
+          val tx  = ZSTM.second[String]
           val env = (42, "test")
 
           assertM(tx.provide(env).commit)(equalTo(env._2))
@@ -725,13 +725,13 @@ object ZSTMSpec extends ZIOBaseSpec {
       ) {
         for {
           tVars <- STM
-                    .atomically(
-                      TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
-                    )
+                     .atomically(
+                       TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
+                     )
           tvar1 <*> tvar2 <*> tvar3 = tVars
-          fiber                     <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
-          _                         <- fiber.join
-          value                     <- tvar3.get.commit
+          fiber                    <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
+          _                        <- fiber.join
+          value                    <- tvar3.get.commit
         } yield assert(value)(equalTo(10000))
       }
     ),
@@ -742,11 +742,11 @@ object ZSTMSpec extends ZIOBaseSpec {
             tvar1 <- TRef.makeCommit(10)
             tvar2 <- TRef.makeCommit("Failed!")
             join <- (for {
-                     v1 <- tvar1.get
-                     _  <- STM.check(v1 > 0)
-                     _  <- tvar2.set("Succeeded!")
-                     v2 <- tvar2.get
-                   } yield v2).commit
+                        v1 <- tvar1.get
+                        _  <- STM.check(v1 > 0)
+                        _  <- tvar2.set("Succeeded!")
+                        v2 <- tvar2.get
+                      } yield v2).commit
           } yield assert(join)(equalTo("Succeeded!"))
         },
         testM(
@@ -766,15 +766,15 @@ object ZSTMSpec extends ZIOBaseSpec {
             tvar1 <- TRef.makeCommit(0)
             tvar2 <- TRef.makeCommit("Failed!")
             fiber <- (STM.atomically {
-                      for {
-                        v1 <- tvar1.get
-                        _  <- STM.succeed(barrier.open())
-                        _  <- STM.check(v1 > 42)
-                        _  <- tvar2.set("Succeeded!")
-                        v2 <- tvar2.get
-                      } yield v2
-                    } <* done
-                      .succeed(())).fork
+                         for {
+                           v1 <- tvar1.get
+                           _  <- STM.succeed(barrier.open())
+                           _  <- STM.check(v1 > 42)
+                           _  <- tvar2.set("Succeeded!")
+                           v2 <- tvar2.get
+                         } yield v2
+                       } <* done
+                         .succeed(())).fork
             _    <- barrier.await
             old  <- tvar2.get.commit
             _    <- tvar1.set(43).commit
@@ -800,43 +800,43 @@ object ZSTMSpec extends ZIOBaseSpec {
       suite("transfer an amount to a sender and send it back the account should contains the amount to transfer")(
         testM("run both transactions sequentially in 10 fibers.") {
           for {
-            sender     <- TRef.makeCommit(100)
-            receiver   <- TRef.makeCommit(0)
+            sender    <- TRef.makeCommit(100)
+            receiver  <- TRef.makeCommit(0)
             toReceiver = transfer(receiver, sender, 150)
             toSender   = transfer(sender, receiver, 150)
-            f          <- ZIO.forkAll(List.fill(10)(toReceiver *> toSender))
-            _          <- sender.update(_ + 50).commit
-            _          <- f.join
-            senderV    <- sender.get.commit
-            receiverV  <- receiver.get.commit
+            f         <- ZIO.forkAll(List.fill(10)(toReceiver *> toSender))
+            _         <- sender.update(_ + 50).commit
+            _         <- f.join
+            senderV   <- sender.get.commit
+            receiverV <- receiver.get.commit
           } yield assert(senderV)(equalTo(150)) && assert(receiverV)(equalTo(0))
         },
         testM("run 10 transactions `toReceiver` and 10 `toSender` concurrently.") {
           for {
-            sender     <- TRef.makeCommit(50)
-            receiver   <- TRef.makeCommit(0)
+            sender    <- TRef.makeCommit(50)
+            receiver  <- TRef.makeCommit(0)
             toReceiver = transfer(receiver, sender, 100)
             toSender   = transfer(sender, receiver, 100)
-            f1         <- IO.forkAll(List.fill(10)(toReceiver))
-            f2         <- IO.forkAll(List.fill(10)(toSender))
-            _          <- sender.update(_ + 50).commit
-            _          <- f1.join
-            _          <- f2.join
-            senderV    <- sender.get.commit
-            receiverV  <- receiver.get.commit
+            f1        <- IO.forkAll(List.fill(10)(toReceiver))
+            f2        <- IO.forkAll(List.fill(10)(toSender))
+            _         <- sender.update(_ + 50).commit
+            _         <- f1.join
+            _         <- f2.join
+            senderV   <- sender.get.commit
+            receiverV <- receiver.get.commit
           } yield assert(senderV)(equalTo(100)) && assert(receiverV)(equalTo(0))
         },
         testM("run transactions `toReceiver` 10 times and `toSender` 10 times each in 100 fibers concurrently.") {
           for {
-            sender       <- TRef.makeCommit(50)
-            receiver     <- TRef.makeCommit(0)
-            toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
-            toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
-            f            <- toReceiver10.zipPar(toSender10).fork
-            _            <- sender.update(_ + 50).commit
-            _            <- f.join
-            senderV      <- sender.get.commit
-            receiverV    <- receiver.get.commit
+            sender      <- TRef.makeCommit(50)
+            receiver    <- TRef.makeCommit(0)
+            toReceiver10 = transfer(receiver, sender, 100).repeatN(9)
+            toSender10   = transfer(sender, receiver, 100).repeatN(9)
+            f           <- toReceiver10.zipPar(toSender10).fork
+            _           <- sender.update(_ + 50).commit
+            _           <- f.join
+            senderV     <- sender.get.commit
+            receiverV   <- receiver.get.commit
           } yield assert(senderV)(equalTo(100)) && assert(receiverV)(equalTo(0))
         }
       ),
@@ -846,14 +846,14 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           tvar <- TRef.makeCommit(0)
           fiber <- IO.forkAll(
-                    (0 to 20).map(i =>
-                      (for {
-                        v <- tvar.get
-                        _ <- STM.check(v == i)
-                        _ <- tvar.update(_ + 1)
-                      } yield ()).commit
-                    )
-                  )
+                     (0 to 20).map(i =>
+                       (for {
+                         v <- tvar.get
+                         _ <- STM.check(v == i)
+                         _ <- tvar.update(_ + 1)
+                       } yield ()).commit
+                     )
+                   )
           _ <- fiber.join
           v <- tvar.get.commit
         } yield assert(v)(equalTo(21))
@@ -864,11 +864,11 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             tvar <- TRef.makeCommit(0)
             fiber <- (for {
-                      v <- tvar.get
-                      _ <- STM.succeed(barrier.open())
-                      _ <- STM.check(v > 0)
-                      _ <- tvar.update(10 / _)
-                    } yield ()).commit.fork
+                         v <- tvar.get
+                         _ <- STM.succeed(barrier.open())
+                         _ <- STM.check(v > 0)
+                         _ <- tvar.update(10 / _)
+                       } yield ()).commit.fork
             _ <- barrier.await
             _ <- fiber.interrupt
             _ <- tvar.set(10).commit
@@ -882,11 +882,11 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             tvar <- TRef.makeCommit(0)
             fiber <- IO.forkAll(List.fill(100)((for {
-                      v <- tvar.get
-                      _ <- STM.succeed(barrier.open())
-                      _ <- STM.check(v < 0)
-                      _ <- tvar.set(10)
-                    } yield ()).commit))
+                       v <- tvar.get
+                       _ <- STM.succeed(barrier.open())
+                       _ <- STM.check(v < 0)
+                       _ <- tvar.set(10)
+                     } yield ()).commit))
             _ <- barrier.await
             _ <- fiber.interrupt
             _ <- tvar.set(-1).commit
@@ -944,7 +944,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           it    <- UIO((1 to 100).map(TRef.make(_)))
           tvars <- STM.collectAll(it).commit
           res   <- UIO.foreachPar(tvars)(_.get.commit)
-        } yield assert(res)(equalTo((1 to 100).toList))
+        } yield assert(res)(equalTo((1 to 100)))
       },
       testM("collects a chunk of transactional effects to a single transaction that produces a chunk of values") {
         for {
@@ -957,20 +957,20 @@ object ZSTMSpec extends ZIOBaseSpec {
     suite("foreach")(
       testM("performs an action on each list element and return a single transaction that contains the result") {
         for {
-          tvar      <- TRef.makeCommit(0)
+          tvar     <- TRef.makeCommit(0)
           list      = List(1, 2, 3, 4, 5)
           expectedV = list.sum
-          _         <- STM.foreach(list)(a => tvar.update(_ + a)).commit
-          v         <- tvar.get.commit
+          _        <- STM.foreach(list)(a => tvar.update(_ + a)).commit
+          v        <- tvar.get.commit
         } yield assert(v)(equalTo(expectedV))
       },
       testM("performs an action on each chunk element and return a single transaction that contains the result") {
         for {
-          tvar      <- TRef.makeCommit(0)
+          tvar     <- TRef.makeCommit(0)
           chunk     = Chunk(1, 2, 3, 4, 5)
           expectedV = chunk.foldRight(0)(_ + _)
-          _         <- STM.foreach(chunk)(a => tvar.update(_ + a)).commit
-          v         <- tvar.get.commit
+          _        <- STM.foreach(chunk)(a => tvar.update(_ + a)).commit
+          v        <- tvar.get.commit
         } yield assert(v)(equalTo(expectedV))
       }
     ),
@@ -978,7 +978,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("performs actions in order given a list") {
         for {
           ref <- TRef.makeCommit(List.empty[Int])
-          as  = List(1, 2, 3, 4, 5)
+          as   = List(1, 2, 3, 4, 5)
           _   <- STM.foreach_(as)(a => ref.update(_ :+ a)).commit
           bs  <- ref.get.commit
         } yield assert(bs)(equalTo(as))
@@ -986,7 +986,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("performs actions in order given a chunk") {
         for {
           ref <- TRef.makeCommit(List.empty[Int])
-          as  = Chunk(1, 2, 3, 4, 5)
+          as   = Chunk(1, 2, 3, 4, 5)
           _   <- STM.foreach_(as)(a => ref.update(_ :+ a)).commit
           bs  <- ref.get.commit
         } yield assert(bs)(equalTo(as.toList))
@@ -997,9 +997,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           tvar <- TRef.makeCommit(0)
           e <- (for {
-                _ <- tvar.update(_ + 10)
-                _ <- STM.fail("Error!")
-              } yield ()).commit.either
+                   _ <- tvar.update(_ + 10)
+                   _ <- STM.fail("Error!")
+                 } yield ()).commit.either
           v <- tvar.get.commit
         } yield assert(e)(isLeft(equalTo("Error!"))) && assert(v)(equalTo(0))
       },
@@ -1007,9 +1007,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           tvar <- TRef.makeCommit(0)
           e <- (for {
-                _ <- tvar.update(_ + 10)
-                _ <- STM.fail("Error!")
-              } yield ()).commit.ignore
+                   _ <- tvar.update(_ + 10)
+                   _ <- STM.fail("Error!")
+                 } yield ()).commit.ignore
           v <- tvar.get.commit
         } yield assert(e)(equalTo(())) && assert(v)(equalTo(0))
       }
@@ -1026,20 +1026,20 @@ object ZSTMSpec extends ZIOBaseSpec {
     suite("orElse")(
       testM("tries alternative once left retries") {
         for {
-          ref   <- TRef.makeCommit(0)
+          ref  <- TRef.makeCommit(0)
           left  = ref.update(_ + 100) *> STM.retry
           right = ref.update(_ + 200)
-          _     <- (left orElse right).commit
-          v     <- ref.get.commit
+          _    <- (left orElse right).commit
+          v    <- ref.get.commit
         } yield assert(v)(equalTo(200))
       },
       testM("tries alternative once left fails") {
         for {
-          ref   <- TRef.makeCommit(0)
+          ref  <- TRef.makeCommit(0)
           left  = ref.update(_ + 100) *> STM.fail("boom")
           right = ref.update(_ + 200)
-          _     <- (left orElse right).commit
-          res   <- ref.get.commit
+          _    <- (left orElse right).commit
+          res  <- ref.get.commit
         } yield assert(res)(equalTo(200))
       },
       testM("fail if alternative fails") {
@@ -1097,13 +1097,13 @@ object ZSTMSpec extends ZIOBaseSpec {
       },
       testM("retries left after right retries") {
         for {
-          ref     <- TRef.makeCommit(0)
+          ref    <- TRef.makeCommit(0)
           left    = ref.get.flatMap(v => STM.check(v > 500).as("left"))
           right   = STM.retry
           updater = ref.update(_ + 10).commit.forever
-          res     <- (left <|> right).commit.race(updater)
+          res    <- (left <|> right).commit.race(updater)
         } yield assert(res)(equalTo("left"))
-      } @@ jvmOnly,
+      },
       testM("fails if left fails") {
         val left  = STM.fail("left")
         val right = STM.succeed("right")
@@ -1147,9 +1147,10 @@ object ZSTMSpec extends ZIOBaseSpec {
     ),
     suite("ZSTM validate")(
       testM("returns all errors if never valid") {
-        implicit val canFail = CanFail
-        val in               = List.fill(10)(0)
-        val res              = STM.validate(in)(a => STM.fail(a))
+        implicit val canFail         = CanFail
+        val in                       = List.fill(10)(0)
+        def fail[A](a: A): STM[A, A] = STM.fail(a)
+        val res                      = STM.validate(in)(a => fail(a))
         assertM(res.commit.run)(fails(equalTo(in)))
       } @@ zioTag(errors),
       testM("accumulate errors and ignore successes") {
@@ -1240,15 +1241,15 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("whenM true") {
         for {
           ref    <- TRef.make(0).commit
-          isZero = ref.get.map(_ == 0)
+          isZero  = ref.get.map(_ == 0)
           result <- (STM.whenM(isZero)(ref.update(_ + 1)) *> ref.get).commit
         } yield assert(result)(equalTo(1))
       },
       testM("whenM false") {
         for {
-          ref       <- TRef.make(0).commit
+          ref      <- TRef.make(0).commit
           isNotZero = ref.get.map(_ != 0)
-          result    <- (STM.whenM(isNotZero)(ref.update(_ + 1)) *> ref.get).commit
+          result   <- (STM.whenM(isNotZero)(ref.update(_ + 1)) *> ref.get).commit
         } yield assert(result)(equalTo(0))
       }
     ),
@@ -1360,7 +1361,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             tapSuccess    <- TPromise.make[Nothing, Int]
             tapError      <- TPromise.make[Nothing, String]
-            succeededSTM  = ZSTM.succeed(42): STM[String, Int]
+            succeededSTM   = ZSTM.succeed(42): STM[String, Int]
             result        <- succeededSTM.tapBoth(e => tapError.succeed(e), a => tapSuccess.succeed(a))
             tappedSuccess <- tapSuccess.await
           } yield (result, tappedSuccess)
@@ -1370,11 +1371,11 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("tapBoth applies the function to error and successful values while keeping the effect itself on error") {
         val tx =
           for {
-            tapSuccess   <- TPromise.make[Nothing, Int]
-            tapError     <- TPromise.make[Nothing, String]
+            tapSuccess  <- TPromise.make[Nothing, Int]
+            tapError    <- TPromise.make[Nothing, String]
             succeededSTM = ZSTM.fail("error"): STM[String, Int]
-            result       <- succeededSTM.tapBoth(e => tapError.succeed(e), a => tapSuccess.succeed(a)).either
-            tappedError  <- tapError.await
+            result      <- succeededSTM.tapBoth(e => tapError.succeed(e), a => tapSuccess.succeed(a)).either
+            tappedError <- tapError.await
           } yield (result, tappedError)
 
         assertM(tx.commit)(equalTo((Left("error"), "error")))
@@ -1383,7 +1384,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         val tx =
           for {
             errorRef    <- TPromise.make[Nothing, String]
-            failedStm   = ZSTM.fail("error") *> ZSTM.succeed(0)
+            failedStm    = ZSTM.fail("error") *> ZSTM.succeed(0)
             result      <- failedStm.tapError(e => errorRef.succeed(e)).either
             tappedError <- errorRef.await
           } yield (result, tappedError)
@@ -1432,7 +1433,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         _ <- tvar.set(v + 1)
         v <- tvar.get
       } yield v)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
+      .repeatN(n)
 
   def compute3VarN(
     n: Int,
@@ -1449,7 +1450,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         _  <- tvar1.set(v1 - 1)
         _  <- tvar2.set(v2 + 1)
       } yield v3)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
+      .repeatN(n)
 
   def transfer(receiver: TRef[Int], sender: TRef[Int], much: Int): UIO[Int] =
     STM.atomically {

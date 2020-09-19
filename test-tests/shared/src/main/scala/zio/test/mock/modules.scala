@@ -6,7 +6,7 @@ import zio.{ Has, IO, Tag, UIO }
  * https://github.com/scalamacros/paradise/issues/75
  *
  * We can't define module in the same scope with macro application
- * */
+ */
 object modules {
   type EmptyModule = Has[EmptyModule.Service]
   object EmptyModule {
@@ -102,6 +102,22 @@ object modules {
     trait Service {
       def simpleVarargs(a: Int, b: String*): String
       def curriedVarargs(a: Int, b: String*)(c: Long, d: Double*): String
+    }
+  }
+
+  type DefaultImplPureDefsModule = Has[DefaultImplPureDefsModule.Service]
+  object DefaultImplPureDefsModule {
+    trait Service {
+      def foo(i: Int): IO[String, String] = bar(i.toString)
+      def bar(s: String): IO[String, String]
+    }
+  }
+
+  type DefaultImplImpureDefsModule = Has[DefaultImplImpureDefsModule.Service]
+  object DefaultImplImpureDefsModule {
+    trait Service {
+      def foo(i: Int): String = bar(i.toString)
+      def bar(s: String): String
     }
   }
 }

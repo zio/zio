@@ -129,31 +129,26 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces)(isNonEmpty) &&
         assert(cause.traces.head.parentTrace.isEmpty)(isFalse) &&
         assert(cause.traces.head.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
-        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
-        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
-        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(
-          isTrue
-        )
+        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse)
       }
     },
     testM("fiber ancestry example with uploads") {
       fiberAncestryUploadExample
-        .uploadUsers(List(new fiberAncestryUploadExample.User)) causeMust {
-        cause =>
-          assert(cause.traces.head.stackTrace.size)(equalTo(7)) &&
-          assert(cause.traces.head.stackTrace(4).prettyPrint.contains("uploadUsers"))(isTrue) &&
-          assert(cause.traces(1).stackTrace.size)(equalTo(4)) &&
-          assert(cause.traces(1).executionTrace.size)(equalTo(4)) &&
-          assert(cause.traces(1).executionTrace.head.prettyPrint.contains("uploadTo"))(isTrue) &&
-          assert(cause.traces(1).parentTrace.isEmpty)(isFalse) &&
-          assert(
-            cause
-              .traces(1)
-              .parentTrace
-              .get
-              .stackTrace
-              .exists(_.prettyPrint.contains("uploadUsers"))
-          )(isTrue)
+        .uploadUsers(List(new fiberAncestryUploadExample.User)) causeMust { cause =>
+        assert(cause.traces.head.stackTrace.size)(equalTo(7)) &&
+        assert(cause.traces.head.stackTrace(4).prettyPrint.contains("uploadUsers"))(isTrue) &&
+        assert(cause.traces(1).stackTrace.size)(equalTo(4)) &&
+        assert(cause.traces(1).executionTrace.size)(equalTo(4)) &&
+        assert(cause.traces(1).executionTrace.head.prettyPrint.contains("uploadTo"))(isTrue) &&
+        assert(cause.traces(1).parentTrace.isEmpty)(isFalse) &&
+        assert(
+          cause
+            .traces(1)
+            .parentTrace
+            .get
+            .stackTrace
+            .exists(_.prettyPrint.contains("uploadUsers"))
+        )(isTrue)
       }
     },
     testM("fiber ancestry has a limited size") {
@@ -221,18 +216,17 @@ object StackTracesSpec extends DefaultRunnableSpec {
         trace <- mapErrorPreservesTrace
       } yield trace
 
-      io causeMust {
-        cause =>
-          // mapError does not change the trace in any way from its state during `fail()`
-          // as a consequence, `executionTrace` is not updated with finalizer info, etc...
-          // but overall it's a good thing since you're not losing traces at the border between your domain errors & Throwable
-          assert(cause.traces.size)(equalTo(1)) &&
-          assert(cause.traces.head.executionTrace.size)(equalTo(2)) &&
-          assert(cause.traces.head.executionTrace.head.prettyPrint.contains("fail"))(isTrue) &&
-          assert(cause.traces.head.stackTrace.size)(equalTo(6)) &&
-          assert(cause.traces.head.stackTrace.head.prettyPrint.contains("succ"))(isTrue) &&
-          assert(cause.traces.head.stackTrace(1).prettyPrint.contains("mapError"))(isTrue) &&
-          assert(cause.traces.head.stackTrace(2).prettyPrint.contains("mapErrorPreservesTrace"))(isTrue)
+      io causeMust { cause =>
+        // mapError does not change the trace in any way from its state during `fail()`
+        // as a consequence, `executionTrace` is not updated with finalizer info, etc...
+        // but overall it's a good thing since you're not losing traces at the border between your domain errors & Throwable
+        assert(cause.traces.size)(equalTo(1)) &&
+        assert(cause.traces.head.executionTrace.size)(equalTo(2)) &&
+        assert(cause.traces.head.executionTrace.head.prettyPrint.contains("fail"))(isTrue) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(6)) &&
+        assert(cause.traces.head.stackTrace.head.prettyPrint.contains("succ"))(isTrue) &&
+        assert(cause.traces.head.stackTrace(1).prettyPrint.contains("mapError"))(isTrue) &&
+        assert(cause.traces.head.stackTrace(2).prettyPrint.contains("mapErrorPreservesTrace"))(isTrue)
       }
     },
     testM("catchSome with optimized effect path") {
@@ -255,15 +249,14 @@ object StackTracesSpec extends DefaultRunnableSpec {
         trace <- catchAllWithOptimizedEffect
       } yield trace
 
-      io causeMust {
-        cause =>
-          // after we refail and lose the trace, the only continuation we have left is the map from yield
-          assert(cause.traces.size)(equalTo(1)) &&
-          assert(cause.traces.head.executionTrace.size)(equalTo(3)) &&
-          assert(cause.traces.head.executionTrace.head.prettyPrint.contains("refailAndLoseTrace"))(isTrue) &&
-          assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("fail")))(isTrue) &&
-          assert(cause.traces.head.stackTrace.size)(equalTo(4)) &&
-          assert(cause.traces.head.stackTrace.head.prettyPrint.contains("catchAllWithOptimizedEffect"))(isTrue)
+      io causeMust { cause =>
+        // after we refail and lose the trace, the only continuation we have left is the map from yield
+        assert(cause.traces.size)(equalTo(1)) &&
+        assert(cause.traces.head.executionTrace.size)(equalTo(3)) &&
+        assert(cause.traces.head.executionTrace.head.prettyPrint.contains("refailAndLoseTrace"))(isTrue) &&
+        assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("fail")))(isTrue) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(4)) &&
+        assert(cause.traces.head.stackTrace.head.prettyPrint.contains("catchAllWithOptimizedEffect"))(isTrue)
       }
     },
     testM("foldM with optimized effect path") {
@@ -300,6 +293,26 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
         assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")))(isTrue)
       }
+    },
+    testM("basic option test") {
+      for {
+        value <- ZIO.getOrFailUnit(Some("foo"))
+      } yield {
+        assert(value)(equalTo("foo"))
+      }
+    },
+    testM("side effect unit in option test") {
+      for {
+        value <- ZIO.getOrFailUnit(None).catchAll { unit =>
+                   if (unit.isInstanceOf[Unit]) {
+                     ZIO.succeed("Controlling unit side-effect")
+                   } else {
+                     ZIO.fail("wrong side-effect type ")
+                   }
+                 }
+      } yield {
+        assert(value)(equalTo("Controlling unit side-effect"))
+      }
     }
   )
 
@@ -332,13 +345,13 @@ object StackTracesSpec extends DefaultRunnableSpec {
   def foreachFail: ZIO[Any, Throwable, (ZTrace, ZTrace)] =
     for {
       t1 <- ZIO
-             .foreach_(1 to 10) { i =>
-               if (i == 7)
-                 ZIO.unit *> ZIO.fail("Dummy error!")
-               else
-                 ZIO.unit *> ZIO.trace
-             }
-             .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
+              .foreach_(1 to 10) { i =>
+                if (i == 7)
+                  ZIO.unit *> ZIO.fail("Dummy error!")
+                else
+                  ZIO.unit *> ZIO.trace
+              }
+              .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
       t2 <- ZIO.trace
     } yield (t1, t2)
 
@@ -408,8 +421,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
     def fiber2 =
       for {
         _ <- UIO {
-              throw new Exception()
-            }
+               throw new Exception()
+             }
       } yield ()
 
     for {
@@ -452,8 +465,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
   def blockingTrace =
     for {
       _ <- blocking.effectBlockingInterrupt {
-            throw new Exception()
-          }
+             throw new Exception()
+           }
     } yield ()
 
   def tracingRegions = {
@@ -478,12 +491,12 @@ object StackTracesSpec extends DefaultRunnableSpec {
       _ <- ZIO.unit
       _ <- ZIO.unit
       untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.checkTraced(
-                           ZIO.succeed(_)
-                         )).fork).untraced
+                              ZIO.succeed(_)
+                            )).fork).untraced
       tracingStatus <- untraceableFiber.join
       _ <- ZIO.when(tracingStatus.isTraced) {
-            ZIO.dieMessage("Expected disabled tracing")
-          }
+             ZIO.dieMessage("Expected disabled tracing")
+           }
     } yield ()
 
   def executionTraceConditionalExample = {
@@ -495,8 +508,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
   object executionTraceConditionalExampleFixture {
     def doWork(condition: Boolean) =
       for {
-        _ <- IO.when(condition)(doSideWork)
-        _ <- doMainWork
+        _ <- IO.when(condition)(doSideWork())
+        _ <- doMainWork()
       } yield ()
 
     def doSideWork() = Task(())
@@ -509,8 +522,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
     for {
       t <- Task(fail())
-            .flatMap(succ)
-            .mapError(mapError)
+             .flatMap(succ)
+             .mapError(mapError)
     } yield t
   }
 
@@ -525,10 +538,10 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
     for {
       t <- Task(fail())
-            .flatMap(badMethod)
-            .catchSome {
-              case _: ArithmeticException => ZIO.fail("impossible match!")
-            }
+             .flatMap(badMethod)
+             .catchSome {
+               case _: ArithmeticException => ZIO.fail("impossible match!")
+             }
     } yield t
   }
 
@@ -542,8 +555,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
     for {
       t <- Task(fail())
-            .flatMap(succ)
-            .catchAll(refailAndLoseTrace)
+             .flatMap(succ)
+             .catchAll(refailAndLoseTrace)
     } yield t
   }
 
@@ -558,8 +571,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
     for {
       t <- Task(fail())
-            .flatMap(badMethod1)
-            .foldM(mkTrace, badMethod2)
+             .flatMap(badMethod1)
+             .foldM(mkTrace, badMethod2)
     } yield t
   }
 

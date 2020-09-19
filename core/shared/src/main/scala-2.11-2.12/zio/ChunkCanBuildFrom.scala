@@ -26,7 +26,7 @@ import scala.collection.generic.CanBuildFrom
  * target type of a collection operation is a `Chunk` to support high
  * performance implementations of transformation operations for chunks.
  */
-sealed trait ChunkCanBuildFrom[A] extends CanBuildFrom[Chunk[Any], A, Chunk[A]] {
+sealed abstract class ChunkCanBuildFrom[A] extends CanBuildFrom[Chunk[Any], A, Chunk[A]] {
   override def apply(from: Chunk[Any]): ChunkBuilder[A]
   override def apply(): ChunkBuilder[A]
 }

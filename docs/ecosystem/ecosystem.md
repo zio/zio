@@ -12,7 +12,7 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 - [ZIO Actors](https://github.com/zio/zio-actors): A high-performance, purely-functional library for building, composing, and supervising typed actors based on ZIO
 - [ZIO Akka Cluster](https://github.com/zio/zio-akka-cluster): A ZIO wrapper for Akka Cluster
 - [ZIO Config](https://github.com/zio/zio-config): A ZIO based configuration parsing library
-- [ZIO HTTP](https://github.com/zio/zio-http): A ZIO-powered HTTP server and client
+- [ZIO Web](https://github.com/zio/zio-web): A ZIO-powered HTTP server and client
 - [ZIO Kafka](https://github.com/zio/zio-kafka): A Kafka client for ZIO and ZIO Streams
 - [ZIO Keeper](https://github.com/zio/zio-keeper): A functional library for consistent replication of metadata across dynamic clusters
 - [ZIO Logging](https://github.com/zio/zio-logging): An environmental effect for adding logging into any ZIO application, with choice of pluggable back-ends
@@ -39,6 +39,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [tranzactio](https://github.com/gaelrenoux/tranzactio): ZIO wrapper for data access libraries like Doobie or Anorm
 - [ZIO Arrow](https://github.com/Neurodyne/zio-arrow) : Haskell Arrow meets ZIO. A deep composition and high performance applications
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
+- [zio-aws](https://github.com/vigoo/zio-aws): Low-level AWS wrapper for ZIO for all AWS services using the AWS Java SDK v2
 - [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [zio-easymock](https://github.com/egast/zio-easymock): EasyMock mocking for zio-test
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client
@@ -56,6 +57,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [ZIO IntelliJ](https://github.com/zio/zio-intellij): A complimentary, community-developed plugin for IntelliJ IDEA, brings enhancements when using ZIO in your projects
 - [zio-shield](https://github.com/zio/zio-shield): Enforce best coding practices with ZIO
 - [zio-akka-quickstart.g8](https://github.com/ScalaConsultants/zio-akka-quickstart.g8): A Giter8 template for a basic Scala application build using ZIO, Akka HTTP and Slick
+- [zio-dotty-quickstart.g8](https://github.com/ScalaConsultants/zio-dotty-quickstart.g8): A Giter8 template for a basic Dotty application build using ZIO
 
 
 ## ZIO Interoperability Libraries

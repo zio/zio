@@ -39,6 +39,26 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(run(parser, List(Chunk("1"))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
+      suite("filterInput")(
+        testM("happy path") {
+          val filter = ZTransducer.identity[Int].filterInput[Int](_ > 2)
+          assertM(run(filter, List(Chunk(1, 2, 3))))(equalTo(Chunk(3)))
+        },
+        testM("error") {
+          val parser = initErrorParser.filterInput[Int](_ > 2)
+          assertM(run(parser, List(Chunk(1, 2, 3))).either)(isLeft(equalTo("Ouch")))
+        } @@ zioTag(errors)
+      ),
+      suite("filterInputM")(
+        testM("happy path") {
+          val filter = ZTransducer.identity[Int].filterInputM[Any, String, Int](x => UIO.succeed(x > 2))
+          assertM(run(filter, List(Chunk(1, 2, 3))))(equalTo(Chunk(3)))
+        },
+        testM("error") {
+          val parser = initErrorParser.filterInputM[Any, String, Int](x => UIO.succeed(x > 2))
+          assertM(run(parser, List(Chunk(1, 2, 3))).either)(isLeft(equalTo("Ouch")))
+        } @@ zioTag(errors)
+      ),
       suite("map")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].map(_.toString)
@@ -94,7 +114,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             case (chunks, groupingSize) =>
               for {
                 transduced <- ZIO.foreach(chunks)(chunk => run(ZTransducer.collectAllN[Int](groupingSize), List(chunk)))
-                regular    = chunks.map(chunk => Chunk.fromArray(chunk.grouped(groupingSize).toArray))
+                regular     = chunks.map(chunk => Chunk.fromArray(chunk.grouped(groupingSize).toArray))
               } yield assert(transduced)(equalTo(regular))
           }
         }
@@ -166,10 +186,10 @@ object ZTransducerSpec extends ZIOBaseSpec {
             (for {
               effects <- Ref.make[List[Int]](Nil)
               exit <- stream
-                       .aggregate(ZTransducer.foldM(0)(_ => true) { (_, a) =>
-                         effects.update(a :: _) *> UIO.succeed(30)
-                       })
-                       .runCollect
+                        .aggregate(ZTransducer.foldM(0)(_ => true) { (_, a) =>
+                          effects.update(a :: _) *> UIO.succeed(30)
+                        })
+                        .runCollect
               result <- effects.get
             } yield (exit, result)).run
 
@@ -201,10 +221,10 @@ object ZTransducerSpec extends ZIOBaseSpec {
             (for {
               effects <- Ref.make[List[Int]](Nil)
               exit <- stream
-                       .aggregate(ZTransducer.foldM(0)(_ => true) { (_, a) =>
-                         effects.update(a :: _) *> UIO.succeed(30)
-                       })
-                       .runCollect
+                        .aggregate(ZTransducer.foldM(0)(_ => true) { (_, a) =>
+                          effects.update(a :: _) *> UIO.succeed(30)
+                        })
+                        .runCollect
               result <- effects.get
             } yield exit -> result).run
 
@@ -276,7 +296,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
                     .foldWeightedDecomposeM(List.empty[Int])(
                       (_, i: Int) => UIO.succeedNow(i.toLong),
                       4,
-                      (i: Int) => UIO.succeedNow(if (i > 1) Chunk(i - 1, 1) else Chunk(i))
+                      (i: Int) =>
+                        UIO.succeedNow(
+                          if (i > 1) Chunk(i - 1, 1)
+                          else Chunk(i)
+                        )
                     )((acc, el) => UIO.succeedNow(el :: acc))
                     .map(_.reverse)
                 )
@@ -501,43 +525,43 @@ object ZTransducerSpec extends ZIOBaseSpec {
         testM("incomplete chunk 1") {
           ZTransducer.utf8Decode.push.use { push =>
             for {
-              part1 <- push(Some(Chunk(0xC2.toByte)))
-              part2 <- push(Some(Chunk(0xA2.toByte)))
+              part1 <- push(Some(Chunk(0xc2.toByte)))
+              part2 <- push(Some(Chunk(0xa2.toByte)))
               part3 <- push(None)
             } yield assert((part1 ++ part2 ++ part3).mkString.getBytes("UTF-8"))(
-              equalTo(Array(0xC2.toByte, 0xA2.toByte))
+              equalTo(Array(0xc2.toByte, 0xa2.toByte))
             )
           }
         },
         testM("incomplete chunk 2") {
           ZTransducer.utf8Decode.push.use { push =>
             for {
-              part1 <- push(Some(Chunk(0xE0.toByte, 0xA4.toByte)))
-              part2 <- push(Some(Chunk(0xB9.toByte)))
+              part1 <- push(Some(Chunk(0xe0.toByte, 0xa4.toByte)))
+              part2 <- push(Some(Chunk(0xb9.toByte)))
               part3 <- push(None)
             } yield assert((part1 ++ part2 ++ part3).mkString.getBytes("UTF-8"))(
-              equalTo(Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte))
+              equalTo(Array(0xe0.toByte, 0xa4.toByte, 0xb9.toByte))
             )
           }
         },
         testM("incomplete chunk 3") {
           ZTransducer.utf8Decode.push.use { push =>
             for {
-              part1 <- push(Some(Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte)))
+              part1 <- push(Some(Chunk(0xf0.toByte, 0x90.toByte, 0x8d.toByte)))
               part2 <- push(Some(Chunk(0x88.toByte)))
               part3 <- push(None)
             } yield assert((part1 ++ part2 ++ part3).mkString.getBytes("UTF-8"))(
-              equalTo(Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte))
+              equalTo(Array(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte))
             )
           }
         },
         testM("chunk with leftover") {
           ZTransducer.utf8Decode.push.use { push =>
             for {
-              _     <- push(Some(Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)))
+              _     <- push(Some(Chunk(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte, 0xf0.toByte, 0x90.toByte)))
               part2 <- push(None)
             } yield assert(part2.mkString)(
-              equalTo(new String(Array(0xF0.toByte, 0x90.toByte), "UTF-8"))
+              equalTo(new String(Array(0xf0.toByte, 0x90.toByte), "UTF-8"))
             )
           }
         },
@@ -581,32 +605,31 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         },
         testM("finalizes transducers") {
-          checkM(Gen.chunkOf(Gen.anyInt)) {
-            data =>
-              val test =
-                Ref.make(0).flatMap { ref =>
-                  ZStream
-                    .fromChunk(data)
-                    .transduce {
-                      ZTransducer.branchAfter(1) { values =>
-                        values.toList match {
-                          case _ =>
-                            ZTransducer {
-                              Managed.make(
-                                ref
-                                  .update(_ + 1)
-                                  .as[Option[Chunk[Int]] => UIO[Chunk[Int]]]({
-                                    case None    => ZIO.succeedNow(Chunk.empty)
-                                    case Some(c) => ZIO.succeedNow(c)
-                                  })
-                              )(_ => ref.update(_ - 1))
-                            }
-                        }
+          checkM(Gen.chunkOf(Gen.anyInt)) { data =>
+            val test =
+              Ref.make(0).flatMap { ref =>
+                ZStream
+                  .fromChunk(data)
+                  .transduce {
+                    ZTransducer.branchAfter(1) { values =>
+                      values.toList match {
+                        case _ =>
+                          ZTransducer {
+                            Managed.make(
+                              ref
+                                .update(_ + 1)
+                                .as[Option[Chunk[Int]] => UIO[Chunk[Int]]]({
+                                  case None    => ZIO.succeedNow(Chunk.empty)
+                                  case Some(c) => ZIO.succeedNow(c)
+                                })
+                            )(_ => ref.update(_ - 1))
+                          }
                       }
                     }
-                    .runDrain *> ref.get
-                }
-              assertM(test.run)(succeeds(equalTo(0)))
+                  }
+                  .runDrain *> ref.get
+              }
+            assertM(test.run)(succeeds(equalTo(0)))
           }
         },
         testM("finalizes transducers - inner transducer fails") {
@@ -717,6 +740,18 @@ object ZTransducerSpec extends ZIOBaseSpec {
             ZTransducer.utf16Decode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk[Byte](-1, -2) ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE))))
+                part2 <- push(None)
+              } yield assert((part1 ++ part2).mkString)(equalTo(s))
+            }
+          }
+        }
+      ),
+      suite("usASCII")(
+        testM("US-ASCII strings") {
+          checkM(Gen.usASCII) { s =>
+            ZTransducer.usASCIIDecode.push.use { push =>
+              for {
+                part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.US_ASCII))))
                 part2 <- push(None)
               } yield assert((part1 ++ part2).mkString)(equalTo(s))
             }

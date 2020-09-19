@@ -4,7 +4,6 @@ import java.util.concurrent.Executors
 
 import scala.concurrent.ExecutionContext
 
-import zio.duration._
 import zio.internal.Executor
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -34,6 +33,6 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
               )
             ).unsafeRun(tst)
           )
-      } @@ timeout(1.second)
+      } @@ nonFlaky
     ) @@ zioTag(future)
 }

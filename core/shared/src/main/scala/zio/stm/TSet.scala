@@ -28,6 +28,12 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     tmap.contains(a)
 
   /**
+   * Tests if the set is empty or not
+   */
+  def isEmpty: USTM[Boolean] =
+    tmap.isEmpty
+
+  /**
    * Removes element from set.
    */
   def delete(a: A): USTM[Unit] =
@@ -38,7 +44,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   def diff(other: TSet[A]): USTM[Unit] =
-    other.toList.map(_.toSet).flatMap(vals => removeIf(vals.contains))
+    other.toSet.flatMap(vals => removeIf(vals.contains))
 
   /**
    * Atomically folds using a pure function.
@@ -63,7 +69,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   def intersect(other: TSet[A]): USTM[Unit] =
-    other.toList.map(_.toSet).flatMap(vals => retainIf(vals.contains))
+    other.toSet.flatMap(vals => retainIf(vals.contains))
 
   /**
    * Stores new element in the set.
@@ -92,6 +98,11 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * Collects all elements into a list.
    */
   def toList: USTM[List[A]] = tmap.keys
+
+  /**
+   * Collects all elements into a set.
+   */
+  def toSet: USTM[Set[A]] = toList.map(_.toSet)
 
   /**
    * Atomically updates all elements using a pure function.

@@ -14,14 +14,14 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
-                       .tempFileResource()
-                       .mapEffect(f => f.toPath())
-                       .use { path =>
-                         for {
-                           _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManaged.readFile(path).use(fis => fis.readAll(4096))
-                         } yield result
-                       }
+                        .tempFileResource()
+                        .mapEffect(f => f.toPath())
+                        .use { path =>
+                          for {
+                            _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
+                            result <- ZManaged.readFile(path).use(fis => fis.readAll(4096))
+                          } yield result
+                        }
       } yield assert(readResult)(equalTo(fixture))
     },
     testM("writeFile & readFile & OutputStream.write & InputStream.skip & InputStream.readAll") {
@@ -29,14 +29,14 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       val skipped2Bytes = Chunk[Byte](3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
-                       .tempFileResource()
-                       .mapEffect(f => f.toPath())
-                       .use { path =>
-                         for {
-                           _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManaged.readFile(path).use(fis => fis.skip(2) *> fis.readAll(4096))
-                         } yield result
-                       }
+                        .tempFileResource()
+                        .mapEffect(f => f.toPath())
+                        .use { path =>
+                          for {
+                            _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
+                            result <- ZManaged.readFile(path).use(fis => fis.skip(2) *> fis.readAll(4096))
+                          } yield result
+                        }
       } yield assert(readResult)(equalTo(skipped2Bytes))
     },
     testM("writeFile & readFile & OutputStream.write & InputStream.readN") {
@@ -44,28 +44,28 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       val read4Bytes = Chunk[Byte](1, 2, 3, 6)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
-                       .tempFileResource()
-                       .mapEffect(f => f.toPath())
-                       .use { path =>
-                         for {
-                           _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManaged.readFile(path).use(fis => fis.readN(4))
-                         } yield result
-                       }
+                        .tempFileResource()
+                        .mapEffect(f => f.toPath())
+                        .use { path =>
+                          for {
+                            _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
+                            result <- ZManaged.readFile(path).use(fis => fis.readN(4))
+                          } yield result
+                        }
       } yield assert(readResult)(equalTo(read4Bytes))
     },
     testM("writeFile & readURI & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
-                       .tempFileResource()
-                       .mapEffect(f => f.toPath())
-                       .use { path =>
-                         for {
-                           _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManaged.readURI(path.toUri()).use(is => is.readAll(4096))
-                         } yield result
-                       }
+                        .tempFileResource()
+                        .mapEffect(f => f.toPath())
+                        .use { path =>
+                          for {
+                            _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
+                            result <- ZManaged.readURI(path.toUri()).use(is => is.readAll(4096))
+                          } yield result
+                        }
       } yield assert(readResult)(equalTo(fixture))
     },
     testM("writeFile & readURI & OutputStream.write & InputStream.readN") {
@@ -73,14 +73,14 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       val read4Bytes = Chunk[Byte](1, 2, 3, 6)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
-                       .tempFileResource()
-                       .mapEffect(f => f.toPath())
-                       .use { path =>
-                         for {
-                           _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManaged.readURI(path.toUri()).use(is => is.readN(4))
-                         } yield result
-                       }
+                        .tempFileResource()
+                        .mapEffect(f => f.toPath())
+                        .use { path =>
+                          for {
+                            _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
+                            result <- ZManaged.readURI(path.toUri()).use(is => is.readN(4))
+                          } yield result
+                        }
       } yield assert(readResult)(equalTo(read4Bytes))
     },
     testM("writeFile & readURI & OutputStream.write & InputStream.skip & InputStream.readAll") {
@@ -88,30 +88,30 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       val read4Bytes = Chunk[Byte](3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
-                       .tempFileResource()
-                       .mapEffect(f => f.toPath())
-                       .use { path =>
-                         for {
-                           _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManaged.readURI(path.toUri()).use(is => is.skip(2) *> is.readAll(4096))
-                         } yield result
-                       }
+                        .tempFileResource()
+                        .mapEffect(f => f.toPath())
+                        .use { path =>
+                          for {
+                            _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
+                            result <- ZManaged.readURI(path.toUri()).use(is => is.skip(2) *> is.readAll(4096))
+                          } yield result
+                        }
       } yield assert(readResult)(equalTo(read4Bytes))
     },
     testM("writeFile & readURL & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
-                       .tempFileResource()
-                       .mapEffect(f => f.toPath())
-                       .use { path =>
-                         for {
-                           _ <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManaged
-                                      .readURL(s"file://${path.toString()}")
-                                      .use(is => is.readAll(4096))
-                         } yield result
-                       }
+                        .tempFileResource()
+                        .mapEffect(f => f.toPath())
+                        .use { path =>
+                          for {
+                            _ <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
+                            result <- ZManaged
+                                        .readURL(s"file://${path.toString()}")
+                                        .use(is => is.readAll(4096))
+                          } yield result
+                        }
       } yield assert(readResult)(equalTo(fixture))
     },
     testM("writeFile & readURL & OutputStream.write & InputStream.readN") {
@@ -119,16 +119,16 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       val read4Bytes = Chunk[Byte](1, 2, 3, 6)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
-                       .tempFileResource()
-                       .mapEffect(f => f.toPath())
-                       .use { path =>
-                         for {
-                           _ <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManaged
-                                      .readURL(s"file://${path.toString()}")
-                                      .use(is => is.readN(4))
-                         } yield result
-                       }
+                        .tempFileResource()
+                        .mapEffect(f => f.toPath())
+                        .use { path =>
+                          for {
+                            _ <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
+                            result <- ZManaged
+                                        .readURL(s"file://${path.toString()}")
+                                        .use(is => is.readN(4))
+                          } yield result
+                        }
       } yield assert(readResult)(equalTo(read4Bytes))
     },
     testM("writeFile & readURL & OutputStream.write & InputStream.skip & InputStream.readAll") {
@@ -136,16 +136,16 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       val read4Bytes = Chunk[Byte](3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
-                       .tempFileResource()
-                       .mapEffect(f => f.toPath())
-                       .use { path =>
-                         for {
-                           _ <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
-                           result <- ZManaged
-                                      .readURL(s"file://${path.toString()}")
-                                      .use(is => is.skip(2) *> is.readAll(4096))
-                         } yield result
-                       }
+                        .tempFileResource()
+                        .mapEffect(f => f.toPath())
+                        .use { path =>
+                          for {
+                            _ <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
+                            result <- ZManaged
+                                        .readURL(s"file://${path.toString()}")
+                                        .use(is => is.skip(2) *> is.readAll(4096))
+                          } yield result
+                        }
       } yield assert(readResult)(equalTo(read4Bytes))
     }
   )

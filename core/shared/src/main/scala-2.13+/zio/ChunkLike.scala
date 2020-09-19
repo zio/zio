@@ -57,18 +57,18 @@ trait ChunkLike[+A]
    * Returns the concatenation of mapping every element into a new chunk using
    * the specified function.
    */
-  override final def flatMap[B](f: A => IterableOnce[B]): Chunk[B] =  {
-    val iterator = arrayIterator
+  override final def flatMap[B](f: A => IterableOnce[B]): Chunk[B] = {
+    val iterator               = arrayIterator
     var chunks: List[Chunk[B]] = Nil
-    var total = 0
-    var B0: ClassTag[B] = null.asInstanceOf[ClassTag[B]]
+    var total                  = 0
+    var B0: ClassTag[B]        = null.asInstanceOf[ClassTag[B]]
     while (iterator.hasNext) {
-      val array = iterator.next()
+      val array  = iterator.next()
       val length = array.length
-      var i = 0
+      var i      = 0
       while (i < length) {
-        val a = array(i)
-        val bs = f(a)
+        val a     = array(i)
+        val bs    = f(a)
         val chunk = ChunkLike.from(bs)
         if (chunk.length > 0) {
           if (B0 == null) {
@@ -83,11 +83,11 @@ trait ChunkLike[+A]
     if (B0 == null) Chunk.empty
     else {
       implicit val B: ClassTag[B] = B0
-      val dest: Array[B] = Array.ofDim(total)
-      val it = chunks.iterator
-      var n  = total
+      val dest: Array[B]          = Array.ofDim(total)
+      val it                      = chunks.iterator
+      var n                       = total
       while (it.hasNext) {
-        val chunk = it.next
+        val chunk = it.next()
         n -= chunk.length
         chunk.toArray(n, dest)
       }

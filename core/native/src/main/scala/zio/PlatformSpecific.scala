@@ -26,10 +26,15 @@ private[zio] trait PlatformSpecific {
 
   object ZEnv {
 
-    object Services { 
+    object Services {
       val live: ZEnv =
-        Has.allOf[Clock.Service, Console.Service, System.Service, Random.Service](Clock.Service.live, Console.Service.live, System.Service.live, Random.Service.live)
-      }
+        Has.allOf[Clock.Service, Console.Service, System.Service, Random.Service](
+          Clock.Service.live,
+          Console.Service.live,
+          System.Service.live,
+          Random.Service.live
+        )
+    }
 
     val any: ZLayer[ZEnv, Nothing, ZEnv] =
       ZLayer.requires[ZEnv]

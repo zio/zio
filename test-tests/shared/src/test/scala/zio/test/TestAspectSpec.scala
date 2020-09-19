@@ -7,7 +7,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
 import zio.test.environment.TestRandom
-import zio.{ Ref, Schedule, TracingStatus, ZIO }
+import zio.{ Ref, TracingStatus, ZIO }
 
 object TestAspectSpec extends ZIOBaseSpec {
 
@@ -16,8 +16,8 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = testM("test") {
-          assertM(ref.get)(equalTo(1))
-        } @@ around_(ref.set(1), ref.set(-1))
+                 assertM(ref.get)(equalTo(1))
+               } @@ around_(ref.set(1), ref.set(-1))
         result <- succeeded(spec)
         after  <- ref.get
       } yield {
@@ -29,8 +29,8 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = testM("test") {
-          ZIO.fail("error")
-        } @@ after(ref.set(-1))
+                 ZIO.fail("error")
+               } @@ after(ref.set(-1))
         result <- succeeded(spec)
         after  <- ref.get
       } yield {
@@ -42,8 +42,8 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = testM("test") {
-          ZIO.dieMessage("death")
-        } @@ after(ref.set(-1))
+                 ZIO.dieMessage("death")
+               } @@ after(ref.set(-1))
         result <- succeeded(spec)
         after  <- ref.get
       } yield {
@@ -54,7 +54,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("dotty applies test aspect only on Dotty") {
       for {
         ref    <- Ref.make(false)
-        spec   = test("test")(assert(true)(isTrue)) @@ dotty(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ dotty(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
       } yield if (TestVersion.isDotty) assert(result)(isTrue) else assert(result)(isFalse)
@@ -109,8 +109,8 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = testM("flaky test") {
-          assertM(ref.updateAndGet(_ + 1))(equalTo(100))
-        } @@ flaky
+                 assertM(ref.updateAndGet(_ + 1))(equalTo(100))
+               } @@ flaky
         result <- succeeded(spec)
         n      <- ref.get
       } yield assert(result)(isTrue) && assert(n)(equalTo(100))
@@ -119,8 +119,8 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = testM("flaky test that dies") {
-          assertM(ref.updateAndGet(_ + 1).filterOrDieMessage(_ >= 100)("die"))(equalTo(100))
-        } @@ flaky
+                 assertM(ref.updateAndGet(_ + 1).filterOrDieMessage(_ >= 100)("die"))(equalTo(100))
+               } @@ flaky
         result <- succeeded(spec)
         n      <- ref.get
       } yield assert(result)(isTrue) && assert(n)(equalTo(100))
@@ -161,7 +161,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("js applies test aspect only on ScalaJS") {
       for {
         ref    <- Ref.make(false)
-        spec   = test("test")(assert(true)(isTrue)) @@ js(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ js(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
       } yield if (TestPlatform.isJS) assert(result)(isTrue) else assert(result)(isFalse)
@@ -174,7 +174,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("jvm applies test aspect only on jvm") {
       for {
         ref    <- Ref.make(false)
-        spec   = test("test")(assert(true)(isTrue)) @@ jvm(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ jvm(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
       } yield assert(if (TestPlatform.isJVM) result else !result)(isTrue)
@@ -187,7 +187,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("native applies test aspect only on ScalaNative") {
       for {
         ref    <- Ref.make(false)
-        spec   = test("test")(assert(true)(isTrue)) @@ native(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ native(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
       } yield if (TestPlatform.isNative) assert(result)(isTrue) else assert(result)(isFalse)
@@ -208,19 +208,33 @@ object TestAspectSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("fail"))(anything)
       } @@ nonTermination(1.minute) @@ failing
     ),
-    testM("retry retries failed tests according to a schedule") {
+    testM("repeats sets the number of times to repeat a test to the specified value") {
       for {
-        ref <- Ref.make(0)
-        spec = testM("retry") {
-          assertM(ref.updateAndGet(_ + 1))(equalTo(2))
-        } @@ retry(Schedule.recurs(1))
-        result <- succeeded(spec)
-      } yield assert(result)(isTrue)
+        ref   <- Ref.make(0)
+        spec   = testM("test")(assertM(ref.update(_ + 1))(anything)) @@ nonFlaky @@ repeats(42)
+        _     <- execute(spec)
+        value <- ref.get
+      } yield assert(value)(equalTo(43))
     },
+    testM("repeats sets the number of times to repeat a test to the specified value") {
+      for {
+        ref   <- Ref.make(0)
+        spec   = testM("test")(assertM(ref.update(_ + 1))(nothing)) @@ flaky @@ retries(42)
+        _     <- execute(spec)
+        value <- ref.get
+      } yield assert(value)(equalTo(43))
+    },
+    testM("samples sets the number of sufficient samples to the specified value") {
+      for {
+        ref   <- Ref.make(0)
+        _     <- checkM(Gen.anyInt.noShrink)(_ => assertM(ref.update(_ + 1))(anything))
+        value <- ref.get
+      } yield assert(value)(equalTo(42))
+    } @@ samples(42),
     testM("scala2 applies test aspect only on Scala 2") {
       for {
         ref    <- Ref.make(false)
-        spec   = test("test")(assert(true)(isTrue)) @@ scala2(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ scala2(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
       } yield if (TestVersion.isScala2) assert(result)(isTrue) else assert(result)(isFalse)
@@ -233,6 +247,13 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("setSeed sets the random seed to the specified value before each test") {
       assertM(TestRandom.getSeed)(equalTo(seed & ((1L << 48) - 1)))
     } @@ setSeed(seed),
+    testM("shrinks sets the maximum number of shrinkings to the specified value") {
+      for {
+        ref   <- Ref.make(0)
+        _     <- checkM(Gen.anyInt)(_ => assertM(ref.update(_ + 1))(nothing))
+        value <- ref.get
+      } yield assert(value)(equalTo(1))
+    } @@ shrinks(0),
     testM("timeout makes tests fail after given duration") {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
@@ -241,9 +262,9 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(false)
         spec = suite("verify")(
-          testM("first test")(ZIO.succeed(assertCompletes)),
-          testM("second test")(ref.set(true).as(assertCompletes))
-        ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
+                 testM("first test")(ZIO.succeed(assertCompletes)),
+                 testM("second test")(ref.set(true).as(assertCompletes))
+               ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
         result <- succeeded(spec)
       } yield assert(result)(isFalse)
     },
@@ -257,7 +278,8 @@ object TestAspectSpec extends ZIOBaseSpec {
 
   def diesWith(assertion: Assertion[Throwable]): Assertion[TestFailure[Any]] =
     isCase(
-      "Runtime", {
+      "Runtime",
+      {
         case TestFailure.Runtime(c) => c.dieOption
         case _                      => None
       },

@@ -29,11 +29,7 @@ private[clock] trait PlatformSpecific {
 
     override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
-      case Duration.Zero =>
-        task.run()
-
-        ConstFalse
-      case duration: Duration.Finite =>
+      case Duration.Finite(_) =>
         var completed = false
 
         val handle = js.timers.setTimeout(duration.toMillis.toDouble) {

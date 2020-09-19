@@ -96,10 +96,13 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
       map.headOption match {
         case None => TExit.Retry
         case Some((a, as)) =>
-          ref.unsafeSet(journal, as.tail match {
-            case h :: t => map + (a -> ::(h, t))
-            case Nil    => map - a
-          })
+          ref.unsafeSet(
+            journal,
+            as.tail match {
+              case h :: t => map + (a -> ::(h, t))
+              case Nil    => map - a
+            }
+          )
           TExit.Succeed(as.head)
       }
     })
@@ -111,7 +114,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.modify { map =>
       val builder = ChunkBuilder.make[A]()
       map.foreach(builder ++= _._2)
-      (builder.result, SortedMap.empty(map.ordering))
+      (builder.result(), SortedMap.empty(map.ordering))
     }
 
   /**
@@ -133,7 +136,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
         }
         i += l.length
       }
-      (builder.result, updated)
+      (builder.result(), updated)
     }
 
   /**
@@ -146,10 +149,13 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
       map.headOption match {
         case None => TExit.Succeed(None)
         case Some((a, as)) =>
-          ref.unsafeSet(journal, as.tail match {
-            case h :: t => map + (a -> ::(h, t))
-            case Nil    => map - a
-          })
+          ref.unsafeSet(
+            journal,
+            as.tail match {
+              case h :: t => map + (a -> ::(h, t))
+              case Nil    => map - a
+            }
+          )
           TExit.Succeed(Some(as.head))
       }
     })
@@ -161,7 +167,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.modify { map =>
       val builder = ChunkBuilder.make[A]()
       map.foreach(builder ++= _._2)
-      (builder.result, map)
+      (builder.result(), map)
     }
 
   /**

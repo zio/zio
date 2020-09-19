@@ -21,7 +21,7 @@ import scala.util.control.NonFatal
 
 import zio.internal.Platform
 
-sealed trait Cause[+E] extends Product with Serializable { self =>
+sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause.Internal._
 
   /**
@@ -93,7 +93,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Retrieve the first checked error on the `Left` if available,
    * if there are no checked errors return the rest of the `Cause`
    * that is known to contain only `Die` or `Interrupt` causes.
-   * */
+   */
   final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
     case Some(error) => Left(error)
     case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
@@ -103,7 +103,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Retrieve the first checked error and its trace on the `Left` if available,
    * if there are no checked errors return the rest of the `Cause`
    * that is known to contain only `Die` or `Interrupt` causes.
-   * */
+   */
   final def failureTraceOrCause: Either[(E, Option[ZTrace]), Cause[Nothing]] = failureTraceOption match {
     case Some(errorAndTrace) => Left(errorAndTrace)
     case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
@@ -257,8 +257,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Returns a `String` with the cause pretty-printed.
    */
   final def prettyPrint: String = {
-    sealed trait Segment
-    sealed trait Step extends Segment
+    sealed abstract class Segment
+    sealed abstract class Step extends Segment
 
     final case class Sequential(all: List[Step])     extends Segment
     final case class Parallel(all: List[Sequential]) extends Step

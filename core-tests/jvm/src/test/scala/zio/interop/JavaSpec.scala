@@ -29,7 +29,7 @@ object JavaSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                          = new Exception("no future for you!")
         lazy val noFuture: Future[Unit] = throw ex
-        assertM(ZIO.fromFutureJava(noFuture).run)(dies(equalTo(ex)))
+        assertM(ZIO.fromFutureJava(noFuture).run)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                         = new Exception("no value for you!")
@@ -48,7 +48,15 @@ object JavaSpec extends ZIOBaseSpec {
       testM("handle null produced by the completed `Future`") {
         lazy val someValue: Future[String] = CompletableFuture.completedFuture[String](null)
         assertM(ZIO.fromFutureJava(someValue).map(Option(_)))(isNone)
-      } @@ zioTag(errors)
+      } @@ zioTag(errors),
+      testM("be referentially transparent") {
+        var n    = 0
+        val task = ZIO.fromFutureJava(CompletableFuture.supplyAsync(() => n += 1))
+        for {
+          _ <- task
+          _ <- task
+        } yield assert(n)(equalTo(2))
+      }
     ) @@ zioTag(future),
     suite("`Task.fromCompletionStage` must")(
       testM("be lazy on the `Future` parameter") {
@@ -158,7 +166,7 @@ object JavaSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                     = new Exception("no future for you!")
         def noFuture: Future[Unit] = throw ex
-        assertM(Fiber.fromFutureJava(noFuture).join.run)(dies(equalTo(ex)))
+        assertM(Fiber.fromFutureJava(noFuture).join.run)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                    = new Exception("no value for you!")
@@ -188,9 +196,9 @@ object JavaSpec extends ZIOBaseSpec {
         } yield w
 
         val taskClient = for {
-          _      <- ZIO.effectAsyncWithCompletionHandler[Void](client.connect(address, (), _))
+          _     <- ZIO.effectAsyncWithCompletionHandler[Void](client.connect(address, (), _))
           buffer = ByteBuffer.allocate(1)
-          r      <- ZIO.effectAsyncWithCompletionHandler[Integer](client.read(buffer, (), _))
+          r     <- ZIO.effectAsyncWithCompletionHandler[Integer](client.read(buffer, (), _))
         } yield (r, buffer.array.toList)
 
         val task = for {

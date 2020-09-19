@@ -12,21 +12,23 @@ import zio.test.environment.TestRandom.{ DefaultData, Test => ZRandom }
 object RandomSpec extends ZIOBaseSpec {
 
   def spec = suite("RandomSpec")(
-    testM("check clearBooleans")(checkClear(_.nextBoolean)(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
+    testM("check clearBooleans")(checkClear(_.nextBoolean())(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
     testM("check clearBytes")(checkClear(nextBytes(1))(_.feedBytes(_: _*))(_.clearBytes)(_.nextBytes(1))),
-    testM("check clearChars")(checkClear(_.nextPrintableChar)(_.feedChars(_: _*))(_.clearChars)(_.nextPrintableChar)),
-    testM("check clearDoubles")(checkClear(_.nextDouble)(_.feedDoubles(_: _*))(_.clearDoubles)(_.nextDouble)),
-    testM("check clearFloats")(checkClear(_.nextFloat)(_.feedFloats(_: _*))(_.clearFloats)(_.nextFloat)),
-    testM("check clearInts")(checkClear(_.nextInt)(_.feedInts(_: _*))(_.clearInts)(_.nextInt)),
-    testM("check clearLongs")(checkClear(_.nextLong)(_.feedLongs(_: _*))(_.clearLongs)(_.nextLong)),
+    testM("check clearChars")(
+      checkClear(_.nextPrintableChar())(_.feedChars(_: _*))(_.clearChars)(_.nextPrintableChar)
+    ),
+    testM("check clearDoubles")(checkClear(_.nextDouble())(_.feedDoubles(_: _*))(_.clearDoubles)(_.nextDouble)),
+    testM("check clearFloats")(checkClear(_.nextFloat())(_.feedFloats(_: _*))(_.clearFloats)(_.nextFloat)),
+    testM("check clearInts")(checkClear(_.nextInt())(_.feedInts(_: _*))(_.clearInts)(_.nextInt)),
+    testM("check clearLongs")(checkClear(_.nextLong())(_.feedLongs(_: _*))(_.clearLongs)(_.nextLong)),
     testM("check clearStrings")(checkClear(_.nextString(1))(_.feedStrings(_: _*))(_.clearStrings)(_.nextString(1))),
-    testM("check feedBooleans")(checkFeed(_.nextBoolean)(_.feedBooleans(_: _*))(_.nextBoolean)),
+    testM("check feedBooleans")(checkFeed(_.nextBoolean())(_.feedBooleans(_: _*))(_.nextBoolean)),
     testM("check feedBytes")(checkFeed(nextBytes(1))(_.feedBytes(_: _*))(_.nextBytes(1))),
-    testM("check feedChars")(checkFeed(_.nextPrintableChar)(_.feedChars(_: _*))(_.nextPrintableChar)),
-    testM("check feedDoubles")(checkFeed(_.nextDouble)(_.feedDoubles(_: _*))(_.nextDouble)),
-    testM("check feedFloats")(checkFeed(_.nextFloat)(_.feedFloats(_: _*))(_.nextFloat)),
-    testM("check feedInts")(checkFeed(_.nextInt)(_.feedInts(_: _*))(_.nextInt)),
-    testM("check feedLongs")(checkFeed(_.nextLong)(_.feedLongs(_: _*))(_.nextLong)),
+    testM("check feedChars")(checkFeed(_.nextPrintableChar())(_.feedChars(_: _*))(_.nextPrintableChar)),
+    testM("check feedDoubles")(checkFeed(_.nextDouble())(_.feedDoubles(_: _*))(_.nextDouble)),
+    testM("check feedFloats")(checkFeed(_.nextFloat())(_.feedFloats(_: _*))(_.nextFloat)),
+    testM("check feedInts")(checkFeed(_.nextInt())(_.feedInts(_: _*))(_.nextInt)),
+    testM("check feedLongs")(checkFeed(_.nextLong())(_.feedLongs(_: _*))(_.nextLong)),
     testM("check feedStrings")(checkFeed(_.nextString(1))(_.feedStrings(_: _*))(_.nextString(1))),
     testM("check nextBoolean")(forAllEqual(_.nextBoolean)(_.nextBoolean())),
     testM("check nextBytes")(forAllEqualBytes),
@@ -81,7 +83,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def checkClear[A, B <: Random](generate: SRandom => A)(feed: (ZRandom, List[A]) => UIO[Unit])(
     clear: ZRandom => UIO[Unit]
-  )(extract: ZRandom => UIO[A]): URIO[Random, TestResult] =
+  )(extract: ZRandom => UIO[A]): URIO[Random with TestConfig, TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -97,7 +99,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def checkFeed[A, B >: Random](generate: SRandom => A)(
     feed: (ZRandom, List[A]) => UIO[Unit]
-  )(extract: ZRandom => UIO[A]): URIO[Random, TestResult] =
+  )(extract: ZRandom => UIO[A]): URIO[Random with TestConfig, TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -122,7 +124,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def forAllEqual[A](
     f: ZRandom => UIO[A]
-  )(g: SRandom => A): URIO[Random, TestResult] =
+  )(g: SRandom => A): URIO[Random with TestConfig, TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -133,34 +135,34 @@ object RandomSpec extends ZIOBaseSpec {
       } yield assert(actual)(equalTo(expected))
     }
 
-  def forAllEqualBytes: URIO[Random, TestResult] =
+  def forAllEqualBytes: URIO[Random with TestConfig, TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
-        actual     <- UIO.foreach(0 until 100)(testRandom.nextBytes(_))
+        actual     <- UIO.foreach(List.range(0, 100))(testRandom.nextBytes(_))
         expected <- ZIO.effectTotal(List.range(0, 100).map(new Array[Byte](_)).map { arr =>
-                     sRandom.nextBytes(arr)
-                     Chunk.fromArray(arr)
-                   })
+                      sRandom.nextBytes(arr)
+                      Chunk.fromArray(arr)
+                    })
       } yield assert(actual)(equalTo(expected))
     }
 
-  def forAllEqualGaussian: URIO[Random, TestResult] =
+  def forAllEqualGaussian: URIO[Random with TestConfig, TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- testRandom.nextGaussian
-        expected   <- ZIO.effectTotal(sRandom.nextGaussian)
+        expected   <- ZIO.effectTotal(sRandom.nextGaussian())
       } yield assert(actual)(approximatelyEquals(expected, 0.01))
     }
 
   def forAllEqualN[A](
     f: (ZRandom, Int) => UIO[A]
-  )(g: (SRandom, Int) => A): URIO[Random, TestResult] =
+  )(g: (SRandom, Int) => A): URIO[Random with TestConfig, TestResult] =
     checkM(Gen.anyLong, Gen.int(1, 100)) { (seed, size) =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -173,7 +175,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def forAllEqualShuffle(
     f: (ZRandom, List[Int]) => UIO[List[Int]]
-  )(g: (SRandom, List[Int]) => List[Int]): ZIO[Random with Sized, Nothing, TestResult] =
+  )(g: (SRandom, List[Int]) => List[Int]): ZIO[Random with Sized with TestConfig, Nothing, TestResult] =
     checkM(Gen.anyLong, Gen.listOf(Gen.anyInt)) { (seed, testList) =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -186,7 +188,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def forAllBounded[A: Numeric](gen: Gen[Random, A])(
     next: (Random.Service, A) => UIO[A]
-  ): URIO[Random, TestResult] = {
+  ): URIO[Random with TestConfig, TestResult] = {
     val num = implicitly[Numeric[A]]
     import num._
     checkM(gen.map(num.abs(_))) { upper =>
@@ -199,7 +201,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def forAllBetween[A: Numeric](gen: Gen[Random, A])(
     between: (Random.Service, A, A) => UIO[A]
-  ): URIO[Random, TestResult] = {
+  ): URIO[Random with TestConfig, TestResult] = {
     val num = implicitly[Numeric[A]]
     import num._
     val genMinMax = for {

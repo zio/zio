@@ -39,7 +39,7 @@ object ProxyFactory {
         def findMatching(scopes: List[Scope[R]]): UIO[Matched[R, E, A]] = {
           debug(s"::: invoked $invoked\n${prettify(scopes)}")
           scopes match {
-            case Nil => ZIO.die(UnexpectedCallExpection(invoked, args))
+            case Nil => ZIO.die(UnexpectedCallException(invoked, args))
             case Scope(expectation, id, update0) :: nextScopes =>
               val update: Expectation[R] => Expectation[R] = updated => {
                 debug(s"::: updated state to: ${updated.state}")
@@ -272,9 +272,9 @@ object ProxyFactory {
           id      <- state.callsCountRef.updateAndGet(_ + 1)
           _       <- state.failedMatchesRef.set(List.empty)
           root    <- state.expectationRef.get
-          scope   = Scope[R](root, id, identity)
+          scope    = Scope[R](root, id, identity)
           matched <- findMatching(scope :: Nil)
-          _       = debug(s"::: setting root to\n${prettify(matched.expectation)}")
+          _        = debug(s"::: setting root to\n${prettify(matched.expectation)}")
           _       <- state.expectationRef.set(matched.expectation)
           output  <- matched.result
         } yield output

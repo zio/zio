@@ -200,25 +200,25 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
         thatPush     <- Ref.make[Push[R1, E2, I2, L2, Z2]](_ => ZIO.unit).toManaged_
         openThatPush <- ZManaged.switchable[R1, Nothing, Push[R1, E2, I2, L2, Z2]]
         push = (in: Option[Chunk[I2]]) => {
-          switched.get.flatMap { sw =>
-            if (!sw) {
-              thisPush(in).catchAll { v =>
-                val leftover = v._2
-                val nextSink = v._1.fold(failure, success)
-                openThatPush(nextSink.push).tap(thatPush.set).flatMap { p =>
-                  switched.set(true) *> {
-                    if (in.isDefined)
-                      p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty)
-                    else
-                      p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty) *> p(None)
-                  }
-                }
-              }
-            } else {
-              thatPush.get.flatMap(p => p(in))
-            }
-          }
-        }
+                 switched.get.flatMap { sw =>
+                   if (!sw) {
+                     thisPush(in).catchAll { v =>
+                       val leftover = v._2
+                       val nextSink = v._1.fold(failure, success)
+                       openThatPush(nextSink.push).tap(thatPush.set).flatMap { p =>
+                         switched.set(true) *> {
+                           if (in.isDefined)
+                             p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty)
+                           else
+                             p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty) *> p(None)
+                         }
+                       }
+                     }
+                   } else {
+                     thatPush.get.flatMap(p => p(in))
+                   }
+                 }
+               }
       } yield push
     }
 
@@ -267,21 +267,20 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     ZSink(for {
       p1 <- self.push
       p2 <- that.push
-      push = {
-        (in: Option[Chunk[I1]]) =>
-          p1(in).raceWith(p2(in))(
-            (res1, fib2) =>
-              res1
-                .foldM(
-                  f => fib2.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Left(x)), leftover) }),
-                  _ => fib2.join.mapError { case (r, leftover) => (r.map(x => Right(x)), leftover) }
-                ),
-            (res2, fib1) =>
-              res2.foldM(
-                f => fib1.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Right(x)), leftover) }),
-                _ => fib1.join.mapError { case (r, leftover) => (r.map(x => Left(x)), leftover) }
-              )
-          )
+      push = { (in: Option[Chunk[I1]]) =>
+        p1(in).raceWith(p2(in))(
+          (res1, fib2) =>
+            res1
+              .foldM(
+                f => fib2.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Left(x)), leftover) }),
+                _ => fib2.join.mapError { case (r, leftover) => (r.map(x => Right(x)), leftover) }
+              ),
+          (res2, fib1) =>
+            res2.foldM(
+              f => fib1.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Right(x)), leftover) }),
+              _ => fib1.join.mapError { case (r, leftover) => (r.map(x => Left(x)), leftover) }
+            )
+        )
       }
     } yield push)
 
@@ -401,53 +400,57 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
       ref <- ZRef.make[State[Z, Z1]](BothRunning).toManaged_
       p1  <- self.push
       p2  <- that.push
-      push: Push[R1, E1, I1, L1, Z2] = {
-        in =>
-          ref.get.flatMap {
-            state =>
-              val newState: ZIO[R1, (Either[E1, Z2], Chunk[L1]), State[Z, Z1]] = {
-                state match {
-                  case BothRunning => {
-                    val l: ZIO[R, (Either[E1, Z2], Chunk[L1]), Option[(Z, Chunk[L])]] = p1(in).foldM({
-                      case (Left(e), l)  => Push.fail(e, l)
-                      case (Right(z), l) => ZIO.succeedNow(Some((z, l)))
-                    }, _ => ZIO.succeedNow(None))
-                    val r: ZIO[R1, (Left[E1, Nothing], Chunk[L1]), Option[(Z1, Chunk[L1])]] = p2(in).foldM({
-                      case (Left(e), l)  => Push.fail(e, l)
-                      case (Right(z), l) => ZIO.succeedNow(Some((z, l)))
-                    }, _ => ZIO.succeedNow(None))
+      push: Push[R1, E1, I1, L1, Z2] = { in =>
+        ref.get.flatMap { state =>
+          val newState: ZIO[R1, (Either[E1, Z2], Chunk[L1]), State[Z, Z1]] = {
+            state match {
+              case BothRunning => {
+                val l: ZIO[R, (Either[E1, Z2], Chunk[L1]), Option[(Z, Chunk[L])]] = p1(in).foldM(
+                  {
+                    case (Left(e), l)  => Push.fail(e, l)
+                    case (Right(z), l) => ZIO.succeedNow(Some((z, l)))
+                  },
+                  _ => ZIO.succeedNow(None)
+                )
+                val r: ZIO[R1, (Left[E1, Nothing], Chunk[L1]), Option[(Z1, Chunk[L1])]] = p2(in).foldM(
+                  {
+                    case (Left(e), l)  => Push.fail(e, l)
+                    case (Right(z), l) => ZIO.succeedNow(Some((z, l)))
+                  },
+                  _ => ZIO.succeedNow(None)
+                )
 
-                    l.zipPar(r).flatMap {
-                      case (Some((z, l)), Some((z1, l1))) => {
-                        val minLeftover = if (l.length > l1.length) l1 else l
-                        ZIO.fail((Right(f(z, z1)), minLeftover))
-                      }
-                      case (Some((z, _)), None)  => ZIO.succeedNow(LeftDone(z))
-                      case (None, Some((z1, _))) => ZIO.succeedNow(RightDone(z1))
-                      case (None, None)          => ZIO.succeedNow(BothRunning)
-                    }
-
+                l.zipPar(r).flatMap {
+                  case (Some((z, l)), Some((z1, l1))) => {
+                    val minLeftover = if (l.length > l1.length) l1 else l
+                    ZIO.fail((Right(f(z, z1)), minLeftover))
                   }
-                  case LeftDone(z) => {
-                    p2(in)
-                      .catchAll({
-                        case (Left(e), l)    => Push.fail(e, l)
-                        case (Right(z1), l1) => Push.emit(f(z, z1), l1)
-                      })
-                      .as(state)
-                  }
-                  case RightDone(z1) => {
-                    p1(in)
-                      .catchAll({
-                        case (Left(e), l)   => Push.fail(e, l)
-                        case (Right(z), l1) => Push.emit(f(z, z1), l1)
-                      })
-                      .as(state)
-                  }
+                  case (Some((z, _)), None)  => ZIO.succeedNow(LeftDone(z))
+                  case (None, Some((z1, _))) => ZIO.succeedNow(RightDone(z1))
+                  case (None, None)          => ZIO.succeedNow(BothRunning)
                 }
+
               }
-              newState.flatMap(ns => if (ns eq state) ZIO.unit else ref.set(ns))
+              case LeftDone(z) => {
+                p2(in)
+                  .catchAll({
+                    case (Left(e), l)    => Push.fail(e, l)
+                    case (Right(z1), l1) => Push.emit(f(z, z1), l1)
+                  })
+                  .as(state)
+              }
+              case RightDone(z1) => {
+                p1(in)
+                  .catchAll({
+                    case (Left(e), l)   => Push.fail(e, l)
+                    case (Right(z), l1) => Push.emit(f(z, z1), l1)
+                  })
+                  .as(state)
+              }
+            }
           }
+          newState.flatMap(ns => if (ns eq state) ZIO.unit else ref.set(ns))
+        }
       }
     } yield push)
   }
@@ -511,8 +514,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         switchSink  <- ZManaged.switchable[R, Nothing, Push[R, E, I, L, Z]]
         initialSink <- switchSink(sink).toManaged_
         currSink    <- Ref.make(initialSink).toManaged_
-        restart     = switchSink(sink).flatMap(currSink.set)
-        newPush     = (input: Option[Chunk[I]]) => currSink.get.flatMap(_.apply(input))
+        restart      = switchSink(sink).flatMap(currSink.set)
+        newPush      = (input: Option[Chunk[I]]) => currSink.get.flatMap(_.apply(input))
       } yield (newPush, restart)
   }
 
@@ -524,9 +527,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def collectAll[A]: ZSink[Any, Nothing, A, Nothing, Chunk[A]] = ZSink {
     for {
-      builder     <- UIO(ChunkBuilder.make[A]()).toManaged_
+      builder    <- UIO(ChunkBuilder.make[A]()).toManaged_
       foldingSink = foldLeftChunks(builder)((b, chunk: Chunk[A]) => b ++= chunk).map(_.result())
-      push        <- foldingSink.push
+      push       <- foldingSink.push
     } yield push
   }
 
@@ -610,18 +613,18 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         for {
           state <- Ref.make(z).toManaged_
           push = (is: Option[Chunk[I]]) =>
-            is match {
-              case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
-              case Some(is) => {
-                state.get.flatMap { s =>
-                  val (st, l) = foldChunk(s, is, 0, is.length)
-                  l match {
-                    case Some(leftover) => Push.emit(st, leftover)
-                    case None           => state.set(st) *> Push.more
-                  }
-                }
-              }
-            }
+                   is match {
+                     case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
+                     case Some(is) => {
+                       state.get.flatMap { s =>
+                         val (st, l) = foldChunk(s, is, 0, is.length)
+                         l match {
+                           case Some(leftover) => Push.emit(st, leftover)
+                           case None           => state.set(st) *> Push.more
+                         }
+                       }
+                     }
+                   }
         } yield push
       }
     else
@@ -649,19 +652,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         for {
           state <- Ref.make(z).toManaged_
           push = (is: Option[Chunk[I]]) =>
-            is match {
-              case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
-              case Some(is) => {
-                state.get
-                  .flatMap(f(_, is).mapError(e => (Left(e), Chunk.empty)))
-                  .flatMap { s =>
-                    if (contFn(s))
-                      state.set(s) *> Push.more
-                    else
-                      Push.emit(s, Chunk.empty)
-                  }
-              }
-            }
+                   is match {
+                     case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
+                     case Some(is) => {
+                       state.get
+                         .flatMap(f(_, is).mapError(e => (Left(e), Chunk.empty)))
+                         .flatMap { s =>
+                           if (contFn(s))
+                             state.set(s) *> Push.more
+                           else
+                             Push.emit(s, Chunk.empty)
+                         }
+                     }
+                   }
         } yield push
       }
     else
@@ -694,21 +697,24 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         for {
           state <- Ref.make(z).toManaged_
           push = (is: Option[Chunk[I]]) =>
-            is match {
-              case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
-              case Some(is) => {
-                state.get.flatMap { s =>
-                  foldChunk(s, is, 0, is.length).foldM(err => Push.fail(err._1, err._2), {
-                    case (st, l) => {
-                      l match {
-                        case Some(leftover) => Push.emit(st, leftover)
-                        case None           => state.set(st) *> Push.more
-                      }
-                    }
-                  })
-                }
-              }
-            }
+                   is match {
+                     case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
+                     case Some(is) => {
+                       state.get.flatMap { s =>
+                         foldChunk(s, is, 0, is.length).foldM(
+                           err => Push.fail(err._1, err._2),
+                           {
+                             case (st, l) => {
+                               l match {
+                                 case Some(leftover) => Push.emit(st, leftover)
+                                 case None           => state.set(st) *> Push.more
+                               }
+                             }
+                           }
+                         )
+                       }
+                     }
+                   }
         } yield push
       }
     else
@@ -826,16 +832,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       for {
         state <- Ref.make[Option[I]](None).toManaged_
         push = (is: Option[Chunk[I]]) =>
-          state.get.flatMap { last =>
-            is match {
-              case Some(ch) =>
-                ch.lastOption match {
-                  case l: Some[_] => state.set(l) *> Push.more
-                  case None       => Push.more
-                }
-              case None => Push.emit(last, Chunk.empty)
-            }
-          }
+                 state.get.flatMap { last =>
+                   is match {
+                     case Some(ch) =>
+                       ch.lastOption match {
+                         case l: Some[_] => state.set(l) *> Push.more
+                         case None       => Push.more
+                       }
+                     case None => Push.emit(last, Chunk.empty)
+                   }
+                 }
       } yield push
     }
 
@@ -860,6 +866,32 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def sum[A](implicit A: Numeric[A]): ZSink[Any, Nothing, A, Nothing, A] =
     foldLeft(A.zero)(A.plus)
+
+  /**
+   * A sink that takes the specified number of values.
+   */
+  def take[I](n: Int): ZSink[Any, Nothing, I, I, Chunk[I]] =
+    ZSink {
+      for {
+        state <- Ref.make[Chunk[I]](Chunk.empty).toManaged_
+        push = (is: Option[Chunk[I]]) =>
+                 state.get.flatMap { take =>
+                   is match {
+                     case Some(ch) =>
+                       val idx = n - take.length
+                       if (idx < ch.length) {
+                         val (chunk, leftover) = ch.splitAt(idx)
+                         state.set(Chunk.empty) *> Push.emit(take ++ chunk, leftover)
+                       } else {
+                         state.set(take ++ ch) *> Push.more
+                       }
+                     case None =>
+                       if (n >= 0) Push.emit(take, Chunk.empty)
+                       else Push.emit(Chunk.empty, take)
+                   }
+                 }
+      } yield push
+    }
 
   /**
    * A sink with timed execution.

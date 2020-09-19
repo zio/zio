@@ -6,9 +6,14 @@ import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
-import scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb
+import scalafix.sbt.ScalafixPlugin.autoImport._
 
 object BuildHelper {
+  val Scala211        = "2.11.12"
+  val Scala212        = "2.12.12"
+  val Scala213        = "2.13.3"
+  val ScalaDotty      = "0.26.0"
+  val SilencerVersion = "1.7.1"
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -53,11 +58,9 @@ object BuildHelper {
       buildInfoObject := "BuildInfo"
     )
 
-  val dottyVersion = "0.23.0-RC1"
-
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += dottyVersion,
+    crossScalaVersions += ScalaDotty,
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")
@@ -83,7 +86,7 @@ object BuildHelper {
   )
 
   val scalaReflectSettings = Seq(
-    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M2")
+    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M6")
   )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
@@ -210,20 +213,24 @@ object BuildHelper {
 
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
-    scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.10", "2.11.12", "2.13.1"),
-    scalaVersion in ThisBuild := crossScalaVersions.value.head,
+    crossScalaVersions := Seq(Scala211, Scala212, Scala213),
+    scalaVersion in ThisBuild := Scala212,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq(("com.github.ghik" % "silencer-lib_2.13.1" % "1.6.0" % Provided).withDottyCompat(scalaVersion.value))
+        Seq(
+          ("com.github.ghik" % s"silencer-lib_$Scala213" % SilencerVersion % Provided)
+            .withDottyCompat(scalaVersion.value)
+        )
       else
         Seq(
-          "com.github.ghik" % "silencer-lib" % "1.4.4" % Provided cross CrossVersion.full,
-          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.4.4" cross CrossVersion.full),
-          compilerPlugin(scalafixSemanticdb)
+          "com.github.ghik" % "silencer-lib" % SilencerVersion % Provided cross CrossVersion.full,
+          compilerPlugin("com.github.ghik" % "silencer-plugin" % SilencerVersion cross CrossVersion.full)
         )
     },
+    semanticdbEnabled := !isDotty.value,              // enable SemanticDB
+    semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
+    ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
@@ -327,8 +334,9 @@ object BuildHelper {
     }
   )
 
-  def testJsSettings = Seq(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0" % Test
+  def jsSettings = Seq(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time"      % "2.0.0",
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.0.0"
   )
 
   def welcomeMessage = onLoadMessage := {

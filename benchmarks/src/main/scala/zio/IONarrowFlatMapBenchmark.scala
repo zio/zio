@@ -71,12 +71,12 @@ class IONarrowFlatMapBenchmark {
     import io.reactivex.Single
 
     def loop(i: Int): Single[Int] =
-      if (i < size) Single.fromCallable(() => i + 1).flatMap(loop)
+      if (i < size) Single.fromCallable(() => i + 1).flatMap(loop(_))
       else Single.fromCallable(() => i)
 
     Single
       .fromCallable(() => 0)
-      .flatMap(loop)
+      .flatMap(loop(_))
       .blockingGet()
   }
 
@@ -102,7 +102,7 @@ class IONarrowFlatMapBenchmark {
       if (i < size) Task.eval(i + 1).flatMap(loop)
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop).runSyncStep.right.get
+    Task.eval(0).flatMap(loop).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark
@@ -127,6 +127,6 @@ class IONarrowFlatMapBenchmark {
       if (i < size) IO(i + 1).flatMap(loop)
       else IO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 }

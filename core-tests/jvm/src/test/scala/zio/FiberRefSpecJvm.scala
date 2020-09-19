@@ -16,22 +16,22 @@ object FiberRefSpecJvm extends ZIOBaseSpec {
         resRef   <- UIO(new AtomicReference(("", "", "")))
 
         unsafelyGetSetGet = new Runnable {
-          def run(): Unit = {
-            val v1 = handle.get()
-            handle.set(update2)
-            val v2 = handle.get()
-            handle.remove()
-            val v3 = handle.get()
-            resRef.set((v1, v2, v3))
-          }
-        }
+                              def run(): Unit = {
+                                val v1 = handle.get()
+                                handle.set(update2)
+                                val v2 = handle.get()
+                                handle.remove()
+                                val v3 = handle.get()
+                                resRef.set((v1, v2, v3))
+                              }
+                            }
 
         _      <- fiberRef.set(update1)
         thread <- UIO(new Thread(unsafelyGetSetGet))
         _      <- UIO(thread.start()).ensuring(UIO(thread.join()))
 
-        value0                   <- fiberRef.get
-        values                   <- UIO(resRef.get())
+        value0                  <- fiberRef.get
+        values                  <- UIO(resRef.get())
         (value1, value2, value3) = values
       } yield assert((value0, value1, value2, value3))(equalTo((update1, initial, update2, initial)))
     }

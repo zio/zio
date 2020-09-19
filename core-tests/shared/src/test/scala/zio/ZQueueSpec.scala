@@ -36,29 +36,29 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("parallel takes and sequential offers ") {
       for {
-        queue  <- Queue.bounded[Int](10)
-        f      <- IO.forkAll(List.fill(10)(queue.take))
+        queue <- Queue.bounded[Int](10)
+        f     <- IO.forkAll(List.fill(10)(queue.take))
         values = Range.inclusive(1, 10).toList
-        _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
-        v      <- f.join
+        _     <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
+        v     <- f.join
       } yield assert(v.toSet)(equalTo(values.toSet))
     },
     testM("parallel offers and sequential takes") {
       for {
-        queue  <- Queue.bounded[Int](10)
+        queue <- Queue.bounded[Int](10)
         values = Range.inclusive(1, 10).toList
-        f      <- IO.forkAll(values.map(queue.offer))
-        _      <- waitForSize(queue, 10)
-        out    <- Ref.make[List[Int]](Nil)
-        _      <- queue.take.flatMap(i => out.update(i :: _)).repeat(Schedule.recurs(9))
-        l      <- out.get
-        _      <- f.join
+        f     <- IO.forkAll(values.map(queue.offer))
+        _     <- waitForSize(queue, 10)
+        out   <- Ref.make[List[Int]](Nil)
+        _     <- queue.take.flatMap(i => out.update(i :: _)).repeatN(9)
+        l     <- out.get
+        _     <- f.join
       } yield assert(l.toSet)(equalTo(values.toSet))
     },
     testM("offers are suspended by back pressure") {
       for {
         queue        <- Queue.bounded[Int](10)
-        _            <- queue.offer(1).repeat(Schedule.recurs(9))
+        _            <- queue.offer(1).repeatN(9)
         refSuspended <- Ref.make[Boolean](true)
         f            <- (queue.offer(2) *> refSuspended.set(false)).fork
         _            <- waitForSize(queue, 11)
@@ -68,14 +68,14 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("back pressured offers are retrieved") {
       for {
-        queue  <- Queue.bounded[Int](5)
+        queue <- Queue.bounded[Int](5)
         values = Range.inclusive(1, 10).toList
-        f      <- IO.forkAll(values.map(queue.offer))
-        _      <- waitForSize(queue, 10)
-        out    <- Ref.make[List[Int]](Nil)
-        _      <- queue.take.flatMap(i => out.update(i :: _)).repeat(Schedule.recurs(9))
-        l      <- out.get
-        _      <- f.join
+        f     <- IO.forkAll(values.map(queue.offer))
+        _     <- waitForSize(queue, 10)
+        out   <- Ref.make[List[Int]](Nil)
+        _     <- queue.take.flatMap(i => out.update(i :: _)).repeatN(9)
+        l     <- out.get
+        _     <- f.join
       } yield assert(l.toSet)(equalTo(values.toSet))
     },
     testM("take interruption") {
@@ -132,13 +132,13 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("takeAll doesn't return more than the queue size") {
       for {
-        queue  <- Queue.bounded[Int](4)
+        queue <- Queue.bounded[Int](4)
         values = List(1, 2, 3, 4)
-        _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
-        _      <- queue.offer(5).fork
-        _      <- waitForSize(queue, 5)
-        v      <- queue.takeAll
-        c      <- queue.take
+        _     <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
+        _     <- queue.offer(5).fork
+        _     <- waitForSize(queue, 5)
+        v     <- queue.takeAll
+        c     <- queue.take
       } yield assert(v.toSet)(equalTo(values.toSet)) &&
         assert(c)(equalTo(5))
     },
@@ -225,13 +225,13 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("takeUpTo doesn't return back-pressured offers") {
       for {
-        queue  <- Queue.bounded[Int](4)
+        queue <- Queue.bounded[Int](4)
         values = List(1, 2, 3, 4)
-        _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
-        f      <- queue.offer(5).fork
-        _      <- waitForSize(queue, 5)
-        l      <- queue.takeUpTo(5)
-        _      <- f.interrupt
+        _     <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
+        f     <- queue.offer(5).fork
+        _     <- waitForSize(queue, 5)
+        l     <- queue.takeUpTo(5)
+        _     <- f.interrupt
       } yield assert(l)(equalTo(List(1, 2, 3, 4)))
     },
     suite("takeBetween")(
@@ -266,61 +266,61 @@ object ZQueueSpec extends ZIOBaseSpec {
         for {
           queue   <- Queue.bounded[Int](100)
           counter <- Ref.make(0)
-          updater = (queue.offer(10) *> counter.update(_ + 1)).forever
-          getter  = queue.takeBetween(5, 10)
+          updater  = (queue.offer(10) *> counter.update(_ + 1)).forever
+          getter   = queue.takeBetween(5, 10)
           _       <- getter.race(updater)
           count   <- counter.get
-        } yield assert(count > 5)(isTrue)
+        } yield assert(count >= 5)(isTrue)
       }
     ),
     testM("offerAll with takeAll") {
       for {
-        queue  <- Queue.bounded[Int](10)
+        queue <- Queue.bounded[Int](10)
         orders = Range.inclusive(1, 10).toList
-        _      <- queue.offerAll(orders)
-        _      <- waitForSize(queue, 10)
-        l      <- queue.takeAll
+        _     <- queue.offerAll(orders)
+        _     <- waitForSize(queue, 10)
+        l     <- queue.takeAll
       } yield assert(l)(equalTo(orders))
     },
     testM("offerAll with takeAll and back pressure") {
       for {
-        queue  <- Queue.bounded[Int](2)
+        queue <- Queue.bounded[Int](2)
         orders = Range.inclusive(1, 3).toList
-        f      <- queue.offerAll(orders).fork
-        size   <- waitForSize(queue, 3)
-        l      <- queue.takeAll
-        _      <- f.interrupt
+        f     <- queue.offerAll(orders).fork
+        size  <- waitForSize(queue, 3)
+        l     <- queue.takeAll
+        _     <- f.interrupt
       } yield assert(size)(equalTo(3)) &&
         assert(l)(equalTo(List(1, 2)))
     },
     testM("offerAll with takeAll and back pressure + interruption") {
       for {
-        queue   <- Queue.bounded[Int](2)
+        queue  <- Queue.bounded[Int](2)
         orders1 = Range.inclusive(1, 2).toList
         orders2 = Range.inclusive(3, 4).toList
-        _       <- queue.offerAll(orders1)
-        f       <- queue.offerAll(orders2).fork
-        _       <- waitForSize(queue, 4)
-        _       <- f.interrupt
-        l1      <- queue.takeAll
-        l2      <- queue.takeAll
+        _      <- queue.offerAll(orders1)
+        f      <- queue.offerAll(orders2).fork
+        _      <- waitForSize(queue, 4)
+        _      <- f.interrupt
+        l1     <- queue.takeAll
+        l2     <- queue.takeAll
       } yield assert(l1)(equalTo(orders1)) &&
         assert(l2)(equalTo(List.empty[Int]))
     } @@ zioTag(interruption),
     testM("offerAll with takeAll and back pressure, check ordering") {
       for {
-        queue  <- Queue.bounded[Int](64)
+        queue <- Queue.bounded[Int](64)
         orders = Range.inclusive(1, 128).toList
-        f      <- queue.offerAll(orders).fork
-        _      <- waitForSize(queue, 128)
-        l      <- queue.takeAll
-        _      <- f.interrupt
+        f     <- queue.offerAll(orders).fork
+        _     <- waitForSize(queue, 128)
+        l     <- queue.takeAll
+        _     <- f.interrupt
       } yield assert(l)(equalTo(Range.inclusive(1, 64).toList))
     },
     testM("offerAll with pending takers") {
       for {
         queue  <- Queue.bounded[Int](50)
-        orders = Range.inclusive(1, 100).toList
+        orders  = Range.inclusive(1, 100).toList
         takers <- IO.forkAll(List.fill(100)(queue.take))
         _      <- waitForSize(queue, -100)
         _      <- queue.offerAll(orders)
@@ -332,20 +332,20 @@ object ZQueueSpec extends ZIOBaseSpec {
     testM("offerAll with pending takers, check ordering") {
       for {
         queue  <- Queue.bounded[Int](256)
-        orders = Range.inclusive(1, 128).toList
+        orders  = Range.inclusive(1, 128).toList
         takers <- IO.forkAll(List.fill(64)(queue.take))
         _      <- waitForSize(queue, -64)
         _      <- queue.offerAll(orders)
         l      <- takers.join
         s      <- queue.size
-        values = orders.take(64)
+        values  = orders.take(64)
       } yield assert(l.toSet)(equalTo(values.toSet)) &&
         assert(s)(equalTo(64))
     },
     testM("offerAll with pending takers, check ordering of taker resolution") {
       for {
         queue  <- Queue.bounded[Int](200)
-        values = Range.inclusive(1, 100).toList
+        values  = Range.inclusive(1, 100).toList
         takers <- IO.forkAll(List.fill(100)(queue.take))
         _      <- waitForSize(queue, -100)
         f      <- IO.forkAll(List.fill(100)(queue.take))
@@ -359,31 +359,31 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("offerAll with take and back pressure") {
       for {
-        queue  <- Queue.bounded[Int](2)
+        queue <- Queue.bounded[Int](2)
         orders = Range.inclusive(1, 3).toList
-        _      <- queue.offerAll(orders).fork
-        _      <- waitForSize(queue, 3)
-        v1     <- queue.take
-        v2     <- queue.take
-        v3     <- queue.take
+        _     <- queue.offerAll(orders).fork
+        _     <- waitForSize(queue, 3)
+        v1    <- queue.take
+        v2    <- queue.take
+        v3    <- queue.take
       } yield assert(v1)(equalTo(1)) &&
         assert(v2)(equalTo(2)) &&
         assert(v3)(equalTo(3))
     },
     testM("multiple offerAll with back pressure") {
       for {
-        queue   <- Queue.bounded[Int](2)
+        queue  <- Queue.bounded[Int](2)
         orders  = Range.inclusive(1, 3).toList
         orders2 = Range.inclusive(4, 5).toList
-        _       <- queue.offerAll(orders).fork
-        _       <- waitForSize(queue, 3)
-        _       <- queue.offerAll(orders2).fork
-        _       <- waitForSize(queue, 5)
-        v1      <- queue.take
-        v2      <- queue.take
-        v3      <- queue.take
-        v4      <- queue.take
-        v5      <- queue.take
+        _      <- queue.offerAll(orders).fork
+        _      <- waitForSize(queue, 3)
+        _      <- queue.offerAll(orders2).fork
+        _      <- waitForSize(queue, 5)
+        v1     <- queue.take
+        v2     <- queue.take
+        v3     <- queue.take
+        v4     <- queue.take
+        v5     <- queue.take
       } yield assert(v1)(equalTo(1)) &&
         assert(v2)(equalTo(2)) &&
         assert(v3)(equalTo(3)) &&
@@ -392,26 +392,26 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("offerAll + takeAll, check ordering") {
       for {
-        queue  <- Queue.bounded[Int](1000)
+        queue <- Queue.bounded[Int](1000)
         orders = Range.inclusive(2, 1000).toList
-        _      <- queue.offer(1)
-        _      <- queue.offerAll(orders)
-        _      <- waitForSize(queue, 1000)
-        v1     <- queue.takeAll
+        _     <- queue.offer(1)
+        _     <- queue.offerAll(orders)
+        _     <- waitForSize(queue, 1000)
+        v1    <- queue.takeAll
       } yield assert(v1)(equalTo(Range.inclusive(1, 1000).toList))
     },
     testM("combination of offer, offerAll, take, takeAll") {
       for {
-        queue  <- Queue.bounded[Int](32)
+        queue <- Queue.bounded[Int](32)
         orders = Range.inclusive(3, 35).toList
-        _      <- queue.offer(1)
-        _      <- queue.offer(2)
-        _      <- queue.offerAll(orders).fork
-        _      <- waitForSize(queue, 35)
-        v      <- queue.takeAll
-        v1     <- queue.take
-        v2     <- queue.take
-        v3     <- queue.take
+        _     <- queue.offer(1)
+        _     <- queue.offer(2)
+        _     <- queue.offerAll(orders).fork
+        _     <- waitForSize(queue, 35)
+        v     <- queue.takeAll
+        v1    <- queue.take
+        v2    <- queue.take
+        v3    <- queue.take
       } yield assert(v)(equalTo(Range.inclusive(1, 32).toList)) &&
         assert(v1)(equalTo(33)) &&
         assert(v2)(equalTo(34)) &&
@@ -596,7 +596,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         capacity <- IO.succeed(4)
         queue    <- Queue.dropping[Int](capacity)
-        iter     = Range.inclusive(1, 5)
+        iter      = Range.inclusive(1, 5)
         _        <- queue.offerAll(iter)
         ta       <- queue.takeAll
       } yield assert(ta)(equalTo(List(1, 2, 3, 4)))
@@ -613,7 +613,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         capacity <- IO.succeed(128)
         queue    <- Queue.dropping[Int](capacity)
-        iter     = Range.inclusive(1, 256)
+        iter      = Range.inclusive(1, 256)
         _        <- queue.offerAll(iter)
         ta       <- queue.takeAll
       } yield assert(ta)(equalTo(Range.inclusive(1, 128).toList))
@@ -622,7 +622,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         capacity <- IO.succeed(2)
         queue    <- Queue.dropping[Int](capacity)
-        iter     = Range.inclusive(1, 4)
+        iter      = Range.inclusive(1, 4)
         f        <- queue.take.fork
         _        <- waitForSize(queue, -1)
         oa       <- queue.offerAll(iter.toList)
@@ -634,7 +634,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         capacity <- IO.succeed(2)
         queue    <- Queue.sliding[Int](capacity)
-        iter     = Range.inclusive(1, 4)
+        iter      = Range.inclusive(1, 4)
         _        <- queue.take.fork
         _        <- waitForSize(queue, -1)
         oa       <- queue.offerAll(iter.toList)
@@ -646,7 +646,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         capacity <- IO.succeed(5)
         queue    <- Queue.sliding[Int](capacity)
-        iter     = Range.inclusive(1, 3)
+        iter      = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)
       } yield assert(oa)(isTrue)
     },
@@ -654,7 +654,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         capacity <- IO.succeed(5)
         queue    <- Queue.bounded[Int](capacity)
-        iter     = Range.inclusive(1, 3)
+        iter      = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)
       } yield assert(oa)(isTrue)
     },
@@ -667,7 +667,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     testM("poll on queue just emptied") {
       for {
         queue <- Queue.bounded[Int](5)
-        iter  = Range.inclusive(1, 4)
+        iter   = Range.inclusive(1, 4)
         _     <- queue.offerAll(iter.toList)
         _     <- queue.takeAll
         t     <- queue.poll
@@ -676,7 +676,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     testM("multiple polls") {
       for {
         queue <- Queue.bounded[Int](5)
-        iter  = Range.inclusive(1, 2)
+        iter   = Range.inclusive(1, 2)
         _     <- queue.offerAll(iter.toList)
         t1    <- queue.poll
         t2    <- queue.poll
@@ -726,7 +726,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         q1 <- Queue.bounded[Int](100)
         q2 <- Queue.bounded[Int](100)
-        q  = q1 both q2
+        q   = q1 both q2
         _  <- q.offer(10)
         v  <- q.take
       } yield assert(v)(equalTo((10, 10)))
@@ -793,7 +793,7 @@ object ZQueueSpec extends ZIOBaseSpec {
 
 object ZQueueSpecUtil {
   def waitForValue[T](ref: UIO[T], value: T): URIO[Live, T] =
-    Live.live((ref <* clock.sleep(10.millis)).repeat(Schedule.doWhile(_ != value)))
+    Live.live((ref <* clock.sleep(10.millis)).repeatUntil(_ == value))
 
   def waitForSize[RA, EA, RB, EB, A, B](queue: ZQueue[RA, EA, RB, EB, A, B], size: Int): URIO[Live, Int] =
     waitForValue(queue.size, size)
