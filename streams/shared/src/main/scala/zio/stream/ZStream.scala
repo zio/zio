@@ -1223,7 +1223,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               Cause.sequenceCauseOption(_) match {
                 case Some(e) => Pull.halt(e)
                 case None =>
-                  switchStream(self.process).flatMap(currStream.set) *> ZIO.yieldNow *> go
+                  switchStream(self.process).flatMap(currStream.set) *> go
               }
             }
 
