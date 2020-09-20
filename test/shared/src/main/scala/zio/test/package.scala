@@ -828,13 +828,12 @@ package object test extends CompileVariants {
   ): ZIO[R1 with TestConfig, E, TestResult] =
     TestConfig.shrinks.flatMap {
       shrinkStream {
-        stream.zipWithIndex.mapM {
-          case (initial, index) =>
-            initial.foreach(input =>
-              test(input).traced
-                .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
-                .either
-            )
+        stream.zipWithIndex.mapM { case (initial, index) =>
+          initial.foreach(input =>
+            test(input).traced
+              .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
+              .either
+          )
         }
       }
     }
@@ -870,15 +869,14 @@ package object test extends CompileVariants {
     TestConfig.shrinks.flatMap {
       shrinkStream {
         stream.zipWithIndex
-          .mapMPar(parallelism) {
-            case (initial, index) =>
-              initial.foreach { input =>
-                test(input).traced
-                  .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
-                  .either
-              // convert test failures to failures to terminate parallel tests on first failure
-              }.flatMap(sample => sample.value.fold(_ => ZIO.fail(sample), _ => ZIO.succeed(sample)))
-            // move failures back into success channel for shrinking logic
+          .mapMPar(parallelism) { case (initial, index) =>
+            initial.foreach { input =>
+              test(input).traced
+                .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
+                .either
+            // convert test failures to failures to terminate parallel tests on first failure
+            }.flatMap(sample => sample.value.fold(_ => ZIO.fail(sample), _ => ZIO.succeed(sample)))
+          // move failures back into success channel for shrinking logic
           }
           .catchAll(ZStream.succeed(_))
       }
