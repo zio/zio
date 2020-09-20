@@ -33,6 +33,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [idealingua](https://github.com/7mind/izumi): API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
 - [logstage](https://github.com/7mind/izumi): Automatic structural logs from Scala string interpolations
 - [neotypes](https://github.com/neotypes/neotypes): A Scala lightweight, type-safe & asynchronous driver for neo4j
+- [rezilience](https://github.com/svroonland/rezilience): Utilities for resilience and handling of transient errors
 - [scanamo](https://github.com/scanamo/scanamo): Simpler DynamoDB access for Scala
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
