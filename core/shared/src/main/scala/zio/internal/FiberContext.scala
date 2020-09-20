@@ -535,7 +535,7 @@ private[zio] final class FiberContext[E, A](
                       else lock(zio.executor).bracket_(unlock, zio.zio)
 
                   case ZIO.Tags.Yield =>
-                    evaluateLater(ZIO.unit)
+                    yieldAndEvaluateLater(ZIO.unit)
 
                     curZio = null
 
@@ -774,6 +774,9 @@ private[zio] final class FiberContext[E, A](
 
   private[this] def evaluateLater(zio: IO[E, Any]): Unit =
     executor.submitOrThrow(() => evaluateNow(zio))
+
+  private[this] def yieldAndEvaluateLater(zio: IO[E, Any]): Unit =
+    executor.submitAndYieldOrThrow(() => evaluateNow(zio))
 
   private[this] def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio => if (exitAsync(epoch)) evaluateLater(zio) }
 

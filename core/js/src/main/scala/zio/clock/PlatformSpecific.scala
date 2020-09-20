@@ -20,6 +20,7 @@ import scala.scalajs.js
 
 import zio.duration.Duration
 import zio.internal.Scheduler
+import zio.internal.JSExecutionContext
 
 private[clock] trait PlatformSpecific {
   private[clock] val globalScheduler = new Scheduler {
@@ -29,6 +30,9 @@ private[clock] trait PlatformSpecific {
 
     override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
+      case Duration.Zero =>
+        JSExecutionContext.setImmediate(() => task.run())
+        ConstFalse
       case Duration.Finite(_) =>
         var completed = false
 

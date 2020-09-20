@@ -8,7 +8,10 @@ import scala.scalajs.js
 /**
  * A specialized `ExecutionContext` optimized for Scala.js.
  */
-private[zio] sealed abstract class JSExecutionContext extends ExecutionContext
+private[zio] sealed abstract class JSExecutionContext extends ExecutionContext {
+
+  def executeAsync(runnable: Runnable): Unit
+}
 
 object JSExecutionContext {
 
@@ -25,6 +28,9 @@ object JSExecutionContext {
         } else {
           val _ = queue.add(runnable)
         }
+      def executeAsync(runnable: Runnable): Unit = {
+        val _ = setImmediate(() => runnable.run())
+      }
       def reportFailure(cause: Throwable): Unit =
         cause.printStackTrace()
       def runQueue(): Unit = {
@@ -36,10 +42,12 @@ object JSExecutionContext {
       }
     }
 
-  private val setImmediate =
+  private[zio] val setImmediate =
     if (js.typeOf(js.Dynamic.global.setImmediate) == "function") {
       js.Dynamic.global.setImmediate
     } else {
       js.Dynamic.global.setTimeout
     }
+
+  // Change every yield to setImmediate
 }
