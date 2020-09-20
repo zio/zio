@@ -329,7 +329,7 @@ object RIO {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
-   * @see [[zio.ZIO.filter]]
+   * @see [[zio.ZIO.filter[R,E,A,Collection*]]
    */
   def filter[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -337,7 +337,13 @@ object RIO {
     ZIO.filter(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterPar]]
+   * @see [[[zio.ZIO.filter[R,E,A](as:Set*]]]
+   */
+  def filter[R, A](as: Set[A])(f: A => RIO[R, Boolean]): RIO[R, Set[A]] =
+    ZIO.filter(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterPar[R,E,A,Collection*]]
    */
   def filterPar[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -345,7 +351,13 @@ object RIO {
     ZIO.filterPar(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNot]]
+   * @see [[[zio.ZIO.filterPar[R,E,A](as:Set*]]]
+   */
+  def filterPar[R, A](as: Set[A])(f: A => RIO[R, Boolean]): RIO[R, Set[A]] =
+    ZIO.filterPar(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNot[R,E,A,Collection*]]
    */
   def filterNot[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -353,11 +365,23 @@ object RIO {
     ZIO.filterNot(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNotPar]]
+   * @see [[[zio.ZIO.filterNot[R,E,A](as:Set*]]]
+   */
+  def filterNot[R, A](as: Set[A])(f: A => RIO[R, Boolean]): RIO[R, Set[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNotPar[R,E,A,Collection*]]
    */
   def filterNotPar[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => RIO[R, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): RIO[R, Collection[A]] =
+    ZIO.filterNotPar(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.filterNotPar[R,E,A](as:Set*]]]
+   */
+  def filterNotPar[R, A](as: Set[A])(f: A => RIO[R, Boolean]): RIO[R, Set[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
@@ -708,6 +732,12 @@ object RIO {
    * @see See [[zio.ZIO.none]]
    */
   val none: UIO[Option[Nothing]] = ZIO.none
+
+  /**
+   *  @see See [[zio.ZIO.not]]
+   */
+  def not[R](effect: RIO[R, Boolean]): RIO[R, Boolean] =
+    ZIO.not(effect)
 
   /**
    * @see See [[zio.ZIO.partition]]

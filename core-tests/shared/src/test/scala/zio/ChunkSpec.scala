@@ -238,6 +238,12 @@ object ChunkSpec extends ZIOBaseSpec {
         (s0, f, c) => assert(c.fold(s0)(f))(equalTo(c.toArray.foldLeft(s0)(f)))
       }
     },
+    zio.test.test("foldRight") {
+      val chunk    = Chunk("a") ++ Chunk("b") ++ Chunk("c")
+      val actual   = chunk.foldRight("d")(_ + _)
+      val expected = "abcd"
+      assert(actual)(equalTo(expected))
+    },
     zio.test.test("mapAccum") {
       assert(Chunk(1, 1, 1).mapAccum(0)((s, el) => (s + el, s + el)))(equalTo((3, Chunk(1, 2, 3))))
     },

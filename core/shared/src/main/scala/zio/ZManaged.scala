@@ -1337,7 +1337,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Sequential =>
                     (
                       ZIO
-                        .foreach(Chunk.fromIterable(fins)) {
+                        .foreach(fins: Iterable[(Long, Finalizer)]) {
                           case (_, fin) => fin.apply(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAll(results) getOrElse Exit.unit)),
@@ -1347,7 +1347,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Parallel =>
                     (
                       ZIO
-                        .foreachPar(Chunk.fromIterable(fins)) {
+                        .foreachPar(fins: Iterable[(Long, Finalizer)]) {
                           case (_, finalizer) =>
                             finalizer(exit).run
                         }
@@ -1358,7 +1358,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.ParallelN(n) =>
                     (
                       ZIO
-                        .foreachParN(n)(Chunk.fromIterable(fins)) {
+                        .foreachParN(n)(fins: Iterable[(Long, Finalizer)]) {
                           case (_, finalizer) =>
                             finalizer(exit).run
                         }
@@ -2157,6 +2157,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   lazy val releaseMap: ZManaged[Any, Nothing, ReleaseMap] =
     apply(ZIO.environment[(Any, ReleaseMap)].map(tp => (Finalizer.noop, tp._2)))
+
+  /**
+   * Returns an ZManaged that accesses the runtime, which can be used to
+   * (unsafely) execute tasks. This is useful for integration with legacy
+   * code that must call back into ZIO code.
+   */
+  def runtime[R]: ZManaged[R, Nothing, Runtime[R]] =
+    ZManaged.fromEffect(ZIO.runtime[R])
 
   def sandbox[R, E, A](v: ZManaged[R, E, A]): ZManaged[R, Cause[E], A] =
     v.sandbox

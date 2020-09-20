@@ -58,6 +58,18 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
     exit.fold(Cause.sequenceCauseOption(_).isEmpty, _ => false)
 
   /**
+   * Checks if this `take` is a failure.
+   */
+  def isFailure: Boolean =
+    exit.fold(Cause.sequenceCauseOption(_).nonEmpty, _ => false)
+
+  /**
+   * Checks if this `take` is a success.
+   */
+  def isSuccess: Boolean =
+    exit.fold(_ => false, _ => true)
+
+  /**
    * Transforms `Take[E, A]` to `Take[E, B]` by applying function `f`.
    */
   def map[B](f: A => B): Take[E, B] =

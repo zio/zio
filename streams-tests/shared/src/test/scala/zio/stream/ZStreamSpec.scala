@@ -203,6 +203,19 @@ object ZStreamSpec extends ZIOBaseSpec {
               equalTo(Chunk(Right(List(2, 1, 1, 1, 1)), Right(List(2))))
             )
           },
+          testM("fails fast") {
+            for {
+              queue <- Queue.unbounded[Int]
+              _ <- ZStream
+                     .range(1, 10)
+                     .tap(i => ZIO.fail("BOOM!").when(i == 6) *> queue.offer(i))
+                     .aggregateAsyncWithin(ZTransducer.foldUntil((), 5)((_, _) => ()), Schedule.forever)
+                     .runDrain
+                     .catchAll(_ => ZIO.succeedNow(()))
+              value <- queue.takeAll
+              _     <- queue.shutdown
+            } yield assert(value)(equalTo(List(1, 2, 3, 4, 5)))
+          } @@ zioTag(errors),
           testM("error propagation 1") {
             val e = new RuntimeException("Boom")
             assertM(
@@ -2308,6 +2321,22 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           )
         ),
+        suite("scan")(
+          testM("scan")(checkM(pureStreamOfInts) { s =>
+            for {
+              streamResult <- s.scan(0)(_ + _).runCollect
+              chunkResult  <- s.runCollect.map(_.scan(0)(_ + _))
+            } yield assert(streamResult)(equalTo(chunkResult))
+          })
+        ),
+        suite("scanReduce")(
+          testM("scanReduce")(checkM(pureStreamOfInts) { s =>
+            for {
+              streamResult <- s.scanReduce(_ + _).runCollect
+              chunkResult  <- s.runCollect.map(_.scan(0)(_ + _).tail)
+            } yield assert(streamResult)(equalTo(chunkResult))
+          })
+        ),
         suite("schedule")(
           testM("scheduleWith")(
             assertM(
@@ -2409,6 +2438,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(ints)(equalTo(Chunk(1)))
           )
         ),
+        testM("takeRight") {
+          checkM(pureStreamOfInts, Gen.int(1, 4)) { (s, n) =>
+            for {
+              streamTake <- s.takeRight(n).runCollect
+              chunkTake  <- s.runCollect.map(_.takeRight(n))
+            } yield assert(streamTake)(equalTo(chunkTake))
+          }
+        },
         testM("takeUntil") {
           checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
             for {

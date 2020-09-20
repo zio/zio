@@ -33,12 +33,14 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [idealingua](https://github.com/7mind/izumi): API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
 - [logstage](https://github.com/7mind/izumi): Automatic structural logs from Scala string interpolations
 - [neotypes](https://github.com/neotypes/neotypes): A Scala lightweight, type-safe & asynchronous driver for neo4j
+- [rezilience](https://github.com/svroonland/rezilience): Utilities for resilience and handling of transient errors
 - [scanamo](https://github.com/scanamo/scanamo): Simpler DynamoDB access for Scala
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
 - [tranzactio](https://github.com/gaelrenoux/tranzactio): ZIO wrapper for data access libraries like Doobie or Anorm
 - [ZIO Arrow](https://github.com/Neurodyne/zio-arrow) : Haskell Arrow meets ZIO. A deep composition and high performance applications
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
+- [zio-aws](https://github.com/vigoo/zio-aws): Low-level AWS wrapper for ZIO for all AWS services using the AWS Java SDK v2
 - [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [zio-easymock](https://github.com/egast/zio-easymock): EasyMock mocking for zio-test
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client

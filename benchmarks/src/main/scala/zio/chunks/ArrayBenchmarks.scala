@@ -87,7 +87,7 @@ class ArrayBenchmarks {
     var n  = total
     val it = mappings.iterator
     while (it.hasNext) {
-      val mapped = it.next
+      val mapped = it.next()
 
       n -= mapped.length
 

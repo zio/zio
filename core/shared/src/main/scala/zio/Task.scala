@@ -304,7 +304,7 @@ object Task extends TaskPlatformSpecific {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
-   * @see [[zio.ZIO.filter]]
+   * @see [[zio.ZIO.filter[R,E,A,Collection*]]
    */
   def filter[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -312,7 +312,13 @@ object Task extends TaskPlatformSpecific {
     ZIO.filter(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterPar]]
+   * @see [[zio.ZIO.filter[R,E,A](as:Set*]]
+   */
+  def filter[A](as: Set[A])(f: A => Task[Boolean]): Task[Set[A]] =
+    ZIO.filter(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterPar[R,E,A,Collection*]]
    */
   def filterPar[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -320,7 +326,13 @@ object Task extends TaskPlatformSpecific {
     ZIO.filterPar(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNot]]
+   * @see [[[zio.ZIO.filterPar[R,E,A](as:Set*]]]
+   */
+  def filterPar[A](as: Set[A])(f: A => Task[Boolean]): Task[Set[A]] =
+    ZIO.filterPar(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNot[R,E,A,Collection*]]
    */
   def filterNot[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -328,11 +340,23 @@ object Task extends TaskPlatformSpecific {
     ZIO.filterNot(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNotPar]]
+   * @see [[[zio.ZIO.filterNot[R,E,A](as:Set*]]]
+   */
+  def filterNot[A](as: Set[A])(f: A => Task[Boolean]): Task[Set[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNotPar[R,E,A,Collection*]]
    */
   def filterNotPar[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => Task[Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): Task[Collection[A]] =
+    ZIO.filterNotPar(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.filterNotPar[R,E,A](as:Set*]]]
+   */
+  def filterNotPar[A](as: Set[A])(f: A => Task[Boolean]): Task[Set[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
@@ -669,6 +693,12 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.none]]
    */
   val none: Task[Option[Nothing]] = ZIO.none
+
+  /**
+   *  @see See [[zio.ZIO.not]]
+   */
+  def not(effect: Task[Boolean]): Task[Boolean] =
+    ZIO.not(effect)
 
   /**
    * @see See [[zio.ZIO.partition]]

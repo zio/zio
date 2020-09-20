@@ -2,11 +2,138 @@ package zio.stream
 
 import java.io.{ IOException, InputStream }
 
+import scala.concurrent.Future
+
 import zio._
 
 trait ZSinkPlatformSpecificConstructors
 
 trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
+   */
+  def effectAsync[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Unit,
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    effectAsyncMaybe(
+      callback => {
+        register(callback)
+        None
+      },
+      outputBuffer
+    )
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback returns either a canceler or synchronously returns a stream.
+   * The optionality of the error type `E` can be used to signal the end of the stream, by
+   * setting it to `None`.
+   */
+  def effectAsyncInterrupt[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Either[Canceler[R], ZStream[R, E, A]],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    ZStream {
+      for {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged_
+        eitherStream <- ZManaged.effectTotal {
+                          register(k =>
+                            try {
+                              runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
+                            } catch {
+                              case FiberFailure(c) if c.interrupted =>
+                                Future.successful(false)
+                            }
+                          )
+                        }
+        pull <- eitherStream match {
+                  case Left(canceler) =>
+                    (for {
+                      done <- ZRef.makeManaged(false)
+                    } yield done.get.flatMap {
+                      if (_) Pull.end
+                      else
+                        output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
+                    }).ensuring(canceler)
+                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
+                }
+      } yield pull
+    }
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times
+   * The registration of the callback itself returns an effect. The optionality of the
+   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
+   */
+  def effectAsyncM[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R, E, Any],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    managed {
+      for {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged_
+        _ <- register { k =>
+               try {
+                 runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
+               } catch {
+                 case FiberFailure(c) if c.interrupted =>
+                   Future.successful(false)
+               }
+             }.toManaged_
+        done <- ZRef.makeManaged(false)
+        pull = done.get.flatMap {
+                 if (_)
+                   Pull.end
+                 else
+                   output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
+               }
+      } yield pull
+    }.flatMap(repeatEffectChunkOption(_))
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback can possibly return the stream synchronously.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
+   */
+  def effectAsyncMaybe[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Option[ZStream[R, E, A]],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    ZStream {
+      for {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged_
+        maybeStream <- ZManaged.effectTotal {
+                         register { k =>
+                           try {
+                             runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
+                           } catch {
+                             case FiberFailure(c) if c.interrupted =>
+                               Future.successful(false)
+                           }
+                         }
+                       }
+        pull <- maybeStream match {
+                  case Some(stream) => output.shutdown.toManaged_ *> stream.process
+                  case None =>
+                    for {
+                      done <- ZRef.makeManaged(false)
+                    } yield done.get.flatMap {
+                      if (_)
+                        Pull.end
+                      else
+                        output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
+                    }
+                }
+      } yield pull
+    }
 
   /**
    * Creates a stream from a [[java.io.InputStream]]
