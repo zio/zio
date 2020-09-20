@@ -11,7 +11,7 @@ import zio.test._
 
 object EnvironmentSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("EnvironmentSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("EnvironmentSpec")(
     testM("Clock returns time when it is set") {
       for {
         _    <- TestClock.setTime(1.millis)

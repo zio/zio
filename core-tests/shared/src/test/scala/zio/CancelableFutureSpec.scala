@@ -6,7 +6,7 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
-import zio.test.environment.{ TestEnvironment, _ }
+import zio.test.environment._
 
 object CancelableFutureSpec extends ZIOBaseSpec {
 
@@ -18,7 +18,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
       a      <- RIO.fromFuture(_ => future)
     } yield a
 
-  def spec: ZSpec[TestEnvironment, Any] =
+  def spec: ZSpec[Environment, Failure] =
     suite("CancelableFutureSpec")(
       testM("auto-kill regression") {
         val effect = ZIO.unit.delay(1.millisecond)

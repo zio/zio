@@ -4,13 +4,12 @@ import zio.Cause.{ Both, Then }
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object CauseSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("CauseSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("CauseSpec")(
     suite("Cause")(
       testM("`Cause#died` and `Cause#stripFailures` are consistent") {
         check(causes)(c => assert(c.keepDefects)(if (c.died) isSome(anything) else isNone))

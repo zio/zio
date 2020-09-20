@@ -5,13 +5,13 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
-import zio.test.environment.{ Live, TestEnvironment }
+import zio.test.environment.Live
 
 object FiberRefSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("FiberRefSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("FiberRefSpec")(
     suite("Create a new FiberRef with a specified value and check if:")(
       testM("`get` returns the current value") {
         for {

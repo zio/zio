@@ -5,7 +5,7 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.test.environment.{ TestEnvironment, _ }
+import zio.test.environment._
 
 object ZLayerSpec extends ZIOBaseSpec {
 
@@ -61,7 +61,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   def makeRef: UIO[Ref[Vector[String]]] =
     Ref.make(Vector.empty)
 
-  def spec: ZSpec[TestEnvironment, Any] =
+  def spec: ZSpec[Environment, Failure] =
     suite("ZLayerSpec")(
       testM("Size of >>> (1)") {
         val layer = ZLayer.succeed(1) >>> ZLayer.fromService((i: Int) => i.toString)

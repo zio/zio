@@ -3,11 +3,10 @@ package zio.test
 import zio.test.Assertion._
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
-import zio.test.environment.TestEnvironment
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[TestEnvironment, Any] =
+  def spec: ZSpec[Environment, Failure] =
     suite("DefaultTestReporterSpec")(
       testM("correctly reports a successful test") {
         assertM(runLog(test1))(equalTo(test1Expected.mkString + reportStats(1, 0, 0)))

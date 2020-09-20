@@ -21,10 +21,9 @@ import zio.stream._
 import zio.stream.compression.TestData._
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object CompressionSpec extends DefaultRunnableSpec {
-  override def spec: ZSpec[TestEnvironment, Any] =
+  override def spec: ZSpec[Environment, Failure] =
     suite("CompressionSpec")(
       suite("inflate")(
         testM("short stream")(

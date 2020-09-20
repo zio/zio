@@ -6,12 +6,12 @@ import zio.duration._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isFalse, isGreaterThanEqualTo, isTrue, succeeds }
-import zio.test.environment.{ TestClock, TestEnvironment }
+import zio.test.environment.TestClock
 import zio.test.{ assertM, _ }
 import zio.{ ZIOBaseSpec, _ }
 
 object ZSinkSpec extends ZIOBaseSpec {
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZSinkSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZSinkSpec")(
     suite("Constructors")(
       testM("collectAllToSet")(
         assertM(

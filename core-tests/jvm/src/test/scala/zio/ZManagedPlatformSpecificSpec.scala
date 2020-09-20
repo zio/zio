@@ -6,11 +6,10 @@ import java.{ util => ju }
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZManagedPlatformSpecificSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZManagedPlatformSpecificSpec")(
     testM("writeFile & readFile & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {

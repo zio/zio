@@ -3,7 +3,6 @@ package zio.stm
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 import zio.{ Chunk, ZIOBaseSpec }
 
 object TPriorityQueueSpec extends ZIOBaseSpec {
@@ -25,7 +24,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
   val genPredicate: Gen[Random, Event => Boolean] =
     Gen.function(Gen.boolean)
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("TPriorityQueueSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("TPriorityQueueSpec")(
     testM("offerAll and takeAll") {
       checkM(genEvents) { as =>
         val transaction = for {

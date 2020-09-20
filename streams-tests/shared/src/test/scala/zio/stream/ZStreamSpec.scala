@@ -14,7 +14,7 @@ import zio.stream.ZStreamGen._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ exceptJS, flaky, nonFlaky, scala2Only, timeout }
 import zio.test._
-import zio.test.environment.{ TestClock, TestEnvironment }
+import zio.test.environment.TestClock
 
 object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -22,7 +22,7 @@ object ZStreamSpec extends ZIOBaseSpec {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
 
-  def spec: ZSpec[TestEnvironment, Any] =
+  def spec: ZSpec[Environment, Failure] =
     suite("ZStreamSpec")(
       suite("Combinators")(
         suite("absolve")(

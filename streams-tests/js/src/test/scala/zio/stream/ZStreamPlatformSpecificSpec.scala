@@ -6,10 +6,9 @@ import scala.concurrent.Future
 import zio._
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZStream JS")(
+  def spec: ZSpec[Environment, Failure] = suite("ZStream JS")(
     testM("effectAsync")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
       val s = ZStream.effectAsync[Any, Throwable, Int](k => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
 

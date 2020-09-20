@@ -2,12 +2,11 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.TestAspect.failing
-import zio.test.environment.TestEnvironment
 import zio.{ Chunk, Ref, ZIO, random }
 
 object CheckSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("CheckSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("CheckSpec")(
     testM("checkM is polymorphic in error type") {
       checkM(Gen.int(1, 100)) { n =>
         for {

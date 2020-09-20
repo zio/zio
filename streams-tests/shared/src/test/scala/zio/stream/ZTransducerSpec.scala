@@ -8,7 +8,6 @@ import zio._
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object ZTransducerSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -18,7 +17,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
   def run[R, E, I, O](parser: ZTransducer[R, E, I, O], input: List[Chunk[I]]): ZIO[R, E, Chunk[O]] =
     ZStream.fromChunks(input: _*).transduce(parser).runCollect
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZTransducerSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZTransducerSpec")(
     suite("Combinators")(
       suite("contramap")(
         testM("happy path") {

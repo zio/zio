@@ -7,13 +7,13 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test._
-import zio.test.environment.{ TestEnvironment, _ }
+import zio.test.environment._
 
 object ZManagedSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZManaged")(
+  def spec: ZSpec[Environment, Failure] = suite("ZManaged")(
     suite("absorbWith")(
       testM("on fail") {
         assertM(ZManagedExampleError.absorbWith(identity).use[Any, Throwable, Int](ZIO.succeed(_)).run)(

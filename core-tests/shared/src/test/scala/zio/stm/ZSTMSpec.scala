@@ -5,13 +5,13 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.test.environment.{ Live, TestEnvironment }
+import zio.test.environment.Live
 
 object ZSTMSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZSTMSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZSTMSpec")(
     suite("Using `STM.atomically` to perform different computations and call:")(
       suite("absolve to convert")(
         testM("A successful Right computation into the success channel") {

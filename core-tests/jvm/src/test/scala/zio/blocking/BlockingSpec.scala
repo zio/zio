@@ -6,12 +6,11 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.test.environment.TestEnvironment
 import zio.{ UIO, ZIOBaseSpec }
 
 object BlockingSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("BlockingSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("BlockingSpec")(
     suite("Make a Blocking Service and verify that")(
       testM("effectBlocking completes successfully") {
         assertM(effectBlocking(()))(isUnit)

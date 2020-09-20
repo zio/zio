@@ -1,11 +1,10 @@
 package zio.test
 
 import zio.test.Assertion._
-import zio.test.environment.TestEnvironment
 
 object CompileSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("CompileSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("CompileSpec")(
     testM("typeCheck must return Right if the specified string is valid Scala code") {
       assertM(typeCheck("1 + 1"))(isRight(anything))
     },

@@ -6,10 +6,10 @@ import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{ TestClock, TestEnvironment }
+import zio.test.environment.TestClock
 
 object StackTracesSpec extends DefaultRunnableSpec {
-  def spec: ZSpec[TestEnvironment, Any] = suite("StackTracesSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("StackTracesSpec")(
     testM("basic test") {
       for {
         trace <- basicTest

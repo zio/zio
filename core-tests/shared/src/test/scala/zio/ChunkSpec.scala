@@ -4,7 +4,6 @@ import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.exceptScala211
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object ChunkSpec extends ZIOBaseSpec {
 
@@ -35,7 +34,7 @@ object ChunkSpec extends ZIOBaseSpec {
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("ChunkSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ChunkSpec")(
     suite("size/length")(
       zio.test.test("concatenated size must match length") {
         val chunk = Chunk.empty ++ Chunk.fromArray(Array(1, 2)) ++ Chunk(3, 4, 5) ++ Chunk.single(6)

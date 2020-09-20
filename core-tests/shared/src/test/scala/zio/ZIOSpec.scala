@@ -12,13 +12,13 @@ import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only }
 import zio.test._
-import zio.test.environment.{ Live, TestClock, TestEnvironment }
+import zio.test.environment.{ Live, TestClock }
 
 object ZIOSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZIOSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
     suite("***")(
       testM("splits the environment") {
         val zio1 = ZIO.fromFunction((n: Int) => n + 2)

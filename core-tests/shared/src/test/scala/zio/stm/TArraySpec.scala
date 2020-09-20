@@ -17,14 +17,13 @@ package zio.stm
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 import zio.{ Chunk, ZIOBaseSpec }
 
 object TArraySpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("TArraySpec")(
+  def spec: ZSpec[Environment, Failure] = suite("TArraySpec")(
     suite("apply")(
       testM("happy-path") {
         val res = for {

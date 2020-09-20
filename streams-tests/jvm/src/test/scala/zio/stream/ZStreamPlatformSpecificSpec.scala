@@ -13,7 +13,6 @@ import zio._
 import zio.blocking.{ Blocking, effectBlockingIO }
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
@@ -24,7 +23,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         .map(_ => client)
     })(c => ZIO.effectTotal(c.close()))
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZStream JVM")(
+  def spec: ZSpec[Environment, Failure] = suite("ZStream JVM")(
     suite("Constructors")(
       testM("effectAsync")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
         val s = ZStream.effectAsync[Any, Throwable, Int] { k =>

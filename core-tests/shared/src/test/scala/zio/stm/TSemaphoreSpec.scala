@@ -4,10 +4,9 @@ import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object TSemaphoreSpec extends ZIOBaseSpec {
-  override def spec: ZSpec[TestEnvironment, Any] = suite("TSemaphore")(
+  override def spec: ZSpec[Environment, Failure] = suite("TSemaphore")(
     suite("factories")(
       testM("make") {
         checkM(Gen.long(1L, Int.MaxValue)) { expected =>

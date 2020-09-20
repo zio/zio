@@ -2,13 +2,12 @@ package zio
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object ZRefMSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZRefMSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZRefMSpec")(
     suite("atomic")(
       testM("get") {
         for {

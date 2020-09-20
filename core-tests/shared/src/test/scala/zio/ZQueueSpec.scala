@@ -7,13 +7,13 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ jvm, nonFlaky }
 import zio.test._
-import zio.test.environment.{ Live, TestEnvironment }
+import zio.test.environment.Live
 
 object ZQueueSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("ZQueueSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZQueueSpec")(
     testM("sequential offer and take") {
       for {
         queue <- Queue.bounded[Int](100)

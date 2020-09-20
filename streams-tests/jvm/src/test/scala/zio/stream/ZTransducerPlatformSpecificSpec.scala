@@ -8,7 +8,6 @@ import zio._
 import zio.blocking.Blocking
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
   private val bomTestFilesPath: Path = Paths.get("zio/stream/bom")
@@ -32,7 +31,7 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
     readResourceAsString(fileName, transducer)
       .zipWith(QuickBrownTest)((l, r) => assert(l)(equalTo(r)))
 
-  override def spec: ZSpec[TestEnvironment, Any] = suite("ZSink JVM")(
+  override def spec: ZSpec[Environment, Failure] = suite("ZSink JVM")(
     suite("fromFile")(
       testM("writes to an existing file") {
         val data = (0 to 100).mkString

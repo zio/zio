@@ -4,13 +4,12 @@ import zio.LatchOps._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
-import zio.test.environment.TestEnvironment
 
 object FiberSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] =
+  def spec: ZSpec[Environment, Failure] =
     suite("FiberSpec")(
       suite("Create a new Fiber and")(testM("lift it into Managed") {
         for {

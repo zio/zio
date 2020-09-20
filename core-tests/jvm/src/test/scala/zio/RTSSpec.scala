@@ -8,13 +8,13 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ nonFlaky, silent }
 import zio.test._
-import zio.test.environment.{ Live, TestEnvironment }
+import zio.test.environment.Live
 
 object RTSSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
+  def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     testM("blocking caches threads") {
       import zio.blocking.Blocking
 

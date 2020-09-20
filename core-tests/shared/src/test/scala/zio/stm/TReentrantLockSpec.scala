@@ -20,7 +20,6 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, timeout }
 import zio.test._
-import zio.test.environment.TestEnvironment
 import zio.{ Exit, Promise, Ref, Schedule, ZIO }
 
 object TReentrantLockSpec extends DefaultRunnableSpec {
@@ -28,7 +27,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
     (Schedule.recurs(100) *>
       Schedule.identity[Option[Exit[E, A]]]).whileOutput(_.isEmpty)
 
-  override def spec: ZSpec[TestEnvironment, Any] = suite("StmReentrantLock")(
+  override def spec: ZSpec[Environment, Failure] = suite("StmReentrantLock")(
     testM("1 read lock") {
       for {
         lock  <- TReentrantLock.make.commit

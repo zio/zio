@@ -11,7 +11,7 @@ import zio.test.environment.TestRandom.{ DefaultData, Test => ZRandom }
 
 object RandomSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[TestEnvironment, Any] = suite("RandomSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("RandomSpec")(
     testM("check clearBooleans")(checkClear(_.nextBoolean())(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
     testM("check clearBytes")(checkClear(nextBytes(1))(_.feedBytes(_: _*))(_.clearBytes)(_.nextBytes(1))),
     testM("check clearChars")(
