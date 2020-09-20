@@ -1,0 +1,30 @@
+pull_request_rules:
+  - name: assign and label scala-steward's PRs
+    conditions:
+      - author=scala-steward
+    actions:
+      assign:
+        users: [adamgfraser]
+      label:
+        add: [dependency-update]
+  - name: merge Scala Steward's PRs
+    conditions:
+      - base=master
+      - author=scala-steward
+      - "body~=(labels: library-update, semver-minor)|(labels: library-update, semver-patch)|(labels: sbt-plugin-update, semver-minor)|(labels: sbt-plugin-update, semver-patch)|(labels: test-library-update, semver-minor)|(labels: test-library-update, semver-patch)"
+      - "status-success=license/cla"
+      - "status-success=ci/circleci: mdoc"
+      - "status-success=ci/circleci: mima_212"
+      - "status-success=ci/circleci: mima_213"
+      - "status-success=ci/circleci: test_211_jdk8_js"
+      - "status-success=ci/circleci: test_211_jdk8_jvm"
+      - "status-success=ci/circleci: test_211_jdk8_native"
+      - "status-success=ci/circleci: test_212_jdk11_jvm"
+      - "status-success=ci/circleci: test_212_jdk8_js"
+      - "status-success=ci/circleci: test_212_jdk8_jvm"
+      - "status-success=ci/circleci: test_213_jdk8_js"
+      - "status-success=ci/circleci: test_213_jdk8_jvm"
+      - "status-success=ci/circleci: test_dotty_jdk8_jvm"
+    actions:
+      merge:
+        method: squash
