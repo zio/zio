@@ -408,7 +408,7 @@ object ScheduleSpec extends ZIOBaseSpec {
 
       assertM(scheduleIntervals)(equalTo(List(offsetDateTime(5000), offsetDateTime(10000))))
     }
-  )
+  ) @@ zio.test.TestAspect.timed
 
   val ioSucceed: (String, Unit) => UIO[String]      = (_: String, _: Unit) => IO.succeed("OrElse")
   val ioFail: (String, Unit) => IO[String, Nothing] = (_: String, _: Unit) => IO.fail("OrElseFailed")

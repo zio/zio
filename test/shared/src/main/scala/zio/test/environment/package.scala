@@ -329,7 +329,8 @@ package object environment extends PlatformSpecific {
                      else
                        (false, data)
                    }
-          _ <- if (await) warningStart *> promise.await else promise.succeed(())
+          _ <- if (await) warningStart *> promise.await
+               else ZIO.yieldNow
         } yield ()
 
       /**
