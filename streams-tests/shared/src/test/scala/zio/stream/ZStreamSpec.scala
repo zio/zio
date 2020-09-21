@@ -513,10 +513,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                      .fromEffect(latch1.await)
-                .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
+                     .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
               s2 = ZStream
                      .fromEffect(latch3.await)
-                .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
+                     .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferDropping(8)
               snapshots <- s.process.use { as =>
                              for {
@@ -588,10 +588,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                      .fromEffect(latch1.await)
-                .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
+                     .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
               s2 = ZStream
                      .fromEffect(latch3.await)
-                .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
+                     .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferSliding(8)
               snapshots <- s.process.use { as =>
                              for {
