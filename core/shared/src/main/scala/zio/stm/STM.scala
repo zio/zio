@@ -17,10 +17,27 @@
 package zio.stm
 
 import scala.util.Try
-
-import zio.{ BuildFrom, CanFail, Fiber, IO }
+import zio.{ BuildFrom, CanFail, Cause, Fiber, IO }
 
 object STM {
+
+  /**
+   * @see See [[zio.stm.ZSTM.<&]]
+   */
+  def <&[E, A, B](left: => STM[E, A], right: => STM[E, B]): STM[E, A] =
+    left.zipLeftPar(right)
+
+  /**
+   * @see See [[zio.stm.ZSTM.<&>]]
+   */
+  def <&>[E, A, B, C](left: => STM[E, A], right: => STM[E, B]): STM[E, (A, B)] =
+    left.zipPar(right)
+
+  /**
+   * @see See [[zio.stm.ZSTM.&>]]
+   */
+  def &>[E, A, B](left: => STM[E, A], right: => STM[E, B]): STM[E, B] =
+    left.zipRightPar(right)
 
   /**
    * @see See [[zio.stm.ZSTM.absolve]]
@@ -72,12 +89,6 @@ object STM {
     ZSTM.dieMessage(m)
 
   /**
-   * @see See [[zio.stm.ZSTM.done]]
-   */
-  def done[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
-    ZSTM.done(exit)
-
-  /**
    * @see See [[zio.stm.ZSTM.fail]]
    */
   def fail[E](e: => E): STM[E, Nothing] =
@@ -110,6 +121,20 @@ object STM {
    */
   def flatten[E, A](task: STM[E, STM[E, A]]): STM[E, A] =
     ZSTM.flatten(task)
+
+  /**
+   * @see See [[zio.stm.ZSTM.foldCause]]
+   */
+  def foldCause[E, A, B](v: => STM[E, A])(f: Cause[E] => B, g: A => B)(implicit ev: CanFail[E]): USTM[B] =
+    v.foldCause(f, g)
+
+  /**
+   * @see See [[zio.stm.ZSTM.foldCauseM]]
+   */
+  def foldCauseM[E, E1, A, B](v: => STM[E, A])(
+    failure: Cause[E] => STM[E1, B],
+    success: A => STM[E1, B]
+  ): STM[E1, B] = v.foldCauseM(failure, success)
 
   /**
    * @see See [[zio.stm.ZSTM.foldLeft]]
@@ -358,4 +383,28 @@ object STM {
 
   private[zio] def succeedNow[A](a: A): USTM[A] =
     ZSTM.succeedNow(a)
+
+  /**
+   * @see See [[zio.stm.ZSTM.zipLeftPar]]
+   */
+  def zipLeftPar[E, A, B](left: => STM[E, A], right: => STM[E, B]): STM[E, A] =
+    left.zipLeftPar(right)
+
+  /**
+   * @see See [[zio.stm.ZSTM.zipPar]]
+   */
+  def zipPar[E, A, B, C](left: => STM[E, A], right: => STM[E, B]): STM[E, (A, B)] =
+    left.zipPar(right)
+
+  /**
+   * @see See [[zio.stm.ZSTM.zipRightPar]]
+   */
+  def zipRightPar[E, A, B](left: => STM[E, A], right: => STM[E, B]): STM[E, B] =
+    left.zipRightPar(right)
+
+  /**
+   * @see See [[zio.stm.ZSTM.zipWithPar]]
+   */
+  def zipWithPar[E, A, B, C](left: => STM[E, A], right: => STM[E, B])(f: (A, B) => C): STM[E, C] =
+    left.zipWithPar(right)(f)
 }
