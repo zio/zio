@@ -38,7 +38,6 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
   def apply(annottees: c.Tree*): c.Tree = {
 
     val any: Tree       = tq"_root_.scala.Any"
-    val nothing: Tree   = tq"_root_.scala.Nothing"
     val throwable: Tree = tq"_root_.java.lang.Throwable"
 
     val moduleInfo = (annottees match {
@@ -129,9 +128,8 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
           if (r != any) tq"_root_.zio.ZManaged[_root_.zio.Has[Service[..$serviceTypeArgs]] with $r, $e, $a]"
           else tq"_root_.zio.ZManaged[_root_.zio.Has[Service[..$serviceTypeArgs]], $e, $a]"
         case Capability.Stream(r, e, a) =>
-          val value = tq"_root_.zio.stream.ZStream[$r, $e, $a]"
-          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]] with $r, $nothing, $value]"
-          else tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]], $nothing, $value]"
+          if (r != any) tq"_root_.zio.stream.ZStream[_root_.zio.Has[Service[..$serviceTypeArgs]] with $r, $e, $a]"
+          else tq"_root_.zio.stream.ZStream[_root_.zio.Has[Service[..$serviceTypeArgs]], $e, $a]"
         case Capability.Sink(r, e, a, l, b) =>
           val value = tq"_root_.zio.stream.ZSink[$r, $e, $a, $l, $b]"
           if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]] with $r, $e, $value]"
@@ -147,23 +145,24 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
         case _                                                                                => false
       }
 
+      val argNames = paramLists.map(_.map { arg =>
+        if (isRepeatedParamType(arg)) q"${arg.name}: _*"
+        else q"${arg.name}"
+      })
+
       val returnValue = (info.capability, paramLists) match {
         case (_: Capability.Effect, argLists) if argLists.flatten.nonEmpty =>
-          val argNames = argLists.map(_.map { arg =>
-            if (isRepeatedParamType(arg)) q"${arg.name}: _*"
-            else q"${arg.name}"
-          })
           q"_root_.zio.ZIO.accessM(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Effect, _) =>
           q"_root_.zio.ZIO.accessM(_.get[Service[..$serviceTypeArgs]].$name)"
         case (_: Capability.Managed, argLists) if argLists.flatten.nonEmpty =>
-          val argNames = argLists.map(_.map { arg =>
-            if (isRepeatedParamType(arg)) q"${arg.name}: _*"
-            else q"${arg.name}"
-          })
           q"_root_.zio.ZManaged.service[Service[..$serviceTypeArgs]].flatMap(_.$name[..$typeArgs](...$argNames))"
         case (_: Capability.Managed, _) =>
           q"_root_.zio.ZManaged.service[Service[..$serviceTypeArgs]].flatMap(_.$name[..$typeArgs])"
+        case (_: Capability.Stream, argLists) if argLists.flatten.nonEmpty =>
+          q"_root_.zio.stream.ZStream.accessStream(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
+        case (_: Capability.Stream, _) =>
+          q"_root_.zio.stream.ZStream.accessStream(_.get[Service[..$serviceTypeArgs]].$name)"
         case (_, argLists) if argLists.flatten.nonEmpty =>
           val argNames = argLists.map(_.map(_.name))
           q"_root_.zio.ZIO.access(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"

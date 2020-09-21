@@ -281,7 +281,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
 
               def function(arg1: Int)                    : ZIO[Has[Module.Service], Throwable, String] = Module.function(arg1)
               def sink(arg1: Int)                        : ZIO[Has[Module.Service], Nothing, ZSink[Any, Nothing, Int, Int, List[Int]]] = Module.sink(arg1)
-              def stream(arg1: Int)                      : ZIO[Has[Module.Service], Nothing, ZStream[Any, Nothing, Int]] = Module.stream(arg1)
+              def stream(arg1: Int)                      : ZStream[Has[Module.Service], Nothing, Int] = Module.stream(arg1)
             }
           """
         })(isRight(anything))
