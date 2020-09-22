@@ -1769,7 +1769,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 halt <- Promise.make[String, Nothing]
                 _    <- halt.fail("Fail")
                 result <- ZStream(1)
-                            .haltWhen(halt)
+                            .interruptWhen(halt)
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
@@ -1798,8 +1798,9 @@ object ZStreamSpec extends ZIOBaseSpec {
               for {
                 halt <- Promise.make[String, Nothing]
                 _    <- halt.fail("Fail")
-                result <- ZStream(1).forever
-                            .haltWhen(halt.await)
+                result <- ZStream
+                            .fromEffect(ZIO.never)
+                            .interruptWhen(halt.await)
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))

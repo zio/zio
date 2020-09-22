@@ -1761,19 +1761,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def interruptWhen[E1 >: E](p: Promise[E1, _]): ZStream[R, E1, O] =
     ZStream {
       for {
-        as   <- self.process
-        done <- Ref.make(false).toManaged_
-        pull = done.get flatMap {
-                 if (_) Pull.end
-                 else
-                   as.raceFirst(
-                     p.await
-                       .mapError(Some(_))
-                       .foldCauseM(
-                         c => done.set(true) *> ZIO.halt(c),
-                         _ => done.set(true) *> Pull.end
-                       )
-                   )
+        as    <- self.process
+        done  <- Ref.makeManaged(false)
+        asPull = p.await.asSomeError *> done.set(true) *> Pull.end
+        pull = (done.get <*> p.isDone) flatMap {
+                 case (true, _) => Pull.end
+                 case (_, true) => asPull
+                 case _         => as.raceFirst(asPull)
                }
       } yield pull
     }
