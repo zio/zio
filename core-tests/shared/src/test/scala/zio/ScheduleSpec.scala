@@ -1,6 +1,6 @@
 package zio
 
-import java.time.temporal.ChronoField
+import java.time.temporal.{ ChronoField, ChronoUnit }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 
 import zio.clock.Clock
@@ -359,9 +359,7 @@ object ScheduleSpec extends ZIOBaseSpec {
 
         val originOffset = OffsetDateTime
           .now()
-          .withMinute(0)
-          .withSecond(0)
-          .withNano(0)
+          .truncatedTo(ChronoUnit.HOURS)
 
         val inTimeHourSecond = originOffset.withHour(1).withSecond(1)
         val inTimeHour       = originOffset.withHour(1)
@@ -388,10 +386,7 @@ object ScheduleSpec extends ZIOBaseSpec {
 
         val originOffset = OffsetDateTime
           .now()
-          .withHour(0)
-          .withMinute(0)
-          .withSecond(0)
-          .withNano(0)
+          .truncatedTo(ChronoUnit.DAYS)
 
         val tuesdayHour = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2).withHour(1)
         val tuesday     = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2)
@@ -420,10 +415,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           .now()
           .withYear(2020)
           .withMonth(1)
-          .withHour(0)
-          .withMinute(0)
-          .withSecond(0)
-          .withNano(0)
+          .truncatedTo(ChronoUnit.DAYS)
 
         val inTimeDate1 = originOffset.withDayOfMonth(2).withHour(1)
         val inTimeDate2 = originOffset.withDayOfMonth(2)
@@ -449,10 +441,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           .withYear(2020)
           .withMonth(1)
           .withDayOfMonth(31)
-          .withHour(0)
-          .withMinute(0)
-          .withSecond(0)
-          .withNano(0)
+          .truncatedTo(ChronoUnit.DAYS)
 
         val input = List(originOffset).map((_, ()))
 
