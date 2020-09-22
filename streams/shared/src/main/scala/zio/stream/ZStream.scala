@@ -3586,7 +3586,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
    */
-  def fromQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O], maxChunkSize: Int = 1024): ZStream[R, E, O] =
+  def fromQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O], maxChunkSize: Int = DefaultChunkSize): ZStream[R, E, O] =
     repeatEffectChunkOption {
       queue
         .takeBetween(1, maxChunkSize)
@@ -3606,7 +3606,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def fromQueueWithShutdown[R, E, O](
     queue: ZQueue[Nothing, R, Any, E, Nothing, O],
-    maxChunkSize: Int = 1024
+    maxChunkSize: Int = DefaultChunkSize
   ): ZStream[R, E, O] =
     fromQueue(queue, maxChunkSize).ensuringFirst(queue.shutdown)
 
