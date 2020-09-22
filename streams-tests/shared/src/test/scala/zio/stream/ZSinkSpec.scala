@@ -26,6 +26,14 @@ object ZSinkSpec extends ZIOBaseSpec {
             .run(ZSink.collectAllToMap((_: Int) % 3)(_ + _))
         )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
       ),
+      suite("accessSink")(
+        testM("accessSink") {
+          assertM(
+            ZStream("ignore this")
+              .run(ZSink.accessSink[String](ZSink.succeed[String, String](_)).provide("use this"))
+          )(equalTo("use this"))
+        }
+      ),
       suite("collectAllWhileWith")(
         testM("example 1") {
           ZIO

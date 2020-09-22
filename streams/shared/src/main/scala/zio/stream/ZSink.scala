@@ -489,6 +489,14 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
         (is: Option[Chunk[I]]) => go(is, is.isEmpty)
       }
     }
+
+  /**
+   * Provides the sink with its required environment, which eliminates
+   * its dependency on `R`.
+   */
+  def provide(r: R)(implicit ev: NeedsEnv[R]): ZSink[Any, E, I, L, Z] =
+    ZSink(self.push.provide(r).map(push => i => push(i).provide(r)))
+
 }
 
 object ZSink extends ZSinkPlatformSpecificConstructors {
@@ -518,6 +526,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
   def apply[R, E, I, L, Z](push: ZManaged[R, Nothing, Push[R, E, I, L, Z]]): ZSink[R, E, I, L, Z] =
     new ZSink(push) {}
+
+  /**
+   * Accesses the environment of the sink in the context of a sink.
+   */
+  def accessSink[R]: AccessSinkPartiallyApplied[R] =
+    new AccessSinkPartiallyApplied[R]
 
   /**
    * A sink that collects all of its inputs into a chunk.
@@ -894,4 +908,15 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink with timed execution.
    */
   def timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
+
+  final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, I, L, Z](f: R => ZSink[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
+      ZSink {
+        for {
+          env  <- ZManaged.environment[R]
+          push <- f(env).push
+        } yield push
+      }
+  }
+
 }

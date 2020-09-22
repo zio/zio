@@ -280,7 +280,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
               def overloadedManaged(arg1: Long)                 : ZManaged[Has[Module.Service], Nothing, String] = Module.overloadedManaged(arg1)
 
               def function(arg1: Int)                    : ZIO[Has[Module.Service], Throwable, String] = Module.function(arg1)
-              def sink(arg1: Int)                        : ZIO[Has[Module.Service], Nothing, ZSink[Any, Nothing, Int, Int, List[Int]]] = Module.sink(arg1)
+              def sink(arg1: Int)                        : ZSink[Has[Module.Service], Nothing, Int, Int, List[Int]] = Module.sink(arg1)
               def stream(arg1: Int)                      : ZStream[Has[Module.Service], Nothing, Int] = Module.stream(arg1)
             }
           """
