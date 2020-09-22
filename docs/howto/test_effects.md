@@ -315,7 +315,7 @@ The above code creates a write once cell that will be set to "1" after 10 second
 
 A more complex example leveraging layers and multiple services is shown below. 
 
-```scala mdoc
+```
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
@@ -334,13 +334,10 @@ trait LoggingService {
 val schedulingLayer: ZLayer[Clock with Has[LoggingService], Nothing, Has[SchedulingService]] =
   ZLayer.fromFunction { env =>
     new SchedulingService {
-      private val clock                     = env.get[Clock.Service]
-      private val logger                    = env.get[LoggingService]
-      private val clockLayer: ULayer[Clock] = ZLayer.succeed(clock)
-
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
-        (ZIO.sleep(10.seconds) *> promise.succeed(1).tap(b => logger.log(b.toString)))
-          .provideLayer(clockLayer)
+        (ZIO.sleep(10.seconds) *> promise.succeed(1))
+          .tap(b => ZIO.service[LoggingService].flatMap(_.log(b.toString)))
+          .provide(env)
     }
 }
 
