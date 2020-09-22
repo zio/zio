@@ -1,6 +1,6 @@
 package zio.stream
 
-import java.io.{ FileReader, IOException, OutputStream, Reader }
+import java.io.{ FileNotFoundException, FileReader, IOException, OutputStream, Reader }
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{ Files, NoSuchFileException, Paths }
@@ -8,7 +8,6 @@ import java.nio.{ Buffer, ByteBuffer }
 import java.util.concurrent.CountDownLatch
 
 import scala.concurrent.ExecutionContext.global
-
 import zio._
 import zio.blocking.effectBlockingIO
 import zio.test.Assertion._
@@ -232,6 +231,20 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             .runDrain
             .run
             .map(assert(_)(fails(isSubtype[IOException](anything))))
+        }
+      ),
+      suite("fromResource")(
+        testM("returns the content of the resource") {
+          ZStream
+            .fromResource("zio/stream/bom/quickbrown-UTF-8-with-BOM.txt")
+            .transduce(ZTransducer.utf8Decode)
+            .runCollect
+            .map(b => assert(b.mkString)(startsWithString("Sent")))
+        },
+        testM("fails with FileNotFoundException if the stream does not exist") {
+          assertM(ZStream.fromResource("does_not_exist").runDrain.run)(
+            fails(isSubtype[FileNotFoundException](hasMessage(containsString("does_not_exist"))))
+          )
         }
       ),
       suite("fromSocketServer")(

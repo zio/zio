@@ -11,7 +11,7 @@ import java.{ util => ju }
 
 import scala.annotation.tailrec
 import zio._
-import zio.blocking.Blocking
+import zio.blocking.{ effectBlockingIO, Blocking }
 import zio.stream.compression._
 
 trait ZSinkPlatformSpecificConstructors {
@@ -258,6 +258,24 @@ trait ZStreamPlatformSpecificConstructors {
         } yield bytes
       }
     }
+
+  /**
+   * Creates a stream from the resource specified in `path`
+   */
+  final def fromResource(
+    path: String,
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[Blocking, IOException, Byte] =
+    ZStream.managed {
+      ZManaged.fromAutoCloseable {
+        effectBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
+          if (x == null)
+            ZIO.fail(new FileNotFoundException(s"No such resource: '$path'"))
+          else
+            ZIO.succeed(x)
+        }
+      }
+    }.flatMap(is => fromInputStream(is, chunkSize = chunkSize))
 
   /**
    * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
