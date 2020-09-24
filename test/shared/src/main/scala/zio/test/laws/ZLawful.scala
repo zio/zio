@@ -34,6 +34,7 @@ package zio.test.laws
  */
 trait ZLawful[-Caps[_], -R] { self =>
   def laws: ZLaws[Caps, R]
+
   def +[Caps1[x] <: Caps[x], R1 <: R](that: ZLawful[Caps1, R1]): ZLawful[Caps1, R1] =
     new ZLawful[Caps1, R1] {
       val laws = self.laws + that.laws

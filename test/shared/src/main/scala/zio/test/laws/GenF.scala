@@ -26,7 +26,6 @@ import zio.test.{ Gen, Sized }
  * knows how to generate lists with elements given a generator of elements of
  * that type. You can think of `GenF` as a "recipe" for building generators
  * for parameterized types.
- * `
  */
 trait GenF[-R, F[_]] {
 
