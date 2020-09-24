@@ -33,7 +33,6 @@ private[clock] trait PlatformSpecific {
     override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
       case Duration.Finite(_) =>
-        println(service)
         val future = service.schedule(
           new Runnable {
             def run: Unit =
