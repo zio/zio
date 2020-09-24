@@ -12,7 +12,7 @@ import java.{ util => ju }
 import scala.annotation.tailrec
 
 import zio._
-import zio.blocking.{ effectBlockingIO, Blocking }
+import zio.blocking.{ Blocking, effectBlockingIO }
 import zio.stream.compression._
 
 trait ZSinkPlatformSpecificConstructors {
