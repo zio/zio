@@ -153,9 +153,10 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
     val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever
     left
-      .zipAllWithExec(right)(l => (Some(l), None), r => (None, Some(r)))((l, r) => (Some(l), Some(r)))(
-        ExecutionStrategy.Sequential
-      )
+      .zipAllWithExec(right)(ExecutionStrategy.Sequential)(
+        l => (Some(l), None),
+        r => (None, Some(r))
+      )((l, r) => (Some(l), Some(r)))
       .collectWhile {
         case (Some(Right(l)), Some(Right(r))) => l.zipWith(r)(f)
         case (Some(Right(l)), Some(Left(r)))  => l.zipWith(r)(f)

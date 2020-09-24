@@ -3008,7 +3008,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def zipAllWith[R1 <: R, E1 >: E, O2, O3](
     that: ZStream[R1, E1, O2]
   )(left: O => O3, right: O2 => O3)(both: (O, O2) => O3): ZStream[R1, E1, O3] =
-    zipAllWithExec(that)(left, right)(both)(ExecutionStrategy.Parallel)
+    zipAllWithExec(that)(ExecutionStrategy.Parallel)(left, right)(both)
 
   /**
    * Zips this stream with another point-wise. The provided functions will be used to create elements
@@ -3022,7 +3022,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def zipAllWithExec[R1 <: R, E1 >: E, O2, O3](
     that: ZStream[R1, E1, O2]
-  )(left: O => O3, right: O2 => O3)(both: (O, O2) => O3)(exec: ExecutionStrategy): ZStream[R1, E1, O3] = {
+  )(exec: ExecutionStrategy)(left: O => O3, right: O2 => O3)(both: (O, O2) => O3): ZStream[R1, E1, O3] = {
     sealed trait Status
     case object Running   extends Status
     case object LeftDone  extends Status
