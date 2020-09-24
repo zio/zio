@@ -315,7 +315,7 @@ The above code creates a write once cell that will be set to "1" after 10 second
 
 A more complex example leveraging layers and multiple services is shown below. 
 
-```
+```scala mdoc:reset
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
