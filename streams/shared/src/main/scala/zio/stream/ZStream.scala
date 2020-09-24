@@ -3007,7 +3007,22 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def zipAllWith[R1 <: R, E1 >: E, O2, O3](
     that: ZStream[R1, E1, O2]
-  )(left: O => O3, right: O2 => O3)(both: (O, O2) => O3): ZStream[R1, E1, O3] = {
+  )(left: O => O3, right: O2 => O3)(both: (O, O2) => O3): ZStream[R1, E1, O3] =
+    zipAllWithExec(that)(ExecutionStrategy.Parallel)(left, right)(both)
+
+  /**
+   * Zips this stream with another point-wise. The provided functions will be used to create elements
+   * for the composed stream.
+   *
+   * The functions `left` and `right` will be used if the streams have different lengths
+   * and one of the streams has ended before the other.
+   *
+   * The execution strategy `exec` will be used to determine whether to pull
+   * from the streams sequentially or in parallel.
+   */
+  def zipAllWithExec[R1 <: R, E1 >: E, O2, O3](
+    that: ZStream[R1, E1, O2]
+  )(exec: ExecutionStrategy)(left: O => O3, right: O2 => O3)(both: (O, O2) => O3): ZStream[R1, E1, O3] = {
     sealed trait Status
     case object Running   extends Status
     case object LeftDone  extends Status
@@ -3037,9 +3052,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
     combineChunks(that)((Running, Left(Chunk())): State) {
       case ((Running, excess), pullL, pullR) =>
-        pullL.optional
-          .zipWithPar(pullR.optional)(handleSuccess(_, _, excess))
-          .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
+        exec match {
+          case ExecutionStrategy.Sequential =>
+            pullL.optional
+              .zipWith(pullR.optional)(handleSuccess(_, _, excess))
+              .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
+          case _ =>
+            pullL.optional
+              .zipWithPar(pullR.optional)(handleSuccess(_, _, excess))
+              .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
+        }
       case ((LeftDone, excess), _, pullR) =>
         pullR.optional
           .map(handleSuccess(None, _, excess))
