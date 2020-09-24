@@ -746,7 +746,8 @@ object ZTransducerSpec extends ZIOBaseSpec {
       ),
       suite("usASCII")(
         testM("US-ASCII strings") {
-          checkM(Gen.usASCII) { s =>
+          checkM(Gen.chunkOf(Gen.anyASCIIString)) { chunk =>
+            val s = chunk.mkString("")
             ZTransducer.usASCIIDecode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.US_ASCII))))

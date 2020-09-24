@@ -718,12 +718,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   val unit: Gen[Any, Unit] =
     const(())
 
-  /**
-   *  A generator of strings that can be encoded in the US-ASCII character set.
-   */
-  val usASCII: Gen[Random with Sized, String] =
-    chunkOf(anyASCIIString).map(chunk => chunk.toString)
-
   def vectorOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)
 
