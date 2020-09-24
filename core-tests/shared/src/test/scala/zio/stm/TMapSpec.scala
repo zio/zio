@@ -22,7 +22,7 @@ import zio.{ URIO, ZIOBaseSpec }
 
 object TMapSpec extends ZIOBaseSpec {
 
-  def spec = suite("TMap")(
+  def spec: ZSpec[Environment, Failure] = suite("TMap")(
     suite("factories")(
       testM("apply") {
         val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 2, "b" -> 3).flatMap[Any, Nothing, List[(String, Int)]](_.toList)

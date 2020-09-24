@@ -16,7 +16,7 @@ class ChunkArrayBenchmarks {
   var chunk: Chunk[Int] = _
 
   @Setup(Level.Trial)
-  def setup() = {
+  def setup(): Unit = {
     val array = (1 to size).toArray
     chunk = Chunk.fromArray(array)
   }

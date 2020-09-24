@@ -7,7 +7,7 @@ import zio.test._
 
 object PlatformSpec extends ZIOBaseSpec {
 
-  def spec = suite("PlatformSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("PlatformSpec")(
     suite("PlatformLive fatal:")(
       test("Platform.fatal should identify a nonFatal exception") {
         val nonFatal = new Exception

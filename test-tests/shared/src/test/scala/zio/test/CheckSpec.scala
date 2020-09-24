@@ -2,11 +2,11 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.TestAspect.failing
-import zio.{ random, Chunk, Ref, ZIO }
+import zio.{ Chunk, Ref, ZIO, random }
 
 object CheckSpec extends ZIOBaseSpec {
 
-  def spec = suite("CheckSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("CheckSpec")(
     testM("checkM is polymorphic in error type") {
       checkM(Gen.int(1, 100)) { n =>
         for {
@@ -53,9 +53,8 @@ object CheckSpec extends ZIOBaseSpec {
         vector <- Gen.vectorOfN(n)(Gen.int(0, 100))
         chunk   = Chunk.fromIterable(vector)
       } yield (chunk, i)
-      check(chunkWithLength) {
-        case (chunk, i) =>
-          assert(chunk.apply(i))(equalTo(chunk.toList.apply(i)))
+      check(chunkWithLength) { case (chunk, i) =>
+        assert(chunk.apply(i))(equalTo(chunk.toList.apply(i)))
       }
     },
     testM("tests with filtered generators terminate") {

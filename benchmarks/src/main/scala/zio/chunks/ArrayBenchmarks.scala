@@ -14,7 +14,7 @@ class ArrayBenchmarks {
   var size: Int = _
 
   @Setup(Level.Trial)
-  def setup() =
+  def setup(): Unit =
     array = (1 to size).toArray
 
   @Benchmark

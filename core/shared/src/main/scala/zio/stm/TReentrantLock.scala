@@ -16,8 +16,7 @@
 
 package zio.stm
 
-import TReentrantLock._
-
+import zio.stm.TReentrantLock._
 import zio.stm.ZSTM.internal.TExit
 import zio.{ Fiber, Managed, UManaged }
 

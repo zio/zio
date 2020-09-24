@@ -20,9 +20,9 @@ import java.time.OffsetDateTime
 import java.time.temporal.ChronoField
 import java.util.concurrent.TimeUnit
 
+import zio.clock.Clock
 import zio.duration._
 import zio.random._
-import zio.clock.Clock
 
 /**
  * A `Schedule[Env, In, Out]` defines a recurring schedule, which consumes values of type `In`, and
@@ -930,8 +930,8 @@ object Schedule {
    */
   def fibonacci(one: Duration): Schedule[Any, Any, Duration] =
     delayed {
-      unfold[(Duration, Duration)]((one, one)) {
-        case (a1, a2) => (a2, a1 + a2)
+      unfold[(Duration, Duration)]((one, one)) { case (a1, a2) =>
+        (a2, a1 + a2)
       }.map(_._1)
     }
 
@@ -1008,8 +1008,8 @@ object Schedule {
    * the current duration between recurrences.
    */
   def fromDurations(duration: Duration, durations: Duration*): Schedule[Any, Any, Duration] =
-    durations.foldLeft(fromDuration(duration)) {
-      case (acc, d) => acc ++ fromDuration(d)
+    durations.foldLeft(fromDuration(duration)) { case (acc, d) =>
+      acc ++ fromDuration(d)
     }
 
   /**

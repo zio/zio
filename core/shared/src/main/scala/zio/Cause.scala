@@ -45,8 +45,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Determines if this cause contains or is equal to the specified cause.
    */
   final def contains[E1 >: E](that: Cause[E1]): Boolean =
-    (self eq that) || foldLeft[Boolean](false) {
-      case (acc, cause) => acc || (cause == that)
+    (self eq that) || foldLeft[Boolean](false) { case (acc, cause) =>
+      acc || (cause == that)
     }
 
   /**
@@ -54,8 +54,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def defects: List[Throwable] =
     self
-      .foldLeft(List.empty[Throwable]) {
-        case (z, Die(v)) => v :: z
+      .foldLeft(List.empty[Throwable]) { case (z, Die(v)) =>
+        v :: z
       }
       .reverse
 
@@ -114,8 +114,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def failures: List[E] =
     self
-      .foldLeft(List.empty[E]) {
-        case (z, Fail(v)) => v :: z
+      .foldLeft(List.empty[E]) { case (z, Fail(v)) =>
+        v :: z
       }
       .reverse
 
@@ -154,8 +154,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * by this `Cause`.
    */
   final def interruptors: Set[Fiber.Id] =
-    foldLeft[Set[Fiber.Id]](Set()) {
-      case (acc, Interrupt(fiberId)) => acc + fiberId
+    foldLeft[Set[Fiber.Id]](Set()) { case (acc, Interrupt(fiberId)) =>
+      acc + fiberId
     }
 
   /**
@@ -362,10 +362,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
           prefixBlock(lines, "─", " ")
         case Parallel(all) =>
           List(("══╦" * (all.size - 1)) + "══╗") ++
-            all.foldRight[List[String]](Nil) {
-              case (current, acc) =>
-                prefixBlock(acc, "  ║", "  ║") ++
-                  prefixBlock(format(current), "  ", "  ")
+            all.foldRight[List[String]](Nil) { case (current, acc) =>
+              prefixBlock(acc, "  ║", "  ║") ++
+                prefixBlock(format(current), "  ", "  ")
             }
         case Sequential(all) =>
           all.flatMap { segment =>
@@ -477,8 +476,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def traces: List[ZTrace] =
     self
-      .foldLeft(List.empty[ZTrace]) {
-        case (z, Traced(_, trace)) => trace :: z
+      .foldLeft(List.empty[ZTrace]) { case (z, Traced(_, trace)) =>
+        trace :: z
       }
       .reverse
 

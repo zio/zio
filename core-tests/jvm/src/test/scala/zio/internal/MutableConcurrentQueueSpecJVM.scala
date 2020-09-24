@@ -13,7 +13,7 @@ import zio.test._
  */
 object MutableConcurrentQueueJVM extends ZIOBaseSpec {
 
-  def spec = suite("MutableConcurrentQueueSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("MutableConcurrentQueueSpec")(
     suite("Serialization works for")(
       test("a one element queue") {
         val q = MutableConcurrentQueue.bounded[Int](1)

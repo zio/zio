@@ -5,7 +5,7 @@ import zio.test.Assertion._
 
 object AnnotationsSpec extends ZIOBaseSpec {
 
-  def spec = suite("annotationsSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("annotationsSpec")(
     testM("withAnnotation executes specified effect with an empty annotation map") {
       for {
         _   <- Annotations.annotate(count, 1)
@@ -22,5 +22,5 @@ object AnnotationsSpec extends ZIOBaseSpec {
     }
   )
 
-  val count = TestAnnotation[Int]("count", 0, _ + _)
+  val count: TestAnnotation[Int] = TestAnnotation[Int]("count", 0, _ + _)
 }

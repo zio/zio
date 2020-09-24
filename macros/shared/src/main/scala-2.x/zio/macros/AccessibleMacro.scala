@@ -32,7 +32,7 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
     serviceTypeParams: List[TypeDef]
   )
 
-  def abort(msg: String) = c.abort(c.enclosingPosition, msg)
+  def abort(msg: String): Nothing = c.abort(c.enclosingPosition, msg)
 
   @silent("pattern var [^\\s]+ in method unapply is never used")
   def apply(annottees: c.Tree*): c.Tree = {
@@ -92,8 +92,8 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
           val typeArgs  = typeParams.map(t => c.typecheck(tq"$t", c.TYPEmode, silent = true).tpe)
           val tpe       = c.typecheck(tq"$typeName[..$typeArgs]", c.TYPEmode).tpe
           val dealiased = tpe.dealias
-          val replacements: List[Tree] = (tpe.typeArgs zip typeParams).collect {
-            case (NoType, t) => q"$t"
+          val replacements: List[Tree] = (tpe.typeArgs zip typeParams).collect { case (NoType, t) =>
+            q"$t"
           }
 
           val (typeArgTrees, _) = dealiased.typeArgs.foldLeft(List.empty[Tree] -> replacements) {

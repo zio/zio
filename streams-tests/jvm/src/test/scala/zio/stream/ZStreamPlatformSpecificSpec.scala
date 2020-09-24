@@ -9,20 +9,20 @@ import java.util.concurrent.CountDownLatch
 
 import scala.concurrent.ExecutionContext.global
 import zio._
-import zio.blocking.effectBlockingIO
+import zio.blocking.{ Blocking, effectBlockingIO }
 import zio.test.Assertion._
 import zio.test._
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
-  def socketClient(port: Int) =
+  def socketClient(port: Int): ZManaged[Blocking, Throwable, AsynchronousSocketChannel] =
     ZManaged.make(effectBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
       ZIO
         .fromFutureJava(client.connect(new InetSocketAddress("localhost", port)))
         .map(_ => client)
     })(c => ZIO.effectTotal(c.close()))
 
-  def spec = suite("ZStream JVM")(
+  def spec: ZSpec[Environment, Failure] = suite("ZStream JVM")(
     suite("Constructors")(
       testM("effectAsync")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
         val s = ZStream.effectAsync[Any, Throwable, Int] { k =>

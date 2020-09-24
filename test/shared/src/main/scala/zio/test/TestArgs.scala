@@ -16,9 +16,8 @@ object TestArgs {
       }
       .toList
       .groupBy(_._1)
-      .map {
-        case (k, v) =>
-          (k, v.map(_._2))
+      .map { case (k, v) =>
+        (k, v.map(_._2))
       }
 
     val terms          = parsedArgs.getOrElse("testSearchTerm", Nil)

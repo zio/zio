@@ -4,8 +4,9 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.immutable.Range
 
-import IOBenchmarks.unsafeRun
 import org.openjdk.jmh.annotations._
+
+import zio.IOBenchmarks.unsafeRun
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -21,7 +22,7 @@ class BubbleSortBenchmarks {
     }
 
   @Benchmark
-  def zioBubbleSort() = {
+  def zioBubbleSort(): Unit = {
     import ZIOArray._
 
     unsafeRun(
@@ -33,7 +34,7 @@ class BubbleSortBenchmarks {
     )
   }
   @Benchmark
-  def catsBubbleSort() = {
+  def catsBubbleSort(): Unit = {
     import CatsIOArray._
     import cats.effect.IO
 
@@ -44,7 +45,7 @@ class BubbleSortBenchmarks {
     } yield ()).unsafeRunSync()
   }
   @Benchmark
-  def monixBubbleSort() = {
+  def monixBubbleSort(): Unit = {
     import IOBenchmarks.monixScheduler
     import MonixIOArray._
     import monix.eval.Task

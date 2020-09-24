@@ -5,7 +5,7 @@ import zio.test.Assertion._
 
 object BoolAlgebraSpec extends ZIOBaseSpec {
 
-  def spec = suite("BoolAlgebraSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("BoolAlgebraSpec")(
     test("all returns conjunction of values") {
       assert(BoolAlgebra.all(List(success1, failure1, failure2)))(isSome(isFailure)) &&
       assert(BoolAlgebra.all(success1, failure1, failure2))(isFailure) &&
@@ -143,10 +143,10 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
   val value3 = "first failure"
   val value4 = "second failure"
 
-  val success1 = BoolAlgebra.success(value1)
-  val success2 = BoolAlgebra.success(value2)
-  val failure1 = BoolAlgebra.failure(value3)
-  val failure2 = BoolAlgebra.failure(value4)
+  val success1: BoolAlgebra[String] = BoolAlgebra.success(value1)
+  val success2: BoolAlgebra[String] = BoolAlgebra.success(value2)
+  val failure1: BoolAlgebra[String] = BoolAlgebra.failure(value3)
+  val failure2: BoolAlgebra[String] = BoolAlgebra.failure(value4)
 
   val isSuccess: Assertion[BoolAlgebra[Any]] = assertion("isSuccess")()(_.isSuccess)
   val isFailure: Assertion[BoolAlgebra[Any]] = assertion("isFailure")()(_.isFailure)

@@ -531,7 +531,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * A sentinel value to indicate a fiber without identity.
      */
-    final val None = Id(0L, 0L)
+    final val None: Id = Id(0L, 0L)
   }
 
   sealed abstract class Status extends Serializable with Product { self =>

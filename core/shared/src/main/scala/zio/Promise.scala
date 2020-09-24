@@ -18,7 +18,7 @@ package zio
 
 import java.util.concurrent.atomic.AtomicReference
 
-import Promise.internal._
+import zio.Promise.internal._
 
 /**
  * A promise represents an asynchronous variable, of [[zio.IO]] type, that can

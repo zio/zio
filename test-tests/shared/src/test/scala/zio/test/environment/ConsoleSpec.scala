@@ -9,7 +9,7 @@ import zio.test.environment.TestConsole._
 
 object ConsoleSpec extends ZIOBaseSpec {
 
-  def spec =
+  def spec: ZSpec[Environment, Failure] =
     suite("ConsoleSpec")(
       testM("outputs nothing") {
         for {

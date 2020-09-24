@@ -2,17 +2,16 @@ package zio.stream
 
 import scala.util.Random
 
-import zio.ZIOBaseSpec
-import zio._
 import zio.duration._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isFalse, isGreaterThanEqualTo, isTrue, succeeds }
 import zio.test.environment.TestClock
 import zio.test.{ assertM, _ }
+import zio.{ ZIOBaseSpec, _ }
 
 object ZSinkSpec extends ZIOBaseSpec {
-  def spec = suite("ZSinkSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZSinkSpec")(
     suite("Constructors")(
       testM("collectAllToSet")(
         assertM(
@@ -241,12 +240,11 @@ object ZSinkSpec extends ZIOBaseSpec {
           ZStream
             .fromChunks(chunks: _*)
             .peel(ZSink.take[Int](n))
-            .flatMap {
-              case (chunk, stream) =>
-                stream.runCollect.toManaged_.map { leftover =>
-                  assert(chunk)(equalTo(chunks.flatten.take(n))) &&
-                  assert(leftover)(equalTo(chunks.flatten.drop(n)))
-                }
+            .flatMap { case (chunk, stream) =>
+              stream.runCollect.toManaged_.map { leftover =>
+                assert(chunk)(equalTo(chunks.flatten.take(n))) &&
+                assert(leftover)(equalTo(chunks.flatten.drop(n)))
+              }
             }
             .useNow
         }

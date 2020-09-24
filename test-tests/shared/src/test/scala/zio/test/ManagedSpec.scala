@@ -27,7 +27,7 @@ object ManagedSpec extends ZIOBaseSpec {
       ZIO.accessM[Counter](_.get[Counter.Service].incrementAndGet)
   }
 
-  def spec = suite("ManagedSpec")(
+  def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("ManagedSpec")(
     suite("managed shared")(
       suite("first suite")(
         testM("first test") {

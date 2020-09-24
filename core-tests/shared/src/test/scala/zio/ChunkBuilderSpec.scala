@@ -5,7 +5,7 @@ import zio.test._
 
 object ChunkBuilderSpec extends ZIOBaseSpec {
 
-  def spec = suite("ChunkBuilderSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ChunkBuilderSpec")(
     suite("Boolean")(
       testM("addOne")(
         check(Gen.chunkOf(Gen.boolean)) { as =>

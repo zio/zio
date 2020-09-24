@@ -3,11 +3,11 @@ package zio.test
 import scala.math.abs
 
 import zio.test.Assertion._
-import zio.{ random, ZIO }
+import zio.{ ZIO, random }
 
 object FunSpec extends ZIOBaseSpec {
 
-  def spec = suite("FunSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("FunSpec")(
     testM("fun converts effects into pure functions") {
       for {
         f <- Fun.make((n: Int) => random.nextIntBounded(n))

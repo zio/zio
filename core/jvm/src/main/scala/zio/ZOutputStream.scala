@@ -26,7 +26,7 @@ abstract class ZOutputStream {
 
 object ZOutputStream {
 
-  def fromOutputStream(os: java.io.OutputStream) = new ZOutputStream {
+  def fromOutputStream(os: java.io.OutputStream): ZOutputStream = new ZOutputStream {
     def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit] =
       effectBlockingIO {
         os.write(chunk.toArray)

@@ -22,5 +22,5 @@ import zio.internal.tracing.TracingConfig
 final case class Tracing(tracer: Tracer, tracingConfig: TracingConfig)
 
 object Tracing {
-  def disabled = Tracing(Tracer.Empty, TracingConfig.disabled)
+  def disabled: Tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
 }

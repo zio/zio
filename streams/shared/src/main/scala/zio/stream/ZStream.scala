@@ -192,8 +192,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, P](
     transducer: ZTransducer[R1, E1, O, P],
     schedule: Schedule[R1, Chunk[P], Any]
-  ): ZStream[R1 with Clock, E1, P] = aggregateAsyncWithinEither(transducer, schedule).collect {
-    case Right(v) => v
+  ): ZStream[R1 with Clock, E1, P] = aggregateAsyncWithinEither(transducer, schedule).collect { case Right(v) =>
+    v
   }
 
   /**
@@ -391,8 +391,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = done.get.flatMap {
                  if (_) Pull.end
                  else
-                   queue.take.flatMap(_.done).catchSome {
-                     case None => done.set(true) *> Pull.end
+                   queue.take.flatMap(_.done).catchSome { case None =>
+                     done.set(true) *> Pull.end
                    }
                }
       } yield pull
@@ -433,9 +433,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       pull = done.get.flatMap {
                if (_) Pull.end
                else
-                 queue.take.flatMap {
-                   case (take, p) =>
-                     p.succeed(()) *> done.set(true).when(take == Take.end) *> take.done
+                 queue.take.flatMap { case (take, p) =>
+                   p.succeed(()) *> done.set(true).when(take == Take.end) *> take.done
                  }
              }
     } yield pull
@@ -879,20 +878,19 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             shouldProcess <- decide(o)
             queues        <- queuesRef.get
             _ <- ZIO
-                   .foldLeft(queues)(List[UniqueKey]()) {
-                     case (acc, (id, queue)) =>
-                       if (shouldProcess(id)) {
-                         queue
-                           .offer(Exit.succeed(o))
-                           .foldCauseM(
-                             {
-                               // we ignore all downstream queues that were shut down and remove them later
-                               case c if c.interrupted => ZIO.succeedNow(id :: acc)
-                               case c                  => ZIO.halt(c)
-                             },
-                             _ => ZIO.succeedNow(acc)
-                           )
-                       } else ZIO.succeedNow(acc)
+                   .foldLeft(queues)(List[UniqueKey]()) { case (acc, (id, queue)) =>
+                     if (shouldProcess(id)) {
+                       queue
+                         .offer(Exit.succeed(o))
+                         .foldCauseM(
+                           {
+                             // we ignore all downstream queues that were shut down and remove them later
+                             case c if c.interrupted => ZIO.succeedNow(id :: acc)
+                             case c                  => ZIO.halt(c)
+                           },
+                           _ => ZIO.succeedNow(acc)
+                         )
+                     } else ZIO.succeedNow(acc)
                    }
                    .flatMap(ids => if (ids.nonEmpty) queuesRef.update(_ -- ids) else ZIO.unit)
           } yield ()
@@ -1287,16 +1285,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         innerFinalizer.getAndSet(ZManaged.Finalizer.noop).flatMap(_.apply(Exit.unit))
 
       def pullOuter: ZIO[R1, Option[E1], Unit] =
-        currOuterChunk.modify {
-          case (chunk, nextIdx) =>
-            if (nextIdx < chunk.size) (UIO.succeed(chunk(nextIdx)), (chunk, nextIdx + 1))
-            else
-              (
-                pullNonEmpty(outerStream)
-                  .tap(os => currOuterChunk.set((os, 1)))
-                  .map(_.apply(0)),
-                (chunk, nextIdx)
-              )
+        currOuterChunk.modify { case (chunk, nextIdx) =>
+          if (nextIdx < chunk.size) (UIO.succeed(chunk(nextIdx)), (chunk, nextIdx + 1))
+          else
+            (
+              pullNonEmpty(outerStream)
+                .tap(os => currOuterChunk.set((os, 1)))
+                .map(_.apply(0)),
+              (chunk, nextIdx)
+            )
         }.flatten.flatMap { o =>
           ZIO.uninterruptibleMask { restore =>
             for {
@@ -1456,7 +1453,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Flattens this stream-of-streams into a stream made of the concatenation in
    * strict order of all the streams.
    */
-  def flatten[R1 <: R, E1 >: E, O1](implicit ev: O <:< ZStream[R1, E1, O1]) = flatMap(ev(_))
+  def flatten[R1 <: R, E1 >: E, O1](implicit ev: O <:< ZStream[R1, E1, O1]): ZStream[R1, E1, O1] = flatMap(ev(_))
 
   /**
    * Submerges the chunks carried by this stream into the stream's structure, while
@@ -1521,17 +1518,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    (kv: (K, V)) => decider.await.flatMap(_.tupled(kv)),
                    out.offer
                  )
-        _ <- decider.succeed {
-               case (k, _) =>
-                 ref.get.map(_.get(k)).flatMap {
-                   case Some(idx) => ZIO.succeedNow(_ == idx)
-                   case None =>
-                     add.flatMap {
-                       case (idx, q) =>
-                         (ref.update(_ + (k -> idx)) *>
-                           out.offer(Exit.succeed(k -> q.map(_.map(_._2))))).as(_ == idx)
-                     }
-                 }
+        _ <- decider.succeed { case (k, _) =>
+               ref.get.map(_.get(k)).flatMap {
+                 case Some(idx) => ZIO.succeedNow(_ == idx)
+                 case None =>
+                   add.flatMap { case (idx, q) =>
+                     (ref.update(_ + (k -> idx)) *>
+                       out.offer(Exit.succeed(k -> q.map(_.map(_._2))))).as(_ == idx)
+                   }
+               }
              }.toManaged_
       } yield ZStream.fromQueueWithShutdown(out).collectWhileSuccess
     }
@@ -1691,12 +1686,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream {
       for {
         sides <- b.process.mapM(BufferedPull.make(_))
-        result <- self
-                    .combine(that)((false, false, sides.pullElement)) {
-                      case ((leftDone, rightDone, sides), left, right) =>
-                        loop(leftDone, rightDone, sides, left, right)
-                    }
-                    .process
+        result <-
+          self
+            .combine(that)((false, false, sides.pullElement)) { case ((leftDone, rightDone, sides), left, right) =>
+              loop(leftDone, rightDone, sides, left, right)
+            }
+            .process
       } yield result
     }
   }
@@ -2380,23 +2375,22 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     runManaged(sink).useNow
 
   def runManaged[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, Any, B]): ZManaged[R1, E1, B] =
-    (process <*> sink.push).mapM {
-      case (pull, push) =>
-        def go: ZIO[R1, E1, B] = pull.foldCauseM(
-          Cause
-            .sequenceCauseOption(_)
-            .fold(
-              push(None).foldCauseM(
-                c => Cause.sequenceCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow),
-                _ => IO.dieMessage("empty stream / empty sinks")
-              )
-            )(IO.halt(_)),
-          os =>
-            push(Some(os))
-              .foldCauseM(c => Cause.sequenceCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow), _ => go)
-        )
+    (process <*> sink.push).mapM { case (pull, push) =>
+      def go: ZIO[R1, E1, B] = pull.foldCauseM(
+        Cause
+          .sequenceCauseOption(_)
+          .fold(
+            push(None).foldCauseM(
+              c => Cause.sequenceCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow),
+              _ => IO.dieMessage("empty stream / empty sinks")
+            )
+          )(IO.halt(_)),
+        os =>
+          push(Some(os))
+            .foldCauseM(c => Cause.sequenceCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow), _ => go)
+      )
 
-        go
+      go
     }
 
   /**
@@ -2569,8 +2563,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         } yield done.get.flatMap {
           if (_) Pull.end
           else
-            pull.pullElement.tap(queue.offer).as(Chunk.empty).catchSome {
-              case None => done.set(true) *> queue.takeAll.map(Chunk.fromIterable(_))
+            pull.pullElement.tap(queue.offer).as(Chunk.empty).catchSome { case None =>
+              done.set(true) *> queue.takeAll.map(Chunk.fromIterable(_))
             }
         }
       }
@@ -2675,30 +2669,28 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = {
           def go: ZIO[R1 with Clock, Option[E1], Chunk[O]] =
             chunks.flatMap { chunk =>
-              (costFn(chunk).mapError(Some(_)) <*> clock.nanoTime) flatMap {
-                case (weight, current) =>
-                  bucket.modify {
-                    case (tokens, timestamp) =>
-                      val elapsed = current - timestamp
-                      val cycles  = elapsed.toDouble / duration.toNanos
-                      val available = {
-                        val sum = tokens + (cycles * units).toLong
-                        val max =
-                          if (units + burst < 0) Long.MaxValue
-                          else units + burst
+              (costFn(chunk).mapError(Some(_)) <*> clock.nanoTime) flatMap { case (weight, current) =>
+                bucket.modify { case (tokens, timestamp) =>
+                  val elapsed = current - timestamp
+                  val cycles  = elapsed.toDouble / duration.toNanos
+                  val available = {
+                    val sum = tokens + (cycles * units).toLong
+                    val max =
+                      if (units + burst < 0) Long.MaxValue
+                      else units + burst
 
-                        if (sum < 0) max
-                        else math.min(sum, max)
-                      }
-
-                      if (weight <= available)
-                        (Some(chunk), (available - weight, current))
-                      else
-                        (None, (available, current))
-                  } flatMap {
-                    case Some(os) => UIO.succeedNow(os)
-                    case None     => go
+                    if (sum < 0) max
+                    else math.min(sum, max)
                   }
+
+                  if (weight <= available)
+                    (Some(chunk), (available - weight, current))
+                  else
+                    (None, (available, current))
+                } flatMap {
+                  case Some(os) => UIO.succeedNow(os)
+                  case None     => go
+                }
               }
             }
 
@@ -2736,27 +2728,26 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                  chunk   <- chunks
                  weight  <- costFn(chunk).mapError(Some(_))
                  current <- clock.nanoTime
-                 delay <- bucket.modify {
-                            case (tokens, timestamp) =>
-                              val elapsed = current - timestamp
-                              val cycles  = elapsed.toDouble / duration.toNanos
-                              val available = {
-                                val sum = tokens + (cycles * units).toLong
-                                val max =
-                                  if (units + burst < 0) Long.MaxValue
-                                  else units + burst
+                 delay <- bucket.modify { case (tokens, timestamp) =>
+                            val elapsed = current - timestamp
+                            val cycles  = elapsed.toDouble / duration.toNanos
+                            val available = {
+                              val sum = tokens + (cycles * units).toLong
+                              val max =
+                                if (units + burst < 0) Long.MaxValue
+                                else units + burst
 
-                                if (sum < 0) max
-                                else math.min(sum, max)
-                              }
+                              if (sum < 0) max
+                              else math.min(sum, max)
+                            }
 
-                              val remaining = available - weight
-                              val waitCycles =
-                                if (remaining >= 0) 0
-                                else -remaining.toDouble / units
-                              val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
+                            val remaining = available - weight
+                            val waitCycles =
+                              if (remaining >= 0) 0
+                              else -remaining.toDouble / units
+                            val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
 
-                              (delay, (remaining, current))
+                            (delay, (remaining, current))
 
                           }
                  _ <- clock.sleep(delay).when(delay > Duration.Zero)
@@ -3102,12 +3093,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
     combineChunks(that)(Running(Left(Chunk.empty)): State[O, O2]) { (st, p1, p2) =>
       st match {
-        case Running(excess) => {
-            p1.optional.zipWithPar(p2.optional) {
-              case (l, r) => handleSuccess(l, r, excess)
+        case Running(excess) =>
+          {
+            p1.optional.zipWithPar(p2.optional) { case (l, r) =>
+              handleSuccess(l, r, excess)
             }
           }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-        case LeftDone(excessL) => {
+        case LeftDone(excessL) =>
+          {
             p2.optional.map(handleSuccess(None, _, Left(excessL)))
           }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
         case RightDone(excessR) => {
@@ -3146,37 +3139,36 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         left  <- self.process.map(pullNonEmpty(_))
         right <- that.process.map(pullNonEmpty(_))
         pull <- (ZStream.fromEffectOption {
-                    left.raceWith(right)(
-                      (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
-                      (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
-                    )
-                  }.flatMap {
-                    case (l, r, leftFirst) =>
-                      ZStream.fromEffect(Ref.make(l(l.size - 1)) <*> Ref.make(r(r.size - 1))).flatMap {
-                        case (latestLeft, latestRight) =>
-                          ZStream.fromChunk(
-                            if (leftFirst) r.map(f(l(l.size - 1), _))
-                            else l.map(f(_, r(r.size - 1)))
-                          ) ++
-                            ZStream
-                              .repeatEffectOption(
-                                left.tap(chunk => latestLeft.set(chunk(chunk.size - 1))) <*> latestRight.get
-                              )
-                              .mergeWith(
-                                ZStream.repeatEffectOption(
-                                  right.tap(chunk => latestRight.set(chunk(chunk.size - 1))) <*> latestLeft.get
-                                )
-                              )(
-                                {
-                                  case (leftChunk, rightLatest) => leftChunk.map(f(_, rightLatest))
-                                },
-                                {
-                                  case (rightChunk, leftLatest) => rightChunk.map(f(leftLatest, _))
-                                }
-                              )
-                              .flatMap(ZStream.fromChunk(_))
-                      }
-                  }).process
+                  left.raceWith(right)(
+                    (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
+                    (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
+                  )
+                }.flatMap { case (l, r, leftFirst) =>
+                  ZStream.fromEffect(Ref.make(l(l.size - 1)) <*> Ref.make(r(r.size - 1))).flatMap {
+                    case (latestLeft, latestRight) =>
+                      ZStream.fromChunk(
+                        if (leftFirst) r.map(f(l(l.size - 1), _))
+                        else l.map(f(_, r(r.size - 1)))
+                      ) ++
+                        ZStream
+                          .repeatEffectOption(
+                            left.tap(chunk => latestLeft.set(chunk(chunk.size - 1))) <*> latestRight.get
+                          )
+                          .mergeWith(
+                            ZStream.repeatEffectOption(
+                              right.tap(chunk => latestRight.set(chunk(chunk.size - 1))) <*> latestLeft.get
+                            )
+                          )(
+                            { case (leftChunk, rightLatest) =>
+                              leftChunk.map(f(_, rightLatest))
+                            },
+                            { case (rightChunk, leftLatest) =>
+                              rightChunk.map(f(leftLatest, _))
+                            }
+                          )
+                          .flatMap(ZStream.fromChunk(_))
+                  }
+                }).process
 
       } yield pull
     }
@@ -3482,29 +3474,28 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIterator[A](iterator: => Iterator[A]): ZStream[Any, Throwable, A] = {
     object StreamEnd extends Throwable
 
-    ZStream.fromEffect(Task(iterator) <*> ZIO.runtime[Any]).flatMap {
-      case (it, rt) =>
-        ZStream.repeatEffectOption {
-          Task {
-            val hasNext: Boolean =
-              try it.hasNext
-              catch {
-                case e: Throwable if !rt.platform.fatal(e) =>
-                  throw e
-              }
+    ZStream.fromEffect(Task(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
+      ZStream.repeatEffectOption {
+        Task {
+          val hasNext: Boolean =
+            try it.hasNext
+            catch {
+              case e: Throwable if !rt.platform.fatal(e) =>
+                throw e
+            }
 
-            if (hasNext) {
-              try it.next()
-              catch {
-                case e: Throwable if !rt.platform.fatal(e) =>
-                  throw e
-              }
-            } else throw StreamEnd
-          }.mapError {
-            case StreamEnd => None
-            case e         => Some(e)
-          }
+          if (hasNext) {
+            try it.next()
+            catch {
+              case e: Throwable if !rt.platform.fatal(e) =>
+                throw e
+            }
+          } else throw StreamEnd
+        }.mapError {
+          case StreamEnd => None
+          case e         => Some(e)
         }
+      }
     }
   }
 
@@ -3776,10 +3767,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * specified schedule.
    */
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Clock, E, A] =
-    ZStream.fromEffect(effect zip schedule.driver).flatMap {
-      case (a, driver) =>
-        ZStream.succeed(a) ++
-          ZStream.unfoldM(a)(driver.next(_).foldM(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
+    ZStream.fromEffect(effect zip schedule.driver).flatMap { case (a, driver) =>
+      ZStream.succeed(a) ++
+        ZStream.unfoldM(a)(driver.next(_).foldM(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
     }
 
   /**
@@ -3841,8 +3831,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
   def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
-    unfoldChunkM(s)(f(_).map(_.map {
-      case (a, s) => Chunk.single(a) -> s
+    unfoldChunkM(s)(f(_).map(_.map { case (a, s) =>
+      Chunk.single(a) -> s
     }))
 
   /**
@@ -3903,8 +3893,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def zipN[R, E, A, B, C, D](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B], zStream3: ZStream[R, E, C])(
     f: (A, B, C) => D
   ): ZStream[R, E, D] =
-    (zStream1 <&> zStream2 <&> zStream3).map {
-      case ((a, b), c) => f(a, b, c)
+    (zStream1 <&> zStream2 <&> zStream3).map { case ((a, b), c) =>
+      f(a, b, c)
     }
 
   /**
@@ -3918,8 +3908,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     zStream3: ZStream[R, E, C],
     zStream4: ZStream[R, E, D]
   )(f: (A, B, C, D) => F): ZStream[R, E, F] =
-    (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map {
-      case (((a, b), c), d) => f(a, b, c, d)
+    (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map { case (((a, b), c), d) =>
+      f(a, b, c, d)
     }
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
@@ -3952,10 +3942,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Only consider the first n groups found in the stream.
      */
     def first(n: Int): GroupBy[R, E, K, V] = {
-      val g1 = grouped.zipWithIndex.filterM {
-        case elem @ ((_, q), i) =>
-          if (i < n) ZIO.succeedNow(elem).as(true)
-          else q.shutdown.as(false)
+      val g1 = grouped.zipWithIndex.filterM { case elem @ ((_, q), i) =>
+        if (i < n) ZIO.succeedNow(elem).as(true)
+        else q.shutdown.as(false)
       }.map(_._1)
       new GroupBy(g1, buffer)
     }
@@ -3964,10 +3953,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Filter the groups to be processed.
      */
     def filter(f: K => Boolean): GroupBy[R, E, K, V] = {
-      val g1 = grouped.filterM {
-        case elem @ (k, q) =>
-          if (f(k)) ZIO.succeedNow(elem).as(true)
-          else q.shutdown.as(false)
+      val g1 = grouped.filterM { case elem @ (k, q) =>
+        if (f(k)) ZIO.succeedNow(elem).as(true)
+        else q.shutdown.as(false)
       }
       new GroupBy(g1, buffer)
     }
@@ -3976,9 +3964,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Run the function across all groups, collecting the results in an arbitrary order.
      */
     def apply[R1 <: R, E1 >: E, A](f: (K, ZStream[Any, E, V]) => ZStream[R1, E1, A]): ZStream[R1, E1, A] =
-      grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) {
-        case (k, q) =>
-          f(k, ZStream.fromQueueWithShutdown(q).collectWhileSuccess)
+      grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) { case (k, q) =>
+        f(k, ZStream.fromQueueWithShutdown(q).collectWhileSuccess)
       }
   }
 
@@ -4038,19 +4025,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
     def pullElement: ZIO[R, Option[E], A] =
       ifNotDone {
-        cursor.modify {
-          case (chunk, idx) =>
-            if (idx >= chunk.size) (update *> pullElement, (Chunk.empty, 0))
-            else (UIO.succeedNow(chunk(idx)), (chunk, idx + 1))
+        cursor.modify { case (chunk, idx) =>
+          if (idx >= chunk.size) (update *> pullElement, (Chunk.empty, 0))
+          else (UIO.succeedNow(chunk(idx)), (chunk, idx + 1))
         }.flatten
       }
 
     def pullChunk: ZIO[R, Option[E], Chunk[A]] =
       ifNotDone {
-        cursor.modify {
-          case (chunk, idx) =>
-            if (idx >= chunk.size) (update *> pullChunk, (Chunk.empty, 0))
-            else (UIO.succeedNow(chunk.drop(idx)), (Chunk.empty, 0))
+        cursor.modify { case (chunk, idx) =>
+          if (idx >= chunk.size) (update *> pullChunk, (Chunk.empty, 0))
+          else (UIO.succeedNow(chunk.drop(idx)), (Chunk.empty, 0))
         }.flatten
       }
 
