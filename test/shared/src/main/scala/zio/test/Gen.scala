@@ -24,7 +24,7 @@ import scala.math.Numeric.DoubleIsFractional
 
 import zio.random._
 import zio.stream.{ Stream, ZStream }
-import zio.{ Chunk, NonEmptyChunk, UIO, URIO, ZIO }
+import zio.{ Chunk, ExecutionStrategy, NonEmptyChunk, UIO, URIO, ZIO }
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
@@ -152,11 +152,15 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
     val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
     val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever
-    left.zipAllWith(right)(l => (Some(l), None), r => (None, Some(r)))((l, r) => (Some(l), Some(r))).collectWhile {
-      case (Some(Right(l)), Some(Right(r))) => l.zipWith(r)(f)
-      case (Some(Right(l)), Some(Left(r)))  => l.zipWith(r)(f)
-      case (Some(Left(l)), Some(Right(r)))  => l.zipWith(r)(f)
-    }
+    left
+      .zipAllWithExec(right)(l => (Some(l), None), r => (None, Some(r)))((l, r) => (Some(l), Some(r)))(
+        ExecutionStrategy.Sequential
+      )
+      .collectWhile {
+        case (Some(Right(l)), Some(Right(r))) => l.zipWith(r)(f)
+        case (Some(Right(l)), Some(Left(r)))  => l.zipWith(r)(f)
+        case (Some(Left(l)), Some(Right(r)))  => l.zipWith(r)(f)
+      }
   }
 }
 

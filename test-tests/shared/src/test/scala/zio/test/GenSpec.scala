@@ -8,7 +8,7 @@ import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestAspect.{ nonFlaky, scala2Only }
+import zio.test.TestAspect.{ nonFlaky, scala2Only, setSeed }
 import zio.test.{ check => Check, checkN => CheckN }
 import zio.{ Chunk, NonEmptyChunk, ZIO }
 
@@ -596,7 +596,11 @@ object GenSpec extends ZIOBaseSpec {
             result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
           } yield assert(result.reverse.headOption)(isSome(equalTo((m, 0)) || equalTo((0, n))))
         }
-      }
+      },
+      testM("determinism") {
+        val gen = Gen.anyInt <&> Gen.anyInt
+        assertM(gen.runHead)(isSome(equalTo((-1170105035, 234785527))))
+      } @@ setSeed(42) @@ nonFlaky
     ),
     testM("fromIterable constructs deterministic generators") {
       val expected   = List.range(1, 6).flatMap(x => List.range(1, 6).map(y => x + y))
