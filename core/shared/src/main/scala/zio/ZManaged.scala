@@ -1156,6 +1156,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
 
 object ZManaged extends ZManagedPlatformSpecific {
 
+  private sealed abstract class State
+  private final case class Exited(nextKey: Long, exit: Exit[Any, Any])            extends State
+  private final case class Running(nextKey: Long, finalizers: LongMap[Finalizer]) extends State
+
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZManaged[R, Nothing, A] =
       ZManaged.environment.map(f)
@@ -1299,10 +1303,6 @@ object ZManaged extends ZManagedPlatformSpecific {
         if (l == 0L) throw new RuntimeException("ReleaseMap wrapped around")
         else if (l == Long.MinValue) Long.MaxValue
         else l - 1
-
-      sealed abstract class State
-      final case class Exited(nextKey: Long, exit: Exit[Any, Any])            extends State
-      final case class Running(nextKey: Long, finalizers: LongMap[Finalizer]) extends State
 
       Ref.make[State](Running(initialKey, LongMap.empty)).map { ref =>
         new ReleaseMap {
