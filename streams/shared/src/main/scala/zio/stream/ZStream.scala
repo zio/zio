@@ -1048,28 +1048,28 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
    */
-  final def fold[O1 >: O, S](s: S)(f: (S, O1) => S): ZIO[R, E, S] =
-    foldWhileManagedM[R, E, O1, S](s)(_ => true)((s, a) => ZIO.succeedNow(f(s, a))).use(ZIO.succeedNow)
+  final def fold[S](s: S)(f: (S, O) => S): ZIO[R, E, S] =
+    foldWhileManagedM(s)(_ => true)((s, a) => ZIO.succeedNow(f(s, a))).use(ZIO.succeedNow)
 
   /**
    * Executes an effectful fold over the stream of values.
    */
-  final def foldM[R1 <: R, E1 >: E, O1 >: O, S](s: S)(f: (S, O1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    foldWhileManagedM[R1, E1, O1, S](s)(_ => true)(f).use(ZIO.succeedNow)
+  final def foldM[R1 <: R, E1 >: E, S](s: S)(f: (S, O) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    foldWhileManagedM[R1, E1, S](s)(_ => true)(f).use(ZIO.succeedNow)
 
   /**
    * Executes a pure fold over the stream of values.
    * Returns a Managed value that represents the scope of the stream.
    */
-  final def foldManaged[O1 >: O, S](s: S)(f: (S, O1) => S): ZManaged[R, E, S] =
-    foldWhileManagedM[R, E, O1, S](s)(_ => true)((s, a) => ZIO.succeedNow(f(s, a)))
+  final def foldManaged[S](s: S)(f: (S, O) => S): ZManaged[R, E, S] =
+    foldWhileManagedM(s)(_ => true)((s, a) => ZIO.succeedNow(f(s, a)))
 
   /**
    * Executes an effectful fold over the stream of values.
    * Returns a Managed value that represents the scope of the stream.
    */
-  final def foldManagedM[R1 <: R, E1 >: E, O1 >: O, S](s: S)(f: (S, O1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    foldWhileManagedM[R1, E1, O1, S](s)(_ => true)(f)
+  final def foldManagedM[R1 <: R, E1 >: E, S](s: S)(f: (S, O) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+    foldWhileManagedM[R1, E1, S](s)(_ => true)(f)
 
   /**
    * Reduces the elements in the stream to a value of type `S`.
@@ -1079,8 +1079,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *  Stream(1).forever.foldWhile(0)(_ <= 4)(_ + _) // UIO[Int] == 5
    * }}}
    */
-  final def foldWhile[O1 >: O, S](s: S)(cont: S => Boolean)(f: (S, O1) => S): ZIO[R, E, S] =
-    foldWhileManagedM[R, E, O1, S](s)(cont)((s, a) => ZIO.succeedNow(f(s, a))).use(ZIO.succeedNow)
+  final def foldWhile[S](s: S)(cont: S => Boolean)(f: (S, O) => S): ZIO[R, E, S] =
+    foldWhileManagedM(s)(cont)((s, a) => ZIO.succeedNow(f(s, a))).use(ZIO.succeedNow)
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1094,18 +1094,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * @param cont function which defines the early termination condition
    */
-  final def foldWhileM[R1 <: R, E1 >: E, O1 >: O, S](
-    s: S
-  )(cont: S => Boolean)(f: (S, O1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    foldWhileManagedM[R1, E1, O1, S](s)(cont)(f).use(ZIO.succeedNow)
+  final def foldWhileM[R1 <: R, E1 >: E, S](s: S)(cont: S => Boolean)(f: (S, O) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    foldWhileManagedM[R1, E1, S](s)(cont)(f).use(ZIO.succeedNow)
 
   /**
    * Executes a pure fold over the stream of values.
    * Returns a Managed value that represents the scope of the stream.
    * Stops the fold early when the condition is not fulfilled.
    */
-  def foldWhileManaged[O1 >: O, S](s: S)(cont: S => Boolean)(f: (S, O1) => S): ZManaged[R, E, S] =
-    foldWhileManagedM[R, E, O1, S](s)(cont)((s, a) => ZIO.succeedNow(f(s, a)))
+  def foldWhileManaged[S](s: S)(cont: S => Boolean)(f: (S, O) => S): ZManaged[R, E, S] =
+    foldWhileManagedM(s)(cont)((s, a) => ZIO.succeedNow(f(s, a)))
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1121,9 +1119,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * @param cont function which defines the early termination condition
    */
-  final def foldWhileManagedM[R1 <: R, E1 >: E, A1 >: O, S](
+  final def foldWhileManagedM[R1 <: R, E1 >: E, S](
     s: S
-  )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+  )(cont: S => Boolean)(f: (S, O) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
     process.flatMap { (is: ZIO[R, Option[E], Chunk[O]]) =>
       def loop(s1: S): ZIO[R1, E1, S] =
         if (!cont(s1)) UIO.succeedNow(s1)
@@ -1778,8 +1776,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
    * signalled.
    */
-  final def into[R1 <: R, E1 >: E, O1 >: O](
-    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O1], Any]
+  final def into[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O], Any]
   ): ZIO[R1, E1, Unit] =
     intoManaged(queue).use_(UIO.unit)
 
@@ -1787,8 +1785,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
    * composition.
    */
-  final def intoManaged[R1 <: R, E1 >: E, O1 >: O](
-    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O1], Any]
+  final def intoManaged[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O], Any]
   ): ZManaged[R1, E1, Unit] =
     for {
       as <- self.process
@@ -2144,7 +2142,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * [[ZStream]] in a managed resource. Like all [[ZManaged]] values, the provided
    * stream is valid only within the scope of [[ZManaged]].
    */
-  def peel[R1 <: R, E1 >: E, O1 >: O, Z, J](
+  def peel[R1 <: R, E1 >: E, O1 >: O, Z](
     sink: ZSink[R1, E1, O1, O1, Z]
   ): ZManaged[R1, E1, (Z, ZStream[R1, E1, O1])] =
     self.process.flatMap { pull =>
