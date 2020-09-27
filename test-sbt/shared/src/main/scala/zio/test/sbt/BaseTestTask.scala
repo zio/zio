@@ -3,6 +3,7 @@ package zio.test.sbt
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 
 import zio.clock.Clock
+import zio.duration._
 import zio.test.{ AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger }
 import zio.{ Layer, Runtime, UIO, ZIO, ZLayer }
 
@@ -25,7 +26,10 @@ abstract class BaseTestTask(
 
   protected def run(eventHandler: EventHandler): ZIO[TestLogger with Clock, Throwable, Unit] =
     for {
-      spec   <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
+      spec <- specInstance.runSpec(FilteredSpec(specInstance.spec, args)).timeout(5.minutes).flatMap {
+                case Some(result) => ZIO.succeed(result)
+                case None         => UIO(println(s"${taskDef.fullyQualifiedName} timed out!")) *> UIO.die(new Exception("die"))
+              }
       summary = SummaryBuilder.buildSummary(spec)
       _      <- sendSummary.provide(summary)
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
