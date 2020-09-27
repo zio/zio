@@ -26,9 +26,10 @@ abstract class BaseTestTask(
 
   protected def run(eventHandler: EventHandler): ZIO[TestLogger with Clock, Throwable, Unit] =
     for {
-      spec <- specInstance.runSpec(FilteredSpec(specInstance.spec, args)).timeout(5.minutes).flatMap {
+      spec <- specInstance.runSpec(FilteredSpec(specInstance.spec, args)).disconnect.timeout(5.minutes).flatMap {
                 case Some(result) => ZIO.succeed(result)
-                case None         => UIO(println(s"${taskDef.fullyQualifiedName} timed out!")) *> UIO.die(new Exception("die"))
+                case None =>
+                  UIO(println(s"${taskDef.fullyQualifiedName()} timed out!")) *> UIO.die(new Exception("die"))
               }
       summary = SummaryBuilder.buildSummary(spec)
       _      <- sendSummary.provide(summary)
