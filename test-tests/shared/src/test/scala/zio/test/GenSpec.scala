@@ -676,5 +676,5 @@ object GenSpec extends ZIOBaseSpec {
         )
       )
     }
-  )
+  ) @@ TestAspect.timed
 }
