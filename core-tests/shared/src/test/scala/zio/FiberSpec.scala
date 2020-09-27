@@ -145,7 +145,7 @@ object FiberSpec extends ZIOBaseSpec {
           } yield assert(blockingOn)(hasSize(equalTo(2)))
         }
       )
-    )
+    ) @@ zio.test.TestAspect.timed
 
   val (initial, update)                            = ("initial", "update")
   val fibers: List[Fiber.Synthetic[Nothing, Unit]] = List.fill(100000)(Fiber.unit)
