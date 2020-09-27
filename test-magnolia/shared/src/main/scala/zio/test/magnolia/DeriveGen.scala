@@ -22,8 +22,7 @@ import java.util.UUID
 import magnolia._
 
 import zio.random.Random
-import zio.test.Gen
-import zio.test.Sized
+import zio.test.{ Gen, Sized }
 
 /**
  * A `DeriveGen[A]` can derive a generator of `A` values. Implicit instances of

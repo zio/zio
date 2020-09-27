@@ -24,7 +24,7 @@ import scala.math.Numeric.DoubleIsFractional
 
 import zio.random._
 import zio.stream.{ Stream, ZStream }
-import zio.{ Chunk, NonEmptyChunk, UIO, URIO, ZIO }
+import zio.{ Chunk, ExecutionStrategy, NonEmptyChunk, UIO, URIO, ZIO }
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
@@ -152,11 +152,16 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
     val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
     val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever
-    left.zipAllWith(right)(l => (Some(l), None), r => (None, Some(r)))((l, r) => (Some(l), Some(r))).collectWhile {
-      case (Some(Right(l)), Some(Right(r))) => l.zipWith(r)(f)
-      case (Some(Right(l)), Some(Left(r)))  => l.zipWith(r)(f)
-      case (Some(Left(l)), Some(Right(r)))  => l.zipWith(r)(f)
-    }
+    left
+      .zipAllWithExec(right)(ExecutionStrategy.Sequential)(
+        l => (Some(l), None),
+        r => (None, Some(r))
+      )((l, r) => (Some(l), Some(r)))
+      .collectWhile {
+        case (Some(Right(l)), Some(Right(r))) => l.zipWith(r)(f)
+        case (Some(Right(l)), Some(Left(r)))  => l.zipWith(r)(f)
+        case (Some(Left(l)), Some(Right(r)))  => l.zipWith(r)(f)
+      }
   }
 }
 
@@ -718,12 +723,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   val unit: Gen[Any, Unit] =
     const(())
 
-  /**
-   *  A generator of strings that can be encoded in the US-ASCII character set.
-   */
-  val usASCII: Gen[Random with Sized, String] =
-    chunkOf(anyASCIIString).map(chunk => chunk.toString)
-
   def vectorOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)
 
@@ -749,10 +748,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def weighted[R <: Random, A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
     val sum = gs.map(_._2).sum
-    val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) {
-      case ((map, acc), (gen, d)) =>
-        if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)
-        else (map, acc)
+    val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) { case ((map, acc), (gen, d)) =>
+      if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)
+      else (map, acc)
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }
@@ -779,8 +777,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
-    (gen1 <&> gen2 <&> gen3).map {
-      case ((a, b), c) => f(a, b, c)
+    (gen1 <&> gen2 <&> gen3).map { case ((a, b), c) =>
+      f(a, b, c)
     }
 
   /**
@@ -791,8 +789,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def zipN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
     f: (A, B, C, D) => F
   ): Gen[R, F] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4).map {
-      case (((a, b), c), d) => f(a, b, c, d)
+    (gen1 <&> gen2 <&> gen3 <&> gen4).map { case (((a, b), c), d) =>
+      f(a, b, c, d)
     }
 
   /**

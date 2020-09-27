@@ -11,7 +11,7 @@ import zio.test.environment.TestRandom.{ DefaultData, Test => ZRandom }
 
 object RandomSpec extends ZIOBaseSpec {
 
-  def spec = suite("RandomSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("RandomSpec")(
     testM("check clearBooleans")(checkClear(_.nextBoolean())(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
     testM("check clearBytes")(checkClear(nextBytes(1))(_.feedBytes(_: _*))(_.clearBytes)(_.nextBytes(1))),
     testM("check clearChars")(
@@ -45,7 +45,9 @@ object RandomSpec extends ZIOBaseSpec {
     testM("nextDoubleBetween generates doubles within the bounds")(
       forAllBetween(Gen.anyDouble)(_.nextDoubleBetween(_, _))
     ),
-    testM("nextFloatBetween generates floats within the bounds")(forAllBetween(Gen.anyFloat)(_.nextFloatBetween(_, _))),
+    testM("nextFloatBetween generates floats within the bounds")(
+      forAllBetween(Gen.anyFloat)(_.nextFloatBetween(_, _))
+    ),
     testM("nextIntBetween generates integers within the bounds")(forAllBetween(Gen.anyInt)(_.nextIntBetween(_, _))),
     testM("nextLongBetween generates longs within the bounds")(forAllBetween(Gen.anyLong)(_.nextLongBetween(_, _))),
     testM("shuffle")(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_))),
@@ -208,13 +210,12 @@ object RandomSpec extends ZIOBaseSpec {
       value1 <- gen
       value2 <- gen if (value1 != value2)
     } yield if (value2 > value1) (value1, value2) else (value2, value1)
-    checkM(genMinMax) {
-      case (min, max) =>
-        for {
-          testRandom <- ZIO.environment[Random].map(_.get[Random.Service])
-          nextRandom <- between(testRandom, min, max)
-        } yield assert(nextRandom)(isGreaterThanEqualTo(min)) &&
-          assert(nextRandom)(isLessThan(max))
+    checkM(genMinMax) { case (min, max) =>
+      for {
+        testRandom <- ZIO.environment[Random].map(_.get[Random.Service])
+        nextRandom <- between(testRandom, min, max)
+      } yield assert(nextRandom)(isGreaterThanEqualTo(min)) &&
+        assert(nextRandom)(isLessThan(max))
     }
   }
 }

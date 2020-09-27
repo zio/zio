@@ -12,7 +12,7 @@ import zio.test.{ test => testSync, _ }
 
 object SerializableSpec extends ZIOBaseSpec {
 
-  def spec = suite("SerializableSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("SerializableSpec")(
     testM("Semaphore is serializable") {
       val n = 20L
       for {

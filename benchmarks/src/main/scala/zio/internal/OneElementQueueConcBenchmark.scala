@@ -2,10 +2,10 @@ package zio.internal
 
 import java.util.concurrent.TimeUnit
 
-import BenchUtils._
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
+import zio.internal.BenchUtils._
 import zio.internal.ProducerConsumerBenchmark.{ OfferCounters, PollCounters }
 
 @BenchmarkMode(Array(Mode.Throughput))

@@ -11,7 +11,7 @@ import zio.test.mock.modules._
  */
 object MockableSpec extends DefaultRunnableSpec {
 
-  def spec = suite("MockableSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("MockableSpec")(
     suite("Mockable macro")(
       test("compiles when applied to object with empty Service") {
         assert({

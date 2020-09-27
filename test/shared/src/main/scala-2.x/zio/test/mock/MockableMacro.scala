@@ -272,10 +272,9 @@ private[mock] object MockableMacro {
           makeTag(name.toTermName, info)
         case (name, infos) =>
           val tagName = capitalize(name.toTermName)
-          val overloadedTags = sortOverloads(infos).zipWithIndex.map {
-            case (info, idx) =>
-              val idxName = TermName(s"_$idx")
-              makeTag(idxName, info)
+          val overloadedTags = sortOverloads(infos).zipWithIndex.map { case (info, idx) =>
+            val idxName = TermName(s"_$idx")
+            makeTag(idxName, info)
           }
 
           q"object $tagName { ..$overloadedTags }"
@@ -286,10 +285,9 @@ private[mock] object MockableMacro {
         case (name, info :: Nil) =>
           List(makeMock(name.toTermName, info, None))
         case (name, infos) =>
-          sortOverloads(infos).zipWithIndex.map {
-            case (info, idx) =>
-              val idxName = TermName(s"_$idx")
-              makeMock(name.toTermName, info, Some(idxName))
+          sortOverloads(infos).zipWithIndex.map { case (info, idx) =>
+            val idxName = TermName(s"_$idx")
+            makeMock(name.toTermName, info, Some(idxName))
           }
       }.toList.flatten
 

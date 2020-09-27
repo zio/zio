@@ -1777,7 +1777,7 @@ object ZSTM {
 
     private[this] val txnCounter: AtomicLong = new AtomicLong()
 
-    val globalLock = new AnyRef {}
+    val globalLock: AnyRef = new AnyRef {}
 
     sealed abstract class TExit[+A, +B] extends Serializable with Product
     object TExit {

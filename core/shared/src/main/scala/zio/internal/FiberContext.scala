@@ -21,13 +21,13 @@ import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
 
-import FiberContext.FiberRefLocals
 import com.github.ghik.silencer.silent
-import stacktracer.ZTraceElement
-import tracing.ZIOFn
 
 import zio.Fiber.Status
 import zio._
+import zio.internal.FiberContext.FiberRefLocals
+import zio.internal.stacktracer.ZTraceElement
+import zio.internal.tracing.ZIOFn
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -687,9 +687,8 @@ private[zio] final class FiberContext[E, A](
   ): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
     val locals                              = fiberRefLocals.asScala: @silent("JavaConverters")
-    locals.foreach {
-      case (fiberRef, value) =>
-        childFiberRefLocals.put(fiberRef, fiberRef.fork(value))
+    locals.foreach { case (fiberRef, value) =>
+      childFiberRefLocals.put(fiberRef, fiberRef.fork(value))
     }
 
     val tracingRegion = inTracingRegion
@@ -827,10 +826,9 @@ private[zio] final class FiberContext[E, A](
 
     if (locals.isEmpty) UIO.unit
     else
-      UIO.foreach_(locals) {
-        case (fiberRef, value) =>
-          val ref = fiberRef.asInstanceOf[FiberRef[Any]]
-          ref.update(old => ref.join(old, value))
+      UIO.foreach_(locals) { case (fiberRef, value) =>
+        val ref = fiberRef.asInstanceOf[FiberRef[Any]]
+        ref.update(old => ref.join(old, value))
       }
   }
 
@@ -1104,7 +1102,7 @@ private[zio] object FiberContext {
       def status: Fiber.Status        = Status.Done
     }
 
-    def initial[E, A] = Executing[E, A](Status.Running(false), Nil, Cause.empty)
+    def initial[E, A]: Executing[E, A] = Executing[E, A](Status.Running(false), Nil, Cause.empty)
   }
 
   type FiberRefLocals = java.util.Map[FiberRef[Any], Any]

@@ -16,7 +16,7 @@
 
 package zio.test.laws
 
-import zio.test.{ check, checkM, Gen, TestConfig, TestResult }
+import zio.test.{ Gen, TestConfig, TestResult, check, checkM }
 import zio.{ URIO, ZIO }
 
 /**

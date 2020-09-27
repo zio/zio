@@ -97,8 +97,8 @@ object DefaultTestReporter {
   private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): String = {
     val (success, ignore, failure) = executedSpec.fold[(Int, Int, Int)] {
       case ExecutedSpec.SuiteCase(_, stats) =>
-        stats.foldLeft((0, 0, 0)) {
-          case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
+        stats.foldLeft((0, 0, 0)) { case ((x1, x2, x3), (y1, y2, y3)) =>
+          (x1 + y1, x2 + y2, x3 + y3)
         }
       case ExecutedSpec.TestCase(_, result, _) =>
         result match {
@@ -212,12 +212,12 @@ object FailureRenderer {
 
   object FailureMessage {
     case class Message(lines: Vector[Line] = Vector.empty) {
-      def +:(line: Line)          = Message(line +: lines)
-      def :+(line: Line)          = Message(lines :+ line)
-      def ++(message: Message)    = Message(lines ++ message.lines)
-      def drop(n: Int)            = Message(lines.drop(n))
-      def map(f: Line => Line)    = Message(lines = lines.map(f))
-      def withOffset(offset: Int) = Message(lines.map(_.withOffset(offset)))
+      def +:(line: Line)                   = Message(line +: lines)
+      def :+(line: Line)                   = Message(lines :+ line)
+      def ++(message: Message)             = Message(lines ++ message.lines)
+      def drop(n: Int): Message            = Message(lines.drop(n))
+      def map(f: Line => Line): Message    = Message(lines = lines.map(f))
+      def withOffset(offset: Int): Message = Message(lines.map(_.withOffset(offset)))
     }
     object Message {
       def apply(lines: Seq[Line]): Message = Message(lines.toVector)
@@ -225,23 +225,23 @@ object FailureRenderer {
       val empty: Message                   = Message()
     }
     case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
-      def :+(fragment: Fragment)    = Line(fragments :+ fragment)
-      def +(fragment: Fragment)     = Line(fragments :+ fragment)
-      def prepend(message: Message) = Message(this +: message.lines)
-      def +(line: Line)             = Message(Vector(this, line))
-      def ++(line: Line)            = copy(fragments = fragments ++ line.fragments)
-      def withOffset(shift: Int)    = copy(offset = offset + shift)
-      def toMessage                 = Message(Vector(this))
+      def :+(fragment: Fragment)             = Line(fragments :+ fragment)
+      def +(fragment: Fragment)              = Line(fragments :+ fragment)
+      def prepend(message: Message): Message = Message(this +: message.lines)
+      def +(line: Line)                      = Message(Vector(this, line))
+      def ++(line: Line)                     = copy(fragments = fragments ++ line.fragments)
+      def withOffset(shift: Int): Line       = copy(offset = offset + shift)
+      def toMessage: Message                 = Message(Vector(this))
     }
     object Line {
       def fromString(text: String, offset: Int = 0): Line = Fragment(text).toLine.withOffset(offset)
       val empty: Line                                     = Line()
     }
     case class Fragment(text: String, ansiColorCode: String = "") {
-      def +:(line: Line)      = prepend(line)
-      def prepend(line: Line) = Line(this +: line.fragments, line.offset)
-      def +(f: Fragment)      = Line(Vector(this, f))
-      def toLine              = Line(Vector(this))
+      def +:(line: Line)            = prepend(line)
+      def prepend(line: Line): Line = Line(this +: line.fragments, line.offset)
+      def +(f: Fragment)            = Line(Vector(this, f))
+      def toLine: Line              = Line(Vector(this))
     }
   }
 

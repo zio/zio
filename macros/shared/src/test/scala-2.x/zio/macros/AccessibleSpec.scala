@@ -7,7 +7,7 @@ import zio.test._
 
 object AccessibleSpec extends DefaultRunnableSpec {
 
-  def spec = suite("AccessibleSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("AccessibleSpec")(
     suite("Accessible macro")(
       testM("compiles when applied to object with empty Service") {
         assertM(typeCheck {

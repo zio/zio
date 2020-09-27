@@ -266,7 +266,7 @@ object ZTRef {
     def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): USTM[B] =
       modify(a => f.lift(a).getOrElse((default, a)))
 
-    override def toString =
+    override def toString: String =
       s"ZTRef.Atomic(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
 
     /**

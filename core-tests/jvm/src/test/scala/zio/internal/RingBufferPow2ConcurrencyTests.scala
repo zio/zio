@@ -16,7 +16,7 @@ object RingBufferPow2ConcurrencyTests {
   )
   @State
   class OfferTest {
-    val q = RingBufferPow2[Int](2)
+    val q: RingBufferPow2[Int] = RingBufferPow2[Int](2)
 
     @Actor
     def actor1(): Unit = {
@@ -67,7 +67,7 @@ object RingBufferPow2ConcurrencyTests {
   )
   @State
   class OfferTestMaxedCapacity {
-    val q                                    = RingBufferPow2[Int](2)
+    val q: RingBufferPow2[Int]               = RingBufferPow2[Int](2)
     var (offer11, offer12, offer21, offer22) = (0, 0, 0, 0)
 
     @Actor
@@ -136,8 +136,8 @@ object RingBufferPow2ConcurrencyTests {
   )
   @State
   class OfferPollTest {
-    val q                    = RingBufferPow2[Int](2)
-    var (p11, p12, p21, p22) = (0, 0, 0, 0)
+    val q: RingBufferPow2[Int] = RingBufferPow2[Int](2)
+    var (p11, p12, p21, p22)   = (0, 0, 0, 0)
 
     @Actor
     def actor1(): Unit = {

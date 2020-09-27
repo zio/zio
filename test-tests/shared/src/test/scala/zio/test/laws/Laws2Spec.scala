@@ -37,17 +37,19 @@ object Laws2Spec extends ZIOBaseSpec {
 
   object Equivalence extends Lawful2[Equivalence, Equal, Equal] {
 
-    val leftIdentity = new Laws2.Law1Left[Equivalence, Equal, AnyF]("leftIdentity") {
-      def apply[A: Equal, B: AnyF](a1: A)(implicit Equivalence: Equivalence[A, B]): TestResult =
-        Equivalence.from(Equivalence.to(a1)) <-> a1
-    }
+    val leftIdentity: Laws2.Law1Left[Equivalence, Equal, AnyF] =
+      new Laws2.Law1Left[Equivalence, Equal, AnyF]("leftIdentity") {
+        def apply[A: Equal, B: AnyF](a1: A)(implicit Equivalence: Equivalence[A, B]): TestResult =
+          Equivalence.from(Equivalence.to(a1)) <-> a1
+      }
 
-    val rightIdentity = new Laws2.Law1Right[Equivalence, AnyF, Equal]("rightIdentity") {
-      def apply[A: AnyF, B: Equal](b1: B)(implicit Equivalence: Equivalence[A, B]): TestResult =
-        Equivalence.to(Equivalence.from(b1)) <-> b1
-    }
+    val rightIdentity: Laws2.Law1Right[Equivalence, AnyF, Equal] =
+      new Laws2.Law1Right[Equivalence, AnyF, Equal]("rightIdentity") {
+        def apply[A: AnyF, B: Equal](b1: B)(implicit Equivalence: Equivalence[A, B]): TestResult =
+          Equivalence.to(Equivalence.from(b1)) <-> b1
+      }
 
-    val laws = leftIdentity + rightIdentity
+    val laws: ZLaws2[Equivalence, Equal, Equal, Any] = leftIdentity + rightIdentity
 
     val byteListByteVectorEquivalence: Equivalence[List[Byte], Vector[Byte]] =
       Equivalence(_.toVector, _.toList)
@@ -56,7 +58,7 @@ object Laws2Spec extends ZIOBaseSpec {
       Equivalence(_.mkString, _.toList)
   }
 
-  def spec =
+  def spec: ZSpec[Environment, Failure] =
     suite("Laws2Spec") {
       suite("equivalenceLaws")(
         testM("byteList <=> byteVector") {

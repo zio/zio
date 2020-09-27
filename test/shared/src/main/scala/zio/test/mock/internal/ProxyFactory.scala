@@ -145,23 +145,22 @@ object ProxyFactory {
 
                       findMatching(scope :: nextScopes)
                     case None =>
-                      val scopes = children.zipWithIndex.collect {
-                        case (child, index) =>
-                          Scope[R](
-                            child,
-                            id,
-                            updatedChild => {
-                              val updatedChildren = children.updated(index, updatedChild)
+                      val scopes = children.zipWithIndex.collect { case (child, index) =>
+                        Scope[R](
+                          child,
+                          id,
+                          updatedChild => {
+                            val updatedChildren = children.updated(index, updatedChild)
 
-                              update(
-                                self.copy(
-                                  children = updatedChildren,
-                                  state = maximumState(updatedChildren),
-                                  invocations = id :: invocations
-                                )
+                            update(
+                              self.copy(
+                                children = updatedChildren,
+                                state = maximumState(updatedChildren),
+                                invocations = id :: invocations
                               )
-                            }
-                          )
+                            )
+                          }
+                        )
                       }
 
                       findMatching(scopes ++ nextScopes)

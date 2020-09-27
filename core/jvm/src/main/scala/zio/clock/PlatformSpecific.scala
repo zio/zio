@@ -26,7 +26,7 @@ private[clock] trait PlatformSpecific {
 
   private[clock] val globalScheduler = new Scheduler {
 
-    private[this] val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
+    private[this] val service = makeService()
 
     private[this] val ConstFalse = () => false
 
@@ -48,5 +48,11 @@ private[clock] trait PlatformSpecific {
           canceled
         }
     }
+  }
+
+  private[this] def makeService(): ScheduledExecutorService = {
+    val service = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("zio-timer", true))
+    service.setRemoveOnCancelPolicy(true)
+    service
   }
 }

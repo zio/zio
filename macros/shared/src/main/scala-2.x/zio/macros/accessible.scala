@@ -15,7 +15,7 @@
  */
 package zio.macros
 
-import scala.annotation.{ compileTimeOnly, StaticAnnotation }
+import scala.annotation.{ StaticAnnotation, compileTimeOnly }
 
 @compileTimeOnly("enable macro paradise to expand macro annotations")
 class accessible[A] extends StaticAnnotation {

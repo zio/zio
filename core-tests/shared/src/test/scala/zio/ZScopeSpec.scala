@@ -5,7 +5,7 @@ import zio.test._
 
 object ZScopeSpec extends ZIOBaseSpec {
 
-  def testScope[A](label: String, a: A)(f: (Ref[A], ZScope[Unit]) => UIO[A]) =
+  def testScope[A](label: String, a: A)(f: (Ref[A], ZScope[Unit]) => UIO[A]): ZSpec[Any, Nothing] =
     testM(label) {
       for {
         ref      <- Ref.make[A](a)
@@ -16,7 +16,7 @@ object ZScopeSpec extends ZIOBaseSpec {
       } yield assert(value)(isTrue) && assert(actual)(equalTo(expected))
     }
 
-  def spec = suite("ZScopeSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZScopeSpec")(
     testM("make returns an empty and open scope") {
       for {
         open  <- ZScope.make[Unit]
@@ -91,14 +91,14 @@ object ZScopeSpec extends ZIOBaseSpec {
 
         val expected =
           range
-            .foldLeft(List.empty[String]) {
-              case (acc, int) => int.toString :: acc
+            .foldLeft(List.empty[String]) { case (acc, int) =>
+              int.toString :: acc
             }
             .reverse
 
         val effect =
-          range.foldLeft(IO.unit) {
-            case (acc, int) => acc *> ref.update(_ :+ int.toString).unit
+          range.foldLeft(IO.unit) { case (acc, int) =>
+            acc *> ref.update(_ :+ int.toString).unit
           }
 
         scope.ensure(_ => effect) as expected

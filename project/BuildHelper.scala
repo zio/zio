@@ -12,7 +12,7 @@ object BuildHelper {
   val Scala211        = "2.11.12"
   val Scala212        = "2.12.12"
   val Scala213        = "2.13.3"
-  val ScalaDotty      = "0.26.0"
+  val ScalaDotty      = "0.27.0-RC1"
   val SilencerVersion = "1.7.1"
 
   private val stdOptions = Seq(
@@ -86,7 +86,7 @@ object BuildHelper {
   )
 
   val scalaReflectSettings = Seq(
-    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M6")
+    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M7")
   )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
@@ -231,6 +231,10 @@ object BuildHelper {
     semanticdbEnabled := !isDotty.value,              // enable SemanticDB
     semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
     ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
+    ThisBuild / scalafixDependencies ++= List(
+      "com.github.liancheng" %% "organize-imports" % "0.4.0",
+      "com.github.vovapolu"  %% "scaluzzi"         % "0.1.12"
+    ),
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,

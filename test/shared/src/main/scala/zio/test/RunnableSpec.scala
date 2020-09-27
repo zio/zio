@@ -60,7 +60,7 @@ abstract class RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
     catch { case _: SecurityException => }
 
   private def isAmmonite: Boolean =
-    sys.env.exists {
-      case (k, v) => k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
+    sys.env.exists { case (k, v) =>
+      k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
     }
 }

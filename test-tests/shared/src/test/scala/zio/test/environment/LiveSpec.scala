@@ -9,7 +9,7 @@ import zio.{ clock, console }
 
 object LiveSpec extends ZIOBaseSpec {
 
-  def spec = suite("LiveSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("LiveSpec")(
     testM("live can access real environment") {
       for {
         test <- clock.currentTime(TimeUnit.MILLISECONDS)

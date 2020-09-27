@@ -23,7 +23,7 @@ sealed abstract class ZTraceElement extends Product with Serializable {
 object ZTraceElement {
 
   final case class NoLocation(error: String) extends ZTraceElement {
-    final def prettyPrint = s"<couldn't get location, error: $error>"
+    final def prettyPrint: String = s"<couldn't get location, error: $error>"
   }
 
   final case class SourceLocation(file: String, clazz: String, method: String, line: Int) extends ZTraceElement {
