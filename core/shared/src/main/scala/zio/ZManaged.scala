@@ -1343,10 +1343,10 @@ object ZManaged extends ZManagedPlatformSpecific {
                       Exited(nextKey, exit)
                     )
 
-                  case ExecutionStrategy.ParallelN(n) =>
+                  case ExecutionStrategy.ParallelN(_) =>
                     (
                       ZIO
-                        .foreachParN(n)(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
+                        .foreachPar(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
                           finalizer(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
