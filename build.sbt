@@ -38,7 +38,7 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
 )
-addCommandAlias("compileNative", ";coreNative/compile")
+addCommandAlias("compileNative", ";coreNative/compile;streamsNative/compile")
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test"
@@ -88,6 +88,7 @@ lazy val root = project
     docs,
     streamsJVM,
     streamsJS,
+    streamsNative,
     streamsTestsJVM,
     streamsTestsJS,
     benchmarks,
@@ -175,7 +176,7 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
 lazy val macrosJVM = macros.jvm.settings(dottySettings)
 lazy val macrosJS  = macros.js.settings(jsSettings)
 
-lazy val streams = crossProject(JSPlatform, JVMPlatform)
+lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
   .dependsOn(core)
   .settings(stdSettings("zio-streams"))
@@ -190,6 +191,19 @@ lazy val streamsJVM = streams.jvm
   .settings(mimaSettings(failOnProblem = false))
 
 lazy val streamsJS = streams.js
+
+lazy val streamsNative = streams.native
+  .settings(scalaVersion := Scala211)
+  .settings(crossScalaVersions := Seq(scalaVersion.value))
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
+  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
+    SettingKey[Boolean]("ide-skip-project") := true
+  )
+  .settings(sources in (Compile, doc) := Seq.empty)
+  .disablePlugins(
+    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
+  )
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams-tests"))
