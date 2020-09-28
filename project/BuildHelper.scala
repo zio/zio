@@ -232,7 +232,7 @@ object BuildHelper {
     semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
     ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
     ThisBuild / scalafixDependencies ++= List(
-      "com.github.liancheng" %% "organize-imports" % "0.4.0",
+      "com.github.liancheng" %% "organize-imports" % "0.4.2",
       "com.github.vovapolu"  %% "scaluzzi"         % "0.1.12"
     ),
     parallelExecution in Test := true,
