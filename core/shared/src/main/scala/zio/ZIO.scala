@@ -2972,13 +2972,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] = {
 
     def worker(q: Queue[(Promise[E, B], A)], pairs: Iterable[(Promise[E, B], A)], ref: Ref[Int]): URIO[R, Unit] =
-      ref.getAndUpdate(_ - 1).flatMap { remaining =>
-        if (remaining >= 0)
-          q.take.flatMap { case (p, a) =>
-            fn(a).foldCauseM(c => ZIO.foreach(pairs)(_._1.halt(c)), b => p.succeed(b))
-          } *> worker(q, pairs, ref)
-        else
-          ZIO.unit
+      ZIO.whenM(ref.modify(n => (n > 0, n - 1))) {
+        q.take.flatMap { case (p, a) =>
+          fn(a).foldCauseM(c => ZIO.foreach(pairs)(_._1.halt(c)), b => p.succeed(b))
+        } *> worker(q, pairs, ref)
       }
 
     Queue
