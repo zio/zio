@@ -2969,7 +2969,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def foreachParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     as: Collection[A]
-  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] = {
+
+    def worker(q: Queue[(Promise[E, B], A)], pairs: Iterable[(Promise[E, B], A)], ref: Ref[Int]): URIO[R, Unit] =
+      ZIO.whenM(ref.modify(n => (n > 0, n - 1))) {
+        q.take.flatMap { case (p, a) =>
+          fn(a).foldCauseM(c => ZIO.foreach(pairs)(_._1.halt(c)), b => p.succeed(b))
+        } *> worker(q, pairs, ref)
+      }
+
     Queue
       .bounded[(Promise[E, B], A)](n.toInt)
       .bracket(_.shutdown) { q =>
@@ -2977,14 +2985,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           pairs <- ZIO.foreach[Any, Nothing, A, (Promise[E, B], A), Iterable](as) { a =>
                      Promise.make[E, B].map(p => (p, a))
                    }
-          _ <- ZIO.foreach_(pairs)(pair => q.offer(pair)).fork
-          _ <- ZIO.collectAll_(List.fill(n.toInt)(q.take.flatMap { case (p, a) =>
-                 fn(a).foldCauseM(c => ZIO.foreach(pairs)(_._1.halt(c)), b => p.succeed(b))
-               }.forever.fork))
+          ref <- Ref.make(pairs.size)
+          _   <- ZIO.foreach_(pairs)(pair => q.offer(pair)).fork
+          _   <- ZIO.collectAll_(List.fill(n.toInt)(worker(q, pairs, ref).fork))
           res <- ZIO.foreach(pairs)(_._1.await)
         } yield bf.fromSpecific(as)(res)
       }
       .refailWithTrace
+  }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
