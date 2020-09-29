@@ -31,7 +31,7 @@ checkout_merge_branch: &checkout_merge_branch
       command: |
         if [[ "$CIRCLE_PR_NUMBER" -ne "" ]]; then
           git fetch --force origin "pull/$CIRCLE_PR_NUMBER/merge:remotes/origin/pull/${CIRCLE_PR_NUMBER}_merge"
-          git checkout "remotes/origin/pull/${CIRCLE_PR_NUMBER}_merge"
+          git checkout -B "remotes/origin/pull/${CIRCLE_PR_NUMBER}_merge"
         fi
 
 install_jdk: &install_jdk
