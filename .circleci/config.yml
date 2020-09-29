@@ -32,7 +32,7 @@ checkout_merge_branch: &checkout_merge_branch
         if [[ "$CIRCLE_PR_NUMBER" -ne "" ]]; then
           echo FETCH
           git fetch --force origin "pull/$CIRCLE_PR_NUMBER/merge:remotes/origin/pull/${CIRCLE_PR_NUMBER}_merge"
-          ehco CHECKOUT
+          echo CHECKOUT
           git checkout -q -B "remotes/origin/pull/${CIRCLE_PR_NUMBER}_merge"
         fi
 
