@@ -30,7 +30,8 @@ checkout_merge_branch: &checkout_merge_branch
       name: Checkout the "merge" branch for this PR
       command: |
         if [[ "$CIRCLE_PR_NUMBER" -ne "" ]]; then
-          git checkout "origin/pull/$CIRCLE_PR_NUMBER/merge"
+          git fetch origin "pull/$CIRCLE_PR_NUMBER/merge:pull/$CIRCLE_PR_NUMBER/merge"
+          git checkout "pull/$CIRCLE_PR_NUMBER/merge"
         fi
 
 install_jdk: &install_jdk
