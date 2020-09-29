@@ -288,7 +288,7 @@ object AkkaLineNumbers {
     if (debug) println(s"LNB: reading $count methods")
     if (c.contains("Code") && c.contains("LineNumberTable"))
       (1 to count)
-        .flatMap(_ => readMethod(d, c("Code"), c("LineNumberTable"), methodName))
+        .flatMap(_ => readMethod(d, c("Code"), c("LineNumberTable"), methodName).toList)
         .foldLeft(Int.MaxValue -> 0) { case ((low, high), (start, end)) =>
           (Math.min(low, start), Math.max(high, end))
         } match {

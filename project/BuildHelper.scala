@@ -228,7 +228,8 @@ object BuildHelper {
           compilerPlugin("com.github.ghik" % "silencer-plugin" % SilencerVersion cross CrossVersion.full)
         )
     },
-    semanticdbEnabled := !isDotty.value,              // enable SemanticDB
+    semanticdbEnabled := !isDotty.value, // enable SemanticDB
+    semanticdbOptions += "-P:semanticdb:synthetics:on",
     semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
     ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
     ThisBuild / scalafixDependencies ++= List(

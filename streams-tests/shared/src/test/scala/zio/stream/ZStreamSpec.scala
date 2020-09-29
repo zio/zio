@@ -3727,7 +3727,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                .make[List[List[Exit[Option[Nothing], Chunk[A]]]]](
                  chunks.init.map { chunk =>
                    List(Exit.succeed(chunk))
-                 } ++ chunks.lastOption.map(chunk => List(Exit.succeed(chunk), Exit.fail(None)))
+                 } ++ chunks.lastOption.map(chunk => List(Exit.succeed(chunk), Exit.fail(None))).toList
                )
       chunkCoordination = new ChunkCoordination[A] {
                             val queue = q

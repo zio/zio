@@ -71,7 +71,7 @@ class GenBenchmarks {
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
-      .head
+      .get
 
   @Benchmark
   def hedgehogIntListsOfSizeN: List[List[Int]] =
@@ -82,7 +82,7 @@ class GenBenchmarks {
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
-      .head
+      .get
 
   @Benchmark
   def hedgehogStringsOfSizeN: List[String] =
@@ -92,7 +92,7 @@ class GenBenchmarks {
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
-      .head
+      .get
 
   @Benchmark
   def nyayaDoubles: List[Double] =
