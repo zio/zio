@@ -146,6 +146,12 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     ZLayer.Fresh(self)
 
   /**
+    * Returns the hash code of this layer.
+    */
+  override final lazy val hashCode: Int =
+    super.hashCode
+
+  /**
    * Builds this layer and uses it until it is interrupted. This is useful when
    * your entire application is a layer, such as an HTTP server.
    */
