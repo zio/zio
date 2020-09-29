@@ -26,10 +26,12 @@ machine_ubuntu: &machine_ubuntu
     image: ubuntu-1604:201903-01
 
 checkout_merge_branch: &checkout_merge_branch
-  -run:
-    if [ "$CIRCLE_PR_NUMBER" -ne "" ]; then
-      git checkout "origin/pull/$CIRCLE_PR_NUMBER/merge"
-    fi
+  - run:
+      name: Checkout the "merge" branch for this PR
+      command: |
+        if [ "$CIRCLE_PR_NUMBER" -ne "" ]; then
+          git checkout "origin/pull/$CIRCLE_PR_NUMBER/merge"
+        fi
 
 install_jdk: &install_jdk
   - run:
