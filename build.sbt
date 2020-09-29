@@ -38,7 +38,7 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
 )
-addCommandAlias("compileNative", ";coreNative/compile;streamsNative/compile")
+addCommandAlias("compileNative", ";coreNative/compile;streamsNative/compile;testNative/compile")
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test"
@@ -94,6 +94,7 @@ lazy val root = project
     benchmarks,
     testJVM,
     testJS,
+    testNative,
     testTestsJVM,
     testTestsJS,
     stacktracerJS,
@@ -225,7 +226,7 @@ lazy val streamsTestsJVM = streamsTests.jvm
 lazy val streamsTestsJS = streamsTests.js
   .settings(jsSettings)
 
-lazy val test = crossProject(JSPlatform, JVMPlatform)
+lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
@@ -243,6 +244,23 @@ lazy val testJVM = test.jvm
   // No bincompat on zio-test yet
   .settings(mimaSettings(failOnProblem = false))
 lazy val testJS = test.js
+lazy val testNative = test.native
+  .settings(scalaVersion := Scala211)
+  .settings(crossScalaVersions := Seq(scalaVersion.value))
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
+  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
+    SettingKey[Boolean]("ide-skip-project") := true
+  )
+  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings {
+    libraryDependencies ~= {
+      _.filterNot(_.name == "portable-scala-reflect")
+    }
+  }
+  .disablePlugins(
+    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
+  )
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
