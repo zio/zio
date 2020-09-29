@@ -25,6 +25,12 @@ machine_ubuntu: &machine_ubuntu
   machine:
     image: ubuntu-1604:201903-01
 
+checkout_merge_branch: &checkout_merge_branch
+  -run:
+    if [ "$CIRCLE_PR_NUMBER" -ne "" ]; then
+      git checkout "origin/pull/$CIRCLE_PR_NUMBER/merge"
+    fi
+
 install_jdk: &install_jdk
   - run:
       name: Install JDK
@@ -102,6 +108,7 @@ filter_tags: &filter_tags
 lint: &lint
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - run:
         name: Lint code
@@ -112,6 +119,7 @@ lint: &lint
 mdoc: &mdoc
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - run:
         name: Generate documentation
@@ -124,6 +132,7 @@ mdoc: &mdoc
 mimaChecks: &mimaChecks
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - <<: *install_jdk
     - run:
@@ -135,6 +144,7 @@ mimaChecks: &mimaChecks
 testJVM: &testJVM
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - <<: *install_jdk
     - run:
@@ -148,6 +158,7 @@ testJVM: &testJVM
 testJVMNoBenchmarks: &testJVMNoBenchmarks
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - <<: *install_jdk
     - run:
@@ -161,6 +172,7 @@ testJVMNoBenchmarks: &testJVMNoBenchmarks
 testJVMDotty: &testJVMDotty
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - run:
         name: Run tests
@@ -171,6 +183,7 @@ testJVMDotty: &testJVMDotty
 testJVM211: &testJVM211
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - <<: *install_jdk
     - run:
@@ -184,6 +197,7 @@ testJVM211: &testJVM211
 testJS: &testJS
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - <<: *install_jdk
     - <<: *install_nodejs
@@ -198,6 +212,7 @@ testJS: &testJS
 testJS211: &testJS211
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - <<: *install_jdk
     - <<: *install_nodejs
@@ -212,6 +227,7 @@ testJS211: &testJS211
 testNative: &testNative
   steps:
     - checkout
+    - <<: *checkout_merge_branch
     - <<: *load_cache
     - run:
         name: Run tests
