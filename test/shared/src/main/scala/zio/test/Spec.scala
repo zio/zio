@@ -104,7 +104,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   final def filterAnnotations[V](key: TestAnnotation[V])(f: V => Boolean): Option[Spec[R, E, T]] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        Some(Spec.suite(label, specs.map(_.flatMap(_.filterAnnotations(key)(f).toVector)), exec))
+        Some(Spec.suite(label, specs.map(_.flatMap(_.filterAnnotations(key)(f).toList)), exec))
       case TestCase(label, test, annotations) =>
         if (f(annotations.get(key))) Some(Spec.test(label, test, annotations)) else None
     }
@@ -121,7 +121,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         if (f(label)) Some(Spec.suite(label, specs, exec))
-        else Some(Spec.suite(label, specs.map(_.flatMap(_.filterLabels(f).toVector)), exec))
+        else Some(Spec.suite(label, specs.map(_.flatMap(_.filterLabels(f).toList)), exec))
       case TestCase(label, test, annotations) =>
         if (f(label)) Some(Spec.test(label, test, annotations)) else None
     }
