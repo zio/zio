@@ -21,8 +21,8 @@ import scala.annotation.unchecked.uncheckedVariance
 import zio._
 import zio.duration._
 import zio.test.Spec.{ SuiteCase, TestCase }
-import zio.test._
 import zio.test.environment._
+import zio.test.{ TestAspectAtLeastR => _, TestAspectPoly => _, _ }
 
 trait TestAspect[+EnvIn, -ErrIn, -EnvOut, +ErrOut] { self =>
   type ModifyEnv[+_ >: EnvIn] >: EnvOut
