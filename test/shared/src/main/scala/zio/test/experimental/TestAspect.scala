@@ -1,9 +1,26 @@
+/*
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.test.experimental
 
 import scala.annotation.unchecked.uncheckedVariance
 
 import zio._
 import zio.duration._
+import zio.test.Spec.{ SuiteCase, TestCase }
 import zio.test._
 import zio.test.environment._
 
@@ -100,27 +117,30 @@ object TestAspect {
   /**
    * Constructs an aspect that runs the specified effect after every test.
    */
-  def after[R, E](effect: ZIO[R, E, Any]): TestAspect.Aux[
+  def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect.Aux[
     Nothing,
-    E,
+    E0,
     Nothing,
-    E,
-    ({ type Apply[+R1] = R with R1 })#Apply,
-    ({ type Apply[+E1 <: E] = E })#Apply
+    E0,
+    ({ type Apply[+R] = R with R0 })#Apply,
+    ({ type Apply[+E <: E0] = E0 })#Apply
   ] =
-    new TestAspect[Nothing, E, Nothing, E] {
-      type ModifyEnv[+R1]      = R with R1
-      type ModifyErr[+E1 <: E] = E
+    new TestAspect[Nothing, E0, Nothing, E0] {
+      type ModifyEnv[+R]       = R with R0
+      type ModifyErr[+E <: E0] = E0
 
-      def some[R1, E1 <: E](predicate: String => Boolean, spec: ZSpec[R1, E1]): ZSpec[R with R1, E] =
-        spec.transform[R with R1, TestFailure[E], TestSuccess] {
+      def after[R, E <: E0, A](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R with R0, TestFailure[E0], TestSuccess] =
+        test.run
+          .zipWith(effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).run)(_ <* _)
+          .flatMap(ZIO.done(_))
+
+      def some[R, E <: E0](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R with R0, E0] =
+        spec.transform[R with R0, TestFailure[E0], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
           case Spec.TestCase(label, test, annotations) =>
-            val after: ZIO[R with R1, TestFailure[E], TestSuccess] =
-              test.run
-                .zipWith(effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).run)(_ <* _)
-                .flatMap(ZIO.done(_))
-            Spec.TestCase(label, if (predicate(label)) after else test, annotations)
+            Spec.TestCase(label, if (predicate(label)) after(test) else test, annotations)
         }
     }
 
@@ -141,25 +161,26 @@ object TestAspect {
    * `before` and `after`,  where the result of `before` can be used in
    * `after`.
    */
-  def around[R, E, A](before: ZIO[R, E, A])(after: A => ZIO[R, Nothing, Any]): TestAspect.Aux[
+  def around[R0, E0, A0](before: ZIO[R0, E0, A0])(after: A0 => ZIO[R0, Nothing, Any]): TestAspect.Aux[
     Nothing,
-    E,
+    E0,
     Nothing,
-    E,
-    ({ type Apply[+R1] = R with R1 })#Apply,
-    ({ type Apply[+E1 <: E] = E })#Apply
+    E0,
+    ({ type Apply[+R] = R with R0 })#Apply,
+    ({ type Apply[+E <: E0] = E0 })#Apply
   ] =
-    new TestAspect[Nothing, E, Nothing, E] {
-      type ModifyEnv[+R1]      = R with R1
-      type ModifyErr[+E1 <: E] = E
+    new TestAspect[Nothing, E0, Nothing, E0] {
+      type ModifyEnv[+R]       = R with R0
+      type ModifyErr[+E <: E0] = E0
 
-      def some[R1, E1 <: E](predicate: String => Boolean, spec: ZSpec[R1, E1]): ZSpec[R with R1, E] =
-        spec.transform[R with R1, TestFailure[E], TestSuccess] {
+      def around[R, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R with R0, TestFailure[E0], TestSuccess] =
+        before.catchAllCause(c => ZIO.fail(TestFailure.Runtime(c))).bracket(after)(_ => test)
+
+      def some[R, E <: E0](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R with R0, E0] =
+        spec.transform[R with R0, TestFailure[E0], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
           case Spec.TestCase(label, test, annotations) =>
-            val around: ZIO[R with R1, TestFailure[E], TestSuccess] =
-              before.catchAllCause(c => ZIO.fail(TestFailure.Runtime(c))).bracket(after)(_ => test)
-            Spec.TestCase(label, if (predicate(label)) around else test, annotations)
+            Spec.TestCase(label, if (predicate(label)) around(test) else test, annotations)
         }
     }
 
@@ -167,13 +188,13 @@ object TestAspect {
    * A less powerful variant of `around` where the result of `before` is not
    * required by after.
    */
-  def around_[R, E](before: ZIO[R, E, Any], after: ZIO[R, Nothing, Any]): TestAspect.Aux[
+  def around_[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect.Aux[
     Nothing,
-    E,
+    E0,
     Nothing,
-    E,
-    ({ type Apply[+R1] = R with R1 })#Apply,
-    ({ type Apply[+E1 <: E] = E })#Apply
+    E0,
+    ({ type Apply[+R] = R with R0 })#Apply,
+    ({ type Apply[+E <: E0] = E0 })#Apply
   ] =
     around(before)(_ => after)
 
@@ -181,27 +202,30 @@ object TestAspect {
    * Constructs an aspect that evaluates every test inside the context of the
    * managed function.
    */
-  def aroundTest[R, E](
-    managed: ZManaged[R, TestFailure[E], TestSuccess => ZIO[R, TestFailure[E], TestSuccess]]
+  def aroundTest[R0, E0](
+    managed: ZManaged[R0, TestFailure[E0], TestSuccess => ZIO[R0, TestFailure[E0], TestSuccess]]
   ): TestAspect.Aux[
     Nothing,
-    E,
+    E0,
     Nothing,
-    E,
-    ({ type Apply[+R1] = R with R1 })#Apply,
-    ({ type Apply[+E1 <: E] = E })#Apply
+    E0,
+    ({ type Apply[+R] = R with R0 })#Apply,
+    ({ type Apply[+E <: E0] = E0 })#Apply
   ] =
-    new TestAspect[Nothing, E, Nothing, E] {
-      type ModifyEnv[+R1]      = R with R1
-      type ModifyErr[+E1 <: E] = E
+    new TestAspect[Nothing, E0, Nothing, E0] {
+      type ModifyEnv[+R]       = R with R0
+      type ModifyErr[+E <: E0] = E0
 
-      def some[R1, E1 <: E](predicate: String => Boolean, spec: ZSpec[R1, E1]): ZSpec[R with R1, E] =
-        spec.transform[R with R1, TestFailure[E], TestSuccess] {
+      def aroundTest[R, E <: E0](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R with R0, TestFailure[E0], TestSuccess] =
+        managed.use(f => test.flatMap(f))
+
+      def some[R, E <: E0](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R with R0, E0] =
+        spec.transform[R with R0, TestFailure[E0], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
           case Spec.TestCase(label, test, annotations) =>
-            val aroundTest: ZIO[R with R1, TestFailure[E], TestSuccess] =
-              managed.use(f => test.flatMap(f))
-            Spec.TestCase(label, if (predicate(label)) aroundTest else test, annotations)
+            Spec.TestCase(label, if (predicate(label)) aroundTest(test) else test, annotations)
         }
     }
 
@@ -209,42 +233,40 @@ object TestAspect {
    * Constructs a simple monomorphic aspect that only works with the specified
    * environment and error type.
    */
-  def aspect[R, E](
-    f: ZIO[R, TestFailure[E], TestSuccess] => ZIO[R, TestFailure[E], TestSuccess]
+  def aspect[R0, E0](
+    f: ZIO[R0, TestFailure[E0], TestSuccess] => ZIO[R0, TestFailure[E0], TestSuccess]
   ): TestAspect.Aux[
-    R,
-    E,
-    R,
-    E,
-    ({ type Apply[+R1 >: R] = R with R1 })#Apply,
-    ({ type Apply[+E1 <: E] = E })#Apply
+    R0,
+    E0,
+    R0,
+    E0,
+    ({ type Apply[+R >: R0] = R0 })#Apply,
+    ({ type Apply[+E <: E0] = E0 })#Apply
   ] =
-    new TestAspect[R, E, R, E] {
-      type ModifyEnv[+R1 >: R] = R with R1
-      type ModifyErr[+E1 <: E] = E
+    new TestAspect[R0, E0, R0, E0] {
+      type ModifyEnv[+R >: R0] = R0
+      type ModifyErr[+E <: E0] = E0
 
-      def some[R1 >: R, E1 <: E](predicate: String => Boolean, spec: ZSpec[R1, E1]): ZSpec[R with R1, E] =
-        spec.transform[R with R1, TestFailure[E], TestSuccess] {
+      def some[R >: R0, E <: E0](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R0, E0] =
+        spec.transform[R0, TestFailure[E0], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
           case Spec.TestCase(label, test, annotations) =>
-            val aspect: ZIO[R with R1, TestFailure[E], TestSuccess] =
-              f(test)
-            Spec.TestCase(label, if (predicate(label)) aspect else test, annotations)
+            Spec.TestCase(label, if (predicate(label)) f(test) else test, annotations)
         }
     }
 
   /**
    * Constructs an aspect that runs the specified effect before every test.
    */
-  def before[R, E](before: ZIO[R, E, Any]): TestAspect.Aux[
+  def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect.Aux[
     Nothing,
-    E,
+    E0,
     Nothing,
-    E,
-    ({ type Apply[+R1] = R with R1 })#Apply,
-    ({ type Apply[+E1 <: E] = E })#Apply
+    E0,
+    ({ type Apply[+R] = R with R0 })#Apply,
+    ({ type Apply[+E <: E0] = E0 })#Apply
   ] =
-    around(before)(_ => ZIO.unit)
+    around(effect)(_ => ZIO.unit)
 
   /**
    * An aspect that runs each test on a separate fiber and prints a fiber dump
@@ -282,18 +304,11 @@ object TestAspect {
    * standard output in addition to being written to the output buffer.
    */
   val debug: TestAspectAtLeastR[TestConsole] =
-    new TestAspect[Nothing, Any, Nothing, Any] {
-      type ModifyEnv[+R] = R with TestConsole
-      type ModifyErr[+E] = E
-
-      def some[R, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R with TestConsole, E] =
-        spec.transform[R with TestConsole, TestFailure[E], TestSuccess] {
-          case c @ Spec.SuiteCase(_, _, _) => c
-          case Spec.TestCase(label, test, annotations) =>
-            val debug: ZIO[R with TestConsole, TestFailure[E], TestSuccess] =
-              TestConsole.debug(test)
-            Spec.TestCase(label, if (predicate(label)) debug else test, annotations)
-        }
+    new TestAspect.PerTestAtLeastR[TestConsole] {
+      def perTest[R, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R with TestConsole, TestFailure[E], TestSuccess] =
+        TestConsole.debug(test)
     }
 
   /**
@@ -313,20 +328,14 @@ object TestAspect {
   /**
    * An aspect that retries a test until success, without limit.
    */
-  val eventually: TestAspectAtLeastR[ZTestEnv] =
-    new TestAspect[Nothing, Any, Nothing, Any] {
-      type ModifyEnv[+R] = R with ZTestEnv
-      type ModifyErr[+E] = E
-
-      def some[R, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R with ZTestEnv, E] =
-        spec.transform[R with ZTestEnv, TestFailure[E], TestSuccess] {
-          case c @ Spec.SuiteCase(_, _, _) => c
-          case Spec.TestCase(label, test, annotations) =>
-            val debug: ZIO[R with ZTestEnv, TestFailure[E], TestSuccess] =
-              test.eventually
-            Spec.TestCase(label, if (predicate(label)) debug else test, annotations)
-        }
-    }
+  val eventually: TestAspectAtLeastR[ZTestEnv] = {
+    val eventually: TestAspectPoly =
+      new TestAspect.PerTestPoly {
+        def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+          test.eventually
+      }
+    restoreTestEnvironment >>> [Nothing, Any] eventually
+  }
 
   /**
    * An aspect that restores a given
@@ -335,7 +344,13 @@ object TestAspect {
    * tests.
    */
   def restore[R](service: R => Restorable): TestAspectAtLeastR[R] =
-    ??? //around(ZIO.accessM[R](r => service(r).save))(restore => restore)
+    new TestAspect.PerTestAtLeastR[R] {
+      def perTest[R0, E](test: ZIO[R0, TestFailure[E], TestSuccess]): ZIO[R0 with R, TestFailure[E], TestSuccess] =
+        ZIO
+          .accessM[R](r => service(r).save)
+          .catchAllCause(c => ZIO.fail(TestFailure.Runtime(c)))
+          .bracket(restore => restore)(_ => test)
+    }
 
   /**
    * An aspect that restores the
@@ -348,7 +363,7 @@ object TestAspect {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestClock TestClock]]'s state to its starting
+   * [[zio.test.environment.TestConsole TestConsole]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -357,7 +372,7 @@ object TestAspect {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestClock TestClock]]'s state to its starting
+   * [[zio.test.environment.TestRandom TestRandom]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -366,7 +381,7 @@ object TestAspect {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestClock TestClock]]'s state to its starting
+   * [[zio.test.environment.TestSystem TestSystem]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -374,11 +389,62 @@ object TestAspect {
     restore[TestSystem](_.get)
 
   /**
-   * An aspect that restores the
-   * [[zio.test.environment.TestClock TestClock]]'s state to its starting
-   * state after the test is run. Note that this is only useful when repeating
-   * tests.
+   * An aspect that restores all state in the standard provided test
+   * environments ([[zio.test.environment.TestClock TestClock]],
+   * [[zio.test.environment.TestConsole TestConsole]],
+   * [[zio.test.environment.TestRandom TestRandom]] and
+   * [[zio.test.environment.TestSystem TestSystem]]) to their starting state
+   * after the test is run. Note that this is only useful when repeating tests.
    */
   def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =
     restoreTestClock >>> [Nothing, Any] restoreTestConsole >>> [Nothing, Any] restoreTestRandom >>> [Nothing, Any] restoreTestSystem
+
+  /**
+   * Annotates tests with string tags.
+   */
+  def tag(tag: String, tags: String*): TestAspectPoly =
+    annotate(TestAnnotation.tagged, Set(tag) union tags.toSet)
+
+  /**
+   * Removes tracing from tests.
+   */
+  val untraced: TestAspectPoly =
+    new TestAspect.PerTestPoly {
+      def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        test.untraced
+    }
+
+  trait PerTestPoly extends TestAspect[Nothing, Any, Nothing, Any] {
+    type ModifyEnv[+R] = R
+    type ModifyErr[+E] = E
+
+    def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess]
+
+    final def some[R, E](
+      predicate: String => Boolean,
+      spec: Spec[R, TestFailure[E], TestSuccess]
+    ): Spec[R, TestFailure[E], TestSuccess] =
+      spec.transform[R, TestFailure[E], TestSuccess] {
+        case c @ SuiteCase(_, _, _) => c
+        case TestCase(label, test, annotations) =>
+          Spec.TestCase(label, if (predicate(label)) perTest(test) else test, annotations)
+      }
+  }
+
+  trait PerTestAtLeastR[R] extends TestAspect[Nothing, Any, Nothing, Any] {
+    type ModifyEnv[+R0] = R0 with R
+    type ModifyErr[+E]  = E
+
+    def perTest[R0, E](test: ZIO[R0, TestFailure[E], TestSuccess]): ZIO[R0 with R, TestFailure[E], TestSuccess]
+
+    final def some[R0, E](
+      predicate: String => Boolean,
+      spec: Spec[R0, TestFailure[E], TestSuccess]
+    ): Spec[R0 with R, TestFailure[E], TestSuccess] =
+      spec.transform[R0 with R, TestFailure[E], TestSuccess] {
+        case c @ SuiteCase(_, _, _) => c
+        case TestCase(label, test, annotations) =>
+          Spec.TestCase(label, if (predicate(label)) perTest(test) else test, annotations)
+      }
+  }
 }
