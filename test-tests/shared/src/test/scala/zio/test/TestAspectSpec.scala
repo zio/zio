@@ -254,6 +254,11 @@ object TestAspectSpec extends ZIOBaseSpec {
         value <- ref.get
       } yield assert(value)(equalTo(1))
     } @@ shrinks(0),
+    testM("shrinks preserves the original failure") {
+      check(Gen.anyInt) { n =>
+        assert(n)(equalTo(n + 1))
+      }
+    } @@ shrinks(0) @@ failing,
     testM("timeout makes tests fail after given duration") {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
