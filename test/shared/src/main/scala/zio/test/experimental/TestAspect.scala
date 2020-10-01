@@ -374,5 +374,5 @@ object TestAspect {
    * tests.
    */
   def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =
-    ??? //restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
+    restoreTestClock >>>[Nothing, Any] restoreTestConsole >>>[Nothing, Any] restoreTestRandom >>>[Nothing, Any] restoreTestSystem
 }
