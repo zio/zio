@@ -98,7 +98,7 @@ object TestAspect {
     }
 
   /**
-   * An aspect that marks tests as ignored.
+   * Constructs an aspect that runs the specified effect after every test.
    */
   def after[R, E](effect: ZIO[R, E, Any]): TestAspect.Aux[
     Nothing,
@@ -125,7 +125,7 @@ object TestAspect {
     }
 
   /**
-   * An aspect that marks tests as ignored.
+   * Annotates tests with the specified test annotation.
    */
   def annotate[V](key: TestAnnotation[V], value: V): TestAspectPoly =
     new TestAspect[Nothing, Any, Nothing, Any] {
@@ -137,7 +137,9 @@ object TestAspect {
     }
 
   /**
-   * An aspect that marks tests as ignored.
+   * Constructs an aspect that evaluates every test between two effects,
+   * `before` and `after`,  where the result of `before` can be used in
+   * `after`.
    */
   def around[R, E, A](before: ZIO[R, E, A])(after: A => ZIO[R, Nothing, Any]): TestAspect.Aux[
     Nothing,
@@ -176,7 +178,8 @@ object TestAspect {
     around(before)(_ => after)
 
   /**
-   * An aspect that marks tests as ignored.
+   * Constructs an aspect that evaluates every test inside the context of the
+   * managed function.
    */
   def aroundTest[R, E](
     managed: ZManaged[R, TestFailure[E], TestSuccess => ZIO[R, TestFailure[E], TestSuccess]]
@@ -231,7 +234,7 @@ object TestAspect {
     }
 
   /**
-   * An aspect that marks tests as ignored.
+   * Constructs an aspect that runs the specified effect before every test.
    */
   def before[R, E](before: ZIO[R, E, Any]): TestAspect.Aux[
     Nothing,
@@ -302,7 +305,7 @@ object TestAspect {
     if (TestVersion.isDotty) that else ???
 
   /**
-   * An aspect that marks tests as ignored.
+   * An aspect that only runs tests on Dotty.
    */
   val dottyOnly: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isDotty) ??? else ignore
@@ -326,7 +329,10 @@ object TestAspect {
     }
 
   /**
-   * An aspect that retries a test until success, without limit.
+   * An aspect that restores a given
+   * [[zio.test.environment.Restorable Restorable]]'s state to its starting
+   * state after the test is run. Note that this is only useful when repeating
+   * tests.
    */
   def restore[R](service: R => Restorable): TestAspectAtLeastR[R] =
     ??? //around(ZIO.accessM[R](r => service(r).save))(restore => restore)
@@ -374,5 +380,5 @@ object TestAspect {
    * tests.
    */
   def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =
-    restoreTestClock >>>[Nothing, Any] restoreTestConsole >>>[Nothing, Any] restoreTestRandom >>>[Nothing, Any] restoreTestSystem
+    restoreTestClock >>> [Nothing, Any] restoreTestConsole >>> [Nothing, Any] restoreTestRandom >>> [Nothing, Any] restoreTestSystem
 }
