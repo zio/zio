@@ -290,7 +290,21 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Returns a new schedule that deals with a narrower class of inputs than this schedule.
    */
   def contramap[Env1 <: Env, In2](f: In2 => In): Schedule[Env, In2, Out] =
-    Schedule((now: OffsetDateTime, in: In2) => step(now, f(in)).map(_.contramap(f)))
+    self.contramapM(in => ZIO.succeed(f(in)))
+
+  /**
+   * Returns a new schedule that deals with a narrower class of inputs than this schedule.
+   */
+  def contramapM[Env1 <: Env, In2](f: In2 => URIO[Env1, In]): Schedule[Env1, In2, Out] = {
+    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In2, Out] =
+      (now: OffsetDateTime, in2: In2) =>
+        f(in2).flatMap(in => self(now, in)).map {
+          case Done(out)                     => Done(out)
+          case Continue(out, interval, next) => Continue(out, interval, loop(next))
+        }
+
+    Schedule(loop(step))
+  }
 
   /**
    * Returns a new schedule with the specified effectfully computed delay added before the start
@@ -310,6 +324,12 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    */
   def dimap[In2, Out2](f: In2 => In, g: Out => Out2): Schedule[Env, In2, Out2] =
     contramap(f).map(g)
+
+  /**
+   * Returns a new schedule that contramaps the input and maps the output.
+   */
+  def dimapM[Env1 <: Env, In2, Out2](f: In2 => URIO[Env1, In], g: Out => URIO[Env1, Out2]): Schedule[Env1, In2, Out2] =
+    contramapM(f).mapM(g)
 
   /**
    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
@@ -465,13 +485,13 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def left[X]: Schedule[Env, Either[In, X], Either[Out, X]] = self +++ Schedule.identity[X]
 
   /**
-   * Returns a new schedule that maps the output of this schedule through the specified
-   * effectful function.
+   * Returns a new schedule that maps the output of this schedule through the specified function.
    */
   def map[Out2](f: Out => Out2): Schedule[Env, In, Out2] = self.mapM(out => ZIO.succeed(f(out)))
 
   /**
-   * Returns a new schedule that maps the output of this schedule through the specified function.
+   * Returns a new schedule that maps the output of this schedule through the specified
+   * effectful function.
    */
   def mapM[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]): Schedule[Env1, In, Out2] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out2] =
