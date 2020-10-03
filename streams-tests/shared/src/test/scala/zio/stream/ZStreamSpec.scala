@@ -2494,14 +2494,27 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         },
         suite("takeWhile")(
-          testM("takeWhile")(checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+          testM("takeWhile")(checkM(tinyListOf(tinyChunkOf(Gen.anyInt)), Gen.function(Gen.boolean)) { (chunks, p) =>
+            val s = ZStream.fromChunks(chunks: _*)
+
             for {
-              streamTakeWhile <- s.takeWhile(p).runCollect.run
-              chunkTakeWhile  <- s.runCollect.map(_.takeWhile(p)).run
-            } yield assert(chunkTakeWhile.succeeded)(isTrue) implies assert(streamTakeWhile)(
-              equalTo(chunkTakeWhile)
-            )
+              streamTakeWhile <- s.takeWhile(p).runCollect
+              chunkTakeWhile  <- s.runCollect.map(_.takeWhile(p))
+            } yield assert(streamTakeWhile)(equalTo(chunkTakeWhile))
           }),
+          testM("takeWhile doesn't stop when hitting an empty chunk (#4272)") {
+            ZStream
+              .fromChunks(Chunk(1), Chunk(2), Chunk(3))
+              .mapChunks(_.flatMap {
+                case 2 => Chunk()
+                case x => Chunk(x)
+              })
+              .takeWhile(_ != 4)
+              .runCollect
+              .map { result =>
+                assert(result)(hasSameElements(List(1, 3)))
+              }
+          },
           testM("takeWhile short circuits")(
             assertM(
               (ZStream(1) ++ ZStream.fail("Ouch"))
