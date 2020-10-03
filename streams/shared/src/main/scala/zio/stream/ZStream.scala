@@ -2626,8 +2626,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    for {
                      chunk <- chunks
                      taken  = chunk.takeWhile(pred)
-                     _     <- doneRef.set(true).when(taken.length < chunk.length || chunk.length == 0)
-                     _     <- Pull.end.when(taken.length == 0)
+                     _     <- doneRef.set(true).when(taken.length < chunk.length)
                    } yield taken
                }
       } yield pull
