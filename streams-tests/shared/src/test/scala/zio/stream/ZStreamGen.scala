@@ -47,11 +47,15 @@ object ZStreamGen extends GenZIO {
   def nPulls[R, E, A](pull: ZIO[R, Option[E], A], n: Int): ZIO[R, Nothing, Iterable[Either[Option[E], A]]] =
     ZIO.foreach(1 to n)(_ => pull.either)
 
-  val streamOfBytes: Gen[Random with Sized, ZStream[Any, String, Byte]] = Gen.bounded(0, 5)(streamGen(Gen.anyByte, _))
-  val streamOfInts: Gen[Random with Sized, ZStream[Any, String, Int]]   = Gen.bounded(0, 5)(streamGen(Gen.anyInt, _))
+  val streamOfInts: Gen[Random with Sized, ZStream[Any, String, Int]] =
+    Gen.bounded(0, 5)(streamGen(Gen.anyInt, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
 
-  val pureStreamOfBytes: Gen[Random with Sized, ZStream[Any, Nothing, Byte]] =
-    Gen.bounded(0, 5)(pureStreamGen(Gen.anyByte, _))
   val pureStreamOfInts: Gen[Random with Sized, ZStream[Any, Nothing, Int]] =
-    Gen.bounded(0, 5)(pureStreamGen(Gen.anyInt, _))
+    Gen.bounded(0, 5)(pureStreamGen(Gen.anyInt, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
+
+  def injectEmptyChunks[R, E, A](stream: ZStream[R, E, A], predicate: Chunk[A] => Boolean): ZStream[R, E, A] =
+    stream.mapChunks { chunk =>
+      if (predicate(chunk)) chunk
+      else Chunk.empty
+    }
 }

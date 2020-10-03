@@ -824,7 +824,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           } @@ zioTag(errors)
         ),
         suite("concat")(
-          testM("concat")(checkM(streamOfBytes, streamOfBytes) { (s1, s2) =>
+          testM("concat")(checkM(streamOfInts, streamOfInts) { (s1, s2) =>
             for {
               chunkConcat  <- s1.runCollect.zipWith(s2.runCollect)(_ ++ _).run
               streamConcat <- (s1 ++ s2).runCollect.run
@@ -904,7 +904,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.never.drainFork(ZStream.die(ex)).runDrain.run)(dies(equalTo(ex)))
           } @@ zioTag(errors)
         ),
-        testM("drop")(checkM(streamOfBytes, Gen.anyInt) { (s: ZStream[Any, String, Byte], n: Int) =>
+        testM("drop")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
           for {
             dropStreamResult <- s.drop(n.toLong).runCollect.run
             dropListResult   <- s.runCollect.map(_.drop(n)).run
@@ -913,7 +913,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           )
         }),
         testM("dropUntil") {
-          checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+          checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               res1 <- s.dropUntil(p).runCollect
               res2 <- s.runCollect.map(_.dropWhile(!p(_)).drop(1))
@@ -922,12 +922,11 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         suite("dropWhile")(
           testM("dropWhile")(
-            checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) {
-              (s: ZStream[Any, String, Byte], p: Byte => Boolean) =>
-                for {
-                  res1 <- s.dropWhile(p).runCollect
-                  res2 <- s.runCollect.map(_.dropWhile(p))
-                } yield assert(res1)(equalTo(res2))
+            checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+              for {
+                res1 <- s.dropWhile(p).runCollect
+                res2 <- s.runCollect.map(_.dropWhile(p))
+              } yield assert(res1)(equalTo(res2))
             }
           ),
           testM("short circuits") {
@@ -965,14 +964,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
         },
-        testM("filter")(checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+        testM("filter")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
             res2 <- s.runCollect.map(_.filter(p))
           } yield assert(res1)(equalTo(res2))
         }),
         suite("filterM")(
-          testM("filterM")(checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+          testM("filterM")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               res1 <- s.filterM(s => IO.succeed(p(s))).runCollect
               res2 <- s.runCollect.map(_.filter(p))
@@ -1843,7 +1842,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               assert(uninterruptible)(isSome(equalTo(InterruptStatus.Uninterruptible)))
           }
         ),
-        testM("map")(checkM(pureStreamOfBytes, Gen.function(Gen.anyInt)) { (s, f) =>
+        testM("map")(checkM(pureStreamOfInts, Gen.function(Gen.anyInt)) { (s, f) =>
           for {
             res1 <- s.map(f).runCollect
             res2 <- s.runCollect.map(_.map(f))
@@ -1881,13 +1880,13 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
-        testM("mapConcat")(checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
+        testM("mapConcat")(checkM(pureStreamOfInts, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
           for {
             res1 <- s.mapConcat(f).runCollect
             res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
           } yield assert(res1)(equalTo(res2))
         }),
-        testM("mapConcatChunk")(checkM(pureStreamOfBytes, Gen.function(Gen.chunkOf(Gen.anyInt))) { (s, f) =>
+        testM("mapConcatChunk")(checkM(pureStreamOfInts, Gen.function(Gen.chunkOf(Gen.anyInt))) { (s, f) =>
           for {
             res1 <- s.mapConcatChunk(f).runCollect
             res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
@@ -1895,7 +1894,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         }),
         suite("mapConcatChunkM")(
           testM("mapConcatChunkM happy path") {
-            checkM(pureStreamOfBytes, Gen.function(Gen.chunkOf(Gen.anyInt))) { (s, f) =>
+            checkM(pureStreamOfInts, Gen.function(Gen.chunkOf(Gen.anyInt))) { (s, f) =>
               for {
                 res1 <- s.mapConcatChunkM(b => UIO.succeedNow(f(b))).runCollect
                 res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
@@ -1912,7 +1911,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("mapConcatM")(
           testM("mapConcatM happy path") {
-            checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
+            checkM(pureStreamOfInts, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
               for {
                 res1 <- s.mapConcatM(b => UIO.succeedNow(f(b))).runCollect
                 res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
@@ -2431,7 +2430,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           s1.someOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))
         },
         suite("take")(
-          testM("take")(checkM(streamOfBytes, Gen.anyInt) { (s: ZStream[Any, String, Byte], n: Int) =>
+          testM("take")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
             for {
               takeStreamResult <- s.take(n.toLong).runCollect.run
               takeListResult   <- s.runCollect.map(_.take(n)).run
@@ -2467,7 +2466,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         },
         testM("takeUntil") {
-          checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+          checkM(streamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               streamTakeUntil <- s.takeUntil(p).runCollect.run
               chunkTakeUntil <- s.runCollect
@@ -2479,7 +2478,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         },
         testM("takeUntilM") {
-          checkM(streamOfBytes, Gen.function(Gen.successes(Gen.boolean))) { (s, p) =>
+          checkM(streamOfInts, Gen.function(Gen.successes(Gen.boolean))) { (s, p) =>
             for {
               streamTakeUntilM <- s.takeUntilM(p).runCollect.run
               chunkTakeUntilM <- s.runCollect
@@ -2494,14 +2493,25 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         },
         suite("takeWhile")(
-          testM("takeWhile")(checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+          testM("takeWhile")(checkM(streamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               streamTakeWhile <- s.takeWhile(p).runCollect.run
               chunkTakeWhile  <- s.runCollect.map(_.takeWhile(p)).run
-            } yield assert(chunkTakeWhile.succeeded)(isTrue) implies assert(streamTakeWhile)(
-              equalTo(chunkTakeWhile)
-            )
+            } yield assert(chunkTakeWhile.succeeded)(isTrue) implies assert(streamTakeWhile)(equalTo(chunkTakeWhile))
           }),
+          testM("takeWhile doesn't stop when hitting an empty chunk (#4272)") {
+            ZStream
+              .fromChunks(Chunk(1), Chunk(2), Chunk(3))
+              .mapChunks(_.flatMap {
+                case 2 => Chunk()
+                case x => Chunk(x)
+              })
+              .takeWhile(_ != 4)
+              .runCollect
+              .map { result =>
+                assert(result)(hasSameElements(List(1, 3)))
+              }
+          },
           testM("takeWhile short circuits")(
             assertM(
               (ZStream(1) ++ ZStream.fail("Ouch"))
@@ -3137,7 +3147,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(isLeft(equalTo("Ouch")))
           }
         ),
-        testM("zipWithIndex")(checkM(pureStreamOfBytes) { s =>
+        testM("zipWithIndex")(checkM(pureStreamOfInts) { s =>
           for {
             res1 <- (s.zipWithIndex.runCollect)
             res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
