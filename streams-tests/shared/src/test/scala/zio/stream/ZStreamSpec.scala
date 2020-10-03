@@ -803,26 +803,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
-        suite("collectWhileSuccess")(
-          testM("happy path") {
-            assertM(
-              ZStream
-                .range(0, 10)
-                .toQueue(1)
-                .use(q => ZStream.fromQueue(q).map(_.exit).collectWhileSuccess.runCollect)
-                .map(_.flatMap(_.toList))
-            )(equalTo(Chunk.fromIterable(Range(0, 10))))
-          },
-          testM("errors") {
-            val e = new RuntimeException("boom")
-            assertM(
-              (ZStream.range(0, 10) ++ ZStream.fail(e))
-                .toQueue(1)
-                .use(q => ZStream.fromQueue(q).map(_.exit).collectWhileSuccess.runCollect)
-                .run
-            )(fails(equalTo(e)))
-          } @@ zioTag(errors)
-        ),
         suite("concat")(
           testM("concat")(checkM(streamOfBytes, streamOfBytes) { (s1, s2) =>
             for {
@@ -1375,6 +1355,26 @@ object ZStreamSpec extends ZIOBaseSpec {
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
           }
+        ),
+        suite("flattenExitOption")(
+          testM("happy path") {
+            assertM(
+              ZStream
+                .range(0, 10)
+                .toQueue(1)
+                .use(q => ZStream.fromQueue(q).map(_.exit).flattenExitOption.runCollect)
+                .map(_.flatMap(_.toList))
+            )(equalTo(Chunk.fromIterable(Range(0, 10))))
+          },
+          testM("errors") {
+            val e = new RuntimeException("boom")
+            assertM(
+              (ZStream.range(0, 10) ++ ZStream.fail(e))
+                .toQueue(1)
+                .use(q => ZStream.fromQueue(q).map(_.exit).flattenExitOption.runCollect)
+                .run
+            )(fails(equalTo(e)))
+          } @@ zioTag(errors)
         ),
         testM("flattenIterables")(checkM(tinyListOf(tinyListOf(Gen.anyInt))) { lists =>
           assertM(ZStream.fromIterable(lists).flattenIterables.runCollect)(equalTo(Chunk.fromIterable(lists.flatten)))

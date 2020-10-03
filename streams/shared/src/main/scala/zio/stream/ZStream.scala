@@ -322,7 +322,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         _.map(
           ZStream
             .fromQueueWithShutdown(_)
-            .collectWhileSuccess
+            .flattenExitOption
         )
       )
 
@@ -340,7 +340,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         _.map(
           ZStream
             .fromQueueWithShutdown(_)
-            .collectWhileSuccess
+            .flattenExitOption
         )
       )
 
@@ -608,11 +608,35 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     mapChunks(_.collect(pf))
 
   /**
-   * Filters any 'None'.
+   * Filters any `Right` values.
+   */
+  final def collectLeft[L1, O1](implicit ev: O <:< Either[L1, O1]): ZStream[R, E, L1] = {
+    val _ = ev
+    self.asInstanceOf[ZStream[R, E, Either[L1, O1]]].collect { case Left(a) => a }
+  }
+
+  /**
+   * Filters any 'None' values.
    */
   final def collectSome[O1](implicit ev: O <:< Option[O1]): ZStream[R, E, O1] = {
     val _ = ev
     self.asInstanceOf[ZStream[R, E, Option[O1]]].collect { case Some(a) => a }
+  }
+
+  /**
+   * Filters any [[Exit.Failure]] values.
+   */
+  final def collectSuccess[L1, O1](implicit ev: O <:< Exit[L1, O1]): ZStream[R, E, O1] = {
+    val _ = ev
+    self.asInstanceOf[ZStream[R, E, Exit[L1, O1]]].collect { case Exit.Success(a) => a }
+  }
+
+  /**
+   * Filters any `Left` values.
+   */
+  final def collectRight[L1, O1](implicit ev: O <:< Either[L1, O1]): ZStream[R, E, O1] = {
+    val _ = ev
+    self.asInstanceOf[ZStream[R, E, Either[L1, O1]]].collect { case Right(a) => a }
   }
 
   /**
@@ -654,6 +678,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
+   * Terminates the stream when encountering the first `Right`.
+   */
+  final def collectWhileLeft[L1, O1](implicit ev: O <:< Either[L1, O1]): ZStream[R, E, L1] = {
+    val _ = ev
+    self.asInstanceOf[ZStream[R, E, Either[L1, O1]]].collectWhile { case Left(a) => a }
+  }
+
+  /**
    * Effectfully transforms all elements of the stream for as long as the specified partial function is defined.
    */
   final def collectWhileM[R1 <: R, E1 >: E, O2](pf: PartialFunction[O, ZIO[R1, E1, O2]]): ZStream[R1, E1, O2] =
@@ -679,41 +711,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   }
 
   /**
-   * Unwraps [[Exit]] values that also signify end-of-stream by failing with `None`.
-   *
-   * For `Exit[E, O]` values that do not signal end-of-stream, prefer:
-   * {{{
-   * stream.mapM(ZIO.done(_))
-   * }}}
+   * Terminates the stream when encountering the first `Left`.
    */
-  def collectWhileSuccess[E1 >: E, O1](implicit ev: O <:< Exit[Option[E1], O1]): ZStream[R, E1, O1] =
-    ZStream {
-      for {
-        upstream <- self.process.mapM(BufferedPull.make(_))
-        done     <- Ref.make(false).toManaged_
-        pull = done.get.flatMap {
-                 if (_) Pull.end
-                 else
-                   upstream.pullElement
-                     .foldM(
-                       {
-                         case None    => done.set(true) *> Pull.end
-                         case Some(e) => Pull.fail(e)
-                       },
-                       os =>
-                         ZIO
-                           .done(ev(os))
-                           .foldM(
-                             {
-                               case None    => done.set(true) *> Pull.end
-                               case Some(e) => Pull.fail(e)
-                             },
-                             Pull.emit(_)
-                           )
-                     )
-               }
-      } yield pull
-    }
+  final def collectWhileRight[L1, O1](implicit ev: O <:< Either[L1, O1]): ZStream[R, E, O1] = {
+    val _ = ev
+    self.asInstanceOf[ZStream[R, E, Either[L1, O1]]].collectWhile { case Right(a) => a }
+  }
+
+  /**
+   * Terminates the stream when encountering the first [[Exit.Failure]].
+   */
+  final def collectWhileSuccess[L1, O1](implicit ev: O <:< Exit[L1, O1]): ZStream[R, E, O1] = {
+    val _ = ev
+    self.asInstanceOf[ZStream[R, E, Exit[L1, O1]]].collectWhile { case Exit.Success(a) => a }
+  }
 
   /**
    * Combines the elements from this stream and the specified stream by repeatedly applying the
@@ -1465,6 +1476,50 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
+   * Flattens [[Exit]] values. [[Exit.Failure]] values translate to stream failures
+   * while [[Exit.Success]] values translate to stream elements.
+   */
+  def flattenExit[E1 >: E, O1](implicit ev: O <:< Exit[E1, O1]): ZStream[R, E1, O1] =
+    mapM(o => ZIO.done(ev(o)))
+
+  /**
+   * Unwraps [[Exit]] values that also signify end-of-stream by failing with `None`.
+   *
+   * For `Exit[E, O]` values that do not signal end-of-stream, prefer:
+   * {{{
+   * stream.mapM(ZIO.done(_))
+   * }}}
+   */
+  def flattenExitOption[E1 >: E, O1](implicit ev: O <:< Exit[Option[E1], O1]): ZStream[R, E1, O1] =
+    ZStream {
+      for {
+        upstream <- self.process.mapM(BufferedPull.make(_))
+        done     <- Ref.make(false).toManaged_
+        pull = done.get.flatMap {
+                 if (_) Pull.end
+                 else
+                   upstream.pullElement
+                     .foldM(
+                       {
+                         case None    => done.set(true) *> Pull.end
+                         case Some(e) => Pull.fail(e)
+                       },
+                       os =>
+                         ZIO
+                           .done(ev(os))
+                           .foldM(
+                             {
+                               case None    => done.set(true) *> Pull.end
+                               case Some(e) => Pull.fail(e)
+                             },
+                             Pull.emit(_)
+                           )
+                     )
+               }
+      } yield pull
+    }
+
+  /**
    * Submerges the iterables carried by this stream into the stream's structure, while
    * still preserving them.
    */
@@ -1493,7 +1548,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Unwraps [[Exit]] values and flatten chunks that also signify end-of-stream by failing with `None`.
    */
   final def flattenTake[E1 >: E, O1](implicit ev: O <:< Take[E1, O1]): ZStream[R, E1, O1] =
-    map(_.exit).collectWhileSuccess[E1, Chunk[O1]].flattenChunks
+    map(_.exit).flattenExitOption[E1, Chunk[O1]].flattenChunks
 
   /**
    * More powerful version of [[ZStream.groupByKey]]
@@ -1526,7 +1581,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    }
                }
              }.toManaged_
-      } yield ZStream.fromQueueWithShutdown(out).collectWhileSuccess
+      } yield ZStream.fromQueueWithShutdown(out).flattenExitOption
     }
     new ZStream.GroupBy(qstream, buffer)
   }
@@ -2129,8 +2184,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         case q1 :: q2 :: Nil =>
           ZManaged.succeedNow {
             (
-              ZStream.fromQueueWithShutdown(q1).collectWhileSuccess.collect { case Left(x) => x },
-              ZStream.fromQueueWithShutdown(q2).collectWhileSuccess.collect { case Right(x) => x }
+              ZStream.fromQueueWithShutdown(q1).flattenExitOption.collectLeft,
+              ZStream.fromQueueWithShutdown(q2).flattenExitOption.collectRight
             )
           }
         case otherwise => ZManaged.dieMessage(s"partitionEither: expected two streams but got ${otherwise}")
@@ -3237,7 +3292,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Submerges the error case of an `Either` into the `ZStream`.
    */
   def absolve[R, E, O](xs: ZStream[R, E, Either[E, O]]): ZStream[R, E, O] =
-    xs.flatMap(_.fold(fail(_), succeed(_)))
+    xs.mapM(ZIO.fromEither(_))
 
   /**
    * Accesses the environment of the stream.
@@ -3985,7 +4040,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      */
     def apply[R1 <: R, E1 >: E, A](f: (K, ZStream[Any, E, V]) => ZStream[R1, E1, A]): ZStream[R1, E1, A] =
       grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) { case (k, q) =>
-        f(k, ZStream.fromQueueWithShutdown(q).collectWhileSuccess)
+        f(k, ZStream.fromQueueWithShutdown(q).flattenExitOption)
       }
   }
 
