@@ -43,6 +43,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [adsquare](https://www.adsquare.com/)
 * [AutoScout24](https://www.autoscout24.de)
 * [Call Handling](https://www.callhandling.co.uk/)
+* [Contramap](https://www.contramap.dev)
 * [Coralogix](https://coralogix.com)
 * [CurrencyCloud](https://www.currencycloud.com/)
 * [Devsisters](https://devsisters.com/)
