@@ -42,7 +42,7 @@ addCommandAlias(
 addCommandAlias("compileNative", ";coreNative/compile;streamsNative/compile;testNative/compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test;testJunitRunnerTestsJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
