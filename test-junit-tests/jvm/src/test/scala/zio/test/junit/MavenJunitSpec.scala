@@ -82,7 +82,7 @@ object MavenJunitSpec extends DefaultRunnableSpec {
 
   }
 
-  def containsSuccess(label: String) = containsResult(label, error = None)
+  def containsSuccess(label: String)                = containsResult(label, error = None)
   def containsFailure(label: String, error: String) = containsResult(label, Some(error))
   def containsResult(label: String, error: Option[String]): Assertion[Iterable[TestCase]] =
     contains(TestCase(label, error.map(TestError(_, "zio.test.junit.TestFailed"))))
