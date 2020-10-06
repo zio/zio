@@ -7,10 +7,10 @@ import scala.xml.XML
 
 import org.apache.maven.cli.MavenCli
 
-import zio.blocking.{Blocking, effectBlocking}
+import zio.blocking.{ Blocking, effectBlocking }
 import zio.test.Assertion._
-import zio.test.{DefaultRunnableSpec, ZSpec, _}
-import zio.{RIO, ZIO}
+import zio.test.{ DefaultRunnableSpec, ZSpec, _ }
+import zio.{ RIO, ZIO }
 
 /**
  * when running from IDE run `sbt publishM2`, copy the snapshot version the artifacts were published under (something like: `1.0.2+0-37ee0765+20201006-1859-SNAPSHOT`)
@@ -70,7 +70,7 @@ object MavenJunitSpec extends DefaultRunnableSpec {
       cli.doMain(command.toArray, mvnRoot, System.out, System.err)
     )
 
-    def parseSurefireReport(testFQN: String): ZIO[Blocking,Throwable,immutable.Seq[TestCase]] =
+    def parseSurefireReport(testFQN: String): ZIO[Blocking, Throwable, immutable.Seq[TestCase]] =
       effectBlocking(
         XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
       ).map { report =>
