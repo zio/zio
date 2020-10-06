@@ -17,7 +17,7 @@
 package zio
 
 import java.time.temporal.{ ChronoUnit, TemporalUnit }
-import java.time.{ Instant, Duration => JavaDuration }
+import java.time.{ Duration => JavaDuration, Instant, OffsetDateTime }
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
@@ -25,15 +25,14 @@ import scala.language.implicitConversions
 import scala.math.Ordering
 
 import zio.duration.Duration
-import java.time.OffsetDateTime
 
 package object duration {
 
   type Duration = java.time.Duration
 
   object Duration {
-    val Infinity = java.time.Duration.ofNanos(Long.MaxValue)
-    val Zero     = java.time.Duration.ZERO
+    val Infinity: Duration = java.time.Duration.ofNanos(Long.MaxValue)
+    val Zero               = java.time.Duration.ZERO
 
     object Finite {
 
@@ -154,31 +153,31 @@ class DurationSyntax(n: Long) {
   private[this] def asDuration(unit: TemporalUnit): Duration =
     if (n >= 0) java.time.Duration.of(n, unit) else Duration.Zero
 
-  def nanoseconds = asDuration(ChronoUnit.NANOS)
-  def nanos       = nanoseconds
-  def nanosecond  = nanoseconds
-  def nano        = nanoseconds
+  def nanoseconds: Duration = asDuration(ChronoUnit.NANOS)
+  def nanos                 = nanoseconds
+  def nanosecond            = nanoseconds
+  def nano                  = nanoseconds
 
-  def microseconds = asDuration(ChronoUnit.MICROS)
-  def micros       = microseconds
-  def microsecond  = microseconds
-  def micro        = microseconds
+  def microseconds: Duration = asDuration(ChronoUnit.MICROS)
+  def micros                 = microseconds
+  def microsecond            = microseconds
+  def micro                  = microseconds
 
-  def milliseconds = asDuration(ChronoUnit.MILLIS)
-  def millis       = milliseconds
-  def millisecond  = milliseconds
-  def milli        = milliseconds
+  def milliseconds: Duration = asDuration(ChronoUnit.MILLIS)
+  def millis                 = milliseconds
+  def millisecond            = milliseconds
+  def milli                  = milliseconds
 
-  def seconds = asDuration(ChronoUnit.SECONDS)
-  def second  = seconds
+  def seconds: Duration = asDuration(ChronoUnit.SECONDS)
+  def second            = seconds
 
-  def minutes = asDuration(ChronoUnit.MINUTES)
-  def minute  = minutes
+  def minutes: Duration = asDuration(ChronoUnit.MINUTES)
+  def minute            = minutes
 
-  def hours = asDuration(ChronoUnit.HOURS)
-  def hour  = hours
+  def hours: Duration = asDuration(ChronoUnit.HOURS)
+  def hour            = hours
 
-  def days = asDuration(ChronoUnit.DAYS)
-  def day  = days
+  def days: Duration = asDuration(ChronoUnit.DAYS)
+  def day            = days
 
 }

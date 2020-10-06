@@ -16,7 +16,7 @@
 
 package zio.test.laws
 
-import zio.test.{ check, Gen, TestConfig, TestResult }
+import zio.test.{ Gen, TestConfig, TestResult, check }
 import zio.{ URIO, ZIO }
 
 abstract class ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>

@@ -98,7 +98,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     val shrink = self.shrink
       .combine[R1, Nothing, State, Sample[R1, B], Sample[R1, C]](that.shrink)((false, false, None, None)) {
         case ((leftDone, rightDone, s1, s2), left, right) =>
-          left.run.zipWithPar(right.run) {
+          left.run.zipWith(right.run) {
             case (Exit.Success(l), Exit.Success(r)) =>
               Exit.succeed((zipWith(r)(f), (leftDone, rightDone, Some(l), Some(r))))
 

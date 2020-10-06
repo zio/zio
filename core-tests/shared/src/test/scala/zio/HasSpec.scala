@@ -32,7 +32,7 @@ object HasSpec extends ZIOBaseSpec {
   val catHotel2: PetHotel[Cat]       = new PetHotel[Cat] { override val toString = "catHotel2" }
   val bunnyHotel1: PetHotel[Bunny]   = new PetHotel[Bunny] { override val toString = "bunnyHotel1" }
 
-  def spec = suite("HasSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("HasSpec")(
     suite("monomorphic types")(
       zio.test.test("Modules sharing common parent are independent") {
         val hasBoth = Has(dog1).add[Cat](cat1)

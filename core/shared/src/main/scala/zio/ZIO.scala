@@ -21,6 +21,7 @@ import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
+
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
@@ -910,6 +911,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldM(e => ZIO.succeedNow(ev1(e)), ZIO.succeedNow)
 
   /**
+   * Returns a new effect where boolean value of this effect is negated.
+   */
+  final def negate(implicit ev: A <:< Boolean): ZIO[R, E, Boolean] =
+    map(result => !result)
+
+  /**
    * Requires the option produced by this value to be `None`.
    */
   final def none[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], Unit] =
@@ -1330,9 +1337,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
                head <- ZIO.interruptible(self).fork
                tail <- ZIO.foreach(ios)(io => ZIO.interruptible(io).fork)
                fs    = head :: tail.toList
-               _ <- fs.foldLeft[ZIO[R1, E1, Any]](ZIO.unit) {
-                      case (io, f) =>
-                        io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
+               _ <- fs.foldLeft[ZIO[R1, E1, Any]](ZIO.unit) { case (io, f) =>
+                      io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
                     }
 
                inheritRefs = { (res: (A1, Fiber[E1, A1])) => res._2.inheritRefs.as(res._1) }
@@ -2530,23 +2536,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
     import internal.OneShot
 
-    effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
-      case (started, cancel) =>
-        flatten {
-          effectAsyncMaybe(
-            ZIOFn(register) { (k: UIO[ZIO[R, E, A]] => Unit) =>
-              started.set(true)
+    effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap { case (started, cancel) =>
+      flatten {
+        effectAsyncMaybe(
+          ZIOFn(register) { (k: UIO[ZIO[R, E, A]] => Unit) =>
+            started.set(true)
 
-              try register(io => k(ZIO.succeedNow(io))) match {
-                case Left(canceler) =>
-                  cancel.set(canceler)
-                  None
-                case Right(io) => Some(ZIO.succeedNow(io))
-              } finally if (!cancel.isSet) cancel.set(ZIO.unit)
-            },
-            blockingOn
-          )
-        }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
+            try register(io => k(ZIO.succeedNow(io))) match {
+              case Left(canceler) =>
+                cancel.set(canceler)
+                None
+              case Right(io) => Some(ZIO.succeedNow(io))
+            } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+          },
+          blockingOn
+        )
+      }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
     }
   }
 
@@ -2817,7 +2822,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foreach_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     ZIO.effectTotal(as.iterator).flatMap { i =>
       def loop: ZIO[R, E, Unit] =
-        if (i.hasNext) f(i.next) *> loop
+        if (i.hasNext) f(i.next()) *> loop
         else ZIO.unit
       loop
     }
@@ -2847,9 +2852,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val size = as.size
     effectTotal(Array.ofDim[AnyRef](size)).flatMap { array =>
       val zioFunction: ZIOFn1[(A, Int), ZIO[R, E, Any]] =
-        ZIOFn(f) {
-          case (a, i) =>
-            f(a).flatMap(b => effectTotal(array(i) = b.asInstanceOf[AnyRef]))
+        ZIOFn(f) { case (a, i) =>
+          f(a).flatMap(b => effectTotal(array(i) = b.asInstanceOf[AnyRef]))
         }
       foreachPar_(as.zipWithIndex)(zioFunction) *>
         effectTotal(bf.newBuilder(as).++=(array.asInstanceOf[Array[B]]).result())
@@ -2911,17 +2915,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         result   <- Promise.make[Unit, Unit]
         status   <- Ref.make((0, 0, false))
 
-        startTask = status.modify {
-                      case (started, done, failing) =>
-                        if (failing) {
-                          (false, (started, done, failing))
-                        } else {
-                          (true, (started + 1, done, failing))
-                        }
+        startTask = status.modify { case (started, done, failing) =>
+                      if (failing) {
+                        (false, (started, done, failing))
+                      } else {
+                        (true, (started + 1, done, failing))
+                      }
                     }
 
-        startFailure = status.update {
-                         case (started, done, _) => (started, done, true)
+        startFailure = status.update { case (started, done, _) =>
+                         (started, done, true)
                        } *> result.fail(())
 
         task = ZIOFn(f)((a: A) =>
@@ -2932,10 +2935,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                        .interruptible
                        .tapCause(c => causes.update(_ && c) *> startFailure)
                        .ensuring {
-                         val isComplete = status.modify {
-                           case (started, done, failing) =>
-                             val newDone = done + 1
-                             ((if (failing) started else size) == newDone, (started, newDone, failing))
+                         val isComplete = status.modify { case (started, done, failing) =>
+                           val newDone = done + 1
+                           ((if (failing) started else size) == newDone, (started, newDone, failing))
                          }
                          ZIO.whenM(isComplete) {
                            result.succeed(())
@@ -2967,7 +2969,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def foreachParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     as: Collection[A]
-  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] = {
+
+    def worker(q: Queue[(Promise[E, B], A)], pairs: Iterable[(Promise[E, B], A)], ref: Ref[Int]): URIO[R, Unit] =
+      ZIO.whenM(ref.modify(n => (n > 0, n - 1))) {
+        q.take.flatMap { case (p, a) =>
+          fn(a).foldCauseM(c => ZIO.foreach(pairs)(_._1.halt(c)), b => p.succeed(b))
+        } *> worker(q, pairs, ref)
+      }
+
     Queue
       .bounded[(Promise[E, B], A)](n.toInt)
       .bracket(_.shutdown) { q =>
@@ -2975,14 +2985,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           pairs <- ZIO.foreach[Any, Nothing, A, (Promise[E, B], A), Iterable](as) { a =>
                      Promise.make[E, B].map(p => (p, a))
                    }
-          _ <- ZIO.foreach_(pairs)(pair => q.offer(pair)).fork
-          _ <- ZIO.collectAll_(List.fill(n.toInt)(q.take.flatMap {
-                 case (p, a) => fn(a).foldCauseM(c => ZIO.foreach(pairs)(_._1.halt(c)), b => p.succeed(b))
-               }.forever.fork))
+          ref <- Ref.make(pairs.size)
+          _   <- ZIO.foreach_(pairs)(pair => q.offer(pair)).fork
+          _   <- ZIO.collectAll_(List.fill(n.toInt)(worker(q, pairs, ref).fork))
           res <- ZIO.foreach(pairs)(_._1.await)
         } yield bf.fromSpecific(as)(res)
       }
       .refailWithTrace
+  }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -3320,6 +3330,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     else ZIO.unit
 
   /**
+   * Returns a new effect where boolean value of this effect is negated.
+   */
+  def not[R, E](effect: ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+    effect.negate
+
+  /**
    * Sequentially zips the specified effects. Specialized version of mapN.
    */
   def tupled[R, E, A, B](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B]): ZIO[R, E, (A, B)] =
@@ -3415,8 +3431,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def mapParN[R, E, A, B, C, D](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C])(
     f: (A, B, C) => D
   ): ZIO[R, E, D] =
-    (zio1 <&> zio2 <&> zio3).map {
-      case ((a, b), c) => f(a, b, c)
+    (zio1 <&> zio2 <&> zio3).map { case ((a, b), c) =>
+      f(a, b, c)
     }
 
   /**
@@ -3430,8 +3446,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio3: ZIO[R, E, C],
     zio4: ZIO[R, E, D]
   )(f: (A, B, C, D) => F): ZIO[R, E, F] =
-    (zio1 <&> zio2 <&> zio3 <&> zio4).map {
-      case (((a, b), c), d) => f(a, b, c, d)
+    (zio1 <&> zio2 <&> zio3 <&> zio4).map { case (((a, b), c), d) =>
+      f(a, b, c, d)
     }
 
   /**
@@ -3876,12 +3892,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] def partitionMap[A, A1, A2](
     iterable: Iterable[A]
   )(f: A => Either[A1, A2]): (Iterable[A1], Iterable[A2]) =
-    iterable.foldRight((List.empty[A1], List.empty[A2])) {
-      case (a, (es, bs)) =>
-        f(a).fold(
-          e => (e :: es, bs),
-          b => (es, b :: bs)
-        )
+    iterable.foldRight((List.empty[A1], List.empty[A2])) { case (a, (es, bs)) =>
+      f(a).fold(
+        e => (e :: es, bs),
+        b => (es, b :: bs)
+      )
     }
 
   private[zio] val unitFn: Any => Unit = (_: Any) => ()

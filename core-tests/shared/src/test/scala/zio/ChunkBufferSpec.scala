@@ -7,7 +7,7 @@ import zio.test._
 
 object ChunkBufferSpec extends ZIOBaseSpec {
 
-  def spec = suite("ChunkBufferSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ChunkBufferSpec")(
     suite("ByteBuffer")(
       testM("byte array buffer no copying") {
         UIO.effectTotal {

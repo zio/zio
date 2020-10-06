@@ -61,11 +61,10 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
     caseValue match {
       case SuiteCase(label, specs) =>
         val (z, specs1) =
-          specs.foldLeft(z0 -> Vector.empty[ExecutedSpec[E1]]) {
-            case ((z, vector), spec) =>
-              val (z1, spec1) = spec.transformAccum(z)(f)
+          specs.foldLeft(z0 -> Vector.empty[ExecutedSpec[E1]]) { case ((z, vector), spec) =>
+            val (z1, spec1) = spec.transformAccum(z)(f)
 
-              z1 -> (vector :+ spec1)
+            z1 -> (vector :+ spec1)
           }
 
         val (z1, caseValue) = f(z, SuiteCase(label, specs1))

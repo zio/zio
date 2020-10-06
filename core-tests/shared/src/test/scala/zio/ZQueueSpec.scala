@@ -13,7 +13,7 @@ object ZQueueSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ZQueueSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZQueueSpec")(
     testM("sequential offer and take") {
       for {
         queue <- Queue.bounded[Int](100)

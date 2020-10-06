@@ -11,7 +11,7 @@ object STMLazinessSpec extends ZIOBaseSpec {
       assertCompletes
     }
 
-  def spec = suite("STMLazinessSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("STMLazinessSpec")(
     suite("STM")(
       testM("check")(assertLazy(STM.check)),
       testM("die")(assertLazy(STM.die)),

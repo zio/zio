@@ -782,9 +782,8 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: Live with Annotations, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
-        Live.withLive(test)(_.either.timed).flatMap {
-          case (duration, result) =>
-            ZIO.fromEither(result) <* Annotations.annotate(TestAnnotation.timing, duration)
+        Live.withLive(test)(_.either.timed).flatMap { case (duration, result) =>
+          ZIO.fromEither(result) <* Annotations.annotate(TestAnnotation.timing, duration)
         }
     }
 

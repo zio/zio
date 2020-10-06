@@ -174,21 +174,19 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
       def take: ZIO[R3, E3, D]     = self.take.zipPar(that.take).flatMap(f.tupled)
 
       def takeAll: ZIO[R3, E3, List[D]] =
-        self.takeAll.zipPar(that.takeAll).flatMap {
-          case (bs, cs) =>
-            val bsIt = bs.iterator
-            val csIt = cs.iterator
+        self.takeAll.zipPar(that.takeAll).flatMap { case (bs, cs) =>
+          val bsIt = bs.iterator
+          val csIt = cs.iterator
 
-            ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
+          ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
         }
 
       def takeUpTo(max: Int): ZIO[R3, E3, List[D]] =
-        self.takeUpTo(max).zipPar(that.takeUpTo(max)).flatMap {
-          case (bs, cs) =>
-            val bsIt = bs.iterator
-            val csIt = cs.iterator
+        self.takeUpTo(max).zipPar(that.takeUpTo(max)).flatMap { case (bs, cs) =>
+          val bsIt = bs.iterator
+          val csIt = cs.iterator
 
-            ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
+          ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
         }
     }
 
@@ -558,8 +556,8 @@ object ZQueue {
         else {
           val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
           val (forTakers, remaining) = as.splitAt(pTakers.size)
-          (pTakers zip forTakers).foreach {
-            case (taker, item) => unsafeCompletePromise(taker, item)
+          (pTakers zip forTakers).foreach { case (taker, item) =>
+            unsafeCompletePromise(taker, item)
           }
 
           if (remaining.isEmpty) IO.succeedNow(true)

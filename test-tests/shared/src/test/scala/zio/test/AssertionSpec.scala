@@ -9,7 +9,7 @@ import zio.{ Chunk, Exit }
 
 object AssertionSpec extends ZIOBaseSpec {
 
-  def spec = suite("AssertionSpec")(
+  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
     test("and must succeed when both assertions are satisfied") {
       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
     },
@@ -80,8 +80,11 @@ object AssertionSpec extends ZIOBaseSpec {
       val result = typeCheck("assert(1)(equalTo(\"abc\"))")
       assertM(result)(
         isLeft(
-          containsString("found   : zio.test.Assertion[String]") &&
-            containsString("required: zio.test.Assertion[Int]")
+          (containsString("found   : zio.test.Assertion[String]") &&
+            containsString("required: zio.test.Assertion[Int]")) ||
+            containsString(
+              "String and Int are unrelated types"
+            )
         )
       )
     } @@ scala2Only,
@@ -561,8 +564,8 @@ object AssertionSpec extends ZIOBaseSpec {
   )
 
   case class SampleUser(name: String, age: Int)
-  val sampleUser      = SampleUser("User", 42)
-  val sampleException = new Exception
+  val sampleUser: SampleUser = SampleUser("User", 42)
+  val sampleException        = new Exception
 
   val nameStartsWithA: Assertion[SampleUser]  = hasField("name", _.name.startsWith("A"), isTrue)
   val nameStartsWithU: Assertion[SampleUser]  = hasField("name", _.name.startsWith("U"), isTrue)
@@ -575,7 +578,7 @@ object AssertionSpec extends ZIOBaseSpec {
   trait Dog extends Animal
   trait Cat extends Animal
 
-  val animal = new Animal {}
-  val dog    = new Dog {}
-  val cat    = new Cat {}
+  val animal: Animal = new Animal {}
+  val dog: Dog       = new Dog {}
+  val cat: Cat       = new Cat {}
 }

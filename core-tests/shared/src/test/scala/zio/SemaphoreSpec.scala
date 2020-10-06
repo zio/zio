@@ -10,7 +10,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("SemaphoreSpec")(
+  def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("SemaphoreSpec")(
     suite("Make a Semaphore and verify that")(
       testM("`acquire` permits sequentially") {
         val n = 20L
@@ -68,7 +68,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
     )
   )
 
-  def offsettingWithPermits(withPermits: (Semaphore, Vector[Long]) => UIO[Unit]) = {
+  def offsettingWithPermits(withPermits: (Semaphore, Vector[Long]) => UIO[Unit]): ZIO[Any, Nothing, TestResult] = {
     val permits = Vector(1L, 0L, 20L, 4L, 0L, 5L, 2L, 1L, 1L, 3L)
 
     for {

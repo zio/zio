@@ -531,7 +531,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * A sentinel value to indicate a fiber without identity.
      */
-    final val None = Id(0L, 0L)
+    final val None: Id = Id(0L, 0L)
   }
 
   sealed abstract class Status extends Serializable with Product { self =>
@@ -681,7 +681,7 @@ object Fiber extends FiberPlatformSpecific {
       def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] =
         UIO.effectSuspendTotal {
           ftr match {
-            case c: CancelableFuture[A] => ZIO.fromFuture(implicit ec => c.cancel()).orDie
+            case c: CancelableFuture[A] => ZIO.fromFuture(_ => c.cancel()).orDie
             case _                      => join.fold(Exit.fail, Exit.succeed)
           }
         }

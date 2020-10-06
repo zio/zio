@@ -13,7 +13,7 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec =
+  def spec: ZSpec[ZTestEnv with Annotations with TestConfig, Any] =
     suite("CancelableFutureSpecJVM")(
       testM("fromFuture/unsafeRunToFuture doesn't deadlock") {
 

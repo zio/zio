@@ -22,7 +22,7 @@ import scala.util.Try
 import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
-import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem }
+import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment }
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -410,6 +410,82 @@ package object test extends CompileVariants {
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
+   * Checks in parallel the effectual test passes for all values from the given random
+   * variable. This is useful for deterministic `Gen` that comprehensively
+   * explore all possibilities in a given domain.
+   */
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
+    test: A => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkStreamPar(rv.sample, parallelism)(test)
+
+  /**
+   * A version of `checkAllMPar` that accepts two random variables.
+   */
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
+    test: (A, B) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllMPar(rv1 <*> rv2, parallelism)(test.tupled)
+
+  /**
+   * A version of `checkAllMPar` that accepts three random variables.
+   */
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    parallelism: Int
+  )(
+    test: (A, B, C) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllMPar(rv1 <*> rv2 <*> rv3, parallelism)(reassociate(test))
+
+  /**
+   * A version of `checkAllMPar` that accepts four random variables.
+   */
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C, D](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    parallelism: Int
+  )(
+    test: (A, B, C, D) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4, parallelism)(reassociate(test))
+
+  /**
+   * A version of `checkAllMPar` that accepts five random variables.
+   */
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    parallelism: Int
+  )(
+    test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5, parallelism)(reassociate(test))
+
+  /**
+   * A version of `checkAllMPar` that accepts six random variables.
+   */
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    rv6: Gen[R, G],
+    parallelism: Int
+  )(
+    test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(reassociate(test))
+
+  /**
    * Checks the test passes for the specified number of samples from the given
    * random variable.
    */
@@ -750,42 +826,68 @@ package object test extends CompileVariants {
   private def checkStream[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]])(
     test: A => ZIO[R1, E, TestResult]
   ): ZIO[R1 with TestConfig, E, TestResult] =
-    TestConfig.shrinks.flatMap { maxShrinks =>
-      stream.zipWithIndex.mapM {
-        case (initial, index) =>
+    TestConfig.shrinks.flatMap {
+      shrinkStream {
+        stream.zipWithIndex.mapM { case (initial, index) =>
           initial.foreach(input =>
             test(input).traced
               .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
               .either
           )
-      }.dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
-        .take(1)                                         // Get the first failure
-        .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks.toLong))
-        .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken values
-        .flatMap { shrinks =>
-          // Get the "last" failure, the smallest according to the shrinker:
-          shrinks
-            .filter(_.fold(_ => true, _.isFailure))
-            .lastOption
-            .fold[ZIO[R, E, TestResult]](
-              ZIO.succeedNow {
-                BoolAlgebra.success {
-                  FailureDetails(
-                    ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
-                  )
-                }
-              }
-            )(ZIO.fromEither(_))
         }
-        .untraced
+      }
     }
 
-  private def reassociate[A, B, C, D](fn: (A, B, C) => D): (((A, B), C)) => D = {
-    case ((a, b), c) => fn(a, b, c)
+  private def shrinkStream[R, R1 <: R, E, A](
+    stream: ZStream[R1, Nothing, Sample[R1, Either[E, BoolAlgebra[FailureDetails]]]]
+  )(maxShrinks: Int): ZIO[R1 with TestConfig, E, TestResult] =
+    stream
+      .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
+      .take(1)                                          // Get the first failure
+      .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks.toLong + 1))
+      .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken values
+      .flatMap { shrinks =>
+        // Get the "last" failure, the smallest according to the shrinker:
+        shrinks
+          .filter(_.fold(_ => true, _.isFailure))
+          .lastOption
+          .fold[ZIO[R, E, TestResult]](
+            ZIO.succeedNow {
+              BoolAlgebra.success {
+                FailureDetails(
+                  ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
+                )
+              }
+            }
+          )(ZIO.fromEither(_))
+      }
+      .untraced
+
+  private def checkStreamPar[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]], parallelism: Int)(
+    test: A => ZIO[R1, E, TestResult]
+  ): ZIO[R1 with TestConfig, E, TestResult] =
+    TestConfig.shrinks.flatMap {
+      shrinkStream {
+        stream.zipWithIndex
+          .mapMPar(parallelism) { case (initial, index) =>
+            initial.foreach { input =>
+              test(input).traced
+                .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
+                .either
+            // convert test failures to failures to terminate parallel tests on first failure
+            }.flatMap(sample => sample.value.fold(_ => ZIO.fail(sample), _ => ZIO.succeed(sample)))
+          // move failures back into success channel for shrinking logic
+          }
+          .catchAll(ZStream.succeed(_))
+      }
+    }
+
+  private def reassociate[A, B, C, D](fn: (A, B, C) => D): (((A, B), C)) => D = { case ((a, b), c) =>
+    fn(a, b, c)
   }
 
-  private def reassociate[A, B, C, D, E](fn: (A, B, C, D) => E): ((((A, B), C), D)) => E = {
-    case (((a, b), c), d) => fn(a, b, c, d)
+  private def reassociate[A, B, C, D, E](fn: (A, B, C, D) => E): ((((A, B), C), D)) => E = { case (((a, b), c), d) =>
+    fn(a, b, c, d)
   }
 
   private def reassociate[A, B, C, D, E, F](fn: (A, B, C, D, E) => F): (((((A, B), C), D), E)) => F = {

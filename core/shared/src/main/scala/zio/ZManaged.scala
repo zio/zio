@@ -19,8 +19,7 @@ package zio
 import scala.collection.immutable.LongMap
 import scala.reflect.ClassTag
 
-import ZManaged.ReleaseMap
-
+import zio.ZManaged.ReleaseMap
 import zio.clock.Clock
 import zio.duration.Duration
 
@@ -309,20 +308,18 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def flatMap[R1 <: R, E1 >: E, B](f: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     ZManaged {
-      self.zio.flatMap {
-        case (releaseSelf, a) =>
-          f(a).zio.map {
-            case (releaseThat, b) =>
-              (
-                e =>
-                  releaseThat(e).run
-                    .flatMap(e1 =>
-                      releaseSelf(e).run
-                        .flatMap(e2 => ZIO.done(e1 *> e2))
-                    ),
-                b
-              )
-          }
+      self.zio.flatMap { case (releaseSelf, a) =>
+        f(a).zio.map { case (releaseThat, b) =>
+          (
+            e =>
+              releaseThat(e).run
+                .flatMap(e1 =>
+                  releaseSelf(e).run
+                    .flatMap(e2 => ZIO.done(e1 *> e2))
+                ),
+            b
+          )
+        }
       }
     }
 
@@ -642,16 +639,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
                             releaseMap
                               .releaseAll(Exit.fail(c), ExecutionStrategy.Sequential) *>
                               ZIO.halt(c),
-                          {
-                            case (release, a) =>
-                              UIO.succeed(
-                                ZManaged {
-                                  ZIO.accessM[(Any, ReleaseMap)] {
-                                    case (_, releaseMap) =>
-                                      releaseMap.add(release).map((_, a))
-                                  }
+                          { case (release, a) =>
+                            UIO.succeed(
+                              ZManaged {
+                                ZIO.accessM[(Any, ReleaseMap)] { case (_, releaseMap) =>
+                                  releaseMap.add(release).map((_, a))
                                 }
-                              )
+                              }
+                            )
                           }
                         )
       } yield preallocated
@@ -663,17 +658,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def preallocateManaged: ZManaged[R, E, Managed[Nothing, A]] =
     ZManaged {
-      self.zio.map {
-        case (release, a) =>
-          (
-            release,
-            ZManaged {
-              ZIO.accessM[(Any, ReleaseMap)] {
-                case (_, releaseMap) =>
-                  releaseMap.add(release).map((_, a))
-              }
+      self.zio.map { case (release, a) =>
+        (
+          release,
+          ZManaged {
+            ZIO.accessM[(Any, ReleaseMap)] { case (_, releaseMap) =>
+              releaseMap.add(release).map((_, a))
             }
-          )
+          }
+        )
       }
     }
 
@@ -807,9 +800,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * "execute `io` and in case of failure, try again once".
    */
   def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Clock, E, A] =
-    ZManaged(ZIO.accessM[(R1 with Clock, ZManaged.ReleaseMap)] {
-      case (env, releaseMap) =>
-        zio.provideSome[R1 with Clock](env => (env, releaseMap)).retry(policy).provide(env)
+    ZManaged(ZIO.accessM[(R1 with Clock, ZManaged.ReleaseMap)] { case (env, releaseMap) =>
+      zio.provideSome[R1 with Clock](env => (env, releaseMap)).retry(policy).provide(env)
     })
 
   def right[R1 <: R, C]: ZManaged[Either[C, R1], E, Either[C, A]] = ZManaged.identity +++ self
@@ -936,16 +928,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def timed: ZManaged[R with Clock, E, (Duration, A)] =
     ZManaged {
-      ZIO.environment[(R, ReleaseMap)].flatMap {
-        case (r, releaseMap) =>
-          self.zio
-            .provide((r, releaseMap))
-            .timed
-            .map {
-              case (duration, (fin, a)) =>
-                (fin, (duration, a))
-            }
-            .provideSome[(R with Clock, ReleaseMap)](_._1)
+      ZIO.environment[(R, ReleaseMap)].flatMap { case (r, releaseMap) =>
+        self.zio
+          .provide((r, releaseMap))
+          .timed
+          .map { case (duration, (fin, a)) =>
+            (fin, (duration, a))
+          }
+          .provideSome[(R with Clock, ReleaseMap)](_._1)
       }
     }
 
@@ -1138,23 +1128,26 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
       val innerMap =
         ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.provideSome[R1]((_, parallelReleaseMap))
 
-      (innerMap zip innerMap) flatMap {
-        case ((_, l), (_, r)) =>
-          self.zio
-            .provideSome[R1]((_, l))
-            .zipWithPar(that.zio.provideSome[R1]((_, r))) {
-              // We can safely discard the finalizers here because the resulting ZManaged's early
-              // release will trigger the ReleaseMap, which would release both finalizers in
-              // parallel.
-              case ((_, a), (_, b)) =>
-                f(a, b)
-            }
+      (innerMap zip innerMap) flatMap { case ((_, l), (_, r)) =>
+        self.zio
+          .provideSome[R1]((_, l))
+          .zipWithPar(that.zio.provideSome[R1]((_, r))) {
+            // We can safely discard the finalizers here because the resulting ZManaged's early
+            // release will trigger the ReleaseMap, which would release both finalizers in
+            // parallel.
+            case ((_, a), (_, b)) =>
+              f(a, b)
+          }
 
       }
     }
 }
 
 object ZManaged extends ZManagedPlatformSpecific {
+
+  private sealed abstract class State
+  private final case class Exited(nextKey: Long, exit: Exit[Any, Any])            extends State
+  private final case class Running(nextKey: Long, finalizers: LongMap[Finalizer]) extends State
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZManaged[R, Nothing, A] =
@@ -1300,10 +1293,6 @@ object ZManaged extends ZManagedPlatformSpecific {
         else if (l == Long.MinValue) Long.MaxValue
         else l - 1
 
-      sealed abstract class State
-      final case class Exited(nextKey: Long, exit: Exit[Any, Any])            extends State
-      final case class Running(nextKey: Long, finalizers: LongMap[Finalizer]) extends State
-
       Ref.make[State](Running(initialKey, LongMap.empty)).map { ref =>
         new ReleaseMap {
           type Key = Long
@@ -1337,8 +1326,8 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Sequential =>
                     (
                       ZIO
-                        .foreach(fins: Iterable[(Long, Finalizer)]) {
-                          case (_, fin) => fin.apply(exit).run
+                        .foreach(fins: Iterable[(Long, Finalizer)]) { case (_, fin) =>
+                          fin.apply(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAll(results) getOrElse Exit.unit)),
                       Exited(nextKey, exit)
@@ -1347,9 +1336,8 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Parallel =>
                     (
                       ZIO
-                        .foreachPar(fins: Iterable[(Long, Finalizer)]) {
-                          case (_, finalizer) =>
-                            finalizer(exit).run
+                        .foreachPar(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
+                          finalizer(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
                       Exited(nextKey, exit)
@@ -1358,9 +1346,8 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.ParallelN(n) =>
                     (
                       ZIO
-                        .foreachParN(n)(fins: Iterable[(Long, Finalizer)]) {
-                          case (_, finalizer) =>
-                            finalizer(exit).run
+                        .foreachParN(n)(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
+                          finalizer(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
                       Exited(nextKey, exit)
@@ -2012,8 +1999,8 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged2: ZManaged[R, E, B],
     zManaged3: ZManaged[R, E, C]
   )(f: (A, B, C) => D): ZManaged[R, E, D] =
-    (zManaged1 <&> zManaged2 <&> zManaged3).map {
-      case ((a, b), c) => f(a, b, c)
+    (zManaged1 <&> zManaged2 <&> zManaged3).map { case ((a, b), c) =>
+      f(a, b, c)
     }
 
   /**
@@ -2027,8 +2014,8 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged3: ZManaged[R, E, C],
     zManaged4: ZManaged[R, E, D]
   )(f: (A, B, C, D) => F): ZManaged[R, E, F] =
-    (zManaged1 <&> zManaged2 <&> zManaged3 <&> zManaged4).map {
-      case (((a, b), c), d) => f(a, b, c, d)
+    (zManaged1 <&> zManaged2 <&> zManaged3 <&> zManaged4).map { case (((a, b), c), d) =>
+      f(a, b, c, d)
     }
 
   /**
@@ -2092,9 +2079,8 @@ object ZManaged extends ZManagedPlatformSpecific {
     scope.map { allocate =>
       new PreallocationScope {
         def apply[R, E, A](managed: ZManaged[R, E, A]) =
-          allocate(managed).map {
-            case (release, res) =>
-              ZManaged.makeExit(ZIO.succeedNow(res))((_, exit) => release(exit))
+          allocate(managed).map { case (release, res) =>
+            ZManaged.makeExit(ZIO.succeedNow(res))((_, exit) => release(exit))
           }
       }
     }
@@ -2157,6 +2143,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   lazy val releaseMap: ZManaged[Any, Nothing, ReleaseMap] =
     apply(ZIO.environment[(Any, ReleaseMap)].map(tp => (Finalizer.noop, tp._2)))
+
+  /**
+   * Returns an ZManaged that accesses the runtime, which can be used to
+   * (unsafely) execute tasks. This is useful for integration with legacy
+   * code that must call back into ZIO code.
+   */
+  def runtime[R]: ZManaged[R, Nothing, Runtime[R]] =
+    ZManaged.fromEffect(ZIO.runtime[R])
 
   def sandbox[R, E, A](v: ZManaged[R, E, A]): ZManaged[R, Cause[E], A] =
     v.sandbox

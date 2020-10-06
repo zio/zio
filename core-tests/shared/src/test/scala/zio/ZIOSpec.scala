@@ -2,6 +2,7 @@ package zio
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success, Try }
+
 import zio.Cause._
 import zio.LatchOps._
 import zio.clock.Clock
@@ -17,7 +18,7 @@ object ZIOSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ZIOSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
     suite("***")(
       testM("splits the environment") {
         val zio1 = ZIO.fromFunction((n: Int) => n + 2)
@@ -204,8 +205,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val s   = "division by zero"
         val zio = ZIO.die(new IllegalArgumentException(s))
         for {
-          result <- zio.catchSomeDefect {
-                      case e: IllegalArgumentException => ZIO.succeed(e.getMessage)
+          result <- zio.catchSomeDefect { case e: IllegalArgumentException =>
+                      ZIO.succeed(e.getMessage)
                     }
         } yield assert(result)(equalTo(s))
       },
@@ -213,8 +214,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val t   = new IllegalArgumentException("division by zero")
         val zio = ZIO.die(t)
         for {
-          exit <- zio.catchSomeDefect {
-                    case e: NumberFormatException => ZIO.succeed(e.getMessage)
+          exit <- zio.catchSomeDefect { case e: NumberFormatException =>
+                    ZIO.succeed(e.getMessage)
                   }.run
         } yield assert(exit)(dies(equalTo(t)))
       },
@@ -222,8 +223,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val t   = new IllegalArgumentException("division by zero")
         val zio = ZIO.fail(t)
         for {
-          exit <- zio.catchSomeDefect {
-                    case e: IllegalArgumentException => ZIO.succeed(e.getMessage)
+          exit <- zio.catchSomeDefect { case e: IllegalArgumentException =>
+                    ZIO.succeed(e.getMessage)
                   }.run
         } yield assert(exit)(fails(equalTo(t)))
       },
@@ -231,8 +232,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val t   = new IllegalArgumentException("division by zero")
         val zio = ZIO.succeed(t)
         for {
-          result <- zio.catchSomeDefect {
-                      case e: IllegalArgumentException => ZIO.succeed(e.getMessage)
+          result <- zio.catchSomeDefect { case e: IllegalArgumentException =>
+                      ZIO.succeed(e.getMessage)
                     }
         } yield assert(result)((equalTo(t)))
       }
@@ -1237,6 +1238,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(task.run)(fails(isSome(equalTo(ex))))
       } @@ zioTag(errors)
     ),
+    suite("negate")(
+      testM("on true returns false") {
+        assertM(ZIO.succeed(true).negate)(equalTo(false))
+      },
+      testM("on false returns true") {
+        assertM(ZIO.succeed(false).negate)(equalTo(true))
+      }
+    ),
     suite("once")(
       testM("returns an effect that will only be executed once") {
         for {
@@ -1907,9 +1916,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val io1 = TaskExampleError.either
         val io2 = IO.effectSuspendTotal(IO.effectSuspendTotal(TaskExampleError).either)
 
-        io1.zipWith(io2) {
-          case (r1, r2) =>
-            assert(r1)(isLeft(equalTo(ExampleError))) && assert(r2)(isLeft(equalTo(ExampleError)))
+        io1.zipWith(io2) { case (r1, r2) =>
+          assert(r1)(isLeft(equalTo(ExampleError))) && assert(r2)(isLeft(equalTo(ExampleError)))
         }
       } @@ zioTag(errors),
       testM("deep attempt sync effect error") {
@@ -3585,7 +3593,7 @@ object ZIOSpec extends ZIOBaseSpec {
         v2 <- f2.join
       } yield v1 + v2
 
-  def AsyncUnit[E] = IO.effectAsync[E, Unit](_(IO.unit))
+  def AsyncUnit[E]: IO[E, Unit] = IO.effectAsync[E, Unit](_(IO.unit))
 
   type Logging = Has[Logging.Service]
 

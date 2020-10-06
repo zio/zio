@@ -7,7 +7,7 @@ object PromiseSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("PromiseSpec")(
+  def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("PromiseSpec")(
     testM("complete a promise using succeed") {
       for {
         p <- Promise.make[Nothing, Int]

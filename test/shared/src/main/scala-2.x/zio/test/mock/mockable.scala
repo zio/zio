@@ -15,7 +15,7 @@
  */
 package zio.test.mock
 
-import scala.annotation.{ compileTimeOnly, StaticAnnotation }
+import scala.annotation.{ StaticAnnotation, compileTimeOnly }
 
 @compileTimeOnly("enable macro paradise to expand macro annotations")
 class mockable[A] extends StaticAnnotation {

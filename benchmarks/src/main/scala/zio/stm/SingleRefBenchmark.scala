@@ -21,7 +21,7 @@ class SingleRefBenchmark {
   var ops: Int = _
 
   @Benchmark
-  def refContention() =
+  def refContention(): Unit =
     unsafeRun(for {
       ref   <- Ref.make(0)
       fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(ref.update(_ + 1))))
@@ -29,7 +29,7 @@ class SingleRefBenchmark {
     } yield ())
 
   @Benchmark
-  def trefContention() =
+  def trefContention(): Unit =
     unsafeRun(for {
       tref  <- TRef.make(0).commit
       fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(tref.update(_ + 1).commit)))

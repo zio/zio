@@ -13,41 +13,37 @@ object RandomSpec extends ZIOBaseSpec {
   implicit val FloatOrdering: Ordering[Float] =
     (l, r) => java.lang.Float.compare(l, r)
 
-  def spec = suite("RandomSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("RandomSpec")(
     testM("nextDoubleBetween generates doubles in specified range") {
-      checkM(genDoubles) {
-        case (min, max) =>
-          for {
-            n <- Live.live(random.nextDoubleBetween(min, max))
-          } yield assert(n)(isGreaterThanEqualTo(min)) &&
-            assert(n)(isLessThan(max))
+      checkM(genDoubles) { case (min, max) =>
+        for {
+          n <- Live.live(random.nextDoubleBetween(min, max))
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     },
     testM("nextFloatBetween generates floats in specified range") {
-      checkM(genFloats) {
-        case (min, max) =>
-          for {
-            n <- Live.live(random.nextFloatBetween(min, max))
-          } yield assert(n)(isGreaterThanEqualTo(min)) &&
-            assert(n)(isLessThan(max))
+      checkM(genFloats) { case (min, max) =>
+        for {
+          n <- Live.live(random.nextFloatBetween(min, max))
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     },
     testM("nextIntBetween generates integers in specified range") {
-      checkM(genInts) {
-        case (min, max) =>
-          for {
-            n <- Live.live(random.nextIntBetween(min, max))
-          } yield assert(n)(isGreaterThanEqualTo(min)) &&
-            assert(n)(isLessThan(max))
+      checkM(genInts) { case (min, max) =>
+        for {
+          n <- Live.live(random.nextIntBetween(min, max))
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     },
     testM("nextLongBetween generates longs in specified range") {
-      checkM(genLongs) {
-        case (min, max) =>
-          for {
-            n <- Live.live(random.nextLongBetween(min, max))
-          } yield assert(n)(isGreaterThanEqualTo(min)) &&
-            assert(n)(isLessThan(max))
+      checkM(genLongs) { case (min, max) =>
+        for {
+          n <- Live.live(random.nextLongBetween(min, max))
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     }
   )

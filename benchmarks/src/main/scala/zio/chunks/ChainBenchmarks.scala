@@ -17,7 +17,7 @@ class ChainBenchmarks {
   val largeChain: Chain[Int] =
     (0 to 1000).foldLeft(Chain.empty[Int])((acc, _) => acc ++ Chain.fromSeq(0 to 1000))
 
-  val largeChunk =
+  val largeChunk: Chunk[Int] =
     (0 to 1000).foldLeft[Chunk[Int]](Chunk.empty)((acc, _) => acc ++ Chunk.fromIterable(0 to 1000))
 
   val largeVector: Vector[Int] =

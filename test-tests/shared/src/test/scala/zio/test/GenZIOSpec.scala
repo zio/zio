@@ -6,7 +6,7 @@ import zio.test.GenUtils.{ partitionExit, sampleEffect }
 
 object GenZIOSpec extends ZIOBaseSpec {
 
-  def spec = suite("GenZIOSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("GenZIOSpec")(
     testM("died generates died effects") {
       val gen = died(Gen.throwable)
       for {

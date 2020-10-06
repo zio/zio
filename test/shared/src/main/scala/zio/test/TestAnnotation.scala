@@ -32,7 +32,7 @@ final class TestAnnotation[V] private (
     case that: TestAnnotation[_] => (identifier, tag) == ((that.identifier, that.tag))
   }
 
-  override lazy val hashCode =
+  override lazy val hashCode: Int =
     (identifier, tag).hashCode
 }
 object TestAnnotation {

@@ -14,7 +14,7 @@ import zio.test.environment.TestClock._
 
 object ClockSpec extends ZIOBaseSpec {
 
-  def spec =
+  def spec: ZSpec[Environment, Failure] =
     suite("ClockSpec")(
       testM("sleep does not require passage of clock time") {
         for {

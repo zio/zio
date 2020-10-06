@@ -8,7 +8,7 @@ import zio.test.Assertion._
 import zio.test._
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
-  def spec = suite("ZStream JS")(
+  def spec: ZSpec[Environment, Failure] = suite("ZStream JS")(
     testM("effectAsync")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
       val s = ZStream.effectAsync[Any, Throwable, Int](k => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
 

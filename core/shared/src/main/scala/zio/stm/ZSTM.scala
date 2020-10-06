@@ -1195,7 +1195,7 @@ object ZSTM {
   def foreach_[R, E, A](in: Iterable[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     ZSTM.succeedNow(in.iterator).flatMap[R, E, Unit] { it =>
       def loop: ZSTM[R, E, Unit] =
-        if (it.hasNext) f(it.next) *> loop
+        if (it.hasNext) f(it.next()) *> loop
         else ZSTM.unit
       loop
     }
@@ -1864,7 +1864,7 @@ object ZSTM {
 
     private[this] val txnCounter: AtomicLong = new AtomicLong()
 
-    val globalLock = new AnyRef {}
+    val globalLock: AnyRef = new AnyRef {}
 
     sealed abstract class TExit[+A, +B] extends Serializable with Product
     object TExit {

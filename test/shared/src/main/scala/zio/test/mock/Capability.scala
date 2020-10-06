@@ -21,7 +21,7 @@ import java.util.UUID
 import com.github.ghik.silencer.silent
 
 import zio.test.Assertion
-import zio.{ =!=, taggedIsSubtype, taggedTagType, Has, IO, LightTypeTag, Tag }
+import zio.{ =!=, Has, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType }
 
 /**
  * A `Capability[R, I, E, A]` represents a capability of environment `R` that takes an input `I`
