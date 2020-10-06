@@ -248,12 +248,22 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Repeats this `STM` effect until its result satisfies the specified predicate.
+   * '''WARNING''': `repeatUntil` uses a busy loop to repeat the effect and will consume a
+   * thread until it completes (it cannot yield).
+   * - Use [[retryUntil]] instead if you don't need to maintain transaction state for repeats.
+   * - Ensure repeating the STM effect will eventually satisfy the predicate.
+   * - Consider using the Blocking thread pool for execution of the transaction.
    */
   def repeatUntil(f: A => Boolean): ZSTM[R, E, A] =
     flatMap(a => if (f(a)) ZSTM.succeedNow(a) else repeatUntil(f))
 
   /**
    * Repeats this `STM` effect while its result satisfies the specified predicate.
+   * '''WARNING''': `repeatWhile` uses a busy loop to repeat the effect and will consume a
+   * thread until it completes (it cannot yield).
+   * - Use [[retryWhile]] instead if you don't need to maintain transaction state for repeats.
+   * - Ensure repeating the STM effect will eventually not satisfy the predicate.
+   * - Consider using the Blocking thread pool for execution of the transaction.
    */
   def repeatWhile(f: A => Boolean): ZSTM[R, E, A] =
     flatMap(a => if (f(a)) repeatWhile(f) else ZSTM.succeedNow(a))
@@ -379,6 +389,10 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Repeats this effect forever (until the first error).
+   * '''WARNING''': `forever` uses a busy loop to repeat the effect and will consume a
+   * thread until it fails (it cannot yield).
+   * - Ensure repeating the STM effect will eventually fail.
+   * - Consider using the Blocking thread pool for execution of the transaction.
    */
   def forever: ZSTM[R, E, Nothing] = self *> self.forever
 
