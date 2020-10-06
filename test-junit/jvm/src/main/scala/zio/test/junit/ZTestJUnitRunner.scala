@@ -4,10 +4,11 @@ import com.github.ghik.silencer.silent
 import org.junit.runner.manipulation.{ Filter, Filterable }
 import org.junit.runner.notification.{ Failure, RunNotifier }
 import org.junit.runner.{ Description, RunWith, Runner }
-
 import zio.ZIO.effectTotal
 import zio._
 import zio.test.FailureRenderer.FailureMessage.Message
+import zio.test.RenderedResult.CaseType.Test
+import zio.test.RenderedResult.Status.Failed
 import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
 import zio.test.TestFailure.{ Assertion, Runtime }
 import zio.test.TestSuccess.{ Ignored, Succeeded }
@@ -83,9 +84,18 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
     label: String,
     result: TestResult
   ): UIO[Unit] = {
-    val rendered = FailureRenderer.renderTestFailure("", result)
+    val rendered = renderFailureDetails(label, result)
     notifier.fireTestFailure(label, path, renderToString(rendered))
   }
+
+  private def renderFailureDetails(label: String, result: TestResult) =
+    Message(
+      result
+        .fold(failures =>
+          RenderedResult(Test, label, Failed, 0, FailureRenderer.renderFailureDetails(failures, 0).lines)
+        )(_ && _, _ || _, !_)
+        .rendered
+    )
 
   private def testDescription(label: String, path: Vector[String]) = {
     val uniqueId = path.mkString(":") + ":" + label
