@@ -235,9 +235,8 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
   /**
-   * Creates a stream from a [[java.io.InputStream]]
-   * Note: the input stream will not be explicitly closed after
-   * it is exhausted.
+   * Creates a stream from a `java.io.InputStream`.
+   * Note: the input stream will not be explicitly closed after it is exhausted.
    */
   def fromInputStream(
     is: => InputStream,
@@ -279,7 +278,7 @@ trait ZStreamPlatformSpecificConstructors {
     }.flatMap(is => fromInputStream(is, chunkSize = chunkSize))
 
   /**
-   * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
+   * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */
   def fromInputStreamEffect[R](
@@ -289,7 +288,7 @@ trait ZStreamPlatformSpecificConstructors {
     fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
 
   /**
-   * Creates a stream from a managed [[java.io.InputStream]] value.
+   * Creates a stream from a managed `java.io.InputStream` value.
    */
   def fromInputStreamManaged[R](
     is: ZManaged[R, IOException, InputStream],
@@ -300,7 +299,7 @@ trait ZStreamPlatformSpecificConstructors {
       .flatMap(fromInputStream(_, chunkSize))
 
   /**
-   * Creates a stream from [[java.io.Reader]].
+   * Creates a stream from `java.io.Reader`.
    */
   def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, IOException, Char] =
     ZStream.fromEffect(UIO(reader)).flatMap { capturedReader =>
@@ -321,7 +320,7 @@ trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from an effect producing [[java.io.Reader]].
+   * Creates a stream from an effect producing `java.io.Reader`.
    */
   def fromReaderEffect[R](
     reader: => ZIO[R, IOException, Reader],
@@ -330,7 +329,7 @@ trait ZStreamPlatformSpecificConstructors {
     fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())), chunkSize)
 
   /**
-   * Creates a stream from managed [[java.io.Reader]].
+   * Creates a stream from managed `java.io.Reader`.
    */
   def fromReaderManaged[R](
     reader: => ZManaged[R, IOException, Reader],
@@ -339,7 +338,7 @@ trait ZStreamPlatformSpecificConstructors {
     ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
 
   /**
-   * Creates a stream from a callback that writes to [[java.io.OutputStream]].
+   * Creates a stream from a callback that writes to `java.io.OutputStream`.
    * Note: the input stream will be closed after the `write` is done.
    */
   def fromOutputStreamWriter(

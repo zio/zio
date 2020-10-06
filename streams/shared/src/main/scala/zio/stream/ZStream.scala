@@ -624,7 +624,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   }
 
   /**
-   * Filters any [[Exit.Failure]] values.
+   * Filters any `Exit.Failure` values.
    */
   final def collectSuccess[L1, O1](implicit ev: O <:< Exit[L1, O1]): ZStream[R, E, O1] = {
     val _ = ev
@@ -719,7 +719,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   }
 
   /**
-   * Terminates the stream when encountering the first [[Exit.Failure]].
+   * Terminates the stream when encountering the first `Exit.Failure`.
    */
   final def collectWhileSuccess[L1, O1](implicit ev: O <:< Exit[L1, O1]): ZStream[R, E, O1] = {
     val _ = ev
@@ -1476,8 +1476,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
-   * Flattens [[Exit]] values. [[Exit.Failure]] values translate to stream failures
-   * while [[Exit.Success]] values translate to stream elements.
+   * Flattens [[Exit]] values. `Exit.Failure` values translate to stream failures
+   * while `Exit.Success` values translate to stream elements.
    */
   def flattenExit[E1 >: E, O1](implicit ev: O <:< Exit[E1, O1]): ZStream[R, E1, O1] =
     mapM(o => ZIO.done(ev(o)))
