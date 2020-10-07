@@ -55,7 +55,18 @@ object ChunkBuilder {
             arrayBuilder.sizeHint(size)
           }
         }
-        arrayBuilder += a
+        try {
+          arrayBuilder += a
+        } catch {
+          case _: ClassCastException =>
+            val as = arrayBuilder.result()
+            arrayBuilder = ArrayBuilder.make[AnyRef].asInstanceOf[ArrayBuilder[A]]
+            if (size != -1) {
+              arrayBuilder.sizeHint(size)
+            }
+            arrayBuilder ++= as
+            arrayBuilder += a
+        }
         this
       }
       def clear(): Unit =
