@@ -1,6 +1,7 @@
 import BuildHelper._
 import MimaSettings.mimaSettings
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
+import sbt.Keys
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
@@ -41,7 +42,7 @@ addCommandAlias(
 addCommandAlias("compileNative", ";coreNative/compile;streamsNative/compile;testNative/compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test;testJunitRunnerTestsJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
@@ -102,6 +103,7 @@ lazy val root = project
     testRunnerJS,
     testRunnerJVM,
     testJunitRunnerJVM,
+    testJunitRunnerTestsJVM,
     testMagnoliaJVM,
     testMagnoliaJS
   )
@@ -346,6 +348,45 @@ lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
 
 lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
 lazy val testRunnerJS  = testRunner.js.settings(jsSettings)
+
+lazy val testJunitRunnerTests = crossProject(JVMPlatform)
+  .in(file("test-junit-tests"))
+  .settings(stdSettings("test-junit-tests"))
+  .settings(fork in Test := true)
+  .settings(javaOptions in Test ++= {
+    Seq(s"-Dproject.dir=${baseDirectory.value}", s"-Dproject.version=${version.value}")
+  })
+  .settings(skip in publish := true)
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "junit"                   % "junit"     % "4.13"  % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "1.3.0" % Test,
+      // required to run embedded maven in the tests
+      "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.6.3"  % Test,
+      "org.apache.maven.wagon" % "wagon-http"             % "3.3.4"  % Test,
+      "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
+      "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
+      "org.slf4j"              % "slf4j-simple"           % "1.7.30" % Test
+    )
+  )
+  .dependsOn(test)
+  .dependsOn(testRunner)
+
+lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
+  .settings(dottySettings)
+  // publish locally so embedded maven runs against locally compiled zio
+  .settings(
+    Keys.test in Test :=
+      (Keys.test in Test)
+        .dependsOn(Keys.publishM2 in testJunitRunnerJVM)
+        .dependsOn(Keys.publishM2 in testJVM)
+        .dependsOn(Keys.publishM2 in coreJVM)
+        .dependsOn(Keys.publishM2 in streamsJVM)
+        .dependsOn(Keys.publishM2 in stacktracerJVM)
+        .value
+  )
 
 /**
  * Examples sub-project that is not included in the root project.
