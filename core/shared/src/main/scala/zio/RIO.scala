@@ -1,6 +1,7 @@
 package zio
 
 import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
 
 import zio.clock.Clock
 import zio.duration.Duration
@@ -103,6 +104,12 @@ object RIO {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Array*]]]
+   */
+  def collectAll[R, A: ClassTag](in: Array[RIO[R, A]]): RIO[R, Array[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[R, A](in: NonEmptyChunk[RIO[R, A]]): RIO[R, NonEmptyChunk[A]] =
@@ -126,6 +133,12 @@ object RIO {
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Set*]]]
    */
   def collectAllPar[R, A](as: Set[RIO[R, A]]): RIO[R, Set[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Array*]]]
+   */
+  def collectAllPar[R, A: ClassTag](as: Array[RIO[R, A]]): RIO[R, Array[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -431,6 +444,12 @@ object RIO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Array*]]]
+   */
+  def foreach[R, A, B: ClassTag](in: Array[A])(f: A => RIO[R, B]): RIO[R, Array[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreach[R,E,Key,Key2,Value,Value2](map:Map*]]]
    */
   def foreach[R, Key, Key2, Value, Value2](
@@ -470,6 +489,12 @@ object RIO {
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Set*]]]
    */
   def foreachPar[R, A, B](as: Set[A])(fn: A => RIO[R, B]): RIO[R, Set[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Array*]]]
+   */
+  def foreachPar[R, A, B: ClassTag](as: Array[A])(fn: A => RIO[R, B]): RIO[R, Array[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
