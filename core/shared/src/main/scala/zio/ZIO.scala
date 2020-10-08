@@ -2899,8 +2899,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * For a sequential version of this method, see `foreach`.
    */
-  final def foreachPar[R, E, A, B: ClassTag](in: Array[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Array[B]] =
-    foreachPar[R, E, A, B, Iterable](in)(f).map(_.toArray)
+  final def foreachPar[R, E, A, B: ClassTag](as: Array[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Array[B]] =
+    foreachPar[R, E, A, B, Iterable](as)(f).map(_.toArray)
 
   /**
    * Applies the function `f` to each element of the `Map[Key, Value]` in
