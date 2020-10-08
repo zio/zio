@@ -67,11 +67,11 @@
 <p>Like <code>try</code> / <code>finally</code>, the <code>ensuring</code> operation guarantees that if an effect begins executing and then terminates (for whatever reason), then the finalizer will begin executing.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> finalizer = 
   <span class="hljs-type">UIO</span>.effectTotal(println(<span class="hljs-string">"Finalizing!"</span>))
-<span class="hljs-comment">// finalizer: UIO[Unit] = zio.ZIO$EffectTotal@c425fba</span>
+<span class="hljs-comment">// finalizer: UIO[Unit] = zio.ZIO$EffectTotal@650cb22d</span>
 
 <span class="hljs-keyword">val</span> finalized: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>, <span class="hljs-type">Unit</span>] = 
   <span class="hljs-type">IO</span>.fail(<span class="hljs-string">"Failed!"</span>).ensuring(finalizer)
-<span class="hljs-comment">// finalized: IO[String, Unit] = zio.ZIO$CheckInterrupt@32bb7021</span>
+<span class="hljs-comment">// finalized: IO[String, Unit] = zio.ZIO$CheckInterrupt@481750fd</span>
 </code></pre>
 <p>The finalizer is not allowed to fail, which means that it must handle any errors internally.</p>
 <p>Like <code>try</code> / <code>finally</code>, finalizers can be nested, and the failure of any inner finalizer will not affect outer finalizers. Nested finalizers will be executed in reverse order, and linearly (not in parallel).</p>
