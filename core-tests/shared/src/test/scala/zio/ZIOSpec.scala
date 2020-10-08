@@ -2957,6 +2957,18 @@ object ZIOSpec extends ZIOBaseSpec {
         io.lock(executor)
       } @@ jvm(nonFlaky(100))
     ),
+    suite("schedule")(
+      testM("runs effect for each recurrence of the schedule") {
+        for {
+          ref     <- Ref.make[List[Duration]](List.empty)
+          effect   = clock.nanoTime.flatMap(duration => ref.update(duration.nanoseconds :: _))
+          schedule = Schedule.spaced(1.second) && Schedule.recurs(5)
+          _       <- effect.schedule(schedule).fork
+          _       <- TestClock.adjust(5.seconds)
+          value   <- ref.get.map(_.reverse)
+        } yield assert(value)(equalTo(List(1.second, 2.seconds, 3.seconds, 4.seconds, 5.seconds)))
+      }
+    ),
     suite("someOrElse")(
       testM("extracts the value from Some") {
         assertM(UIO.succeed(Some(1)).someOrElse(2))(equalTo(1))

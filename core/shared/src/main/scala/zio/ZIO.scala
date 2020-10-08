@@ -1666,6 +1666,27 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.fail(_), ZIO.succeedNow)
 
   /**
+   * Runs this effect according to the specified schedule.
+   *
+   * See [[scheduleFrom]] for a variant that allows the schedule's decision to
+   * depend on the rsult of this effect.
+   */
+  final def schedule[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZIO[R1 with Clock, E, B] =
+    scheduleFrom(())(schedule)
+
+  /**
+   * Runs this effect according to the specified schedule starting from the
+   * specified input value.
+   */
+  final def scheduleFrom[R1 <: R, A1 >: A, B](a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1 with Clock, E, B] =
+    schedule.driver.flatMap { driver =>
+      def loop(a: A1): ZIO[R1 with Clock, E, B] =
+        driver.next(a).foldM(_ => driver.last.orDie, _ => self.flatMap(loop))
+
+      loop(a)
+    }
+
+  /**
    * Converts an option on values into an option on errors.
    */
   final def some[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], B] =
