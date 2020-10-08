@@ -81,6 +81,17 @@ class StreamBenchmarks {
       .map(_.toLong)
       .fold(0L)(_ + _)
   }
+
+  @Benchmark
+  def groupByBenchmark: Chunk[Unit] = {
+    val chunks = (1 to chunkCount).map(_ => Chunk.fromIterable(1 to chunkSize))
+    val result = ZStream
+      .fromChunks(chunks: _*)
+      .groupByKey(_ % 10)((_, s) => s.drain)
+      .runCollect
+    unsafeRun(result)
+  }
+
 }
 
 @State(Scope.Thread)
