@@ -421,7 +421,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("BackPressure") {
             ZStream
-              .range(0, 5)
+              .range(0, 5, 1)
               .broadcast(2, 2)
               .use {
                 case s1 :: s2 :: Nil =>
@@ -823,41 +823,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(execution)(equalTo(List("First", "Second")))
           }
         ),
-        suite("cursor")(
-          testM("should produce correct results for simple example") {
-            val s = Stream.fromIterable(0 to 10)
-            assertM(s.cursor.use(_.stream.runSum))(equalTo(55))
-          },
-          testM("should allow traversing a stream twice") {
-            checkM(streamOfInts) { s =>
-              s.cursor.use { cursor =>
-                for {
-                  copied <- cursor.split
-                  r1 <- cursor.stream.runSum.run
-                  r2 <- copied.stream.runSum.run
-                } yield assert(r1)(equalTo(r2))
-              }
-            }
-          },
-          testM("should allow traversing a stream in parallel") {
-            checkM(streamOfInts) { s =>
-              s.cursor.use { cursor =>
-                for {
-                  copied <- cursor.split
-                  f1 <- cursor.stream.runSum.fork
-                  f2 <- copied.stream.runSum.fork
-                  r1 <- f1.await
-                  r2 <- f2.await
-                } yield assert(r1)(equalTo(r2))
-              }
-            }
-          } @@ nonFlaky
-        ),
         suite("distributedWithDynamic")(
           testM("ensures no race between subscription and stream end") {
             ZStream.empty.distributedWithDynamic(1, _ => UIO.succeedNow(_ => true)).use { add =>
               val subscribe = ZStream.unwrap(add.map { case (_, queue) =>
-                ZStream.fromQueue(queue).collectWhileSuccess
+                ZStream.fromQueue(queue).map(_.exit).collectWhileSuccess
               })
               Promise.make[Nothing, Unit].flatMap { onEnd =>
                 subscribe.ensuring(onEnd.succeed(())).runDrain.fork *>
@@ -2176,12 +2146,12 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("backpressure") {
             ZStream
-              .range(0, 6)
+              .range(0, 6, 1)
               .partitionEither(
                 i =>
                   if (i % 2 == 0) ZIO.succeedNow(Left(i))
                   else ZIO.succeedNow(Right(i)),
-                1
+                2
               )
               .use { case (s1, s2) =>
                 for {

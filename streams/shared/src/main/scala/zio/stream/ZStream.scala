@@ -842,71 +842,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     (self crossWith that)((_, o2) => o2)
 
   /**
-   *  Creates a [[StreamCursor]] that allows effectful iteration over the stream.
-   */
-  val cursor: ZManaged[R, Nothing, StreamCursor[Any, E, O]] = {
-    final case class Node(
-      chunk: Chunk[O],
-      next: IO[Option[E], Node]
-    )
-
-    sealed trait State
-    object State {
-      case object NotStarted extends State
-      final case class Done(exit: Exit[Option[E], Node]) extends State
-    }
-
-    def makeCursor(getNode: IO[Option[E], Node]): UIO[StreamCursor[Any, E, O]] =
-      Ref.make(getNode).map { ref =>
-        new StreamCursor[Any, E, O] { self =>
-          def nextNode: IO[Option[E], Node] =
-            ref.get.flatten.flatMap { node =>
-              ref.set(node.next).as(node)
-            }
-          val next: IO[Option[E], Chunk[O]] =
-            nextNode.map(_.chunk)
-          val split: UIO[StreamCursor[Any, E, O]] =
-            ref.get.flatMap(makeCursor)
-        }
-      }
-
-    def makeNode(pull: IO[Option[E], Chunk[O]], sema: Semaphore): UIO[IO[Option[E], Node]] =
-      Ref.make[State](State.NotStarted).map { ref =>
-        ref.get.flatMap {
-          case State.NotStarted =>
-            sema.withPermit {
-              ref.get.flatMap {
-                case State.NotStarted =>
-                  ZIO.uninterruptibleMask { restore =>
-                    for {
-                      exit <- restore(pull).run
-                      result <- exit.foldM(
-                        cause => ZIO.succeedNow(Exit.halt(cause)),
-                        chunk => makeNode(pull, sema).map(Node(chunk, _)).run
-                      )
-                      _ <- ref.set(State.Done(result))
-                      node <- ZIO.done(result)
-                    } yield node
-                  }
-                case State.Done(exit) =>
-                  ZIO.done(exit)
-              }
-            }
-          case State.Done(exit) =>
-            ZIO.done(exit)
-        }
-      }
-
-    for {
-      pull <- process
-      env <- ZManaged.environment[R]
-      sema <- Semaphore.make(1).toManaged_
-      initialNode <- makeNode(pull.provide(env), sema).toManaged_
-      cursor <- makeCursor(initialNode).toManaged_
-    } yield cursor
-  }
-
-  /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
    * queues should receive which elements. The decide function will receive the indices of the queues
    * in the resulting list.
@@ -952,18 +887,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         val offer = (os: Chunk[O]) =>
           os.mapM(o => decide(o).map((_, o))).flatMap { chunk =>
             queuesRef.get.flatMap {
-              ZIO.foldLeft(_)(List.empty[UniqueKey]) { case (acc, (k, q)) =>
-                val data = chunk.collect {
-                  case (f, o) if f(k) => o
+              ZIO
+                .foldLeft(_)(List.empty[UniqueKey]) { case (acc, (k, q)) =>
+                  val data = chunk.collect {
+                    case (shouldProcess, o) if shouldProcess(k) => o
+                  }
+                  q.offer(Take.chunk(data)).as(acc).catchSomeCause {
+                    case c if c.interrupted => ZIO.succeedNow(k :: acc)
+                  }
                 }
-                q.offer(Take.chunk(data)).as(acc).catchSomeCause {
-                  case c if c.interrupted => ZIO.succeedNow(k :: acc)
+                .flatMap { ids =>
+                  if (ids.nonEmpty) queuesRef.update(_ -- ids) else ZIO.unit
                 }
-              }.flatMap { ids =>
-                if (ids.nonEmpty) queuesRef.update(_ -- ids) else ZIO.unit
-              }
+            }
           }
-        }
 
         for {
           queuesLock <- Semaphore.make(1).toManaged_
@@ -1609,12 +1546,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def flattenTake[E1 >: E, O1](implicit ev: O <:< Take[E1, O1]): ZStream[R, E1, O1] =
     map(_.exit).flattenExitOption[E1, Chunk[O1]].flattenChunks
 
-  final def groupByKey[K](
-    f: O => K,
-    buffer: Int = 16
-  ): ZStream.GroupBy[R, E, K, O] =
-    self.groupBy(a => ZIO.succeedNow((f(a), a)), buffer)
-
   /**
    * More powerful version of [[ZStream.groupByKey]]
    */
@@ -1651,74 +1582,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     new ZStream.GroupBy(qstream.map { case (k, q) => (k, ZStream.fromQueueWithShutdown(q).flattenTake) }, buffer)
   }
 
-
-  // /**
-  //  * More powerful version of [[ZStream.groupByKey]]
-  //  */
-  // final def groupBy[R1 <: R, E1 >: E, K, V](
-  //   f: O => ZIO[R1, E1, (K, V)],
-  //   buffer: Int = 16
-  // ): ZStream.GroupBy[R1, E1, K, V] = {
-  //   type State = Map[K, Queue[Take[E1, V]]]
-  //   type Out = Chunk[(K, Queue[Take[E1, V]])]
-  //   def ignoreInterrupts[R, E](zio: ZIO[R, E, Any]): ZIO[R, E, _] =
-  //     zio.catchSomeCause {
-  //       case c if c.interrupted => ZIO.unit
-  //     }
-
-  //   val grouped = ZStream.managed(self.mapM(f).process).flatMap { pull =>
-  //     def go(state: State): ZIO[R1, E1, Option[(Out, State)]] =
-  //       pull.foldM(
-  //         {
-  //           case None =>
-  //             ZIO.foreach(state.values) { q =>
-  //               ignoreInterrupts(q.offer(Take.end))
-  //             } *> ZIO.succeed(None)
-  //           case Some(e) =>
-  //             ZIO.foreach(state.values) { q =>
-  //               ignoreInterrupts(q.offer(Take.fail(e)))
-  //             } *> ZIO.fail(e)
-  //         },
-  //         { chunk =>
-  //           ZIO.foldLeft(chunk.groupBy(_._1))((Chunk.empty: Out, state)) { case ((queues, s), (k, v)) =>
-  //               s.get(k).fold[UIO[(Out, State)]] {
-  //                 for {
-  //                   queue <- Queue.bounded[Take[E1, V]](buffer)
-  //                   _     <- queue.offer(Take.chunk(v.map(_._2)))
-  //                 } yield ((k, queue) +: queues, s + (k -> queue))
-  //               } { q =>
-  //                 ignoreInterrupts(q.offer(Take.chunk(v.map(_._2)))).as((queues, s))
-  //               }
-  //             }.map(Some(_))
-  //         }
-  //       )
-  //     ZStream
-  //       .unfoldChunkM(Map.empty: State)(go)
-  //       .map { case (k, s) => (k, ZStream.fromQueueWithShutdown(s).flattenTake) }
-  //   }
-  //   new ZStream.GroupBy(grouped)
-  // }
-
-  // /**
-  //  * More powerful version of [[ZStream.groupByKey]]
-  //  */
-  // final def groupBy[R1 <: R, E1 >: E, K, V](
-  //   f: O => ZIO[R1, E1, (K, V)]
-  // ): ZStream.GroupBy[R1, E1, K, V] = {
-  //   val grouped = ZStream.managed(self.mapM(f).cursor).flatMap { cursor =>
-  //     cursor.stream.mapAccumM(Set.empty[K]) { case (s, (k, v)) =>
-  //       if (s.contains(k)) ZIO.succeedNow((s, None))
-  //       else cursor.split.map { nextCursor =>
-  //         val stream = (Stream.succeed((k, v)) ++ nextCursor.stream).collect {
-  //           case (k1, v) if k1 == k => v
-  //         }
-  //         (s + k, Some((k, stream)))
-  //       }
-  //     }
-  //   }.collectSome
-  //   new ZStream.GroupBy(grouped)
-  // }
-
   /**
    * Partition a stream using a function and process each stream individually.
    * This returns a data structure that can be used
@@ -1741,51 +1604,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *  .map(_ == List(('h', "hello"), ('h', "hi"), ('w', "world"))
    * }}}
    */
-  // final def groupByKey[K](
-  //   getKey: O => K,
-  //   buffer: Int = 16
-  // ): ZStream.GroupBy[R, E, K, O] = {
-  //  val stream = ZStream.unwrapManaged {
-  //     type GroupQueueValues = Exit[Option[E], Chunk[O]]
-
-  //     for {
-  //       substreamsQueue     <- Queue
-  //                             .bounded[Exit[Option[E], (K, Queue[GroupQueueValues])]](buffer)
-  //                             .toManaged(_.shutdown)
-  //       substreamsQueuesMap <- Ref.make(Map.empty[K, Queue[GroupQueueValues]]).toManaged_
-  //       _                   <- {
-  //         val addToSubStream: (K, Chunk[O]) => ZIO[Any, Nothing, Unit] = (key: K, values: Chunk[O]) => {
-  //           for {
-  //             substreams <- substreamsQueuesMap.get
-  //             _          <- if (substreams.contains(key))
-  //                     substreams(key).offer(Exit.succeed(values))
-  //                   else
-  //                     Queue
-  //                       .bounded[GroupQueueValues](buffer)
-  //                       .tap(_.offer(Exit.succeed(values)))
-  //                       .tap(q => substreamsQueue.offer(Exit.succeed((key, q))))
-  //                       .tap(q => substreamsQueuesMap.update(_ + (key -> q)))
-  //                       .unit
-  //           } yield ()
-  //         }
-  //         (self.foreachChunk { chunk =>
-  //           ZIO.foreach_(chunk.groupBy(getKey))(addToSubStream.tupled)
-  //         } *> substreamsQueue.offer(Exit.fail(None))).catchSome {
-  //           case e =>
-  //             substreamsQueue.offer(Exit.fail(Some(e)))
-  //         }.forkManaged
-  //       }
-  //     } yield ZStream.fromQueueWithShutdown(substreamsQueue).collectWhileSuccess.map {
-  //       case (key, substreamQueue) =>
-  //         val substream = ZStream
-  //           .fromQueueWithShutdown(substreamQueue)
-  //           .collectWhileSuccess
-  //           .flattenChunks
-  //         (key, substream)
-  //     }
-  //   }
-  //   new ZStream.GroupBy(stream, buffer)
-  // }
+  final def groupByKey[K](
+    f: O => K,
+    buffer: Int = 16
+  ): ZStream.GroupBy[R, E, K, O] =
+    self.groupBy(a => ZIO.succeedNow((f(a), a)), buffer)
 
   /**
    * Halts the evaluation of this stream when the provided IO completes. The given IO
