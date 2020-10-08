@@ -1171,9 +1171,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case iterable if iterable.isEmpty => Empty
       case vector: Vector[A]            => VectorChunk(vector)
       case iterable =>
-        val first                   = iterable.head
-        implicit val A: ClassTag[A] = Tags.fromValue(first)
-        fromArray(it.toArray)
+        val builder = ChunkBuilder.make[A]()
+        builder.sizeHint(iterable.size)
+        builder ++= iterable
+        builder.result()
     }
 
   override def fill[A](n: Int)(elem: => A): Chunk[A] =
