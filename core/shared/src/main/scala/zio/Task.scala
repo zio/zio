@@ -1,6 +1,7 @@
 package zio
 
 import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
 
 import zio.internal.{ Executor, Platform }
 
@@ -86,6 +87,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Array*]]]
+   */
+  def collectAll[A: ClassTag](in: Array[Task[A]]): Task[Array[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[A](in: NonEmptyChunk[Task[A]]): Task[NonEmptyChunk[A]] =
@@ -109,6 +116,12 @@ object Task extends TaskPlatformSpecific {
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Set*]]]
    */
   def collectAllPar[A](as: Set[Task[A]]): Task[Set[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Array*]]]
+   */
+  def collectAllPar[A: ClassTag](as: Array[Task[A]]): Task[Array[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -401,6 +414,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Array*]]]
+   */
+  def foreach[A, B: ClassTag](in: Array[A])(f: A => Task[B]): Task[Array[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreach[R,E,Key,Key2,Value,Value2](map:Map*]]]
    */
   def foreach[Key, Key2, Value, Value2](
@@ -440,6 +459,12 @@ object Task extends TaskPlatformSpecific {
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Set*]]]
    */
   def foreachPar[A, B](as: Set[A])(fn: A => Task[B]): Task[Set[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Array*]]]
+   */
+  def foreachPar[A, B: ClassTag](as: Array[A])(fn: A => Task[B]): Task[Array[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
