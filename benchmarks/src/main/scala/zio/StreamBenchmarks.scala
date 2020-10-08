@@ -84,7 +84,7 @@ class StreamBenchmarks {
 
   @Benchmark
   def groupByBenchmark: Chunk[Unit] = {
-    val chunks = (1 to chunkCount).map(_ => Chunk.fromIterable(1 to chunkSize))
+    val chunks = (1 to chunkCount).map(_ => Chunk.fromIterable(1 to (chunkSize / 10)))
     val result = ZStream
       .fromChunks(chunks: _*)
       .groupByKey(_ % 10)((_, s) => s.drain)

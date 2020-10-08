@@ -322,7 +322,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         _.map(
           ZStream
             .fromQueueWithShutdown(_)
-            .flattenExitOption
+            .flattenTake
         )
       )
 
@@ -340,7 +340,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         _.map(
           ZStream
             .fromQueueWithShutdown(_)
-            .flattenExitOption
+            .flattenTake
         )
       )
 
@@ -356,7 +356,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def broadcastedQueues(
     n: Int,
     maximumLag: Int
-  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E], O]]]] = {
+  ): ZManaged[R, Nothing, List[Dequeue[Take[E, O]]]] = {
     val decider = ZIO.succeedNow((_: Int) => true)
     distributedWith(n, maximumLag, _ => decider)
   }
@@ -372,7 +372,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def broadcastedQueuesDynamic(
     maximumLag: Int
-  ): ZManaged[R, Nothing, UIO[Dequeue[Exit[Option[E], O]]]] = {
+  ): ZManaged[R, Nothing, UIO[Dequeue[Take[E, O]]]] = {
     val decider = ZIO.succeedNow((_: UniqueKey) => true)
     distributedWithDynamic(maximumLag, _ => decider, _ => ZIO.unit).map(_.map(_._2))
   }
@@ -915,14 +915,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     n: Int,
     maximumLag: Int,
     decide: O => UIO[Int => Boolean]
-  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E1], O]]]] =
+  ): ZManaged[R, Nothing, List[Dequeue[Take[E1, O]]]] =
     Promise.make[Nothing, O => UIO[UniqueKey => Boolean]].toManaged_.flatMap { prom =>
       distributedWithDynamic(maximumLag, (o: O) => prom.await.flatMap(_(o)), _ => ZIO.unit).flatMap { next =>
         ZIO.collectAll {
           Range(0, n).map(id => next.map { case (key, queue) => ((key -> id), queue) })
         }.flatMap { entries =>
           val (mappings, queues) =
-            entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Dequeue[Exit[Option[E1], O]]])) {
+            entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Dequeue[Take[E1, O]]])) {
               case ((mapping, queue), (mappings, queues)) =>
                 (mappings + mapping, queue :: queues)
             }
@@ -942,54 +942,48 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def distributedWithDynamic(
     maximumLag: Int,
     decide: O => UIO[UniqueKey => Boolean],
-    done: Exit[Option[E], Nothing] => UIO[Any] = (_: Any) => UIO.unit
-  ): ZManaged[R, Nothing, UIO[(UniqueKey, Dequeue[Exit[Option[E], O]])]] =
+    done: Take[E, Nothing] => UIO[Any] = (_: Any) => UIO.unit
+  ): ZManaged[R, Nothing, UIO[(UniqueKey, Dequeue[Take[E, O]])]] =
     for {
       queuesRef <- Ref
-                     .make[Map[UniqueKey, Queue[Exit[Option[E], O]]]](Map())
+                     .make[Map[UniqueKey, Queue[Take[E, O]]]](Map())
                      .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
       add <- {
-        val offer = (o: O) =>
-          for {
-            shouldProcess <- decide(o)
-            queues        <- queuesRef.get
-            _ <- ZIO
-                   .foldLeft(queues)(List[UniqueKey]()) { case (acc, (id, queue)) =>
-                     if (shouldProcess(id)) {
-                       queue
-                         .offer(Exit.succeed(o))
-                         .foldCauseM(
-                           {
-                             // we ignore all downstream queues that were shut down and remove them later
-                             case c if c.interrupted => ZIO.succeedNow(id :: acc)
-                             case c                  => ZIO.halt(c)
-                           },
-                           _ => ZIO.succeedNow(acc)
-                         )
-                     } else ZIO.succeedNow(acc)
-                   }
-                   .flatMap(ids => if (ids.nonEmpty) queuesRef.update(_ -- ids) else ZIO.unit)
-          } yield ()
+        val offer = (os: Chunk[O]) =>
+          os.mapM(o => decide(o).map((_, o))).flatMap { chunk =>
+            queuesRef.get.flatMap {
+              ZIO.foldLeft(_)(List.empty[UniqueKey]) { case (acc, (k, q)) =>
+                val data = chunk.collect {
+                  case (f, o) if f(k) => o
+                }
+                q.offer(Take.chunk(data)).as(acc).catchSomeCause {
+                  case c if c.interrupted => ZIO.succeedNow(k :: acc)
+                }
+              }.flatMap { ids =>
+                if (ids.nonEmpty) queuesRef.update(_ -- ids) else ZIO.unit
+              }
+          }
+        }
 
         for {
           queuesLock <- Semaphore.make(1).toManaged_
           newQueue <- Ref
-                        .make[UIO[(UniqueKey, Queue[Exit[Option[E], O]])]] {
+                        .make[UIO[(UniqueKey, Queue[Take[E, O]])]] {
                           for {
-                            queue <- Queue.bounded[Exit[Option[E], O]](maximumLag)
+                            queue <- Queue.bounded[Take[E, O]](maximumLag)
                             id     = UniqueKey()
                             _     <- queuesRef.update(_ + (id -> queue))
                           } yield (id, queue)
                         }
                         .toManaged_
-          finalize = (endTake: Exit[Option[E], Nothing]) =>
+          finalize = (endTake: Take[E, Nothing]) =>
                        // we need to make sure that no queues are currently being added
                        queuesLock.withPermit {
                          for {
                            // all newly created queues should end immediately
                            _ <- newQueue.set {
                                   for {
-                                    queue <- Queue.bounded[Exit[Option[E], O]](1)
+                                    queue <- Queue.bounded[Take[E, O]](1)
                                     _     <- queue.offer(endTake)
                                     id     = UniqueKey()
                                     _     <- queuesRef.update(_ + (id -> queue))
@@ -1005,10 +999,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                          } yield ()
                        }
           _ <- self
-                 .foreachManaged(offer)
+                 .foreachChunkManaged(offer)
                  .foldCauseM(
-                   cause => finalize(Exit.halt(cause.map(Some(_)))).toManaged_,
-                   _ => finalize(Exit.fail(None)).toManaged_
+                   cause => finalize(Take.halt(cause)).toManaged_,
+                   _ => finalize(Take.end).toManaged_
                  )
                  .fork
         } yield queuesLock.withPermit(newQueue.get.flatten)
@@ -1615,6 +1609,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def flattenTake[E1 >: E, O1](implicit ev: O <:< Take[E1, O1]): ZStream[R, E1, O1] =
     map(_.exit).flattenExitOption[E1, Chunk[O1]].flattenChunks
 
+  final def groupByKey[K](
+    f: O => K,
+    buffer: Int = 16
+  ): ZStream.GroupBy[R, E, K, O] =
+    self.groupBy(a => ZIO.succeedNow((f(a), a)), buffer)
+
   /**
    * More powerful version of [[ZStream.groupByKey]]
    */
@@ -1622,46 +1622,82 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     f: O => ZIO[R1, E1, (K, V)],
     buffer: Int = 16
   ): ZStream.GroupBy[R1, E1, K, V] = {
-    type State = Map[K, Queue[Take[E1, V]]]
-    type Out = List[(K, Queue[Take[E1, V]])]
-    def ignoreInterrupts[R, E](zio: ZIO[R, E, Any]): ZIO[R, E, _] =
-      zio.catchSomeCause {
-        case c if c.interrupted => ZIO.unit
-      }
-
-    val grouped = ZStream.managed(self.mapM(f).process).flatMap { pull =>
-      def go(state: State): ZIO[R1, E1, Option[(Out, State)]] =
-        pull.foldM(
-          {
-            case None =>
-              ZIO.foreach(state.values) { q =>
-                ignoreInterrupts(q.offer(Take.end))
-              } *> ZIO.succeed(None)
-            case Some(e) =>
-              ZIO.foreach(state.values) { q =>
-                ignoreInterrupts(q.offer(Take.fail(e)))
-              } *> ZIO.fail(e)
-          },
-          { chunk =>
-              chunk.foldM((List.empty: Out, state)) { case ((queues, s), (k, v)) =>
-                s.get(k).fold[UIO[(Out, State)]] {
-                  for {
-                    queue <- Queue.bounded[Take[E1, V]](buffer)
-                    _     <- queue.offer(Take.single(v))
-                  } yield ((k, queue) :: queues, s + (k -> queue))
-                } { q =>
-                  ignoreInterrupts(q.offer(Take.single(v))).as((queues, s))
-                }
-              }.map(Some(_))
-          }
-        )
-      ZStream
-        .unfoldM(Map.empty: State)(go)
-        .flattenIterables
-        .map { case (k, s) => (k, ZStream.fromQueueWithShutdown(s).flattenTake) }
+    val qstream = ZStream.unwrapManaged {
+      for {
+        decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]].toManaged_
+        out <- Queue
+                 .bounded[Take[E1, (K, Dequeue[Take[E1, V]])]](buffer)
+                 .toManaged(_.shutdown)
+        ref <- Ref.make[Map[K, UniqueKey]](Map()).toManaged_
+        add <- self
+                 .mapM(f)
+                 .distributedWithDynamic(
+                   buffer,
+                   (kv: (K, V)) => decider.await.flatMap(_.tupled(kv)),
+                   out.offer
+                 )
+        _ <- decider.succeed { case (k, _) =>
+               ref.get.map(_.get(k)).flatMap {
+                 case Some(idx) => ZIO.succeedNow(_ == idx)
+                 case None =>
+                   add.flatMap { case (idx, q) =>
+                     (ref.update(_ + (k -> idx)) *>
+                       out.offer(Take.single(k -> q.map(_.map(_._2))))).as(_ == idx)
+                   }
+               }
+             }.toManaged_
+      } yield ZStream.fromQueueWithShutdown(out).flattenTake
     }
-    new ZStream.GroupBy(grouped)
+    new ZStream.GroupBy(qstream.map { case (k, q) => (k, ZStream.fromQueueWithShutdown(q).flattenTake) }, buffer)
   }
+
+
+  // /**
+  //  * More powerful version of [[ZStream.groupByKey]]
+  //  */
+  // final def groupBy[R1 <: R, E1 >: E, K, V](
+  //   f: O => ZIO[R1, E1, (K, V)],
+  //   buffer: Int = 16
+  // ): ZStream.GroupBy[R1, E1, K, V] = {
+  //   type State = Map[K, Queue[Take[E1, V]]]
+  //   type Out = Chunk[(K, Queue[Take[E1, V]])]
+  //   def ignoreInterrupts[R, E](zio: ZIO[R, E, Any]): ZIO[R, E, _] =
+  //     zio.catchSomeCause {
+  //       case c if c.interrupted => ZIO.unit
+  //     }
+
+  //   val grouped = ZStream.managed(self.mapM(f).process).flatMap { pull =>
+  //     def go(state: State): ZIO[R1, E1, Option[(Out, State)]] =
+  //       pull.foldM(
+  //         {
+  //           case None =>
+  //             ZIO.foreach(state.values) { q =>
+  //               ignoreInterrupts(q.offer(Take.end))
+  //             } *> ZIO.succeed(None)
+  //           case Some(e) =>
+  //             ZIO.foreach(state.values) { q =>
+  //               ignoreInterrupts(q.offer(Take.fail(e)))
+  //             } *> ZIO.fail(e)
+  //         },
+  //         { chunk =>
+  //           ZIO.foldLeft(chunk.groupBy(_._1))((Chunk.empty: Out, state)) { case ((queues, s), (k, v)) =>
+  //               s.get(k).fold[UIO[(Out, State)]] {
+  //                 for {
+  //                   queue <- Queue.bounded[Take[E1, V]](buffer)
+  //                   _     <- queue.offer(Take.chunk(v.map(_._2)))
+  //                 } yield ((k, queue) +: queues, s + (k -> queue))
+  //               } { q =>
+  //                 ignoreInterrupts(q.offer(Take.chunk(v.map(_._2)))).as((queues, s))
+  //               }
+  //             }.map(Some(_))
+  //         }
+  //       )
+  //     ZStream
+  //       .unfoldChunkM(Map.empty: State)(go)
+  //       .map { case (k, s) => (k, ZStream.fromQueueWithShutdown(s).flattenTake) }
+  //   }
+  //   new ZStream.GroupBy(grouped)
+  // }
 
   // /**
   //  * More powerful version of [[ZStream.groupByKey]]
@@ -1705,10 +1741,51 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *  .map(_ == List(('h', "hello"), ('h', "hi"), ('w', "world"))
    * }}}
    */
-  final def groupByKey[K](
-    f: O => K
-  ): ZStream.GroupBy[R, E, K, O] =
-    self.groupBy(a => ZIO.succeedNow((f(a), a)))
+  // final def groupByKey[K](
+  //   getKey: O => K,
+  //   buffer: Int = 16
+  // ): ZStream.GroupBy[R, E, K, O] = {
+  //  val stream = ZStream.unwrapManaged {
+  //     type GroupQueueValues = Exit[Option[E], Chunk[O]]
+
+  //     for {
+  //       substreamsQueue     <- Queue
+  //                             .bounded[Exit[Option[E], (K, Queue[GroupQueueValues])]](buffer)
+  //                             .toManaged(_.shutdown)
+  //       substreamsQueuesMap <- Ref.make(Map.empty[K, Queue[GroupQueueValues]]).toManaged_
+  //       _                   <- {
+  //         val addToSubStream: (K, Chunk[O]) => ZIO[Any, Nothing, Unit] = (key: K, values: Chunk[O]) => {
+  //           for {
+  //             substreams <- substreamsQueuesMap.get
+  //             _          <- if (substreams.contains(key))
+  //                     substreams(key).offer(Exit.succeed(values))
+  //                   else
+  //                     Queue
+  //                       .bounded[GroupQueueValues](buffer)
+  //                       .tap(_.offer(Exit.succeed(values)))
+  //                       .tap(q => substreamsQueue.offer(Exit.succeed((key, q))))
+  //                       .tap(q => substreamsQueuesMap.update(_ + (key -> q)))
+  //                       .unit
+  //           } yield ()
+  //         }
+  //         (self.foreachChunk { chunk =>
+  //           ZIO.foreach_(chunk.groupBy(getKey))(addToSubStream.tupled)
+  //         } *> substreamsQueue.offer(Exit.fail(None))).catchSome {
+  //           case e =>
+  //             substreamsQueue.offer(Exit.fail(Some(e)))
+  //         }.forkManaged
+  //       }
+  //     } yield ZStream.fromQueueWithShutdown(substreamsQueue).collectWhileSuccess.map {
+  //       case (key, substreamQueue) =>
+  //         val substream = ZStream
+  //           .fromQueueWithShutdown(substreamQueue)
+  //           .collectWhileSuccess
+  //           .flattenChunks
+  //         (key, substream)
+  //     }
+  //   }
+  //   new ZStream.GroupBy(stream, buffer)
+  // }
 
   /**
    * Halts the evaluation of this stream when the provided IO completes. The given IO
@@ -2279,8 +2356,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         case q1 :: q2 :: Nil =>
           ZManaged.succeedNow {
             (
-              ZStream.fromQueueWithShutdown(q1).flattenExitOption.collectLeft,
-              ZStream.fromQueueWithShutdown(q2).flattenExitOption.collectRight
+              ZStream.fromQueueWithShutdown(q1).flattenTake.collectLeft,
+              ZStream.fromQueueWithShutdown(q2).flattenTake.collectRight
             )
           }
         case otherwise => ZManaged.dieMessage(s"partitionEither: expected two streams but got ${otherwise}")
@@ -4103,7 +4180,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * be merged in arbitrary order.
    */
   final class GroupBy[-R, +E, +K, +V](
-    private val grouped: ZStream[R, E, (K, ZStream[R, E, V])]
+    private val grouped: ZStream[R, E, (K, ZStream[R, E, V])],
+    private val buffer: Int
   ) {
 
     /**
@@ -4114,7 +4192,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         if (i < n) ZIO.succeedNow(true)
         else s.process.useNow.as(false)
       }.map(_._1)
-      new GroupBy(g1)
+      new GroupBy(g1, buffer)
     }
 
     /**
@@ -4125,14 +4203,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         if (f(k)) ZIO.succeedNow(true)
         else s.process.useNow.as(false)
       }
-      new GroupBy(g1)
+      new GroupBy(g1, buffer)
     }
 
     /**
      * Run the function across all groups, collecting the results in an arbitrary order.
      */
     def apply[R1 <: R, E1 >: E, A](f: (K, ZStream[R, E, V]) => ZStream[R1, E1, A]): ZStream[R1, E1, A] =
-      grouped.flatMapPar[R1, E1, A](Int.MaxValue, 128) { case (k, s) =>
+      grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) { case (k, s) =>
         f(k, s)
       }
   }
