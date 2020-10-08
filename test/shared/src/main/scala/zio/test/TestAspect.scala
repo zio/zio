@@ -449,6 +449,15 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that runs each test with the size set to the specified value.
+   */
+  def sized(n: Int): TestAspectAtLeastR[Sized] =
+    new PerTest.AtLeastR[Sized] {
+      def perTest[R <: Sized, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        Sized.withSize(n)(test)
+    }
+
+  /**
    * An aspect that applies the specified aspect on ScalaNative.
    */
   def native[LowerR, UpperR, LowerE, UpperE](

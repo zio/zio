@@ -259,6 +259,9 @@ object TestAspectSpec extends ZIOBaseSpec {
         assert(n)(equalTo(n + 1))
       }
     } @@ shrinks(0) @@ failing,
+    testM("sized sets the size to the specified value") {
+      assertM(Sized.size)(equalTo(42))
+    } @@ sized(42),
     testM("timeout makes tests fail after given duration") {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
