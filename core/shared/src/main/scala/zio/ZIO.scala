@@ -1668,17 +1668,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Runs this effect according to the specified schedule.
    *
-   * See [[scheduleWith]] for a variant that allows the schedule's decision to
+   * See [[scheduleFrom]] for a variant that allows the schedule's decision to
    * depend on the rsult of this effect.
    */
   final def schedule[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZIO[R1 with Clock, E, B] =
-    scheduleWith(())(schedule)
+    scheduleFrom(())(schedule)
 
   /**
-   * Runs this effect according to the specified schedule with the specified
-   * initial input to the schedule.
+   * Runs this effect according to the specified schedule starting from the
+   * specified input value.
    */
-  final def scheduleWith[R1 <: R, A1 >: A, B](a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1 with Clock, E, B] =
+  final def scheduleFrom[R1 <: R, A1 >: A, B](a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1 with Clock, E, B] =
     schedule.driver.flatMap { driver =>
       def loop(a: A1): ZIO[R1 with Clock, E, B] =
         driver.next(a).foldM(_ => driver.last.orDie, _ => self.flatMap(loop))
