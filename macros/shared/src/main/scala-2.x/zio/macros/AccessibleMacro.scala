@@ -155,9 +155,9 @@ private[macros] class AccessibleMacro(val c: whitebox.Context) {
         case (_: Capability.Effect, _) =>
           q"_root_.zio.ZIO.accessM(_.get[Service[..$serviceTypeArgs]].$name)"
         case (_: Capability.Managed, argLists) if argLists.flatten.nonEmpty =>
-          q"_root_.zio.ZManaged.service[Service[..$serviceTypeArgs]].flatMap(_.$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.ZManaged.accessManaged(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Managed, _) =>
-          q"_root_.zio.ZManaged.service[Service[..$serviceTypeArgs]].flatMap(_.$name[..$typeArgs])"
+          q"_root_.zio.ZManaged.accessManaged(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs])"
         case (_: Capability.Stream, argLists) if argLists.flatten.nonEmpty =>
           q"_root_.zio.stream.ZStream.accessStream(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Stream, _) =>
