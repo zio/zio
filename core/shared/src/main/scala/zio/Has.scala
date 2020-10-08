@@ -37,6 +37,7 @@ final class Has[A] private (
 ) extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case that: Has[_] => map == that.map
+    case _            => false
   }
 
   override def hashCode: Int = map.hashCode
