@@ -258,6 +258,12 @@ object CompressionSpec extends DefaultRunnableSpec {
             jdkGunzipped <- jdkGunzip(gzipped)
           } yield jdkGunzipped)(equalTo(longText.toList))
         ),
+        testM("input >= 2^32")(
+          assertM(for {
+            gzipped      <- Stream.fromIterable(longText).forever.take(65536).transduce(gzip()).runCollect
+            jdkGunzipped <- jdkGunzip(gzipped)
+          } yield jdkGunzipped)(hasSize(equalTo(65536)))
+        ),
         testM("transducer is re-usable")(
           assertM(for {
             gzipper       <- ZIO.effectTotal(gzip(64))

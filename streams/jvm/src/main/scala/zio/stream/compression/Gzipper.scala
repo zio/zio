@@ -49,7 +49,10 @@ private[compression] class Gzipper(
     def byte(v: Long, n: Int) = ((v >> n * 8) & 0xff).toByte
 
     val v = crc.getValue
-    val s = inputSize & 0xffff
+
+    // ISIZE (Input SIZE) -- this contains the size of the original (uncompressed) input data modulo 2^32.
+    val s = inputSize & 0xffffffffL
+
     Chunk(byte(v, 0), byte(v, 1), byte(v, 2), byte(v, 3), byte(s, 0), byte(s, 1), byte(s, 2), byte(s, 3))
   }
 
