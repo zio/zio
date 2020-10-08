@@ -842,6 +842,71 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     (self crossWith that)((_, o2) => o2)
 
   /**
+   *  Creates a [[StreamCursor]] that allows effectful iteration over the stream.
+   */
+  val cursor: ZManaged[R, Nothing, StreamCursor[Any, E, O]] = {
+    final case class Node(
+      chunk: Chunk[O],
+      next: IO[Option[E], Node]
+    )
+
+    sealed trait State
+    object State {
+      case object NotStarted                             extends State
+      final case class Done(exit: Exit[Option[E], Node]) extends State
+    }
+
+    def makeCursor(getNode: IO[Option[E], Node]): UIO[StreamCursor[Any, E, O]] =
+      Ref.make(getNode).map { ref =>
+        new StreamCursor[Any, E, O] { self =>
+          def nextNode: IO[Option[E], Node] =
+            ref.get.flatten.flatMap { node =>
+              ref.set(node.next).as(node)
+            }
+          val next: IO[Option[E], Chunk[O]] =
+            nextNode.map(_.chunk)
+          val split: UIO[StreamCursor[Any, E, O]] =
+            ref.get.flatMap(makeCursor)
+        }
+      }
+
+    def makeNode(pull: IO[Option[E], Chunk[O]], sema: Semaphore): UIO[IO[Option[E], Node]] =
+      Ref.make[State](State.NotStarted).map { ref =>
+        ref.get.flatMap {
+          case State.NotStarted =>
+            sema.withPermit {
+              ref.get.flatMap {
+                case State.NotStarted =>
+                  ZIO.uninterruptibleMask { restore =>
+                    for {
+                      exit <- restore(pull).run
+                      result <- exit.foldM(
+                                  cause => ZIO.succeedNow(Exit.halt(cause)),
+                                  chunk => makeNode(pull, sema).map(Node(chunk, _)).run
+                                )
+                      _    <- ref.set(State.Done(result))
+                      node <- ZIO.done(result)
+                    } yield node
+                  }
+                case State.Done(exit) =>
+                  ZIO.done(exit)
+              }
+            }
+          case State.Done(exit) =>
+            ZIO.done(exit)
+        }
+      }
+
+    for {
+      pull        <- process
+      env         <- ZManaged.environment[R]
+      sema        <- Semaphore.make(1).toManaged_
+      initialNode <- makeNode(pull.provide(env), sema).toManaged_
+      cursor      <- makeCursor(initialNode).toManaged_
+    } yield cursor
+  }
+
+  /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
    * queues should receive which elements. The decide function will receive the indices of the queues
    * in the resulting list.

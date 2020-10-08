@@ -823,6 +823,36 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(execution)(equalTo(List("First", "Second")))
           }
         ),
+        suite("cursor")(
+          testM("should produce correct results for simple example") {
+            val s = Stream.fromIterable(0 to 10)
+            assertM(s.cursor.use(_.stream.runSum))(equalTo(55))
+          },
+          testM("should allow traversing a stream twice") {
+            checkM(streamOfInts) { s =>
+              s.cursor.use { cursor =>
+                for {
+                  copied <- cursor.split
+                  r1     <- cursor.stream.runSum.run
+                  r2     <- copied.stream.runSum.run
+                } yield assert(r1)(equalTo(r2))
+              }
+            }
+          },
+          testM("should allow traversing a stream in parallel") {
+            checkM(streamOfInts) { s =>
+              s.cursor.use { cursor =>
+                for {
+                  copied <- cursor.split
+                  f1     <- cursor.stream.runSum.fork
+                  f2     <- copied.stream.runSum.fork
+                  r1     <- f1.await
+                  r2     <- f2.await
+                } yield assert(r1)(equalTo(r2))
+              }
+            }
+          } @@ nonFlaky
+        ),
         suite("distributedWithDynamic")(
           testM("ensures no race between subscription and stream end") {
             ZStream.empty.distributedWithDynamic(1, _ => UIO.succeedNow(_ => true)).use { add =>
