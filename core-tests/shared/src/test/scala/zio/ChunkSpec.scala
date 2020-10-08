@@ -567,7 +567,7 @@ object ChunkSpec extends ZIOBaseSpec {
       assertCompletes
     },
     testM("chunks can be constructed from heterogeneous collections") {
-      check(Gen.listOf(Gen.oneOf(Gen.anyInt, Gen.anyString))) { as =>
+      check(Gen.listOf(Gen.oneOf(Gen.anyInt, Gen.anyString, Gen.none))) { as =>
         assert(Chunk.fromIterable(as).toList)(equalTo(as))
       }
     }
