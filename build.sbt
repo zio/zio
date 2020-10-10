@@ -39,7 +39,10 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
 )
-addCommandAlias("compileNative", ";coreNative/compile;streamsNative/compile;testNative/compile")
+addCommandAlias(
+  "compileNative",
+  ";coreNative/compile;stacktracerNative/compile;streamsNative/compile;testNative/compile"
+)
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test;testJunitRunnerTestsJVM/test"
@@ -100,6 +103,7 @@ lazy val root = project
     testTestsJS,
     stacktracerJS,
     stacktracerJVM,
+    stacktracerNative,
     testRunnerJS,
     testRunnerJVM,
     testJunitRunnerJVM,
