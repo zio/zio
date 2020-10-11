@@ -845,21 +845,21 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *  Creates a [[StreamCursor]] that allows effectful iteration over the stream.
    */
   val cursor: ZManaged[R, Nothing, StreamCursor[Any, E, O]] = {
-    final case class Node[E1 <: E](
-      chunk: Chunk[O],
-      next: IO[Option[E1], Node[E1]]
+    final case class Node[+E1, +O1](
+      chunk: Chunk[O1],
+      next: IO[Option[E1], Node[E1, O1]]
     )
 
     sealed trait State
     object State {
-      case object NotStarted                                extends State
-      final case class Done(exit: Exit[Option[E], Node[E]]) extends State
+      case object NotStarted                                   extends State
+      final case class Done(exit: Exit[Option[E], Node[E, O]]) extends State
     }
 
-    def makeCursor(getNode: IO[Option[E], Node[E]]): UIO[StreamCursor[Any, E, O]] =
+    def makeCursor(getNode: IO[Option[E], Node[E, O]]): UIO[StreamCursor[Any, E, O]] =
       Ref.make(getNode).map { ref =>
         new StreamCursor[Any, E, O] { self =>
-          def nextNode: IO[Option[E], Node[E]] =
+          def nextNode: IO[Option[E], Node[E, O]] =
             ref.get.flatten.flatMap { node =>
               ref.set(node.next).as(node)
             }
@@ -870,7 +870,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         }
       }
 
-    def makeNode(pull: IO[Option[E], Chunk[O]], sema: Semaphore): UIO[IO[Option[E], Node[E]]] =
+    def makeNode(pull: IO[Option[E], Chunk[O]], sema: Semaphore): UIO[IO[Option[E], Node[E, O]]] =
       Ref.make[State](State.NotStarted).map { ref =>
         ref.get.flatMap {
           case State.NotStarted =>
