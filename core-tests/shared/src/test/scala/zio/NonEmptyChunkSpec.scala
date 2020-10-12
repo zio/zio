@@ -56,6 +56,35 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
         val expected = as.init.foldRight(map(as.last))(reduce)
         assert(actual)(equalTo(expected))
       }
-    }
+    },
+    suite("unapplySeq")(
+      zio.test.test("matches a nonempty chunk") {
+        val chunk = Chunk(1, 2, 3)
+        val actual = chunk match {
+          case NonEmptyChunk(x, y, z) => Some((x, y, z))
+          case _                      => None
+        }
+        val expected = Some((1, 2, 3))
+        assert(actual)(equalTo(expected))
+      },
+      zio.test.test("does not match an empty chunk") {
+        val chunk = Chunk.empty
+        val actual = chunk match {
+          case NonEmptyChunk(x, y, z) => Some((x, y, z))
+          case _                      => None
+        }
+        val expected = None
+        assert(actual)(equalTo(expected))
+      },
+      zio.test.test("does not match another collection type") {
+        val vector = Vector(1, 2, 3)
+        val actual = vector match {
+          case NonEmptyChunk(x, y, z) => Some((x, y, z))
+          case _                      => None
+        }
+        val expected = None
+        assert(actual)(equalTo(expected))
+      }
+    )
   )
 }
