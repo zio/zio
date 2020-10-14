@@ -249,7 +249,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Repeats this `STM` effect until its result satisfies the specified predicate.
    * '''WARNING''': `repeatUntil` uses a busy loop to repeat the effect and will consume a
-   * thread until it completes (it cannot yield).
+   * thread until it completes (it cannot yield). This is because STM describes a single atomic transaction
+   * which must either complete, retry or fail a transaction before yielding back to the ZIO Runtime.
    * - Use [[retryUntil]] instead if you don't need to maintain transaction state for repeats.
    * - Ensure repeating the STM effect will eventually satisfy the predicate.
    * - Consider using the Blocking thread pool for execution of the transaction.
@@ -260,7 +261,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Repeats this `STM` effect while its result satisfies the specified predicate.
    * '''WARNING''': `repeatWhile` uses a busy loop to repeat the effect and will consume a
-   * thread until it completes (it cannot yield).
+   * thread until it completes (it cannot yield). This is because STM describes a single atomic transaction
+   * which must either complete, retry or fail a transaction before yielding back to the ZIO Runtime.
    * - Use [[retryWhile]] instead if you don't need to maintain transaction state for repeats.
    * - Ensure repeating the STM effect will eventually not satisfy the predicate.
    * - Consider using the Blocking thread pool for execution of the transaction.
@@ -390,10 +392,15 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Repeats this effect forever (until the first error).
    * '''WARNING''': `forever` uses a busy loop to repeat the effect and will consume a
-   * thread until it fails (it cannot yield).
+   * thread until it fails. This is because STM describes a single atomic transaction, and so must either complete,
+   * retry or fail a transaction before yielding back to the ZIO Runtime.
    * - Ensure repeating the STM effect will eventually fail.
    * - Consider using the Blocking thread pool for execution of the transaction.
    */
+  @deprecated(
+    "Repeating until failure doesn't make sense in the context of STM because it will always roll back the transaction",
+    "1.0.2"
+  )
   def forever: ZSTM[R, E, Nothing] = self *> self.forever
 
   /**
