@@ -87,7 +87,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * first result; returns a failure with all errors if either transaction fails.
    */
   def &>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
-    self zipRightPar that
+    self zipParRight that
 
   /**
    * Splits the environment, providing the first part to this effect and the
@@ -115,7 +115,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * second result; returns a failure with all errors if either transaction fails.
    */
   def <&[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, A] =
-    self zipLeftPar that
+    self zipParLeft that
 
   /**
    * Sequentially zips this value with the specified one. Returns a failure with all
@@ -387,6 +387,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * A more powerful version of `fold` that allows recovering from any kind of failure.
+   * Note that as transactions, these failures could contain multiple parallel or sequential errors
+   * but will not contain interruption or die failures
    */
   def foldCause[B](f: Cause[E] => B, g: A => B)(implicit ev: CanFail[E]): URSTM[R, B] =
     self.continueWithM {
@@ -397,8 +399,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * A more powerful version of `foldM` that allows recovering from any kind of failure.
-   *
-   * todo: is this actually useful?
+   * Note that as transactions, these failures could contain multiple parallel or sequential errors
+   * but will not contain interruption or die failures
    */
   def foldCauseM[R1 <: R, E2, B](
     failure: Cause[E] => ZSTM[R1, E2, B],
@@ -409,8 +411,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
       case TExit.Succeed(a) => success(a)
       case TExit.Retry      => ZSTM.retry
     }
-
-  //new ZIO.Fold(self, failure, success)
 
   /**
    * Effectfully folds over the `STM` effect, handling both failure and
@@ -920,20 +920,20 @@ final class ZSTM[-R, +E, +A] private[stm] (
   /**
    * Named alias for `<&`.
    */
-  def zipLeftPar[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, A] =
+  def zipParLeft[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, A] =
     (self zipPar that) map (_._1)
+
+  /**
+   * Named alias for `&>`.
+   */
+  def zipParRight[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
+    (self zipPar that) map (_._2)
 
   /**
    * Named alias for `*>`.
    */
   def zipRight[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
     (self zip that) map (_._2)
-
-  /**
-   * Named alias for `&>`.
-   */
-  def zipRightPar[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
-    (self zipPar that) map (_._2)
 
   /**
    * Sequentially zips this value with the specified one, combining the values

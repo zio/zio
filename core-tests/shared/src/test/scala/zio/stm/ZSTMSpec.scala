@@ -1339,7 +1339,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(chain(10000)(_.provide(0)))(equalTo(0))
       },
       testM("long zipRightPar chains") {
-        assertM(chain(10000)(_.zipRightPar(ZSTM.succeed(0))))(equalTo(0))
+        assertM(chain(10000)(_.zipParRight(ZSTM.succeed(0))))(equalTo(0))
       }
     ),
     suite("STM environment")(
