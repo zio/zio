@@ -794,6 +794,132 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generators multiple times if necessary.
+   */
+  def zipN[R, A, B, C, D, F, G](
+    gen1: Gen[R, A],
+    gen2: Gen[R, B],
+    gen3: Gen[R, C],
+    gen4: Gen[R, D],
+    gen5: Gen[R, F]
+  )(
+    fn: (A, B, C, D, F) => G
+  ): Gen[R, G] =
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5).map { case ((((a, b), c), d), f) =>
+      fn(a, b, c, d, f)
+    }
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generators multiple times if necessary.
+   */
+  def zipN[R, A, B, C, D, F, G, H](
+    gen1: Gen[R, A],
+    gen2: Gen[R, B],
+    gen3: Gen[R, C],
+    gen4: Gen[R, D],
+    gen5: Gen[R, F],
+    gen6: Gen[R, G]
+  )(
+    fn: (A, B, C, D, F, G) => H
+  ): Gen[R, H] =
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6).map { case (((((a, b), c), d), f), g) =>
+      fn(a, b, c, d, f, g)
+    }
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generators multiple times if necessary.
+   */
+  def zipN[R, A, B, C, D, F, G, H, I](
+    gen1: Gen[R, A],
+    gen2: Gen[R, B],
+    gen3: Gen[R, C],
+    gen4: Gen[R, D],
+    gen5: Gen[R, F],
+    gen6: Gen[R, G],
+    gen7: Gen[R, H]
+  )(
+    fn: (A, B, C, D, F, G, H) => I
+  ): Gen[R, I] =
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7).map { case ((((((a, b), c), d), f), g), h) =>
+      fn(a, b, c, d, f, g, h)
+    }
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generators multiple times if necessary.
+   */
+  def zipN[R, A, B, C, D, F, G, H, I, J](
+    gen1: Gen[R, A],
+    gen2: Gen[R, B],
+    gen3: Gen[R, C],
+    gen4: Gen[R, D],
+    gen5: Gen[R, F],
+    gen6: Gen[R, G],
+    gen7: Gen[R, H],
+    gen8: Gen[R, I]
+  )(
+    fn: (A, B, C, D, F, G, H, I) => J
+  ): Gen[R, J] =
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8).map {
+      case (((((((a, b), c), d), f), g), h), i) =>
+        fn(a, b, c, d, f, g, h, i)
+    }
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generators multiple times if necessary.
+   */
+  def zipN[R, A, B, C, D, F, G, H, I, J, K](
+    gen1: Gen[R, A],
+    gen2: Gen[R, B],
+    gen3: Gen[R, C],
+    gen4: Gen[R, D],
+    gen5: Gen[R, F],
+    gen6: Gen[R, G],
+    gen7: Gen[R, H],
+    gen8: Gen[R, I],
+    gen9: Gen[R, J]
+  )(
+    fn: (A, B, C, D, F, G, H, I, J) => K
+  ): Gen[R, K] =
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8 <&> gen9).map {
+      case ((((((((a, b), c), d), f), g), h), i), j) =>
+        fn(a, b, c, d, f, g, h, i, j)
+    }
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generators multiple times if necessary.
+   */
+  def zipN[R, A, B, C, D, F, G, H, I, J, K, L](
+    gen1: Gen[R, A],
+    gen2: Gen[R, B],
+    gen3: Gen[R, C],
+    gen4: Gen[R, D],
+    gen5: Gen[R, F],
+    gen6: Gen[R, G],
+    gen7: Gen[R, H],
+    gen8: Gen[R, I],
+    gen9: Gen[R, J],
+    gen10: Gen[R, K]
+  )(
+    fn: (A, B, C, D, F, G, H, I, J, K) => L
+  ): Gen[R, L] =
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8 <&> gen9 <&> gen10).map {
+      case (((((((((a, b), c), d), f), g), h), i), j), k) =>
+        fn(a, b, c, d, f, g, h, i, j, k)
+    }
+
+  /**
    * Restricts an integer to the specified range.
    */
   private def clamp(n: Int, min: Int, max: Int): Int =
