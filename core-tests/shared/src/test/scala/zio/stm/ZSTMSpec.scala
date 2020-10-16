@@ -1,6 +1,8 @@
 package zio
 package stm
 
+import com.github.ghik.silencer.silent
+
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
@@ -253,7 +255,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             r <- if (n < 10) ref.update(_ + 1)
                  else ZSTM.fail("Ouch")
           } yield r
-
+        @silent("deprecated")
         val tx = for {
           ref <- TRef.make(0)
           n   <- effect(ref).forever
