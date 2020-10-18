@@ -563,6 +563,12 @@ object ScheduleSpec extends ZIOBaseSpec {
       val scheduleIntervals = runManually(Schedule.fixed(5.seconds), inputs).map(_._1.map(_._1))
 
       assertM(scheduleIntervals)(equalTo(List(offsetDateTime(5000), offsetDateTime(10000))))
+    },
+    testM("Schedule.unwrap should return a Schedule out of an effect") {
+      val effect   = ZIO.succeed(5).map(Schedule.recurs)
+      val schedule = Schedule.unwrap(effect)
+
+      checkRepeat(schedule, expected = 5)
     }
   )
 
