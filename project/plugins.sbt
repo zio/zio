@@ -7,7 +7,7 @@ addSbtPlugin("com.eed3si9n"                      % "sbt-buildinfo"              
 addSbtPlugin("com.geirsson"                      % "sbt-ci-release"                % "1.5.3")
 addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies"     % "0.2.14")
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings"              % "3.0.0")
-addSbtPlugin("com.typesafe"                      % "sbt-mima-plugin"               % "0.8.0")
+addSbtPlugin("com.typesafe"                      % "sbt-mima-plugin"               % "0.8.1")
 addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                    % "5.6.0")
 addSbtPlugin("org.portable-scala"                % "sbt-scala-native-crossproject" % "1.0.0")
 addSbtPlugin("org.portable-scala"                % "sbt-scalajs-crossproject"      % "1.0.0")
