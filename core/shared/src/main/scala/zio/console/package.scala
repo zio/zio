@@ -49,7 +49,7 @@ package object console {
         /**
          * Prints text to the standard error console.
          */
-        override def putStrErr(line: String): UIO[Unit] =
+        final def putStrErr(line: String): UIO[Unit] =
           putStrLn(SConsole.err)(line)
 
         final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
@@ -58,7 +58,7 @@ package object console {
         /**
          * Prints a line of text to the standard error console, including a newline character.
          */
-        override def putStrLnErr(line: String): UIO[Unit] =
+        final def putStrLnErr(line: String): UIO[Unit] =
           putStrLn(SConsole.err)(line)
 
         /**
