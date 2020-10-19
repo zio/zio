@@ -39,42 +39,24 @@ package object console {
 
     object Service {
       val live: Service = new Service {
-
-        /**
-         * Prints text to the console.
-         */
         final def putStr(line: String): UIO[Unit] =
           putStr(SConsole.out)(line)
 
-        /**
-         * Prints text to the standard error console.
-         */
         final def putStrErr(line: String): UIO[Unit] =
           putStr(SConsole.err)(line)
 
         final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
           IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
 
-        /**
-         * Prints a line of text to the standard error console, including a newline character.
-         */
         final def putStrLnErr(line: String): UIO[Unit] =
           putStrLn(SConsole.err)(line)
 
-        /**
-         * Prints a line of text to the console, including a newline character.
-         */
         final def putStrLn(line: String): UIO[Unit] =
           putStrLn(SConsole.out)(line)
 
         final def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
           IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
 
-        /**
-         * Retrieves a line of input from the console.
-         * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
-         * returns null.
-         */
         final val getStrLn: IO[IOException, String] =
           IO.effect {
             val line = StdIn.readLine()
@@ -118,6 +100,8 @@ package object console {
 
   /**
    * Retrieves a line of input from the console.
+   * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
+   * returns null.
    */
   val getStrLn: ZIO[Console, IOException, String] =
     ZIO.accessM(_.get.getStrLn)
