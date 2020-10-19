@@ -16,7 +16,7 @@
 
 package zio.test.magnolia
 
-import java.time.{ LocalDate, LocalDateTime }
+import java.time.{ Instant, LocalDate, LocalDateTime }
 import java.util.UUID
 
 import magnolia._
@@ -77,6 +77,7 @@ object DeriveGen {
   implicit val genString: DeriveGen[String]               = instance(Gen.anyString)
   implicit val genUnit: DeriveGen[Unit]                   = instance(Gen.unit)
   implicit val genUUID: DeriveGen[UUID]                   = instance(Gen.anyUUID)
+  implicit val genInstant: DeriveGen[Instant]             = instance(Gen.anyInstant)
   implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.anyLocalDateTime)
   implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.anyLocalDateTime.map(_.toLocalDate()))
   implicit val genBigDecimal: DeriveGen[BigDecimal] = instance(
