@@ -50,7 +50,7 @@ package object console {
          * Prints text to the standard error console.
          */
         final def putStrErr(line: String): UIO[Unit] =
-          putStrLn(SConsole.err)(line)
+          putStr(SConsole.err)(line)
 
         final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
           IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
