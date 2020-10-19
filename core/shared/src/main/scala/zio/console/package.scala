@@ -53,9 +53,7 @@ package object console {
           putStrLn(SConsole.err)(line)
 
         final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
-          IO.effectTotal(SConsole.withOut(stream) {
-            SConsole.print(line)
-          })
+          IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
 
         /**
          * Prints a line of text to the standard error console, including a newline character.
@@ -70,9 +68,7 @@ package object console {
           putStrLn(SConsole.out)(line)
 
         final def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
-          IO.effectTotal(SConsole.withOut(stream) {
-            SConsole.println(line)
-          })
+          IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
 
         /**
          * Retrieves a line of input from the console.
