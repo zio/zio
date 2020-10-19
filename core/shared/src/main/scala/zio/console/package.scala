@@ -39,25 +39,25 @@ package object console {
 
     object Service {
       val live: Service = new Service {
-        final def putStr(line: String): UIO[Unit] =
+        def putStr(line: String): UIO[Unit] =
           putStr(SConsole.out)(line)
 
-        final def putStrErr(line: String): UIO[Unit] =
+        def putStrErr(line: String): UIO[Unit] =
           putStr(SConsole.err)(line)
 
-        final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
+        def putStr(stream: PrintStream)(line: String): UIO[Unit] =
           IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
 
-        final def putStrLnErr(line: String): UIO[Unit] =
+        def putStrLnErr(line: String): UIO[Unit] =
           putStrLn(SConsole.err)(line)
 
-        final def putStrLn(line: String): UIO[Unit] =
+        def putStrLn(line: String): UIO[Unit] =
           putStrLn(SConsole.out)(line)
 
-        final def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
+        def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
           IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
 
-        final val getStrLn: IO[IOException, String] =
+        val getStrLn: IO[IOException, String] =
           IO.effect {
             val line = StdIn.readLine()
 
