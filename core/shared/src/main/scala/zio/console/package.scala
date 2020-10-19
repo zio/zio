@@ -38,24 +38,24 @@ package object console {
     }
 
     object Service {
+      private def putStr(stream: PrintStream)(line: String): UIO[Unit] =
+        IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
+
+      private def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
+        IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
+
       val live: Service = new Service {
         def putStr(line: String): UIO[Unit] =
-          putStr(SConsole.out)(line)
+          Service.putStr(SConsole.out)(line)
 
         def putStrErr(line: String): UIO[Unit] =
-          putStr(SConsole.err)(line)
-
-        def putStr(stream: PrintStream)(line: String): UIO[Unit] =
-          IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
+          Service.putStr(SConsole.err)(line)
 
         def putStrLnErr(line: String): UIO[Unit] =
-          putStrLn(SConsole.err)(line)
+          Service.putStrLn(SConsole.err)(line)
 
         def putStrLn(line: String): UIO[Unit] =
-          putStrLn(SConsole.out)(line)
-
-        def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
-          IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
+          Service.putStrLn(SConsole.out)(line)
 
         val getStrLn: IO[IOException, String] =
           IO.effect {
