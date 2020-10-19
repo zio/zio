@@ -45,17 +45,13 @@ package object console {
         IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
 
       val live: Service = new Service {
-        def putStr(line: String): UIO[Unit] =
-          Service.putStr(SConsole.out)(line)
+        def putStr(line: String): UIO[Unit] = Service.putStr(SConsole.out)(line)
 
-        def putStrErr(line: String): UIO[Unit] =
-          Service.putStr(SConsole.err)(line)
+        def putStrErr(line: String): UIO[Unit] = Service.putStr(SConsole.err)(line)
 
-        def putStrLnErr(line: String): UIO[Unit] =
-          Service.putStrLn(SConsole.err)(line)
+        def putStrLnErr(line: String): UIO[Unit] = Service.putStrLn(SConsole.err)(line)
 
-        def putStrLn(line: String): UIO[Unit] =
-          Service.putStrLn(SConsole.out)(line)
+        def putStrLn(line: String): UIO[Unit] = Service.putStrLn(SConsole.out)(line)
 
         val getStrLn: IO[IOException, String] =
           IO.effect {
