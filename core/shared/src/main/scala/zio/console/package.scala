@@ -16,7 +16,7 @@
 
 package zio
 
-import java.io.{ EOFException, IOException, PrintStream, Reader }
+import java.io.{ EOFException, IOException, PrintStream }
 
 import scala.io.StdIn
 import scala.{ Console => SConsole }
@@ -76,23 +76,16 @@ package object console {
 
         /**
          * Retrieves a line of input from the console.
-         */
-        final val getStrLn: IO[IOException, String] =
-          getStrLn(SConsole.in)
-
-        /**
-         * Retrieves a line of input from the console.
          * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
          * returns null.
          */
-        final def getStrLn(reader: Reader): IO[IOException, String] =
-          IO.effect(SConsole.withIn(reader) {
+        final val getStrLn: IO[IOException, String] =
+          IO.effect {
             val line = StdIn.readLine()
-            if (line == null) {
-              throw new EOFException("There is no more input left to read")
-            } else line
-          }).refineToOrDie[IOException]
 
+            if (line ne null) line
+            else throw new EOFException("There is no more input left to read")
+          }.refineToOrDie[IOException]
       }
     }
 
