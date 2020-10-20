@@ -1,6 +1,6 @@
 package zio.test.magnolia
 
-import java.time.{ LocalDate, LocalDateTime }
+import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.UUID
 
 import zio.random.Random
@@ -88,6 +88,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       test("unit")(assertDeriveGen[Unit]),
       test("uuid")(assertDeriveGen[UUID]),
       test("vector")(assertDeriveGen[Vector[Int]]),
+      test("instant")(assertDeriveGen[Instant]),
       test("localDateTime")(assertDeriveGen[LocalDateTime]),
       test("localDate")(assertDeriveGen[LocalDate]),
       test("bigDecimal")(assertDeriveGen[BigDecimal])
