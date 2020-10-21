@@ -1,14 +1,15 @@
 package zio.stream
 
 import scala.util.Random
+
 import zio.duration._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isFalse, isGreaterThanEqualTo, isTrue, succeeds }
+import zio.test.TestAspect.timeout
 import zio.test.environment.TestClock
 import zio.test.{ assertM, _ }
 import zio.{ ZIOBaseSpec, _ }
-import zio.test.TestAspect.timeout
 
 object ZSinkSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("ZSinkSpec")(
