@@ -890,7 +890,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
                    is match {
                      case Some(ch) =>
                        val idx = n - take.length
-                       if (idx < ch.length) {
+                       if (idx <= ch.length) {
                          val (chunk, leftover) = ch.splitAt(idx)
                          state.set(Chunk.empty) *> Push.emit(take ++ chunk, leftover)
                        } else {
