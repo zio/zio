@@ -3855,9 +3855,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def validate[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
-    partition(in)(f).flatMap {
-      case (e :: es, _) => ZIO.fail(::(e, es))
-      case (_, bs)      => ZIO.succeedNow(bf.fromSpecific(in)(bs))
+    partition(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(bf.fromSpecific(in)(bs))
+      else ZIO.fail(::(es.head, es.tail.toList))
     }
 
   /**
@@ -3870,9 +3870,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def validatePar[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
-    partitionPar(in)(f).flatMap {
-      case (e :: es, _) => ZIO.fail(::(e, es))
-      case (_, bs)      => ZIO.succeedNow(bf.fromSpecific(in)(bs))
+    partitionPar(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(bf.fromSpecific(in)(bs))
+      else ZIO.fail(::(es.head, es.tail.toList))
     }
 
   /**
@@ -3943,15 +3943,24 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
-  private[zio] def partitionMap[A, A1, A2](
-    iterable: Iterable[A]
-  )(f: A => Either[A1, A2]): (Iterable[A1], Iterable[A2]) =
-    iterable.foldRight((List.empty[A1], List.empty[A2])) { case (a, (es, bs)) =>
-      f(a).fold(
-        e => (e :: es, bs),
-        b => (es, b :: bs)
-      )
+  private[zio] def partitionMap[A, A1, A2, Collection[+Element] <: Iterable[Element]](
+    iterable: Collection[A]
+  )(f: A => Either[A1, A2])(implicit
+    bf1: BuildFrom[Collection[A], A1, Collection[A1]],
+    bf2: BuildFrom[Collection[A], A2, Collection[A2]]
+  ): (Collection[A1], Collection[A2]) = {
+    val left     = bf1.newBuilder(iterable)
+    val right    = bf2.newBuilder(iterable)
+    val iterator = iterable.iterator
+    while (iterator.hasNext) {
+      val a = iterator.next()
+      f(a) match {
+        case Left(a1)  => left += a1
+        case Right(a2) => right += a2
+      }
     }
+    (left.result(), right.result())
+  }
 
   private[zio] val unitFn: Any => Unit = (_: Any) => ()
 
