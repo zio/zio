@@ -3943,24 +3943,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
-  private[zio] def partitionMap[A, A1, A2, Collection[+Element] <: Iterable[Element]](
-    iterable: Collection[A]
-  )(f: A => Either[A1, A2])(implicit
-    bf1: BuildFrom[Collection[A], A1, Collection[A1]],
-    bf2: BuildFrom[Collection[A], A2, Collection[A2]]
-  ): (Collection[A1], Collection[A2]) = {
-    val left     = bf1.newBuilder(iterable)
-    val right    = bf2.newBuilder(iterable)
-    val iterator = iterable.iterator
-    while (iterator.hasNext) {
-      val a = iterator.next()
-      f(a) match {
-        case Left(a1)  => left += a1
-        case Right(a2) => right += a2
-      }
+  private[zio] def partitionMap[A, A1, A2](
+    iterable: Iterable[A]
+  )(f: A => Either[A1, A2]): (Iterable[A1], Iterable[A2]) =
+    iterable.foldRight((List.empty[A1], List.empty[A2])) { case (a, (es, bs)) =>
+      f(a).fold(
+        e => (e :: es, bs),
+        b => (es, b :: bs)
+      )
     }
-    (left.result(), right.result())
-  }
 
   private[zio] val unitFn: Any => Unit = (_: Any) => ()
 
