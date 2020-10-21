@@ -25,6 +25,32 @@ object TestAspectSpec extends ZIOBaseSpec {
         assert(after)(equalTo(-1))
       }
     },
+    testM("aroundAll evaluates all tests between before and after effects") {
+      for {
+        ref <- Ref.make(0)
+        spec = suite("suite1")(
+                 suite("suite2")(
+                   testM("test1") {
+                     assertM(ref.get)(equalTo(1))
+                   },
+                   testM("test2") {
+                     assertM(ref.get)(equalTo(1))
+                   },
+                   testM("test3") {
+                     assertM(ref.get)(equalTo(1))
+                   }
+                 ) @@ aroundAll_(ref.update(_ + 1), ref.update(_ - 1)),
+                 testM("test4") {
+                   assertM(ref.get)(equalTo(1))
+                 } @@ aroundAll_(ref.update(_ + 1), ref.update(_ - 1))
+               )
+        result <- succeeded(spec)
+        after  <- ref.get
+      } yield {
+        assert(result)(isTrue) &&
+        assert(after)(equalTo(0))
+      }
+    },
     testM("after evaluates in case if test IO fails") {
       for {
         ref <- Ref.make(0)
