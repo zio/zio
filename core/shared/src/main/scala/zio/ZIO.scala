@@ -3054,13 +3054,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
-  def foreachParN_[R, E, A](
-    n: Int
-  )(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    Semaphore
-      .make(n.toLong)
-      .flatMap(semaphore => ZIO.foreachPar_(as)(a => semaphore.withPermit(f(a))))
+  def foreachParN_[R, E, A](n: Int)(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
+    def worker(q: Queue[A], result: Promise[E, Unit], ref: Ref[Int]): URIO[R, Unit] =
+      ref.modify(n => (n > 0, n - 1)).flatMap {
+        case true  => q.take.flatMap(a => f(a).foldCauseM(result.halt(_).unit, _ => worker(q, result, ref)))
+        case false => result.succeed(()).unit
+      }
+
+    Queue
+      .bounded[A](n.toInt)
+      .bracket(_.shutdown) { q =>
+        for {
+          ref <- Ref.make(as.size)
+          p   <- Promise.make[E, Unit]
+          _   <- ZIO.foreach_(as)(q.offer).fork
+          _   <- ZIO.collectAll_(List.fill(n.toInt)(worker(q, p, ref).fork))
+          _   <- p.await
+        } yield ()
+      }
       .refailWithTrace
+  }
 
   /**
    * Returns an effect that forks all of the specified values, and returns a
