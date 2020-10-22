@@ -3866,9 +3866,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def validate[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
-    partition(in)(f).flatMap {
-      case (e :: es, _) => ZIO.fail(::(e, es))
-      case (_, bs)      => ZIO.succeedNow(bf.fromSpecific(in)(bs))
+    partition(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(bf.fromSpecific(in)(bs))
+      else ZIO.fail(::(es.head, es.tail.toList))
     }
 
   /**
@@ -3881,9 +3881,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def validatePar[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
-    partitionPar(in)(f).flatMap {
-      case (e :: es, _) => ZIO.fail(::(e, es))
-      case (_, bs)      => ZIO.succeedNow(bf.fromSpecific(in)(bs))
+    partitionPar(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(bf.fromSpecific(in)(bs))
+      else ZIO.fail(::(es.head, es.tail.toList))
     }
 
   /**
