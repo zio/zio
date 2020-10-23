@@ -19,12 +19,13 @@ The most common and easy way to create suites is to use `suite` function. For te
 
 ```scala mdoc
 import zio.test._
+import zio.test.environment.Live
 import zio.clock.nanoTime
 import Assertion.isGreaterThan
 
 val clockSuite = suite("clock") (
   testM("time is non-zero") {
-    assertM(nanoTime)(isGreaterThan(0L))
+    assertM(Live.live(nanoTime))(isGreaterThan(0L))
   }
 )
 ```
@@ -382,20 +383,12 @@ testM("zipWithLatest") {
   val s3 = s1.zipWithLatest(s2)((_, _))
 
   for {
-    q <- Queue.unbounded[(Int, Int)]
-    _ <- s3.foreach(q.offer).fork
-    a <- q.take
-    _ <- TestClock.setTime(70.milliseconds)
-    b <- q.take
-    _ <- TestClock.setTime(100.milliseconds)
-    c <- q.take
-    _ <- TestClock.setTime(140.milliseconds)
-    d <- q.take
-  } yield
-    assert(a)(equalTo(0 -> 0)) &&
-      assert(b)(equalTo(0 -> 1)) &&
-      assert(c)(equalTo(1 -> 1)) &&
-      assert(d)(equalTo(1 -> 2))
+    q      <- Queue.unbounded[(Int, Int)]
+    _      <- s3.foreach(q.offer).fork
+    fiber  <- ZIO.collectAll(ZIO.replicate(4)(q.take)).fork
+    _      <- TestClock.adjust(1.second)
+    result <- fiber.join
+  } yield assert(result)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
 }
 ```
 
