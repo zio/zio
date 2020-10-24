@@ -1208,7 +1208,6 @@ object ZManagedSpec extends ZIOBaseSpec {
           releaseLatch <- Promise.make[Nothing, Unit]
           managed       = ZManaged.reserve(Reservation(reserveLatch.await, _ => releaseLatch.succeed(())))
           res          <- managed.timeout(Duration.Zero).use(ZIO.succeed(_))
-          _            <- reserveLatch.succeed(())
           _            <- releaseLatch.await
         } yield assert(res)(isNone)
       },
