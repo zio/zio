@@ -9,6 +9,7 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Playing with ZIO Streams and JMS](http://blended-scala.org/posts/2020-10-27-ziojms/) by Andreas Gies (October 2020)
 - [Processing ZIO effects through a pipeline](https://medium.com/@svroonland/processing-zio-effects-through-a-pipeline-c469e28dff62) (September 2020)
 - [Lessons Learned From Being a ZIO Contributor](https://www.softinio.com/post/lessons-learned-from-being-a-zio-contributor/) by Salar Rahmanian (September 2020)
 - [uzhttp + sttp for light-weight http and websockets](https://timpigden.github.io/_pages/zio-uzhttp-sttp/uzhttp-sttp.html) updated for 1.0.1 by Tim Pigden (August 2020)
