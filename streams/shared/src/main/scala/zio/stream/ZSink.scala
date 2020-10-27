@@ -889,9 +889,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
                  state.get.flatMap { take =>
                    is match {
                      case Some(ch) =>
-                       val idx = n - take.length
-                       if (idx <= ch.length) {
-                         val (chunk, leftover) = ch.splitAt(idx)
+                       val remaining = n - take.length
+                       if (remaining <= ch.length) {
+                         val (chunk, leftover) = ch.splitAt(remaining)
                          state.set(Chunk.empty) *> Push.emit(take ++ chunk, leftover)
                        } else {
                          state.set(take ++ ch) *> Push.more
