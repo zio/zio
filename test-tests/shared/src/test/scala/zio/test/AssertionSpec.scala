@@ -560,6 +560,15 @@ object AssertionSpec extends ZIOBaseSpec {
     },
     test("throws must succeed when given assertion is correct") {
       assert(throw sampleException)(throws(equalTo(sampleException)))
+    },
+    test("should implement equals without exception") {
+      assert(nameStartsWithU.equals(new Object))(isFalse)
+    },
+    test("should never be equal to AssertionM") {
+      val assertion  = Assertion.assertionDirect[Unit]("sameName")()(_ => ???)
+      val assertionM = AssertionM.assertionDirect[Unit]("sameName")()(_ => ???)
+      assert(assertion.equals(assertionM))(isFalse ?? "assertion != assertionM") &&
+      assert(assertionM.equals(assertion))(isFalse ?? "assertionM != assertion")
     }
   )
 
