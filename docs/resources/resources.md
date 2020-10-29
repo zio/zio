@@ -54,6 +54,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Talks
 
+- [Redis Streams with ZIO](https://youtu.be/jJnco6sMZQY) by [Leszek Gruchała](https://twitter.com/leszekgruchala) (October 2020)
 - [FP to the Max](https://www.youtube.com/watch?v=sxudIMiOo68) by John De Goes (July 2018)
 - [Modern Data Driven Applications with ZIO Streams](https://youtu.be/bbss7elSfxs) by Itamar Ravid (December 2019)
 - Systematic error management in application - We ported Rudder to ZIO: [video in French](https://www.youtube.com/watch?v=q0PlcgR5M1Q), [slides in English](https://speakerdeck.com/fanf42/systematic-error-management-we-ported-rudder-to-zio) by François Armand (Scala.io, October 2019)
@@ -89,6 +90,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
+- [Redis Streams with ZIO](https://github.com/kensuio-oss/redis-streams-zio) by [Leszek Gruchała](https://github.com/leszekgruchala)
 - [ZIO Production Ready Microservice](https://github.com/saraiva132/zio-cats-backend) by [Rafael Figueiredo](https://github.com/saraiva132)
 - [ZIO Modern Backend giter8 Template - Tapir, sttp, http4s](https://github.com/Anadyne/zio-full-backend.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [ZIO CRUD sample - Code for the 'Spring to ZIO 101' blog post 03/2020](https://github.com/adrianfilip/zio-crud-sample) by [Adrian Filip](https://github.com/adrianfilip)
