@@ -22,22 +22,38 @@ object ZIOFnSpec extends ZIOBaseSpec {
   def checkTrace[E, A](zio: => IO[E, A]): ZIO[Any, Any, BoolAlgebra[FailureDetails]] =
     for {
       trace <- zio *> ZIO.trace
-      callSite <- tracer.traceLocation(ZIOFn.unwrap(zio)) match {
-                    case nl: NoLocation => ZIO.fail(nl)
-                    case SourceLocation(file, _, _, line) => {
-                      val _ = file
-                      ZIO.succeed(line)
+      traceTarget = zio match {
+                      case fm: ZIO.FlatMap[_, _, _, _] => ZIOFn.unwrap(fm.k)
+                      case _                           => zio
+
+                      /* case _: ZIO.EffectAsync[_, _, _] => ???
+        case _: ZIO.Fold[_, _, _, _, _] => ???
+        case _: ZIO.InterruptStatus[_, _, _] => ???
+        case _: ZIO.CheckInterrupt[_, _, _] => ???
+        case _: ZIO.Descriptor[_, _, _] => ???
+        case _: ZIO.Lock[_, _, _] => ???
+        case _: ZIO.Read[_, _, _] => ???
+        case _: ZIO.EffectSuspendTotalWith[_, _, _] => ???
+        case _: ZIO.TracingStatus[_, _, _] => ???
+        case _: ZIO.CheckTracing[_, _, _] => ???
+        case _: ZIO.RaceWith[_, _, _, _, _, _, _] => ???
+        case _: ZIO.Supervise[_, _, _] => ???
+        case _: ZIO.GetForkScope[_, _, _] => ???
+        case _: ZIO.OverrideForkScope[_, _, _] => ???*/
                     }
+      callSite <- tracer.traceLocation(traceTarget) match {
+                    case nl: NoLocation     => ZIO.fail(nl)
+                    case sl: SourceLocation => ZIO.succeed(sl)
                   }
       internalExecution <- findInternal(trace.executionTrace)
       internalStack     <- findInternal(trace.stackTrace)
-      externalExecutionLines = trace.executionTrace.collect { case SourceLocation("ZIOFnSpec.scala", _, _, line) =>
-                                 line
-                               }
+      executionTrace     = trace.executionTrace.collect { case sl: SourceLocation => sl }
     } yield {
       val internalExecutionLocations = Locations(internalExecution)
       val internalStackLocations     = Locations(internalStack)
-      assert(internalStackLocations)(contains(callSite)) &&
+      val executionTraceLocations    = Locations(executionTrace)
+      assert(executionTraceLocations)(contains(callSite) ?? "") &&
+      //assert(executionTraceLocations)(isEmpty ?? "remove me") &&
       assert(internalStackLocations)(isEmpty ?? "Internal stack must be hidden") &&
       assert(internalExecutionLocations)(isEmpty ?? "Internal execution must be hidden")
     }
@@ -62,6 +78,7 @@ object ZIOFnSpec extends ZIOBaseSpec {
     testM("<<<")(checkTrace(x <<< y)),
     testM("<>")(checkTrace(x <> y)),
     testM(">>=")(checkTrace(x >>= (_ => y))),
+    testM("flatMap")(checkTrace(x flatMap (_ => y))),
     testM(">>>")(checkTrace(x >>> y)),
     //testM("absolve")(checkTrace(???)),
     //testM("absorb")(checkTrace(???)),
