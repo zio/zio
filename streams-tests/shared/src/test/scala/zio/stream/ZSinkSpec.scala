@@ -257,6 +257,12 @@ object ZSinkSpec extends ZIOBaseSpec {
             .useNow
         }
       ),
+      testM("take emits at end of chunk")(
+        Stream(1, 2)
+          .concat(Stream.dieMessage("should not get this far"))
+          .run(Sink.take(2))
+          .map(assert(_)(equalTo(Chunk(1, 2))))
+      ),
       testM("timed") {
         for {
           f <- ZStream.fromIterable(1 to 10).mapM(i => clock.sleep(10.millis).as(i)).run(ZSink.timed).fork
