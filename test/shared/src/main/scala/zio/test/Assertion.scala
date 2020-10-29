@@ -60,8 +60,14 @@ final class Assertion[-A] private (
   def apply(a: => A): AssertResult =
     run(a)
 
+  override def canEqual(that: AssertionM[_]): Boolean = that match {
+    case _: Assertion[_] => true
+    case _               => false
+  }
+
   override def equals(that: Any): Boolean = that match {
-    case that: Assertion[_] => this.toString == that.toString
+    case that: Assertion[_] if that.canEqual(this) => this.toString == that.toString
+    case _                                         => false
   }
 
   override def hashCode: Int =
