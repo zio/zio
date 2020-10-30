@@ -60,7 +60,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
           data.unsafeSet(journal, WriteLock(n + 1, m, fiberId))
           n + 1
 
-        case _ => throw ZSTM.RetryException
+        case _ => throw ZSTM.RetryException()
       }
     )
 
@@ -161,7 +161,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
 
           newTotal
 
-        case _ => throw ZSTM.RetryException //another fiber is holding a write lock
+        case _ => throw ZSTM.RetryException() //another fiber is holding a write lock
       }
     )
 }
