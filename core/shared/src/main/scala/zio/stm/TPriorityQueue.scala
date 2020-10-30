@@ -16,10 +16,9 @@
 
 package zio.stm
 
-import zio.stm.ZSTM.internal._
-import zio.{Chunk, ChunkBuilder}
-
 import scala.collection.immutable.SortedMap
+
+import zio.{ Chunk, ChunkBuilder }
 
 /**
  * A `TPriorityQueue` contains values of type `A` that an `Ordering` is defined
@@ -61,8 +60,8 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
   def peek: USTM[A] =
     ZSTM.Effect((journal, _, _) =>
       ref.unsafeGet(journal).headOption match {
-        case None          => TExit.Retry
-        case Some((_, as)) => TExit.Succeed(as.head)
+        case None          => throw ZSTM.RetryException
+        case Some((_, as)) => as.head
       }
     )
 
@@ -105,7 +104,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ZSTM.Effect { (journal, _, _) =>
       val map = ref.unsafeGet(journal)
       map.headOption match {
-        case None => TExit.Retry
+        case None => throw ZSTM.RetryException
         case Some((a, as)) =>
           ref.unsafeSet(
             journal,
@@ -114,7 +113,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
               case Nil    => map - a
             }
           )
-          TExit.Succeed(as.head)
+          as.head
       }
     }
 
@@ -158,7 +157,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ZSTM.Effect { (journal, _, _) =>
       val map = ref.unsafeGet(journal)
       map.headOption match {
-        case None => TExit.Succeed(None)
+        case None => None
         case Some((a, as)) =>
           ref.unsafeSet(
             journal,
@@ -167,7 +166,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
               case Nil    => map - a
             }
           )
-          TExit.Succeed(Some(as.head))
+          Some(as.head)
       }
     }
 
