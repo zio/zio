@@ -16,9 +16,7 @@
 
 package zio.stm
 
-import zio.stm.ZSTM.internal._
-
-import scala.collection.immutable.{Queue => ScalaQueue}
+import scala.collection.immutable.{ Queue => ScalaQueue }
 
 final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 
@@ -26,19 +24,13 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * Checks if the queue is empty.
    */
   def isEmpty: USTM[Boolean] =
-    ZSTM.Effect { (journal, _, _) =>
-      val q = ref.unsafeGet(journal)
-      TExit.Succeed(q.isEmpty)
-    }
+    ZSTM.Effect((journal, _, _) => ref.unsafeGet(journal).isEmpty)
 
   /**
    * Checks if the queue is at capacity.
    */
   def isFull: USTM[Boolean] =
-    ZSTM.Effect { (journal, _, _) =>
-      val q = ref.unsafeGet(journal)
-      TExit.Succeed(q.size == capacity)
-    }
+    ZSTM.Effect((journal, _, _) => ref.unsafeGet(journal).size == capacity)
 
   /**
    * Views the last element inserted into the queue, retrying if the queue is
@@ -46,11 +38,9 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    */
   def last: USTM[A] =
     ZSTM.Effect { (journal, _, _) =>
-      val q = ref.unsafeGet(journal)
-
-      q.lastOption match {
-        case Some(a) => TExit.Succeed(a)
-        case None    => TExit.Retry
+      ref.unsafeGet(journal).lastOption match {
+        case Some(a) => a
+        case None    => throw ZSTM.RetryException
       }
     }
 
@@ -63,9 +53,9 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
       val q = ref.unsafeGet(journal)
 
       if (q.length < capacity)
-        TExit.Succeed(ref.unsafeSet(journal, q.enqueue(a)))
+        ref.unsafeSet(journal, q.enqueue(a))
       else
-        TExit.Retry
+        throw ZSTM.RetryException
     }
 
   /**
@@ -80,10 +70,10 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 
       val q = ref.unsafeGet(journal)
 
-      if (forQueue.size > capacity - q.length) TExit.Retry
+      if (forQueue.size > capacity - q.length) throw ZSTM.RetryException
       else {
         ref.unsafeSet(journal, q ++ forQueue)
-        TExit.Succeed(remaining)
+        remaining
       }
     }
 
@@ -93,11 +83,9 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    */
   def peek: USTM[A] =
     ZSTM.Effect { (journal, _, _) =>
-      val q = ref.unsafeGet(journal)
-
-      q.headOption match {
-        case Some(a) => TExit.Succeed(a)
-        case None    => TExit.Retry
+      ref.unsafeGet(journal).headOption match {
+        case Some(a) => a
+        case None    => throw ZSTM.RetryException
       }
     }
 
@@ -106,10 +94,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * if the queue is empty.
    */
   def peekOption: USTM[Option[A]] =
-    ZSTM.Effect { (journal, _, _) =>
-      val q = ref.unsafeGet(journal)
-      TExit.Succeed(q.headOption)
-    }
+    ZSTM.Effect((journal, _, _) => ref.unsafeGet(journal).headOption)
 
   /**
    * Takes a single element from the queue, returning `None` if the queue is
@@ -145,8 +130,8 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
       }
 
       res match {
-        case null => TExit.Retry
-        case a    => TExit.Succeed(a)
+        case null => throw ZSTM.RetryException
+        case a    => a
       }
     }
 
@@ -154,24 +139,19 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * Returns the number of elements currently in the queue.
    */
   def size: USTM[Int] =
-    ZSTM.Effect { (journal, _, _) =>
-      val q = ref.unsafeGet(journal)
-      TExit.Succeed(q.length)
-    }
+    ZSTM.Effect((journal, _, _) => ref.unsafeGet(journal).length)
 
   /**
    * Takes a single element from the queue, retrying if the queue is empty.
    */
   def take: USTM[A] =
     ZSTM.Effect { (journal, _, _) =>
-      val q = ref.unsafeGet(journal)
-
-      q.dequeueOption match {
+      ref.unsafeGet(journal).dequeueOption match {
         case Some((a, as)) =>
           ref.unsafeSet(journal, as)
-          TExit.Succeed(a)
+          a
         case None =>
-          TExit.Retry
+          throw ZSTM.RetryException
       }
     }
 
@@ -182,7 +162,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     ZSTM.Effect { (journal, _, _) =>
       val q = ref.unsafeGet(journal)
       ref.unsafeSet(journal, ScalaQueue.empty[A])
-      TExit.Succeed(q.toList)
+      q.toList
     }
 
   /**
@@ -190,11 +170,10 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    */
   def takeUpTo(max: Int): USTM[List[A]] =
     ZSTM.Effect { (journal, _, _) =>
-      val q     = ref.unsafeGet(journal)
-      val split = q.splitAt(max)
+      val split = ref.unsafeGet(journal).splitAt(max)
 
       ref.unsafeSet(journal, split._2)
-      TExit.Succeed(split._1.toList)
+      split._1.toList
     }
 }
 
