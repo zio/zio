@@ -17,7 +17,6 @@
 package zio.stm
 
 import zio.Chunk
-import zio.stm.ZSTM.internal._
 
 /**
  * Wraps array of [[TRef]] and adds methods for convenience.
@@ -94,7 +93,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i += 1
       }
 
-      TExit.Succeed(res)
+      res
     }
 
   /**
@@ -114,7 +113,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i -= 1
       }
 
-      TExit.Succeed(res)
+      res
     }
 
   /**
@@ -167,7 +166,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i += 1
       }
 
-      TExit.Succeed(res)
+      res
     }
 
   /**
@@ -230,7 +229,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
           i += 1
         }
 
-        if (found) TExit.Succeed(i - 1) else TExit.Succeed(-1)
+        if (found) i - 1 else -1
       }
 
   /**
@@ -276,7 +275,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
           i -= 1
         }
 
-        if (found) TExit.Succeed(i + 1) else TExit.Succeed(-1)
+        if (found) i + 1 else -1
       }
 
   /**
@@ -316,7 +315,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i += 1
       }
 
-      TExit.Succeed(Option(res))
+      Option(res)
     }
 
   /**
@@ -361,7 +360,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i += 1
       }
 
-      TExit.Succeed(())
+      ()
     }
 
   /**
@@ -378,7 +377,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
           i += 1
         }
 
-        TExit.Succeed(())
+        ()
       }
     }
 
