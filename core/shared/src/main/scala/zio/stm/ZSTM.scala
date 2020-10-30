@@ -319,14 +319,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * and then runs the returned effect as well to produce its results.
    */
   def flatMap[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
-    FlatMap[R1, E, E1, A, B](
-      self,
-      {
-        case TExit.Succeed(value) => f(value)
-        case TExit.Fail(error)    => ZSTM.fail(error)
-        case TExit.Retry          => ZSTM.retry
-      }
-    )
+    foldCauseM(ZSTM.failFn, f, ZSTM.retry)
 
   /**
    * Creates a composite effect that represents this effect followed by another
@@ -374,7 +367,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    */
   def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
     ev: CanFail[E]
-  ): ZSTM[R1, E1, B] = foldAllM(f, g, ZSTM.retry)
+  ): ZSTM[R1, E1, B] = foldCauseM(f, g, ZSTM.retry)
 
   /**
    * Unwraps the optional success of this effect, but can fail with None value.
@@ -544,14 +537,11 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<>`.
    */
   def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    FlatMap[R1, Nothing, E1, () => Any, A1](
-      Effect((journal, _, _) => TExit.Succeed(prepareResetJournal(journal))),
-      {
-        case TExit.Succeed(reset) =>
-          self.foldAllM[R1, E1, A1](_ => ZSTM.succeed(reset()) *> that, ZSTM.succeed(_), ZSTM.succeed(reset()) *> that)
-        case TExit.Fail(nothing) => nothing
-        case TExit.Retry         => ZSTM.retry
-      }
+    FoldCauseM[R1, Nothing, E1, () => Any, A1](
+      Effect((journal, _, _) => prepareResetJournal(journal)),
+      reset => self.foldCauseM(_ => ZSTM.succeed(reset()) *> that, ZSTM.succeed(_), ZSTM.succeed(reset()) *> that),
+      nothing => nothing,
+      ZSTM.retry
     )
 
   /**
@@ -591,14 +581,11 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<|>`.
    */
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    FlatMap[R1, Nothing, E1, () => Any, A1](
-      Effect((journal, _, _) => TExit.Succeed(prepareResetJournal(journal))),
-      {
-        case TExit.Succeed(reset) =>
-          self.foldAllM[R1, E1, A1](ZSTM.fail(_), ZSTM.succeed(_), ZSTM.succeed(reset()) *> that.orTry(self))
-        case TExit.Fail(nothing) => nothing
-        case TExit.Retry         => ZSTM.retry
-      }
+    FoldCauseM[R1, Nothing, E1, () => Any, A1](
+      Effect((journal, _, _) => prepareResetJournal(journal)),
+      reset => self.foldCauseM(ZSTM.fail(_), ZSTM.succeed(_), ZSTM.succeed(reset()) *> that.orTry(self)),
+      ZSTM.failFn,
+      ZSTM.retry
     )
 
   /**
@@ -834,35 +821,59 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def foldAllM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B], h: => ZSTM[R1, E1, B])(implicit
-    ev: CanFail[E]
-  ): ZSTM[R1, E1, B] =
-    FlatMap[R1, E, E1, A, B](
-      self,
-      {
-        case TExit.Fail(error)    => f(error)
-        case TExit.Succeed(value) => g(value)
-        case TExit.Retry          => h
-      }
-    )
+  private def foldCauseM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B], h: => ZSTM[R1, E1, B])(
+    implicit ev: CanFail[E]
+  ): ZSTM[R1, E1, B] = FoldCauseM(self, g, f, h)
 
   private def run(journal: Journal, fiberId: Fiber.Id, r0: R): TExit[E, A] = {
     type Erased = ZSTM[Any, Any, Any]
-    type Cont   = TExit[Any, Any] => Erased
+    type Cont   = Any => Erased
 
     val contStack = Stack[Cont]()
     val envStack  = Stack[AnyRef](r0.asInstanceOf[AnyRef])
 
-    @tailrec
+    // @tailrec
     def loop(self: Erased): TExit[Any, Any] =
       self match {
         case Effect(f) =>
-          val exit = f(journal, fiberId, envStack.peek())
-          if (contStack.isEmpty) exit
-          else loop(contStack.pop()(exit))
+          try {
+            val a = f(journal, fiberId, envStack.peek())
 
-        case FlatMap(stm, k) =>
-          contStack.push(k)
+            if (contStack.isEmpty) TExit.Succeed(a)
+            else {
+              val k = contStack.pop()
+
+              k match {
+                case FoldCauseM(_, onSuccess, _, _) => loop(onSuccess(a))
+                case _                              => loop(k(a))
+              }
+            }
+          } catch {
+            case ZSTM.RetryException =>
+              if (contStack.isEmpty) TExit.Retry
+              else {
+                val k = contStack.pop()
+
+                k match {
+                  case FoldCauseM(_, _, _, onRetry) => loop(onRetry)
+                  case _                            => TExit.Retry
+                }
+              }
+
+            case ZSTM.FailException(e) =>
+              if (contStack.isEmpty) TExit.Fail(e)
+              else {
+                val k = contStack.pop()
+
+                k match {
+                  case FoldCauseM(_, _, onFailure, _) => loop(onFailure(e))
+                  case _                              => TExit.Fail(e)
+                }
+              }
+          }
+
+        case fc @ FoldCauseM(stm, _, _, _) =>
+          contStack.push(fc)
           loop(stm)
 
         case ProvideSome(stm, f) =>
@@ -881,10 +892,25 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 object ZSTM {
   import internal._
 
-  private[stm] final case class FlatMap[R, E1, E2, A, B](self: ZSTM[R, E1, A], f: TExit[E1, A] => ZSTM[R, E2, B])
-      extends ZSTM[R, E2, B]
+  private val _FailFn: Any => ZSTM[Any, Any, Nothing] = ZSTM.fail(_)
 
-  private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => TExit[E, A]) extends ZSTM[R, E, A]
+  private def failFn[E]: E => ZSTM[Any, E, Nothing] = _FailFn.asInstanceOf[E => ZSTM[Any, E, Nothing]]
+
+  private[stm] case class FailException[E](e: E) extends Throwable(null, null, false, false)
+
+  private[stm] case object RetryException extends Throwable(null, null, false, false)
+
+  private[stm] final case class FoldCauseM[R, E1, E2, A, B](
+    self: ZSTM[R, E1, A],
+    onSuccess: A => ZSTM[R, E2, B],
+    onFailure: E1 => ZSTM[R, E2, B],
+    onRetry: ZSTM[R, E2, B]
+  ) extends ZSTM[R, E2, B]
+      with Function[A, ZSTM[R, E2, B]] {
+    def apply(a: A): ZSTM[R, E2, B] = onSuccess(a)
+  }
+
+  private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => A) extends ZSTM[R, E, A]
 
   private[stm] final case class ProvideSome[R1, R2, E, A](effect: ZSTM[R1, E, A], f: R2 => R1) extends ZSTM[R2, E, A]
 
@@ -996,17 +1022,17 @@ object ZSTM {
   /**
    * Retrieves the environment inside an stm.
    */
-  def environment[R]: URSTM[R, R] = Effect((_, _, r) => TExit.Succeed(r))
+  def environment[R]: URSTM[R, R] = Effect((_, _, r) => r)
 
   /**
    * Returns a value that models failure in the transaction.
    */
-  def fail[E](e: => E): STM[E, Nothing] = Effect((_, _, _) => TExit.Fail(e))
+  def fail[E](e: => E): STM[E, Nothing] = Effect((_, _, _) => throw FailException(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  val fiberId: USTM[Fiber.Id] = Effect((_, fiberId, _) => TExit.Succeed(fiberId))
+  val fiberId: USTM[Fiber.Id] = Effect((_, fiberId, _) => fiberId)
 
   /**
    * Filters the collection using the specified effectual predicate.
@@ -1323,7 +1349,7 @@ object ZSTM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  val retry: USTM[Nothing] = Effect((_, _, _) => TExit.Retry)
+  val retry: USTM[Nothing] = Effect((_, _, _) => throw RetryException)
 
   /**
    * Returns an effect with the value on the right part.
@@ -1372,7 +1398,7 @@ object ZSTM {
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  def succeed[A](a: => A): USTM[A] = Effect((_, _, _) => TExit.Succeed(a))
+  def succeed[A](a: => A): USTM[A] = Effect((_, _, _) => a)
 
   /**
    * Suspends creation of the specified transaction lazily.
