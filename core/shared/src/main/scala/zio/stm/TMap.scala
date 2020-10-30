@@ -57,7 +57,7 @@ final class TMap[K, V] private (
         tSize.unsafeSet(journal, currSize - 1)
       }
 
-      TExit.unit
+      ()
     }
 
   /**
@@ -78,7 +78,7 @@ final class TMap[K, V] private (
         i += 1
       }
 
-      TExit.Succeed(res)
+      res
     }
 
   /**
@@ -102,7 +102,7 @@ final class TMap[K, V] private (
       val idx     = TMap.indexOf(k, buckets.array.length)
       val bucket  = buckets.array(idx).unsafeGet(journal)
 
-      TExit.Succeed(bucket.find(_._1 == k).map(_._2))
+      bucket.find(_._1 == k).map(_._2)
     }
 
   /**
@@ -189,7 +189,7 @@ final class TMap[K, V] private (
         }
       }
 
-      TExit.unit
+      ()
     }
   }
 
@@ -230,7 +230,7 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.unit
+      ()
     }
 
   /**
@@ -264,7 +264,7 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.unit
+      ()
     }
 
   /**
@@ -298,7 +298,7 @@ final class TMap[K, V] private (
         i += 1
       }
 
-      TExit.Succeed(builder.result())
+      builder.result()
     }
 
   /**
@@ -348,7 +348,7 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.unit
+      ()
     }
 
   /**
@@ -384,7 +384,7 @@ final class TMap[K, V] private (
           }
 
           tSize.unsafeSet(journal, newSize)
-          TExit.unit
+          ()
         }
       }
     }
