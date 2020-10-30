@@ -207,16 +207,13 @@ object ZTRef {
       }
 
     def get: USTM[A] =
-      ZSTM.Effect { (journal, _, _) =>
-        val entry = getOrMakeEntry(journal)
-        TExit.Succeed(entry.unsafeGet[A])
-      }
+      ZSTM.Effect((journal, _, _) => getOrMakeEntry(journal).unsafeGet[A])
 
     def set(a: A): USTM[Unit] =
       ZSTM.Effect { (journal, _, _) =>
         val entry = getOrMakeEntry(journal)
         entry.unsafeSet(a)
-        TExit.unit
+        ()
       }
 
     /**
@@ -227,7 +224,7 @@ object ZTRef {
         val entry    = getOrMakeEntry(journal)
         val oldValue = entry.unsafeGet[A]
         entry.unsafeSet(a)
-        TExit.Succeed(oldValue)
+        oldValue
       }
 
     /**
@@ -238,7 +235,7 @@ object ZTRef {
         val entry    = getOrMakeEntry(journal)
         val oldValue = entry.unsafeGet[A]
         entry.unsafeSet(f(oldValue))
-        TExit.Succeed(oldValue)
+        oldValue
       }
 
     /**
@@ -257,7 +254,7 @@ object ZTRef {
         val entry                = getOrMakeEntry(journal)
         val (retValue, newValue) = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
-        TExit.Succeed(retValue)
+        retValue
       }
 
     /**
@@ -278,7 +275,7 @@ object ZTRef {
         val entry    = getOrMakeEntry(journal)
         val newValue = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
-        TExit.unit
+        ()
       }
 
     /**
@@ -289,7 +286,7 @@ object ZTRef {
         val entry    = getOrMakeEntry(journal)
         val newValue = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
-        TExit.Succeed(newValue)
+        newValue
       }
 
     /**
@@ -541,7 +538,7 @@ object ZTRef {
       val todo      = new AtomicReference[Map[TxnId, Todo]](Map())
       val tref      = new Atomic(versioned, todo)
       journal.put(tref, Entry(tref, true))
-      TExit.Succeed(tref)
+      tref
     }
 
   /**
