@@ -847,60 +847,62 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
     val contStack = Stack[Cont]()
     val envStack  = Stack[AnyRef](r0.asInstanceOf[AnyRef])
+    var exit      = null.asInstanceOf[TExit[Any, Any]]
+    var curr      = self.asInstanceOf[Erased]
 
-    // @tailrec
-    def loop(self: Erased): TExit[Any, Any] =
-      self match {
+    while (exit eq null) {
+      curr match {
         case Effect(f) =>
           try {
             val a = f(journal, fiberId, envStack.peek())
 
-            if (contStack.isEmpty) TExit.Succeed(a)
+            if (contStack.isEmpty) exit = TExit.Succeed(a)
             else {
               val k = contStack.pop()
 
-              k match {
-                case FoldCauseM(_, onSuccess, _, _) => loop(onSuccess(a))
-                case _                              => loop(k(a))
+              curr = k match {
+                case FoldCauseM(_, onSuccess, _, _) => onSuccess(a)
+                case _                              => k(a)
               }
             }
           } catch {
-            case ZSTM.RetryException =>
-              if (contStack.isEmpty) TExit.Retry
+            case ZSTM.RetryException() =>
+              if (contStack.isEmpty) exit = TExit.Retry
               else {
                 val k = contStack.pop()
 
                 k match {
-                  case FoldCauseM(_, _, _, onRetry) => loop(onRetry)
-                  case _                            => TExit.Retry
+                  case FoldCauseM(_, _, _, onRetry) => curr = onRetry
+                  case _                            => exit = TExit.Retry
                 }
               }
 
             case ZSTM.FailException(e) =>
-              if (contStack.isEmpty) TExit.Fail(e)
+              if (contStack.isEmpty) exit = TExit.Fail(e)
               else {
                 val k = contStack.pop()
 
                 k match {
-                  case FoldCauseM(_, _, onFailure, _) => loop(onFailure(e))
-                  case _                              => TExit.Fail(e)
+                  case FoldCauseM(_, _, onFailure, _) => curr = onFailure(e)
+                  case _                              => exit = TExit.Fail(e)
                 }
               }
           }
 
         case fc @ FoldCauseM(stm, _, _, _) =>
           contStack.push(fc)
-          loop(stm)
+          curr = stm
 
         case ProvideSome(stm, f) =>
           envStack.push(f.asInstanceOf[AnyRef => AnyRef](envStack.peek()))
 
           val cleanup = ZSTM.succeed(envStack.pop())
 
-          loop(stm.ensuring(cleanup))
+          curr = stm.ensuring(cleanup)
       }
+    }
 
-    loop(self.asInstanceOf[Erased]).asInstanceOf[TExit[E, A]]
+    exit.asInstanceOf[TExit[E, A]]
   }
 
 }
@@ -914,7 +916,7 @@ object ZSTM {
 
   private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
 
-  private[stm] case object RetryException extends Throwable(null, null, false, false)
+  private[stm] final case class RetryException() extends Throwable(null, null, false, false)
 
   private[stm] final case class FoldCauseM[R, E1, E2, A, B](
     self: ZSTM[R, E1, A],
@@ -1324,7 +1326,7 @@ object ZSTM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  val retry: USTM[Nothing] = Effect((_, _, _) => throw RetryException)
+  val retry: USTM[Nothing] = Effect((_, _, _) => throw RetryException())
 
   /**
    * Returns an effect with the value on the right part.
