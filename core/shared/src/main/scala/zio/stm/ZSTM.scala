@@ -866,7 +866,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
               }
             }
           } catch {
-            case ZSTM.RetryException() =>
+            case ZSTM.RetryException =>
               if (contStack.isEmpty) exit = TExit.Retry
               else {
                 val k = contStack.pop()
@@ -916,7 +916,7 @@ object ZSTM {
 
   private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
 
-  private[stm] final case class RetryException() extends Throwable(null, null, false, false)
+  private[stm] case object RetryException extends Throwable(null, null, false, false)
 
   private[stm] final case class FoldCauseM[R, E1, E2, A, B](
     self: ZSTM[R, E1, A],
@@ -1326,7 +1326,7 @@ object ZSTM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  val retry: USTM[Nothing] = Effect((_, _, _) => throw RetryException())
+  val retry: USTM[Nothing] = Effect((_, _, _) => throw RetryException)
 
   /**
    * Returns an effect with the value on the right part.

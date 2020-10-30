@@ -40,7 +40,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     ZSTM.Effect { (journal, _, _) =>
       ref.unsafeGet(journal).lastOption match {
         case Some(a) => a
-        case None    => throw ZSTM.RetryException()
+        case None    => throw ZSTM.RetryException
       }
     }
 
@@ -55,7 +55,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
       if (q.length < capacity)
         ref.unsafeSet(journal, q.enqueue(a))
       else
-        throw ZSTM.RetryException()
+        throw ZSTM.RetryException
     }
 
   /**
@@ -70,7 +70,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 
       val q = ref.unsafeGet(journal)
 
-      if (forQueue.size > capacity - q.length) throw ZSTM.RetryException()
+      if (forQueue.size > capacity - q.length) throw ZSTM.RetryException
       else {
         ref.unsafeSet(journal, q ++ forQueue)
         remaining
@@ -85,7 +85,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     ZSTM.Effect { (journal, _, _) =>
       ref.unsafeGet(journal).headOption match {
         case Some(a) => a
-        case None    => throw ZSTM.RetryException()
+        case None    => throw ZSTM.RetryException
       }
     }
 
@@ -130,7 +130,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
       }
 
       res match {
-        case null => throw ZSTM.RetryException()
+        case null => throw ZSTM.RetryException
         case a    => a
       }
     }
@@ -151,7 +151,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
           ref.unsafeSet(journal, as)
           a
         case None =>
-          throw ZSTM.RetryException()
+          throw ZSTM.RetryException
       }
     }
 
